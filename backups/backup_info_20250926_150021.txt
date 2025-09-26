@@ -1,0 +1,21 @@
+XieHe医疗影像诊断系统 - 备份信息
+=====================================
+
+备份时间: 2025年 09月 26日 星期五 15:00:28 CST
+备份版本: 20250926_150021
+
+文件列表:
+- MySQL完整备份: mysql/full_backup_20250926_150021.sql
+- MySQL系统备份: mysql/medical_system_20250926_150021.sql  
+- Redis数据备份: redis/dump_20250926_150021.rdb
+- MySQL Volume: volumes/mysql_volume_20250926_150021.tar.gz
+- Redis Volume: volumes/redis_volume_20250926_150021.tar.gz
+
+恢复命令:
+- MySQL: ./scripts/restore_database.sh 20250926_150021
+- 手动恢复: docker exec -i medical_mysql mysql -u root -p < backups/mysql/medical_system_20250926_150021.sql
+
+系统状态:
+NAME            STATUS                   PORTS
+medical_mysql   Up 2 minutes (healthy)   33060/tcp, 0.0.0.0:3307->3306/tcp, :::3307->3306/tcp
+medical_redis   Up 2 minutes (healthy)   0.0.0.0:6380->6379/tcp, :::6380->6379/tcp
