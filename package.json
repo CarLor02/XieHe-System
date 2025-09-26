@@ -1,28 +1,74 @@
 {
-  "name": "next-app",
-  "version": "0.1.0",
+  "name": "medical-imaging-system",
+  "version": "1.0.0",
+  "description": "医疗影像诊断系统 - 基于AI的完整医疗影像诊断解决方案",
   "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
-    "dev": "cross-env NODE_ENV=development next dev -H 0.0.0.0 -p 3000",
-    "build": "next build",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@react-google-maps/api": "^2.19.3",
-    "next": "15.3.2",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "recharts": "^3.0.2"
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && python main.py",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && pip install -r requirements.txt",
+    "start": "concurrently \"npm run start:frontend\" \"npm run start:backend\"",
+    "start:frontend": "cd frontend && npm run start",
+    "start:backend": "cd backend && python main.py",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend && npm run test",
+    "test:backend": "cd backend && python -m pytest",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && flake8 .",
+    "format": "npm run format:frontend && npm run format:backend",
+    "format:frontend": "cd frontend && npm run format",
+    "format:backend": "cd backend && black . && isort .",
+    "clean": "npm run clean:frontend && npm run clean:backend",
+    "clean:frontend": "cd frontend && npm run clean",
+    "clean:backend": "cd backend && find . -type d -name __pycache__ -delete",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "setup": "npm run setup:frontend && npm run setup:backend",
+    "setup:frontend": "cd frontend && npm install",
+    "setup:backend": "cd backend && pip install -r requirements-dev.txt"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "autoprefixer": "^10.4.21",
-    "cross-env": "^7.0.3",
-    "postcss": "^8.5.5",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5"
-  }
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0",
+    "python": ">=3.9.0"
+  },
+  "keywords": [
+    "medical",
+    "imaging",
+    "diagnosis",
+    "ai",
+    "healthcare",
+    "dicom",
+    "nextjs",
+    "fastapi",
+    "python",
+    "typescript"
+  ],
+  "author": {
+    "name": "医疗影像团队",
+    "email": "team@medical-imaging.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/medical-imaging-system.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/medical-imaging-system/issues"
+  },
+  "homepage": "https://github.com/your-org/medical-imaging-system#readme"
 }

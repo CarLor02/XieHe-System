@@ -1,0 +1,70 @@
+#!/bin/sh
+# Git commit message format checker
+# 检查提交信息是否符合项目规范
+
+commit_regex='^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\(.+\))?: .{1,50}'
+
+error_msg="
+❌ 提交信息格式错误！
+
+正确格式: <type>(<scope>): <subject>
+
+类型 (type):
+  feat:     新功能
+  fix:      修复bug
+  docs:     文档更新
+  style:    代码格式调整
+  refactor: 代码重构
+  perf:     性能优化
+  test:     测试相关
+  chore:    构建过程或辅助工具的变动
+  ci:       CI/CD相关
+  build:    构建系统或外部依赖的变动
+
+作用域 (scope) - 可选:
+  auth, patient, image, api, ui, db, config
+
+主题 (subject):
+  - 不超过50字符
+  - 首字母小写
+  - 结尾不加句号
+
+示例:
+  feat(auth): 添加JWT令牌刷新功能
+  fix(patient): 修复患者搜索分页问题
+  docs(api): 更新患者管理API文档
+"
+
+# 读取提交信息
+commit_message=$(cat "$1")
+
+# 检查提交信息格式
+if ! echo "$commit_message" | grep -qE "$commit_regex"; then
+    echo "$error_msg"
+    exit 1
+fi
+
+# 检查主题长度
+subject=$(echo "$commit_message" | head -n1 | sed 's/^[^:]*: //')
+if [ ${#subject} -gt 50 ]; then
+    echo "❌ 提交主题过长！当前长度: ${#subject}，最大长度: 50"
+    echo "主题: $subject"
+    exit 1
+fi
+
+# 检查主题是否以大写字母开头
+if echo "$subject" | grep -q '^[A-Z]'; then
+    echo "❌ 提交主题不应以大写字母开头！"
+    echo "主题: $subject"
+    exit 1
+fi
+
+# 检查主题是否以句号结尾
+if echo "$subject" | grep -q '\.$'; then
+    echo "❌ 提交主题不应以句号结尾！"
+    echo "主题: $subject"
+    exit 1
+fi
+
+echo "✅ 提交信息格式正确"
+exit 0

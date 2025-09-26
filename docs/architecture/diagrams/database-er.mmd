@@ -1,0 +1,172 @@
+erDiagram
+    %% 医疗影像诊断系统数据库关系图
+    %% 用户管理模块
+    users {
+        varchar id PK "用户ID"
+        varchar username UK "用户名"
+        varchar email UK "邮箱"
+        varchar password_hash "密码哈希"
+        varchar full_name "真实姓名"
+        varchar phone "手机号"
+        varchar department_id "部门ID"
+        boolean is_active "是否激活"
+        timestamp created_at "创建时间"
+        timestamp updated_at "更新时间"
+    }
+
+    roles {
+        varchar id PK "角色ID"
+        varchar name UK "角色名称"
+        varchar display_name "显示名称"
+        text description "角色描述"
+        int level "角色级别"
+        boolean is_active "是否激活"
+        timestamp created_at "创建时间"
+    }
+
+    permissions {
+        varchar id PK "权限ID"
+        varchar name UK "权限名称"
+        varchar resource "资源类型"
+        varchar action "操作类型"
+        json conditions "权限条件"
+        timestamp created_at "创建时间"
+    }
+
+    user_roles {
+        varchar id PK "关联ID"
+        varchar user_id FK "用户ID"
+        varchar role_id FK "角色ID"
+        varchar granted_by FK "授权人ID"
+        timestamp granted_at "授权时间"
+        boolean is_active "是否激活"
+    }
+
+    role_permissions {
+        varchar id PK "关联ID"
+        varchar role_id FK "角色ID"
+        varchar permission_id FK "权限ID"
+        varchar granted_by FK "授权人ID"
+        timestamp granted_at "授权时间"
+    }
+
+    %% 患者管理模块
+    patients {
+        varchar id PK "患者ID"
+        varchar patient_no UK "患者编号"
+        varchar name "患者姓名"
+        enum gender "性别"
+        date birth_date "出生日期"
+        varchar phone "手机号"
+        varchar id_card "身份证号"
+        json allergies "过敏史"
+        json medical_history "病史"
+        varchar created_by FK "创建人"
+        boolean is_deleted "是否删除"
+        timestamp created_at "创建时间"
+    }
+
+    %% 影像管理模块
+    studies {
+        varchar id PK "研究ID"
+        varchar study_uid UK "研究UID"
+        varchar patient_id FK "患者ID"
+        date study_date "检查日期"
+        varchar modality "设备类型"
+        varchar body_part "检查部位"
+        enum study_status "研究状态"
+        enum priority "优先级"
+        int series_count "序列数量"
+        varchar created_by FK "创建人"
+        timestamp created_at "创建时间"
+    }
+
+    series {
+        varchar id PK "序列ID"
+        varchar series_uid UK "序列UID"
+        varchar study_id FK "研究ID"
+        int series_number "序列号"
+        varchar series_description "序列描述"
+        varchar modality "设备类型"
+        int instance_count "实例数量"
+        bigint series_size "序列大小"
+        timestamp created_at "创建时间"
+    }
+
+    instances {
+        varchar id PK "实例ID"
+        varchar instance_uid UK "实例UID"
+        varchar series_id FK "序列ID"
+        int instance_number "实例号"
+        varchar file_path "文件路径"
+        bigint file_size "文件大小"
+        json metadata "DICOM元数据"
+        enum upload_status "上传状态"
+        enum process_status "处理状态"
+        timestamp created_at "创建时间"
+    }
+
+    %% 诊断报告模块
+    diagnosis_reports {
+        varchar id PK "报告ID"
+        varchar report_no UK "报告编号"
+        varchar patient_id FK "患者ID"
+        varchar study_id FK "研究ID"
+        varchar title "报告标题"
+        text findings "检查所见"
+        text impression "诊断意见"
+        text recommendations "建议"
+        enum report_status "报告状态"
+        enum priority "优先级"
+        date report_date "报告日期"
+        varchar doctor_id FK "报告医生ID"
+        varchar reviewer_id FK "审核医生ID"
+        varchar approved_by FK "批准人ID"
+        timestamp created_at "创建时间"
+    }
+
+    %% 系统管理模块
+    system_configs {
+        int id PK "配置ID"
+        varchar config_key UK "配置键"
+        text config_value "配置值"
+        varchar category "配置分类"
+        varchar description "配置描述"
+        varchar created_by FK "创建人"
+        timestamp created_at "创建时间"
+    }
+
+    audit_logs {
+        bigint id PK "日志ID"
+        varchar user_id FK "用户ID"
+        varchar action "操作动作"
+        varchar resource_type "资源类型"
+        varchar resource_id "资源ID"
+        varchar ip_address "IP地址"
+        json request_data "请求数据"
+        int status_code "状态码"
+        timestamp created_at "创建时间"
+    }
+
+    %% 关系定义
+    users ||--o{ user_roles : "用户-角色"
+    roles ||--o{ user_roles : "角色-用户"
+    roles ||--o{ role_permissions : "角色-权限"
+    permissions ||--o{ role_permissions : "权限-角色"
+    users ||--o{ user_roles : "授权人"
+    users ||--o{ role_permissions : "授权人"
+
+    users ||--o{ patients : "创建患者"
+    patients ||--o{ studies : "患者-研究"
+    users ||--o{ studies : "创建研究"
+    studies ||--o{ series : "研究-序列"
+    series ||--o{ instances : "序列-实例"
+
+    patients ||--o{ diagnosis_reports : "患者-报告"
+    studies ||--o{ diagnosis_reports : "研究-报告"
+    users ||--o{ diagnosis_reports : "报告医生"
+    users ||--o{ diagnosis_reports : "审核医生"
+    users ||--o{ diagnosis_reports : "批准人"
+
+    users ||--o{ system_configs : "配置创建人"
+    users ||--o{ audit_logs : "操作用户"

@@ -1,0 +1,419 @@
+{
+  "info": {
+    "name": "医疗影像诊断系统 API",
+    "description": "医疗影像诊断系统的完整API接口集合",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "认证授权",
+      "item": [
+        {
+          "name": "用户登录",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"doctor001\",\n  \"password\": \"password123\",\n  \"remember_me\": false,\n  \"captcha\": \"ABCD\",\n  \"captcha_key\": \"captcha_key_123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success && response.data.access_token) {",
+                  "        pm.collectionVariables.set('access_token', response.data.access_token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "刷新令牌",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "获取当前用户信息",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "用户登出",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "用户管理",
+      "item": [
+        {
+          "name": "获取用户列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users?page=1&size=20&search=张&department=放射科&role=doctor&is_active=true",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "张"
+                },
+                {
+                  "key": "department",
+                  "value": "放射科"
+                },
+                {
+                  "key": "role",
+                  "value": "doctor"
+                },
+                {
+                  "key": "is_active",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "创建用户",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"doctor002\",\n  \"email\": \"doctor002@hospital.com\",\n  \"password\": \"password123\",\n  \"full_name\": \"李医生\",\n  \"phone\": \"13812345678\",\n  \"department_id\": \"dept_001\",\n  \"job_title\": \"住院医师\",\n  \"role_ids\": [\"role_doctor\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "获取用户详情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "更新用户信息",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"李主任医师\",\n  \"job_title\": \"主任医师\",\n  \"phone\": \"13812345679\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "患者管理",
+      "item": [
+        {
+          "name": "获取患者列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/patients?page=1&size=20&search=张三&gender=male&age_min=18&age_max=65",
+              "host": ["{{base_url}}"],
+              "path": ["patients"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "张三"
+                },
+                {
+                  "key": "gender",
+                  "value": "male"
+                },
+                {
+                  "key": "age_min",
+                  "value": "18"
+                },
+                {
+                  "key": "age_max",
+                  "value": "65"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "创建患者",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"李四\",\n  \"gender\": \"female\",\n  \"birth_date\": \"1985-06-20\",\n  \"phone\": \"13987654321\",\n  \"id_card\": \"110101198506201234\",\n  \"address\": \"北京市海淀区中关村大街1号\",\n  \"emergency_contact\": \"王五\",\n  \"emergency_phone\": \"13612345678\",\n  \"blood_type\": \"A+\",\n  \"height\": 165.5,\n  \"weight\": 55.0,\n  \"allergies\": [\"青霉素\", \"海鲜\"],\n  \"medical_history\": {\n    \"diabetes\": \"2020-01-01\",\n    \"hypertension\": \"2019-06-15\"\n  },\n  \"insurance_type\": \"城镇职工医保\",\n  \"insurance_no\": \"1101011234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/patients",
+              "host": ["{{base_url}}"],
+              "path": ["patients"]
+            }
+          }
+        },
+        {
+          "name": "获取患者详情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/patients/{{patient_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["patients", "{{patient_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "影像管理",
+      "item": [
+        {
+          "name": "获取影像研究列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/studies?page=1&size=20&patient_id={{patient_id}}&modality=CT&status=completed",
+              "host": ["{{base_url}}"],
+              "path": ["studies"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "patient_id",
+                  "value": "{{patient_id}}"
+                },
+                {
+                  "key": "modality",
+                  "value": "CT"
+                },
+                {
+                  "key": "status",
+                  "value": "completed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "创建影像研究",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"study_date\": \"2025-09-24\",\n  \"study_time\": \"10:30:00\",\n  \"study_description\": \"腹部CT增强\",\n  \"modality\": \"CT\",\n  \"body_part\": \"腹部\",\n  \"referring_physician\": \"张医生\",\n  \"performing_physician\": \"李技师\",\n  \"priority\": \"normal\",\n  \"clinical_info\": \"腹痛待查\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/studies",
+              "host": ["{{base_url}}"],
+              "path": ["studies"]
+            }
+          }
+        },
+        {
+          "name": "获取影像研究详情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/studies/{{study_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["studies", "{{study_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "诊断报告",
+      "item": [
+        {
+          "name": "获取诊断报告列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reports?page=1&size=20&patient_id={{patient_id}}&status=approved",
+              "host": ["{{base_url}}"],
+              "path": ["reports"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "patient_id",
+                  "value": "{{patient_id}}"
+                },
+                {
+                  "key": "status",
+                  "value": "approved"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "创建诊断报告",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"study_id\": \"{{study_id}}\",\n  \"template_id\": \"template_001\",\n  \"title\": \"胸部CT平扫报告\",\n  \"clinical_info\": \"胸痛3天，伴咳嗽\",\n  \"examination_method\": \"胸部CT平扫\",\n  \"findings\": \"双肺纹理清晰，未见明显异常密度影...\",\n  \"impression\": \"双肺未见明显异常\",\n  \"recommendations\": \"建议定期复查\",\n  \"priority\": \"normal\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/reports",
+              "host": ["{{base_url}}"],
+              "path": ["reports"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

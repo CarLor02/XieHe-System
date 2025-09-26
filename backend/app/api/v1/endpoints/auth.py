@@ -1,0 +1,518 @@
+"""
+认证相关API端点
+包括用户登录、注册、令牌刷新、密码重置等功能
+
+作者: XieHe Medical System
+创建时间: 2025-09-24
+"""
+
+from typing import Dict, Any
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr, Field
+
+from app.core.database import get_db
+from app.core.security import security_manager, hash_password, verify_password
+from app.core.auth import get_current_active_user, get_current_user, security
+from app.core.exceptions import AuthenticationException, BusinessLogicException
+from app.core.cache import get_cache_manager
+
+import logging
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+# ==========================================
+# Pydantic模型
+# ==========================================
+
+class UserLogin(BaseModel):
+    """用户登录请求模型"""
+    username: str = Field(..., min_length=3, max_length=50, description="用户名或邮箱")
+    password: str = Field(..., min_length=6, max_length=128, description="密码")
+    remember_me: bool = Field(default=False, description="记住我")
+
+
+class UserRegister(BaseModel):
+    """用户注册请求模型"""
+    username: str = Field(..., min_length=3, max_length=50, description="用户名")
+    email: EmailStr = Field(..., description="邮箱地址")
+    password: str = Field(..., min_length=6, max_length=128, description="密码")
+    confirm_password: str = Field(..., min_length=6, max_length=128, description="确认密码")
+    full_name: str = Field(..., min_length=2, max_length=100, description="姓名")
+    phone: str = Field(None, max_length=20, description="手机号")
+
+
+class TokenRefresh(BaseModel):
+    """令牌刷新请求模型"""
+    refresh_token: str = Field(..., description="刷新令牌")
+
+
+class PasswordReset(BaseModel):
+    """密码重置请求模型"""
+    email: EmailStr = Field(..., description="邮箱地址")
+
+
+class PasswordResetConfirm(BaseModel):
+    """密码重置确认模型"""
+    token: str = Field(..., description="重置令牌")
+    new_password: str = Field(..., min_length=6, max_length=128, description="新密码")
+    confirm_password: str = Field(..., min_length=6, max_length=128, description="确认密码")
+
+
+class PasswordChange(BaseModel):
+    """密码修改模型"""
+    current_password: str = Field(..., description="当前密码")
+    new_password: str = Field(..., min_length=6, max_length=128, description="新密码")
+    confirm_password: str = Field(..., min_length=6, max_length=128, description="确认密码")
+
+
+class TokenResponse(BaseModel):
+    """令牌响应模型"""
+    access_token: str = Field(..., description="访问令牌")
+    refresh_token: str = Field(..., description="刷新令牌")
+    token_type: str = Field(default="bearer", description="令牌类型")
+    expires_in: int = Field(..., description="过期时间（秒）")
+
+
+class UserResponse(BaseModel):
+    """用户信息响应模型"""
+    id: int = Field(..., description="用户ID")
+    username: str = Field(..., description="用户名")
+    email: str = Field(..., description="邮箱")
+    full_name: str = Field(..., description="姓名")
+    is_active: bool = Field(..., description="是否激活")
+    roles: list = Field(default=[], description="角色列表")
+
+
+# ==========================================
+# 辅助函数
+# ==========================================
+
+def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
+    """
+    根据用户名或邮箱获取用户信息
+
+    Args:
+        db: 数据库会话
+        username: 用户名或邮箱
+
+    Returns:
+        Dict[str, Any]: 用户信息
+    """
+    # 这里应该从数据库查询用户信息
+    # 暂时返回模拟数据
+    if username in ["admin", "admin@example.com"]:
+        return {
+            "id": 1,
+            "username": "admin",
+            "email": "admin@example.com",
+            "full_name": "系统管理员",
+            "password_hash": hash_password("admin123"),
+            "is_active": True,
+            "is_superuser": True,
+            "roles": ["admin", "doctor"],
+            "permissions": ["user_manage", "patient_manage", "system_manage"]
+        }
+    elif username in ["doctor", "doctor@example.com"]:
+        return {
+            "id": 2,
+            "username": "doctor",
+            "email": "doctor@example.com",
+            "full_name": "医生用户",
+            "password_hash": hash_password("doctor123"),
+            "is_active": True,
+            "is_superuser": False,
+            "roles": ["doctor"],
+            "permissions": ["patient_manage", "image_view"]
+        }
+    return None
+
+
+def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> TokenResponse:
+    """
+    为用户创建访问令牌和刷新令牌
+
+    Args:
+        user: 用户信息
+        remember_me: 是否记住我
+
+    Returns:
+        TokenResponse: 令牌响应
+    """
+    # 准备令牌数据
+    token_data = {
+        "sub": user["username"],
+        "user_id": user["id"],
+        "username": user["username"],
+        "email": user["email"],
+        "roles": user.get("roles", []),
+        "permissions": user.get("permissions", []),
+        "is_active": user["is_active"],
+        "is_superuser": user.get("is_superuser", False)
+    }
+
+    # 设置过期时间
+    access_expires = timedelta(minutes=30)  # 30分钟
+    refresh_expires = timedelta(days=30 if remember_me else 7)  # 记住我30天，否则7天
+
+    # 创建令牌
+    access_token = security_manager.create_access_token(token_data, access_expires)
+    refresh_token = security_manager.create_refresh_token(token_data, refresh_expires)
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=int(access_expires.total_seconds())
+    )
+
+
+# ==========================================
+# API端点
+# ==========================================
+
+@router.post("/login", response_model=Dict[str, Any], summary="用户登录")
+async def login(
+    login_data: UserLogin,
+    db: Session = Depends(get_db)
+):
+    """
+    用户登录
+
+    - **username**: 用户名或邮箱地址
+    - **password**: 密码
+    - **remember_me**: 是否记住我（影响刷新令牌过期时间）
+    """
+    try:
+        # 获取用户信息
+        user = get_user_by_username_or_email(db, login_data.username)
+        if not user:
+            raise AuthenticationException("用户名或密码错误")
+
+        # 验证密码
+        if not verify_password(login_data.password, user["password_hash"]):
+            raise AuthenticationException("用户名或密码错误")
+
+        # 检查用户状态
+        if not user["is_active"]:
+            raise AuthenticationException("用户账户已被禁用")
+
+        # 创建令牌
+        tokens = create_user_tokens(user, login_data.remember_me)
+
+        # 记录登录日志
+        logger.info(f"用户登录成功: {user['username']} ({user['email']})")
+
+        return {
+            "message": "登录成功",
+            "tokens": tokens.dict(),
+            "user": UserResponse(
+                id=user["id"],
+                username=user["username"],
+                email=user["email"],
+                full_name=user["full_name"],
+                is_active=user["is_active"],
+                roles=user.get("roles", [])
+            ).dict()
+        }
+
+    except AuthenticationException:
+        raise
+    except Exception as e:
+        logger.error(f"登录失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="登录过程中发生错误"
+        )
+
+
+@router.post("/register", response_model=Dict[str, Any], summary="用户注册")
+async def register(
+    register_data: UserRegister,
+    db: Session = Depends(get_db)
+):
+    """
+    用户注册
+
+    - **username**: 用户名（3-50字符）
+    - **email**: 邮箱地址
+    - **password**: 密码（6-128字符）
+    - **confirm_password**: 确认密码
+    - **full_name**: 姓名（2-100字符）
+    - **phone**: 手机号（可选）
+    """
+    try:
+        # 验证密码确认
+        if register_data.password != register_data.confirm_password:
+            raise BusinessLogicException("密码和确认密码不匹配")
+
+        # 检查用户名是否已存在
+        existing_user = get_user_by_username_or_email(db, register_data.username)
+        if existing_user:
+            raise BusinessLogicException("用户名已存在")
+
+        # 检查邮箱是否已存在
+        existing_email = get_user_by_username_or_email(db, register_data.email)
+        if existing_email:
+            raise BusinessLogicException("邮箱已被注册")
+
+        # 创建新用户（这里应该保存到数据库）
+        new_user = {
+            "id": 999,  # 模拟新用户ID
+            "username": register_data.username,
+            "email": register_data.email,
+            "full_name": register_data.full_name,
+            "password_hash": hash_password(register_data.password),
+            "phone": register_data.phone,
+            "is_active": True,
+            "is_superuser": False,
+            "roles": ["user"],
+            "permissions": ["basic_access"]
+        }
+
+        # 记录注册日志
+        logger.info(f"用户注册成功: {new_user['username']} ({new_user['email']})")
+
+        return {
+            "message": "注册成功",
+            "user": UserResponse(
+                id=new_user["id"],
+                username=new_user["username"],
+                email=new_user["email"],
+                full_name=new_user["full_name"],
+                is_active=new_user["is_active"],
+                roles=new_user.get("roles", [])
+            ).dict()
+        }
+
+    except (AuthenticationException, BusinessLogicException):
+        raise
+    except Exception as e:
+        logger.error(f"注册失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="注册过程中发生错误"
+        )
+
+
+@router.post("/refresh", response_model=Dict[str, Any], summary="刷新令牌")
+async def refresh_token(
+    refresh_data: TokenRefresh,
+    db: Session = Depends(get_db)
+):
+    """
+    刷新访问令牌
+
+    - **refresh_token**: 刷新令牌
+    """
+    try:
+        # 使用刷新令牌获取新的访问令牌
+        new_tokens = security_manager.refresh_access_token(refresh_data.refresh_token)
+        if not new_tokens:
+            raise AuthenticationException("刷新令牌无效或已过期")
+
+        logger.info("令牌刷新成功")
+
+        return {
+            "message": "令牌刷新成功",
+            "tokens": new_tokens
+        }
+
+    except AuthenticationException:
+        raise
+    except Exception as e:
+        logger.error(f"令牌刷新失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="令牌刷新过程中发生错误"
+        )
+
+
+@router.post("/logout", response_model=Dict[str, Any], summary="用户登出")
+async def logout(
+    request: Request,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    用户登出
+
+    将当前访问令牌加入黑名单，使其失效
+    """
+    try:
+        # 将当前令牌加入黑名单
+        if credentials:
+            security_manager.blacklist_token(credentials.credentials)
+
+        logger.info(f"用户登出成功: {current_user['username']}")
+
+        return {
+            "message": "登出成功"
+        }
+
+    except Exception as e:
+        logger.error(f"登出失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="登出过程中发生错误"
+        )
+
+
+@router.post("/password/reset", response_model=Dict[str, Any], summary="请求密码重置")
+async def request_password_reset(
+    reset_data: PasswordReset,
+    db: Session = Depends(get_db)
+):
+    """
+    请求密码重置
+
+    - **email**: 邮箱地址
+    """
+    try:
+        # 检查用户是否存在
+        user = get_user_by_username_or_email(db, reset_data.email)
+        if not user:
+            # 为了安全，即使用户不存在也返回成功消息
+            return {
+                "message": "如果邮箱存在，重置链接已发送到您的邮箱"
+            }
+
+        # 生成重置令牌
+        reset_token = security_manager.generate_api_key(str(user["id"]), "password_reset")
+
+        # 这里应该发送重置邮件
+        # send_password_reset_email(user["email"], reset_token)
+
+        logger.info(f"密码重置请求: {user['email']}")
+
+        return {
+            "message": "如果邮箱存在，重置链接已发送到您的邮箱",
+            "reset_token": reset_token  # 仅用于测试，生产环境不应返回
+        }
+
+    except Exception as e:
+        logger.error(f"密码重置请求失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="密码重置请求过程中发生错误"
+        )
+
+
+@router.post("/password/reset/confirm", response_model=Dict[str, Any], summary="确认密码重置")
+async def confirm_password_reset(
+    reset_confirm: PasswordResetConfirm,
+    db: Session = Depends(get_db)
+):
+    """
+    确认密码重置
+
+    - **token**: 重置令牌
+    - **new_password**: 新密码
+    - **confirm_password**: 确认密码
+    """
+    try:
+        # 验证密码确认
+        if reset_confirm.new_password != reset_confirm.confirm_password:
+            raise BusinessLogicException("密码和确认密码不匹配")
+
+        # 验证重置令牌
+        token_info = security_manager.verify_api_key(reset_confirm.token)
+        if not token_info or token_info.get("name") != "password_reset":
+            raise AuthenticationException("重置令牌无效或已过期")
+
+        user_id = token_info.get("user_id")
+        if not user_id:
+            raise AuthenticationException("重置令牌无效")
+
+        # 这里应该更新数据库中的密码
+        new_password_hash = hash_password(reset_confirm.new_password)
+
+        # 撤销重置令牌
+        cache_key = f"api_key:{reset_confirm.token}"
+        cache_manager = get_cache_manager()
+        cache_manager.delete(cache_key)
+
+        logger.info(f"密码重置成功: 用户ID {user_id}")
+
+        return {
+            "message": "密码重置成功"
+        }
+
+    except (AuthenticationException, BusinessLogicException):
+        raise
+    except Exception as e:
+        logger.error(f"密码重置确认失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="密码重置确认过程中发生错误"
+        )
+
+
+@router.post("/password/change", response_model=Dict[str, Any], summary="修改密码")
+async def change_password(
+    password_change: PasswordChange,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    修改密码
+
+    - **current_password**: 当前密码
+    - **new_password**: 新密码
+    - **confirm_password**: 确认密码
+    """
+    try:
+        # 验证密码确认
+        if password_change.new_password != password_change.confirm_password:
+            raise BusinessLogicException("新密码和确认密码不匹配")
+
+        # 获取用户信息验证当前密码
+        user = get_user_by_username_or_email(db, current_user["username"])
+        if not user:
+            raise AuthenticationException("用户不存在")
+
+        # 验证当前密码
+        if not verify_password(password_change.current_password, user["password_hash"]):
+            raise AuthenticationException("当前密码错误")
+
+        # 这里应该更新数据库中的密码
+        new_password_hash = hash_password(password_change.new_password)
+
+        logger.info(f"密码修改成功: {current_user['username']}")
+
+        return {
+            "message": "密码修改成功"
+        }
+
+    except (AuthenticationException, BusinessLogicException):
+        raise
+    except Exception as e:
+        logger.error(f"密码修改失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="密码修改过程中发生错误"
+        )
+
+
+@router.get("/me", response_model=Dict[str, Any], summary="获取当前用户信息")
+async def get_current_user_info(
+    current_user: Dict[str, Any] = Depends(get_current_active_user)
+):
+    """
+    获取当前用户信息
+    """
+    return {
+        "user": UserResponse(
+            id=current_user["id"],
+            username=current_user["username"],
+            email=current_user["email"],
+            full_name=current_user.get("full_name", ""),
+            is_active=current_user["is_active"],
+            roles=current_user.get("roles", [])
+        ).dict()
+    }

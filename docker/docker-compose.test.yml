@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # 测试数据库
+  mysql_test:
+    image: mysql:8.0
+    container_name: medical_mysql_test
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=test_root_password
+      - MYSQL_DATABASE=medical_system_test
+      - MYSQL_USER=test_user
+      - MYSQL_PASSWORD=test_password
+      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
+      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - test_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptest_root_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 测试Redis
+  redis_test:
+    image: redis:7-alpine
+    container_name: medical_redis_test
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_test_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - test_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # 后端测试服务
+  backend_test:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      target: test
+    container_name: medical_backend_test
+    restart: "no"
+    environment:
+      - PYTHONPATH=/app
+      - ENVIRONMENT=test
+      - DATABASE_URL=mysql://test_user:test_password@mysql_test:3306/medical_system_test
+      - REDIS_URL=redis://redis_test:6379/0
+      - JWT_SECRET_KEY=test_jwt_secret_key
+    volumes:
+      - ../backend:/app
+      - test_uploads:/app/uploads
+    depends_on:
+      mysql_test:
+        condition: service_healthy
+      redis_test:
+        condition: service_healthy
+    networks:
+      - test_network
+    command: python -m pytest tests/ -v --cov=app --cov-report=html --cov-report=term
+
+  # 前端测试服务
+  frontend_test:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      target: test
+    container_name: medical_frontend_test
+    restart: "no"
+    environment:
+      - NODE_ENV=test
+      - NEXT_PUBLIC_API_URL=http://backend_test:8000
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    networks:
+      - test_network
+    command: npm test -- --coverage --watchAll=false
+
+  # E2E测试服务
+  e2e_test:
+    build:
+      context: ../
+      dockerfile: tests/e2e/Dockerfile
+    container_name: medical_e2e_test
+    restart: "no"
+    environment:
+      - BASE_URL=http://frontend_test:3000
+      - API_URL=http://backend_test:8000
+    volumes:
+      - ../tests:/tests
+      - e2e_reports:/tests/reports
+    depends_on:
+      - frontend_test
+      - backend_test
+    networks:
+      - test_network
+    command: npx playwright test --reporter=html
+
+  # 测试报告服务
+  test_reports:
+    image: nginx:alpine
+    container_name: medical_test_reports
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - e2e_reports:/usr/share/nginx/html/e2e:ro
+      - ../backend/htmlcov:/usr/share/nginx/html/backend:ro
+      - ../frontend/coverage:/usr/share/nginx/html/frontend:ro
+    networks:
+      - test_network
+
+volumes:
+  mysql_test_data:
+    driver: local
+  redis_test_data:
+    driver: local
+  test_uploads:
+    driver: local
+  e2e_reports:
+    driver: local
+
+networks:
+  test_network:
+    driver: bridge

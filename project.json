@@ -1,0 +1,178 @@
+{
+  "name": "medical-imaging-diagnosis-system",
+  "displayName": "医疗影像诊断系统",
+  "version": "1.0.0",
+  "description": "基于AI的医疗影像诊断系统，支持DICOM影像处理、智能诊断、报告生成等功能",
+  "author": {
+    "name": "Medical Imaging Team",
+    "email": "team@medical-imaging.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/medical-imaging-system.git"
+  },
+  "keywords": [
+    "medical",
+    "imaging",
+    "diagnosis",
+    "AI",
+    "DICOM",
+    "healthcare",
+    "machine-learning"
+  ],
+  "architecture": {
+    "frontend": {
+      "framework": "Next.js",
+      "language": "TypeScript",
+      "styling": "Tailwind CSS",
+      "port": 3000
+    },
+    "backend": {
+      "framework": "FastAPI",
+      "language": "Python",
+      "version": "3.9+",
+      "port": 8000
+    },
+    "database": {
+      "primary": "MySQL 8.0+",
+      "cache": "Redis 6.x+",
+      "ports": {
+        "mysql": 3306,
+        "redis": 6379
+      }
+    },
+    "deployment": {
+      "containerization": "Docker",
+      "orchestration": "Docker Compose",
+      "reverse_proxy": "Nginx"
+    }
+  },
+  "features": [
+    "用户认证与授权",
+    "患者信息管理",
+    "DICOM影像上传与存储",
+    "影像查看器",
+    "AI智能诊断",
+    "诊断报告生成",
+    "数据统计与分析",
+    "系统监控与日志"
+  ],
+  "development": {
+    "phases": [
+      {
+        "name": "第一阶段：项目规范与架构设计",
+        "tasks": 21,
+        "duration": "2周",
+        "status": "进行中"
+      },
+      {
+        "name": "第二阶段：基础环境搭建",
+        "tasks": 21,
+        "duration": "2周",
+        "status": "待开始"
+      },
+      {
+        "name": "第三阶段：核心功能模块开发",
+        "tasks": 70,
+        "duration": "8周",
+        "status": "待开始"
+      },
+      {
+        "name": "第四阶段：系统集成与优化",
+        "tasks": 28,
+        "duration": "4周",
+        "status": "待开始"
+      },
+      {
+        "name": "第五阶段：测试与部署",
+        "tasks": 14,
+        "duration": "2周",
+        "status": "待开始"
+      },
+      {
+        "name": "第六阶段：文档与验收",
+        "tasks": 14,
+        "duration": "2周",
+        "status": "待开始"
+      }
+    ],
+    "total_tasks": 168,
+    "estimated_duration": "20周",
+    "start_date": "2025-09-24",
+    "estimated_completion": "2025-12-24"
+  },
+  "team_roles": [
+    "项目经理",
+    "前端开发工程师",
+    "后端开发工程师",
+    "AI算法工程师",
+    "数据库工程师",
+    "测试工程师",
+    "运维工程师",
+    "UI/UX设计师"
+  ],
+  "compliance": {
+    "medical_standards": [
+      "DICOM 3.0",
+      "HL7 FHIR",
+      "HIPAA (参考)",
+      "医疗器械软件分类"
+    ],
+    "security_standards": [
+      "数据加密传输",
+      "用户身份认证",
+      "访问权限控制",
+      "审计日志记录"
+    ]
+  },
+  "environments": {
+    "development": {
+      "database": "medical_imaging_system_dev",
+      "api_url": "http://localhost:8000",
+      "frontend_url": "http://localhost:3000"
+    },
+    "staging": {
+      "database": "medical_imaging_system_staging",
+      "api_url": "https://api-staging.medical-system.com",
+      "frontend_url": "https://staging.medical-system.com"
+    },
+    "production": {
+      "database": "medical_imaging_system_prod",
+      "api_url": "https://api.medical-system.com",
+      "frontend_url": "https://medical-system.com"
+    }
+  },
+  "monitoring": {
+    "metrics": [
+      "系统性能指标",
+      "用户活跃度",
+      "诊断准确率",
+      "响应时间",
+      "错误率"
+    ],
+    "alerts": [
+      "系统故障",
+      "性能异常",
+      "安全威胁",
+      "存储空间不足"
+    ]
+  },
+  "backup_strategy": {
+    "database": {
+      "frequency": "每日",
+      "retention": "30天",
+      "method": "增量备份"
+    },
+    "files": {
+      "frequency": "每周",
+      "retention": "90天",
+      "method": "完整备份"
+    }
+  },
+  "contact": {
+    "support_email": "support@medical-system.com",
+    "technical_lead": "tech-lead@medical-system.com",
+    "project_manager": "pm@medical-system.com"
+  }
+}

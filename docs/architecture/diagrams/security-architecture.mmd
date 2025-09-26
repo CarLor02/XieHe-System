@@ -1,0 +1,149 @@
+graph TB
+    %% 医疗影像诊断系统安全架构图
+    %% 用户接入层
+    subgraph "用户接入层"
+        U1[医生工作站]
+        U2[技师工作站]
+        U3[管理员终端]
+        U4[移动设备]
+        U5[第三方系统]
+    end
+
+    %% 网络安全层
+    subgraph "网络安全层"
+        WAF[Web应用防火墙]
+        LB[负载均衡器]
+        DDoS[DDoS防护]
+        FW[防火墙]
+        IDS[入侵检测系统]
+        VPN[VPN网关]
+    end
+
+    %% 应用安全层
+    subgraph "应用安全层"
+        subgraph "认证授权"
+            AUTH[身份认证]
+            MFA[多因素认证]
+            RBAC[权限控制]
+            JWT[令牌管理]
+        end
+        
+        subgraph "应用防护"
+            INPUT[输入验证]
+            OUTPUT[输出编码]
+            SESSION[会话管理]
+            UPLOAD[文件上传安全]
+        end
+    end
+
+    %% 数据安全层
+    subgraph "数据安全层"
+        subgraph "加密保护"
+            TDE[透明数据加密]
+            FIELD[字段级加密]
+            FILE[文件加密]
+            BACKUP[备份加密]
+        end
+        
+        subgraph "数据治理"
+            MASK[数据脱敏]
+            CLASS[数据分类]
+            DLP[数据防泄漏]
+            AUDIT[数据审计]
+        end
+    end
+
+    %% 基础设施安全层
+    subgraph "基础设施安全层"
+        subgraph "主机安全"
+            HOST[主机加固]
+            AV[防病毒]
+            PATCH[补丁管理]
+            CONFIG[配置管理]
+        end
+        
+        subgraph "容器安全"
+            SCAN[镜像扫描]
+            RUNTIME[运行时保护]
+            NETWORK[网络策略]
+            SECRET[密钥管理]
+        end
+    end
+
+    %% 安全监控层
+    subgraph "安全监控层"
+        SIEM[安全信息事件管理]
+        SOC[安全运营中心]
+        THREAT[威胁情报]
+        INCIDENT[事件响应]
+        FORENSIC[数字取证]
+    end
+
+    %% 连接关系
+    U1 --> WAF
+    U2 --> WAF
+    U3 --> VPN
+    U4 --> WAF
+    U5 --> WAF
+
+    WAF --> LB
+    DDoS --> WAF
+    FW --> WAF
+    IDS --> FW
+    VPN --> FW
+
+    LB --> AUTH
+    AUTH --> MFA
+    AUTH --> RBAC
+    AUTH --> JWT
+
+    RBAC --> INPUT
+    INPUT --> OUTPUT
+    OUTPUT --> SESSION
+    SESSION --> UPLOAD
+
+    SESSION --> TDE
+    TDE --> FIELD
+    FIELD --> FILE
+    FILE --> BACKUP
+
+    MASK --> CLASS
+    CLASS --> DLP
+    DLP --> AUDIT
+
+    AUDIT --> HOST
+    HOST --> AV
+    AV --> PATCH
+    PATCH --> CONFIG
+
+    CONFIG --> SCAN
+    SCAN --> RUNTIME
+    RUNTIME --> NETWORK
+    NETWORK --> SECRET
+
+    %% 监控连接
+    AUTH --> SIEM
+    RBAC --> SIEM
+    AUDIT --> SIEM
+    IDS --> SIEM
+    HOST --> SIEM
+
+    SIEM --> SOC
+    SOC --> THREAT
+    THREAT --> INCIDENT
+    INCIDENT --> FORENSIC
+
+    %% 样式定义
+    classDef userLayer fill:#e3f2fd
+    classDef networkLayer fill:#f3e5f5
+    classDef appLayer fill:#e8f5e8
+    classDef dataLayer fill:#fff3e0
+    classDef infraLayer fill:#fce4ec
+    classDef monitorLayer fill:#f1f8e9
+
+    class U1,U2,U3,U4,U5 userLayer
+    class WAF,LB,DDoS,FW,IDS,VPN networkLayer
+    class AUTH,MFA,RBAC,JWT,INPUT,OUTPUT,SESSION,UPLOAD appLayer
+    class TDE,FIELD,FILE,BACKUP,MASK,CLASS,DLP,AUDIT dataLayer
+    class HOST,AV,PATCH,CONFIG,SCAN,RUNTIME,NETWORK,SECRET infraLayer
+    class SIEM,SOC,THREAT,INCIDENT,FORENSIC monitorLayer

@@ -1,0 +1,477 @@
+openapi: 3.0.3
+info:
+  title: 医疗影像诊断系统 API
+  description: |
+    医疗影像诊断系统的RESTful API接口规范
+    
+    ## 功能特性
+    - 用户认证与授权管理
+    - 患者信息管理
+    - 医学影像上传与处理
+    - AI辅助诊断
+    - 诊断报告生成与审核
+    - 系统管理与监控
+    
+    ## 认证方式
+    使用JWT Bearer Token进行认证，请在请求头中添加：
+    ```
+    Authorization: Bearer <access_token>
+    ```
+  version: 1.0.0
+  contact:
+    name: 医疗影像团队
+    email: dev@medical-system.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: 开发环境
+  - url: https://test-api.medical-system.com/api/v1
+    description: 测试环境
+  - url: https://api.medical-system.com/api/v1
+    description: 生产环境
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: 请求是否成功
+        code:
+          type: integer
+          description: 状态码
+        message:
+          type: string
+          description: 响应消息
+        data:
+          type: object
+          description: 响应数据
+        timestamp:
+          type: string
+          format: date-time
+          description: 响应时间
+        request_id:
+          type: string
+          description: 请求ID
+      required:
+        - success
+        - code
+        - message
+        - timestamp
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "请求参数错误"
+        error:
+          type: object
+          properties:
+            type:
+              type: string
+              example: "ValidationError"
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+        timestamp:
+          type: string
+          format: date-time
+        request_id:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          description: 当前页码
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: 每页数量
+        total:
+          type: integer
+          minimum: 0
+          description: 总记录数
+        pages:
+          type: integer
+          minimum: 0
+          description: 总页数
+        has_next:
+          type: boolean
+          description: 是否有下一页
+        has_prev:
+          type: boolean
+          description: 是否有上一页
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 用户ID
+        username:
+          type: string
+          description: 用户名
+        email:
+          type: string
+          format: email
+          description: 邮箱
+        full_name:
+          type: string
+          description: 真实姓名
+        phone:
+          type: string
+          description: 手机号
+        department:
+          type: string
+          description: 部门
+        job_title:
+          type: string
+          description: 职位
+        roles:
+          type: array
+          items:
+            type: string
+          description: 角色列表
+        permissions:
+          type: array
+          items:
+            type: string
+          description: 权限列表
+        is_active:
+          type: boolean
+          description: 是否激活
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 患者ID
+        patient_no:
+          type: string
+          description: 患者编号
+        name:
+          type: string
+          description: 患者姓名
+        gender:
+          type: string
+          enum: [male, female, other]
+          description: 性别
+        age:
+          type: integer
+          minimum: 0
+          maximum: 150
+          description: 年龄
+        birth_date:
+          type: string
+          format: date
+          description: 出生日期
+        phone:
+          type: string
+          description: 手机号
+        id_card:
+          type: string
+          description: 身份证号
+        address:
+          type: string
+          description: 地址
+        emergency_contact:
+          type: string
+          description: 紧急联系人
+        emergency_phone:
+          type: string
+          description: 紧急联系电话
+        blood_type:
+          type: string
+          description: 血型
+        height:
+          type: number
+          format: float
+          description: 身高(cm)
+        weight:
+          type: number
+          format: float
+          description: 体重(kg)
+        allergies:
+          type: array
+          items:
+            type: string
+          description: 过敏史
+        medical_history:
+          type: object
+          description: 病史
+        insurance_type:
+          type: string
+          description: 医保类型
+        insurance_no:
+          type: string
+          description: 医保号
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    Study:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 研究ID
+        study_uid:
+          type: string
+          description: 研究UID
+        patient:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            patient_no:
+              type: string
+        study_date:
+          type: string
+          format: date
+          description: 检查日期
+        study_time:
+          type: string
+          format: time
+          description: 检查时间
+        study_description:
+          type: string
+          description: 检查描述
+        modality:
+          type: string
+          enum: [CT, MR, DR, CR, US, XA, RF, MG]
+          description: 设备类型
+        body_part:
+          type: string
+          description: 检查部位
+        referring_physician:
+          type: string
+          description: 申请医生
+        performing_physician:
+          type: string
+          description: 执行医生
+        status:
+          type: string
+          enum: [scheduled, in_progress, completed, cancelled]
+          description: 研究状态
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          description: 优先级
+        series_count:
+          type: integer
+          minimum: 0
+          description: 序列数量
+        instance_count:
+          type: integer
+          minimum: 0
+          description: 实例数量
+        total_size:
+          type: integer
+          minimum: 0
+          description: 总大小(字节)
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    DiagnosisReport:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 报告ID
+        report_no:
+          type: string
+          description: 报告编号
+        patient:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            patient_no:
+              type: string
+        study:
+          type: object
+          properties:
+            id:
+              type: string
+            study_date:
+              type: string
+              format: date
+            modality:
+              type: string
+            body_part:
+              type: string
+        title:
+          type: string
+          description: 报告标题
+        clinical_info:
+          type: string
+          description: 临床信息
+        examination_method:
+          type: string
+          description: 检查方法
+        findings:
+          type: string
+          description: 检查所见
+        impression:
+          type: string
+          description: 诊断意见
+        recommendations:
+          type: string
+          description: 建议
+        conclusion:
+          type: string
+          description: 结论
+        status:
+          type: string
+          enum: [draft, pending, reviewing, approved, rejected, cancelled]
+          description: 报告状态
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          description: 优先级
+        report_date:
+          type: string
+          format: date
+          description: 报告日期
+        doctor:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            job_title:
+              type: string
+        reviewer:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            job_title:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - 认证授权
+      summary: 用户登录
+      description: 用户登录获取访问令牌
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: 用户名
+                password:
+                  type: string
+                  description: 密码
+                remember_me:
+                  type: boolean
+                  default: false
+                  description: 记住我
+                captcha:
+                  type: string
+                  description: 验证码
+                captcha_key:
+                  type: string
+                  description: 验证码密钥
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          access_token:
+                            type: string
+                            description: 访问令牌
+                          refresh_token:
+                            type: string
+                            description: 刷新令牌
+                          token_type:
+                            type: string
+                            example: "Bearer"
+                          expires_in:
+                            type: integer
+                            description: 过期时间(秒)
+                          user:
+                            $ref: '#/components/schemas/User'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 用户名或密码错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

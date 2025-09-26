@@ -1,0 +1,138 @@
+graph TB
+    %% 医疗影像诊断系统架构图
+    %% 用户层
+    subgraph "用户层"
+        U1[医生工作站]
+        U2[技师工作站]
+        U3[管理员控制台]
+        U4[移动端应用]
+    end
+
+    %% 负载均衡层
+    subgraph "负载均衡层"
+        LB[Nginx 负载均衡器]
+    end
+
+    %% 应用层
+    subgraph "应用层"
+        subgraph "前端服务"
+            FE1[Next.js 应用 1]
+            FE2[Next.js 应用 2]
+            FE3[Next.js 应用 3]
+        end
+        
+        subgraph "后端服务"
+            BE1[FastAPI 服务 1]
+            BE2[FastAPI 服务 2]
+            BE3[FastAPI 服务 3]
+        end
+        
+        subgraph "AI服务"
+            AI1[AI 推理服务 1]
+            AI2[AI 推理服务 2]
+        end
+    end
+
+    %% 服务层
+    subgraph "业务服务层"
+        AUTH[认证服务]
+        PATIENT[患者服务]
+        IMAGE[影像服务]
+        REPORT[报告服务]
+        NOTIFY[通知服务]
+        SYSTEM[系统服务]
+    end
+
+    %% 数据层
+    subgraph "数据存储层"
+        subgraph "MySQL集群"
+            DB1[(MySQL 主库)]
+            DB2[(MySQL 从库1)]
+            DB3[(MySQL 从库2)]
+        end
+        
+        subgraph "Redis集群"
+            R1[(Redis 节点1)]
+            R2[(Redis 节点2)]
+            R3[(Redis 节点3)]
+        end
+        
+        subgraph "文件存储"
+            FS1[MinIO 节点1]
+            FS2[MinIO 节点2]
+            FS3[MinIO 节点3]
+        end
+    end
+
+    %% 监控层
+    subgraph "监控层"
+        PROM[Prometheus]
+        GRAF[Grafana]
+        ELK[ELK Stack]
+        ALERT[告警系统]
+    end
+
+    %% 连接关系
+    U1 --> LB
+    U2 --> LB
+    U3 --> LB
+    U4 --> LB
+
+    LB --> FE1
+    LB --> FE2
+    LB --> FE3
+
+    FE1 --> BE1
+    FE2 --> BE2
+    FE3 --> BE3
+
+    BE1 --> AUTH
+    BE1 --> PATIENT
+    BE1 --> IMAGE
+    BE2 --> REPORT
+    BE2 --> NOTIFY
+    BE3 --> SYSTEM
+
+    BE1 --> AI1
+    BE2 --> AI2
+
+    AUTH --> DB1
+    PATIENT --> DB1
+    IMAGE --> DB1
+    REPORT --> DB1
+    NOTIFY --> DB1
+    SYSTEM --> DB1
+
+    DB1 --> DB2
+    DB1 --> DB3
+
+    AUTH --> R1
+    PATIENT --> R2
+    IMAGE --> R3
+
+    IMAGE --> FS1
+    REPORT --> FS2
+    SYSTEM --> FS3
+
+    %% 监控连接
+    BE1 --> PROM
+    BE2 --> PROM
+    BE3 --> PROM
+    AI1 --> PROM
+    AI2 --> PROM
+
+    PROM --> GRAF
+    PROM --> ALERT
+
+    %% 样式
+    classDef userLayer fill:#e1f5fe
+    classDef appLayer fill:#f3e5f5
+    classDef serviceLayer fill:#e8f5e8
+    classDef dataLayer fill:#fff3e0
+    classDef monitorLayer fill:#fce4ec
+
+    class U1,U2,U3,U4 userLayer
+    class FE1,FE2,FE3,BE1,BE2,BE3,AI1,AI2 appLayer
+    class AUTH,PATIENT,IMAGE,REPORT,NOTIFY,SYSTEM serviceLayer
+    class DB1,DB2,DB3,R1,R2,R3,FS1,FS2,FS3 dataLayer
+    class PROM,GRAF,ELK,ALERT monitorLayer

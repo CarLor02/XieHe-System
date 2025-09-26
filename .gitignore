@@ -205,3 +205,137 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ===========================================
+# 医疗影像诊断系统项目特定配置
+# ===========================================
+
+# 环境配置文件
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Node.js 和 Next.js
+node_modules/
+.next/
+out/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# 文件上传和存储
+uploads/
+temp/
+tmp/
+*.tmp
+*.temp
+
+# DICOM 文件 (开发时可能很大)
+*.dcm
+*.dicom
+
+# AI 模型文件
+models/
+*.h5
+*.pkl
+*.joblib
+*.model
+*.weights
+*.onnx
+*.pb
+
+# 项目进度跟踪生成的文件
+dashboard.html
+daily_report_*.md
+project_progress.json
+project_history.json
+monitor_config.json
+
+# 备份文件
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# 证书和密钥
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+
+# 操作系统特定文件
+.DS_Store
+.DS_Store?
+.Spotlight-V100
+.Trashes
+Icon?
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# 临时生成的文档
+temp_docs/
+
+# 性能分析文件
+*.prof
+*.profile
+
+# ===========================================
+# 代码清理后的未使用文件夹
+# ===========================================
+
+# 未使用的文件和组件
+unused/
+
+# 虚拟环境 (项目特定)
+backend/venv-demo/
+backend/venv/
+frontend/node_modules/
+
+# 构建输出
+frontend/.next/
+backend/dist/
+backend/build/
+
+# 开发工具生成的文件
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志文件
+*.log
+logs/
+log/
+
+# 测试覆盖率报告
+coverage/
+.nyc_output/
+
+# 清理计划文档 (可选)
+cleanup_plan.md
