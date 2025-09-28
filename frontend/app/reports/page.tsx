@@ -17,26 +17,35 @@ import { Button } from '../../components/ui/Button'
 interface ReportData {
   id: number
   report_number: string
-  report_title: string
-  status: 'draft' | 'review' | 'approved' | 'finalized'
-  priority: 'low' | 'normal' | 'high' | 'urgent'
-  patient_name?: string
   patient_id: number
-  examination_date?: string
-  report_date: string
-  reporting_physician: string
+  patient_name?: string
+  study_id?: number
+  template_id?: number
+  report_title: string
+  clinical_history?: string
+  examination_technique?: string
+  findings?: string
+  impression?: string
+  recommendations?: string
   primary_diagnosis?: string
-  clinical_history: string
-  examination_technique: string
-  findings: string
-  impression: string
-  recommendations: string
-  notes?: string
-  tags?: string[]
+  secondary_diagnosis?: string
+  priority: string
+  status: string
   ai_assisted: boolean
   ai_confidence?: number
   created_at: string
   updated_at: string
+  created_by?: number
+  reviewed_by?: number
+  reviewed_at?: string
+}
+
+interface ReportListResponse {
+  reports: ReportData[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
 }
 
 interface ReportTemplate {
@@ -50,6 +59,36 @@ interface ReportTemplate {
   }
 }
 
+// API调用函数
+const fetchReports = async (page: number = 1, pageSize: number = 20, search?: string, status?: string, priority?: string): Promise<ReportListResponse> => {
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+
+    if (search) params.append('search', search);
+    if (status && status !== 'all') params.append('status', status);
+    if (priority && priority !== 'all') params.append('priority', priority);
+
+    const response = await fetch(`/api/v1/reports?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('获取报告列表失败');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('获取报告列表错误:', error);
+    throw error;
+  }
+};
+
 export default function ReportsPage() {
   const [reports, setReports] = useState<ReportData[]>([])
   const [templates, setTemplates] = useState<ReportTemplate[]>([])
@@ -60,6 +99,13 @@ export default function ReportsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
+
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalReports, setTotalReports] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const reportsPerPage = 20
 
   // 模拟数据
   useEffect(() => {
@@ -151,20 +197,34 @@ export default function ReportsPage() {
       }
     ]
 
-    setReports(mockReports)
+    // 只设置模板数据，报告数据通过API加载
     setTemplates(mockTemplates)
   }, [])
 
-  // 筛选报告
-  const filteredReports = reports.filter(report => {
-    const matchesSearch = report.report_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.patient_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.report_number.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || report.status === statusFilter
-    const matchesPriority = priorityFilter === 'all' || report.priority === priorityFilter
-    
-    return matchesSearch && matchesStatus && matchesPriority
-  })
+  // 加载报告数据
+  const loadReports = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await fetchReports(currentPage, reportsPerPage, searchTerm || undefined, statusFilter, priorityFilter)
+      setReports(data.reports)
+      setTotalReports(data.total)
+      setTotalPages(data.total_pages)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载报告数据失败')
+      setReports([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 初始加载和依赖变化时重新加载
+  useEffect(() => {
+    loadReports()
+  }, [currentPage, searchTerm, statusFilter, priorityFilter])
+
+  // 由于使用API分页和筛选，直接使用reports
+  const filteredReports = reports
 
   // 状态标签样式
   const getStatusBadge = (status: string) => {

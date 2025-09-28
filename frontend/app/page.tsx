@@ -5,38 +5,106 @@ import Sidebar from '@/components/Sidebar';
 import StatsCard from '@/components/StatsCard';
 import TaskList from '@/components/TaskList';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+
+interface DashboardOverview {
+  total_patients: number;
+  new_patients_today: number;
+  new_patients_week: number;
+  active_patients: number;
+  total_studies: number;
+  studies_today: number;
+  studies_week: number;
+  pending_studies: number;
+  total_reports: number;
+  pending_reports: number;
+  completed_reports: number;
+  overdue_reports: number;
+  completion_rate: number;
+  average_processing_time: number;
+  system_alerts: number;
+  generated_at: string;
+}
+
+// API调用函数
+const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
+  try {
+    const response = await fetch('/api/v1/dashboard/overview', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('获取仪表板数据失败');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('获取仪表板数据错误:', error);
+    throw error;
+  }
+};
 
 export default function Home() {
-  const statsData = [
+  const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 加载仪表板数据
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchDashboardOverview();
+      setDashboardData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载仪表板数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 初始加载
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  // 根据API数据生成统计卡片数据
+  const statsData = dashboardData ? [
     {
       title: '累计患者',
-      value: 1247,
-      change: 8.2,
+      value: dashboardData.total_patients,
+      change: dashboardData.new_patients_week > 0 ?
+        ((dashboardData.new_patients_week / Math.max(dashboardData.total_patients - dashboardData.new_patients_week, 1)) * 100) : 0,
       icon: 'ri-user-line',
       color: 'blue' as const,
     },
     {
-      title: '待处理影像',
-      value: 23,
-      change: -12.5,
+      title: '待处理检查',
+      value: dashboardData.pending_studies,
+      change: dashboardData.studies_today > 0 ?
+        ((dashboardData.studies_today / Math.max(dashboardData.total_studies - dashboardData.studies_today, 1)) * 100) : 0,
       icon: 'ri-image-line',
       color: 'orange' as const,
     },
     {
-      title: '累计影像',
-      value: 5648,
-      change: 15.3,
+      title: '累计检查',
+      value: dashboardData.total_studies,
+      change: dashboardData.studies_week > 0 ?
+        ((dashboardData.studies_week / Math.max(dashboardData.total_studies - dashboardData.studies_week, 1)) * 100) : 0,
       icon: 'ri-gallery-line',
       color: 'green' as const,
     },
     {
-      title: '今日诊断',
-      value: 89,
-      change: 22.1,
+      title: '待处理报告',
+      value: dashboardData.pending_reports,
+      change: dashboardData.completion_rate - 50, // 相对于50%基准的变化
       icon: 'ri-stethoscope-line',
       color: 'purple' as const,
     },
-  ];
+  ] : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -49,7 +117,8 @@ export default function Home() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">工作台</h1>
               <p className="text-gray-600 mt-1">
-                欢迎回来，今天有 {statsData[1].value} 个影像等待您的诊断
+                {loading ? '加载中...' : error ? '数据加载失败' :
+                  `欢迎回来，今天有 ${dashboardData?.pending_studies || 0} 个检查等待处理`}
               </p>
             </div>
 
@@ -72,9 +141,32 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {statsData.map((stat, index) => (
-              <StatsCard key={index} {...stat} />
-            ))}
+            {loading ? (
+              // 加载状态
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="bg-white p-6 rounded-lg shadow animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                </div>
+              ))
+            ) : error ? (
+              // 错误状态
+              <div className="col-span-full bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                <p className="text-red-600 mb-2">{error}</p>
+                <button
+                  onClick={loadDashboardData}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                  重试
+                </button>
+              </div>
+            ) : (
+              // 正常状态
+              statsData.map((stat, index) => (
+                <StatsCard key={index} {...stat} />
+              ))
+            )}
           </div>
         </div>
 

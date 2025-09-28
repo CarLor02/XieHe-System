@@ -3,101 +3,100 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Patient {
-  id: string;
+  id: number;
+  patient_id: string;
   name: string;
-  patientId: string;
   gender: string;
-  birthDate: string;
-  phone: string;
-  lastVisit: string;
-  totalExams: number;
-  status: 'active' | 'inactive';
+  birth_date: string;
+  age?: number;
+  phone?: string;
+  email?: string;
+  address?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  id_card?: string;
+  insurance_number?: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }
 
-const mockPatients: Patient[] = [
-  {
-    id: '1',
-    name: '张三',
-    patientId: 'P202401001',
-    gender: '男',
-    birthDate: '1985-03-15',
-    phone: '138****1234',
-    lastVisit: '2024-01-15',
-    totalExams: 3,
-    status: 'active',
-  },
-  {
-    id: '2',
-    name: '李四',
-    patientId: 'P202401002',
-    gender: '女',
-    birthDate: '1990-07-22',
-    phone: '139****5678',
-    lastVisit: '2024-01-14',
-    totalExams: 2,
-    status: 'active',
-  },
-  {
-    id: '3',
-    name: '王五',
-    patientId: 'P202401003',
-    gender: '男',
-    birthDate: '1978-12-08',
-    phone: '137****9012',
-    lastVisit: '2024-01-10',
-    totalExams: 4,
-    status: 'active',
-  },
-  {
-    id: '4',
-    name: '赵六',
-    patientId: 'P202401004',
-    gender: '女',
-    birthDate: '1995-05-30',
-    phone: '136****3456',
-    lastVisit: '2024-01-08',
-    totalExams: 1,
-    status: 'active',
-  },
-  {
-    id: '5',
-    name: '孙七',
-    patientId: 'P202401005',
-    gender: '男',
-    birthDate: '1982-09-18',
-    phone: '135****7890',
-    lastVisit: '2024-01-05',
-    totalExams: 4,
-    status: 'active',
-  },
-];
+interface PatientListResponse {
+  patients: Patient[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+// API调用函数
+const fetchPatients = async (page: number = 1, pageSize: number = 10, search?: string, gender?: string): Promise<PatientListResponse> => {
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+
+    if (search) params.append('search', search);
+    if (gender && gender !== 'all') params.append('gender', gender);
+
+    const response = await fetch(`/api/v1/patients?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('获取患者列表失败');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('获取患者列表错误:', error);
+    throw error;
+  }
+};
 
 export default function PatientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGender, setSelectedGender] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [totalPatients, setTotalPatients] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const patientsPerPage = 10;
 
-  const filteredPatients = mockPatients.filter(patient => {
-    const matchesSearch =
-      patient.name.includes(searchTerm) ||
-      patient.patientId.includes(searchTerm) ||
-      patient.phone.includes(searchTerm);
-    const matchesGender =
-      selectedGender === 'all' || patient.gender === selectedGender;
-    return matchesSearch && matchesGender;
-  });
+  // 加载患者数据
+  const loadPatients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchPatients(currentPage, patientsPerPage, searchTerm || undefined, selectedGender);
+      setPatients(data.patients);
+      setTotalPatients(data.total);
+      setTotalPages(data.total_pages);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载患者数据失败');
+      setPatients([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const totalPages = Math.ceil(filteredPatients.length / patientsPerPage);
-  const startIndex = (currentPage - 1) * patientsPerPage;
-  const displayedPatients = filteredPatients.slice(
-    startIndex,
-    startIndex + patientsPerPage
-  );
+  // 初始加载和依赖变化时重新加载
+  useEffect(() => {
+    loadPatients();
+  }, [currentPage, searchTerm, selectedGender]);
+
+  // 由于我们现在使用API分页，不需要前端过滤和分页
+  const displayedPatients = patients;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -153,39 +152,55 @@ export default function PatientsPage() {
               </div>
 
               <div className="text-sm text-gray-500">
-                共 {filteredPatients.length} 位患者
+                共 {totalPatients} 位患者
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      患者信息
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      性别
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      出生日期
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      联系电话
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      最近就诊
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      影像数量
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      操作
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {displayedPatients.map(patient => (
+            {loading ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="mt-2 text-gray-600">加载中...</p>
+              </div>
+            ) : error ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <p className="text-red-600 mb-4">{error}</p>
+                <button
+                  onClick={loadPatients}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  重试
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto bg-white rounded-lg shadow">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        患者信息
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        性别
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        出生日期
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        联系电话
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        创建时间
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        状态
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        操作
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {displayedPatients.map(patient => (
                     <tr key={patient.id} className="hover:bg-gray-50">
                       <td className="px-4 py-4">
                         <div>
@@ -193,7 +208,7 @@ export default function PatientsPage() {
                             {patient.name}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {patient.patientId}
+                            {patient.patient_id}
                           </p>
                         </div>
                       </td>
@@ -201,17 +216,17 @@ export default function PatientsPage() {
                         {patient.gender}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
-                        {patient.birthDate}
+                        {patient.birth_date} ({patient.age}岁)
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
                         {patient.phone}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900">
-                        {patient.lastVisit}
+                        {new Date(patient.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-4">
                         <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                          {patient.totalExams} 份
+                          {patient.status}
                         </span>
                       </td>
                       <td className="px-4 py-4">
@@ -232,58 +247,65 @@ export default function PatientsPage() {
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                    </tbody>
+                  </table>
 
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-              <div className="text-sm text-gray-500">
-                显示 {startIndex + 1}-
-                {Math.min(
-                  startIndex + patientsPerPage,
-                  filteredPatients.length
-                )}{' '}
-                条，共 {filteredPatients.length} 条
-              </div>
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+                    <div className="text-sm text-gray-500">
+                      显示第 {currentPage} 页，共 {totalPages} 页，总计 {totalPatients} 条记录
+                    </div>
 
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                >
-                  上一页
-                </button>
-
-                <div className="flex space-x-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    page => (
+                    <div className="flex items-center space-x-2">
                       <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-3 py-1 border rounded text-sm ${
-                          currentPage === page
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'border-gray-300 hover:bg-gray-50'
-                        }`}
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                       >
-                        {page}
+                        上一页
                       </button>
-                    )
-                  )}
-                </div>
 
-                <button
-                  onClick={() =>
-                    setCurrentPage(Math.min(totalPages, currentPage + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                >
-                  下一页
-                </button>
+                      <div className="flex space-x-1">
+                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                          let page;
+                          if (totalPages <= 5) {
+                            page = i + 1;
+                          } else if (currentPage <= 3) {
+                            page = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            page = totalPages - 4 + i;
+                          } else {
+                            page = currentPage - 2 + i;
+                          }
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3 py-1 border rounded text-sm ${
+                                currentPage === page
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() =>
+                          setCurrentPage(Math.min(totalPages, currentPage + 1))
+                        }
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        下一页
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

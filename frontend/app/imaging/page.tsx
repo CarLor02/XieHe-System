@@ -3,14 +3,32 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-interface ImageData {
-  id: string;
-  examType: string;
-  studyDate: string;
-  status: 'pending' | 'reviewed';
-  thumbnailUrl?: string;
+interface Study {
+  id: number;
+  study_instance_uid: string;
+  study_id?: string;
+  patient_id: number;
+  patient_name?: string;
+  study_description?: string;
+  modality?: string;
+  study_date?: string;
+  study_time?: string;
+  referring_physician?: string;
+  status: string;
+  series_count: number;
+  instance_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface StudyListResponse {
+  studies: Study[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 const mockImages: ImageData[] = [

@@ -1,375 +1,499 @@
 """
-诊断报告API端点
+报告管理API端点 - 重构版本
 
-提供报告生成、编辑、审核、导出等功能
+实现报告的增删改查、生成、审核等核心功能
 
 @author XieHe Medical System
-@created 2025-09-24
+@created 2025-09-28
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, date
-
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, asc
+from sqlalchemy import and_, or_, desc, func
 from pydantic import BaseModel, Field
+import uuid
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
-from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, ReportPriorityEnum, ReportTypeEnum
-from app.core.report_generator import report_generator
+from app.core.auth import get_current_active_user
+from app.core.exceptions import BusinessLogicException, ResourceNotFoundException
 from app.core.logging import get_logger
+from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, ReportPriorityEnum, ReportTypeEnum
+from app.models.patient import Patient
+from app.models.image import Study
 
 logger = get_logger(__name__)
-
 router = APIRouter()
 
-# Pydantic模型
-class ReportGenerateRequest(BaseModel):
-    """报告生成请求"""
-    template_id: int = Field(..., description="模板ID")
+# Pydantic模型定义
+class ReportCreate(BaseModel):
+    """创建报告模型"""
     patient_id: int = Field(..., description="患者ID")
-    study_id: int = Field(..., description="检查ID")
-    user_inputs: Optional[Dict[str, Any]] = Field(None, description="用户输入数据")
-    ai_analysis_id: Optional[str] = Field(None, description="AI分析结果ID")
-
-class ReportUpdateRequest(BaseModel):
-    """报告更新请求"""
-    report_title: Optional[str] = Field(None, description="报告标题")
+    study_id: Optional[int] = Field(None, description="检查ID")
+    template_id: Optional[int] = Field(None, description="模板ID")
+    report_title: str = Field(..., description="报告标题", max_length=200)
     clinical_history: Optional[str] = Field(None, description="临床病史")
     examination_technique: Optional[str] = Field(None, description="检查技术")
     findings: Optional[str] = Field(None, description="检查所见")
     impression: Optional[str] = Field(None, description="诊断意见")
     recommendations: Optional[str] = Field(None, description="建议")
-    structured_data: Optional[Dict[str, Any]] = Field(None, description="结构化数据")
     primary_diagnosis: Optional[str] = Field(None, description="主要诊断")
     secondary_diagnosis: Optional[str] = Field(None, description="次要诊断")
-    priority: Optional[ReportPriorityEnum] = Field(None, description="优先级")
-    urgency_flag: Optional[bool] = Field(None, description="紧急标志")
-    critical_flag: Optional[bool] = Field(None, description="危急值标志")
-    notes: Optional[str] = Field(None, description="备注")
-    tags: Optional[List[str]] = Field(None, description="标签")
+    priority: Optional[str] = Field("normal", description="优先级")
+
+class ReportUpdate(BaseModel):
+    """更新报告模型"""
+    report_title: Optional[str] = Field(None, description="报告标题", max_length=200)
+    clinical_history: Optional[str] = Field(None, description="临床病史")
+    examination_technique: Optional[str] = Field(None, description="检查技术")
+    findings: Optional[str] = Field(None, description="检查所见")
+    impression: Optional[str] = Field(None, description="诊断意见")
+    recommendations: Optional[str] = Field(None, description="建议")
+    primary_diagnosis: Optional[str] = Field(None, description="主要诊断")
+    secondary_diagnosis: Optional[str] = Field(None, description="次要诊断")
+    priority: Optional[str] = Field(None, description="优先级")
 
 class ReportResponse(BaseModel):
-    """报告响应"""
+    """报告响应模型"""
     id: int
     report_number: str
-    study_id: int
     patient_id: int
+    patient_name: Optional[str]
+    study_id: Optional[int]
     template_id: Optional[int]
-    report_type: ReportTypeEnum
     report_title: str
-    status: ReportStatusEnum
-    priority: ReportPriorityEnum
     clinical_history: Optional[str]
     examination_technique: Optional[str]
-    findings: str
-    impression: str
+    findings: Optional[str]
+    impression: Optional[str]
     recommendations: Optional[str]
-    structured_data: Optional[Dict[str, Any]]
     primary_diagnosis: Optional[str]
     secondary_diagnosis: Optional[str]
-    examination_date: Optional[date]
-    report_date: date
-    reporting_physician: str
+    priority: str
+    status: str
     ai_assisted: bool
-    ai_suggestions: Optional[Dict[str, Any]]
     ai_confidence: Optional[float]
-    urgency_flag: bool
-    critical_flag: bool
-    notes: Optional[str]
-    tags: Optional[List[str]]
     created_at: datetime
     updated_at: datetime
+    created_by: Optional[int]
+    reviewed_by: Optional[int]
+    reviewed_at: Optional[datetime]
 
     class Config:
         from_attributes = True
 
 class ReportListResponse(BaseModel):
-    """报告列表响应"""
+    """报告列表响应模型"""
     reports: List[ReportResponse]
     total: int
     page: int
     page_size: int
     total_pages: int
 
-@router.post("/generate", response_model=ReportResponse)
-async def generate_report(
-    request: ReportGenerateRequest,
-    background_tasks: BackgroundTasks,
-    current_user = Depends(get_current_user),
+# 辅助函数
+def convert_priority_to_enum(priority_str: str) -> ReportPriorityEnum:
+    """转换优先级字符串为枚举"""
+    priority_map = {
+        "low": ReportPriorityEnum.LOW,
+        "normal": ReportPriorityEnum.NORMAL,
+        "high": ReportPriorityEnum.HIGH,
+        "urgent": ReportPriorityEnum.URGENT,
+        "critical": ReportPriorityEnum.CRITICAL
+    }
+    return priority_map.get(priority_str.lower(), ReportPriorityEnum.NORMAL)
+
+def convert_enum_to_priority(priority_enum: ReportPriorityEnum) -> str:
+    """转换优先级枚举为字符串"""
+    priority_map = {
+        ReportPriorityEnum.LOW: "low",
+        ReportPriorityEnum.NORMAL: "normal",
+        ReportPriorityEnum.HIGH: "high",
+        ReportPriorityEnum.URGENT: "urgent",
+        ReportPriorityEnum.CRITICAL: "critical"
+    }
+    return priority_map.get(priority_enum, "normal")
+
+def generate_report_number() -> str:
+    """生成报告编号"""
+    today = datetime.now()
+    return f"RPT{today.strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
+
+# API端点
+@router.post("/", response_model=ReportResponse, summary="创建报告")
+async def create_report(
+    report_data: ReportCreate,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
-    基于模板生成报告
+    创建新报告
     """
     try:
-        # 获取模板
-        template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == request.template_id,
-                ReportTemplate.is_deleted == False,
-                ReportTemplate.is_active == True
-            )
+        # 验证患者是否存在
+        patient = db.query(Patient).filter(
+            and_(Patient.id == report_data.patient_id, Patient.is_deleted == False)
         ).first()
         
-        if not template:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告模板不存在或已停用"
-            )
-        
-        # 获取患者数据（模拟数据）
-        patient_data = {
-            "id": request.patient_id,
-            "name": "张三",
-            "age": 45,
-            "gender": "男",
-            "id_number": "110101197901010001"
-        }
-        
-        # 获取检查数据（模拟数据）
-        study_data = {
-            "id": request.study_id,
-            "study_date": date.today(),
-            "modality": template.modality or "CT",
-            "body_part": template.body_part or "胸部",
-            "description": f"{template.body_part or ''}检查",
-            "referring_physician": "李医生",
-            "is_emergency": False
-        }
-        
-        # 获取AI分析结果
-        ai_results = None
-        if request.ai_analysis_id:
-            ai_results = {
-                "predicted_class": "正常",
-                "confidence": 0.95,
-                "suggestions": ["建议定期复查"],
-                "findings": [
-                    {"description": "双肺纹理清晰，未见明显实质性病变"}
-                ]
-            }
-        
-        # 生成报告
-        report_data = report_generator.generate_from_template(
-            template=template,
-            patient_data=patient_data,
-            study_data=study_data,
-            ai_results=ai_results,
-            user_inputs=request.user_inputs
-        )
-        
-        # 创建报告记录
-        report = DiagnosticReport(**report_data)
-        report.created_by = current_user.get("user_id")
-        
-        db.add(report)
-        db.commit()
-        db.refresh(report)
-        
-        # 后台任务：更新模板使用统计
-        background_tasks.add_task(update_template_usage, template.id, db)
-        
-        logger.info(f"生成报告成功: {report.report_number}")
-        return report
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"生成报告失败: {e}")
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="生成报告失败"
+        if not patient:
+            raise ResourceNotFoundException(f"患者 ID {report_data.patient_id} 不存在")
+
+        # 验证检查是否存在（如果提供了study_id）
+        if report_data.study_id:
+            study = db.query(Study).filter(Study.id == report_data.study_id).first()
+            if not study:
+                raise ResourceNotFoundException(f"检查 ID {report_data.study_id} 不存在")
+
+        # 创建新报告
+        new_report = DiagnosticReport(
+            report_number=generate_report_number(),
+            patient_id=report_data.patient_id,
+            study_id=report_data.study_id,
+            template_id=report_data.template_id,
+            report_title=report_data.report_title,
+            clinical_history=report_data.clinical_history,
+            examination_technique=report_data.examination_technique,
+            findings=report_data.findings,
+            impression=report_data.impression,
+            recommendations=report_data.recommendations,
+            primary_diagnosis=report_data.primary_diagnosis,
+            secondary_diagnosis=report_data.secondary_diagnosis,
+            priority=convert_priority_to_enum(report_data.priority),
+            status=ReportStatusEnum.DRAFT,
+            ai_assisted=False,
+            created_by=current_user.get("id")
         )
 
-@router.get("/", response_model=ReportListResponse)
+        db.add(new_report)
+        db.commit()
+        db.refresh(new_report)
+
+        logger.info(f"报告创建成功: {new_report.report_number} - {report_data.report_title}")
+
+        # 转换为响应模型
+        response_data = {
+            "id": new_report.id,
+            "report_number": new_report.report_number,
+            "patient_id": new_report.patient_id,
+            "patient_name": patient.name,
+            "study_id": new_report.study_id,
+            "template_id": new_report.template_id,
+            "report_title": new_report.report_title,
+            "clinical_history": new_report.clinical_history,
+            "examination_technique": new_report.examination_technique,
+            "findings": new_report.findings,
+            "impression": new_report.impression,
+            "recommendations": new_report.recommendations,
+            "primary_diagnosis": new_report.primary_diagnosis,
+            "secondary_diagnosis": new_report.secondary_diagnosis,
+            "priority": convert_enum_to_priority(new_report.priority),
+            "status": new_report.status.value,
+            "ai_assisted": new_report.ai_assisted,
+            "ai_confidence": float(new_report.ai_confidence) if new_report.ai_confidence else None,
+            "created_at": new_report.created_at,
+            "updated_at": new_report.updated_at,
+            "created_by": new_report.created_by,
+            "reviewed_by": new_report.reviewed_by,
+            "reviewed_at": new_report.reviewed_at
+        }
+
+        return ReportResponse(**response_data)
+
+    except (ResourceNotFoundException, BusinessLogicException):
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"报告创建失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="报告创建过程中发生错误"
+        )
+
+@router.get("/", response_model=ReportListResponse, summary="获取报告列表")
 async def get_reports(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     patient_id: Optional[int] = Query(None, description="患者ID筛选"),
-    status: Optional[ReportStatusEnum] = Query(None, description="状态筛选"),
-    current_user = Depends(get_current_user),
+    status: Optional[str] = Query(None, description="状态筛选"),
+    priority: Optional[str] = Query(None, description="优先级筛选"),
+    search: Optional[str] = Query(None, description="搜索关键词"),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
     获取报告列表
+    
+    支持分页、搜索和筛选功能
     """
     try:
-        # 构建查询条件
-        query = db.query(DiagnosticReport).filter(DiagnosticReport.is_deleted == False)
-        
-        # 筛选条件
+        # 构建查询，关联患者表获取患者姓名
+        query = db.query(DiagnosticReport, Patient.name.label('patient_name')).join(
+            Patient, DiagnosticReport.patient_id == Patient.id
+        ).filter(Patient.is_deleted == False)
+
+        # 患者ID筛选
         if patient_id:
             query = query.filter(DiagnosticReport.patient_id == patient_id)
+
+        # 状态筛选
         if status:
-            query = query.filter(DiagnosticReport.status == status)
-        
-        # 排序
-        query = query.order_by(desc(DiagnosticReport.created_at))
-        
-        # 分页
+            if status == "draft":
+                query = query.filter(DiagnosticReport.status == ReportStatusEnum.DRAFT)
+            elif status == "pending_review":
+                query = query.filter(DiagnosticReport.status == ReportStatusEnum.PENDING_REVIEW)
+            elif status == "reviewed":
+                query = query.filter(DiagnosticReport.status == ReportStatusEnum.REVIEWED)
+            elif status == "finalized":
+                query = query.filter(DiagnosticReport.status == ReportStatusEnum.FINALIZED)
+
+        # 优先级筛选
+        if priority:
+            priority_enum = convert_priority_to_enum(priority)
+            query = query.filter(DiagnosticReport.priority == priority_enum)
+
+        # 搜索筛选
+        if search:
+            search_filter = or_(
+                Patient.name.contains(search),
+                Patient.patient_id.contains(search),
+                DiagnosticReport.report_number.contains(search),
+                DiagnosticReport.report_title.contains(search),
+                DiagnosticReport.primary_diagnosis.contains(search)
+            )
+            query = query.filter(search_filter)
+
+        # 获取总数
         total = query.count()
+
+        # 分页
         offset = (page - 1) * page_size
-        reports = query.offset(offset).limit(page_size).all()
-        
+        results = query.order_by(desc(DiagnosticReport.created_at)).offset(offset).limit(page_size).all()
+
+        # 转换为响应格式
+        report_responses = []
+        for report, patient_name in results:
+            response_data = {
+                "id": report.id,
+                "report_number": report.report_number,
+                "patient_id": report.patient_id,
+                "patient_name": patient_name,
+                "study_id": report.study_id,
+                "template_id": report.template_id,
+                "report_title": report.report_title,
+                "clinical_history": report.clinical_history,
+                "examination_technique": report.examination_technique,
+                "findings": report.findings,
+                "impression": report.impression,
+                "recommendations": report.recommendations,
+                "primary_diagnosis": report.primary_diagnosis,
+                "secondary_diagnosis": report.secondary_diagnosis,
+                "priority": convert_enum_to_priority(report.priority),
+                "status": report.status.value,
+                "ai_assisted": report.ai_assisted,
+                "ai_confidence": float(report.ai_confidence) if report.ai_confidence else None,
+                "created_at": report.created_at,
+                "updated_at": report.updated_at,
+                "created_by": report.created_by,
+                "reviewed_by": report.reviewed_by,
+                "reviewed_at": report.reviewed_at
+            }
+            report_responses.append(ReportResponse(**response_data))
+
         total_pages = (total + page_size - 1) // page_size
-        
-        logger.info(f"获取报告列表: {len(reports)} 个报告")
-        
+
         return ReportListResponse(
-            reports=reports,
+            reports=report_responses,
             total=total,
             page=page,
             page_size=page_size,
             total_pages=total_pages
         )
-        
+
     except Exception as e:
         logger.error(f"获取报告列表失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取报告列表失败"
+            detail="获取报告列表过程中发生错误"
         )
 
-@router.get("/{report_id}", response_model=ReportResponse)
+@router.get("/{report_id}", response_model=ReportResponse, summary="获取报告详情")
 async def get_report(
     report_id: int,
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
-    获取指定报告详情
+    获取指定报告的详细信息
     """
     try:
-        report = db.query(DiagnosticReport).filter(
-            and_(
-                DiagnosticReport.id == report_id,
-                DiagnosticReport.is_deleted == False
-            )
+        # 查询报告信息，关联患者表
+        result = db.query(DiagnosticReport, Patient.name.label('patient_name')).join(
+            Patient, DiagnosticReport.patient_id == Patient.id
+        ).filter(
+            and_(DiagnosticReport.id == report_id, Patient.is_deleted == False)
         ).first()
-        
-        if not report:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告不存在"
-            )
-        
-        logger.info(f"获取报告详情: {report.report_number}")
-        return report
-        
-    except HTTPException:
+
+        if not result:
+            raise ResourceNotFoundException(f"报告 ID {report_id} 不存在")
+
+        report, patient_name = result
+
+        # 转换为响应格式
+        response_data = {
+            "id": report.id,
+            "report_number": report.report_number,
+            "patient_id": report.patient_id,
+            "patient_name": patient_name,
+            "study_id": report.study_id,
+            "template_id": report.template_id,
+            "report_title": report.report_title,
+            "clinical_history": report.clinical_history,
+            "examination_technique": report.examination_technique,
+            "findings": report.findings,
+            "impression": report.impression,
+            "recommendations": report.recommendations,
+            "primary_diagnosis": report.primary_diagnosis,
+            "secondary_diagnosis": report.secondary_diagnosis,
+            "priority": convert_enum_to_priority(report.priority),
+            "status": report.status.value,
+            "ai_assisted": report.ai_assisted,
+            "ai_confidence": float(report.ai_confidence) if report.ai_confidence else None,
+            "created_at": report.created_at,
+            "updated_at": report.updated_at,
+            "created_by": report.created_by,
+            "reviewed_by": report.reviewed_by,
+            "reviewed_at": report.reviewed_at
+        }
+
+        return ReportResponse(**response_data)
+
+    except ResourceNotFoundException:
         raise
     except Exception as e:
         logger.error(f"获取报告详情失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取报告详情失败"
+            detail="获取报告详情过程中发生错误"
         )
 
-@router.put("/{report_id}", response_model=ReportResponse)
+@router.put("/{report_id}", response_model=ReportResponse, summary="更新报告")
 async def update_report(
     report_id: int,
-    request: ReportUpdateRequest,
-    current_user = Depends(get_current_user),
+    report_data: ReportUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
-    更新报告内容
+    更新报告信息
     """
     try:
-        report = db.query(DiagnosticReport).filter(
-            and_(
-                DiagnosticReport.id == report_id,
-                DiagnosticReport.is_deleted == False
-            )
+        # 查询报告信息，关联患者表
+        result = db.query(DiagnosticReport, Patient.name.label('patient_name')).join(
+            Patient, DiagnosticReport.patient_id == Patient.id
+        ).filter(
+            and_(DiagnosticReport.id == report_id, Patient.is_deleted == False)
         ).first()
 
-        if not report:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告不存在"
-            )
+        if not result:
+            raise ResourceNotFoundException(f"报告 ID {report_id} 不存在")
 
-        # 更新报告字段
-        update_data = request.dict(exclude_unset=True)
+        report, patient_name = result
+
+        # 检查报告状态是否允许修改
+        if report.status in [ReportStatusEnum.FINALIZED, ReportStatusEnum.ARCHIVED]:
+            raise BusinessLogicException("已完成或已归档的报告不允许修改")
+
+        # 更新报告信息
+        update_data = report_data.dict(exclude_unset=True)
         for field, value in update_data.items():
-            if hasattr(report, field):
+            if field == "priority" and value:
+                setattr(report, field, convert_priority_to_enum(value))
+            else:
                 setattr(report, field, value)
 
+        report.updated_by = current_user.get("id")
         report.updated_at = datetime.now()
-        report.updated_by = current_user.get("user_id")
 
         db.commit()
         db.refresh(report)
 
-        logger.info(f"更新报告成功: {report.report_number}")
-        return report
+        logger.info(f"报告更新成功: {report.report_number} - {report.report_title}")
 
-    except HTTPException:
+        # 转换为响应格式
+        response_data = {
+            "id": report.id,
+            "report_number": report.report_number,
+            "patient_id": report.patient_id,
+            "patient_name": patient_name,
+            "study_id": report.study_id,
+            "template_id": report.template_id,
+            "report_title": report.report_title,
+            "clinical_history": report.clinical_history,
+            "examination_technique": report.examination_technique,
+            "findings": report.findings,
+            "impression": report.impression,
+            "recommendations": report.recommendations,
+            "primary_diagnosis": report.primary_diagnosis,
+            "secondary_diagnosis": report.secondary_diagnosis,
+            "priority": convert_enum_to_priority(report.priority),
+            "status": report.status.value,
+            "ai_assisted": report.ai_assisted,
+            "ai_confidence": float(report.ai_confidence) if report.ai_confidence else None,
+            "created_at": report.created_at,
+            "updated_at": report.updated_at,
+            "created_by": report.created_by,
+            "reviewed_by": report.reviewed_by,
+            "reviewed_at": report.reviewed_at
+        }
+
+        return ReportResponse(**response_data)
+
+    except (ResourceNotFoundException, BusinessLogicException):
         raise
     except Exception as e:
-        logger.error(f"更新报告失败: {e}")
         db.rollback()
+        logger.error(f"报告更新失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="更新报告失败"
+            detail="报告更新过程中发生错误"
         )
 
-@router.delete("/{report_id}")
+@router.delete("/{report_id}", summary="删除报告")
 async def delete_report(
     report_id: int,
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
     删除报告（软删除）
     """
     try:
-        report = db.query(DiagnosticReport).filter(
-            and_(
-                DiagnosticReport.id == report_id,
-                DiagnosticReport.is_deleted == False
-            )
-        ).first()
+        report = db.query(DiagnosticReport).filter(DiagnosticReport.id == report_id).first()
 
         if not report:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告不存在"
-            )
+            raise ResourceNotFoundException(f"报告 ID {report_id} 不存在")
 
+        # 检查报告状态是否允许删除
+        if report.status == ReportStatusEnum.FINALIZED:
+            raise BusinessLogicException("已完成的报告不允许删除")
+
+        # 软删除
         report.is_deleted = True
-        report.deleted_at = datetime.now()
-        report.deleted_by = current_user.get("user_id")
+        report.updated_by = current_user.get("id")
+        report.updated_at = datetime.now()
 
         db.commit()
 
-        logger.info(f"删除报告成功: {report.report_number}")
+        logger.info(f"报告删除成功: {report.report_number}")
+
         return {"message": "报告删除成功"}
 
-    except HTTPException:
+    except (ResourceNotFoundException, BusinessLogicException):
         raise
     except Exception as e:
-        logger.error(f"删除报告失败: {e}")
         db.rollback()
+        logger.error(f"报告删除失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="删除报告失败"
+            detail="报告删除过程中发生错误"
         )
-
-# 后台任务函数
-async def update_template_usage(template_id: int, db: Session):
-    """更新模板使用统计"""
-    try:
-        template = db.query(ReportTemplate).filter(ReportTemplate.id == template_id).first()
-        if template:
-            template.usage_count = (template.usage_count or 0) + 1
-            template.last_used_at = datetime.now()
-            db.commit()
-            logger.info(f"更新模板使用统计: {template.template_name}")
-    except Exception as e:
-        logger.error(f"更新模板使用统计失败: {e}")
-        db.rollback()
