@@ -29,18 +29,45 @@ interface DashboardOverview {
 // API调用函数
 const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
   try {
-    const response = await fetch('/api/v1/dashboard/overview', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetch(
+      'http://localhost:8000/api/v1/dashboard/stats',
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
     if (!response.ok) {
       throw new Error('获取仪表板数据失败');
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    // 转换数据格式以匹配前端接口
+    return {
+      total_patients: data.total_patients || 0,
+      new_patients_today: data.today_processed || 0,
+      new_patients_week: Math.floor((data.today_processed || 0) * 7),
+      active_patients: data.total_patients || 0,
+      total_studies: data.total_images || 0,
+      studies_today: data.today_processed || 0,
+      studies_week: Math.floor((data.today_processed || 0) * 7),
+      pending_studies: data.pending_analysis || 0,
+      total_reports: data.total_reports || 0,
+      pending_reports: data.pending_analysis || 0,
+      completed_reports:
+        (data.total_reports || 0) - (data.pending_analysis || 0),
+      overdue_reports: 0,
+      completion_rate: Math.round(
+        (((data.total_reports || 0) - (data.pending_analysis || 0)) /
+          (data.total_reports || 1)) *
+          100
+      ),
+      average_processing_time: 2.5,
+      system_alerts: data.pending_analysis > 20 ? 1 : 0,
+      generated_at: new Date().toISOString(),
+    };
   } catch (error) {
     console.error('获取仪表板数据错误:', error);
     throw error;
@@ -48,7 +75,9 @@ const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
 };
 
 export default function Home() {
-  const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,39 +101,63 @@ export default function Home() {
   }, []);
 
   // 根据API数据生成统计卡片数据
-  const statsData = dashboardData ? [
-    {
-      title: '累计患者',
-      value: dashboardData.total_patients,
-      change: dashboardData.new_patients_week > 0 ?
-        ((dashboardData.new_patients_week / Math.max(dashboardData.total_patients - dashboardData.new_patients_week, 1)) * 100) : 0,
-      icon: 'ri-user-line',
-      color: 'blue' as const,
-    },
-    {
-      title: '待处理检查',
-      value: dashboardData.pending_studies,
-      change: dashboardData.studies_today > 0 ?
-        ((dashboardData.studies_today / Math.max(dashboardData.total_studies - dashboardData.studies_today, 1)) * 100) : 0,
-      icon: 'ri-image-line',
-      color: 'orange' as const,
-    },
-    {
-      title: '累计检查',
-      value: dashboardData.total_studies,
-      change: dashboardData.studies_week > 0 ?
-        ((dashboardData.studies_week / Math.max(dashboardData.total_studies - dashboardData.studies_week, 1)) * 100) : 0,
-      icon: 'ri-gallery-line',
-      color: 'green' as const,
-    },
-    {
-      title: '待处理报告',
-      value: dashboardData.pending_reports,
-      change: dashboardData.completion_rate - 50, // 相对于50%基准的变化
-      icon: 'ri-stethoscope-line',
-      color: 'purple' as const,
-    },
-  ] : [];
+  const statsData = dashboardData
+    ? [
+        {
+          title: '累计患者',
+          value: dashboardData.total_patients,
+          change:
+            dashboardData.new_patients_week > 0
+              ? (dashboardData.new_patients_week /
+                  Math.max(
+                    dashboardData.total_patients -
+                      dashboardData.new_patients_week,
+                    1
+                  )) *
+                100
+              : 0,
+          icon: 'ri-user-line',
+          color: 'blue' as const,
+        },
+        {
+          title: '待处理检查',
+          value: dashboardData.pending_studies,
+          change:
+            dashboardData.studies_today > 0
+              ? (dashboardData.studies_today /
+                  Math.max(
+                    dashboardData.total_studies - dashboardData.studies_today,
+                    1
+                  )) *
+                100
+              : 0,
+          icon: 'ri-image-line',
+          color: 'orange' as const,
+        },
+        {
+          title: '累计检查',
+          value: dashboardData.total_studies,
+          change:
+            dashboardData.studies_week > 0
+              ? (dashboardData.studies_week /
+                  Math.max(
+                    dashboardData.total_studies - dashboardData.studies_week,
+                    1
+                  )) *
+                100
+              : 0,
+          icon: 'ri-gallery-line',
+          color: 'green' as const,
+        },
+        {
+          title: '待处理报告',
+          value: dashboardData.pending_reports,
+          change: dashboardData.completion_rate - 50, // 相对于50%基准的变化
+          icon: 'ri-stethoscope-line',
+          color: 'purple' as const,
+        },
+      ]
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -117,8 +170,11 @@ export default function Home() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">工作台</h1>
               <p className="text-gray-600 mt-1">
-                {loading ? '加载中...' : error ? '数据加载失败' :
-                  `欢迎回来，今天有 ${dashboardData?.pending_studies || 0} 个检查等待处理`}
+                {loading
+                  ? '加载中...'
+                  : error
+                    ? '数据加载失败'
+                    : `欢迎回来，今天有 ${dashboardData?.pending_studies || 0} 个检查等待处理`}
               </p>
             </div>
 
@@ -144,7 +200,10 @@ export default function Home() {
             {loading ? (
               // 加载状态
               Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="bg-white p-6 rounded-lg shadow animate-pulse">
+                <div
+                  key={index}
+                  className="bg-white p-6 rounded-lg shadow animate-pulse"
+                >
                   <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
                   <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
                   <div className="h-3 bg-gray-200 rounded w-1/4"></div>

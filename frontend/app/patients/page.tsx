@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
@@ -32,57 +33,50 @@ interface PatientListResponse {
   total_pages: number;
 }
 
-// API调用函数
-const fetchPatients = async (page: number = 1, pageSize: number = 10, search?: string, gender?: string): Promise<PatientListResponse> => {
-  try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      page_size: pageSize.toString(),
-    });
-
-    if (search) params.append('search', search);
-    if (gender && gender !== 'all') params.append('gender', gender);
-
-    const response = await fetch(`/api/v1/patients?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('获取患者列表失败');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('获取患者列表错误:', error);
-    throw error;
-  }
-};
-
 export default function PatientsPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGender, setSelectedGender] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [totalPatients, setTotalPatients] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const patientsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPatients, setTotalPatients] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGender, setSelectedGender] = useState('');
+  
+  const pageSize = 10;
 
-  // 加载患者数据
   const loadPatients = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchPatients(currentPage, patientsPerPage, searchTerm || undefined, selectedGender);
-      setPatients(data.patients);
-      setTotalPatients(data.total);
-      setTotalPages(data.total_pages);
+      
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        page_size: pageSize.toString(),
+      });
+      
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim());
+      }
+      
+      if (selectedGender) {
+        params.append('gender', selectedGender);
+      }
+      
+      const response = await fetch(`http://localhost:8000/api/v1/patients?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data: PatientListResponse = await response.json();
+      
+      setPatients(data.patients || []);
+      setTotalPatients(data.total || 0);
+      setTotalPages(data.total_pages || 1);
+      
     } catch (err) {
+      console.error('Failed to load patients:', err);
       setError(err instanceof Error ? err.message : '加载患者数据失败');
       setPatients([]);
     } finally {
@@ -90,12 +84,10 @@ export default function PatientsPage() {
     }
   };
 
-  // 初始加载和依赖变化时重新加载
   useEffect(() => {
     loadPatients();
   }, [currentPage, searchTerm, selectedGender]);
 
-  // 由于我们现在使用API分页，不需要前端过滤和分页
   const displayedPatients = patients;
 
   return (
@@ -108,280 +100,210 @@ export default function PatientsPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">患者管理</h1>
-              <p className="text-gray-600 mt-1">管理和查看所有患者信息</p>
+              <p className="text-gray-600">管理和查看患者信息</p>
             </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 whitespace-nowrap"
-              >
-                <i className="ri-user-add-line w-4 h-4 flex items-center justify-center"></i>
-                <span>新增患者</span>
-              </button>
-              <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center space-x-2 whitespace-nowrap">
-                <i className="ri-upload-line w-4 h-4 flex items-center justify-center"></i>
-                <span>数据同步</span>
-              </button>
-            </div>
+            <Link
+              href="/patients/add"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              添加患者
+            </Link>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <i className="ri-search-line w-5 h-5 flex items-center justify-center absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                  <input
-                    type="text"
-                    placeholder="搜索患者姓名、ID或手机号"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-80"
-                  />
-                </div>
-
+          {/* 搜索和筛选 */}
+          <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="搜索患者姓名、ID或电话..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="md:w-48">
                 <select
                   value={selectedGender}
-                  onChange={e => setSelectedGender(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+                  onChange={(e) => setSelectedGender(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="all">全部性别</option>
+                  <option value="">全部性别</option>
                   <option value="男">男</option>
                   <option value="女">女</option>
                 </select>
               </div>
-
-              <div className="text-sm text-gray-500">
-                共 {totalPatients} 位患者
-              </div>
             </div>
+          </div>
 
-            {loading ? (
-              <div className="bg-white rounded-lg shadow p-8 text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <p className="mt-2 text-gray-600">加载中...</p>
-              </div>
-            ) : error ? (
-              <div className="bg-white rounded-lg shadow p-8 text-center">
-                <p className="text-red-600 mb-4">{error}</p>
-                <button
-                  onClick={loadPatients}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  重试
-                </button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto bg-white rounded-lg shadow">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        患者信息
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        性别
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        出生日期
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        联系电话
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        创建时间
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        状态
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        操作
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {displayedPatients.map(patient => (
+          {/* 统计信息 */}
+          <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
+            <div className="text-sm text-gray-600">
+              共找到 <span className="font-semibold text-gray-900">{totalPatients}</span> 位患者
+            </div>
+          </div>
+        </div>
+
+        {/* 患者列表 */}
+        {loading ? (
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <div className="text-gray-500">加载中...</div>
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <div className="text-red-500">错误: {error}</div>
+            <button
+              onClick={loadPatients}
+              className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              重试
+            </button>
+          </div>
+        ) : displayedPatients.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <div className="text-gray-500">暂无患者数据</div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      患者信息
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      性别/年龄
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      联系方式
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      状态
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      注册时间
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {displayedPatients.map((patient) => (
                     <tr key={patient.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <p className="font-medium text-gray-900">
-                            {patient.name}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {patient.patient_id}
-                          </p>
+                          <div className="text-sm font-medium text-gray-900">{patient.name}</div>
+                          <div className="text-sm text-gray-500">ID: {patient.patient_id}</div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {patient.gender}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{patient.gender}</div>
+                        <div className="text-sm text-gray-500">{patient.age || '未知'}岁</div>
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {patient.birth_date} ({patient.age}岁)
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{patient.phone || '未提供'}</div>
+                        <div className="text-sm text-gray-500">{patient.email || '未提供'}</div>
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {patient.phone}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {new Date(patient.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                          {patient.status}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          patient.status === 'active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {patient.status === 'active' ? '活跃' : '非活跃'}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center space-x-2">
-                          <Link
-                            href={`/patients/${patient.id}`}
-                            className="text-blue-600 hover:text-blue-700 text-sm whitespace-nowrap"
-                          >
-                            查看详情
-                          </Link>
-                          <Link
-                            href={`/patients/${patient.id}/edit`}
-                            className="text-green-600 hover:text-green-700 text-sm whitespace-nowrap"
-                          >
-                            编辑
-                          </Link>
-                        </div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(patient.created_at).toLocaleDateString('zh-CN')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <Link
+                          href={`/patients/${patient.id}`}
+                          className="text-blue-600 hover:text-blue-900 mr-4"
+                        >
+                          查看
+                        </Link>
+                        <Link
+                          href={`/patients/${patient.id}/edit`}
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          编辑
+                        </Link>
                       </td>
                     </tr>
                   ))}
-                    </tbody>
-                  </table>
+                </tbody>
+              </table>
+            </div>
 
-                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-                    <div className="text-sm text-gray-500">
-                      显示第 {currentPage} 页，共 {totalPages} 页，总计 {totalPatients} 条记录
+            {/* 分页 */}
+            {totalPages > 1 && (
+              <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      上一页
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      下一页
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        显示第 <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> 到{' '}
+                        <span className="font-medium">{Math.min(currentPage * pageSize, totalPatients)}</span> 条，
+                        共 <span className="font-medium">{totalPatients}</span> 条记录
+                      </p>
                     </div>
-
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                      >
-                        上一页
-                      </button>
-
-                      <div className="flex space-x-1">
-                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                          let page;
-                          if (totalPages <= 5) {
-                            page = i + 1;
-                          } else if (currentPage <= 3) {
-                            page = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            page = totalPages - 4 + i;
-                          } else {
-                            page = currentPage - 2 + i;
-                          }
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                        <button
+                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          上一页
+                        </button>
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          const page = i + 1;
                           return (
                             <button
                               key={page}
                               onClick={() => setCurrentPage(page)}
-                              className={`px-3 py-1 border rounded text-sm ${
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                                 currentPage === page
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : 'border-gray-300 hover:bg-gray-50'
+                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                               }`}
                             >
                               {page}
                             </button>
                           );
                         })}
-                      </div>
-
-                      <button
-                        onClick={() =>
-                          setCurrentPage(Math.min(totalPages, currentPage + 1))
-                        }
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                      >
-                        下一页
-                      </button>
+                        <button
+                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                          disabled={currentPage === totalPages}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          下一页
+                        </button>
+                      </nav>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-          </div>
-        </div>
-
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-96 max-w-90vw">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">新增患者</h3>
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <i className="ri-close-line w-5 h-5 flex items-center justify-center"></i>
-                </button>
-              </div>
-
-              <form className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    姓名
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    性别
-                  </label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8">
-                    <option value="">请选择</option>
-                    <option value="男">男</option>
-                    <option value="女">女</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    出生日期
-                  </label>
-                  <input
-                    type="date"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    联系电话
-                  </label>
-                  <input
-                    type="tel"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="flex space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 whitespace-nowrap"
-                  >
-                    取消
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-7
-                    00 whitespace-nowrap"
-                  >
-                    保存
-                  </button>
-                </div>
-              </form>
-            </div>
           </div>
         )}
       </main>
