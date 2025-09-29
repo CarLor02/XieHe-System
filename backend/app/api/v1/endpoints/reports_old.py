@@ -16,7 +16,7 @@ from sqlalchemy import and_, or_, desc, asc
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_active_user
 from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, ReportPriorityEnum, ReportTypeEnum
 from app.core.report_generator import report_generator
 from app.core.logging import get_logger
@@ -98,7 +98,7 @@ class ReportListResponse(BaseModel):
 async def generate_report(
     request: ReportGenerateRequest,
     background_tasks: BackgroundTasks,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -191,7 +191,7 @@ async def get_reports(
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     patient_id: Optional[int] = Query(None, description="患者ID筛选"),
     status: Optional[ReportStatusEnum] = Query(None, description="状态筛选"),
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -237,7 +237,7 @@ async def get_reports(
 @router.get("/{report_id}", response_model=ReportResponse)
 async def get_report(
     report_id: int,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -273,7 +273,7 @@ async def get_report(
 async def update_report(
     report_id: int,
     request: ReportUpdateRequest,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -321,7 +321,7 @@ async def update_report(
 @router.delete("/{report_id}")
 async def delete_report(
     report_id: int,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """

@@ -186,19 +186,87 @@ async def get_reports():
         ]
     }
 
-# 系统统计端点
+# 系统统计端点 - 真实数据版本
 @app.get("/api/v1/dashboard/stats")
 async def get_dashboard_stats():
-    """获取仪表板统计数据（演示）"""
-    return {
-        "total_patients": 156,
-        "total_images": 423,
-        "total_reports": 389,
-        "pending_analysis": 12,
-        "today_processed": 28,
-        "ai_accuracy": 0.94,
-        "system_status": "正常运行"
-    }
+    """获取仪表板统计数据（真实数据）"""
+    try:
+        # 尝试连接数据库获取真实数据
+        import mysql.connector
+        from datetime import datetime, date
+
+        # 数据库连接配置
+        db_config = {
+            'host': 'localhost',
+            'port': 3307,
+            'user': 'medical_user',
+            'password': 'medical_password_2024',
+            'database': 'medical_system'
+        }
+
+        try:
+            # 连接数据库
+            conn = mysql.connector.connect(**db_config)
+            cursor = conn.cursor()
+
+            # 查询患者总数
+            cursor.execute("SELECT COUNT(*) FROM patients WHERE is_deleted = FALSE")
+            total_patients = cursor.fetchone()[0] or 0
+
+            # 查询影像总数
+            cursor.execute("SELECT COUNT(*) FROM studies")
+            total_images = cursor.fetchone()[0] or 0
+
+            # 查询报告总数
+            cursor.execute("SELECT COUNT(*) FROM diagnostic_reports WHERE is_deleted = FALSE")
+            total_reports = cursor.fetchone()[0] or 0
+
+            # 查询待分析数量
+            cursor.execute("SELECT COUNT(*) FROM studies WHERE status IN ('SCHEDULED', 'IN_PROGRESS')")
+            pending_analysis = cursor.fetchone()[0] or 0
+
+            # 查询今日处理数量
+            today = date.today()
+            cursor.execute("SELECT COUNT(*) FROM diagnostic_reports WHERE DATE(created_at) = %s", (today,))
+            today_processed = cursor.fetchone()[0] or 0
+
+            cursor.close()
+            conn.close()
+
+            return {
+                "total_patients": total_patients,
+                "total_images": total_images,
+                "total_reports": total_reports,
+                "pending_analysis": pending_analysis,
+                "today_processed": today_processed,
+                "ai_accuracy": 0.94,  # 模拟AI准确率
+                "system_status": "正常运行"
+            }
+
+        except mysql.connector.Error as e:
+            print(f"数据库连接错误: {e}")
+            # 如果数据库连接失败，返回模拟数据
+            return {
+                "total_patients": 0,
+                "total_images": 0,
+                "total_reports": 0,
+                "pending_analysis": 0,
+                "today_processed": 0,
+                "ai_accuracy": 0.94,
+                "system_status": "数据库连接失败"
+            }
+
+    except ImportError:
+        # 如果没有mysql.connector，返回模拟数据
+        return {
+            "total_patients": 156,
+            "total_images": 423,
+            "total_reports": 389,
+            "pending_analysis": 12,
+            "today_processed": 28,
+            "ai_accuracy": 0.94,
+            "system_status": "演示模式"
+        }
 
 if __name__ == "__main__":
     print("🚀 启动XieHe医疗影像诊断系统演示版...")

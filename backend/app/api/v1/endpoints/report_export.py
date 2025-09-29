@@ -21,7 +21,7 @@ from sqlalchemy import and_
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_active_user
 from app.models.report import DiagnosticReport
 from app.core.logging import get_logger
 
@@ -63,7 +63,7 @@ async def export_single_report(
     template: Optional[str] = Query(None),
     include_images: bool = Query(True),
     watermark: Optional[str] = Query(None),
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -129,7 +129,7 @@ async def export_single_report(
 async def export_batch_reports(
     request: BatchExportRequest,
     background_tasks: BackgroundTasks,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -193,7 +193,7 @@ async def export_batch_reports(
 @router.get("/download/{task_id}")
 async def download_exported_file(
     task_id: str,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     下载导出的文件
@@ -246,7 +246,7 @@ async def download_exported_file(
 @router.get("/status/{task_id}")
 async def get_export_status(
     task_id: str,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     获取导出任务状态

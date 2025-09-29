@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import UserSettings from '@/components/UserSettings';
+import { useAuth, useUser } from '@/store/authStore';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 interface Message {
   id: string;
@@ -19,7 +21,7 @@ const mockMessages: Message[] = [
     content: '患者张三的正位X光片已上传完成，请及时查看和诊断。',
     type: 'info',
     time: '5分钟前',
-    isRead: false
+    isRead: false,
   },
   {
     id: '2',
@@ -27,7 +29,7 @@ const mockMessages: Message[] = [
     content: '系统将于今晚23:00-01:00进行维护升级，期间可能影响正常使用。',
     type: 'warning',
     time: '1小时前',
-    isRead: false
+    isRead: false,
   },
   {
     id: '3',
@@ -35,20 +37,25 @@ const mockMessages: Message[] = [
     content: '患者李四的影像诊断报告已生成，可在患者详情中查看。',
     type: 'success',
     time: '2小时前',
-    isRead: false
-  }
+    isRead: false,
+  },
 ];
 
 export default function Header() {
+  const router = useRouter();
+  const { user } = useUser();
+  const { logout } = useAuth();
   const [showMessages, setShowMessages] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showUserSettings, setShowUserSettings] = useState(false);
-  const [settingsType, setSettingsType] = useState<'profile' | 'organization' | 'password' | 'system' | 'permissions' | null>(null);
+  const [settingsType, setSettingsType] = useState<
+    'profile' | 'organization' | 'password' | 'system' | null
+  >(null);
   const [messages, setMessages] = useState(mockMessages);
   const [mounted, setMounted] = useState(false);
 
-  // 模拟当前用户角色 - 在实际应用中应该从认证系统获取
-  const [userRole, setUserRole] = useState('admin'); // 'admin' 或 'staff'
+  // 从认证系统获取用户角色
+  const userRole = user?.role || 'staff';
 
   useEffect(() => {
     setMounted(true);
@@ -59,22 +66,28 @@ export default function Header() {
       <header className="bg-white border-b border-gray-200 px-6 py-4 ml-64">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-gray-800">智慧门诊系统</h1>
+            <h1 className="text-xl font-semibold text-gray-800">
+              智慧门诊系统
+            </h1>
             <p className="text-sm text-gray-500 mt-1">专业的医疗影像管理平台</p>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
               <i className="ri-notification-line w-4 h-4 flex items-center justify-center text-blue-600"></i>
             </div>
-            
+
             <div className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg">
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                 <i className="ri-user-line w-4 h-4 flex items-center justify-center text-gray-600"></i>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-800">吴医生</p>
-                <p className="text-xs text-gray-500">骨科主治医师</p>
+                <p className="text-sm font-medium text-gray-800">
+                  {user?.full_name || user?.username || '用户'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {user?.role === 'admin' ? '系统管理员' : '医师'}
+                </p>
               </div>
               <i className="ri-arrow-down-s-line w-4 h-4 flex items-center justify-center text-gray-400"></i>
             </div>
@@ -87,9 +100,9 @@ export default function Header() {
   const unreadCount = messages.filter(msg => !msg.isRead).length;
 
   const markAsRead = (messageId: string) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, isRead: true } : msg
-    ));
+    setMessages(prev =>
+      prev.map(msg => (msg.id === messageId ? { ...msg, isRead: true } : msg))
+    );
   };
 
   const markAllAsRead = () => {
@@ -126,10 +139,21 @@ export default function Header() {
     }
   };
 
-  const handleUserSettingsClick = (type: 'profile' | 'organization' | 'password' | 'system') => {
+  const handleUserSettingsClick = (
+    type: 'profile' | 'organization' | 'password' | 'system'
+  ) => {
     setSettingsType(type);
     setShowUserSettings(true);
     setShowUserMenu(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
@@ -137,10 +161,12 @@ export default function Header() {
       <header className="bg-white border-b border-gray-200 px-6 py-4 ml-64">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-gray-800">智慧门诊系统</h1>
+            <h1 className="text-xl font-semibold text-gray-800">
+              智慧门诊系统
+            </h1>
             <p className="text-sm text-gray-500 mt-1">专业的医疗影像管理平台</p>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <div className="relative">
               <button
@@ -151,7 +177,9 @@ export default function Header() {
                   <i className="ri-notification-line w-4 h-4 flex items-center justify-center text-blue-600"></i>
                 </div>
                 {unreadCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{unreadCount}</span>
+                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                    {unreadCount}
+                  </span>
                 )}
               </button>
 
@@ -183,7 +211,7 @@ export default function Header() {
                   <div className="max-h-96 overflow-y-auto">
                     {messages.length > 0 ? (
                       <div className="divide-y divide-gray-200">
-                        {messages.map((message) => (
+                        {messages.map(message => (
                           <div
                             key={message.id}
                             onClick={() => markAsRead(message.id)}
@@ -192,12 +220,18 @@ export default function Header() {
                             }`}
                           >
                             <div className="flex items-start space-x-3">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getMessageColor(message.type)}`}>
-                                <i className={`${getMessageIcon(message.type)} w-4 h-4 flex items-center justify-center`}></i>
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getMessageColor(message.type)}`}
+                              >
+                                <i
+                                  className={`${getMessageIcon(message.type)} w-4 h-4 flex items-center justify-center`}
+                                ></i>
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
-                                  <p className={`text-sm font-medium ${!message.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
+                                  <p
+                                    className={`text-sm font-medium ${!message.isRead ? 'text-gray-900' : 'text-gray-700'}`}
+                                  >
                                     {message.title}
                                   </p>
                                   {!message.isRead && (
@@ -207,7 +241,9 @@ export default function Header() {
                                 <p className="text-sm text-gray-600 line-clamp-2 mb-2">
                                   {message.content}
                                 </p>
-                                <p className="text-xs text-gray-400">{message.time}</p>
+                                <p className="text-xs text-gray-400">
+                                  {message.time}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -231,7 +267,7 @@ export default function Header() {
                 </div>
               )}
             </div>
-            
+
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
@@ -241,8 +277,12 @@ export default function Header() {
                   <i className="ri-user-line w-4 h-4 flex items-center justify-center text-gray-600"></i>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-800">吴医生</p>
-                  <p className="text-xs text-gray-500">骨科主治医师</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    {user?.full_name || user?.username || '用户'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user?.role === 'admin' ? '系统管理员' : '医师'}
+                  </p>
                 </div>
                 <i className="ri-arrow-down-s-line w-4 h-4 flex items-center justify-center text-gray-400"></i>
               </button>
@@ -257,24 +297,30 @@ export default function Header() {
                         <i className="ri-user-line w-6 h-6 flex items-center justify-center text-gray-600"></i>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">吴医生</p>
-                        <p className="text-sm text-gray-500">骨科主治医师</p>
-                        <p className="text-xs text-gray-400">上海第一人民医院</p>
+                        <p className="font-semibold text-gray-900">
+                          {user?.full_name || user?.username || '用户'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {user?.role === 'admin' ? '系统管理员' : '医师'}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {user?.email || '协和医疗影像诊断系统'}
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   {/* 菜单项 */}
                   <div className="py-2">
-                    <button 
+                    <button
                       onClick={() => handleUserSettingsClick('profile')}
                       className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3"
                     >
                       <i className="ri-user-settings-line w-5 h-5 flex items-center justify-center text-gray-500"></i>
                       <span className="text-gray-700">个人设置</span>
                     </button>
-                    
-                    <button 
+
+                    <button
                       onClick={() => handleUserSettingsClick('organization')}
                       className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3"
                     >
@@ -282,7 +328,7 @@ export default function Header() {
                       <span className="text-gray-700">组织管理</span>
                     </button>
 
-                    <button 
+                    <button
                       onClick={() => handleUserSettingsClick('password')}
                       className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3"
                     >
@@ -290,7 +336,7 @@ export default function Header() {
                       <span className="text-gray-700">修改密码</span>
                     </button>
 
-                    <button 
+                    <button
                       onClick={() => handleUserSettingsClick('system')}
                       className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3"
                     >
@@ -300,7 +346,10 @@ export default function Header() {
                   </div>
 
                   <div className="border-t border-gray-200 py-2">
-                    <button className="w-full px-4 py-3 text-left hover:bg-red-50 flex items-center space-x-3 text-red-600">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-3 text-left hover:bg-red-50 flex items-center space-x-3 text-red-600"
+                    >
                       <i className="ri-logout-box-line w-5 h-5 flex items-center justify-center"></i>
                       <span>退出登录</span>
                     </button>

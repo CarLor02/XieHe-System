@@ -10,6 +10,7 @@ cryptography==41.0.7
 
 # Redis 缓存
 redis==5.0.1
+aioredis==1.3.1
 
 # 认证授权
 python-jose[cryptography]==3.3.0

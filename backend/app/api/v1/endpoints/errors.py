@@ -15,7 +15,8 @@ from sqlalchemy.orm import Session
 import logging
 import json
 
-from app.core.deps import get_current_user, get_db
+from app.core.auth import get_current_active_user
+from app.core.database import get_db
 from app.core.exceptions import ValidationException
 from app.models.user import User
 
@@ -141,7 +142,7 @@ async def report_error(
 @router.get("/stats", response_model=ErrorStats)
 async def get_error_stats(
     hours: int = 24,
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     获取错误统计信息
@@ -224,7 +225,7 @@ async def get_error_stats(
 
 @router.delete("/clear")
 async def clear_error_logs(
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     清空错误日志

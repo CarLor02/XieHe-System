@@ -301,10 +301,10 @@ class RealtimeDataService:
             "priority": data.priority
         }
         
-        await self.cache_manager.set(
+        self.cache_manager.set(
             cache_key,
             json.dumps(cache_data, default=str),
-            expire=300  # 5分钟过期
+            ttl=300  # 5分钟过期
         )
     
     async def send_user_notification(self, user_id: str, notification: Dict[str, Any]):
@@ -333,16 +333,21 @@ class RealtimeDataService:
         await self._broadcast_data(realtime_data)
         logger.warning(f"发送系统警报: {alert.get('message', 'Unknown alert')}")
 
-# 全局实时数据服务实例
-realtime_service = RealtimeDataService()
+# 全局实时数据服务实例（延迟初始化）
+realtime_service = None
 
 async def start_realtime_service():
     """启动实时数据推送服务"""
+    global realtime_service
+    if realtime_service is None:
+        realtime_service = RealtimeDataService()
     await realtime_service.start_service()
 
 async def stop_realtime_service():
     """停止实时数据推送服务"""
-    await realtime_service.stop_service()
+    global realtime_service
+    if realtime_service is not None:
+        await realtime_service.stop_service()
 
 def get_realtime_service() -> RealtimeDataService:
     """获取实时数据服务实例"""

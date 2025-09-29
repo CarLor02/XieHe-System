@@ -73,7 +73,7 @@ class PatientResponse(BaseModel):
     insurance_number: Optional[str]
     status: str
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True

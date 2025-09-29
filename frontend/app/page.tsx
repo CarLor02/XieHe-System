@@ -4,7 +4,10 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import StatsCard from '@/components/StatsCard';
 import TaskList from '@/components/TaskList';
+import { apiUrl } from '@/lib/config';
+import { useUser } from '@/store/authStore';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 interface DashboardOverview {
@@ -29,14 +32,11 @@ interface DashboardOverview {
 // API调用函数
 const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
   try {
-    const response = await fetch(
-      'http://localhost:8000/api/v1/dashboard/stats',
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await fetch(apiUrl.dashboard.stats(), {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (!response.ok) {
       throw new Error('获取仪表板数据失败');
@@ -75,11 +75,33 @@ const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
 };
 
 export default function Home() {
+  const router = useRouter();
+  const { isAuthenticated, user } = useUser();
   const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(
     null
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 认证检查
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [isAuthenticated, router]);
+
+  // 如果未认证，显示加载状态
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在验证登录状态...</p>
+        </div>
+      </div>
+    );
+  }
 
   // 加载仪表板数据
   const loadDashboardData = async () => {

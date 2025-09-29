@@ -22,7 +22,7 @@ from fastapi.websockets import WebSocketState
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.auth import get_current_user_websocket
+from app.core.auth import get_current_active_user
 from app.core.cache import get_cache_manager
 from app.core.logging import get_logger
 

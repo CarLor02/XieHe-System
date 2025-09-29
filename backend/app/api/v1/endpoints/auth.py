@@ -104,33 +104,42 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: 用户信息
     """
-    # 这里应该从数据库查询用户信息
-    # 暂时返回模拟数据
-    if username in ["admin", "admin@example.com"]:
-        return {
-            "id": 1,
-            "username": "admin",
-            "email": "admin@example.com",
-            "full_name": "系统管理员",
-            "password_hash": hash_password("admin123"),
-            "is_active": True,
-            "is_superuser": True,
-            "roles": ["admin", "doctor"],
-            "permissions": ["user_manage", "patient_manage", "system_manage"]
+    try:
+        from sqlalchemy import text
+
+        # 查询用户信息
+        sql = """
+        SELECT id, username, email, real_name, password_hash, status, is_superuser, is_verified
+        FROM users
+        WHERE (username = :username OR email = :username)
+        AND (is_deleted IS NULL OR is_deleted = 0)
+        AND status = 'active'
+        """
+
+        result = db.execute(text(sql), {"username": username})
+        user_row = result.fetchone()
+
+        if not user_row:
+            return None
+
+        # 转换为字典格式
+        user = {
+            "id": user_row[0],
+            "username": user_row[1],
+            "email": user_row[2],
+            "full_name": user_row[3] or user_row[1],  # 使用real_name，如果为空则使用username
+            "password_hash": user_row[4],
+            "is_active": user_row[5] == 'active',
+            "is_superuser": bool(user_row[6]),
+            "roles": ["admin"] if user_row[6] else ["doctor"],
+            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[6] else ["patient_manage", "image_manage"]
         }
-    elif username in ["doctor", "doctor@example.com"]:
-        return {
-            "id": 2,
-            "username": "doctor",
-            "email": "doctor@example.com",
-            "full_name": "医生用户",
-            "password_hash": hash_password("doctor123"),
-            "is_active": True,
-            "is_superuser": False,
-            "roles": ["doctor"],
-            "permissions": ["patient_manage", "image_view"]
-        }
-    return None
+
+        return user
+
+    except Exception as e:
+        logger.error(f"查询用户失败: {e}")
+        return None
 
 
 def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> TokenResponse:
@@ -208,17 +217,23 @@ async def login(
         # 记录登录日志
         logger.info(f"用户登录成功: {user['username']} ({user['email']})")
 
+        # 返回前端期望的格式
+        tokens_dict = tokens.dict()
+        user_dict = UserResponse(
+            id=user["id"],
+            username=user["username"],
+            email=user["email"],
+            full_name=user["full_name"],
+            is_active=user["is_active"],
+            roles=user.get("roles", [])
+        ).dict()
+
         return {
-            "message": "登录成功",
-            "tokens": tokens.dict(),
-            "user": UserResponse(
-                id=user["id"],
-                username=user["username"],
-                email=user["email"],
-                full_name=user["full_name"],
-                is_active=user["is_active"],
-                roles=user.get("roles", [])
-            ).dict()
+            "access_token": tokens_dict["access_token"],
+            "refresh_token": tokens_dict["refresh_token"],
+            "token_type": tokens_dict["token_type"],
+            "expires_in": tokens_dict["expires_in"],
+            "user": user_dict
         }
 
     except AuthenticationException:
@@ -261,18 +276,47 @@ async def register(
         if existing_email:
             raise BusinessLogicException("邮箱已被注册")
 
-        # 创建新用户（这里应该保存到数据库）
+        # 创建新用户并保存到数据库
+        from sqlalchemy import text
+        from datetime import datetime
+
+        password_hash = hash_password(register_data.password)
+
+        # 插入新用户到数据库
+        insert_sql = """
+        INSERT INTO users (
+            username, email, real_name, phone, password_hash, salt,
+            status, is_superuser, is_verified, created_at
+        ) VALUES (
+            :username, :email, :real_name, :phone, :password_hash, '',
+            'active', 0, 1, :created_at
+        )
+        """
+
+        db.execute(text(insert_sql), {
+            "username": register_data.username,
+            "email": register_data.email,
+            "real_name": register_data.full_name,
+            "phone": register_data.phone,
+            "password_hash": password_hash,
+            "created_at": datetime.now()
+        })
+        db.commit()
+
+        # 获取新创建的用户ID
+        result = db.execute(text("SELECT LAST_INSERT_ID()"))
+        new_user_id = result.scalar()
+
         new_user = {
-            "id": 999,  # 模拟新用户ID
+            "id": new_user_id,
             "username": register_data.username,
             "email": register_data.email,
             "full_name": register_data.full_name,
-            "password_hash": hash_password(register_data.password),
             "phone": register_data.phone,
             "is_active": True,
             "is_superuser": False,
-            "roles": ["user"],
-            "permissions": ["basic_access"]
+            "roles": ["doctor"],
+            "permissions": ["patient_manage", "image_view"]
         }
 
         # 记录注册日志

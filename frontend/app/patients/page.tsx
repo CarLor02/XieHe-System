@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import { apiUrl } from '@/lib/config';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -42,39 +42,40 @@ export default function PatientsPage() {
   const [totalPatients, setTotalPatients] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGender, setSelectedGender] = useState('');
-  
+
   const pageSize = 10;
 
   const loadPatients = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams({
         page: currentPage.toString(),
         page_size: pageSize.toString(),
       });
-      
+
       if (searchTerm.trim()) {
         params.append('search', searchTerm.trim());
       }
-      
+
       if (selectedGender) {
         params.append('gender', selectedGender);
       }
-      
-      const response = await fetch(`http://localhost:8000/api/v1/patients?${params}`);
-      
+
+      const response = await fetch(
+        apiUrl.patients.list({ page: currentPage, page_size: pageSize })
+      );
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data: PatientListResponse = await response.json();
-      
+
       setPatients(data.patients || []);
       setTotalPatients(data.total || 0);
       setTotalPages(data.total_pages || 1);
-      
     } catch (err) {
       console.error('Failed to load patients:', err);
       setError(err instanceof Error ? err.message : '加载患者数据失败');
@@ -118,14 +119,14 @@ export default function PatientsPage() {
                   type="text"
                   placeholder="搜索患者姓名、ID或电话..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div className="md:w-48">
                 <select
                   value={selectedGender}
-                  onChange={(e) => setSelectedGender(e.target.value)}
+                  onChange={e => setSelectedGender(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">全部性别</option>
@@ -139,7 +140,11 @@ export default function PatientsPage() {
           {/* 统计信息 */}
           <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
             <div className="text-sm text-gray-600">
-              共找到 <span className="font-semibold text-gray-900">{totalPatients}</span> 位患者
+              共找到{' '}
+              <span className="font-semibold text-gray-900">
+                {totalPatients}
+              </span>{' '}
+              位患者
             </div>
           </div>
         </div>
@@ -190,33 +195,49 @@ export default function PatientsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {displayedPatients.map((patient) => (
+                  {displayedPatients.map(patient => (
                     <tr key={patient.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{patient.name}</div>
-                          <div className="text-sm text-gray-500">ID: {patient.patient_id}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {patient.name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ID: {patient.patient_id}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{patient.gender}</div>
-                        <div className="text-sm text-gray-500">{patient.age || '未知'}岁</div>
+                        <div className="text-sm text-gray-900">
+                          {patient.gender}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {patient.age || '未知'}岁
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{patient.phone || '未提供'}</div>
-                        <div className="text-sm text-gray-500">{patient.email || '未提供'}</div>
+                        <div className="text-sm text-gray-900">
+                          {patient.phone || '未提供'}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {patient.email || '未提供'}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          patient.status === 'active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            patient.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
                           {patient.status === 'active' ? '活跃' : '非活跃'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(patient.created_at).toLocaleDateString('zh-CN')}
+                        {new Date(patient.created_at).toLocaleDateString(
+                          'zh-CN'
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link
@@ -244,14 +265,18 @@ export default function PatientsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 flex justify-between sm:hidden">
                     <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                      }
                       disabled={currentPage === 1}
                       className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       上一页
                     </button>
                     <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      onClick={() =>
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                      }
                       disabled={currentPage === totalPages}
                       className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -261,38 +286,55 @@ export default function PatientsPage() {
                   <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-gray-700">
-                        显示第 <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> 到{' '}
-                        <span className="font-medium">{Math.min(currentPage * pageSize, totalPatients)}</span> 条，
-                        共 <span className="font-medium">{totalPatients}</span> 条记录
+                        显示第{' '}
+                        <span className="font-medium">
+                          {(currentPage - 1) * pageSize + 1}
+                        </span>{' '}
+                        到{' '}
+                        <span className="font-medium">
+                          {Math.min(currentPage * pageSize, totalPatients)}
+                        </span>{' '}
+                        条， 共{' '}
+                        <span className="font-medium">{totalPatients}</span>{' '}
+                        条记录
                       </p>
                     </div>
                     <div>
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                         <button
-                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          onClick={() =>
+                            setCurrentPage(Math.max(1, currentPage - 1))
+                          }
                           disabled={currentPage === 1}
                           className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           上一页
                         </button>
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          const page = i + 1;
-                          return (
-                            <button
-                              key={page}
-                              onClick={() => setCurrentPage(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                currentPage === page
-                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          );
-                        })}
+                        {Array.from(
+                          { length: Math.min(5, totalPages) },
+                          (_, i) => {
+                            const page = i + 1;
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                  currentPage === page
+                                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          }
+                        )}
                         <button
-                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                          onClick={() =>
+                            setCurrentPage(
+                              Math.min(totalPages, currentPage + 1)
+                            )
+                          }
                           disabled={currentPage === totalPages}
                           className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >

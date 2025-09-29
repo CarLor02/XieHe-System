@@ -339,3 +339,69 @@ async def get_system_metrics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取系统指标过程中发生错误"
         )
+
+
+@router.get("/stats", summary="获取仪表板统计数据（简化版）")
+async def get_dashboard_stats(db: Session = Depends(get_db)):
+    """
+    获取仪表板统计数据（简化版，无需认证）
+
+    返回基本的统计信息，用于前端仪表板显示
+    """
+    try:
+        # 时间范围定义
+        today = date.today()
+        today_start = datetime.combine(today, datetime.min.time())
+
+        # 患者统计
+        total_patients = db.query(func.count(Patient.id)).filter(Patient.is_deleted == False).scalar() or 0
+
+        # 影像统计
+        total_images = db.query(func.count(Study.id)).scalar() or 0
+
+        # 报告统计 - 如果表不存在则跳过
+        try:
+            total_reports = db.query(func.count(DiagnosticReport.id)).filter(
+                DiagnosticReport.is_deleted == False
+            ).scalar() or 0
+        except Exception:
+            total_reports = 0
+
+        # 待分析数量
+        pending_analysis = db.query(func.count(Study.id)).filter(
+            Study.status.in_([StudyStatusEnum.SCHEDULED, StudyStatusEnum.IN_PROGRESS])
+        ).scalar() or 0
+
+        # 今日处理数量 - 如果表不存在则跳过
+        try:
+            today_processed = db.query(func.count(DiagnosticReport.id)).filter(
+                and_(
+                    DiagnosticReport.is_deleted == False,
+                    DiagnosticReport.created_at >= today_start
+                )
+            ).scalar() or 0
+        except Exception:
+            today_processed = 0
+
+        return {
+            "total_patients": total_patients,
+            "total_images": total_images,
+            "total_reports": total_reports,
+            "pending_analysis": pending_analysis,
+            "today_processed": today_processed,
+            "ai_accuracy": 0.94,  # 模拟AI准确率
+            "system_status": "正常运行"
+        }
+
+    except Exception as e:
+        logger.error(f"获取仪表板统计数据失败: {e}")
+        # 如果数据库查询失败，返回默认值
+        return {
+            "total_patients": 0,
+            "total_images": 0,
+            "total_reports": 0,
+            "pending_analysis": 0,
+            "today_processed": 0,
+            "ai_accuracy": 0.94,
+            "system_status": "数据库连接异常"
+        }

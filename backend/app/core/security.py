@@ -9,6 +9,7 @@
 """
 
 import jwt
+from jwt import PyJWTError as JWTError
 import bcrypt
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -209,7 +210,7 @@ class SecurityManager:
         except jwt.ExpiredSignatureError:
             logger.warning("令牌已过期")
             return None
-        except jwt.JWTError as e:
+        except JWTError as e:
             logger.warning(f"令牌验证失败: {e}")
             return None
     

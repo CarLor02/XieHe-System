@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_active_user
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -131,7 +131,7 @@ async def upload_single_file(
     file: UploadFile = File(...),
     patient_id: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -195,7 +195,7 @@ async def upload_single_file(
 async def upload_chunk(
     chunk_data: ChunkUploadRequest,
     file: UploadFile = File(...),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     分片上传
@@ -257,7 +257,7 @@ async def complete_upload(
     file_id: str,
     filename: str = Form(...),
     file_hash: Optional[str] = Form(None),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     完成分片上传
@@ -331,7 +331,7 @@ async def complete_upload(
 @router.get("/upload/status/{file_id}", response_model=FileUploadStatus)
 async def get_upload_status(
     file_id: str,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     获取上传状态

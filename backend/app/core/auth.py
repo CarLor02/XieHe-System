@@ -57,7 +57,7 @@ class AuthManager:
             return None
         
         # 从数据库获取用户信息
-        user_id = payload.get("user_id")
+        user_id = payload.get("sub") or payload.get("user_id")
         if not user_id:
             return None
         

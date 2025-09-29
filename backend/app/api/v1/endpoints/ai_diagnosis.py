@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_active_user
 from app.core.storage import storage_manager
 from app.core.ai_diagnosis import ai_diagnosis_engine
 from app.core.logging import get_logger
@@ -74,7 +74,7 @@ class BatchAnalysisResult(BaseModel):
 
 @router.get("/ai/models", response_model=List[str])
 async def get_available_models(
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     获取可用的AI模型列表
@@ -94,7 +94,7 @@ async def get_available_models(
 @router.get("/ai/models/{model_name}", response_model=AIModelInfo)
 async def get_model_info(
     model_name: str,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     获取指定AI模型的详细信息
@@ -122,7 +122,7 @@ async def get_model_info(
 @router.get("/ai/models/suggest/{modality}")
 async def suggest_models_for_modality(
     modality: str,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     根据影像模态推荐合适的AI模型
@@ -147,7 +147,7 @@ async def suggest_models_for_modality(
 async def analyze_image(
     request: AIAnalysisRequest,
     background_tasks: BackgroundTasks,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -234,7 +234,7 @@ async def analyze_image(
 async def batch_analyze_images(
     request: BatchAnalysisRequest,
     background_tasks: BackgroundTasks,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -319,7 +319,7 @@ async def batch_analyze_images(
 async def compare_models(
     request: ModelComparisonRequest,
     background_tasks: BackgroundTasks,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     使用多个AI模型分析同一图像并比较结果
@@ -383,7 +383,7 @@ async def compare_models(
 @router.get("/ai/analysis/{analysis_id}")
 async def get_analysis_result(
     analysis_id: str,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """

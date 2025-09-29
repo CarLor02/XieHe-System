@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from app.api.deps import get_current_user
+from app.core.auth import get_current_active_user
 from app.models.user import User
 from app.services.monitoring_service import monitoring_service
 
@@ -56,7 +56,7 @@ class MetricPoint(BaseModel):
 
 @router.get("/status", response_model=SystemStatus)
 async def get_system_status(
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """获取系统当前状态"""
     try:
@@ -70,7 +70,7 @@ async def get_system_status(
 async def get_metrics(
     metric_type: Optional[str] = Query(None, description="指标类型: api_response, database, system"),
     hours: int = Query(24, ge=1, le=168, description="查询时间范围(小时)"),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """获取性能指标历史数据"""
     try:
@@ -84,7 +84,7 @@ async def get_metrics(
 async def get_metrics_statistics(
     metric_type: Optional[str] = Query(None, description="指标类型"),
     minutes: int = Query(60, ge=1, le=1440, description="统计时间范围(分钟)"),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """获取指标统计信息"""
     try:
@@ -100,7 +100,7 @@ async def get_metrics_statistics(
 
 @router.get("/alerts")
 async def get_current_alerts(
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """获取当前告警信息"""
     try:
@@ -117,7 +117,7 @@ async def get_current_alerts(
 @router.put("/thresholds")
 async def update_thresholds(
     thresholds: ThresholdUpdate,
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """更新性能阈值"""
     try:
@@ -150,7 +150,7 @@ async def update_thresholds(
 
 @router.get("/thresholds")
 async def get_thresholds(
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """获取当前性能阈值"""
     return {
@@ -209,7 +209,7 @@ async def health_check():
 @router.get("/performance/api")
 async def get_api_performance(
     hours: int = Query(24, ge=1, le=168),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """获取API性能统计"""
     try:
@@ -262,7 +262,7 @@ async def get_api_performance(
 @router.get("/performance/database")
 async def get_database_performance(
     hours: int = Query(24, ge=1, le=168),
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """获取数据库性能统计"""
     try:
@@ -326,7 +326,7 @@ async def get_database_performance(
 
 @router.post("/test/api-performance")
 async def test_api_performance(
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """测试API性能记录"""
     import time

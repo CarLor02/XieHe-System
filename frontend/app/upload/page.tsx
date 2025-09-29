@@ -2,6 +2,7 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import { apiUrl } from '@/lib/config';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
@@ -24,12 +25,9 @@ function UploadContent() {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [allCompleted, setAllCompleted] = useState(false);
-
-  const patients = [
-    { id: 'P202401001', name: '张三' },
-    { id: 'P202401002', name: '李四' },
-    { id: 'P202401003', name: '王五' },
-  ];
+  const [patients, setPatients] = useState<Array<{ id: string; name: string }>>(
+    []
+  );
 
   const examTypes = [
     '正位X光片',
@@ -45,6 +43,29 @@ function UploadContent() {
       setAllCompleted(completed);
     }
   }, [uploadFiles]);
+
+  useEffect(() => {
+    // 获取患者列表
+    const fetchPatients = async () => {
+      try {
+        const response = await fetch(apiUrl.patients.list());
+        if (response.ok) {
+          const data = await response.json();
+          setPatients(data.items || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch patients:', error);
+        // 使用默认患者列表作为后备
+        setPatients([
+          { id: 'P202401001', name: '张三' },
+          { id: 'P202401002', name: '李四' },
+          { id: 'P202401003', name: '王五' },
+        ]);
+      }
+    };
+
+    fetchPatients();
+  }, []);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -82,31 +103,46 @@ function UploadContent() {
 
     setUploadFiles(prev => [...prev, ...newFiles]);
 
-    newFiles.forEach(file => {
-      simulateUpload(file.id);
+    // 上传每个文件
+    newFiles.forEach((uploadFileItem, index) => {
+      uploadFile(uploadFileItem.id, files[index]);
     });
   };
 
-  const simulateUpload = (fileId: string) => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 30;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
+  const uploadFile = async (fileId: string, file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (selectedPatient) {
+        formData.append('patient_id', selectedPatient);
+      }
+      if (examType) {
+        formData.append('description', examType);
+      }
+
+      const response = await fetch(apiUrl.build('upload/upload/single'), {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
         setUploadFiles(prev =>
-          prev.map(file =>
-            file.id === fileId
-              ? { ...file, status: 'completed', progress: 100 }
-              : file
+          prev.map(f =>
+            f.id === fileId ? { ...f, status: 'completed', progress: 100 } : f
           )
         );
       } else {
-        setUploadFiles(prev =>
-          prev.map(file => (file.id === fileId ? { ...file, progress } : file))
-        );
+        throw new Error('Upload failed');
       }
-    }, 500);
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadFiles(prev =>
+        prev.map(f =>
+          f.id === fileId ? { ...f, status: 'error', progress: 0 } : f
+        )
+      );
+    }
   };
 
   const formatFileSize = (bytes: number) => {

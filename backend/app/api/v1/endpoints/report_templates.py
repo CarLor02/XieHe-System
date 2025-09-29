@@ -16,7 +16,7 @@ from sqlalchemy import and_, or_, desc, asc
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_active_user
 from app.models.report import ReportTemplate, TemplateTypeEnum, ReportTypeEnum
 from app.core.logging import get_logger
 
@@ -120,7 +120,7 @@ async def get_templates(
     search: Optional[str] = Query(None, description="搜索关键词"),
     sort_by: str = Query("updated_at", description="排序字段"),
     sort_order: str = Query("desc", description="排序方向: asc, desc"),
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -188,7 +188,7 @@ async def get_templates(
 @router.get("/templates/{template_id}", response_model=ReportTemplateResponse)
 async def get_template(
     template_id: int,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -223,7 +223,7 @@ async def get_template(
 @router.post("/templates", response_model=ReportTemplateResponse)
 async def create_template(
     template_data: ReportTemplateCreate,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -294,7 +294,7 @@ async def create_template(
 async def update_template(
     template_id: int,
     template_data: ReportTemplateUpdate,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -359,7 +359,7 @@ async def update_template(
 @router.delete("/templates/{template_id}")
 async def delete_template(
     template_id: int,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -419,7 +419,7 @@ async def duplicate_template(
     template_id: int,
     new_name: str = Query(..., description="新模板名称"),
     new_code: str = Query(..., description="新模板编码"),
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -493,7 +493,7 @@ async def duplicate_template(
 async def create_template_version(
     template_id: int,
     version_data: TemplateVersionCreate,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -550,7 +550,7 @@ async def create_template_version(
 
 @router.get("/templates/categories")
 async def get_template_categories(
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -627,7 +627,7 @@ async def get_default_templates(
     report_type: Optional[ReportTypeEnum] = Query(None, description="报告类型"),
     modality: Optional[str] = Query(None, description="模态"),
     body_part: Optional[str] = Query(None, description="部位"),
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -664,7 +664,7 @@ async def get_default_templates(
 @router.post("/templates/{template_id}/set-default")
 async def set_default_template(
     template_id: int,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -717,7 +717,7 @@ async def set_default_template(
 @router.post("/templates/{template_id}/activate")
 async def activate_template(
     template_id: int,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -758,7 +758,7 @@ async def activate_template(
 @router.post("/templates/{template_id}/deactivate")
 async def deactivate_template(
     template_id: int,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -800,7 +800,7 @@ async def deactivate_template(
 @router.get("/templates/{template_id}/usage-stats")
 async def get_template_usage_stats(
     template_id: int,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """

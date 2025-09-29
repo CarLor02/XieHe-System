@@ -13,7 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 
-from app.api.deps import get_current_user, get_db
+from app.core.auth import get_current_active_user
+from app.core.database import get_db
 from app.models.user import User
 from app.services.email_service import email_service, send_system_notification
 from app.core.websocket import websocket_manager
@@ -82,7 +83,7 @@ class NotificationStats(BaseModel):
 async def send_message(
     message: MessageCreate,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """发送站内消息"""
@@ -158,7 +159,7 @@ async def get_messages(
     limit: int = Query(20, ge=1, le=100),
     message_type: Optional[str] = None,
     is_read: Optional[bool] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """获取用户消息列表"""
@@ -207,7 +208,7 @@ async def get_messages(
 @router.put("/messages/{message_id}/read")
 async def mark_message_read(
     message_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """标记消息为已读"""
@@ -218,7 +219,7 @@ async def mark_message_read(
 @router.delete("/messages/{message_id}")
 async def delete_message(
     message_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """删除消息"""
@@ -228,7 +229,7 @@ async def delete_message(
 
 @router.get("/messages/stats", response_model=NotificationStats)
 async def get_notification_stats(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """获取消息统计"""
@@ -256,7 +257,7 @@ async def get_notification_stats(
 async def send_email(
     email_request: EmailSendRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """发送单个邮件"""
     try:
@@ -290,7 +291,7 @@ async def send_email(
 async def send_batch_emails(
     batch_request: BatchEmailRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """批量发送邮件"""
     try:
@@ -334,14 +335,14 @@ async def send_batch_emails(
 
 
 @router.get("/email/templates")
-async def get_email_templates(current_user: User = Depends(get_current_user)):
+async def get_email_templates(current_user: dict = Depends(get_current_active_user)):
     """获取邮件模板列表"""
     templates = email_service.list_templates()
     return {"templates": templates}
 
 
 @router.post("/email/test")
-async def test_email_connection(current_user: User = Depends(get_current_user)):
+async def test_email_connection(current_user: dict = Depends(get_current_active_user)):
     """测试邮件服务连接"""
     try:
         success = await email_service.test_connection()
@@ -356,7 +357,7 @@ async def test_email_connection(current_user: User = Depends(get_current_user)):
 # 通知设置相关API
 @router.get("/settings", response_model=NotificationSettings)
 async def get_notification_settings(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """获取用户通知设置"""
@@ -372,7 +373,7 @@ async def get_notification_settings(
 @router.put("/settings")
 async def update_notification_settings(
     settings: NotificationSettings,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """更新用户通知设置"""
@@ -408,7 +409,7 @@ async def send_email_notifications(
 async def push_message_to_user(
     user_id: int,
     message: Dict[str, Any],
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """向指定用户推送消息"""
     try:
@@ -424,7 +425,7 @@ async def push_message_to_user(
 @router.post("/broadcast")
 async def broadcast_message(
     message: Dict[str, Any],
-    current_user: User = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """广播消息给所有在线用户"""
     try:

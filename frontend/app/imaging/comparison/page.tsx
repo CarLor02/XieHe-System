@@ -15,7 +15,7 @@ import ImageComparison, {
   ComparisonMode,
 } from '@/components/medical/ImageComparison';
 import { useSearchParams } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 
 // 模拟影像数据
 const mockImages = [
@@ -117,7 +117,7 @@ const mockImages = [
   },
 ];
 
-const ImageComparisonPage: React.FC = () => {
+const ImageComparisonContent: React.FC = () => {
   const searchParams = useSearchParams();
   const [images, setImages] = useState(mockImages);
   const [selectedMode, setSelectedMode] = useState<ComparisonMode>(
@@ -301,6 +301,14 @@ const ImageComparisonPage: React.FC = () => {
         </div>
       </main>
     </div>
+  );
+};
+
+const ImageComparisonPage: React.FC = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ImageComparisonContent />
+    </Suspense>
   );
 };
 

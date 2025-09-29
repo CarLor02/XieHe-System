@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_active_user
 from app.core.storage import storage_manager
 from app.core.dicom_processor import dicom_processor
 from app.core.logging import get_logger
@@ -25,6 +25,24 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+# 简单的影像列表响应模型
+class ImageListItem(BaseModel):
+    """影像列表项"""
+    id: str
+    study_id: str
+    patient_name: str
+    study_description: str
+    modality: str
+    study_date: str
+    status: str
+
+class ImageListResponse(BaseModel):
+    """影像列表响应"""
+    images: List[ImageListItem]
+    total: int
+    page: int
+    page_size: int
 
 # Pydantic模型
 class ImageInfo(BaseModel):
@@ -109,10 +127,70 @@ def get_file_info(file_path: str) -> Optional[dict]:
         logger.error(f"获取文件信息失败 {file_path}: {e}")
         return None
 
+@router.get("/", response_model=ImageListResponse, summary="获取影像列表")
+async def get_images_list(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=100, description="每页数量"),
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    获取影像列表
+
+    返回影像检查的列表，包含基本信息
+    """
+    try:
+        from app.models.image import Study
+        from app.models.patient import Patient
+        from sqlalchemy import desc
+
+        # 计算偏移量
+        offset = (page - 1) * page_size
+
+        # 查询影像检查，关联患者信息
+        query = db.query(Study, Patient.name).join(
+            Patient, Study.patient_id == Patient.id
+        ).filter(
+            Patient.is_deleted == False
+        ).order_by(desc(Study.created_at))
+
+        # 获取总数
+        total = query.count()
+
+        # 分页查询
+        results = query.offset(offset).limit(page_size).all()
+
+        # 构建响应数据
+        images = []
+        for study, patient_name in results:
+            images.append(ImageListItem(
+                id=str(study.id),
+                study_id=study.study_id or f"ST{study.id:03d}",
+                patient_name=patient_name,
+                study_description=study.study_description or "影像检查",
+                modality=study.modality.value if study.modality else "XR",
+                study_date=study.study_date.strftime("%Y-%m-%d") if study.study_date else "",
+                status="completed"
+            ))
+
+        return ImageListResponse(
+            images=images,
+            total=total,
+            page=page,
+            page_size=page_size
+        )
+
+    except Exception as e:
+        logger.error(f"获取影像列表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取影像列表失败"
+        )
+
 @router.get("/images/{file_id}/info", response_model=ImageInfo)
 async def get_image_info(
     file_id: str,
-    current_user = Depends(get_current_user),
+    current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -155,7 +233,7 @@ async def get_image_info(
 @router.get("/images/{file_id}/metadata", response_model=DICOMMetadata)
 async def get_dicom_metadata(
     file_id: str,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     获取DICOM元数据
@@ -199,7 +277,7 @@ async def get_dicom_metadata(
 async def get_image_thumbnail(
     file_id: str,
     size: int = Query(256, description="缩略图尺寸"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     获取影像缩略图
@@ -277,7 +355,7 @@ async def get_image_preview(
     format: str = Query("PNG", description="输出格式"),
     width: Optional[int] = Query(None, description="输出宽度"),
     height: Optional[int] = Query(None, description="输出高度"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     获取影像预览
@@ -371,7 +449,7 @@ async def get_image_preview(
 @router.post("/images/process")
 async def process_image(
     request: ImageProcessRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     处理影像文件
