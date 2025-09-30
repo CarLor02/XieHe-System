@@ -57,15 +57,17 @@ class AuthManager:
             return None
         
         # 从数据库获取用户信息
-        user_id = payload.get("sub") or payload.get("user_id")
+        # 优先使用user_id字段（整数），如果没有则使用sub字段
+        user_id = payload.get("user_id") or payload.get("sub")
         if not user_id:
             return None
-        
+
         try:
             # 这里应该从数据库查询用户信息
             # 暂时返回令牌中的用户信息
             user_info = {
                 "id": user_id,
+                "user_id": payload.get("user_id"),  # 确保有user_id字段
                 "username": payload.get("username"),
                 "email": payload.get("email"),
                 "roles": payload.get("roles", []),

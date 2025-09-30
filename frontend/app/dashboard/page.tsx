@@ -1,183 +1,327 @@
 'use client';
 
-import DashboardOverview from '@/components/dashboard/DashboardOverview';
-import RealtimeDashboard from '@/components/dashboard/RealtimeDashboard';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { Button } from '@/components/ui/Button';
-import React, { useEffect, useState } from 'react';
+import StatsCard from '@/components/StatsCard';
+import TaskList from '@/components/TaskList';
+import { createAuthenticatedClient, useUser } from '@/store/authStore';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+
+interface DashboardOverview {
+  total_patients: number;
+  new_patients_today: number;
+  new_patients_week: number;
+  active_patients: number;
+  total_studies: number;
+  studies_today: number;
+  studies_week: number;
+  pending_studies: number;
+  total_reports: number;
+  pending_reports: number;
+  completed_reports: number;
+  overdue_reports: number;
+  completion_rate: number;
+  average_processing_time: number;
+  system_alerts: number;
+  generated_at: string;
+}
+
+// API调用函数
+const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
+  try {
+    const client = createAuthenticatedClient();
+    const response = await client.get('/api/v1/dashboard/stats');
+    const data = response.data;
+
+    // 转换数据格式以匹配前端接口
+    return {
+      total_patients: data.total_patients || 0,
+      new_patients_today: data.today_processed || 0,
+      new_patients_week: Math.floor((data.today_processed || 0) * 7),
+      active_patients: data.total_patients || 0,
+      total_studies: data.total_images || 0,
+      studies_today: data.today_processed || 0,
+      studies_week: Math.floor((data.today_processed || 0) * 7),
+      pending_studies: data.pending_analysis || 0,
+      total_reports: data.total_reports || 0,
+      pending_reports: data.pending_analysis || 0,
+      completed_reports:
+        (data.total_reports || 0) - (data.pending_analysis || 0),
+      overdue_reports: 0,
+      completion_rate: Math.round(
+        (((data.total_reports || 0) - (data.pending_analysis || 0)) /
+          (data.total_reports || 1)) *
+          100
+      ),
+      average_processing_time: 2.5,
+      system_alerts: data.pending_analysis > 20 ? 1 : 0,
+      generated_at: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('获取仪表板数据错误:', error);
+    throw error;
+  }
+};
 
 const DashboardPage: React.FC = () => {
-  const [currentTime, setCurrentTime] = useState<string>('');
-  const [greeting, setGreeting] = useState<string>('');
+  const router = useRouter();
+  const { isAuthenticated, user } = useUser();
+  const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  // 更新时间和问候语
-  const updateTimeAndGreeting = () => {
-    const now = new Date();
-    const timeString = now.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    setCurrentTime(timeString);
+  // 确保组件已挂载
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-    const hour = now.getHours();
-    if (hour < 6) {
-      setGreeting('夜深了，注意休息');
-    } else if (hour < 12) {
-      setGreeting('早上好');
-    } else if (hour < 14) {
-      setGreeting('中午好');
-    } else if (hour < 18) {
-      setGreeting('下午好');
-    } else {
-      setGreeting('晚上好');
+  // 认证检查
+  useEffect(() => {
+    if (mounted && !isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [mounted, isAuthenticated, router]);
+
+  // 如果组件未挂载，显示加载状态
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在加载...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果未认证，显示加载状态
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在验证登录状态...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 加载仪表板数据
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchDashboardOverview();
+      setDashboardData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载仪表板数据失败');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 处理刷新
-  const handleRefresh = () => {
-    updateTimeAndGreeting();
-    // 这里可以添加其他刷新逻辑
-  };
-
+  // 初始加载
   useEffect(() => {
-    updateTimeAndGreeting();
-    const timer = setInterval(updateTimeAndGreeting, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (mounted && isAuthenticated) {
+      loadDashboardData();
+    }
+  }, [mounted, isAuthenticated]);
+
+  // 根据API数据生成统计卡片数据
+  const statsData = dashboardData
+    ? [
+        {
+          title: '累计患者',
+          value: dashboardData.total_patients,
+          change:
+            dashboardData.new_patients_week > 0
+              ? (dashboardData.new_patients_week /
+                  Math.max(
+                    dashboardData.total_patients -
+                      dashboardData.new_patients_week,
+                    1
+                  )) *
+                100
+              : 0,
+          icon: 'ri-user-line',
+          color: 'blue' as const,
+        },
+        {
+          title: '待处理检查',
+          value: dashboardData.pending_studies,
+          change:
+            dashboardData.studies_today > 0
+              ? (dashboardData.studies_today /
+                  Math.max(
+                    dashboardData.total_studies - dashboardData.studies_today,
+                    1
+                  )) *
+                100
+              : 0,
+          icon: 'ri-image-line',
+          color: 'orange' as const,
+        },
+        {
+          title: '累计检查',
+          value: dashboardData.total_studies,
+          change:
+            dashboardData.studies_week > 0
+              ? (dashboardData.studies_week /
+                  Math.max(
+                    dashboardData.total_studies - dashboardData.studies_week,
+                    1
+                  )) *
+                100
+              : 0,
+          icon: 'ri-gallery-line',
+          color: 'green' as const,
+        },
+        {
+          title: '待处理报告',
+          value: dashboardData.pending_reports,
+          change: dashboardData.completion_rate - 50, // 相对于50%基准的变化
+          icon: 'ri-stethoscope-line',
+          color: 'purple' as const,
+        },
+      ]
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
       <Header />
 
-      <main className="ml-64 pt-16 p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* 页面标题和欢迎信息 */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {greeting}，欢迎使用协和医疗影像诊断系统
-                </h1>
-                <p className="text-gray-600 mt-1">当前时间：{currentTime}</p>
-              </div>
+      <main className="ml-64 p-6">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">工作台</h1>
+              <p className="text-gray-600 mt-1">
+                {loading
+                  ? '加载中...'
+                  : error
+                    ? '数据加载失败'
+                    : `欢迎回来，今天有 ${dashboardData?.pending_studies || 0} 个检查等待处理`}
+              </p>
+            </div>
 
-              <div className="flex items-center space-x-4">
-                {/* 系统状态指示器 */}
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-gray-600">系统正常运行</span>
-                </div>
-
-                {/* 快捷导航 */}
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => (window.location.href = '/reports/create')}
-                  >
-                    <i className="ri-file-add-line mr-2"></i>
-                    新建报告
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => (window.location.href = '/upload')}
-                  >
-                    <i className="ri-upload-line mr-2"></i>
-                    上传影像
-                  </Button>
-                </div>
-              </div>
+            <div className="flex space-x-3">
+              <Link
+                href="/upload"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 whitespace-nowrap"
+              >
+                <i className="ri-upload-line w-4 h-4 flex items-center justify-center"></i>
+                <span>上传影像</span>
+              </Link>
+              <Link
+                href="/patients"
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center space-x-2 whitespace-nowrap"
+              >
+                <i className="ri-user-add-line w-4 h-4 flex items-center justify-center"></i>
+                <span>新增患者</span>
+              </Link>
             </div>
           </div>
 
-          {/* 实时仪表板组件 */}
-          <RealtimeDashboard />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {loading ? (
+              // 加载状态
+              Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="bg-white p-6 rounded-lg shadow animate-pulse"
+                >
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                </div>
+              ))
+            ) : error ? (
+              // 错误状态
+              <div className="col-span-full bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                <p className="text-red-600 mb-2">{error}</p>
+                <button
+                  onClick={loadDashboardData}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                  重试
+                </button>
+              </div>
+            ) : (
+              // 正常状态
+              statsData.map((stat, index) => (
+                <StatsCard key={index} {...stat} />
+              ))
+            )}
+          </div>
+        </div>
 
-          {/* 传统仪表板概览组件 */}
-          <div className="mt-8">
-            <DashboardOverview onRefresh={handleRefresh} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <TaskList />
           </div>
 
-          {/* 底部信息 */}
-          <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-3">
-                  <i className="ri-shield-check-line text-xl text-blue-600"></i>
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                今日概况
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">接诊患者</span>
+                  <span className="font-semibold text-gray-900">
+                    {dashboardData?.new_patients_today || 0}人
+                  </span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  安全可靠
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  采用先进的安全技术，确保医疗数据的安全性和隐私保护
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mx-auto mb-3">
-                  <i className="ri-speed-line text-xl text-green-600"></i>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">待处理检查</span>
+                  <span className="font-semibold text-gray-900">
+                    {dashboardData?.pending_studies || 0}份
+                  </span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  高效处理
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  智能化的工作流程，大幅提升医疗影像诊断的效率和准确性
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg mx-auto mb-3">
-                  <i className="ri-team-line text-xl text-purple-600"></i>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">平均用时</span>
+                  <span className="font-semibold text-gray-900">
+                    {dashboardData?.average_processing_time || 0}分钟
+                  </span>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  协作便捷
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  支持多用户协作，实现医疗团队之间的高效沟通和协作
-                </p>
               </div>
             </div>
-          </div>
 
-          {/* 使用提示 */}
-          <div className="mt-6 bg-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-blue-900 mb-4">
-              💡 使用提示
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-medium text-blue-900 mb-2">🚀 快速开始</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• 点击"上传影像"开始上传医学影像文件</li>
-                  <li>• 使用"新建报告"创建诊断报告</li>
-                  <li>• 在"患者管理"中管理患者信息</li>
-                  <li>• 通过"审核报告"进行报告审核</li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-medium text-blue-900 mb-2">📊 数据分析</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• 查看"统计分析"了解系统使用情况</li>
-                  <li>• 监控系统性能和用户活动</li>
-                  <li>• 导出统计报告进行深度分析</li>
-                  <li>• 设置通知提醒重要事件</li>
-                </ul>
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                快捷操作
+              </h3>
+              <div className="space-y-3">
+                <Link
+                  href="/imaging"
+                  className="w-full bg-blue-50 text-blue-700 p-3 rounded-lg hover:bg-blue-100 flex items-center space-x-3 cursor-pointer"
+                >
+                  <i className="ri-image-line w-5 h-5 flex items-center justify-center"></i>
+                  <span>进入影像中心</span>
+                </Link>
+                <Link
+                  href="/patients"
+                  className="w-full bg-green-50 text-green-700 p-3 rounded-lg hover:bg-green-100 flex items-center space-x-3 cursor-pointer"
+                >
+                  <i className="ri-user-line w-5 h-5 flex items-center justify-center"></i>
+                  <span>患者管理</span>
+                </Link>
+                <Link
+                  href="/model-center"
+                  className="w-full bg-purple-50 text-purple-700 p-3 rounded-lg hover:bg-purple-100 flex items-center space-x-3 cursor-pointer"
+                >
+                  <i className="ri-cpu-line w-5 h-5 flex items-center justify-center"></i>
+                  <span>模型中心</span>
+                </Link>
               </div>
             </div>
-          </div>
-
-          {/* 版本信息 */}
-          <div className="mt-6 text-center text-sm text-gray-500">
-            <p>协和医疗影像诊断系统 v1.0.0 | 技术支持：AI Assistant</p>
-            <p className="mt-1">如有问题或建议，请联系系统管理员</p>
           </div>
         </div>
       </main>

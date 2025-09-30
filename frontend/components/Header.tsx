@@ -1,7 +1,7 @@
 'use client';
 
 import UserSettings from '@/components/UserSettings';
-import { useAuth, useUser } from '@/store/authStore';
+import { createAuthenticatedClient, useAuth, useUser } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -14,32 +14,7 @@ interface Message {
   isRead: boolean;
 }
 
-const mockMessages: Message[] = [
-  {
-    id: '1',
-    title: '新患者影像上传完成',
-    content: '患者张三的正位X光片已上传完成，请及时查看和诊断。',
-    type: 'info',
-    time: '5分钟前',
-    isRead: false,
-  },
-  {
-    id: '2',
-    title: '系统维护通知',
-    content: '系统将于今晚23:00-01:00进行维护升级，期间可能影响正常使用。',
-    type: 'warning',
-    time: '1小时前',
-    isRead: false,
-  },
-  {
-    id: '3',
-    title: '诊断报告已完成',
-    content: '患者李四的影像诊断报告已生成，可在患者详情中查看。',
-    type: 'success',
-    time: '2小时前',
-    isRead: false,
-  },
-];
+// 移除硬编码消息，将从API获取
 
 export default function Header() {
   const router = useRouter();
@@ -51,7 +26,7 @@ export default function Header() {
   const [settingsType, setSettingsType] = useState<
     'profile' | 'organization' | 'password' | 'system' | null
   >(null);
-  const [messages, setMessages] = useState(mockMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [mounted, setMounted] = useState(false);
 
   // 从认证系统获取用户角色
@@ -60,6 +35,43 @@ export default function Header() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 获取消息数据
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!user) return;
+
+      try {
+        const client = createAuthenticatedClient();
+        const response = await client.get('/api/v1/notifications/messages');
+        const notificationData = response.data;
+
+        // 转换API数据为消息格式
+        const formattedMessages: Message[] = notificationData.map(
+          (item: any) => ({
+            id: item.id || Math.random().toString(),
+            title: item.title || '系统通知',
+            content: item.message || item.content || '',
+            type: item.type || 'info',
+            time: item.created_at
+              ? new Date(item.created_at).toLocaleString()
+              : '刚刚',
+            isRead: item.is_read || false,
+          })
+        );
+
+        setMessages(formattedMessages);
+      } catch (error) {
+        console.warn('获取消息失败:', error);
+        // 设置默认消息
+        setMessages([]);
+      }
+    };
+
+    if (mounted && user) {
+      fetchMessages();
+    }
+  }, [mounted, user]);
 
   if (!mounted) {
     return (

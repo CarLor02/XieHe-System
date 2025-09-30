@@ -79,11 +79,13 @@ class Settings(BaseSettings):
     ]
     
     @validator("BACKEND_CORS_ORIGINS", pre=True)
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
+        elif isinstance(v, list):
+            return [str(origin) for origin in v]
+        elif isinstance(v, str):
+            return [v]
         raise ValueError(v)
     
     # 受信任主机
@@ -94,21 +96,32 @@ class Settings(BaseSettings):
     # ==========================================
     
     # MySQL 配置
-    DB_HOST: str = "127.0.0.1"
+    DB_HOST: str = "mysql"  # 默认使用 Docker 容器名
     DB_PORT: int = 3306
-    DB_USER: str = "root"
-    DB_PASSWORD: str = "123456"
-    DB_NAME: str = "xiehe_medical"
-    
+    DB_USER: str = "medical_user"
+    DB_PASSWORD: str = "medical_password_2024"
+    DB_NAME: str = "medical_system"
+
     # 数据库连接池配置
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_TIMEOUT: int = 30
     DB_POOL_RECYCLE: int = 3600
-    
+
     @property
     def DATABASE_URL(self) -> str:
         """构建数据库连接 URL"""
+        # 优先使用环境变量中的 DATABASE_URL
+        import os
+        env_url = os.getenv("DATABASE_URL")
+        if env_url:
+            # 如果是 mysql:// 格式，转换为 mysql+pymysql://
+            url = env_url
+            if url.startswith("mysql://"):
+                url = url.replace("mysql://", "mysql+pymysql://", 1)
+            if "?" not in url:
+                url += "?charset=utf8mb4"
+            return url
         return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
     
     @property
@@ -128,15 +141,20 @@ class Settings(BaseSettings):
     # Redis 配置
     # ==========================================
     
-    REDIS_HOST: str = "127.0.0.1"
+    REDIS_HOST: str = "redis"  # 默认使用 Docker 容器名
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: Optional[str] = None
     REDIS_DB: int = 0
     REDIS_TIMEOUT: int = 5
-    
+
     @property
     def REDIS_URL(self) -> str:
         """构建 Redis 连接 URL"""
+        # 优先使用环境变量中的 REDIS_URL
+        import os
+        env_url = os.getenv("REDIS_URL")
+        if env_url:
+            return env_url
         if self.REDIS_PASSWORD:
             return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"

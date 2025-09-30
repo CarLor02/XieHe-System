@@ -22,6 +22,9 @@ from .endpoints import (
     images,
     studies,
     reports,
+    permissions,
+    ai_diagnosis,
+    models,
     system,
     websocket,
     errors,
@@ -55,6 +58,12 @@ api_router.include_router(
 )
 
 api_router.include_router(
+    permissions.router,
+    prefix="/permissions",
+    tags=["权限管理"]
+)
+
+api_router.include_router(
     patients.router,
     prefix="/patients",
     tags=["患者管理"]
@@ -82,6 +91,18 @@ api_router.include_router(
     reports.router,
     prefix="/reports",
     tags=["报告管理"]
+)
+
+api_router.include_router(
+    ai_diagnosis.router,
+    prefix="/ai-diagnosis",
+    tags=["AI辅助诊断"]
+)
+
+api_router.include_router(
+    models.router,
+    prefix="/models",
+    tags=["模型管理"]
 )
 
 api_router.include_router(

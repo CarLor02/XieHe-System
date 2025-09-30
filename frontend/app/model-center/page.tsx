@@ -3,13 +3,60 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import UserSettings from '@/components/UserSettings';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ModelCard from './ModelCard';
+
+interface ModelData {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  status: string;
+  accuracy: string;
+  lastUpdated: string;
+  category: string;
+}
+
+// 辅助函数
+const getModelIcon = (modelType: string): string => {
+  const iconMap: { [key: string]: string } = {
+    classification: 'ri-file-list-3-line',
+    detection: 'ri-search-eye-line',
+    segmentation: 'ri-scissors-cut-line',
+    prediction: 'ri-crystal-ball-line',
+  };
+  return iconMap[modelType] || 'ri-cpu-line';
+};
+
+const getModelStatus = (status: string): string => {
+  const statusMap: { [key: string]: string } = {
+    training: '训练中',
+    ready: '就绪',
+    deployed: '运行中',
+    stopped: '已停止',
+    error: '错误',
+  };
+  return statusMap[status] || status;
+};
+
+const getModelCategory = (modelType: string): string => {
+  const categoryMap: { [key: string]: string } = {
+    classification: '分类模型',
+    detection: '检测模型',
+    segmentation: '分割模型',
+    prediction: '预测模型',
+  };
+  return categoryMap[modelType] || '其他模型';
+};
 
 export default function ModelCenter() {
   const [showUserSettings, setShowUserSettings] = useState(false);
+  const [models, setModels] = useState<ModelData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const models = [
+  // 备用模型数据（当API调用失败时使用）
+  const fallbackModels: ModelData[] = [
     {
       id: 'preop-prediction',
       title: '术前X线预测术后X线模型',
@@ -45,6 +92,87 @@ export default function ModelCenter() {
     },
   ];
 
+  // 加载模型数据
+  const loadModels = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // 从API加载模型数据
+      const { createAuthenticatedClient } = await import('@/store/authStore');
+      const client = createAuthenticatedClient();
+      const response = await client.get('/api/v1/models/');
+
+      // 转换API数据格式以匹配前端接口
+      const apiModels = response.data.models || [];
+      const convertedModels: ModelData[] = apiModels.map((model: any) => ({
+        id: model.id,
+        title: model.name,
+        description: model.description || '',
+        icon: getModelIcon(model.model_type),
+        status: getModelStatus(model.status),
+        accuracy: `${(model.accuracy * 100).toFixed(1)}%`,
+        lastUpdated: new Date(model.updated_at).toLocaleDateString('zh-CN'),
+        category: getModelCategory(model.model_type),
+      }));
+
+      setModels(convertedModels);
+    } catch (err: any) {
+      console.error('Failed to load models:', err);
+      setError('加载模型数据失败');
+      // 如果API调用失败，使用备用数据
+      setModels(fallbackModels);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadModels();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Sidebar />
+        <Header />
+        <main className="ml-64 p-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-gray-200 rounded-lg h-64"></div>
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Sidebar />
+        <Header />
+        <main className="ml-64 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <div className="text-red-600 mb-4">
+              <i className="ri-error-warning-line text-4xl mb-2"></i>
+              <p className="text-lg font-semibold">{error}</p>
+            </div>
+            <button
+              onClick={loadModels}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              重试
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
@@ -72,7 +200,9 @@ export default function ModelCenter() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-600 text-sm">总模型数</p>
-                  <p className="text-2xl font-bold text-gray-900">3</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {models.length}
+                  </p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                   <i className="ri-cpu-line text-blue-600 w-6 h-6 flex items-center justify-center"></i>
@@ -84,7 +214,9 @@ export default function ModelCenter() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-600 text-sm">运行中模型</p>
-                  <p className="text-2xl font-bold text-gray-900">3</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {models.filter(m => m.status === '运行中').length}
+                  </p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                   <i className="ri-play-circle-line text-green-600 w-6 h-6 flex items-center justify-center"></i>
@@ -95,8 +227,12 @@ export default function ModelCenter() {
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">平均性能</p>
-                  <p className="text-2xl font-bold text-gray-900">优秀</p>
+                  <p className="text-gray-600 text-sm">平均准确率</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {models.length > 0
+                      ? `${Math.round(models.reduce((acc, m) => acc + parseFloat(m.accuracy), 0) / models.length)}%`
+                      : '0%'}
+                  </p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                   <i className="ri-medal-line text-purple-600 w-6 h-6 flex items-center justify-center"></i>

@@ -2,14 +2,56 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { useState } from 'react';
+import { useUser } from '@/store/authStore';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import DataPermissions from './DataPermissions';
 import MemberManagement from './MemberManagement';
 import ModelPermissions from './ModelPermissions';
 import TeamManagement from './TeamManagement';
 
 export default function PermissionsPage() {
+  const router = useRouter();
+  const { isAuthenticated } = useUser();
   const [activeTab, setActiveTab] = useState('team');
+  const [mounted, setMounted] = useState(false);
+
+  // 确保组件已挂载
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 认证检查
+  useEffect(() => {
+    if (mounted && !isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [mounted, isAuthenticated, router]);
+
+  // 如果组件未挂载，显示加载状态
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在加载...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果未认证，显示加载状态
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在验证登录状态...</p>
+        </div>
+      </div>
+    );
+  }
 
   const tabs = [
     { id: 'team', name: '团队管理', icon: 'ri-team-line' },

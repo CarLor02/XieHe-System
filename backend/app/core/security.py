@@ -53,27 +53,47 @@ class SecurityManager:
     def hash_password(self, password: str) -> str:
         """
         加密密码
-        
+
         Args:
             password: 明文密码
-        
+
         Returns:
             str: 加密后的密码哈希
+
+        Note:
+            为了避免 bcrypt 的 72 字节限制，先对密码进行 SHA256 哈希
         """
-        return pwd_context.hash(password)
+        import hashlib
+        import base64
+
+        # 先用 SHA256 哈希密码，避免 bcrypt 的 72 字节限制
+        password_bytes = password.encode('utf-8')
+        sha256_hash = hashlib.sha256(password_bytes).digest()
+        # 使用 base64 编码使其成为可打印字符串
+        password_b64 = base64.b64encode(sha256_hash).decode('utf-8')
+
+        return pwd_context.hash(password_b64)
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """
         验证密码
-        
+
         Args:
             plain_password: 明文密码
             hashed_password: 加密后的密码哈希
-        
+
         Returns:
             bool: 密码是否正确
         """
-        return pwd_context.verify(plain_password, hashed_password)
+        import hashlib
+        import base64
+
+        # 先用 SHA256 哈希密码，与 hash_password 保持一致
+        password_bytes = plain_password.encode('utf-8')
+        sha256_hash = hashlib.sha256(password_bytes).digest()
+        password_b64 = base64.b64encode(sha256_hash).decode('utf-8')
+
+        return pwd_context.verify(password_b64, hashed_password)
     
     def generate_random_password(self, length: int = 12) -> str:
         """

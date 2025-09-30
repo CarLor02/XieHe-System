@@ -76,7 +76,12 @@ export interface RegisterData {
 }
 
 // API 基础URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// 在生产环境中使用空字符串（相对路径），开发环境使用 localhost
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? ''
+    : 'http://localhost:8000');
 
 // 创建认证状态管理
 export const useAuthStore = create<AuthState>()(

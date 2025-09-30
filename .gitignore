@@ -339,3 +339,8 @@ coverage/
 
 # 清理计划文档 (可选)
 cleanup_plan.md
+
+# 测试文件和临时文档
+_test_files/
+docker_test_report_*.json
+build.log

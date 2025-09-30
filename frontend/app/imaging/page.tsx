@@ -2,8 +2,10 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import { createAuthenticatedClient, useUser } from '@/store/authStore';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 interface Study {
   id: number;
@@ -31,60 +33,25 @@ interface StudyListResponse {
   total_pages: number;
 }
 
-const mockImages: ImageData[] = [
-  {
-    id: 'IMG001',
-    examType: '正位X光片',
-    studyDate: '2024-01-15',
-    status: 'pending' as const,
-    thumbnailUrl:
-      'https://readdy.ai/api/search-image?query=medical%20spine%20X-ray%20frontal%20view%20professional%20radiological%20image%20black%20background%20clean%20medical%20diagnostic%20imaging&width=200&height=300&seq=spine-xray-1&orientation=portrait',
-  },
-  {
-    id: 'IMG002',
-    examType: '侧位X光片',
-    studyDate: '2024-01-14',
-    status: 'reviewed' as const,
-    thumbnailUrl:
-      'https://readdy.ai/api/search-image?query=medical%20spine%20X-ray%20lateral%20side%20view%20professional%20radiological%20image%20black%20background%20clean%20medical%20diagnostic%20imaging&width=200&height=300&seq=spine-xray-2&orientation=portrait',
-  },
-  {
-    id: 'IMG003',
-    examType: '体态照片',
-    studyDate: '2024-01-13',
-    status: 'reviewed' as const,
-    thumbnailUrl:
-      'https://readdy.ai/api/search-image?query=medical%20posture%20photograph%20patient%20standing%20clinical%20photography%20clean%20white%20background%20professional%20medical%20documentation&width=200&height=300&seq=posture-photo-1&orientation=portrait',
-  },
-  {
-    id: 'IMG004',
-    examType: '正位X光片',
-    studyDate: '2024-01-12',
-    status: 'pending' as const,
-    thumbnailUrl:
-      'https://readdy.ai/api/search-image?query=medical%20spine%20X-ray%20frontal%20view%20professional%20radiological%20image%20black%20background%20clean%20medical%20diagnostic%20imaging&width=200&height=300&seq=spine-xray-3&orientation=portrait',
-  },
-  {
-    id: 'IMG005',
-    examType: '侧位X光片',
-    studyDate: '2024-01-16',
-    status: 'pending' as const,
-    thumbnailUrl:
-      'https://readdy.ai/api/search-image?query=medical%20spine%20X-ray%20lateral%20side%20view%20professional%20radiological%20image%20black%20background%20clean%20medical%20diagnostic%20imaging&width=200&height=300&seq=spine-xray-4&orientation=portrait',
-  },
-  {
-    id: 'IMG006',
-    examType: '体态照片',
-    studyDate: '2024-01-16',
-    status: 'reviewed' as const,
-    thumbnailUrl:
-      'https://readdy.ai/api/search-image?query=medical%20posture%20photograph%20patient%20standing%20clinical%20photography%20clean%20white%20background%20professional%20medical%20documentation&width=200&height=300&seq=posture-photo-2&orientation=portrait',
-  },
-].sort(
-  (a, b) => new Date(b.studyDate).getTime() - new Date(a.studyDate).getTime()
-);
+interface ImageItem {
+  id: string;
+  examType: string;
+  studyDate: string;
+  status: 'pending' | 'reviewed';
+  thumbnailUrl: string;
+  patient_name?: string;
+  patient_id?: string;
+}
 
 export default function ImagingPage() {
+  const router = useRouter();
+  const { isAuthenticated } = useUser();
+
+  // 数据状态
+  const [studies, setStudies] = useState<Study[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // 搜索和筛选状态
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -94,8 +61,59 @@ export default function ImagingPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
+  // 加载影像数据
+  const loadStudies = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const client = createAuthenticatedClient();
+      const response = await client.get('/api/v1/studies/?page=1&page_size=50');
+
+      const studiesData = response.data.studies || [];
+      setStudies(studiesData);
+    } catch (err: any) {
+      console.error('Failed to load studies:', err);
+      setError('加载影像数据失败');
+      // 使用备用数据
+      setStudies([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 认证检查
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadStudies();
+    }
+  }, [isAuthenticated]);
+
+  // 将Study数据转换为ImageItem格式
+  const convertStudyToImageItem = (study: Study): ImageItem => {
+    return {
+      id: `IMG${study.id.toString().padStart(3, '0')}`,
+      examType: study.modality || '未知类型',
+      studyDate: study.study_date || study.created_at.split('T')[0],
+      status: study.status === 'completed' ? 'reviewed' : 'pending',
+      thumbnailUrl: `https://readdy.ai/api/search-image?query=medical%20${study.modality || 'imaging'}%20professional%20radiological%20image&width=200&height=300&seq=${study.id}&orientation=portrait`,
+      patient_name: study.patient_name,
+      patient_id: study.patient_id?.toString(),
+    };
+  };
+
+  // 转换后的影像列表
+  const imageItems = studies.map(convertStudyToImageItem);
+
   // 筛选后的影像列表
-  const filteredImages = mockImages.filter(image => {
+  const filteredImages = imageItems.filter(image => {
     const matchesSearch =
       image.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       image.examType.toLowerCase().includes(searchTerm.toLowerCase());
@@ -142,6 +160,50 @@ export default function ImagingPage() {
         console.warn(`未知的操作 "${action}"`);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Sidebar />
+        <Header />
+        <main className="ml-56 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-8">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="bg-gray-200 rounded-lg h-80"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Sidebar />
+        <Header />
+        <main className="ml-56 p-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <div className="text-red-600 mb-4">
+              <i className="ri-error-warning-line text-4xl mb-2"></i>
+              <p className="text-lg font-semibold">{error}</p>
+            </div>
+            <button
+              onClick={loadStudies}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              重试
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -217,8 +279,8 @@ export default function ImagingPage() {
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-500">
                 显示 {filteredImages.length} 条记录
-                {filteredImages.length !== mockImages.length &&
-                  ` (共 ${mockImages.length} 条)`}
+                {filteredImages.length !== imageItems.length &&
+                  ` (共 ${imageItems.length} 条)`}
               </span>
 
               <div className="flex border rounded-lg">

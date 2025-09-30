@@ -14,11 +14,29 @@ import Sidebar from '@/components/Sidebar';
 import ImageComparison, {
   ComparisonMode,
 } from '@/components/medical/ImageComparison';
+import { createAuthenticatedClient } from '@/store/authStore';
 import { useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
-// 模拟影像数据
-const mockImages = [
+interface ImageData {
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+  title: string;
+  description: string;
+  metadata: {
+    patientName: string;
+    studyDate: string;
+    modality: string;
+    windowCenter: number;
+    windowWidth: number;
+    rows: number;
+    columns: number;
+  };
+}
+
+// 备用影像数据（当API调用失败时使用）
+const fallbackImages: ImageData[] = [
   {
     id: 'IMG001',
     url: '/api/placeholder/512/512',
@@ -119,11 +137,11 @@ const mockImages = [
 
 const ImageComparisonContent: React.FC = () => {
   const searchParams = useSearchParams();
-  const [images, setImages] = useState(mockImages);
+  const [images, setImages] = useState<ImageData[]>([]);
   const [selectedMode, setSelectedMode] = useState<ComparisonMode>(
     ComparisonMode.SIDE_BY_SIDE
   );
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // 从URL参数获取预选影像
@@ -145,18 +163,37 @@ const ImageComparisonContent: React.FC = () => {
     setError(null);
 
     try {
-      // 这里应该从API加载实际的影像数据
-      // const response = await fetch('/api/v1/images')
-      // const data = await response.json()
-      // setImages(data.images)
+      const client = createAuthenticatedClient();
+      const response = await client.get('/api/v1/studies/?page=1&page_size=20');
 
-      // 模拟加载延迟
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setImages(mockImages);
+      // 转换API数据为ImageData格式
+      const studies = response.data.studies || [];
+      const imageData: ImageData[] = studies.map((study: any) => ({
+        id: `IMG${study.id.toString().padStart(3, '0')}`,
+        url: `https://readdy.ai/api/search-image?query=medical%20${study.modality || 'imaging'}%20professional%20radiological%20image&width=512&height=512&seq=${study.id}&orientation=square`,
+        thumbnailUrl: `https://readdy.ai/api/search-image?query=medical%20${study.modality || 'imaging'}%20professional%20radiological%20image&width=128&height=128&seq=${study.id}&orientation=square`,
+        title: `${study.modality || '未知'} - ${study.study_description || '影像检查'}`,
+        description: `患者${study.patient_name || '未知'}，${study.study_description || '影像检查'}`,
+        metadata: {
+          patientName: study.patient_name || '未知患者',
+          studyDate:
+            study.study_date || study.created_at?.split('T')[0] || '未知日期',
+          modality: study.modality || 'Unknown',
+          windowCenter: study.modality === 'CT' ? 40 : 128,
+          windowWidth: study.modality === 'CT' ? 400 : 256,
+          rows: 512,
+          columns: 512,
+        },
+      }));
+
+      setImages(imageData);
     } catch (err) {
+      console.error('Failed to load images:', err);
       const errorMessage =
         err instanceof Error ? err.message : '加载影像数据失败';
       setError(errorMessage);
+      // 使用备用数据
+      setImages(fallbackImages);
     } finally {
       setIsLoading(false);
     }

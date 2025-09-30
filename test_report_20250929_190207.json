@@ -1,0 +1,154 @@
+{
+  "total_tests": 26,
+  "passed_tests": 26,
+  "failed_tests": 0,
+  "api_tests": {
+    "健康检查": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'status': 'healthy', 'message': 'XieHe医疗影像诊断系统运行正常'}"
+    },
+    "登录API": {
+      "status": "PASSED",
+      "status_code": 200,
+      "note": "已在初始化时验证"
+    },
+    "患者列表": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'patients': [{'id': 12, 'patient_id': 'P20250929010', 'name': '陈十二', 'gender': '女', 'birth_date': '"
+    },
+    "患者搜索": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'patients': [{'id': 1, 'patient_id': 'P20250929001', 'name': '张三', 'gender': '男', 'birth_date': '19"
+    },
+    "患者详情": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'id': 1, 'patient_id': 'P20250929001', 'name': '张三', 'gender': '男', 'birth_date': '1980-05-15', 'ag"
+    },
+    "影像检查列表": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'studies': [{'id': 10, 'study_instance_uid': '1.2.840.353054.120076', 'study_id': 'ST202509290601',"
+    },
+    "影像检查详情": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'id': 1, 'study_instance_uid': '1.2.840.113619.2.55.3.604688119.971.1234567890.1', 'study_id': 'ST0"
+    },
+    "模型列表": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'models': [{'id': 'MODEL_001', 'name': '术前X线预测术后X线模型', 'description': '基于深度学习算法，通过分析术前X线影像，预测手术后的X线"
+    },
+    "模型统计": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'total_models': 8, 'active_models': 6, 'training_models': 1, 'deployed_models': 5, 'total_predictio"
+    },
+    "模型详情": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'id': 'MODEL_001', 'name': '术前X线预测术后X线模型', 'description': '基于深度学习算法，通过分析术前X线影像，预测手术后的X线影像结果，帮助医生制定更"
+    },
+    "权限列表": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "list",
+      "data_sample": "[{'permission_id': 'PERM_001', 'name': '报告查看', 'code': 'report:read', 'description': '查看医疗报告', 'reso"
+    },
+    "角色列表": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "list",
+      "data_sample": "[{'role_id': 'ROLE_001', 'name': '超级管理员', 'code': 'super_admin', 'description': '系统超级管理员', 'permissi"
+    },
+    "用户组列表": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "list",
+      "data_sample": "[{'group_id': 'GROUP_001', 'name': '放射科医生组', 'description': '放射科医生用户组', 'roles': [], 'users': [{'use"
+    },
+    "权限矩阵": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "dict",
+      "data_sample": "{'resources': [], 'permissions': [], 'roles': [], 'matrix': {}}"
+    },
+    "AI诊断模型列表": {
+      "status": "PASSED",
+      "status_code": 200,
+      "response_type": "list",
+      "data_sample": "['chest_xray', 'spine_xray']"
+    }
+  },
+  "frontend_tests": {
+    "主页": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 10144
+    },
+    "工作台": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 10689
+    },
+    "患者管理": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 14761
+    },
+    "添加患者": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 11022
+    },
+    "影像中心": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 14217
+    },
+    "影像上传": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 10682
+    },
+    "报告管理": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 12849
+    },
+    "权限管理": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 10705
+    },
+    "角色管理": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 11460
+    },
+    "用户权限": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 11370
+    },
+    "模型中心": {
+      "status": "PASSED",
+      "status_code": 200,
+      "content_length": 13926
+    }
+  },
+  "data_validation": {}
+}

@@ -2,8 +2,9 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { apiUrl } from '@/lib/config';
+import { createAuthenticatedClient, useUser } from '@/store/authStore';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 interface Patient {
@@ -43,13 +44,24 @@ export default function PatientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGender, setSelectedGender] = useState('');
 
+  const { isAuthenticated } = useUser();
+  const router = useRouter();
   const pageSize = 10;
+
+  // 检查认证状态
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [isAuthenticated, router]);
 
   const loadPatients = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      const client = createAuthenticatedClient();
       const params = new URLSearchParams({
         page: currentPage.toString(),
         page_size: pageSize.toString(),
@@ -63,22 +75,19 @@ export default function PatientsPage() {
         params.append('gender', selectedGender);
       }
 
-      const response = await fetch(
-        apiUrl.patients.list({ page: currentPage, page_size: pageSize })
+      const response = await client.get(
+        `/api/v1/patients/?${params.toString()}`
       );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: PatientListResponse = await response.json();
+      const data: PatientListResponse = response.data;
 
       setPatients(data.patients || []);
       setTotalPatients(data.total || 0);
       setTotalPages(data.total_pages || 1);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load patients:', err);
-      setError(err instanceof Error ? err.message : '加载患者数据失败');
+      const errorMessage =
+        err.response?.data?.message || err.message || '加载患者数据失败';
+      setError(errorMessage);
       setPatients([]);
     } finally {
       setLoading(false);

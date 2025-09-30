@@ -52,19 +52,36 @@ SessionLocal = sessionmaker(
 )
 
 # Redis连接池配置
-redis_pool = ConnectionPool(
-    host=settings.REDIS_HOST,
-    port=settings.REDIS_PORT,
-    password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
-    db=settings.REDIS_DB,
-    encoding="utf-8",
-    decode_responses=True,
-    max_connections=10,  # 使用默认值
-    retry_on_timeout=True,
-    socket_timeout=5,    # 使用默认值
-    socket_connect_timeout=5,  # 使用默认值
-    health_check_interval=30,
-)
+# 优先使用 REDIS_URL，如果没有则使用单独的配置项
+import os
+redis_url = os.getenv("REDIS_URL")
+if redis_url:
+    # 使用 REDIS_URL 创建连接池
+    redis_pool = ConnectionPool.from_url(
+        redis_url,
+        encoding="utf-8",
+        decode_responses=True,
+        max_connections=10,
+        retry_on_timeout=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+        health_check_interval=30,
+    )
+else:
+    # 使用单独的配置项
+    redis_pool = ConnectionPool(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
+        db=settings.REDIS_DB,
+        encoding="utf-8",
+        decode_responses=True,
+        max_connections=10,
+        retry_on_timeout=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+        health_check_interval=30,
+    )
 
 # Redis客户端
 redis_client: Optional[redis.Redis] = None

@@ -81,7 +81,7 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     """用户信息响应模型"""
-    id: int = Field(..., description="用户ID")
+    id: str = Field(..., description="用户ID (UUID)")
     username: str = Field(..., description="用户名")
     email: str = Field(..., description="邮箱")
     full_name: str = Field(..., description="姓名")
@@ -108,12 +108,12 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
         from sqlalchemy import text
 
         # 查询用户信息
+        # 注意：数据库表使用 full_name 而不是 real_name，使用 is_active 而不是 status
         sql = """
-        SELECT id, username, email, real_name, password_hash, status, is_superuser, is_verified
+        SELECT id, username, email, full_name, password_hash, role, is_active
         FROM users
         WHERE (username = :username OR email = :username)
-        AND (is_deleted IS NULL OR is_deleted = 0)
-        AND status = 'active'
+        AND is_active = 1
         """
 
         result = db.execute(text(sql), {"username": username})
@@ -123,16 +123,18 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
             return None
 
         # 转换为字典格式
+        # 字段顺序: id, username, email, full_name, password_hash, role, is_active
         user = {
             "id": user_row[0],
             "username": user_row[1],
             "email": user_row[2],
-            "full_name": user_row[3] or user_row[1],  # 使用real_name，如果为空则使用username
+            "full_name": user_row[3] or user_row[1],  # 使用full_name，如果为空则使用username
             "password_hash": user_row[4],
-            "is_active": user_row[5] == 'active',
-            "is_superuser": bool(user_row[6]),
-            "roles": ["admin"] if user_row[6] else ["doctor"],
-            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[6] else ["patient_manage", "image_manage"]
+            "role": user_row[5],  # role字段
+            "is_active": bool(user_row[6]),  # is_active字段
+            "is_superuser": user_row[5] == 'admin',  # 根据role判断是否为超级用户
+            "roles": [user_row[5]],  # 角色列表
+            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[5] == 'admin' else ["patient_manage", "image_manage"]
         }
 
         return user
@@ -279,25 +281,28 @@ async def register(
         # 创建新用户并保存到数据库
         from sqlalchemy import text
         from datetime import datetime
+        import uuid
 
         password_hash = hash_password(register_data.password)
+        user_id = str(uuid.uuid4())
 
         # 插入新用户到数据库
+        # 注意：数据库表使用 full_name 而不是 real_name
         insert_sql = """
         INSERT INTO users (
-            username, email, real_name, phone, password_hash, salt,
-            status, is_superuser, is_verified, created_at
+            id, username, email, full_name, password_hash,
+            role, is_active, created_at
         ) VALUES (
-            :username, :email, :real_name, :phone, :password_hash, '',
-            'active', 0, 1, :created_at
+            :id, :username, :email, :full_name, :password_hash,
+            'doctor', 1, :created_at
         )
         """
 
         db.execute(text(insert_sql), {
+            "id": user_id,
             "username": register_data.username,
             "email": register_data.email,
-            "real_name": register_data.full_name,
-            "phone": register_data.phone,
+            "full_name": register_data.full_name,
             "password_hash": password_hash,
             "created_at": datetime.now()
         })

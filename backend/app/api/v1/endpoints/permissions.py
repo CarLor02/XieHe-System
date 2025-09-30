@@ -9,8 +9,14 @@ from typing import List, Optional, Dict, Any, Union
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from enum import Enum
+from sqlalchemy.orm import Session
 import random
 
+from app.core.database import get_db
+from app.core.auth import get_current_active_user
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 router = APIRouter()
 
 # 权限类型枚举
@@ -262,7 +268,9 @@ async def get_roles(
         
         for i, (name, code, desc, is_sys, user_count) in enumerate(role_templates, 1):
             # 为每个角色分配不同的权限
-            role_permissions = random.sample(permissions, random.randint(3, min(8, len(permissions))))
+            max_perms = min(8, len(permissions))
+            min_perms = min(3, max_perms)
+            role_permissions = random.sample(permissions, random.randint(min_perms, max_perms)) if permissions else []
             
             role = Role(
                 role_id=f"ROLE_{i:03d}",
@@ -356,7 +364,9 @@ async def get_user_groups(
         
         for i, (name, desc, user_count) in enumerate(group_templates, 1):
             # 为每个用户组分配角色
-            group_roles = random.sample(roles, random.randint(1, 3))
+            max_roles = min(3, len(roles))
+            min_roles = min(1, max_roles)
+            group_roles = random.sample(roles, random.randint(min_roles, max_roles)) if roles else []
             
             # 模拟用户列表
             users = []
@@ -397,12 +407,19 @@ async def get_user_permissions(user_id: str):
         # 获取基础数据
         permissions = await get_permissions(limit=100)
         roles = await get_roles(limit=20)
-        groups = await get_user_groups(limit=10)
+        groups = await get_user_groups(search=None, limit=10)
         
         # 模拟用户权限
-        direct_permissions = random.sample(permissions, random.randint(2, 5))
-        user_roles = random.sample(roles, random.randint(1, 3))
-        user_groups = random.sample(groups, random.randint(0, 2))
+        max_perms = min(5, len(permissions))
+        min_perms = min(2, max_perms)
+        direct_permissions = random.sample(permissions, random.randint(min_perms, max_perms)) if permissions else []
+
+        max_roles = min(3, len(roles))
+        min_roles = min(1, max_roles)
+        user_roles = random.sample(roles, random.randint(min_roles, max_roles)) if roles else []
+
+        max_groups = min(2, len(groups))
+        user_groups = random.sample(groups, random.randint(0, max_groups)) if groups else []
         
         # 计算角色权限
         role_permissions = []
@@ -555,3 +572,50 @@ async def get_permission_matrix():
         return permission_matrix
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取权限矩阵失败: {str(e)}")
+
+
+@router.get("/users")
+async def get_users(
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """获取用户列表"""
+    try:
+        # 使用原生SQL查询用户数据
+        from sqlalchemy import text
+
+        query = """
+        SELECT
+            u.id,
+            u.username,
+            u.email,
+            u.full_name,
+            u.is_active,
+            u.created_at,
+            u.updated_at
+        FROM users u
+        WHERE (u.is_deleted = 0 OR u.is_deleted IS NULL)
+        ORDER BY u.created_at DESC
+        """
+
+        result = db.execute(text(query))
+        rows = result.fetchall()
+
+        users = []
+        for row in rows:
+            user_data = {
+                "id": row[0],
+                "username": row[1],
+                "email": row[2] or "",
+                "full_name": row[3] or "",
+                "is_active": bool(row[4]),
+                "created_at": row[5].isoformat() if row[5] else "",
+                "updated_at": row[6].isoformat() if row[6] else ""
+            }
+            users.append(user_data)
+
+        return {"users": users}
+
+    except Exception as e:
+        logger.error(f"获取用户列表失败: {e}")
+        return {"users": []}

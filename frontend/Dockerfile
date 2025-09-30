@@ -5,14 +5,23 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-# 安装系统依赖
-RUN apk add --no-cache libc6-compat
+# 安装系统依赖（包括 sharp 所需的构建工具）
+RUN apk add --no-cache \
+    libc6-compat \
+    python3 \
+    make \
+    g++ \
+    vips-dev \
+    pkgconfig
 
 # 复制包管理文件
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 
-# 安装依赖
-RUN npm ci
+# 配置npm使用淘宝镜像加速
+RUN npm config set registry https://registry.npmmirror.com
+
+# 安装依赖（使用 --legacy-peer-deps 解决 React 19 兼容性问题）
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
 # 复制源代码
 COPY . .

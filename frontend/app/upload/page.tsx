@@ -2,7 +2,7 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { apiUrl } from '@/lib/config';
+import { createAuthenticatedClient, useUser } from '@/store/authStore';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
@@ -19,6 +19,7 @@ function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo') || '/imaging';
+  const { isAuthenticated } = useUser();
 
   const [selectedPatient, setSelectedPatient] = useState('');
   const [examType, setExamType] = useState('');
@@ -28,6 +29,12 @@ function UploadContent() {
   const [patients, setPatients] = useState<Array<{ id: string; name: string }>>(
     []
   );
+  const [mounted, setMounted] = useState(false);
+
+  // 确保组件已挂载
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const examTypes = [
     '正位X光片',
@@ -44,28 +51,46 @@ function UploadContent() {
     }
   }, [uploadFiles]);
 
+  // 认证检查
   useEffect(() => {
+    if (mounted && !isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [mounted, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!mounted || !isAuthenticated) return;
+
     // 获取患者列表
     const fetchPatients = async () => {
       try {
-        const response = await fetch(apiUrl.patients.list());
-        if (response.ok) {
-          const data = await response.json();
-          setPatients(data.items || []);
-        }
+        const client = createAuthenticatedClient();
+        const response = await client.get(
+          '/api/v1/patients/?page=1&page_size=100'
+        );
+        const data = response.data;
+
+        // 转换数据格式
+        const patientList = (data.patients || []).map((patient: any) => ({
+          id: patient.id.toString(),
+          name: patient.name,
+        }));
+
+        setPatients(patientList);
       } catch (error) {
         console.error('Failed to fetch patients:', error);
         // 使用默认患者列表作为后备
         setPatients([
-          { id: 'P202401001', name: '张三' },
-          { id: 'P202401002', name: '李四' },
-          { id: 'P202401003', name: '王五' },
+          { id: '1', name: '李明' },
+          { id: '2', name: '王芳' },
+          { id: '3', name: '张伟' },
         ]);
       }
     };
 
     fetchPatients();
-  }, []);
+  }, [isAuthenticated]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -111,6 +136,7 @@ function UploadContent() {
 
   const uploadFile = async (fileId: string, file: File) => {
     try {
+      const client = createAuthenticatedClient();
       const formData = new FormData();
       formData.append('file', file);
       if (selectedPatient) {
@@ -120,13 +146,13 @@ function UploadContent() {
         formData.append('description', examType);
       }
 
-      const response = await fetch(apiUrl.build('upload/upload/single'), {
-        method: 'POST',
-        body: formData,
+      const response = await client.post('/api/v1/upload/single', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.status === 200) {
         setUploadFiles(prev =>
           prev.map(f =>
             f.id === fileId ? { ...f, status: 'completed', progress: 100 } : f
@@ -168,6 +194,30 @@ function UploadContent() {
   const handleBackToSource = () => {
     router.push(returnTo);
   };
+
+  // 如果组件未挂载，显示加载状态
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在加载...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果未认证，显示加载状态
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在验证登录状态...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

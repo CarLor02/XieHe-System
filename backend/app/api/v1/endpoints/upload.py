@@ -17,6 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
@@ -126,7 +127,7 @@ def get_completed_file_path(file_id: str, filename: str) -> Path:
     return UPLOAD_DIR / 'completed' / safe_filename
 
 # API端点
-@router.post("/upload/single", response_model=FileUploadResponse)
+@router.post("/single", response_model=FileUploadResponse)
 async def upload_single_file(
     file: UploadFile = File(...),
     patient_id: Optional[str] = Form(None),
@@ -159,11 +160,11 @@ async def upload_single_file(
         
         # 保存文件
         file_path = get_completed_file_path(file_id, file.filename)
-        
+
         with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
-        
+
         # 验证文件完整性
         actual_size = file_path.stat().st_size
         if file.size and actual_size != file.size:
@@ -172,9 +173,35 @@ async def upload_single_file(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="文件上传不完整"
             )
-        
+
+        # 记录到数据库
+        try:
+            upload_record_sql = """
+            INSERT INTO file_uploads
+            (file_id, original_filename, stored_filename, file_path, file_size,
+             file_type, mime_type, upload_status, patient_id, uploaded_by, uploaded_at)
+            VALUES (:file_id, :original_filename, :stored_filename, :file_path, :file_size,
+                    :file_type, :mime_type, 'completed', :patient_id, :uploaded_by, NOW())
+            """
+
+            db.execute(text(upload_record_sql), {
+                'file_id': file_id,
+                'original_filename': file.filename,
+                'stored_filename': file_path.name,
+                'file_path': str(file_path),
+                'file_size': actual_size,
+                'file_type': file_path.suffix.lower(),
+                'mime_type': file.content_type,
+                'patient_id': int(patient_id) if patient_id and patient_id.isdigit() else None,
+                'uploaded_by': current_user.get('id')
+            })
+            db.commit()
+        except Exception as e:
+            logger.warning(f"记录文件上传信息到数据库失败: {e}")
+            # 不影响文件上传成功，只是记录失败
+
         logger.info(f"文件上传成功: {file.filename} ({actual_size} bytes)")
-        
+
         return FileUploadResponse(
             file_id=file_id,
             filename=file.filename,
@@ -191,7 +218,7 @@ async def upload_single_file(
             detail="文件上传失败"
         )
 
-@router.post("/upload/chunk", response_model=ChunkUploadResponse)
+@router.post("/chunk", response_model=ChunkUploadResponse)
 async def upload_chunk(
     chunk_data: ChunkUploadRequest,
     file: UploadFile = File(...),
@@ -252,7 +279,7 @@ async def upload_chunk(
             detail="分片上传失败"
         )
 
-@router.post("/upload/complete/{file_id}")
+@router.post("/complete/{file_id}")
 async def complete_upload(
     file_id: str,
     filename: str = Form(...),
@@ -328,7 +355,7 @@ async def complete_upload(
             detail="文件合并失败"
         )
 
-@router.get("/upload/status/{file_id}", response_model=FileUploadStatus)
+@router.get("/status/{file_id}", response_model=FileUploadStatus)
 async def get_upload_status(
     file_id: str,
     current_user: dict = Depends(get_current_active_user)
@@ -397,4 +424,77 @@ async def get_upload_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取上传状态失败"
+        )
+
+@router.get("/records", summary="获取文件上传记录")
+async def get_upload_records(
+    page: int = 1,
+    page_size: int = 20,
+    patient_id: Optional[int] = None,
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    获取文件上传记录
+
+    返回用户的文件上传历史记录
+    """
+    try:
+        # 构建查询条件
+        where_conditions = ["is_deleted = 0"]
+        params = {}
+
+        if patient_id:
+            where_conditions.append("patient_id = :patient_id")
+            params['patient_id'] = patient_id
+
+        # 只显示当前用户上传的文件
+        where_conditions.append("uploaded_by = :uploaded_by")
+        params['uploaded_by'] = current_user.get('id')
+
+        where_clause = " AND ".join(where_conditions)
+
+        # 获取总数
+        count_sql = f"SELECT COUNT(*) FROM file_uploads WHERE {where_clause}"
+        total = db.execute(text(count_sql), params).scalar() or 0
+
+        # 获取记录
+        offset = (page - 1) * page_size
+        records_sql = f"""
+        SELECT file_id, original_filename, file_size, file_type, mime_type,
+               upload_status, patient_id, uploaded_at, description
+        FROM file_uploads
+        WHERE {where_clause}
+        ORDER BY uploaded_at DESC
+        LIMIT :limit OFFSET :offset
+        """
+
+        params.update({'limit': page_size, 'offset': offset})
+        records = db.execute(text(records_sql), params).fetchall()
+
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "records": [
+                {
+                    "file_id": record[0],
+                    "filename": record[1],
+                    "file_size": record[2],
+                    "file_type": record[3],
+                    "mime_type": record[4],
+                    "upload_status": record[5],
+                    "patient_id": record[6],
+                    "uploaded_at": record[7],
+                    "description": record[8]
+                }
+                for record in records
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"获取上传记录失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取上传记录失败"
         )

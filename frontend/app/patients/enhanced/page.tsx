@@ -95,47 +95,75 @@ const fetchPatients = async (params: {
   gender?: string;
   is_active?: boolean;
 }): Promise<PatientListResponse> => {
-  // 模拟API延迟
-  await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    const { createAuthenticatedClient } = await import('@/store/authStore');
+    const client = createAuthenticatedClient();
 
-  let filtered = mockPatients;
+    // 构建查询参数
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.page_size)
+      queryParams.append('page_size', params.page_size.toString());
+    if (params.search) queryParams.append('search', params.search);
+    if (params.gender) queryParams.append('gender', params.gender);
+    if (params.is_active !== undefined)
+      queryParams.append('is_active', params.is_active.toString());
 
-  // 搜索筛选
-  if (params.search) {
-    const search = params.search.toLowerCase();
-    filtered = filtered.filter(
-      p =>
-        p.name.toLowerCase().includes(search) ||
-        p.patient_id.toLowerCase().includes(search) ||
-        (p.phone && p.phone.includes(search))
-    );
+    const response = await client.get(`/api/v1/patients/?${queryParams}`);
+
+    if (response.data && response.data.patients) {
+      // 转换API数据格式
+      const patients = response.data.patients.map((patient: any) => ({
+        id: patient.id,
+        patient_id: patient.patient_id || `P${patient.id}`,
+        name: patient.name || '未知患者',
+        gender: patient.gender || 'unknown',
+        age: patient.age || 0,
+        birth_date: patient.birth_date || '',
+        phone: patient.phone || '',
+        email: patient.email || '',
+        address: patient.address || '',
+        emergency_contact: patient.emergency_contact || '',
+        emergency_phone: patient.emergency_phone || '',
+        medical_history: patient.medical_history || '',
+        allergies: patient.allergies || '',
+        current_medications: patient.current_medications || '',
+        insurance_info: patient.insurance_info || '',
+        is_active: patient.is_active !== false,
+        created_at: patient.created_at || '',
+        updated_at: patient.updated_at || '',
+      }));
+
+      return {
+        patients,
+        total: response.data.total || patients.length,
+        page: response.data.page || params.page || 1,
+        page_size: response.data.page_size || params.page_size || 20,
+        total_pages:
+          response.data.total_pages ||
+          Math.ceil(
+            (response.data.total || patients.length) / (params.page_size || 20)
+          ),
+      };
+    } else {
+      return {
+        patients: [],
+        total: 0,
+        page: params.page || 1,
+        page_size: params.page_size || 20,
+        total_pages: 0,
+      };
+    }
+  } catch (error) {
+    console.error('获取患者数据失败:', error);
+    return {
+      patients: [],
+      total: 0,
+      page: params.page || 1,
+      page_size: params.page_size || 20,
+      total_pages: 0,
+    };
   }
-
-  // 性别筛选
-  if (params.gender) {
-    filtered = filtered.filter(p => p.gender === params.gender);
-  }
-
-  // 状态筛选
-  if (params.is_active !== undefined) {
-    filtered = filtered.filter(p => p.is_active === params.is_active);
-  }
-
-  // 分页
-  const page = params.page || 1;
-  const page_size = params.page_size || 20;
-  const total = filtered.length;
-  const total_pages = Math.ceil(total / page_size);
-  const start = (page - 1) * page_size;
-  const patients = filtered.slice(start, start + page_size);
-
-  return {
-    patients,
-    total,
-    page,
-    page_size,
-    total_pages,
-  };
 };
 
 export default function EnhancedPatientsPage() {

@@ -136,31 +136,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # AI 模型服务 (可选)
-  ai_service:
-    build:
-      context: ./ai_service
-      dockerfile: Dockerfile
-    container_name: medical_ai_service
-    restart: unless-stopped
-    environment:
-      - MODEL_PATH=/app/models
-    ports:
-      - '8001:8001'
-    volumes:
-      - models_data:/app/models
-    networks:
-      - medical_network
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    profiles:
-      - ai # 使用 --profile ai 启动
-
 volumes:
   mysql_data:
     driver: local

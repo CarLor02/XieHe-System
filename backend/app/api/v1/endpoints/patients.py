@@ -155,7 +155,7 @@ async def create_patient(
             id_card=patient_data.id_card,
             insurance_number=patient_data.insurance_number,
             status=PatientStatusEnum.ACTIVE,
-            created_by=current_user.get("id")
+            created_by=current_user.get("user_id") or current_user.get("id")
         )
 
         db.add(new_patient)
@@ -360,7 +360,7 @@ async def update_patient(
             else:
                 setattr(patient, field, value)
 
-        patient.updated_by = current_user.get("id")
+        patient.updated_by = current_user.get("user_id") or current_user.get("id")
         patient.updated_at = datetime.now()
 
         db.commit()

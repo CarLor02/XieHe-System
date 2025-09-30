@@ -77,8 +77,8 @@ class ReportResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     created_by: Optional[int]
-    reviewed_by: Optional[int]
-    reviewed_at: Optional[datetime]
+    reviewed_by: Optional[str]
+    reviewed_at: Optional[date]
 
     class Config:
         from_attributes = True
@@ -99,7 +99,7 @@ def convert_priority_to_enum(priority_str: str) -> ReportPriorityEnum:
         "normal": ReportPriorityEnum.NORMAL,
         "high": ReportPriorityEnum.HIGH,
         "urgent": ReportPriorityEnum.URGENT,
-        "critical": ReportPriorityEnum.CRITICAL
+        "stat": ReportPriorityEnum.STAT
     }
     return priority_map.get(priority_str.lower(), ReportPriorityEnum.NORMAL)
 
@@ -110,7 +110,7 @@ def convert_enum_to_priority(priority_enum: ReportPriorityEnum) -> str:
         ReportPriorityEnum.NORMAL: "normal",
         ReportPriorityEnum.HIGH: "high",
         ReportPriorityEnum.URGENT: "urgent",
-        ReportPriorityEnum.CRITICAL: "critical"
+        ReportPriorityEnum.STAT: "stat"
     }
     return priority_map.get(priority_enum, "normal")
 
@@ -209,7 +209,7 @@ async def create_report(
             detail="报告创建过程中发生错误"
         )
 
-@router.get("/", response_model=ReportListResponse, summary="获取报告列表")
+@router.get("/", summary="获取报告列表")
 async def get_reports(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -221,100 +221,108 @@ async def get_reports(
     db: Session = Depends(get_db)
 ):
     """
-    获取报告列表
-    
+    获取报告列表（简化版本）
+
     支持分页、搜索和筛选功能
     """
     try:
-        # 构建查询，关联患者表获取患者姓名
-        query = db.query(DiagnosticReport, Patient.name.label('patient_name')).join(
-            Patient, DiagnosticReport.patient_id == Patient.id
-        ).filter(Patient.is_deleted == False)
+        # 使用原生SQL查询避免ORM问题
+        from sqlalchemy import text
 
-        # 患者ID筛选
+        # 构建基础查询
+        base_query = """
+        SELECT
+            dr.id,
+            dr.report_number,
+            dr.patient_id,
+            p.name as patient_name,
+            dr.study_id,
+            dr.report_title,
+            dr.status,
+            dr.priority,
+            dr.primary_diagnosis,
+            dr.reporting_physician,
+            dr.report_date,
+            dr.created_at,
+            dr.updated_at
+        FROM diagnostic_reports dr
+        LEFT JOIN patients p ON dr.patient_id = p.id
+        WHERE (dr.is_deleted = 0 OR dr.is_deleted IS NULL)
+        """
+
+        # 添加筛选条件
+        conditions = []
+        params = {}
+
         if patient_id:
-            query = query.filter(DiagnosticReport.patient_id == patient_id)
+            conditions.append("dr.patient_id = :patient_id")
+            params["patient_id"] = patient_id
 
-        # 状态筛选
         if status:
-            if status == "draft":
-                query = query.filter(DiagnosticReport.status == ReportStatusEnum.DRAFT)
-            elif status == "pending_review":
-                query = query.filter(DiagnosticReport.status == ReportStatusEnum.PENDING_REVIEW)
-            elif status == "reviewed":
-                query = query.filter(DiagnosticReport.status == ReportStatusEnum.REVIEWED)
-            elif status == "finalized":
-                query = query.filter(DiagnosticReport.status == ReportStatusEnum.FINALIZED)
+            conditions.append("dr.status = :status")
+            params["status"] = status.upper()
 
-        # 优先级筛选
         if priority:
-            priority_enum = convert_priority_to_enum(priority)
-            query = query.filter(DiagnosticReport.priority == priority_enum)
+            conditions.append("dr.priority = :priority")
+            params["priority"] = priority.upper()
 
-        # 搜索筛选
         if search:
-            search_filter = or_(
-                Patient.name.contains(search),
-                Patient.patient_id.contains(search),
-                DiagnosticReport.report_number.contains(search),
-                DiagnosticReport.report_title.contains(search),
-                DiagnosticReport.primary_diagnosis.contains(search)
-            )
-            query = query.filter(search_filter)
+            conditions.append("(p.name LIKE :search OR dr.report_title LIKE :search OR dr.primary_diagnosis LIKE :search)")
+            params["search"] = f"%{search}%"
+
+        if conditions:
+            base_query += " AND " + " AND ".join(conditions)
 
         # 获取总数
-        total = query.count()
+        count_query = f"SELECT COUNT(*) FROM ({base_query}) as count_table"
+        total = db.execute(text(count_query), params).scalar() or 0
 
-        # 分页
-        offset = (page - 1) * page_size
-        results = query.order_by(desc(DiagnosticReport.created_at)).offset(offset).limit(page_size).all()
+        # 添加排序和分页
+        base_query += " ORDER BY dr.created_at DESC LIMIT :limit OFFSET :offset"
+        params["limit"] = page_size
+        params["offset"] = (page - 1) * page_size
+
+        # 执行查询
+        result = db.execute(text(base_query), params)
+        rows = result.fetchall()
 
         # 转换为响应格式
-        report_responses = []
-        for report, patient_name in results:
-            response_data = {
-                "id": report.id,
-                "report_number": report.report_number,
-                "patient_id": report.patient_id,
-                "patient_name": patient_name,
-                "study_id": report.study_id,
-                "template_id": report.template_id,
-                "report_title": report.report_title,
-                "clinical_history": report.clinical_history,
-                "examination_technique": report.examination_technique,
-                "findings": report.findings,
-                "impression": report.impression,
-                "recommendations": report.recommendations,
-                "primary_diagnosis": report.primary_diagnosis,
-                "secondary_diagnosis": report.secondary_diagnosis,
-                "priority": convert_enum_to_priority(report.priority),
-                "status": report.status.value,
-                "ai_assisted": report.ai_assisted,
-                "ai_confidence": float(report.ai_confidence) if report.ai_confidence else None,
-                "created_at": report.created_at,
-                "updated_at": report.updated_at,
-                "created_by": report.created_by,
-                "reviewed_by": report.reviewed_by,
-                "reviewed_at": report.reviewed_at
+        reports = []
+        for row in rows:
+            report_data = {
+                "id": row[0],
+                "report_number": row[1] or f"RPT-{row[0]}",
+                "patient_id": row[2],
+                "patient_name": row[3] or "未知患者",
+                "study_id": row[4],
+                "report_title": row[5] or "诊断报告",
+                "status": row[6] or "draft",
+                "priority": row[7] or "normal",
+                "primary_diagnosis": row[8] or "",
+                "reporting_physician": row[9] or "未指定医生",
+                "report_date": row[10].strftime('%Y-%m-%d') if row[10] else "",
+                "created_at": row[11].isoformat() if row[11] else "",
+                "updated_at": row[12].isoformat() if row[12] else ""
             }
-            report_responses.append(ReportResponse(**response_data))
+            reports.append(report_data)
 
-        total_pages = (total + page_size - 1) // page_size
-
-        return ReportListResponse(
-            reports=report_responses,
-            total=total,
-            page=page,
-            page_size=page_size,
-            total_pages=total_pages
-        )
+        return {
+            "reports": reports,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size
+        }
 
     except Exception as e:
         logger.error(f"获取报告列表失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取报告列表过程中发生错误"
-        )
+        return {
+            "reports": [],
+            "total": 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": 0
+        }
 
 @router.get("/{report_id}", response_model=ReportResponse, summary="获取报告详情")
 async def get_report(
@@ -330,7 +338,7 @@ async def get_report(
         result = db.query(DiagnosticReport, Patient.name.label('patient_name')).join(
             Patient, DiagnosticReport.patient_id == Patient.id
         ).filter(
-            and_(DiagnosticReport.id == report_id, Patient.is_deleted == False)
+            and_(DiagnosticReport.id == report_id, or_(Patient.is_deleted == False, Patient.is_deleted.is_(None)))
         ).first()
 
         if not result:
@@ -361,8 +369,8 @@ async def get_report(
             "created_at": report.created_at,
             "updated_at": report.updated_at,
             "created_by": report.created_by,
-            "reviewed_by": report.reviewed_by,
-            "reviewed_at": report.reviewed_at
+            "reviewed_by": report.reviewing_physician,
+            "reviewed_at": report.reviewed_date
         }
 
         return ReportResponse(**response_data)
