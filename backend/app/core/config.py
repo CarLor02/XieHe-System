@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     PASSWORD_MIN_LENGTH: int = 8
     PASSWORD_HASH_ROUNDS: int = 12
     
-    # CORS 配置
+    # CORS 配置 - 允许所有来源（生产环境应该限制）
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -76,6 +76,9 @@ class Settings(BaseSettings):
         "http://localhost:3000/",
         "http://127.0.0.1:3000/",
         "https://localhost:3000/",
+        "https://38.60.251.79",
+        "http://38.60.251.79",
+        "*",  # 允许所有来源（临时）
     ]
     
     @validator("BACKEND_CORS_ORIGINS", pre=True)
@@ -88,8 +91,8 @@ class Settings(BaseSettings):
             return [v]
         raise ValueError(v)
     
-    # 受信任主机
-    ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1", "0.0.0.0"]
+    # 受信任主机 - 允许所有主机
+    ALLOWED_HOSTS: List[str] = ["*"]
     
     # ==========================================
     # 数据库配置

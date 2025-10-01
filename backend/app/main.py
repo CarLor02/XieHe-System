@@ -103,15 +103,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# 配置 CORS 中间件
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.BACKEND_CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# 配置 CORS 中间件 - 允许所有来源（生产环境应该限制）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源
+    allow_credentials=False,  # 允许所有来源时必须设置为 False
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 配置受信任主机中间件
 if settings.ALLOWED_HOSTS:

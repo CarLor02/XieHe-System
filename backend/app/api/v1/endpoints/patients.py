@@ -9,7 +9,8 @@
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, date
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status  # 重命名以避免与参数冲突
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func
 from pydantic import BaseModel, Field, validator
@@ -192,7 +193,7 @@ async def create_patient(
         db.rollback()
         logger.error(f"患者创建失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="患者创建过程中发生错误"
         )
 
@@ -279,7 +280,7 @@ async def get_patients(
     except Exception as e:
         logger.error(f"获取患者列表失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取患者列表过程中发生错误"
         )
 
@@ -327,7 +328,7 @@ async def get_patient(
     except Exception as e:
         logger.error(f"获取患者详情失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取患者详情过程中发生错误"
         )
 
@@ -396,7 +397,7 @@ async def update_patient(
         db.rollback()
         logger.error(f"患者信息更新失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="患者信息更新过程中发生错误"
         )
 
@@ -434,6 +435,6 @@ async def delete_patient(
         db.rollback()
         logger.error(f"患者删除失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="患者删除过程中发生错误"
         )
