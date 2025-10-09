@@ -1,149 +1,165 @@
 # 医疗影像诊断系统项目管理 Makefile
 
-.PHONY: help progress summary query update-task start-task complete-task test-task setup-git report dashboard
+.PHONY: help setup start stop status logs test format lint clean backup restore
 
 # 默认目标
 help:
-	@echo "医疗影像诊断系统项目管理命令"
+	@echo "🏥 医疗影像诊断系统项目管理命令"
 	@echo ""
-	@echo "可用命令:"
-	@echo "  help          显示此帮助信息"
-	@echo "  progress      查看项目进度文档"
-	@echo "  summary       显示任务统计摘要"
-	@echo "  query         查询任务 (需要参数)"
-	@echo "  update-task   更新任务状态 (需要参数)"
-	@echo "  start-task    开始任务 (需要TASK_ID参数)"
-	@echo "  complete-task 完成任务 (需要TASK_ID参数)"
-	@echo "  test-task     测试任务 (需要TASK_ID和TEST_STATUS参数)"
-	@echo "  setup-git     配置Git环境和hooks"
-	@echo "  report        生成项目进度报告"
+	@echo "🚀 开发环境:"
+	@echo "  setup         初始化项目环境"
+	@echo "  start         启动所有服务"
+	@echo "  stop          停止所有服务"
+	@echo "  status        查看服务状态"
+	@echo "  logs          查看服务日志"
+	@echo ""
+	@echo "🧪 测试相关:"
+	@echo "  test          运行所有测试"
+	@echo "  test-frontend 运行前端测试"
+	@echo "  test-backend  运行后端测试"
+	@echo "  test-e2e      运行端到端测试"
+	@echo ""
+	@echo "🔧 代码质量:"
+	@echo "  format        格式化代码"
+	@echo "  lint          代码检查"
+	@echo "  type-check    类型检查"
+	@echo ""
+	@echo "🗄️ 数据管理:"
+	@echo "  backup        备份数据库"
+	@echo "  restore       恢复数据库"
+	@echo "  clean         清理临时文件"
+	@echo ""
+	@echo "📊 项目管理:"
+	@echo "  progress      查看项目进度"
 	@echo "  dashboard     生成项目仪表板"
-	@echo ""
-	@echo "示例:"
-	@echo "  make summary"
-	@echo "  make query ARGS='--stage 1'"
-	@echo "  make start-task TASK_ID=hBx19u6Pgd8yb2QMuuXP2V"
-	@echo "  make complete-task TASK_ID=hBx19u6Pgd8yb2QMuuXP2V"
-	@echo "  make test-task TASK_ID=hBx19u6Pgd8yb2QMuuXP2V TEST_STATUS=TEST_PASSED"
 
-# 查看项目进度文档
+# 🚀 开发环境管理
+setup:
+	@echo "🔧 初始化项目环境..."
+	@npm install
+	@cd frontend && npm install
+	@cd backend && pip install -r requirements.txt
+	@echo "✅ 环境初始化完成"
+
+start:
+	@echo "🚀 启动所有服务..."
+	@docker-compose up -d
+	@echo "✅ 服务启动完成"
+	@echo "🌐 前端: http://localhost:3000"
+	@echo "🔌 后端: http://localhost:8000"
+	@echo "📚 API文档: http://localhost:8000/docs"
+
+stop:
+	@echo "🛑 停止所有服务..."
+	@docker-compose down
+	@echo "✅ 服务已停止"
+
+status:
+	@echo "📊 服务状态:"
+	@docker-compose ps
+
+logs:
+	@echo "📋 查看服务日志:"
+	@docker-compose logs -f
+
+# 🧪 测试相关
+test:
+	@echo "🧪 运行所有测试..."
+	@npm run test
+
+test-frontend:
+	@echo "🧪 运行前端测试..."
+	@npm run test:frontend
+
+test-backend:
+	@echo "🧪 运行后端测试..."
+	@npm run test:backend
+
+test-e2e:
+	@echo "🧪 运行端到端测试..."
+	@npm run test:e2e
+
+# 🔧 代码质量
+format:
+	@echo "🎨 格式化代码..."
+	@npm run format
+
+lint:
+	@echo "🔍 代码检查..."
+	@npm run lint
+
+type-check:
+	@echo "🔍 类型检查..."
+	@cd frontend && npm run type-check
+
+# 🗄️ 数据管理
+backup:
+	@echo "💾 备份数据库..."
+	@if [ -f scripts/backup_database.sh ]; then \
+		bash scripts/backup_database.sh; \
+	else \
+		echo "❌ 找不到备份脚本"; \
+	fi
+
+restore:
+	@echo "🔄 恢复数据库..."
+	@if [ -f scripts/restore_database.sh ]; then \
+		bash scripts/restore_database.sh; \
+	else \
+		echo "❌ 找不到恢复脚本"; \
+	fi
+
+# 📊 项目管理
 progress:
+	@echo "📈 查看项目进度..."
 	@if [ -f docs/project-progress.md ]; then \
-		cat docs/project-progress.md; \
+		head -50 docs/project-progress.md; \
 	else \
 		echo "❌ 找不到项目进度文档"; \
 	fi
 
-# 显示任务统计摘要
-summary:
-	@python3 scripts/query_tasks.py --summary
-
-# 查询任务 (需要通过ARGS传递参数)
-query:
-	@python3 scripts/query_tasks.py $(ARGS)
-
-# 更新任务状态 (需要通过ARGS传递参数)
-update-task:
-	@python3 scripts/update_task_status.py $(ARGS)
-
-# 开始任务 (标记为进行中)
-start-task:
-	@if [ -z "$(TASK_ID)" ]; then \
-		echo "❌ 请提供TASK_ID参数"; \
-		echo "示例: make start-task TASK_ID=hBx19u6Pgd8yb2QMuuXP2V"; \
-	else \
-		python3 scripts/update_task_status.py $(TASK_ID) IN_PROGRESS; \
-	fi
-
-# 完成任务 (标记为已完成)
-complete-task:
-	@if [ -z "$(TASK_ID)" ]; then \
-		echo "❌ 请提供TASK_ID参数"; \
-		echo "示例: make complete-task TASK_ID=hBx19u6Pgd8yb2QMuuXP2V"; \
-	else \
-		python3 scripts/update_task_status.py $(TASK_ID) COMPLETED; \
-	fi
-
-# 测试任务 (更新测试状态)
-test-task:
-	@if [ -z "$(TASK_ID)" ] || [ -z "$(TEST_STATUS)" ]; then \
-		echo "❌ 请提供TASK_ID和TEST_STATUS参数"; \
-		echo "示例: make test-task TASK_ID=hBx19u6Pgd8yb2QMuuXP2V TEST_STATUS=TEST_PASSED"; \
-	else \
-		python3 scripts/update_task_status.py $(TASK_ID) COMPLETED $(TEST_STATUS); \
-	fi
-
-# 查看特定阶段的任务
-stage1:
-	@python3 scripts/query_tasks.py --stage 1
-
-stage2:
-	@python3 scripts/query_tasks.py --stage 2
-
-stage3:
-	@python3 scripts/query_tasks.py --stage 3
-
-stage4:
-	@python3 scripts/query_tasks.py --stage 4
-
-stage5:
-	@python3 scripts/query_tasks.py --stage 5
-
-stage6:
-	@python3 scripts/query_tasks.py --stage 6
-
-# 查看不同状态的任务
-todo:
-	@python3 scripts/query_tasks.py --status NOT_STARTED
-
-doing:
-	@python3 scripts/query_tasks.py --status IN_PROGRESS
-
-done:
-	@python3 scripts/query_tasks.py --status COMPLETED
-
-# 项目初始化
-init:
-	@echo "🚀 初始化项目环境..."
-	@mkdir -p docs/api docs/architecture docs/deployment docs/user-guide
-	@mkdir -p backend/app backend/models backend/api backend/core backend/tests
-	@mkdir -p frontend/lib frontend/hooks frontend/types frontend/utils
-	@mkdir -p tests/unit tests/integration tests/e2e
-	@mkdir -p docker scripts
-	@chmod +x scripts/*.py
-	@echo "✅ 项目目录结构已创建"
-
-# 检查Python环境
-check-env:
-	@echo "🔍 检查Python环境..."
-	@python3 --version
-	@echo "📁 检查项目文件..."
-	@ls -la docs/project-progress.md scripts/
-	@echo "✅ 环境检查完成"
-
-# 配置Git环境
-setup-git:
-	@echo "🔧 配置Git环境..."
-	@if [ -f scripts/setup-git.sh ]; then \
-		bash scripts/setup-git.sh; \
-	else \
-		echo "❌ 找不到Git配置脚本"; \
-	fi
-
-# 生成项目进度报告
-report:
-	@echo "📊 生成项目进度报告..."
-	@python3 scripts/progress_tracker.py --full
-
-# 生成项目仪表板
 dashboard:
-	@echo "📈 生成项目仪表板..."
-	@python3 scripts/generate_dashboard.py
-	@echo "🌐 在浏览器中打开 dashboard.html 查看仪表板"
+	@echo "📊 生成项目仪表板..."
+	@if [ -f scripts/generate_dashboard.py ]; then \
+		python3 scripts/generate_dashboard.py; \
+		echo "🌐 在浏览器中打开 dashboard.html 查看仪表板"; \
+	else \
+		echo "❌ 找不到仪表板生成脚本"; \
+	fi
 
-# 清理临时文件
+# 🧹 清理
 clean:
 	@echo "🧹 清理临时文件..."
 	@find . -name "*.pyc" -delete
-	@find . -name "__pycache__" -delete
+	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find . -name "*.log" -delete
+	@find . -name ".DS_Store" -delete
+	@docker system prune -f
 	@echo "✅ 清理完成"
+
+# 🔧 开发工具
+dev:
+	@echo "🚀 启动开发环境..."
+	@npm run dev
+
+build:
+	@echo "🏗️ 构建项目..."
+	@npm run build
+
+deploy:
+	@echo "🚀 部署项目..."
+	@if [ -f scripts/deploy.sh ]; then \
+		bash scripts/deploy.sh; \
+	else \
+		echo "❌ 找不到部署脚本"; \
+	fi
+
+# 📋 信息查看
+info:
+	@echo "ℹ️ 项目信息:"
+	@echo "  名称: 医疗影像诊断系统"
+	@echo "  技术栈: Next.js + FastAPI + MySQL + Redis"
+	@echo "  前端端口: 3000"
+	@echo "  后端端口: 8000"
+	@echo "  数据库: MySQL (3306)"
+	@echo "  缓存: Redis (6379)"

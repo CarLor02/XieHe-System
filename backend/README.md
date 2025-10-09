@@ -1,8 +1,23 @@
-# 医疗影像诊断系统 - 后端服务
+# 🏥 医疗影像诊断系统 - 后端服务
+
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
+[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0+-orange.svg)](https://mysql.com)
+[![Redis](https://img.shields.io/badge/Redis-6.x+-red.svg)](https://redis.io)
 
 ## 📋 概述
 
 基于 FastAPI 的医疗影像诊断系统后端服务，提供完整的 REST API 接口，支持用户认证、患者管理、影像处理、AI诊断等核心功能。
+
+### ✨ 特性
+
+- 🚀 **高性能**: 基于 FastAPI 和异步编程
+- 🔒 **安全认证**: JWT + OAuth2 多角色权限管理
+- 📊 **数据管理**: MySQL + Redis 双重存储
+- 🤖 **AI 集成**: 支持多种医学影像 AI 模型
+- 📖 **自动文档**: OpenAPI 3.0 + Swagger UI
+- 🧪 **完整测试**: pytest + 覆盖率报告
+- 🐳 **容器化**: Docker 一键部署
 
 ## 📁 目录结构
 
@@ -110,51 +125,72 @@ backend/
 
 ## 🚀 快速开始
 
-### 1. 环境准备
+### 方式一：演示模式（推荐开发）
+
+演示模式使用内置模拟数据，无需配置外部数据库：
 
 ```bash
-# 创建虚拟环境
-python -m venv venv
+# 1. 创建虚拟环境
+python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
-# 或
-venv\Scripts\activate     # Windows
+# 或 venv\Scripts\activate  # Windows
 
-# 安装依赖
+# 2. 安装依赖
 pip install -r requirements.txt
-pip install -r requirements-dev.txt  # 开发环境
+
+# 3. 启动演示服务
+python start_demo.py
 ```
 
-### 2. 环境配置
+**访问地址**:
+- API 服务: http://localhost:8000
+- API 文档: http://localhost:8000/docs
+- 健康检查: http://localhost:8000/health
+
+### 方式二：完整模式（生产环境）
+
+需要配置 MySQL 和 Redis：
 
 ```bash
-# 复制环境变量文件
+# 1. 环境准备
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 2. 配置环境变量
 cp .env.example .env
+# 编辑 .env 文件，配置数据库连接
 
-# 编辑环境变量
-vim .env
-```
-
-### 3. 数据库初始化
-
-```bash
-# 运行数据库迁移
+# 3. 数据库初始化（如果使用 Alembic）
 alembic upgrade head
 
-# 创建初始数据
-python scripts/init_db.py
-
-# 创建超级用户
-python scripts/create_superuser.py
+# 4. 启动完整服务
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 4. 启动服务
+### 环境变量配置
+
+主要配置项（`.env` 文件）：
 
 ```bash
-# 开发模式
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 数据库配置
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=your_username
+DB_PASSWORD=your_password
+DB_NAME=medical_imaging_system
 
-# 生产模式
-gunicorn app.main:app -c gunicorn.conf.py
+# Redis 配置
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=your_redis_password
+
+# JWT 配置
+SECRET_KEY=your-secret-key
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# CORS 配置（开发环境）
+# BACKEND_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
 ## 🔧 技术栈
@@ -184,14 +220,38 @@ gunicorn app.main:app -c gunicorn.conf.py
 - **pytest-asyncio**: 异步测试支持
 - **httpx**: HTTP客户端测试
 
-## 📊 API文档
+## 📊 API 接口
 
 ### 自动生成文档
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 - **OpenAPI JSON**: http://localhost:8000/openapi.json
 
-### API版本管理
+### 主要 API 端点
+
+#### 认证相关
+- `POST /api/v1/auth/login` - 用户登录
+- `POST /api/v1/auth/logout` - 用户登出
+- `POST /api/v1/auth/refresh` - 刷新令牌
+
+#### 患者管理
+- `GET /api/v1/patients` - 获取患者列表
+- `POST /api/v1/patients` - 创建患者
+- `GET /api/v1/patients/{id}` - 获取患者详情
+- `PUT /api/v1/patients/{id}` - 更新患者信息
+
+#### 影像检查
+- `GET /api/v1/studies/` - 获取检查列表（支持状态筛选）
+- `POST /api/v1/studies/` - 创建新检查
+- `GET /api/v1/studies/{id}` - 获取检查详情
+
+#### 系统管理
+- `GET /api/v1/dashboard/stats` - 获取仪表板统计
+- `GET /api/v1/notifications/messages` - 获取系统消息
+- `GET /api/v1/models/` - 获取 AI 模型列表
+- `GET /health` - 健康检查
+
+### API 版本管理
 - **v1**: `/api/v1/` - 当前稳定版本
 - **版本策略**: 语义化版本控制
 
@@ -279,7 +339,7 @@ pytest
 
 ## 🚀 部署
 
-### Docker部署
+### Docker 部署
 
 ```bash
 # 构建镜像
@@ -287,33 +347,99 @@ docker build -t medical-backend .
 
 # 运行容器
 docker run -p 8000:8000 medical-backend
+
+# 使用 docker-compose
+docker-compose up -d
 ```
 
 ### 生产环境
 
 ```bash
-# 使用Gunicorn
-gunicorn app.main:app -c gunicorn.conf.py
+# 使用 Gunicorn + Uvicorn
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 
-# 使用Supervisor管理进程
+# 使用 Supervisor 管理进程
 supervisord -c supervisord.conf
+
+# 使用 systemd 服务
+sudo systemctl start medical-backend
+sudo systemctl enable medical-backend
 ```
 
-## 📞 开发支持
+### 性能调优
+
+```bash
+# 生产环境推荐配置
+gunicorn app.main:app \
+  -w 4 \
+  -k uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --max-requests 1000 \
+  --max-requests-jitter 100 \
+  --timeout 30 \
+  --keep-alive 2
+```
+
+## 🛠️ 开发支持
 
 ### 代码规范
-- 遵循PEP 8编码规范
-- 使用Black代码格式化
-- 使用isort导入排序
-- 使用mypy类型检查
+- 遵循 PEP 8 编码规范
+- 使用 Black 代码格式化
+- 使用 isort 导入排序
+- 使用 mypy 类型检查
 
 ### 开发工具
-- **pre-commit**: Git提交钩子
+- **pre-commit**: Git 提交钩子
 - **Black**: 代码格式化
 - **isort**: 导入排序
 - **mypy**: 静态类型检查
 - **flake8**: 代码检查
 
+### 故障排除
+
+#### CORS 配置问题
+如果前端无法访问后端 API：
+```bash
+# 检查 CORS 配置
+# 确保 start_demo.py 中的 CORS 中间件已启用
+# 前端地址: http://localhost:3000
+# 后端地址: http://localhost:8000
+```
+
+#### 数据库连接问题
+```bash
+# 检查数据库配置
+# 1. 验证 .env 文件中的数据库配置
+# 2. 确保 MySQL 服务正在运行
+# 3. 测试数据库连接
+mysql -h localhost -u username -p database_name
+```
+
+#### 依赖安装问题
+```bash
+# 清理并重新安装
+pip uninstall -r requirements.txt -y
+pip install -r requirements.txt
+
+# 或使用虚拟环境
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 开发模式 vs 演示模式
+
+| 特性 | 演示模式 | 开发模式 |
+|------|----------|----------|
+| 数据库 | 内置模拟数据 | 需要 MySQL |
+| 缓存 | 内存缓存 | 需要 Redis |
+| 启动命令 | `python start_demo.py` | `uvicorn app.main:app --reload` |
+| 适用场景 | 快速演示、开发测试 | 完整功能开发 |
+
 ---
 
-**注意**: 开发前请仔细阅读项目编码规范和API设计文档。
+**注意**:
+- 开发前请仔细阅读项目编码规范和 API 设计文档
+- 演示模式适合快速开始和功能测试
+- 生产环境请使用完整模式并配置真实数据库

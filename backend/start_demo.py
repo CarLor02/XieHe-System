@@ -33,7 +33,8 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# 添加CORS中间件
+# 添加CORS中间件 - 开发阶段必需！
+# 注释掉CORS会导致前端无法访问后端API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -267,6 +268,82 @@ async def get_dashboard_stats():
             "ai_accuracy": 0.94,
             "system_status": "演示模式"
         }
+
+
+# 添加缺失的API端点
+
+# 消息通知端点
+@app.get("/api/v1/notifications/messages")
+async def get_messages():
+    """获取消息列表（演示）"""
+    return [
+        {
+            "id": 1,
+            "title": "系统通知",
+            "content": "系统运行正常",
+            "message_type": "info",
+            "priority": "normal",
+            "is_read": False,
+            "created_at": "2025-10-09T10:00:00Z"
+        }
+    ]
+
+# 影像检查端点
+@app.get("/api/v1/studies/")
+async def get_studies(
+    page: int = 1,
+    page_size: int = 10,
+    status: str = None
+):
+    """获取影像检查列表（演示）"""
+    # 模拟数据
+    all_studies = [
+        {
+            "id": 1,
+            "study_instance_uid": "1.2.3.4.5.6.7.8.9.1",
+            "study_id": "ST001",
+            "patient_id": 1,
+            "patient_name": "张三",
+            "study_date": "2025-10-09",
+            "study_description": "胸部CT检查",
+            "modality": "CT",
+            "body_part": "CHEST",
+            "status": "PENDING",
+            "series_count": 3,
+            "instance_count": 150,
+            "created_at": "2025-10-09T08:00:00Z"
+        }
+    ]
+
+    # 根据状态筛选
+    if status and status.lower() == "pending":
+        filtered_studies = [s for s in all_studies if s["status"] in ["PENDING", "PROCESSING", "SCHEDULED"]]
+    else:
+        filtered_studies = all_studies
+
+    return {
+        "studies": filtered_studies,
+        "total": len(filtered_studies),
+        "page": page,
+        "page_size": page_size,
+        "total_pages": 1
+    }
+
+# 模型管理端点
+@app.get("/api/v1/models/")
+async def get_models():
+    """获取AI模型列表（演示）"""
+    return [
+        {
+            "id": 1,
+            "name": "胸部X光诊断模型",
+            "version": "v1.2.0",
+            "status": "active",
+            "accuracy": 0.94,
+            "description": "用于胸部X光影像的AI辅助诊断"
+        }
+    ]
+
 
 if __name__ == "__main__":
     print("🚀 启动XieHe医疗影像诊断系统演示版...")

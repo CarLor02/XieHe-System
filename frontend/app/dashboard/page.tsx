@@ -88,6 +88,27 @@ const DashboardPage: React.FC = () => {
     }
   }, [mounted, isAuthenticated, router]);
 
+  // 加载仪表板数据
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchDashboardOverview();
+      setDashboardData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载仪表板数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 初始加载
+  useEffect(() => {
+    if (mounted && isAuthenticated) {
+      loadDashboardData();
+    }
+  }, [mounted, isAuthenticated]);
+
   // 如果组件未挂载，显示加载状态
   if (!mounted) {
     return (
@@ -111,27 +132,6 @@ const DashboardPage: React.FC = () => {
       </div>
     );
   }
-
-  // 加载仪表板数据
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchDashboardOverview();
-      setDashboardData(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '加载仪表板数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 初始加载
-  useEffect(() => {
-    if (mounted && isAuthenticated) {
-      loadDashboardData();
-    }
-  }, [mounted, isAuthenticated]);
 
   // 根据API数据生成统计卡片数据
   const statsData = dashboardData

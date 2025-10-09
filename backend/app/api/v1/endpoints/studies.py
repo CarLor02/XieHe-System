@@ -52,6 +52,7 @@ async def get_studies(
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     patient_id: Optional[int] = Query(None, description="患者ID筛选"),
     modality: Optional[str] = Query(None, description="检查类型筛选"),
+    status: Optional[str] = Query(None, description="状态筛选"),
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -77,9 +78,21 @@ async def get_studies(
         # 应用筛选条件
         if patient_id:
             query = query.filter(Study.patient_id == patient_id)
-        
+
         if modality:
             query = query.filter(Study.modality == modality)
+
+        if status:
+            # 处理status筛选，支持pending, completed, failed等状态
+            if status.lower() == "pending":
+                # 假设pending状态对应数据库中的某个状态值
+                query = query.filter(Study.status.in_(["PENDING", "PROCESSING", "SCHEDULED"]))
+            elif status.lower() == "completed":
+                query = query.filter(Study.status == "COMPLETED")
+            elif status.lower() == "failed":
+                query = query.filter(Study.status == "FAILED")
+            else:
+                query = query.filter(Study.status == status.upper())
         
         # 排序
         query = query.order_by(desc(Study.created_at))

@@ -1,8 +1,22 @@
-# 医疗影像诊断系统 - 前端应用
+# 🏥 医疗影像诊断系统 - 前端应用
+
+[![Next.js](https://img.shields.io/badge/Next.js-15.5.4-black.svg)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19.0-blue.svg)](https://reactjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://typescriptlang.org)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4.1.14-38B2AC.svg)](https://tailwindcss.com)
 
 ## 📋 概述
 
-基于 Next.js 15 的现代化医疗影像诊断系统前端应用，提供直观的用户界面和丰富的交互功能，支持DICOM影像查看、AI诊断结果展示、报告管理等核心功能。
+基于 Next.js 15.5.4 的现代化医疗影像诊断系统前端应用，提供直观的用户界面和丰富的交互功能，支持DICOM影像查看、AI诊断结果展示、报告管理等核心功能。
+
+### ✨ 特性
+
+- 🚀 **现代化架构**: Next.js 15 + React 19 + TypeScript
+- 🎨 **美观界面**: Tailwind CSS v4 + 响应式设计
+- 🔒 **安全认证**: JWT + 多角色权限管理
+- 📊 **数据可视化**: 实时仪表板 + 图表展示
+- 📱 **移动适配**: PWA 支持 + 触摸友好
+- 🧪 **完整测试**: Jest + Testing Library + Cypress
 
 ## 📁 目录结构
 
@@ -153,71 +167,81 @@ frontend/
 
 ## 🚀 快速开始
 
-### 1. 环境准备
+### 环境要求
+
+- **Node.js**: 18.0+ (推荐 18.x LTS)
+- **npm**: 8.0+ 或 **yarn**: 1.22+ 或 **pnpm**: 7.0+
+
+### 安装步骤
+
+1. **安装依赖**
+   ```bash
+   # 使用 npm
+   npm install
+
+   # 或使用 yarn
+   yarn install
+
+   # 或使用 pnpm
+   pnpm install
+   ```
+
+2. **配置环境变量**（可选）
+   ```bash
+   # 如果需要自定义配置
+   cp .env.local.example .env.local
+   vim .env.local
+   ```
+
+3. **启动开发服务器**
+   ```bash
+   npm run dev
+   # 或 yarn dev
+   # 或 pnpm dev
+   ```
+
+4. **访问应用**
+   - 前端应用: http://localhost:3000
+   - 确保后端服务运行在: http://localhost:8000
+
+### 生产构建
 
 ```bash
-# 确保 Node.js 版本 >= 18
-node --version
-
-# 安装依赖
-npm install
-# 或
-yarn install
-# 或
-pnpm install
-```
-
-### 2. 环境配置
-
-```bash
-# 复制环境变量文件
-cp .env.local.example .env.local
-
-# 编辑环境变量
-vim .env.local
-```
-
-### 3. 启动开发服务器
-
-```bash
-# 开发模式
-npm run dev
-# 或
-yarn dev
-# 或
-pnpm dev
-
-# 访问 http://localhost:3000
-```
-
-### 4. 构建生产版本
-
-```bash
-# 构建
+# 构建生产版本
 npm run build
 
 # 启动生产服务器
 npm run start
+
+# 或导出静态文件
+npm run export
 ```
 
 ## 🔧 技术栈
 
 ### 核心框架
-- **Next.js 15**: React 全栈框架
-- **React 19**: 用户界面库
-- **TypeScript**: 静态类型检查
-- **Tailwind CSS**: 原子化CSS框架
+- **Next.js 15.5.4**: React 全栈框架 (App Router)
+- **React 19.0**: 用户界面库
+- **TypeScript 5.x**: 静态类型检查
+- **Tailwind CSS v4.1.14**: 原子化CSS框架
 
 ### 状态管理
-- **Redux Toolkit**: 状态管理
-- **React Query**: 服务端状态管理
+- **Redux Toolkit**: 全局状态管理
 - **Zustand**: 轻量级状态管理
+- **TanStack Query**: 服务端状态管理
 
 ### UI组件库
 - **Headless UI**: 无样式组件库
 - **Radix UI**: 高质量组件原语
 - **Lucide React**: 图标库
 - **React Hook Form**: 表单管理
+- **Framer Motion**: 动画库
+
+### 样式和主题
+- **Tailwind CSS v4**: 原子化CSS
+- **PostCSS**: CSS 后处理器
+- **CSS Modules**: 模块化样式
+- **clsx**: 条件类名工具
 
 ### 医疗专用库
 - **Cornerstone.js**: DICOM影像查看
@@ -228,8 +252,9 @@ npm run start
 ### 开发工具
 - **ESLint**: 代码检查
 - **Prettier**: 代码格式化
-- **Husky**: Git钩子
-- **lint-staged**: 暂存文件检查
+- **TypeScript**: 类型检查
+- **Jest**: 单元测试
+- **Cypress**: 端到端测试
 
 ## 🎨 设计系统
 
@@ -359,7 +384,7 @@ npm run export
 - 必须通过所有测试
 - 代码审查通过
 
-## 📞 开发支持
+## 🛠️ 开发支持
 
 ### 开发工具
 - **VS Code**: 推荐编辑器
@@ -367,12 +392,65 @@ npm run export
 - **Redux DevTools**: 状态调试工具
 - **Lighthouse**: 性能分析工具
 
+### 故障排除
+
+#### 样式问题
+如果页面没有样式或样式加载不正确：
+
+```bash
+# 检查 Tailwind CSS 配置
+npm run build  # 查看编译错误
+
+# 重新安装依赖
+rm -rf node_modules package-lock.json
+npm install
+
+# 检查 PostCSS 配置
+# 确保 postcss.config.mjs 使用 @tailwindcss/postcss 插件
+```
+
+#### React Hooks 错误
+如果遇到 "React has detected a change in the order of Hooks" 错误：
+- 确保所有 Hooks 在组件顶层调用
+- 不要在条件语句、循环或嵌套函数中调用 Hooks
+- 避免在早期返回（early return）之后调用 Hooks
+
+#### API 连接问题
+如果前端无法连接后端：
+- 确保后端服务运行在 http://localhost:8000
+- 检查浏览器控制台是否有 CORS 错误
+- 确认后端 CORS 配置允许 http://localhost:3000
+
+#### 依赖冲突
+如果遇到依赖版本冲突：
+```bash
+# 清理并重新安装
+rm -rf node_modules package-lock.json
+npm install
+
+# 或使用 npm ci 进行干净安装
+npm ci
+```
+
 ### 调试技巧
 - 使用浏览器开发者工具
 - React DevTools 组件调试
 - Network 面板 API 调试
 - Console 日志调试
 
+### 开发模式 vs 生产模式
+
+| 特性 | 开发模式 | 生产模式 |
+|------|----------|----------|
+| 热重载 | ✅ 支持 | ❌ 不支持 |
+| 源码映射 | ✅ 详细 | ⚠️ 简化 |
+| 代码压缩 | ❌ 不压缩 | ✅ 压缩 |
+| 错误边界 | 🔍 详细错误 | 🛡️ 用户友好 |
+| 性能 | 🐌 较慢 | 🚀 优化 |
+
 ---
 
-**注意**: 开发前请仔细阅读项目编码规范和组件设计文档。
+**注意**:
+- 开发前请仔细阅读项目编码规范和组件设计文档
+- 确保后端服务正常运行再启动前端
+- 遇到问题请先查看故障排除部分
