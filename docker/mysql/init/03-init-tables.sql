@@ -98,6 +98,27 @@ CREATE TABLE IF NOT EXISTS `medical_images` (
     INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 创建报告模板表
+CREATE TABLE IF NOT EXISTS `report_templates` (
+    `id` VARCHAR(36) PRIMARY KEY,
+    `template_name` VARCHAR(200) NOT NULL COMMENT '模板名称',
+    `template_type` ENUM('RADIOLOGY', 'PATHOLOGY', 'LABORATORY', 'OTHER') NOT NULL DEFAULT 'RADIOLOGY',
+    `modality` VARCHAR(20) COMMENT '影像模态',
+    `body_part` VARCHAR(100) COMMENT '检查部位',
+    `description` TEXT COMMENT '模板描述',
+    `template_content` JSON NOT NULL COMMENT '模板内容',
+    `is_active` BOOLEAN DEFAULT TRUE,
+    `is_default` BOOLEAN DEFAULT FALSE,
+    `created_by` VARCHAR(36),
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+    INDEX `idx_template_name` (`template_name`),
+    INDEX `idx_template_type` (`template_type`),
+    INDEX `idx_modality` (`modality`),
+    INDEX `idx_body_part` (`body_part`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 创建诊断报告表
 CREATE TABLE IF NOT EXISTS `diagnosis_reports` (
     `id` VARCHAR(36) PRIMARY KEY,
@@ -221,26 +242,6 @@ CREATE TABLE IF NOT EXISTS `role_permissions` (
     INDEX `idx_permission_id` (`permission_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 创建报告模板表
-CREATE TABLE IF NOT EXISTS `report_templates` (
-    `id` VARCHAR(36) PRIMARY KEY,
-    `template_name` VARCHAR(200) NOT NULL COMMENT '模板名称',
-    `template_type` ENUM('RADIOLOGY', 'PATHOLOGY', 'LABORATORY', 'OTHER') NOT NULL DEFAULT 'RADIOLOGY',
-    `modality` VARCHAR(20) COMMENT '影像模态',
-    `body_part` VARCHAR(100) COMMENT '检查部位',
-    `description` TEXT COMMENT '模板描述',
-    `template_content` JSON NOT NULL COMMENT '模板内容',
-    `is_active` BOOLEAN DEFAULT TRUE,
-    `is_default` BOOLEAN DEFAULT FALSE,
-    `created_by` VARCHAR(36),
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
-    INDEX `idx_template_name` (`template_name`),
-    INDEX `idx_template_type` (`template_type`),
-    INDEX `idx_modality` (`modality`),
-    INDEX `idx_body_part` (`body_part`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 创建系统配置表
 CREATE TABLE IF NOT EXISTS `system_configs` (

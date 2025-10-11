@@ -15,13 +15,13 @@ RUN apk add --no-cache \
     pkgconfig
 
 # 复制包管理文件
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 # 配置npm使用淘宝镜像加速
 RUN npm config set registry https://registry.npmmirror.com
 
 # 安装依赖（使用 --legacy-peer-deps 解决 React 19 兼容性问题）
-RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
 # 复制源代码
 COPY . .

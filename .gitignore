@@ -300,6 +300,9 @@ $RECYCLE.BIN/
 # 临时生成的文档
 temp_docs/
 
+# 任务文档和测试记录 (不上传到版本控制)
+任务/
+
 # 性能分析文件
 *.prof
 *.profile
