@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 数据库完整初始化脚本
 
@@ -11,17 +12,43 @@
 
 import sys
 import os
+import io
+
+# 设置标准输出编码为UTF-8（解决Windows下emoji显示问题）
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 import subprocess
 from datetime import datetime
+from dotenv import load_dotenv
 
 # 添加项目根目录到Python路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# 加载backend目录下的.env文件
+env_path = os.path.join(project_root, '.env')
+load_dotenv(env_path)
+
+# 从环境变量读取数据库配置
+MYSQL_HOST = os.getenv("DB_HOST", "127.0.0.1")
+MYSQL_PORT = int(os.getenv("DB_PORT", "3306"))
+MYSQL_USER = os.getenv("DB_USER", "root")
+MYSQL_PASSWORD = os.getenv("DB_PASSWORD", "123456")
+MYSQL_DATABASE = os.getenv("DB_NAME", "medical_imaging_system")
+
+# 构建数据库URL
+DATABASE_URL = (
+    f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}"
+    f"@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"
+    f"?charset=utf8mb4"
+)
 
 def run_script(script_name, description):
     """运行初始化脚本"""
     print(f"\n🚀 开始执行: {description}")
     print("=" * 60)
-    
+
     try:
         # 运行脚本
         result = subprocess.run(
@@ -29,6 +56,8 @@ def run_script(script_name, description):
             cwd=os.path.dirname(os.path.abspath(__file__)),
             capture_output=True,
             text=True,
+            encoding='utf-8',
+            errors='replace',  # 替换无法解码的字符
             timeout=120  # 2分钟超时
         )
         
@@ -56,16 +85,10 @@ def run_script(script_name, description):
 def check_database_connection():
     """检查数据库连接"""
     print("🔍 检查数据库连接...")
-    
+
     try:
         from sqlalchemy import create_engine, text
-        
-        # 数据库配置
-        DATABASE_URL = (
-            "mysql+pymysql://root:123456@127.0.0.1:3306/xiehe_medical"
-            "?charset=utf8mb4"
-        )
-        
+
         engine = create_engine(DATABASE_URL)
         
         with engine.connect() as conn:
@@ -88,12 +111,7 @@ def get_table_counts():
     """获取各表的记录数统计"""
     try:
         from sqlalchemy import create_engine, text
-        
-        DATABASE_URL = (
-            "mysql+pymysql://root:123456@127.0.0.1:3306/xiehe_medical"
-            "?charset=utf8mb4"
-        )
-        
+
         engine = create_engine(DATABASE_URL)
         
         tables = [
@@ -152,11 +170,6 @@ def clean_database():
 
     try:
         from sqlalchemy import create_engine, text
-
-        DATABASE_URL = (
-            "mysql+pymysql://root:123456@127.0.0.1:3306/xiehe_medical"
-            "?charset=utf8mb4"
-        )
 
         engine = create_engine(DATABASE_URL)
 

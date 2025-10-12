@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 系统配置表初始化脚本
 
@@ -11,15 +12,27 @@
 
 import sys
 import os
+import io
+
+# 设置标准输出编码为UTF-8（解决Windows下emoji显示问题）
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 import secrets
 import hashlib
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import uuid
 import json
+from dotenv import load_dotenv
 
 # 添加项目根目录到Python路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# 加载backend目录下的.env文件
+env_path = os.path.join(project_root, '.env')
+load_dotenv(env_path)
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -33,12 +46,12 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 
-# 数据库配置
-MYSQL_HOST = "127.0.0.1"
-MYSQL_PORT = 3306
-MYSQL_USER = "root"
-MYSQL_PASSWORD = "123456"
-MYSQL_DATABASE = "xiehe_medical"
+# 从环境变量读取数据库配置
+MYSQL_HOST = os.getenv("DB_HOST", "127.0.0.1")
+MYSQL_PORT = int(os.getenv("DB_PORT", "3306"))
+MYSQL_USER = os.getenv("DB_USER", "root")
+MYSQL_PASSWORD = os.getenv("DB_PASSWORD", "123456")
+MYSQL_DATABASE = os.getenv("DB_NAME", "medical_imaging_system")
 
 # 构建数据库URL
 DATABASE_URL = (
