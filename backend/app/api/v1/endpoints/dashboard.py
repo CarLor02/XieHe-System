@@ -19,7 +19,7 @@ from app.core.auth import get_current_active_user
 from app.core.logging import get_logger
 from app.models.patient import Patient, PatientStatusEnum
 from app.models.image import Study, StudyStatusEnum
-from app.models.report import DiagnosticReport, ReportStatusEnum, ReportPriorityEnum
+from app.models.report import DiagnosticReport, ReportStatusEnum, PriorityEnum
 
 logger = get_logger(__name__)
 router = APIRouter()

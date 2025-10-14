@@ -19,7 +19,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.exceptions import BusinessLogicException, ResourceNotFoundException
 from app.core.logging import get_logger
-from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, ReportPriorityEnum, ReportTypeEnum
+from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, PriorityEnum, ReportTypeEnum
 from app.models.patient import Patient
 from app.models.image import Study
 
@@ -92,25 +92,25 @@ class ReportListResponse(BaseModel):
     total_pages: int
 
 # 辅助函数
-def convert_priority_to_enum(priority_str: str) -> ReportPriorityEnum:
+def convert_priority_to_enum(priority_str: str) -> PriorityEnum:
     """转换优先级字符串为枚举"""
     priority_map = {
-        "low": ReportPriorityEnum.LOW,
-        "normal": ReportPriorityEnum.NORMAL,
-        "high": ReportPriorityEnum.HIGH,
-        "urgent": ReportPriorityEnum.URGENT,
-        "stat": ReportPriorityEnum.STAT
+        "low": PriorityEnum.LOW,
+        "normal": PriorityEnum.NORMAL,
+        "high": PriorityEnum.HIGH,
+        "urgent": PriorityEnum.URGENT,
+        "stat": PriorityEnum.STAT
     }
-    return priority_map.get(priority_str.lower(), ReportPriorityEnum.NORMAL)
+    return priority_map.get(priority_str.lower(), PriorityEnum.NORMAL)
 
-def convert_enum_to_priority(priority_enum: ReportPriorityEnum) -> str:
+def convert_enum_to_priority(priority_enum: PriorityEnum) -> str:
     """转换优先级枚举为字符串"""
     priority_map = {
-        ReportPriorityEnum.LOW: "low",
-        ReportPriorityEnum.NORMAL: "normal",
-        ReportPriorityEnum.HIGH: "high",
-        ReportPriorityEnum.URGENT: "urgent",
-        ReportPriorityEnum.STAT: "stat"
+        PriorityEnum.LOW: "low",
+        PriorityEnum.NORMAL: "normal",
+        PriorityEnum.HIGH: "high",
+        PriorityEnum.URGENT: "urgent",
+        PriorityEnum.STAT: "stat"
     }
     return priority_map.get(priority_enum, "normal")
 

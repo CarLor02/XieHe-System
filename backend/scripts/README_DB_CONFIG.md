@@ -2,7 +2,7 @@
 
 ## 修改内容
 
-所有数据库初始化脚本已修改为从项目根目录的 `.env` 文件读取数据库配置。
+所有数据库初始化脚本已修改为从backend项目目录的 `.env` 文件读取数据库配置。
 
 ### 修改的文件列表
 
@@ -20,7 +20,7 @@
 from dotenv import load_dotenv
 
 # 添加项目根目录到Python路径
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 加载.env文件
 env_path = os.path.join(project_root, '.env')
@@ -36,7 +36,7 @@ MYSQL_DATABASE = os.getenv("DB_NAME", "medical_imaging_system")
 
 ### .env 文件配置
 
-在项目根目录的 `.env` 文件中配置以下数据库参数：
+在backend项目目录的 `.env` 文件中配置以下数据库参数：
 
 ```env
 DB_HOST=115.190.121.59

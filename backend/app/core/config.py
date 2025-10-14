@@ -93,6 +93,16 @@ class Settings(BaseSettings):
     
     # 受信任主机 - 允许所有主机
     ALLOWED_HOSTS: List[str] = ["*"]
+
+    @validator("ALLOWED_HOSTS", pre=True)
+    def assemble_allowed_hosts(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, list):
+            return [str(host) for host in v]
+        elif isinstance(v, str):
+            return [v]
+        raise ValueError(v)
     
     # ==========================================
     # 数据库配置

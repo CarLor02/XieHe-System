@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, date
 from jinja2 import Template, Environment, BaseLoader
 
-from app.models.report import ReportTemplate, DiagnosticReport, ReportStatusEnum, ReportPriorityEnum
+from app.models.report import ReportTemplate, DiagnosticReport, ReportStatusEnum, PriorityEnum
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -393,26 +393,26 @@ class ReportGenerator:
         self,
         ai_results: Optional[Dict[str, Any]],
         study_data: Dict[str, Any]
-    ) -> ReportPriorityEnum:
+    ) -> PriorityEnum:
         """确定报告优先级"""
-        
+
         # 检查是否为急诊
         if study_data.get('is_emergency'):
-            return ReportPriorityEnum.URGENT
-        
+            return PriorityEnum.URGENT
+
         # 根据AI结果确定优先级
         if ai_results:
             confidence = ai_results.get('confidence', 0)
             predicted_class = ai_results.get('predicted_class', '')
-            
+
             # 高置信度异常结果
             if confidence > 0.8 and predicted_class not in ['正常', 'normal']:
                 if any(keyword in predicted_class.lower() for keyword in ['癌', 'cancer', '恶性', 'malignant']):
-                    return ReportPriorityEnum.HIGH
+                    return PriorityEnum.HIGH
                 else:
-                    return ReportPriorityEnum.NORMAL
-        
-        return ReportPriorityEnum.NORMAL
+                    return PriorityEnum.NORMAL
+
+        return PriorityEnum.NORMAL
 
 # 全局报告生成器实例
 report_generator = ReportGenerator()

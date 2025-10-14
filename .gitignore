@@ -246,7 +246,6 @@ tmp/
 *.dicom
 
 # AI 模型文件
-models/
 *.h5
 *.pkl
 *.joblib
