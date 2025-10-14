@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
 """
-完整的数据库创建脚本 - 一键部署所有表结构和初始数据
+数据库重建工具
+
+完整的数据库重建脚本 - 删除所有表 → 创建新表 → 插入初始数据
+整合自 create_complete_database.py 和 recreate_database.py
+
+使用方法:
+    cd backend
+    python tests/db_tools/recreate_database.py [--force]
+
+参数:
+    --force: 跳过确认，直接执行（危险操作！）
+
+@author XieHe Medical System
+@created 2025-10-14
 """
 
 import sys
@@ -8,9 +21,11 @@ import os
 from sqlalchemy import text
 
 # 添加项目根目录到Python路径
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from app.core.database import get_db, sync_engine, Base
+from app.core.config import settings
+
 
 def import_all_models():
     """导入所有模型以确保表结构被正确注册"""
@@ -39,6 +54,7 @@ def import_all_models():
 
     print("✅ 所有模型导入完成")
     return True
+
 
 def drop_all_tables():
     """删除所有现有表"""
@@ -76,6 +92,7 @@ def drop_all_tables():
     finally:
         db.close()
 
+
 def create_all_tables():
     """创建所有表结构"""
     print("🏗️  创建新表结构...")
@@ -99,6 +116,7 @@ def create_all_tables():
     except Exception as e:
         print(f"❌ 创建表时发生错误: {e}")
         raise
+
 
 def insert_initial_data():
     """插入初始数据"""
@@ -160,9 +178,6 @@ def insert_initial_data():
         """
         db.execute(text(departments_sql))
         
-        # 5. 创建系统配置（暂时跳过，因为system_configs表没有被创建）
-        print("  跳过系统配置（表未创建）...")
-        
         db.commit()
         print("✅ 初始数据插入完成")
         
@@ -172,6 +187,7 @@ def insert_initial_data():
         raise
     finally:
         db.close()
+
 
 def verify_database():
     """验证数据库创建结果"""
@@ -212,10 +228,24 @@ def verify_database():
     finally:
         db.close()
 
+
 def main():
     """主函数"""
-    print("🏥 XieHe医疗影像诊断系统 - 完整数据库创建")
+    print("🏥 XieHe医疗影像诊断系统 - 数据库重建工具")
     print("=" * 60)
+    print(f"数据库: {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
+    print("=" * 60)
+    
+    # 检查是否强制执行
+    force = '--force' in sys.argv
+    
+    if not force:
+        # 确认操作
+        print("\n⚠️  警告: 这将删除所有现有数据！")
+        confirm = input("是否继续？(输入 'yes' 确认): ")
+        if confirm.lower() != 'yes':
+            print("❌ 操作已取消")
+            return
     
     try:
         # 1. 导入所有模型
@@ -233,14 +263,19 @@ def main():
         # 5. 验证结果
         verify_database()
         
-        print("\n🎉 数据库创建完成！")
+        print("\n🎉 数据库重建完成！")
         print("\n📋 默认登录信息:")
         print("  用户名: admin")
-        print("  密码: secret")
+        print("  密码: admin123")
+        print("  邮箱: admin@xiehe.com")
         
     except Exception as e:
-        print(f"\n❌ 数据库创建失败: {e}")
+        print(f"\n❌ 数据库重建失败: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
+

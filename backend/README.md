@@ -1,23 +1,23 @@
-# 🏥 医疗影像诊断系统 - 后端服务
+# 🏥 协和医疗影像诊断系统 - 后端服务
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
-[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0+-orange.svg)](https://mysql.com)
 [![Redis](https://img.shields.io/badge/Redis-6.x+-red.svg)](https://redis.io)
 
-## 📋 概述
+## 📋 项目概述
 
-基于 FastAPI 的医疗影像诊断系统后端服务，提供完整的 REST API 接口，支持用户认证、患者管理、影像处理、AI诊断等核心功能。
+基于 FastAPI 的医疗影像诊断系统后端服务，提供完整的 REST API 接口，支持用户认证、患者管理、影像处理、AI诊断、报告管理等核心功能。
 
-### ✨ 特性
+### ✨ 核心特性
 
-- 🚀 **高性能**: 基于 FastAPI 和异步编程
-- 🔒 **安全认证**: JWT + OAuth2 多角色权限管理
-- 📊 **数据管理**: MySQL + Redis 双重存储
-- 🤖 **AI 集成**: 支持多种医学影像 AI 模型
-- 📖 **自动文档**: OpenAPI 3.0 + Swagger UI
-- 🧪 **完整测试**: pytest + 覆盖率报告
-- 🐳 **容器化**: Docker 一键部署
+- 🚀 **高性能**: 基于 FastAPI 和异步编程，支持高并发请求
+- 🔒 **安全认证**: JWT + OAuth2 多角色权限管理，bcrypt 密码加密
+- 📊 **数据管理**: MySQL 主数据库 + Redis 缓存，双重存储保障
+- 🤖 **AI 集成**: 支持多种医学影像 AI 模型，智能辅助诊断
+- 📖 **自动文档**: OpenAPI 3.0 + Swagger UI，完整的 API 文档
+- 🧪 **完整测试**: pytest 测试框架，单元测试 + 集成测试
+- 🐳 **容器化**: Docker 一键部署，支持生产环境
 
 ## 📁 目录结构
 
@@ -125,20 +125,28 @@ backend/
 
 ## 🚀 快速开始
 
-### 方式一：演示模式（推荐开发）
+### 前置要求
 
-演示模式使用内置模拟数据，无需配置外部数据库：
+- **Python**: 3.11+
+- **MySQL**: 8.0+
+- **Redis**: 6.x+
+- **Conda**: 推荐使用 Miniconda/Anaconda
+
+### 方式一：演示模式（快速体验）
+
+演示模式使用内置模拟数据，无需配置外部数据库，适合快速体验和功能测试：
 
 ```bash
-# 1. 创建虚拟环境
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 或 venv\Scripts\activate  # Windows
+# 1. 进入 backend 目录
+cd backend
 
-# 2. 安装依赖
+# 2. 激活 conda 环境（如果使用 conda）
+conda activate xiehe
+
+# 3. 安装依赖
 pip install -r requirements.txt
 
-# 3. 启动演示服务
+# 4. 启动演示服务
 python start_demo.py
 ```
 
@@ -147,50 +155,84 @@ python start_demo.py
 - API 文档: http://localhost:8000/docs
 - 健康检查: http://localhost:8000/health
 
-### 方式二：完整模式（生产环境）
+### 方式二：完整模式（开发/生产环境）
 
-需要配置 MySQL 和 Redis：
+完整模式需要配置 MySQL 和 Redis，适合开发和生产环境：
 
 ```bash
-# 1. 环境准备
-python3 -m venv venv
-source venv/bin/activate
+# 1. 进入 backend 目录
+cd backend
+
+# 2. 激活 conda 环境
+conda activate xiehe
+
+# 3. 安装依赖
 pip install -r requirements.txt
 
-# 2. 配置环境变量
+# 4. 配置环境变量
 cp .env.example .env
-# 编辑 .env 文件，配置数据库连接
+# 编辑 .env 文件，配置数据库连接信息
 
-# 3. 数据库初始化（如果使用 Alembic）
-alembic upgrade head
+# 5. 初始化数据库
+python scripts/init_database.py
 
-# 4. 启动完整服务
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# 6. 启动服务
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+**重要提示**:
+- ✅ 必须在 `backend` 目录下运行命令
+- ✅ 使用 `uvicorn app.main:app` 而不是 `python app/main.py`
+- ✅ 确保数据库配置正确
 
 ### 环境变量配置
 
-主要配置项（`.env` 文件）：
+在 `backend/.env` 文件中配置以下参数：
 
 ```bash
 # 数据库配置
-DB_HOST=localhost
+DB_HOST=115.190.121.59
 DB_PORT=3306
-DB_USER=your_username
+DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=medical_imaging_system
 
 # Redis 配置
-REDIS_HOST=localhost
+REDIS_HOST=115.190.121.59
 REDIS_PORT=6379
 REDIS_PASSWORD=your_redis_password
 
+# 应用配置
+ENVIRONMENT=development
+DEBUG=true
+SECRET_KEY=your-secret-key-here
+
 # JWT 配置
-SECRET_KEY=your-secret-key
 ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# API 配置
+API_V1_STR=/api/v1
 
 # CORS 配置（开发环境）
-# BACKEND_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+BACKEND_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+### 一键启动脚本
+
+为了方便启动，可以使用提供的启动脚本：
+
+**Windows PowerShell**:
+```powershell
+cd backend
+.\start.ps1
+```
+
+**Linux/Mac**:
+```bash
+cd backend
+chmod +x start.sh
+./start.sh
 ```
 
 ## 🔧 技术栈

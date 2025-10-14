@@ -81,7 +81,7 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     """用户信息响应模型"""
-    id: str = Field(..., description="用户ID (UUID)")
+    id: int | str = Field(..., description="用户ID")  # 支持int或str类型
     username: str = Field(..., description="用户名")
     email: str = Field(..., description="邮箱")
     full_name: str = Field(..., description="姓名")
@@ -108,12 +108,13 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
         from sqlalchemy import text
 
         # 查询用户信息
-        # 注意：数据库表使用 full_name 而不是 real_name，使用 is_active 而不是 status
+        # 注意：数据库表使用 real_name 而不是 full_name，使用 status 而不是 is_active
         sql = """
-        SELECT id, username, email, full_name, password_hash, role, is_active
+        SELECT id, username, email, real_name, password_hash, salt, status, is_superuser
         FROM users
         WHERE (username = :username OR email = :username)
-        AND is_active = 1
+        AND status = 'active'
+        AND is_deleted = 0
         """
 
         result = db.execute(text(sql), {"username": username})
@@ -123,18 +124,20 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
             return None
 
         # 转换为字典格式
-        # 字段顺序: id, username, email, full_name, password_hash, role, is_active
+        # 字段顺序: id, username, email, real_name, password_hash, salt, status, is_superuser
         user = {
             "id": user_row[0],
             "username": user_row[1],
             "email": user_row[2],
-            "full_name": user_row[3] or user_row[1],  # 使用full_name，如果为空则使用username
+            "full_name": user_row[3] or user_row[1],  # 使用real_name作为full_name
             "password_hash": user_row[4],
-            "role": user_row[5],  # role字段
-            "is_active": bool(user_row[6]),  # is_active字段
-            "is_superuser": user_row[5] == 'admin',  # 根据role判断是否为超级用户
-            "roles": [user_row[5]],  # 角色列表
-            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[5] == 'admin' else ["patient_manage", "image_manage"]
+            "salt": user_row[5],
+            "status": user_row[6],
+            "is_active": user_row[6] == 'active',  # 根据status判断是否激活
+            "is_superuser": bool(user_row[7]),  # is_superuser字段
+            "role": "admin" if user_row[7] else "doctor",  # 根据is_superuser判断角色
+            "roles": ["admin"] if user_row[7] else ["doctor"],  # 角色列表
+            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[7] else ["patient_manage", "image_manage"]
         }
 
         return user
@@ -282,28 +285,31 @@ async def register(
         from sqlalchemy import text
         from datetime import datetime
         import uuid
+        import secrets
 
         password_hash = hash_password(register_data.password)
-        user_id = str(uuid.uuid4())
+        # 生成salt（虽然bcrypt已经包含salt，但数据库表需要这个字段）
+        salt = secrets.token_hex(16)
 
         # 插入新用户到数据库
-        # 注意：数据库表使用 full_name 而不是 real_name
+        # 注意：数据库表使用 real_name, status, salt 而不是 full_name, role, is_active
+        # created_at: 创建时间，updated_at: 更新时间（创建时不设置，保持NULL或默认值）
         insert_sql = """
         INSERT INTO users (
-            id, username, email, full_name, password_hash,
-            role, is_active, created_at
+            username, email, real_name, password_hash, salt,
+            status, is_superuser, is_verified, is_deleted, created_at
         ) VALUES (
-            :id, :username, :email, :full_name, :password_hash,
-            'doctor', 1, :created_at
+            :username, :email, :real_name, :password_hash, :salt,
+            'active', 0, 1, 0, :created_at
         )
         """
 
         db.execute(text(insert_sql), {
-            "id": user_id,
             "username": register_data.username,
             "email": register_data.email,
-            "full_name": register_data.full_name,
+            "real_name": register_data.full_name,
             "password_hash": password_hash,
+            "salt": salt,
             "created_at": datetime.now()
         })
         db.commit()

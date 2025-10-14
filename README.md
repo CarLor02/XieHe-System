@@ -23,22 +23,48 @@
 ## 🏗️ 系统架构
 
 ```
-医疗影像诊断系统
-├── 前端 (Next.js + TypeScript)
-│   ├── 用户界面
-│   ├── 影像查看器
-│   └── 数据可视化
-├── 后端 (Python + FastAPI)
-│   ├── API服务
-│   ├── 业务逻辑
-│   └── AI模型集成
-├── 数据库 (MySQL + Redis)
-│   ├── 业务数据存储
-│   └── 缓存服务
-└── 部署 (Docker + Nginx)
-    ├── 容器化部署
-    └── 负载均衡
+协和医疗影像诊断系统
+├── 前端 (Next.js 15.5 + React 19 + TypeScript)
+│   ├── 用户界面 (Tailwind CSS v4)
+│   ├── 影像查看器 (Cornerstone.js)
+│   ├── 数据可视化 (Chart.js + Recharts)
+│   └── 状态管理 (Redux Toolkit + Zustand)
+├── 后端 (Python 3.11 + FastAPI)
+│   ├── REST API 服务
+│   ├── 业务逻辑层
+│   ├── AI 模型集成
+│   └── 实时数据推送 (WebSocket)
+├── 数据库层
+│   ├── MySQL 8.0+ (主数据库，24个业务表)
+│   └── Redis 6.x+ (缓存 + 会话存储)
+├── 部署层 (Docker + Nginx)
+│   ├── 容器化部署
+│   ├── 反向代理
+│   └── 负载均衡
+└── 安全层
+    ├── JWT + OAuth2 认证
+    ├── bcrypt 密码加密
+    └── CORS 跨域配置
 ```
+
+### 数据库设计
+
+系统包含 **24 个核心数据表**，分为 5 个功能模块：
+
+**用户管理模块** (6个表):
+- users, roles, permissions, departments, user_roles, role_permissions
+
+**患者管理模块** (4个表):
+- patients, patient_visits, patient_allergies, patient_medical_history
+
+**影像管理模块** (5个表):
+- studies, series, instances, image_annotations, ai_tasks
+
+**报告管理模块** (4个表):
+- diagnostic_reports, report_templates, report_findings, report_revisions
+
+**系统管理模块** (5个表):
+- system_configs, system_logs, system_monitors, system_alerts, notifications
 
 ## 📁 项目结构
 
@@ -89,15 +115,26 @@ XieHe-System/
 ### 环境要求
 
 - **Node.js**: 18.0+ (推荐 18.x LTS)
-- **Python**: 3.9+ (推荐 3.11+)
-- **MySQL**: 8.0+ (可选，支持外部数据库)
-- **Redis**: 6.x+ (可选，支持外部缓存)
-- **Docker**: 20.10+ (推荐使用Docker部署)
+- **Python**: 3.11+ (推荐使用 Conda 环境管理)
+- **MySQL**: 8.0+ (生产环境必需)
+- **Redis**: 6.x+ (生产环境必需)
+- **Docker**: 20.10+ (可选，推荐使用Docker部署)
 - **Git**: 2.x+ (版本控制)
+
+### 默认测试账号
+
+系统提供以下测试账号用于开发和测试：
+
+| 角色 | 用户名 | 密码 | 权限 |
+|------|--------|------|------|
+| 系统管理员 | `admin` 或 `admin@xiehe.com` | `admin123` | 用户管理、患者管理、系统管理 |
+| 医生 | `doctor01` 或 `doctor01@xiehe.com` | `doctor123` | 患者管理、影像查看 |
 
 ### 安装步骤
 
-#### 方式一：本地开发环境（推荐）
+#### 方式一：演示模式（快速体验，推荐）
+
+演示模式使用内置模拟数据，无需配置外部数据库，适合快速体验和功能测试。
 
 1. **克隆项目**
    ```bash
@@ -115,27 +152,18 @@ XieHe-System/
 3. **安装后端依赖**
    ```bash
    cd backend
-   python3 -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   # 或 venv\Scripts\activate  # Windows
+   # 推荐使用 conda 环境
+   conda create -n xiehe python=3.11
+   conda activate xiehe
    pip install -r requirements.txt
    cd ..
    ```
 
-4. **配置环境变量**
-   ```bash
-   # 后端配置（如果使用外部数据库）
-   cd backend
-   cp .env.example .env
-   # 编辑 .env 文件，配置数据库连接信息
-   vim .env
-   ```
-
-5. **启动服务**
+4. **启动服务**
    ```bash
    # 启动后端（演示模式，内置模拟数据）
    cd backend
-   source venv/bin/activate
+   conda activate xiehe
    python start_demo.py
 
    # 新开终端，启动前端
@@ -143,36 +171,67 @@ XieHe-System/
    npm run dev
    ```
 
-6. **访问应用**
+5. **访问应用**
    - 前端应用: http://localhost:3000
    - 后端API: http://localhost:8000
    - API文档: http://localhost:8000/docs
+   - 健康检查: http://localhost:8000/health
 
-#### 方式二：使用外部数据库
+#### 方式二：完整模式（开发/生产环境）
 
-如果您已有 MySQL 和 Redis 服务器：
+完整模式需要配置 MySQL 和 Redis，适合开发和生产环境。
 
 1. **配置数据库连接**
+
+   在 `backend/.env` 文件中配置：
    ```bash
-   cd backend
-   # 编辑 .env 文件
-   DB_HOST=your-mysql-host
+   # 数据库配置
+   DB_HOST=115.190.121.59
    DB_PORT=3306
-   DB_USER=your-username
-   DB_PASSWORD=your-password
+   DB_USER=root
+   DB_PASSWORD=your_password
    DB_NAME=medical_imaging_system
 
-   REDIS_HOST=your-redis-host
+   # Redis 配置
+   REDIS_HOST=115.190.121.59
    REDIS_PORT=6379
-   REDIS_PASSWORD=your-redis-password
+   REDIS_PASSWORD=your_redis_password
+
+   # 应用配置
+   ENVIRONMENT=development
+   DEBUG=true
+   SECRET_KEY=your-secret-key-here
+
+   # JWT 配置
+   ACCESS_TOKEN_EXPIRE_MINUTES=30
+   REFRESH_TOKEN_EXPIRE_DAYS=7
+
+   # API 配置
+   API_V1_STR=/api/v1
+
+   # CORS 配置
+   BACKEND_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
    ```
 
-2. **启动完整版后端**
+2. **初始化数据库**
    ```bash
    cd backend
-   source venv/bin/activate
-   python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   conda activate xiehe
+   # 完整初始化（创建所有表+插入初始数据）
+   python scripts/init_database.py
    ```
+
+3. **启动完整版后端**
+   ```bash
+   cd backend
+   conda activate xiehe
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+   **重要提示**:
+   - ✅ 必须在 `backend` 目录下运行
+   - ✅ 使用 `uvicorn app.main:app` 而不是 `python app/main.py`
+   - ✅ 确保已激活 conda 环境
 
 #### 方式三：Docker 部署
 
@@ -220,34 +279,91 @@ make clean
 
 ### 故障排除
 
-#### 前端样式问题
-如果前端页面没有样式，请检查：
-```bash
-# 检查 Tailwind CSS 配置
-cd frontend
-npm run build  # 查看是否有编译错误
+#### 1. 后端启动问题
 
+**问题**: `ModuleNotFoundError: No module named 'app'`
+
+**解决**:
+```bash
+# 确保在 backend 目录下运行
+cd backend
+pwd  # 确认当前目录
+
+# 使用正确的启动方式
+uvicorn app.main:app --reload
+# 而不是: python app/main.py
+```
+
+**问题**: 端口 8000 已被占用
+
+**解决**:
+```bash
+# Windows
+netstat -ano | findstr "8000"
+taskkill /PID <PID> /F
+
+# Linux/Mac
+lsof -i :8000
+kill -9 <PID>
+
+# 或使用其他端口
+uvicorn app.main:app --reload --port 8001
+```
+
+#### 2. 数据库连接问题
+
+**问题**: 数据库连接失败
+
+**解决**:
+```bash
+# 检查 .env 文件配置
+cat backend/.env
+
+# 测试数据库连接
+cd backend
+python scripts/test_database.py
+
+# 检查数据库服务是否运行
+mysql -h 115.190.121.59 -u root -p
+```
+
+#### 3. 登录/注册问题
+
+**问题**: 登录时报错"用户名或密码错误"
+
+**解决**: 使用默认测试账号
+- 管理员: `admin` / `admin123`
+- 医生: `doctor01` / `doctor123`
+
+**问题**: 注册失败
+
+**解决**: 确保数据库已正确初始化
+```bash
+cd backend
+python scripts/init_database.py
+```
+
+#### 4. 前端样式问题
+
+**问题**: 前端页面没有样式
+
+**解决**:
+```bash
+cd frontend
 # 重新安装依赖
 rm -rf node_modules package-lock.json
 npm install
+
+# 检查 Tailwind CSS 配置
+npm run build
 ```
 
-#### 后端 API 404 错误
-如果遇到 API 404 错误：
-```bash
-# 使用演示模式（推荐开发阶段）
-cd backend
-python start_demo.py
+#### 5. CORS 跨域问题
 
-# 或检查完整版配置
-python -m uvicorn app.main:app --reload
-```
-
-#### CORS 跨域问题
-前后端分离架构需要 CORS 配置，已在后端自动配置。如遇问题：
-- 确保前端运行在 http://localhost:3000
-- 确保后端运行在 http://localhost:8000
-- 检查浏览器控制台是否有 CORS 错误
+**解决**: 已在后端自动配置，确保：
+- 前端运行在 http://localhost:3000
+- 后端运行在 http://localhost:8000
+- 检查浏览器控制台错误信息
 
 ## 🛠️ 开发指南
 
@@ -303,35 +419,59 @@ python -m uvicorn app.main:app --reload
 
 ```bash
 # 前端测试
-npm run test:frontend          # Jest单元测试
-npm run test:frontend:watch    # 监听模式
-npm run test:frontend:coverage # 覆盖率报告
+cd frontend
+npm run test              # Jest单元测试
+npm run test:watch        # 监听模式
+npm run test:coverage     # 覆盖率报告
 
-# 后端测试
-npm run test:backend          # pytest测试套件
-cd backend && pytest -v      # 详细输出
-cd backend && pytest --cov   # 覆盖率报告
+# 后端自动化测试
+cd backend
+pytest                    # 运行所有测试
+pytest -v                 # 详细输出
+pytest --cov=app          # 覆盖率报告
+pytest tests/test_auth.py # 运行特定测试
+
+# 后端手动测试（需要后端服务运行）
+cd backend
+python tests/manual/test_auth_manual.py           # 所有认证测试
+python tests/manual/test_auth_manual.py login     # 只测试登录
+python tests/manual/test_auth_manual.py register  # 只测试注册
+python tests/manual/test_auth_manual.py full      # 完整流程
+
+# 数据库工具
+cd backend
+python tests/db_tools/check_users.py                      # 查看用户列表
+python tests/db_tools/check_table_structure.py            # 查看表结构
+python tests/db_tools/check_table_structure.py patients   # 查看指定表
+python tests/db_tools/recreate_database.py                # 重建数据库
 
 # 端到端测试
-npm run test:e2e             # Cypress E2E测试
-npm run test:e2e:open        # 打开Cypress界面
-
-# 所有测试
-npm test                     # 运行所有测试
+npm run test:e2e          # Cypress E2E测试
+npm run test:e2e:open     # 打开Cypress界面
 ```
 
 ### 测试结构
 
 ```
-tests/
-├── frontend/tests/          # 前端测试
-│   ├── unit.test.tsx       # 单元测试
-│   └── integration.test.tsx # 集成测试
-├── backend/tests/          # 后端测试
-│   ├── unit/              # 单元测试
-│   ├── integration/       # 集成测试
-│   └── fixtures/          # 测试数据
-└── e2e/                   # 端到端测试 (Cypress)
+backend/tests/
+├── README.md                    # 测试文档
+├── unit/                        # 单元测试
+│   └── test_*.py
+├── integration/                 # 集成测试
+│   └── test_*.py
+├── manual/                      # 手动测试工具
+│   └── test_auth_manual.py     # 认证功能手动测试
+├── db_tools/                    # 数据库工具
+│   ├── check_users.py          # 用户检查
+│   ├── check_table_structure.py # 表结构检查
+│   └── recreate_database.py    # 数据库重建
+├── fixtures/                    # 测试数据夹具
+│   └── patient_data.py         # 测试患者数据
+└── test_*.py                    # 自动化测试
+
+frontend/tests/
+├── unit.test.tsx               # 单元测试
+└── integration.test.tsx        # 集成测试
 ```
 
 ## 📊 项目特性
