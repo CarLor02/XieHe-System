@@ -15,12 +15,17 @@ import random
 from app.core.auth import get_current_active_user
 from app.core.database import get_db
 from app.core.logging import get_logger
+from app.models.team import TeamJoinRequestStatus
 from app.schemas.team import (
     TeamCreateRequest,
     TeamInviteRequest,
     TeamInviteResponse,
     TeamJoinRequestCreate,
+    TeamJoinRequestItem,
+    TeamJoinRequestListResponse,
     TeamJoinRequestResponse,
+    TeamJoinRequestReviewRequest,
+    TeamJoinRequestReviewResponse,
     TeamListResponse,
     TeamMember,
     TeamMembersResponse,
@@ -38,8 +43,24 @@ def _extract_user_id(user: Dict[str, Any]) -> Optional[int]:
 
     if not user:
         return None
-    for key in ("id", "user_id"):
-        value = user.get(key)
+
+    candidates: List[Optional[int | str]] = []
+
+    if isinstance(user, dict):
+        candidates.extend(user.get(key) for key in ("id", "user_id"))
+    else:
+        for key in ("id", "user_id"):
+            if hasattr(user, key):
+                candidates.append(getattr(user, key))
+
+        # 处理可能通过 __getitem__ 提供访问的对象
+        for key in ("id", "user_id"):
+            try:
+                candidates.append(user[key])  # type: ignore[index]
+            except (TypeError, KeyError, AttributeError):
+                continue
+
+    for value in candidates:
         if value is None:
             continue
         if isinstance(value, int):
@@ -48,6 +69,7 @@ def _extract_user_id(user: Dict[str, Any]) -> Optional[int]:
             return int(value)
         except (TypeError, ValueError):
             continue
+
     return None
 
 # 权限类型枚举
@@ -701,6 +723,7 @@ async def apply_to_team(
         user_id = _extract_user_id(current_user)
         join_request = team_service.apply_to_join(db, user_id, team_id, request.message)
         return TeamJoinRequestResponse(
+            request_id=join_request.id,
             message="申请已提交，等待团队审核",
             status=join_request.status.value,
             requested_at=join_request.created_at,
@@ -712,6 +735,160 @@ async def apply_to_team(
     except Exception as exc:
         logger.exception("申请加入团队失败: %s", exc)
         raise HTTPException(status_code=500, detail="申请失败，请稍后重试")
+
+
+@router.get(
+    "/teams/{team_id}/join-requests",
+    response_model=TeamJoinRequestListResponse,
+    summary="获取团队加入申请列表",
+)
+async def list_team_join_requests(
+    team_id: int,
+    status: Optional[str] = Query(None, description="按状态筛选，pending/approved/rejected"),
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """获取指定团队的加入申请列表（仅管理员可见）"""
+
+    try:
+        user_id = _extract_user_id(current_user)
+        status_enum: Optional[TeamJoinRequestStatus] = None
+        if status:
+            try:
+                status_enum = TeamJoinRequestStatus(status)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        items = team_service.list_join_requests(db, team_id, user_id, status_enum)
+        pending_count = sum(
+            1 for item in items if item["status"] == TeamJoinRequestStatus.PENDING.value
+        )
+        return TeamJoinRequestListResponse(
+            items=[TeamJoinRequestItem(**item) for item in items],
+            total=len(items),
+            pending_count=pending_count,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = 404 if "不存在" in detail else 400
+        raise HTTPException(status_code=status_code, detail=detail)
+    except Exception as exc:
+        logger.exception("获取团队加入申请失败: %s", exc)
+        raise HTTPException(status_code=500, detail="获取加入申请失败，请稍后重试")
+
+
+@router.post(
+    "/teams/{team_id}/join-requests/{request_id}/review",
+    response_model=TeamJoinRequestReviewResponse,
+    summary="审核团队加入申请",
+)
+async def review_team_join_request(
+    team_id: int,
+    request_id: int,
+    review: TeamJoinRequestReviewRequest,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """审核团队加入申请，通过或拒绝"""
+
+    try:
+        user_id = _extract_user_id(current_user)
+        result = team_service.review_join_request(
+            db,
+            reviewer_id=user_id,
+            team_id=team_id,
+            request_id=request_id,
+            decision=review.decision,
+        )
+
+        applicant = result.applicant
+        item = TeamJoinRequestItem(
+            id=result.id,
+            team_id=result.team_id,
+            applicant_id=result.user_id,
+            applicant_username=applicant.username if applicant else "",
+            applicant_real_name=applicant.real_name if applicant else None,
+            applicant_email=applicant.email if applicant else None,
+            message=result.message or "",
+            status=result.status.value,
+            requested_at=result.created_at,
+            reviewed_at=result.reviewed_at,
+            reviewer_id=result.reviewer_id,
+        )
+
+        success_message = "加入申请已通过" if result.status == TeamJoinRequestStatus.APPROVED else "加入申请已拒绝"
+
+        return TeamJoinRequestReviewResponse(
+            message=success_message,
+            status=result.status.value,
+            request=item,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        detail = str(exc)
+        if "不存在" in detail:
+            raise HTTPException(status_code=404, detail=detail)
+        raise HTTPException(status_code=400, detail=detail)
+    except Exception as exc:
+        logger.exception("审核团队加入申请失败: %s", exc)
+        raise HTTPException(status_code=500, detail="审核失败，请稍后重试")
+
+
+@router.delete(
+    "/teams/{team_id}/join-requests/{request_id}",
+    response_model=TeamJoinRequestReviewResponse,
+    summary="撤销团队加入申请",
+)
+async def cancel_team_join_request(
+    team_id: int,
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """撤销用户自己提交的团队加入申请（仅待审核状态可撤销）"""
+
+    try:
+        user_id = _extract_user_id(current_user)
+        result = team_service.cancel_join_request(
+            db,
+            user_id=user_id,
+            team_id=team_id,
+            request_id=request_id,
+        )
+
+        applicant = result.applicant
+        item = TeamJoinRequestItem(
+            id=result.id,
+            team_id=result.team_id,
+            applicant_id=result.user_id,
+            applicant_username=applicant.username if applicant else "",
+            applicant_real_name=applicant.real_name if applicant else None,
+            applicant_email=applicant.email if applicant else None,
+            message=result.message or "",
+            status=result.status.value,
+            requested_at=result.created_at,
+            reviewed_at=result.reviewed_at,
+            reviewer_id=result.reviewer_id,
+        )
+
+        return TeamJoinRequestReviewResponse(
+            message="申请已撤销",
+            status=result.status.value,
+            request=item,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        detail = str(exc)
+        if "不存在" in detail:
+            raise HTTPException(status_code=404, detail=detail)
+        raise HTTPException(status_code=400, detail=detail)
+    except Exception as exc:
+        logger.exception("撤销团队加入申请失败: %s", exc)
+        raise HTTPException(status_code=500, detail="撤销失败，请稍后重试")
 
 
 @router.get(

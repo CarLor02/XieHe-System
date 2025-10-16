@@ -129,7 +129,7 @@ def setup_database() -> Generator[Dict[str, int], None, None]:
         membership_leader = TeamMembership(
             team_id=team_primary.id,
             user_id=leader.id,
-            role=TeamMembershipRole.LEADER,
+            role=TeamMembershipRole.ADMIN,
             status=TeamMembershipStatus.ACTIVE,
         )
         membership_admin = TeamMembership(
@@ -219,6 +219,7 @@ class TestTeamManagementAPI:
         )
         assert response.status_code == 200
         data = response.json()
+        assert isinstance(data["request_id"], int)
         assert data["status"] == "pending"
 
         with TestingSessionLocal() as db:
@@ -232,6 +233,114 @@ class TestTeamManagementAPI:
             )
             assert join_request is None
 
+    def test_apply_to_team_without_message(self, setup_database):
+        """测试无申请理由也可以成功申请"""
+        app.dependency_overrides[get_current_active_user] = override_current_user_factory(
+            setup_database["applicant_id"], "applicant"
+        )
+
+        # 不提供message字段
+        response = client.post(
+            f"/api/v1/permissions/teams/{setup_database['team_primary_id']}/apply",
+            json={},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data["request_id"], int)
+        assert data["status"] == "pending"
+
+        # 提供空message也可以
+        response2 = client.post(
+            f"/api/v1/permissions/teams/{setup_database['team_secondary_id']}/apply",
+            json={"message": "   "},
+        )
+        assert response2.status_code == 200
+
+    def test_join_requests_listing_and_approval(self, setup_database):
+        # 申请加入团队
+        app.dependency_overrides[get_current_active_user] = override_current_user_factory(
+            setup_database["applicant_id"], "applicant"
+        )
+        apply_response = client.post(
+            f"/api/v1/permissions/teams/{setup_database['team_primary_id']}/apply",
+            json={"message": "希望加入测试团队"},
+        )
+        assert apply_response.status_code == 200
+        request_id = apply_response.json()["request_id"]
+
+        # 管理员查看加入申请
+        app.dependency_overrides[get_current_active_user] = override_current_user_factory(
+            setup_database["leader_id"], "leader"
+        )
+        list_response = client.get(
+            f"/api/v1/permissions/teams/{setup_database['team_primary_id']}/join-requests"
+        )
+        assert list_response.status_code == 200
+        list_data = list_response.json()
+        assert list_data["total"] >= 1
+        assert list_data["pending_count"] >= 1
+        assert any(item["id"] == request_id for item in list_data["items"])
+
+        # 审核通过申请
+        review_response = client.post(
+            f"/api/v1/permissions/teams/{setup_database['team_primary_id']}/join-requests/{request_id}/review",
+            json={"decision": "approve"},
+        )
+        assert review_response.status_code == 200
+        review_data = review_response.json()
+        assert review_data["status"] == "approved"
+        assert review_data["request"]["reviewer_id"] == setup_database["leader_id"]
+
+        with TestingSessionLocal() as db:
+            membership = (
+                db.query(TeamMembership)
+                .filter(
+                    TeamMembership.team_id == setup_database["team_primary_id"],
+                    TeamMembership.user_id == setup_database["applicant_id"],
+                )
+                .first()
+            )
+            assert membership is not None
+            assert membership.role == TeamMembershipRole.DOCTOR
+            assert membership.status == TeamMembershipStatus.ACTIVE
+
+    def test_cancel_join_request(self, setup_database):
+        """测试用户撤销自己的加入申请"""
+        # 用户申请加入团队
+        app.dependency_overrides[get_current_active_user] = override_current_user_factory(
+            setup_database["applicant_id"], "applicant"
+        )
+        apply_response = client.post(
+            f"/api/v1/permissions/teams/{setup_database['team_primary_id']}/apply",
+            json={"message": "希望加入测试团队"},
+        )
+        assert apply_response.status_code == 200
+        request_id = apply_response.json()["request_id"]
+
+        # 用户撤销申请
+        cancel_response = client.delete(
+            f"/api/v1/permissions/teams/{setup_database['team_primary_id']}/join-requests/{request_id}"
+        )
+        assert cancel_response.status_code == 200
+        cancel_data = cancel_response.json()
+        assert cancel_data["status"] == "cancelled"
+        assert cancel_data["message"] == "申请已撤销"
+
+        # 验证数据库中的状态
+        with TestingSessionLocal() as db:
+            from app.models.team import TeamJoinRequest, TeamJoinRequestStatus
+
+            join_request = db.query(TeamJoinRequest).filter(TeamJoinRequest.id == request_id).first()
+            assert join_request is not None
+            assert join_request.status == TeamJoinRequestStatus.CANCELLED
+            assert join_request.reviewer_id == setup_database["applicant_id"]  # 自己撤销的
+
+        # 验证不能重复撤销
+        retry_response = client.delete(
+            f"/api/v1/permissions/teams/{setup_database['team_primary_id']}/join-requests/{request_id}"
+        )
+        assert retry_response.status_code == 400
+
     def test_list_team_members(self, setup_database):
         app.dependency_overrides[get_current_active_user] = override_current_user_factory(
             setup_database["leader_id"], "leader"
@@ -244,7 +353,7 @@ class TestTeamManagementAPI:
         data = response.json()
         assert data["team"]["name"] == "测试团队一"
         assert len(data["members"]) == 2
-        assert any(member["role"] == "leader" for member in data["members"])
+        assert any(member["role"] == "admin" for member in data["members"])
 
     def test_create_team(self, setup_database):
         app.dependency_overrides[get_current_active_user] = override_current_user_factory(
@@ -280,7 +389,7 @@ class TestTeamManagementAPI:
                 .first()
             )
             assert membership is not None
-            assert membership.role == TeamMembershipRole.LEADER
+            assert membership.role == TeamMembershipRole.ADMIN
 
     def test_invite_member(self, setup_database):
         app.dependency_overrides[get_current_active_user] = override_current_user_factory(
@@ -289,7 +398,7 @@ class TestTeamManagementAPI:
 
         response = client.post(
             f"/api/v1/permissions/teams/{setup_database['team_primary_id']}/invite",
-            json={"email": "applicant@example.com", "role": "member"},
+            json={"email": "applicant@example.com", "role": "doctor"},
         )
         assert response.status_code == 200
         data = response.json()

@@ -245,7 +245,7 @@ class TeamMembership(Base):
     id = Column(Integer, primary_key=True)
     team_id = Column(Integer, ForeignKey('teams.id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.MEMBER, nullable=False)
+    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.DOCTOR, nullable=False)
     status = Column(Enum(TeamMembershipStatus), default=TeamMembershipStatus.ACTIVE, nullable=False)
     joined_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
@@ -282,7 +282,7 @@ class TeamInvitation(Base):
     inviter_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     invitee_email = Column(String(160), nullable=False)
     invitee_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.MEMBER, nullable=False)
+    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.DOCTOR, nullable=False)
     status = Column(Enum(TeamInvitationStatus), default=TeamInvitationStatus.PENDING, nullable=False)
     token = Column(String(120), unique=True, nullable=False)
     message = Column(Text, nullable=True)
@@ -643,7 +643,7 @@ def init_teams(session):
             "max_members": 30,
             "members": [
                 {"username": "admin", "role": TeamMembershipRole.ADMIN},
-                {"username": "tech01", "role": TeamMembershipRole.MEMBER},
+                {"username": "tech01", "role": TeamMembershipRole.DOCTOR},
             ],
             "join_requests": [
                 {
@@ -655,7 +655,7 @@ def init_teams(session):
                 {
                     "email": "nurse01@xiehe.com",
                     "message": "邀请加入团队负责护理协同",
-                    "role": TeamMembershipRole.MEMBER,
+                    "role": TeamMembershipRole.DOCTOR,
                 }
             ],
         },
@@ -668,7 +668,7 @@ def init_teams(session):
             "max_members": 40,
             "members": [
                 {"username": "admin", "role": TeamMembershipRole.ADMIN},
-                {"username": "doctor01", "role": TeamMembershipRole.GUEST},
+                {"username": "doctor01", "role": TeamMembershipRole.DOCTOR},
             ],
             "join_requests": [
                 {
@@ -709,7 +709,7 @@ def init_teams(session):
         leader_membership = TeamMembership(
             team_id=team.id,
             user_id=leader.id,
-            role=TeamMembershipRole.LEADER,
+            role=TeamMembershipRole.ADMIN,
             status=TeamMembershipStatus.ACTIVE,
         )
         session.add(leader_membership)
@@ -723,7 +723,7 @@ def init_teams(session):
             membership = TeamMembership(
                 team_id=team.id,
                 user_id=member.id,
-                role=member_cfg.get("role", TeamMembershipRole.MEMBER),
+                role=member_cfg.get("role", TeamMembershipRole.DOCTOR),
                 status=member_cfg.get("status", TeamMembershipStatus.ACTIVE),
             )
             session.add(membership)
@@ -761,7 +761,7 @@ def init_teams(session):
                 inviter_id=inviter.id,
                 invitee_email=invitation_cfg["email"],
                 invitee_user_id=invitee_user.id if invitee_user else None,
-                role=invitation_cfg.get("role", TeamMembershipRole.MEMBER),
+                role=invitation_cfg.get("role", TeamMembershipRole.DOCTOR),
                 status=invitation_cfg.get("status", TeamInvitationStatus.PENDING),
                 token=secrets.token_urlsafe(24),
                 message=invitation_cfg.get("message"),

@@ -12,6 +12,7 @@ export interface TeamSummary {
   max_members?: number | null;
   is_member: boolean;
   join_status?: string | null;
+  join_request_id?: number | null;
   created_at?: string | null;
 }
 
@@ -26,11 +27,11 @@ export interface TeamSearchResponse {
 }
 
 export interface TeamMember {
-  user_id: number;
+  id: number; // 后端实际返回的字段名是 id（user_id 的别名）
   username: string;
   real_name?: string | null;
   email?: string | null;
-  role: string;
+  role: 'admin' | 'doctor';
   status: string;
   department?: string | null;
   is_leader: boolean;
@@ -40,6 +41,39 @@ export interface TeamMember {
 export interface TeamMembersResponse {
   team: TeamSummary;
   members: TeamMember[];
+}
+
+export interface TeamJoinRequestItem {
+  id: number;
+  team_id: number;
+  applicant_id: number;
+  applicant_username: string;
+  applicant_real_name?: string | null;
+  applicant_email?: string | null;
+  message: string;
+  status: 'pending' | 'approved' | 'rejected';
+  requested_at: string;
+  reviewed_at?: string | null;
+  reviewer_id?: number | null;
+}
+
+export interface TeamJoinRequestListResponse {
+  items: TeamJoinRequestItem[];
+  total: number;
+  pending_count: number;
+}
+
+export interface TeamJoinRequestActionResponse {
+  message: string;
+  status: 'approved' | 'rejected' | 'pending';
+  request: TeamJoinRequestItem;
+}
+
+export interface TeamJoinRequestSubmitResponse {
+  request_id: number;
+  message: string;
+  status: string;
+  requested_at: string;
 }
 
 export interface TeamCreateRequest {
@@ -77,13 +111,16 @@ export async function getMyTeams(): Promise<TeamListResponse> {
   }
 }
 
-export async function applyToJoinTeam(teamId: number, message?: string): Promise<string> {
+export async function applyToJoinTeam(
+  teamId: number,
+  message?: string
+): Promise<TeamJoinRequestSubmitResponse> {
   try {
-    const response = await client.post<{ message: string }>(
+    const response = await client.post<TeamJoinRequestSubmitResponse>(
       `/api/v1/permissions/teams/${teamId}/apply`,
-      { message }
+      { message: message || '' }
     );
-    return response.data.message;
+    return response.data;
   } catch (error) {
     handleApiError(error, 'team_apply');
     throw error;
@@ -98,6 +135,56 @@ export async function getTeamMembers(teamId: number): Promise<TeamMembersRespons
     return response.data;
   } catch (error) {
     handleApiError(error, 'team_members');
+    throw error;
+  }
+}
+
+export async function getTeamJoinRequests(
+  teamId: number,
+  status?: 'pending' | 'approved' | 'rejected'
+): Promise<TeamJoinRequestListResponse> {
+  try {
+    const response = await client.get<TeamJoinRequestListResponse>(
+      `/api/v1/permissions/teams/${teamId}/join-requests`,
+      {
+        params: status ? { status } : undefined,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'team_join_requests');
+    throw error;
+  }
+}
+
+export async function reviewTeamJoinRequest(
+  teamId: number,
+  requestId: number,
+  decision: 'approve' | 'reject'
+): Promise<TeamJoinRequestActionResponse> {
+  try {
+    const response = await client.post<TeamJoinRequestActionResponse>(
+      `/api/v1/permissions/teams/${teamId}/join-requests/${requestId}/review`,
+      { decision }
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'team_join_request_review');
+    throw error;
+  }
+}
+
+export async function cancelTeamJoinRequest(
+  teamId: number,
+  requestId: number
+): Promise<TeamJoinRequestActionResponse> {
+  try {
+    const response = await client.delete<TeamJoinRequestActionResponse>(
+      `/api/v1/permissions/teams/${teamId}/join-requests/${requestId}`
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'team_join_request_cancel');
     throw error;
   }
 }

@@ -3,19 +3,47 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 
 import {
+  TeamJoinRequestItem,
+  TeamMember,
+  TeamMembersResponse,
   TeamSummary,
   applyToJoinTeam,
+  cancelTeamJoinRequest,
   createTeam,
   getMyTeams,
+  getTeamJoinRequests,
+  getTeamMembers,
+  inviteTeamMember,
+  reviewTeamJoinRequest,
   searchTeams,
 } from '@/services/teamService';
 import { useUser } from '@/store/authStore';
 
+const ROLE_OPTIONS = [
+  { id: 'doctor', name: '医生', description: '参与日常诊疗协作与数据处理' },
+  { id: 'admin', name: '团队管理员', description: '管理团队成员与配置' },
+];
+
+const STATUS_BADGE_MAP: Record<string, string> = {
+  active: 'bg-emerald-100 text-emerald-700',
+  invited: 'bg-amber-100 text-amber-700',
+  pending: 'bg-blue-100 text-blue-700',
+  inactive: 'bg-gray-100 text-gray-500',
+};
+
+const ROLE_LABEL_MAP: Record<string, string> = {
+  admin: '管理员',
+  doctor: '医生',
+};
+
 const formatDate = (value?: string | null) =>
   value ? new Date(value).toLocaleDateString('zh-CN') : '未知';
 
+const formatDateTime = (value?: string | null) =>
+  value ? new Date(value).toLocaleString('zh-CN') : '未知';
+
 export default function TeamManagement() {
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, user } = useUser();
 
   const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
   const [activeTeamId, setActiveTeamId] = useState<number | null>(null);
@@ -37,10 +65,46 @@ export default function TeamManagement() {
     maxMembers: '10',
   });
 
+  const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [joinMessage, setJoinMessage] = useState('');
+  const [joinTargetTeam, setJoinTargetTeam] = useState<TeamSummary | null>(null);
+  const [submittingJoinRequest, setSubmittingJoinRequest] = useState(false);
+  const [cancellingRequestId, setCancellingRequestId] = useState<number | null>(null);
+
+  // 成员管理相关状态
+  const [showMemberManagement, setShowMemberManagement] = useState(false);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [searchMemberKeyword, setSearchMemberKeyword] = useState('');
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('doctor');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [joinRequests, setJoinRequests] = useState<TeamJoinRequestItem[]>([]);
+  const [loadingJoinRequests, setLoadingJoinRequests] = useState(false);
+  const [processingRequestId, setProcessingRequestId] = useState<number | null>(null);
+
   const activeTeam = useMemo(
     () => (myTeams ?? []).find(team => team.id === activeTeamId) ?? null,
     [activeTeamId, myTeams]
   );
+
+  const filteredMembers = useMemo(() => {
+    if (!searchMemberKeyword.trim()) return members;
+    const keyword = searchMemberKeyword.trim().toLowerCase();
+    return members.filter(member =>
+      [member.username, member.real_name, member.email]
+        .filter(Boolean)
+        .some(value => value!.toLowerCase().includes(keyword))
+    );
+  }, [members, searchMemberKeyword]);
+
+  const currentMember = useMemo(
+    () => members.find(member => (user?.id ? member.id === user.id : false)) ?? null,
+    [members, user?.id]
+  );
+
+  const isCurrentUserAdmin = currentMember?.role === 'admin';
 
   const refreshMyTeams = async (preferredTeamId?: number) => {
     try {
@@ -66,6 +130,119 @@ export default function TeamManagement() {
       setLoadingMyTeams(false);
     }
   };
+
+  const loadMembers = async (teamId: number) => {
+    try {
+      setLoadingMembers(true);
+      setError(null);
+      const response: TeamMembersResponse | undefined = await getTeamMembers(teamId);
+      setMembers(response?.members ?? []);
+    } catch (err) {
+      console.error(err);
+      setError('获取成员列表失败，请稍后重试');
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const loadJoinRequests = async (teamId: number) => {
+    try {
+      setLoadingJoinRequests(true);
+      setError(null);
+      const response = await getTeamJoinRequests(teamId);
+      setJoinRequests(response.items);
+    } catch (err) {
+      console.error(err);
+      setError('获取加入申请列表失败，请稍后重试');
+    } finally {
+      setLoadingJoinRequests(false);
+    }
+  };
+
+  const handleInviteSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!activeTeamId) return;
+
+    try {
+      const message = await inviteTeamMember(
+        activeTeamId,
+        inviteEmail,
+        inviteRole,
+        inviteMessage
+      );
+      setSuccessMessage(message || '邀请已发送，等待对方确认');
+      setInviteModalOpen(false);
+      setInviteEmail('');
+      setInviteMessage('');
+      await loadMembers(activeTeamId);
+    } catch (err) {
+      console.error(err);
+      setError('发送邀请失败，请稍后重试');
+    }
+  };
+
+  const handleReviewJoinRequest = async (
+    request: TeamJoinRequestItem,
+    decision: 'approve' | 'reject'
+  ) => {
+    if (!activeTeamId) return;
+
+    try {
+      setProcessingRequestId(request.id);
+      setError(null);
+      const result = await reviewTeamJoinRequest(activeTeamId, request.id, decision);
+      setSuccessMessage(result.message || '加入申请已处理');
+      await loadJoinRequests(activeTeamId);
+      if (decision === 'approve') {
+        await loadMembers(activeTeamId);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('处理加入申请失败，请稍后重试');
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMyTeams([]);
+      setActiveTeamId(null);
+      setSearchResults([]);
+      setShowMemberManagement(false);
+      setMembers([]);
+      setJoinRequests([]);
+      return;
+    }
+    refreshMyTeams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!activeTeamId || !showMemberManagement) {
+      setMembers([]);
+      setJoinRequests([]);
+      return;
+    }
+    loadMembers(activeTeamId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTeamId, showMemberManagement]);
+
+  useEffect(() => {
+    if (!activeTeamId || !showMemberManagement || !isAuthenticated) {
+      setJoinRequests([]);
+      return;
+    }
+    if (members.length === 0) {
+      return;
+    }
+    if (!isCurrentUserAdmin) {
+      setJoinRequests([]);
+      return;
+    }
+    loadJoinRequests(activeTeamId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTeamId, showMemberManagement, isCurrentUserAdmin, isAuthenticated, members.length]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -98,22 +275,75 @@ export default function TeamManagement() {
     }
   };
 
-  const handleApply = async (team: TeamSummary) => {
+  const handleApply = (team: TeamSummary) => {
+    setError(null);
+    setJoinTargetTeam(team);
+    setJoinMessage('');
+    setJoinModalOpen(true);
+  };
+
+  const handleJoinSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!joinTargetTeam) {
+      setJoinModalOpen(false);
+      return;
+    }
+
+    const targetTeamId = joinTargetTeam.id;
+    const trimmed = joinMessage.trim();
+
     try {
-      setError(null);
-      const message = await applyToJoinTeam(team.id);
-      setSuccessMessage(message || '申请已提交，等待审核');
-      // 更新搜索结果中的状态
+      setSubmittingJoinRequest(true);
+      const response = await applyToJoinTeam(targetTeamId, trimmed);
+      setSuccessMessage(response.message || '申请已提交，等待审核');
+      setJoinModalOpen(false);
+      setJoinTargetTeam(null);
+      setJoinMessage('');
+      
+      // 立即更新搜索结果中的状态
       setSearchResults(prev =>
         prev.map(item =>
-          item.id === team.id
-            ? { ...item, join_status: 'pending', is_member: false }
+          item.id === targetTeamId
+            ? { 
+                ...item, 
+                join_status: 'pending', 
+                join_request_id: response.request_id,
+                is_member: false 
+              }
             : item
         )
       );
     } catch (err) {
       console.error(err);
       setError('申请加入团队失败，请稍后重试');
+    } finally {
+      setSubmittingJoinRequest(false);
+    }
+  };
+
+  const handleCancelRequest = async (teamId: number, requestId: number) => {
+    if (!confirm('确定要撤销该申请吗？')) {
+      return;
+    }
+
+    try {
+      setCancellingRequestId(requestId);
+      setError(null);
+      await cancelTeamJoinRequest(teamId, requestId);
+      setSuccessMessage('申请已撤销');
+      // 更新搜索结果中的状态
+      setSearchResults(prev =>
+        prev.map(item =>
+          item.id === teamId
+            ? { ...item, join_status: null, join_request_id: null }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      setError('撤销申请失败，请稍后重试');
+    } finally {
+      setCancellingRequestId(null);
     }
   };
 
@@ -414,6 +644,62 @@ export default function TeamManagement() {
           </div>
         </div>
       )}
+      {joinModalOpen && joinTargetTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">申请加入团队</h3>
+              <button
+                type="button"
+                onClick={() => !submittingJoinRequest && setJoinModalOpen(false)}
+                className="text-gray-400 transition hover:text-gray-600"
+              >
+                <i className="ri-close-line text-xl" />
+              </button>
+            </div>
+
+            <form onSubmit={handleJoinSubmit} className="space-y-4 px-6 py-5">
+              <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                <div className="font-medium">{joinTargetTeam.name}</div>
+                <div className="mt-1 text-xs text-blue-600">
+                  请描述您希望加入该团队的理由，帮助管理员进行审批。
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  申请理由（可选）
+                </label>
+                <textarea
+                  value={joinMessage}
+                  onChange={event => setJoinMessage(event.target.value)}
+                  rows={4}
+                  placeholder="可选填写您希望加入团队的缘由、能力或计划贡献"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
+                <button
+                  type="button"
+                  onClick={() => !submittingJoinRequest && setJoinModalOpen(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  disabled={submittingJoinRequest}
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                  disabled={submittingJoinRequest}
+                >
+                  {submittingJoinRequest ? '提交中...' : '提交申请'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {searchResults.length > 0 && (
         <div className="space-y-4">
           <div>
@@ -425,6 +711,7 @@ export default function TeamManagement() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {searchResults.map(team => {
               const isPending = team.join_status === 'pending';
+              const isCancelling = cancellingRequestId === team.join_request_id;
               return (
                 <div key={team.id} className="flex h-full flex-col justify-between rounded-lg border border-gray-200 bg-white p-4">
                   <div>
@@ -446,7 +733,7 @@ export default function TeamManagement() {
                       {team.leader_name && <div>负责人：{team.leader_name}</div>}
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between">
+                  <div className="mt-4 flex items-center justify-between gap-2">
                     <span className="text-xs text-gray-400">
                       创建时间：{formatDate(team.created_at)}
                     </span>
@@ -454,10 +741,19 @@ export default function TeamManagement() {
                       <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
                         已加入
                       </span>
-                    ) : isPending ? (
-                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
-                        待审批
-                      </span>
+                    ) : isPending && team.join_request_id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                          待审批
+                        </span>
+                        <button
+                          onClick={() => handleCancelRequest(team.id, team.join_request_id!)}
+                          disabled={isCancelling}
+                          className="rounded-lg border border-red-200 bg-white px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isCancelling ? '撤销中...' : '撤销'}
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={() => handleApply(team)}

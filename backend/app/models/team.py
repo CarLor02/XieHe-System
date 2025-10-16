@@ -28,10 +28,8 @@ from .base import Base
 class TeamMembershipRole(str, enum.Enum):
     """团队成员角色枚举"""
 
-    LEADER = "leader"
     ADMIN = "admin"
-    MEMBER = "member"
-    GUEST = "guest"
+    DOCTOR = "doctor"
 
 
 class TeamMembershipStatus(str, enum.Enum):
@@ -118,7 +116,7 @@ class TeamMembership(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="用户ID")
     role = Column(
         Enum(TeamMembershipRole),
-        default=TeamMembershipRole.MEMBER,
+        default=TeamMembershipRole.DOCTOR,
         nullable=False,
         comment="团队角色",
     )
@@ -182,7 +180,7 @@ class TeamInvitation(Base):
     invitee_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, comment="受邀用户ID")
     role = Column(
         Enum(TeamMembershipRole),
-        default=TeamMembershipRole.MEMBER,
+        default=TeamMembershipRole.DOCTOR,
         nullable=False,
         comment="邀请角色",
     )

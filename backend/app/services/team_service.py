@@ -62,6 +62,10 @@ class TeamService:
         if team.leader:
             leader_name = team.leader.real_name or team.leader.username
 
+        join_request_id = None
+        if join_request and join_request.status == TeamJoinRequestStatus.PENDING:
+            join_request_id = join_request.id
+
         return {
             "id": team.id,
             "name": team.name,
@@ -75,6 +79,7 @@ class TeamService:
                 membership and membership.status == TeamMembershipStatus.ACTIVE
             ),
             "join_status": join_request.status.value if join_request else None,
+            "join_request_id": join_request_id,
             "created_at": team.created_at,
         }
 
@@ -160,17 +165,20 @@ class TeamService:
             .first()
         )
 
+        # 处理申请理由（可选，允许为空）
+        final_message = message.strip() if message else ""
+
         if join_request:
             if join_request.status == TeamJoinRequestStatus.PENDING:
                 return join_request
             join_request.status = TeamJoinRequestStatus.PENDING
-            join_request.message = message
+            join_request.message = final_message
             join_request.created_at = datetime.utcnow()
         else:
             join_request = TeamJoinRequest(
                 team_id=team_id,
                 user_id=user_id,
-                message=message,
+                message=final_message,
                 status=TeamJoinRequestStatus.PENDING,
             )
             db.add(join_request)
@@ -252,8 +260,8 @@ class TeamService:
         if not membership or membership.status != TeamMembershipStatus.ACTIVE:
             raise PermissionError("您不是该团队成员，无法发送邀请")
 
-        if membership.role not in {TeamMembershipRole.LEADER, TeamMembershipRole.ADMIN}:
-            raise PermissionError("只有团队负责人或管理员可以邀请成员")
+        if membership.role != TeamMembershipRole.ADMIN:
+            raise PermissionError("只有团队管理员可以邀请成员")
 
         team = (
             db.query(Team)
@@ -265,9 +273,9 @@ class TeamService:
             raise ValueError("团队不存在或已停用")
 
         try:
-            target_role = TeamMembershipRole(role) if role else TeamMembershipRole.MEMBER
+            target_role = TeamMembershipRole(role) if role else TeamMembershipRole.DOCTOR
         except ValueError:
-            target_role = TeamMembershipRole.MEMBER
+            target_role = TeamMembershipRole.DOCTOR
 
         invitee_user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
         if invitee_user:
@@ -363,7 +371,7 @@ class TeamService:
         membership = TeamMembership(
             team_id=team.id,
             user_id=creator_id,
-            role=TeamMembershipRole.LEADER,
+            role=TeamMembershipRole.ADMIN,
             status=TeamMembershipStatus.ACTIVE,
         )
         db.add(membership)
@@ -374,6 +382,189 @@ class TeamService:
         # 预加载需要的关系数据以生成概要
         db.refresh(team, attribute_names=["memberships", "join_requests", "leader"])
         return self._build_team_summary(team, creator_id)
+
+    def list_join_requests(
+        self,
+        db: Session,
+        team_id: int,
+        reviewer_id: int,
+        status: Optional[TeamJoinRequestStatus] = None,
+    ) -> List[Dict[str, object]]:
+        reviewer_id = _normalize_user_id(reviewer_id)
+        if reviewer_id is None:
+            raise ValueError("无效的用户ID")
+
+        team = (
+            db.query(Team)
+            .options(
+                joinedload(Team.join_requests).joinedload(TeamJoinRequest.applicant),
+                joinedload(Team.memberships),
+            )
+            .filter(Team.id == team_id, Team.is_active.is_(True))
+            .first()
+        )
+        if not team:
+            raise ValueError("团队不存在或已停用")
+
+        membership = next(
+            (m for m in team.memberships if m.user_id == reviewer_id),
+            None,
+        )
+        if not membership or membership.status != TeamMembershipStatus.ACTIVE:
+            raise PermissionError("您不是该团队成员，无法查看加入申请")
+
+        if membership.role != TeamMembershipRole.ADMIN:
+            raise PermissionError("只有团队管理员可以查看加入申请")
+
+        requests = team.join_requests
+        if status:
+            requests = [req for req in requests if req.status == status]
+
+        results: List[Dict[str, object]] = []
+        for req in sorted(requests, key=lambda item: item.created_at, reverse=True):
+            applicant = req.applicant
+            results.append(
+                {
+                    "id": req.id,
+                    "team_id": req.team_id,
+                    "applicant_id": req.user_id,
+                    "applicant_username": applicant.username if applicant else "",
+                    "applicant_real_name": applicant.real_name if applicant else None,
+                    "applicant_email": applicant.email if applicant else None,
+                    "message": req.message or "",
+                    "status": req.status.value,
+                    "requested_at": req.created_at,
+                    "reviewed_at": req.reviewed_at,
+                    "reviewer_id": req.reviewer_id,
+                }
+            )
+
+        return results
+
+    def review_join_request(
+        self,
+        db: Session,
+        reviewer_id: int,
+        team_id: int,
+        request_id: int,
+        decision: str,
+    ) -> TeamJoinRequest:
+        reviewer_id = _normalize_user_id(reviewer_id)
+        if reviewer_id is None:
+            raise ValueError("无效的用户ID")
+
+        team = (
+            db.query(Team)
+            .options(joinedload(Team.memberships))
+            .filter(Team.id == team_id, Team.is_active.is_(True))
+            .first()
+        )
+        if not team:
+            raise ValueError("团队不存在或已停用")
+
+        membership = next(
+            (m for m in team.memberships if m.user_id == reviewer_id),
+            None,
+        )
+        if not membership or membership.status != TeamMembershipStatus.ACTIVE:
+            raise PermissionError("您不是该团队成员，无法审核加入申请")
+
+        if membership.role != TeamMembershipRole.ADMIN:
+            raise PermissionError("只有团队管理员可以审核加入申请")
+
+        join_request = (
+            db.query(TeamJoinRequest)
+            .options(joinedload(TeamJoinRequest.applicant))
+            .filter(
+                TeamJoinRequest.id == request_id,
+                TeamJoinRequest.team_id == team_id,
+            )
+            .first()
+        )
+        if not join_request:
+            raise ValueError("加入申请不存在")
+
+        if join_request.status != TeamJoinRequestStatus.PENDING:
+            raise ValueError("该申请已处理")
+
+        decision = (decision or "").strip().lower()
+        if decision not in {"approve", "reject"}:
+            raise ValueError("不支持的审核决策")
+
+        now = datetime.utcnow()
+        join_request.reviewed_at = now
+        join_request.reviewer_id = reviewer_id
+
+        if decision == "approve":
+            join_request.status = TeamJoinRequestStatus.APPROVED
+
+            membership_record = (
+                db.query(TeamMembership)
+                .filter(
+                    TeamMembership.team_id == team_id,
+                    TeamMembership.user_id == join_request.user_id,
+                )
+                .first()
+            )
+
+            if membership_record:
+                membership_record.status = TeamMembershipStatus.ACTIVE
+                membership_record.role = (
+                    membership_record.role
+                    if membership_record.role == TeamMembershipRole.ADMIN
+                    else TeamMembershipRole.DOCTOR
+                )
+                membership_record.updated_at = now
+            else:
+                membership_record = TeamMembership(
+                    team_id=team_id,
+                    user_id=join_request.user_id,
+                    role=TeamMembershipRole.DOCTOR,
+                    status=TeamMembershipStatus.ACTIVE,
+                    joined_at=now,
+                )
+                db.add(membership_record)
+        else:
+            join_request.status = TeamJoinRequestStatus.REJECTED
+
+        db.commit()
+        db.refresh(join_request)
+        return join_request
+
+    def cancel_join_request(
+        self,
+        db: Session,
+        user_id: int,
+        team_id: int,
+        request_id: int,
+    ) -> TeamJoinRequest:
+        """取消（撤销）用户自己提交的加入申请"""
+        user_id = _normalize_user_id(user_id)
+        if user_id is None:
+            raise ValueError("无效的用户ID")
+
+        join_request = (
+            db.query(TeamJoinRequest)
+            .filter(
+                TeamJoinRequest.id == request_id,
+                TeamJoinRequest.team_id == team_id,
+                TeamJoinRequest.user_id == user_id,
+            )
+            .first()
+        )
+        if not join_request:
+            raise ValueError("加入申请不存在或无权限操作")
+
+        if join_request.status != TeamJoinRequestStatus.PENDING:
+            raise ValueError("只能撤销待审核的申请")
+
+        join_request.status = TeamJoinRequestStatus.CANCELLED
+        join_request.reviewed_at = datetime.utcnow()
+        join_request.reviewer_id = user_id  # 记录是用户自己撤销的
+
+        db.commit()
+        db.refresh(join_request)
+        return join_request
 
 
 team_service = TeamService()
