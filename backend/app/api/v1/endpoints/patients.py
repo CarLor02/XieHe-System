@@ -198,6 +198,7 @@ async def create_patient(
         )
 
 @router.get("/", response_model=PatientListResponse, summary="获取患者列表")
+@router.get("", response_model=PatientListResponse, summary="获取患者列表")
 async def get_patients(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),

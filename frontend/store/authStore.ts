@@ -76,12 +76,9 @@ export interface RegisterData {
 }
 
 // API 基础URL
-// 在生产环境中使用空字符串（相对路径），开发环境使用 localhost
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? ''
-    : 'http://localhost:8000');
+// 在开发环境中使用空字符串（相对路径，通过 Next.js 代理）
+// 在生产环境中使用环境变量或空字符串
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // 创建认证状态管理
 export const useAuthStore = create<AuthState>()(
@@ -191,8 +188,9 @@ export const useAuthStore = create<AuthState>()(
             }
           );
 
-          const { access_token, refresh_token: newRefreshToken } =
-            response.data;
+          // 处理嵌套的tokens结构
+          const tokens = response.data.tokens || response.data;
+          const { access_token, refresh_token: newRefreshToken } = tokens;
 
           set({
             accessToken: access_token,
@@ -202,14 +200,30 @@ export const useAuthStore = create<AuthState>()(
           return true;
         } catch (error) {
           console.error('Token refresh error:', error);
-          // 刷新失败，清除认证状态
-          set({
-            isAuthenticated: false,
-            user: null,
-            accessToken: null,
-            refreshToken: null,
-          });
+          // 刷新失败，强制退出登录并跳转到登录页
+          get().forceLogout();
           return false;
+        }
+      },
+
+      // 强制退出登录并跳转到登录页
+      forceLogout: () => {
+        // 清除认证状态
+        set({
+          isAuthenticated: false,
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          error: '认证已过期，请重新登录',
+        });
+
+        // 跳转到登录页
+        if (typeof window !== 'undefined') {
+          // 使用 window.location.href 确保完全刷新页面
+          // 这样可以清除所有缓存的数据
+          setTimeout(() => {
+            window.location.href = '/auth/login';
+          }, 500);
         }
       },
 
@@ -302,38 +316,132 @@ export const useAuthStore = create<AuthState>()(
 // 创建带认证的 HTTP 客户端
 export const createAuthenticatedClient = (): AxiosInstance => {
   const client = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: '', // 使用相对路径，通过 Next.js 代理
+    maxRedirects: 0, // 禁用自动重定向，避免 308 重定向问题
+    validateStatus: status => status < 500, // 不要在 3xx 和 4xx 时抛出错误
   });
 
-  // 请求拦截器：自动添加认证头
+  // 请求拦截器：自动添加认证头，并移除末尾斜杠
   client.interceptors.request.use(
     config => {
       const { accessToken } = useAuthStore.getState();
       if (accessToken) {
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
+
+      // 移除 URL 中的末尾斜杠（在查询参数之前）
+      if (config.url && config.url.includes('?')) {
+        const [path, query] = config.url.split('?');
+        if (path.endsWith('/') && path !== '/') {
+          config.url = path.slice(0, -1) + '?' + query;
+        }
+      } else if (config.url && config.url.endsWith('/') && config.url !== '/') {
+        config.url = config.url.slice(0, -1);
+      }
+
       return config;
     },
     error => Promise.reject(error)
   );
 
-  // 响应拦截器：自动处理令牌刷新
+  // 响应拦截器：自动处理令牌刷新和重定向
   client.interceptors.response.use(
     response => response,
     async error => {
       const originalRequest = error.config;
 
+      // 处理 404 错误 - 尝试添加末尾斜杠重试
+      if (
+        error.response?.status === 404 &&
+        !originalRequest._trailingSlashRetried
+      ) {
+        originalRequest._trailingSlashRetried = true;
+        const url = originalRequest.url;
+
+        // 如果 URL 不以斜杠结尾，尝试添加斜杠重试
+        if (url && !url.endsWith('/') && !url.includes('?')) {
+          try {
+            const retryConfig = {
+              ...originalRequest,
+              url: url + '/',
+            };
+            console.warn(
+              `404 on ${url}, retrying with trailing slash: ${url}/`
+            );
+            return client(retryConfig);
+          } catch (retryError) {
+            console.error('Trailing slash retry error:', retryError);
+            return Promise.reject(retryError);
+          }
+        }
+      }
+
+      // 处理 307 临时重定向 - 保留认证头
+      if (error.response?.status === 307 && !originalRequest._redirected) {
+        originalRequest._redirected = true;
+        const redirectUrl = error.response.headers.location;
+
+        if (redirectUrl) {
+          try {
+            // 重新发送请求到重定向的 URL，保留认证头
+            const { accessToken } = useAuthStore.getState();
+            const redirectConfig = {
+              ...originalRequest,
+              url: redirectUrl,
+            };
+
+            if (accessToken) {
+              redirectConfig.headers.Authorization = `Bearer ${accessToken}`;
+            }
+
+            return client(redirectConfig);
+          } catch (redirectError) {
+            console.error('Redirect error:', redirectError);
+            return Promise.reject(redirectError);
+          }
+        }
+      }
+
+      // 处理 401 未授权错误
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
 
-        const { refreshAccessToken } = useAuthStore.getState();
-        const success = await refreshAccessToken();
+        try {
+          const { refreshAccessToken, isAuthenticated } =
+            useAuthStore.getState();
 
-        if (success) {
-          const { accessToken } = useAuthStore.getState();
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          return client(originalRequest);
+          // 如果还没有认证，不要尝试刷新令牌
+          if (!isAuthenticated) {
+            return Promise.reject(error);
+          }
+
+          const success = await refreshAccessToken();
+
+          if (success) {
+            const { accessToken } = useAuthStore.getState();
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            return client(originalRequest);
+          } else {
+            // 刷新失败，强制退出登录
+            const { forceLogout } = useAuthStore.getState();
+            forceLogout();
+            return Promise.reject(
+              new Error('Authentication failed, redirecting to login')
+            );
+          }
+        } catch (refreshError) {
+          console.error('Token refresh error:', refreshError);
+          // 刷新异常，强制退出登录
+          const { forceLogout } = useAuthStore.getState();
+          forceLogout();
+          return Promise.reject(refreshError);
         }
+      }
+
+      // 处理其他 401 错误（没有重试机会的情况）
+      if (error.response?.status === 401 && originalRequest._retry) {
+        const { forceLogout } = useAuthStore.getState();
+        forceLogout();
       }
 
       return Promise.reject(error);
@@ -350,6 +458,7 @@ export const useAuth = () => {
     register,
     logout,
     refreshAccessToken,
+    forceLogout,
     isLoading,
     error,
     clearError,
@@ -361,6 +470,7 @@ export const useAuth = () => {
     login,
     register,
     logout,
+    forceLogout,
     refreshAccessToken,
     isLoading,
     error,

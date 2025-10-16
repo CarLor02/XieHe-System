@@ -47,6 +47,7 @@ class StudyListResponse(BaseModel):
     total_pages: int
 
 @router.get("/", response_model=StudyListResponse, summary="获取影像检查列表")
+@router.get("", response_model=StudyListResponse, summary="获取影像检查列表")
 async def get_studies(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),

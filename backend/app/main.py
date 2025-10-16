@@ -101,6 +101,7 @@ app = FastAPI(
     docs_url=f"{settings.API_V1_STR}/docs" if settings.ENVIRONMENT != "production" else None,
     redoc_url=f"{settings.API_V1_STR}/redoc" if settings.ENVIRONMENT != "production" else None,
     lifespan=lifespan,
+    redirect_slashes=False,  # 禁用自动重定向斜杠，避免认证头丢失
 )
 
 # 配置 CORS 中间件 - 允许所有来源（生产环境应该限制）

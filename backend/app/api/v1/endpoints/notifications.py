@@ -154,6 +154,7 @@ async def send_message(
 
 
 @router.get("/messages", response_model=List[MessageResponse])
+@router.get("messages", response_model=List[MessageResponse])
 async def get_messages(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),

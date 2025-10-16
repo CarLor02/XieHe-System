@@ -11,8 +11,9 @@ interface UploadFile {
   name: string;
   size: number;
   type: string;
-  status: 'uploading' | 'completed' | 'error';
+  status: 'pending' | 'uploading' | 'completed' | 'error';
   progress: number;
+  file: File; // 保存原始文件对象
 }
 
 function UploadContent() {
@@ -80,17 +81,13 @@ function UploadContent() {
         setPatients(patientList);
       } catch (error) {
         console.error('Failed to fetch patients:', error);
-        // 使用默认患者列表作为后备
-        setPatients([
-          { id: '1', name: '李明' },
-          { id: '2', name: '王芳' },
-          { id: '3', name: '张伟' },
-        ]);
+        // 不再使用假数据，认证失败会自动跳转到登录页
+        setPatients([]);
       }
     };
 
     fetchPatients();
-  }, [isAuthenticated]);
+  }, [mounted, isAuthenticated]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -122,16 +119,14 @@ function UploadContent() {
       name: file.name,
       size: file.size,
       type: file.type,
-      status: 'uploading',
+      status: 'pending',
       progress: 0,
+      file: file, // 保存原始文件对象
     }));
 
     setUploadFiles(prev => [...prev, ...newFiles]);
 
-    // 上传每个文件
-    newFiles.forEach((uploadFileItem, index) => {
-      uploadFile(uploadFileItem.id, files[index]);
-    });
+    // 不立即上传，等待用户点击确认上传按钮
   };
 
   const uploadFile = async (fileId: string, file: File) => {
@@ -184,11 +179,32 @@ function UploadContent() {
   };
 
   const handleConfirmUpload = () => {
-    console.log('确认上传，返回页面：', returnTo);
+    if (!selectedPatient || !examType) {
+      alert('请选择患者和检查类型');
+      return;
+    }
 
-    setTimeout(() => {
-      router.push(returnTo);
-    }, 1000);
+    console.log('开始上传文件...');
+
+    // 获取所有待上传的文件
+    const filesToUpload = uploadFiles.filter(f => f.status === 'pending');
+
+    if (filesToUpload.length === 0) {
+      alert('没有文件需要上传');
+      return;
+    }
+
+    // 将文件状态设置为上传中
+    setUploadFiles(prev =>
+      prev.map(f =>
+        f.status === 'pending' ? { ...f, status: 'uploading' } : f
+      )
+    );
+
+    // 上传每个文件
+    filesToUpload.forEach(uploadFileItem => {
+      uploadFile(uploadFileItem.id, uploadFileItem.file);
+    });
   };
 
   const handleBackToSource = () => {
@@ -356,8 +372,10 @@ function UploadContent() {
                               <i className="ri-check-line w-4 h-4 flex items-center justify-center text-green-500"></i>
                             ) : file.status === 'error' ? (
                               <i className="ri-error-warning-line w-4 h-4 flex items-center justify-center text-red-500"></i>
-                            ) : (
+                            ) : file.status === 'uploading' ? (
                               <i className="ri-loader-line w-4 h-4 flex items-center justify-center text-blue-500 animate-spin"></i>
+                            ) : (
+                              <i className="ri-time-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
                             )}
                             <button
                               onClick={() => removeFile(file.id)}
@@ -384,6 +402,10 @@ function UploadContent() {
                         {file.status === 'error' && (
                           <p className="text-xs text-red-600">上传失败</p>
                         )}
+
+                        {file.status === 'pending' && (
+                          <p className="text-xs text-gray-600">待上传</p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -404,13 +426,25 @@ function UploadContent() {
                       <i className="ri-arrow-left-line w-4 h-4 flex items-center justify-center"></i>
                       <span>返回原页面</span>
                     </button>
+                  ) : uploadFiles.some(f => f.status === 'uploading') ? (
+                    <button
+                      disabled
+                      className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed whitespace-nowrap"
+                    >
+                      上传中...
+                    </button>
                   ) : (
                     <button
-                      disabled={!selectedPatient || !examType}
+                      disabled={
+                        !selectedPatient ||
+                        !examType ||
+                        uploadFiles.filter(f => f.status === 'pending')
+                          .length === 0
+                      }
                       onClick={handleConfirmUpload}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
-                      确认上传
+                      开始上传
                     </button>
                   )}
                 </div>

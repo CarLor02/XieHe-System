@@ -68,14 +68,18 @@ export default function ImagingPage() {
       setError(null);
 
       const client = createAuthenticatedClient();
-      const response = await client.get('/api/v1/studies/?page=1&page_size=50');
+      const response = await client.get('/api/v1/studies', {
+        params: {
+          page: 1,
+          page_size: 50,
+        },
+      });
 
       const studiesData = response.data.studies || [];
       setStudies(studiesData);
     } catch (err: any) {
       console.error('Failed to load studies:', err);
-      setError('加载影像数据失败');
-      // 使用备用数据
+      // 不再显示错误信息，认证失败会自动跳转到登录页
       setStudies([]);
     } finally {
       setLoading(false);
@@ -100,10 +104,10 @@ export default function ImagingPage() {
   const convertStudyToImageItem = (study: Study): ImageItem => {
     return {
       id: `IMG${study.id.toString().padStart(3, '0')}`,
-      examType: study.modality || '未知类型',
+      examType: study.study_description || study.modality || '未知类型',
       studyDate: study.study_date || study.created_at.split('T')[0],
       status: study.status === 'completed' ? 'reviewed' : 'pending',
-      thumbnailUrl: `https://readdy.ai/api/search-image?query=medical%20${study.modality || 'imaging'}%20professional%20radiological%20image&width=200&height=300&seq=${study.id}&orientation=portrait`,
+      thumbnailUrl: `/api/v1/upload/files/${study.id}`,
       patient_name: study.patient_name,
       patient_id: study.patient_id?.toString(),
     };

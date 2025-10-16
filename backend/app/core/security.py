@@ -237,18 +237,18 @@ class SecurityManager:
     def refresh_access_token(self, refresh_token: str) -> Optional[Dict[str, str]]:
         """
         使用刷新令牌获取新的访问令牌
-        
+
         Args:
             refresh_token: 刷新令牌
-        
+
         Returns:
-            Optional[Dict[str, str]]: 包含新访问令牌的字典，失败返回None
+            Optional[Dict[str, str]]: 包含新访问令牌和新刷新令牌的字典，失败返回None
         """
         # 验证刷新令牌
         payload = self.verify_token(refresh_token, "refresh")
         if not payload:
             return None
-        
+
         # 创建新的访问令牌
         user_data = {
             "sub": payload.get("sub"),
@@ -256,12 +256,15 @@ class SecurityManager:
             "user_id": payload.get("user_id"),
             "roles": payload.get("roles", [])
         }
-        
+
         new_access_token = self.create_access_token(user_data)
-        
+        # 同时创建新的刷新令牌
+        new_refresh_token = self.create_refresh_token(user_data)
+
         logger.info(f"刷新访问令牌成功，用户: {payload.get('sub')}")
         return {
             "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
             "token_type": "bearer"
         }
     
