@@ -42,6 +42,14 @@ export interface TeamMembersResponse {
   members: TeamMember[];
 }
 
+export interface TeamCreateRequest {
+  name: string;
+  description?: string;
+  hospital?: string;
+  department?: string;
+  max_members?: number;
+}
+
 const client = createAuthenticatedClient();
 
 export async function searchTeams(keyword: string): Promise<TeamSearchResponse> {
@@ -108,6 +116,16 @@ export async function inviteTeamMember(
     return response.data.message;
   } catch (error) {
     handleApiError(error, 'team_invite');
+    throw error;
+  }
+}
+
+export async function createTeam(payload: TeamCreateRequest): Promise<TeamSummary> {
+  try {
+    const response = await client.post<TeamSummary>('/api/v1/permissions/teams', payload);
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'team_create');
     throw error;
   }
 }

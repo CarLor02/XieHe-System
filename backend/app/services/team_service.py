@@ -321,5 +321,59 @@ class TeamService:
         db.refresh(invitation)
         return invitation
 
+    def create_team(
+        self,
+        db: Session,
+        creator_id: int,
+        *,
+        name: str,
+        description: Optional[str] = None,
+        hospital: Optional[str] = None,
+        department: Optional[str] = None,
+        max_members: Optional[int] = 50,
+    ) -> Dict:
+        creator_id = _normalize_user_id(creator_id)
+        if creator_id is None:
+            raise ValueError("无效的用户ID")
+
+        leader = db.query(User).filter(User.id == creator_id).first()
+        if not leader:
+            raise ValueError("用户不存在")
+
+        existing = (
+            db.query(Team)
+            .filter(func.lower(Team.name) == name.strip().lower())
+            .first()
+        )
+        if existing:
+            raise ValueError("团队名称已存在")
+
+        team = Team(
+            name=name.strip(),
+            description=description,
+            hospital=hospital,
+            department=department,
+            leader_id=creator_id,
+            max_members=max_members or 50,
+            is_active=True,
+        )
+        db.add(team)
+        db.flush()
+
+        membership = TeamMembership(
+            team_id=team.id,
+            user_id=creator_id,
+            role=TeamMembershipRole.LEADER,
+            status=TeamMembershipStatus.ACTIVE,
+        )
+        db.add(membership)
+
+        db.commit()
+        db.refresh(team)
+
+        # 预加载需要的关系数据以生成概要
+        db.refresh(team, attribute_names=["memberships", "join_requests", "leader"])
+        return self._build_team_summary(team, creator_id)
+
 
 team_service = TeamService()

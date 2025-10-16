@@ -49,6 +49,16 @@ class TeamMembersResponse(BaseModel):
     members: List[TeamMember]
 
 
+class TeamCreateRequest(BaseModel):
+    """创建团队请求体"""
+
+    name: str = Field(..., min_length=2, max_length=120, description="团队名称")
+    description: Optional[str] = Field(None, max_length=1000, description="团队描述")
+    hospital: Optional[str] = Field(None, max_length=120, description="所属医院")
+    department: Optional[str] = Field(None, max_length=120, description="所属科室")
+    max_members: Optional[int] = Field(50, ge=1, le=500, description="最大成员数")
+
+
 class TeamJoinRequestCreate(BaseModel):
     """团队加入申请请求体"""
 

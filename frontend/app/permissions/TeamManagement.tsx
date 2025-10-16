@@ -1,10 +1,11 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 
 import {
   TeamSummary,
   applyToJoinTeam,
+  createTeam,
   getMyTeams,
   searchTeams,
 } from '@/services/teamService';
@@ -26,21 +27,38 @@ export default function TeamManagement() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    description: '',
+    hospital: '',
+    department: '',
+    maxMembers: '10',
+  });
+
   const activeTeam = useMemo(
-    () => myTeams.find(team => team.id === activeTeamId) ?? null,
+    () => (myTeams ?? []).find(team => team.id === activeTeamId) ?? null,
     [activeTeamId, myTeams]
   );
 
-  const refreshMyTeams = async () => {
+  const refreshMyTeams = async (preferredTeamId?: number) => {
     try {
       setLoadingMyTeams(true);
       const response = await getMyTeams();
-      setMyTeams(response.items);
-      if (!activeTeamId && response.items.length > 0) {
-        setActiveTeamId(response.items[0].id);
-      } else if (activeTeamId && !response.items.some(team => team.id === activeTeamId)) {
-        setActiveTeamId(response.items[0]?.id ?? null);
+      const items = response?.items ?? [];
+      setMyTeams(items);
+      let nextActiveId: number | null | undefined = activeTeamId;
+
+      if (preferredTeamId && items.some(team => team.id === preferredTeamId)) {
+        nextActiveId = preferredTeamId;
+      } else if (!nextActiveId && items.length > 0) {
+        nextActiveId = items[0].id;
+      } else if (nextActiveId && !items.some(team => team.id === nextActiveId)) {
+        nextActiveId = items[0]?.id ?? null;
       }
+
+      setActiveTeamId(nextActiveId ?? null);
     } catch (err) {
       console.error(err);
       setError('获取团队信息失败，请稍后重试');
@@ -96,6 +114,53 @@ export default function TeamManagement() {
     } catch (err) {
       console.error(err);
       setError('申请加入团队失败，请稍后重试');
+    }
+  };
+
+  const handleCreateFormChange = (
+    field: keyof typeof createForm,
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const value = event.target.value;
+    setCreateForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!createForm.name.trim()) {
+      setError('团队名称不能为空');
+      return;
+    }
+
+    try {
+      setCreatingTeam(true);
+      setError(null);
+
+      const maxMembersNumber = Number(createForm.maxMembers);
+      const payload = {
+        name: createForm.name.trim(),
+        description: createForm.description.trim() || undefined,
+        hospital: createForm.hospital.trim() || undefined,
+        department: createForm.department.trim() || undefined,
+        max_members: Number.isNaN(maxMembersNumber) ? undefined : maxMembersNumber,
+      };
+
+      const createdTeam = await createTeam(payload);
+      setSuccessMessage('团队创建成功');
+      setCreateModalOpen(false);
+      setCreateForm({
+        name: '',
+        description: '',
+        hospital: '',
+        department: '',
+        maxMembers: '10',
+      });
+      await refreshMyTeams(createdTeam.id);
+    } catch (err) {
+      console.error(err);
+      setError('创建团队失败，请稍后重试');
+    } finally {
+      setCreatingTeam(false);
     }
   };
 
@@ -201,12 +266,20 @@ export default function TeamManagement() {
             <h3 className="text-lg font-semibold text-gray-900">我的团队</h3>
             <p className="text-sm text-gray-600">点击切换团队查看详细信息</p>
           </div>
-          <button
-            onClick={refreshMyTeams}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            刷新
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCreateModalOpen(true)}
+              className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700"
+            >
+              创建团队
+            </button>
+            <button
+              onClick={() => refreshMyTeams()}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              刷新
+            </button>
+          </div>
         </div>
 
         {myTeams.length === 0 ? (
@@ -246,6 +319,101 @@ export default function TeamManagement() {
       </div>
 
       {/* 搜索结果 */}
+
+      {createModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-xl rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">创建新团队</h3>
+              <button
+                onClick={() => !creatingTeam && setCreateModalOpen(false)}
+                className="text-gray-400 transition hover:text-gray-600"
+              >
+                <i className="ri-close-line text-xl" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSubmit} className="space-y-4 px-6 py-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">团队名称</label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={event => handleCreateFormChange('name', event)}
+                  required
+                  placeholder="请输入团队名称"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">团队描述</label>
+                <textarea
+                  value={createForm.description}
+                  onChange={event => handleCreateFormChange('description', event)}
+                  rows={3}
+                  placeholder="简单介绍团队职责与目标"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">所属医院</label>
+                  <input
+                    type="text"
+                    value={createForm.hospital}
+                    onChange={event => handleCreateFormChange('hospital', event)}
+                    placeholder="例如：协和医院"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">所属科室</label>
+                  <input
+                    type="text"
+                    value={createForm.department}
+                    onChange={event => handleCreateFormChange('department', event)}
+                    placeholder="例如：放射科"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">最大成员数</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={createForm.maxMembers}
+                  onChange={event => handleCreateFormChange('maxMembers', event)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
+                <button
+                  type="button"
+                  onClick={() => !creatingTeam && setCreateModalOpen(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  disabled={creatingTeam}
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                  disabled={creatingTeam}
+                >
+                  {creatingTeam ? '创建中...' : '创建团队'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {searchResults.length > 0 && (
         <div className="space-y-4">
           <div>

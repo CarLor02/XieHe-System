@@ -63,9 +63,10 @@ export default function MemberManagement() {
       setLoadingTeams(true);
       setError(null);
       const response = await getMyTeams();
-      setMyTeams(response.items);
-      if (response.items.length > 0) {
-        setSelectedTeamId(prev => prev ?? response.items[0].id);
+      const items = response?.items ?? [];
+      setMyTeams(items);
+      if (items.length > 0) {
+        setSelectedTeamId(prev => prev ?? items[0].id);
       } else {
         setSelectedTeamId(null);
         setMembers([]);
@@ -83,9 +84,9 @@ export default function MemberManagement() {
     try {
       setLoadingMembers(true);
       setError(null);
-      const response: TeamMembersResponse = await getTeamMembers(teamId);
-      setCurrentTeam(response.team);
-      setMembers(response.members);
+  const response: TeamMembersResponse | undefined = await getTeamMembers(teamId);
+  setCurrentTeam(response?.team ?? null);
+  setMembers(response?.members ?? []);
     } catch (err) {
       console.error(err);
       setError('获取成员列表失败，请稍后重试');
@@ -164,9 +165,9 @@ export default function MemberManagement() {
               value={selectedTeamId ?? ''}
               onChange={event => setSelectedTeamId(Number(event.target.value))}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              disabled={loadingTeams || myTeams.length === 0}
+              disabled={loadingTeams || (myTeams?.length ?? 0) === 0}
             >
-              {myTeams.length === 0 ? (
+              {(myTeams?.length ?? 0) === 0 ? (
                 <option value="">暂无已加入的团队</option>
               ) : (
                 myTeams.map(team => (

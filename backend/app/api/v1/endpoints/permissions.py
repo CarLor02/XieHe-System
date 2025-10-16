@@ -16,6 +16,7 @@ from app.core.auth import get_current_active_user
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.schemas.team import (
+    TeamCreateRequest,
     TeamInviteRequest,
     TeamInviteResponse,
     TeamJoinRequestCreate,
@@ -607,6 +608,40 @@ async def get_permission_matrix():
 # =========================
 # 团队管理相关接口
 # =========================
+
+
+@router.post(
+    "/teams",
+    response_model=TeamSummary,
+    status_code=201,
+    summary="创建团队",
+)
+async def create_team_endpoint(
+    request: TeamCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """创建新的协作团队"""
+
+    try:
+        user_id = _extract_user_id(current_user)
+        team_data = team_service.create_team(
+            db,
+            creator_id=user_id,
+            name=request.name,
+            description=request.description,
+            hospital=request.hospital,
+            department=request.department,
+            max_members=request.max_members,
+        )
+        return TeamSummary(**team_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except Exception as exc:
+        logger.exception("创建团队失败: %s", exc)
+        raise HTTPException(status_code=500, detail="创建团队失败，请稍后重试")
 
 
 @router.get("/teams/search", response_model=TeamSearchResponse, summary="搜索团队")

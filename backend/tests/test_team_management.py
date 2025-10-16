@@ -1,12 +1,48 @@
 """团队管理接口测试"""
 
 import os
+from pathlib import Path
 from typing import Dict, Generator
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+
+# 清理可能影响配置加载的环境变量
+_settings_env_keys = {
+    "MAX_FILE_SIZE",
+    "API_HOST",
+    "API_PORT",
+    "API_DEBUG",
+    "API_RELOAD",
+    "JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
+    "JWT_REFRESH_TOKEN_EXPIRE_DAYS",
+    "PASSWORD_HASH_ALGORITHM",
+    "NEXT_PUBLIC_API_URL",
+    "NEXT_PUBLIC_APP_NAME",
+    "NEXT_PUBLIC_APP_VERSION",
+    "ALLOWED_FILE_TYPES",
+    "CORS_ORIGINS",
+    "CORS_ALLOW_CREDENTIALS",
+    "SECURITY_SECRET_KEY",
+    "ENCRYPTION_KEY",
+    "SESSION_TIMEOUT_MINUTES",
+    "MAX_LOGIN_ATTEMPTS",
+    "LOCKOUT_DURATION_MINUTES",
+    "SSL_ENABLED",
+    "SSL_CERT_PATH",
+    "SSL_KEY_PATH",
+    "BACKUP_ENABLED",
+    "BACKUP_SCHEDULE",
+    "BACKUP_RETENTION_DAYS",
+}
+for key in _settings_env_keys:
+    os.environ.pop(key, None)
+
+# 确保加载 backend/.env（避免根目录示例配置影响）
+backend_root = Path(__file__).resolve().parents[1]
+os.chdir(backend_root)
 
 from app.core.auth import get_current_active_user
 from app.core.database import get_db
@@ -66,6 +102,7 @@ def setup_database() -> Generator[Dict[str, int], None, None]:
     if os.path.exists("test_team_management.db"):
         os.remove("test_team_management.db")
 
+    engine.dispose()
     ModelBase.metadata.create_all(bind=engine)
 
     with TestingSessionLocal() as db:
@@ -83,6 +120,11 @@ def setup_database() -> Generator[Dict[str, int], None, None]:
         )
         db.add(team_primary)
         db.flush()
+
+        leader_id = leader.id
+        admin_id = admin.id
+        applicant_id = applicant.id
+        team_primary_id = team_primary.id
 
         membership_leader = TeamMembership(
             team_id=team_primary.id,
@@ -110,17 +152,20 @@ def setup_database() -> Generator[Dict[str, int], None, None]:
 
         db.commit()
 
+        team_secondary_id = team_secondary.id
+
     payload = {
-        "leader_id": leader.id,
-        "admin_id": admin.id,
-        "applicant_id": applicant.id,
-        "team_primary_id": team_primary.id,
-        "team_secondary_id": team_secondary.id,
+        "leader_id": leader_id,
+        "admin_id": admin_id,
+        "applicant_id": applicant_id,
+        "team_primary_id": team_primary_id,
+        "team_secondary_id": team_secondary_id,
     }
 
     yield payload
 
     ModelBase.metadata.drop_all(bind=engine)
+    engine.dispose()
     if os.path.exists("test_team_management.db"):
         os.remove("test_team_management.db")
 
@@ -200,6 +245,42 @@ class TestTeamManagementAPI:
         assert data["team"]["name"] == "测试团队一"
         assert len(data["members"]) == 2
         assert any(member["role"] == "leader" for member in data["members"])
+
+    def test_create_team(self, setup_database):
+        app.dependency_overrides[get_current_active_user] = override_current_user_factory(
+            setup_database["applicant_id"], "applicant"
+        )
+
+        payload = {
+            "name": "新建团队",
+            "description": "用于测试的团队",
+            "hospital": "协和医院",
+            "department": "放射科",
+            "max_members": 12,
+        }
+
+        response = client.post("/api/v1/permissions/teams", json=payload)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == payload["name"]
+        assert data["member_count"] == 1
+        assert data["leader_name"] == "applicant"
+
+        with TestingSessionLocal() as db:
+            team = db.query(Team).filter(Team.name == payload["name"]).first()
+            assert team is not None
+            assert team.leader_id == setup_database["applicant_id"]
+
+            membership = (
+                db.query(TeamMembership)
+                .filter(
+                    TeamMembership.team_id == team.id,
+                    TeamMembership.user_id == setup_database["applicant_id"],
+                )
+                .first()
+            )
+            assert membership is not None
+            assert membership.role == TeamMembershipRole.LEADER
 
     def test_invite_member(self, setup_database):
         app.dependency_overrides[get_current_active_user] = override_current_user_factory(
