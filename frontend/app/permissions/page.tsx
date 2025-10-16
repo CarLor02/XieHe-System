@@ -6,7 +6,6 @@ import { useUser } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import DataPermissions from './DataPermissions';
-import MemberManagement from './MemberManagement';
 import ModelPermissions from './ModelPermissions';
 import TeamManagement from './TeamManagement';
 
@@ -55,7 +54,6 @@ export default function PermissionsPage() {
 
   const tabs = [
     { id: 'team', name: '团队管理', icon: 'ri-team-line' },
-    { id: 'members', name: '成员管理', icon: 'ri-user-settings-line' },
     { id: 'models', name: '模型权限', icon: 'ri-cpu-line' },
     { id: 'data', name: '数据权限', icon: 'ri-database-line' },
   ];
@@ -99,7 +97,6 @@ export default function PermissionsPage() {
 
             <div className="p-6">
               {activeTab === 'team' && <TeamManagement />}
-              {activeTab === 'members' && <MemberManagement />}
               {activeTab === 'models' && <ModelPermissions />}
               {activeTab === 'data' && <DataPermissions />}
             </div>

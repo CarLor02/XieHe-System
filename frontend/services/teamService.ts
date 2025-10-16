@@ -216,3 +216,20 @@ export async function createTeam(payload: TeamCreateRequest): Promise<TeamSummar
     throw error;
   }
 }
+
+// 获取用户的申请记录
+export async function getMyApplications(): Promise<TeamJoinRequestItem[]> {
+  try {
+    const response = await client.get<{ items: TeamJoinRequestItem[] }>(
+      '/api/v1/permissions/teams/my-applications'
+    );
+    return response.data.items;
+  } catch (error) {
+    // 如果接口不存在，返回空数组
+    if ((error as any)?.response?.status === 404) {
+      return [];
+    }
+    handleApiError(error, 'team_my_applications');
+    throw error;
+  }
+}

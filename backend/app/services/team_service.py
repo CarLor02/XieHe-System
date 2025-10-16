@@ -116,12 +116,14 @@ class TeamService:
         if user_id is None:
             return []
 
+        # 获取已加入的团队
         memberships = (
             db.query(TeamMembership)
             .options(
                 joinedload(TeamMembership.team)
                 .joinedload(Team.memberships),
                 joinedload(TeamMembership.team).joinedload(Team.leader),
+                joinedload(TeamMembership.team).joinedload(Team.join_requests),
             )
             .filter(
                 TeamMembership.user_id == user_id,
@@ -129,11 +131,37 @@ class TeamService:
             )
             .all()
         )
-        return [
+        
+        # 获取申请中的团队（还未成为成员）
+        pending_requests = (
+            db.query(TeamJoinRequest)
+            .options(
+                joinedload(TeamJoinRequest.team)
+                .joinedload(Team.memberships),
+                joinedload(TeamJoinRequest.team).joinedload(Team.leader),
+                joinedload(TeamJoinRequest.team).joinedload(Team.join_requests),
+            )
+            .filter(
+                TeamJoinRequest.user_id == user_id,
+                TeamJoinRequest.status == TeamJoinRequestStatus.PENDING,
+            )
+            .all()
+        )
+        
+        # 合并已加入的团队
+        result = [
             self._build_team_summary(membership.team, user_id)
             for membership in memberships
             if membership.team
         ]
+        
+        # 添加申请中的团队（排除已经是成员的团队）
+        existing_team_ids = {item["id"] for item in result}
+        for req in pending_requests:
+            if req.team and req.team.id not in existing_team_ids:
+                result.append(self._build_team_summary(req.team, user_id))
+        
+        return result
 
     def apply_to_join(
         self, db: Session, user_id: int, team_id: int, message: Optional[str]
