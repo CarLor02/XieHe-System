@@ -102,6 +102,11 @@ class User(Base):
     # 关系
     department = relationship("Department", back_populates="users")
     roles = relationship("UserRole", back_populates="user")
+    team_memberships = relationship(
+        "TeamMembership",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class UserRole(Base):

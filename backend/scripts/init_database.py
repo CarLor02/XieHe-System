@@ -119,6 +119,10 @@ def get_table_counts():
             ('roles', '角色'),
             ('permissions', '权限'),
             ('users', '用户'),
+            ('teams', '团队'),
+            ('team_memberships', '团队成员'),
+            ('team_join_requests', '加入申请'),
+            ('team_invitations', '团队邀请'),
             ('patients', '患者'),
             ('patient_visits', '就诊记录'),
             ('patient_allergies', '过敏史'),
@@ -175,6 +179,10 @@ def clean_database():
 
         # 需要清理的表（按依赖关系倒序）
         tables_to_clean = [
+            'team_invitations',
+            'team_join_requests',
+            'team_memberships',
+            'teams',
             'user_roles',
             'role_permissions',
             'report_revisions',

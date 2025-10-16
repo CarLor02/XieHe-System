@@ -1,272 +1,307 @@
-
 'use client';
 
-import { useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+
+import {
+  TeamSummary,
+  applyToJoinTeam,
+  getMyTeams,
+  searchTeams,
+} from '@/services/teamService';
+import { useUser } from '@/store/authStore';
+
+const formatDate = (value?: string | null) =>
+  value ? new Date(value).toLocaleDateString('zh-CN') : '未知';
 
 export default function TeamManagement() {
-  const [teamInfo, setTeamInfo] = useState({
-    name: '协和吴主任团队',
-    description: '专注于骨科疾病的诊断与治疗，运用AI技术提升医疗服务质量',
-    department: '骨科',
-    hospital: '上海第一人民医院',
-    leader: '吴医生',
-    createdDate: '2023-10-15',
-    memberCount: 8,
-    maxMembers: 20
-  });
+  const { isAuthenticated } = useUser();
 
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ ...teamInfo });
+  const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
+  const [activeTeamId, setActiveTeamId] = useState<number | null>(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchResults, setSearchResults] = useState<TeamSummary[]>([]);
 
-  const handleInputChange = (field: string, value: string) => {
-    setEditForm(prev => ({ ...prev, [field]: value }));
+  const [loadingMyTeams, setLoadingMyTeams] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const activeTeam = useMemo(
+    () => myTeams.find(team => team.id === activeTeamId) ?? null,
+    [activeTeamId, myTeams]
+  );
+
+  const refreshMyTeams = async () => {
+    try {
+      setLoadingMyTeams(true);
+      const response = await getMyTeams();
+      setMyTeams(response.items);
+      if (!activeTeamId && response.items.length > 0) {
+        setActiveTeamId(response.items[0].id);
+      } else if (activeTeamId && !response.items.some(team => team.id === activeTeamId)) {
+        setActiveTeamId(response.items[0]?.id ?? null);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('获取团队信息失败，请稍后重试');
+    } finally {
+      setLoadingMyTeams(false);
+    }
   };
 
-  const handleSave = () => {
-    setTeamInfo({ ...editForm });
-    setShowEditModal(false);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMyTeams([]);
+      setActiveTeamId(null);
+      setSearchResults([]);
+      return;
+    }
+    refreshMyTeams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  const handleSearch = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!searchKeyword.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setSearching(true);
+      setError(null);
+      const response = await searchTeams(searchKeyword.trim());
+      setSearchResults(response.results);
+    } catch (err) {
+      console.error(err);
+      setError('搜索团队失败，请稍后重试');
+    } finally {
+      setSearching(false);
+    }
   };
+
+  const handleApply = async (team: TeamSummary) => {
+    try {
+      setError(null);
+      const message = await applyToJoinTeam(team.id);
+      setSuccessMessage(message || '申请已提交，等待审核');
+      // 更新搜索结果中的状态
+      setSearchResults(prev =>
+        prev.map(item =>
+          item.id === team.id
+            ? { ...item, join_status: 'pending', is_member: false }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      setError('申请加入团队失败，请稍后重试');
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-gray-600">
+        登录后即可管理团队、搜索并申请加入新的协作团队。
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* 团队基本信息 */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-4">
-            <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
-              <i className="ri-team-line w-8 h-8 flex items-center justify-center text-blue-600"></i>
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">{teamInfo.name}</h2>
-              <p className="text-gray-600 mb-2">{teamInfo.description}</p>
-              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                <span className="flex items-center space-x-1">
-                  <i className="ri-building-line w-4 h-4 flex items-center justify-center"></i>
-                  <span>{teamInfo.hospital}</span>
-                </span>
-                <span className="flex items-center space-x-1">
-                  <i className="ri-stethoscope-line w-4 h-4 flex items-center justify-center"></i>
-                  <span>{teamInfo.department}</span>
-                </span>
-              </div>
-            </div>
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {successMessage}
+        </div>
+      )}
+
+      {/* 搜索团队 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <form onSubmit={handleSearch} className="flex flex-col gap-4 md:flex-row md:items-center">
+          <div className="flex-1">
+            <label className="mb-2 block text-sm font-medium text-gray-700">搜索团队</label>
+            <input
+              type="text"
+              value={searchKeyword}
+              onChange={event => setSearchKeyword(event.target.value)}
+              placeholder="输入团队名称、医院或科室"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
           </div>
           <button
-            onClick={() => setShowEditModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 whitespace-nowrap"
+            type="submit"
+            className="whitespace-nowrap rounded-lg bg-blue-600 px-5 py-2 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+            disabled={searching}
           >
-            <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
-            <span>编辑信息</span>
+            {searching ? '搜索中...' : '搜索团队'}
+          </button>
+        </form>
+      </div>
+
+      {/* 团队详情 */}
+      <div className="rounded-lg border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
+        {loadingMyTeams ? (
+          <div className="animate-pulse text-gray-500">正在加载团队数据...</div>
+        ) : activeTeam ? (
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex flex-1 items-start space-x-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-blue-100">
+                <i className="ri-team-line text-2xl text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{activeTeam.name}</h2>
+                <p className="mt-1 text-gray-700">{activeTeam.description || '暂无描述'}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                  {activeTeam.hospital && (
+                    <span className="flex items-center gap-1">
+                      <i className="ri-building-line" />
+                      {activeTeam.hospital}
+                    </span>
+                  )}
+                  {activeTeam.department && (
+                    <span className="flex items-center gap-1">
+                      <i className="ri-stethoscope-line" />
+                      {activeTeam.department}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <i className="ri-user-star-line" />
+                    负责人：{activeTeam.leader_name || '未设置'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <i className="ri-calendar-line" />
+                    创建时间：{formatDate(activeTeam.created_at)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border border-blue-200 bg-white px-4 py-3 text-center">
+              <div className="text-sm text-gray-500">成员数量</div>
+              <div className="text-2xl font-semibold text-blue-600">
+                {activeTeam.member_count}
+                {activeTeam.max_members ? ` / ${activeTeam.max_members}` : ''}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-gray-600">暂未加入任何团队，赶快在下方搜索并申请加入吧。</div>
+        )}
+      </div>
+
+      {/* 我的团队 */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">我的团队</h3>
+            <p className="text-sm text-gray-600">点击切换团队查看详细信息</p>
+          </div>
+          <button
+            onClick={refreshMyTeams}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            刷新
           </button>
         </div>
-      </div>
 
-      {/* 团队统计 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm">团队成员</p>
-              <p className="text-2xl font-bold text-gray-900">{teamInfo.memberCount}</p>
-              <p className="text-xs text-gray-500">最大 {teamInfo.maxMembers} 人</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <i className="ri-user-line text-blue-600 w-6 h-6 flex items-center justify-center"></i>
-            </div>
+        {myTeams.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+            暂无已加入的团队。
           </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm">活跃模型</p>
-              <p className="text-2xl font-bold text-gray-900">3</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <i className="ri-cpu-line text-green-600 w-6 h-6 flex items-center justify-center"></i>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm">数据存储</p>
-              <p className="text-2xl font-bold text-gray-900">2.3TB</p>
-            </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <i className="ri-database-line text-purple-600 w-6 h-6 flex items-center justify-center"></i>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm">本月诊断</p>
-              <p className="text-2xl font-bold text-gray-900">847</p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <i className="ri-file-chart-line text-orange-600 w-6 h-6 flex items-center justify-center"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 团队详细信息 */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">团队详情</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">团队负责人</label>
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <i className="ri-user-line w-5 h-5 flex items-center justify-center text-blue-600"></i>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">{teamInfo.leader}</p>
-                <p className="text-sm text-gray-600">主治医师</p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">创建时间</label>
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                <i className="ri-calendar-line w-5 h-5 flex items-center justify-center text-gray-600"></i>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">{teamInfo.createdDate}</p>
-                <p className="text-sm text-gray-600">团队成立日期</p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">所属科室</label>
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <i className="ri-stethoscope-line w-5 h-5 flex items-center justify-center text-green-600"></i>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">{teamInfo.department}</p>
-                <p className="text-sm text-gray-600">临床科室</p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">所属医院</label>
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                <i className="ri-building-line w-5 h-5 flex items-center justify-center text-purple-600"></i>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">{teamInfo.hospital}</p>
-                <p className="text-sm text-gray-600">医疗机构</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 编辑团队信息弹窗 */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">编辑团队信息</h2>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <i className="ri-close-line w-6 h-6 flex items-center justify-center"></i>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 overflow-y-auto">
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">团队名称</label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {myTeams.map(team => (
+              <button
+                key={team.id}
+                onClick={() => setActiveTeamId(team.id)}
+                className={`flex h-full flex-col rounded-lg border p-4 text-left transition hover:border-blue-400 hover:shadow-sm ${
+                  team.id === activeTeamId ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-semibold text-gray-900">{team.name}</h4>
+                  {team.id === activeTeamId && (
+                    <span className="rounded-full bg-blue-500/10 px-2 py-1 text-xs text-blue-600">
+                      当前查看
+                    </span>
+                  )}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">团队描述</label>
-                  <textarea
-                    value={editForm.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                <p className="mt-2 line-clamp-2 text-sm text-gray-600">
+                  {team.description || '暂无团队简介'}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+                  {team.hospital && <span>{team.hospital}</span>}
+                  {team.department && <span>{team.department}</span>}
+                  <span>成员：{team.member_count}</span>
                 </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* 搜索结果 */}
+      {searchResults.length > 0 && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">搜索结果</h3>
+            <p className="text-sm text-gray-600">
+              共找到 <span className="font-semibold text-blue-600">{searchResults.length}</span> 个相关团队
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {searchResults.map(team => {
+              const isPending = team.join_status === 'pending';
+              return (
+                <div key={team.id} className="flex h-full flex-col justify-between rounded-lg border border-gray-200 bg-white p-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">所属科室</label>
-                    <select
-                      value={editForm.department}
-                      onChange={(e) => handleInputChange('department', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
-                    >
-                      <option value="骨科">骨科</option>
-                      <option value="心内科">心内科</option>
-                      <option value="神经科">神经科</option>
-                      <option value="影像科">影像科</option>
-                    </select>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-base font-semibold text-gray-900">{team.name}</h4>
+                        <p className="mt-1 text-sm text-gray-600">
+                          {team.description || '暂无团队简介'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1 text-sm text-gray-500">
+                      {team.hospital && <div>医院：{team.hospital}</div>}
+                      {team.department && <div>科室：{team.department}</div>}
+                      <div>
+                        成员：{team.member_count}
+                        {team.max_members ? ` / ${team.max_members}` : ''}
+                      </div>
+                      {team.leader_name && <div>负责人：{team.leader_name}</div>}
+                    </div>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">所属医院</label>
-                    <input
-                      type="text"
-                      value={editForm.hospital}
-                      onChange={(e) => handleInputChange('hospital', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-xs text-gray-400">
+                      创建时间：{formatDate(team.created_at)}
+                    </span>
+                    {team.is_member ? (
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                        已加入
+                      </span>
+                    ) : isPending ? (
+                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                        待审批
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleApply(team)}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+                      >
+                        申请加入
+                      </button>
+                    )}
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">最大成员数</label>
-                  <select
-                    value={editForm.maxMembers}
-                    onChange={(e) => handleInputChange('maxMembers', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
-                  >
-                    <option value="10">10人</option>
-                    <option value="20">20人</option>
-                    <option value="50">50人</option>
-                    <option value="100">100人</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-200 bg-gray-50">
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 whitespace-nowrap"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap"
-                >
-                  保存更改
-                </button>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
       )}

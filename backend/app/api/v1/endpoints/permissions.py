@@ -5,19 +5,49 @@
 """
 
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any, Union
+from typing import Any, Dict, List, Optional, Union
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from enum import Enum
 from sqlalchemy.orm import Session
 import random
 
-from app.core.database import get_db
 from app.core.auth import get_current_active_user
+from app.core.database import get_db
 from app.core.logging import get_logger
+from app.schemas.team import (
+    TeamInviteRequest,
+    TeamInviteResponse,
+    TeamJoinRequestCreate,
+    TeamJoinRequestResponse,
+    TeamListResponse,
+    TeamMember,
+    TeamMembersResponse,
+    TeamSearchResponse,
+    TeamSummary,
+)
+from app.services.team_service import team_service
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+
+def _extract_user_id(user: Dict[str, Any]) -> Optional[int]:
+    """从当前用户信息中提取整数类型的用户ID"""
+
+    if not user:
+        return None
+    for key in ("id", "user_id"):
+        value = user.get(key)
+        if value is None:
+            continue
+        if isinstance(value, int):
+            return value
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            continue
+    return None
 
 # 权限类型枚举
 class PermissionType(str, Enum):
@@ -572,6 +602,148 @@ async def get_permission_matrix():
         return permission_matrix
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取权限矩阵失败: {str(e)}")
+
+
+# =========================
+# 团队管理相关接口
+# =========================
+
+
+@router.get("/teams/search", response_model=TeamSearchResponse, summary="搜索团队")
+async def search_teams_endpoint(
+    keyword: Optional[str] = Query(None, description="搜索关键词"),
+    limit: int = Query(20, ge=1, le=50, description="返回数量限制"),
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """搜索可加入的团队"""
+
+    try:
+        user_id = _extract_user_id(current_user)
+        results = team_service.search_teams(db, keyword, user_id, limit)
+        return TeamSearchResponse(
+            results=[TeamSummary(**item) for item in results],
+            total=len(results),
+        )
+    except Exception as exc:
+        logger.exception("团队搜索失败: %s", exc)
+        raise HTTPException(status_code=500, detail="搜索团队失败，请稍后重试")
+
+
+@router.get("/teams/my", response_model=TeamListResponse, summary="获取我的团队")
+async def list_my_teams(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """获取当前用户已加入的团队列表"""
+
+    try:
+        user_id = _extract_user_id(current_user)
+        items = team_service.list_user_teams(db, user_id)
+        return TeamListResponse(
+            items=[TeamSummary(**item) for item in items],
+            total=len(items),
+        )
+    except Exception as exc:
+        logger.exception("获取我的团队失败: %s", exc)
+        raise HTTPException(status_code=500, detail="获取团队信息失败，请稍后重试")
+
+
+@router.post(
+    "/teams/{team_id}/apply",
+    response_model=TeamJoinRequestResponse,
+    summary="申请加入团队",
+)
+async def apply_to_team(
+    team_id: int,
+    request: TeamJoinRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """提交加入团队的申请"""
+
+    try:
+        user_id = _extract_user_id(current_user)
+        join_request = team_service.apply_to_join(db, user_id, team_id, request.message)
+        return TeamJoinRequestResponse(
+            message="申请已提交，等待团队审核",
+            status=join_request.status.value,
+            requested_at=join_request.created_at,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except Exception as exc:
+        logger.exception("申请加入团队失败: %s", exc)
+        raise HTTPException(status_code=500, detail="申请失败，请稍后重试")
+
+
+@router.get(
+    "/teams/{team_id}/members",
+    response_model=TeamMembersResponse,
+    summary="查看团队成员",
+)
+async def list_team_members(
+    team_id: int,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """查看团队成员列表"""
+
+    try:
+        user_id = _extract_user_id(current_user)
+        data = team_service.get_team_members(db, team_id, user_id)
+        return TeamMembersResponse(
+            team=TeamSummary(**data["team"]),
+            members=[TeamMember(**member) for member in data["members"]],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except Exception as exc:
+        logger.exception("获取团队成员失败: %s", exc)
+        raise HTTPException(status_code=500, detail="获取团队成员失败，请稍后重试")
+
+
+@router.post(
+    "/teams/{team_id}/invite",
+    response_model=TeamInviteResponse,
+    summary="邀请成员加入团队",
+)
+async def invite_team_member(
+    team_id: int,
+    invite_request: TeamInviteRequest,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """邀请其他用户加入团队"""
+
+    try:
+        inviter_id = _extract_user_id(current_user)
+        invitation = team_service.invite_member(
+            db,
+            inviter_id=inviter_id,
+            team_id=team_id,
+            email=invite_request.email,
+            role=invite_request.role,
+            message=invite_request.message,
+        )
+        return TeamInviteResponse(
+            message="邀请已发送",
+            status=invitation.status.value,
+            invitation_id=invitation.id,
+            invitee_email=invitation.invitee_email,
+            expires_at=invitation.expires_at,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except Exception as exc:
+        logger.exception("邀请团队成员失败: %s", exc)
+        raise HTTPException(status_code=500, detail="发送邀请失败，请稍后重试")
 
 
 @router.get("/users")

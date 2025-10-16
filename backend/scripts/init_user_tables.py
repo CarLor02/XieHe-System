@@ -15,7 +15,8 @@ if sys.platform == 'win32':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 import hashlib
 import secrets
-from datetime import datetime
+import enum
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # 添加项目根目录到Python路径
@@ -33,7 +34,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 Base = declarative_base()
 
 # 重新定义模型以避免配置依赖
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Table, Index, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Table, Index, UniqueConstraint, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -98,6 +99,28 @@ class User(Base):
 
     roles = relationship("Role", secondary=user_roles, back_populates="users")
     department = relationship("Department", back_populates="users")
+    team_memberships = relationship("TeamMembership", back_populates="user", cascade="all, delete-orphan")
+    led_teams = relationship("Team", back_populates="leader", foreign_keys='Team.leader_id')
+    team_join_requests = relationship(
+        "TeamJoinRequest",
+        back_populates="applicant",
+        foreign_keys='TeamJoinRequest.user_id'
+    )
+    reviewed_team_requests = relationship(
+        "TeamJoinRequest",
+        back_populates="reviewer",
+        foreign_keys='TeamJoinRequest.reviewer_id'
+    )
+    team_invitations_sent = relationship(
+        "TeamInvitation",
+        back_populates="inviter",
+        foreign_keys='TeamInvitation.inviter_id'
+    )
+    team_invitations_received = relationship(
+        "TeamInvitation",
+        back_populates="invitee",
+        foreign_keys='TeamInvitation.invitee_user_id'
+    )
 
 class Role(Base):
     __tablename__ = 'roles'
@@ -155,6 +178,121 @@ class Department(Base):
     users = relationship(User, back_populates="department")
     parent = relationship("Department", remote_side=[id], back_populates="children")
     children = relationship("Department", back_populates="parent")
+
+
+class TeamMembershipRole(str, enum.Enum):
+    """团队成员角色枚举"""
+
+    LEADER = "leader"
+    ADMIN = "admin"
+    MEMBER = "member"
+    GUEST = "guest"
+
+
+class TeamMembershipStatus(str, enum.Enum):
+    """团队成员状态枚举"""
+
+    ACTIVE = "active"
+    INVITED = "invited"
+    PENDING = "pending"
+    INACTIVE = "inactive"
+
+
+class TeamJoinRequestStatus(str, enum.Enum):
+    """团队加入申请状态枚举"""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+
+
+class TeamInvitationStatus(str, enum.Enum):
+    """团队邀请状态枚举"""
+
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    EXPIRED = "expired"
+    REVOKED = "revoked"
+
+
+class Team(Base):
+    __tablename__ = 'teams'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(120), unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+    hospital = Column(String(120), nullable=True)
+    department = Column(String(120), nullable=True)
+    leader_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    max_members = Column(Integer, default=50, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    leader = relationship("User", back_populates="led_teams", foreign_keys=[leader_id])
+    memberships = relationship("TeamMembership", back_populates="team", cascade="all, delete-orphan")
+    join_requests = relationship("TeamJoinRequest", back_populates="team", cascade="all, delete-orphan")
+    invitations = relationship("TeamInvitation", back_populates="team", cascade="all, delete-orphan")
+
+
+class TeamMembership(Base):
+    __tablename__ = 'team_memberships'
+    __table_args__ = (
+        UniqueConstraint('team_id', 'user_id', name='uq_team_user'),
+    )
+
+    id = Column(Integer, primary_key=True)
+    team_id = Column(Integer, ForeignKey('teams.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.MEMBER, nullable=False)
+    status = Column(Enum(TeamMembershipStatus), default=TeamMembershipStatus.ACTIVE, nullable=False)
+    joined_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    team = relationship("Team", back_populates="memberships")
+    user = relationship("User", back_populates="team_memberships")
+
+
+class TeamJoinRequest(Base):
+    __tablename__ = 'team_join_requests'
+    __table_args__ = (
+        UniqueConstraint('team_id', 'user_id', name='uq_join_request'),
+    )
+
+    id = Column(Integer, primary_key=True)
+    team_id = Column(Integer, ForeignKey('teams.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    message = Column(Text, nullable=True)
+    status = Column(Enum(TeamJoinRequestStatus), default=TeamJoinRequestStatus.PENDING, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewer_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+
+    team = relationship("Team", back_populates="join_requests")
+    applicant = relationship("User", back_populates="team_join_requests", foreign_keys=[user_id])
+    reviewer = relationship("User", back_populates="reviewed_team_requests", foreign_keys=[reviewer_id])
+
+
+class TeamInvitation(Base):
+    __tablename__ = 'team_invitations'
+
+    id = Column(Integer, primary_key=True)
+    team_id = Column(Integer, ForeignKey('teams.id'), nullable=False)
+    inviter_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    invitee_email = Column(String(160), nullable=False)
+    invitee_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.MEMBER, nullable=False)
+    status = Column(Enum(TeamInvitationStatus), default=TeamInvitationStatus.PENDING, nullable=False)
+    token = Column(String(120), unique=True, nullable=False)
+    message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=7), nullable=False)
+    responded_at = Column(DateTime, nullable=True)
+
+    team = relationship("Team", back_populates="invitations")
+    inviter = relationship("User", back_populates="team_invitations_sent", foreign_keys=[inviter_id])
+    invitee = relationship("User", back_populates="team_invitations_received", foreign_keys=[invitee_user_id])
 
 def create_password_hash(password: str, salt: str = None) -> tuple:
     """创建密码哈希"""
@@ -488,6 +626,160 @@ def init_users(session, dept_map):
     
     session.flush()
 
+
+def init_teams(session):
+    """初始化团队及关联数据"""
+    print("👥 初始化团队数据...")
+
+    users = {u.username: u for u in session.query(User).all()}
+
+    team_configs = [
+        {
+            "name": "心血管诊疗协作团队",
+            "description": "负责心内科患者的跨专业会诊与诊疗决策",
+            "hospital": "协和医院",
+            "department": "心内科",
+            "leader_username": "doctor01",
+            "max_members": 30,
+            "members": [
+                {"username": "admin", "role": TeamMembershipRole.ADMIN},
+                {"username": "tech01", "role": TeamMembershipRole.MEMBER},
+            ],
+            "join_requests": [
+                {
+                    "username": "radiologist01",
+                    "message": "希望参与心血管疑难病例影像会诊",
+                }
+            ],
+            "invitations": [
+                {
+                    "email": "nurse01@xiehe.com",
+                    "message": "邀请加入团队负责护理协同",
+                    "role": TeamMembershipRole.MEMBER,
+                }
+            ],
+        },
+        {
+            "name": "影像质控与AI分析团队",
+            "description": "聚焦影像质量控制与AI模型评估",
+            "hospital": "协和医院",
+            "department": "影像科",
+            "leader_username": "radiologist01",
+            "max_members": 40,
+            "members": [
+                {"username": "admin", "role": TeamMembershipRole.ADMIN},
+                {"username": "doctor01", "role": TeamMembershipRole.GUEST},
+            ],
+            "join_requests": [
+                {
+                    "username": "tech01",
+                    "message": "希望参与影像采集流程优化",
+                }
+            ],
+            "invitations": [
+                {
+                    "email": "ai.expert@xiehe.com",
+                    "message": "邀请外部AI专家参与模型评估",
+                    "role": TeamMembershipRole.ADMIN,
+                }
+            ],
+        },
+    ]
+
+    for config in team_configs:
+        leader = users.get(config["leader_username"])
+        if not leader:
+            print(f"   ⚠️ 未找到负责人用户: {config['leader_username']}，跳过团队 {config['name']}")
+            continue
+
+        team = Team(
+            name=config["name"],
+            description=config.get("description"),
+            hospital=config.get("hospital"),
+            department=config.get("department"),
+            leader_id=leader.id,
+            max_members=config.get("max_members", 50),
+            is_active=True,
+        )
+        session.add(team)
+        session.flush()
+
+        member_count = 0
+
+        leader_membership = TeamMembership(
+            team_id=team.id,
+            user_id=leader.id,
+            role=TeamMembershipRole.LEADER,
+            status=TeamMembershipStatus.ACTIVE,
+        )
+        session.add(leader_membership)
+        member_count += 1
+
+        for member_cfg in config.get("members", []):
+            member = users.get(member_cfg.get("username"))
+            if not member or member.id == leader.id:
+                continue
+
+            membership = TeamMembership(
+                team_id=team.id,
+                user_id=member.id,
+                role=member_cfg.get("role", TeamMembershipRole.MEMBER),
+                status=member_cfg.get("status", TeamMembershipStatus.ACTIVE),
+            )
+            session.add(membership)
+            member_count += 1
+
+        request_count = 0
+        for request_cfg in config.get("join_requests", []):
+            applicant = users.get(request_cfg.get("username"))
+            if not applicant:
+                continue
+
+            join_request = TeamJoinRequest(
+                team_id=team.id,
+                user_id=applicant.id,
+                message=request_cfg.get("message"),
+                status=request_cfg.get("status", TeamJoinRequestStatus.PENDING),
+            )
+
+            reviewer_username = request_cfg.get("reviewer_username")
+            if reviewer_username and reviewer_username in users:
+                join_request.reviewer_id = users[reviewer_username].id
+                join_request.reviewed_at = datetime.utcnow()
+
+            session.add(join_request)
+            request_count += 1
+
+        invitation_count = 0
+        for invitation_cfg in config.get("invitations", []):
+            inviter_username = invitation_cfg.get("inviter_username", config["leader_username"])
+            inviter = users.get(inviter_username) or leader
+            invitee_user = users.get(invitation_cfg.get("invitee_username")) if invitation_cfg.get("invitee_username") else None
+
+            invitation = TeamInvitation(
+                team_id=team.id,
+                inviter_id=inviter.id,
+                invitee_email=invitation_cfg["email"],
+                invitee_user_id=invitee_user.id if invitee_user else None,
+                role=invitation_cfg.get("role", TeamMembershipRole.MEMBER),
+                status=invitation_cfg.get("status", TeamInvitationStatus.PENDING),
+                token=secrets.token_urlsafe(24),
+                message=invitation_cfg.get("message"),
+                expires_at=datetime.utcnow() + timedelta(days=invitation_cfg.get("expires_in_days", 7)),
+            )
+
+            if invitation.status != TeamInvitationStatus.PENDING:
+                invitation.responded_at = datetime.utcnow()
+
+            session.add(invitation)
+            invitation_count += 1
+
+        print(
+            f"   创建团队: {team.name} | 成员 {member_count} 人 | 申请 {request_count} 条 | 邀请 {invitation_count} 条"
+        )
+
+    session.flush()
+
 def main():
     """主函数"""
     print("🚀 开始初始化用户权限表...")
@@ -513,6 +805,9 @@ def main():
             
             # 初始化用户数据
             init_users(session, dept_map)
+
+            # 初始化团队数据
+            init_teams(session)
             
             # 提交事务
             session.commit()
@@ -524,6 +819,10 @@ def main():
             print(f"   权限数量: {session.query(Permission).count()}")
             print(f"   角色数量: {session.query(Role).count()}")
             print(f"   用户数量: {session.query(User).count()}")
+            print(f"   团队数量: {session.query(Team).count()}")
+            print(f"   团队成员数量: {session.query(TeamMembership).count()}")
+            print(f"   加入申请数量: {session.query(TeamJoinRequest).count()}")
+            print(f"   团队邀请数量: {session.query(TeamInvitation).count()}")
             
             print("\n👤 默认用户账号:")
             print("   管理员: admin / admin123")

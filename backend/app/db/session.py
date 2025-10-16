@@ -72,7 +72,7 @@ async def init_db():
     """
     try:
         # 导入所有模型以确保它们被注册
-        from app.models import user, patient, image, report, system
+        from app.models import image, patient, report, system, team, user
         
         # 创建所有表
         Base.metadata.create_all(bind=engine)
