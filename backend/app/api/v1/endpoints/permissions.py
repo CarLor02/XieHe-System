@@ -1,3 +1,78 @@
+
+# 标准库
+from datetime import datetime, timedelta
+import random
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+
+# 第三方库
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+
+# 本地模块
+from app.db.session import get_db
+from app.core.auth import get_current_active_user
+from app.core.database import get_db as get_core_db
+from app.core.logging import get_logger
+from app.models.team import TeamJoinRequestStatus
+from app.schemas.team import (
+    TeamCreateRequest,
+    TeamInviteRequest,
+    TeamInviteResponse,
+    TeamJoinRequestCreate,
+    TeamJoinRequestItem,
+    TeamJoinRequestListResponse,
+    TeamJoinRequestResponse,
+    TeamJoinRequestReviewRequest,
+    TeamJoinRequestReviewResponse,
+    TeamListResponse,
+    TeamMember,
+    TeamMembersResponse,
+    TeamSearchResponse,
+    TeamSummary,
+)
+from app.services.team_service import team_service
+
+logger = get_logger(__name__)
+
+router = APIRouter()
+class MemberRoleUpdateRequest(BaseModel):
+    role: str = Field(..., description="新角色")
+
+@router.patch(
+    "/teams/{team_id}/members/{user_id}/role",
+    summary="团队管理员变更成员角色",
+)
+async def update_team_member_role(
+    team_id: int,
+    user_id: int,
+    body: MemberRoleUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """团队管理员变更成员角色（不能修改自己角色）"""
+    try:
+        operator_user_id = _extract_user_id(current_user)
+        team_service.update_member_role(
+            db,
+            team_id=team_id,
+            operator_user_id=operator_user_id,
+            target_user_id=user_id,
+            new_role=body.role,
+        )
+        return {"message": "角色已更新"}
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        detail = str(exc)
+        if "不存在" in detail:
+            raise HTTPException(status_code=404, detail=detail)
+        raise HTTPException(status_code=400, detail=detail)
+    except Exception as exc:
+        logger.exception("变更团队成员角色失败: %s", exc)
+        raise HTTPException(status_code=500, detail="角色变更失败，请稍后重试")
 """
 权限管理API端点
 
