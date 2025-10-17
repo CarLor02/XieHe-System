@@ -23,17 +23,27 @@ interface ProvidersProps {
  */
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
-  const { isAuthenticated, accessToken } = useAuthStore();
+  const { isAuthenticated, accessToken, fetchUserInfo } = useAuthStore();
 
   useEffect(() => {
     // 初始化认证状态
     const initializeAuth = async () => {
       try {
-        // 只在有访问令牌且已认证时才尝试获取用户信息
-        // 避免在未登录时触发 401 错误导致无限循环
+        // 只在有访问令牌且已认证时才尝试验证 token
         if (accessToken && isAuthenticated) {
-          // 用户信息会在登录时自动获取，这里不需要重复获取
-          // 如果需要刷新用户信息，可以在特定页面中调用
+          // 尝试获取用户信息来验证 token 是否有效
+          const success = await fetchUserInfo();
+
+          if (!success) {
+            // Token 无效或已过期，清除认证状态
+            console.warn('Token validation failed, clearing auth state');
+            useAuthStore.setState({
+              isAuthenticated: false,
+              user: null,
+              accessToken: null,
+              refreshToken: null,
+            });
+          }
         }
       } catch (error) {
         console.error('Failed to initialize auth:', error);
@@ -44,7 +54,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     };
 
     initializeAuth();
-  }, [accessToken, isAuthenticated]);
+  }, [accessToken, isAuthenticated, fetchUserInfo]);
 
   // 等待初始化完成
   if (!isInitialized) {

@@ -245,7 +245,7 @@ class TeamMembership(Base):
     id = Column(Integer, primary_key=True)
     team_id = Column(Integer, ForeignKey('teams.id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.DOCTOR, nullable=False)
+    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.MEMBER, nullable=False)
     status = Column(Enum(TeamMembershipStatus), default=TeamMembershipStatus.ACTIVE, nullable=False)
     joined_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
@@ -282,7 +282,7 @@ class TeamInvitation(Base):
     inviter_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     invitee_email = Column(String(160), nullable=False)
     invitee_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.DOCTOR, nullable=False)
+    role = Column(Enum(TeamMembershipRole), default=TeamMembershipRole.MEMBER, nullable=False)
     status = Column(Enum(TeamInvitationStatus), default=TeamInvitationStatus.PENDING, nullable=False)
     token = Column(String(120), unique=True, nullable=False)
     message = Column(Text, nullable=True)
@@ -294,11 +294,14 @@ class TeamInvitation(Base):
     inviter = relationship("User", back_populates="team_invitations_sent", foreign_keys=[inviter_id])
     invitee = relationship("User", back_populates="team_invitations_received", foreign_keys=[invitee_user_id])
 
-def create_password_hash(password: str, salt: str = None) -> tuple:
-    """创建密码哈希"""
+def create_password_hash(password: str, salt: str = None) -> str:
+    """创建密码哈希
+
+    返回格式: salt:hash (用于PBKDF2验证)
+    """
     if salt is None:
         salt = secrets.token_hex(16)
-    
+
     # 使用PBKDF2算法
     password_hash = hashlib.pbkdf2_hmac(
         'sha256',
@@ -306,8 +309,9 @@ def create_password_hash(password: str, salt: str = None) -> tuple:
         salt.encode('utf-8'),
         100000  # 迭代次数
     ).hex()
-    
-    return password_hash, salt
+
+    # 返回 salt:hash 格式
+    return f"{salt}:{password_hash}"
 
 def init_database():
     """初始化数据库表结构"""
@@ -607,23 +611,25 @@ def init_users(session, dept_map):
     for user_data in users_data:
         password = user_data.pop('password')
         role_codes = user_data.pop('roles', [])
-        
-        # 创建密码哈希
-        password_hash, salt = create_password_hash(password)
-        user_data['password_hash'] = password_hash
-        user_data['salt'] = salt
-        
+
+        # 创建密码哈希 (返回 salt:hash 格式)
+        password_hash_with_salt = create_password_hash(password)
+        # 提取salt和hash用于数据库存储
+        salt, password_hash = password_hash_with_salt.split(':')
+        user_data['password_hash'] = password_hash_with_salt  # 存储完整的 salt:hash
+        user_data['salt'] = salt  # 也存储salt字段以保持兼容性
+
         user = User(**user_data)
         session.add(user)
         session.flush()  # 获取ID
-        
+
         # 分配角色
         for role_code in role_codes:
             if role_code in roles:
                 user.roles.append(roles[role_code])
-        
+
         print(f"   创建用户: {user.real_name} ({user.username}) - {len(role_codes)}个角色")
-    
+
     session.flush()
 
 
@@ -643,7 +649,7 @@ def init_teams(session):
             "max_members": 30,
             "members": [
                 {"username": "admin", "role": TeamMembershipRole.ADMIN},
-                {"username": "tech01", "role": TeamMembershipRole.DOCTOR},
+                {"username": "tech01", "role": TeamMembershipRole.MEMBER},
             ],
             "join_requests": [
                 {
@@ -655,7 +661,7 @@ def init_teams(session):
                 {
                     "email": "nurse01@xiehe.com",
                     "message": "邀请加入团队负责护理协同",
-                    "role": TeamMembershipRole.DOCTOR,
+                    "role": TeamMembershipRole.MEMBER,
                 }
             ],
         },
@@ -668,7 +674,7 @@ def init_teams(session):
             "max_members": 40,
             "members": [
                 {"username": "admin", "role": TeamMembershipRole.ADMIN},
-                {"username": "doctor01", "role": TeamMembershipRole.DOCTOR},
+                {"username": "doctor01", "role": TeamMembershipRole.MEMBER},
             ],
             "join_requests": [
                 {
@@ -723,7 +729,7 @@ def init_teams(session):
             membership = TeamMembership(
                 team_id=team.id,
                 user_id=member.id,
-                role=member_cfg.get("role", TeamMembershipRole.DOCTOR),
+                role=member_cfg.get("role", TeamMembershipRole.MEMBER),
                 status=member_cfg.get("status", TeamMembershipStatus.ACTIVE),
             )
             session.add(membership)
@@ -761,7 +767,7 @@ def init_teams(session):
                 inviter_id=inviter.id,
                 invitee_email=invitation_cfg["email"],
                 invitee_user_id=invitee_user.id if invitee_user else None,
-                role=invitation_cfg.get("role", TeamMembershipRole.DOCTOR),
+                role=invitation_cfg.get("role", TeamMembershipRole.MEMBER),
                 status=invitation_cfg.get("status", TeamInvitationStatus.PENDING),
                 token=secrets.token_urlsafe(24),
                 message=invitation_cfg.get("message"),

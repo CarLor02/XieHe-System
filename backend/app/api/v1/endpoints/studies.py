@@ -108,6 +108,11 @@ async def get_studies(
         # 构建响应数据
         studies = []
         for study, patient_name in results:
+            # 处理Enum字段 - 如果已经是字符串则直接使用，否则获取value
+            modality_value = study.modality if isinstance(study.modality, str) else (study.modality.value if study.modality else "XR")
+            body_part_value = study.body_part if isinstance(study.body_part, str) else (study.body_part.value if study.body_part else None)
+            status_value = study.status if isinstance(study.status, str) else (study.status.value if study.status else "COMPLETED")
+
             studies.append(StudyResponse(
                 id=study.id,
                 study_instance_uid=study.study_instance_uid,
@@ -116,9 +121,9 @@ async def get_studies(
                 patient_name=patient_name,
                 study_date=study.study_date,
                 study_description=study.study_description,
-                modality=study.modality.value if study.modality else "XR",
-                body_part=study.body_part.value if study.body_part else None,
-                status=study.status.value if study.status else "COMPLETED",
+                modality=modality_value,
+                body_part=body_part_value,
+                status=status_value,
                 series_count=0,  # TODO: 从series表计算
                 instance_count=0,  # TODO: 从instances表计算
                 created_at=study.created_at

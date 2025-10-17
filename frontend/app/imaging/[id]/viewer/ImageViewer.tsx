@@ -820,13 +820,22 @@ function ImageCanvas({
       try {
         setImageLoading(true);
         const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-        const client = createAuthenticatedClient();
 
-        const response = await client.get(`/api/v1/upload/files/${numericId}`, {
-          responseType: 'blob',
+        // 使用fetch API直接获取，确保认证头被正确传递
+        const { accessToken } =
+          require('../../../../store/authStore').useAuthStore.getState();
+
+        const response = await fetch(`/api/v1/upload/files/${numericId}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         });
 
-        const imageBlob = response.data;
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const imageBlob = await response.blob();
         const imageObjectUrl = URL.createObjectURL(imageBlob);
         setImageUrl(imageObjectUrl);
       } catch (error) {

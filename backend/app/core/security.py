@@ -88,12 +88,29 @@ class SecurityManager:
         import hashlib
         import base64
 
-        # 先用 SHA256 哈希密码，与 hash_password 保持一致
-        password_bytes = plain_password.encode('utf-8')
-        sha256_hash = hashlib.sha256(password_bytes).digest()
-        password_b64 = base64.b64encode(sha256_hash).decode('utf-8')
+        # 首先尝试 PBKDF2 验证（用于初始化脚本创建的用户）
+        if ':' in hashed_password:
+            try:
+                salt, stored_hash = hashed_password.split(':')
+                password_hash = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt.encode('utf-8'), 100000)
+                if password_hash.hex() == stored_hash:
+                    return True
+            except Exception:
+                pass
 
-        return pwd_context.verify(password_b64, hashed_password)
+        # 然后尝试 bcrypt 验证（用于新注册的用户）
+        try:
+            # 先用 SHA256 哈希密码，与 hash_password 保持一致
+            password_bytes = plain_password.encode('utf-8')
+            sha256_hash = hashlib.sha256(password_bytes).digest()
+            password_b64 = base64.b64encode(sha256_hash).decode('utf-8')
+
+            if pwd_context.verify(password_b64, hashed_password):
+                return True
+        except Exception:
+            pass
+
+        return False
     
     def generate_random_password(self, length: int = 12) -> str:
         """

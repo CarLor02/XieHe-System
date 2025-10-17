@@ -109,8 +109,8 @@ class Settings(BaseSettings):
     # ==========================================
     
     # MySQL 配置
-    DB_HOST: str = "mysql"  # 默认使用 Docker 容器名
-    DB_PORT: int = 3306
+    DB_HOST: str = "127.0.0.1"  # 本地开发环境使用 localhost
+    DB_PORT: int = 3307  # 本地开发环境使用 3307 端口
     DB_USER: str = "medical_user"
     DB_PASSWORD: str = "medical_password_2024"
     DB_NAME: str = "medical_system"
@@ -154,8 +154,8 @@ class Settings(BaseSettings):
     # Redis 配置
     # ==========================================
     
-    REDIS_HOST: str = "redis"  # 默认使用 Docker 容器名
-    REDIS_PORT: int = 6379
+    REDIS_HOST: str = "127.0.0.1"  # 本地开发环境使用 localhost
+    REDIS_PORT: int = 6380  # 本地开发环境使用 6380 端口
     REDIS_PASSWORD: Optional[str] = None
     REDIS_DB: int = 0
     REDIS_TIMEOUT: int = 5
