@@ -2,7 +2,11 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { createAuthenticatedClient, useUser } from '@/store/authStore';
+import {
+  createAuthenticatedClient,
+  useAuthStore,
+  useUser,
+} from '@/store/authStore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -41,6 +45,7 @@ interface ImageItem {
   thumbnailUrl: string;
   patient_name?: string;
   patient_id?: string;
+  blobUrl?: string;
 }
 
 export default function ImagingPage() {
@@ -51,6 +56,9 @@ export default function ImagingPage() {
   const [studies, setStudies] = useState<Study[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>(
+    {}
+  );
 
   // 搜索和筛选状态
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,6 +68,41 @@ export default function ImagingPage() {
   const [dateTo, setDateTo] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  // 加载单个缩略图
+  const loadThumbnail = async (studyId: number, imageId: string) => {
+    try {
+      const { accessToken } = useAuthStore.getState();
+
+      if (!accessToken) {
+        console.warn(
+          `No access token available for loading thumbnail ${imageId}`
+        );
+        return;
+      }
+
+      const response = await fetch(`/api/v1/upload/files/${studyId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        setThumbnailUrls(prev => ({
+          ...prev,
+          [imageId]: blobUrl,
+        }));
+      } else {
+        console.error(
+          `Failed to load thumbnail for ${imageId}: ${response.status}`
+        );
+      }
+    } catch (error) {
+      console.error(`Failed to load thumbnail for ${imageId}:`, error);
+    }
+  };
 
   // 加载影像数据
   const loadStudies = async () => {
@@ -77,6 +120,12 @@ export default function ImagingPage() {
 
       const studiesData = response.data.studies || [];
       setStudies(studiesData);
+
+      // 加载所有缩略图
+      studiesData.forEach((study: Study) => {
+        const imageId = `IMG${study.id.toString().padStart(3, '0')}`;
+        loadThumbnail(study.id, imageId);
+      });
     } catch (err: any) {
       console.error('Failed to load studies:', err);
       // 不再显示错误信息，认证失败会自动跳转到登录页
@@ -102,12 +151,14 @@ export default function ImagingPage() {
 
   // 将Study数据转换为ImageItem格式
   const convertStudyToImageItem = (study: Study): ImageItem => {
+    const imageId = `IMG${study.id.toString().padStart(3, '0')}`;
     return {
-      id: `IMG${study.id.toString().padStart(3, '0')}`,
+      id: imageId,
       examType: study.study_description || study.modality || '未知类型',
       studyDate: study.study_date || study.created_at.split('T')[0],
       status: study.status === 'completed' ? 'reviewed' : 'pending',
       thumbnailUrl: `/api/v1/upload/files/${study.id}`,
+      blobUrl: thumbnailUrls[imageId],
       patient_name: study.patient_name,
       patient_id: study.patient_id?.toString(),
     };
@@ -380,11 +431,17 @@ export default function ImagingPage() {
                     {/* 影像预览 */}
                     <Link href={`/imaging/${image.id}/viewer`}>
                       <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer">
-                        <img
-                          src={image.thumbnailUrl}
-                          alt={`${image.id} - ${image.examType}`}
-                          className="w-full h-full object-cover object-top"
-                        />
+                        {image.blobUrl ? (
+                          <img
+                            src={image.blobUrl}
+                            alt={`${image.id} - ${image.examType}`}
+                            className="w-full h-full object-cover object-top"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <i className="ri-image-line text-4xl"></i>
+                          </div>
+                        )}
                         <div className="absolute top-2 right-2">
                           <span
                             className={`text-xs px-2 py-1 rounded-full ${
