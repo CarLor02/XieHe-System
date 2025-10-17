@@ -20,6 +20,7 @@ import {
 import { useUser } from '@/store/authStore';
 
 const ROLE_OPTIONS = [
+  { id: 'member', name: '普通成员', description: '参与团队协作' },
   { id: 'doctor', name: '医生', description: '参与日常诊疗协作与数据处理' },
   { id: 'admin', name: '团队管理员', description: '管理团队成员与配置' },
 ];
@@ -44,6 +45,7 @@ const REQUEST_STATUS_MAP: Record<string, string> = {
 const ROLE_LABEL_MAP: Record<string, string> = {
   admin: '管理员',
   doctor: '医生',
+  member: '普通成员',
 };
 
 const formatDate = (value?: string | null) =>

@@ -83,24 +83,17 @@ echo "✅ Redis缓存启动成功"
 echo ""
 echo "🔧 启动后端服务..."
 
-# 检查虚拟环境
-if [ ! -d "backend/venv-demo" ]; then
-    echo "📦 创建Python虚拟环境..."
-    cd backend
-    python3 -m venv venv-demo
-    source venv-demo/bin/activate
-    pip install --upgrade pip
-    pip install -r requirements-demo.txt
-    cd ..
-else
-    echo "📦 使用现有虚拟环境..."
+# 检查conda环境
+if ! conda env list | grep -q "^xiehe "; then
+    echo "❌ 错误: conda环境 'xiehe' 不存在"
+    echo "请先创建环境: conda create -n xiehe python=3.11"
+    exit 1
 fi
 
 # 启动后端
 echo "🚀 启动FastAPI后端..."
 cd backend
-source venv-demo/bin/activate
-python start_demo.py &
+conda run -n xiehe uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 cd ..
 
@@ -216,7 +209,7 @@ XieHe医疗影像诊断系统 - 混合模式启动日志
 - 缓存: localhost:6380
 
 进程信息:
-$(ps aux | grep -E "(start_demo|npm.*dev)" | grep -v grep || echo "进程信息获取失败")
+$(ps aux | grep -E "(uvicorn|npm.*dev)" | grep -v grep || echo "进程信息获取失败")
 EOF
 
 echo ""

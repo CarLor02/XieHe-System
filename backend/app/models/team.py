@@ -30,6 +30,7 @@ class TeamMembershipRole(str, enum.Enum):
 
     ADMIN = "admin"
     DOCTOR = "doctor"
+    MEMBER = "member"  # 普通成员
 
 
 class TeamMembershipStatus(str, enum.Enum):

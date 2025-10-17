@@ -31,7 +31,7 @@ export interface TeamMember {
   username: string;
   real_name?: string | null;
   email?: string | null;
-  role: 'admin' | 'doctor';
+  role: 'admin' | 'doctor' | 'member';
   status: string;
   department?: string | null;
   is_leader: boolean;

@@ -132,38 +132,14 @@ backend/
 - **Redis**: 6.x+
 - **Conda**: 推荐使用 Miniconda/Anaconda
 
-### 方式一：演示模式（快速体验）
-
-演示模式使用内置模拟数据，无需配置外部数据库，适合快速体验和功能测试：
+### 方式一：标准启动（开发环境）
 
 ```bash
 # 1. 进入 backend 目录
 cd backend
 
-# 2. 激活 conda 环境（如果使用 conda）
-conda activate xiehe
-
-# 3. 安装依赖
-pip install -r requirements.txt
-
-# 4. 启动演示服务
-python start_demo.py
-```
-
-**访问地址**:
-- API 服务: http://localhost:8000
-- API 文档: http://localhost:8000/docs
-- 健康检查: http://localhost:8000/health
-
-### 方式二：完整模式（开发/生产环境）
-
-完整模式需要配置 MySQL 和 Redis，适合开发和生产环境：
-
-```bash
-# 1. 进入 backend 目录
-cd backend
-
-# 2. 激活 conda 环境
+# 2. 创建并激活 conda 环境
+conda create -n xiehe python=3.11
 conda activate xiehe
 
 # 3. 安装依赖
@@ -173,17 +149,40 @@ pip install -r requirements.txt
 cp .env.example .env
 # 编辑 .env 文件，配置数据库连接信息
 
-# 5. 初始化数据库
+# 5. 启动数据库（使用 Docker）
+cd ..
+docker compose up -d mysql redis
+cd backend
+
+# 6. 初始化数据库
 python scripts/init_database.py
 
-# 6. 启动服务
+# 7. 启动服务
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+**访问地址**:
+- API 服务: http://localhost:8000
+- API 文档: http://localhost:8000/api/v1/docs
+- ReDoc 文档: http://localhost:8000/api/v1/redoc
+- 健康检查: http://localhost:8000/health
 
 **重要提示**:
 - ✅ 必须在 `backend` 目录下运行命令
 - ✅ 使用 `uvicorn app.main:app` 而不是 `python app/main.py`
 - ✅ 确保数据库配置正确
+
+### 方式二：使用启动脚本
+
+```bash
+# Windows (PowerShell)
+cd backend
+.\start.ps1
+
+# Linux/Mac
+cd backend
+./start.sh
+```
 
 ### 环境变量配置
 
@@ -443,7 +442,7 @@ gunicorn app.main:app \
 如果前端无法访问后端 API：
 ```bash
 # 检查 CORS 配置
-# 确保 start_demo.py 中的 CORS 中间件已启用
+# 确保 app/core/config.py 中的 CORS 配置正确
 # 前端地址: http://localhost:3000
 # 后端地址: http://localhost:8000
 ```
@@ -454,34 +453,25 @@ gunicorn app.main:app \
 # 1. 验证 .env 文件中的数据库配置
 # 2. 确保 MySQL 服务正在运行
 # 3. 测试数据库连接
-mysql -h localhost -u username -p database_name
+mysql -h localhost -P 3307 -u root -p
+
+# 如果使用 Docker
+docker exec -it medical_mysql mysql -u root -p
 ```
 
 #### 依赖安装问题
 ```bash
 # 清理并重新安装
-pip uninstall -r requirements.txt -y
-pip install -r requirements.txt
-
-# 或使用虚拟环境
-rm -rf venv
-python3 -m venv venv
-source venv/bin/activate
+conda deactivate
+conda remove -n xiehe --all
+conda create -n xiehe python=3.11
+conda activate xiehe
 pip install -r requirements.txt
 ```
-
-### 开发模式 vs 演示模式
-
-| 特性 | 演示模式 | 开发模式 |
-|------|----------|----------|
-| 数据库 | 内置模拟数据 | 需要 MySQL |
-| 缓存 | 内存缓存 | 需要 Redis |
-| 启动命令 | `python start_demo.py` | `uvicorn app.main:app --reload` |
-| 适用场景 | 快速演示、开发测试 | 完整功能开发 |
 
 ---
 
 **注意**:
 - 开发前请仔细阅读项目编码规范和 API 设计文档
-- 演示模式适合快速开始和功能测试
-- 生产环境请使用完整模式并配置真实数据库
+- 生产环境请确保配置真实数据库和 Redis
+- 定期备份数据库数据

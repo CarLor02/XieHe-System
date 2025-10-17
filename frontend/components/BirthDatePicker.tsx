@@ -3,7 +3,7 @@
  * 提供年/月/日分开选择的方式，体验更好
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface BirthDatePickerProps {
   value: string; // YYYY-MM-DD 格式
@@ -21,7 +21,15 @@ export default function BirthDatePicker({
   const [year, setYear] = useState('');
   const [month, setMonth] = useState('');
   const [day, setDay] = useState('');
-  const [isInternalChange, setIsInternalChange] = useState(false);
+
+  // 使用 ref 保存最新的 onChange 函数，避免依赖变化
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // 使用 ref 标记是否正在从外部更新，避免循环
+  const isExternalUpdateRef = useRef(false);
 
   // 生成年份选项（1900 - 当前年份）
   const currentYear = new Date().getFullYear();
@@ -41,34 +49,35 @@ export default function BirthDatePicker({
     return Array.from({ length: daysInMonth }, (_, i) => i + 1);
   })();
 
-  // 当外部值变化时，更新内部状态（仅当不是内部触发的变化时）
+  // 当外部值变化时，更新内部状态
   useEffect(() => {
-    if (isInternalChange) {
-      setIsInternalChange(false);
-      return;
-    }
-
+    isExternalUpdateRef.current = true;
     if (value) {
       const parts = value.split('-');
       if (parts.length === 3) {
-        const yearVal = parts[0];
-        // 去掉月份和日期的前导零，以匹配下拉选项的值
-        const monthVal = String(parseInt(parts[1], 10));
-        const dayVal = String(parseInt(parts[2], 10));
-
-        setYear(yearVal);
-        setMonth(monthVal);
-        setDay(dayVal);
+        setYear(parts[0]);
+        // 去掉月份和日期的前导零，以匹配 <option> 的 value
+        setMonth(String(parseInt(parts[1], 10)));
+        setDay(String(parseInt(parts[2], 10)));
       }
     } else {
       setYear('');
       setMonth('');
       setDay('');
     }
+    // 使用 setTimeout 确保状态更新完成后再重置标记
+    setTimeout(() => {
+      isExternalUpdateRef.current = false;
+    }, 0);
   }, [value]);
 
   // 当年/月/日变化时，通知外部
   useEffect(() => {
+    // 如果是外部更新触发的，不要回调，避免循环
+    if (isExternalUpdateRef.current) {
+      return;
+    }
+
     if (year && month && day) {
       const monthStr = month.padStart(2, '0');
       const dayStr = day.padStart(2, '0');
@@ -76,13 +85,11 @@ export default function BirthDatePicker({
 
       // 验证日期有效性
       const date = new Date(dateStr);
-      if (!isNaN(date.getTime()) && dateStr !== value) {
-        setIsInternalChange(true);
-        onChange(dateStr);
+      if (!isNaN(date.getTime())) {
+        onChangeRef.current(dateStr);
       }
-    } else if (!year && !month && !day && value !== '') {
-      setIsInternalChange(true);
-      onChange('');
+    } else if (!year && !month && !day) {
+      onChangeRef.current('');
     }
   }, [year, month, day]);
 

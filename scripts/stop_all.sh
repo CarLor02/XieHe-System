@@ -25,8 +25,8 @@ else
     
     # 通过进程名停止
     echo "🔧 停止Python后端进程..."
-    pkill -f "start_demo.py" 2>/dev/null || echo "   未找到后端进程"
-    
+    pkill -f "uvicorn.*app.main:app" 2>/dev/null || echo "   未找到后端进程"
+
     echo "🌐 停止Node.js前端进程..."
     pkill -f "npm.*dev" 2>/dev/null || echo "   未找到前端进程"
     pkill -f "next.*dev" 2>/dev/null || echo "   未找到Next.js进程"
