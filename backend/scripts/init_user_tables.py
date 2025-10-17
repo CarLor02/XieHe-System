@@ -294,24 +294,29 @@ class TeamInvitation(Base):
     inviter = relationship("User", back_populates="team_invitations_sent", foreign_keys=[inviter_id])
     invitee = relationship("User", back_populates="team_invitations_received", foreign_keys=[invitee_user_id])
 
-def create_password_hash(password: str, salt: str = None) -> str:
-    """创建密码哈希
-
-    返回格式: salt:hash (用于PBKDF2验证)
+def create_password_hash(password: str) -> str:
     """
-    if salt is None:
-        salt = secrets.token_hex(16)
+    创建密码哈希 - 使用 bcrypt
 
-    # 使用PBKDF2算法
-    password_hash = hashlib.pbkdf2_hmac(
-        'sha256',
+    Args:
+        password: 明文密码
+
+    Returns:
+        str: bcrypt 哈希值（格式：$2b$12$...，包含盐值）
+
+    Note:
+        bcrypt 自动生成并包含盐值，无需单独存储
+        使用 12 轮加密（2^12 次迭代）
+    """
+    import bcrypt
+
+    # bcrypt 自动生成盐值并包含在哈希中
+    password_hash = bcrypt.hashpw(
         password.encode('utf-8'),
-        salt.encode('utf-8'),
-        100000  # 迭代次数
-    ).hex()
+        bcrypt.gensalt(rounds=12)
+    ).decode('utf-8')
 
-    # 返回 salt:hash 格式
-    return f"{salt}:{password_hash}"
+    return password_hash
 
 def init_database():
     """初始化数据库表结构"""
@@ -612,12 +617,11 @@ def init_users(session, dept_map):
         password = user_data.pop('password')
         role_codes = user_data.pop('roles', [])
 
-        # 创建密码哈希 (返回 salt:hash 格式)
-        password_hash_with_salt = create_password_hash(password)
-        # 提取salt和hash用于数据库存储
-        salt, password_hash = password_hash_with_salt.split(':')
-        user_data['password_hash'] = password_hash_with_salt  # 存储完整的 salt:hash
-        user_data['salt'] = salt  # 也存储salt字段以保持兼容性
+        # 创建密码哈希 - bcrypt 自动包含盐值
+        password_hash = create_password_hash(password)
+        user_data['password_hash'] = password_hash
+        # bcrypt 不需要单独的 salt 字段，设置为空字符串以兼容数据库结构
+        user_data['salt'] = ''
 
         user = User(**user_data)
         session.add(user)

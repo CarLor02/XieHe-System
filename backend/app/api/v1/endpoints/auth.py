@@ -109,8 +109,9 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
 
         # 查询用户信息
         # 注意：数据库表使用 real_name 而不是 full_name，使用 status 而不是 is_active
+        # bcrypt 不需要 salt 字段，但为了兼容保留查询
         sql = """
-        SELECT id, username, email, real_name, password_hash, salt, status, is_superuser
+        SELECT id, username, email, real_name, password_hash, status, is_superuser
         FROM users
         WHERE (username = :username OR email = :username)
         AND status = 'active'
@@ -124,20 +125,19 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
             return None
 
         # 转换为字典格式
-        # 字段顺序: id, username, email, real_name, password_hash, salt, status, is_superuser
+        # 字段顺序: id, username, email, real_name, password_hash, status, is_superuser
         user = {
             "id": user_row[0],
             "username": user_row[1],
             "email": user_row[2],
             "full_name": user_row[3] or user_row[1],  # 使用real_name作为full_name
             "password_hash": user_row[4],
-            "salt": user_row[5],
-            "status": user_row[6],
-            "is_active": user_row[6] == 'active',  # 根据status判断是否激活
-            "is_superuser": bool(user_row[7]),  # is_superuser字段
-            "role": "admin" if user_row[7] else "doctor",  # 根据is_superuser判断角色
-            "roles": ["admin"] if user_row[7] else ["doctor"],  # 角色列表
-            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[7] else ["patient_manage", "image_manage"]
+            "status": user_row[5],
+            "is_active": user_row[5] == 'active',  # 根据status判断是否激活
+            "is_superuser": bool(user_row[6]),  # is_superuser字段
+            "role": "admin" if user_row[6] else "doctor",  # 根据is_superuser判断角色
+            "roles": ["admin"] if user_row[6] else ["doctor"],  # 角色列表
+            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[6] else ["patient_manage", "image_manage"]
         }
 
         return user
@@ -287,19 +287,18 @@ async def register(
         import uuid
         import secrets
 
+        # 使用 bcrypt 加密密码（自动包含盐值）
         password_hash = hash_password(register_data.password)
-        # 生成salt（虽然bcrypt已经包含salt，但数据库表需要这个字段）
-        salt = secrets.token_hex(16)
 
         # 插入新用户到数据库
-        # 注意：数据库表使用 real_name, status, salt 而不是 full_name, role, is_active
-        # created_at: 创建时间，updated_at: 更新时间（创建时不设置，保持NULL或默认值）
+        # 注意：数据库表使用 real_name, status 而不是 full_name, is_active
+        # bcrypt 不需要单独的 salt 字段，设置为空字符串
         insert_sql = """
         INSERT INTO users (
             username, email, real_name, password_hash, salt,
             status, is_superuser, is_verified, is_deleted, created_at
         ) VALUES (
-            :username, :email, :real_name, :password_hash, :salt,
+            :username, :email, :real_name, :password_hash, '',
             'active', 0, 1, 0, :created_at
         )
         """
@@ -309,7 +308,6 @@ async def register(
             "email": register_data.email,
             "real_name": register_data.full_name,
             "password_hash": password_hash,
-            "salt": salt,
             "created_at": datetime.now()
         })
         db.commit()

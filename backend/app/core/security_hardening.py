@@ -76,17 +76,29 @@ class DataEncryption:
             raise
     
     def hash_password(self, password: str) -> str:
-        """密码哈希"""
-        salt = secrets.token_hex(16)
-        password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000)
-        return f"{salt}:{password_hash.hex()}"
-    
+        """
+        密码哈希 - 使用 bcrypt
+
+        Returns:
+            str: bcrypt 哈希值（格式：$2b$12$...）
+        """
+        import bcrypt
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
+
     def verify_password(self, password: str, hashed_password: str) -> bool:
-        """验证密码"""
+        """
+        验证密码 - 使用 bcrypt
+
+        Args:
+            password: 明文密码
+            hashed_password: bcrypt 哈希值
+
+        Returns:
+            bool: 密码是否正确
+        """
         try:
-            salt, stored_hash = hashed_password.split(':')
-            password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000)
-            return password_hash.hex() == stored_hash
+            import bcrypt
+            return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
         except Exception:
             return False
 
