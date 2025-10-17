@@ -369,15 +369,35 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setMeasurements(prev => prev.filter(m => m.id !== id));
   };
 
-  // 影像导航功能
-  const imageList = [
-    'IMG001',
-    'IMG002',
-    'IMG003',
-    'IMG004',
-    'IMG005',
-    'IMG006',
-  ];
+  // 影像导航功能 - 从API动态获取影像列表
+  const [imageList, setImageList] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchImageList = async () => {
+      try {
+        const client = createAuthenticatedClient();
+        const response = await client.get(
+          '/api/v1/studies?page=1&page_size=100'
+        );
+
+        if (response.data && response.data.studies) {
+          // 从API响应中提取影像ID，格式为IMG{id}
+          const ids = response.data.studies.map((study: any) => {
+            // 使用study.id来生成影像ID
+            return `IMG${study.id.toString().padStart(3, '0')}`;
+          });
+          setImageList(ids);
+        }
+      } catch (error) {
+        console.error('获取影像列表失败:', error);
+        // 如果获取失败，使用空列表
+        setImageList([]);
+      }
+    };
+
+    fetchImageList();
+  }, []);
+
   const currentIndex = imageList.indexOf(imageId);
 
   const goToPreviousImage = () => {
