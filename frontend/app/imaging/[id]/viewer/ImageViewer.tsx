@@ -1077,7 +1077,12 @@ function ImageCanvas({
       {/* SVG标注层 */}
       <svg
         className="absolute inset-0 w-full h-full pointer-events-none"
-        style={{ zIndex: 10 }}
+        style={{
+          zIndex: 10,
+          transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})`,
+          transformOrigin: 'center center',
+          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+        }}
       >
         {/* 绘制已完成的测量 */}
         {measurements.map((measurement, index) => (
