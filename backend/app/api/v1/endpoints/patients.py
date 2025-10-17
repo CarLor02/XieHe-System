@@ -124,6 +124,7 @@ def convert_enum_to_gender(gender_enum: GenderEnum) -> str:
 
 # API端点
 @router.post("/", response_model=PatientResponse, summary="创建患者")
+@router.post("", response_model=PatientResponse, summary="创建患者")
 async def create_patient(
     patient_data: PatientCreate,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
