@@ -492,10 +492,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const loadMeasurements = async () => {
     setIsLoading(true);
     try {
-      // 模拟API调用加载测量数据
-      const response = await fetch(`/api/measurements/${imageId}`);
-      if (response.ok) {
-        const data = await response.json();
+      const client = createAuthenticatedClient();
+      const response = await client.get(`/api/v1/measurements/${imageId}`);
+      if (response.status === 200) {
+        const data = response.data;
         if (data.measurements && data.measurements.length > 0) {
           setMeasurements(data.measurements);
           if (data.reportText) {
@@ -522,7 +522,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setSaveMessage('');
 
     try {
-      // 模拟API调用保存测量数据
+      const client = createAuthenticatedClient();
       const measurementData = {
         imageId: imageId,
         patientId: imageData.patientId,
@@ -532,27 +532,20 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         savedAt: new Date().toISOString(),
       };
 
-      // 模拟网络延迟
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await client.post(
+        `/api/v1/measurements/${imageId}`,
+        measurementData
+      );
 
-      const response = await fetch(`/api/measurements/${imageId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(measurementData),
-      });
-
-      if (response.ok) {
+      if (response.status === 200) {
         setSaveMessage('测量数据保存成功');
         setTimeout(() => setSaveMessage(''), 3000);
       } else {
         throw new Error('保存失败');
       }
     } catch (error) {
-      console.log('保存测量数据:', error);
-      // 模拟保存成功（因为是假接口）
-      setSaveMessage('测量数据已保存（模拟保存）');
+      console.error('保存测量数据失败:', error);
+      setSaveMessage('保存测量数据失败，请重试');
       setTimeout(() => setSaveMessage(''), 3000);
     } finally {
       setIsSaving(false);

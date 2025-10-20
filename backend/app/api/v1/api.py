@@ -30,7 +30,8 @@ from .endpoints import (
     errors,
     notifications,
     monitoring,
-    upload
+    upload,
+    annotations
 )
 
 # 单独导入 dashboard，如果失败则跳过
@@ -85,6 +86,12 @@ api_router.include_router(
     upload.router,
     prefix="/upload",
     tags=["文件上传"]
+)
+
+api_router.include_router(
+    annotations.router,
+    prefix="/measurements",
+    tags=["影像标注"]
 )
 
 api_router.include_router(
