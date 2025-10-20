@@ -31,10 +31,10 @@ export interface TeamMember {
   username: string;
   real_name?: string | null;
   email?: string | null;
-  role: 'ADMIN' | 'MEMBER' | 'LEADER' | 'GUEST';
+  role: 'ADMIN' | 'MEMBER' | 'GUEST';
   status: string;
   department?: string | null;
-  is_leader: boolean;
+  is_leader: boolean; // 是否是团队创建者（leader_id）
   joined_at?: string | null;
 }
 

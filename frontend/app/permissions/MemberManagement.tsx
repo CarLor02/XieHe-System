@@ -515,7 +515,7 @@ export default function MemberManagement() {
                               {member.real_name || member.username}
                               {member.is_leader && (
                                 <span className="ml-2 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
-                                  负责人
+                                  创建者
                                 </span>
                               )}
                             </div>

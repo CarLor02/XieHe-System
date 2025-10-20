@@ -51,7 +51,6 @@ const REQUEST_STATUS_MAP: Record<string, string> = {
 const ROLE_LABEL_MAP: Record<string, string> = {
   ADMIN: '管理员',
   MEMBER: '成员',
-  LEADER: '负责人',
   GUEST: '访客',
 };
 
@@ -537,7 +536,7 @@ export default function TeamManagement() {
                             </span>
                             {member.is_leader && (
                               <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
-                                负责人
+                                创建者
                               </span>
                             )}
                           </div>

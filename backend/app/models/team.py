@@ -28,7 +28,6 @@ from .base import Base
 class TeamMembershipRole(str, enum.Enum):
     """团队成员角色枚举"""
 
-    LEADER = "LEADER"
     ADMIN = "ADMIN"
     MEMBER = "MEMBER"
     GUEST = "GUEST"
