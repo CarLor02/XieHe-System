@@ -15,6 +15,7 @@ import {
   getTeamMembers,
   reviewTeamJoinRequest,
   searchTeams,
+  updateMemberRole,
 } from '@/services/teamService';
 import { useUser } from '@/store/authStore';
 
@@ -74,6 +75,11 @@ export default function TeamManagement() {
   const [joinRequests, setJoinRequests] = useState<TeamJoinRequestItem[]>([]);
   const [loadingJoinRequests, setLoadingJoinRequests] = useState(false);
   const [processingRequestId, setProcessingRequestId] = useState<number | null>(null);
+
+  // 角色编辑状态
+  const [isRoleEditMode, setIsRoleEditMode] = useState(false);
+  const [editedRoles, setEditedRoles] = useState<Record<number, 'ADMIN' | 'MEMBER' | 'GUEST'>>({});
+  const [savingRoles, setSavingRoles] = useState(false);
 
   // UI 状态
   const [error, setError] = useState<string | null>(null);
@@ -305,6 +311,76 @@ export default function TeamManagement() {
     }
   };
 
+  // 进入角色编辑模式
+  const handleEnterRoleEditMode = () => {
+    // 初始化编辑状态，记录所有成员的当前角色
+    const initialRoles: Record<number, 'ADMIN' | 'MEMBER' | 'GUEST'> = {};
+    members.forEach(member => {
+      initialRoles[member.id] = member.role;
+    });
+    setEditedRoles(initialRoles);
+    setIsRoleEditMode(true);
+  };
+
+  // 取消角色编辑
+  const handleCancelRoleEdit = () => {
+    setIsRoleEditMode(false);
+    setEditedRoles({});
+  };
+
+  // 修改某个成员的角色（在编辑模式中）
+  const handleRoleChange = (userId: number, newRole: 'ADMIN' | 'MEMBER' | 'GUEST') => {
+    setEditedRoles(prev => ({
+      ...prev,
+      [userId]: newRole,
+    }));
+  };
+
+  // 保存所有角色修改
+  const handleSaveAllRoles = async () => {
+    if (!selectedTeamId) return;
+
+    // 找出所有发生变化的角色
+    const changes: Array<{ userId: number; oldRole: string; newRole: string }> = [];
+    members.forEach(member => {
+      const newRole = editedRoles[member.id];
+      if (newRole && newRole !== member.role) {
+        changes.push({
+          userId: member.id,
+          oldRole: member.role,
+          newRole: newRole,
+        });
+      }
+    });
+
+    if (changes.length === 0) {
+      setSuccessMessage('没有需要保存的修改');
+      setIsRoleEditMode(false);
+      return;
+    }
+
+    try {
+      setSavingRoles(true);
+      
+      // 逐个提交修改
+      for (const change of changes) {
+        await updateMemberRole(selectedTeamId, change.userId, change.newRole as 'ADMIN' | 'MEMBER' | 'GUEST');
+      }
+
+      setSuccessMessage(`已成功修改 ${changes.length} 个成员的角色`);
+      setIsRoleEditMode(false);
+      setEditedRoles({});
+      
+      // 刷新成员列表
+      await loadMembers(selectedTeamId);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.response?.data?.detail || '保存角色修改失败');
+    } finally {
+      setSavingRoles(false);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated) return;
     loadTeams();
@@ -508,13 +584,45 @@ export default function TeamManagement() {
                   <h3 className="font-semibold text-gray-900">团队成员</h3>
                   <p className="text-xs text-gray-500">共 {members.length} 名成员</p>
                 </div>
-                <input
-                  type="text"
-                  value={searchMemberKeyword}
-                  onChange={e => setSearchMemberKeyword(e.target.value)}
-                  placeholder="搜索成员"
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={searchMemberKeyword}
+                    onChange={e => setSearchMemberKeyword(e.target.value)}
+                    placeholder="搜索成员"
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                  />
+                  {isCurrentUserAdmin && (
+                    <>
+                      {isRoleEditMode ? (
+                        <>
+                          <button
+                            onClick={handleSaveAllRoles}
+                            disabled={savingRoles}
+                            className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {savingRoles ? '保存中...' : '保存'}
+                          </button>
+                          <button
+                            onClick={handleCancelRoleEdit}
+                            disabled={savingRoles}
+                            className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            取消
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={handleEnterRoleEditMode}
+                          className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          <i className="ri-shield-user-line" />
+                          <span>身份管理</span>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="flex-1 divide-y divide-gray-100 overflow-y-auto">
@@ -523,37 +631,54 @@ export default function TeamManagement() {
                 ) : filteredMembers.length === 0 ? (
                   <div className="px-4 py-6 text-center text-sm text-gray-500">暂无成员</div>
                 ) : (
-                  filteredMembers.map(member => (
-                    <div key={member.id} className="flex items-center justify-between px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
-                          <i className="ri-user-line text-gray-600" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-900">
-                              {member.real_name || member.username}
-                            </span>
-                            {member.is_leader && (
-                              <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
-                                创建者
-                              </span>
-                            )}
+                  filteredMembers.map(member => {
+                    const canEditThisMember = true; // 管理员可以修改所有成员的角色
+
+                    return (
+                      <div key={member.id} className="flex items-center justify-between px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
+                            <i className="ri-user-line text-gray-600" />
                           </div>
-                          <div className="text-xs text-gray-500">{member.email}</div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-900">
+                                {member.real_name || member.username}
+                              </span>
+                              {member.is_leader && (
+                                <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
+                                  创建者
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500">{member.email}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isRoleEditMode && canEditThisMember ? (
+                            <select
+                              value={editedRoles[member.id] || member.role}
+                              onChange={(e) => handleRoleChange(member.id, e.target.value as 'ADMIN' | 'MEMBER' | 'GUEST')}
+                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                              disabled={savingRoles}
+                            >
+                              <option value="ADMIN">管理员</option>
+                              <option value="MEMBER">成员</option>
+                              <option value="GUEST">访客</option>
+                            </select>
+                          ) : (
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                STATUS_BADGE_MAP[member.status] || 'bg-gray-100 text-gray-500'
+                              }`}
+                            >
+                              {ROLE_LABEL_MAP[editedRoles[member.id] || member.role] || member.role}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            STATUS_BADGE_MAP[member.status] || 'bg-gray-100 text-gray-500'
-                          }`}
-                        >
-                          {ROLE_LABEL_MAP[member.role] || member.role}
-                        </span>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

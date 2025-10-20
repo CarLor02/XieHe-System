@@ -233,3 +233,21 @@ export async function getMyApplications(): Promise<TeamJoinRequestItem[]> {
     throw error;
   }
 }
+
+// 修改团队成员角色
+export async function updateMemberRole(
+  teamId: number,
+  userId: number,
+  newRole: 'ADMIN' | 'MEMBER' | 'GUEST'
+): Promise<{ message: string }> {
+  try {
+    const response = await client.patch<{ message: string }>(
+      `/api/v1/permissions/teams/${teamId}/members/${userId}/role`,
+      { role: newRole }
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'team_update_member_role');
+    throw error;
+  }
+}

@@ -594,5 +594,74 @@ class TeamService:
         db.refresh(join_request)
         return join_request
 
+    def update_member_role(
+        self,
+        db: Session,
+        team_id: int,
+        operator_user_id: int,
+        target_user_id: int,
+        new_role: str,
+    ) -> None:
+        """
+        团队管理员修改成员角色
+        
+        Args:
+            db: 数据库会话
+            team_id: 团队ID
+            operator_user_id: 操作者用户ID（管理员）
+            target_user_id: 目标用户ID（被修改角色的成员）
+            new_role: 新角色（ADMIN、MEMBER、GUEST）
+            
+        Raises:
+            ValueError: 参数错误、团队不存在、成员不存在
+            PermissionError: 权限不足
+        """
+        operator_user_id = _normalize_user_id(operator_user_id)
+        target_user_id = _normalize_user_id(target_user_id)
+        
+        if operator_user_id is None or target_user_id is None:
+            raise ValueError("无效的用户ID")
+        
+        # 验证新角色是否合法
+        try:
+            new_role_enum = TeamMembershipRole(new_role)
+        except ValueError:
+            raise ValueError(f"不支持的角色类型: {new_role}")
+        
+        # 查询团队
+        team = db.query(Team).filter(
+            Team.id == team_id,
+            Team.is_active.is_(True)
+        ).first()
+        if not team:
+            raise ValueError("团队不存在或已停用")
+        
+        # 验证操作者是否是管理员
+        operator_membership = db.query(TeamMembership).filter(
+            TeamMembership.team_id == team_id,
+            TeamMembership.user_id == operator_user_id,
+            TeamMembership.status == TeamMembershipStatus.ACTIVE
+        ).first()
+        
+        if not operator_membership or operator_membership.role != TeamMembershipRole.ADMIN:
+            raise PermissionError("只有团队管理员可以修改成员角色")
+        
+        # 查询目标成员
+        target_membership = db.query(TeamMembership).filter(
+            TeamMembership.team_id == team_id,
+            TeamMembership.user_id == target_user_id,
+            TeamMembership.status == TeamMembershipStatus.ACTIVE
+        ).first()
+        
+        if not target_membership:
+            raise ValueError("目标成员不存在或未激活")
+        
+        # 更新角色
+        target_membership.role = new_role_enum
+        target_membership.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(target_membership)
+
 
 team_service = TeamService()
