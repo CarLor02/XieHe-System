@@ -560,7 +560,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           <div className="flex items-center space-x-4">
             <Link
               href="/imaging"
-              className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10"
+              className="text-white bg-blue-600 hover:bg-blue-700 p-2 rounded-lg transition-colors flex items-center justify-center"
+              title="返回影像列表"
             >
               <i className="ri-arrow-left-line w-5 h-5 flex items-center justify-center"></i>
             </Link>
