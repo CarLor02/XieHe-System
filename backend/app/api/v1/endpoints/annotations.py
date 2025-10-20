@@ -96,10 +96,17 @@ async def get_measurements(
                         # 如果是dict，尝试转换
                         points = []
 
+                # 构建带单位的测量值
+                value_str = ""
+                if ann.measurement_value is not None:
+                    value_str = str(ann.measurement_value)
+                    if ann.measurement_unit:
+                        value_str += ann.measurement_unit
+
                 measurement = MeasurementData(
                     id=str(ann.id),
-                    type=ann.description if ann.description else (ann.annotation_type.value if hasattr(ann.annotation_type, 'value') else str(ann.annotation_type)),
-                    value=str(ann.measurement_value) if ann.measurement_value else "",
+                    type=ann.label if ann.label else ann.description,
+                    value=value_str,
                     points=points,
                     description=ann.description
                 )
@@ -175,12 +182,32 @@ async def save_measurements(
             # 转换坐标格式
             coordinates = [[p.x, p.y] for p in measurement.points]
 
+            # 提取测量值和单位
+            measurement_value = None
+            measurement_unit = None
+            if measurement.value:
+                # 提取单位（mm 或 °）
+                if 'mm' in measurement.value:
+                    measurement_unit = 'mm'
+                    measurement_value = float(measurement.value.replace('mm', '').strip())
+                elif '°' in measurement.value:
+                    measurement_unit = '°'
+                    measurement_value = float(measurement.value.replace('°', '').strip())
+                else:
+                    # 如果没有单位，尝试转换为float
+                    try:
+                        measurement_value = float(measurement.value)
+                    except:
+                        measurement_value = None
+
             annotation = ImageAnnotation(
                 study_id=study_id,
                 annotation_type=annotation_type,
                 coordinates=coordinates,
+                label=measurement.type,
                 description=measurement.description or measurement.type,
-                measurement_value=float(measurement.value.replace('mm', '').replace('°', '')) if measurement.value else None,
+                measurement_value=measurement_value,
+                measurement_unit=measurement_unit,
                 created_by=current_user.get('id')
             )
             db.add(annotation)
