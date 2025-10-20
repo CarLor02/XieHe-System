@@ -98,7 +98,7 @@ async def get_measurements(
 
                 measurement = MeasurementData(
                     id=str(ann.id),
-                    type=ann.annotation_type.value if hasattr(ann.annotation_type, 'value') else str(ann.annotation_type),
+                    type=ann.description if ann.description else (ann.annotation_type.value if hasattr(ann.annotation_type, 'value') else str(ann.annotation_type)),
                     value=str(ann.measurement_value) if ann.measurement_value else "",
                     points=points,
                     description=ann.description
