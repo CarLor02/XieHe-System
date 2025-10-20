@@ -310,7 +310,7 @@ export default function DataPermissions() {
                       <span className="text-gray-700">查看数据</span>
                     </label>
                     <label className="flex items-center space-x-3">
-                      <input type="checkbox" defaultChecked={selectedDataType.type !== 'team' || selectedDataType.type !== 'personal'} className="rounded text-blue-600 focus:ring-blue-500" />
+                      <input type="checkbox" defaultChecked={selectedDataType.type !== 'team' && selectedDataType.type !== 'personal'} className="rounded text-blue-600 focus:ring-blue-500" />
                       <span className="text-gray-700">下载数据</span>
                     </label>
                     <label className="flex items-center space-x-3">

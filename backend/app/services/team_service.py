@@ -301,9 +301,9 @@ class TeamService:
             raise ValueError("团队不存在或已停用")
 
         try:
-            target_role = TeamMembershipRole(role) if role else TeamMembershipRole.DOCTOR
+            target_role = TeamMembershipRole(role) if role else TeamMembershipRole.MEMBER
         except ValueError:
-            target_role = TeamMembershipRole.DOCTOR
+            target_role = TeamMembershipRole.MEMBER
 
         invitee_user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
         if invitee_user:
@@ -540,14 +540,14 @@ class TeamService:
                 membership_record.role = (
                     membership_record.role
                     if membership_record.role == TeamMembershipRole.ADMIN
-                    else TeamMembershipRole.DOCTOR
+                    else TeamMembershipRole.MEMBER
                 )
                 membership_record.updated_at = now
             else:
                 membership_record = TeamMembership(
                     team_id=team_id,
                     user_id=join_request.user_id,
-                    role=TeamMembershipRole.DOCTOR,
+                    role=TeamMembershipRole.MEMBER,
                     status=TeamMembershipStatus.ACTIVE,
                     joined_at=now,
                 )

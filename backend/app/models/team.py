@@ -28,36 +28,37 @@ from .base import Base
 class TeamMembershipRole(str, enum.Enum):
     """团队成员角色枚举"""
 
-    ADMIN = "admin"
-    DOCTOR = "doctor"
-    MEMBER = "member"  # 普通成员
+    LEADER = "LEADER"
+    ADMIN = "ADMIN"
+    MEMBER = "MEMBER"
+    GUEST = "GUEST"
 
 
 class TeamMembershipStatus(str, enum.Enum):
     """团队成员状态枚举"""
 
-    ACTIVE = "active"
-    INVITED = "invited"
-    PENDING = "pending"
-    INACTIVE = "inactive"
+    ACTIVE = "ACTIVE"
+    INVITED = "INVITED"
+    PENDING = "PENDING"
+    INACTIVE = "INACTIVE"
 
 
 class TeamJoinRequestStatus(str, enum.Enum):
     """团队加入申请状态"""
 
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    CANCELLED = "cancelled"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
 
 
 class TeamInvitationStatus(str, enum.Enum):
     """团队邀请状态"""
 
-    PENDING = "pending"
-    ACCEPTED = "accepted"
-    EXPIRED = "expired"
-    REVOKED = "revoked"
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    EXPIRED = "EXPIRED"
+    REVOKED = "REVOKED"
 
 
 class Team(Base):
@@ -117,7 +118,7 @@ class TeamMembership(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="用户ID")
     role = Column(
         Enum(TeamMembershipRole),
-        default=TeamMembershipRole.DOCTOR,
+        default=TeamMembershipRole.MEMBER,
         nullable=False,
         comment="团队角色",
     )
@@ -181,7 +182,7 @@ class TeamInvitation(Base):
     invitee_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, comment="受邀用户ID")
     role = Column(
         Enum(TeamMembershipRole),
-        default=TeamMembershipRole.DOCTOR,
+        default=TeamMembershipRole.MEMBER,
         nullable=False,
         comment="邀请角色",
     )

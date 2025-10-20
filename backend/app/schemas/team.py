@@ -124,7 +124,7 @@ class TeamInviteRequest(BaseModel):
     """团队邀请请求体"""
 
     email: EmailStr = Field(..., description="受邀人邮箱")
-    role: str = Field("doctor", description="邀请的团队角色")
+    role: str = Field("MEMBER", description="邀请的团队角色")
     message: Optional[str] = Field(None, description="附加邀请信息")
 
 

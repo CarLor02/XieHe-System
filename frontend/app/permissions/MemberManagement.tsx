@@ -76,7 +76,7 @@ export default function MemberManagement() {
     [members, user?.id]
   );
 
-  const isCurrentUserAdmin = currentMember?.role === 'admin';
+  const isCurrentUserAdmin = currentMember?.role === 'ADMIN';
 
   // 调试日志
   useEffect(() => {
@@ -345,14 +345,14 @@ export default function MemberManagement() {
               <div className="flex items-center gap-2">
                 <i className="ri-notification-badge-line text-2xl text-amber-600" />
                 <h3 className="text-lg font-semibold text-amber-900">待处理加入申请</h3>
-                {joinRequests.filter(r => r.status === 'pending').length > 0 && (
+                {joinRequests.filter(r => r.status === 'PENDING').length > 0 && (
                   <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-                    {joinRequests.filter(r => r.status === 'pending').length}
+                    {joinRequests.filter(r => r.status === 'PENDING').length}
                   </span>
                 )}
               </div>
               <p className="mt-1 text-sm text-amber-700">
-                {joinRequests.filter(r => r.status === 'pending').length > 0
+                {joinRequests.filter(r => r.status === 'PENDING').length > 0
                   ? '有新的成员申请加入团队，请及时审核。'
                   : '当前暂无待处理的加入申请。'}
               </p>
@@ -381,7 +381,7 @@ export default function MemberManagement() {
             ) : (
               <div className="divide-y divide-amber-100">
                 {joinRequests.map(request => {
-                  const isPending = request.status === 'pending';
+                  const isPending = request.status === 'PENDING';
                   return (
                     <div key={request.id} className="flex flex-col gap-3 px-6 py-4 transition hover:bg-amber-50/50 md:flex-row md:items-center md:justify-between">
                       <div className="flex-1 space-y-1">
@@ -413,23 +413,23 @@ export default function MemberManagement() {
                       <div className="flex flex-col items-start gap-2 md:items-end md:pl-4">
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                            request.status === 'pending'
+                            request.status === 'PENDING'
                               ? 'bg-amber-100 text-amber-700'
-                              : request.status === 'approved'
+                              : request.status === 'APPROVED'
                               ? 'bg-emerald-100 text-emerald-700'
-                              : request.status === 'rejected'
+                              : request.status === 'REJECTED'
                               ? 'bg-rose-100 text-rose-700'
                               : 'bg-gray-100 text-gray-700'
                           }`}
                         >
-                          {request.status === 'pending' && <i className="ri-time-line" />}
-                          {request.status === 'approved' && <i className="ri-check-line" />}
-                          {request.status === 'rejected' && <i className="ri-close-line" />}
-                          {request.status === 'pending'
+                          {request.status === 'PENDING' && <i className="ri-time-line" />}
+                          {request.status === 'APPROVED' && <i className="ri-check-line" />}
+                          {request.status === 'REJECTED' && <i className="ri-close-line" />}
+                          {request.status === 'PENDING'
                             ? '待审批'
-                            : request.status === 'approved'
+                            : request.status === 'APPROVED'
                             ? '已通过'
-                            : request.status === 'rejected'
+                            : request.status === 'REJECTED'
                             ? '已拒绝'
                             : '已撤销'}
                         </span>

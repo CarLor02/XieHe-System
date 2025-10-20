@@ -31,7 +31,7 @@ export interface TeamMember {
   username: string;
   real_name?: string | null;
   email?: string | null;
-  role: 'admin' | 'doctor' | 'member';
+  role: 'ADMIN' | 'MEMBER' | 'LEADER' | 'GUEST';
   status: string;
   department?: string | null;
   is_leader: boolean;
@@ -51,7 +51,7 @@ export interface TeamJoinRequestItem {
   applicant_real_name?: string | null;
   applicant_email?: string | null;
   message: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   requested_at: string;
   reviewed_at?: string | null;
   reviewer_id?: number | null;

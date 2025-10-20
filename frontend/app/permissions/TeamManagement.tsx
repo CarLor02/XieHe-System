@@ -19,6 +19,14 @@ import {
 import { useUser } from '@/store/authStore';
 
 const STATUS_BADGE_MAP: Record<string, string> = {
+  ACTIVE: 'bg-emerald-100 text-emerald-700',
+  INVITED: 'bg-amber-100 text-amber-700',
+  PENDING: 'bg-blue-100 text-blue-700',
+  INACTIVE: 'bg-gray-100 text-gray-500',
+  APPROVED: 'bg-emerald-100 text-emerald-700',
+  REJECTED: 'bg-red-100 text-red-700',
+  CANCELLED: 'bg-gray-100 text-gray-500',
+  // 兼容小写（如果后端返回小写）
   active: 'bg-emerald-100 text-emerald-700',
   invited: 'bg-amber-100 text-amber-700',
   pending: 'bg-blue-100 text-blue-700',
@@ -29,6 +37,11 @@ const STATUS_BADGE_MAP: Record<string, string> = {
 };
 
 const REQUEST_STATUS_MAP: Record<string, string> = {
+  PENDING: '待审批',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+  CANCELLED: '已取消',
+  // 兼容小写
   pending: '待审批',
   approved: '已通过',
   rejected: '已驳回',
@@ -36,9 +49,10 @@ const REQUEST_STATUS_MAP: Record<string, string> = {
 };
 
 const ROLE_LABEL_MAP: Record<string, string> = {
-  admin: '管理员',
-  doctor: '医生',
-  member: '普通成员',
+  ADMIN: '管理员',
+  MEMBER: '成员',
+  LEADER: '负责人',
+  GUEST: '访客',
 };
 
 const formatDateTime = (value?: string | null) =>
@@ -104,11 +118,22 @@ export default function TeamManagement() {
   }, [members, searchMemberKeyword]);
 
   const currentMember = useMemo(
-    () => members.find(member => (user?.id ? member.id === user.id : false)) ?? null,
-    [members, user?.id]
+    () => {
+      if (!user) return null;
+      
+      // user 的结构是 { user: { id, username, ... } }
+      const actualUser = (user as any).user || user;
+      const userId = actualUser.id;
+      
+      if (!userId) return null;
+      
+      // 确保类型一致再比较
+      return members.find(member => Number(member.id) === Number(userId)) ?? null;
+    },
+    [members, user]
   );
 
-  const isCurrentUserAdmin = currentMember?.role === 'admin';
+  const isCurrentUserAdmin = currentMember?.role === 'ADMIN';
 
   // 加载团队列表
   const loadTeams = async () => {
@@ -133,7 +158,7 @@ export default function TeamManagement() {
       const response: TeamMembersResponse | undefined = await getTeamMembers(teamId);
       setMembers(response?.members ?? []);
     } catch (err) {
-      console.error(err);
+      console.error('获取成员列表失败:', err);
       setError('获取成员列表失败');
     } finally {
       setLoadingMembers(false);
@@ -147,7 +172,7 @@ export default function TeamManagement() {
       const response = await getTeamJoinRequests(teamId);
       setJoinRequests(response.items);
     } catch (err) {
-      console.error(err);
+      console.error('获取申请列表失败:', err);
       setError('获取申请列表失败');
     } finally {
       setLoadingJoinRequests(false);
@@ -244,7 +269,7 @@ export default function TeamManagement() {
       setSearchResults(prev =>
         prev.map(item =>
           item.id === targetTeamId
-            ? { ...item, join_status: 'pending', join_request_id: response.request_id }
+            ? { ...item, join_status: 'PENDING', join_request_id: response.request_id }
             : item
         )
       );
@@ -292,11 +317,18 @@ export default function TeamManagement() {
   }, [selectedTeamId, isAuthenticated]);
 
   useEffect(() => {
-    if (!selectedTeamId || !isAuthenticated || !isCurrentUserAdmin || members.length === 0) {
+    if (!selectedTeamId || !isAuthenticated) {
       setJoinRequests([]);
       return;
     }
-    loadJoinRequests(selectedTeamId);
+    // 只有当 members 加载完成且当前用户是管理员时才加载申请列表
+    if (members.length > 0 && isCurrentUserAdmin) {
+      loadJoinRequests(selectedTeamId);
+    } else if (members.length > 0 && !isCurrentUserAdmin) {
+      // 如果不是管理员，清空申请列表
+      setJoinRequests([]);
+    }
+    // 当 members 为空时不做任何操作，等待加载完成
   }, [selectedTeamId, isAuthenticated, isCurrentUserAdmin, members.length]);
 
   if (!isAuthenticated) {
@@ -343,7 +375,7 @@ export default function TeamManagement() {
           ) : (
             <div className="divide-y divide-gray-100">
               {myTeams.map(team => {
-                const isPending = team.join_status === 'pending';
+                const isPending = team.join_status === 'PENDING' || team.join_status === 'pending';
                 const isSelected = team.id === selectedTeamId;
                 
                 return (
@@ -534,7 +566,7 @@ export default function TeamManagement() {
                   <div>
                     <h3 className="font-semibold text-gray-900">加入申请</h3>
                     <p className="text-xs text-gray-500">
-                      待处理 {joinRequests.filter(r => r.status === 'pending').length} 条
+                      待处理 {joinRequests.filter(r => r.status === 'PENDING').length} 条
                     </p>
                   </div>
                   <button
@@ -553,7 +585,7 @@ export default function TeamManagement() {
                     <div className="px-4 py-6 text-center text-sm text-gray-500">暂无申请记录</div>
                   ) : (
                     joinRequests.map(request => {
-                      const isPending = request.status === 'pending';
+                      const isPending = request.status === 'PENDING';
                       const isProcessing = processingRequestId === request.id;
 
                       return (
@@ -754,7 +786,7 @@ export default function TeamManagement() {
                   </div>
                 ) : (
                   searchResults.map(team => {
-                    const isPending = team.join_status === 'pending';
+                    const isPending = team.join_status === 'PENDING' || team.join_status === 'pending';
                     const isCancelling = cancellingRequestId === team.join_request_id;
 
                     return (
