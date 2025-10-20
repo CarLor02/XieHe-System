@@ -41,7 +41,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [reportText, setReportText] = useState('');
   const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isMeasurementsLoading, setIsMeasurementsLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [studyData, setStudyData] = useState<StudyData | null>(null);
   const [studyLoading, setStudyLoading] = useState(true);
@@ -484,13 +484,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
-  // 加载测量数据
+  // 加载测量数据 - 异步加载，不阻止图像显示
   useEffect(() => {
     loadMeasurements();
   }, [imageId]);
 
   const loadMeasurements = async () => {
-    setIsLoading(true);
+    setIsMeasurementsLoading(true);
     try {
       const client = createAuthenticatedClient();
       const response = await client.get(`/api/v1/measurements/${imageId}`);
@@ -507,7 +507,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       console.log('加载测量数据失败:', error);
       // 如果加载失败，使用默认空数据
     } finally {
-      setIsLoading(false);
+      setIsMeasurementsLoading(false);
     }
   };
 
@@ -614,23 +614,17 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         {/* 中间影像查看区域 */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="bg-black flex items-center justify-center relative flex-1 overflow-hidden">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center text-white">
-                <i className="ri-loader-line w-8 h-8 flex items-center justify-center animate-spin mb-3 text-2xl"></i>
-                <p className="text-sm">加载测量数据中...</p>
-              </div>
-            ) : (
-              <ImageCanvas
-                selectedImage={imageData}
-                measurements={measurements}
-                selectedTool={selectedTool}
-                onMeasurementAdd={addMeasurement}
-                tools={tools}
-                clickedPoints={clickedPoints}
-                setClickedPoints={setClickedPoints}
-                imageId={imageId}
-              />
-            )}
+            {/* 直接显示ImageCanvas，让它自己处理图像加载状态 */}
+            <ImageCanvas
+              selectedImage={imageData}
+              measurements={measurements}
+              selectedTool={selectedTool}
+              onMeasurementAdd={addMeasurement}
+              tools={tools}
+              clickedPoints={clickedPoints}
+              setClickedPoints={setClickedPoints}
+              imageId={imageId}
+            />
           </div>
         </div>
 
@@ -725,11 +719,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             <div className="max-h-32 overflow-y-auto">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-medium text-white">测量结果</h4>
-                {measurements.length > 0 && (
+                {isMeasurementsLoading ? (
+                  <span className="text-xs text-blue-400 flex items-center space-x-1">
+                    <i className="ri-loader-line w-3 h-3 flex items-center justify-center animate-spin"></i>
+                    <span>加载中...</span>
+                  </span>
+                ) : measurements.length > 0 ? (
                   <span className="text-xs text-gray-400">
                     ({measurements.length}项)
                   </span>
-                )}
+                ) : null}
               </div>
               {measurements.length > 0 ? (
                 <div className="space-y-2">
@@ -925,6 +924,10 @@ function ImageCanvas({
     setIsDragging(false);
   };
 
+  const handleDoubleClick = () => {
+    resetView();
+  };
+
   const handleWheel = (e: React.WheelEvent) => {
     if (isHovering) {
       e.preventDefault();
@@ -935,6 +938,61 @@ function ImageCanvas({
       setImageScale(newScale);
     }
   };
+
+  // 使用useEffect添加非被动的wheel事件监听器和键盘快捷键
+  useEffect(() => {
+    const container = document.querySelector(
+      '[data-image-canvas]'
+    ) as HTMLElement;
+    if (!container) return;
+
+    const handleWheelEvent = (e: Event) => {
+      const wheelEvent = e as WheelEvent;
+      if (isHovering) {
+        wheelEvent.preventDefault();
+        wheelEvent.stopPropagation();
+
+        // 改进：使用更小的步长，便于精确调整
+        const delta = wheelEvent.deltaY > 0 ? 0.95 : 1.05;
+        const newScale = Math.max(0.1, Math.min(5, imageScale * delta));
+        setImageScale(newScale);
+      }
+    };
+
+    // 键盘快捷键处理
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // R 键：重置视图到 100%
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        resetView();
+      }
+      // 1 键：快速设置为 100%
+      if (e.key === '1') {
+        e.preventDefault();
+        setImageScale(1);
+      }
+      // + 键：放大
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        setImageScale(prev => Math.min(5, prev * 1.2));
+      }
+      // - 键：缩小
+      if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        setImageScale(prev => Math.max(0.1, prev * 0.8));
+      }
+    };
+
+    container.addEventListener('wheel', handleWheelEvent as EventListener, {
+      passive: false,
+    });
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      container.removeEventListener('wheel', handleWheelEvent as EventListener);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isHovering, imageScale]);
 
   const resetView = () => {
     setImagePosition({ x: 0, y: 0 });
@@ -954,6 +1012,7 @@ function ImageCanvas({
 
   return (
     <div
+      data-image-canvas
       className={`relative w-full h-full overflow-hidden ${getCursorStyle()} ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -961,6 +1020,7 @@ function ImageCanvas({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onWheel={handleWheel}
+      onDoubleClick={handleDoubleClick}
     >
       {/* 左上角测量结果展示区 */}
       <div className="absolute top-4 left-4 z-10">
@@ -1011,28 +1071,39 @@ function ImageCanvas({
         <div className="flex items-center space-x-1 pr-2 border-r border-white/20">
           <button
             onClick={() => setImageScale(Math.min(5, imageScale * 1.2))}
-            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white"
-            title="放大"
+            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
+            title="放大 (快捷键: +)"
           >
             <i className="ri-zoom-in-line w-3 h-3 flex items-center justify-center"></i>
           </button>
           <button
             onClick={() => setImageScale(Math.max(0.1, imageScale * 0.8))}
-            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white"
-            title="缩小"
+            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
+            title="缩小 (快捷键: -)"
           >
             <i className="ri-zoom-out-line w-3 h-3 flex items-center justify-center"></i>
           </button>
+
+          {/* 缩放百分比显示和快速设置 */}
+          <button
+            onClick={() => setImageScale(1)}
+            className={`px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+              Math.abs(imageScale - 1) < 0.01
+                ? 'bg-blue-500 text-white'
+                : 'text-white/70 hover:bg-white/20 hover:text-white'
+            }`}
+            title="设置为 100% (快捷键: 1)"
+          >
+            {Math.round(imageScale * 100)}%
+          </button>
+
           <button
             onClick={resetView}
-            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white"
-            title="重置视图 - 恢复原始位置和缩放"
+            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
+            title="重置视图 (快捷键: R) - 恢复原始位置和缩放"
           >
             <i className="ri-refresh-line w-3 h-3 flex items-center justify-center"></i>
           </button>
-          <div className="text-xs text-white/70 px-1.5">
-            {Math.round(imageScale * 100)}%
-          </div>
         </div>
 
         {selectedTool !== 'hand' && (
