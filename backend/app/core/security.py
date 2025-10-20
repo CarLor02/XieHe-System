@@ -52,65 +52,38 @@ class SecurityManager:
     
     def hash_password(self, password: str) -> str:
         """
-        加密密码
+        加密密码 - 使用 bcrypt
 
         Args:
             password: 明文密码
 
         Returns:
-            str: 加密后的密码哈希
+            str: bcrypt 哈希值（格式：$2b$12$...）
 
         Note:
-            为了避免 bcrypt 的 72 字节限制，先对密码进行 SHA256 哈希
+            bcrypt 自动生成并包含盐值，无需单独存储
+            默认使用 12 轮加密（约 0.3 秒验证时间）
         """
-        import hashlib
-        import base64
+        # 直接使用 bcrypt 加密，无需预处理
+        # bcrypt 会自动处理 72 字节限制
+        return pwd_context.hash(password)
 
-        # 先用 SHA256 哈希密码，避免 bcrypt 的 72 字节限制
-        password_bytes = password.encode('utf-8')
-        sha256_hash = hashlib.sha256(password_bytes).digest()
-        # 使用 base64 编码使其成为可打印字符串
-        password_b64 = base64.b64encode(sha256_hash).decode('utf-8')
-
-        return pwd_context.hash(password_b64)
-    
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """
-        验证密码
+        验证密码 - 使用 bcrypt
 
         Args:
             plain_password: 明文密码
-            hashed_password: 加密后的密码哈希
+            hashed_password: bcrypt 哈希值
 
         Returns:
             bool: 密码是否正确
         """
-        import hashlib
-        import base64
-
-        # 首先尝试 PBKDF2 验证（用于初始化脚本创建的用户）
-        if ':' in hashed_password:
-            try:
-                salt, stored_hash = hashed_password.split(':')
-                password_hash = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt.encode('utf-8'), 100000)
-                if password_hash.hex() == stored_hash:
-                    return True
-            except Exception:
-                pass
-
-        # 然后尝试 bcrypt 验证（用于新注册的用户）
         try:
-            # 先用 SHA256 哈希密码，与 hash_password 保持一致
-            password_bytes = plain_password.encode('utf-8')
-            sha256_hash = hashlib.sha256(password_bytes).digest()
-            password_b64 = base64.b64encode(sha256_hash).decode('utf-8')
-
-            if pwd_context.verify(password_b64, hashed_password):
-                return True
-        except Exception:
-            pass
-
-        return False
+            return pwd_context.verify(plain_password, hashed_password)
+        except Exception as e:
+            logger.debug(f"密码验证失败: {e}")
+            return False
     
     def generate_random_password(self, length: int = 12) -> str:
         """

@@ -132,9 +132,9 @@ XieHe-System/
 
 ### 安装步骤
 
-#### 方式一：演示模式（快速体验，推荐）
+#### 方式一：标准启动（推荐）
 
-演示模式使用内置模拟数据，无需配置外部数据库，适合快速体验和功能测试。
+标准启动方式适合开发和测试环境。
 
 1. **克隆项目**
    ```bash
@@ -159,92 +159,79 @@ XieHe-System/
    cd ..
    ```
 
-4. **启动服务**
+4. **配置数据库**
    ```bash
-   # 启动后端（演示模式，内置模拟数据）
+   # 启动 MySQL 和 Redis（使用 Docker）
+   docker compose up -d mysql redis
+
+   # 或者使用本地安装的 MySQL 和 Redis
+   # 确保 MySQL 运行在 3307 端口，Redis 运行在 6380 端口
+   ```
+
+5. **初始化数据库**
+   ```bash
    cd backend
    conda activate xiehe
-   python start_demo.py
+   python scripts/init_database.py
+   cd ..
+   ```
+
+6. **启动服务**
+   ```bash
+   # 启动后端
+   cd backend
+   conda activate xiehe
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
    # 新开终端，启动前端
    cd frontend
    npm run dev
    ```
 
-5. **访问应用**
+7. **访问应用**
    - 前端应用: http://localhost:3000
    - 后端API: http://localhost:8000
-   - API文档: http://localhost:8000/docs
+   - API文档: http://localhost:8000/api/v1/docs
    - 健康检查: http://localhost:8000/health
 
-#### 方式二：完整模式（开发/生产环境）
+#### 方式二：Docker 完整部署
 
-完整模式需要配置 MySQL 和 Redis，适合开发和生产环境。
+使用 Docker Compose 一键启动所有服务（推荐用于生产环境）。
 
-1. **配置数据库连接**
-
-   在 `backend/.env` 文件中配置：
+1. **启动所有服务**
    ```bash
-   # 数据库配置
-   DB_HOST=115.190.121.59
-   DB_PORT=3306
-   DB_USER=root
-   DB_PASSWORD=your_password
-   DB_NAME=medical_imaging_system
+   # 使用 Docker Compose 启动所有服务
+   docker compose up -d
 
-   # Redis 配置
-   REDIS_HOST=115.190.121.59
-   REDIS_PORT=6379
-   REDIS_PASSWORD=your_redis_password
-
-   # 应用配置
-   ENVIRONMENT=development
-   DEBUG=true
-   SECRET_KEY=your-secret-key-here
-
-   # JWT 配置
-   ACCESS_TOKEN_EXPIRE_MINUTES=30
-   REFRESH_TOKEN_EXPIRE_DAYS=7
-
-   # API 配置
-   API_V1_STR=/api/v1
-
-   # CORS 配置
-   BACKEND_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+   # 或使用启动脚本
+   ./scripts/docker_start_all.sh
    ```
 
-2. **初始化数据库**
+2. **访问应用**
+   - 前端应用: http://localhost:3000
+   - 后端API: http://localhost:8000
+   - API文档: http://localhost:8000/api/v1/docs
+   - MySQL: localhost:3307
+   - Redis: localhost:6380
+
+3. **停止服务**
    ```bash
-   cd backend
-   conda activate xiehe
-   # 完整初始化（创建所有表+插入初始数据）
-   python scripts/init_database.py
+   docker compose down
    ```
 
-3. **启动完整版后端**
+#### 方式三：混合模式（数据库 Docker + 应用传统启动）
+
+适合开发环境，数据库使用 Docker，前后端使用传统方式启动。
+
+1. **启动混合模式**
    ```bash
-   cd backend
-   conda activate xiehe
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ./scripts/start_hybrid.sh
    ```
 
-   **重要提示**:
-   - ✅ 必须在 `backend` 目录下运行
-   - ✅ 使用 `uvicorn app.main:app` 而不是 `python app/main.py`
-   - ✅ 确保已激活 conda 环境
-
-#### 方式三：Docker 部署
-
-```bash
-# 构建并启动所有服务
-docker-compose up -d
-
-# 查看服务状态
-docker-compose ps
-
-# 查看日志
-docker-compose logs -f
-```
+2. **停止服务**
+   ```bash
+   ./scripts/stop_all.sh
+   ```
 
 ### 常用命令
 
@@ -252,7 +239,7 @@ docker-compose logs -f
 # 查看所有可用命令
 make help
 
-# 快速启动（演示模式）
+# 快速启动（Docker 模式）
 make start
 
 # 开发环境启动

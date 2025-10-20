@@ -4,97 +4,97 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createAuthenticatedClient } from '@/store/authStore';
 
+// 患者详情数据接口
 interface PatientDetail {
-  id: string;
+  id: number;
+  patient_id: string;
   name: string;
-  patientId: string;
   gender: string;
-  birthDate: string;
+  birth_date: string;
   age: number;
   phone: string;
-  idCard: string;
+  email: string;
+  id_card: string;
   address: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  lastVisit: string;
-  totalExams: number;
-  status: 'active' | 'inactive';
-  medicalHistory: string[];
-  diagnoses: {
-    AIS: { status: boolean; value: string; description: string };
-    DS: { status: boolean; value: string; description: string };
-    CS: { status: boolean; value: string; description: string };
-    NMS: { status: boolean; value: string; description: string };
-  };
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  insurance_number: string;
+  medical_history: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }
 
-interface ExamRecord {
-  id: string;
-  date: string;
-  type: string;
-  doctor: string;
-  diagnosis: string;
-  status: 'completed' | 'pending' | 'cancelled';
+interface Study {
+  id: number;
+  study_date: string;
+  modality: string;
+  description: string;
+  status: string;
+  patient_name?: string;
 }
 
-const mockPatientDetail: PatientDetail = {
-  id: '1',
-  name: '张三',
-  patientId: 'P202401001',
-  gender: '男',
-  birthDate: '1985-03-15',
-  age: 39,
-  phone: '138****1234',
-  idCard: '320102198503159527',
-  address: '江苏省南京市玄武区中山路123号',
-  emergencyContact: '李女士（妻子）',
-  emergencyPhone: '139****5678',
-  lastVisit: '2024-01-15',
-  totalExams: 3,
-  status: 'active',
-  medicalHistory: ['腰椎间盘突出', '颈椎病'],
-  diagnoses: {
-    AIS: { status: true, value: '250', description: '钙化积分 250' },
-    DS: { status: false, value: '阴性', description: '深静脉血栓阴性' },
-    CS: { status: true, value: '70%', description: '冠状动脉狭窄 70%' },
-    NMS: { status: true, value: 'L4-L5突出', description: '椎间盘突出' },
-  },
+const defaultDiagnoses = {
+  AIS: { status: false, value: '未检查', description: '钙化积分未检查' },
+  DS: { status: false, value: '未检查', description: '深静脉血栓未检查' },
+  CS: { status: false, value: '未检查', description: '冠状动脉狭窄未检查' },
+  NMS: { status: false, value: '未检查', description: '神经肌肉系统未检查' },
 };
-
-const mockExamRecords: ExamRecord[] = [
-  {
-    id: '1',
-    date: '2025-01-15',
-    type: '正位X光片',
-    doctor: '吴医生',
-    diagnosis: '轻度脊柱侧弯',
-    status: 'completed',
-  },
-  {
-    id: '2',
-    date: '2024-01-10',
-    type: '侧位X光片',
-    doctor: '吴医生',
-    diagnosis: '腰椎生理曲度变直',
-    status: 'completed',
-  },
-  {
-    id: '3',
-    date: '2024-01-05',
-    type: '体态照片',
-    doctor: '吴医生',
-    diagnosis: '高低肩，骨盆倾斜',
-    status: 'completed',
-  },
-];
 
 export default function PatientDetail({ patientId }: { patientId: string }) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isEditingDiagnoses, setIsEditingDiagnoses] = useState(false);
-  const [diagnoses, setDiagnoses] = useState(mockPatientDetail.diagnoses);
+  const [diagnoses, setDiagnoses] = useState(defaultDiagnoses);
+  const [patient, setPatient] = useState<PatientDetail | null>(null);
+  const [studies, setStudies] = useState<Study[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [studiesLoading, setStudiesLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 从后端加载患者数据
+  useEffect(() => {
+    const fetchPatient = async () => {
+      try {
+        setLoading(true);
+        const client = createAuthenticatedClient();
+        const response = await client.get(`/api/v1/patients/${patientId}`);
+        setPatient(response.data);
+        setError(null);
+      } catch (err: any) {
+        console.error('获取患者详情失败:', err);
+        setError(err.response?.data?.detail || '获取患者详情失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPatient();
+  }, [patientId]);
+
+  // 从后端加载检查记录
+  useEffect(() => {
+    const fetchStudies = async () => {
+      try {
+        setStudiesLoading(true);
+        const client = createAuthenticatedClient();
+        const response = await client.get(`/api/v1/studies/?patient_id=${patientId}&page=1&page_size=10`);
+        setStudies(response.data.studies || []);
+      } catch (err: any) {
+        console.error('获取检查记录失败:', err);
+        setStudies([]);
+      } finally {
+        setStudiesLoading(false);
+      }
+    };
+
+    if (patientId) {
+      fetchStudies();
+    }
+  }, [patientId]);
 
   const updateDiagnosis = (
     type: keyof typeof diagnoses,
@@ -145,6 +145,51 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
       : 'bg-gray-100 text-gray-800';
   };
 
+  // 加载状态
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Sidebar />
+        <Header />
+        <main className="ml-64 p-6">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">加载中...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // 错误状态
+  if (error || !patient) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Sidebar />
+        <Header />
+        <main className="ml-64 p-6">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="ri-error-warning-line text-3xl text-red-600"></i>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">加载失败</h3>
+              <p className="text-gray-600 mb-4">{error || '患者不存在'}</p>
+              <button
+                onClick={() => router.back()}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                返回
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
@@ -152,13 +197,15 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
 
       <main className="ml-64 p-6">
         <div className="mb-6">
+          {/* 页面标题和操作栏 */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => router.back()}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="w-10 h-10 rounded-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm hover:shadow flex items-center justify-center group"
+                title="返回上一页"
               >
-                <i className="ri-arrow-left-line w-5 h-5 flex items-center justify-center"></i>
+                <i className="ri-arrow-left-line text-lg group-hover:scale-110 transition-transform"></i>
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">患者详情</h1>
@@ -169,16 +216,16 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
             <div className="flex space-x-3">
               <Link
                 href={`/patients/${patientId}/edit`}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 whitespace-nowrap"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors shadow-sm hover:shadow"
               >
-                <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
+                <i className="ri-edit-line"></i>
                 <span>编辑信息</span>
               </Link>
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center space-x-2 whitespace-nowrap"
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center space-x-2 transition-colors shadow-sm hover:shadow"
               >
-                <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
+                <i className="ri-delete-bin-line"></i>
                 <span>删除患者</span>
               </button>
             </div>
@@ -186,104 +233,103 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* 基本信息卡片 */}
-            <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  基本信息
-                </h3>
+            <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">基本信息</h3>
                 <span
                   className={`px-3 py-1 rounded-full text-sm ${
-                    mockPatientDetail.status === 'active'
+                    patient.status === 'active'
                       ? 'bg-green-100 text-green-800'
                       : 'bg-gray-100 text-gray-800'
                   }`}
                 >
-                  {mockPatientDetail.status === 'active' ? '活跃' : '非活跃'}
+                  {patient.status === 'active' ? '活跃' : '非活跃'}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      姓名
-                    </label>
-                    <p className="text-gray-900 font-medium">
-                      {mockPatientDetail.name}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      患者ID
-                    </label>
-                    <p className="text-gray-900">
-                      {mockPatientDetail.patientId}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      性别
-                    </label>
-                    <p className="text-gray-900">{mockPatientDetail.gender}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      出生日期
-                    </label>
-                    <p className="text-gray-900">
-                      {mockPatientDetail.birthDate}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      年龄
-                    </label>
-                    <p className="text-gray-900">{mockPatientDetail.age} 岁</p>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    姓名
+                  </label>
+                  <p className="text-gray-900 font-medium">{patient.name}</p>
                 </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      联系电话
-                    </label>
-                    <p className="text-gray-900">{mockPatientDetail.phone}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      身份证号
-                    </label>
-                    <p className="text-gray-900">{mockPatientDetail.idCard}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      家庭地址
-                    </label>
-                    <p className="text-gray-900">{mockPatientDetail.address}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      紧急联系人
-                    </label>
-                    <p className="text-gray-900">
-                      {mockPatientDetail.emergencyContact}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">
-                      紧急联系电话
-                    </label>
-                    <p className="text-gray-900">
-                      {mockPatientDetail.emergencyPhone}
-                    </p>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    患者编号
+                  </label>
+                  <p className="text-gray-900">{patient.patient_id}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    性别
+                  </label>
+                  <p className="text-gray-900">{patient.gender}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    出生日期
+                  </label>
+                  <p className="text-gray-900">{patient.birth_date}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    年龄
+                  </label>
+                  <p className="text-gray-900">{patient.age} 岁</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    联系电话
+                  </label>
+                  <p className="text-gray-900">{patient.phone || '未填写'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    电子邮箱
+                  </label>
+                  <p className="text-gray-900 break-all">{patient.email || '未填写'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    身份证号
+                  </label>
+                  <p className="text-gray-900">{patient.id_card || '未填写'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    医保卡号
+                  </label>
+                  <p className="text-gray-900">{patient.insurance_number || '未填写'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    家庭地址
+                  </label>
+                  <p className="text-gray-900">{patient.address || '未填写'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    紧急联系人
+                  </label>
+                  <p className="text-gray-900">
+                    {patient.emergency_contact_name || '未填写'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    紧急联系电话
+                  </label>
+                  <p className="text-gray-900">
+                    {patient.emergency_contact_phone || '未填写'}
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* 统计信息卡片 */}
-            <div className="space-y-4">
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="space-y-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   就诊统计
                 </h3>
@@ -291,53 +337,55 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">总检查次数</span>
                     <span className="text-2xl font-bold text-blue-600">
-                      {mockPatientDetail.totalExams}
+                      {studiesLoading ? '-' : studies.length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">最近就诊</span>
                     <span className="text-gray-900">
-                      {mockPatientDetail.lastVisit}
+                      {studies.length > 0 && studies[0].study_date
+                        ? new Date(studies[0].study_date).toLocaleDateString('zh-CN')
+                        : '暂无记录'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">建档时间</span>
-                    <span className="text-gray-900">2024-01-01</span>
+                    <span className="text-gray-900">
+                      {patient.created_at
+                        ? new Date(patient.created_at).toLocaleDateString('zh-CN')
+                        : '未知'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   医疗信息
                 </h3>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-2">
                     既往病史
                   </label>
-                  <div className="space-y-1">
-                    {mockPatientDetail.medicalHistory.map((history, index) => (
-                      <span
-                        key={index}
-                        className="inline-block bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded mr-2 mb-1"
-                      >
-                        {history}
-                      </span>
-                    ))}
-                  </div>
+                  {patient.medical_history ? (
+                    <p className="text-gray-900 text-sm whitespace-pre-wrap">
+                      {patient.medical_history}
+                    </p>
+                  ) : (
+                    <p className="text-gray-500 text-sm">暂无病史记录</p>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
           {/* 临床诊断卡片 */}
-          <div className="mt-6 bg-white rounded-lg border border-gray-200 p-6">
+          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">临床诊断</h3>
               <button
                 onClick={() => setIsEditingDiagnoses(!isEditingDiagnoses)}
-                className="text-blue-600 hover:text-blue-700 text-sm flex items-center space-x-1"
+                className="text-blue-600 hover:text-blue-700 text-sm flex items-center space-x-1 transition-colors"
               >
                 <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
                 <span>{isEditingDiagnoses ? '完成编辑' : '编辑诊断'}</span>
@@ -427,92 +475,93 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
           </div>
 
           {/* 检查记录 */}
-          <div className="mt-6 bg-white rounded-lg border border-gray-200 p-6">
+          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">检查记录</h3>
               <Link
-                href={`/upload?returnTo=/patients/${patientId}&patientId=${mockPatientDetail.patientId}&patientName=${encodeURIComponent(mockPatientDetail.name)}`}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 whitespace-nowrap"
+                href={`/upload?returnTo=/patients/${patientId}&patientId=${patient.patient_id}&patientName=${encodeURIComponent(patient.name)}`}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors"
               >
                 <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
                 <span>新增检查</span>
               </Link>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      检查日期
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      检查类型
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      主治医生
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      诊断结果
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      状态
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                      操作
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {mockExamRecords.map(record => (
-                    <tr key={record.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {record.date}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {record.type}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {record.doctor}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        {record.diagnosis}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full ${
-                            record.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : record.status === 'pending'
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {record.status === 'completed'
-                            ? '已完成'
-                            : record.status === 'pending'
-                              ? '进行中'
-                              : '已取消'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center space-x-2">
-                          <Link
-                            href={`/imaging?exam=${record.id}`}
-                            className="text-blue-600 hover:text-blue-700 text-sm whitespace-nowrap"
-                          >
-                            查看影像
-                          </Link>
-                          <button className="text-green-600 hover:text-green-700 text-sm whitespace-nowrap">
-                            下载报告
-                          </button>
-                        </div>
-                      </td>
+            {studiesLoading ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500">加载检查记录中...</div>
+              </div>
+            ) : studies.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500">暂无检查记录</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        检查日期
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        检查类型
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        检查描述
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        状态
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                        操作
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {studies.map(study => (
+                      <tr key={study.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-4 text-sm text-gray-900">
+                          {study.study_date ? new Date(study.study_date).toLocaleDateString('zh-CN') : '-'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-900">
+                          {study.modality || '-'}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-900">
+                          {study.description || '-'}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              study.status === 'completed'
+                                ? 'bg-green-100 text-green-800'
+                                : study.status === 'pending'
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {study.status === 'completed'
+                              ? '已完成'
+                              : study.status === 'pending'
+                                ? '进行中'
+                                : study.status || '未知'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center space-x-2">
+                            <Link
+                              href={`/studies/${study.id}`}
+                              className="text-blue-600 hover:text-blue-700 text-sm transition-colors"
+                            >
+                              查看详情
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 
@@ -530,24 +579,30 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               </div>
 
               <p className="text-gray-600 mb-6">
-                确定要删除患者 "{mockPatientDetail.name}"
+                确定要删除患者 "{patient.name}"
                 的所有信息吗？此操作不可恢复。
               </p>
 
               <div className="flex space-x-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-7
-                  hover:bg-gray-50 whitespace-nowrap"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   取消
                 </button>
                 <button
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    router.push('/patients');
+                  onClick={async () => {
+                    try {
+                      const client = createAuthenticatedClient();
+                      await client.delete(`/api/v1/patients/${patientId}`);
+                      router.push('/patients');
+                    } catch (err: any) {
+                      console.error('删除患者失败:', err);
+                      alert(err.response?.data?.detail || '删除患者失败');
+                      setShowDeleteModal(false);
+                    }
                   }}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 whitespace-nowrap"
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   确认删除
                 </button>

@@ -76,8 +76,8 @@ export interface RegisterData {
 }
 
 // API 基础URL
-// 在开发环境中使用空字符串（相对路径，通过 Next.js 代理）
-// 在生产环境中使用环境变量或空字符串
+// 开发环境：使用 NEXT_PUBLIC_API_URL 直接访问后端 (http://127.0.0.1:8000)
+// 生产环境：使用环境变量或空字符串（相对路径）
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // 创建认证状态管理
@@ -97,10 +97,23 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
 
+          console.log('[Auth] 登录请求:', {
+            url: `${API_BASE_URL}/api/v1/auth/login`,
+            fullUrl: `${API_BASE_URL}/api/v1/auth/login`,
+            username: credentials.username,
+            API_BASE_URL: API_BASE_URL
+          });
+
           const response = await axios.post(
             `${API_BASE_URL}/api/v1/auth/login`,
             credentials
           );
+
+          console.log('[Auth] 登录响应:', {
+            status: response.status,
+            data: response.data
+          });
+
           const { access_token, refresh_token, user } = response.data;
 
           set({
@@ -114,10 +127,35 @@ export const useAuthStore = create<AuthState>()(
 
           return true;
         } catch (error: any) {
-          const errorMessage =
-            error.response?.data?.message ||
-            error.response?.data?.detail ||
-            '登录失败，请检查用户名和密码';
+          console.error('[Auth] 登录失败 - 完整错误:', error);
+          console.error('[Auth] 登录失败 - 详细信息:', {
+            message: error.message,
+            name: error.name,
+            code: error.code,
+            response: error.response,
+            responseData: error.response?.data,
+            responseStatus: error.response?.status,
+            responseHeaders: error.response?.headers,
+            request: error.request,
+            config: error.config,
+            stack: error.stack
+          });
+
+          let errorMessage = '登录失败，请检查用户名和密码';
+
+          if (error.response) {
+            // 服务器返回了错误响应
+            errorMessage = error.response.data?.message ||
+                          error.response.data?.detail ||
+                          `服务器错误 (${error.response.status})`;
+          } else if (error.request) {
+            // 请求已发出但没有收到响应
+            errorMessage = '无法连接到服务器，请检查网络连接';
+          } else {
+            // 请求配置出错
+            errorMessage = error.message || '登录请求失败';
+          }
+
           set({
             isAuthenticated: false,
             user: null,
@@ -316,7 +354,7 @@ export const useAuthStore = create<AuthState>()(
 // 创建带认证的 HTTP 客户端
 export const createAuthenticatedClient = (): AxiosInstance => {
   const client = axios.create({
-    baseURL: '', // 使用相对路径，通过 Next.js 代理
+    baseURL: API_BASE_URL, // 使用与登录相同的 API_BASE_URL
     maxRedirects: 0, // 禁用自动重定向，避免 308 重定向问题
     validateStatus: status => status < 500, // 不要在 3xx 和 4xx 时抛出错误
   });

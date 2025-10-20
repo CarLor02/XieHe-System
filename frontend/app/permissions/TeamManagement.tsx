@@ -38,6 +38,7 @@ const REQUEST_STATUS_MAP: Record<string, string> = {
 const ROLE_LABEL_MAP: Record<string, string> = {
   admin: '管理员',
   doctor: '医生',
+  member: '普通成员',
 };
 
 const formatDateTime = (value?: string | null) =>
