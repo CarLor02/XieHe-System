@@ -910,7 +910,43 @@ function ImageCanvas({
         setIsDragging(true);
         setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
       } else {
-        // 其他工具时，按住左键可以调整亮度和对比度
+        // 其他工具时，检查是否点击了已有的点（用于删除）
+        // 或者开始调整亮度和对比度
+
+        // 计算相对于图像的坐标（考虑缩放和平移）
+        const imageX = (x - imagePosition.x) / imageScale;
+        const imageY = (y - imagePosition.y) / imageScale;
+
+        // 检查是否点击了已有的点（点击范围：5像素）
+        let clickedExistingPoint = false;
+        for (let i = 0; i < clickedPoints.length; i++) {
+          const point = clickedPoints[i];
+          const distance = Math.sqrt(
+            Math.pow(imageX - point.x, 2) + Math.pow(imageY - point.y, 2)
+          );
+          if (distance < 5 / imageScale) {
+            // 点击了已有的点，删除它
+            setClickedPoints(clickedPoints.filter((_, idx) => idx !== i));
+            clickedExistingPoint = true;
+            break;
+          }
+        }
+
+        // 如果没有点击已有的点，则添加新点
+        if (!clickedExistingPoint) {
+          const newPoint: Point = { x: imageX, y: imageY };
+          const newPoints = [...clickedPoints, newPoint];
+          setClickedPoints(newPoints);
+
+          // 如果点数达到所需数量，自动生成测量
+          const currentTool = tools.find(t => t.id === selectedTool);
+          if (currentTool && newPoints.length === currentTool.pointsNeeded) {
+            onMeasurementAdd(currentTool.name, newPoints);
+            setClickedPoints([]);
+          }
+        }
+
+        // 设置为亮度调整模式（用于按住拖拽调整）
         setAdjustMode('brightness');
       }
     }
