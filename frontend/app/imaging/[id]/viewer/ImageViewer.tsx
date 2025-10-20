@@ -823,6 +823,14 @@ function ImageCanvas({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(true);
 
+  // 图像调整参数
+  const [brightness, setBrightness] = useState(0); // -100 to 100
+  const [contrast, setContrast] = useState(0); // -100 to 100
+  const [adjustMode, setAdjustMode] = useState<
+    'none' | 'zoom' | 'brightness' | 'contrast'
+  >('none');
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
@@ -891,18 +899,19 @@ function ImageCanvas({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    if (selectedTool === 'hand') {
-      setIsDragging(true);
-      setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
-    } else {
-      const newPoint = { x, y };
-      const newPoints = [...clickedPoints, newPoint];
-      setClickedPoints(newPoints);
+    // 按住左键时的调整模式
+    if (e.button === 0) {
+      // 左键按下
+      setDragStartPos({ x: e.clientX, y: e.clientY });
 
-      if (newPoints.length === pointsNeeded) {
-        const toolName = currentTool?.name || '未知测量';
-        onMeasurementAdd(toolName, newPoints);
-        setClickedPoints([]);
+      // 根据当前工具判断调整模式
+      if (selectedTool === 'hand') {
+        setAdjustMode('zoom');
+        setIsDragging(true);
+        setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
+      } else {
+        // 其他工具时，按住左键可以调整亮度和对比度
+        setAdjustMode('brightness');
       }
     }
   };
@@ -912,16 +921,38 @@ function ImageCanvas({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    if (isDragging && selectedTool === 'hand') {
+    if (adjustMode === 'zoom' && isDragging && selectedTool === 'hand') {
       setImagePosition({
         x: x - dragStart.x,
         y: y - dragStart.y,
       });
+    } else if (adjustMode === 'brightness' && e.buttons === 1) {
+      // 左键按住时调整亮度和对比度
+      const deltaX = e.clientX - dragStartPos.x;
+      const deltaY = e.clientY - dragStartPos.y;
+
+      // 左右移动调整对比度
+      const newContrast = Math.max(
+        -100,
+        Math.min(100, contrast + deltaX * 0.5)
+      );
+      setContrast(newContrast);
+
+      // 上下移动调整亮度
+      const newBrightness = Math.max(
+        -100,
+        Math.min(100, brightness - deltaY * 0.5)
+      );
+      setBrightness(newBrightness);
+
+      // 更新起始位置，实现连续调整
+      setDragStartPos({ x: e.clientX, y: e.clientY });
     }
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    setAdjustMode('none');
   };
 
   const handleDoubleClick = () => {
@@ -1023,7 +1054,7 @@ function ImageCanvas({
       onDoubleClick={handleDoubleClick}
     >
       {/* 左上角测量结果展示区 */}
-      <div className="absolute top-4 left-4 z-10">
+      <div className="absolute top-4 left-48 z-10">
         <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 bg-black/20">
             <span className="text-white text-xs font-medium">测量结果</span>
@@ -1067,56 +1098,72 @@ function ImageCanvas({
       </div>
 
       {/* 右上角控制工具栏 */}
-      <div className="absolute top-4 right-4 z-10 bg-black/70 backdrop-blur-sm rounded-lg p-2 flex items-center space-x-1">
-        <div className="flex items-center space-x-1 pr-2 border-r border-white/20">
-          <button
-            onClick={() => setImageScale(Math.min(5, imageScale * 1.2))}
-            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
-            title="放大 (快捷键: +)"
-          >
-            <i className="ri-zoom-in-line w-3 h-3 flex items-center justify-center"></i>
-          </button>
+      <div className="absolute top-4 right-4 z-10 bg-black/80 border border-blue-500/30 backdrop-blur-sm rounded-lg p-3 flex flex-col gap-3 min-w-max">
+        {/* 缩放调节 */}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-white text-xs whitespace-nowrap">缩放</span>
           <button
             onClick={() => setImageScale(Math.max(0.1, imageScale * 0.8))}
-            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="缩小 (快捷键: -)"
           >
-            <i className="ri-zoom-out-line w-3 h-3 flex items-center justify-center"></i>
+            −
           </button>
-
-          {/* 缩放百分比显示和快速设置 */}
-          <button
-            onClick={() => setImageScale(1)}
-            className={`px-2 py-1.5 rounded text-xs font-medium transition-colors ${
-              Math.abs(imageScale - 1) < 0.01
-                ? 'bg-blue-500 text-white'
-                : 'text-white/70 hover:bg-white/20 hover:text-white'
-            }`}
-            title="设置为 100% (快捷键: 1)"
-          >
+          <span className="text-white text-xs font-bold w-8 text-center">
             {Math.round(imageScale * 100)}%
-          </button>
-
+          </span>
           <button
-            onClick={resetView}
-            className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
-            title="重置视图 (快捷键: R) - 恢复原始位置和缩放"
+            onClick={() => setImageScale(Math.min(5, imageScale * 1.2))}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="放大 (快捷键: +)"
           >
-            <i className="ri-refresh-line w-3 h-3 flex items-center justify-center"></i>
+            +
           </button>
         </div>
 
-        {selectedTool !== 'hand' && (
-          <div className="flex items-center space-x-1 pl-2">
-            <button
-              onClick={clearCurrentMeasurement}
-              className="p-1.5 hover:bg-white/20 rounded text-white/80 hover:text-white"
-              title="清除当前标注点"
-            >
-              <i className="ri-eraser-line w-3 h-3 flex items-center justify-center"></i>
-            </button>
-          </div>
-        )}
+        {/* 对比度调节 */}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-white text-xs whitespace-nowrap">对比度</span>
+          <button
+            onClick={() => setContrast(Math.max(-100, contrast - 5))}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="降低对比度"
+          >
+            −
+          </button>
+          <span className="text-white text-xs font-bold w-6 text-center">
+            {Math.round(contrast)}
+          </span>
+          <button
+            onClick={() => setContrast(Math.min(100, contrast + 5))}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="提高对比度"
+          >
+            +
+          </button>
+        </div>
+
+        {/* 亮度调节 */}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-white text-xs whitespace-nowrap">亮度</span>
+          <button
+            onClick={() => setBrightness(Math.max(-100, brightness - 5))}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="降低亮度"
+          >
+            −
+          </button>
+          <span className="text-white text-xs font-bold w-6 text-center">
+            {Math.round(brightness)}
+          </span>
+          <button
+            onClick={() => setBrightness(Math.min(100, brightness + 5))}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="提高亮度"
+          >
+            +
+          </button>
+        </div>
       </div>
 
       {/* 主图像 */}
@@ -1139,6 +1186,9 @@ function ImageCanvas({
             alt={selectedImage.examType}
             className="max-w-full max-h-full object-contain pointer-events-none select-none"
             draggable={false}
+            style={{
+              filter: `brightness(${1 + brightness / 100}) contrast(${1 + contrast / 100})`,
+            }}
           />
         ) : (
           <div className="flex items-center justify-center text-white">
