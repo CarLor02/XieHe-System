@@ -430,12 +430,12 @@ export default function ImagingPage() {
                   >
                     {/* 影像预览 */}
                     <Link href={`/imaging/${image.id}/viewer`}>
-                      <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer">
+                      <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer flex items-center justify-center">
                         {image.blobUrl ? (
                           <img
                             src={image.blobUrl}
                             alt={`${image.id} - ${image.examType}`}
-                            className="w-full h-full object-cover object-top"
+                            className="w-full h-full object-contain"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -533,11 +533,11 @@ export default function ImagingPage() {
                     <div className="flex items-center space-x-4">
                       {/* 缩略图 */}
                       <Link href={`/imaging/${image.id}/viewer`}>
-                        <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer">
+                        <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
                           <img
                             src={image.thumbnailUrl}
                             alt={`${image.id} - ${image.examType}`}
-                            className="w-full h-full object-cover object-top"
+                            className="w-full h-full object-contain"
                           />
                         </div>
                       </Link>
