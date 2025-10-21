@@ -30,6 +30,42 @@ interface Point {
   y: number;
 }
 
+interface Circle {
+  id: string;
+  centerX: number;
+  centerY: number;
+  radius: number;
+}
+
+interface Ellipse {
+  id: string;
+  centerX: number;
+  centerY: number;
+  radiusX: number;
+  radiusY: number;
+}
+
+interface Rectangle {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface Arrow {
+  id: string;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+
+interface Polygon {
+  id: string;
+  points: Point[];
+}
+
 interface ImageViewerProps {
   imageId: string;
 }
@@ -45,6 +81,21 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [saveMessage, setSaveMessage] = useState('');
   const [studyData, setStudyData] = useState<StudyData | null>(null);
   const [studyLoading, setStudyLoading] = useState(true);
+
+  // 标准距离设置
+  const [standardDistance, setStandardDistance] = useState<number | null>(null);
+  const [standardDistanceValue, setStandardDistanceValue] = useState('');
+  const [showStandardDistancePanel, setShowStandardDistancePanel] =
+    useState(false);
+
+  // 标签系统
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
+  const [showTagPanel, setShowTagPanel] = useState(false);
+
+  // 治疗建议
+  const [treatmentAdvice, setTreatmentAdvice] = useState('');
+  const [showAdvicePanel, setShowAdvicePanel] = useState(false);
 
   // 从API获取真实的影像数据
   useEffect(() => {
@@ -154,6 +205,41 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           description: '躯干偏移量(Trunk Shift)',
           pointsNeeded: 3,
         },
+        {
+          id: 'circle',
+          name: 'Auxiliary Circle',
+          icon: 'ri-circle-line',
+          description: '辅助圆形',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'ellipse',
+          name: 'Auxiliary Ellipse',
+          icon: 'ri-shape-2-line',
+          description: '辅助椭圆',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'rectangle',
+          name: 'Auxiliary Box',
+          icon: 'ri-rectangle-line',
+          description: '辅助矩形',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'arrow',
+          name: 'Arrow',
+          icon: 'ri-arrow-right-line',
+          description: '箭头',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'polygon',
+          name: 'Polygons',
+          icon: 'ri-shape-line',
+          description: '多边形',
+          pointsNeeded: 0,
+        },
       ];
     } else if (examType === '侧位X光片') {
       return [
@@ -213,6 +299,41 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           description: '骶骨倾斜角(Sacral Slope)',
           pointsNeeded: 4,
         },
+        {
+          id: 'circle',
+          name: 'Auxiliary Circle',
+          icon: 'ri-circle-line',
+          description: '辅助圆形',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'ellipse',
+          name: 'Auxiliary Ellipse',
+          icon: 'ri-shape-2-line',
+          description: '辅助椭圆',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'rectangle',
+          name: 'Auxiliary Box',
+          icon: 'ri-rectangle-line',
+          description: '辅助矩形',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'arrow',
+          name: 'Arrow',
+          icon: 'ri-arrow-right-line',
+          description: '箭头',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'polygon',
+          name: 'Polygons',
+          icon: 'ri-shape-line',
+          description: '多边形',
+          pointsNeeded: 0,
+        },
       ];
     } else {
       return [
@@ -229,6 +350,41 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           icon: 'ri-compass-3-line',
           description: '通用角度测量',
           pointsNeeded: 3,
+        },
+        {
+          id: 'circle',
+          name: 'Auxiliary Circle',
+          icon: 'ri-circle-line',
+          description: '辅助圆形',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'ellipse',
+          name: 'Auxiliary Ellipse',
+          icon: 'ri-shape-2-line',
+          description: '辅助椭圆',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'rectangle',
+          name: 'Auxiliary Box',
+          icon: 'ri-rectangle-line',
+          description: '辅助矩形',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'arrow',
+          name: 'Arrow',
+          icon: 'ri-arrow-right-line',
+          description: '箭头',
+          pointsNeeded: 0,
+        },
+        {
+          id: 'polygon',
+          name: 'Polygons',
+          icon: 'ri-shape-line',
+          description: '多边形',
+          pointsNeeded: 0,
         },
       ];
     }
@@ -686,6 +842,149 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               </div>
             </div>
 
+            {/* 标准距离设置按钮 */}
+            <div className="mb-4">
+              <button
+                onClick={() =>
+                  setShowStandardDistancePanel(!showStandardDistancePanel)
+                }
+                className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg flex items-center justify-center space-x-2 transition-colors"
+              >
+                <i className="ri-ruler-line w-4 h-4"></i>
+                <span>标准距离设置</span>
+              </button>
+
+              {/* 标准距离设置面板 */}
+              {showStandardDistancePanel && (
+                <div className="mt-2 bg-gray-700/50 rounded-lg p-3">
+                  <div className="space-y-2">
+                    <label className="text-xs text-gray-300">
+                      输入标准参考距离 (mm):
+                    </label>
+                    <input
+                      type="number"
+                      value={standardDistanceValue}
+                      onChange={e => setStandardDistanceValue(e.target.value)}
+                      placeholder="例如: 100"
+                      className="w-full px-2 py-1 bg-gray-600 text-white text-sm rounded border border-gray-500 focus:border-purple-400 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => {
+                        const value = parseFloat(standardDistanceValue);
+                        if (!isNaN(value) && value > 0) {
+                          setStandardDistance(value);
+                          setStandardDistanceValue('');
+                          setShowStandardDistancePanel(false);
+                        }
+                      }}
+                      className="w-full px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded transition-colors"
+                    >
+                      保存
+                    </button>
+                    {standardDistance !== null && (
+                      <div className="text-xs text-green-400 mt-2">
+                        ✓ 已设置: {standardDistance}mm
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 标签系统按钮 */}
+            <div className="mb-4">
+              <button
+                onClick={() => setShowTagPanel(!showTagPanel)}
+                className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg flex items-center justify-center space-x-2 transition-colors"
+              >
+                <i className="ri-price-tag-line w-4 h-4"></i>
+                <span>标签管理</span>
+              </button>
+
+              {/* 标签管理面板 */}
+              {showTagPanel && (
+                <div className="mt-2 bg-gray-700/50 rounded-lg p-3">
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newTag}
+                        onChange={e => setNewTag(e.target.value)}
+                        placeholder="输入标签"
+                        className="flex-1 px-2 py-1 bg-gray-600 text-white text-sm rounded border border-gray-500 focus:border-green-400 focus:outline-none"
+                        onKeyPress={e => {
+                          if (e.key === 'Enter' && newTag.trim()) {
+                            setTags([...tags, newTag.trim()]);
+                            setNewTag('');
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (newTag.trim()) {
+                            setTags([...tags, newTag.trim()]);
+                            setNewTag('');
+                          }
+                        }}
+                        className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                      >
+                        添加
+                      </button>
+                    </div>
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {tags.map((tag, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-green-600 text-white text-xs px-2 py-1 rounded flex items-center space-x-1"
+                          >
+                            <span>{tag}</span>
+                            <button
+                              onClick={() =>
+                                setTags(tags.filter((_, i) => i !== idx))
+                              }
+                              className="hover:text-red-300"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 治疗建议按钮 */}
+            <div className="mb-4">
+              <button
+                onClick={() => setShowAdvicePanel(!showAdvicePanel)}
+                className="w-full px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg flex items-center justify-center space-x-2 transition-colors"
+              >
+                <i className="ri-file-text-line w-4 h-4"></i>
+                <span>治疗建议</span>
+              </button>
+
+              {/* 治疗建议面板 */}
+              {showAdvicePanel && (
+                <div className="mt-2 bg-gray-700/50 rounded-lg p-3">
+                  <textarea
+                    value={treatmentAdvice}
+                    onChange={e => setTreatmentAdvice(e.target.value)}
+                    placeholder="输入医生的治疗建议..."
+                    className="w-full px-2 py-1 bg-gray-600 text-white text-sm rounded border border-gray-500 focus:border-orange-400 focus:outline-none resize-none"
+                    rows={3}
+                  />
+                  {treatmentAdvice && (
+                    <div className="text-xs text-orange-400 mt-2">
+                      ✓ 已输入 {treatmentAdvice.length} 个字符
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* 当前选中工具信息 */}
             {selectedTool !== 'hand' && currentTool && (
               <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
@@ -832,6 +1131,27 @@ function ImageCanvas({
   >('none');
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
 
+  // 辅助图形状态
+  const [circles, setCircles] = useState<Circle[]>([]);
+  const [ellipses, setEllipses] = useState<Ellipse[]>([]);
+  const [rectangles, setRectangles] = useState<Rectangle[]>([]);
+  const [arrows, setArrows] = useState<Arrow[]>([]);
+  const [polygons, setPolygons] = useState<Polygon[]>([]);
+
+  // 绘制状态
+  const [drawingState, setDrawingState] = useState<{
+    isDrawing: boolean;
+    startPoint: Point | null;
+    currentPoint: Point | null;
+  }>({
+    isDrawing: false,
+    startPoint: null,
+    currentPoint: null,
+  });
+
+  // 多边形绘制状态
+  const [polygonPoints, setPolygonPoints] = useState<Point[]>([]);
+
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
@@ -910,6 +1230,25 @@ function ImageCanvas({
         setAdjustMode('zoom');
         setIsDragging(true);
         setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
+      } else if (
+        selectedTool === 'circle' ||
+        selectedTool === 'ellipse' ||
+        selectedTool === 'rectangle' ||
+        selectedTool === 'arrow'
+      ) {
+        // 辅助图形绘制模式
+        const imageX = (x - imagePosition.x) / imageScale;
+        const imageY = (y - imagePosition.y) / imageScale;
+        setDrawingState({
+          isDrawing: true,
+          startPoint: { x: imageX, y: imageY },
+          currentPoint: { x: imageX, y: imageY },
+        });
+      } else if (selectedTool === 'polygon') {
+        // 多边形绘制模式
+        const imageX = (x - imagePosition.x) / imageScale;
+        const imageY = (y - imagePosition.y) / imageScale;
+        setPolygonPoints([...polygonPoints, { x: imageX, y: imageY }]);
       } else {
         // 其他工具时，检查是否点击了已有的点（用于删除）
         // 或者开始调整亮度和对比度
@@ -958,6 +1297,16 @@ function ImageCanvas({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    // 更新绘制状态中的当前点（用于预览）
+    if (drawingState.isDrawing) {
+      const imageX = (x - imagePosition.x) / imageScale;
+      const imageY = (y - imagePosition.y) / imageScale;
+      setDrawingState(prev => ({
+        ...prev,
+        currentPoint: { x: imageX, y: imageY },
+      }));
+    }
+
     if (adjustMode === 'zoom' && isDragging && selectedTool === 'hand') {
       setImagePosition({
         x: x - dragStart.x,
@@ -987,7 +1336,84 @@ function ImageCanvas({
     }
   };
 
+  const completePolygon = () => {
+    if (polygonPoints.length >= 3) {
+      const newPolygon: Polygon = {
+        id: Date.now().toString(),
+        points: polygonPoints,
+      };
+      setPolygons([...polygons, newPolygon]);
+      setPolygonPoints([]);
+    }
+  };
+
   const handleMouseUp = () => {
+    if (
+      drawingState.isDrawing &&
+      drawingState.startPoint &&
+      drawingState.currentPoint
+    ) {
+      // 完成图形绘制
+      const startX = drawingState.startPoint.x;
+      const startY = drawingState.startPoint.y;
+      const endX = drawingState.currentPoint.x;
+      const endY = drawingState.currentPoint.y;
+
+      if (selectedTool === 'circle') {
+        const radius = Math.sqrt(
+          Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2)
+        );
+        const newCircle: Circle = {
+          id: Date.now().toString(),
+          centerX: startX,
+          centerY: startY,
+          radius: radius,
+        };
+        setCircles([...circles, newCircle]);
+      } else if (selectedTool === 'ellipse') {
+        // 椭圆：中心点为起始点，radiusX 和 radiusY 为到终点的距离
+        const radiusX = Math.abs(endX - startX);
+        const radiusY = Math.abs(endY - startY);
+        const newEllipse: Ellipse = {
+          id: Date.now().toString(),
+          centerX: startX,
+          centerY: startY,
+          radiusX: radiusX,
+          radiusY: radiusY,
+        };
+        setEllipses([...ellipses, newEllipse]);
+      } else if (selectedTool === 'rectangle') {
+        // 矩形：起始点为左上角，宽度和高度为到终点的距离
+        const width = Math.abs(endX - startX);
+        const height = Math.abs(endY - startY);
+        const x = Math.min(startX, endX);
+        const y = Math.min(startY, endY);
+        const newRectangle: Rectangle = {
+          id: Date.now().toString(),
+          x: x,
+          y: y,
+          width: width,
+          height: height,
+        };
+        setRectangles([...rectangles, newRectangle]);
+      } else if (selectedTool === 'arrow') {
+        // 箭头：从起始点到终点
+        const newArrow: Arrow = {
+          id: Date.now().toString(),
+          startX: startX,
+          startY: startY,
+          endX: endX,
+          endY: endY,
+        };
+        setArrows([...arrows, newArrow]);
+      }
+      // 其他图形类型的处理将在后续任务中添加
+    }
+    setDrawingState({
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null,
+    });
     setIsDragging(false);
     setAdjustMode('none');
   };
@@ -1255,6 +1681,19 @@ function ImageCanvas({
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
         }}
       >
+        {/* 定义箭头标记 */}
+        <defs>
+          <marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="10"
+            refX="9"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0, 10 3, 0 6" fill="#f59e0b" />
+          </marker>
+        </defs>
         {/* 绘制已完成的测量 */}
         {measurements.map((measurement, index) => (
           <g key={measurement.id}>
@@ -1399,6 +1838,206 @@ function ImageCanvas({
                 strokeWidth="2"
                 strokeDasharray="2,2"
               />
+            )}
+          </>
+        )}
+
+        {/* 绘制辅助圆形 */}
+        {circles.map(circle => (
+          <circle
+            key={circle.id}
+            cx={circle.centerX}
+            cy={circle.centerY}
+            r={circle.radius}
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth="2"
+            opacity="0.6"
+          />
+        ))}
+
+        {/* 绘制圆形预览 */}
+        {drawingState.isDrawing &&
+          drawingState.startPoint &&
+          drawingState.currentPoint &&
+          selectedTool === 'circle' && (
+            <circle
+              cx={drawingState.startPoint.x}
+              cy={drawingState.startPoint.y}
+              r={Math.sqrt(
+                Math.pow(
+                  drawingState.currentPoint.x - drawingState.startPoint.x,
+                  2
+                ) +
+                  Math.pow(
+                    drawingState.currentPoint.y - drawingState.startPoint.y,
+                    2
+                  )
+              )}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="2"
+              strokeDasharray="5,5"
+              opacity="0.4"
+            />
+          )}
+
+        {/* 绘制辅助椭圆 */}
+        {ellipses.map(ellipse => (
+          <ellipse
+            key={ellipse.id}
+            cx={ellipse.centerX}
+            cy={ellipse.centerY}
+            rx={ellipse.radiusX}
+            ry={ellipse.radiusY}
+            fill="none"
+            stroke="#8b5cf6"
+            strokeWidth="2"
+            opacity="0.6"
+          />
+        ))}
+
+        {/* 绘制椭圆预览 */}
+        {drawingState.isDrawing &&
+          drawingState.startPoint &&
+          drawingState.currentPoint &&
+          selectedTool === 'ellipse' && (
+            <ellipse
+              cx={drawingState.startPoint.x}
+              cy={drawingState.startPoint.y}
+              rx={Math.abs(
+                drawingState.currentPoint.x - drawingState.startPoint.x
+              )}
+              ry={Math.abs(
+                drawingState.currentPoint.y - drawingState.startPoint.y
+              )}
+              fill="none"
+              stroke="#8b5cf6"
+              strokeWidth="2"
+              strokeDasharray="5,5"
+              opacity="0.4"
+            />
+          )}
+
+        {/* 绘制辅助矩形 */}
+        {rectangles.map(rect => (
+          <rect
+            key={rect.id}
+            x={rect.x}
+            y={rect.y}
+            width={rect.width}
+            height={rect.height}
+            fill="none"
+            stroke="#ec4899"
+            strokeWidth="2"
+            opacity="0.6"
+          />
+        ))}
+
+        {/* 绘制矩形预览 */}
+        {drawingState.isDrawing &&
+          drawingState.startPoint &&
+          drawingState.currentPoint &&
+          selectedTool === 'rectangle' && (
+            <rect
+              x={Math.min(
+                drawingState.startPoint.x,
+                drawingState.currentPoint.x
+              )}
+              y={Math.min(
+                drawingState.startPoint.y,
+                drawingState.currentPoint.y
+              )}
+              width={Math.abs(
+                drawingState.currentPoint.x - drawingState.startPoint.x
+              )}
+              height={Math.abs(
+                drawingState.currentPoint.y - drawingState.startPoint.y
+              )}
+              fill="none"
+              stroke="#ec4899"
+              strokeWidth="2"
+              strokeDasharray="5,5"
+              opacity="0.4"
+            />
+          )}
+
+        {/* 绘制箭头 */}
+        {arrows.map(arrow => (
+          <line
+            key={arrow.id}
+            x1={arrow.startX}
+            y1={arrow.startY}
+            x2={arrow.endX}
+            y2={arrow.endY}
+            stroke="#f59e0b"
+            strokeWidth="2"
+            markerEnd="url(#arrowhead)"
+            opacity="0.6"
+          />
+        ))}
+
+        {/* 绘制箭头预览 */}
+        {drawingState.isDrawing &&
+          drawingState.startPoint &&
+          drawingState.currentPoint &&
+          selectedTool === 'arrow' && (
+            <line
+              x1={drawingState.startPoint.x}
+              y1={drawingState.startPoint.y}
+              x2={drawingState.currentPoint.x}
+              y2={drawingState.currentPoint.y}
+              stroke="#f59e0b"
+              strokeWidth="2"
+              markerEnd="url(#arrowhead)"
+              strokeDasharray="5,5"
+              opacity="0.4"
+            />
+          )}
+
+        {/* 绘制多边形 */}
+        {polygons.map(polygon => (
+          <polygon
+            key={polygon.id}
+            points={polygon.points.map(p => `${p.x},${p.y}`).join(' ')}
+            fill="none"
+            stroke="#06b6d4"
+            strokeWidth="2"
+            opacity="0.6"
+          />
+        ))}
+
+        {/* 绘制多边形预览 */}
+        {selectedTool === 'polygon' && polygonPoints.length > 0 && (
+          <>
+            {/* 绘制已添加的点 */}
+            {polygonPoints.map((point, idx) => (
+              <circle
+                key={`polygon-point-${idx}`}
+                cx={point.x}
+                cy={point.y}
+                r="4"
+                fill="#06b6d4"
+                opacity="0.8"
+              />
+            ))}
+            {/* 绘制连接线 */}
+            {polygonPoints.length > 1 && (
+              <>
+                {polygonPoints.slice(0, -1).map((point, idx) => (
+                  <line
+                    key={`polygon-line-${idx}`}
+                    x1={point.x}
+                    y1={point.y}
+                    x2={polygonPoints[idx + 1].x}
+                    y2={polygonPoints[idx + 1].y}
+                    stroke="#06b6d4"
+                    strokeWidth="2"
+                    strokeDasharray="5,5"
+                    opacity="0.6"
+                  />
+                ))}
+              </>
             )}
           </>
         )}
