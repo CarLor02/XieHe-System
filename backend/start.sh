@@ -23,11 +23,6 @@ fi
 echo "✅ 当前目录正确"
 echo ""
 
-# 激活 conda 环境
-echo "📦 激活 conda 环境: xiehe"
-source ~/miniconda3/etc/profile.d/conda.sh 2>/dev/null || source ~/anaconda3/etc/profile.d/conda.sh 2>/dev/null
-conda activate xiehe
-
 # 检查 uvicorn 是否安装
 echo "🔍 检查依赖..."
 if ! python -c "import uvicorn" 2>/dev/null; then

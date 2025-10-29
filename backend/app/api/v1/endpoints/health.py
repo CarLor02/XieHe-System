@@ -14,7 +14,7 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import psutil
-import aioredis
+from redis import asyncio as aioredis
 from sqlalchemy import text
 
 from app.core.database import get_db

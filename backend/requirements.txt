@@ -8,9 +8,8 @@ sqlalchemy==2.0.23
 pymysql==1.1.0
 cryptography==41.0.7
 
-# Redis 缓存
-redis==5.0.1
-aioredis==1.3.1
+# Redis 缓存 (包含异步支持)
+redis>=5.0.1
 
 # 认证授权
 python-jose[cryptography]==3.3.0

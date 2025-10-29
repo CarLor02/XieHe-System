@@ -15,7 +15,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Union, Tuple
 from PIL import Image, ImageOps
-import aioredis
+from redis import asyncio as aioredis
 import aiofiles
 from fastapi import HTTPException
 from sqlalchemy import text
