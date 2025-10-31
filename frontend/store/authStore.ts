@@ -40,6 +40,7 @@ interface AuthState {
   register: (userData: RegisterData) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
+  forceLogout: () => void;
 
   // 用户信息操作
   fetchUserInfo: () => Promise<boolean>;
