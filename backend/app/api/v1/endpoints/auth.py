@@ -87,6 +87,8 @@ class UserResponse(BaseModel):
     full_name: str = Field(..., description="姓名")
     is_active: bool = Field(..., description="是否激活")
     roles: list = Field(default=[], description="角色列表")
+    is_system_admin: bool = Field(default=False, description="是否系统管理员")
+    system_admin_level: int = Field(default=0, description="系统管理员级别：0-非，1-超级，2-二级")
 
 
 # ==========================================
@@ -111,7 +113,7 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
         # 注意：数据库表使用 real_name 而不是 full_name，使用 status 而不是 is_active
         # bcrypt 不需要 salt 字段，但为了兼容保留查询
         sql = """
-        SELECT id, username, email, real_name, password_hash, status, is_superuser
+        SELECT id, username, email, real_name, password_hash, status, is_superuser, is_system_admin, system_admin_level
         FROM users
         WHERE (username = :username OR email = :username)
         AND status = 'active'
@@ -125,7 +127,7 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
             return None
 
         # 转换为字典格式
-        # 字段顺序: id, username, email, real_name, password_hash, status, is_superuser
+        # 字段顺序: id, username, email, real_name, password_hash, status, is_superuser, is_system_admin, system_admin_level
         user = {
             "id": user_row[0],
             "username": user_row[1],
@@ -137,7 +139,9 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
             "is_superuser": bool(user_row[6]),  # is_superuser字段
             "role": "admin" if user_row[6] else "doctor",  # 根据is_superuser判断角色
             "roles": ["admin"] if user_row[6] else ["doctor"],  # 角色列表
-            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[6] else ["patient_manage", "image_manage"]
+            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[6] else ["patient_manage", "image_manage"],
+            "is_system_admin": bool(user_row[7]) if len(user_row) > 7 else False,
+            "system_admin_level": int(user_row[8]) if len(user_row) > 8 and user_row[8] is not None else 0,
         }
 
         return user
@@ -167,7 +171,9 @@ def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> Token
         "roles": user.get("roles", []),
         "permissions": user.get("permissions", []),
         "is_active": user["is_active"],
-        "is_superuser": user.get("is_superuser", False)
+        "is_superuser": user.get("is_superuser", False),
+        "is_system_admin": user.get("is_system_admin", False),  # 添加系统管理员标志
+        "system_admin_level": user.get("system_admin_level", 0)  # 添加系统管理员级别
     }
 
     # 设置过期时间
@@ -230,7 +236,9 @@ async def login(
             email=user["email"],
             full_name=user["full_name"],
             is_active=user["is_active"],
-            roles=user.get("roles", [])
+            roles=user.get("roles", []),
+            is_system_admin=user.get("is_system_admin", False),  # 添加系统管理员标志
+            system_admin_level=user.get("system_admin_level", 0)  # 添加系统管理员级别
         ).dict()
 
         return {
@@ -552,20 +560,20 @@ async def change_password(
         )
 
 
-@router.get("/me", response_model=Dict[str, Any], summary="获取当前用户信息")
+@router.get("/me", response_model=UserResponse, summary="获取当前用户信息")
 async def get_current_user_info(
     current_user: Dict[str, Any] = Depends(get_current_active_user)
 ):
     """
     获取当前用户信息
     """
-    return {
-        "user": UserResponse(
-            id=current_user["id"],
-            username=current_user["username"],
-            email=current_user["email"],
-            full_name=current_user.get("full_name", ""),
-            is_active=current_user["is_active"],
-            roles=current_user.get("roles", [])
-        ).dict()
-    }
+    return UserResponse(
+        id=current_user["id"],
+        username=current_user["username"],
+        email=current_user["email"],
+        full_name=current_user.get("full_name", ""),
+        is_active=current_user["is_active"],
+        roles=current_user.get("roles", []),
+        is_system_admin=current_user.get("is_system_admin", False),
+        system_admin_level=current_user.get("system_admin_level", 0)
+    )

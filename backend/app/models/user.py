@@ -95,6 +95,8 @@ class User(Base):
     status = Column(String(20), nullable=False, comment="状态")
     is_verified = Column(Boolean, default=False, comment="是否验证")
     is_superuser = Column(Boolean, default=False, comment="是否超级管理员")
+    is_system_admin = Column(Boolean, default=False, comment="是否系统管理员（可创建团队）")
+    system_admin_level = Column(Integer, default=0, comment="系统管理员级别：0-非系统管理员，1-超级系统管理员（可看所有团队），2-二级系统管理员（只看自己创建的团队）")
     created_at = Column(DateTime, default=func.now(), comment="创建时间")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), comment="更新时间")
     is_deleted = Column(Boolean, default=False, comment="是否删除")

@@ -61,6 +61,14 @@ const formatDateTime = (value?: string | null) =>
 export default function TeamManagement() {
   const { isAuthenticated, user } = useUser();
 
+  // 处理可能的嵌套结构：如果 user.user 存在，则使用它；否则使用 user 本身
+  const actualUser = (user as any)?.user || user;
+
+  // 判断是否为系统管理员
+  const isSystemAdmin = Boolean(actualUser?.is_system_admin);
+
+  const [activeTab, setActiveTab] = useState<'list' | 'members'>('list');
+
   // 团队列表
   const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
@@ -364,7 +372,7 @@ export default function TeamManagement() {
       
       // 逐个提交修改
       for (const change of changes) {
-        await updateMemberRole(selectedTeamId, change.userId, change.newRole as 'ADMIN' | 'MEMBER' | 'GUEST');
+        await updateMemberRole(selectedTeamId, change.userId, change.newRole as 'ADMIN' | 'MEMBER');
       }
 
       setSuccessMessage(`已成功修改 ${changes.length} 个成员的角色`);
@@ -420,20 +428,34 @@ export default function TeamManagement() {
       <div className="flex w-80 flex-col gap-4">
         {/* 操作按钮 */}
         <div className="flex gap-2">
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            <i className="ri-add-line mr-1" />
-            创建团队
-          </button>
-          <button
-            onClick={() => setSearchTeamModalOpen(true)}
-            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <i className="ri-search-line mr-1" />
-            搜索团队
-          </button>
+          {isSystemAdmin ? (
+            <>
+              <button
+                onClick={() => setCreateModalOpen(true)}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                <i className="ri-add-line mr-1" />
+                创建团队
+              </button>
+
+              <button
+                onClick={() => setSearchTeamModalOpen(true)}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <i className="ri-search-line mr-1" />
+                搜索团队
+              </button>
+            </>
+          ) : (
+            // 普通用户只显示搜索按钮并占满整行
+            <button
+              onClick={() => setSearchTeamModalOpen(true)}
+              className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <i className="ri-search-line mr-1" />
+              搜索团队
+            </button>
+          )}
         </div>
 
         {/* 团队列表 */}
@@ -564,7 +586,7 @@ export default function TeamManagement() {
                     )}
                     <span className="flex items-center gap-1">
                       <i className="ri-user-star-line" />
-                      负责人：{selectedTeam.leader_name || '未设置'}
+                      创建者：{selectedTeam.creator_name || '未设置'}
                     </span>
                   </div>
                 </div>
@@ -645,7 +667,7 @@ export default function TeamManagement() {
                               <span className="text-sm font-medium text-gray-900">
                                 {member.real_name || member.username}
                               </span>
-                              {member.is_leader && (
+                              {member.is_creator && (  
                                 <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
                                   创建者
                                 </span>

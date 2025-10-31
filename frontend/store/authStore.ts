@@ -21,6 +21,8 @@ export interface User {
   role: string;
   permissions: string[];
   is_active: boolean;
+  is_system_admin?: boolean; // 是否系统管理员（可创建团队）
+  system_admin_level?: number; // 系统管理员级别：0-非系统管理员，1-超级系统管理员，2-二级系统管理员
   created_at: string;
   updated_at: string;
 }
@@ -98,22 +100,10 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
 
-          console.log('[Auth] 登录请求:', {
-            url: `${API_BASE_URL}/api/v1/auth/login`,
-            fullUrl: `${API_BASE_URL}/api/v1/auth/login`,
-            username: credentials.username,
-            API_BASE_URL: API_BASE_URL
-          });
-
           const response = await axios.post(
             `${API_BASE_URL}/api/v1/auth/login`,
             credentials
           );
-
-          console.log('[Auth] 登录响应:', {
-            status: response.status,
-            data: response.data
-          });
 
           const { access_token, refresh_token, user } = response.data;
 
@@ -128,20 +118,6 @@ export const useAuthStore = create<AuthState>()(
 
           return true;
         } catch (error: any) {
-          console.error('[Auth] 登录失败 - 完整错误:', error);
-          console.error('[Auth] 登录失败 - 详细信息:', {
-            message: error.message,
-            name: error.name,
-            code: error.code,
-            response: error.response,
-            responseData: error.response?.data,
-            responseStatus: error.response?.status,
-            responseHeaders: error.response?.headers,
-            request: error.request,
-            config: error.config,
-            stack: error.stack
-          });
-
           let errorMessage = '登录失败，请检查用户名和密码';
 
           if (error.response) {

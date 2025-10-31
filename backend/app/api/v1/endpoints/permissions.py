@@ -648,6 +648,14 @@ async def create_team_endpoint(
 
     try:
         user_id = _extract_user_id(current_user)
+
+        # 权限校验：仅系统管理员可以创建团队
+        # current_user 中应包含 is_system_admin 字段（0/1 或 False/True）
+        is_system_admin = bool(current_user.get("is_system_admin") if isinstance(current_user, dict) else False)
+        if not is_system_admin:
+            # 使用 PermissionError 以便上层统一处理并返回 403
+            raise PermissionError("只有系统管理员可以创建团队")
+
         team_data = team_service.create_team(
             db,
             creator_id=user_id,

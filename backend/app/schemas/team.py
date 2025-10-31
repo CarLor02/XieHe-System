@@ -16,7 +16,7 @@ class TeamSummary(BaseModel):
     description: Optional[str] = None
     hospital: Optional[str] = None
     department: Optional[str] = None
-    leader_name: Optional[str] = None
+    creator_name: Optional[str] = None  # 改为creator_name
     member_count: int = 0
     max_members: Optional[int] = None
     is_member: bool = False
@@ -37,7 +37,7 @@ class TeamMember(BaseModel):
     role: str
     status: str
     department: Optional[str] = None
-    is_leader: bool = False
+    is_creator: bool = False  # 改为is_creator
     joined_at: Optional[datetime] = None
 
     model_config = ConfigDict(populate_by_name=True)

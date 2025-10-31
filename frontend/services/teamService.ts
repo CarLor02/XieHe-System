@@ -7,7 +7,7 @@ export interface TeamSummary {
   description?: string | null;
   hospital?: string | null;
   department?: string | null;
-  leader_name?: string | null;
+  creator_name?: string | null;  // 改为creator_name
   member_count: number;
   max_members?: number | null;
   is_member: boolean;
@@ -31,10 +31,10 @@ export interface TeamMember {
   username: string;
   real_name?: string | null;
   email?: string | null;
-  role: 'ADMIN' | 'MEMBER' | 'GUEST';
+  role: 'ADMIN' | 'MEMBER'; // 移除GUEST角色
   status: string;
   department?: string | null;
-  is_leader: boolean; // 是否是团队创建者（leader_id）
+  is_creator: boolean; // 改为is_creator，是否是团队创建者
   joined_at?: string | null;
 }
 
@@ -238,7 +238,7 @@ export async function getMyApplications(): Promise<TeamJoinRequestItem[]> {
 export async function updateMemberRole(
   teamId: number,
   userId: number,
-  newRole: 'ADMIN' | 'MEMBER' | 'GUEST'
+  newRole: 'ADMIN' | 'MEMBER' // 移除GUEST角色
 ): Promise<{ message: string }> {
   try {
     const response = await client.patch<{ message: string }>(

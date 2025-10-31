@@ -58,9 +58,11 @@ class TeamService:
                 ),
                 None,
             )
-        leader_name = None
-        if team.leader:
-            leader_name = team.leader.real_name or team.leader.username
+        
+        # 获取创建者信息
+        creator_name = None
+        if team.creator:
+            creator_name = team.creator.real_name or team.creator.username
 
         join_request_id = None
         if join_request and join_request.status == TeamJoinRequestStatus.PENDING:
@@ -72,7 +74,7 @@ class TeamService:
             "description": team.description,
             "hospital": team.hospital,
             "department": team.department,
-            "leader_name": leader_name,
+            "creator_name": creator_name,  # 改为创建者信息
             "member_count": member_count,
             "max_members": team.max_members,
             "is_member": bool(
@@ -91,7 +93,7 @@ class TeamService:
             .options(
                 joinedload(Team.memberships),
                 joinedload(Team.join_requests),
-                joinedload(Team.leader),
+                joinedload(Team.creator),  # 改为creator
             )
             .filter(Team.is_active.is_(True))
         )
@@ -116,13 +118,51 @@ class TeamService:
         if user_id is None:
             return []
 
-        # 获取已加入的团队
+        # 获取用户信息，检查是否为系统管理员
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return []
+        
+        # 超级系统管理员（级别1）：返回所有活跃团队
+        if user.is_system_admin and user.system_admin_level == 1:
+            all_teams = (
+                db.query(Team)
+                .options(
+                    joinedload(Team.memberships),
+                    joinedload(Team.creator),  # 改为creator
+                    joinedload(Team.join_requests),
+                )
+                .filter(Team.is_active.is_(True))
+                .order_by(Team.created_at.desc())
+                .all()
+            )
+            return [self._build_team_summary(team, user_id) for team in all_teams]
+        
+        # 二级系统管理员（级别2）：返回自己创建的团队
+        if user.is_system_admin and user.system_admin_level == 2:
+            created_teams = (
+                db.query(Team)
+                .options(
+                    joinedload(Team.memberships),
+                    joinedload(Team.creator),  # 改为creator
+                    joinedload(Team.join_requests),
+                )
+                .filter(
+                    Team.creator_id == user_id,
+                    Team.is_active.is_(True)
+                )
+                .order_by(Team.created_at.desc())
+                .all()
+            )
+            return [self._build_team_summary(team, user_id) for team in created_teams]
+
+        # 普通用户：获取已加入的团队
         memberships = (
             db.query(TeamMembership)
             .options(
                 joinedload(TeamMembership.team)
                 .joinedload(Team.memberships),
-                joinedload(TeamMembership.team).joinedload(Team.leader),
+                joinedload(TeamMembership.team).joinedload(Team.creator),  # 改为creator
                 joinedload(TeamMembership.team).joinedload(Team.join_requests),
             )
             .filter(
@@ -138,7 +178,7 @@ class TeamService:
             .options(
                 joinedload(TeamJoinRequest.team)
                 .joinedload(Team.memberships),
-                joinedload(TeamJoinRequest.team).joinedload(Team.leader),
+                joinedload(TeamJoinRequest.team).joinedload(Team.creator),  # 改为creator
                 joinedload(TeamJoinRequest.team).joinedload(Team.join_requests),
             )
             .filter(
@@ -228,7 +268,7 @@ class TeamService:
                 joinedload(Team.memberships)
                 .joinedload(TeamMembership.user)
                 .joinedload(User.department),
-                joinedload(Team.leader),
+                joinedload(Team.creator),  # 改为creator
             )
             .filter(Team.id == team_id, Team.is_active.is_(True))
             .first()
@@ -257,7 +297,7 @@ class TeamService:
                     "role": member.role.value,
                     "status": member.status.value,
                     "department": department_name,
-                    "is_leader": team.leader_id == member.user_id,
+                    "is_creator": team.creator_id == member.user_id,  # 改为is_creator
                     "joined_at": member.joined_at,
                 }
             )
@@ -372,9 +412,13 @@ class TeamService:
         if creator_id is None:
             raise ValueError("无效的用户ID")
 
-        leader = db.query(User).filter(User.id == creator_id).first()
-        if not leader:
+        # 检查创建者是否存在并且是系统管理员
+        creator = db.query(User).filter(User.id == creator_id).first()
+        if not creator:
             raise ValueError("用户不存在")
+        
+        if not creator.is_system_admin:
+            raise PermissionError("只有系统管理员可以创建团队")
 
         existing = (
             db.query(Team)
@@ -384,18 +428,20 @@ class TeamService:
         if existing:
             raise ValueError("团队名称已存在")
 
+        # 创建团队，记录创建者
         team = Team(
             name=name.strip(),
             description=description,
             hospital=hospital,
             department=department,
-            leader_id=creator_id,
+            creator_id=creator_id,  # 记录创建者
             max_members=max_members or 50,
             is_active=True,
         )
         db.add(team)
         db.flush()
 
+        # 为创建者添加管理员成员记录
         membership = TeamMembership(
             team_id=team.id,
             user_id=creator_id,
@@ -408,7 +454,7 @@ class TeamService:
         db.refresh(team)
 
         # 预加载需要的关系数据以生成概要
-        db.refresh(team, attribute_names=["memberships", "join_requests", "leader"])
+        db.refresh(team, attribute_names=["memberships", "join_requests", "creator"])  # 改为creator
         return self._build_team_summary(team, creator_id)
 
     def list_join_requests(

@@ -73,7 +73,9 @@ class AuthManager:
                 "roles": payload.get("roles", []),
                 "permissions": payload.get("permissions", []),
                 "is_active": payload.get("is_active", True),
-                "is_superuser": payload.get("is_superuser", False)
+                "is_superuser": payload.get("is_superuser", False),
+                "is_system_admin": payload.get("is_system_admin", False),  # 添加系统管理员字段
+                "system_admin_level": payload.get("system_admin_level", 0)  # 添加系统管理员级别
             }
             
             logger.debug(f"从令牌获取用户成功: {user_info['username']}")

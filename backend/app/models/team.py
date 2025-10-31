@@ -30,7 +30,6 @@ class TeamMembershipRole(str, enum.Enum):
 
     ADMIN = "ADMIN"
     MEMBER = "MEMBER"
-    GUEST = "GUEST"
 
 
 class TeamMembershipStatus(str, enum.Enum):
@@ -70,7 +69,7 @@ class Team(Base):
     description = Column(Text, nullable=True, comment="团队描述")
     hospital = Column(String(120), nullable=True, comment="所属医院")
     department = Column(String(120), nullable=True, comment="所属科室")
-    leader_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="负责人ID")
+    creator_id = Column(Integer, ForeignKey("users.id"), nullable=True, comment="创建者ID")
     max_members = Column(Integer, default=50, nullable=False, comment="最大成员数")
     is_active = Column(Boolean, default=True, nullable=False, comment="是否激活")
     created_at = Column(DateTime, default=func.now(), nullable=False, comment="创建时间")
@@ -83,7 +82,7 @@ class Team(Base):
     )
 
     # 关系
-    leader = relationship("User", backref="led_teams", foreign_keys=[leader_id])
+    creator = relationship("User", backref="created_teams", foreign_keys=[creator_id])
     memberships = relationship(
         "TeamMembership",
         back_populates="team",

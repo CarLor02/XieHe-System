@@ -93,6 +93,8 @@ class User(Base):
     status = Column(String(20), default='active', nullable=False)
     is_verified = Column(Boolean, default=False)
     is_superuser = Column(Boolean, default=False)
+    is_system_admin = Column(Boolean, default=False)
+    system_admin_level = Column(Integer, default=0)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     is_deleted = Column(Boolean, default=False)
@@ -573,6 +575,8 @@ def init_users(session, dept_map):
             "department_id": dept_map.get("IT"),
             "position": "系统管理员",
             "is_superuser": True,
+            "is_system_admin": True,
+            "system_admin_level": 2,
             "is_verified": True,
             "roles": ["super_admin"]
         },

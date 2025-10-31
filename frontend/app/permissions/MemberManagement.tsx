@@ -332,7 +332,7 @@ export default function MemberManagement() {
               </p>
             </div>
             <div className="text-sm text-gray-500">
-              负责人：{currentTeam.leader_name || '未设置'}
+              创建者：{currentTeam.creator_name || '未设置'}
             </div>
           </div>
         </div>
@@ -513,7 +513,7 @@ export default function MemberManagement() {
                           <div>
                             <div className="text-sm font-medium text-gray-900">
                               {member.real_name || member.username}
-                              {member.is_leader && (
+                              {member.is_creator && (  
                                 <span className="ml-2 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
                                   创建者
                                 </span>
