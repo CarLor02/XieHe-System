@@ -95,12 +95,21 @@ export default function ImagingPage() {
           [imageId]: blobUrl,
         }));
       } else {
-        console.error(
-          `Failed to load thumbnail for ${imageId}: ${response.status}`
-        );
+        // 缩略图加载失败时，不显示错误，使用占位图
+        if (response.status === 404) {
+          console.warn(
+            `Thumbnail not found for ${imageId}, will use placeholder`
+          );
+        } else {
+          console.warn(
+            `Failed to load thumbnail for ${imageId}: ${response.status}`
+          );
+        }
+        // 不设置 thumbnailUrl，让组件显示占位图
       }
     } catch (error) {
-      console.error(`Failed to load thumbnail for ${imageId}:`, error);
+      console.warn(`Failed to load thumbnail for ${imageId}:`, error);
+      // 不设置 thumbnailUrl，让组件显示占位图
     }
   };
 
@@ -436,6 +445,18 @@ export default function ImagingPage() {
                             src={image.blobUrl}
                             alt={`${image.id} - ${image.examType}`}
                             className="w-full h-full object-contain"
+                            onError={(e) => {
+                              // 图片加载失败时显示占位图标
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent && !parent.querySelector('.placeholder-icon')) {
+                                const placeholder = document.createElement('div');
+                                placeholder.className = 'placeholder-icon w-full h-full flex items-center justify-center text-gray-400';
+                                placeholder.innerHTML = '<i class="ri-image-line text-4xl"></i>';
+                                parent.appendChild(placeholder);
+                              }
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -534,11 +555,29 @@ export default function ImagingPage() {
                       {/* 缩略图 */}
                       <Link href={`/imaging/${image.id}/viewer`}>
                         <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
-                          <img
-                            src={image.thumbnailUrl}
-                            alt={`${image.id} - ${image.examType}`}
-                            className="w-full h-full object-contain"
-                          />
+                          {image.blobUrl ? (
+                            <img
+                              src={image.blobUrl}
+                              alt={`${image.id} - ${image.examType}`}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                // 图片加载失败时显示占位图标
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent && !parent.querySelector('.placeholder-icon')) {
+                                  const placeholder = document.createElement('div');
+                                  placeholder.className = 'placeholder-icon w-full h-full flex items-center justify-center text-gray-400';
+                                  placeholder.innerHTML = '<i class="ri-image-line text-2xl"></i>';
+                                  parent.appendChild(placeholder);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <i className="ri-image-line text-2xl"></i>
+                            </div>
+                          )}
                         </div>
                       </Link>
 
