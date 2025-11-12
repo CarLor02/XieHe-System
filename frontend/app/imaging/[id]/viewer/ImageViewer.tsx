@@ -1155,6 +1155,63 @@ function ImageCanvas({
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
+  // 坐标转换函数：将图像坐标系转换为屏幕坐标系
+  // 图像使用 transform: translate(pos) scale(s)，transformOrigin: center
+  const imageToScreen = (point: Point): Point => {
+    // 获取容器中心点
+    const container = document.querySelector('[data-image-canvas]');
+    if (!container) {
+      return {
+        x: point.x * imageScale + imagePosition.x,
+        y: point.y * imageScale + imagePosition.y,
+      };
+    }
+    
+    const rect = container.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // CSS transform 顺序：先 scale（以 center 为原点），再 translate
+    // 点相对于中心的坐标
+    const relX = point.x;
+    const relY = point.y;
+    
+    // 应用缩放
+    const scaledX = relX * imageScale;
+    const scaledY = relY * imageScale;
+    
+    // 应用平移，并加上容器中心
+    return {
+      x: scaledX + imagePosition.x + centerX,
+      y: scaledY + imagePosition.y + centerY,
+    };
+  };
+
+  // 坐标转换函数：将屏幕坐标系转换为图像坐标系
+  const screenToImage = (screenX: number, screenY: number): Point => {
+    // 获取容器中心点
+    const container = document.querySelector('[data-image-canvas]');
+    if (!container) {
+      return {
+        x: (screenX - imagePosition.x) / imageScale,
+        y: (screenY - imagePosition.y) / imageScale,
+      };
+    }
+    
+    const rect = container.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // 逆向转换：先减去容器中心和平移，再除以缩放
+    const translatedX = screenX - centerX - imagePosition.x;
+    const translatedY = screenY - centerY - imagePosition.y;
+    
+    return {
+      x: translatedX / imageScale,
+      y: translatedY / imageScale,
+    };
+  };
+
   // 获取图像数据
   useEffect(() => {
     const fetchImage = async () => {
@@ -1237,32 +1294,29 @@ function ImageCanvas({
         selectedTool === 'arrow'
       ) {
         // 辅助图形绘制模式
-        const imageX = (x - imagePosition.x) / imageScale;
-        const imageY = (y - imagePosition.y) / imageScale;
+        const imagePoint = screenToImage(x, y);
         setDrawingState({
           isDrawing: true,
-          startPoint: { x: imageX, y: imageY },
-          currentPoint: { x: imageX, y: imageY },
+          startPoint: imagePoint,
+          currentPoint: imagePoint,
         });
       } else if (selectedTool === 'polygon') {
         // 多边形绘制模式
-        const imageX = (x - imagePosition.x) / imageScale;
-        const imageY = (y - imagePosition.y) / imageScale;
-        setPolygonPoints([...polygonPoints, { x: imageX, y: imageY }]);
+        const imagePoint = screenToImage(x, y);
+        setPolygonPoints([...polygonPoints, imagePoint]);
       } else {
         // 其他工具时，检查是否点击了已有的点（用于删除）
         // 或者开始调整亮度和对比度
 
         // 计算相对于图像的坐标（考虑缩放和平移）
-        const imageX = (x - imagePosition.x) / imageScale;
-        const imageY = (y - imagePosition.y) / imageScale;
+        const imagePoint = screenToImage(x, y);
 
         // 检查是否点击了已有的点（点击范围：5像素）
         let clickedExistingPoint = false;
         for (let i = 0; i < clickedPoints.length; i++) {
           const point = clickedPoints[i];
           const distance = Math.sqrt(
-            Math.pow(imageX - point.x, 2) + Math.pow(imageY - point.y, 2)
+            Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
           );
           if (distance < 5 / imageScale) {
             // 点击了已有的点，删除它
@@ -1274,8 +1328,7 @@ function ImageCanvas({
 
         // 如果没有点击已有的点，则添加新点
         if (!clickedExistingPoint) {
-          const newPoint: Point = { x: imageX, y: imageY };
-          const newPoints = [...clickedPoints, newPoint];
+          const newPoints = [...clickedPoints, imagePoint];
           setClickedPoints(newPoints);
 
           // 如果点数达到所需数量，自动生成测量
@@ -1299,11 +1352,10 @@ function ImageCanvas({
 
     // 更新绘制状态中的当前点（用于预览）
     if (drawingState.isDrawing) {
-      const imageX = (x - imagePosition.x) / imageScale;
-      const imageY = (y - imagePosition.y) / imageScale;
+      const imagePoint = screenToImage(x, y);
       setDrawingState(prev => ({
         ...prev,
-        currentPoint: { x: imageX, y: imageY },
+        currentPoint: imagePoint,
       }));
     }
 
@@ -1632,11 +1684,6 @@ function ImageCanvas({
       {/* 主图像 */}
       <div
         className="relative flex items-center justify-center w-full h-full"
-        style={{
-          transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})`,
-          transformOrigin: 'center center',
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-        }}
       >
         {imageLoading ? (
           <div className="flex items-center justify-center text-white">
@@ -1651,6 +1698,8 @@ function ImageCanvas({
             draggable={false}
             style={{
               filter: `brightness(${1 + brightness / 100}) contrast(${1 + contrast / 100})`,
+              transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})`,
+              transformOrigin: 'center center',
             }}
           />
         ) : (
@@ -1676,9 +1725,6 @@ function ImageCanvas({
         className="absolute inset-0 w-full h-full pointer-events-none"
         style={{
           zIndex: 10,
-          transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})`,
-          transformOrigin: 'center center',
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
         }}
       >
         {/* 定义箭头标记 */}
@@ -1695,99 +1741,105 @@ function ImageCanvas({
           </marker>
         </defs>
         {/* 绘制已完成的测量 */}
-        {measurements.map((measurement, index) => (
-          <g key={measurement.id}>
-            {measurement.points.map((point, pointIndex) => (
-              <circle
-                key={pointIndex}
-                cx={point.x}
-                cy={point.y}
-                r="3"
-                fill="#10b981"
-                stroke="#ffffff"
-                strokeWidth="1"
-              />
-            ))}
-            {/* 连接线 */}
-            {measurement.points.length >= 2 && (
-              <>
-                {measurement.type.includes('角') ||
-                measurement.type.includes('Cobb') ||
-                measurement.type.includes('Tilt') ||
-                measurement.type.includes('Slope') ? (
-                  measurement.points.length >= 4 ? (
-                    <>
-                      <line
-                        x1={measurement.points[0].x}
-                        y1={measurement.points[0].y}
-                        x2={measurement.points[1].x}
-                        y2={measurement.points[1].y}
-                        stroke="#10b981"
-                        strokeWidth="2"
-                        strokeDasharray="3,3"
-                      />
-                      <line
-                        x1={measurement.points[2].x}
-                        y1={measurement.points[2].y}
-                        x2={measurement.points[3].x}
-                        y2={measurement.points[3].y}
-                        stroke="#10b981"
-                        strokeWidth="2"
-                        strokeDasharray="3,3"
-                      />
-                    </>
-                  ) : measurement.points.length >= 3 ? (
-                    <>
-                      <line
-                        x1={measurement.points[0].x}
-                        y1={measurement.points[0].y}
-                        x2={measurement.points[1].x}
-                        y2={measurement.points[1].y}
-                        stroke="#10b981"
-                        strokeWidth="2"
-                        strokeDasharray="3,3"
-                      />
-                      <line
-                        x1={measurement.points[1].x}
-                        y1={measurement.points[1].y}
-                        x2={measurement.points[2].x}
-                        y2={measurement.points[2].y}
-                        stroke="#10b981"
-                        strokeWidth="2"
-                        strokeDasharray="3,3"
-                      />
-                    </>
-                  ) : null
-                ) : (
-                  <line
-                    x1={measurement.points[0].x}
-                    y1={measurement.points[0].y}
-                    x2={measurement.points[measurement.points.length - 1].x}
-                    y2={measurement.points[measurement.points.length - 1].y}
-                    stroke="#10b981"
-                    strokeWidth="2"
-                    strokeDasharray="3,3"
-                  />
-                )}
-              </>
-            )}
-          </g>
-        ))}
+        {measurements.map((measurement, index) => {
+          // 将图像坐标转换为屏幕坐标
+          const screenPoints = measurement.points.map(p => imageToScreen(p));
+          return (
+            <g key={measurement.id}>
+              {screenPoints.map((point, pointIndex) => (
+                <circle
+                  key={pointIndex}
+                  cx={point.x}
+                  cy={point.y}
+                  r="3"
+                  fill="#10b981"
+                  stroke="#ffffff"
+                  strokeWidth="1"
+                />
+              ))}
+              {/* 连接线 */}
+              {screenPoints.length >= 2 && (
+                <>
+                  {measurement.type.includes('角') ||
+                  measurement.type.includes('Cobb') ||
+                  measurement.type.includes('Tilt') ||
+                  measurement.type.includes('Slope') ? (
+                    screenPoints.length >= 4 ? (
+                      <>
+                        <line
+                          x1={screenPoints[0].x}
+                          y1={screenPoints[0].y}
+                          x2={screenPoints[1].x}
+                          y2={screenPoints[1].y}
+                          stroke="#10b981"
+                          strokeWidth="2"
+                          strokeDasharray="3,3"
+                        />
+                        <line
+                          x1={screenPoints[2].x}
+                          y1={screenPoints[2].y}
+                          x2={screenPoints[3].x}
+                          y2={screenPoints[3].y}
+                          stroke="#10b981"
+                          strokeWidth="2"
+                          strokeDasharray="3,3"
+                        />
+                      </>
+                    ) : screenPoints.length >= 3 ? (
+                      <>
+                        <line
+                          x1={screenPoints[0].x}
+                          y1={screenPoints[0].y}
+                          x2={screenPoints[1].x}
+                          y2={screenPoints[1].y}
+                          stroke="#10b981"
+                          strokeWidth="2"
+                          strokeDasharray="3,3"
+                        />
+                        <line
+                          x1={screenPoints[1].x}
+                          y1={screenPoints[1].y}
+                          x2={screenPoints[2].x}
+                          y2={screenPoints[2].y}
+                          stroke="#10b981"
+                          strokeWidth="2"
+                          strokeDasharray="3,3"
+                        />
+                      </>
+                    ) : null
+                  ) : (
+                    <line
+                      x1={screenPoints[0].x}
+                      y1={screenPoints[0].y}
+                      x2={screenPoints[screenPoints.length - 1].x}
+                      y2={screenPoints[screenPoints.length - 1].y}
+                      stroke="#10b981"
+                      strokeWidth="2"
+                      strokeDasharray="3,3"
+                    />
+                  )}
+                </>
+              )}
+            </g>
+          );
+        })}
 
         {/* 绘制当前点击的点 */}
-        {clickedPoints.map((point, index) => (
-          <g key={`current-${index}`}>
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r="4"
-              fill="#ef4444"
-              stroke="#ffffff"
+        {clickedPoints.map((point, index) => {
+          const screenPoint = imageToScreen(point);
+          return (
+            <g key={`current-${index}`}>
+              <circle
+                cx={screenPoint.x}
+                cy={screenPoint.y}
+                r="4"
+                fill="#ef4444"
+                stroke="#ffffff"
               strokeWidth="2"
             />
             <text
-              x={point.x + 8}
-              y={point.y - 8}
+              x={screenPoint.x + 8}
+              y={screenPoint.y - 8}
               fill="#ef4444"
               fontSize="12"
               fontWeight="bold"
@@ -1795,252 +1847,274 @@ function ImageCanvas({
               {index + 1}
             </text>
           </g>
-        ))}
+          );
+        })}
 
         {/* 绘制当前点击点之间的连线预览 */}
-        {clickedPoints.length >= 2 && selectedTool !== 'hand' && (
-          <>
-            {currentTool?.pointsNeeded === 4 && clickedPoints.length >= 2 ? (
-              clickedPoints.length >= 2 &&
-              clickedPoints.length < 4 && (
-                <line
-                  x1={clickedPoints[0].x}
-                  y1={clickedPoints[0].y}
-                  x2={clickedPoints[1].x}
-                  y2={clickedPoints[1].y}
-                  stroke="#ef4444"
-                  strokeWidth="2"
-                  strokeDasharray="2,6"
-                />
-              )
-            ) : currentTool?.pointsNeeded === 3 && clickedPoints.length >= 2 ? (
-              clickedPoints
-                .slice(0, -1)
-                .map((point, index) => (
+        {clickedPoints.length >= 2 && selectedTool !== 'hand' && (() => {
+          // 转换所有点为屏幕坐标
+          const screenPoints = clickedPoints.map(p => imageToScreen(p));
+          return (
+            <>
+              {currentTool?.pointsNeeded === 4 && screenPoints.length >= 2 ? (
+                screenPoints.length >= 2 &&
+                screenPoints.length < 4 && (
                   <line
-                    key={`preview-line-${index}`}
-                    x1={point.x}
-                    y1={point.y}
-                    x2={clickedPoints[index + 1].x}
-                    y2={clickedPoints[index + 1].y}
+                    x1={screenPoints[0].x}
+                    y1={screenPoints[0].y}
+                    x2={screenPoints[1].x}
+                    y2={screenPoints[1].y}
                     stroke="#ef4444"
                     strokeWidth="2"
-                    strokeDasharray="2,2"
+                    strokeDasharray="2,6"
                   />
-                ))
-            ) : (
-              <line
-                x1={clickedPoints[0].x}
-                y1={clickedPoints[0].y}
-                x2={clickedPoints[clickedPoints.length - 1].x}
-                y2={clickedPoints[clickedPoints.length - 1].y}
-                stroke="#ef4444"
-                strokeWidth="2"
-                strokeDasharray="2,2"
-              />
-            )}
-          </>
-        )}
+                )
+              ) : currentTool?.pointsNeeded === 3 && screenPoints.length >= 2 ? (
+                screenPoints
+                  .slice(0, -1)
+                  .map((point, index) => (
+                    <line
+                      key={`preview-line-${index}`}
+                      x1={point.x}
+                      y1={point.y}
+                      x2={screenPoints[index + 1].x}
+                      y2={screenPoints[index + 1].y}
+                      stroke="#ef4444"
+                      strokeWidth="2"
+                      strokeDasharray="2,2"
+                    />
+                  ))
+              ) : (
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[screenPoints.length - 1].x}
+                  y2={screenPoints[screenPoints.length - 1].y}
+                  stroke="#ef4444"
+                  strokeWidth="2"
+                  strokeDasharray="2,2"
+                />
+              )}
+            </>
+          );
+        })()}
 
         {/* 绘制辅助圆形 */}
-        {circles.map(circle => (
-          <circle
-            key={circle.id}
-            cx={circle.centerX}
-            cy={circle.centerY}
-            r={circle.radius}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth="2"
-            opacity="0.6"
-          />
-        ))}
+        {circles.map(circle => {
+          const screenCenter = imageToScreen({ x: circle.centerX, y: circle.centerY });
+          return (
+            <circle
+              key={circle.id}
+              cx={screenCenter.x}
+              cy={screenCenter.y}
+              r={circle.radius * imageScale}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="2"
+              opacity="0.6"
+            />
+          );
+        })}
 
         {/* 绘制圆形预览 */}
         {drawingState.isDrawing &&
           drawingState.startPoint &&
           drawingState.currentPoint &&
-          selectedTool === 'circle' && (
-            <circle
-              cx={drawingState.startPoint.x}
-              cy={drawingState.startPoint.y}
-              r={Math.sqrt(
-                Math.pow(
-                  drawingState.currentPoint.x - drawingState.startPoint.x,
-                  2
-                ) +
-                  Math.pow(
-                    drawingState.currentPoint.y - drawingState.startPoint.y,
-                    2
-                  )
-              )}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="2"
-              strokeDasharray="5,5"
-              opacity="0.4"
-            />
-          )}
+          selectedTool === 'circle' && (() => {
+            const startScreen = imageToScreen(drawingState.startPoint);
+            const endScreen = imageToScreen(drawingState.currentPoint);
+            const radius = Math.sqrt(
+              Math.pow(endScreen.x - startScreen.x, 2) +
+              Math.pow(endScreen.y - startScreen.y, 2)
+            );
+            return (
+              <circle
+                cx={startScreen.x}
+                cy={startScreen.y}
+                r={radius}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                opacity="0.4"
+              />
+            );
+          })()}
 
         {/* 绘制辅助椭圆 */}
-        {ellipses.map(ellipse => (
-          <ellipse
-            key={ellipse.id}
-            cx={ellipse.centerX}
-            cy={ellipse.centerY}
-            rx={ellipse.radiusX}
-            ry={ellipse.radiusY}
-            fill="none"
-            stroke="#8b5cf6"
-            strokeWidth="2"
-            opacity="0.6"
-          />
-        ))}
+        {ellipses.map(ellipse => {
+          const screenCenter = imageToScreen({ x: ellipse.centerX, y: ellipse.centerY });
+          return (
+            <ellipse
+              key={ellipse.id}
+              cx={screenCenter.x}
+              cy={screenCenter.y}
+              rx={ellipse.radiusX * imageScale}
+              ry={ellipse.radiusY * imageScale}
+              fill="none"
+              stroke="#8b5cf6"
+              strokeWidth="2"
+              opacity="0.6"
+            />
+          );
+        })}
 
         {/* 绘制椭圆预览 */}
         {drawingState.isDrawing &&
           drawingState.startPoint &&
           drawingState.currentPoint &&
-          selectedTool === 'ellipse' && (
-            <ellipse
-              cx={drawingState.startPoint.x}
-              cy={drawingState.startPoint.y}
-              rx={Math.abs(
-                drawingState.currentPoint.x - drawingState.startPoint.x
-              )}
-              ry={Math.abs(
-                drawingState.currentPoint.y - drawingState.startPoint.y
-              )}
-              fill="none"
-              stroke="#8b5cf6"
-              strokeWidth="2"
-              strokeDasharray="5,5"
-              opacity="0.4"
-            />
-          )}
+          selectedTool === 'ellipse' && (() => {
+            const startScreen = imageToScreen(drawingState.startPoint);
+            const endScreen = imageToScreen(drawingState.currentPoint);
+            return (
+              <ellipse
+                cx={startScreen.x}
+                cy={startScreen.y}
+                rx={Math.abs(endScreen.x - startScreen.x)}
+                ry={Math.abs(endScreen.y - startScreen.y)}
+                fill="none"
+                stroke="#8b5cf6"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                opacity="0.4"
+              />
+            );
+          })()}
 
         {/* 绘制辅助矩形 */}
-        {rectangles.map(rect => (
-          <rect
-            key={rect.id}
-            x={rect.x}
-            y={rect.y}
-            width={rect.width}
-            height={rect.height}
-            fill="none"
-            stroke="#ec4899"
-            strokeWidth="2"
-            opacity="0.6"
-          />
-        ))}
+        {rectangles.map(rect => {
+          const topLeft = imageToScreen({ x: rect.x, y: rect.y });
+          const bottomRight = imageToScreen({ x: rect.x + rect.width, y: rect.y + rect.height });
+          return (
+            <rect
+              key={rect.id}
+              x={topLeft.x}
+              y={topLeft.y}
+              width={bottomRight.x - topLeft.x}
+              height={bottomRight.y - topLeft.y}
+              fill="none"
+              stroke="#ec4899"
+              strokeWidth="2"
+              opacity="0.6"
+            />
+          );
+        })}
 
         {/* 绘制矩形预览 */}
         {drawingState.isDrawing &&
           drawingState.startPoint &&
           drawingState.currentPoint &&
-          selectedTool === 'rectangle' && (
-            <rect
-              x={Math.min(
-                drawingState.startPoint.x,
-                drawingState.currentPoint.x
-              )}
-              y={Math.min(
-                drawingState.startPoint.y,
-                drawingState.currentPoint.y
-              )}
-              width={Math.abs(
-                drawingState.currentPoint.x - drawingState.startPoint.x
-              )}
-              height={Math.abs(
-                drawingState.currentPoint.y - drawingState.startPoint.y
-              )}
-              fill="none"
-              stroke="#ec4899"
-              strokeWidth="2"
-              strokeDasharray="5,5"
-              opacity="0.4"
-            />
-          )}
+          selectedTool === 'rectangle' && (() => {
+            const startScreen = imageToScreen(drawingState.startPoint);
+            const endScreen = imageToScreen(drawingState.currentPoint);
+            return (
+              <rect
+                x={Math.min(startScreen.x, endScreen.x)}
+                y={Math.min(startScreen.y, endScreen.y)}
+                width={Math.abs(endScreen.x - startScreen.x)}
+                height={Math.abs(endScreen.y - startScreen.y)}
+                fill="none"
+                stroke="#ec4899"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                opacity="0.4"
+              />
+            );
+          })()}
 
         {/* 绘制箭头 */}
-        {arrows.map(arrow => (
-          <line
-            key={arrow.id}
-            x1={arrow.startX}
-            y1={arrow.startY}
-            x2={arrow.endX}
-            y2={arrow.endY}
-            stroke="#f59e0b"
-            strokeWidth="2"
-            markerEnd="url(#arrowhead)"
-            opacity="0.6"
-          />
-        ))}
+        {arrows.map(arrow => {
+          const start = imageToScreen({ x: arrow.startX, y: arrow.startY });
+          const end = imageToScreen({ x: arrow.endX, y: arrow.endY });
+          return (
+            <line
+              key={arrow.id}
+              x1={start.x}
+              y1={start.y}
+              x2={end.x}
+              y2={end.y}
+              stroke="#f59e0b"
+              strokeWidth="2"
+              markerEnd="url(#arrowhead)"
+              opacity="0.6"
+            />
+          );
+        })}
 
         {/* 绘制箭头预览 */}
         {drawingState.isDrawing &&
           drawingState.startPoint &&
           drawingState.currentPoint &&
-          selectedTool === 'arrow' && (
-            <line
-              x1={drawingState.startPoint.x}
-              y1={drawingState.startPoint.y}
-              x2={drawingState.currentPoint.x}
-              y2={drawingState.currentPoint.y}
-              stroke="#f59e0b"
-              strokeWidth="2"
-              markerEnd="url(#arrowhead)"
-              strokeDasharray="5,5"
-              opacity="0.4"
-            />
-          )}
+          selectedTool === 'arrow' && (() => {
+            const start = imageToScreen(drawingState.startPoint);
+            const end = imageToScreen(drawingState.currentPoint);
+            return (
+              <line
+                x1={start.x}
+                y1={start.y}
+                x2={end.x}
+                y2={end.y}
+                stroke="#f59e0b"
+                strokeWidth="2"
+                markerEnd="url(#arrowhead)"
+                strokeDasharray="5,5"
+                opacity="0.4"
+              />
+            );
+          })()}
 
         {/* 绘制多边形 */}
-        {polygons.map(polygon => (
-          <polygon
-            key={polygon.id}
-            points={polygon.points.map(p => `${p.x},${p.y}`).join(' ')}
-            fill="none"
-            stroke="#06b6d4"
-            strokeWidth="2"
-            opacity="0.6"
-          />
-        ))}
+        {polygons.map(polygon => {
+          const screenPoints = polygon.points.map(p => imageToScreen(p));
+          return (
+            <polygon
+              key={polygon.id}
+              points={screenPoints.map(p => `${p.x},${p.y}`).join(' ')}
+              fill="none"
+              stroke="#06b6d4"
+              strokeWidth="2"
+              opacity="0.6"
+            />
+          );
+        })}
 
         {/* 绘制多边形预览 */}
-        {selectedTool === 'polygon' && polygonPoints.length > 0 && (
-          <>
-            {/* 绘制已添加的点 */}
-            {polygonPoints.map((point, idx) => (
-              <circle
-                key={`polygon-point-${idx}`}
-                cx={point.x}
-                cy={point.y}
-                r="4"
-                fill="#06b6d4"
-                opacity="0.8"
-              />
-            ))}
-            {/* 绘制连接线 */}
-            {polygonPoints.length > 1 && (
-              <>
-                {polygonPoints.slice(0, -1).map((point, idx) => (
-                  <line
-                    key={`polygon-line-${idx}`}
-                    x1={point.x}
-                    y1={point.y}
-                    x2={polygonPoints[idx + 1].x}
-                    y2={polygonPoints[idx + 1].y}
-                    stroke="#06b6d4"
-                    strokeWidth="2"
-                    strokeDasharray="5,5"
-                    opacity="0.6"
-                  />
-                ))}
-              </>
-            )}
-          </>
-        )}
+        {selectedTool === 'polygon' && polygonPoints.length > 0 && (() => {
+          const screenPoints = polygonPoints.map(p => imageToScreen(p));
+          return (
+            <>
+              {/* 绘制已添加的点 */}
+              {screenPoints.map((point, idx) => (
+                <circle
+                  key={`polygon-point-${idx}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r="4"
+                  fill="#06b6d4"
+                  opacity="0.8"
+                />
+              ))}
+              {/* 绘制连接线 */}
+              {screenPoints.length > 1 && (
+                <>
+                  {screenPoints.slice(0, -1).map((point, idx) => (
+                    <line
+                      key={`polygon-line-${idx}`}
+                      x1={point.x}
+                      y1={point.y}
+                      x2={screenPoints[idx + 1].x}
+                      y2={screenPoints[idx + 1].y}
+                      stroke="#06b6d4"
+                      strokeWidth="2"
+                      strokeDasharray="5,5"
+                      opacity="0.6"
+                    />
+                  ))}
+                </>
+              )}
+            </>
+          );
+        })()}
       </svg>
 
       {/* 操作提示 */}
