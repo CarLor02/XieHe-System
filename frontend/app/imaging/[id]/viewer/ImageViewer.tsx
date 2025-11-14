@@ -82,6 +82,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [studyData, setStudyData] = useState<StudyData | null>(null);
   const [studyLoading, setStudyLoading] = useState(true);
 
+  // 测量结果历史记录（父组件管理）
+  const [measurementHistory, setMeasurementHistory] = useState<Measurement[][]>([[]]);
+  const [measurementHistoryIndex, setMeasurementHistoryIndex] = useState(0);
+
   // 标准距离设置
   const [standardDistance, setStandardDistance] = useState<number | null>(null);
   const [standardDistanceValue, setStandardDistanceValue] = useState('');
@@ -518,11 +522,53 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       points: points,
       description,
     };
-    setMeasurements(prev => [...prev, newMeasurement]);
+    
+    setMeasurements(prev => {
+      const newMeasurements = [...prev, newMeasurement];
+      // 保存到历史记录
+      const newHistory = [...measurementHistory.slice(0, measurementHistoryIndex + 1), newMeasurements];
+      setMeasurementHistory(newHistory);
+      setMeasurementHistoryIndex(newHistory.length - 1);
+      return newMeasurements;
+    });
   };
 
   const removeMeasurement = (id: string) => {
-    setMeasurements(prev => prev.filter(m => m.id !== id));
+    setMeasurements(prev => {
+      const newMeasurements = prev.filter(m => m.id !== id);
+      // 保存到历史记录
+      const newHistory = [...measurementHistory.slice(0, measurementHistoryIndex + 1), newMeasurements];
+      setMeasurementHistory(newHistory);
+      setMeasurementHistoryIndex(newHistory.length - 1);
+      return newMeasurements;
+    });
+  };
+
+  // 清空所有测量数据
+  const clearAllMeasurements = () => {
+    setMeasurements([]);
+    setClickedPoints([]);
+    // 重置历史记录
+    setMeasurementHistory([[]]);
+    setMeasurementHistoryIndex(0);
+  };
+
+  // 撤销测量结果
+  const handleUndoMeasurement = () => {
+    if (measurementHistoryIndex > 0) {
+      const newIndex = measurementHistoryIndex - 1;
+      setMeasurementHistoryIndex(newIndex);
+      setMeasurements(measurementHistory[newIndex] || []);
+    }
+  };
+
+  // 回退测量结果
+  const handleRedoMeasurement = () => {
+    if (measurementHistoryIndex < measurementHistory.length - 1) {
+      const newIndex = measurementHistoryIndex + 1;
+      setMeasurementHistoryIndex(newIndex);
+      setMeasurements(measurementHistory[newIndex] || []);
+    }
   };
 
   // 影像导航功能 - 从API动态获取影像列表
@@ -777,6 +823,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               measurements={measurements}
               selectedTool={selectedTool}
               onMeasurementAdd={addMeasurement}
+              onMeasurementsUpdate={setMeasurements}
+              onClearAll={clearAllMeasurements}
+              onUndoMeasurement={handleUndoMeasurement}
+              onRedoMeasurement={handleRedoMeasurement}
+              measurementHistoryIndex={measurementHistoryIndex}
+              measurementHistoryLength={measurementHistory.length}
               tools={tools}
               clickedPoints={clickedPoints}
               setClickedPoints={setClickedPoints}
@@ -1100,6 +1152,12 @@ function ImageCanvas({
   measurements,
   selectedTool,
   onMeasurementAdd,
+  onMeasurementsUpdate,
+  onClearAll,
+  onUndoMeasurement,
+  onRedoMeasurement,
+  measurementHistoryIndex,
+  measurementHistoryLength,
   tools,
   clickedPoints,
   setClickedPoints,
@@ -1109,6 +1167,12 @@ function ImageCanvas({
   measurements: Measurement[];
   selectedTool: string;
   onMeasurementAdd: (type: string, points: Point[]) => void;
+  onMeasurementsUpdate: (measurements: Measurement[]) => void;
+  onClearAll: () => void;
+  onUndoMeasurement: () => void;
+  onRedoMeasurement: () => void;
+  measurementHistoryIndex: number;
+  measurementHistoryLength: number;
   tools: any[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
@@ -1152,8 +1216,131 @@ function ImageCanvas({
   // 多边形绘制状态
   const [polygonPoints, setPolygonPoints] = useState<Point[]>([]);
 
+  // 点级别历史记录 - 用于撤销/回退单个点
+  const [pointHistory, setPointHistory] = useState<Point[][]>([[]]);
+  const [pointHistoryIndex, setPointHistoryIndex] = useState(0);
+
+  // 辅助图形历史记录（保持原有功能）
+  const [shapeHistory, setShapeHistory] = useState<{
+    circles: Circle[][];
+    ellipses: Ellipse[][];
+    rectangles: Rectangle[][];
+    arrows: Arrow[][];
+    polygons: Polygon[][];
+  }>({
+    circles: [[]],
+    ellipses: [[]],
+    rectangles: [[]],
+    arrows: [[]],
+    polygons: [[]],
+  });
+  const [shapeHistoryIndex, setShapeHistoryIndex] = useState(0);
+
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
+
+  // ===== 点级别历史记录功能 =====
+  // 保存当前点状态到历史记录 - 当添加新点时调用
+  const savePointToHistory = (newPoints: Point[]) => {
+    const newHistory = [...pointHistory.slice(0, pointHistoryIndex + 1), [...newPoints]];
+    setPointHistory(newHistory);
+    setPointHistoryIndex(newHistory.length - 1);
+  };
+
+  // 撤销点操作 - 回到历史记录的前一个状态
+  const handleUndoPoint = () => {
+    if (pointHistoryIndex > 0) {
+      const newIndex = pointHistoryIndex - 1;
+      setPointHistoryIndex(newIndex);
+      setClickedPoints(pointHistory[newIndex] || []);
+    }
+  };
+
+  // 回退点操作 - 前进到历史记录的后一个状态
+  const handleRedoPoint = () => {
+    if (pointHistoryIndex < pointHistory.length - 1) {
+      const newIndex = pointHistoryIndex + 1;
+      setPointHistoryIndex(newIndex);
+      setClickedPoints(pointHistory[newIndex] || []);
+    }
+  };
+
+  // ===== 辅助图形历史记录功能 =====
+  // 保存当前辅助图形状态到历史记录
+  const saveShapeToHistory = () => {
+    const newHistory = {
+      circles: [...shapeHistory.circles.slice(0, shapeHistoryIndex + 1), [...circles]],
+      ellipses: [...shapeHistory.ellipses.slice(0, shapeHistoryIndex + 1), [...ellipses]],
+      rectangles: [...shapeHistory.rectangles.slice(0, shapeHistoryIndex + 1), [...rectangles]],
+      arrows: [...shapeHistory.arrows.slice(0, shapeHistoryIndex + 1), [...arrows]],
+      polygons: [...shapeHistory.polygons.slice(0, shapeHistoryIndex + 1), [...polygons]],
+    };
+    setShapeHistory(newHistory);
+    setShapeHistoryIndex(shapeHistoryIndex + 1);
+  };
+
+  // 撤销辅助图形操作
+  const handleUndoShape = () => {
+    if (shapeHistoryIndex > 0) {
+      const newIndex = shapeHistoryIndex - 1;
+      setShapeHistoryIndex(newIndex);
+      setCircles(shapeHistory.circles[newIndex] || []);
+      setEllipses(shapeHistory.ellipses[newIndex] || []);
+      setRectangles(shapeHistory.rectangles[newIndex] || []);
+      setArrows(shapeHistory.arrows[newIndex] || []);
+      setPolygons(shapeHistory.polygons[newIndex] || []);
+    }
+  };
+
+  // 回退（重做）辅助图形操作
+  const handleRedoShape = () => {
+    if (shapeHistoryIndex < shapeHistory.circles.length - 1) {
+      const newIndex = shapeHistoryIndex + 1;
+      setShapeHistoryIndex(newIndex);
+      setCircles(shapeHistory.circles[newIndex] || []);
+      setEllipses(shapeHistory.ellipses[newIndex] || []);
+      setRectangles(shapeHistory.rectangles[newIndex] || []);
+      setArrows(shapeHistory.arrows[newIndex] || []);
+      setPolygons(shapeHistory.polygons[newIndex] || []);
+    }
+  };
+
+  // ===== 测量结果级别历史记录功能 =====
+  // 测量结果的撤销/回退已移到父组件管理，这里只是使用传入的回调
+  
+  // 清空所有标注
+  const handleClear = () => {
+    // 显示确认对话框
+    if (window.confirm('确定要清空所有标注吗？此操作无法撤销。')) {
+      // 清空父组件的测量数据
+      onClearAll();
+      
+      // 清空当前组件的辅助图形
+      setClickedPoints([]);
+      setCircles([]);
+      setEllipses([]);
+      setRectangles([]);
+      setArrows([]);
+      setPolygons([]);
+      setPolygonPoints([]);
+      
+      // 重置点级别历史记录
+      setPointHistory([[]]);
+      setPointHistoryIndex(0);
+      
+      // 重置辅助图形历史记录
+      setShapeHistory({
+        circles: [[]],
+        ellipses: [[]],
+        rectangles: [[]],
+        arrows: [[]],
+        polygons: [[]],
+      });
+      setShapeHistoryIndex(0);
+      
+      // 测量结果历史记录由父组件管理，通过 onClearAll 已经处理
+    }
+  };
 
   // 坐标转换函数：将图像坐标系转换为屏幕坐标系
   // 图像使用 transform: translate(pos) scale(s)，transformOrigin: center
@@ -1254,6 +1441,37 @@ function ImageCanvas({
     };
   }, [imageId]);
 
+  // 键盘快捷键支持
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z 撤销测量结果
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        onUndoMeasurement();
+      }
+      // Ctrl+Y 或 Ctrl+Shift+Z 回退测量结果
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        onRedoMeasurement();
+      }
+      // Alt+Z 撤销点
+      if (e.altKey && e.key === 'z') {
+        e.preventDefault();
+        handleUndoPoint();
+      }
+      // Alt+Y 回退点
+      if (e.altKey && e.key === 'y') {
+        e.preventDefault();
+        handleRedoPoint();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [measurementHistoryIndex, measurementHistoryLength, pointHistoryIndex, pointHistory, clickedPoints, measurements]);
+
   const getImageUrl = (examType: string) => {
     return imageUrl;
   };
@@ -1320,7 +1538,9 @@ function ImageCanvas({
           );
           if (distance < 5 / imageScale) {
             // 点击了已有的点，删除它
-            setClickedPoints(clickedPoints.filter((_, idx) => idx !== i));
+            const newPoints = clickedPoints.filter((_, idx) => idx !== i);
+            setClickedPoints(newPoints);
+            savePointToHistory(newPoints);  // 保存删除点后的历史
             clickedExistingPoint = true;
             break;
           }
@@ -1330,12 +1550,17 @@ function ImageCanvas({
         if (!clickedExistingPoint) {
           const newPoints = [...clickedPoints, imagePoint];
           setClickedPoints(newPoints);
+          savePointToHistory(newPoints);  // 保存添加点后的历史
 
           // 如果点数达到所需数量，自动生成测量
           const currentTool = tools.find(t => t.id === selectedTool);
           if (currentTool && newPoints.length === currentTool.pointsNeeded) {
             onMeasurementAdd(currentTool.name, newPoints);
-            setClickedPoints([]);
+            const emptyPoints: Point[] = [];
+            setClickedPoints(emptyPoints);
+            // 形成测量结果后，重置点历史记录（不允许撤销已完成的测量的点）
+            setPointHistory([[]]);
+            setPointHistoryIndex(0);
           }
         }
 
@@ -1569,7 +1794,13 @@ function ImageCanvas({
       onDoubleClick={handleDoubleClick}
     >
       {/* 左上角测量结果展示区 */}
-      <div className="absolute top-4 left-48 z-10">
+      <div 
+        className="absolute top-4 left-48 z-10"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+        onMouseMove={(e) => e.stopPropagation()}
+      >
         <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 bg-black/20">
             <span className="text-white text-xs font-medium">测量结果</span>
@@ -1613,7 +1844,75 @@ function ImageCanvas({
       </div>
 
       {/* 右上角控制工具栏 */}
-      <div className="absolute top-4 right-4 z-10 bg-black/80 border border-blue-500/30 backdrop-blur-sm rounded-lg p-3 flex flex-col gap-3 min-w-max">
+      <div 
+        className="absolute top-4 right-4 z-10 bg-black/80 border border-blue-500/30 backdrop-blur-sm rounded-lg p-3 flex flex-col gap-3 min-w-max"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+        onMouseMove={(e) => e.stopPropagation()}
+      >
+        {/* 点级别操作按钮 */}
+        <div className="flex flex-col gap-2">
+          <div className="text-xs text-white/70 font-medium px-1">点操作</div>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={handleUndoPoint}
+              disabled={pointHistoryIndex === 0}
+              className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-xs font-medium transition-all active:scale-95"
+              title="撤销点 (Alt+Z)"
+            >
+              <i className="ri-arrow-go-back-line"></i>
+              <span>撤销点</span>
+            </button>
+            <button
+              onClick={handleRedoPoint}
+              disabled={pointHistoryIndex === pointHistory.length - 1}
+              className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-xs font-medium transition-all active:scale-95"
+              title="回退点 (Alt+Y)"
+            >
+              <i className="ri-arrow-go-forward-line"></i>
+              <span>回退点</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 测量结果级别操作按钮 */}
+        <div className="flex flex-col gap-2 pt-2 border-t border-gray-600">
+          <div className="text-xs text-white/70 font-medium px-1">测量操作</div>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={onUndoMeasurement}
+              disabled={measurementHistoryIndex === 0}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-xs font-medium transition-all active:scale-95"
+              title="撤销测量 (Ctrl+Z)"
+            >
+              <i className="ri-arrow-go-back-line"></i>
+              <span>撤销测量</span>
+            </button>
+            <button
+              onClick={onRedoMeasurement}
+              disabled={measurementHistoryIndex === measurementHistoryLength - 1}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-xs font-medium transition-all active:scale-95"
+              title="回退测量 (Ctrl+Y)"
+            >
+              <i className="ri-arrow-go-forward-line"></i>
+              <span>回退测量</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 清空按钮 */}
+        <div className="flex items-center justify-center pt-2 border-t border-gray-600">
+          <button
+            onClick={handleClear}
+            className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-white text-xs font-medium transition-all active:scale-95 w-full justify-center"
+            title="清空所有标注"
+          >
+            <i className="ri-delete-bin-line"></i>
+            <span>清空全部</span>
+          </button>
+        </div>
+        
         {/* 缩放调节 */}
         <div className="flex items-center justify-between gap-3">
           <span className="text-white text-xs whitespace-nowrap">缩放</span>
@@ -1707,17 +2006,6 @@ function ImageCanvas({
             <p className="text-sm">图像加载失败</p>
           </div>
         )}
-
-        {/* 参考线（仅正位和侧位显示） */}
-        {(selectedImage.examType === '正位X光片' ||
-          selectedImage.examType === '侧位X光片') && (
-          <>
-            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-green-400 opacity-60 pointer-events-none"></div>
-            <div className="absolute top-1/2 left-4 bg-green-400 text-black text-xs px-1 rounded pointer-events-none">
-              HRL
-            </div>
-          </>
-        )}
       </div>
 
       {/* SVG标注层 */}
@@ -1742,20 +2030,64 @@ function ImageCanvas({
         </defs>
         {/* 绘制已完成的测量 */}
         {measurements.map((measurement, index) => {
+          // 根据测量类型分配颜色
+          const getMeasurementColor = (type: string): string => {
+            // 角度测量类
+            if (type.includes('Cobb') || type === 'Cobb') return '#3b82f6'; // 蓝色
+            if (type.includes('Tilt') || type === 'T1 Tilt') return '#8b5cf6'; // 紫色
+            if (type.includes('Slope') || type === 'T1 Slope') return '#a855f7'; // 亮紫色
+            if (type.includes('Pelvic') || type === 'Pelvic') return '#ec4899'; // 粉色
+            if (type.includes('Sacral') || type === 'Sacral') return '#f43f5e'; // 玫红色
+            if (type === 'PI') return '#ef4444'; // 红色 - 骨盆入射角
+            if (type === 'PT') return '#f97316'; // 橙红色 - 骨盆倾斜角
+            if (type === 'SS') return '#f59e0b'; // 橙色 - 骶骨倾斜角
+            if (type === 'TK') return '#06b6d4'; // 青色 - 胸椎后凸角
+            if (type === 'LL') return '#14b8a6'; // 蓝绿色 - 腰椎前凸角
+            
+            // 距离测量类
+            if (type === 'RSH') return '#10b981'; // 绿色 - 肩高差
+            if (type === 'AVT') return '#059669'; // 深绿色 - 顶椎平移量
+            if (type === 'TS') return '#84cc16'; // 黄绿色 - 躯干偏移量
+            if (type === 'SVA') return '#65a30d'; // 橄榄绿 - 矢状面椎体轴线
+            if (type.includes('长度') || type === '长度测量') return '#22c55e'; // 浅绿色
+            
+            // 颈椎相关
+            if (type.includes('C2-C7')) return '#0ea5e9'; // 天蓝色
+            
+            // 默认颜色
+            return '#10b981'; // 默认绿色
+          };
+          
+          const color = getMeasurementColor(measurement.type);
+          
           // 将图像坐标转换为屏幕坐标
           const screenPoints = measurement.points.map(p => imageToScreen(p));
           return (
             <g key={measurement.id}>
               {screenPoints.map((point, pointIndex) => (
-                <circle
-                  key={pointIndex}
-                  cx={point.x}
-                  cy={point.y}
-                  r="3"
-                  fill="#10b981"
-                  stroke="#ffffff"
-                  strokeWidth="1"
-                />
+                <g key={pointIndex}>
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="3"
+                    fill={color}
+                    stroke="#ffffff"
+                    strokeWidth="1"
+                  />
+                  {/* 点的序号标注 */}
+                  <text
+                    x={point.x + 8}
+                    y={point.y - 8}
+                    fill={color}
+                    fontSize="12"
+                    fontWeight="bold"
+                    stroke="#000000"
+                    strokeWidth="0.5"
+                    paintOrder="stroke"
+                  >
+                    {pointIndex + 1}
+                  </text>
+                </g>
               ))}
               {/* 连接线 */}
               {screenPoints.length >= 2 && (
@@ -1771,7 +2103,7 @@ function ImageCanvas({
                           y1={screenPoints[0].y}
                           x2={screenPoints[1].x}
                           y2={screenPoints[1].y}
-                          stroke="#10b981"
+                          stroke={color}
                           strokeWidth="2"
                           strokeDasharray="3,3"
                         />
@@ -1780,7 +2112,7 @@ function ImageCanvas({
                           y1={screenPoints[2].y}
                           x2={screenPoints[3].x}
                           y2={screenPoints[3].y}
-                          stroke="#10b981"
+                          stroke={color}
                           strokeWidth="2"
                           strokeDasharray="3,3"
                         />
@@ -1792,7 +2124,7 @@ function ImageCanvas({
                           y1={screenPoints[0].y}
                           x2={screenPoints[1].x}
                           y2={screenPoints[1].y}
-                          stroke="#10b981"
+                          stroke={color}
                           strokeWidth="2"
                           strokeDasharray="3,3"
                         />
@@ -1801,7 +2133,7 @@ function ImageCanvas({
                           y1={screenPoints[1].y}
                           x2={screenPoints[2].x}
                           y2={screenPoints[2].y}
-                          stroke="#10b981"
+                          stroke={color}
                           strokeWidth="2"
                           strokeDasharray="3,3"
                         />
@@ -1813,12 +2145,29 @@ function ImageCanvas({
                       y1={screenPoints[0].y}
                       x2={screenPoints[screenPoints.length - 1].x}
                       y2={screenPoints[screenPoints.length - 1].y}
-                      stroke="#10b981"
+                      stroke={color}
                       strokeWidth="2"
                       strokeDasharray="3,3"
                     />
                   )}
                 </>
+              )}
+              
+              {/* 测量值标注 - 显示在测量线中间 */}
+              {screenPoints.length >= 2 && (
+                <text
+                  x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2}
+                  y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10}
+                  fill={color}
+                  fontSize="14"
+                  fontWeight="bold"
+                  stroke="#000000"
+                  strokeWidth="0.8"
+                  paintOrder="stroke"
+                  textAnchor="middle"
+                >
+                  {measurement.type}: {measurement.value}
+                </text>
               )}
             </g>
           );
@@ -1843,6 +2192,9 @@ function ImageCanvas({
               fill="#ef4444"
               fontSize="12"
               fontWeight="bold"
+              stroke="#000000"
+              strokeWidth="0.5"
+              paintOrder="stroke"
             >
               {index + 1}
             </text>
