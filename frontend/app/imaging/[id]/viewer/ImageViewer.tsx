@@ -82,10 +82,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [studyData, setStudyData] = useState<StudyData | null>(null);
   const [studyLoading, setStudyLoading] = useState(true);
 
-  // 测量结果历史记录（父组件管理）
-  const [measurementHistory, setMeasurementHistory] = useState<Measurement[][]>([[]]);
-  const [measurementHistoryIndex, setMeasurementHistoryIndex] = useState(0);
-
   // 标准距离设置
   const [standardDistance, setStandardDistance] = useState<number | null>(null);
   const [standardDistanceValue, setStandardDistanceValue] = useState('');
@@ -543,52 +539,17 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       description,
     };
     
-    setMeasurements(prev => {
-      const newMeasurements = [...prev, newMeasurement];
-      // 保存到历史记录
-      const newHistory = [...measurementHistory.slice(0, measurementHistoryIndex + 1), newMeasurements];
-      setMeasurementHistory(newHistory);
-      setMeasurementHistoryIndex(newHistory.length - 1);
-      return newMeasurements;
-    });
+    setMeasurements(prev => [...prev, newMeasurement]);
   };
 
   const removeMeasurement = (id: string) => {
-    setMeasurements(prev => {
-      const newMeasurements = prev.filter(m => m.id !== id);
-      // 保存到历史记录
-      const newHistory = [...measurementHistory.slice(0, measurementHistoryIndex + 1), newMeasurements];
-      setMeasurementHistory(newHistory);
-      setMeasurementHistoryIndex(newHistory.length - 1);
-      return newMeasurements;
-    });
+    setMeasurements(prev => prev.filter(m => m.id !== id));
   };
 
   // 清空所有测量数据
   const clearAllMeasurements = () => {
     setMeasurements([]);
     setClickedPoints([]);
-    // 重置历史记录
-    setMeasurementHistory([[]]);
-    setMeasurementHistoryIndex(0);
-  };
-
-  // 撤销测量结果
-  const handleUndoMeasurement = () => {
-    if (measurementHistoryIndex > 0) {
-      const newIndex = measurementHistoryIndex - 1;
-      setMeasurementHistoryIndex(newIndex);
-      setMeasurements(measurementHistory[newIndex] || []);
-    }
-  };
-
-  // 回退测量结果
-  const handleRedoMeasurement = () => {
-    if (measurementHistoryIndex < measurementHistory.length - 1) {
-      const newIndex = measurementHistoryIndex + 1;
-      setMeasurementHistoryIndex(newIndex);
-      setMeasurements(measurementHistory[newIndex] || []);
-    }
   };
 
   // 影像导航功能 - 从API动态获取影像列表
@@ -845,10 +806,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               onMeasurementAdd={addMeasurement}
               onMeasurementsUpdate={setMeasurements}
               onClearAll={clearAllMeasurements}
-              onUndoMeasurement={handleUndoMeasurement}
-              onRedoMeasurement={handleRedoMeasurement}
-              measurementHistoryIndex={measurementHistoryIndex}
-              measurementHistoryLength={measurementHistory.length}
               tools={tools}
               clickedPoints={clickedPoints}
               setClickedPoints={setClickedPoints}
@@ -1174,10 +1131,6 @@ function ImageCanvas({
   onMeasurementAdd,
   onMeasurementsUpdate,
   onClearAll,
-  onUndoMeasurement,
-  onRedoMeasurement,
-  measurementHistoryIndex,
-  measurementHistoryLength,
   tools,
   clickedPoints,
   setClickedPoints,
@@ -1189,10 +1142,6 @@ function ImageCanvas({
   onMeasurementAdd: (type: string, points: Point[]) => void;
   onMeasurementsUpdate: (measurements: Measurement[]) => void;
   onClearAll: () => void;
-  onUndoMeasurement: () => void;
-  onRedoMeasurement: () => void;
-  measurementHistoryIndex: number;
-  measurementHistoryLength: number;
   tools: any[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
@@ -1226,38 +1175,14 @@ function ImageCanvas({
     currentPoint: null,
   });
 
-  // 点级别历史记录 - 用于撤销/回退单个点（测量点和多边形点）
-  const [pointHistory, setPointHistory] = useState<Point[][]>([[]]);
-  const [pointHistoryIndex, setPointHistoryIndex] = useState(0);
+  // 选中状态 - 用于移动模式下的选中、拖拽和删除
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
+  const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
+  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
-
-  // ===== 点级别历史记录功能 =====
-  // 保存当前点状态到历史记录 - 当添加新点时调用
-  const savePointToHistory = (newPoints: Point[]) => {
-    const newHistory = [...pointHistory.slice(0, pointHistoryIndex + 1), [...newPoints]];
-    setPointHistory(newHistory);
-    setPointHistoryIndex(newHistory.length - 1);
-  };
-
-  // 撤销点操作 - 回到历史记录的前一个状态
-  const handleUndoPoint = () => {
-    if (pointHistoryIndex > 0) {
-      const newIndex = pointHistoryIndex - 1;
-      setPointHistoryIndex(newIndex);
-      setClickedPoints(pointHistory[newIndex] || []);
-    }
-  };
-
-  // 回退点操作 - 前进到历史记录的后一个状态
-  const handleRedoPoint = () => {
-    if (pointHistoryIndex < pointHistory.length - 1) {
-      const newIndex = pointHistoryIndex + 1;
-      setPointHistoryIndex(newIndex);
-      setClickedPoints(pointHistory[newIndex] || []);
-    }
-  };
 
   // 清空所有标注
   const handleClear = () => {
@@ -1268,12 +1193,6 @@ function ImageCanvas({
       
       // 清空当前正在绘制的点
       setClickedPoints([]);
-      
-      // 重置点级别历史记录
-      setPointHistory([[]]);
-      setPointHistoryIndex(0);
-      
-      // 测量结果历史记录由父组件管理，通过 onClearAll 已经处理
     }
   };
 
@@ -1376,37 +1295,6 @@ function ImageCanvas({
     };
   }, [imageId]);
 
-  // 键盘快捷键支持
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+Z 撤销测量结果
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        onUndoMeasurement();
-      }
-      // Ctrl+Y 回退测量结果
-      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault();
-        onRedoMeasurement();
-      }
-      // Alt+Z 撤销点
-      if (e.altKey && e.key === 'z') {
-        e.preventDefault();
-        handleUndoPoint();
-      }
-      // Alt+Y 回退点
-      if (e.altKey && e.key === 'y') {
-        e.preventDefault();
-        handleRedoPoint();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [measurementHistoryIndex, measurementHistoryLength, pointHistoryIndex, pointHistory, clickedPoints, measurements]);
-
   const getImageUrl = (examType: string) => {
     return imageUrl;
   };
@@ -1437,9 +1325,253 @@ function ImageCanvas({
 
       // 根据当前工具判断调整模式
       if (selectedTool === 'hand') {
-        setAdjustMode('zoom');
-        setIsDragging(true);
-        setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
+        const imagePoint = screenToImage(x, y);
+        
+        // 辅助函数: 计算点到线段的距离
+        const pointToLineDistance = (point: Point, lineStart: Point, lineEnd: Point): number => {
+          const dx = lineEnd.x - lineStart.x;
+          const dy = lineEnd.y - lineStart.y;
+          const lengthSquared = dx * dx + dy * dy;
+          
+          if (lengthSquared === 0) {
+            // 线段退化为点
+            return Math.sqrt(
+              Math.pow(point.x - lineStart.x, 2) + Math.pow(point.y - lineStart.y, 2)
+            );
+          }
+          
+          // 计算投影参数t
+          let t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lengthSquared;
+          t = Math.max(0, Math.min(1, t)); // 限制在线段范围内
+          
+          // 计算投影点
+          const projX = lineStart.x + t * dx;
+          const projY = lineStart.y + t * dy;
+          
+          return Math.sqrt(Math.pow(point.x - projX, 2) + Math.pow(point.y - projY, 2));
+        };
+        
+        // 辅助函数: 检查点是否在边界框内
+        const isPointInBounds = (point: Point, points: Point[]): boolean => {
+          if (points.length === 0) return false;
+          const xs = points.map(p => p.x);
+          const ys = points.map(p => p.y);
+          const minX = Math.min(...xs);
+          const maxX = Math.max(...xs);
+          const minY = Math.min(...ys);
+          const maxY = Math.max(...ys);
+          const padding = 15 / imageScale;
+          
+          return point.x >= minX - padding && point.x <= maxX + padding &&
+                 point.y >= minY - padding && point.y <= maxY + padding;
+        };
+        
+        // 辅助函数: 检查点是否在文字标识区域
+        const isPointInTextLabel = (point: Point, measurement: any): boolean => {
+          // 计算测量值标注的位置和范围
+          if (measurement.points.length < 2) return false;
+          
+          const firstPoint = measurement.points[0];
+          const lastPoint = measurement.points[measurement.points.length - 1];
+          const textX = (firstPoint.x + lastPoint.x) / 2;
+          const textY = (firstPoint.y + lastPoint.y) / 2 - 10 / imageScale;
+          
+          // 估算文字宽度和高度 (粗略估算)
+          const textWidth = (measurement.type.length + measurement.value.length) * 8 / imageScale;
+          const textHeight = 20 / imageScale;
+          
+          return point.x >= textX - textWidth / 2 && point.x <= textX + textWidth / 2 &&
+                 point.y >= textY - textHeight / 2 && point.y <= textY + textHeight / 2;
+        };
+        
+        // 先检查是否点击了已有的测量结果或点
+        let foundSelection = false;
+        let selectedMeasurement: any = null;
+        
+        // 1. 检查是否点击了已完成的测量结果
+        for (const measurement of measurements) {
+          const clickThreshold = 10 / imageScale; // 点击阈值
+          
+          // 1.1 检查是否点击了任意点
+          for (let i = 0; i < measurement.points.length; i++) {
+            const point = measurement.points[i];
+            const distance = Math.sqrt(
+              Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+            );
+            if (distance < clickThreshold) {
+              selectedMeasurement = measurement;
+              foundSelection = true;
+              break;
+            }
+          }
+          
+          // 1.2 检查是否点击了连接线
+          if (!foundSelection && measurement.points.length >= 2) {
+            for (let i = 0; i < measurement.points.length - 1; i++) {
+              const dist = pointToLineDistance(
+                imagePoint,
+                measurement.points[i],
+                measurement.points[i + 1]
+              );
+              if (dist < clickThreshold) {
+                selectedMeasurement = measurement;
+                foundSelection = true;
+                break;
+              }
+            }
+          }
+          
+          // 1.3 检查是否点击了文字标识区域或辅助图形内部区域
+          if (!foundSelection) {
+            const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
+            
+            if (isAuxiliaryShape) {
+              // 辅助图形:检查是否点击了图形内部或边界
+              if (measurement.type === '圆形标注' && measurement.points.length === 2) {
+                // 圆形:检查是否在圆内
+                const center = measurement.points[0];
+                const edge = measurement.points[1];
+                const radius = Math.sqrt(
+                  Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
+                );
+                const distToCenter = Math.sqrt(
+                  Math.pow(imagePoint.x - center.x, 2) + Math.pow(imagePoint.y - center.y, 2)
+                );
+                if (distToCenter <= radius) {
+                  selectedMeasurement = measurement;
+                  foundSelection = true;
+                }
+              } else if (measurement.type === '椭圆标注' && measurement.points.length === 2) {
+                // 椭圆:检查是否在椭圆内
+                const p1 = measurement.points[0];
+                const p2 = measurement.points[1];
+                const centerX = (p1.x + p2.x) / 2;
+                const centerY = (p1.y + p2.y) / 2;
+                const a = Math.abs(p2.x - p1.x) / 2; // 长半轴
+                const b = Math.abs(p2.y - p1.y) / 2; // 短半轴
+                if (a > 0 && b > 0) {
+                  const normalizedDist = 
+                    Math.pow((imagePoint.x - centerX) / a, 2) + 
+                    Math.pow((imagePoint.y - centerY) / b, 2);
+                  if (normalizedDist <= 1) {
+                    selectedMeasurement = measurement;
+                    foundSelection = true;
+                  }
+                }
+              } else if (measurement.type === '矩形标注' && measurement.points.length === 2) {
+                // 矩形:检查是否在矩形内
+                const p1 = measurement.points[0];
+                const p2 = measurement.points[1];
+                const minX = Math.min(p1.x, p2.x);
+                const maxX = Math.max(p1.x, p2.x);
+                const minY = Math.min(p1.y, p2.y);
+                const maxY = Math.max(p1.y, p2.y);
+                if (imagePoint.x >= minX && imagePoint.x <= maxX &&
+                    imagePoint.y >= minY && imagePoint.y <= maxY) {
+                  selectedMeasurement = measurement;
+                  foundSelection = true;
+                }
+              } else if (measurement.type === '多边形标注' && measurement.points.length >= 3) {
+                // 多边形:使用射线法检查点是否在多边形内
+                let inside = false;
+                for (let i = 0, j = measurement.points.length - 1; i < measurement.points.length; j = i++) {
+                  const xi = measurement.points[i].x, yi = measurement.points[i].y;
+                  const xj = measurement.points[j].x, yj = measurement.points[j].y;
+                  const intersect = ((yi > imagePoint.y) !== (yj > imagePoint.y))
+                    && (imagePoint.x < (xj - xi) * (imagePoint.y - yi) / (yj - yi) + xi);
+                  if (intersect) inside = !inside;
+                }
+                if (inside) {
+                  selectedMeasurement = measurement;
+                  foundSelection = true;
+                }
+              }
+              // 箭头标注已经通过线段检测(1.2)处理,无需额外逻辑
+            } else {
+              // 非辅助图形:检查文字标识区域
+              if (isPointInTextLabel(imagePoint, measurement)) {
+                selectedMeasurement = measurement;
+                foundSelection = true;
+              }
+            }
+          }
+          
+          if (foundSelection) {
+            // 计算拖拽偏移量 - 使用边界框中心点
+            const xs = selectedMeasurement.points.map((p: Point) => p.x);
+            const ys = selectedMeasurement.points.map((p: Point) => p.y);
+            const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+            const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+            
+            setSelectedMeasurementId(selectedMeasurement.id);
+            setSelectedPointIndex(null);
+            setIsDraggingSelection(false); // 初始不拖拽,点击时只选中
+            setDragOffset({
+              x: imagePoint.x - centerX,
+              y: imagePoint.y - centerY,
+            });
+            break;
+          }
+        }
+        
+        // 2. 检查是否点击了正在绘制的点
+        if (!foundSelection && clickedPoints.length > 0) {
+          const clickThreshold = 10 / imageScale;
+          for (let i = 0; i < clickedPoints.length; i++) {
+            const point = clickedPoints[i];
+            const distance = Math.sqrt(
+              Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+            );
+            if (distance < clickThreshold) {
+              setSelectedMeasurementId(null);
+              setSelectedPointIndex(i);
+              setIsDraggingSelection(false); // 初始不拖拽
+              setDragOffset({
+                x: imagePoint.x - point.x,
+                y: imagePoint.y - point.y,
+              });
+              foundSelection = true;
+              break;
+            }
+          }
+        }
+        
+        // 3. 如果没有点击到任何对象,检查是否点击了已选中对象的边界框内
+        if (!foundSelection && selectedMeasurementId) {
+          const measurement = measurements.find(m => m.id === selectedMeasurementId);
+          if (measurement && measurement.points.length > 0) {
+            // 计算边界框
+            const xs = measurement.points.map(p => p.x);
+            const ys = measurement.points.map(p => p.y);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+            const padding = 15 / imageScale;
+            
+            // 检查是否在边界框内
+            if (imagePoint.x >= minX - padding && imagePoint.x <= maxX + padding &&
+                imagePoint.y >= minY - padding && imagePoint.y <= maxY + padding) {
+              // 在边界框内,保持选中状态并重新计算拖拽偏移量
+              const centerX = (minX + maxX) / 2;
+              const centerY = (minY + maxY) / 2;
+              setDragOffset({
+                x: imagePoint.x - centerX,
+                y: imagePoint.y - centerY,
+              });
+              foundSelection = true;
+            }
+          }
+        }
+        
+        // 4. 如果没有点击到任何对象且不在已选中对象的边界框内,则取消选中并进入拖拽图像模式
+        if (!foundSelection) {
+          setSelectedMeasurementId(null);
+          setSelectedPointIndex(null);
+          setAdjustMode('zoom');
+          setIsDragging(true);
+          setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
+        }
       } else if (
         selectedTool === 'circle' ||
         selectedTool === 'ellipse' ||
@@ -1472,7 +1604,6 @@ function ImageCanvas({
         
         const newPoints = [...clickedPoints, imagePoint];
         setClickedPoints(newPoints);
-        savePointToHistory(newPoints);
       } else {
         // 其他工具时，检查是否点击了已有的点（用于删除）
         // 或者开始调整亮度和对比度
@@ -1491,7 +1622,6 @@ function ImageCanvas({
             // 点击了已有的点，删除它
             const newPoints = clickedPoints.filter((_, idx) => idx !== i);
             setClickedPoints(newPoints);
-            savePointToHistory(newPoints);  // 保存删除点后的历史
             clickedExistingPoint = true;
             break;
           }
@@ -1501,7 +1631,6 @@ function ImageCanvas({
         if (!clickedExistingPoint) {
           const newPoints = [...clickedPoints, imagePoint];
           setClickedPoints(newPoints);
-          savePointToHistory(newPoints);  // 保存添加点后的历史
 
           // 如果点数达到所需数量，自动生成测量
           const currentTool = tools.find(t => t.id === selectedTool);
@@ -1509,9 +1638,6 @@ function ImageCanvas({
             onMeasurementAdd(currentTool.name, newPoints);
             const emptyPoints: Point[] = [];
             setClickedPoints(emptyPoints);
-            // 形成测量结果后，重置点历史记录（不允许撤销已完成的测量的点）
-            setPointHistory([[]]);
-            setPointHistoryIndex(0);
           }
         }
 
@@ -1535,7 +1661,90 @@ function ImageCanvas({
       }));
     }
 
-    if (adjustMode === 'zoom' && isDragging && selectedTool === 'hand') {
+    // 处理选中对象的拖拽
+    if ((selectedMeasurementId || selectedPointIndex !== null) && selectedTool === 'hand' && e.buttons === 1) {
+      const imagePoint = screenToImage(x, y);
+      
+      // 如果还没开始拖拽,检查鼠标是否在边界框内
+      if (!isDraggingSelection) {
+        let canDrag = false;
+        
+        if (selectedMeasurementId) {
+          const measurement = measurements.find(m => m.id === selectedMeasurementId);
+          if (measurement && measurement.points.length > 0) {
+            // 计算边界框
+            const xs = measurement.points.map(p => p.x);
+            const ys = measurement.points.map(p => p.y);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+            const padding = 15 / imageScale;
+            
+            // 检查鼠标是否在边界框内
+            if (imagePoint.x >= minX - padding && imagePoint.x <= maxX + padding &&
+                imagePoint.y >= minY - padding && imagePoint.y <= maxY + padding) {
+              canDrag = true;
+            }
+          }
+        } else if (selectedPointIndex !== null && clickedPoints[selectedPointIndex]) {
+          // 对于单个点,始终允许拖拽
+          canDrag = true;
+        }
+        
+        if (canDrag) {
+          setIsDraggingSelection(true);
+        }
+        // 如果不能拖拽,不执行任何操作,让其他鼠标处理逻辑处理
+      }
+      
+      // 如果已经在拖拽状态,继续拖拽(无论鼠标是否在边界框内)
+      if (isDraggingSelection || selectedMeasurementId || selectedPointIndex !== null) {
+        if (selectedMeasurementId) {
+          // 移动整个测量结果 - 使用中心点计算偏移
+          const measurement = measurements.find(m => m.id === selectedMeasurementId);
+          if (measurement && measurement.points.length > 0) {
+            // 计算当前中心点
+            const xs = measurement.points.map(p => p.x);
+            const ys = measurement.points.map(p => p.y);
+            const currentCenterX = (Math.min(...xs) + Math.max(...xs)) / 2;
+            const currentCenterY = (Math.min(...ys) + Math.max(...ys)) / 2;
+            
+            // 计算新的中心点位置
+            const newCenterX = imagePoint.x - dragOffset.x;
+            const newCenterY = imagePoint.y - dragOffset.y;
+            
+            // 计算偏移量
+            const deltaX = newCenterX - currentCenterX;
+            const deltaY = newCenterY - currentCenterY;
+            
+            // 更新所有点的位置
+            const updatedMeasurements = measurements.map(m => {
+              if (m.id === selectedMeasurementId) {
+                return {
+                  ...m,
+                  points: m.points.map(p => ({
+                    x: p.x + deltaX,
+                    y: p.y + deltaY,
+                  })),
+                };
+              }
+              return m;
+            });
+            
+            onMeasurementsUpdate(updatedMeasurements);
+          }
+        } else if (selectedPointIndex !== null) {
+          // 移动单个点
+          const newPoints = [...clickedPoints];
+          newPoints[selectedPointIndex] = { 
+            x: imagePoint.x - dragOffset.x, 
+            y: imagePoint.y - dragOffset.y 
+          };
+          setClickedPoints(newPoints);
+        }
+      }
+    } else if (adjustMode === 'zoom' && isDragging && selectedTool === 'hand') {
       setImagePosition({
         x: x - dragStart.x,
         y: y - dragStart.y,
@@ -1568,13 +1777,15 @@ function ImageCanvas({
     if (clickedPoints.length >= 3) {
       onMeasurementAdd('多边形标注', clickedPoints);
       setClickedPoints([]);
-      // 重置点历史记录
-      setPointHistory([[]]);
-      setPointHistoryIndex(0);
     }
   };
 
   const handleMouseUp = () => {
+    // 结束拖拽选中对象
+    if (isDraggingSelection) {
+      setIsDraggingSelection(false);
+    }
+    
     if (
       drawingState.isDrawing &&
       drawingState.startPoint &&
@@ -1787,58 +1998,8 @@ function ImageCanvas({
         onMouseUp={(e) => e.stopPropagation()}
         onMouseMove={(e) => e.stopPropagation()}
       >
-        {/* 点级别操作按钮 */}
-        <div className="flex flex-col gap-2">
-          <div className="text-xs text-white/70 font-medium px-1">点操作</div>
-          <div className="flex items-center justify-center gap-2">
-            <button
-              onClick={handleUndoPoint}
-              disabled={pointHistoryIndex === 0}
-              className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-xs font-medium transition-all active:scale-95"
-              title="撤销点 (Alt+Z)"
-            >
-              <i className="ri-arrow-go-back-line"></i>
-              <span>撤销点</span>
-            </button>
-            <button
-              onClick={handleRedoPoint}
-              disabled={pointHistoryIndex === pointHistory.length - 1}
-              className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-xs font-medium transition-all active:scale-95"
-              title="回退点 (Alt+Y)"
-            >
-              <i className="ri-arrow-go-forward-line"></i>
-              <span>回退点</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 测量结果级别操作按钮 */}
-        <div className="flex flex-col gap-2 pt-2 border-t border-gray-600">
-          <div className="text-xs text-white/70 font-medium px-1">测量操作</div>
-          <div className="flex items-center justify-center gap-2">
-            <button
-              onClick={onUndoMeasurement}
-              disabled={measurementHistoryIndex === 0}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-xs font-medium transition-all active:scale-95"
-              title="撤销测量 (Ctrl+Z)"
-            >
-              <i className="ri-arrow-go-back-line"></i>
-              <span>撤销测量</span>
-            </button>
-            <button
-              onClick={onRedoMeasurement}
-              disabled={measurementHistoryIndex === measurementHistoryLength - 1}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-xs font-medium transition-all active:scale-95"
-              title="回退测量 (Ctrl+Y)"
-            >
-              <i className="ri-arrow-go-forward-line"></i>
-              <span>回退测量</span>
-            </button>
-          </div>
-        </div>
-
         {/* 清空按钮 */}
-        <div className="flex items-center justify-center pt-2 border-t border-gray-600">
+        <div className="flex items-center justify-center">
           <button
             onClick={handleClear}
             className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-white text-xs font-medium transition-all active:scale-95 w-full justify-center"
@@ -2438,14 +2599,117 @@ function ImageCanvas({
             </>
           );
         })()}
+
+        {/* 选中边界框和删除按钮 */}
+        {(() => {
+          // 获取选中的对象
+          let selectedPoints: Point[] = [];
+          
+          if (selectedMeasurementId) {
+            // 选中了测量结果
+            const measurement = measurements.find(m => m.id === selectedMeasurementId);
+            if (measurement) {
+              selectedPoints = measurement.points;
+            }
+          } else if (selectedPointIndex !== null && clickedPoints[selectedPointIndex]) {
+            // 选中了单个点
+            selectedPoints = [clickedPoints[selectedPointIndex]];
+          }
+          
+          if (selectedPoints.length === 0) return null;
+          
+          // 计算边界框
+          const screenPoints = selectedPoints.map(p => imageToScreen(p));
+          const xs = screenPoints.map(p => p.x);
+          const ys = screenPoints.map(p => p.y);
+          const minX = Math.min(...xs) - 15;
+          const maxX = Math.max(...xs) + 15;
+          const minY = Math.min(...ys) - 15;
+          const maxY = Math.max(...ys) + 15;
+          const width = maxX - minX;
+          const height = maxY - minY;
+          
+          return (
+            <g>
+              {/* 边界框 */}
+              <rect
+                x={minX}
+                y={minY}
+                width={width}
+                height={height}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                opacity="0.8"
+              />
+              {/* 删除按钮 - 右上角 */}
+              <g
+                style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  // 删除选中的对象
+                  if (selectedMeasurementId) {
+                    onMeasurementsUpdate(measurements.filter(m => m.id !== selectedMeasurementId));
+                    setSelectedMeasurementId(null);
+                  } else if (selectedPointIndex !== null) {
+                    const newPoints = clickedPoints.filter((_, idx) => idx !== selectedPointIndex);
+                    setClickedPoints(newPoints);
+                    setSelectedPointIndex(null);
+                  }
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onMouseUp={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onMouseMove={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <circle
+                  cx={maxX}
+                  cy={minY}
+                  r="12"
+                  fill="#ef4444"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                />
+                <line
+                  x1={maxX - 6}
+                  y1={minY - 6}
+                  x2={maxX + 6}
+                  y2={minY + 6}
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <line
+                  x1={maxX - 6}
+                  y1={minY + 6}
+                  x2={maxX + 6}
+                  y2={minY - 6}
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </g>
+            </g>
+          );
+        })()}
       </svg>
 
       {/* 操作提示 */}
       <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-3 py-2 rounded">
         {selectedTool === 'hand' ? (
           <div>
-            <p className="font-medium">拖拽模式</p>
-            <p>拖拽移动图像 | 鼠标悬停时滚轮缩放</p>
+            <p className="font-medium">移动模式</p>
+            <p>点击选中标注 | 拖拽移动 | 点击删除按钮删除</p>
+            <p className="text-gray-400 mt-1">或拖拽移动图像 | 滚轮缩放</p>
           </div>
         ) : selectedTool === 'polygon' ? (
           <div>
