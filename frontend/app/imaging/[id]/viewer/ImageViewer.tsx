@@ -513,6 +513,26 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         }
         description = '通用角度测量';
         break;
+      case '圆形标注':
+        defaultValue = '辅助标注';
+        description = '圆形辅助标注';
+        break;
+      case '椭圆标注':
+        defaultValue = '辅助标注';
+        description = '椭圆辅助标注';
+        break;
+      case '矩形标注':
+        defaultValue = '辅助标注';
+        description = '矩形辅助标注';
+        break;
+      case '箭头标注':
+        defaultValue = '辅助标注';
+        description = '箭头辅助标注';
+        break;
+      case '多边形标注':
+        defaultValue = '辅助标注';
+        description = '多边形辅助标注';
+        break;
     }
 
     const newMeasurement: Measurement = {
@@ -1195,13 +1215,6 @@ function ImageCanvas({
   >('none');
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
 
-  // 辅助图形状态
-  const [circles, setCircles] = useState<Circle[]>([]);
-  const [ellipses, setEllipses] = useState<Ellipse[]>([]);
-  const [rectangles, setRectangles] = useState<Rectangle[]>([]);
-  const [arrows, setArrows] = useState<Arrow[]>([]);
-  const [polygons, setPolygons] = useState<Polygon[]>([]);
-
   // 绘制状态
   const [drawingState, setDrawingState] = useState<{
     isDrawing: boolean;
@@ -1213,28 +1226,9 @@ function ImageCanvas({
     currentPoint: null,
   });
 
-  // 多边形绘制状态
-  const [polygonPoints, setPolygonPoints] = useState<Point[]>([]);
-
-  // 点级别历史记录 - 用于撤销/回退单个点
+  // 点级别历史记录 - 用于撤销/回退单个点（测量点和多边形点）
   const [pointHistory, setPointHistory] = useState<Point[][]>([[]]);
   const [pointHistoryIndex, setPointHistoryIndex] = useState(0);
-
-  // 辅助图形历史记录（保持原有功能）
-  const [shapeHistory, setShapeHistory] = useState<{
-    circles: Circle[][];
-    ellipses: Ellipse[][];
-    rectangles: Rectangle[][];
-    arrows: Arrow[][];
-    polygons: Polygon[][];
-  }>({
-    circles: [[]],
-    ellipses: [[]],
-    rectangles: [[]],
-    arrows: [[]],
-    polygons: [[]],
-  });
-  const [shapeHistoryIndex, setShapeHistoryIndex] = useState(0);
 
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
@@ -1265,78 +1259,19 @@ function ImageCanvas({
     }
   };
 
-  // ===== 辅助图形历史记录功能 =====
-  // 保存当前辅助图形状态到历史记录
-  const saveShapeToHistory = () => {
-    const newHistory = {
-      circles: [...shapeHistory.circles.slice(0, shapeHistoryIndex + 1), [...circles]],
-      ellipses: [...shapeHistory.ellipses.slice(0, shapeHistoryIndex + 1), [...ellipses]],
-      rectangles: [...shapeHistory.rectangles.slice(0, shapeHistoryIndex + 1), [...rectangles]],
-      arrows: [...shapeHistory.arrows.slice(0, shapeHistoryIndex + 1), [...arrows]],
-      polygons: [...shapeHistory.polygons.slice(0, shapeHistoryIndex + 1), [...polygons]],
-    };
-    setShapeHistory(newHistory);
-    setShapeHistoryIndex(shapeHistoryIndex + 1);
-  };
-
-  // 撤销辅助图形操作
-  const handleUndoShape = () => {
-    if (shapeHistoryIndex > 0) {
-      const newIndex = shapeHistoryIndex - 1;
-      setShapeHistoryIndex(newIndex);
-      setCircles(shapeHistory.circles[newIndex] || []);
-      setEllipses(shapeHistory.ellipses[newIndex] || []);
-      setRectangles(shapeHistory.rectangles[newIndex] || []);
-      setArrows(shapeHistory.arrows[newIndex] || []);
-      setPolygons(shapeHistory.polygons[newIndex] || []);
-    }
-  };
-
-  // 回退（重做）辅助图形操作
-  const handleRedoShape = () => {
-    if (shapeHistoryIndex < shapeHistory.circles.length - 1) {
-      const newIndex = shapeHistoryIndex + 1;
-      setShapeHistoryIndex(newIndex);
-      setCircles(shapeHistory.circles[newIndex] || []);
-      setEllipses(shapeHistory.ellipses[newIndex] || []);
-      setRectangles(shapeHistory.rectangles[newIndex] || []);
-      setArrows(shapeHistory.arrows[newIndex] || []);
-      setPolygons(shapeHistory.polygons[newIndex] || []);
-    }
-  };
-
-  // ===== 测量结果级别历史记录功能 =====
-  // 测量结果的撤销/回退已移到父组件管理，这里只是使用传入的回调
-  
   // 清空所有标注
   const handleClear = () => {
     // 显示确认对话框
     if (window.confirm('确定要清空所有标注吗？此操作无法撤销。')) {
-      // 清空父组件的测量数据
+      // 清空父组件的测量数据（包括所有测量和辅助图形）
       onClearAll();
       
-      // 清空当前组件的辅助图形
+      // 清空当前正在绘制的点
       setClickedPoints([]);
-      setCircles([]);
-      setEllipses([]);
-      setRectangles([]);
-      setArrows([]);
-      setPolygons([]);
-      setPolygonPoints([]);
       
       // 重置点级别历史记录
       setPointHistory([[]]);
       setPointHistoryIndex(0);
-      
-      // 重置辅助图形历史记录
-      setShapeHistory({
-        circles: [[]],
-        ellipses: [[]],
-        rectangles: [[]],
-        arrows: [[]],
-        polygons: [[]],
-      });
-      setShapeHistoryIndex(0);
       
       // 测量结果历史记录由父组件管理，通过 onClearAll 已经处理
     }
@@ -1449,8 +1384,8 @@ function ImageCanvas({
         e.preventDefault();
         onUndoMeasurement();
       }
-      // Ctrl+Y 或 Ctrl+Shift+Z 回退测量结果
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      // Ctrl+Y 回退测量结果
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
         e.preventDefault();
         onRedoMeasurement();
       }
@@ -1519,9 +1454,25 @@ function ImageCanvas({
           currentPoint: imagePoint,
         });
       } else if (selectedTool === 'polygon') {
-        // 多边形绘制模式
+        // 多边形绘制模式 - 使用 clickedPoints 来管理点，这样可以使用点级别的撤销/回退
         const imagePoint = screenToImage(x, y);
-        setPolygonPoints([...polygonPoints, imagePoint]);
+        
+        // 检查是否点击接近第一个点（自动闭合）
+        if (clickedPoints.length >= 3) {
+          const firstPoint = clickedPoints[0];
+          const distance = Math.sqrt(
+            Math.pow(imagePoint.x - firstPoint.x, 2) + Math.pow(imagePoint.y - firstPoint.y, 2)
+          );
+          // 如果距离第一个点小于10个图像像素，自动完成多边形
+          if (distance < 10 / imageScale) {
+            completePolygon();
+            return;
+          }
+        }
+        
+        const newPoints = [...clickedPoints, imagePoint];
+        setClickedPoints(newPoints);
+        savePointToHistory(newPoints);
       } else {
         // 其他工具时，检查是否点击了已有的点（用于删除）
         // 或者开始调整亮度和对比度
@@ -1614,13 +1565,12 @@ function ImageCanvas({
   };
 
   const completePolygon = () => {
-    if (polygonPoints.length >= 3) {
-      const newPolygon: Polygon = {
-        id: Date.now().toString(),
-        points: polygonPoints,
-      };
-      setPolygons([...polygons, newPolygon]);
-      setPolygonPoints([]);
+    if (clickedPoints.length >= 3) {
+      onMeasurementAdd('多边形标注', clickedPoints);
+      setClickedPoints([]);
+      // 重置点历史记录
+      setPointHistory([[]]);
+      setPointHistoryIndex(0);
     }
   };
 
@@ -1637,52 +1587,37 @@ function ImageCanvas({
       const endY = drawingState.currentPoint.y;
 
       if (selectedTool === 'circle') {
-        const radius = Math.sqrt(
-          Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2)
-        );
-        const newCircle: Circle = {
-          id: Date.now().toString(),
-          centerX: startX,
-          centerY: startY,
-          radius: radius,
-        };
-        setCircles([...circles, newCircle]);
+        // 圆形：存储中心点和边缘点（用于计算半径）
+        const points: Point[] = [
+          { x: startX, y: startY }, // 中心点
+          { x: endX, y: endY },     // 边缘点
+        ];
+        onMeasurementAdd('圆形标注', points);
       } else if (selectedTool === 'ellipse') {
-        // 椭圆：中心点为起始点，radiusX 和 radiusY 为到终点的距离
-        const radiusX = Math.abs(endX - startX);
-        const radiusY = Math.abs(endY - startY);
-        const newEllipse: Ellipse = {
-          id: Date.now().toString(),
-          centerX: startX,
-          centerY: startY,
-          radiusX: radiusX,
-          radiusY: radiusY,
-        };
-        setEllipses([...ellipses, newEllipse]);
+        // 椭圆：存储中心点和边界点
+        const points: Point[] = [
+          { x: startX, y: startY }, // 中心点
+          { x: endX, y: endY },     // 边界点
+        ];
+        onMeasurementAdd('椭圆标注', points);
       } else if (selectedTool === 'rectangle') {
-        // 矩形：起始点为左上角，宽度和高度为到终点的距离
-        const width = Math.abs(endX - startX);
-        const height = Math.abs(endY - startY);
-        const x = Math.min(startX, endX);
-        const y = Math.min(startY, endY);
-        const newRectangle: Rectangle = {
-          id: Date.now().toString(),
-          x: x,
-          y: y,
-          width: width,
-          height: height,
-        };
-        setRectangles([...rectangles, newRectangle]);
+        // 矩形：存储左上角和右下角
+        const minX = Math.min(startX, endX);
+        const minY = Math.min(startY, endY);
+        const maxX = Math.max(startX, endX);
+        const maxY = Math.max(startY, endY);
+        const points: Point[] = [
+          { x: minX, y: minY }, // 左上角
+          { x: maxX, y: maxY }, // 右下角
+        ];
+        onMeasurementAdd('矩形标注', points);
       } else if (selectedTool === 'arrow') {
-        // 箭头：从起始点到终点
-        const newArrow: Arrow = {
-          id: Date.now().toString(),
-          startX: startX,
-          startY: startY,
-          endX: endX,
-          endY: endY,
-        };
-        setArrows([...arrows, newArrow]);
+        // 箭头：存储起点和终点
+        const points: Point[] = [
+          { x: startX, y: startY }, // 起点
+          { x: endX, y: endY },     // 终点
+        ];
+        onMeasurementAdd('箭头标注', points);
       }
       // 其他图形类型的处理将在后续任务中添加
     }
@@ -1696,6 +1631,7 @@ function ImageCanvas({
   };
 
   const handleDoubleClick = () => {
+    // 双击重置视图
     resetView();
   };
 
@@ -2030,6 +1966,9 @@ function ImageCanvas({
         </defs>
         {/* 绘制已完成的测量 */}
         {measurements.map((measurement, index) => {
+          // 判断是否为辅助图形(不需要标识)
+          const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
+          
           // 根据测量类型分配颜色
           const getMeasurementColor = (type: string): string => {
             // 角度测量类
@@ -2064,7 +2003,8 @@ function ImageCanvas({
           const screenPoints = measurement.points.map(p => imageToScreen(p));
           return (
             <g key={measurement.id}>
-              {screenPoints.map((point, pointIndex) => (
+              {/* 关键点 - 辅助图形不显示定位点 */}
+              {!isAuxiliaryShape && screenPoints.map((point, pointIndex) => (
                 <g key={pointIndex}>
                   <circle
                     cx={point.x}
@@ -2074,7 +2014,7 @@ function ImageCanvas({
                     stroke="#ffffff"
                     strokeWidth="1"
                   />
-                  {/* 点的序号标注 */}
+                  {/* 点的序号标注 - 辅助图形不显示 */}
                   <text
                     x={point.x + 8}
                     y={point.y - 8}
@@ -2089,8 +2029,8 @@ function ImageCanvas({
                   </text>
                 </g>
               ))}
-              {/* 连接线 */}
-              {screenPoints.length >= 2 && (
+              {/* 连接线 - 辅助图形不显示连接线 */}
+              {!isAuxiliaryShape && screenPoints.length >= 2 && (
                 <>
                   {measurement.type.includes('角') ||
                   measurement.type.includes('Cobb') ||
@@ -2153,8 +2093,8 @@ function ImageCanvas({
                 </>
               )}
               
-              {/* 测量值标注 - 显示在测量线中间 */}
-              {screenPoints.length >= 2 && (
+              {/* 测量值标注 - 显示在测量线中间,辅助图形不显示 */}
+              {!isAuxiliaryShape && screenPoints.length >= 2 && (
                 <text
                   x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2}
                   y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10}
@@ -2251,22 +2191,32 @@ function ImageCanvas({
           );
         })()}
 
-        {/* 绘制辅助圆形 */}
-        {circles.map(circle => {
-          const screenCenter = imageToScreen({ x: circle.centerX, y: circle.centerY });
-          return (
-            <circle
-              key={circle.id}
-              cx={screenCenter.x}
-              cy={screenCenter.y}
-              r={circle.radius * imageScale}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="2"
-              opacity="0.6"
-            />
-          );
-        })}
+        {/* 绘制辅助圆形 - 从 measurements 中筛选 */}
+        {measurements
+          .filter(m => m.type === '圆形标注')
+          .map(measurement => {
+            if (measurement.points.length >= 2) {
+              const center = measurement.points[0]; // 中心点
+              const edge = measurement.points[1];   // 边缘点
+              const radius = Math.sqrt(
+                Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
+              );
+              const screenCenter = imageToScreen(center);
+              return (
+                <circle
+                  key={measurement.id}
+                  cx={screenCenter.x}
+                  cy={screenCenter.y}
+                  r={radius * imageScale}
+                  fill="none"
+                  stroke="#3b82f6"
+                  strokeWidth="2"
+                  opacity="0.6"
+                />
+              );
+            }
+            return null;
+          })}
 
         {/* 绘制圆形预览 */}
         {drawingState.isDrawing &&
@@ -2293,23 +2243,32 @@ function ImageCanvas({
             );
           })()}
 
-        {/* 绘制辅助椭圆 */}
-        {ellipses.map(ellipse => {
-          const screenCenter = imageToScreen({ x: ellipse.centerX, y: ellipse.centerY });
-          return (
-            <ellipse
-              key={ellipse.id}
-              cx={screenCenter.x}
-              cy={screenCenter.y}
-              rx={ellipse.radiusX * imageScale}
-              ry={ellipse.radiusY * imageScale}
-              fill="none"
-              stroke="#8b5cf6"
-              strokeWidth="2"
-              opacity="0.6"
-            />
-          );
-        })}
+        {/* 绘制辅助椭圆 - 从 measurements 中筛选 */}
+        {measurements
+          .filter(m => m.type === '椭圆标注')
+          .map(measurement => {
+            if (measurement.points.length >= 2) {
+              const center = measurement.points[0]; // 中心点
+              const edge = measurement.points[1];   // 边界点
+              const radiusX = Math.abs(edge.x - center.x);
+              const radiusY = Math.abs(edge.y - center.y);
+              const screenCenter = imageToScreen(center);
+              return (
+                <ellipse
+                  key={measurement.id}
+                  cx={screenCenter.x}
+                  cy={screenCenter.y}
+                  rx={radiusX * imageScale}
+                  ry={radiusY * imageScale}
+                  fill="none"
+                  stroke="#8b5cf6"
+                  strokeWidth="2"
+                  opacity="0.6"
+                />
+              );
+            }
+            return null;
+          })}
 
         {/* 绘制椭圆预览 */}
         {drawingState.isDrawing &&
@@ -2333,24 +2292,29 @@ function ImageCanvas({
             );
           })()}
 
-        {/* 绘制辅助矩形 */}
-        {rectangles.map(rect => {
-          const topLeft = imageToScreen({ x: rect.x, y: rect.y });
-          const bottomRight = imageToScreen({ x: rect.x + rect.width, y: rect.y + rect.height });
-          return (
-            <rect
-              key={rect.id}
-              x={topLeft.x}
-              y={topLeft.y}
-              width={bottomRight.x - topLeft.x}
-              height={bottomRight.y - topLeft.y}
-              fill="none"
-              stroke="#ec4899"
-              strokeWidth="2"
-              opacity="0.6"
-            />
-          );
-        })}
+        {/* 绘制辅助矩形 - 从 measurements 中筛选 */}
+        {measurements
+          .filter(m => m.type === '矩形标注')
+          .map(measurement => {
+            if (measurement.points.length >= 2) {
+              const topLeft = imageToScreen(measurement.points[0]);
+              const bottomRight = imageToScreen(measurement.points[1]);
+              return (
+                <rect
+                  key={measurement.id}
+                  x={topLeft.x}
+                  y={topLeft.y}
+                  width={bottomRight.x - topLeft.x}
+                  height={bottomRight.y - topLeft.y}
+                  fill="none"
+                  stroke="#ec4899"
+                  strokeWidth="2"
+                  opacity="0.6"
+                />
+              );
+            }
+            return null;
+          })}
 
         {/* 绘制矩形预览 */}
         {drawingState.isDrawing &&
@@ -2374,24 +2338,29 @@ function ImageCanvas({
             );
           })()}
 
-        {/* 绘制箭头 */}
-        {arrows.map(arrow => {
-          const start = imageToScreen({ x: arrow.startX, y: arrow.startY });
-          const end = imageToScreen({ x: arrow.endX, y: arrow.endY });
-          return (
-            <line
-              key={arrow.id}
-              x1={start.x}
-              y1={start.y}
-              x2={end.x}
-              y2={end.y}
-              stroke="#f59e0b"
-              strokeWidth="2"
-              markerEnd="url(#arrowhead)"
-              opacity="0.6"
-            />
-          );
-        })}
+        {/* 绘制箭头 - 从 measurements 中筛选 */}
+        {measurements
+          .filter(m => m.type === '箭头标注')
+          .map(measurement => {
+            if (measurement.points.length >= 2) {
+              const start = imageToScreen(measurement.points[0]);
+              const end = imageToScreen(measurement.points[1]);
+              return (
+                <line
+                  key={measurement.id}
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke="#f59e0b"
+                  strokeWidth="2"
+                  markerEnd="url(#arrowhead)"
+                  opacity="0.6"
+                />
+              );
+            }
+            return null;
+          })}
 
         {/* 绘制箭头预览 */}
         {drawingState.isDrawing &&
@@ -2415,24 +2384,26 @@ function ImageCanvas({
             );
           })()}
 
-        {/* 绘制多边形 */}
-        {polygons.map(polygon => {
-          const screenPoints = polygon.points.map(p => imageToScreen(p));
-          return (
-            <polygon
-              key={polygon.id}
-              points={screenPoints.map(p => `${p.x},${p.y}`).join(' ')}
-              fill="none"
-              stroke="#06b6d4"
-              strokeWidth="2"
-              opacity="0.6"
-            />
-          );
-        })}
+        {/* 绘制多边形 - 从 measurements 中筛选 */}
+        {measurements
+          .filter(m => m.type === '多边形标注')
+          .map(measurement => {
+            const screenPoints = measurement.points.map(p => imageToScreen(p));
+            return (
+              <polygon
+                key={measurement.id}
+                points={screenPoints.map(p => `${p.x},${p.y}`).join(' ')}
+                fill="none"
+                stroke="#06b6d4"
+                strokeWidth="2"
+                opacity="0.6"
+              />
+            );
+          })}
 
-        {/* 绘制多边形预览 */}
-        {selectedTool === 'polygon' && polygonPoints.length > 0 && (() => {
-          const screenPoints = polygonPoints.map(p => imageToScreen(p));
+        {/* 绘制多边形预览 - 使用 clickedPoints */}
+        {selectedTool === 'polygon' && clickedPoints.length > 0 && (() => {
+          const screenPoints = clickedPoints.map(p => imageToScreen(p));
           return (
             <>
               {/* 绘制已添加的点 */}
@@ -2475,6 +2446,19 @@ function ImageCanvas({
           <div>
             <p className="font-medium">拖拽模式</p>
             <p>拖拽移动图像 | 鼠标悬停时滚轮缩放</p>
+          </div>
+        ) : selectedTool === 'polygon' ? (
+          <div>
+            <p className="font-medium">多边形标注模式</p>
+            <p>已标注 {clickedPoints.length} 个点</p>
+            {clickedPoints.length < 3 ? (
+              <p className="text-yellow-400 mt-1">至少需要3个点</p>
+            ) : (
+              <div className="text-green-400 mt-1">
+                <p>点击回第一个点自动闭合</p>
+                <p>Alt+Z 撤销点</p>
+              </div>
+            )}
           </div>
         ) : (
           <div>
