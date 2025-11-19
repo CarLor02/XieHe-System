@@ -1634,40 +1634,61 @@ function ImageCanvas({
           }
         }
         
-        // 3. 如果没有点击到任何对象,检查是否点击了已选中对象的边界框内
+        // 3. 如果没有点击到任何对象,检查是否点击了已选中对象的允许拖拽区域内
         if (!foundSelection && selectedMeasurementId) {
           const measurement = measurements.find(m => m.id === selectedMeasurementId);
           if (measurement && measurement.points.length > 0) {
-            // 计算边界框
-            const xs = measurement.points.map(p => p.x);
-            const ys = measurement.points.map(p => p.y);
-            const minX = Math.min(...xs);
-            const maxX = Math.max(...xs);
-            const minY = Math.min(...ys);
-            const maxY = Math.max(...ys);
-            const padding = 15 / imageScale;
-            
-            // 检查是否在边界框内
-            if (imagePoint.x >= minX - padding && imagePoint.x <= maxX + padding &&
-                imagePoint.y >= minY - padding && imagePoint.y <= maxY + padding) {
-              // 在边界框内,保持选中状态并重新计算拖拽偏移量
-              if (selectionType === 'point' && selectedPointIndex !== null) {
-                // 点选中模式:重新计算到选中点的偏移
-                const point = measurement.points[selectedPointIndex];
+            // 如果是点级别选择，只允许在选中点的选中框内拖拽
+            if (selectionType === 'point' && selectedPointIndex !== null) {
+              const selectedPoint = measurement.points[selectedPointIndex];
+              
+              // 计算选中框范围（与绘制逻辑一致）
+              const screenPoint = imageToScreen(selectedPoint);
+              const selectionBoxMinX = screenPoint.x - 15;
+              const selectionBoxMaxX = screenPoint.x + 15;
+              const selectionBoxMinY = screenPoint.y - 15;
+              const selectionBoxMaxY = screenPoint.y + 15;
+              
+              // 将当前鼠标位置转换为屏幕坐标
+              const mouseScreenPoint = imageToScreen(imagePoint);
+              
+              // 检查是否在选中框内
+              if (mouseScreenPoint.x >= selectionBoxMinX && mouseScreenPoint.x <= selectionBoxMaxX &&
+                  mouseScreenPoint.y >= selectionBoxMinY && mouseScreenPoint.y <= selectionBoxMaxY) {
+                // 在选中框内,可以拖拽
                 setDragOffset({
-                  x: imagePoint.x - point.x,
-                  y: imagePoint.y - point.y,
+                  x: imagePoint.x - selectedPoint.x,
+                  y: imagePoint.y - selectedPoint.y,
                 });
-              } else {
-                // 整体选中模式:重新计算到中心的偏移
-                const centerX = (minX + maxX) / 2;
-                const centerY = (minY + maxY) / 2;
+                foundSelection = true;
+              }
+            } else if (selectionType === 'whole') {
+              // 整体选择模式下，允许在整个测量结果的选中框内拖拽
+              
+              // 计算整体选中框范围（与绘制逻辑一致）
+              const screenPoints = measurement.points.map(p => imageToScreen(p));
+              const xs = screenPoints.map(p => p.x);
+              const ys = screenPoints.map(p => p.y);
+              const selectionBoxMinX = Math.min(...xs) - 15;
+              const selectionBoxMaxX = Math.max(...xs) + 15;
+              const selectionBoxMinY = Math.min(...ys) - 15;
+              const selectionBoxMaxY = Math.max(...ys) + 15;
+              
+              // 将当前鼠标位置转换为屏幕坐标
+              const mouseScreenPoint = imageToScreen(imagePoint);
+              
+              // 检查是否在选中框内
+              if (mouseScreenPoint.x >= selectionBoxMinX && mouseScreenPoint.x <= selectionBoxMaxX &&
+                  mouseScreenPoint.y >= selectionBoxMinY && mouseScreenPoint.y <= selectionBoxMaxY) {
+                // 在选中框内,重新计算到中心的偏移
+                const centerX = (Math.min(...measurement.points.map(p => p.x)) + Math.max(...measurement.points.map(p => p.x))) / 2;
+                const centerY = (Math.min(...measurement.points.map(p => p.y)) + Math.max(...measurement.points.map(p => p.y))) / 2;
                 setDragOffset({
                   x: imagePoint.x - centerX,
                   y: imagePoint.y - centerY,
                 });
+                foundSelection = true;
               }
-              foundSelection = true;
             }
           }
         }
@@ -2438,6 +2459,13 @@ function ImageCanvas({
           
           // 将图像坐标转换为屏幕坐标
           const screenPoints = measurement.points.map(p => imageToScreen(p));
+          // 检查整个测量是否为选中或悬浮状态
+          const isMeasurementSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
+          const isMeasurementHovered = !isMeasurementSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+          
+          // 根据状态确定颜色
+          const displayColor = isMeasurementSelected ? "#ef4444" : isMeasurementHovered ? "#fbbf24" : color;
+          
           return (
             <g key={measurement.id}>
               {/* 关键点 - 辅助图形不显示定位点 */}
@@ -2458,7 +2486,7 @@ function ImageCanvas({
                       cx={point.x}
                       cy={point.y}
                       r={isSelected ? "5" : isHovered ? "6" : "3"}
-                      fill={color}
+                      fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : displayColor}
                       stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#ffffff"}
                       strokeWidth={isSelected ? "2" : isHovered ? "3" : "1"}
                       opacity={isSelected || isHovered ? "1" : "0.8"}
@@ -2491,7 +2519,7 @@ function ImageCanvas({
                     <text
                       x={point.x + 8}
                       y={point.y - 8}
-                      fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : color}
+                      fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : displayColor}
                       fontSize={isSelected || isHovered ? "14" : "12"}
                       fontWeight="bold"
                       stroke="#000000"
@@ -2517,7 +2545,7 @@ function ImageCanvas({
                           y1={screenPoints[0].y}
                           x2={screenPoints[1].x}
                           y2={screenPoints[1].y}
-                          stroke={color}
+                          stroke={displayColor}
                           strokeWidth="2"
                           strokeDasharray="3,3"
                         />
@@ -2526,7 +2554,7 @@ function ImageCanvas({
                           y1={screenPoints[2].y}
                           x2={screenPoints[3].x}
                           y2={screenPoints[3].y}
-                          stroke={color}
+                          stroke={displayColor}
                           strokeWidth="2"
                           strokeDasharray="3,3"
                         />
@@ -2538,7 +2566,7 @@ function ImageCanvas({
                           y1={screenPoints[0].y}
                           x2={screenPoints[1].x}
                           y2={screenPoints[1].y}
-                          stroke={color}
+                          stroke={displayColor}
                           strokeWidth="2"
                           strokeDasharray="3,3"
                         />
@@ -2547,7 +2575,7 @@ function ImageCanvas({
                           y1={screenPoints[1].y}
                           x2={screenPoints[2].x}
                           y2={screenPoints[2].y}
-                          stroke={color}
+                          stroke={displayColor}
                           strokeWidth="2"
                           strokeDasharray="3,3"
                         />
@@ -2559,7 +2587,7 @@ function ImageCanvas({
                       y1={screenPoints[0].y}
                       x2={screenPoints[screenPoints.length - 1].x}
                       y2={screenPoints[screenPoints.length - 1].y}
-                      stroke={color}
+                      stroke={displayColor}
                       strokeWidth="2"
                       strokeDasharray="3,3"
                     />
@@ -2600,7 +2628,7 @@ function ImageCanvas({
                     <text
                       x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2}
                       y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10}
-                      fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : color}
+                      fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : displayColor}
                       fontSize={isHovered ? "16" : "14"}
                       fontWeight="bold"
                       stroke="#000000"
