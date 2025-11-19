@@ -1175,11 +1175,17 @@ function ImageCanvas({
     currentPoint: null,
   });
 
-  // 选中状态 - 用于移动模式下的选中、拖拽和删除
+  // 选中状态 - 重新设计的选中系统
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
+  const [selectionType, setSelectionType] = useState<'point' | 'whole' | null>(null);
   const [isDraggingSelection, setIsDraggingSelection] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // 悬浮高亮状态 - 用于预览即将被选中的元素
+  const [hoveredMeasurementId, setHoveredMeasurementId] = useState<string | null>(null);
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
+  const [hoveredElementType, setHoveredElementType] = useState<'point' | 'whole' | null>(null);
 
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
@@ -1251,6 +1257,93 @@ function ImageCanvas({
       x: translatedX / imageScale,
       y: translatedY / imageScale,
     };
+  };
+
+  // 计算函数（在ImageCanvas组件内部）
+  const calculateAngle = (points: Point[]) => {
+    if (points.length < 3) return 0;
+
+    const dx1 = points[1].x - points[0].x;
+    const dy1 = points[1].y - points[0].y;
+    const dx2 = points[2].x - points[1].x;
+    const dy2 = points[2].y - points[1].y;
+
+    const angle1 = Math.atan2(dy1, dx1);
+    const angle2 = Math.atan2(dy2, dx2);
+
+    let angleDiff = Math.abs(angle2 - angle1) * (180 / Math.PI);
+    if (angleDiff > 90) angleDiff = 180 - angleDiff;
+
+    return angleDiff;
+  };
+
+  const calculateDistance = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+
+    return Math.sqrt(dx * dx + dy * dy) * 0.1;
+  };
+
+  // 重新计算测量值的函数
+  const recalculateMeasurementValue = (measurement: any) => {
+    const { type, points } = measurement;
+    
+    // 根据测量类型重新计算值
+    switch (type) {
+      // 角度类测量
+      case 'T1 Tilt':
+      case 'Cobb':
+      case 'T1 Slope':
+      case 'C2-C7 Cobb':
+      case 'TK':
+      case 'LL':
+      case 'PI':
+      case 'PT':
+      case 'SS':
+      case 'Pelvic':
+      case 'Sacral':
+      case '角度测量':
+        if (points.length >= 3) {
+          const angle = calculateAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+        
+      // 距离类测量
+      case 'RSH':
+      case 'AVT':
+      case 'TS':
+      case 'SVA':
+      case '长度测量':
+        if (points.length >= 2) {
+          const distance = calculateDistance(points);
+          return `${distance.toFixed(1)}mm`;
+        }
+        break;
+        
+      // 辅助图形保持原值
+      case '圆形标注':
+      case '椭圆标注':
+      case '矩形标注':
+      case '箭头标注':
+      case '多边形标注':
+        return measurement.value; // 辅助图形不需要重新计算数值
+        
+      default:
+        // 对于未知类型，尝试根据点数判断
+        if (points.length >= 3) {
+          const angle = calculateAngle(points);
+          return `${angle.toFixed(1)}°`;
+        } else if (points.length >= 2) {
+          const distance = calculateDistance(points);
+          return `${distance.toFixed(1)}mm`;
+        }
+        break;
+    }
+    
+    return measurement.value; // 如果无法计算，保持原值
   };
 
   // 获取图像数据
@@ -1387,12 +1480,14 @@ function ImageCanvas({
         // 先检查是否点击了已有的测量结果或点
         let foundSelection = false;
         let selectedMeasurement: any = null;
+        let selectedPointIdx: number | null = null;
+        let selType: 'point' | 'whole' | null = null;
         
         // 1. 检查是否点击了已完成的测量结果
         for (const measurement of measurements) {
           const clickThreshold = 10 / imageScale; // 点击阈值
           
-          // 1.1 检查是否点击了任意点
+          // 1.1 检查是否点击了任意点 - 优先级最高
           for (let i = 0; i < measurement.points.length; i++) {
             const point = measurement.points[i];
             const distance = Math.sqrt(
@@ -1400,28 +1495,14 @@ function ImageCanvas({
             );
             if (distance < clickThreshold) {
               selectedMeasurement = measurement;
+              selectedPointIdx = i;
+              selType = 'point';
               foundSelection = true;
               break;
             }
           }
           
-          // 1.2 检查是否点击了连接线
-          if (!foundSelection && measurement.points.length >= 2) {
-            for (let i = 0; i < measurement.points.length - 1; i++) {
-              const dist = pointToLineDistance(
-                imagePoint,
-                measurement.points[i],
-                measurement.points[i + 1]
-              );
-              if (dist < clickThreshold) {
-                selectedMeasurement = measurement;
-                foundSelection = true;
-                break;
-              }
-            }
-          }
-          
-          // 1.3 检查是否点击了文字标识区域或辅助图形内部区域
+          // 1.2 如果没有点击到点，检查是否点击了文字标识区域或辅助图形内部区域
           if (!foundSelection) {
             const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
             
@@ -1439,6 +1520,7 @@ function ImageCanvas({
                 );
                 if (distToCenter <= radius) {
                   selectedMeasurement = measurement;
+                  selType = 'whole';
                   foundSelection = true;
                 }
               } else if (measurement.type === '椭圆标注' && measurement.points.length === 2) {
@@ -1455,6 +1537,7 @@ function ImageCanvas({
                     Math.pow((imagePoint.y - centerY) / b, 2);
                   if (normalizedDist <= 1) {
                     selectedMeasurement = measurement;
+                    selType = 'whole';
                     foundSelection = true;
                   }
                 }
@@ -1469,6 +1552,7 @@ function ImageCanvas({
                 if (imagePoint.x >= minX && imagePoint.x <= maxX &&
                     imagePoint.y >= minY && imagePoint.y <= maxY) {
                   selectedMeasurement = measurement;
+                  selType = 'whole';
                   foundSelection = true;
                 }
               } else if (measurement.type === '多边形标注' && measurement.points.length >= 3) {
@@ -1483,33 +1567,46 @@ function ImageCanvas({
                 }
                 if (inside) {
                   selectedMeasurement = measurement;
+                  selType = 'whole';
                   foundSelection = true;
                 }
               }
-              // 箭头标注已经通过线段检测(1.2)处理,无需额外逻辑
             } else {
               // 非辅助图形:检查文字标识区域
               if (isPointInTextLabel(imagePoint, measurement)) {
                 selectedMeasurement = measurement;
+                selType = 'whole';
                 foundSelection = true;
               }
             }
           }
           
           if (foundSelection) {
-            // 计算拖拽偏移量 - 使用边界框中心点
-            const xs = selectedMeasurement.points.map((p: Point) => p.x);
-            const ys = selectedMeasurement.points.map((p: Point) => p.y);
-            const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
-            const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
-            
             setSelectedMeasurementId(selectedMeasurement.id);
-            setSelectedPointIndex(null);
+            setSelectionType(selType);
             setIsDraggingSelection(false); // 初始不拖拽,点击时只选中
-            setDragOffset({
-              x: imagePoint.x - centerX,
-              y: imagePoint.y - centerY,
-            });
+            
+            if (selType === 'point') {
+              // 选中单个点
+              setSelectedPointIndex(selectedPointIdx);
+              const point = selectedMeasurement.points[selectedPointIdx!];
+              setDragOffset({
+                x: imagePoint.x - point.x,
+                y: imagePoint.y - point.y,
+              });
+            } else {
+              // 选中整个测量结果
+              setSelectedPointIndex(null);
+              // 计算测量结果的中心点作为拖拽偏移参考
+              const xs = selectedMeasurement.points.map((p: Point) => p.x);
+              const ys = selectedMeasurement.points.map((p: Point) => p.y);
+              const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+              const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+              setDragOffset({
+                x: imagePoint.x - centerX,
+                y: imagePoint.y - centerY,
+              });
+            }
             break;
           }
         }
@@ -1525,6 +1622,7 @@ function ImageCanvas({
             if (distance < clickThreshold) {
               setSelectedMeasurementId(null);
               setSelectedPointIndex(i);
+              setSelectionType('point');
               setIsDraggingSelection(false); // 初始不拖拽
               setDragOffset({
                 x: imagePoint.x - point.x,
@@ -1553,12 +1651,22 @@ function ImageCanvas({
             if (imagePoint.x >= minX - padding && imagePoint.x <= maxX + padding &&
                 imagePoint.y >= minY - padding && imagePoint.y <= maxY + padding) {
               // 在边界框内,保持选中状态并重新计算拖拽偏移量
-              const centerX = (minX + maxX) / 2;
-              const centerY = (minY + maxY) / 2;
-              setDragOffset({
-                x: imagePoint.x - centerX,
-                y: imagePoint.y - centerY,
-              });
+              if (selectionType === 'point' && selectedPointIndex !== null) {
+                // 点选中模式:重新计算到选中点的偏移
+                const point = measurement.points[selectedPointIndex];
+                setDragOffset({
+                  x: imagePoint.x - point.x,
+                  y: imagePoint.y - point.y,
+                });
+              } else {
+                // 整体选中模式:重新计算到中心的偏移
+                const centerX = (minX + maxX) / 2;
+                const centerY = (minY + maxY) / 2;
+                setDragOffset({
+                  x: imagePoint.x - centerX,
+                  y: imagePoint.y - centerY,
+                });
+              }
               foundSelection = true;
             }
           }
@@ -1568,6 +1676,7 @@ function ImageCanvas({
         if (!foundSelection) {
           setSelectedMeasurementId(null);
           setSelectedPointIndex(null);
+          setSelectionType(null);
           setAdjustMode('zoom');
           setIsDragging(true);
           setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
@@ -1701,38 +1810,64 @@ function ImageCanvas({
       // 如果已经在拖拽状态,继续拖拽(无论鼠标是否在边界框内)
       if (isDraggingSelection || selectedMeasurementId || selectedPointIndex !== null) {
         if (selectedMeasurementId) {
-          // 移动整个测量结果 - 使用中心点计算偏移
           const measurement = measurements.find(m => m.id === selectedMeasurementId);
           if (measurement && measurement.points.length > 0) {
-            // 计算当前中心点
-            const xs = measurement.points.map(p => p.x);
-            const ys = measurement.points.map(p => p.y);
-            const currentCenterX = (Math.min(...xs) + Math.max(...xs)) / 2;
-            const currentCenterY = (Math.min(...ys) + Math.max(...ys)) / 2;
             
-            // 计算新的中心点位置
-            const newCenterX = imagePoint.x - dragOffset.x;
-            const newCenterY = imagePoint.y - dragOffset.y;
-            
-            // 计算偏移量
-            const deltaX = newCenterX - currentCenterX;
-            const deltaY = newCenterY - currentCenterY;
-            
-            // 更新所有点的位置
-            const updatedMeasurements = measurements.map(m => {
-              if (m.id === selectedMeasurementId) {
-                return {
-                  ...m,
-                  points: m.points.map(p => ({
-                    x: p.x + deltaX,
-                    y: p.y + deltaY,
-                  })),
-                };
-              }
-              return m;
-            });
-            
-            onMeasurementsUpdate(updatedMeasurements);
+            if (selectionType === 'point' && selectedPointIndex !== null) {
+              // 移动单个点
+              const newPointX = imagePoint.x - dragOffset.x;
+              const newPointY = imagePoint.y - dragOffset.y;
+              
+              const updatedMeasurements = measurements.map(m => {
+                if (m.id === selectedMeasurementId) {
+                  const updatedMeasurement = {
+                    ...m,
+                    points: m.points.map((p, idx) => 
+                      idx === selectedPointIndex ? { x: newPointX, y: newPointY } : p
+                    ),
+                  };
+                  // 重新计算测量值
+                  updatedMeasurement.value = recalculateMeasurementValue(updatedMeasurement);
+                  return updatedMeasurement;
+                }
+                return m;
+              });
+              
+              onMeasurementsUpdate(updatedMeasurements);
+            } else {
+              // 移动整个测量结果 - 使用中心点计算偏移
+              const xs = measurement.points.map(p => p.x);
+              const ys = measurement.points.map(p => p.y);
+              const currentCenterX = (Math.min(...xs) + Math.max(...xs)) / 2;
+              const currentCenterY = (Math.min(...ys) + Math.max(...ys)) / 2;
+              
+              // 计算新的中心点位置
+              const newCenterX = imagePoint.x - dragOffset.x;
+              const newCenterY = imagePoint.y - dragOffset.y;
+              
+              // 计算偏移量
+              const deltaX = newCenterX - currentCenterX;
+              const deltaY = newCenterY - currentCenterY;
+              
+              // 更新所有点的位置
+              const updatedMeasurements = measurements.map(m => {
+                if (m.id === selectedMeasurementId) {
+                  const updatedMeasurement = {
+                    ...m,
+                    points: m.points.map(p => ({
+                      x: p.x + deltaX,
+                      y: p.y + deltaY,
+                    })),
+                  };
+                  // 重新计算测量值
+                  updatedMeasurement.value = recalculateMeasurementValue(updatedMeasurement);
+                  return updatedMeasurement;
+                }
+                return m;
+              });
+              
+              onMeasurementsUpdate(updatedMeasurements);
+            }
           }
         } else if (selectedPointIndex !== null) {
           // 移动单个点
@@ -1770,6 +1905,147 @@ function ImageCanvas({
 
       // 更新起始位置，实现连续调整
       setDragStartPos({ x: e.clientX, y: e.clientY });
+    }
+
+    // 在移动模式下，且没有正在拖拽时，检测悬浮高亮（即使有选中元素也允许悬浮预览）
+    if (selectedTool === 'hand' && !isDraggingSelection && !isDragging && !drawingState.isDrawing) {
+      const imagePoint = screenToImage(x, y);
+      const clickThreshold = 10 / imageScale;
+      
+      let foundHover = false;
+      let hoveredMeasurementId: string | null = null;
+      let hoveredPointIdx: number | null = null;
+      let hoveredElementType: 'point' | 'whole' | null = null;
+
+      // 检查是否悬浮在已完成的测量结果上
+      for (const measurement of measurements) {
+        // 1. 检查是否悬浮在点上 - 优先级最高
+        for (let i = 0; i < measurement.points.length; i++) {
+          const point = measurement.points[i];
+          const distance = Math.sqrt(
+            Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+          );
+          if (distance < clickThreshold) {
+            hoveredMeasurementId = measurement.id;
+            hoveredPointIdx = i;
+            hoveredElementType = 'point';
+            foundHover = true;
+            break;
+          }
+        }
+        
+        // 2. 如果没有悬浮在点上，检查是否悬浮在文字标识或辅助图形内部
+        if (!foundHover) {
+          const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
+          
+          if (isAuxiliaryShape) {
+            // 辅助图形：检查是否悬浮在图形内部
+            if (measurement.type === '圆形标注' && measurement.points.length === 2) {
+              const center = measurement.points[0];
+              const edge = measurement.points[1];
+              const radius = Math.sqrt(
+                Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
+              );
+              const distToCenter = Math.sqrt(
+                Math.pow(imagePoint.x - center.x, 2) + Math.pow(imagePoint.y - center.y, 2)
+              );
+              if (distToCenter <= radius) {
+                hoveredMeasurementId = measurement.id;
+                hoveredElementType = 'whole';
+                foundHover = true;
+              }
+            } else if (measurement.type === '椭圆标注' && measurement.points.length === 2) {
+              const p1 = measurement.points[0];
+              const p2 = measurement.points[1];
+              const centerX = (p1.x + p2.x) / 2;
+              const centerY = (p1.y + p2.y) / 2;
+              const a = Math.abs(p2.x - p1.x) / 2;
+              const b = Math.abs(p2.y - p1.y) / 2;
+              if (a > 0 && b > 0) {
+                const normalizedDist = 
+                  Math.pow((imagePoint.x - centerX) / a, 2) + 
+                  Math.pow((imagePoint.y - centerY) / b, 2);
+                if (normalizedDist <= 1) {
+                  hoveredMeasurementId = measurement.id;
+                  hoveredElementType = 'whole';
+                  foundHover = true;
+                }
+              }
+            } else if (measurement.type === '矩形标注' && measurement.points.length === 2) {
+              const p1 = measurement.points[0];
+              const p2 = measurement.points[1];
+              const minX = Math.min(p1.x, p2.x);
+              const maxX = Math.max(p1.x, p2.x);
+              const minY = Math.min(p1.y, p2.y);
+              const maxY = Math.max(p1.y, p2.y);
+              if (imagePoint.x >= minX && imagePoint.x <= maxX &&
+                  imagePoint.y >= minY && imagePoint.y <= maxY) {
+                hoveredMeasurementId = measurement.id;
+                hoveredElementType = 'whole';
+                foundHover = true;
+              }
+            } else if (measurement.type === '多边形标注' && measurement.points.length >= 3) {
+              let inside = false;
+              for (let i = 0, j = measurement.points.length - 1; i < measurement.points.length; j = i++) {
+                const xi = measurement.points[i].x, yi = measurement.points[i].y;
+                const xj = measurement.points[j].x, yj = measurement.points[j].y;
+                const intersect = ((yi > imagePoint.y) !== (yj > imagePoint.y))
+                  && (imagePoint.x < (xj - xi) * (imagePoint.y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+              }
+              if (inside) {
+                hoveredMeasurementId = measurement.id;
+                hoveredElementType = 'whole';
+                foundHover = true;
+              }
+            }
+          } else {
+            // 非辅助图形：检查文字标识区域
+            const firstPoint = measurement.points[0];
+            const lastPoint = measurement.points[measurement.points.length - 1];
+            const textX = (firstPoint.x + lastPoint.x) / 2;
+            const textY = (firstPoint.y + lastPoint.y) / 2 - 10 / imageScale;
+            
+            const textWidth = (measurement.type.length + measurement.value.length) * 8 / imageScale;
+            const textHeight = 20 / imageScale;
+            
+            if (imagePoint.x >= textX - textWidth / 2 && imagePoint.x <= textX + textWidth / 2 &&
+                imagePoint.y >= textY - textHeight / 2 && imagePoint.y <= textY + textHeight / 2) {
+              hoveredMeasurementId = measurement.id;
+              hoveredElementType = 'whole';
+              foundHover = true;
+            }
+          }
+        }
+        
+        if (foundHover) break;
+      }
+
+      // 检查是否悬浮在正在绘制的点上
+      if (!foundHover && clickedPoints.length > 0) {
+        for (let i = 0; i < clickedPoints.length; i++) {
+          const point = clickedPoints[i];
+          const distance = Math.sqrt(
+            Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+          );
+          if (distance < clickThreshold) {
+            hoveredPointIdx = i;
+            hoveredElementType = 'point';
+            foundHover = true;
+            break;
+          }
+        }
+      }
+
+      // 更新悬浮状态
+      setHoveredMeasurementId(hoveredMeasurementId);
+      setHoveredPointIndex(hoveredPointIdx);
+      setHoveredElementType(hoveredElementType);
+    } else {
+      // 清除悬浮状态
+      setHoveredMeasurementId(null);
+      setHoveredPointIndex(null);
+      setHoveredElementType(null);
     }
   };
 
@@ -2165,31 +2441,68 @@ function ImageCanvas({
           return (
             <g key={measurement.id}>
               {/* 关键点 - 辅助图形不显示定位点 */}
-              {!isAuxiliaryShape && screenPoints.map((point, pointIndex) => (
-                <g key={pointIndex}>
-                  <circle
-                    cx={point.x}
-                    cy={point.y}
-                    r="3"
-                    fill={color}
-                    stroke="#ffffff"
-                    strokeWidth="1"
-                  />
-                  {/* 点的序号标注 - 辅助图形不显示 */}
-                  <text
-                    x={point.x + 8}
-                    y={point.y - 8}
-                    fill={color}
-                    fontSize="12"
-                    fontWeight="bold"
-                    stroke="#000000"
-                    strokeWidth="0.5"
-                    paintOrder="stroke"
-                  >
-                    {pointIndex + 1}
-                  </text>
-                </g>
-              ))}
+              {!isAuxiliaryShape && screenPoints.map((point, pointIndex) => {
+                // 检查是否为选中状态
+                const isSelected = selectedMeasurementId === measurement.id && 
+                  ((selectionType === 'point' && selectedPointIndex === pointIndex) ||
+                   (selectionType === 'whole'));
+                
+                // 检查是否为悬浮高亮状态（只有在非选中状态下才显示悬浮）
+                const isHovered = !isSelected && hoveredMeasurementId === measurement.id && 
+                  ((hoveredElementType === 'point' && hoveredPointIndex === pointIndex) ||
+                   (hoveredElementType === 'whole'));
+                
+                return (
+                  <g key={pointIndex}>
+                    <circle
+                      cx={point.x}
+                      cy={point.y}
+                      r={isSelected ? "5" : isHovered ? "6" : "3"}
+                      fill={color}
+                      stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#ffffff"}
+                      strokeWidth={isSelected ? "2" : isHovered ? "3" : "1"}
+                      opacity={isSelected || isHovered ? "1" : "0.8"}
+                    />
+                    {/* 选中时的外层圆圈 */}
+                    {isSelected && (
+                      <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 悬浮时的外层高亮圆圈 */}
+                    {isHovered && (
+                      <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r="9"
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 点的序号标注 - 辅助图形不显示 */}
+                    <text
+                      x={point.x + 8}
+                      y={point.y - 8}
+                      fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : color}
+                      fontSize={isSelected || isHovered ? "14" : "12"}
+                      fontWeight="bold"
+                      stroke="#000000"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
+                    >
+                      {pointIndex + 1}
+                    </text>
+                  </g>
+                );
+              })}
               {/* 连接线 - 辅助图形不显示连接线 */}
               {!isAuxiliaryShape && screenPoints.length >= 2 && (
                 <>
@@ -2255,21 +2568,51 @@ function ImageCanvas({
               )}
               
               {/* 测量值标注 - 显示在测量线中间,辅助图形不显示 */}
-              {!isAuxiliaryShape && screenPoints.length >= 2 && (
-                <text
-                  x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2}
-                  y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10}
-                  fill={color}
-                  fontSize="14"
-                  fontWeight="bold"
-                  stroke="#000000"
-                  strokeWidth="0.8"
-                  paintOrder="stroke"
-                  textAnchor="middle"
-                >
-                  {measurement.type}: {measurement.value}
-                </text>
-              )}
+              {!isAuxiliaryShape && screenPoints.length >= 2 && (() => {
+                const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
+                const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+                return (
+                  <g>
+                    {/* 选中时的背景高亮 */}
+                    {isSelected && (
+                      <rect
+                        x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2 - 40}
+                        y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 25}
+                        width="80"
+                        height="20"
+                        fill="#ef4444"
+                        opacity="0.3"
+                        rx="3"
+                      />
+                    )}
+                    {/* 悬浮时的背景高亮 */}
+                    {isHovered && (
+                      <rect
+                        x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2 - 40}
+                        y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 25}
+                        width="80"
+                        height="20"
+                        fill="#fbbf24"
+                        opacity="0.3"
+                        rx="3"
+                      />
+                    )}
+                    <text
+                      x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2}
+                      y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10}
+                      fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : color}
+                      fontSize={isHovered ? "16" : "14"}
+                      fontWeight="bold"
+                      stroke="#000000"
+                      strokeWidth="0.8"
+                      paintOrder="stroke"
+                      textAnchor="middle"
+                    >
+                      {measurement.type}: {measurement.value}
+                    </text>
+                  </g>
+                );
+              })()}
             </g>
           );
         })}
@@ -2277,29 +2620,44 @@ function ImageCanvas({
         {/* 绘制当前点击的点 */}
         {clickedPoints.map((point, index) => {
           const screenPoint = imageToScreen(point);
+          // 检查是否为悬浮高亮状态
+          const isHovered = !hoveredMeasurementId && hoveredElementType === 'point' && hoveredPointIndex === index;
+          
           return (
             <g key={`current-${index}`}>
               <circle
                 cx={screenPoint.x}
                 cy={screenPoint.y}
-                r="4"
+                r={isHovered ? "6" : "4"}
                 fill="#ef4444"
-                stroke="#ffffff"
-              strokeWidth="2"
-            />
-            <text
-              x={screenPoint.x + 8}
-              y={screenPoint.y - 8}
-              fill="#ef4444"
-              fontSize="12"
-              fontWeight="bold"
-              stroke="#000000"
-              strokeWidth="0.5"
-              paintOrder="stroke"
-            >
-              {index + 1}
-            </text>
-          </g>
+                stroke={isHovered ? "#fbbf24" : "#ffffff"}
+                strokeWidth={isHovered ? "3" : "2"}
+              />
+              {/* 悬浮时的外层高亮圆圈 */}
+              {isHovered && (
+                <circle
+                  cx={screenPoint.x}
+                  cy={screenPoint.y}
+                  r="9"
+                  fill="none"
+                  stroke="#fbbf24"
+                  strokeWidth="2"
+                  opacity="0.6"
+                />
+              )}
+              <text
+                x={screenPoint.x + 8}
+                y={screenPoint.y - 8}
+                fill={isHovered ? "#fbbf24" : "#ef4444"}
+                fontSize={isHovered ? "14" : "12"}
+                fontWeight="bold"
+                stroke="#000000"
+                strokeWidth="0.5"
+                paintOrder="stroke"
+              >
+                {index + 1}
+              </text>
+            </g>
           );
         })}
 
@@ -2363,17 +2721,34 @@ function ImageCanvas({
                 Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
               );
               const screenCenter = imageToScreen(center);
+              const isHovered = hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              
               return (
-                <circle
-                  key={measurement.id}
-                  cx={screenCenter.x}
-                  cy={screenCenter.y}
-                  r={radius * imageScale}
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="2"
-                  opacity="0.6"
-                />
+                <g key={measurement.id}>
+                  <circle
+                    cx={screenCenter.x}
+                    cy={screenCenter.y}
+                    r={radius * imageScale}
+                    fill={isHovered ? "#fbbf24" : "none"}
+                    fillOpacity={isHovered ? "0.1" : "0"}
+                    stroke={isHovered ? "#fbbf24" : "#3b82f6"}
+                    strokeWidth={isHovered ? "3" : "2"}
+                    opacity={isHovered ? "1" : "0.6"}
+                  />
+                  {/* 悬浮时的外层高亮圆圈 */}
+                  {isHovered && (
+                    <circle
+                      cx={screenCenter.x}
+                      cy={screenCenter.y}
+                      r={radius * imageScale + 5}
+                      fill="none"
+                      stroke="#fbbf24"
+                      strokeWidth="2"
+                      opacity="0.4"
+                      strokeDasharray="5,5"
+                    />
+                  )}
+                </g>
               );
             }
             return null;
@@ -2414,18 +2789,36 @@ function ImageCanvas({
               const radiusX = Math.abs(edge.x - center.x);
               const radiusY = Math.abs(edge.y - center.y);
               const screenCenter = imageToScreen(center);
+              const isHovered = hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              
               return (
-                <ellipse
-                  key={measurement.id}
-                  cx={screenCenter.x}
-                  cy={screenCenter.y}
-                  rx={radiusX * imageScale}
-                  ry={radiusY * imageScale}
-                  fill="none"
-                  stroke="#8b5cf6"
-                  strokeWidth="2"
-                  opacity="0.6"
-                />
+                <g key={measurement.id}>
+                  <ellipse
+                    cx={screenCenter.x}
+                    cy={screenCenter.y}
+                    rx={radiusX * imageScale}
+                    ry={radiusY * imageScale}
+                    fill={isHovered ? "#fbbf24" : "none"}
+                    fillOpacity={isHovered ? "0.1" : "0"}
+                    stroke={isHovered ? "#fbbf24" : "#8b5cf6"}
+                    strokeWidth={isHovered ? "3" : "2"}
+                    opacity={isHovered ? "1" : "0.6"}
+                  />
+                  {/* 悬浮时的外层高亮椭圆 */}
+                  {isHovered && (
+                    <ellipse
+                      cx={screenCenter.x}
+                      cy={screenCenter.y}
+                      rx={radiusX * imageScale + 5}
+                      ry={radiusY * imageScale + 5}
+                      fill="none"
+                      stroke="#fbbf24"
+                      strokeWidth="2"
+                      opacity="0.4"
+                      strokeDasharray="5,5"
+                    />
+                  )}
+                </g>
               );
             }
             return null;
@@ -2609,7 +3002,13 @@ function ImageCanvas({
             // 选中了测量结果
             const measurement = measurements.find(m => m.id === selectedMeasurementId);
             if (measurement) {
-              selectedPoints = measurement.points;
+              if (selectionType === 'point' && selectedPointIndex !== null) {
+                // 只显示选中的点
+                selectedPoints = [measurement.points[selectedPointIndex]];
+              } else {
+                // 显示整个测量结果
+                selectedPoints = measurement.points;
+              }
             }
           } else if (selectedPointIndex !== null && clickedPoints[selectedPointIndex]) {
             // 选中了单个点
@@ -2653,10 +3052,13 @@ function ImageCanvas({
                   if (selectedMeasurementId) {
                     onMeasurementsUpdate(measurements.filter(m => m.id !== selectedMeasurementId));
                     setSelectedMeasurementId(null);
+                    setSelectedPointIndex(null);
+                    setSelectionType(null);
                   } else if (selectedPointIndex !== null) {
                     const newPoints = clickedPoints.filter((_, idx) => idx !== selectedPointIndex);
                     setClickedPoints(newPoints);
                     setSelectedPointIndex(null);
+                    setSelectionType(null);
                   }
                 }}
                 onMouseDown={(e) => {
