@@ -1486,30 +1486,35 @@ function ImageCanvas({
         // 1. 检查是否点击了已完成的测量结果
         for (const measurement of measurements) {
           const clickThreshold = 10 / imageScale; // 点击阈值
+          const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
           
           // 1.1 检查是否点击了任意点 - 优先级最高
-          for (let i = 0; i < measurement.points.length; i++) {
-            const point = measurement.points[i];
-            const distance = Math.sqrt(
-              Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
-            );
-            if (distance < clickThreshold) {
-              selectedMeasurement = measurement;
-              selectedPointIdx = i;
-              selType = 'point';
-              foundSelection = true;
-              break;
+          // 对于圆形和椭圆标注，跳过端点选择
+          if (!isAuxiliaryShape || (measurement.type !== '圆形标注' && measurement.type !== '椭圆标注')) {
+            for (let i = 0; i < measurement.points.length; i++) {
+              const point = measurement.points[i];
+              const distance = Math.sqrt(
+                Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+              );
+              if (distance < clickThreshold) {
+                selectedMeasurement = measurement;
+                selectedPointIdx = i;
+                selType = 'point';
+                foundSelection = true;
+                break;
+              }
             }
           }
           
           // 1.2 如果没有点击到点，检查是否点击了文字标识区域或辅助图形内部区域
           if (!foundSelection) {
-            const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
             
             if (isAuxiliaryShape) {
-              // 辅助图形:检查是否点击了图形内部或边界
+              // 辅助图形:检查是否点击了图形边界线条
+              const lineClickThreshold = 8 / imageScale; // 线条点击阈值
+              
               if (measurement.type === '圆形标注' && measurement.points.length === 2) {
-                // 圆形:检查是否在圆内
+                // 圆形:检查是否点击了圆边界
                 const center = measurement.points[0];
                 const edge = measurement.points[1];
                 const radius = Math.sqrt(
@@ -1518,54 +1523,79 @@ function ImageCanvas({
                 const distToCenter = Math.sqrt(
                   Math.pow(imagePoint.x - center.x, 2) + Math.pow(imagePoint.y - center.y, 2)
                 );
-                if (distToCenter <= radius) {
+                // 检查是否在圆边界附近（距离圆周的距离小于阈值）
+                if (Math.abs(distToCenter - radius) < lineClickThreshold) {
                   selectedMeasurement = measurement;
                   selType = 'whole';
                   foundSelection = true;
                 }
               } else if (measurement.type === '椭圆标注' && measurement.points.length === 2) {
-                // 椭圆:检查是否在椭圆内
-                const p1 = measurement.points[0];
-                const p2 = measurement.points[1];
-                const centerX = (p1.x + p2.x) / 2;
-                const centerY = (p1.y + p2.y) / 2;
-                const a = Math.abs(p2.x - p1.x) / 2; // 长半轴
-                const b = Math.abs(p2.y - p1.y) / 2; // 短半轴
-                if (a > 0 && b > 0) {
-                  const normalizedDist = 
-                    Math.pow((imagePoint.x - centerX) / a, 2) + 
-                    Math.pow((imagePoint.y - centerY) / b, 2);
-                  if (normalizedDist <= 1) {
+                // 椭圆:检查是否点击了椭圆边界
+                const center = measurement.points[0];
+                const edge = measurement.points[1];
+                const radiusX = Math.abs(edge.x - center.x);
+                const radiusY = Math.abs(edge.y - center.y);
+                
+                if (radiusX > 0 && radiusY > 0) {
+                  // 计算点到椭圆边界的距离（近似）
+                  const dx = imagePoint.x - center.x;
+                  const dy = imagePoint.y - center.y;
+                  const normalizedDist = Math.sqrt(
+                    Math.pow(dx / radiusX, 2) + Math.pow(dy / radiusY, 2)
+                  );
+                  // 检查是否在椭圆边界附近
+                  if (Math.abs(normalizedDist - 1) < lineClickThreshold / Math.min(radiusX, radiusY)) {
                     selectedMeasurement = measurement;
                     selType = 'whole';
                     foundSelection = true;
                   }
                 }
               } else if (measurement.type === '矩形标注' && measurement.points.length === 2) {
-                // 矩形:检查是否在矩形内
+                // 矩形:检查是否点击了矩形边界
                 const p1 = measurement.points[0];
                 const p2 = measurement.points[1];
                 const minX = Math.min(p1.x, p2.x);
                 const maxX = Math.max(p1.x, p2.x);
                 const minY = Math.min(p1.y, p2.y);
                 const maxY = Math.max(p1.y, p2.y);
-                if (imagePoint.x >= minX && imagePoint.x <= maxX &&
-                    imagePoint.y >= minY && imagePoint.y <= maxY) {
+                
+                // 检查是否点击了四条边中的任意一条
+                const distToLeft = Math.abs(imagePoint.x - minX);
+                const distToRight = Math.abs(imagePoint.x - maxX);
+                const distToTop = Math.abs(imagePoint.y - minY);
+                const distToBottom = Math.abs(imagePoint.y - maxY);
+                
+                const onLeftOrRight = (distToLeft < lineClickThreshold || distToRight < lineClickThreshold) && 
+                                      imagePoint.y >= minY - lineClickThreshold && imagePoint.y <= maxY + lineClickThreshold;
+                const onTopOrBottom = (distToTop < lineClickThreshold || distToBottom < lineClickThreshold) && 
+                                       imagePoint.x >= minX - lineClickThreshold && imagePoint.x <= maxX + lineClickThreshold;
+                
+                if (onLeftOrRight || onTopOrBottom) {
                   selectedMeasurement = measurement;
                   selType = 'whole';
                   foundSelection = true;
                 }
               } else if (measurement.type === '多边形标注' && measurement.points.length >= 3) {
-                // 多边形:使用射线法检查点是否在多边形内
-                let inside = false;
-                for (let i = 0, j = measurement.points.length - 1; i < measurement.points.length; j = i++) {
-                  const xi = measurement.points[i].x, yi = measurement.points[i].y;
-                  const xj = measurement.points[j].x, yj = measurement.points[j].y;
-                  const intersect = ((yi > imagePoint.y) !== (yj > imagePoint.y))
-                    && (imagePoint.x < (xj - xi) * (imagePoint.y - yi) / (yj - yi) + xi);
-                  if (intersect) inside = !inside;
+                // 多边形:检查是否点击了任意一条边
+                for (let i = 0; i < measurement.points.length; i++) {
+                  const currentPoint = measurement.points[i];
+                  const nextPoint = measurement.points[(i + 1) % measurement.points.length];
+                  const distToEdge = pointToLineDistance(imagePoint, currentPoint, nextPoint);
+                  
+                  if (distToEdge < lineClickThreshold) {
+                    selectedMeasurement = measurement;
+                    selType = 'whole';
+                    foundSelection = true;
+                    break;
+                  }
                 }
-                if (inside) {
+              } else if (measurement.type === '箭头标注' && measurement.points.length >= 2) {
+                // 箭头:检查是否点击了箭头线段
+                const startPoint = measurement.points[0];
+                const endPoint = measurement.points[1];
+                const distToLine = pointToLineDistance(imagePoint, startPoint, endPoint);
+                
+                if (distToLine < lineClickThreshold) {
                   selectedMeasurement = measurement;
                   selType = 'whole';
                   foundSelection = true;
@@ -1802,18 +1832,85 @@ function ImageCanvas({
         if (selectedMeasurementId) {
           const measurement = measurements.find(m => m.id === selectedMeasurementId);
           if (measurement && measurement.points.length > 0) {
-            // 计算边界框
-            const xs = measurement.points.map(p => p.x);
-            const ys = measurement.points.map(p => p.y);
-            const minX = Math.min(...xs);
-            const maxX = Math.max(...xs);
-            const minY = Math.min(...ys);
-            const maxY = Math.max(...ys);
-            const padding = 15 / imageScale;
+            // 使用与蓝色选中框相同的边界框计算逻辑
+            let minX: number, maxX: number, minY: number, maxY: number;
+            
+            // 针对不同类型的图形计算不同的边界框（与选中框渲染逻辑一致）
+            if (selectionType === 'whole') {
+              // 辅助图形需要特殊处理
+              if (measurement.type === '圆形标注' && measurement.points.length >= 2) {
+                const center = measurement.points[0];
+                const edge = measurement.points[1];
+                const radius = Math.sqrt(
+                  Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
+                );
+                const screenCenter = imageToScreen(center);
+                const screenRadius = radius * imageScale;
+                
+                minX = screenCenter.x - screenRadius - 15;
+                maxX = screenCenter.x + screenRadius + 15;
+                minY = screenCenter.y - screenRadius - 15;
+                maxY = screenCenter.y + screenRadius + 15;
+              } else if (measurement.type === '椭圆标注' && measurement.points.length >= 2) {
+                const center = measurement.points[0];
+                const edge = measurement.points[1];
+                const radiusX = Math.abs(edge.x - center.x);
+                const radiusY = Math.abs(edge.y - center.y);
+                const screenCenter = imageToScreen(center);
+                const screenRadiusX = radiusX * imageScale;
+                const screenRadiusY = radiusY * imageScale;
+                
+                minX = screenCenter.x - screenRadiusX - 15;
+                maxX = screenCenter.x + screenRadiusX + 15;
+                minY = screenCenter.y - screenRadiusY - 15;
+                maxY = screenCenter.y + screenRadiusY + 15;
+              } else if (measurement.type === '矩形标注' && measurement.points.length >= 2) {
+                const start = measurement.points[0];
+                const end = measurement.points[1];
+                const startScreen = imageToScreen(start);
+                const endScreen = imageToScreen(end);
+                
+                minX = Math.min(startScreen.x, endScreen.x) - 15;
+                maxX = Math.max(startScreen.x, endScreen.x) + 15;
+                minY = Math.min(startScreen.y, endScreen.y) - 15;
+                maxY = Math.max(startScreen.y, endScreen.y) + 15;
+              } else if (measurement.type === '箭头标注' && measurement.points.length >= 2) {
+                const start = measurement.points[0];
+                const end = measurement.points[1];
+                const startScreen = imageToScreen(start);
+                const endScreen = imageToScreen(end);
+                
+                minX = Math.min(startScreen.x, endScreen.x) - 15;
+                maxX = Math.max(startScreen.x, endScreen.x) + 15;
+                minY = Math.min(startScreen.y, endScreen.y) - 15;
+                maxY = Math.max(startScreen.y, endScreen.y) + 15;
+              } else {
+                // 默认处理：基于标注点位置
+                const screenPoints = measurement.points.map(p => imageToScreen(p));
+                const xs = screenPoints.map(p => p.x);
+                const ys = screenPoints.map(p => p.y);
+                minX = Math.min(...xs) - 15;
+                maxX = Math.max(...xs) + 15;
+                minY = Math.min(...ys) - 15;
+                maxY = Math.max(...ys) + 15;
+              }
+            } else {
+              // 点选择模式：基于标注点位置
+              const screenPoints = measurement.points.map(p => imageToScreen(p));
+              const xs = screenPoints.map(p => p.x);
+              const ys = screenPoints.map(p => p.y);
+              minX = Math.min(...xs) - 15;
+              maxX = Math.max(...xs) + 15;
+              minY = Math.min(...ys) - 15;
+              maxY = Math.max(...ys) + 15;
+            }
+            
+            // 将当前鼠标位置转换为屏幕坐标
+            const mouseScreenPoint = imageToScreen(imagePoint);
             
             // 检查鼠标是否在边界框内
-            if (imagePoint.x >= minX - padding && imagePoint.x <= maxX + padding &&
-                imagePoint.y >= minY - padding && imagePoint.y <= maxY + padding) {
+            if (mouseScreenPoint.x >= minX && mouseScreenPoint.x <= maxX &&
+                mouseScreenPoint.y >= minY && mouseScreenPoint.y <= maxY) {
               canDrag = true;
             }
           }
@@ -1940,27 +2037,33 @@ function ImageCanvas({
 
       // 检查是否悬浮在已完成的测量结果上
       for (const measurement of measurements) {
+        const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
+        
         // 1. 检查是否悬浮在点上 - 优先级最高
-        for (let i = 0; i < measurement.points.length; i++) {
-          const point = measurement.points[i];
-          const distance = Math.sqrt(
-            Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
-          );
-          if (distance < clickThreshold) {
-            hoveredMeasurementId = measurement.id;
-            hoveredPointIdx = i;
-            hoveredElementType = 'point';
-            foundHover = true;
-            break;
+        // 对于圆形和椭圆标注，跳过端点悬浮
+        if (!isAuxiliaryShape || (measurement.type !== '圆形标注' && measurement.type !== '椭圆标注')) {
+          for (let i = 0; i < measurement.points.length; i++) {
+            const point = measurement.points[i];
+            const distance = Math.sqrt(
+              Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+            );
+            if (distance < clickThreshold) {
+              hoveredMeasurementId = measurement.id;
+              hoveredPointIdx = i;
+              hoveredElementType = 'point';
+              foundHover = true;
+              break;
+            }
           }
         }
         
         // 2. 如果没有悬浮在点上，检查是否悬浮在文字标识或辅助图形内部
         if (!foundHover) {
-          const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
           
           if (isAuxiliaryShape) {
-            // 辅助图形：检查是否悬浮在图形内部
+            // 辅助图形：检查是否悬浮在图形边界线条上
+            const lineHoverThreshold = 8 / imageScale; // 线条悬浮阈值
+            
             if (measurement.type === '圆形标注' && measurement.points.length === 2) {
               const center = measurement.points[0];
               const edge = measurement.points[1];
@@ -1970,23 +2073,27 @@ function ImageCanvas({
               const distToCenter = Math.sqrt(
                 Math.pow(imagePoint.x - center.x, 2) + Math.pow(imagePoint.y - center.y, 2)
               );
-              if (distToCenter <= radius) {
+              // 检查是否悬浮在圆边界附近
+              if (Math.abs(distToCenter - radius) < lineHoverThreshold) {
                 hoveredMeasurementId = measurement.id;
                 hoveredElementType = 'whole';
                 foundHover = true;
               }
             } else if (measurement.type === '椭圆标注' && measurement.points.length === 2) {
-              const p1 = measurement.points[0];
-              const p2 = measurement.points[1];
-              const centerX = (p1.x + p2.x) / 2;
-              const centerY = (p1.y + p2.y) / 2;
-              const a = Math.abs(p2.x - p1.x) / 2;
-              const b = Math.abs(p2.y - p1.y) / 2;
-              if (a > 0 && b > 0) {
-                const normalizedDist = 
-                  Math.pow((imagePoint.x - centerX) / a, 2) + 
-                  Math.pow((imagePoint.y - centerY) / b, 2);
-                if (normalizedDist <= 1) {
+              const center = measurement.points[0];
+              const edge = measurement.points[1];
+              const radiusX = Math.abs(edge.x - center.x);
+              const radiusY = Math.abs(edge.y - center.y);
+              
+              if (radiusX > 0 && radiusY > 0) {
+                // 计算点到椭圆边界的距离（近似）
+                const dx = imagePoint.x - center.x;
+                const dy = imagePoint.y - center.y;
+                const normalizedDist = Math.sqrt(
+                  Math.pow(dx / radiusX, 2) + Math.pow(dy / radiusY, 2)
+                );
+                // 检查是否悬浮在椭圆边界附近
+                if (Math.abs(normalizedDist - 1) < lineHoverThreshold / Math.min(radiusX, radiusY)) {
                   hoveredMeasurementId = measurement.id;
                   hoveredElementType = 'whole';
                   foundHover = true;
@@ -1999,22 +2106,88 @@ function ImageCanvas({
               const maxX = Math.max(p1.x, p2.x);
               const minY = Math.min(p1.y, p2.y);
               const maxY = Math.max(p1.y, p2.y);
-              if (imagePoint.x >= minX && imagePoint.x <= maxX &&
-                  imagePoint.y >= minY && imagePoint.y <= maxY) {
+              
+              // 检查是否悬浮在四条边中的任意一条
+              const distToLeft = Math.abs(imagePoint.x - minX);
+              const distToRight = Math.abs(imagePoint.x - maxX);
+              const distToTop = Math.abs(imagePoint.y - minY);
+              const distToBottom = Math.abs(imagePoint.y - maxY);
+              
+              const onLeftOrRight = (distToLeft < lineHoverThreshold || distToRight < lineHoverThreshold) && 
+                                    imagePoint.y >= minY - lineHoverThreshold && imagePoint.y <= maxY + lineHoverThreshold;
+              const onTopOrBottom = (distToTop < lineHoverThreshold || distToBottom < lineHoverThreshold) && 
+                                     imagePoint.x >= minX - lineHoverThreshold && imagePoint.x <= maxX + lineHoverThreshold;
+              
+              if (onLeftOrRight || onTopOrBottom) {
                 hoveredMeasurementId = measurement.id;
                 hoveredElementType = 'whole';
                 foundHover = true;
               }
             } else if (measurement.type === '多边形标注' && measurement.points.length >= 3) {
-              let inside = false;
-              for (let i = 0, j = measurement.points.length - 1; i < measurement.points.length; j = i++) {
-                const xi = measurement.points[i].x, yi = measurement.points[i].y;
-                const xj = measurement.points[j].x, yj = measurement.points[j].y;
-                const intersect = ((yi > imagePoint.y) !== (yj > imagePoint.y))
-                  && (imagePoint.x < (xj - xi) * (imagePoint.y - yi) / (yj - yi) + xi);
-                if (intersect) inside = !inside;
+              // 多边形：检查是否悬浮在任意一条边上
+              for (let i = 0; i < measurement.points.length; i++) {
+                const currentPoint = measurement.points[i];
+                const nextPoint = measurement.points[(i + 1) % measurement.points.length];
+                
+                // 辅助函数: 计算点到线段的距离
+                const pointToLineDistance = (point: Point, lineStart: Point, lineEnd: Point): number => {
+                  const dx = lineEnd.x - lineStart.x;
+                  const dy = lineEnd.y - lineStart.y;
+                  const lengthSquared = dx * dx + dy * dy;
+                  
+                  if (lengthSquared === 0) {
+                    return Math.sqrt(
+                      Math.pow(point.x - lineStart.x, 2) + Math.pow(point.y - lineStart.y, 2)
+                    );
+                  }
+                  
+                  let t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lengthSquared;
+                  t = Math.max(0, Math.min(1, t));
+                  
+                  const projX = lineStart.x + t * dx;
+                  const projY = lineStart.y + t * dy;
+                  
+                  return Math.sqrt(Math.pow(point.x - projX, 2) + Math.pow(point.y - projY, 2));
+                };
+                
+                const distToEdge = pointToLineDistance(imagePoint, currentPoint, nextPoint);
+                
+                if (distToEdge < lineHoverThreshold) {
+                  hoveredMeasurementId = measurement.id;
+                  hoveredElementType = 'whole';
+                  foundHover = true;
+                  break;
+                }
               }
-              if (inside) {
+            } else if (measurement.type === '箭头标注' && measurement.points.length >= 2) {
+              // 箭头：检查是否悬浮在箭头线段上
+              const startPoint = measurement.points[0];
+              const endPoint = measurement.points[1];
+              
+              // 辅助函数: 计算点到线段的距离
+              const pointToLineDistance = (point: Point, lineStart: Point, lineEnd: Point): number => {
+                const dx = lineEnd.x - lineStart.x;
+                const dy = lineEnd.y - lineStart.y;
+                const lengthSquared = dx * dx + dy * dy;
+                
+                if (lengthSquared === 0) {
+                  return Math.sqrt(
+                    Math.pow(point.x - lineStart.x, 2) + Math.pow(point.y - lineStart.y, 2)
+                  );
+                }
+                
+                let t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lengthSquared;
+                t = Math.max(0, Math.min(1, t));
+                
+                const projX = lineStart.x + t * dx;
+                const projY = lineStart.y + t * dy;
+                
+                return Math.sqrt(Math.pow(point.x - projX, 2) + Math.pow(point.y - projY, 2));
+              };
+              
+              const distToLine = pointToLineDistance(imagePoint, startPoint, endPoint);
+              
+              if (distToLine < lineHoverThreshold) {
                 hoveredMeasurementId = measurement.id;
                 hoveredElementType = 'whole';
                 foundHover = true;
@@ -2411,8 +2584,9 @@ function ImageCanvas({
       >
         {/* 定义箭头标记 */}
         <defs>
+          {/* 正常状态箭头头 */}
           <marker
-            id="arrowhead"
+            id="arrowhead-normal"
             markerWidth="10"
             markerHeight="10"
             refX="9"
@@ -2420,6 +2594,30 @@ function ImageCanvas({
             orient="auto"
           >
             <polygon points="0 0, 10 3, 0 6" fill="#f59e0b" />
+          </marker>
+          
+          {/* 悬浮状态箭头头 */}
+          <marker
+            id="arrowhead-hovered"
+            markerWidth="10"
+            markerHeight="10"
+            refX="9"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0, 10 3, 0 6" fill="#fbbf24" />
+          </marker>
+          
+          {/* 选中状态箭头头 */}
+          <marker
+            id="arrowhead-selected"
+            markerWidth="10"
+            markerHeight="10"
+            refX="9"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0, 10 3, 0 6" fill="#ef4444" />
           </marker>
         </defs>
         {/* 绘制已完成的测量 */}
@@ -2749,34 +2947,21 @@ function ImageCanvas({
                 Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
               );
               const screenCenter = imageToScreen(center);
-              const isHovered = hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
+              const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
               
               return (
-                <g key={measurement.id}>
-                  <circle
-                    cx={screenCenter.x}
-                    cy={screenCenter.y}
-                    r={radius * imageScale}
-                    fill={isHovered ? "#fbbf24" : "none"}
-                    fillOpacity={isHovered ? "0.1" : "0"}
-                    stroke={isHovered ? "#fbbf24" : "#3b82f6"}
-                    strokeWidth={isHovered ? "3" : "2"}
-                    opacity={isHovered ? "1" : "0.6"}
-                  />
-                  {/* 悬浮时的外层高亮圆圈 */}
-                  {isHovered && (
-                    <circle
-                      cx={screenCenter.x}
-                      cy={screenCenter.y}
-                      r={radius * imageScale + 5}
-                      fill="none"
-                      stroke="#fbbf24"
-                      strokeWidth="2"
-                      opacity="0.4"
-                      strokeDasharray="5,5"
-                    />
-                  )}
-                </g>
+                <circle
+                  key={measurement.id}
+                  cx={screenCenter.x}
+                  cy={screenCenter.y}
+                  r={radius * imageScale}
+                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
+                  fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
+                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#3b82f6"}
+                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                  opacity={isSelected || isHovered ? "1" : "0.6"}
+                />
               );
             }
             return null;
@@ -2817,36 +3002,22 @@ function ImageCanvas({
               const radiusX = Math.abs(edge.x - center.x);
               const radiusY = Math.abs(edge.y - center.y);
               const screenCenter = imageToScreen(center);
-              const isHovered = hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
+              const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
               
               return (
-                <g key={measurement.id}>
-                  <ellipse
-                    cx={screenCenter.x}
-                    cy={screenCenter.y}
-                    rx={radiusX * imageScale}
-                    ry={radiusY * imageScale}
-                    fill={isHovered ? "#fbbf24" : "none"}
-                    fillOpacity={isHovered ? "0.1" : "0"}
-                    stroke={isHovered ? "#fbbf24" : "#8b5cf6"}
-                    strokeWidth={isHovered ? "3" : "2"}
-                    opacity={isHovered ? "1" : "0.6"}
-                  />
-                  {/* 悬浮时的外层高亮椭圆 */}
-                  {isHovered && (
-                    <ellipse
-                      cx={screenCenter.x}
-                      cy={screenCenter.y}
-                      rx={radiusX * imageScale + 5}
-                      ry={radiusY * imageScale + 5}
-                      fill="none"
-                      stroke="#fbbf24"
-                      strokeWidth="2"
-                      opacity="0.4"
-                      strokeDasharray="5,5"
-                    />
-                  )}
-                </g>
+                <ellipse
+                  key={measurement.id}
+                  cx={screenCenter.x}
+                  cy={screenCenter.y}
+                  rx={radiusX * imageScale}
+                  ry={radiusY * imageScale}
+                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
+                  fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
+                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#8b5cf6"}
+                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                  opacity={isSelected || isHovered ? "1" : "0.6"}
+                />
               );
             }
             return null;
@@ -2881,17 +3052,21 @@ function ImageCanvas({
             if (measurement.points.length >= 2) {
               const topLeft = imageToScreen(measurement.points[0]);
               const bottomRight = imageToScreen(measurement.points[1]);
+              const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
+              const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              
               return (
                 <rect
                   key={measurement.id}
-                  x={topLeft.x}
-                  y={topLeft.y}
-                  width={bottomRight.x - topLeft.x}
-                  height={bottomRight.y - topLeft.y}
-                  fill="none"
-                  stroke="#ec4899"
-                  strokeWidth="2"
-                  opacity="0.6"
+                  x={Math.min(topLeft.x, bottomRight.x)}
+                  y={Math.min(topLeft.y, bottomRight.y)}
+                  width={Math.abs(bottomRight.x - topLeft.x)}
+                  height={Math.abs(bottomRight.y - topLeft.y)}
+                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
+                  fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
+                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#ec4899"}
+                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                  opacity={isSelected || isHovered ? "1" : "0.6"}
                 />
               );
             }
@@ -2927,6 +3102,17 @@ function ImageCanvas({
             if (measurement.points.length >= 2) {
               const start = imageToScreen(measurement.points[0]);
               const end = imageToScreen(measurement.points[1]);
+              const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
+              const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              
+              // 确定箭头头部的marker
+              let markerEnd = "url(#arrowhead-normal)";
+              if (isSelected) {
+                markerEnd = "url(#arrowhead-selected)";
+              } else if (isHovered) {
+                markerEnd = "url(#arrowhead-hovered)";
+              }
+              
               return (
                 <line
                   key={measurement.id}
@@ -2934,10 +3120,10 @@ function ImageCanvas({
                   y1={start.y}
                   x2={end.x}
                   y2={end.y}
-                  stroke="#f59e0b"
-                  strokeWidth="2"
-                  markerEnd="url(#arrowhead)"
-                  opacity="0.6"
+                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#f59e0b"}
+                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                  markerEnd={markerEnd}
+                  opacity={isSelected || isHovered ? "1" : "0.6"}
                 />
               );
             }
@@ -2959,7 +3145,7 @@ function ImageCanvas({
                 y2={end.y}
                 stroke="#f59e0b"
                 strokeWidth="2"
-                markerEnd="url(#arrowhead)"
+                markerEnd="url(#arrowhead-normal)"
                 strokeDasharray="5,5"
                 opacity="0.4"
               />
@@ -2971,14 +3157,18 @@ function ImageCanvas({
           .filter(m => m.type === '多边形标注')
           .map(measurement => {
             const screenPoints = measurement.points.map(p => imageToScreen(p));
+            const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
+            const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+            
             return (
               <polygon
                 key={measurement.id}
                 points={screenPoints.map(p => `${p.x},${p.y}`).join(' ')}
-                fill="none"
-                stroke="#06b6d4"
-                strokeWidth="2"
-                opacity="0.6"
+                fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
+                fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
+                stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#06b6d4"}
+                strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                opacity={isSelected || isHovered ? "1" : "0.6"}
               />
             );
           })}
@@ -3025,11 +3215,13 @@ function ImageCanvas({
         {(() => {
           // 获取选中的对象
           let selectedPoints: Point[] = [];
+          let selectedMeasurement: any = null;
           
           if (selectedMeasurementId) {
             // 选中了测量结果
             const measurement = measurements.find(m => m.id === selectedMeasurementId);
             if (measurement) {
+              selectedMeasurement = measurement;
               if (selectionType === 'point' && selectedPointIndex !== null) {
                 // 只显示选中的点
                 selectedPoints = [measurement.points[selectedPointIndex]];
@@ -3046,13 +3238,78 @@ function ImageCanvas({
           if (selectedPoints.length === 0) return null;
           
           // 计算边界框
-          const screenPoints = selectedPoints.map(p => imageToScreen(p));
-          const xs = screenPoints.map(p => p.x);
-          const ys = screenPoints.map(p => p.y);
-          const minX = Math.min(...xs) - 15;
-          const maxX = Math.max(...xs) + 15;
-          const minY = Math.min(...ys) - 15;
-          const maxY = Math.max(...ys) + 15;
+          let minX: number, maxX: number, minY: number, maxY: number;
+          
+          // 针对不同类型的图形计算不同的边界框
+          if (selectedMeasurement && selectionType === 'whole') {
+            // 辅助图形需要特殊处理
+            if (selectedMeasurement.type === '圆形标注' && selectedMeasurement.points.length >= 2) {
+              const center = selectedMeasurement.points[0];
+              const edge = selectedMeasurement.points[1];
+              const radius = Math.sqrt(
+                Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
+              );
+              const screenCenter = imageToScreen(center);
+              const screenRadius = radius * imageScale;
+              
+              minX = screenCenter.x - screenRadius - 15;
+              maxX = screenCenter.x + screenRadius + 15;
+              minY = screenCenter.y - screenRadius - 15;
+              maxY = screenCenter.y + screenRadius + 15;
+            } else if (selectedMeasurement.type === '椭圆标注' && selectedMeasurement.points.length >= 2) {
+              const center = selectedMeasurement.points[0];
+              const edge = selectedMeasurement.points[1];
+              const radiusX = Math.abs(edge.x - center.x);
+              const radiusY = Math.abs(edge.y - center.y);
+              const screenCenter = imageToScreen(center);
+              const screenRadiusX = radiusX * imageScale;
+              const screenRadiusY = radiusY * imageScale;
+              
+              minX = screenCenter.x - screenRadiusX - 15;
+              maxX = screenCenter.x + screenRadiusX + 15;
+              minY = screenCenter.y - screenRadiusY - 15;
+              maxY = screenCenter.y + screenRadiusY + 15;
+            } else if (selectedMeasurement.type === '矩形标注' && selectedMeasurement.points.length >= 2) {
+              const start = selectedMeasurement.points[0];
+              const end = selectedMeasurement.points[1];
+              const startScreen = imageToScreen(start);
+              const endScreen = imageToScreen(end);
+              
+              minX = Math.min(startScreen.x, endScreen.x) - 15;
+              maxX = Math.max(startScreen.x, endScreen.x) + 15;
+              minY = Math.min(startScreen.y, endScreen.y) - 15;
+              maxY = Math.max(startScreen.y, endScreen.y) + 15;
+            } else if (selectedMeasurement.type === '箭头标注' && selectedMeasurement.points.length >= 2) {
+              const start = selectedMeasurement.points[0];
+              const end = selectedMeasurement.points[1];
+              const startScreen = imageToScreen(start);
+              const endScreen = imageToScreen(end);
+              
+              minX = Math.min(startScreen.x, endScreen.x) - 15;
+              maxX = Math.max(startScreen.x, endScreen.x) + 15;
+              minY = Math.min(startScreen.y, endScreen.y) - 15;
+              maxY = Math.max(startScreen.y, endScreen.y) + 15;
+            } else {
+              // 默认处理：基于标注点位置
+              const screenPoints = selectedPoints.map(p => imageToScreen(p));
+              const xs = screenPoints.map(p => p.x);
+              const ys = screenPoints.map(p => p.y);
+              minX = Math.min(...xs) - 15;
+              maxX = Math.max(...xs) + 15;
+              minY = Math.min(...ys) - 15;
+              maxY = Math.max(...ys) + 15;
+            }
+          } else {
+            // 点选择模式或普通测量：基于标注点位置
+            const screenPoints = selectedPoints.map(p => imageToScreen(p));
+            const xs = screenPoints.map(p => p.x);
+            const ys = screenPoints.map(p => p.y);
+            minX = Math.min(...xs) - 15;
+            maxX = Math.max(...xs) + 15;
+            minY = Math.min(...ys) - 15;
+            maxY = Math.max(...ys) + 15;
+          }
+          
           const width = maxX - minX;
           const height = maxY - minY;
           
