@@ -161,7 +161,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           name: 'T1 Tilt',
           icon: 'ri-focus-3-line',
           description: 'T1椎体倾斜角测量',
-          pointsNeeded: 4,
+          pointsNeeded: 2,
         },
         {
           id: 'cobb',
@@ -419,6 +419,33 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     return Math.sqrt(dx * dx + dy * dy) * 0.1;
   };
 
+  // T1 Tilt 专门的角度计算函数
+  const calculateT1TiltAngle = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // T1 tilt 是椎体上终板与水平线的夹角
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算椎体上终板的角度（相对于水平线）
+    const vertebralPlateAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 根据医学定义：
+    // - 第二个点在水平线上方时为负数（椎体向上倾斜）
+    // - 第二个点在水平线下方时为正数（椎体向下倾斜）
+    // 由于屏幕坐标系y轴向下为正，所以dy > 0表示第二个点在下方
+    let tiltAngle = vertebralPlateAngle;
+    
+    // 将角度限制在-90到90度范围内
+    if (tiltAngle > 90) {
+      tiltAngle = tiltAngle - 180;
+    } else if (tiltAngle < -90) {
+      tiltAngle = tiltAngle + 180;
+    }
+    
+    return tiltAngle;
+  };
+
   const addMeasurement = (type: string, points: Point[] = []) => {
     let defaultValue = '0.0°';
     let description = `新增${type}测量`;
@@ -426,10 +453,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     // 根据不同的测量类型生成合理的默认值
     switch (type) {
       case 'T1 Tilt':
-        defaultValue =
-          Math.random() > 0.5
-            ? `${(Math.random() * 15 + 5).toFixed(1)}°`
-            : `-${(Math.random() * 10 + 2).toFixed(1)}°`;
+        if (points.length >= 2) {
+          // 使用实际计算的角度
+          const calculatedAngle = calculateT1TiltAngle(points);
+          defaultValue = `${calculatedAngle.toFixed(1)}°`;
+        } else {
+          defaultValue =
+            Math.random() > 0.5
+              ? `${(Math.random() * 15 + 5).toFixed(1)}°`
+              : `-${(Math.random() * 10 + 2).toFixed(1)}°`;
+        }
         description = 'T1椎体倾斜角测量';
         break;
       case 'Cobb':
@@ -822,54 +855,152 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               测量工具 - {imageData.examType}
             </h3>
 
-            {/* 横向工具栏 */}
+            {/* 基础移动模式 */}
             <div className="mb-4">
-              <div className="flex flex-wrap gap-2">
-                {/* 手工具 */}
+              <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
+                <i className="ri-hand-line w-3 h-3 mr-1"></i>
+                基础模式
+              </h4>
+              <div className="flex gap-2">
                 <button
                   onClick={() => setSelectedTool('hand')}
-                  className={`p-2 rounded-lg flex flex-col items-center justify-center min-w-[60px] h-16 transition-all ${
+                  className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
                     selectedTool === 'hand'
                       ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
-                  title="移动工具"
+                  title="移动、选择、删除工具"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <i className="ri-hand-line w-5 h-5 flex items-center justify-center mb-1"></i>
-                  <span className="text-xs">移动</span>
+                  <div 
+                    className="flex flex-col text-center" 
+                    style={{ 
+                      transform: 'translateY(0)', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      height: '100%',
+                      display: 'flex'
+                    }}
+                  >
+                    <i className="ri-hand-line text-lg mb-1" style={{ lineHeight: '1' }}></i>
+                    <span className="text-xs" style={{ lineHeight: '1' }}>移动</span>
+                  </div>
                   {selectedTool === 'hand' && (
                     <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -right-1 bg-blue-500 rounded-full"></i>
                   )}
                 </button>
-
-                {/* 专用测量工具 */}
-                {tools.map(tool => (
-                  <button
-                    key={tool.id}
-                    onClick={() => setSelectedTool(tool.id)}
-                    className={`p-2 rounded-lg flex flex-col items-center justify-center min-w-[60px] h-16 transition-all relative ${
-                      selectedTool === tool.id
-                        ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                    title={`${tool.description} (需要标注${tool.pointsNeeded}个点)`}
-                  >
-                    <i
-                      className={`${tool.icon} w-5 h-5 flex items-center justify-center mb-1`}
-                    ></i>
-                    <span className="text-xs text-center leading-tight">
-                      {tool.name}
-                    </span>
-                    <div className="absolute -bottom-1 -right-1 bg-gray-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                      {tool.pointsNeeded}
-                    </div>
-                    {selectedTool === tool.id && (
-                      <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
-                    )}
-                  </button>
-                ))}
               </div>
             </div>
+
+            {/* 专业测量工具 */}
+            {(() => {
+              const measurementTools = tools.filter(tool => tool.pointsNeeded > 0);
+              if (measurementTools.length === 0) return null;
+              
+              return (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
+                    <i className="ri-ruler-line w-3 h-3 mr-1"></i>
+                    测量标注
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {measurementTools.map(tool => (
+                      <button
+                        key={tool.id}
+                        onClick={() => setSelectedTool(tool.id)}
+                        className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
+                          selectedTool === tool.id
+                            ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                        title={`${tool.description} (需要标注${tool.pointsNeeded}个点)`}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <div 
+                          className="flex flex-col text-center" 
+                          style={{ 
+                            transform: 'translateY(0)', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            height: '100%',
+                            display: 'flex'
+                          }}
+                        >
+                          <i
+                            className={`${tool.icon} text-lg mb-1`}
+                            style={{ lineHeight: '1' }}
+                          ></i>
+                          <span className="text-xs text-center" style={{ lineHeight: '1' }}>
+                            {tool.name}
+                          </span>
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 bg-gray-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                          {tool.pointsNeeded}
+                        </div>
+                        {selectedTool === tool.id && (
+                          <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 辅助图形工具 */}
+            {(() => {
+              const auxiliaryTools = tools.filter(tool => tool.pointsNeeded === 0);
+              if (auxiliaryTools.length === 0) return null;
+              
+              return (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
+                    <i className="ri-shape-line w-3 h-3 mr-1"></i>
+                    辅助图形
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {auxiliaryTools.map(tool => (
+                      <button
+                        key={tool.id}
+                        onClick={() => setSelectedTool(tool.id)}
+                        className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
+                          selectedTool === tool.id
+                            ? 'bg-green-600 text-white ring-2 ring-green-400 shadow-lg'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                        title={`${tool.description} (拖拽绘制)`}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <div 
+                          className="flex flex-col text-center" 
+                          style={{ 
+                            transform: 'translateY(0)', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            height: '100%',
+                            display: 'flex'
+                          }}
+                        >
+                          <i
+                            className={`${tool.icon} text-lg mb-1`}
+                            style={{ lineHeight: '1' }}
+                          ></i>
+                          <span className="text-xs text-center" style={{ lineHeight: '1' }}>
+                            {tool.name.replace('Auxiliary ', '').replace('Polygons', '多边形')}
+                          </span>
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 bg-green-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                          <i className="ri-mouse-line w-2 h-2"></i>
+                        </div>
+                        {selectedTool === tool.id && (
+                          <i className="ri-check-line w-3 h-3 flex items-center justify-center text-green-200 absolute -top-1 -left-1 bg-green-500 rounded-full"></i>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* 标准距离设置按钮 */}
             <div className="mb-4">
@@ -1182,6 +1313,9 @@ function ImageCanvas({
   const [isDraggingSelection, setIsDraggingSelection] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
+  // T1 tilt 特殊状态管理
+  const [t1TiltHorizontalLine, setT1TiltHorizontalLine] = useState<Point | null>(null);
+
   // 悬浮高亮状态 - 用于预览即将被选中的元素
   const [hoveredMeasurementId, setHoveredMeasurementId] = useState<string | null>(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
@@ -1189,6 +1323,15 @@ function ImageCanvas({
 
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
+
+  // 监听工具切换，清理T1 Tilt状态
+  useEffect(() => {
+    if (!selectedTool.includes('t1-tilt')) {
+      setT1TiltHorizontalLine(null);
+    }
+    // 工具切换时清空当前点击的点
+    setClickedPoints([]);
+  }, [selectedTool]);
 
   // 清空所有标注
   const handleClear = () => {
@@ -1286,14 +1429,48 @@ function ImageCanvas({
     return Math.sqrt(dx * dx + dy * dy) * 0.1;
   };
 
+  // T1 Tilt 专门的角度计算函数
+  const calculateT1TiltAngle = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // T1 tilt 是椎体上终板与水平线的夹角
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算椎体上终板的角度（相对于水平线）
+    const vertebralPlateAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 根据医学定义：
+    // - 第二个点在水平线上方时为负数（椎体向上倾斜）
+    // - 第二个点在水平线下方时为正数（椎体向下倾斜）
+    // 由于屏幕坐标系y轴向下为正，所以dy > 0表示第二个点在下方
+    let tiltAngle = vertebralPlateAngle;
+    
+    // 将角度限制在-90到90度范围内
+    if (tiltAngle > 90) {
+      tiltAngle = tiltAngle - 180;
+    } else if (tiltAngle < -90) {
+      tiltAngle = tiltAngle + 180;
+    }
+    
+    return tiltAngle;
+  };
+
   // 重新计算测量值的函数
   const recalculateMeasurementValue = (measurement: any) => {
     const { type, points } = measurement;
     
     // 根据测量类型重新计算值
     switch (type) {
-      // 角度类测量
+      // T1 Tilt 特殊处理 - 2点测量
       case 'T1 Tilt':
+        if (points.length >= 2) {
+          const angle = calculateT1TiltAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+        
+      // 其他角度类测量
       case 'Cobb':
       case 'T1 Slope':
       case 'C2-C7 Cobb':
@@ -1464,10 +1641,20 @@ function ImageCanvas({
           // 计算测量值标注的位置和范围
           if (measurement.points.length < 2) return false;
           
-          const firstPoint = measurement.points[0];
-          const lastPoint = measurement.points[measurement.points.length - 1];
-          const textX = (firstPoint.x + lastPoint.x) / 2;
-          const textY = (firstPoint.y + lastPoint.y) / 2 - 10 / imageScale;
+          let textX, textY;
+          
+          if (measurement.type === 'T1 Tilt') {
+            // T1 Tilt 特殊定位：在两点上方
+            textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+            const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
+            textY = minY - 30 / imageScale; // 转换回图像坐标系
+          } else {
+            // 其他测量的默认位置
+            const firstPoint = measurement.points[0];
+            const lastPoint = measurement.points[measurement.points.length - 1];
+            textX = (firstPoint.x + lastPoint.x) / 2;
+            textY = (firstPoint.y + lastPoint.y) / 2 - 10 / imageScale;
+          }
           
           // 估算文字宽度和高度 (粗略估算)
           const textWidth = (measurement.type.length + measurement.value.length) * 8 / imageScale;
@@ -1792,12 +1979,28 @@ function ImageCanvas({
           const newPoints = [...clickedPoints, imagePoint];
           setClickedPoints(newPoints);
 
-          // 如果点数达到所需数量，自动生成测量
-          const currentTool = tools.find(t => t.id === selectedTool);
-          if (currentTool && newPoints.length === currentTool.pointsNeeded) {
-            onMeasurementAdd(currentTool.name, newPoints);
-            const emptyPoints: Point[] = [];
-            setClickedPoints(emptyPoints);
+          // T1 Tilt 特殊处理
+          if (selectedTool.includes('t1-tilt')) {
+            if (newPoints.length === 1) {
+              // 第一个点：设置水平参考线位置
+              setT1TiltHorizontalLine(imagePoint);
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setT1TiltHorizontalLine(null); // 清除水平参考线
+              }
+            }
+          } else {
+            // 其他工具的原有逻辑
+            const currentTool = tools.find(t => t.id === selectedTool);
+            if (currentTool && newPoints.length === currentTool.pointsNeeded) {
+              onMeasurementAdd(currentTool.name, newPoints);
+              const emptyPoints: Point[] = [];
+              setClickedPoints(emptyPoints);
+            }
           }
         }
 
@@ -1990,11 +2193,17 @@ function ImageCanvas({
         } else if (selectedPointIndex !== null) {
           // 移动单个点
           const newPoints = [...clickedPoints];
-          newPoints[selectedPointIndex] = { 
+          const newPoint = { 
             x: imagePoint.x - dragOffset.x, 
             y: imagePoint.y - dragOffset.y 
           };
+          newPoints[selectedPointIndex] = newPoint;
           setClickedPoints(newPoints);
+          
+          // T1 Tilt 特殊处理：第一个点移动时，水平参考线跟随移动
+          if (selectedTool.includes('t1-tilt') && selectedPointIndex === 0 && t1TiltHorizontalLine) {
+            setT1TiltHorizontalLine(newPoint);
+          }
         }
       }
     } else if (adjustMode === 'zoom' && isDragging && selectedTool === 'hand') {
@@ -2195,10 +2404,20 @@ function ImageCanvas({
             }
           } else {
             // 非辅助图形：检查文字标识区域
-            const firstPoint = measurement.points[0];
-            const lastPoint = measurement.points[measurement.points.length - 1];
-            const textX = (firstPoint.x + lastPoint.x) / 2;
-            const textY = (firstPoint.y + lastPoint.y) / 2 - 10 / imageScale;
+            let textX, textY;
+            
+            if (measurement.type === 'T1 Tilt') {
+              // T1 Tilt 特殊定位：在两点上方
+              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+              const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
+              textY = minY - 30 / imageScale;
+            } else {
+              // 其他测量的默认位置
+              const firstPoint = measurement.points[0];
+              const lastPoint = measurement.points[measurement.points.length - 1];
+              textX = (firstPoint.x + lastPoint.x) / 2;
+              textY = (firstPoint.y + lastPoint.y) / 2 - 10 / imageScale;
+            }
             
             const textWidth = (measurement.type.length + measurement.value.length) * 8 / imageScale;
             const textHeight = 20 / imageScale;
@@ -2391,6 +2610,10 @@ function ImageCanvas({
 
   const clearCurrentMeasurement = () => {
     setClickedPoints([]);
+    // 清除T1 tilt的水平参考线
+    if (selectedTool.includes('t1-tilt')) {
+      setT1TiltHorizontalLine(null);
+    }
   };
 
   const getCursorStyle = () => {
@@ -2732,7 +2955,68 @@ function ImageCanvas({
               {/* 连接线 - 辅助图形不显示连接线 */}
               {!isAuxiliaryShape && screenPoints.length >= 2 && (
                 <>
-                  {measurement.type.includes('角') ||
+                  {measurement.type === 'T1 Tilt' ? (
+                    // T1 Tilt 特殊显示：椎体线 + 水平参考线
+                    <>
+                      {/* 椎体上终板线 */}
+                      <line
+                        x1={screenPoints[0].x}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[1].x}
+                        y2={screenPoints[1].y}
+                        stroke={displayColor}
+                        strokeWidth="2"
+                      />
+                      {/* 水平参考线 */}
+                      <line
+                        x1={screenPoints[0].x - 100}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[0].x + 100}
+                        y2={screenPoints[0].y}
+                        stroke="#00ff00"
+                        strokeWidth="1"
+                        strokeDasharray="5,5"
+                        opacity="0.7"
+                      />
+                      {/* 角度弧线 */}
+                      {(() => {
+                        const dx = screenPoints[1].x - screenPoints[0].x;
+                        const dy = screenPoints[1].y - screenPoints[0].y;
+                        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                        const radius = 30;
+                        
+                        // 将角度限制在-90到90度范围内
+                        let displayAngle = angle;
+                        if (displayAngle > 90) {
+                          displayAngle = displayAngle - 180;
+                        } else if (displayAngle < -90) {
+                          displayAngle = displayAngle + 180;
+                        }
+                        
+                        const startAngle = 0; // 水平线角度
+                        const endAngle = displayAngle;
+                        
+                        // 计算弧线路径
+                        const startX = screenPoints[0].x + radius;
+                        const startY = screenPoints[0].y;
+                        const endX = screenPoints[0].x + radius * Math.cos(endAngle * Math.PI / 180);
+                        const endY = screenPoints[0].y + radius * Math.sin(endAngle * Math.PI / 180);
+                        
+                        const largeArcFlag = Math.abs(endAngle) > 180 ? 1 : 0;
+                        const sweepFlag = endAngle > 0 ? 1 : 0;
+                        
+                        return (
+                          <path
+                            d={`M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY}`}
+                            fill="none"
+                            stroke={displayColor}
+                            strokeWidth="1"
+                            opacity="0.8"
+                          />
+                        );
+                      })()}
+                    </>
+                  ) : measurement.type.includes('角') ||
                   measurement.type.includes('Cobb') ||
                   measurement.type.includes('Tilt') ||
                   measurement.type.includes('Slope') ? (
@@ -2797,46 +3081,35 @@ function ImageCanvas({
               {!isAuxiliaryShape && screenPoints.length >= 2 && (() => {
                 const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
                 const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+                
+                // 计算标注位置
+                let textX, textY;
+                
+                if (measurement.type === 'T1 Tilt') {
+                  // T1 Tilt 特殊定位：在两点上方
+                  textX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                  textY = minY - 30; // 移动到更上方
+                } else {
+                  // 其他测量的默认位置：中间偏上
+                  textX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
+                  textY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
+                }
+                
                 return (
-                  <g>
-                    {/* 选中时的背景高亮 */}
-                    {isSelected && (
-                      <rect
-                        x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2 - 40}
-                        y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 25}
-                        width="80"
-                        height="20"
-                        fill="#ef4444"
-                        opacity="0.3"
-                        rx="3"
-                      />
-                    )}
-                    {/* 悬浮时的背景高亮 */}
-                    {isHovered && (
-                      <rect
-                        x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2 - 40}
-                        y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 25}
-                        width="80"
-                        height="20"
-                        fill="#fbbf24"
-                        opacity="0.3"
-                        rx="3"
-                      />
-                    )}
-                    <text
-                      x={(screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2}
-                      y={(screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10}
-                      fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : displayColor}
-                      fontSize={isHovered ? "16" : "14"}
-                      fontWeight="bold"
-                      stroke="#000000"
-                      strokeWidth="0.8"
-                      paintOrder="stroke"
-                      textAnchor="middle"
-                    >
-                      {measurement.type}: {measurement.value}
-                    </text>
-                  </g>
+                  <text
+                    x={textX}
+                    y={textY}
+                    fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : displayColor}
+                    fontSize={isHovered ? "16" : "14"}
+                    fontWeight="bold"
+                    stroke="#000000"
+                    strokeWidth="0.8"
+                    paintOrder="stroke"
+                    textAnchor="middle"
+                  >
+                    {measurement.type}: {measurement.value}
+                  </text>
                 );
               })()}
             </g>
@@ -2921,6 +3194,17 @@ function ImageCanvas({
                       strokeDasharray="2,2"
                     />
                   ))
+              ) : selectedTool.includes('t1-tilt') && screenPoints.length === 2 ? (
+                // T1 Tilt 特殊预览：椎体线
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[1].x}
+                  y2={screenPoints[1].y}
+                  stroke="#ef4444"
+                  strokeWidth="2"
+                  strokeDasharray="2,2"
+                />
               ) : (
                 <line
                   x1={screenPoints[0].x}
@@ -2935,6 +3219,41 @@ function ImageCanvas({
             </>
           );
         })()}
+
+        {/* T1 Tilt 专用水平参考线 HRL */}
+        {selectedTool.includes('t1-tilt') && t1TiltHorizontalLine && (
+          <>
+            {(() => {
+              const referencePoint = imageToScreen(t1TiltHorizontalLine);
+              const lineLength = 200; // 水平线长度
+              return (
+                <g>
+                  {/* 水平参考线 */}
+                  <line
+                    x1={referencePoint.x - lineLength/2}
+                    y1={referencePoint.y}
+                    x2={referencePoint.x + lineLength/2}
+                    y2={referencePoint.y}
+                    stroke="#00ff00"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                    opacity="0.8"
+                  />
+                  {/* 水平线标识 */}
+                  <text
+                    x={referencePoint.x + lineLength/2 + 10}
+                    y={referencePoint.y + 5}
+                    fill="#00ff00"
+                    fontSize="12"
+                    fontWeight="bold"
+                  >
+                    HRL
+                  </text>
+                </g>
+              );
+            })()}
+          </>
+        )}
 
         {/* 绘制辅助圆形 - 从 measurements 中筛选 */}
         {measurements
@@ -3409,6 +3728,25 @@ function ImageCanvas({
                 <p>点击回第一个点自动闭合</p>
                 <p>Alt+Z 撤销点</p>
               </div>
+            )}
+          </div>
+        ) : selectedTool.includes('t1-tilt') ? (
+          <div>
+            <p className="font-medium">T1 Tilt 测量模式</p>
+            <p>
+              已标注 {clickedPoints.length}/2 个点
+            </p>
+            {clickedPoints.length === 0 && (
+              <p className="text-yellow-400 mt-1">点击T1椎体上终板起点</p>
+            )}
+            {clickedPoints.length === 1 && (
+              <>
+                <p className="text-green-400 mt-1">水平参考线已显示</p>
+                <p className="text-yellow-400 mt-1">点击上终板终点完成测量</p>
+              </>
+            )}
+            {clickedPoints.length === 2 && (
+              <p className="text-green-400 mt-1">T1 Tilt角度已计算</p>
             )}
           </div>
         ) : (
