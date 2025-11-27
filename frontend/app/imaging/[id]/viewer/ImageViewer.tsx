@@ -446,6 +446,46 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     return tiltAngle;
   };
 
+  // Cobb角专门的角度计算函数
+  const calculateCobbAngle = (points: Point[]) => {
+    if (points.length < 4) return 0;
+
+    // 计算第一条线的角度（点1到点2）
+    const dx1 = points[1].x - points[0].x;
+    const dy1 = points[1].y - points[0].y;
+    const angle1 = Math.atan2(dy1, dx1);
+
+    // 计算第二条线的角度（点3到点4）
+    const dx2 = points[3].x - points[2].x;
+    const dy2 = points[3].y - points[2].y;
+    const angle2 = Math.atan2(dy2, dx2);
+
+    // 计算两条线的夹角（0-180度范围）
+    let angleDiff = Math.abs(angle2 - angle1) * (180 / Math.PI);
+    
+    // 确保角度在0-180度范围内
+    if (angleDiff > 180) {
+      angleDiff = 360 - angleDiff;
+    }
+
+    return angleDiff;
+  };
+
+  // RSH专门的角度计算函数
+  const calculateRSH = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // RSH 是两点连线与水平线的夹角
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算两点连线相对于水平线的角度
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 始终返回正值（取绝对值）
+    return Math.abs(angle);
+  };
+
   const addMeasurement = (type: string, points: Point[] = []) => {
     let defaultValue = '0.0°';
     let description = `新增${type}测量`;
@@ -466,11 +506,23 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         description = 'T1椎体倾斜角测量';
         break;
       case 'Cobb':
-        defaultValue = `${(Math.random() * 40 + 10).toFixed(1)}°`;
+        if (points.length >= 4) {
+          // 使用实际计算的Cobb角
+          const calculatedAngle = calculateCobbAngle(points);
+          defaultValue = `${calculatedAngle.toFixed(1)}°`;
+        } else {
+          defaultValue = `${(Math.random() * 40 + 10).toFixed(1)}°`;
+        }
         description = 'Cobb角测量';
         break;
       case 'RSH':
-        defaultValue = `${(Math.random() * 20 + 5).toFixed(1)}mm`;
+        if (points.length >= 2) {
+          // 使用实际计算的角度
+          const calculatedAngle = calculateRSH(points);
+          defaultValue = `${calculatedAngle.toFixed(1)}°`;
+        } else {
+          defaultValue = `${(Math.random() * 20 + 5).toFixed(1)}°`;
+        }
         description = '肩高差测量(Radiographic Shoulder Height)';
         break;
       case 'Pelvic':
@@ -1316,6 +1368,9 @@ function ImageCanvas({
   // T1 tilt 特殊状态管理
   const [t1TiltHorizontalLine, setT1TiltHorizontalLine] = useState<Point | null>(null);
 
+  // RSH 特殊状态管理
+  const [rshHorizontalLine, setRshHorizontalLine] = useState<Point | null>(null);
+
   // 悬浮高亮状态 - 用于预览即将被选中的元素
   const [hoveredMeasurementId, setHoveredMeasurementId] = useState<string | null>(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
@@ -1324,10 +1379,13 @@ function ImageCanvas({
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
-  // 监听工具切换，清理T1 Tilt状态
+  // 监听工具切换，清理T1 Tilt和RSH状态
   useEffect(() => {
     if (!selectedTool.includes('t1-tilt')) {
       setT1TiltHorizontalLine(null);
+    }
+    if (!selectedTool.includes('rsh')) {
+      setRshHorizontalLine(null);
     }
     // 工具切换时清空当前点击的点
     setClickedPoints([]);
@@ -1456,6 +1514,46 @@ function ImageCanvas({
     return tiltAngle;
   };
 
+  // Cobb角专门的角度计算函数
+  const calculateCobbAngle = (points: Point[]) => {
+    if (points.length < 4) return 0;
+
+    // 计算第一条线的角度（点1到点2）
+    const dx1 = points[1].x - points[0].x;
+    const dy1 = points[1].y - points[0].y;
+    const angle1 = Math.atan2(dy1, dx1);
+
+    // 计算第二条线的角度（点3到点4）
+    const dx2 = points[3].x - points[2].x;
+    const dy2 = points[3].y - points[2].y;
+    const angle2 = Math.atan2(dy2, dx2);
+
+    // 计算两条线的夹角（0-180度范围）
+    let angleDiff = Math.abs(angle2 - angle1) * (180 / Math.PI);
+    
+    // 确保角度在0-180度范围内
+    if (angleDiff > 180) {
+      angleDiff = 360 - angleDiff;
+    }
+
+    return angleDiff;
+  };
+
+  // RSH专门的角度计算函数
+  const calculateRSH = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // RSH 是两点连线与水平线的夹角
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算两点连线相对于水平线的角度
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 始终返回正值（取绝对值）
+    return Math.abs(angle);
+  };
+
   // 重新计算测量值的函数
   const recalculateMeasurementValue = (measurement: any) => {
     const { type, points } = measurement;
@@ -1470,8 +1568,23 @@ function ImageCanvas({
         }
         break;
         
-      // 其他角度类测量
+      // Cobb角特殊处理 - 4点测量，两条线夹角
       case 'Cobb':
+        if (points.length >= 4) {
+          const angle = calculateCobbAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+        
+      // RSH特殊处理 - 2点测量，角度
+      case 'RSH':
+        if (points.length >= 2) {
+          const angle = calculateRSH(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+        
+      // 其他角度类测量
       case 'T1 Slope':
       case 'C2-C7 Cobb':
       case 'TK':
@@ -1489,7 +1602,6 @@ function ImageCanvas({
         break;
         
       // 距离类测量
-      case 'RSH':
       case 'AVT':
       case 'TS':
       case 'SVA':
@@ -1645,6 +1757,11 @@ function ImageCanvas({
           
           if (measurement.type === 'T1 Tilt') {
             // T1 Tilt 特殊定位：在两点上方
+            textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+            const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
+            textY = minY - 30 / imageScale; // 转换回图像坐标系
+          } else if (measurement.type === 'RSH') {
+            // RSH 特殊定位：在两点上方
             textX = (measurement.points[0].x + measurement.points[1].x) / 2;
             const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
             textY = minY - 30 / imageScale; // 转换回图像坐标系
@@ -1991,6 +2108,20 @@ function ImageCanvas({
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
                 setT1TiltHorizontalLine(null); // 清除水平参考线
+              }
+            }
+          } else if (selectedTool.includes('rsh')) {
+            // RSH 特殊处理
+            if (newPoints.length === 1) {
+              // 第一个点：设置水平参考线位置
+              setRshHorizontalLine(imagePoint);
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setRshHorizontalLine(null); // 清除水平参考线
               }
             }
           } else {
@@ -2408,6 +2539,11 @@ function ImageCanvas({
             
             if (measurement.type === 'T1 Tilt') {
               // T1 Tilt 特殊定位：在两点上方
+              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+              const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
+              textY = minY - 30 / imageScale;
+            } else if (measurement.type === 'RSH') {
+              // RSH 特殊定位：在两点上方
               textX = (measurement.points[0].x + measurement.points[1].x) / 2;
               const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
               textY = minY - 30 / imageScale;
@@ -3016,6 +3152,59 @@ function ImageCanvas({
                         );
                       })()}
                     </>
+                  ) : measurement.type === 'RSH' ? (
+                    // RSH 特殊显示：两肩连线 + 水平参考线 + 角度弧线
+                    <>
+                      {/* 两肩连线 */}
+                      <line
+                        x1={screenPoints[0].x}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[1].x}
+                        y2={screenPoints[1].y}
+                        stroke={displayColor}
+                        strokeWidth="2"
+                      />
+                      {/* 水平参考线（通过第一个点） */}
+                      <line
+                        x1={screenPoints[0].x - 100}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[0].x + 100}
+                        y2={screenPoints[0].y}
+                        stroke="#00ff00"
+                        strokeWidth="1"
+                        strokeDasharray="5,5"
+                        opacity="0.7"
+                      />
+                      {/* 角度弧线 */}
+                      {(() => {
+                        const dx = screenPoints[1].x - screenPoints[0].x;
+                        const dy = screenPoints[1].y - screenPoints[0].y;
+                        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                        const radius = 40;
+                        
+                        const startAngle = 0; // 水平线角度
+                        const endAngle = angle;
+                        
+                        // 计算弧线路径
+                        const startX = screenPoints[0].x + radius;
+                        const startY = screenPoints[0].y;
+                        const endX = screenPoints[0].x + radius * Math.cos(endAngle * Math.PI / 180);
+                        const endY = screenPoints[0].y + radius * Math.sin(endAngle * Math.PI / 180);
+                        
+                        const largeArcFlag = Math.abs(endAngle) > 180 ? 1 : 0;
+                        const sweepFlag = endAngle > 0 ? 1 : 0;
+                        
+                        return (
+                          <path
+                            d={`M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY}`}
+                            fill="none"
+                            stroke={displayColor}
+                            strokeWidth="1"
+                            opacity="0.8"
+                          />
+                        );
+                      })()}
+                    </>
                   ) : measurement.type.includes('角') ||
                   measurement.type.includes('Cobb') ||
                   measurement.type.includes('Tilt') ||
@@ -3087,6 +3276,11 @@ function ImageCanvas({
                 
                 if (measurement.type === 'T1 Tilt') {
                   // T1 Tilt 特殊定位：在两点上方
+                  textX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                  textY = minY - 30; // 移动到更上方
+                } else if (measurement.type === 'RSH') {
+                  // RSH 特殊定位：在两点上方
                   textX = (screenPoints[0].x + screenPoints[1].x) / 2;
                   const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
                   textY = minY - 30; // 移动到更上方
@@ -3205,6 +3399,17 @@ function ImageCanvas({
                   strokeWidth="2"
                   strokeDasharray="2,2"
                 />
+              ) : selectedTool.includes('rsh') && screenPoints.length === 2 ? (
+                // RSH 特殊预览：两肩连线
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[1].x}
+                  y2={screenPoints[1].y}
+                  stroke="#ef4444"
+                  strokeWidth="2"
+                  strokeDasharray="2,2"
+                />
               ) : (
                 <line
                   x1={screenPoints[0].x}
@@ -3225,6 +3430,41 @@ function ImageCanvas({
           <>
             {(() => {
               const referencePoint = imageToScreen(t1TiltHorizontalLine);
+              const lineLength = 200; // 水平线长度
+              return (
+                <g>
+                  {/* 水平参考线 */}
+                  <line
+                    x1={referencePoint.x - lineLength/2}
+                    y1={referencePoint.y}
+                    x2={referencePoint.x + lineLength/2}
+                    y2={referencePoint.y}
+                    stroke="#00ff00"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                    opacity="0.8"
+                  />
+                  {/* 水平线标识 */}
+                  <text
+                    x={referencePoint.x + lineLength/2 + 10}
+                    y={referencePoint.y + 5}
+                    fill="#00ff00"
+                    fontSize="12"
+                    fontWeight="bold"
+                  >
+                    HRL
+                  </text>
+                </g>
+              );
+            })()}
+          </>
+        )}
+
+        {/* RSH 专用水平参考线 HRL */}
+        {selectedTool.includes('rsh') && rshHorizontalLine && (
+          <>
+            {(() => {
+              const referencePoint = imageToScreen(rshHorizontalLine);
               const lineLength = 200; // 水平线长度
               return (
                 <g>
