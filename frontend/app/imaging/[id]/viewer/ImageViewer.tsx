@@ -189,21 +189,21 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           name: 'Sacral',
           icon: 'ri-square-line',
           description: '骶骨倾斜角测量',
-          pointsNeeded: 4,
+          pointsNeeded: 2,
         },
         {
           id: 'avt',
           name: 'AVT',
           icon: 'ri-focus-2-line',
           description: '顶椎平移量(Apical Vertebral Translation)',
-          pointsNeeded: 3,
+          pointsNeeded: 2,
         },
         {
           id: 'ts',
           name: 'TS',
           icon: 'ri-crosshair-2-line',
           description: '躯干偏移量(Trunk Shift)',
-          pointsNeeded: 3,
+          pointsNeeded: 2,
         },
         {
           id: 'circle',
@@ -486,6 +486,64 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     return Math.abs(angle);
   };
 
+  // Pelvic专门的角度计算函数
+  const calculatePelvic = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // Pelvic 是两点连线与水平线的夹角
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算两点连线相对于水平线的角度
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 始终返回正值（取绝对值）
+    return Math.abs(angle);
+  };
+
+  // Sacral专门的角度计算函数
+  const calculateSacral = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // Sacral 是两点连线与水平线的夹角
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算两点连线相对于水平线的角度
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 始终返回正值（取绝对值）
+    return Math.abs(angle);
+  };
+
+  // calculateAVT 函数 - 计算两条垂直线之间的水平距离（单位：mm）
+  const calculateAVT = (points: Point[], imageWidth: number, referenceWidth: number) => {
+    if (points.length < 2) return 0;
+
+    // 计算两点之间的水平距离（x坐标差的绝对值）
+    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    
+    // 根据图片宽度和参考宽度计算实际距离（mm）
+    // 实际距离 = (像素距离 / 图片宽度) * 参考宽度
+    const actualDistance = (pixelDistance / imageWidth) * referenceWidth;
+    
+    return actualDistance;
+  };
+
+  // calculateTS 函数 - 计算两条垂直线之间的水平距离（单位：mm）
+  const calculateTS = (points: Point[], imageWidth: number, referenceWidth: number) => {
+    if (points.length < 2) return 0;
+
+    // 计算两点之间的水平距离（x坐标差的绝对值）
+    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    
+    // 根据图片宽度和参考宽度计算实际距离（mm）
+    // 实际距离 = (像素距离 / 图片宽度) * 参考宽度
+    const actualDistance = (pixelDistance / imageWidth) * referenceWidth;
+    
+    return actualDistance;
+  };
+
   const addMeasurement = (type: string, points: Point[] = []) => {
     let defaultValue = '0.0°';
     let description = `新增${type}测量`;
@@ -526,22 +584,49 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         description = '肩高差测量(Radiographic Shoulder Height)';
         break;
       case 'Pelvic':
-        defaultValue =
-          Math.random() > 0.5
-            ? `${(Math.random() * 8 + 2).toFixed(1)}°`
-            : `-${(Math.random() * 6 + 1).toFixed(1)}°`;
+        if (points.length >= 2) {
+          // 使用实际计算的角度
+          const calculatedAngle = calculatePelvic(points);
+          defaultValue = `${calculatedAngle.toFixed(1)}°`;
+        } else {
+          defaultValue = `${(Math.random() * 20 + 5).toFixed(1)}°`;
+        }
         description = '骨盆倾斜角测量';
         break;
       case 'Sacral':
-        defaultValue = `${(Math.random() * 12 + 8).toFixed(1)}°`;
+        if (points.length >= 2) {
+          // 使用实际计算的角度
+          const calculatedAngle = calculateSacral(points);
+          defaultValue = `${calculatedAngle.toFixed(1)}°`;
+        } else {
+          defaultValue = `${(Math.random() * 12 + 8).toFixed(1)}°`;
+        }
         description = '骶骨倾斜角测量';
         break;
       case 'AVT':
-        defaultValue = `${(Math.random() * 25 + 5).toFixed(1)}mm`;
+        if (points.length >= 2) {
+          // 使用固定的参考比例进行距离计算
+          // TODO: 后续从用户配置中获取实际的参考宽度
+          const imageWidth = 1000; // 标准化的图片宽度
+          const referenceWidth = 300; // 默认参考宽度(mm)
+          const calculatedDistance = calculateAVT(points, imageWidth, referenceWidth);
+          defaultValue = `${calculatedDistance.toFixed(1)}mm`;
+        } else {
+          defaultValue = `${(Math.random() * 25 + 5).toFixed(1)}mm`;
+        }
         description = '顶椎平移量(Apical Vertebral Translation)';
         break;
       case 'TS':
-        defaultValue = `${(Math.random() * 30 + 10).toFixed(1)}mm`;
+        if (points.length >= 2) {
+          // 使用固定的参考比例进行距离计算
+          // TODO: 后续从用户配置中获取实际的参考宽度
+          const imageWidth = 1000; // 标准化的图片宽度
+          const referenceWidth = 300; // 默认参考宽度(mm)
+          const calculatedDistance = calculateTS(points, imageWidth, referenceWidth);
+          defaultValue = `${calculatedDistance.toFixed(1)}mm`;
+        } else {
+          defaultValue = `${(Math.random() * 30 + 10).toFixed(1)}mm`;
+        }
         description = '躯干偏移量(Trunk Shift)';
         break;
       case 'T1 Slope':
@@ -1371,6 +1456,18 @@ function ImageCanvas({
   // RSH 特殊状态管理
   const [rshHorizontalLine, setRshHorizontalLine] = useState<Point | null>(null);
 
+  // Pelvic 特殊状态管理
+  const [pelvicHorizontalLine, setPelvicHorizontalLine] = useState<Point | null>(null);
+
+  // Sacral 特殊状态管理
+  const [sacralHorizontalLine, setSacralHorizontalLine] = useState<Point | null>(null);
+
+  // AVT 特殊状态管理 - 存储第一个点用于绘制第一条垂直线
+  const [avtFirstVerticalLine, setAvtFirstVerticalLine] = useState<Point | null>(null);
+
+  // TS 特殊状态管理 - 存储第一个点用于绘制第一条垂直线
+  const [tsFirstVerticalLine, setTsFirstVerticalLine] = useState<Point | null>(null);
+
   // 悬浮高亮状态 - 用于预览即将被选中的元素
   const [hoveredMeasurementId, setHoveredMeasurementId] = useState<string | null>(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
@@ -1386,6 +1483,18 @@ function ImageCanvas({
     }
     if (!selectedTool.includes('rsh')) {
       setRshHorizontalLine(null);
+    }
+    if (!selectedTool.includes('pelvic')) {
+      setPelvicHorizontalLine(null);
+    }
+    if (!selectedTool.includes('sacral')) {
+      setSacralHorizontalLine(null);
+    }
+    if (!selectedTool.includes('avt')) {
+      setAvtFirstVerticalLine(null);
+    }
+    if (!selectedTool.includes('ts')) {
+      setTsFirstVerticalLine(null);
     }
     // 工具切换时清空当前点击的点
     setClickedPoints([]);
@@ -1554,6 +1663,52 @@ function ImageCanvas({
     return Math.abs(angle);
   };
 
+  // Pelvic专门的角度计算函数
+  const calculatePelvic = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // Pelvic 是两点连线与水平线的夹角
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算两点连线相对于水平线的角度
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 始终返回正值（取绝对值）
+    return Math.abs(angle);
+  };
+
+  // Sacral专门的角度计算函数
+  const calculateSacral = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // Sacral 是两点连线与水平线的夹角
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算两点连线相对于水平线的角度
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 始终返回正值（取绝对值）
+    return Math.abs(angle);
+  };
+
+  // AVT专门的距离计算函数
+  const calculateAVTDistance = (points: Point[], imageWidth: number, referenceWidth: number) => {
+    if (points.length < 2) return 0;
+    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    const actualDistance = (pixelDistance / imageWidth) * referenceWidth;
+    return actualDistance;
+  };
+
+  // TS专门的距离计算函数
+  const calculateTSDistance = (points: Point[], imageWidth: number, referenceWidth: number) => {
+    if (points.length < 2) return 0;
+    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    const actualDistance = (pixelDistance / imageWidth) * referenceWidth;
+    return actualDistance;
+  };
+
   // 重新计算测量值的函数
   const recalculateMeasurementValue = (measurement: any) => {
     const { type, points } = measurement;
@@ -1584,6 +1739,42 @@ function ImageCanvas({
         }
         break;
         
+      // Pelvic特殊处理 - 2点测量，角度
+      case 'Pelvic':
+        if (points.length >= 2) {
+          const angle = calculatePelvic(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+        
+      // Sacral特殊处理 - 2点测量，角度
+      case 'Sacral':
+        if (points.length >= 2) {
+          const angle = calculateSacral(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+        
+      // AVT特殊处理 - 2点测量，距离
+      case 'AVT':
+        if (points.length >= 2) {
+          const imageWidth = 1000;
+          const referenceWidth = 300;
+          const distance = calculateAVTDistance(points, imageWidth, referenceWidth);
+          return `${distance.toFixed(1)}mm`;
+        }
+        break;
+        
+      // TS特殊处理 - 2点测量，距离
+      case 'TS':
+        if (points.length >= 2) {
+          const imageWidth = 1000;
+          const referenceWidth = 300;
+          const distance = calculateTSDistance(points, imageWidth, referenceWidth);
+          return `${distance.toFixed(1)}mm`;
+        }
+        break;
+        
       // 其他角度类测量
       case 'T1 Slope':
       case 'C2-C7 Cobb':
@@ -1592,8 +1783,6 @@ function ImageCanvas({
       case 'PI':
       case 'PT':
       case 'SS':
-      case 'Pelvic':
-      case 'Sacral':
       case '角度测量':
         if (points.length >= 3) {
           const angle = calculateAngle(points);
@@ -1765,6 +1954,24 @@ function ImageCanvas({
             textX = (measurement.points[0].x + measurement.points[1].x) / 2;
             const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
             textY = minY - 30 / imageScale; // 转换回图像坐标系
+          } else if (measurement.type === 'Pelvic') {
+            // Pelvic 特殊定位：在两点上方
+            textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+            const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
+            textY = minY - 30 / imageScale; // 转换回图像坐标系
+          } else if (measurement.type === 'Sacral') {
+            // Sacral 特殊定位：在两点上方
+            textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+            const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
+            textY = minY - 30 / imageScale; // 转换回图像坐标系
+          } else if (measurement.type === 'AVT') {
+            // AVT 特殊定位：在两点中间
+            textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+            textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale;
+          } else if (measurement.type === 'TS') {
+            // TS 特殊定位：在两点中间
+            textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+            textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale;
           } else {
             // 其他测量的默认位置
             const firstPoint = measurement.points[0];
@@ -2122,6 +2329,62 @@ function ImageCanvas({
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
                 setRshHorizontalLine(null); // 清除水平参考线
+              }
+            }
+          } else if (selectedTool.includes('pelvic')) {
+            // Pelvic 特殊处理
+            if (newPoints.length === 1) {
+              // 第一个点：设置水平参考线位置
+              setPelvicHorizontalLine(imagePoint);
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setPelvicHorizontalLine(null); // 清除水平参考线
+              }
+            }
+          } else if (selectedTool.includes('sacral')) {
+            // Sacral 特殊处理
+            if (newPoints.length === 1) {
+              // 第一个点：设置水平参考线位置
+              setSacralHorizontalLine(imagePoint);
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setSacralHorizontalLine(null); // 清除水平参考线
+              }
+            }
+          } else if (selectedTool.includes('avt')) {
+            // AVT 特殊处理 - 两条垂直线的距离测量
+            if (newPoints.length === 1) {
+              // 第一个点：设置第一条垂直线位置
+              setAvtFirstVerticalLine(imagePoint);
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setAvtFirstVerticalLine(null); // 清除第一条垂直线
+              }
+            }
+          } else if (selectedTool.includes('ts')) {
+            // TS 特殊处理 - 两条垂直线的距离测量
+            if (newPoints.length === 1) {
+              // 第一个点：设置第一条垂直线位置
+              setTsFirstVerticalLine(imagePoint);
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setTsFirstVerticalLine(null); // 清除第一条垂直线
               }
             }
           } else {
@@ -2547,6 +2810,24 @@ function ImageCanvas({
               textX = (measurement.points[0].x + measurement.points[1].x) / 2;
               const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
               textY = minY - 30 / imageScale;
+            } else if (measurement.type === 'Pelvic') {
+              // Pelvic 特殊定位：在两点上方
+              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+              const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
+              textY = minY - 30 / imageScale;
+            } else if (measurement.type === 'Sacral') {
+              // Sacral 特殊定位：在两点上方
+              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+              const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
+              textY = minY - 30 / imageScale;
+            } else if (measurement.type === 'AVT') {
+              // AVT 特殊定位：在两点中间
+              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+              textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale;
+            } else if (measurement.type === 'TS') {
+              // TS 特殊定位：在两点中间
+              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+              textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale;
             } else {
               // 其他测量的默认位置
               const firstPoint = measurement.points[0];
@@ -3105,9 +3386,9 @@ function ImageCanvas({
                       />
                       {/* 水平参考线 */}
                       <line
-                        x1={screenPoints[0].x - 100}
+                        x1={screenPoints[0].x - 100 * imageScale}
                         y1={screenPoints[0].y}
-                        x2={screenPoints[0].x + 100}
+                        x2={screenPoints[0].x + 100 * imageScale}
                         y2={screenPoints[0].y}
                         stroke="#00ff00"
                         strokeWidth="1"
@@ -3166,9 +3447,9 @@ function ImageCanvas({
                       />
                       {/* 水平参考线（通过第一个点） */}
                       <line
-                        x1={screenPoints[0].x - 100}
+                        x1={screenPoints[0].x - 100 * imageScale}
                         y1={screenPoints[0].y}
-                        x2={screenPoints[0].x + 100}
+                        x2={screenPoints[0].x + 100 * imageScale}
                         y2={screenPoints[0].y}
                         stroke="#00ff00"
                         strokeWidth="1"
@@ -3202,6 +3483,238 @@ function ImageCanvas({
                             strokeWidth="1"
                             opacity="0.8"
                           />
+                        );
+                      })()}
+                    </>
+                  ) : measurement.type === 'Pelvic' ? (
+                    // Pelvic 特殊显示：骨盆连线 + 水平参考线 + 角度弧线
+                    <>
+                      {/* 骨盆连线 */}
+                      <line
+                        x1={screenPoints[0].x}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[1].x}
+                        y2={screenPoints[1].y}
+                        stroke={displayColor}
+                        strokeWidth="2"
+                      />
+                      {/* 水平参考线（通过第一个点） */}
+                      <line
+                        x1={screenPoints[0].x - 100 * imageScale}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[0].x + 100 * imageScale}
+                        y2={screenPoints[0].y}
+                        stroke="#00ff00"
+                        strokeWidth="1"
+                        strokeDasharray="5,5"
+                        opacity="0.7"
+                      />
+                      {/* 角度弧线 */}
+                      {(() => {
+                        const dx = screenPoints[1].x - screenPoints[0].x;
+                        const dy = screenPoints[1].y - screenPoints[0].y;
+                        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                        const radius = 40;
+                        
+                        const startAngle = 0; // 水平线角度
+                        const endAngle = angle;
+                        
+                        // 计算弧线路径
+                        const startX = screenPoints[0].x + radius;
+                        const startY = screenPoints[0].y;
+                        const endX = screenPoints[0].x + radius * Math.cos(endAngle * Math.PI / 180);
+                        const endY = screenPoints[0].y + radius * Math.sin(endAngle * Math.PI / 180);
+                        
+                        const largeArcFlag = Math.abs(endAngle) > 180 ? 1 : 0;
+                        const sweepFlag = endAngle > 0 ? 1 : 0;
+                        
+                        return (
+                          <path
+                            d={`M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY}`}
+                            fill="none"
+                            stroke={displayColor}
+                            strokeWidth="1"
+                            opacity="0.8"
+                          />
+                        );
+                      })()}
+                    </>
+                  ) : measurement.type === 'Sacral' ? (
+                    // Sacral 特殊显示：骶骨连线 + 水平参考线 + 角度弧线
+                    <>
+                      {/* 骶骨连线 */}
+                      <line
+                        x1={screenPoints[0].x}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[1].x}
+                        y2={screenPoints[1].y}
+                        stroke={displayColor}
+                        strokeWidth="2"
+                      />
+                      {/* 水平参考线（通过第一个点） */}
+                      <line
+                        x1={screenPoints[0].x - 100 * imageScale}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[0].x + 100 * imageScale}
+                        y2={screenPoints[0].y}
+                        stroke="#00ff00"
+                        strokeWidth="1"
+                        strokeDasharray="5,5"
+                        opacity="0.7"
+                      />
+                      {/* 角度弧线 */}
+                      {(() => {
+                        const dx = screenPoints[1].x - screenPoints[0].x;
+                        const dy = screenPoints[1].y - screenPoints[0].y;
+                        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                        const radius = 40;
+                        
+                        const startAngle = 0; // 水平线角度
+                        const endAngle = angle;
+                        
+                        // 计算弧线路径
+                        const startX = screenPoints[0].x + radius;
+                        const startY = screenPoints[0].y;
+                        const endX = screenPoints[0].x + radius * Math.cos(endAngle * Math.PI / 180);
+                        const endY = screenPoints[0].y + radius * Math.sin(endAngle * Math.PI / 180);
+                        
+                        const largeArcFlag = Math.abs(endAngle) > 180 ? 1 : 0;
+                        const sweepFlag = endAngle > 0 ? 1 : 0;
+                        
+                        return (
+                          <path
+                            d={`M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY}`}
+                            fill="none"
+                            stroke={displayColor}
+                            strokeWidth="1"
+                            opacity="0.8"
+                          />
+                        );
+                      })()}
+                    </>
+                  ) : measurement.type === 'AVT' ? (
+                    // AVT 特殊显示：两条垂直线 + 水平距离线段
+                    <>
+                      {(() => {
+                        // 计算两个点在竖直方向上的中点Y坐标
+                        const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
+                        // 垂直线长度随缩放变化
+                        const verticalLineLength = 50 * imageScale;
+                        return (
+                          <>
+                            {/* 第一条垂直线 */}
+                            <line
+                              x1={screenPoints[0].x}
+                              y1={screenPoints[0].y - verticalLineLength}
+                              x2={screenPoints[0].x}
+                              y2={screenPoints[0].y + verticalLineLength}
+                              stroke="#00ff00"
+                              strokeWidth="1"
+                              strokeDasharray="5,5"
+                              opacity="0.7"
+                            />
+                            {/* 第二条垂直线 */}
+                            <line
+                              x1={screenPoints[1].x}
+                              y1={screenPoints[1].y - verticalLineLength}
+                              x2={screenPoints[1].x}
+                              y2={screenPoints[1].y + verticalLineLength}
+                              stroke="#00ff00"
+                              strokeWidth="1"
+                              strokeDasharray="5,5"
+                              opacity="0.7"
+                            />
+                            {/* 水平距离线段（使用竖直方向中点） */}
+                            <line
+                              x1={screenPoints[0].x}
+                              y1={midY}
+                              x2={screenPoints[1].x}
+                              y2={midY}
+                              stroke={displayColor}
+                              strokeWidth="2"
+                            />
+                            {/* 距离箭头（左侧） */}
+                            <line
+                              x1={screenPoints[0].x}
+                              y1={midY - 8 * imageScale}
+                              x2={screenPoints[0].x}
+                              y2={midY + 8 * imageScale}
+                              stroke={displayColor}
+                              strokeWidth="2"
+                            />
+                            {/* 距离箭头（右侧） */}
+                            <line
+                              x1={screenPoints[1].x}
+                              y1={midY - 8 * imageScale}
+                              x2={screenPoints[1].x}
+                              y2={midY + 8 * imageScale}
+                              stroke={displayColor}
+                              strokeWidth="2"
+                            />
+                          </>
+                        );
+                      })()}
+                    </>
+                  ) : measurement.type === 'TS' ? (
+                    // TS 特殊显示：两条垂直线 + 水平距离线段
+                    <>
+                      {(() => {
+                        // 计算两个点在竖直方向上的中点Y坐标
+                        const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
+                        // 垂直线长度随缩放变化
+                        const verticalLineLength = 50 * imageScale;
+                        return (
+                          <>
+                            {/* 第一条垂直线 */}
+                            <line
+                              x1={screenPoints[0].x}
+                              y1={screenPoints[0].y - verticalLineLength}
+                              x2={screenPoints[0].x}
+                              y2={screenPoints[0].y + verticalLineLength}
+                              stroke="#00ff00"
+                              strokeWidth="1"
+                              strokeDasharray="5,5"
+                              opacity="0.7"
+                            />
+                            {/* 第二条垂直线 */}
+                            <line
+                              x1={screenPoints[1].x}
+                              y1={screenPoints[1].y - verticalLineLength}
+                              x2={screenPoints[1].x}
+                              y2={screenPoints[1].y + verticalLineLength}
+                              stroke="#00ff00"
+                              strokeWidth="1"
+                              strokeDasharray="5,5"
+                              opacity="0.7"
+                            />
+                            {/* 水平距离线段（使用竖直方向中点） */}
+                            <line
+                              x1={screenPoints[0].x}
+                              y1={midY}
+                              x2={screenPoints[1].x}
+                              y2={midY}
+                              stroke={displayColor}
+                              strokeWidth="2"
+                            />
+                            {/* 距离箭头（左侧） */}
+                            <line
+                              x1={screenPoints[0].x}
+                              y1={midY - 8 * imageScale}
+                              x2={screenPoints[0].x}
+                              y2={midY + 8 * imageScale}
+                              stroke={displayColor}
+                              strokeWidth="2"
+                            />
+                            {/* 距离箭头（右侧） */}
+                            <line
+                              x1={screenPoints[1].x}
+                              y1={midY - 8 * imageScale}
+                              x2={screenPoints[1].x}
+                              y2={midY + 8 * imageScale}
+                              stroke={displayColor}
+                              strokeWidth="2"
+                            />
+                          </>
                         );
                       })()}
                     </>
@@ -3284,6 +3797,24 @@ function ImageCanvas({
                   textX = (screenPoints[0].x + screenPoints[1].x) / 2;
                   const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
                   textY = minY - 30; // 移动到更上方
+                } else if (measurement.type === 'Pelvic') {
+                  // Pelvic 特殊定位：在两点上方
+                  textX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                  textY = minY - 30; // 移动到更上方
+                } else if (measurement.type === 'Sacral') {
+                  // Sacral 特殊定位：在两点上方
+                  textX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                  textY = minY - 30; // 移动到更上方
+                } else if (measurement.type === 'AVT') {
+                  // AVT 特殊定位：在两点中间
+                  textX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  textY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
+                } else if (measurement.type === 'TS') {
+                  // TS 特殊定位：在两点中间
+                  textX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  textY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
                 } else {
                   // 其他测量的默认位置：中间偏上
                   textX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
@@ -3410,6 +3941,28 @@ function ImageCanvas({
                   strokeWidth="2"
                   strokeDasharray="2,2"
                 />
+              ) : selectedTool.includes('pelvic') && screenPoints.length === 2 ? (
+                // Pelvic 特殊预览：骨盆连线
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[1].x}
+                  y2={screenPoints[1].y}
+                  stroke="#ef4444"
+                  strokeWidth="2"
+                  strokeDasharray="2,2"
+                />
+              ) : selectedTool.includes('sacral') && screenPoints.length === 2 ? (
+                // Sacral 特殊预览：骶骨连线
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[1].x}
+                  y2={screenPoints[1].y}
+                  stroke="#ef4444"
+                  strokeWidth="2"
+                  strokeDasharray="2,2"
+                />
               ) : (
                 <line
                   x1={screenPoints[0].x}
@@ -3430,7 +3983,7 @@ function ImageCanvas({
           <>
             {(() => {
               const referencePoint = imageToScreen(t1TiltHorizontalLine);
-              const lineLength = 200; // 水平线长度
+              const lineLength = 200 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>
                   {/* 水平参考线 */}
@@ -3465,7 +4018,7 @@ function ImageCanvas({
           <>
             {(() => {
               const referencePoint = imageToScreen(rshHorizontalLine);
-              const lineLength = 200; // 水平线长度
+              const lineLength = 200 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>
                   {/* 水平参考线 */}
@@ -3488,6 +4041,146 @@ function ImageCanvas({
                     fontWeight="bold"
                   >
                     HRL
+                  </text>
+                </g>
+              );
+            })()}
+          </>
+        )}
+
+        {/* Pelvic 专用水平参考线 HRL */}
+        {selectedTool.includes('pelvic') && pelvicHorizontalLine && (
+          <>
+            {(() => {
+              const referencePoint = imageToScreen(pelvicHorizontalLine);
+              const lineLength = 200 * imageScale; // 水平线长度随缩放变化
+              return (
+                <g>
+                  {/* 水平参考线 */}
+                  <line
+                    x1={referencePoint.x - lineLength/2}
+                    y1={referencePoint.y}
+                    x2={referencePoint.x + lineLength/2}
+                    y2={referencePoint.y}
+                    stroke="#00ff00"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                    opacity="0.8"
+                  />
+                  {/* 水平线标识 */}
+                  <text
+                    x={referencePoint.x + lineLength/2 + 10}
+                    y={referencePoint.y + 5}
+                    fill="#00ff00"
+                    fontSize="12"
+                    fontWeight="bold"
+                  >
+                    HRL
+                  </text>
+                </g>
+              );
+            })()}
+          </>
+        )}
+
+        {/* Sacral 专用水平参考线 HRL */}
+        {selectedTool.includes('sacral') && sacralHorizontalLine && (
+          <>
+            {(() => {
+              const referencePoint = imageToScreen(sacralHorizontalLine);
+              const lineLength = 200 * imageScale; // 水平线长度随缩放变化
+              return (
+                <g>
+                  {/* 水平参考线 */}
+                  <line
+                    x1={referencePoint.x - lineLength/2}
+                    y1={referencePoint.y}
+                    x2={referencePoint.x + lineLength/2}
+                    y2={referencePoint.y}
+                    stroke="#00ff00"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                    opacity="0.8"
+                  />
+                  {/* 水平线标识 */}
+                  <text
+                    x={referencePoint.x + lineLength/2 + 10}
+                    y={referencePoint.y + 5}
+                    fill="#00ff00"
+                    fontSize="12"
+                    fontWeight="bold"
+                  >
+                    HRL
+                  </text>
+                </g>
+              );
+            })()}
+          </>
+        )}
+
+        {/* AVT 专用第一条垂直辅助线 */}
+        {selectedTool.includes('avt') && avtFirstVerticalLine && (
+          <>
+            {(() => {
+              const referencePoint = imageToScreen(avtFirstVerticalLine);
+              const lineLength = 100 * imageScale; // 垂直线长度随缩放变化
+              return (
+                <g>
+                  {/* 垂直辅助线 */}
+                  <line
+                    x1={referencePoint.x}
+                    y1={referencePoint.y - lineLength/2}
+                    x2={referencePoint.x}
+                    y2={referencePoint.y + lineLength/2}
+                    stroke="#00ff00"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                    opacity="0.8"
+                  />
+                  {/* 垂直线标识 */}
+                  <text
+                    x={referencePoint.x + 10}
+                    y={referencePoint.y - lineLength/2 - 5}
+                    fill="#00ff00"
+                    fontSize="12"
+                    fontWeight="bold"
+                  >
+                    VL1
+                  </text>
+                </g>
+              );
+            })()}
+          </>
+        )}
+
+        {/* TS 专用第一条垂直辅助线 */}
+        {selectedTool.includes('ts') && tsFirstVerticalLine && (
+          <>
+            {(() => {
+              const referencePoint = imageToScreen(tsFirstVerticalLine);
+              const lineLength = 100 * imageScale; // 垂直线长度随缩放变化
+              return (
+                <g>
+                  {/* 垂直辅助线 */}
+                  <line
+                    x1={referencePoint.x}
+                    y1={referencePoint.y - lineLength/2}
+                    x2={referencePoint.x}
+                    y2={referencePoint.y + lineLength/2}
+                    stroke="#00ff00"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                    opacity="0.8"
+                  />
+                  {/* 垂直线标识 */}
+                  <text
+                    x={referencePoint.x + 10}
+                    y={referencePoint.y - lineLength/2 - 5}
+                    fill="#00ff00"
+                    fontSize="12"
+                    fontWeight="bold"
+                  >
+                    VL1
                   </text>
                 </g>
               );
