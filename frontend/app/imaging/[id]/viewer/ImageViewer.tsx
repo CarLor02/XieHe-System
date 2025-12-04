@@ -840,6 +840,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   // 加载测量数据 - 异步加载，不阻止图像显示
   useEffect(() => {
     loadMeasurements();
+    loadAnnotationsFromLocalStorage(); // 自动加载本地标注数据
   }, [imageId]);
 
   const loadMeasurements = async () => {
@@ -862,6 +863,235 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     } finally {
       setIsMeasurementsLoading(false);
     }
+  };
+
+  // 根据测量类型获取描述
+  const getDescriptionForType = (type: string): string => {
+    const descriptionMap: { [key: string]: string } = {
+      'T1 Tilt': 'T1椎体倾斜角测量',
+      'Cobb': 'Cobb角测量',
+      'Cobb角': 'Cobb角测量',
+      'RSH': '肩高差测量(Radiographic Shoulder Height)',
+      'Pelvic': '骨盆倾斜角测量',
+      'Sacral': '骶骨倾斜角测量',
+      'AVT': '顶椎平移量(Apical Vertebral Translation)',
+      'TS': '躯干偏移量(Trunk Shift)',
+      'T1 Slope': 'T1倾斜角测量',
+      'C2-C7 Cobb': '颈椎Cobb角测量',
+      'TK': '胸椎后凸角(Thoracic Kyphosis)',
+      'LL': '腰椎前凸角(Lumbar Lordosis)',
+      'SVA': '矢状面椎体轴线(Sagittal Vertical Axis)',
+      'PI': '骨盆入射角(Pelvic Incidence)',
+      'PT': '骨盆倾斜角(Pelvic Tilt)',
+      'SS': '骶骨倾斜角(Sacral Slope)',
+      '长度测量': '距离测量工具',
+      '角度测量': '通用角度测量',
+      '圆形标注': '圆形辅助标注',
+      '椭圆标注': '椭圆辅助标注',
+      '矩形标注': '矩形辅助标注',
+      '箭头标注': '箭头辅助标注',
+      '多边形标注': '多边形辅助标注',
+    };
+    return descriptionMap[type] || type;
+  };
+
+  // 根据测量类型和点位计算测量值
+  const calculateMeasurementValue = (type: string, points: Point[]): string => {
+    const imageWidth = 1000;
+    const referenceWidth = 300;
+
+    switch (type) {
+      case 'T1 Tilt':
+        if (points.length >= 2) {
+          const angle = calculateT1TiltAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      case 'Cobb':
+      case 'Cobb角':
+        if (points.length >= 4) {
+          const angle = calculateCobbAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      case 'RSH':
+        if (points.length >= 2) {
+          const angle = calculateRSH(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      case 'Pelvic':
+        if (points.length >= 2) {
+          const angle = calculatePelvic(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      case 'Sacral':
+        if (points.length >= 2) {
+          const angle = calculateSacral(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      case 'AVT':
+        if (points.length >= 2) {
+          const distance = calculateAVT(points, imageWidth, referenceWidth);
+          return `${distance.toFixed(1)}mm`;
+        }
+        return '0.0mm';
+      
+      case 'TS':
+        if (points.length >= 2) {
+          const distance = calculateTS(points, imageWidth, referenceWidth);
+          return `${distance.toFixed(1)}mm`;
+        }
+        return '0.0mm';
+      
+      case '长度测量':
+        if (points.length >= 2) {
+          const distance = calculateDistance(points);
+          return `${distance.toFixed(1)}mm`;
+        }
+        return '0.0mm';
+      
+      case '角度测量':
+        if (points.length >= 3) {
+          const angle = calculateAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      default:
+        return '辅助标注';
+    }
+  };
+
+  // 从localStorage加载标注数据
+  const loadAnnotationsFromLocalStorage = () => {
+    try {
+      const key = `annotations_${imageId}`;
+      const jsonStr = localStorage.getItem(key);
+      if (jsonStr) {
+        const data = JSON.parse(jsonStr);
+        if (data.measurements && Array.isArray(data.measurements)) {
+          // 恢复measurements，重新生成id、value和description
+          const restoredMeasurements = data.measurements.map((m: any) => ({
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            type: m.type,
+            value: calculateMeasurementValue(m.type, m.points),
+            points: m.points,
+            description: getDescriptionForType(m.type)
+          }));
+          setMeasurements(restoredMeasurements);
+          console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);
+        }
+      }
+    } catch (error) {
+      console.error('加载本地标注数据失败:', error);
+    }
+  };
+
+  // 保存标注数据到localStorage
+  const saveAnnotationsToLocalStorage = () => {
+    try {
+      const key = `annotations_${imageId}`;
+      // 只保存type和points，移除id、value和description
+      const simplifiedMeasurements = measurements.map(m => ({
+        type: m.type,
+        points: m.points
+      }));
+      const data = {
+        imageId: imageId,
+        measurements: simplifiedMeasurements
+      };
+      localStorage.setItem(key, JSON.stringify(data, null, 2));
+      setSaveMessage('标注已保存到本地');
+      setTimeout(() => setSaveMessage(''), 2000);
+      console.log(`已保存 ${measurements.length} 个标注到本地`);
+    } catch (error) {
+      console.error('保存本地标注数据失败:', error);
+      setSaveMessage('保存失败，请重试');
+      setTimeout(() => setSaveMessage(''), 2000);
+    }
+  };
+
+  // 导出标注数据为JSON文件
+  const exportAnnotationsToJSON = () => {
+    try {
+      // 只保存type和points，移除id、value和description
+      const simplifiedMeasurements = measurements.map(m => ({
+        type: m.type,
+        points: m.points
+      }));
+      const data = {
+        imageId: imageId,
+        measurements: simplifiedMeasurements
+      };
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `annotations_${imageId}_${new Date().getTime()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setSaveMessage('标注文件已下载');
+      setTimeout(() => setSaveMessage(''), 2000);
+    } catch (error) {
+      console.error('导出标注文件失败:', error);
+      setSaveMessage('导出失败，请重试');
+      setTimeout(() => setSaveMessage(''), 2000);
+    }
+  };
+
+  // 从JSON文件导入标注数据
+  const importAnnotationsFromJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const jsonStr = e.target?.result as string;
+        const data = JSON.parse(jsonStr);
+        
+        // 验证数据格式
+        if (!data.measurements || !Array.isArray(data.measurements)) {
+          throw new Error('无效的标注文件格式');
+        }
+
+        // 导入标注数据，重新生成id、value和description
+        const restoredMeasurements = data.measurements.map((m: any) => {
+          // 根据type和points重新计算value
+          const value = calculateMeasurementValue(m.type, m.points);
+          return {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            type: m.type,
+            value: value,
+            points: m.points,
+            description: getDescriptionForType(m.type)
+          };
+        });
+        
+        setMeasurements(restoredMeasurements);
+        setSaveMessage(`已导入 ${restoredMeasurements.length} 个标注`);
+        setTimeout(() => setSaveMessage(''), 2000);
+      } catch (error) {
+        console.error('导入标注文件失败:', error);
+        setSaveMessage('导入失败，文件格式错误');
+        setTimeout(() => setSaveMessage(''), 2000);
+      }
+    };
+    reader.readAsText(file);
+    
+    // 重置input，允许导入同一文件
+    event.target.value = '';
   };
 
   const saveMeasurements = async () => {
@@ -937,6 +1167,43 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               </div>
             )}
 
+            {/* 标注操作按钮组 */}
+            <div className="flex items-center space-x-2 border-r border-gray-600 pr-3">
+              <button
+                onClick={saveAnnotationsToLocalStorage}
+                disabled={measurements.length === 0}
+                className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                title="保存标注到本地"
+              >
+                <i className="ri-save-3-line w-4 h-4 flex items-center justify-center"></i>
+                <span>本地保存</span>
+              </button>
+
+              <button
+                onClick={exportAnnotationsToJSON}
+                disabled={measurements.length === 0}
+                className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                title="导出标注文件"
+              >
+                <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
+                <span>导出JSON</span>
+              </button>
+
+              <label
+                className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap cursor-pointer flex items-center space-x-2"
+                title="导入标注文件"
+              >
+                <i className="ri-upload-line w-4 h-4 flex items-center justify-center"></i>
+                <span>导入JSON</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={importAnnotationsFromJSON}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
             <button
               onClick={saveMeasurements}
               disabled={isSaving || measurements.length === 0}
@@ -987,13 +1254,15 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         {/* 右侧工具栏 */}
         <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col flex-shrink-0 overflow-hidden">
           {/* 工具选择区 */}
-          <div className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex-shrink-0">
-            <h3 className="font-semibold text-white mb-3">
+          <div className="bg-gray-800 px-4 py-3 flex-1 flex flex-col overflow-hidden">
+            <h3 className="font-semibold text-white mb-3 flex-shrink-0">
               测量工具 - {imageData.examType}
             </h3>
 
-            {/* 基础移动模式 */}
-            <div className="mb-4">
+            {/* 工具和设置区域 - 可滚动 */}
+            <div className="flex-shrink-0 overflow-y-auto mb-4">
+              {/* 基础移动模式 */}
+              <div className="mb-4">
               <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
                 <i className="ri-hand-line w-3 h-3 mr-1"></i>
                 基础模式
@@ -1281,39 +1550,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 </div>
               )}
             </div>
-
-            {/* 当前选中工具信息 */}
-            {selectedTool !== 'hand' && currentTool && (
-              <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <i
-                    className={`${currentTool.icon} w-4 h-4 flex items-center justify-center text-blue-400`}
-                  ></i>
-                  <span className="text-white font-medium text-sm">
-                    {currentTool.name}
-                  </span>
-                </div>
-                <p className="text-gray-300 text-xs leading-relaxed">
-                  {currentTool.description}
-                </p>
-                <div className="flex items-center space-x-4 mt-2 text-xs">
-                  <span className="text-gray-400">
-                    需要标注:{' '}
-                    <span className="text-yellow-400">
-                      {currentTool.pointsNeeded}个点
-                    </span>
-                  </span>
-                  {clickedPoints.length > 0 && (
-                    <span className="text-blue-400">
-                      已标注: {clickedPoints.length}/{currentTool.pointsNeeded}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
+            </div>
 
             {/* 测量结果列表 */}
-            <div className="max-h-32 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto min-h-0">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-medium text-white">测量结果</h4>
                 {isMeasurementsLoading ? (
@@ -1328,7 +1568,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 ) : null}
               </div>
               {measurements.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-2 pb-4">
                   {measurements.map(measurement => (
                     <div
                       key={measurement.id}
@@ -1354,35 +1594,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               ) : (
                 <p className="text-gray-400 text-xs">暂无测量数据</p>
               )}
-            </div>
-          </div>
-
-          {/* 诊断报告区 */}
-          <div className="flex-1 p-4 flex flex-col overflow-hidden">
-            <h4 className="font-semibold text-white mb-3 text-sm">测量报告</h4>
-            <textarea
-              value={reportText}
-              onChange={e => setReportText(e.target.value)}
-              placeholder={`请输入 ${imageData.examType}的测量分析和诊断意见...\n\n或点击"生成报告"按钮自动生成测量报告`}
-              className="flex-1 p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm placeholder-gray-400 min-h-[120px]"
-              maxLength={500}
-            ></textarea>
-
-            <div className="flex space-x-2 mt-4 flex-shrink-0">
-              <button
-                onClick={goToPreviousImage}
-                disabled={currentIndex <= 0}
-                className="flex-1 px-3 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                上一张
-              </button>
-              <button
-                onClick={goToNextImage}
-                disabled={currentIndex >= imageList.length - 1}
-                className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                下一张
-              </button>
             </div>
           </div>
         </div>
@@ -1513,14 +1724,15 @@ function ImageCanvas({
   };
 
   // 坐标转换函数：将图像坐标系转换为屏幕坐标系
-  // 图像使用 transform: translate(pos) scale(s)，transformOrigin: center
+  // 图像坐标系：中心为原点，右为x正，上为y正（标准笛卡尔坐标系）
+  // 屏幕坐标系：左上角为原点，右为x正，下为y正
   const imageToScreen = (point: Point): Point => {
     // 获取容器中心点
     const container = document.querySelector('[data-image-canvas]');
     if (!container) {
       return {
         x: point.x * imageScale + imagePosition.x,
-        y: point.y * imageScale + imagePosition.y,
+        y: -point.y * imageScale + imagePosition.y,  // y轴取反
       };
     }
     
@@ -1531,7 +1743,7 @@ function ImageCanvas({
     // CSS transform 顺序：先 scale（以 center 为原点），再 translate
     // 点相对于中心的坐标
     const relX = point.x;
-    const relY = point.y;
+    const relY = -point.y;  // y轴取反：图像坐标向上为正，屏幕坐标向下为正
     
     // 应用缩放
     const scaledX = relX * imageScale;
@@ -1545,13 +1757,15 @@ function ImageCanvas({
   };
 
   // 坐标转换函数：将屏幕坐标系转换为图像坐标系
+  // 屏幕坐标系：左上角为原点，右为x正，下为y正
+  // 图像坐标系：中心为原点，右为x正，上为y正（标准笛卡尔坐标系）
   const screenToImage = (screenX: number, screenY: number): Point => {
     // 获取容器中心点
     const container = document.querySelector('[data-image-canvas]');
     if (!container) {
       return {
         x: (screenX - imagePosition.x) / imageScale,
-        y: (screenY - imagePosition.y) / imageScale,
+        y: -(screenY - imagePosition.y) / imageScale,  // y轴取反
       };
     }
     
@@ -1559,13 +1773,13 @@ function ImageCanvas({
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
     
-    // 逆向转换：先减去容器中心和平移，再除以缩放
+    // 逆向转换：先减去容器中心和平移，再除以缩放，y轴取反
     const translatedX = screenX - centerX - imagePosition.x;
     const translatedY = screenY - centerY - imagePosition.y;
     
     return {
       x: translatedX / imageScale,
-      y: translatedY / imageScale,
+      y: -translatedY / imageScale,  // y轴取反：屏幕向下为正，图像向上为正
     };
   };
 
@@ -1947,37 +2161,37 @@ function ImageCanvas({
           if (measurement.type === 'T1 Tilt') {
             // T1 Tilt 特殊定位：在两点上方
             textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-            const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
-            textY = minY - 30 / imageScale; // 转换回图像坐标系
+            const maxY = Math.max(measurement.points[0].y, measurement.points[1].y); // Y轴向上为正，取最大值
+            textY = maxY + 30 / imageScale; // 向上偏移
           } else if (measurement.type === 'RSH') {
             // RSH 特殊定位：在两点上方
             textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-            const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
-            textY = minY - 30 / imageScale; // 转换回图像坐标系
+            const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
+            textY = maxY + 30 / imageScale; // 向上偏移
           } else if (measurement.type === 'Pelvic') {
             // Pelvic 特殊定位：在两点上方
             textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-            const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
-            textY = minY - 30 / imageScale; // 转换回图像坐标系
+            const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
+            textY = maxY + 30 / imageScale; // 向上偏移
           } else if (measurement.type === 'Sacral') {
             // Sacral 特殊定位：在两点上方
             textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-            const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
-            textY = minY - 30 / imageScale; // 转换回图像坐标系
+            const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
+            textY = maxY + 30 / imageScale; // 向上偏移
           } else if (measurement.type === 'AVT') {
             // AVT 特殊定位：在两点中间
             textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-            textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale;
+            textY = (measurement.points[0].y + measurement.points[1].y) / 2 + 15 / imageScale; // 向上偏移
           } else if (measurement.type === 'TS') {
             // TS 特殊定位：在两点中间
             textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-            textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale;
+            textY = (measurement.points[0].y + measurement.points[1].y) / 2 + 15 / imageScale; // 向上偏移
           } else {
             // 其他测量的默认位置
             const firstPoint = measurement.points[0];
             const lastPoint = measurement.points[measurement.points.length - 1];
             textX = (firstPoint.x + lastPoint.x) / 2;
-            textY = (firstPoint.y + lastPoint.y) / 2 - 10 / imageScale;
+            textY = (firstPoint.y + lastPoint.y) / 2 + 10 / imageScale; // 向上偏移
           }
           
           // 估算文字宽度和高度 (粗略估算)
@@ -2803,37 +3017,37 @@ function ImageCanvas({
             if (measurement.type === 'T1 Tilt') {
               // T1 Tilt 特殊定位：在两点上方
               textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
-              textY = minY - 30 / imageScale;
+              const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
+              textY = maxY + 30 / imageScale; // 向上偏移
             } else if (measurement.type === 'RSH') {
               // RSH 特殊定位：在两点上方
               textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
-              textY = minY - 30 / imageScale;
+              const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
+              textY = maxY + 30 / imageScale; // 向上偏移
             } else if (measurement.type === 'Pelvic') {
               // Pelvic 特殊定位：在两点上方
               textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
-              textY = minY - 30 / imageScale;
+              const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
+              textY = maxY + 30 / imageScale; // 向上偏移
             } else if (measurement.type === 'Sacral') {
               // Sacral 特殊定位：在两点上方
               textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
-              textY = minY - 30 / imageScale;
+              const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
+              textY = maxY + 30 / imageScale; // 向上偏移
             } else if (measurement.type === 'AVT') {
               // AVT 特殊定位：在两点中间
               textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale;
+              textY = (measurement.points[0].y + measurement.points[1].y) / 2 + 15 / imageScale; // 向上偏移
             } else if (measurement.type === 'TS') {
               // TS 特殊定位：在两点中间
               textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale;
+              textY = (measurement.points[0].y + measurement.points[1].y) / 2 + 15 / imageScale; // 向上偏移
             } else {
               // 其他测量的默认位置
               const firstPoint = measurement.points[0];
               const lastPoint = measurement.points[measurement.points.length - 1];
               textX = (firstPoint.x + lastPoint.x) / 2;
-              textY = (firstPoint.y + lastPoint.y) / 2 - 10 / imageScale;
+              textY = (firstPoint.y + lastPoint.y) / 2 + 10 / imageScale; // 向上偏移
             }
             
             const textWidth = (measurement.type.length + measurement.value.length) * 8 / imageScale;
