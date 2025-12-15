@@ -228,20 +228,6 @@ health_check() {
     docker compose -f "$COMPOSE_FILE" ps
     echo ""
     
-    # 检查MySQL
-    print_step "检查MySQL服务..."
-    for i in {1..30}; do
-        if docker compose -f "$COMPOSE_FILE" exec -T mysql mysqladmin ping -h localhost -u root -proot_password_2024 &> /dev/null; then
-            print_success "MySQL服务正常"
-            break
-        fi
-        if [ $i -eq 30 ]; then
-            print_error "MySQL服务启动超时"
-            exit 1
-        fi
-        sleep 2
-    done
-    
     # 检查Redis
     print_step "检查Redis服务..."
     if docker compose -f "$COMPOSE_FILE" exec -T redis redis-cli ping &> /dev/null; then

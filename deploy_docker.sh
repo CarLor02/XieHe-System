@@ -41,20 +41,16 @@ sleep 10
 echo "📊 检查服务状态..."
 docker compose -f docker-compose.yml ps
 
-# 等待MySQL就绪
-echo "⏳ 等待MySQL就绪..."
-for i in {1..30}; do
-    if docker compose -f docker-compose.yml exec -T mysql mysqladmin ping -h localhost -u root -proot_password_2024 &> /dev/null; then
-        echo -e "${GREEN}✅ MySQL已就绪${NC}"
+# 等待Redis就绪
+echo "⏳ 等待Redis就绪..."
+for i in {1..15}; do
+    if docker compose -f docker-compose.yml exec -T redis redis-cli ping &> /dev/null; then
+        echo -e "${GREEN}✅ Redis已就绪${NC}"
         break
     fi
-    echo "等待MySQL... ($i/30)"
+    echo "等待Redis... ($i/15)"
     sleep 2
 done
-
-# 初始化数据库
-echo "📋 初始化数据库..."
-docker compose -f docker-compose.yml exec -T backend python /app/init_docker_db.py || true
 
 # 显示日志
 echo ""
