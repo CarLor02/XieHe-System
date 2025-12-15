@@ -15,7 +15,7 @@ WORKDIR /app
 COPY frontend/package*.json ./
 
 # 安装依赖（使用 --legacy-peer-deps 解决依赖冲突）
-RUN npm ci --legacy-peer-deps --prefer-offline --no-audit
+RUN npm install --legacy-peer-deps --prefer-offline --no-audit
 
 # 复制源代码
 COPY frontend/ .
