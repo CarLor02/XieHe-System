@@ -205,19 +205,70 @@ export default function ImagingPage() {
     setDateTo('');
   };
 
-  const handleMoreAction = (imageId: string, action: string) => {
+  const handleMoreAction = async (imageId: string, action: string) => {
     setOpenDropdown(null);
 
     switch (action) {
       case 'download':
         console.log('下载影像:', imageId);
         // 在实际应用中这里会触发下载
+        try {
+          const studyId = parseInt(imageId.replace('IMG', '').replace(/^0+/, '') || '0');
+          const { accessToken } = useAuthStore.getState();
+          
+          const response = await fetch(`/api/v1/upload/files/${studyId}`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+          
+          if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${imageId}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          } else {
+            alert('下载失败，请重试');
+          }
+        } catch (error) {
+          console.error('下载失败:', error);
+          alert('下载失败，请重试');
+        }
         break;
       case 'delete':
-        console.log('删除影像:', imageId);
-        // 在实际应用中这里会显示确认删除对话框
         if (confirm('确定要删除这个影像吗？此操作不可撤销。')) {
-          // 执行删除操作
+          try {
+            // 从imageId中提取studyId: IMG001 -> 1
+            const studyId = parseInt(imageId.replace('IMG', '').replace(/^0+/, '') || '0');
+            
+            const client = createAuthenticatedClient();
+            await client.delete(`/api/v1/studies/${studyId}`);
+            
+            // 删除成功后，从列表中移除该影像
+            setStudies(prev => prev.filter(study => study.id !== studyId));
+            
+            // 清理缩略图URL
+            setThumbnailUrls(prev => {
+              const newUrls = { ...prev };
+              if (newUrls[imageId]) {
+                URL.revokeObjectURL(newUrls[imageId]);
+                delete newUrls[imageId];
+              }
+              return newUrls;
+            });
+            
+            // 显示成功提示
+            alert('影像删除成功');
+          } catch (error: any) {
+            console.error('删除影像失败:', error);
+            const errorMessage = error.response?.data?.detail || '删除失败，请重试';
+            alert(errorMessage);
+          }
         }
         break;
       default:
@@ -616,7 +667,7 @@ export default function ImagingPage() {
                         <div className="flex items-center space-x-3">
                           <Link
                             href={`/imaging/${image.id}/viewer`}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-71 text-sm flex items-center space-x-2 whitespace-nowrap"
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center space-x-2 whitespace-nowrap"
                           >
                             <i className="ri-eye-line w-4 h-4 flex items-center justify-center"></i>
                             <span>标注分析</span>
@@ -629,6 +680,15 @@ export default function ImagingPage() {
                           >
                             <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
                             <span>下载</span>
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleMoreAction(image.id, 'delete')
+                            }
+                            className="border border-red-300 text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 text-sm flex items-center space-x-2 whitespace-nowrap"
+                          >
+                            <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
+                            <span>删除</span>
                           </button>
                         </div>
                       </div>

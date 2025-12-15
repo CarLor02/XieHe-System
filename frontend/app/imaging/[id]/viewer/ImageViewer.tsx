@@ -87,6 +87,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [standardDistanceValue, setStandardDistanceValue] = useState('');
   const [showStandardDistancePanel, setShowStandardDistancePanel] =
     useState(false);
+  const [isSettingStandardDistance, setIsSettingStandardDistance] = useState(false);
+  const [standardDistancePoints, setStandardDistancePoints] = useState<Point[]>([]);
+  const [showStandardDistanceDialog, setShowStandardDistanceDialog] = useState(false);
+  const [showStandardDistanceWarning, setShowStandardDistanceWarning] = useState(false);
+
+  // AI检测
+  const [isAIDetecting, setIsAIDetecting] = useState(false);
+  const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number } | null>(null);
 
   // 标签系统
   const [tags, setTags] = useState<string[]>([]);
@@ -128,6 +136,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
     fetchStudyData();
   }, [imageId]);
+
+  // 当图像尺寸确定后，自动加载标注数据
+  useEffect(() => {
+    if (imageNaturalSize) {
+      console.log('图像尺寸已确定，加载标注数据:', imageNaturalSize);
+      loadAnnotationsFromLocalStorage();
+    }
+  }, [imageNaturalSize, imageId]);
 
   // 构建兼容的imageData对象
   const imageData = studyData
@@ -520,13 +536,24 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const calculateAVT = (points: Point[], imageWidth: number, referenceWidth: number) => {
     if (points.length < 2) return 0;
 
-    // 计算两点之间的水平距离（x坐标差的绝对值）
+    // 如果设置了标准距离，使用标准距离进行比例计算
+    if (standardDistance && standardDistancePoints.length === 2) {
+      // 计算标准距离标注的像素长度
+      const standardPixelDx = standardDistancePoints[1].x - standardDistancePoints[0].x;
+      const standardPixelDy = standardDistancePoints[1].y - standardDistancePoints[0].y;
+      const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+      
+      // 计算AVT测量的像素距离（水平距离）
+      const pixelDistance = Math.abs(points[1].x - points[0].x);
+      
+      // 按比例计算实际距离：实际距离 = (测量像素距离 / 标准像素距离) * 标准实际距离
+      const actualDistance = (pixelDistance / standardPixelLength) * standardDistance;
+      return actualDistance;
+    }
+
+    // 如果没有设置标准距离，使用默认的固定比例计算
     const pixelDistance = Math.abs(points[1].x - points[0].x);
-    
-    // 根据图片宽度和参考宽度计算实际距离（mm）
-    // 实际距离 = (像素距离 / 图片宽度) * 参考宽度
     const actualDistance = (pixelDistance / imageWidth) * referenceWidth;
-    
     return actualDistance;
   };
 
@@ -534,14 +561,75 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const calculateTS = (points: Point[], imageWidth: number, referenceWidth: number) => {
     if (points.length < 2) return 0;
 
-    // 计算两点之间的水平距离（x坐标差的绝对值）
+    // 如果设置了标准距离，使用标准距离进行比例计算
+    if (standardDistance && standardDistancePoints.length === 2) {
+      // 计算标准距离标注的像素长度
+      const standardPixelDx = standardDistancePoints[1].x - standardDistancePoints[0].x;
+      const standardPixelDy = standardDistancePoints[1].y - standardDistancePoints[0].y;
+      const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+      
+      // 计算TS测量的像素距离（水平距离）
+      const pixelDistance = Math.abs(points[1].x - points[0].x);
+      
+      // 按比例计算实际距离：实际距离 = (测量像素距离 / 标准像素距离) * 标准实际距离
+      const actualDistance = (pixelDistance / standardPixelLength) * standardDistance;
+      return actualDistance;
+    }
+
+    // 如果没有设置标准距离，使用默认的固定比例计算
     const pixelDistance = Math.abs(points[1].x - points[0].x);
-    
-    // 根据图片宽度和参考宽度计算实际距离（mm）
-    // 实际距离 = (像素距离 / 图片宽度) * 参考宽度
     const actualDistance = (pixelDistance / imageWidth) * referenceWidth;
-    
     return actualDistance;
+  };
+
+  // 重新计算所有AVT和TS测量值的函数
+  const recalculateAVTandTS = (newStandardDistance?: number, newStandardDistancePoints?: Point[]) => {
+    // 使用传入的参数或当前状态值
+    const distanceToUse = newStandardDistance !== undefined ? newStandardDistance : standardDistance;
+    const pointsToUse = newStandardDistancePoints !== undefined ? newStandardDistancePoints : standardDistancePoints;
+    
+    const updatedMeasurements = measurements.map((measurement) => {
+      if (measurement.type === 'AVT' || measurement.type === 'TS') {
+        const imageWidth = 1000;
+        const referenceWidth = 300;
+        let newValue = measurement.value;
+        
+        if (measurement.type === 'AVT' && measurement.points.length >= 2) {
+          // 临时使用新的标准距离值进行计算
+          let distance: number;
+          if (distanceToUse && pointsToUse && pointsToUse.length === 2) {
+            const standardPixelDx = pointsToUse[1].x - pointsToUse[0].x;
+            const standardPixelDy = pointsToUse[1].y - pointsToUse[0].y;
+            const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+            const pixelDistance = Math.abs(measurement.points[1].x - measurement.points[0].x);
+            distance = (pixelDistance / standardPixelLength) * distanceToUse;
+          } else {
+            const pixelDistance = Math.abs(measurement.points[1].x - measurement.points[0].x);
+            distance = (pixelDistance / imageWidth) * referenceWidth;
+          }
+          newValue = `${distance.toFixed(1)}mm`;
+        } else if (measurement.type === 'TS' && measurement.points.length >= 2) {
+          // 临时使用新的标准距离值进行计算
+          let distance: number;
+          if (distanceToUse && pointsToUse && pointsToUse.length === 2) {
+            const standardPixelDx = pointsToUse[1].x - pointsToUse[0].x;
+            const standardPixelDy = pointsToUse[1].y - pointsToUse[0].y;
+            const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+            const pixelDistance = Math.abs(measurement.points[1].x - measurement.points[0].x);
+            distance = (pixelDistance / standardPixelLength) * distanceToUse;
+          } else {
+            const pixelDistance = Math.abs(measurement.points[1].x - measurement.points[0].x);
+            distance = (pixelDistance / imageWidth) * referenceWidth;
+          }
+          newValue = `${distance.toFixed(1)}mm`;
+        }
+        
+        return { ...measurement, value: newValue };
+      }
+      return measurement;
+    });
+    
+    setMeasurements(updatedMeasurements);
   };
 
   const addMeasurement = (type: string, points: Point[] = []) => {
@@ -978,20 +1066,84 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       if (jsonStr) {
         const data = JSON.parse(jsonStr);
         if (data.measurements && Array.isArray(data.measurements)) {
+          // 检查是否需要坐标转换
+          const storedImageWidth = data.imageWidth;
+          const storedImageHeight = data.imageHeight;
+          let scaleX = 1;
+          let scaleY = 1;
+          
+          if (storedImageWidth && storedImageHeight && imageNaturalSize) {
+            scaleX = imageNaturalSize.width / storedImageWidth;
+            scaleY = imageNaturalSize.height / storedImageHeight;
+            console.log('从本地加载标注，坐标缩放比例:', {
+              storedSize: { width: storedImageWidth, height: storedImageHeight },
+              currentSize: imageNaturalSize,
+              scale: { scaleX, scaleY }
+            });
+          }
+          
           // 恢复measurements，重新生成id、value和description
-          const restoredMeasurements = data.measurements.map((m: any) => ({
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            type: m.type,
-            value: calculateMeasurementValue(m.type, m.points),
-            points: m.points,
-            description: getDescriptionForType(m.type)
-          }));
+          const restoredMeasurements = data.measurements.map((m: any) => {
+            // 转换坐标（如果需要）
+            const scaledPoints = m.points.map((p: any) => ({
+              x: p.x * scaleX,
+              y: p.y * scaleY
+            }));
+            
+            return {
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              type: m.type,
+              value: calculateMeasurementValue(m.type, scaledPoints),
+              points: scaledPoints,
+              description: getDescriptionForType(m.type)
+            };
+          });
           setMeasurements(restoredMeasurements);
           console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);
         }
+        
+        // 加载或设置默认标准距离
+        if (data.standardDistance && data.standardDistancePoints && data.standardDistancePoints.length === 2) {
+          // 如果有保存的标准距离，加载它
+          const scaledStandardPoints = data.standardDistancePoints.map((p: any) => ({
+            x: p.x * (imageNaturalSize ? imageNaturalSize.width / (data.imageWidth || imageNaturalSize.width) : 1),
+            y: p.y * (imageNaturalSize ? imageNaturalSize.height / (data.imageHeight || imageNaturalSize.height) : 1)
+          }));
+          setStandardDistance(data.standardDistance);
+          setStandardDistancePoints(scaledStandardPoints);
+          console.log(`已加载标准距离: ${data.standardDistance}mm`);
+        } else if (imageNaturalSize) {
+          // 如果没有保存的标准距离，设置默认值：左上角(0,0)到(200,0)，标准距离100mm
+          const defaultPoints = [
+            { x: 0, y: 0 },
+            { x: 200, y: 0 }
+          ];
+          setStandardDistance(100);
+          setStandardDistancePoints(defaultPoints);
+          console.log('未找到标准距离，已设置默认值: 100mm，标注点: (0,0)到(200,0)');
+        }
+      } else if (imageNaturalSize) {
+        // 如果完全没有保存的数据，设置默认标准距离
+        const defaultPoints = [
+          { x: 0, y: 0 },
+          { x: 200, y: 0 }
+        ];
+        setStandardDistance(100);
+        setStandardDistancePoints(defaultPoints);
+        console.log('未找到本地数据，已设置默认标准距离: 100mm，标注点: (0,0)到(200,0)');
       }
     } catch (error) {
       console.error('加载本地标注数据失败:', error);
+      // 即使加载失败，也设置默认标准距离
+      if (imageNaturalSize) {
+        const defaultPoints = [
+          { x: 0, y: 0 },
+          { x: 200, y: 0 }
+        ];
+        setStandardDistance(100);
+        setStandardDistancePoints(defaultPoints);
+        console.log('加载失败，已设置默认标准距离: 100mm');
+      }
     }
   };
 
@@ -1006,12 +1158,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       }));
       const data = {
         imageId: imageId,
-        measurements: simplifiedMeasurements
+        imageWidth: imageNaturalSize?.width,
+        imageHeight: imageNaturalSize?.height,
+        measurements: simplifiedMeasurements,
+        standardDistance: standardDistance,
+        standardDistancePoints: standardDistancePoints
       };
       localStorage.setItem(key, JSON.stringify(data, null, 2));
       setSaveMessage('标注已保存到本地');
       setTimeout(() => setSaveMessage(''), 2000);
-      console.log(`已保存 ${measurements.length} 个标注到本地`);
+      console.log(`已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`);
     } catch (error) {
       console.error('保存本地标注数据失败:', error);
       setSaveMessage('保存失败，请重试');
@@ -1027,10 +1183,21 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         type: m.type,
         points: m.points
       }));
+      
+      // 添加图像尺寸信息、标准距离和标准距离标注点，确保坐标系一致性
       const data = {
         imageId: imageId,
-        measurements: simplifiedMeasurements
+        imageWidth: imageNaturalSize?.width,
+        imageHeight: imageNaturalSize?.height,
+        measurements: simplifiedMeasurements,
+        standardDistance: standardDistance,
+        standardDistancePoints: standardDistancePoints
       };
+      console.log('导出标注数据，图像尺寸:', {
+        width: imageNaturalSize?.width,
+        height: imageNaturalSize?.height,
+        standardDistance: standardDistance
+      });
       const jsonStr = JSON.stringify(data, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -1066,21 +1233,68 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           throw new Error('无效的标注文件格式');
         }
 
+        // 检查是否需要坐标转换（如果导入的文件包含图像尺寸信息）
+        const importedImageWidth = data.imageWidth;
+        const importedImageHeight = data.imageHeight;
+        let scaleX = 1;
+        let scaleY = 1;
+        
+        if (importedImageWidth && importedImageHeight && imageNaturalSize) {
+          // 如果导入文件的图像尺寸与当前图像尺寸不同，需要缩放坐标
+          scaleX = imageNaturalSize.width / importedImageWidth;
+          scaleY = imageNaturalSize.height / importedImageHeight;
+          console.log('导入标注，坐标缩放比例:', {
+            importedSize: { width: importedImageWidth, height: importedImageHeight },
+            currentSize: imageNaturalSize,
+            scale: { scaleX, scaleY }
+          });
+        }
+
         // 导入标注数据，重新生成id、value和description
         const restoredMeasurements = data.measurements.map((m: any) => {
+          // 转换坐标（如果需要）
+          const scaledPoints = m.points.map((p: any) => ({
+            x: p.x * scaleX,
+            y: p.y * scaleY
+          }));
+          
           // 根据type和points重新计算value
-          const value = calculateMeasurementValue(m.type, m.points);
+          const value = calculateMeasurementValue(m.type, scaledPoints);
           return {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
             type: m.type,
             value: value,
-            points: m.points,
+            points: scaledPoints,
             description: getDescriptionForType(m.type)
           };
         });
         
         setMeasurements(restoredMeasurements);
-        setSaveMessage(`已导入 ${restoredMeasurements.length} 个标注`);
+        
+        // 导入或设置默认标准距离
+        if (data.standardDistance && data.standardDistancePoints && data.standardDistancePoints.length === 2) {
+          // 如果有导入的标准距离，使用它
+          const scaledStandardPoints = data.standardDistancePoints.map((p: any) => ({
+            x: p.x * scaleX,
+            y: p.y * scaleY
+          }));
+          setStandardDistance(data.standardDistance);
+          setStandardDistancePoints(scaledStandardPoints);
+          setSaveMessage(`已导入 ${restoredMeasurements.length} 个标注和标准距离 ${data.standardDistance}mm`);
+          console.log(`已导入标准距离: ${data.standardDistance}mm`);
+        } else if (imageNaturalSize) {
+          // 如果没有导入的标准距离，设置默认值
+          const defaultPoints = [
+            { x: 0, y: 0 },
+            { x: 200, y: 0 }
+          ];
+          setStandardDistance(100);
+          setStandardDistancePoints(defaultPoints);
+          setSaveMessage(`已导入 ${restoredMeasurements.length} 个标注，未找到标准距离，已设置默认值100mm`);
+          console.log('导入文件中未找到标准距离，已设置默认值: 100mm');
+        } else {
+          setSaveMessage(`已导入 ${restoredMeasurements.length} 个标注`);
+        }
         setTimeout(() => setSaveMessage(''), 2000);
       } catch (error) {
         console.error('导入标注文件失败:', error);
@@ -1092,6 +1306,130 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     
     // 重置input，允许导入同一文件
     event.target.value = '';
+  };
+
+  // AI检测函数
+  const handleAIDetection = async () => {
+    setIsAIDetecting(true);
+    setSaveMessage('');
+
+    try {
+      // 获取图片文件
+      const { accessToken } = require('../../../../store/authStore').useAuthStore.getState();
+      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
+      
+      // 先获取图片
+      const imageResponse = await fetch(`/api/v1/upload/files/${numericId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!imageResponse.ok) {
+        throw new Error('获取图片失败');
+      }
+
+      const imageBlob = await imageResponse.blob();
+      
+      // 构建FormData
+      const formData = new FormData();
+      formData.append('file', imageBlob, 'image.png');
+      formData.append('image_id', imageId);
+
+      // 调用AI检测接口
+      const aiResponse = await fetch('http://localhost:8001/predict', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!aiResponse.ok) {
+        throw new Error('AI检测失败');
+      }
+
+      const aiData = await aiResponse.json();
+      console.log('AI检测原始结果:', aiData);
+
+      // 解析AI返回的JSON数据并加载到标注界面
+      if (aiData.measurements && Array.isArray(aiData.measurements)) {
+        const aiImageWidth = aiData.imageWidth || aiData.image_width;
+        const aiImageHeight = aiData.imageHeight || aiData.image_height;
+        
+        // 尝试从DOM获取实际图像尺寸
+        let actualImageSize = imageNaturalSize;
+        if (!actualImageSize) {
+          // 如果state中没有，尝试直接从DOM获取
+          const imgElement = document.querySelector('[data-image-canvas] img') as HTMLImageElement;
+          if (imgElement && imgElement.naturalWidth > 0) {
+            actualImageSize = {
+              width: imgElement.naturalWidth,
+              height: imgElement.naturalHeight
+            };
+            // 同时更新state
+            setImageNaturalSize(actualImageSize);
+            console.log('从DOM获取图像尺寸:', actualImageSize);
+          }
+        }
+        
+        console.log('AI返回的图像尺寸:', {
+          aiWidth: aiImageWidth,
+          aiHeight: aiImageHeight,
+          actualImageSize: actualImageSize
+        });
+        
+        // 坐标转换：AI返回的是基于原始图像尺寸的坐标
+        // 我们需要检查是否需要缩放
+        let scaleX = 1;
+        let scaleY = 1;
+        
+        if (actualImageSize && aiImageWidth && aiImageHeight) {
+          // 如果AI处理的图像尺寸与实际图像尺寸不同，需要缩放坐标
+          scaleX = actualImageSize.width / aiImageWidth;
+          scaleY = actualImageSize.height / aiImageHeight;
+          console.log('坐标缩放比例:', { scaleX, scaleY });
+        } else if (aiImageWidth && aiImageHeight) {
+          // 如果获取不到实际尺寸，假设AI返回的尺寸就是实际尺寸（不需要缩放）
+          console.log('使用AI图像尺寸作为实际尺寸，不进行缩放');
+        } else {
+          console.warn('缺少图像尺寸信息，无法进行坐标转换');
+        }
+        
+        const aiMeasurements = aiData.measurements.map((m: any) => {
+          console.log(`处理测量 ${m.type}，原始点:`, m.points);
+          
+          // 转换坐标
+          const scaledPoints = m.points.map((p: any) => ({
+            x: p.x * scaleX,
+            y: p.y * scaleY
+          }));
+          
+          console.log(`转换后的点:`, scaledPoints);
+          
+          // 根据type和points重新计算value
+          const value = calculateMeasurementValue(m.type, scaledPoints);
+          return {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            type: m.type,
+            value: value,
+            points: scaledPoints,
+            description: getDescriptionForType(m.type)
+          };
+        });
+        
+        console.log('转换后的测量结果:', aiMeasurements);
+        setMeasurements(aiMeasurements);
+        setSaveMessage(`AI检测完成，已加载 ${aiMeasurements.length} 个标注`);
+        setTimeout(() => setSaveMessage(''), 3000);
+      } else {
+        setSaveMessage('AI检测完成，但未返回有效数据');
+        setTimeout(() => setSaveMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('AI检测失败:', error);
+      setSaveMessage('AI检测失败，请检查服务是否正常运行');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } finally {
+      setIsAIDetecting(false);
+    }
   };
 
   const saveMeasurements = async () => {
@@ -1136,6 +1474,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   };
 
   return (
+    <>
     <div className="fixed inset-0 bg-gray-900 flex flex-col overflow-hidden">
       {/* 顶部导航栏 */}
       <div className="bg-black/60 backdrop-blur-sm border-b border-gray-700 px-6 py-3 flex-shrink-0">
@@ -1205,6 +1544,25 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             </div>
 
             <button
+              onClick={handleAIDetection}
+              disabled={isAIDetecting}
+              className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              title="使用AI自动检测标注"
+            >
+              {isAIDetecting ? (
+                <>
+                  <i className="ri-loader-line w-4 h-4 flex items-center justify-center animate-spin"></i>
+                  <span>检测中...</span>
+                </>
+              ) : (
+                <>
+                  <i className="ri-braces-line w-4 h-4 flex items-center justify-center"></i>
+                  <span>AI检测</span>
+                </>
+              )}
+            </button>
+
+            <button
               onClick={saveMeasurements}
               disabled={isSaving || measurements.length === 0}
               className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
@@ -1247,6 +1605,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               clickedPoints={clickedPoints}
               setClickedPoints={setClickedPoints}
               imageId={imageId}
+              isSettingStandardDistance={isSettingStandardDistance}
+              standardDistancePoints={standardDistancePoints}
+              setStandardDistancePoints={setStandardDistancePoints}
+              standardDistance={standardDistance}
+              onStandardDistanceComplete={() => {
+                setShowStandardDistanceDialog(true);
+              }}
+              onImageSizeChange={(size) => setImageNaturalSize(size)}
             />
           </div>
         </div>
@@ -1269,7 +1635,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               </h4>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setSelectedTool('hand')}
+                  onClick={() => {
+                    setSelectedTool('hand');
+                    // 切换工具时退出标准距离设置模式
+                    if (isSettingStandardDistance) {
+                      setIsSettingStandardDistance(false);
+                      setStandardDistancePoints([]);
+                    }
+                  }}
                   className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
                     selectedTool === 'hand'
                       ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
@@ -1313,7 +1686,21 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                     {measurementTools.map(tool => (
                       <button
                         key={tool.id}
-                        onClick={() => setSelectedTool(tool.id)}
+                        onClick={() => {
+                          // 检查AVT和TS工具是否需要标准距离
+                          if ((tool.id === 'avt' || tool.id === 'ts') && !standardDistance) {
+                            setShowStandardDistanceWarning(true);
+                            setSelectedTool('hand');
+                            return;
+                          }
+                          
+                          setSelectedTool(tool.id);
+                          // 切换工具时退出标准距离设置模式
+                          if (isSettingStandardDistance) {
+                            setIsSettingStandardDistance(false);
+                            setStandardDistancePoints([]);
+                          }
+                        }}
                         className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
                           selectedTool === tool.id
                             ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
@@ -1368,7 +1755,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                     {auxiliaryTools.map(tool => (
                       <button
                         key={tool.id}
-                        onClick={() => setSelectedTool(tool.id)}
+                        onClick={() => {
+                          setSelectedTool(tool.id);
+                          // 切换工具时退出标准距离设置模式
+                          if (isSettingStandardDistance) {
+                            setIsSettingStandardDistance(false);
+                            setStandardDistancePoints([]);
+                          }
+                        }}
                         className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
                           selectedTool === tool.id
                             ? 'bg-green-600 text-white ring-2 ring-green-400 shadow-lg'
@@ -1411,48 +1805,25 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             {/* 标准距离设置按钮 */}
             <div className="mb-4">
               <button
-                onClick={() =>
-                  setShowStandardDistancePanel(!showStandardDistancePanel)
-                }
-                className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                onClick={() => {
+                  setIsSettingStandardDistance(true);
+                  setStandardDistancePoints([]);
+                  setSelectedTool('hand'); // 切换到手动模式以便点击
+                }}
+                className={`w-full px-3 py-2 ${
+                  isSettingStandardDistance 
+                    ? 'bg-orange-600 hover:bg-orange-700' 
+                    : 'bg-purple-600 hover:bg-purple-700'
+                } text-white text-sm rounded-lg flex items-center justify-center space-x-2 transition-colors`}
               >
                 <i className="ri-ruler-line w-4 h-4"></i>
-                <span>标准距离设置</span>
+                <span>{isSettingStandardDistance ? '设置标准距离中...' : '标准距离设置'}</span>
               </button>
 
-              {/* 标准距离设置面板 */}
-              {showStandardDistancePanel && (
-                <div className="mt-2 bg-gray-700/50 rounded-lg p-3">
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-300">
-                      输入标准参考距离 (mm):
-                    </label>
-                    <input
-                      type="number"
-                      value={standardDistanceValue}
-                      onChange={e => setStandardDistanceValue(e.target.value)}
-                      placeholder="例如: 100"
-                      className="w-full px-2 py-1 bg-gray-600 text-white text-sm rounded border border-gray-500 focus:border-purple-400 focus:outline-none"
-                    />
-                    <button
-                      onClick={() => {
-                        const value = parseFloat(standardDistanceValue);
-                        if (!isNaN(value) && value > 0) {
-                          setStandardDistance(value);
-                          setStandardDistanceValue('');
-                          setShowStandardDistancePanel(false);
-                        }
-                      }}
-                      className="w-full px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded transition-colors"
-                    >
-                      保存
-                    </button>
-                    {standardDistance !== null && (
-                      <div className="text-xs text-green-400 mt-2">
-                        ✓ 已设置: {standardDistance}mm
-                      </div>
-                    )}
-                  </div>
+              {/* 显示当前标准距离 */}
+              {standardDistance !== null && (
+                <div className="mt-2 text-xs text-green-400 text-center">
+                  ✓ 当前标准距离: {standardDistance}mm
                 </div>
               )}
             </div>
@@ -1551,54 +1922,135 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               )}
             </div>
             </div>
-
-            {/* 测量结果列表 */}
-            <div className="flex-1 overflow-y-auto min-h-0">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-white">测量结果</h4>
-                {isMeasurementsLoading ? (
-                  <span className="text-xs text-blue-400 flex items-center space-x-1">
-                    <i className="ri-loader-line w-3 h-3 flex items-center justify-center animate-spin"></i>
-                    <span>加载中...</span>
-                  </span>
-                ) : measurements.length > 0 ? (
-                  <span className="text-xs text-gray-400">
-                    ({measurements.length}项)
-                  </span>
-                ) : null}
-              </div>
-              {measurements.length > 0 ? (
-                <div className="space-y-2 pb-4">
-                  {measurements.map(measurement => (
-                    <div
-                      key={measurement.id}
-                      className="flex items-center justify-between bg-gray-700/30 rounded px-2 py-1"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <span className="text-white text-xs font-medium">
-                          {measurement.type}
-                        </span>
-                        <div className="text-yellow-400 text-xs font-mono">
-                          {measurement.value}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeMeasurement(measurement.id)}
-                        className="text-red-400 hover:text-red-300 p-1"
-                      >
-                        <i className="ri-close-line w-3 h-3 flex items-center justify-center"></i>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400 text-xs">暂无测量数据</p>
-              )}
-            </div>
           </div>
         </div>
       </div>
     </div>
+
+    {/* 标准距离输入对话框 */}
+    {showStandardDistanceDialog && (
+      <div 
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        onClick={(e) => {
+          // 点击背景关闭对话框（可选）
+          if (e.target === e.currentTarget) {
+            setShowStandardDistanceDialog(false);
+            setIsSettingStandardDistance(false);
+            setStandardDistancePoints([]);
+            setStandardDistanceValue('');
+          }
+        }}
+      >
+        <div 
+          className="bg-white rounded-lg p-6 w-96"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onMouseMove={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-lg font-semibold mb-4">设置标准距离</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            请输入这两个点之间的实际距离（单位：mm）
+          </p>
+          <input
+            type="number"
+            value={standardDistanceValue}
+            onChange={(e) => setStandardDistanceValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const value = parseFloat(standardDistanceValue);
+                if (!isNaN(value) && value > 0) {
+                  // 先重新计算，使用新的值
+                  recalculateAVTandTS(value, standardDistancePoints);
+                  // 然后更新状态
+                  setStandardDistance(value);
+                  setShowStandardDistanceDialog(false);
+                  setIsSettingStandardDistance(false);
+                  // 不清除 standardDistancePoints，保留标注点和线段
+                  setStandardDistanceValue('');
+                }
+              }
+            }}
+            placeholder="例如: 100"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none mb-4"
+            autoFocus
+          />
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setShowStandardDistanceDialog(false);
+                setIsSettingStandardDistance(false);
+                setStandardDistancePoints([]);
+                setStandardDistanceValue('');
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            >
+              取消
+            </button>
+            <button
+              onClick={() => {
+                const value = parseFloat(standardDistanceValue);
+                if (!isNaN(value) && value > 0) {
+                  // 先重新计算，使用新的值
+                  recalculateAVTandTS(value, standardDistancePoints);
+                  // 然后更新状态
+                  setStandardDistance(value);
+                  setShowStandardDistanceDialog(false);
+                  setIsSettingStandardDistance(false);
+                  // 不清除 standardDistancePoints，保留标注点和线段
+                  setStandardDistanceValue('');
+                }
+              }}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              确认
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* 标准距离未设置警告对话框 */}
+    {showStandardDistanceWarning && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div 
+          className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start mb-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <i className="ri-alert-line text-2xl text-yellow-600"></i>
+              </div>
+            </div>
+            <div className="ml-4 flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">请先设置标准距离</h3>
+              <p className="text-sm text-gray-600 mb-3">
+                AVT和TS测量需要先设置标准距离以确保测量准确性。
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                <p className="text-sm font-medium text-blue-900 mb-2">操作步骤：</p>
+                <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                  <li>点击右侧面板中的"标准距离设置"按钮</li>
+                  <li>在图像上标注两个已知距离的点</li>
+                  <li>输入实际距离值（单位：mm）</li>
+                  <li>确认后即可使用AVT/TS测量工具</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => setShowStandardDistanceWarning(false)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              我知道了
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -1614,6 +2066,12 @@ function ImageCanvas({
   clickedPoints,
   setClickedPoints,
   imageId,
+  isSettingStandardDistance,
+  standardDistancePoints,
+  setStandardDistancePoints,
+  standardDistance,
+  onStandardDistanceComplete,
+  onImageSizeChange,
 }: {
   selectedImage: any;
   measurements: Measurement[];
@@ -1625,6 +2083,12 @@ function ImageCanvas({
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
   imageId: string;
+  isSettingStandardDistance: boolean;
+  standardDistancePoints: Point[];
+  setStandardDistancePoints: (points: Point[]) => void;
+  standardDistance: number | null;
+  onStandardDistanceComplete: () => void;
+  onImageSizeChange: (size: { width: number; height: number }) => void;
 }) {
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(1);
@@ -1634,6 +2098,7 @@ function ImageCanvas({
   const [isHovering, setIsHovering] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(true);
+  const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number } | null>(null);
 
   // 图像调整参数
   const [brightness, setBrightness] = useState(0); // -100 to 100
@@ -1724,63 +2189,123 @@ function ImageCanvas({
   };
 
   // 坐标转换函数：将图像坐标系转换为屏幕坐标系
-  // 图像坐标系：中心为原点，右为x正，上为y正（标准笛卡尔坐标系）
-  // 屏幕坐标系：左上角为原点，右为x正，下为y正
+  // 图像坐标系：左上角为原点，右为x正，下为y正（标准图像坐标系）
+  // 屏幕坐标系：容器内的显示坐标（相对于容器左上角）
   const imageToScreen = (point: Point): Point => {
-    // 获取容器中心点
-    const container = document.querySelector('[data-image-canvas]');
-    if (!container) {
-      return {
-        x: point.x * imageScale + imagePosition.x,
-        y: -point.y * imageScale + imagePosition.y,  // y轴取反
-      };
+    if (!imageNaturalSize) {
+      return { x: point.x, y: point.y };
     }
     
-    const rect = container.getBoundingClientRect();
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
+    // 获取容器信息
+    const container = document.querySelector('[data-image-canvas]');
+    if (!container) {
+      return { x: point.x, y: point.y };
+    }
     
-    // CSS transform 顺序：先 scale（以 center 为原点），再 translate
-    // 点相对于中心的坐标
-    const relX = point.x;
-    const relY = -point.y;  // y轴取反：图像坐标向上为正，屏幕坐标向下为正
+    const containerRect = container.getBoundingClientRect();
     
-    // 应用缩放
-    const scaledX = relX * imageScale;
-    const scaledY = relY * imageScale;
+    // 计算图像在object-contain模式下的实际显示尺寸
+    const containerAspect = containerRect.width / containerRect.height;
+    const imageAspect = imageNaturalSize.width / imageNaturalSize.height;
     
-    // 应用平移，并加上容器中心
-    return {
-      x: scaledX + imagePosition.x + centerX,
-      y: scaledY + imagePosition.y + centerY,
-    };
+    let displayWidth: number, displayHeight: number;
+    if (containerAspect > imageAspect) {
+      // 容器更宽，图像按高度适配
+      displayHeight = containerRect.height;
+      displayWidth = displayHeight * imageAspect;
+    } else {
+      // 容器更高，图像按宽度适配
+      displayWidth = containerRect.width;
+      displayHeight = displayWidth / imageAspect;
+    }
+    
+    // 容器中心点（也是图像transform的原点）
+    const centerX = containerRect.width / 2;
+    const centerY = containerRect.height / 2;
+    
+    // 图像中心点坐标
+    const imageCenterX = imageNaturalSize.width / 2;
+    const imageCenterY = imageNaturalSize.height / 2;
+    
+    // 转换步骤（关键：transform origin是center center）：
+    // 1. 图像像素坐标 - 图像中心 = 相对于图像中心的坐标
+    // 2. / imageNaturalSize * displaySize = 缩放到显示尺寸
+    // 3. * imageScale = 用户缩放
+    // 4. + imagePosition = 用户平移（相对于容器中心）
+    // 5. + centerX = 转到容器坐标系
+    const relToImageCenterX = point.x - imageCenterX;
+    const relToImageCenterY = point.y - imageCenterY;
+    
+    const displayX = (relToImageCenterX / imageNaturalSize.width) * displayWidth;
+    const displayY = (relToImageCenterY / imageNaturalSize.height) * displayHeight;
+    
+    const scaledX = displayX * imageScale;
+    const scaledY = displayY * imageScale;
+    
+    const screenX = scaledX + imagePosition.x + centerX;
+    const screenY = scaledY + imagePosition.y + centerY;
+    
+    return { x: screenX, y: screenY };
   };
 
   // 坐标转换函数：将屏幕坐标系转换为图像坐标系
-  // 屏幕坐标系：左上角为原点，右为x正，下为y正
-  // 图像坐标系：中心为原点，右为x正，上为y正（标准笛卡尔坐标系）
+  // 屏幕坐标系：容器内的显示坐标（相对于容器左上角，从handleMouseDown/Move传入）
+  // 图像坐标系：左上角为原点，右为x正，下为y正（标准图像坐标系）
   const screenToImage = (screenX: number, screenY: number): Point => {
-    // 获取容器中心点
-    const container = document.querySelector('[data-image-canvas]');
-    if (!container) {
-      return {
-        x: (screenX - imagePosition.x) / imageScale,
-        y: -(screenY - imagePosition.y) / imageScale,  // y轴取反
-      };
+    if (!imageNaturalSize) {
+      return { x: screenX, y: screenY };
     }
     
-    const rect = container.getBoundingClientRect();
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
+    // 获取容器信息
+    const container = document.querySelector('[data-image-canvas]');
+    if (!container) {
+      return { x: screenX, y: screenY };
+    }
     
-    // 逆向转换：先减去容器中心和平移，再除以缩放，y轴取反
-    const translatedX = screenX - centerX - imagePosition.x;
-    const translatedY = screenY - centerY - imagePosition.y;
+    const containerRect = container.getBoundingClientRect();
     
-    return {
-      x: translatedX / imageScale,
-      y: -translatedY / imageScale,  // y轴取反：屏幕向下为正，图像向上为正
-    };
+    // 计算图像在object-contain模式下的实际显示尺寸
+    const containerAspect = containerRect.width / containerRect.height;
+    const imageAspect = imageNaturalSize.width / imageNaturalSize.height;
+    
+    let displayWidth: number, displayHeight: number;
+    if (containerAspect > imageAspect) {
+      // 容器更宽，图像按高度适配
+      displayHeight = containerRect.height;
+      displayWidth = displayHeight * imageAspect;
+    } else {
+      // 容器更高，图像按宽度适配
+      displayWidth = containerRect.width;
+      displayHeight = displayWidth / imageAspect;
+    }
+    
+    // 容器中心点（也是图像transform的原点）
+    const centerX = containerRect.width / 2;
+    const centerY = containerRect.height / 2;
+    
+    // 图像中心点坐标
+    const imageCenterX = imageNaturalSize.width / 2;
+    const imageCenterY = imageNaturalSize.height / 2;
+    
+    // 逆向转换步骤：
+    // 1. screenX - centerX = 从容器坐标系转到中心坐标系
+    // 2. - imagePosition = 减去用户平移
+    // 3. / imageScale = 除以用户缩放
+    // 4. / displaySize * imageNaturalSize = 转换为图像坐标（相对于图像中心）
+    // 5. + 图像中心 = 转换为图像像素坐标（相对于左上角）
+    const relToCenterX = screenX - centerX - imagePosition.x;
+    const relToCenterY = screenY - centerY - imagePosition.y;
+    
+    const displayX = relToCenterX / imageScale;
+    const displayY = relToCenterY / imageScale;
+    
+    const relToImageCenterX = (displayX / displayWidth) * imageNaturalSize.width;
+    const relToImageCenterY = (displayY / displayHeight) * imageNaturalSize.height;
+    
+    const imageX = relToImageCenterX + imageCenterX;
+    const imageY = relToImageCenterY + imageCenterY;
+    
+    return { x: imageX, y: imageY };
   };
 
   // 计算函数（在ImageCanvas组件内部）
@@ -1910,6 +2435,23 @@ function ImageCanvas({
   // AVT专门的距离计算函数
   const calculateAVTDistance = (points: Point[], imageWidth: number, referenceWidth: number) => {
     if (points.length < 2) return 0;
+    
+    // 如果设置了标准距离，使用标准距离进行比例计算
+    if (standardDistance && standardDistancePoints.length === 2) {
+      // 计算标准距离标注的像素长度
+      const standardPixelDx = standardDistancePoints[1].x - standardDistancePoints[0].x;
+      const standardPixelDy = standardDistancePoints[1].y - standardDistancePoints[0].y;
+      const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+      
+      // 计算AVT测量的像素距离（水平距离）
+      const pixelDistance = Math.abs(points[1].x - points[0].x);
+      
+      // 按比例计算实际距离：实际距离 = (测量像素距离 / 标准像素距离) * 标准实际距离
+      const actualDistance = (pixelDistance / standardPixelLength) * standardDistance;
+      return actualDistance;
+    }
+    
+    // 如果没有设置标准距离，使用默认的固定比例计算
     const pixelDistance = Math.abs(points[1].x - points[0].x);
     const actualDistance = (pixelDistance / imageWidth) * referenceWidth;
     return actualDistance;
@@ -1918,6 +2460,23 @@ function ImageCanvas({
   // TS专门的距离计算函数
   const calculateTSDistance = (points: Point[], imageWidth: number, referenceWidth: number) => {
     if (points.length < 2) return 0;
+    
+    // 如果设置了标准距离，使用标准距离进行比例计算
+    if (standardDistance && standardDistancePoints.length === 2) {
+      // 计算标准距离标注的像素长度
+      const standardPixelDx = standardDistancePoints[1].x - standardDistancePoints[0].x;
+      const standardPixelDy = standardDistancePoints[1].y - standardDistancePoints[0].y;
+      const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+      
+      // 计算TS测量的像素距离（水平距离）
+      const pixelDistance = Math.abs(points[1].x - points[0].x);
+      
+      // 按比例计算实际距离：实际距离 = (测量像素距离 / 标准像素距离) * 标准实际距离
+      const actualDistance = (pixelDistance / standardPixelLength) * standardDistance;
+      return actualDistance;
+    }
+    
+    // 如果没有设置标准距离，使用默认的固定比例计算
     const pixelDistance = Math.abs(points[1].x - points[0].x);
     const actualDistance = (pixelDistance / imageWidth) * referenceWidth;
     return actualDistance;
@@ -2103,6 +2662,19 @@ function ImageCanvas({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    // 优先处理标准距离设置模式
+    if (isSettingStandardDistance && e.button === 0) {
+      const imagePoint = screenToImage(x, y);
+      const newPoints = [...standardDistancePoints, imagePoint];
+      setStandardDistancePoints(newPoints);
+      
+      if (newPoints.length === 2) {
+        // 两个点已标注完成，触发对话框
+        onStandardDistanceComplete();
+      }
+      return; // 阻止其他逻辑执行
+    }
+
     // 按住左键时的调整模式
     if (e.button === 0) {
       // 左键按下
@@ -2208,9 +2780,13 @@ function ImageCanvas({
         let selectedPointIdx: number | null = null;
         let selType: 'point' | 'whole' | null = null;
         
+        // 点击阈值（屏幕像素）
+        const screenPoint = { x, y };
+        const pointClickRadius = 10; // 屏幕像素
+        const lineClickRadius = 8; // 屏幕像素
+        
         // 1. 检查是否点击了已完成的测量结果
         for (const measurement of measurements) {
-          const clickThreshold = 10 / imageScale; // 点击阈值
           const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
           
           // 1.1 检查是否点击了任意点 - 优先级最高
@@ -2218,10 +2794,11 @@ function ImageCanvas({
           if (!isAuxiliaryShape || (measurement.type !== '圆形标注' && measurement.type !== '椭圆标注')) {
             for (let i = 0; i < measurement.points.length; i++) {
               const point = measurement.points[i];
+              const pointScreen = imageToScreen(point);
               const distance = Math.sqrt(
-                Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+                Math.pow(screenPoint.x - pointScreen.x, 2) + Math.pow(screenPoint.y - pointScreen.y, 2)
               );
-              if (distance < clickThreshold) {
+              if (distance < pointClickRadius) {
                 selectedMeasurement = measurement;
                 selectedPointIdx = i;
                 selType = 'point';
@@ -2235,41 +2812,40 @@ function ImageCanvas({
           if (!foundSelection) {
             
             if (isAuxiliaryShape) {
-              // 辅助图形:检查是否点击了图形边界线条
-              const lineClickThreshold = 8 / imageScale; // 线条点击阈值
+              // 辅助图形:检查是否点击了图形边界线条（使用屏幕坐标）
               
               if (measurement.type === '圆形标注' && measurement.points.length === 2) {
                 // 圆形:检查是否点击了圆边界
-                const center = measurement.points[0];
-                const edge = measurement.points[1];
-                const radius = Math.sqrt(
-                  Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
+                const centerScreen = imageToScreen(measurement.points[0]);
+                const edgeScreen = imageToScreen(measurement.points[1]);
+                const screenRadius = Math.sqrt(
+                  Math.pow(edgeScreen.x - centerScreen.x, 2) + Math.pow(edgeScreen.y - centerScreen.y, 2)
                 );
                 const distToCenter = Math.sqrt(
-                  Math.pow(imagePoint.x - center.x, 2) + Math.pow(imagePoint.y - center.y, 2)
+                  Math.pow(screenPoint.x - centerScreen.x, 2) + Math.pow(screenPoint.y - centerScreen.y, 2)
                 );
-                // 检查是否在圆边界附近（距离圆周的距离小于阈值）
-                if (Math.abs(distToCenter - radius) < lineClickThreshold) {
+                // 检查是否在圆边界附近
+                if (Math.abs(distToCenter - screenRadius) < lineClickRadius) {
                   selectedMeasurement = measurement;
                   selType = 'whole';
                   foundSelection = true;
                 }
               } else if (measurement.type === '椭圆标注' && measurement.points.length === 2) {
                 // 椭圆:检查是否点击了椭圆边界
-                const center = measurement.points[0];
-                const edge = measurement.points[1];
-                const radiusX = Math.abs(edge.x - center.x);
-                const radiusY = Math.abs(edge.y - center.y);
+                const centerScreen = imageToScreen(measurement.points[0]);
+                const edgeScreen = imageToScreen(measurement.points[1]);
+                const radiusX = Math.abs(edgeScreen.x - centerScreen.x);
+                const radiusY = Math.abs(edgeScreen.y - centerScreen.y);
                 
                 if (radiusX > 0 && radiusY > 0) {
                   // 计算点到椭圆边界的距离（近似）
-                  const dx = imagePoint.x - center.x;
-                  const dy = imagePoint.y - center.y;
+                  const dx = screenPoint.x - centerScreen.x;
+                  const dy = screenPoint.y - centerScreen.y;
                   const normalizedDist = Math.sqrt(
                     Math.pow(dx / radiusX, 2) + Math.pow(dy / radiusY, 2)
                   );
                   // 检查是否在椭圆边界附近
-                  if (Math.abs(normalizedDist - 1) < lineClickThreshold / Math.min(radiusX, radiusY)) {
+                  if (Math.abs(normalizedDist - 1) < lineClickRadius / Math.min(radiusX, radiusY)) {
                     selectedMeasurement = measurement;
                     selType = 'whole';
                     foundSelection = true;
@@ -2277,23 +2853,23 @@ function ImageCanvas({
                 }
               } else if (measurement.type === '矩形标注' && measurement.points.length === 2) {
                 // 矩形:检查是否点击了矩形边界
-                const p1 = measurement.points[0];
-                const p2 = measurement.points[1];
-                const minX = Math.min(p1.x, p2.x);
-                const maxX = Math.max(p1.x, p2.x);
-                const minY = Math.min(p1.y, p2.y);
-                const maxY = Math.max(p1.y, p2.y);
+                const p1Screen = imageToScreen(measurement.points[0]);
+                const p2Screen = imageToScreen(measurement.points[1]);
+                const minX = Math.min(p1Screen.x, p2Screen.x);
+                const maxX = Math.max(p1Screen.x, p2Screen.x);
+                const minY = Math.min(p1Screen.y, p2Screen.y);
+                const maxY = Math.max(p1Screen.y, p2Screen.y);
                 
                 // 检查是否点击了四条边中的任意一条
-                const distToLeft = Math.abs(imagePoint.x - minX);
-                const distToRight = Math.abs(imagePoint.x - maxX);
-                const distToTop = Math.abs(imagePoint.y - minY);
-                const distToBottom = Math.abs(imagePoint.y - maxY);
+                const distToLeft = Math.abs(screenPoint.x - minX);
+                const distToRight = Math.abs(screenPoint.x - maxX);
+                const distToTop = Math.abs(screenPoint.y - minY);
+                const distToBottom = Math.abs(screenPoint.y - maxY);
                 
-                const onLeftOrRight = (distToLeft < lineClickThreshold || distToRight < lineClickThreshold) && 
-                                      imagePoint.y >= minY - lineClickThreshold && imagePoint.y <= maxY + lineClickThreshold;
-                const onTopOrBottom = (distToTop < lineClickThreshold || distToBottom < lineClickThreshold) && 
-                                       imagePoint.x >= minX - lineClickThreshold && imagePoint.x <= maxX + lineClickThreshold;
+                const onLeftOrRight = (distToLeft < lineClickRadius || distToRight < lineClickRadius) && 
+                                      screenPoint.y >= minY - lineClickRadius && screenPoint.y <= maxY + lineClickRadius;
+                const onTopOrBottom = (distToTop < lineClickRadius || distToBottom < lineClickRadius) && 
+                                       screenPoint.x >= minX - lineClickRadius && screenPoint.x <= maxX + lineClickRadius;
                 
                 if (onLeftOrRight || onTopOrBottom) {
                   selectedMeasurement = measurement;
@@ -2301,13 +2877,30 @@ function ImageCanvas({
                   foundSelection = true;
                 }
               } else if (measurement.type === '多边形标注' && measurement.points.length >= 3) {
-                // 多边形:检查是否点击了任意一条边
+                // 多边形:检查是否点击了任意一条边（使用屏幕坐标）
                 for (let i = 0; i < measurement.points.length; i++) {
-                  const currentPoint = measurement.points[i];
-                  const nextPoint = measurement.points[(i + 1) % measurement.points.length];
-                  const distToEdge = pointToLineDistance(imagePoint, currentPoint, nextPoint);
+                  const currentScreen = imageToScreen(measurement.points[i]);
+                  const nextScreen = imageToScreen(measurement.points[(i + 1) % measurement.points.length]);
                   
-                  if (distToEdge < lineClickThreshold) {
+                  // 计算点到线段的距离（屏幕坐标）
+                  const dx = nextScreen.x - currentScreen.x;
+                  const dy = nextScreen.y - currentScreen.y;
+                  const lengthSquared = dx * dx + dy * dy;
+                  
+                  let distToEdge: number;
+                  if (lengthSquared === 0) {
+                    distToEdge = Math.sqrt(
+                      Math.pow(screenPoint.x - currentScreen.x, 2) + Math.pow(screenPoint.y - currentScreen.y, 2)
+                    );
+                  } else {
+                    let t = ((screenPoint.x - currentScreen.x) * dx + (screenPoint.y - currentScreen.y) * dy) / lengthSquared;
+                    t = Math.max(0, Math.min(1, t));
+                    const projX = currentScreen.x + t * dx;
+                    const projY = currentScreen.y + t * dy;
+                    distToEdge = Math.sqrt(Math.pow(screenPoint.x - projX, 2) + Math.pow(screenPoint.y - projY, 2));
+                  }
+                  
+                  if (distToEdge < lineClickRadius) {
                     selectedMeasurement = measurement;
                     selType = 'whole';
                     foundSelection = true;
@@ -2315,20 +2908,73 @@ function ImageCanvas({
                   }
                 }
               } else if (measurement.type === '箭头标注' && measurement.points.length >= 2) {
-                // 箭头:检查是否点击了箭头线段
-                const startPoint = measurement.points[0];
-                const endPoint = measurement.points[1];
-                const distToLine = pointToLineDistance(imagePoint, startPoint, endPoint);
+                // 箭头:检查是否点击了箭头线段（使用屏幕坐标）
+                const startScreen = imageToScreen(measurement.points[0]);
+                const endScreen = imageToScreen(measurement.points[1]);
                 
-                if (distToLine < lineClickThreshold) {
+                // 计算点到线段的距离（屏幕坐标）
+                const dx = endScreen.x - startScreen.x;
+                const dy = endScreen.y - startScreen.y;
+                const lengthSquared = dx * dx + dy * dy;
+                
+                let distToLine: number;
+                if (lengthSquared === 0) {
+                  distToLine = Math.sqrt(
+                    Math.pow(screenPoint.x - startScreen.x, 2) + Math.pow(screenPoint.y - startScreen.y, 2)
+                  );
+                } else {
+                  let t = ((screenPoint.x - startScreen.x) * dx + (screenPoint.y - startScreen.y) * dy) / lengthSquared;
+                  t = Math.max(0, Math.min(1, t));
+                  const projX = startScreen.x + t * dx;
+                  const projY = startScreen.y + t * dy;
+                  distToLine = Math.sqrt(Math.pow(screenPoint.x - projX, 2) + Math.pow(screenPoint.y - projY, 2));
+                }
+                
+                if (distToLine < lineClickRadius) {
                   selectedMeasurement = measurement;
                   selType = 'whole';
                   foundSelection = true;
                 }
               }
             } else {
-              // 非辅助图形:检查文字标识区域
-              if (isPointInTextLabel(imagePoint, measurement)) {
+              // 非辅助图形:检查文字标识区域（使用屏幕坐标）
+              const screenPoints = measurement.points.map(p => imageToScreen(p));
+              let textBaselineX, textBaselineY;
+              
+              if (measurement.type === 'T1 Tilt') {
+                textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                textBaselineY = minY - 30;
+              } else if (measurement.type === 'RSH') {
+                textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                textBaselineY = minY - 30;
+              } else if (measurement.type === 'Pelvic') {
+                textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                textBaselineY = minY - 30;
+              } else if (measurement.type === 'Sacral') {
+                textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                textBaselineY = minY - 30;
+              } else if (measurement.type === 'AVT') {
+                textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                textBaselineY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
+              } else if (measurement.type === 'TS') {
+                textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                textBaselineY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
+              } else {
+                textBaselineX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
+                textBaselineY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
+              }
+              
+              const textContent = `${measurement.type}: ${measurement.value}`;
+              const textWidth = textContent.length * 8;
+              const textTop = textBaselineY - 14;
+              const textBottom = textBaselineY + 4;
+              
+              if (screenPoint.x >= textBaselineX - textWidth / 2 && screenPoint.x <= textBaselineX + textWidth / 2 &&
+                  screenPoint.y >= textTop && screenPoint.y <= textBottom) {
                 selectedMeasurement = measurement;
                 selType = 'whole';
                 foundSelection = true;
@@ -2342,21 +2988,22 @@ function ImageCanvas({
             setIsDraggingSelection(false); // 初始不拖拽,点击时只选中
             
             if (selType === 'point') {
-              // 选中单个点
+              // 选中单个点（dragOffset仍使用图像坐标）
               setSelectedPointIndex(selectedPointIdx);
               const point = selectedMeasurement.points[selectedPointIdx!];
+              const imagePoint = screenToImage(x, y);
               setDragOffset({
                 x: imagePoint.x - point.x,
                 y: imagePoint.y - point.y,
               });
             } else {
-              // 选中整个测量结果
+              // 选中整个测量结果（dragOffset仍使用图像坐标）
               setSelectedPointIndex(null);
-              // 计算测量结果的中心点作为拖拽偏移参考
               const xs = selectedMeasurement.points.map((p: Point) => p.x);
               const ys = selectedMeasurement.points.map((p: Point) => p.y);
               const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
               const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+              const imagePoint = screenToImage(x, y);
               setDragOffset({
                 x: imagePoint.x - centerX,
                 y: imagePoint.y - centerY,
@@ -2368,17 +3015,18 @@ function ImageCanvas({
         
         // 2. 检查是否点击了正在绘制的点
         if (!foundSelection && clickedPoints.length > 0) {
-          const clickThreshold = 10 / imageScale;
           for (let i = 0; i < clickedPoints.length; i++) {
             const point = clickedPoints[i];
+            const pointScreen = imageToScreen(point);
             const distance = Math.sqrt(
-              Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+              Math.pow(screenPoint.x - pointScreen.x, 2) + Math.pow(screenPoint.y - pointScreen.y, 2)
             );
-            if (distance < clickThreshold) {
+            if (distance < pointClickRadius) {
               setSelectedMeasurementId(null);
               setSelectedPointIndex(i);
               setSelectionType('point');
               setIsDraggingSelection(false); // 初始不拖拽
+              const imagePoint = screenToImage(x, y);
               setDragOffset({
                 x: imagePoint.x - point.x,
                 y: imagePoint.y - point.y,
@@ -2844,8 +3492,10 @@ function ImageCanvas({
 
     // 在移动模式下，且没有正在拖拽时，检测悬浮高亮（即使有选中元素也允许悬浮预览）
     if (selectedTool === 'hand' && !isDraggingSelection && !isDragging && !drawingState.isDrawing) {
-      const imagePoint = screenToImage(x, y);
-      const clickThreshold = 10 / imageScale;
+      // 计算点和线的hover阈值（屏幕像素距离）
+      const screenPoint = { x, y };
+      const pointHoverRadius = 10; // 屏幕像素
+      const lineHoverRadius = 8; // 屏幕像素
       
       let foundHover = false;
       let hoveredMeasurementId: string | null = null;
@@ -2861,10 +3511,11 @@ function ImageCanvas({
         if (!isAuxiliaryShape || (measurement.type !== '圆形标注' && measurement.type !== '椭圆标注')) {
           for (let i = 0; i < measurement.points.length; i++) {
             const point = measurement.points[i];
+            const screenPointPos = imageToScreen(point);
             const distance = Math.sqrt(
-              Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+              Math.pow(screenPoint.x - screenPointPos.x, 2) + Math.pow(screenPoint.y - screenPointPos.y, 2)
             );
-            if (distance < clickThreshold) {
+            if (distance < pointHoverRadius) {
               hoveredMeasurementId = measurement.id;
               hoveredPointIdx = i;
               hoveredElementType = 'point';
@@ -2878,62 +3529,61 @@ function ImageCanvas({
         if (!foundHover) {
           
           if (isAuxiliaryShape) {
-            // 辅助图形：检查是否悬浮在图形边界线条上
-            const lineHoverThreshold = 8 / imageScale; // 线条悬浮阈值
+            // 辅助图形：检查是否悬浮在图形边界线条上（使用屏幕坐标检测）
             
             if (measurement.type === '圆形标注' && measurement.points.length === 2) {
-              const center = measurement.points[0];
-              const edge = measurement.points[1];
-              const radius = Math.sqrt(
-                Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
+              const centerScreen = imageToScreen(measurement.points[0]);
+              const edgeScreen = imageToScreen(measurement.points[1]);
+              const screenRadius = Math.sqrt(
+                Math.pow(edgeScreen.x - centerScreen.x, 2) + Math.pow(edgeScreen.y - centerScreen.y, 2)
               );
               const distToCenter = Math.sqrt(
-                Math.pow(imagePoint.x - center.x, 2) + Math.pow(imagePoint.y - center.y, 2)
+                Math.pow(screenPoint.x - centerScreen.x, 2) + Math.pow(screenPoint.y - centerScreen.y, 2)
               );
               // 检查是否悬浮在圆边界附近
-              if (Math.abs(distToCenter - radius) < lineHoverThreshold) {
+              if (Math.abs(distToCenter - screenRadius) < lineHoverRadius) {
                 hoveredMeasurementId = measurement.id;
                 hoveredElementType = 'whole';
                 foundHover = true;
               }
             } else if (measurement.type === '椭圆标注' && measurement.points.length === 2) {
-              const center = measurement.points[0];
-              const edge = measurement.points[1];
-              const radiusX = Math.abs(edge.x - center.x);
-              const radiusY = Math.abs(edge.y - center.y);
+              const centerScreen = imageToScreen(measurement.points[0]);
+              const edgeScreen = imageToScreen(measurement.points[1]);
+              const radiusX = Math.abs(edgeScreen.x - centerScreen.x);
+              const radiusY = Math.abs(edgeScreen.y - centerScreen.y);
               
               if (radiusX > 0 && radiusY > 0) {
                 // 计算点到椭圆边界的距离（近似）
-                const dx = imagePoint.x - center.x;
-                const dy = imagePoint.y - center.y;
+                const dx = screenPoint.x - centerScreen.x;
+                const dy = screenPoint.y - centerScreen.y;
                 const normalizedDist = Math.sqrt(
                   Math.pow(dx / radiusX, 2) + Math.pow(dy / radiusY, 2)
                 );
                 // 检查是否悬浮在椭圆边界附近
-                if (Math.abs(normalizedDist - 1) < lineHoverThreshold / Math.min(radiusX, radiusY)) {
+                if (Math.abs(normalizedDist - 1) < lineHoverRadius / Math.min(radiusX, radiusY)) {
                   hoveredMeasurementId = measurement.id;
                   hoveredElementType = 'whole';
                   foundHover = true;
                 }
               }
             } else if (measurement.type === '矩形标注' && measurement.points.length === 2) {
-              const p1 = measurement.points[0];
-              const p2 = measurement.points[1];
-              const minX = Math.min(p1.x, p2.x);
-              const maxX = Math.max(p1.x, p2.x);
-              const minY = Math.min(p1.y, p2.y);
-              const maxY = Math.max(p1.y, p2.y);
+              const p1Screen = imageToScreen(measurement.points[0]);
+              const p2Screen = imageToScreen(measurement.points[1]);
+              const minX = Math.min(p1Screen.x, p2Screen.x);
+              const maxX = Math.max(p1Screen.x, p2Screen.x);
+              const minY = Math.min(p1Screen.y, p2Screen.y);
+              const maxY = Math.max(p1Screen.y, p2Screen.y);
               
               // 检查是否悬浮在四条边中的任意一条
-              const distToLeft = Math.abs(imagePoint.x - minX);
-              const distToRight = Math.abs(imagePoint.x - maxX);
-              const distToTop = Math.abs(imagePoint.y - minY);
-              const distToBottom = Math.abs(imagePoint.y - maxY);
+              const distToLeft = Math.abs(screenPoint.x - minX);
+              const distToRight = Math.abs(screenPoint.x - maxX);
+              const distToTop = Math.abs(screenPoint.y - minY);
+              const distToBottom = Math.abs(screenPoint.y - maxY);
               
-              const onLeftOrRight = (distToLeft < lineHoverThreshold || distToRight < lineHoverThreshold) && 
-                                    imagePoint.y >= minY - lineHoverThreshold && imagePoint.y <= maxY + lineHoverThreshold;
-              const onTopOrBottom = (distToTop < lineHoverThreshold || distToBottom < lineHoverThreshold) && 
-                                     imagePoint.x >= minX - lineHoverThreshold && imagePoint.x <= maxX + lineHoverThreshold;
+              const onLeftOrRight = (distToLeft < lineHoverRadius || distToRight < lineHoverRadius) && 
+                                    screenPoint.y >= minY - lineHoverRadius && screenPoint.y <= maxY + lineHoverRadius;
+              const onTopOrBottom = (distToTop < lineHoverRadius || distToBottom < lineHoverRadius) && 
+                                     screenPoint.x >= minX - lineHoverRadius && screenPoint.x <= maxX + lineHoverRadius;
               
               if (onLeftOrRight || onTopOrBottom) {
                 hoveredMeasurementId = measurement.id;
@@ -2941,12 +3591,12 @@ function ImageCanvas({
                 foundHover = true;
               }
             } else if (measurement.type === '多边形标注' && measurement.points.length >= 3) {
-              // 多边形：检查是否悬浮在任意一条边上
+              // 多边形：检查是否悬浮在任意一条边上（使用屏幕坐标）
               for (let i = 0; i < measurement.points.length; i++) {
-                const currentPoint = measurement.points[i];
-                const nextPoint = measurement.points[(i + 1) % measurement.points.length];
+                const currentScreen = imageToScreen(measurement.points[i]);
+                const nextScreen = imageToScreen(measurement.points[(i + 1) % measurement.points.length]);
                 
-                // 辅助函数: 计算点到线段的距离
+                // 辅助函数: 计算点到线段的距离（屏幕坐标）
                 const pointToLineDistance = (point: Point, lineStart: Point, lineEnd: Point): number => {
                   const dx = lineEnd.x - lineStart.x;
                   const dy = lineEnd.y - lineStart.y;
@@ -2967,9 +3617,9 @@ function ImageCanvas({
                   return Math.sqrt(Math.pow(point.x - projX, 2) + Math.pow(point.y - projY, 2));
                 };
                 
-                const distToEdge = pointToLineDistance(imagePoint, currentPoint, nextPoint);
+                const distToEdge = pointToLineDistance(screenPoint, currentScreen, nextScreen);
                 
-                if (distToEdge < lineHoverThreshold) {
+                if (distToEdge < lineHoverRadius) {
                   hoveredMeasurementId = measurement.id;
                   hoveredElementType = 'whole';
                   foundHover = true;
@@ -2977,11 +3627,11 @@ function ImageCanvas({
                 }
               }
             } else if (measurement.type === '箭头标注' && measurement.points.length >= 2) {
-              // 箭头：检查是否悬浮在箭头线段上
-              const startPoint = measurement.points[0];
-              const endPoint = measurement.points[1];
+              // 箭头：检查是否悬浮在箭头线段上（使用屏幕坐标）
+              const startScreen = imageToScreen(measurement.points[0]);
+              const endScreen = imageToScreen(measurement.points[1]);
               
-              // 辅助函数: 计算点到线段的距离
+              // 辅助函数: 计算点到线段的距离（屏幕坐标）
               const pointToLineDistance = (point: Point, lineStart: Point, lineEnd: Point): number => {
                 const dx = lineEnd.x - lineStart.x;
                 const dy = lineEnd.y - lineStart.y;
@@ -3002,59 +3652,66 @@ function ImageCanvas({
                 return Math.sqrt(Math.pow(point.x - projX, 2) + Math.pow(point.y - projY, 2));
               };
               
-              const distToLine = pointToLineDistance(imagePoint, startPoint, endPoint);
+              const distToLine = pointToLineDistance(screenPoint, startScreen, endScreen);
               
-              if (distToLine < lineHoverThreshold) {
+              if (distToLine < lineHoverRadius) {
                 hoveredMeasurementId = measurement.id;
                 hoveredElementType = 'whole';
                 foundHover = true;
               }
             }
           } else {
-            // 非辅助图形：检查文字标识区域
-            let textX, textY;
+            // 非辅助图形：检查文字标识区域（使用屏幕坐标，与渲染位置保持一致）
+            const screenPoints = measurement.points.map(p => imageToScreen(p));
+            let textBaselineX, textBaselineY;
             
             if (measurement.type === 'T1 Tilt') {
               // T1 Tilt 特殊定位：在两点上方
-              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
-              textY = maxY + 30 / imageScale; // 向上偏移
+              textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+              const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+              textBaselineY = minY - 30;
             } else if (measurement.type === 'RSH') {
               // RSH 特殊定位：在两点上方
-              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
-              textY = maxY + 30 / imageScale; // 向上偏移
+              textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+              const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+              textBaselineY = minY - 30;
             } else if (measurement.type === 'Pelvic') {
               // Pelvic 特殊定位：在两点上方
-              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
-              textY = maxY + 30 / imageScale; // 向上偏移
+              textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+              const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+              textBaselineY = minY - 30;
             } else if (measurement.type === 'Sacral') {
               // Sacral 特殊定位：在两点上方
-              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const maxY = Math.max(measurement.points[0].y, measurement.points[1].y);
-              textY = maxY + 30 / imageScale; // 向上偏移
+              textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+              const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+              textBaselineY = minY - 30;
             } else if (measurement.type === 'AVT') {
               // AVT 特殊定位：在两点中间
-              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              textY = (measurement.points[0].y + measurement.points[1].y) / 2 + 15 / imageScale; // 向上偏移
+              textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+              textBaselineY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
             } else if (measurement.type === 'TS') {
               // TS 特殊定位：在两点中间
-              textX = (measurement.points[0].x + measurement.points[1].x) / 2;
-              textY = (measurement.points[0].y + measurement.points[1].y) / 2 + 15 / imageScale; // 向上偏移
+              textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+              textBaselineY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
             } else {
-              // 其他测量的默认位置
-              const firstPoint = measurement.points[0];
-              const lastPoint = measurement.points[measurement.points.length - 1];
-              textX = (firstPoint.x + lastPoint.x) / 2;
-              textY = (firstPoint.y + lastPoint.y) / 2 + 10 / imageScale; // 向上偏移
+              // 其他测量的默认位置：中间偏上
+              textBaselineX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
+              textBaselineY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
             }
             
-            const textWidth = (measurement.type.length + measurement.value.length) * 8 / imageScale;
-            const textHeight = 20 / imageScale;
+            // 文字尺寸估算（屏幕像素，fontSize=14）
+            const textContent = `${measurement.type}: ${measurement.value}`;
+            const textWidth = textContent.length * 8; // 每个字符约8像素宽
+            const textHeight = 20; // 文字高度约20像素
             
-            if (imagePoint.x >= textX - textWidth / 2 && imagePoint.x <= textX + textWidth / 2 &&
-                imagePoint.y >= textY - textHeight / 2 && imagePoint.y <= textY + textHeight / 2) {
+            // SVG text的y坐标是基线，文字实际在基线上方
+            // 文字顶部约在 baseline - 14px（字号大小）
+            // 文字底部约在 baseline + 4px
+            const textTop = textBaselineY - 14;
+            const textBottom = textBaselineY + 4;
+            
+            if (screenPoint.x >= textBaselineX - textWidth / 2 && screenPoint.x <= textBaselineX + textWidth / 2 &&
+                screenPoint.y >= textTop && screenPoint.y <= textBottom) {
               hoveredMeasurementId = measurement.id;
               hoveredElementType = 'whole';
               foundHover = true;
@@ -3069,10 +3726,11 @@ function ImageCanvas({
       if (!foundHover && clickedPoints.length > 0) {
         for (let i = 0; i < clickedPoints.length; i++) {
           const point = clickedPoints[i];
+          const pointScreen = imageToScreen(point);
           const distance = Math.sqrt(
-            Math.pow(imagePoint.x - point.x, 2) + Math.pow(imagePoint.y - point.y, 2)
+            Math.pow(screenPoint.x - pointScreen.x, 2) + Math.pow(screenPoint.y - pointScreen.y, 2)
           );
-          if (distance < clickThreshold) {
+          if (distance < pointHoverRadius) {
             hoveredPointIdx = i;
             hoveredElementType = 'point';
             foundHover = true;
@@ -3199,6 +3857,12 @@ function ImageCanvas({
 
     // 键盘快捷键处理
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 检查是否在输入框内，如果是则不处理快捷键
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+      
       // R 键：重置视图到 100%
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
@@ -3248,6 +3912,7 @@ function ImageCanvas({
   };
 
   const getCursorStyle = () => {
+    if (isSettingStandardDistance) return 'cursor-crosshair';
     if (selectedTool === 'hand') return 'cursor-grab active:cursor-grabbing';
     return 'cursor-crosshair';
   };
@@ -3416,6 +4081,21 @@ function ImageCanvas({
             alt={selectedImage.examType}
             className="max-w-full max-h-full object-contain pointer-events-none select-none"
             draggable={false}
+            onLoad={(e) => {
+              const img = e.target as HTMLImageElement;
+              const size = {
+                width: img.naturalWidth,
+                height: img.naturalHeight
+              };
+              setImageNaturalSize(size);
+              onImageSizeChange(size);
+              console.log('图像加载完成，原始尺寸:', {
+                naturalWidth: img.naturalWidth,
+                naturalHeight: img.naturalHeight,
+                displayWidth: img.width,
+                displayHeight: img.height
+              });
+            }}
             style={{
               filter: `brightness(${1 + brightness / 100}) contrast(${1 + contrast / 100})`,
               transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})`,
@@ -4098,6 +4778,104 @@ function ImageCanvas({
             </g>
           );
         })}
+
+        {/* 绘制标准距离设置的点 - 仅在只有一个点时显示 */}
+        {standardDistancePoints.length === 1 && (() => {
+          const screenPoint = imageToScreen(standardDistancePoints[0]);
+          return (
+            <g key="standard-distance-0">
+              <circle
+                cx={screenPoint.x}
+                cy={screenPoint.y}
+                r="4"
+                fill="#ef4444"
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+              <text
+                x={screenPoint.x + 8}
+                y={screenPoint.y - 8}
+                fill="#ef4444"
+                fontSize="12"
+                fontWeight="bold"
+                stroke="#000000"
+                strokeWidth="0.5"
+                paintOrder="stroke"
+              >
+                1
+              </text>
+            </g>
+          );
+        })()}
+
+        {/* 绘制标准距离设置的尺子样式 */}
+        {standardDistancePoints.length === 2 && (() => {
+          const p1 = imageToScreen(standardDistancePoints[0]);
+          const p2 = imageToScreen(standardDistancePoints[1]);
+          const midX = (p1.x + p2.x) / 2;
+          const midY = (p1.y + p2.y) / 2;
+          
+          // 计算线段的角度和长度
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          
+          // 刻度线的垂直偏移
+          const tickLength = 10;
+          const perpAngle = (angle + 90) * Math.PI / 180;
+          
+          return (
+            <g>
+              {/* 主线段 */}
+              <line
+                x1={p1.x}
+                y1={p1.y}
+                x2={p2.x}
+                y2={p2.y}
+                stroke="#9333ea"
+                strokeWidth="2"
+              />
+              
+              {/* 起点刻度线 */}
+              <line
+                x1={p1.x - Math.cos(perpAngle) * tickLength}
+                y1={p1.y - Math.sin(perpAngle) * tickLength}
+                x2={p1.x + Math.cos(perpAngle) * tickLength}
+                y2={p1.y + Math.sin(perpAngle) * tickLength}
+                stroke="#9333ea"
+                strokeWidth="2"
+              />
+              
+              {/* 终点刻度线 */}
+              <line
+                x1={p2.x - Math.cos(perpAngle) * tickLength}
+                y1={p2.y - Math.sin(perpAngle) * tickLength}
+                x2={p2.x + Math.cos(perpAngle) * tickLength}
+                y2={p2.y + Math.sin(perpAngle) * tickLength}
+                stroke="#9333ea"
+                strokeWidth="2"
+              />
+              
+              {/* 显示距离标识 */}
+              {standardDistance && (
+                <text
+                  x={midX}
+                  y={midY - 10}
+                  fill="#9333ea"
+                  fontSize="16"
+                  fontWeight="bold"
+                  stroke="#000000"
+                  strokeWidth="0.8"
+                  paintOrder="stroke"
+                  textAnchor="middle"
+                >
+                  {standardDistance}mm
+                </text>
+              )}
+            </g>
+          );
+        })()}
 
         {/* 绘制当前点击点之间的连线预览 */}
         {clickedPoints.length >= 2 && selectedTool !== 'hand' && (() => {

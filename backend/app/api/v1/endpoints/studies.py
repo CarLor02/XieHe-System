@@ -73,7 +73,8 @@ async def get_studies(
         query = db.query(Study, Patient.name).join(
             Patient, Study.patient_id == Patient.id
         ).filter(
-            Patient.is_deleted == False
+            Patient.is_deleted == False,
+            Study.is_deleted == False
         )
         
         # 应用筛选条件
@@ -162,7 +163,8 @@ async def get_study(
             Patient, Study.patient_id == Patient.id
         ).filter(
             Study.id == study_id,
-            Patient.is_deleted == False
+            Patient.is_deleted == False,
+            Study.is_deleted == False
         ).first()
         
         if not result:
@@ -196,4 +198,52 @@ async def get_study(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取影像检查详情失败"
+        )
+
+@router.delete("/{study_id}", summary="删除影像检查")
+async def delete_study(
+    study_id: int,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    软删除影像检查（标记为已删除而不是物理删除）
+    """
+    try:
+        from app.models.image import Study
+        
+        # 查询影像检查
+        study = db.query(Study).filter(
+            Study.id == study_id,
+            Study.is_deleted == False
+        ).first()
+        
+        if not study:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="影像检查不存在或已被删除"
+            )
+        
+        # 软删除：标记为已删除
+        study.is_deleted = True
+        study.deleted_at = datetime.now()
+        study.deleted_by = current_user.get('sub')
+        
+        db.commit()
+        
+        logger.info(f"影像检查已软删除: study_id={study_id}, user_id={current_user.get('sub')}")
+        
+        return {
+            "success": True,
+            "message": "影像检查已成功删除"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"删除影像检查失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"删除影像检查失败: {str(e)}"
         )
