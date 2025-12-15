@@ -29,7 +29,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # ==================== 配置参数 ====================
-PROJECT_DIR="/Users/bytedance/XieHe-System"
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GIT_BRANCH="main"
 COMPOSE_FILE="docker-compose.yml"
 BACKUP_DIR="${PROJECT_DIR}/backups/deploy_$(date +%Y%m%d_%H%M%S)"
@@ -87,13 +87,6 @@ check_environment() {
         exit 1
     fi
     print_success "Git已安装: $(git --version)"
-    
-    # 检查项目目录
-    if [ ! -d "$PROJECT_DIR" ]; then
-        print_error "项目目录不存在: $PROJECT_DIR"
-        exit 1
-    fi
-    print_success "项目目录存在: $PROJECT_DIR"
     
     # 检查磁盘空间
     available_space=$(df -h "$PROJECT_DIR" | awk 'NR==2 {print $4}')
