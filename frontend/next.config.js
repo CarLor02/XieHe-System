@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 只在生产环境使用静态导出
-  ...(process.env.NODE_ENV === 'production' && { output: 'export' }),
+  // Docker部署使用standalone模式，开发环境不使用
+  output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
 
   images: {
     unoptimized: true,
