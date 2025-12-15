@@ -25,6 +25,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV DOCKER_BUILD=true
 
+# 确保public目录存在
+RUN mkdir -p public
+
 # 构建应用
 RUN npm run build
 
@@ -43,10 +46,10 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # 复制必要文件
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/public ./public
 
 # 安装curl用于健康检查
 RUN apk add --no-cache curl
