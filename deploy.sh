@@ -186,9 +186,9 @@ build_docker_images() {
     
     print_step "开始构建镜像（这可能需要几分钟）..."
     
-    # 使用docker compose构建所有镜像
+    # 使用docker compose构建所有镜像（利用缓存加速构建）
     print_info "使用Docker Compose构建所有镜像..."
-    docker compose -f "$COMPOSE_FILE" build --no-cache || {
+    docker compose -f "$COMPOSE_FILE" build || {
         print_error "镜像构建失败"
         exit 1
     }

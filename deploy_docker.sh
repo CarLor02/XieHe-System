@@ -27,7 +27,7 @@ docker compose -f docker-compose.yml down -v 2>/dev/null || true
 
 # 构建镜像
 echo "🔨 构建Docker镜像..."
-docker compose -f docker-compose.yml build --no-cache
+docker compose -f docker-compose.yml build
 
 # 启动服务
 echo "🚀 启动服务..."
