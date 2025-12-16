@@ -1337,7 +1337,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       formData.append('image_id', imageId);
 
       // 调用AI检测接口
-      const aiResponse = await fetch('http://localhost:8001/predict', {
+      const aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_URL || 'http://localhost:8001/predict';
+      const aiResponse = await fetch(aiDetectUrl, {
         method: 'POST',
         body: formData,
       });
