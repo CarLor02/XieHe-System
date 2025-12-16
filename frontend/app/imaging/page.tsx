@@ -81,7 +81,8 @@ export default function ImagingPage() {
         return;
       }
 
-      const response = await fetch(`/api/v1/upload/files/${studyId}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/v1/upload/files/${studyId}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -161,12 +162,13 @@ export default function ImagingPage() {
   // 将Study数据转换为ImageItem格式
   const convertStudyToImageItem = (study: Study): ImageItem => {
     const imageId = `IMG${study.id.toString().padStart(3, '0')}`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     return {
       id: imageId,
       examType: study.study_description || study.modality || '未知类型',
       studyDate: study.study_date || study.created_at.split('T')[0],
       status: study.status === 'completed' ? 'reviewed' : 'pending',
-      thumbnailUrl: `/api/v1/upload/files/${study.id}`,
+      thumbnailUrl: `${apiUrl}/api/v1/upload/files/${study.id}`,
       blobUrl: thumbnailUrls[imageId],
       patient_name: study.patient_name,
       patient_id: study.patient_id?.toString(),
