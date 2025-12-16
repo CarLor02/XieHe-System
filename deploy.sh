@@ -239,7 +239,7 @@ health_check() {
     # 检查后端API
     print_step "检查后端API服务..."
     for i in {1..30}; do
-        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        if curl -s http://localhost:8080/health > /dev/null 2>&1; then
             print_success "后端API服务正常"
             break
         fi
@@ -282,9 +282,10 @@ print_summary() {
     echo -e "${GREEN}🎉 部署成功！${NC}"
     echo ""
     echo -e "${CYAN}访问地址:${NC}"
-    echo -e "  ${GREEN}前端应用:${NC} http://localhost:3030"
-    echo -e "  ${GREEN}后端API:${NC}  http://localhost:8000"
-    echo -e "  ${GREEN}API文档:${NC}  http://localhost:8000/docs"
+    echo -e "  ${GREEN}前端应用:${NC} http://115.190.121.59:3030"
+    echo -e "  ${GREEN}后端API:${NC}  http://115.190.121.59:8080"
+    echo -e "  ${GREEN}API文档:${NC}  http://115.190.121.59:8080/docs"
+    echo -e "  ${YELLOW}本地访问:${NC} http://localhost:3030 (前端) http://localhost:8080 (后端)"
     echo ""
     echo -e "${CYAN}常用命令:${NC}"
     echo -e "  ${YELLOW}查看日志:${NC}   docker compose -f $COMPOSE_FILE logs -f"
