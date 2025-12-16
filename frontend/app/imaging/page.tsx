@@ -215,8 +215,9 @@ export default function ImagingPage() {
         try {
           const studyId = parseInt(imageId.replace('IMG', '').replace(/^0+/, '') || '0');
           const { accessToken } = useAuthStore.getState();
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
           
-          const response = await fetch(`/api/v1/upload/files/${studyId}`, {
+          const response = await fetch(`${apiUrl}/api/v1/upload/files/${studyId}`, {
             headers: {
               Authorization: `Bearer ${accessToken}`,
             },

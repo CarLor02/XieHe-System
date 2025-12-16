@@ -208,7 +208,8 @@ const SimpleFileUpload: React.FC<SimpleFileUploadProps> = ({
         formData.append('file', file)
 
         // 上传文件
-        const response = await fetch('/api/v1/upload/single', {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiUrl}/api/v1/upload/single`, {
           method: 'POST',
           body: formData,
           headers: {

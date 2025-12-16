@@ -207,7 +207,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch('/api/v1/upload/single', {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const response = await fetch(`${apiUrl}/api/v1/upload/single`, {
       method: 'POST',
       body: formData,
       signal,
@@ -268,7 +269,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
       formData.append('total_chunks', totalChunks.toString())
       formData.append('chunk_hash', chunkHash)
 
-      const response = await fetch('/api/v1/upload/chunk', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/v1/upload/chunk`, {
         method: 'POST',
         body: formData,
         signal,
@@ -299,7 +301,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
 
     // 完成上传
-    const completeResponse = await fetch(`/api/v1/upload/complete/${fileId}`, {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const completeResponse = await fetch(`${apiUrl}/api/v1/upload/complete/${fileId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

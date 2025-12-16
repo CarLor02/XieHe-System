@@ -1319,7 +1319,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
       
       // 先获取图片
-      const imageResponse = await fetch(`/api/v1/upload/files/${numericId}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const imageResponse = await fetch(`${apiUrl}/api/v1/upload/files/${numericId}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -2609,7 +2610,8 @@ function ImageCanvas({
         const { accessToken } =
           require('../../../../store/authStore').useAuthStore.getState();
 
-        const response = await fetch(`/api/v1/upload/files/${numericId}`, {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiUrl}/api/v1/upload/files/${numericId}`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
