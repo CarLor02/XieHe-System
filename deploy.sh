@@ -249,10 +249,10 @@ health_check() {
         sleep 2
     done
     
-    # 检查前端服务
+    # 检查前端服务...
     print_step "检查前端服务..."
     for i in {1..30}; do
-        if curl -s http://localhost:3000 > /dev/null 2>&1; then
+        if curl -s http://localhost:3030 > /dev/null 2>&1; then
             print_success "前端服务正常"
             break
         fi
@@ -282,7 +282,7 @@ print_summary() {
     echo -e "${GREEN}🎉 部署成功！${NC}"
     echo ""
     echo -e "${CYAN}访问地址:${NC}"
-    echo -e "  ${GREEN}前端应用:${NC} http://localhost:3000"
+    echo -e "  ${GREEN}前端应用:${NC} http://localhost:3030"
     echo -e "  ${GREEN}后端API:${NC}  http://localhost:8000"
     echo -e "  ${GREEN}API文档:${NC}  http://localhost:8000/docs"
     echo ""
