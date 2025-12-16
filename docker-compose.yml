@@ -34,7 +34,7 @@ services:
       - JWT_SECRET_KEY=dev_jwt_secret_key_2024
       - CORS_ORIGINS=http://115.190.121.59:3030,http://localhost:3030
     ports:
-      - '8000:8000'
+      - '0.0.0.0:8080:8000'
     volumes:
       - uploads_data:/app/uploads
       - models_data:/app/models
