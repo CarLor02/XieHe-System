@@ -30,12 +30,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件并安装（先安装依赖以利用Docker缓存）
-COPY backend/requirements.txt .
+COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
-COPY backend/ .
+COPY . .
 
 # 创建必要的目录
 RUN mkdir -p uploads logs storage/images storage/reports storage/temp && \
