@@ -4157,8 +4157,14 @@ function ImageCanvas({
             <polygon points="0 0, 10 3, 0 6" fill="#ef4444" />
           </marker>
         </defs>
-        {/* 绘制已完成的测量 */}
-        {measurements.map((measurement, index) => {
+        {/* 绘制已完成的测量 - 分两次渲染：先渲染非悬浮的，再渲染悬浮的（确保悬浮的显示在最前面） */}
+        {[false, true].map(renderHovered => 
+          measurements
+            .filter(measurement => {
+              const isMeasurementHovered = hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              return renderHovered ? isMeasurementHovered : !isMeasurementHovered;
+            })
+            .map((measurement, index) => {
           // 判断是否为辅助图形(不需要标识)
           const isAuxiliaryShape = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注', '多边形标注'].includes(measurement.type);
           
@@ -4718,25 +4724,43 @@ function ImageCanvas({
                   textY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
                 }
                 
+                const textContent = `${measurement.type}: ${measurement.value}`;
+                const fontSize = isHovered ? 16 : 14;
+                // 估算文字宽度和高度
+                const textWidth = textContent.length * fontSize * 0.6;
+                const textHeight = fontSize * 1.4;
+                const padding = 4;
+                
                 return (
-                  <text
-                    x={textX}
-                    y={textY}
-                    fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : displayColor}
-                    fontSize={isHovered ? "16" : "14"}
-                    fontWeight="bold"
-                    stroke="#000000"
-                    strokeWidth="0.8"
-                    paintOrder="stroke"
-                    textAnchor="middle"
-                  >
-                    {measurement.type}: {measurement.value}
-                  </text>
+                  <g>
+                    {/* 白色背景 */}
+                    <rect
+                      x={textX - textWidth/2 - padding}
+                      y={textY - textHeight/2 - padding}
+                      width={textWidth + padding * 2}
+                      height={textHeight + padding * 2}
+                      fill="white"
+                      opacity="0.9"
+                      rx="3"
+                    />
+                    {/* 文字 */}
+                    <text
+                      x={textX}
+                      y={textY + fontSize * 0.35}
+                      fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : displayColor}
+                      fontSize={fontSize}
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {measurement.type}: {measurement.value}
+                    </text>
+                  </g>
                 );
               })()}
             </g>
           );
-        })}
+        })
+        )}
 
         {/* 绘制当前点击的点 */}
         {clickedPoints.map((point, index) => {
@@ -4766,15 +4790,22 @@ function ImageCanvas({
                   opacity="0.6"
                 />
               )}
+              {/* 点序号背景 */}
+              <rect
+                x={screenPoint.x + 4}
+                y={screenPoint.y - (isHovered ? 16 : 14)}
+                width={(isHovered ? 14 : 12) * 0.7}
+                height={(isHovered ? 14 : 12) * 1.0}
+                fill="white"
+                opacity="0.9"
+                rx="2"
+              />
               <text
-                x={screenPoint.x + 8}
-                y={screenPoint.y - 8}
+                x={screenPoint.x + (isHovered ? 8.5 : 7.5)}
+                y={screenPoint.y - (isHovered ? 4 : 4)}
                 fill={isHovered ? "#fbbf24" : "#ef4444"}
                 fontSize={isHovered ? "14" : "12"}
                 fontWeight="bold"
-                stroke="#000000"
-                strokeWidth="0.5"
-                paintOrder="stroke"
               >
                 {index + 1}
               </text>
@@ -4795,15 +4826,22 @@ function ImageCanvas({
                 stroke="#ffffff"
                 strokeWidth="2"
               />
+              {/* 点序号背景 */}
+              <rect
+                x={screenPoint.x + 4}
+                y={screenPoint.y - 14}
+                width="10"
+                height="12"
+                fill="white"
+                opacity="0.9"
+                rx="2"
+              />
               <text
-                x={screenPoint.x + 8}
-                y={screenPoint.y - 8}
+                x={screenPoint.x + 9}
+                y={screenPoint.y - 4}
                 fill="#ef4444"
                 fontSize="12"
                 fontWeight="bold"
-                stroke="#000000"
-                strokeWidth="0.5"
-                paintOrder="stroke"
               >
                 1
               </text>
@@ -4861,21 +4899,37 @@ function ImageCanvas({
               />
               
               {/* 显示距离标识 */}
-              {standardDistance && (
-                <text
-                  x={midX}
-                  y={midY - 10}
-                  fill="#9333ea"
-                  fontSize="16"
-                  fontWeight="bold"
-                  stroke="#000000"
-                  strokeWidth="0.8"
-                  paintOrder="stroke"
-                  textAnchor="middle"
-                >
-                  {standardDistance}mm
-                </text>
-              )}
+              {standardDistance && (() => {
+                const textContent = `${standardDistance}mm`;
+                const textWidth = textContent.length * 16 * 0.6;
+                const textHeight = 16 * 1.4;
+                const padding = 4;
+                return (
+                  <g>
+                    {/* 白色背景 */}
+                    <rect
+                      x={midX - textWidth/2 - padding}
+                      y={midY - 10 - textHeight/2 - padding}
+                      width={textWidth + padding * 2}
+                      height={textHeight + padding * 2}
+                      fill="white"
+                      opacity="0.9"
+                      rx="3"
+                    />
+                    {/* 文字 */}
+                    <text
+                      x={midX}
+                      y={midY - 10 + 16 * 0.35}
+                      fill="#9333ea"
+                      fontSize="16"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {standardDistance}mm
+                    </text>
+                  </g>
+                );
+              })()}
             </g>
           );
         })()}
@@ -4992,13 +5046,24 @@ function ImageCanvas({
                     strokeDasharray="5,5"
                     opacity="0.8"
                   />
+                  {/* 水平线标识背景 */}
+                  <rect
+                    x={referencePoint.x + lineLength/2 + 7}
+                    y={referencePoint.y - 6}
+                    width="28"
+                    height="16"
+                    fill="white"
+                    opacity="0.9"
+                    rx="2"
+                  />
                   {/* 水平线标识 */}
                   <text
-                    x={referencePoint.x + lineLength/2 + 10}
-                    y={referencePoint.y + 5}
+                    x={referencePoint.x + lineLength/2 + 21}
+                    y={referencePoint.y + 4.2}
                     fill="#00ff00"
                     fontSize="12"
                     fontWeight="bold"
+                    textAnchor="middle"
                   >
                     HRL
                   </text>
@@ -5027,13 +5092,24 @@ function ImageCanvas({
                     strokeDasharray="5,5"
                     opacity="0.8"
                   />
+                  {/* 水平线标识背景 */}
+                  <rect
+                    x={referencePoint.x + lineLength/2 + 7}
+                    y={referencePoint.y - 6}
+                    width="28"
+                    height="16"
+                    fill="white"
+                    opacity="0.9"
+                    rx="2"
+                  />
                   {/* 水平线标识 */}
                   <text
-                    x={referencePoint.x + lineLength/2 + 10}
-                    y={referencePoint.y + 5}
+                    x={referencePoint.x + lineLength/2 + 21}
+                    y={referencePoint.y + 4.2}
                     fill="#00ff00"
                     fontSize="12"
                     fontWeight="bold"
+                    textAnchor="middle"
                   >
                     HRL
                   </text>
@@ -5062,13 +5138,24 @@ function ImageCanvas({
                     strokeDasharray="5,5"
                     opacity="0.8"
                   />
+                  {/* 水平线标识背景 */}
+                  <rect
+                    x={referencePoint.x + lineLength/2 + 7}
+                    y={referencePoint.y - 6}
+                    width="28"
+                    height="16"
+                    fill="white"
+                    opacity="0.9"
+                    rx="2"
+                  />
                   {/* 水平线标识 */}
                   <text
-                    x={referencePoint.x + lineLength/2 + 10}
-                    y={referencePoint.y + 5}
+                    x={referencePoint.x + lineLength/2 + 21}
+                    y={referencePoint.y + 4.2}
                     fill="#00ff00"
                     fontSize="12"
                     fontWeight="bold"
+                    textAnchor="middle"
                   >
                     HRL
                   </text>
@@ -5097,13 +5184,24 @@ function ImageCanvas({
                     strokeDasharray="5,5"
                     opacity="0.8"
                   />
+                  {/* 水平线标识背景 */}
+                  <rect
+                    x={referencePoint.x + lineLength/2 + 7}
+                    y={referencePoint.y - 6}
+                    width="28"
+                    height="16"
+                    fill="white"
+                    opacity="0.9"
+                    rx="2"
+                  />
                   {/* 水平线标识 */}
                   <text
-                    x={referencePoint.x + lineLength/2 + 10}
-                    y={referencePoint.y + 5}
+                    x={referencePoint.x + lineLength/2 + 21}
+                    y={referencePoint.y + 4.2}
                     fill="#00ff00"
                     fontSize="12"
                     fontWeight="bold"
+                    textAnchor="middle"
                   >
                     HRL
                   </text>
@@ -5132,13 +5230,24 @@ function ImageCanvas({
                     strokeDasharray="5,5"
                     opacity="0.8"
                   />
+                  {/* 垂直线标识背景 */}
+                  <rect
+                    x={referencePoint.x + 7}
+                    y={referencePoint.y - lineLength/2 - 16}
+                    width="26"
+                    height="16"
+                    fill="white"
+                    opacity="0.9"
+                    rx="2"
+                  />
                   {/* 垂直线标识 */}
                   <text
-                    x={referencePoint.x + 10}
-                    y={referencePoint.y - lineLength/2 - 5}
+                    x={referencePoint.x + 20}
+                    y={referencePoint.y - lineLength/2 - 3.8}
                     fill="#00ff00"
                     fontSize="12"
                     fontWeight="bold"
+                    textAnchor="middle"
                   >
                     VL1
                   </text>
@@ -5167,13 +5276,24 @@ function ImageCanvas({
                     strokeDasharray="5,5"
                     opacity="0.8"
                   />
+                  {/* 垂直线标识背景 */}
+                  <rect
+                    x={referencePoint.x + 7}
+                    y={referencePoint.y - lineLength/2 - 16}
+                    width="26"
+                    height="16"
+                    fill="white"
+                    opacity="0.9"
+                    rx="2"
+                  />
                   {/* 垂直线标识 */}
                   <text
-                    x={referencePoint.x + 10}
-                    y={referencePoint.y - lineLength/2 - 5}
+                    x={referencePoint.x + 20}
+                    y={referencePoint.y - lineLength/2 - 3.8}
                     fill="#00ff00"
                     fontSize="12"
                     fontWeight="bold"
+                    textAnchor="middle"
                   >
                     VL1
                   </text>
