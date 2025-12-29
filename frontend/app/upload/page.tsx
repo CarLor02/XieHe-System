@@ -314,11 +314,10 @@ function UploadContent() {
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                dragActive
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 hover:border-gray-400'
-              }`}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-300 hover:border-gray-400'
+                }`}
             >
               <div className="max-w-md mx-auto">
                 <i className="ri-cloud-upload-line w-12 h-12 flex items-center justify-center mx-auto mb-4 text-gray-400 text-4xl"></i>
@@ -339,9 +338,8 @@ function UploadContent() {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer whitespace-nowrap"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer whitespace-nowrap"
                 >
-                  <i className="ri-upload-line w-4 h-4 flex items-center justify-center mr-2"></i>
                   选择文件
                 </label>
               </div>
@@ -421,10 +419,9 @@ function UploadContent() {
                   {allCompleted ? (
                     <button
                       onClick={handleBackToSource}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2 whitespace-nowrap"
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 whitespace-nowrap"
                     >
-                      <i className="ri-arrow-left-line w-4 h-4 flex items-center justify-center"></i>
-                      <span>返回原页面</span>
+                      返回原页面
                     </button>
                   ) : uploadFiles.some(f => f.status === 'uploading') ? (
                     <button

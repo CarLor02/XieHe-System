@@ -3,3 +3,22 @@
 
 /* 导入响应式样式 */
 @import '../styles/responsive.css';
+
+@layer base {
+  /* 强制所有按钮文字居中 */
+  button, 
+  [type='button'], 
+  [type='reset'], 
+  [type='submit'] {
+    text-align: center !important;
+  }
+}
+
+@layer components {
+  /* 强制覆盖可能导致对其问题的样式 */
+  .btn-center-fix {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}

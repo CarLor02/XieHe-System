@@ -53,7 +53,7 @@ const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
       completion_rate: Math.round(
         (((data.total_reports || 0) - (data.pending_analysis || 0)) /
           (data.total_reports || 1)) *
-          100
+        100
       ),
       average_processing_time: 2.5,
       system_alerts: data.pending_analysis > 20 ? 1 : 0,
@@ -136,60 +136,60 @@ const DashboardPage: React.FC = () => {
   // 根据API数据生成统计卡片数据
   const statsData = dashboardData
     ? [
-        {
-          title: '累计患者',
-          value: dashboardData.total_patients,
-          change:
-            dashboardData.new_patients_week > 0
-              ? (dashboardData.new_patients_week /
-                  Math.max(
-                    dashboardData.total_patients -
-                      dashboardData.new_patients_week,
-                    1
-                  )) *
-                100
-              : 0,
-          icon: 'ri-user-line',
-          color: 'blue' as const,
-        },
-        {
-          title: '待处理检查',
-          value: dashboardData.pending_studies,
-          change:
-            dashboardData.studies_today > 0
-              ? (dashboardData.studies_today /
-                  Math.max(
-                    dashboardData.total_studies - dashboardData.studies_today,
-                    1
-                  )) *
-                100
-              : 0,
-          icon: 'ri-image-line',
-          color: 'orange' as const,
-        },
-        {
-          title: '累计检查',
-          value: dashboardData.total_studies,
-          change:
-            dashboardData.studies_week > 0
-              ? (dashboardData.studies_week /
-                  Math.max(
-                    dashboardData.total_studies - dashboardData.studies_week,
-                    1
-                  )) *
-                100
-              : 0,
-          icon: 'ri-gallery-line',
-          color: 'green' as const,
-        },
-        {
-          title: '待处理报告',
-          value: dashboardData.pending_reports,
-          change: dashboardData.completion_rate - 50, // 相对于50%基准的变化
-          icon: 'ri-stethoscope-line',
-          color: 'purple' as const,
-        },
-      ]
+      {
+        title: '累计患者',
+        value: dashboardData.total_patients,
+        change:
+          dashboardData.new_patients_week > 0
+            ? (dashboardData.new_patients_week /
+              Math.max(
+                dashboardData.total_patients -
+                dashboardData.new_patients_week,
+                1
+              )) *
+            100
+            : 0,
+        icon: 'ri-user-line',
+        color: 'blue' as const,
+      },
+      {
+        title: '待处理检查',
+        value: dashboardData.pending_studies,
+        change:
+          dashboardData.studies_today > 0
+            ? (dashboardData.studies_today /
+              Math.max(
+                dashboardData.total_studies - dashboardData.studies_today,
+                1
+              )) *
+            100
+            : 0,
+        icon: 'ri-image-line',
+        color: 'orange' as const,
+      },
+      {
+        title: '累计检查',
+        value: dashboardData.total_studies,
+        change:
+          dashboardData.studies_week > 0
+            ? (dashboardData.studies_week /
+              Math.max(
+                dashboardData.total_studies - dashboardData.studies_week,
+                1
+              )) *
+            100
+            : 0,
+        icon: 'ri-gallery-line',
+        color: 'green' as const,
+      },
+      {
+        title: '待处理报告',
+        value: dashboardData.pending_reports,
+        change: dashboardData.completion_rate - 50, // 相对于50%基准的变化
+        icon: 'ri-stethoscope-line',
+        color: 'purple' as const,
+      },
+    ]
     : [];
 
   return (
@@ -214,17 +214,15 @@ const DashboardPage: React.FC = () => {
             <div className="flex space-x-3">
               <Link
                 href="/upload"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 whitespace-nowrap"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap"
               >
-                <i className="ri-upload-line w-4 h-4 flex items-center justify-center"></i>
-                <span>上传影像</span>
+                上传影像
               </Link>
               <Link
                 href="/patients"
-                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center space-x-2 whitespace-nowrap"
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap"
               >
-                <i className="ri-user-add-line w-4 h-4 flex items-center justify-center"></i>
-                <span>新增患者</span>
+                新增患者
               </Link>
             </div>
           </div>

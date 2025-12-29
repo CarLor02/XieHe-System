@@ -253,9 +253,8 @@ export default function EnhancedPatientsPage() {
   const getStatusBadge = (isActive: boolean) => {
     return (
       <span
-        className={`px-2 py-1 rounded-full text-xs font-medium ${
-          isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}
+        className={`px-2 py-1 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}
       >
         {isActive ? '正常' : '停用'}
       </span>
@@ -281,7 +280,7 @@ export default function EnhancedPatientsPage() {
             </div>
             <button
               onClick={() => router.push('/patients/new')}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2"
             >
               <i className="ri-user-add-line w-4 h-4"></i>
               <span>新增患者</span>
@@ -422,7 +421,7 @@ export default function EnhancedPatientsPage() {
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     上一页
                   </button>
@@ -431,7 +430,7 @@ export default function EnhancedPatientsPage() {
                       setCurrentPage(Math.min(totalPages, currentPage + 1))
                     }
                     disabled={currentPage === totalPages}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     下一页
                   </button>

@@ -169,7 +169,7 @@ XieHe-System/
    ```
 
 5. **初始化数据库**
-   ```bash
+   ```bashcd
    cd backend
    conda activate xiehe
    python scripts/init_database.py

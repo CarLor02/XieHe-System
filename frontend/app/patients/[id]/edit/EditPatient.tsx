@@ -207,7 +207,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? (
                     <>
@@ -238,254 +238,253 @@ export default function EditPatient({ patientId }: { patientId: string }) {
           {/* 表单卡片 */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <form className="divide-y divide-gray-200">
-            {/* 基本信息 */}
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                基本信息
-              </h3>
+              {/* 基本信息 */}
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                  基本信息
+                </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* 姓名 - 占1列 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    姓名 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={e => handleInputChange('name', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="请输入患者姓名"
-                    required
-                  />
-                </div>
-
-                {/* 性别 - 占1列 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    性别 <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.gender}
-                    onChange={e => handleInputChange('gender', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
-                    required
-                  >
-                    <option value="">请选择性别</option>
-                    <option value="男">男</option>
-                    <option value="女">女</option>
-                  </select>
-                </div>
-
-                {/* 患者编号 - 占1列 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    患者编号
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.patient_id}
-                    readOnly
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
-                    placeholder="系统自动生成"
-                  />
-                </div>
-
-                {/* 身份证号 - 占2列 */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    身份证号
-                    <span className="text-xs text-gray-500 ml-2 font-normal">
-                      (输入后自动提取出生日期和性别)
-                    </span>
-                  </label>
-                  <div className="relative">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* 姓名 - 占1列 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      姓名 <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
-                      value={formData.id_card}
-                      onChange={e => handleIdCardChange(e.target.value)}
-                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
-                        idCardError
-                          ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                          : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
-                      }`}
-                      placeholder="请输入18位身份证号码"
-                      maxLength={18}
+                      value={formData.name}
+                      onChange={e => handleInputChange('name', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="请输入患者姓名"
+                      required
                     />
-                    {formData.id_card && !idCardError && (
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <i className="ri-checkbox-circle-fill text-green-500"></i>
-                      </div>
+                  </div>
+
+                  {/* 性别 - 占1列 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      性别 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.gender}
+                      onChange={e => handleInputChange('gender', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                      required
+                    >
+                      <option value="">请选择性别</option>
+                      <option value="男">男</option>
+                      <option value="女">女</option>
+                    </select>
+                  </div>
+
+                  {/* 患者编号 - 占1列 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      患者编号
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.patient_id}
+                      readOnly
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                      placeholder="系统自动生成"
+                    />
+                  </div>
+
+                  {/* 身份证号 - 占2列 */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      身份证号
+                      <span className="text-xs text-gray-500 ml-2 font-normal">
+                        (输入后自动提取出生日期和性别)
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formData.id_card}
+                        onChange={e => handleIdCardChange(e.target.value)}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${idCardError
+                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                            : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                          }`}
+                        placeholder="请输入18位身份证号码"
+                        maxLength={18}
+                      />
+                      {formData.id_card && !idCardError && (
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          <i className="ri-checkbox-circle-fill text-green-500"></i>
+                        </div>
+                      )}
+                    </div>
+                    {idCardError && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {idCardError}
+                      </p>
                     )}
                   </div>
-                  {idCardError && (
-                    <p className="mt-2 text-sm text-red-600">
-                      {idCardError}
-                    </p>
-                  )}
-                </div>
 
-                {/* 出生日期 - 占1列 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    出生日期 <span className="text-red-500">*</span>
-                  </label>
-                  <BirthDatePicker
-                    value={formData.birth_date}
-                    onChange={handleBirthDateChange}
-                    required={true}
-                  />
+                  {/* 出生日期 - 占1列 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      出生日期 <span className="text-red-500">*</span>
+                    </label>
+                    <BirthDatePicker
+                      value={formData.birth_date}
+                      onChange={handleBirthDateChange}
+                      required={true}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* 联系信息 */}
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                联系信息
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* 联系电话 - 占1列 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    联系电话 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={e => handleInputChange('phone', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="请输入手机号码"
-                    required
-                  />
-                </div>
-
-                {/* 电子邮箱 - 占1列 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    电子邮箱
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={e => handleInputChange('email', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="example@email.com"
-                  />
-                </div>
-
-                {/* 医保号 - 占1列 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    医保号
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.insurance_number}
-                    onChange={e =>
-                      handleInputChange('insurance_number', e.target.value)
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="请输入医保卡号"
-                  />
-                </div>
-
-                {/* 家庭地址 - 占3列（全宽） */}
-                <div className="md:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    家庭地址
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={e => handleInputChange('address', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="请输入家庭地址"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 紧急联系人信息 */}
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                紧急联系人
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 紧急联系人姓名 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    联系人姓名
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.emergency_contact_name}
-                    onChange={e =>
-                      handleInputChange('emergency_contact_name', e.target.value)
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="请输入紧急联系人姓名"
-                  />
-                </div>
-
-                {/* 紧急联系电话 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    联系人电话
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.emergency_contact_phone}
-                    onChange={e =>
-                      handleInputChange('emergency_contact_phone', e.target.value)
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="请输入紧急联系电话"
-                  />
-                </div>
-              </div>
-            </div>
-
-          </form>
-        </div>
-
-        {/* 保存确认弹窗 */}
-        {showSaveModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-96">
-              <div className="flex items-center mb-4">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                  <i className="ri-check-line text-green-600 text-xl"></i>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  保存成功
+              {/* 联系信息 */}
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                  联系信息
                 </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* 联系电话 - 占1列 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      联系电话 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={e => handleInputChange('phone', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="请输入手机号码"
+                      required
+                    />
+                  </div>
+
+                  {/* 电子邮箱 - 占1列 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      电子邮箱
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={e => handleInputChange('email', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="example@email.com"
+                    />
+                  </div>
+
+                  {/* 医保号 - 占1列 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      医保号
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.insurance_number}
+                      onChange={e =>
+                        handleInputChange('insurance_number', e.target.value)
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="请输入医保卡号"
+                    />
+                  </div>
+
+                  {/* 家庭地址 - 占3列（全宽） */}
+                  <div className="md:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      家庭地址
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={e => handleInputChange('address', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="请输入家庭地址"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <p className="text-gray-600 mb-6">患者信息已成功更新！</p>
+              {/* 紧急联系人信息 */}
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                  紧急联系人
+                </h3>
 
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => {
-                    setShowSaveModal(false);
-                    router.push(`/patients/${patientId}`);
-                  }}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
-                >
-                  返回详情页
-                </button>
-                <button
-                  onClick={() => setShowSaveModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
-                >
-                  继续编辑
-                </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 紧急联系人姓名 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      联系人姓名
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.emergency_contact_name}
+                      onChange={e =>
+                        handleInputChange('emergency_contact_name', e.target.value)
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="请输入紧急联系人姓名"
+                    />
+                  </div>
+
+                  {/* 紧急联系电话 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      联系人电话
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.emergency_contact_phone}
+                      onChange={e =>
+                        handleInputChange('emergency_contact_phone', e.target.value)
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="请输入紧急联系电话"
+                    />
+                  </div>
+                </div>
+              </div>
+
+            </form>
+          </div>
+
+          {/* 保存确认弹窗 */}
+          {showSaveModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-96">
+                <div className="flex items-center mb-4">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                    <i className="ri-check-line text-green-600 text-xl"></i>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    保存成功
+                  </h3>
+                </div>
+
+                <p className="text-gray-600 mb-6">患者信息已成功更新！</p>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowSaveModal(false);
+                      router.push(`/patients/${patientId}`);
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap flex items-center justify-center"
+                  >
+                    返回详情页
+                  </button>
+                  <button
+                    onClick={() => setShowSaveModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap flex items-center justify-center"
+                  >
+                    继续编辑
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </main>
     </div>

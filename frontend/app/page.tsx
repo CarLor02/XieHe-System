@@ -92,7 +92,7 @@ export default function Home() {
           (((dashboardResult.total_reports || 0) -
             (dashboardResult.pending_analysis || 0)) /
             (dashboardResult.total_reports || 1)) *
-            100
+          100
         ),
         average_processing_time: dashboardResult.average_processing_time || 0,
       };
@@ -189,13 +189,13 @@ export default function Home() {
                   <>
                     <Link
                       href="/dashboard"
-                      className="bg-white text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 font-medium transition-colors"
+                      className="bg-white text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 font-medium transition-colors inline-flex items-center justify-center"
                     >
                       进入工作台
                     </Link>
                     <Link
                       href="/upload"
-                      className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-400 font-medium transition-colors"
+                      className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-400 font-medium transition-colors inline-flex items-center justify-center"
                     >
                       上传影像
                     </Link>
@@ -204,13 +204,13 @@ export default function Home() {
                   <>
                     <Link
                       href="/auth/login"
-                      className="bg-white text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 font-medium transition-colors"
+                      className="bg-white text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 font-medium transition-colors inline-flex items-center justify-center"
                     >
                       立即登录
                     </Link>
                     <Link
                       href="/auth/register"
-                      className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-400 font-medium transition-colors"
+                      className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-400 font-medium transition-colors inline-flex items-center justify-center"
                     >
                       注册账号
                     </Link>

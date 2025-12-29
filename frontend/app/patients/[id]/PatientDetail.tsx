@@ -179,7 +179,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               <p className="text-gray-600 mb-4">{error || '患者不存在'}</p>
               <button
                 onClick={() => router.back()}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center"
               >
                 返回
               </button>
@@ -216,17 +216,15 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
             <div className="flex space-x-3">
               <Link
                 href={`/patients/${patientId}/edit`}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors shadow-sm hover:shadow"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow"
               >
-                <i className="ri-edit-line"></i>
-                <span>编辑信息</span>
+                编辑信息
               </Link>
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center space-x-2 transition-colors shadow-sm hover:shadow"
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors shadow-sm hover:shadow"
               >
-                <i className="ri-delete-bin-line"></i>
-                <span>删除患者</span>
+                删除患者
               </button>
             </div>
           </div>
@@ -237,11 +235,10 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">基本信息</h3>
                 <span
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    patient.status === 'active'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm ${patient.status === 'active'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-800'
+                    }`}
                 >
                   {patient.status === 'active' ? '活跃' : '非活跃'}
                 </span>
@@ -480,10 +477,9 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               <h3 className="text-lg font-semibold text-gray-900">检查记录</h3>
               <Link
                 href={`/upload?returnTo=/patients/${patientId}&patientId=${patient.patient_id}&patientName=${encodeURIComponent(patient.name)}`}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
-                <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-                <span>新增检查</span>
+                新增检查
               </Link>
             </div>
 
@@ -531,13 +527,12 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                         </td>
                         <td className="px-4 py-4">
                           <span
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              study.status === 'completed'
-                                ? 'bg-green-100 text-green-800'
-                                : study.status === 'pending'
-                                  ? 'bg-orange-100 text-orange-800'
-                                  : 'bg-gray-100 text-gray-800'
-                            }`}
+                            className={`text-xs px-2 py-1 rounded-full ${study.status === 'completed'
+                              ? 'bg-green-100 text-green-800'
+                              : study.status === 'pending'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-gray-100 text-gray-800'
+                              }`}
                           >
                             {study.status === 'completed'
                               ? '已完成'
@@ -586,7 +581,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               <div className="flex space-x-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
                 >
                   取消
                 </button>
@@ -602,7 +597,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                       setShowDeleteModal(false);
                     }
                   }}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center"
                 >
                   确认删除
                 </button>

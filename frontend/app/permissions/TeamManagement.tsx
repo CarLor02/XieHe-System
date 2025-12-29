@@ -133,13 +133,13 @@ export default function TeamManagement() {
   const currentMember = useMemo(
     () => {
       if (!user) return null;
-      
+
       // user 的结构是 { user: { id, username, ... } }
       const actualUser = (user as any).user || user;
       const userId = actualUser.id;
-      
+
       if (!userId) return null;
-      
+
       // 确保类型一致再比较
       return members.find(member => Number(member.id) === Number(userId)) ?? null;
     },
@@ -369,7 +369,7 @@ export default function TeamManagement() {
 
     try {
       setSavingRoles(true);
-      
+
       // 逐个提交修改
       for (const change of changes) {
         await updateMemberRole(selectedTeamId, change.userId, change.newRole as 'ADMIN' | 'MEMBER');
@@ -378,7 +378,7 @@ export default function TeamManagement() {
       setSuccessMessage(`已成功修改 ${changes.length} 个成员的角色`);
       setIsRoleEditMode(false);
       setEditedRoles({});
-      
+
       // 刷新成员列表
       await loadMembers(selectedTeamId);
     } catch (err: any) {
@@ -434,7 +434,6 @@ export default function TeamManagement() {
                 onClick={() => setCreateModalOpen(true)}
                 className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
-                <i className="ri-add-line mr-1" />
                 创建团队
               </button>
 
@@ -442,7 +441,6 @@ export default function TeamManagement() {
                 onClick={() => setSearchTeamModalOpen(true)}
                 className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                <i className="ri-search-line mr-1" />
                 搜索团队
               </button>
             </>
@@ -452,7 +450,6 @@ export default function TeamManagement() {
               onClick={() => setSearchTeamModalOpen(true)}
               className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              <i className="ri-search-line mr-1" />
               搜索团队
             </button>
           )}
@@ -474,15 +471,14 @@ export default function TeamManagement() {
               {myTeams.map(team => {
                 const isPending = team.join_status === 'PENDING' || team.join_status === 'pending';
                 const isSelected = team.id === selectedTeamId;
-                
+
                 return (
                   <div
                     key={team.id}
-                    className={`relative w-full px-4 py-3 text-left transition ${
-                      isPending 
-                        ? 'bg-gray-50 opacity-90' 
+                    className={`relative w-full px-4 py-3 text-left transition ${isPending
+                        ? 'bg-gray-50 opacity-90'
                         : 'hover:bg-gray-50 cursor-pointer'
-                    } ${isSelected ? 'bg-blue-50' : ''}`}
+                      } ${isSelected ? 'bg-blue-50' : ''}`}
                     onClick={() => !isPending && setSelectedTeamId(team.id)}
                   >
                     <div className="flex items-start justify-between">
@@ -667,7 +663,7 @@ export default function TeamManagement() {
                               <span className="text-sm font-medium text-gray-900">
                                 {member.real_name || member.username}
                               </span>
-                              {member.is_creator && (  
+                              {member.is_creator && (
                                 <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
                                   创建者
                                 </span>
@@ -690,9 +686,8 @@ export default function TeamManagement() {
                             </select>
                           ) : (
                             <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                                STATUS_BADGE_MAP[member.status] || 'bg-gray-100 text-gray-500'
-                              }`}
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_MAP[member.status] || 'bg-gray-100 text-gray-500'
+                                }`}
                             >
                               {ROLE_LABEL_MAP[editedRoles[member.id] || member.role] || member.role}
                             </span>
@@ -776,9 +771,8 @@ export default function TeamManagement() {
                               </>
                             ) : (
                               <span
-                                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                                  STATUS_BADGE_MAP[request.status] || 'bg-gray-100 text-gray-500'
-                                }`}
+                                className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_MAP[request.status] || 'bg-gray-100 text-gray-500'
+                                  }`}
                               >
                                 {REQUEST_STATUS_MAP[request.status] || request.status}
                               </span>
@@ -895,11 +889,11 @@ export default function TeamManagement() {
 
       {/* 搜索团队模态框 */}
       {searchTeamModalOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
           onClick={() => setSearchTeamModalOpen(false)}
         >
-          <div 
+          <div
             className="w-full max-w-3xl rounded-lg bg-white shadow-xl"
             onClick={e => e.stopPropagation()}
           >

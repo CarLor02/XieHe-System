@@ -218,13 +218,13 @@ export default function ImagingPage() {
           const studyId = parseInt(imageId.replace('IMG', '').replace(/^0+/, '') || '0');
           const { accessToken } = useAuthStore.getState();
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-          
+
           const response = await fetch(`${apiUrl}/api/v1/upload/files/${studyId}`, {
             headers: {
               Authorization: `Bearer ${accessToken}`,
             },
           });
-          
+
           if (response.ok) {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
@@ -248,13 +248,13 @@ export default function ImagingPage() {
           try {
             // 从imageId中提取studyId: IMG001 -> 1
             const studyId = parseInt(imageId.replace('IMG', '').replace(/^0+/, '') || '0');
-            
+
             const client = createAuthenticatedClient();
             await client.delete(`/api/v1/studies/${studyId}`);
-            
+
             // 删除成功后，从列表中移除该影像
             setStudies(prev => prev.filter(study => study.id !== studyId));
-            
+
             // 清理缩略图URL
             setThumbnailUrls(prev => {
               const newUrls = { ...prev };
@@ -264,7 +264,7 @@ export default function ImagingPage() {
               }
               return newUrls;
             });
-            
+
             // 显示成功提示
             alert('影像删除成功');
           } catch (error: any) {
@@ -340,21 +340,18 @@ export default function ImagingPage() {
             <div className="flex items-center space-x-3">
               <Link
                 href="/upload?returnTo=/imaging"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 whitespace-nowrap"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap"
               >
-                <i className="ri-upload-line w-4 h-4 flex items-center justify-center"></i>
-                <span>上传影像</span>
+                上传影像
               </Link>
               <Link
                 href="/imaging/comparison"
-                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center space-x-2 whitespace-nowrap"
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap"
               >
-                <i className="ri-layout-column-line w-4 h-4 flex items-center justify-center"></i>
-                <span>影像对比</span>
+                影像对比
               </Link>
-              <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center space-x-2 whitespace-nowrap">
-                <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
-                <span>批量下载</span>
+              <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap">
+                批量下载
               </button>
             </div>
           </div>
@@ -377,16 +374,14 @@ export default function ImagingPage() {
               {/* 筛选按钮 */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`px-4 py-2 border rounded-lg flex items-center space-x-2 ${
-                  showFilters
-                    ? 'bg-blue-50 border-blue-300 text-blue-600'
-                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`px-4 py-2 border rounded-lg ${showFilters
+                  ? 'bg-blue-50 border-blue-300 text-blue-600'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
               >
-                <i className="ri-filter-line w-4 h-4 flex items-center justify-center"></i>
-                <span>筛选</span>
+                筛选
                 {(selectedExamType !== 'all' || dateFrom || dateTo) && (
-                  <span className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="ml-1 bg-blue-500 text-white text-xs rounded-full px-1.5">
                     !
                   </span>
                 )}
@@ -404,21 +399,19 @@ export default function ImagingPage() {
               <div className="flex border rounded-lg">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1.5 ${
-                    viewMode === 'grid'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
+                  className={`px-3 py-1.5 ${viewMode === 'grid'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                    }`}
                 >
                   <i className="ri-grid-line w-4 h-4 flex items-center justify-center"></i>
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`px-3 py-1.5 ${
-                    viewMode === 'list'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
+                  className={`px-3 py-1.5 ${viewMode === 'list'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                    }`}
                 >
                   <i className="ri-list-check w-4 h-4 flex items-center justify-center"></i>
                 </button>
@@ -519,11 +512,10 @@ export default function ImagingPage() {
                         )}
                         <div className="absolute top-2 right-2">
                           <span
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              image.status === 'pending'
-                                ? 'bg-orange-500/80 text-white'
-                                : 'bg-green-500/80 text-white'
-                            }`}
+                            className={`text-xs px-2 py-1 rounded-full ${image.status === 'pending'
+                              ? 'bg-orange-500/80 text-white'
+                              : 'bg-green-500/80 text-white'
+                              }`}
                           >
                             {image.status === 'pending' ? '待审核' : '已审核'}
                           </span>
@@ -564,9 +556,9 @@ export default function ImagingPage() {
                                 openDropdown === image.id ? null : image.id
                               )
                             }
-                            className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer"
+                            className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
                           >
-                            <i className="ri-more-line w-4 h-4 flex items-center justify-center"></i>
+                            更多
                           </button>
 
                           {/* 下拉菜单 */}
@@ -647,11 +639,10 @@ export default function ImagingPage() {
                             </span>
                           </div>
                           <span
-                            className={`text-sm px-3 py-1 rounded-full ${
-                              image.status === 'pending'
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-green-100 text-green-800'
-                            }`}
+                            className={`text-sm px-3 py-1 rounded-full ${image.status === 'pending'
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-green-100 text-green-800'
+                              }`}
                           >
                             {image.status === 'pending' ? '待审核' : '已审核'}
                           </span>

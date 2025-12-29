@@ -187,9 +187,8 @@ export default function ModelCenter() {
             </div>
 
             <div className="flex space-x-3">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 whitespace-nowrap">
-                <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-                <span>添加模型</span>
+              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap">
+                添加模型
               </button>
             </div>
           </div>
