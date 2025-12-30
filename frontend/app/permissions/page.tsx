@@ -6,7 +6,6 @@ import { useUser } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import DataPermissions from './DataPermissions';
-import ModelPermissions from './ModelPermissions';
 import TeamManagement from './TeamManagement';
 
 export default function PermissionsPage() {
@@ -54,7 +53,6 @@ export default function PermissionsPage() {
 
   const tabs = [
     { id: 'team', name: '团队管理', icon: 'ri-team-line' },
-    { id: 'models', name: '模型权限', icon: 'ri-cpu-line' },
     { id: 'data', name: '数据权限', icon: 'ri-database-line' },
   ];
 
@@ -80,11 +78,10 @@ export default function PermissionsPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors ${
-                      activeTab === tab.id
+                    className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <i
                       className={`${tab.icon} w-4 h-4 flex items-center justify-center`}
@@ -97,7 +94,6 @@ export default function PermissionsPage() {
 
             <div className="p-6">
               {activeTab === 'team' && <TeamManagement />}
-              {activeTab === 'models' && <ModelPermissions />}
               {activeTab === 'data' && <DataPermissions />}
             </div>
           </div>

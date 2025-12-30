@@ -123,8 +123,8 @@ export const useAuthStore = create<AuthState>()(
           if (error.response) {
             // 服务器返回了错误响应
             errorMessage = error.response.data?.message ||
-                          error.response.data?.detail ||
-                          `服务器错误 (${error.response.status})`;
+              error.response.data?.detail ||
+              `服务器错误 (${error.response.status})`;
           } else if (error.request) {
             // 请求已发出但没有收到响应
             errorMessage = '无法连接到服务器，请检查网络连接';
@@ -361,7 +361,9 @@ export const createAuthenticatedClient = (): AxiosInstance => {
 
   // 响应拦截器：自动处理令牌刷新和重定向
   client.interceptors.response.use(
-    response => response,
+    response => {
+      return response;
+    },
     async error => {
       const originalRequest = error.config;
 

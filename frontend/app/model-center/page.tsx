@@ -3,125 +3,80 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import UserSettings from '@/components/UserSettings';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import AddModelDialog from './AddModelDialog';
+import TestModelDialog from './TestModelDialog';
 import ModelCard from './ModelCard';
+import { createAuthenticatedClient, useUser } from '@/store/authStore';
+import { useRouter } from 'next/navigation';
 
 interface ModelData {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  view_type: string;
+  endpoint_url: string;
   status: string;
+  isActive: boolean;
   accuracy: string;
   lastUpdated: string;
   category: string;
+  icon: string;
 }
 
-// 辅助函数
-const getModelIcon = (modelType: string): string => {
-  const iconMap: { [key: string]: string } = {
-    classification: 'ri-file-list-3-line',
-    detection: 'ri-search-eye-line',
-    segmentation: 'ri-scissors-cut-line',
-    prediction: 'ri-crystal-ball-line',
-  };
-  return iconMap[modelType] || 'ri-cpu-line';
-};
-
-const getModelStatus = (status: string): string => {
-  const statusMap: { [key: string]: string } = {
-    training: '训练中',
-    ready: '就绪',
-    deployed: '运行中',
-    stopped: '已停止',
-    error: '错误',
-  };
-  return statusMap[status] || status;
-};
-
-const getModelCategory = (modelType: string): string => {
-  const categoryMap: { [key: string]: string } = {
-    classification: '分类模型',
-    detection: '检测模型',
-    segmentation: '分割模型',
-    prediction: '预测模型',
-  };
-  return categoryMap[modelType] || '其他模型';
-};
-
 export default function ModelCenter() {
+  const router = useRouter();
+  const { user } = useUser();
+  const isAdmin = user?.is_system_admin || user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'team_admin';
   const [showUserSettings, setShowUserSettings] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [testModel, setTestModel] = useState<{ id: string, name: string } | null>(null);
+
+  const [activeTab, setActiveTab] = useState('all');
   const [models, setModels] = useState<ModelData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<any>(null);
 
-  // 备用模型数据（当API调用失败时使用）
-  const fallbackModels: ModelData[] = [
-    {
-      id: 'preop-prediction',
-      title: '术前X线预测术后X线模型',
-      description:
-        '基于深度学习算法，通过分析术前X线影像，预测手术后的X线影像结果，帮助医生制定更精准的手术方案。',
-      icon: 'ri-surgical-mask-line',
-      status: '运行中',
-      accuracy: '94.2%',
-      lastUpdated: '2024-03-15',
-      category: '预测模型',
-    },
-    {
-      id: 'brace-effectiveness',
-      title: '支具有效性预测模型',
-      description:
-        '智能分析患者脊柱状况和支具参数，预测支具治疗的有效性，为支具选择和调整提供科学依据。',
-      icon: 'ri-shield-check-line',
-      status: '运行中',
-      accuracy: '91.8%',
-      lastUpdated: '2024-03-12',
-      category: '治疗评估',
-    },
-    {
-      id: 'smart-annotation',
-      title: '智能标注测量模型',
-      description:
-        '自动识别和标注X线影像中的关键解剖结构，精确测量各项脊柱参数，提高诊断效率和准确性。',
-      icon: 'ri-ruler-line',
-      status: '运行中',
-      accuracy: '96.5%',
-      lastUpdated: '2024-03-18',
-      category: '辅助诊断',
-    },
-  ];
-
-  // 加载模型数据
   const loadModels = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // 从API加载模型数据
       const { createAuthenticatedClient } = await import('@/store/authStore');
       const client = createAuthenticatedClient();
-      const response = await client.get('/api/v1/models/');
 
-      // 转换API数据格式以匹配前端接口
+      const response = await client.get('/api/v1/models/', {
+        params: { page_size: 100 }
+      });
+
+      try {
+        const statsRes = await client.get('/api/v1/models/stats');
+        setStats(statsRes.data);
+      } catch (e) {
+        console.error("Stats fetch failed", e);
+      }
+
       const apiModels = response.data.models || [];
       const convertedModels: ModelData[] = apiModels.map((model: any) => ({
         id: model.id,
         title: model.name,
         description: model.description || '',
-        icon: getModelIcon(model.model_type),
-        status: getModelStatus(model.status),
-        accuracy: `${(model.accuracy * 100).toFixed(1)}%`,
+        view_type: model.view_type,
+        endpoint_url: model.endpoint_url,
+        status: model.status || 'ready',
+        isActive: model.is_active,
+        accuracy: '0%',
         lastUpdated: new Date(model.updated_at).toLocaleDateString('zh-CN'),
-        category: getModelCategory(model.model_type),
+        category: model.view_type === 'front' ? '正面' : model.view_type === 'side' ? '侧面' : '其他',
+        icon: 'ri-cpu-line'
       }));
 
       setModels(convertedModels);
     } catch (err: any) {
       console.error('Failed to load models:', err);
       setError('加载模型数据失败');
-      // 如果API调用失败，使用备用数据
-      setModels(fallbackModels);
     } finally {
       setLoading(false);
     }
@@ -131,47 +86,10 @@ export default function ModelCenter() {
     loadModels();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-        <main className="ml-64 p-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-gray-200 rounded-lg h-64"></div>
-              ))}
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-        <main className="ml-64 p-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-            <div className="text-red-600 mb-4">
-              <i className="ri-error-warning-line text-4xl mb-2"></i>
-              <p className="text-lg font-semibold">{error}</p>
-            </div>
-            <button
-              onClick={loadModels}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              重试
-            </button>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  const filteredModels = models.filter(m => {
+    if (activeTab === 'all') return true;
+    return m.view_type === activeTab;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -180,139 +98,125 @@ export default function ModelCenter() {
 
       <main className="ml-64 p-6">
         <div className="mb-8">
+          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">模型中心</h1>
-              <p className="text-gray-600 mt-1">智能AI模型助力精准医疗诊断</p>
+              <p className="text-gray-600 mt-1">管理和配置您的AI影像分析模型</p>
             </div>
 
-            <div className="flex space-x-3">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap">
-                添加模型
-              </button>
-            </div>
-          </div>
-
-          {/* 统计概览 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">总模型数</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {models.length}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <i className="ri-cpu-line text-blue-600 w-6 h-6 flex items-center justify-center"></i>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">运行中模型</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {models.filter(m => m.status === '运行中').length}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <i className="ri-play-circle-line text-green-600 w-6 h-6 flex items-center justify-center"></i>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">平均准确率</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {models.length > 0
-                      ? `${Math.round(models.reduce((acc, m) => acc + parseFloat(m.accuracy), 0) / models.length)}%`
-                      : '0%'}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <i className="ri-medal-line text-purple-600 w-6 h-6 flex items-center justify-center"></i>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">今日调用</p>
-                  <p className="text-2xl font-bold text-gray-900">156</p>
-                </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <i className="ri-api-line text-orange-600 w-6 h-6 flex items-center justify-center"></i>
-                </div>
-              </div>
+            <div className="flex items-center space-x-4">
+              {isAdmin && (
+                <Link href="/model-center/settings" className="text-gray-600 hover:text-blue-600 flex items-center">
+                  <i className="ri-settings-3-line mr-1"></i>
+                  模型设置
+                </Link>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={() => setShowAddDialog(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+                >
+                  <i className="ri-add-line mr-1"></i>
+                  添加模型
+                </button>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* 模型列表 */}
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">可用模型</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {models.map(model => (
-              <ModelCard key={model.id} model={model} />
-            ))}
+          {/* Stats Overview */}
+          {stats && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                <p className="text-gray-500 text-sm">总模型数</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.total_models}</p>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                <p className="text-gray-500 text-sm">活跃模型</p>
+                <p className="text-3xl font-bold text-green-600 mt-1">{stats.active_models}</p>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                <p className="text-gray-500 text-sm">正面视角模型</p>
+                <p className="text-3xl font-bold text-blue-600 mt-1">{stats.view_distribution?.front || 0}</p>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                <p className="text-gray-500 text-sm">侧面视角模型</p>
+                <p className="text-3xl font-bold text-purple-600 mt-1">{stats.view_distribution?.side || 0}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="-mb-px flex space-x-8">
+              {[
+                { id: 'all', label: '全部模型' },
+                { id: 'front', label: '正面模型' },
+                { id: 'side', label: '侧面模型' },
+                { id: 'other', label: '其他' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                    ${activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }
+                  `}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
           </div>
-        </div>
 
-        {/* 最近活动 */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">最近活动</h3>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <i className="ri-cpu-line text-blue-600 w-4 h-4 flex items-center justify-center"></i>
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-900 font-medium">
-                  智能标注测量模型已更新
-                </p>
-                <p className="text-gray-600 text-sm">更新至版本 v2.1.3</p>
-                <p className="text-gray-400 text-xs mt-1">2024-03-18 14:30</p>
-              </div>
+          {/* Model List */}
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-
-            <div className="flex items-start space-x-3">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <i className="ri-check-line text-green-600 w-4 h-4 flex items-center justify-center"></i>
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-900 font-medium">
-                  术前预测模型训练完成
-                </p>
-                <p className="text-gray-600 text-sm">新版本已部署到生产环境</p>
-                <p className="text-gray-400 text-xs mt-1">2024-03-15 09:15</p>
-              </div>
+          ) : filteredModels.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredModels.map(model => (
+                <ModelCard
+                  key={model.id}
+                  model={model}
+                  onTestClick={(m) => setTestModel({ id: m.id, name: m.title })}
+                />
+              ))}
             </div>
-
-            <div className="flex items-start space-x-3">
-              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <i className="ri-shield-check-line text-orange-600 w-4 h-4 flex items-center justify-center"></i>
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-900 font-medium">支具有效性模型优化</p>
-                <p className="text-gray-600 text-sm">处理速度提升30%</p>
-                <p className="text-gray-400 text-xs mt-1">2024-03-12 16:45</p>
-              </div>
+          ) : (
+            <div className="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300">
+              <i className="ri-inbox-line text-4xl text-gray-300 mb-2"></i>
+              <p className="text-gray-500">暂无该类型的模型数据</p>
+              <p className="text-gray-400 text-sm mt-2">Current Tab: {activeTab}, Models loaded: {models.length}</p>
             </div>
-          </div>
+          )}
         </div>
       </main>
 
-      {/* 用户设置弹窗 */}
       <UserSettings
         isOpen={showUserSettings}
         onClose={() => setShowUserSettings(false)}
         type="profile"
       />
+
+      <AddModelDialog
+        isOpen={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onSuccess={loadModels}
+      />
+
+      {testModel && (
+        <TestModelDialog
+          isOpen={!!testModel}
+          modelId={testModel.id}
+          modelName={testModel.name}
+          onClose={() => setTestModel(null)}
+        />
+      )}
     </div>
   );
 }
