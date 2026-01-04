@@ -46,9 +46,17 @@ ENV CI=true
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
+# 安全加固：禁用不必要的工具
+RUN apk del apk-tools --no-cache || true
+
 # 创建非root用户
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
+
+# 清理可能的恶意文件位置
+RUN rm -rf /tmp/* /var/tmp/* /dev/shm/* && \
+    mkdir -p /tmp /var/tmp && \
+    chmod 1777 /tmp /var/tmp
 
 # 复制必要文件
 COPY --from=builder /app/.next/standalone ./
@@ -74,5 +82,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # 暴露端口
 EXPOSE 3000
 
-# 启动命令
-CMD ["node", "server.js"]
+# 设置安全的启动命令
+SHELL ["/bin/sh", "-c"]
+CMD ["node", "--max-old-space-size=2048", "--no-warnings", "server.js"]

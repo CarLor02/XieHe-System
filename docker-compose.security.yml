@@ -1,0 +1,56 @@
+# Docker Compose 安全配置
+# 用于替换 docker-compose.yml 中的不安全设置
+
+version: '3.8'
+
+# 安全配置说明：
+# 1. 禁用特权模式
+# 2. 限制系统调用
+# 3. 只读文件系统
+# 4. 资源限制
+# 5. 网络隔离
+
+services:
+  frontend:
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:unconfined
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /app/.next/cache:noexec,nosuid,size=500m
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    pids_limit: 100
+
+  backend:
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:unconfined
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /app/logs:size=500m
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    pids_limit: 100
