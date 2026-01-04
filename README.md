@@ -194,43 +194,47 @@ XieHe-System/
    - API文档: http://localhost:8000/api/v1/docs
    - 健康检查: http://localhost:8000/health
 
-#### 方式二：Docker 完整部署
+#### 方式二：Docker 一键部署（推荐生产环境）
 
-使用 Docker Compose 一键启动所有服务（推荐用于生产环境）。
+使用 Docker Compose 一键启动所有服务，包括 MySQL 数据库自动初始化。
 
-1. **启动所有服务**
+**📖 详细部署指南**: 查看 [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+1. **标准部署**
    ```bash
-   # 使用 Docker Compose 启动所有服务
-   docker compose up -d
-
-   # 或使用启动脚本
-   ./scripts/docker_start_all.sh
+   # 一键部署所有服务
+   ./deploy.sh
    ```
 
-2. **访问应用**
-   - 前端应用: http://localhost:3000
-   - 后端API: http://localhost:8000
-   - API文档: http://localhost:8000/api/v1/docs
+2. **安全部署（推荐生产环境）**
+   ```bash
+   # 包含恶意软件检查的安全部署
+   ./scripts/secure_deploy.sh
+   ```
+
+**部署脚本功能:**
+- ✅ 自动环境检查（Docker、磁盘空间）
+- ✅ 代码拉取和服务备份
+- ✅ Docker 镜像构建
+- ✅ **MySQL 数据库自动初始化**（首次部署自动创建表和测试数据）
+- ✅ 服务启动和健康检查
+- ✅ 安全扫描（secure_deploy.sh）
+
+**访问地址:**
+   - 前端应用: http://your-server-ip:3030
+   - 后端API: http://your-server-ip:8080
+   - API文档: http://your-server-ip:8080/docs
    - MySQL: localhost:3307
    - Redis: localhost:6380
 
-3. **停止服务**
+**停止服务:**
    ```bash
    docker compose down
    ```
 
-#### 方式三：混合模式（数据库 Docker + 应用传统启动）
-
-适合开发环境，数据库使用 Docker，前后端使用传统方式启动。
-
-1. **启动混合模式**
+**查看日志:**
    ```bash
-   ./scripts/start_hybrid.sh
-   ```
-
-2. **停止服务**
-   ```bash
-   ./scripts/stop_all.sh
+   docker compose logs -f
    ```
 
 ### 常用命令

@@ -26,16 +26,17 @@ from dotenv import load_dotenv
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 加载backend目录下的.env文件
+# 加载backend目录下的.env文件（如果存在）
 env_path = os.path.join(project_root, '.env')
-load_dotenv(env_path)
+if os.path.exists(env_path):
+    load_dotenv(env_path)
 
-# 从环境变量读取数据库配置
-MYSQL_HOST = os.getenv("DB_HOST", "127.0.0.1")
-MYSQL_PORT = int(os.getenv("DB_PORT", "3306"))
-MYSQL_USER = os.getenv("DB_USER", "root")
-MYSQL_PASSWORD = os.getenv("DB_PASSWORD", "123456")
-MYSQL_DATABASE = os.getenv("DB_NAME", "medical_imaging_system")
+# 从环境变量读取数据库配置（支持 Docker 环境变量）
+MYSQL_HOST = os.getenv("DB_HOST", os.getenv("MYSQL_HOST", "127.0.0.1"))
+MYSQL_PORT = int(os.getenv("DB_PORT", os.getenv("MYSQL_PORT", "3306")))
+MYSQL_USER = os.getenv("DB_USER", os.getenv("MYSQL_USER", "root"))
+MYSQL_PASSWORD = os.getenv("DB_PASSWORD", os.getenv("MYSQL_PASSWORD", "123456"))
+MYSQL_DATABASE = os.getenv("DB_NAME", os.getenv("MYSQL_DATABASE", "medical_imaging_system"))
 
 # 构建数据库URL
 DATABASE_URL = (

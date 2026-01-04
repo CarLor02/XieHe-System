@@ -228,6 +228,14 @@ health_check() {
     docker compose -f "$COMPOSE_FILE" ps
     echo ""
     
+    # 检查MySQL
+    print_step "检查MySQL数据库..."
+    if docker compose -f "$COMPOSE_FILE" exec -T mysql mysqladmin ping -h localhost -u root -pmedical_root_2024 &> /dev/null; then
+        print_success "MySQL服务正常"
+    else
+        print_warning "MySQL服务异常"
+    fi
+    
     # 检查Redis
     print_step "检查Redis服务..."
     if docker compose -f "$COMPOSE_FILE" exec -T redis redis-cli ping &> /dev/null; then

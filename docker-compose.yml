@@ -20,6 +20,33 @@ services:
       timeout: 10s
       retries: 5
 
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: medical_mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=qweasd2025
+      - MYSQL_DATABASE=medical_imaging_system
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=qweasd2025
+      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
+      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+    ports:
+      - '3307:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - mysql_logs:/var/log/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    command: --default-authentication-plugin=mysql_native_password --max_connections=1000
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-pmedical_root_2024']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # 后端 API 服务
   backend:
     build:
@@ -30,7 +57,13 @@ services:
     environment:
       - PYTHONPATH=/app
       - ENVIRONMENT=production
+      - DATABASE_URL=mysql+pymysql://medical_user:medical_pass_2024@mysql:3306/medical_system
       - REDIS_URL=redis://redis:6379/0
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=medical_user
+      - DB_PASSWORD=medical_pass_2024
+      - DB_NAME=medical_system
       - JWT_SECRET_KEY=dev_jwt_secret_key_2024
       - CORS_ORIGINS=http://115.190.121.59:3030,http://localhost:3030
     ports:
@@ -39,6 +72,8 @@ services:
       - uploads_data:/app/uploads
       - models_data:/app/models
     depends_on:
+      mysql:
+        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -72,6 +107,10 @@ services:
       retries: 3
 
 volumes:
+  mysql_data:
+    driver: local
+  mysql_logs:
+    driver: local
   redis_data:
     driver: local
   redis_logs:
