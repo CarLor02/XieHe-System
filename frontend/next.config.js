@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Docker部署使用standalone模式，开发环境不使用
+  // Docker部署使用standalone模式,开发环境不使用
   output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
 
   images: {
@@ -9,6 +9,22 @@ const nextConfig = {
 
   typescript: {
     ignoreBuildErrors: true,
+  },
+
+  // 生产环境配置
+  swcMinify: true,
+  
+  // 禁用遥测
+  productionBrowserSourceMaps: false,
+  
+  // 优化配置
+  compress: true,
+  
+  // 实验性功能配置
+  experimental: {
+    // 禁用运行时进程管理
+    workerThreads: false,
+    cpus: 1,
   },
 
   // 开发环境API代理配置（备用，当前客户端直接访问后端）
