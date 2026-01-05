@@ -7,6 +7,16 @@ import {
   useAuthStore,
   useUser,
 } from '@/store/authStore';
+import {
+  getMyImages,
+  deleteImageFile,
+  downloadImageFile,
+  getImagePreviewUrl,
+  formatFileSize,
+  formatDate,
+  type ImageFile,
+  type ImageFileFilters
+} from '@/services/imageFileService';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -53,93 +63,59 @@ export default function ImagingPage() {
   const { isAuthenticated } = useUser();
 
   // 数据状态
-  const [studies, setStudies] = useState<Study[]>([]);
+  const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>(
-    {}
-  );
+  const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
 
   // 搜索和筛选状态
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedExamType, setSelectedExamType] = useState('all');
+  const [selectedFileType, setSelectedFileType] = useState<string>('all');
+  const [selectedModality, setSelectedModality] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  // 加载单个缩略图
-  const loadThumbnail = async (studyId: number, imageId: string) => {
-    try {
-      const { accessToken } = useAuthStore.getState();
-
-      if (!accessToken) {
-        console.warn(
-          `No access token available for loading thumbnail ${imageId}`
-        );
-        return;
-      }
-
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/v1/upload/files/${studyId}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        setThumbnailUrls(prev => ({
-          ...prev,
-          [imageId]: blobUrl,
-        }));
-      } else {
-        // 缩略图加载失败时，不显示错误，使用占位图
-        if (response.status === 404) {
-          console.warn(
-            `Thumbnail not found for ${imageId}, will use placeholder`
-          );
-        } else {
-          console.warn(
-            `Failed to load thumbnail for ${imageId}: ${response.status}`
-          );
-        }
-        // 不设置 thumbnailUrl，让组件显示占位图
-      }
-    } catch (error) {
-      console.warn(`Failed to load thumbnail for ${imageId}:`, error);
-      // 不设置 thumbnailUrl，让组件显示占位图
-    }
-  };
-
   // 加载影像数据
-  const loadStudies = async () => {
+  const loadImages = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const client = createAuthenticatedClient();
-      const response = await client.get('/api/v1/studies', {
-        params: {
-          page: 1,
-          page_size: 50,
-        },
-      });
+      const filters: ImageFileFilters = {
+        page: currentPage,
+        page_size: pageSize,
+      };
 
-      const studiesData = response.data.studies || [];
-      setStudies(studiesData);
+      if (searchTerm) filters.search = searchTerm;
+      if (selectedFileType !== 'all') filters.file_type = selectedFileType as any;
+      if (selectedModality !== 'all') filters.modality = selectedModality;
+      if (dateFrom) filters.start_date = dateFrom;
+      if (dateTo) filters.end_date = dateTo;
 
-      // 加载所有缩略图
-      studiesData.forEach((study: Study) => {
-        const imageId = `IMG${study.id.toString().padStart(3, '0')}`;
-        loadThumbnail(study.id, imageId);
-      });
+      const response = await getMyImages(filters);
+      setImageFiles(response.items);
+      setTotal(response.total);
+      
+      // 异步加载图片预览URL
+      const urls: Record<number, string> = {};
+      for (const file of response.items) {
+        try {
+          urls[file.id] = await getImagePreviewUrl(file.id);
+        } catch (error) {
+          console.error(`Failed to load preview for file ${file.id}:`, error);
+        }
+      }
+      setImageUrls(urls);
     } catch (err: any) {
-      console.error('Failed to load studies:', err);
-      // 不再显示错误信息，认证失败会自动跳转到登录页
-      setStudies([]);
+      console.error('Failed to load images:', err);
+      setError('加载影像失败');
+      setImageFiles([]);
     } finally {
       setLoading(false);
     }
@@ -155,89 +131,44 @@ export default function ImagingPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadStudies();
+      loadImages();
     }
-  }, [isAuthenticated]);
-
-  // 将Study数据转换为ImageItem格式
-  const convertStudyToImageItem = (study: Study): ImageItem => {
-    const imageId = `IMG${study.id.toString().padStart(3, '0')}`;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    return {
-      id: imageId,
-      examType: study.study_description || study.modality || '未知类型',
-      studyDate: study.study_date || study.created_at.split('T')[0],
-      status: study.status === 'completed' ? 'reviewed' : 'pending',
-      thumbnailUrl: `${apiUrl}/api/v1/upload/files/${study.id}`,
-      blobUrl: thumbnailUrls[imageId],
-      patient_name: study.patient_name,
-      patient_id: study.patient_id?.toString(),
+    
+    // 清理Object URLs
+    return () => {
+      Object.values(imageUrls).forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
     };
-  };
-
-  // 转换后的影像列表
-  const imageItems = studies.map(convertStudyToImageItem);
-
-  // 筛选后的影像列表
-  const filteredImages = imageItems.filter(image => {
-    const matchesSearch =
-      image.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      image.examType.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesExamType =
-      selectedExamType === 'all' || image.examType === selectedExamType;
-
-    let matchesDate = true;
-    if (dateFrom) {
-      matchesDate =
-        matchesDate && new Date(image.studyDate) >= new Date(dateFrom);
-    }
-    if (dateTo) {
-      matchesDate =
-        matchesDate && new Date(image.studyDate) <= new Date(dateTo);
-    }
-
-    return matchesSearch && matchesExamType && matchesDate;
-  });
+  }, [isAuthenticated, currentPage, searchTerm, selectedFileType, selectedModality, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedExamType('all');
+    setSelectedFileType('all');
+    setSelectedModality('all');
     setDateFrom('');
     setDateTo('');
+    setCurrentPage(1);
   };
 
-  const handleMoreAction = async (imageId: string, action: string) => {
+  const handleMoreAction = async (fileId: number, action: string) => {
     setOpenDropdown(null);
 
     switch (action) {
       case 'download':
-        console.log('下载影像:', imageId);
-        // 在实际应用中这里会触发下载
         try {
-          const studyId = parseInt(imageId.replace('IMG', '').replace(/^0+/, '') || '0');
-          const { accessToken } = useAuthStore.getState();
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-          const response = await fetch(`${apiUrl}/api/v1/upload/files/${studyId}`, {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-
-          if (response.ok) {
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${imageId}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          } else {
-            alert('下载失败，请重试');
-          }
+          const blob = await downloadImageFile(fileId);
+          const url = URL.createObjectURL(blob);
+          const imageFile = imageFiles.find(f => f.id === fileId);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = imageFile?.original_filename || `image_${fileId}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
         } catch (error) {
           console.error('下载失败:', error);
           alert('下载失败，请重试');
@@ -246,26 +177,9 @@ export default function ImagingPage() {
       case 'delete':
         if (confirm('确定要删除这个影像吗？此操作不可撤销。')) {
           try {
-            // 从imageId中提取studyId: IMG001 -> 1
-            const studyId = parseInt(imageId.replace('IMG', '').replace(/^0+/, '') || '0');
-
-            const client = createAuthenticatedClient();
-            await client.delete(`/api/v1/studies/${studyId}`);
-
-            // 删除成功后，从列表中移除该影像
-            setStudies(prev => prev.filter(study => study.id !== studyId));
-
-            // 清理缩略图URL
-            setThumbnailUrls(prev => {
-              const newUrls = { ...prev };
-              if (newUrls[imageId]) {
-                URL.revokeObjectURL(newUrls[imageId]);
-                delete newUrls[imageId];
-              }
-              return newUrls;
-            });
-
-            // 显示成功提示
+            await deleteImageFile(fileId);
+            // 刷新列表
+            loadImages();
             alert('影像删除成功');
           } catch (error: any) {
             console.error('删除影像失败:', error);
@@ -312,7 +226,7 @@ export default function ImagingPage() {
               <p className="text-lg font-semibold">{error}</p>
             </div>
             <button
-              onClick={loadStudies}
+              onClick={loadImages}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               重试
@@ -380,7 +294,7 @@ export default function ImagingPage() {
                   }`}
               >
                 筛选
-                {(selectedExamType !== 'all' || dateFrom || dateTo) && (
+                {(selectedFileType !== 'all' || selectedModality !== 'all' || dateFrom || dateTo) && (
                   <span className="ml-1 bg-blue-500 text-white text-xs rounded-full px-1.5">
                     !
                   </span>
@@ -391,9 +305,8 @@ export default function ImagingPage() {
             {/* 视图切换和统计 */}
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-500">
-                显示 {filteredImages.length} 条记录
-                {filteredImages.length !== imageItems.length &&
-                  ` (共 ${imageItems.length} 条)`}
+                显示 {imageFiles.length} 条记录
+                {total > 0 && ` (共 ${total} 条)`}
               </span>
 
               <div className="flex border rounded-lg">
@@ -424,17 +337,35 @@ export default function ImagingPage() {
             <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  影像类型
+                  文件类型
                 </label>
                 <select
-                  value={selectedExamType}
-                  onChange={e => setSelectedExamType(e.target.value)}
+                  value={selectedFileType}
+                  onChange={e => setSelectedFileType(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
                 >
                   <option value="all">全部类型</option>
-                  <option value="正位X光片">正位X光片</option>
-                  <option value="侧位X光片">侧位X光片</option>
-                  <option value="体态照片">体态照片</option>
+                  <option value="DICOM">DICOM</option>
+                  <option value="JPEG">JPEG</option>
+                  <option value="PNG">PNG</option>
+                  <option value="TIFF">TIFF</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  影像模态
+                </label>
+                <select
+                  value={selectedModality}
+                  onChange={e => setSelectedModality(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+                >
+                  <option value="all">全部模态</option>
+                  <option value="CT">CT</option>
+                  <option value="MR">MR</option>
+                  <option value="XR">X光</option>
+                  <option value="US">超声</option>
                 </select>
               </div>
 
@@ -476,24 +407,23 @@ export default function ImagingPage() {
 
         {/* 影像列表内容 */}
         <div className="bg-white rounded-lg border border-gray-200">
-          {filteredImages.length > 0 ? (
+          {imageFiles.length > 0 ? (
             viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
-                {filteredImages.map(image => (
+                {imageFiles.map(imageFile => (
                   <div
-                    key={image.id}
+                    key={imageFile.id}
                     className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                   >
                     {/* 影像预览 */}
-                    <Link href={`/imaging/${image.id}/viewer`}>
+                    <Link href={`/imaging/${imageFile.id}/viewer`}>
                       <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer flex items-center justify-center">
-                        {image.blobUrl ? (
+                        {imageUrls[imageFile.id] ? (
                           <img
-                            src={image.blobUrl}
-                            alt={`${image.id} - ${image.examType}`}
+                            src={imageUrls[imageFile.id]}
+                            alt={imageFile.original_filename}
                             className="w-full h-full object-contain"
                             onError={(e) => {
-                              // 图片加载失败时显示占位图标
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
                               const parent = target.parentElement;
@@ -507,17 +437,20 @@ export default function ImagingPage() {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <i className="ri-image-line text-4xl"></i>
+                            <i className="ri-loader-4-line text-4xl animate-spin"></i>
                           </div>
                         )}
                         <div className="absolute top-2 right-2">
                           <span
-                            className={`text-xs px-2 py-1 rounded-full ${image.status === 'pending'
-                              ? 'bg-orange-500/80 text-white'
-                              : 'bg-green-500/80 text-white'
+                            className={`text-xs px-2 py-1 rounded-full ${imageFile.status === 'UPLOADED'
+                              ? 'bg-green-500/80 text-white'
+                              : imageFile.status === 'PROCESSING'
+                              ? 'bg-blue-500/80 text-white'
+                              : 'bg-gray-500/80 text-white'
                               }`}
                           >
-                            {image.status === 'pending' ? '待审核' : '已审核'}
+                            {imageFile.status === 'UPLOADED' ? '已上传' : 
+                             imageFile.status === 'PROCESSING' ? '处理中' : imageFile.status}
                           </span>
                         </div>
                       </div>
@@ -526,25 +459,29 @@ export default function ImagingPage() {
                     {/* 影像信息 */}
                     <div className="p-4">
                       <div className="mb-3">
-                        <h3 className="font-semibold text-gray-900 text-lg mb-1">
-                          {image.id}
+                        <h3 className="font-semibold text-gray-900 text-lg mb-1 truncate" title={imageFile.original_filename}>
+                          {imageFile.original_filename}
                         </h3>
-                        <p className="text-blue-600 font-medium">
-                          {image.examType}
+                        <p className="text-blue-600 font-medium text-sm">
+                          {imageFile.modality || imageFile.file_type}
                         </p>
                       </div>
 
                       <div className="space-y-2 text-sm text-gray-600 mb-4">
                         <div className="flex justify-between">
-                          <span>检查日期:</span>
-                          <span className="font-medium">{image.studyDate}</span>
+                          <span>上传日期:</span>
+                          <span className="font-medium">{formatDate(imageFile.created_at)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>文件大小:</span>
+                          <span className="font-medium">{formatFileSize(imageFile.file_size)}</span>
                         </div>
                       </div>
 
                       {/* 操作按钮 */}
                       <div className="flex space-x-2">
                         <Link
-                          href={`/imaging/${image.id}/viewer`}
+                          href={`/imaging/${imageFile.id}/viewer`}
                           className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"
                         >
                           标注分析
@@ -553,7 +490,7 @@ export default function ImagingPage() {
                           <button
                             onClick={() =>
                               setOpenDropdown(
-                                openDropdown === image.id ? null : image.id
+                                openDropdown === imageFile.id.toString() ? null : imageFile.id.toString()
                               )
                             }
                             className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
@@ -562,12 +499,12 @@ export default function ImagingPage() {
                           </button>
 
                           {/* 下拉菜单 */}
-                          {openDropdown === image.id && (
+                          {openDropdown === imageFile.id.toString() && (
                             <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                               <div className="py-1">
                                 <button
                                   onClick={() =>
-                                    handleMoreAction(image.id, 'download')
+                                    handleMoreAction(imageFile.id, 'download')
                                   }
                                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
                                 >
@@ -577,7 +514,7 @@ export default function ImagingPage() {
                                 <div className="border-t border-gray-100"></div>
                                 <button
                                   onClick={() =>
-                                    handleMoreAction(image.id, 'delete')
+                                    handleMoreAction(imageFile.id, 'delete')
                                   }
                                   className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
                                 >
@@ -595,19 +532,18 @@ export default function ImagingPage() {
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {filteredImages.map(image => (
-                  <div key={image.id} className="p-6 hover:bg-gray-50">
+                {imageFiles.map(imageFile => (
+                  <div key={imageFile.id} className="p-6 hover:bg-gray-50">
                     <div className="flex items-center space-x-4">
                       {/* 缩略图 */}
-                      <Link href={`/imaging/${image.id}/viewer`}>
+                      <Link href={`/imaging/${imageFile.id}/viewer`}>
                         <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
-                          {image.blobUrl ? (
+                          {imageUrls[imageFile.id] ? (
                             <img
-                              src={image.blobUrl}
-                              alt={`${image.id} - ${image.examType}`}
+                              src={imageUrls[imageFile.id]}
+                              alt={imageFile.original_filename}
                               className="w-full h-full object-contain"
                               onError={(e) => {
-                                // 图片加载失败时显示占位图标
                                 const target = e.target as HTMLImageElement;
                                 target.style.display = 'none';
                                 const parent = target.parentElement;
@@ -621,7 +557,7 @@ export default function ImagingPage() {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <i className="ri-image-line text-2xl"></i>
+                              <i className="ri-loader-4-line text-2xl animate-spin"></i>
                             </div>
                           )}
                         </div>
@@ -631,28 +567,37 @@ export default function ImagingPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-3">
-                            <span className="text-lg font-semibold text-gray-900">
-                              {image.id}
+                            <span className="text-lg font-semibold text-gray-900 truncate" title={imageFile.original_filename}>
+                              {imageFile.original_filename}
                             </span>
                             <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                              {image.examType}
+                              {imageFile.modality || imageFile.file_type}
                             </span>
                           </div>
                           <span
-                            className={`text-sm px-3 py-1 rounded-full ${image.status === 'pending'
-                              ? 'bg-orange-100 text-orange-800'
-                              : 'bg-green-100 text-green-800'
+                            className={`text-sm px-3 py-1 rounded-full ${imageFile.status === 'UPLOADED'
+                              ? 'bg-green-100 text-green-800'
+                              : imageFile.status === 'PROCESSING'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
                               }`}
                           >
-                            {image.status === 'pending' ? '待审核' : '已审核'}
+                            {imageFile.status === 'UPLOADED' ? '已上传' : 
+                             imageFile.status === 'PROCESSING' ? '处理中' : imageFile.status}
                           </span>
                         </div>
 
                         <div className="flex items-center space-x-6 text-sm text-gray-600 mb-3">
                           <div>
-                            <span className="text-gray-500">检查日期: </span>
+                            <span className="text-gray-500">上传日期: </span>
                             <span className="font-medium">
-                              {image.studyDate}
+                              {formatDate(imageFile.created_at)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">文件大小: </span>
+                            <span className="font-medium">
+                              {formatFileSize(imageFile.file_size)}
                             </span>
                           </div>
                         </div>
@@ -660,7 +605,7 @@ export default function ImagingPage() {
                         {/* 操作按钮 */}
                         <div className="flex items-center space-x-3">
                           <Link
-                            href={`/imaging/${image.id}/viewer`}
+                            href={`/imaging/${imageFile.id}/viewer`}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center space-x-2 whitespace-nowrap"
                           >
                             <i className="ri-eye-line w-4 h-4 flex items-center justify-center"></i>
@@ -668,7 +613,7 @@ export default function ImagingPage() {
                           </Link>
                           <button
                             onClick={() =>
-                              handleMoreAction(image.id, 'download')
+                              handleMoreAction(imageFile.id, 'download')
                             }
                             className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm flex items-center space-x-2 whitespace-nowrap"
                           >
@@ -677,7 +622,7 @@ export default function ImagingPage() {
                           </button>
                           <button
                             onClick={() =>
-                              handleMoreAction(image.id, 'delete')
+                              handleMoreAction(imageFile.id, 'delete')
                             }
                             className="border border-red-300 text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 text-sm flex items-center space-x-2 whitespace-nowrap"
                           >
@@ -701,6 +646,33 @@ export default function ImagingPage() {
             </div>
           )}
         </div>
+
+        {/* 分页 */}
+        {total > pageSize && (
+          <div className="bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              显示 <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> 到{' '}
+              <span className="font-medium">{Math.min(currentPage * pageSize, total)}</span> 条，
+              共 <span className="font-medium">{total}</span> 条
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                上一页
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => p + 1)}
+                disabled={currentPage * pageSize >= total}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* 点击其他地方关闭下拉菜单 */}

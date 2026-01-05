@@ -18,6 +18,11 @@ from .team import (
     TeamMembershipRole,
     TeamMembershipStatus,
 )
+from .image_file import (
+    ImageFile,
+    ImageFileTypeEnum,
+    ImageFileStatusEnum,
+)
 
 __all__ = [
     "Department",
@@ -34,4 +39,7 @@ __all__ = [
     "TeamMembership",
     "TeamMembershipRole",
     "TeamMembershipStatus",
+    "ImageFile",
+    "ImageFileTypeEnum",
+    "ImageFileStatusEnum",
 ]

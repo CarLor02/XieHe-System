@@ -26,6 +26,7 @@ from app.core.auth import get_current_active_user
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.image import Study, Series, Instance, ModalityEnum, BodyPartEnum, StudyStatusEnum, SeriesStatusEnum, InstanceStatusEnum
+from app.models.image_file import ImageFile, ImageFileTypeEnum, ImageFileStatusEnum
 
 logger = get_logger(__name__)
 
@@ -224,6 +225,79 @@ def create_medical_imaging_records(
 
     return study, series, instance
 
+def create_image_file_record(
+    db: Session,
+    file_path: Path,
+    original_filename: str,
+    file_size: int,
+    mime_type: str,
+    uploaded_by: int,
+    patient_id: Optional[int] = None,
+    study_id: Optional[int] = None,
+    series_id: Optional[int] = None,
+    description: Optional[str] = None
+) -> ImageFile:
+    """创建影像文件记录"""
+    
+    # 确定文件类型
+    ext = file_path.suffix.lower()
+    if ext in ['.dcm', '.dicom']:
+        file_type = ImageFileTypeEnum.DICOM
+    elif ext in ['.jpg', '.jpeg']:
+        file_type = ImageFileTypeEnum.JPEG
+    elif ext in ['.png']:
+        file_type = ImageFileTypeEnum.PNG
+    elif ext in ['.tif', '.tiff']:
+        file_type = ImageFileTypeEnum.TIFF
+    else:
+        file_type = ImageFileTypeEnum.OTHER
+    
+    # 生成UUID
+    file_uuid = str(uuid.uuid4())
+    
+    # 计算相对路径
+    try:
+        storage_path = str(file_path.relative_to(UPLOAD_DIR))
+    except ValueError:
+        storage_path = str(file_path)
+    
+    # 计算文件哈希
+    file_hash = calculate_file_hash(file_path)
+    
+    # 确定模态
+    modality = None
+    body_part = None
+    if description:
+        mod_enum = determine_modality_from_description(description)
+        modality = mod_enum.value if mod_enum else None
+        body_enum = determine_body_part_from_description(description)
+        body_part = body_enum.value if body_enum else None
+    
+    # 创建记录
+    image_file = ImageFile(
+        file_uuid=file_uuid,
+        original_filename=original_filename,
+        file_type=file_type,
+        mime_type=mime_type,
+        storage_path=storage_path,
+        file_size=file_size,
+        file_hash=file_hash,
+        uploaded_by=uploaded_by,
+        patient_id=patient_id,
+        study_id=study_id,
+        series_id=series_id,
+        modality=modality,
+        body_part=body_part,
+        study_date=datetime.now(),
+        description=description,
+        status=ImageFileStatusEnum.UPLOADED,
+        upload_progress=100,
+        uploaded_at=datetime.now()
+    )
+    
+    db.add(image_file)
+    return image_file
+
 def get_chunk_path(file_id: str, chunk_index: int) -> Path:
     """获取分片文件路径"""
     return UPLOAD_DIR / 'chunks' / f"{file_id}_{chunk_index}"
@@ -285,6 +359,8 @@ async def upload_single_file(
             )
 
         # 创建医学影像记录
+        study_id = None
+        series_id = None
         try:
             if patient_id and patient_id.isdigit():
                 patient_id_int = int(patient_id)
@@ -296,19 +372,39 @@ async def upload_single_file(
                     description=description or "上传的影像",
                     current_user_id=current_user.get('id')
                 )
-                db.commit()
+                study_id = study.id
+                series_id = series.id
+                db.flush()  # 获取ID但不提交
                 logger.info(f"医学影像记录创建成功: Study ID {study.study_id}, Patient ID {patient_id_int}")
             else:
                 logger.warning(f"未提供有效的患者ID，跳过医学影像记录创建")
+                patient_id_int = None
+                
+            # 创建影像文件记录
+            image_file = create_image_file_record(
+                db=db,
+                file_path=file_path,
+                original_filename=file.filename,
+                file_size=actual_size,
+                mime_type=file.content_type,
+                uploaded_by=current_user.get('id'),
+                patient_id=patient_id_int if patient_id and patient_id.isdigit() else None,
+                study_id=study_id,
+                series_id=series_id,
+                description=description
+            )
+            db.commit()
+            logger.info(f"影像文件记录创建成功: File UUID {image_file.file_uuid}")
+            
         except Exception as e:
-            logger.error(f"创建医学影像记录失败: {e}")
+            logger.error(f"创建数据库记录失败: {e}")
             db.rollback()
             # 删除已上传的文件
             if file_path.exists():
                 file_path.unlink()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="创建医学影像记录失败"
+                detail="创建数据库记录失败"
             )
 
         logger.info(f"文件上传成功: {file.filename} ({actual_size} bytes)")

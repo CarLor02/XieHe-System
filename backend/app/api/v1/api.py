@@ -31,7 +31,8 @@ from .endpoints import (
     notifications,
     monitoring,
     upload,
-    annotations
+    annotations,
+    image_files
 )
 
 # 单独导入 dashboard，如果失败则跳过
@@ -92,6 +93,12 @@ api_router.include_router(
     annotations.router,
     prefix="/measurements",
     tags=["影像标注"]
+)
+
+api_router.include_router(
+    image_files.router,
+    prefix="/image-files",
+    tags=["影像文件管理"]
 )
 
 api_router.include_router(

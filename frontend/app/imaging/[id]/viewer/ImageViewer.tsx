@@ -110,11 +110,24 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     const fetchStudyData = async () => {
       try {
         setStudyLoading(true);
-        // 将IMG004格式转换为数字ID：IMG004 -> 4
+        // 直接使用imageId作为image_files表的ID
         const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
         const client = createAuthenticatedClient();
-        const response = await client.get(`/api/v1/studies/${numericId}`);
-        setStudyData(response.data);
+        const response = await client.get(`/api/v1/image-files/${numericId}`);
+        const imageFile = response.data;
+        
+        // 将ImageFile数据转换为StudyData格式
+        setStudyData({
+          id: imageFile.id,
+          study_id: imageFile.file_uuid,
+          patient_id: imageFile.patient_id || 0,
+          patient_name: imageFile.uploader_name || '未知用户',
+          study_date: imageFile.study_date || imageFile.created_at,
+          study_description: imageFile.description || imageFile.file_type,
+          modality: imageFile.modality || 'OTHER',
+          status: imageFile.status,
+          created_at: imageFile.created_at,
+        });
       } catch (error) {
         console.error('获取影像数据失败:', error);
         // 如果API失败，使用默认数据
@@ -150,7 +163,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     ? {
         id: imageId,
         patientName: studyData.patient_name,
-        patientId: studyData.patient_id.toString(),
+        patientId: studyData.patient_id ? studyData.patient_id.toString() : '0',
         examType: studyData.study_description || studyData.modality,
         studyDate: studyData.study_date,
         captureTime: studyData.created_at,
@@ -1320,7 +1333,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       
       // 先获取图片
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const imageResponse = await fetch(`${apiUrl}/api/v1/upload/files/${numericId}`, {
+      const imageResponse = await fetch(`${apiUrl}/api/v1/image-files/${numericId}/download`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -2611,7 +2624,7 @@ function ImageCanvas({
           require('../../../../store/authStore').useAuthStore.getState();
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/v1/upload/files/${numericId}`, {
+        const response = await fetch(`${apiUrl}/api/v1/image-files/${numericId}/download`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -3665,41 +3678,55 @@ function ImageCanvas({
             }
           } else {
             // 非辅助图形：检查文字标识区域（使用屏幕坐标，与渲染位置保持一致）
-            const screenPoints = measurement.points.map(p => imageToScreen(p));
+            const screenPoints = measurement.points.map(p => imageToScreen(p)).filter(p => p !== null && p !== undefined);
+            
+            // 确保有足够的有效点
+            if (screenPoints.length === 0) {
+              continue;
+            }
+            
             let textBaselineX, textBaselineY;
             
             if (measurement.type === 'T1 Tilt') {
               // T1 Tilt 特殊定位：在两点上方
+              if (screenPoints.length < 2) continue;
               textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
               const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
               textBaselineY = minY - 30;
             } else if (measurement.type === 'RSH') {
               // RSH 特殊定位：在两点上方
+              if (screenPoints.length < 2) continue;
               textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
               const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
               textBaselineY = minY - 30;
             } else if (measurement.type === 'Pelvic') {
               // Pelvic 特殊定位：在两点上方
+              if (screenPoints.length < 2) continue;
               textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
               const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
               textBaselineY = minY - 30;
             } else if (measurement.type === 'Sacral') {
               // Sacral 特殊定位：在两点上方
+              if (screenPoints.length < 2) continue;
               textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
               const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
               textBaselineY = minY - 30;
             } else if (measurement.type === 'AVT') {
               // AVT 特殊定位：在两点中间
+              if (screenPoints.length < 2) continue;
               textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
               textBaselineY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
             } else if (measurement.type === 'TS') {
               // TS 特殊定位：在两点中间
+              if (screenPoints.length < 2) continue;
               textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
               textBaselineY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
             } else {
               // 其他测量的默认位置：中间偏上
-              textBaselineX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
-              textBaselineY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
+              if (screenPoints.length < 1) continue;
+              const lastPoint = screenPoints[screenPoints.length - 1];
+              textBaselineX = (screenPoints[0].x + lastPoint.x) / 2;
+              textBaselineY = (screenPoints[0].y + lastPoint.y) / 2 - 10;
             }
             
             // 文字尺寸估算（屏幕像素，fontSize=14）
