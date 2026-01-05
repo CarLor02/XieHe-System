@@ -27,9 +27,10 @@ try:
     )
     conn.close()
     exit(0)
-except:
+except Exception as e:
+    print(f'连接错误: {e}')
     exit(1)
-" 2>/dev/null; then
+" 2>&1; then
         echo "✅ MySQL 连接成功"
         break
     fi
