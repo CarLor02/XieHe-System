@@ -30,12 +30,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件并安装（先安装依赖以利用Docker缓存）
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
-COPY . .
+COPY backend/ .
 
 # 复制启动脚本
 COPY docker/backend-entrypoint.sh /entrypoint.sh
