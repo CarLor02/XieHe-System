@@ -230,7 +230,7 @@ health_check() {
     
     # 检查MySQL
     print_step "检查MySQL数据库..."
-    if docker compose -f "$COMPOSE_FILE" exec -T mysql mysqladmin ping -h localhost -u root -pmedical_root_2024 &> /dev/null; then
+    if docker compose -f "$COMPOSE_FILE" exec -T mysql mysqladmin ping -h localhost -u root -pqweasd2025 &> /dev/null; then
         print_success "MySQL服务正常"
     else
         print_warning "MySQL服务异常"

@@ -58,7 +58,7 @@ conn = pymysql.connect(
     database=os.getenv('DB_NAME', 'medical_imaging_system')
 )
 cursor = conn.cursor()
-cursor.execute(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='%s'\" % os.getenv('DB_NAME', 'medical_system'))
+cursor.execute(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='%s'\" % os.getenv('DB_NAME', 'medical_imaging_system'))
 count = cursor.fetchone()[0]
 print(count)
 conn.close()

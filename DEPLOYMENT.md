@@ -148,10 +148,10 @@ sudo ./scripts/security_cleanup.sh
 
 ```bash
 # 从宿主机连接
-mysql -h 127.0.0.1 -P 3307 -u medical_user -pmedical_pass_2024 medical_system
+mysql -h 127.0.0.1 -P 3307 -u root -pqweasd2025 medical_imaging_system
 
 # 从容器内连接
-docker exec -it medical_mysql mysql -u root -pmedical_root_2024 medical_system
+docker exec -it medical_mysql mysql -u root -pqweasd2025 medical_imaging_system
 ```
 
 ### 手动初始化数据库
@@ -169,10 +169,10 @@ python init_database.py
 
 ```bash
 # 备份
-docker exec medical_mysql mysqldump -u root -pmedical_root_2024 medical_system > backup_$(date +%Y%m%d).sql
+docker exec medical_mysql mysqldump -u root -pqweasd2025 medical_imaging_system > backup_$(date +%Y%m%d).sql
 
 # 恢复
-docker exec -i medical_mysql mysql -u root -pmedical_root_2024 medical_system < backup_20260104.sql
+docker exec -i medical_mysql mysql -u root -pqweasd2025 medical_imaging_system < backup_20260104.sql
 ```
 
 ---

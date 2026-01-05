@@ -101,17 +101,17 @@ else
     echo -e "${BLUE}ℹ️  mysql_logs 卷未创建${NC}"
 fi
 
-# 5. 测试数据库连接
+# 测试数据库连接
 echo ""
 echo -e "${YELLOW}[5/6] 测试数据库连接...${NC}"
 
 if docker ps | grep -q "medical_mysql"; then
-    if docker exec medical_mysql mysqladmin ping -h localhost -u root -pmedical_root_2024 &>/dev/null; then
+    if docker exec medical_mysql mysqladmin ping -h localhost -u root -pqweasd2025 &>/dev/null; then
         echo -e "${GREEN}✅ MySQL 连接正常${NC}"
         
         # 获取表数量
-        TABLE_COUNT=$(docker exec medical_mysql mysql -u root -pmedical_root_2024 -e \
-            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='medical_system';" \
+        TABLE_COUNT=$(docker exec medical_mysql mysql -u root -pqweasd2025 -e \
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='medical_imaging_system';" \
             2>/dev/null | tail -1 || echo "0")
         echo -e "   数据库表数量: $TABLE_COUNT"
         
@@ -156,6 +156,6 @@ echo ""
 echo -e "${BLUE}常用命令:${NC}"
 echo -e "  查看日志:   ${YELLOW}docker compose logs mysql${NC}"
 echo -e "  进入容器:   ${YELLOW}docker exec -it medical_mysql bash${NC}"
-echo -e "  连接数据库: ${YELLOW}docker exec -it medical_mysql mysql -u root -pmedical_root_2024 medical_system${NC}"
+echo -e "  连接数据库: ${YELLOW}docker exec -it medical_mysql mysql -u root -pqweasd2025 medical_imaging_system${NC}"
 echo -e "  停止服务:   ${YELLOW}docker compose down${NC}"
 echo -e "  启动服务:   ${YELLOW}./deploy.sh${NC}"

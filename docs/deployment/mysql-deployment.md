@@ -12,10 +12,8 @@ MySQL 容器使用以下环境变量（在 `docker-compose.yml` 中配置）:
 
 ```yaml
 environment:
-  - MYSQL_ROOT_PASSWORD=medical_root_2024      # Root 密码
-  - MYSQL_DATABASE=medical_system              # 数据库名
-  - MYSQL_USER=medical_user                    # 应用用户
-  - MYSQL_PASSWORD=medical_pass_2024           # 应用密码
+  - MYSQL_ROOT_PASSWORD=qweasd2025           # Root 密码
+  - MYSQL_DATABASE=medical_imaging_system    # 数据库名
 ```
 
 ### 2. 端口映射
@@ -97,10 +95,10 @@ cp .env.example .env
 
 ```bash
 # 从宿主机连接
-mysql -h 127.0.0.1 -P 3307 -u medical_user -pmedical_pass_2024 medical_system
+mysql -h 127.0.0.1 -P 3307 -u root -pqweasd2025 medical_imaging_system
 
 # 从容器内连接
-docker exec -it medical_mysql mysql -u root -pmedical_root_2024 medical_system
+docker exec -it medical_mysql mysql -u root -pqweasd2025 medical_imaging_system
 ```
 
 ### 查看数据库状态
@@ -120,10 +118,10 @@ docker exec -it medical_mysql bash
 
 ```bash
 # 备份数据库
-docker exec medical_mysql mysqldump -u root -pmedical_root_2024 medical_system > backup.sql
+docker exec medical_mysql mysqldump -u root -pqweasd2025 medical_imaging_system > backup.sql
 
 # 恢复数据库
-docker exec -i medical_mysql mysql -u root -pmedical_root_2024 medical_system < backup.sql
+docker exec -i medical_mysql mysql -u root -pqweasd2025 medical_imaging_system < backup.sql
 ```
 
 ### 重置数据库
@@ -156,11 +154,11 @@ docker volume rm xiehe-system_mysql_data
 
 ```bash
 # 检查 MySQL 连接
-docker compose exec mysql mysqladmin ping -h localhost -u root -pmedical_root_2024
+docker compose exec mysql mysqladmin ping -h localhost -u root -pqweasd2025
 
 # 查看表数量
-docker compose exec mysql mysql -u root -pmedical_root_2024 -e \
-  "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='medical_system';"
+docker compose exec mysql mysql -u root -pqweasd2025 -e \
+  "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='medical_imaging_system';"
 ```
 
 ## 故障排除
