@@ -88,6 +88,16 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: medical_frontend
     restart: unless-stopped
+    user: "1001:1001"  # 直接以nginx-app用户启动
+    entrypoint: ["/bin/sh", "-c"]  # 覆盖默认entrypoint
+    command: 
+      - |
+        # 创建必要的目录
+        mkdir -p /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp \
+                 /var/cache/nginx/fastcgi_temp /var/cache/nginx/uwsgi_temp \
+                 /var/cache/nginx/scgi_temp /var/run /var/log/nginx
+        # 启动nginx
+        exec nginx -g 'daemon off;'
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://115.190.121.59:8080
