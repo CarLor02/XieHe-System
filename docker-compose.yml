@@ -116,9 +116,9 @@ services:
     tmpfs:
       - /tmp:mode=1777,size=10M,noexec,nosuid,nodev
       - /var/tmp:mode=1777,size=10M,noexec,nosuid,nodev
-      - /var/cache/nginx:mode=755,size=50M
-      - /var/run:mode=755,size=10M
-      - /var/log/nginx:mode=755,size=10M
+      - /var/cache/nginx:mode=755,size=50M,uid=1001,gid=1001
+      - /var/run:mode=755,size=10M,uid=1001,gid=1001
+      - /var/log/nginx:mode=755,size=10M,uid=1001,gid=1001
     deploy:
       resources:
         limits:
