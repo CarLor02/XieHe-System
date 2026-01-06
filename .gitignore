@@ -348,3 +348,6 @@ cleanup_plan.md
 _test_files/
 docker_test_report_*.json
 build.log
+
+#我本地调试用的
+backend/app/core/database.py

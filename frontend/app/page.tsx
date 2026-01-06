@@ -173,15 +173,22 @@ export default function Home() {
       <Sidebar />
       <Header />
 
-      <main className="ml-64 p-6">
-        {/* 欢迎区域 */}
+      <main className="ml-64 p-8">
+        {/* Hero Banner - 参考设计图的渐变横幅 */}
         <div className="mb-8">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-8 text-white">
-            <div className="max-w-4xl">
-              <h1 className="text-3xl font-bold mb-4">
+          <div className="relative bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 rounded-2xl p-10 text-white overflow-hidden">
+            {/* 装饰性波浪背景 */}
+            <div className="absolute inset-0 opacity-20">
+              <svg className="absolute bottom-0 left-0 w-full" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M0,0 C150,100 350,0 600,50 C850,100 1050,0 1200,50 L1200,120 L0,120 Z" fill="currentColor" />
+              </svg>
+            </div>
+
+            <div className="relative z-10 max-w-4xl">
+              <h1 className="text-4xl font-bold mb-3">
                 欢迎使用协和医疗影像诊断系统
               </h1>
-              <p className="text-blue-100 text-lg mb-6">
+              <p className="text-blue-50 text-lg mb-8 leading-relaxed">
                 专业的医疗影像管理和AI辅助诊断平台，为医疗工作者提供高效、准确的诊断支持
               </p>
               <div className="flex space-x-4">
@@ -189,13 +196,13 @@ export default function Home() {
                   <>
                     <Link
                       href="/dashboard"
-                      className="bg-white text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 font-medium transition-colors inline-flex items-center justify-center"
+                      className="bg-white text-blue-600 px-8 py-3 rounded-lg hover:bg-blue-50 font-medium transition-all shadow-lg hover:shadow-xl inline-flex items-center justify-center"
                     >
                       进入工作台
                     </Link>
                     <Link
                       href="/upload"
-                      className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-400 font-medium transition-colors inline-flex items-center justify-center"
+                      className="bg-blue-500/80 backdrop-blur-sm text-white px-8 py-3 rounded-lg hover:bg-blue-500 font-medium transition-all border border-white/30 inline-flex items-center justify-center"
                     >
                       上传影像
                     </Link>
@@ -204,13 +211,13 @@ export default function Home() {
                   <>
                     <Link
                       href="/auth/login"
-                      className="bg-white text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 font-medium transition-colors inline-flex items-center justify-center"
+                      className="bg-white text-blue-600 px-8 py-3 rounded-lg hover:bg-blue-50 font-medium transition-all shadow-lg hover:shadow-xl inline-flex items-center justify-center"
                     >
                       立即登录
                     </Link>
                     <Link
                       href="/auth/register"
-                      className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-400 font-medium transition-colors inline-flex items-center justify-center"
+                      className="bg-blue-500/80 backdrop-blur-sm text-white px-8 py-3 rounded-lg hover:bg-blue-500 font-medium transition-all border border-white/30 inline-flex items-center justify-center"
                     >
                       注册账号
                     </Link>
@@ -221,103 +228,100 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 系统概览 */}
+        {/* 系统概览 - 参考设计图的卡片样式 */}
         {loading ? (
-          <div className="mb-8">
+          <div className="mb-10">
             <div className="animate-pulse">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="bg-gray-200 rounded-lg h-24"></div>
+                  <div key={i} className="bg-gray-200 rounded-xl h-32"></div>
                 ))}
               </div>
             </div>
           </div>
         ) : error ? (
-          <div className="mb-8">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-              <p className="text-red-600 mb-2">{error}</p>
+          <div className="mb-10">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+              <p className="text-red-600 mb-3">{error}</p>
               <button
                 onClick={fetchDashboardData}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 重试
               </button>
             </div>
           </div>
         ) : dashboardData ? (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">系统概览</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <i className="ri-user-line text-2xl text-blue-600"></i>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      总患者数
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
+          <div className="mb-10">
+            <h2 className="text-xl font-bold text-gray-800 mb-5">系统概览</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* 总患者数 */}
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500 mb-1">总患者数</p>
+                    <p className="text-3xl font-bold text-gray-900">
                       {dashboardData.total_patients}
                     </p>
-                    <p className="text-xs text-green-500 mt-1">
-                      今日新增: {dashboardData.new_patients_today}
-                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <i className="ri-user-line text-2xl text-blue-600"></i>
                   </div>
                 </div>
+                <p className="text-xs text-green-600 flex items-center">
+                  <i className="ri-arrow-up-line mr-1"></i>
+                  今日新增 {dashboardData.new_patients_today}
+                </p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <i className="ri-file-list-3-line text-2xl text-green-600"></i>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      总报告数
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
+              {/* 总报告数 */}
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500 mb-1">总报告数</p>
+                    <p className="text-3xl font-bold text-gray-900">
                       {dashboardData.total_reports}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      完成率: {dashboardData.completion_rate}%
-                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                    <i className="ri-file-list-3-line text-2xl text-green-600"></i>
                   </div>
                 </div>
+                <p className="text-xs text-gray-600">
+                  完成率 {dashboardData.completion_rate}%
+                </p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <i className="ri-time-line text-2xl text-orange-600"></i>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      待处理报告
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
+              {/* 待处理报告 */}
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500 mb-1">待处理报告</p>
+                    <p className="text-3xl font-bold text-gray-900">
                       {dashboardData.pending_reports}
                     </p>
-                    <p className="text-xs text-orange-500 mt-1">需要关注</p>
+                  </div>
+                  <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                    <i className="ri-time-line text-2xl text-orange-600"></i>
                   </div>
                 </div>
+                <p className="text-xs text-orange-600">需要关注</p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <i className="ri-check-line text-2xl text-purple-600"></i>
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">
-                      已完成报告
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
+              {/* 已完成报告 */}
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500 mb-1">已完成报告</p>
+                    <p className="text-3xl font-bold text-gray-900">
                       {dashboardData.completed_reports}
                     </p>
-                    <p className="text-xs text-purple-500 mt-1">质量优秀</p>
+                  </div>
+                  <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                    <i className="ri-check-line text-2xl text-purple-600"></i>
                   </div>
                 </div>
+                <p className="text-xs text-purple-600">质量优秀</p>
               </div>
             </div>
           </div>
@@ -325,49 +329,50 @@ export default function Home() {
 
         {/* 最近任务 */}
         {recentTasks.length > 0 && (
-          <div className="mb-8">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
+          <div className="mb-10">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="px-6 py-5 border-b border-gray-100">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-bold text-gray-800">
                     最近任务
                   </h3>
                   <Link
                     href="/dashboard"
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center"
                   >
                     查看全部
+                    <i className="ri-arrow-right-line ml-1"></i>
                   </Link>
                 </div>
               </div>
               <div className="p-6">
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {recentTasks.slice(0, 3).map(task => (
                     <div
                       key={task.task_id}
-                      className="border border-gray-200 rounded-lg p-4"
+                      className="border border-gray-100 rounded-lg p-5 hover:border-blue-200 hover:bg-blue-50/30 transition-all"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="text-sm font-medium text-gray-900">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-2">
                             {task.title}
                           </h4>
-                          <p className="text-xs text-gray-600 mt-1">
+                          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
                             {task.description}
                           </p>
-                          <div className="flex items-center space-x-2 mt-2">
+                          <div className="flex items-center space-x-2">
                             {task.tags.map((tag, index) => (
                               <span
                                 key={index}
-                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"
                               >
                                 {tag}
                               </span>
                             ))}
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <div className="ml-4 flex-shrink-0">
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-100">
                             待处理
                           </span>
                         </div>
@@ -380,108 +385,119 @@ export default function Home() {
           </div>
         )}
 
-        {/* 功能导航 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Link
-            href="/dashboard"
-            className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow group"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <i className="ri-dashboard-line text-xl text-blue-600"></i>
+        {/* 快捷功能 - 参考设计图的功能卡片 */}
+        <div className="mb-10">
+          <h2 className="text-xl font-bold text-gray-800 mb-5">快捷功能</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <Link
+              href="/dashboard"
+              className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 group"
+            >
+              <div className="flex items-start space-x-4">
+                <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors flex-shrink-0">
+                  <i className="ri-dashboard-line text-2xl text-blue-600"></i>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 mb-1">工作台</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    查看系统概览和统计
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">工作台</h3>
-                <p className="text-sm text-gray-600">查看系统概览和统计</p>
-              </div>
-            </div>
-          </Link>
+            </Link>
 
-          <Link
-            href="/patients"
-            className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow group"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                <i className="ri-user-line text-xl text-green-600"></i>
+            <Link
+              href="/patients"
+              className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 group"
+            >
+              <div className="flex items-start space-x-4">
+                <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors flex-shrink-0">
+                  <i className="ri-user-line text-2xl text-green-600"></i>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 mb-1">患者管理</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    管理患者信息和档案
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">患者管理</h3>
-                <p className="text-sm text-gray-600">管理患者信息和档案</p>
-              </div>
-            </div>
-          </Link>
+            </Link>
 
-          <Link
-            href="/imaging"
-            className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow group"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                <i className="ri-image-line text-xl text-purple-600"></i>
+            <Link
+              href="/imaging"
+              className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 group"
+            >
+              <div className="flex items-start space-x-4">
+                <div className="w-14 h-14 bg-purple-50 rounded-xl flex items-center justify-center group-hover:bg-purple-100 transition-colors flex-shrink-0">
+                  <i className="ri-image-line text-2xl text-purple-600"></i>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 mb-1">影像中心</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    查看和管理医学影像
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">影像中心</h3>
-                <p className="text-sm text-gray-600">查看和管理医学影像</p>
-              </div>
-            </div>
-          </Link>
+            </Link>
 
-          <Link
-            href="/model-center"
-            className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow group"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-                <i className="ri-cpu-line text-xl text-orange-600"></i>
+            <Link
+              href="/model-center"
+              className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 group"
+            >
+              <div className="flex items-start space-x-4">
+                <div className="w-14 h-14 bg-orange-50 rounded-xl flex items-center justify-center group-hover:bg-orange-100 transition-colors flex-shrink-0">
+                  <i className="ri-cpu-line text-2xl text-orange-600"></i>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 mb-1">模型中心</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    AI模型管理和配置
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">模型中心</h3>
-                <p className="text-sm text-gray-600">AI模型管理和配置</p>
-              </div>
-            </div>
-          </Link>
+            </Link>
+          </div>
         </div>
 
-        {/* 系统特性 */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+        {/* 系统特性 - 参考设计图的特性展示 */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10">
+          <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">
             系统特性
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="ri-shield-check-line text-2xl text-blue-600"></i>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
+                <i className="ri-shield-check-line text-3xl text-blue-600"></i>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
                 安全可靠
               </h3>
-              <p className="text-gray-600">
-                采用先进的安全技术，确保医疗数据的安全性和隐私保护
+              <p className="text-gray-600 leading-relaxed text-sm">
+                采用先进的安全技术，确保医疗数据的安全性和隐私保护，符合医疗行业标准
               </p>
             </div>
 
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="ri-speed-line text-2xl text-green-600"></i>
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
+                <i className="ri-speed-line text-3xl text-green-600"></i>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
                 高效处理
               </h3>
-              <p className="text-gray-600">
-                智能化的工作流程，大幅提升医疗影像诊断的效率和准确性
+              <p className="text-gray-600 leading-relaxed text-sm">
+                智能化的工作流程，AI辅助诊断，大幅提升医疗影像诊断的效率和准确性
               </p>
             </div>
 
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="ri-team-line text-2xl text-purple-600"></i>
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
+                <i className="ri-team-line text-3xl text-purple-600"></i>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
                 协作便捷
               </h3>
-              <p className="text-gray-600">
-                支持多用户协作，实现医疗团队之间的高效沟通和协作
+              <p className="text-gray-600 leading-relaxed text-sm">
+                支持多用户协作，实现医疗团队之间的高效沟通和协作，提升工作效率
               </p>
             </div>
           </div>

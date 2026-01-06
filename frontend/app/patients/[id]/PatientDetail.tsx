@@ -28,31 +28,23 @@ interface PatientDetail {
   updated_at: string;
 }
 
-interface Study {
+interface ImageFile {
   id: number;
-  study_date: string;
+  file_uuid: string;
+  original_filename: string;
+  file_type: string;
   modality: string;
-  description: string;
+  study_date: string;
   status: string;
-  patient_name?: string;
 }
-
-const defaultDiagnoses = {
-  AIS: { status: false, value: '未检查', description: '钙化积分未检查' },
-  DS: { status: false, value: '未检查', description: '深静脉血栓未检查' },
-  CS: { status: false, value: '未检查', description: '冠状动脉狭窄未检查' },
-  NMS: { status: false, value: '未检查', description: '神经肌肉系统未检查' },
-};
 
 export default function PatientDetail({ patientId }: { patientId: string }) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isEditingDiagnoses, setIsEditingDiagnoses] = useState(false);
-  const [diagnoses, setDiagnoses] = useState(defaultDiagnoses);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
-  const [studies, setStudies] = useState<Study[]>([]);
+  const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [studiesLoading, setStudiesLoading] = useState(true);
+  const [imagesLoading, setImagesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // 从后端加载患者数据
@@ -75,75 +67,27 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
     fetchPatient();
   }, [patientId]);
 
-  // 从后端加载检查记录
+  // 从后端加载影像记录
   useEffect(() => {
-    const fetchStudies = async () => {
+    const fetchImages = async () => {
       try {
-        setStudiesLoading(true);
+        setImagesLoading(true);
         const client = createAuthenticatedClient();
-        const response = await client.get(`/api/v1/studies/?patient_id=${patientId}&page=1&page_size=10`);
-        setStudies(response.data.studies || []);
+        // 通过患者ID获取影像文件列表
+        const response = await client.get(`/api/v1/image-files/patient/${patientId}?page=1&page_size=20`);
+        setImageFiles(response.data.items || []);
       } catch (err: any) {
-        console.error('获取检查记录失败:', err);
-        setStudies([]);
+        console.error('获取影像记录失败:', err);
+        setImageFiles([]);
       } finally {
-        setStudiesLoading(false);
+        setImagesLoading(false);
       }
     };
 
     if (patientId) {
-      fetchStudies();
+      fetchImages();
     }
   }, [patientId]);
-
-  const updateDiagnosis = (
-    type: keyof typeof diagnoses,
-    field: 'status' | 'value',
-    value: any
-  ) => {
-    setDiagnoses(prev => ({
-      ...prev,
-      [type]: {
-        ...prev[type],
-        [field]: value,
-      },
-    }));
-  };
-
-  const getDiagnosisInfo = (type: string) => {
-    const diagnosisMap = {
-      AIS: {
-        fullName: '钙化积分评估',
-        description: '量化患者冠状动脉中钙化斑块的总体积，评估心血管疾病风险',
-        normalRange: '正常: <100, 轻度: 100-299, 中度: 300-399, 重度: ≥400',
-      },
-      DS: {
-        fullName: '深静脉血栓检查',
-        description: '诊断患者深静脉里是否形成了血块',
-        normalRange: '正常: 阴性, 异常: 阳性',
-      },
-      CS: {
-        fullName: '冠状动脉狭窄评估',
-        description: '评估患者心脏冠脉血管堵塞程度',
-        normalRange: '正常: <50%, 轻度: 50-70%, 重度: >70%',
-      },
-      NMS: {
-        fullName: '神经肌肉系统检查',
-        description: '诊断患者脊柱问题，是否压迫神经',
-        normalRange: '正常: 无突出, 异常: 椎间盘突出/神经压迫',
-      },
-    };
-    return diagnosisMap[type as keyof typeof diagnosisMap];
-  };
-
-  const getDiagnosisStatusColor = (type: string, status: boolean) => {
-    if (type === 'DS') {
-      return status ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
-    }
-    return status
-      ? 'bg-orange-100 text-orange-800'
-      : 'bg-gray-100 text-gray-800';
-  };
 
   // 加载状态
   if (loading) {
@@ -332,16 +276,16 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                 </h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">总检查次数</span>
+                    <span className="text-gray-600">影像数量</span>
                     <span className="text-2xl font-bold text-blue-600">
-                      {studiesLoading ? '-' : studies.length}
+                      {imagesLoading ? '-' : imageFiles.length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">最近就诊</span>
+                    <span className="text-gray-600">最近上传</span>
                     <span className="text-gray-900">
-                      {studies.length > 0 && studies[0].study_date
-                        ? new Date(studies[0].study_date).toLocaleDateString('zh-CN')
+                      {imageFiles.length > 0 && imageFiles[0].study_date
+                        ? new Date(imageFiles[0].study_date).toLocaleDateString('zh-CN')
                         : '暂无记录'}
                     </span>
                   </div>
@@ -376,120 +320,25 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
             </div>
           </div>
 
-          {/* 临床诊断卡片 */}
+          {/* 影像记录 */}
           <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">临床诊断</h3>
-              <button
-                onClick={() => setIsEditingDiagnoses(!isEditingDiagnoses)}
-                className="text-blue-600 hover:text-blue-700 text-sm flex items-center space-x-1 transition-colors"
-              >
-                <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
-                <span>{isEditingDiagnoses ? '完成编辑' : '编辑诊断'}</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              {Object.entries(diagnoses).map(([type, diagnosis]) => {
-                const info = getDiagnosisInfo(type);
-                return (
-                  <div
-                    key={type}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-semibold text-gray-900">
-                          {type}
-                        </span>
-                        {isEditingDiagnoses ? (
-                          <input
-                            type="checkbox"
-                            checked={diagnosis.status}
-                            onChange={e =>
-                              updateDiagnosis(
-                                type as keyof typeof diagnoses,
-                                'status',
-                                e.target.checked
-                              )
-                            }
-                            className="rounded text-blue-600 focus:ring-blue-500"
-                          />
-                        ) : (
-                          <span
-                            className={`text-xs px-2 py-1 rounded-full ${getDiagnosisStatusColor(type, diagnosis.status)}`}
-                          >
-                            {diagnosis.status ? '异常' : '正常'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">
-                        {info?.fullName}
-                      </h4>
-                      <p className="text-xs text-gray-600">
-                        {info?.description}
-                      </p>
-                    </div>
-
-                    <div className="mb-3">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">
-                        检查结果
-                      </label>
-                      {isEditingDiagnoses ? (
-                        <input
-                          type="text"
-                          value={diagnosis.value}
-                          onChange={e =>
-                            updateDiagnosis(
-                              type as keyof typeof diagnoses,
-                              'value',
-                              e.target.value
-                            )
-                          }
-                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder={`输入${type}检查结果`}
-                        />
-                      ) : (
-                        <div className="bg-gray-50 p-2 rounded">
-                          <span className="text-sm font-medium text-gray-900">
-                            {diagnosis.value}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
-                      <span className="font-medium">参考范围:</span>{' '}
-                      {info?.normalRange}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 检查记录 */}
-          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">检查记录</h3>
+              <h3 className="text-lg font-semibold text-gray-900">影像记录</h3>
               <Link
                 href={`/upload?returnTo=/patients/${patientId}&patientId=${patient.patient_id}&patientName=${encodeURIComponent(patient.name)}`}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
-                新增检查
+                上传影像
               </Link>
             </div>
 
-            {studiesLoading ? (
+            {imagesLoading ? (
               <div className="text-center py-8">
-                <div className="text-gray-500">加载检查记录中...</div>
+                <div className="text-gray-500">加载影像记录中...</div>
               </div>
-            ) : studies.length === 0 ? (
+            ) : imageFiles.length === 0 ? (
               <div className="text-center py-8">
-                <div className="text-gray-500">暂无检查记录</div>
+                <div className="text-gray-500">暂无影像记录</div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -497,13 +346,13 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        检查日期
+                        上传日期
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        检查类型
+                        文件名
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                        检查描述
+                        影像类型
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
                         状态
@@ -514,40 +363,40 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {studies.map(study => (
-                      <tr key={study.id} className="hover:bg-gray-50">
+                    {imageFiles.map(imageFile => (
+                      <tr key={imageFile.id} className="hover:bg-gray-50">
                         <td className="px-4 py-4 text-sm text-gray-900">
-                          {study.study_date ? new Date(study.study_date).toLocaleDateString('zh-CN') : '-'}
+                          {imageFile.study_date ? new Date(imageFile.study_date).toLocaleDateString('zh-CN') : '-'}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-900">
-                          {study.modality || '-'}
+                          {imageFile.original_filename || '-'}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-900">
-                          {study.description || '-'}
+                          {imageFile.modality || imageFile.file_type || '-'}
                         </td>
                         <td className="px-4 py-4">
                           <span
-                            className={`text-xs px-2 py-1 rounded-full ${study.status === 'completed'
+                            className={`text-xs px-2 py-1 rounded-full ${imageFile.status === 'UPLOADED'
                               ? 'bg-green-100 text-green-800'
-                              : study.status === 'pending'
+                              : imageFile.status === 'PROCESSING'
                                 ? 'bg-orange-100 text-orange-800'
                                 : 'bg-gray-100 text-gray-800'
                               }`}
                           >
-                            {study.status === 'completed'
-                              ? '已完成'
-                              : study.status === 'pending'
-                                ? '进行中'
-                                : study.status || '未知'}
+                            {imageFile.status === 'UPLOADED'
+                              ? '已上传'
+                              : imageFile.status === 'PROCESSING'
+                                ? '处理中'
+                                : imageFile.status || '未知'}
                           </span>
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex items-center space-x-2">
                             <Link
-                              href={`/studies/${study.id}`}
+                              href={`/imaging/${imageFile.id}/viewer`}
                               className="text-blue-600 hover:text-blue-700 text-sm transition-colors"
                             >
-                              查看详情
+                              查看影像
                             </Link>
                           </div>
                         </td>

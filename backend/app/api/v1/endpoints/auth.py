@@ -71,6 +71,15 @@ class PasswordChange(BaseModel):
     confirm_password: str = Field(..., min_length=6, max_length=128, description="确认密码")
 
 
+class UserUpdate(BaseModel):
+    """用户信息更新模型"""
+    phone: str | None = Field(None, max_length=20, description="手机号")
+    real_name: str | None = Field(None, max_length=50, description="真实姓名")
+    department_id: int | None = Field(None, description="部门ID")
+    position: str | None = Field(None, max_length=50, description="职位")
+    title: str | None = Field(None, max_length=50, description="职称")
+
+
 class TokenResponse(BaseModel):
     """令牌响应模型"""
     access_token: str = Field(..., description="访问令牌")
@@ -85,10 +94,21 @@ class UserResponse(BaseModel):
     username: str = Field(..., description="用户名")
     email: str = Field(..., description="邮箱")
     full_name: str = Field(..., description="姓名")
+    phone: str | None = Field(None, description="手机号")
+    real_name: str | None = Field(None, description="真实姓名")
+    employee_id: str | None = Field(None, description="员工编号")
+    department: str | None = Field(None, description="部门名称")
+    department_id: int | None = Field(None, description="部门ID")
+    position: str | None = Field(None, description="职位")
+    title: str | None = Field(None, description="职称")
     is_active: bool = Field(..., description="是否激活")
+    role: str = Field(default="doctor", description="用户角色")
     roles: list = Field(default=[], description="角色列表")
+    permissions: list = Field(default=[], description="权限列表")
     is_system_admin: bool = Field(default=False, description="是否系统管理员")
     system_admin_level: int = Field(default=0, description="系统管理员级别：0-非，1-超级，2-二级")
+    created_at: str | None = Field(None, description="创建时间")
+    updated_at: str | None = Field(None, description="更新时间")
 
 
 # ==========================================
@@ -303,10 +323,10 @@ async def register(
         # bcrypt 不需要单独的 salt 字段，设置为空字符串
         insert_sql = """
         INSERT INTO users (
-            username, email, real_name, password_hash, salt,
+            username, email, phone, real_name, password_hash, salt,
             status, is_superuser, is_verified, is_deleted, created_at
         ) VALUES (
-            :username, :email, :real_name, :password_hash, '',
+            :username, :email, :phone, :real_name, :password_hash, '',
             'active', 0, 1, 0, :created_at
         )
         """
@@ -314,6 +334,7 @@ async def register(
         db.execute(text(insert_sql), {
             "username": register_data.username,
             "email": register_data.email,
+            "phone": register_data.phone,
             "real_name": register_data.full_name,
             "password_hash": password_hash,
             "created_at": datetime.now()
@@ -562,18 +583,162 @@ async def change_password(
 
 @router.get("/me", response_model=UserResponse, summary="获取当前用户信息")
 async def get_current_user_info(
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
 ):
     """
-    获取当前用户信息
+    获取当前用户完整信息
     """
-    return UserResponse(
-        id=current_user["id"],
-        username=current_user["username"],
-        email=current_user["email"],
-        full_name=current_user.get("full_name", ""),
-        is_active=current_user["is_active"],
-        roles=current_user.get("roles", []),
-        is_system_admin=current_user.get("is_system_admin", False),
-        system_admin_level=current_user.get("system_admin_level", 0)
-    )
+    try:
+        from app.models.user import User, Department
+
+        # 从数据库获取完整用户信息
+        user = db.query(User).filter(User.id == current_user["id"]).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+
+        # 获取部门名称
+        department_name = None
+        if user.department_id:
+            department = db.query(Department).filter(Department.id == user.department_id).first()
+            if department:
+                department_name = department.name
+
+        # 确定用户角色和权限
+        role = "admin" if user.is_superuser else "doctor"
+        roles = current_user.get("roles", ["doctor"])
+        permissions = current_user.get("permissions", ["patient_manage", "image_view"])
+
+        return UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            full_name=user.real_name or user.username,
+            phone=user.phone,
+            real_name=user.real_name,
+            employee_id=user.employee_id,
+            department=department_name,
+            department_id=user.department_id,
+            position=user.position,
+            title=user.title,
+            is_active=user.status == 'active',
+            role=role,
+            roles=roles,
+            permissions=permissions,
+            is_system_admin=user.is_system_admin or False,
+            system_admin_level=user.system_admin_level or 0,
+            created_at=user.created_at.isoformat() if user.created_at else None,
+            updated_at=user.updated_at.isoformat() if user.updated_at else None
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取用户信息失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取用户信息失败"
+        )
+
+
+@router.put("/me", response_model=UserResponse, summary="更新当前用户信息")
+async def update_current_user_info(
+    user_data: UserUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    更新当前用户信息
+    """
+    try:
+        from app.models.user import User, Department
+
+        # 从数据库获取用户
+        user = db.query(User).filter(User.id == current_user["id"]).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+
+        # 更新用户信息
+        update_data = user_data.dict(exclude_unset=True)
+        logger.info(f"收到更新请求，用户ID: {current_user['id']}, 更新数据: {update_data}")
+
+        # 如果更新手机号，检查是否已存在
+        if 'phone' in update_data and update_data['phone']:
+            existing_user = db.query(User).filter(
+                User.phone == update_data['phone'],
+                User.id != user.id
+            ).first()
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="该手机号已被使用"
+                )
+
+        # 记录更新前的值
+        logger.info(f"更新前的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
+
+        # 更新字段
+        for field, value in update_data.items():
+            logger.info(f"设置字段 {field} = {value}")
+            setattr(user, field, value)
+
+        # 记录更新后的值
+        logger.info(f"更新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
+
+        db.commit()
+        logger.info("数据库提交成功")
+
+        db.refresh(user)
+        logger.info(f"刷新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
+
+        # 获取部门名称
+        department_name = None
+        if user.department_id:
+            department = db.query(Department).filter(Department.id == user.department_id).first()
+            if department:
+                department_name = department.name
+
+        logger.info(f"用户信息更新成功: {user.username}")
+
+        # 确定用户角色和权限
+        role = "admin" if user.is_superuser else "doctor"
+        roles = current_user.get("roles", ["doctor"])
+        permissions = current_user.get("permissions", ["patient_manage", "image_view"])
+
+        return UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            full_name=user.real_name or user.username,
+            phone=user.phone,
+            real_name=user.real_name,
+            employee_id=user.employee_id,
+            department=department_name,
+            department_id=user.department_id,
+            position=user.position,
+            title=user.title,
+            is_active=user.status == 'active',
+            role=role,
+            roles=roles,
+            permissions=permissions,
+            is_system_admin=user.is_system_admin or False,
+            system_admin_level=user.system_admin_level or 0,
+            created_at=user.created_at.isoformat() if user.created_at else None,
+            updated_at=user.updated_at.isoformat() if user.updated_at else None
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新用户信息失败: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="更新用户信息失败"
+        )

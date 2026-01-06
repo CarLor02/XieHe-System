@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getCurrentUser, updateCurrentUser, UserInfo } from '@/services/userService';
+import { useAuthStore } from '@/store/authStore';
 
 interface UserSettingsProps {
   isOpen: boolean;
@@ -10,17 +12,126 @@ interface UserSettingsProps {
 
 export default function UserSettings({ isOpen, onClose, type }: UserSettingsProps) {
   const [activeTab, setActiveTab] = useState(type || 'profile');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [formData, setFormData] = useState({
-    username: '吴医生',
-    email: 'wu.doctor@hospital.com',
-    phone: '138****1234',
-    department: '骨科',
-    position: '主治医师',
+    username: '',
+    email: '',
+    phone: '',
+    real_name: '',
+    department: '',
+    department_id: null as number | null,
+    position: '',
+    title: '',
     organization: 'xiehe-wu-team',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+
+  // 获取 authStore 的 fetchUserInfo 方法
+  const { fetchUserInfo } = useAuthStore();
+
+  // 加载用户信息
+  useEffect(() => {
+    if (isOpen) {
+      loadUserInfo();
+    }
+  }, [isOpen]);
+
+  const loadUserInfo = async () => {
+    try {
+      setLoading(true);
+      console.log('开始加载用户信息...');
+      const data = await getCurrentUser();
+      console.log('用户信息加载成功:', data);
+      console.log('详细字段值:', {
+        username: data.username,
+        email: data.email,
+        phone: data.phone,
+        real_name: data.real_name,
+        department: data.department,
+        department_id: data.department_id,
+        position: data.position,
+        title: data.title
+      });
+
+      setUserInfo(data);
+
+      const newFormData = {
+        ...formData,
+        username: data.username || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        real_name: data.real_name || '',
+        department: data.department || '',
+        department_id: data.department_id || null,
+        position: data.position || '',
+        title: data.title || ''
+      };
+
+      console.log('设置表单数据:', newFormData);
+      setFormData(newFormData);
+    } catch (error: any) {
+      console.error('加载用户信息失败:', error);
+      console.error('错误详情:', error.response?.data);
+
+      // 检查是否是认证错误
+      if (error.message?.includes('认证') || error.message?.includes('凭据')) {
+        alert('登录已过期，请重新登录');
+        window.location.href = '/auth/login';
+        return;
+      }
+
+      alert('加载用户信息失败，请刷新页面重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const updateData = {
+        phone: formData.phone || undefined,
+        real_name: formData.real_name || undefined,
+        department_id: formData.department_id || undefined,
+        position: formData.position || undefined,
+        title: formData.title || undefined
+      };
+      console.log('准备保存用户信息:', updateData);
+
+      const result = await updateCurrentUser(updateData);
+      console.log('保存成功，返回数据:', result);
+
+      alert('保存成功！');
+
+      // 重新加载用户信息以确保显示最新数据
+      await loadUserInfo();
+
+      // 同时更新 authStore 中的用户信息，这样 Header 组件也会更新
+      console.log('更新 authStore 中的用户信息...');
+      await fetchUserInfo();
+      console.log('authStore 用户信息已更新');
+    } catch (error: any) {
+      console.error('保存失败:', error);
+      console.error('错误详情:', error.response?.data);
+
+      // 检查是否是认证错误
+      if (error.message?.includes('认证') || error.message?.includes('凭据')) {
+        alert('登录已过期，请重新登录');
+        // 可以在这里跳转到登录页
+        window.location.href = '/auth/login';
+        return;
+      }
+
+      const errorMsg = error.response?.data?.detail || error.message || '保存失败，请重试';
+      alert(errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const organizations = [
     { id: 'xiehe-wu-team', name: '协和吴主任团队', type: '医疗团队' },
@@ -35,7 +146,7 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
     { id: 'system', name: '系统偏好', icon: 'ri-settings-line' }
   ];
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | number | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -77,80 +188,109 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
               {activeTab === 'profile' && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-6">个人信息</h3>
-                  
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-6">
-                      <div className="w-20 h-20 bg-gray-300 rounded-full flex items-center justify-center">
-                        <i className="ri-user-line w-8 h-8 flex items-center justify-center text-gray-600"></i>
-                      </div>
-                      <div>
-                        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
-                          更换头像
-                        </button>
-                        <p className="text-xs text-gray-500 mt-2">支持 JPG、PNG 格式，文件大小不超过 2MB</p>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">用户名</label>
-                        <input
-                          type="text"
-                          value={formData.username}
-                          onChange={(e) => handleInputChange('username', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">邮箱地址</label>
-                        <input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => handleInputChange('email', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">手机号码</label>
-                        <input
-                          type="tel"
-                          value={formData.phone}
-                          onChange={(e) => handleInputChange('phone', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">科室</label>
-                        <select
-                          value={formData.department}
-                          onChange={(e) => handleInputChange('department', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="骨科">骨科</option>
-                          <option value="内科">内科</option>
-                          <option value="外科">外科</option>
-                          <option value="儿科">儿科</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">职位</label>
-                        <select
-                          value={formData.position}
-                          onChange={(e) => handleInputChange('position', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="主治医师">主治医师</option>
-                          <option value="副主任医师">副主任医师</option>
-                          <option value="主任医师">主任医师</option>
-                          <option value="住院医师">住院医师</option>
-                        </select>
-                      </div>
+                  {loading ? (
+                    <div className="text-center py-8">
+                      <div className="text-gray-500">加载中...</div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="flex items-center space-x-6">
+                        <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                          <span className="text-2xl font-bold text-white">
+                            {formData.real_name ? formData.real_name.charAt(0).toUpperCase() :
+                             formData.username ? formData.username.charAt(0).toUpperCase() : 'U'}
+                          </span>
+                        </div>
+                        <div>
+                          <button
+                            disabled
+                            className="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg text-sm cursor-not-allowed"
+                            title="头像上传功能即将推出"
+                          >
+                            更换头像
+                          </button>
+                          <p className="text-xs text-gray-500 mt-2">头像上传功能即将推出</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">用户名</label>
+                          <input
+                            type="text"
+                            value={formData.username}
+                            disabled
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">用户名不可修改</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">邮箱地址</label>
+                          <input
+                            type="email"
+                            value={formData.email}
+                            disabled
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">邮箱不可修改</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">真实姓名</label>
+                          <input
+                            type="text"
+                            value={formData.real_name}
+                            onChange={(e) => handleInputChange('real_name', e.target.value)}
+                            placeholder="请输入真实姓名"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">手机号码</label>
+                          <input
+                            type="tel"
+                            value={formData.phone}
+                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                            placeholder="请输入手机号码"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">职位</label>
+                          <input
+                            type="text"
+                            value={formData.position}
+                            onChange={(e) => handleInputChange('position', e.target.value)}
+                            placeholder="如：主治医师"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">职称</label>
+                          <input
+                            type="text"
+                            value={formData.title}
+                            onChange={(e) => handleInputChange('title', e.target.value)}
+                            placeholder="如：副主任医师"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {formData.department && (
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <h4 className="font-medium text-blue-900 mb-2">当前部门</h4>
+                          <p className="text-sm text-blue-700">{formData.department}</p>
+                          <p className="text-xs text-blue-600 mt-1">如需更改部门，请联系系统管理员</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -180,8 +320,6 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
                       <div className="text-sm text-gray-600 space-y-1">
                         <p>组织名称: 协和吴主任团队</p>
                         <p>组织类型: 医疗团队</p>
-                        <p>成员数量: 12人</p>
-                        <p>创建时间: 2023-06-15</p>
                       </div>
                     </div>
                   </div>
@@ -291,13 +429,27 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
               <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  disabled={saving}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   取消
                 </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  保存更改
-                </button>
+                {activeTab === 'profile' && (
+                  <button
+                    onClick={handleSave}
+                    disabled={saving || loading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saving ? '保存中...' : '保存更改'}
+                  </button>
+                )}
+                {activeTab === 'password' && (
+                  <button
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    修改密码
+                  </button>
+                )}
               </div>
             </div>
           </div>

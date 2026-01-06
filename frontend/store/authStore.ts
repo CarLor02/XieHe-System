@@ -18,6 +18,12 @@ export interface User {
   email: string;
   full_name: string;
   phone?: string;
+  real_name?: string;
+  employee_id?: string;
+  department?: string;
+  department_id?: number;
+  position?: string;
+  title?: string;
   role: string;
   permissions: string[];
   is_active: boolean;
@@ -100,12 +106,19 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
 
+          console.log('🔐 发送登录请求到:', `${API_BASE_URL}/api/v1/auth/login`);
           const response = await axios.post(
             `${API_BASE_URL}/api/v1/auth/login`,
             credentials
           );
 
+          console.log('✅ 登录响应:', response.data);
           const { access_token, refresh_token, user } = response.data;
+
+          console.log('📝 保存 Token 到 store...');
+          console.log('Access Token:', access_token ? `${access_token.substring(0, 20)}...` : 'null');
+          console.log('Refresh Token:', refresh_token ? `${refresh_token.substring(0, 20)}...` : 'null');
+          console.log('User:', user);
 
           set({
             isAuthenticated: true,
@@ -115,6 +128,15 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: null,
           });
+
+          console.log('✅ Token 已保存到 store');
+
+          // 验证保存是否成功
+          const currentState = get();
+          console.log('🔍 验证保存结果:');
+          console.log('isAuthenticated:', currentState.isAuthenticated);
+          console.log('accessToken 存在:', !!currentState.accessToken);
+          console.log('refreshToken 存在:', !!currentState.refreshToken);
 
           return true;
         } catch (error: any) {
@@ -192,16 +214,22 @@ export const useAuthStore = create<AuthState>()(
       refreshAccessToken: async () => {
         try {
           const { refreshToken } = get();
+          console.log('🔄 尝试刷新 access token...');
+
           if (!refreshToken) {
+            console.error('❌ 没有 refresh token');
             throw new Error('No refresh token available');
           }
 
+          console.log('📤 发送刷新请求到:', `${API_BASE_URL}/api/v1/auth/refresh`);
           const response = await axios.post(
             `${API_BASE_URL}/api/v1/auth/refresh`,
             {
               refresh_token: refreshToken,
             }
           );
+
+          console.log('✅ Token 刷新成功:', response.data);
 
           // 处理嵌套的tokens结构
           const tokens = response.data.tokens || response.data;
@@ -212,9 +240,11 @@ export const useAuthStore = create<AuthState>()(
             refreshToken: newRefreshToken || refreshToken,
           });
 
+          console.log('✅ 新的 access token 已保存');
           return true;
-        } catch (error) {
-          console.error('Token refresh error:', error);
+        } catch (error: any) {
+          console.error('❌ Token 刷新失败:', error);
+          console.error('错误详情:', error.response?.data);
           // 刷新失败，强制退出登录并跳转到登录页
           get().forceLogout();
           return false;
@@ -340,8 +370,13 @@ export const createAuthenticatedClient = (): AxiosInstance => {
   client.interceptors.request.use(
     config => {
       const { accessToken } = useAuthStore.getState();
+      console.log(`📤 发送请求: ${config.method?.toUpperCase()} ${config.url}`);
+
       if (accessToken) {
         config.headers.Authorization = `Bearer ${accessToken}`;
+        console.log(`🔑 添加 Authorization 头: Bearer ${accessToken.substring(0, 20)}...`);
+      } else {
+        console.log('⚠️ 没有 Access Token');
       }
 
       // 移除 URL 中的末尾斜杠（在查询参数之前）
@@ -421,6 +456,8 @@ export const createAuthenticatedClient = (): AxiosInstance => {
 
       // 处理 401 未授权错误
       if (error.response?.status === 401 && !originalRequest._retry) {
+        console.log('🔒 收到 401 错误，准备刷新 token...');
+        console.log('请求 URL:', originalRequest.url);
         originalRequest._retry = true;
 
         try {
@@ -429,16 +466,20 @@ export const createAuthenticatedClient = (): AxiosInstance => {
 
           // 如果还没有认证，不要尝试刷新令牌
           if (!isAuthenticated) {
+            console.log('⚠️ 用户未认证，不刷新 token');
             return Promise.reject(error);
           }
 
+          console.log('🔄 开始刷新 token...');
           const success = await refreshAccessToken();
 
           if (success) {
+            console.log('✅ Token 刷新成功，重试原始请求');
             const { accessToken } = useAuthStore.getState();
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return client(originalRequest);
           } else {
+            console.log('❌ Token 刷新失败，强制退出登录');
             // 刷新失败，强制退出登录
             const { forceLogout } = useAuthStore.getState();
             forceLogout();
@@ -447,7 +488,7 @@ export const createAuthenticatedClient = (): AxiosInstance => {
             );
           }
         } catch (refreshError) {
-          console.error('Token refresh error:', refreshError);
+          console.error('❌ Token 刷新异常:', refreshError);
           // 刷新异常，强制退出登录
           const { forceLogout } = useAuthStore.getState();
           forceLogout();
