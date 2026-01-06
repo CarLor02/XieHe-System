@@ -81,27 +81,20 @@ services:
       timeout: 10s
       retries: 5
 
-  # 前端应用 - 安全加固版
+  # 前端应用 - 安全加固版 (Node.js Standalone)
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
     container_name: medical_frontend
     restart: unless-stopped
-    user: "1001:1001"  # 直接以nginx-app用户启动
-    entrypoint: ["/bin/sh", "-c"]  # 覆盖默认entrypoint
-    command: 
-      - |
-        # 创建必要的目录
-        mkdir -p /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp \
-                 /var/cache/nginx/fastcgi_temp /var/cache/nginx/uwsgi_temp \
-                 /var/cache/nginx/scgi_temp /var/run /var/log/nginx
-        # 启动nginx
-        exec nginx -g 'daemon off;'
+    user: "1001:1001"  # 以nextjs用户启动
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://115.190.121.59:8080
       - NEXT_PUBLIC_WS_URL=ws://115.190.121.59:8080
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
     ports:
       - '3030:3000'
     depends_on:
@@ -114,11 +107,8 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp:mode=1777,size=10M,noexec,nosuid,nodev
-      - /var/tmp:mode=1777,size=10M,noexec,nosuid,nodev
-      - /var/cache/nginx:mode=755,size=50M,uid=1001,gid=1001
-      - /var/run:mode=755,size=10M,uid=1001,gid=1001
-      - /var/log/nginx:mode=755,size=10M,uid=1001,gid=1001
+      - /tmp:mode=1777,size=50M,uid=1001,gid=1001
+      - /app/.next/cache:mode=755,size=100M,uid=1001,gid=1001
     deploy:
       resources:
         limits:
