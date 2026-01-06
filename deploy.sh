@@ -158,6 +158,26 @@ pull_latest_code() {
     fi
 }
 
+# ==================== 检测挖矿病毒 ====================
+detect_and_clean_malware() {
+    print_header "检测并清理挖矿病毒"
+    
+    # 检查运行中的容器是否有挖矿进程
+    print_step "扫描运行中的容器..."
+    if docker ps -q 2>/dev/null | xargs -r docker exec -i {} ps aux 2>/dev/null | grep -i "javae\|xmrig\|c3pool\|/tmp/\.X" | grep -v grep; then
+        print_error "⚠️  发现可疑挖矿进程!"
+        print_warning "将强制停止所有容器并清理"
+    else
+        print_success "未发现运行中的挖矿进程"
+    fi
+    
+    # 清理宿主机恶意文件
+    print_step "清理系统恶意文件..."
+    sudo rm -rf /tmp/.XIN-unix /tmp/.X11-unix 2>/dev/null || true
+    sudo rm -rf /var/tmp/.*  2>/dev/null || true
+    print_success "系统清理完成"
+}
+
 # ==================== 停止旧服务 ====================
 stop_old_services() {
     print_header "停止旧服务"
@@ -271,6 +291,40 @@ health_check() {
     done
 }
 
+# ==================== 安全验证 ====================
+security_check() {
+    print_header "安全验证"
+    
+    # 检查前端容器运行用户
+    print_step "检查容器运行用户..."
+    frontend_user=$(docker exec medical_frontend whoami 2>/dev/null || echo "error")
+    if [ "$frontend_user" = "nginx-app" ]; then
+        print_success "容器使用非root用户运行: $frontend_user"
+    else
+        print_warning "容器运行用户: $frontend_user"
+    fi
+    
+    # 检查是否有可疑进程
+    print_step "扫描可疑进程..."
+    if docker exec medical_frontend ps aux 2>/dev/null | grep -i "javae\|xmrig\|c3pool" | grep -v grep; then
+        print_error "⚠️  发现可疑进程!"
+    else
+        print_success "未发现可疑进程"
+    fi
+    
+    # 检查CPU使用率
+    print_step "检查CPU使用率..."
+    cpu_usage=$(docker stats medical_frontend --no-stream --format "{{.CPUPerc}}" 2>/dev/null | sed 's/%//')
+    if [ -n "$cpu_usage" ]; then
+        cpu_int=$(echo "$cpu_usage" | cut -d'.' -f1)
+        if [ "$cpu_int" -gt 10 ]; then
+            print_warning "CPU使用率偏高: ${cpu_usage}%"
+        else
+            print_success "CPU使用率正常: ${cpu_usage}%"
+        fi
+    fi
+}
+
 # ==================== 显示日志 ====================
 show_logs() {
     print_header "服务日志"
@@ -295,11 +349,18 @@ print_summary() {
     echo -e "  ${GREEN}API文档:${NC}  http://115.190.121.59:8080/docs"
     echo -e "  ${YELLOW}本地访问:${NC} http://localhost:3030 (前端) http://localhost:8080 (后端)"
     echo ""
+    echo -e "${CYAN}安全特性:${NC}"
+    echo -e "  ${GREEN}✅ 非root用户运行${NC}"
+    echo -e "  ${GREEN}✅ 只读文件系统${NC}"
+    echo -e "  ${GREEN}✅ CPU/内存限制${NC}"
+    echo -e "  ${GREEN}✅ 已移除危险工具${NC}"
+    echo ""
     echo -e "${CYAN}常用命令:${NC}"
     echo -e "  ${YELLOW}查看日志:${NC}   docker compose -f $COMPOSE_FILE logs -f"
     echo -e "  ${YELLOW}停止服务:${NC}   docker compose -f $COMPOSE_FILE down"
     echo -e "  ${YELLOW}重启服务:${NC}   docker compose -f $COMPOSE_FILE restart"
     echo -e "  ${YELLOW}查看状态:${NC}   docker compose -f $COMPOSE_FILE ps"
+    echo -e "  ${YELLOW}安全检查:${NC}   docker exec medical_frontend ps aux"
     echo ""
     
     if [ -d "$BACKUP_DIR" ]; then
@@ -333,12 +394,14 @@ main() {
     
     # 执行部署流程
     check_environment
+    detect_and_clean_malware
     backup_current_deployment
     pull_latest_code
     stop_old_services
     build_docker_images
     start_services
     health_check
+    security_check
     print_summary
     
     # 询问是否查看日志

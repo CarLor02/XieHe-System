@@ -1,7 +1,9 @@
 # 医疗影像诊断系统 - 前端应用 Docker 镜像
-# 生产部署环境
+# 生产部署环境 - 安全加固版
 
-# 构建阶段
+# ============================================
+# 阶段1: 构建阶段
+# ============================================
 FROM node:18-alpine AS builder
 WORKDIR /app
 
@@ -33,24 +35,53 @@ ENV NODE_ENV=production
 # 构建应用
 RUN npm run build
 
-# 生产运行时镜像 - 使用nginx提供静态文件服务
+# ============================================
+# 阶段2: 生产运行时 - 安全加固
+# ============================================
 FROM nginx:alpine AS production
 
-# 安装curl用于健康检查
+# 安全加固: 创建非root用户
+RUN addgroup -g 1001 -S nginx-app && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginx-app -g nginx-app nginx-app
+
+# 安全加固: 仅安装curl用于健康检查
 RUN apk add --no-cache curl
 
+# 安全加固: 移除危险工具(防止下载挖矿脚本)
+RUN rm -f /usr/bin/wget /bin/wget 2>/dev/null || true
+
+# 安全加固: 清理可能的恶意文件目录
+RUN rm -rf /tmp/.XIN-unix /tmp/.X11-unix /tmp/.* \
+           /var/tmp/.* /dev/shm/* 2>/dev/null || true
+
+# 安全加固: 禁用cron和定时任务
+RUN rm -rf /etc/crontabs /var/spool/cron /etc/periodic 2>/dev/null || true
+
 # 复制构建产物到nginx目录
-COPY --from=builder /app/out /usr/share/nginx/html
+COPY --from=builder --chown=nginx-app:nginx-app /app/out /usr/share/nginx/html
 
 # 复制nginx配置
 COPY nginx.conf /etc/nginx/nginx.conf
+
+# 安全加固: 设置文件权限(只读保护)
+RUN chown -R nginx-app:nginx-app /usr/share/nginx/html && \
+    chmod -R 555 /usr/share/nginx/html && \
+    find /usr/share/nginx/html -type f -exec chmod 444 {} \;
+
+# 安全加固: 创建nginx运行所需的目录
+RUN mkdir -p /var/cache/nginx /var/run /var/log/nginx && \
+    chown -R nginx-app:nginx-app /var/cache/nginx /var/run /var/log/nginx && \
+    chmod -R 755 /var/cache/nginx /var/run /var/log/nginx
 
 # 暴露端口
 EXPOSE 3000
 
 # 健康检查
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3000 || exit 1
+
+# 安全加固: 切换到非root用户运行
+USER nginx-app
 
 # 启动nginx
 CMD ["nginx", "-g", "daemon off;"]
