@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Docker部署使用standalone模式,开发环境不使用
-  output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
+  // Docker部署使用静态导出模式(安全加固)
+  output: process.env.DOCKER_BUILD === 'true' ? 'export' : undefined,
 
   images: {
     unoptimized: true,

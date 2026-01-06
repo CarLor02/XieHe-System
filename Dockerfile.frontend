@@ -36,8 +36,9 @@ COPY frontend/ .
 # 设置环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV DOCKER_BUILD=true
 
-# 构建应用为静态文件
+# 构建应用
 RUN npm run build
 
 # ============================================
@@ -62,7 +63,7 @@ RUN rm -rf /tmp/.XIN-unix /tmp/.X11-unix /tmp/.* \
 # 安全加固: 禁用cron和定时任务
 RUN rm -rf /etc/crontabs /var/spool/cron /etc/periodic 2>/dev/null || true
 
-# 复制构建产物到nginx目录
+# 复制构建产物到nginx目录 (静态导出模式的out目录)
 COPY --from=builder --chown=nginx-app:nginx-app /app/out /usr/share/nginx/html
 
 # 复制nginx配置
