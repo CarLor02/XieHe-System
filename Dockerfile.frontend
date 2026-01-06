@@ -78,7 +78,6 @@ ENV PORT=3000
 # 复制standalone构建产物
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # 安全加固: 设置只读权限
 RUN chmod -R 555 /app && \
