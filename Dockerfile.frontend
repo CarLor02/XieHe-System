@@ -77,8 +77,14 @@ RUN chown -R nginx-app:nginx-app /usr/share/nginx/html && \
     chmod -R 555 /usr/share/nginx/html && \
     find /usr/share/nginx/html -type f -exec chmod 444 {} \;
 
-# 安全加固: 创建nginx运行所需的目录
-RUN mkdir -p /var/cache/nginx /var/run /var/log/nginx && \
+# 安全加固: 创建nginx运行所需的目录(包括所有临时子目录)
+RUN mkdir -p /var/cache/nginx/client_temp \
+             /var/cache/nginx/proxy_temp \
+             /var/cache/nginx/fastcgi_temp \
+             /var/cache/nginx/uwsgi_temp \
+             /var/cache/nginx/scgi_temp \
+             /var/run \
+             /var/log/nginx && \
     chown -R nginx-app:nginx-app /var/cache/nginx /var/run /var/log/nginx && \
     chmod -R 755 /var/cache/nginx /var/run /var/log/nginx
 

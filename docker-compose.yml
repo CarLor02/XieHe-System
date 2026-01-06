@@ -108,6 +108,7 @@ services:
       - /var/tmp:mode=1777,size=10M,noexec,nosuid,nodev
       - /var/cache/nginx:mode=755,size=50M
       - /var/run:mode=755,size=10M
+      - /var/log/nginx:mode=755,size=10M
     deploy:
       resources:
         limits:
