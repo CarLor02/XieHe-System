@@ -396,6 +396,9 @@ export default function TeamManagement() {
 
   useEffect(() => {
     if (!selectedTeamId || !isAuthenticated) return;
+    // 切换团队时立即清空成员和申请列表
+    setMembers([]);
+    setJoinRequests([]);
     loadMembers(selectedTeamId);
   }, [selectedTeamId, isAuthenticated]);
 
@@ -707,7 +710,7 @@ export default function TeamManagement() {
                   <div>
                     <h3 className="font-semibold text-gray-900">加入申请</h3>
                     <p className="text-xs text-gray-500">
-                      待处理 {joinRequests.filter(r => r.status === 'PENDING').length} 条
+                      待处理 {joinRequests?.filter(r => r.status === 'PENDING').length ?? 0} 条
                     </p>
                   </div>
                   <button
