@@ -26,16 +26,23 @@ logger = logging.getLogger(__name__)
 
 class CacheManager:
     """Redis缓存管理器"""
-    
+
     def __init__(self, redis_client: Optional[Redis] = None):
         """
         初始化缓存管理器
-        
+
         Args:
             redis_client: Redis客户端实例，如果为None则使用默认客户端
         """
-        self.redis_client = redis_client or get_redis()
+        self._redis_client = redis_client
         self.default_ttl = 3600  # 默认过期时间1小时
+
+    @property
+    def redis_client(self) -> Redis:
+        """延迟获取Redis客户端"""
+        if self._redis_client is None:
+            self._redis_client = get_redis()
+        return self._redis_client
     
     def set(self, key: str, value: Any, ttl: Optional[int] = None, 
             serialize: str = "json") -> bool:
