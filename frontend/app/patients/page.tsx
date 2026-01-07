@@ -2,6 +2,7 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import Tooltip from '@/components/ui/Tooltip';
 import { createAuthenticatedClient, useUser } from '@/store/authStore';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -112,12 +113,15 @@ export default function PatientsPage() {
               <h1 className="text-2xl font-bold text-gray-900">患者管理</h1>
               <p className="text-gray-600">管理和查看患者信息</p>
             </div>
-            <Link
-              href="/patients/add"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              添加患者
-            </Link>
+            <Tooltip content="添加新患者信息到系统" position="left">
+              <Link
+                href="/patients/add"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+              >
+                <i className="ri-add-line mr-1"></i>
+                添加患者
+              </Link>
+            </Tooltip>
           </div>
 
           {/* 搜索和筛选 */}

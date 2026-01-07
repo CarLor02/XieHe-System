@@ -2,6 +2,7 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import Tooltip from '@/components/ui/Tooltip';
 import {
   createAuthenticatedClient,
   useAuthStore,
@@ -252,21 +253,30 @@ export default function ImagingPage() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <Link
-                href="/upload?returnTo=/imaging"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap"
-              >
-                上传影像
-              </Link>
-              <Link
-                href="/imaging/comparison"
-                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap"
-              >
-                影像对比
-              </Link>
-              <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap">
-                批量下载
-              </button>
+              <Tooltip content="上传新的医学影像文件" position="bottom">
+                <Link
+                  href="/upload?returnTo=/imaging"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap inline-flex items-center"
+                >
+                  <i className="ri-upload-line mr-1"></i>
+                  上传影像
+                </Link>
+              </Tooltip>
+              <Tooltip content="对比查看多个影像" position="bottom">
+                <Link
+                  href="/imaging/comparison"
+                  className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap inline-flex items-center"
+                >
+                  <i className="ri-file-copy-line mr-1"></i>
+                  影像对比
+                </Link>
+              </Tooltip>
+              <Tooltip content="批量下载选中的影像文件" position="bottom">
+                <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap inline-flex items-center">
+                  <i className="ri-download-line mr-1"></i>
+                  批量下载
+                </button>
+              </Tooltip>
             </div>
           </div>
 

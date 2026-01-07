@@ -10,6 +10,7 @@
  */
 
 import { Button } from '@/components/ui/SimpleButton';
+import Tooltip from '@/components/ui/Tooltip';
 import { useAuth, useUser } from '@/store/authStore';
 import { Building2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
@@ -166,18 +167,20 @@ export default function LoginPage() {
                 }`}
                 disabled={isLoading}
               />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={isLoading}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
+              <Tooltip content={showPassword ? '隐藏密码' : '显示密码'} position="left">
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </Tooltip>
             </div>
             {validationErrors.password && (
               <p className="text-sm text-red-500 mt-1">

@@ -4,6 +4,7 @@ import UserSettings from '@/components/UserSettings';
 import { createAuthenticatedClient, useAuth, useUser } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import Tooltip from './ui/Tooltip';
 
 interface Message {
   id: string;
@@ -181,19 +182,21 @@ export default function Header() {
 
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <button
-                onClick={() => setShowMessages(!showMessages)}
-                className="flex items-center space-x-2"
-              >
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <i className="ri-notification-line w-4 h-4 flex items-center justify-center text-blue-600"></i>
-                </div>
-                {unreadCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
+              <Tooltip content={unreadCount > 0 ? `${unreadCount} 条未读消息` : '消息通知'} position="bottom">
+                <button
+                  onClick={() => setShowMessages(!showMessages)}
+                  className="flex items-center space-x-2"
+                >
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors">
+                    <i className="ri-notification-line w-4 h-4 flex items-center justify-center text-blue-600"></i>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              </Tooltip>
 
               {/* 消息弹窗 */}
               {showMessages && (
@@ -281,23 +284,25 @@ export default function Header() {
             </div>
 
             <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg"
-              >
-                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                  <i className="ri-user-line w-4 h-4 flex items-center justify-center text-gray-600"></i>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">
-                    {user?.full_name || user?.username || '用户'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {user?.role === 'admin' ? '系统管理员' : '医师'}
-                  </p>
-                </div>
-                <i className="ri-arrow-down-s-line w-4 h-4 flex items-center justify-center text-gray-400"></i>
-              </button>
+              <Tooltip content="用户菜单" position="bottom">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
+                >
+                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                    <i className="ri-user-line w-4 h-4 flex items-center justify-center text-gray-600"></i>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">
+                      {user?.full_name || user?.username || '用户'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {user?.role === 'admin' ? '系统管理员' : '医师'}
+                    </p>
+                  </div>
+                  <i className="ri-arrow-down-s-line w-4 h-4 flex items-center justify-center text-gray-400"></i>
+                </button>
+              </Tooltip>
 
               {/* 用户菜单弹窗 */}
               {showUserMenu && (
