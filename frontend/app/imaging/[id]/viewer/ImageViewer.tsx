@@ -5644,11 +5644,12 @@ function ImageCanvas({
             if (selectedMeasurement.type === '圆形标注' && selectedMeasurement.points.length >= 2) {
               const center = selectedMeasurement.points[0];
               const edge = selectedMeasurement.points[1];
-              const radius = Math.sqrt(
-                Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
-              );
+              // 使用屏幕坐标系计算半径
               const screenCenter = imageToScreen(center);
-              const screenRadius = radius * imageScale;
+              const screenEdge = imageToScreen(edge);
+              const screenRadius = Math.sqrt(
+                Math.pow(screenEdge.x - screenCenter.x, 2) + Math.pow(screenEdge.y - screenCenter.y, 2)
+              );
               
               minX = screenCenter.x - screenRadius - 15;
               maxX = screenCenter.x + screenRadius + 15;
@@ -5657,11 +5658,11 @@ function ImageCanvas({
             } else if (selectedMeasurement.type === '椭圆标注' && selectedMeasurement.points.length >= 2) {
               const center = selectedMeasurement.points[0];
               const edge = selectedMeasurement.points[1];
-              const radiusX = Math.abs(edge.x - center.x);
-              const radiusY = Math.abs(edge.y - center.y);
+              // 使用屏幕坐标系计算半径
               const screenCenter = imageToScreen(center);
-              const screenRadiusX = radiusX * imageScale;
-              const screenRadiusY = radiusY * imageScale;
+              const screenEdge = imageToScreen(edge);
+              const screenRadiusX = Math.abs(screenEdge.x - screenCenter.x);
+              const screenRadiusY = Math.abs(screenEdge.y - screenCenter.y);
               
               minX = screenCenter.x - screenRadiusX - 15;
               maxX = screenCenter.x + screenRadiusX + 15;
