@@ -3085,13 +3085,43 @@ function ImageCanvas({
               // 整体选择模式下，允许在整个测量结果的选中框内拖拽
               
               // 计算整体选中框范围（与绘制逻辑一致）
-              const screenPoints = measurement.points.map(p => imageToScreen(p));
-              const xs = screenPoints.map(p => p.x);
-              const ys = screenPoints.map(p => p.y);
-              const selectionBoxMinX = Math.min(...xs) - 15;
-              const selectionBoxMaxX = Math.max(...xs) + 15;
-              const selectionBoxMinY = Math.min(...ys) - 15;
-              const selectionBoxMaxY = Math.max(...ys) + 15;
+              let selectionBoxMinX: number, selectionBoxMaxX: number;
+              let selectionBoxMinY: number, selectionBoxMaxY: number;
+              
+              // 对圆形和椭圆使用特殊的选中框计算
+              if (measurement.type === '圆形标注' && measurement.points.length >= 2) {
+                const center = measurement.points[0];
+                const edge = measurement.points[1];
+                const screenCenter = imageToScreen(center);
+                const screenEdge = imageToScreen(edge);
+                const screenRadius = Math.sqrt(
+                  Math.pow(screenEdge.x - screenCenter.x, 2) + Math.pow(screenEdge.y - screenCenter.y, 2)
+                );
+                selectionBoxMinX = screenCenter.x - screenRadius - 15;
+                selectionBoxMaxX = screenCenter.x + screenRadius + 15;
+                selectionBoxMinY = screenCenter.y - screenRadius - 15;
+                selectionBoxMaxY = screenCenter.y + screenRadius + 15;
+              } else if (measurement.type === '椭圆标注' && measurement.points.length >= 2) {
+                const center = measurement.points[0];
+                const edge = measurement.points[1];
+                const screenCenter = imageToScreen(center);
+                const screenEdge = imageToScreen(edge);
+                const screenRadiusX = Math.abs(screenEdge.x - screenCenter.x);
+                const screenRadiusY = Math.abs(screenEdge.y - screenCenter.y);
+                selectionBoxMinX = screenCenter.x - screenRadiusX - 15;
+                selectionBoxMaxX = screenCenter.x + screenRadiusX + 15;
+                selectionBoxMinY = screenCenter.y - screenRadiusY - 15;
+                selectionBoxMaxY = screenCenter.y + screenRadiusY + 15;
+              } else {
+                // 其他类型：基于所有点的边界框
+                const screenPoints = measurement.points.map(p => imageToScreen(p));
+                const xs = screenPoints.map(p => p.x);
+                const ys = screenPoints.map(p => p.y);
+                selectionBoxMinX = Math.min(...xs) - 15;
+                selectionBoxMaxX = Math.max(...xs) + 15;
+                selectionBoxMinY = Math.min(...ys) - 15;
+                selectionBoxMaxY = Math.max(...ys) + 15;
+              }
               
               // 将当前鼠标位置转换为屏幕坐标
               const mouseScreenPoint = imageToScreen(imagePoint);
