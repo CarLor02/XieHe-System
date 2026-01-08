@@ -5337,10 +5337,12 @@ function ImageCanvas({
             if (measurement.points.length >= 2) {
               const center = measurement.points[0]; // 中心点
               const edge = measurement.points[1];   // 边缘点
-              const radius = Math.sqrt(
-                Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
-              );
+              // 使用屏幕坐标系计算半径
               const screenCenter = imageToScreen(center);
+              const screenEdge = imageToScreen(edge);
+              const radius = Math.sqrt(
+                Math.pow(screenEdge.x - screenCenter.x, 2) + Math.pow(screenEdge.y - screenCenter.y, 2)
+              );
               const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
               const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
               
@@ -5349,7 +5351,7 @@ function ImageCanvas({
                   key={measurement.id}
                   cx={screenCenter.x}
                   cy={screenCenter.y}
-                  r={radius * imageScale}
+                  r={radius}
                   fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
                   fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
                   stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#3b82f6"}
@@ -5393,9 +5395,11 @@ function ImageCanvas({
             if (measurement.points.length >= 2) {
               const center = measurement.points[0]; // 中心点
               const edge = measurement.points[1];   // 边界点
-              const radiusX = Math.abs(edge.x - center.x);
-              const radiusY = Math.abs(edge.y - center.y);
+              // 使用屏幕坐标系计算半径
               const screenCenter = imageToScreen(center);
+              const screenEdge = imageToScreen(edge);
+              const radiusX = Math.abs(screenEdge.x - screenCenter.x);
+              const radiusY = Math.abs(screenEdge.y - screenCenter.y);
               const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
               const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
               
@@ -5404,8 +5408,8 @@ function ImageCanvas({
                   key={measurement.id}
                   cx={screenCenter.x}
                   cy={screenCenter.y}
-                  rx={radiusX * imageScale}
-                  ry={radiusY * imageScale}
+                  rx={radiusX}
+                  ry={radiusY}
                   fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
                   fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
                   stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#8b5cf6"}
