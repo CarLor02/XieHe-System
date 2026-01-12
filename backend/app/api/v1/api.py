@@ -32,7 +32,8 @@ from .endpoints import (
     monitoring,
     upload,
     annotations,
-    image_files
+    image_files,
+    report_generation
 )
 
 # 单独导入 dashboard，如果失败则跳过
@@ -105,6 +106,12 @@ api_router.include_router(
     reports.router,
     prefix="/reports",
     tags=["报告管理"]
+)
+
+api_router.include_router(
+    report_generation.router,
+    prefix="/report-generation",
+    tags=["报告生成"]
 )
 
 api_router.include_router(

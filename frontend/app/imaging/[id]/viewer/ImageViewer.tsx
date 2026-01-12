@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createAuthenticatedClient } from '../../../../store/authStore';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface StudyData {
   id: number;
@@ -850,70 +852,97 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     }
   };
 
-  const generateReport = () => {
+  const generateReport = async () => {
     if (measurements.length === 0) {
       setReportText('暂无测量数据，无法生成报告。请先进行相关测量。');
       return;
     }
 
-    let report = `【${imageData.examType}测量报告】\n\n`;
-    report += `患者：${imageData.patientName} (${imageData.patientId})\n`;
-    report += `检查日期：${imageData.studyDate}\n`;
-    report += `影像类型：${imageData.examType}\n\n`;
+    try {
+      // 调用后端API生成报告
+      const client = createAuthenticatedClient();
+      const response = await client.post('/api/v1/report-generation/generate', {
+        imageId: imageId,
+        examType: imageData.examType,
+        measurements: measurements.map(m => ({
+          type: m.type,
+          value: m.value,
+          description: m.description
+        }))
+      });
 
-    report += `【测量结果】\n`;
-    measurements.forEach((measurement, index) => {
-      report += `${index + 1}. ${measurement.type}：${measurement.value}\n`;
-      if (measurement.description) {
-        report += `   ${measurement.description}\n`;
+      if (response.status === 200 && response.data.report) {
+        setReportText(response.data.report);
+        setSaveMessage('报告生成成功');
+        setTimeout(() => setSaveMessage(''), 3000);
+      } else {
+        throw new Error('报告生成失败');
       }
-    });
+    } catch (error) {
+      console.error('生成报告失败:', error);
 
-    report += `\n【分析建议】\n`;
+      // 如果API调用失败，使用本地简单生成作为后备方案
+      let report = `【${imageData.examType}测量报告】\n\n`;
+      report += `患者：${imageData.patientName} (${imageData.patientId})\n`;
+      report += `检查日期：${imageData.studyDate}\n`;
+      report += `影像类型：${imageData.examType}\n\n`;
 
-    // 根据不同影像类型生成专业分析
-    if (imageData.examType === '正位X光片') {
-      const cobbMeasurement = measurements.find(m => m.type === 'Cobb');
-      const rshMeasurement = measurements.find(m => m.type === 'RSH');
+      report += `【测量结果】\n`;
+      measurements.forEach((measurement, index) => {
+        report += `${index + 1}. ${measurement.type}：${measurement.value}\n`;
+        if (measurement.description) {
+          report += `   ${measurement.description}\n`;
+        }
+      });
 
-      if (cobbMeasurement) {
-        const cobbValue = parseFloat(cobbMeasurement.value);
-        if (cobbValue > 10) {
-          report += `• 脊柱侧弯程度：${cobbValue < 25 ? '轻度' : cobbValue < 40 ? '中度' : '重度'}（Cobb角 ${cobbMeasurement.value}）\n`;
+      report += `\n【分析建议】\n`;
+
+      // 根据不同影像类型生成专业分析
+      if (imageData.examType === '正位X光片') {
+        const cobbMeasurement = measurements.find(m => m.type === 'Cobb');
+        const rshMeasurement = measurements.find(m => m.type === 'RSH');
+
+        if (cobbMeasurement) {
+          const cobbValue = parseFloat(cobbMeasurement.value);
+          if (cobbValue > 10) {
+            report += `• 脊柱侧弯程度：${cobbValue < 25 ? '轻度' : cobbValue < 40 ? '中度' : '重度'}（Cobb角 ${cobbMeasurement.value}）\n`;
+          }
+        }
+
+        if (rshMeasurement) {
+          const rshValue = parseFloat(rshMeasurement.value);
+          if (rshValue > 10) {
+            report += `• 双肩高度差异明显，提示存在肩部不平衡\n`;
+          }
+        }
+      } else if (imageData.examType === '侧位X光片') {
+        const tkMeasurement = measurements.find(m => m.type === 'TK');
+        const llMeasurement = measurements.find(m => m.type === 'LL');
+        const svaMeasurement = measurements.find(m => m.type === 'SVA');
+
+        if (tkMeasurement) {
+          report += `• 胸椎后凸角：${tkMeasurement.value}，形态${parseFloat(tkMeasurement.value) > 40 ? '偏大' : '正常'}\n`;
+        }
+
+        if (llMeasurement) {
+          report += `• 腰椎前凸角：${llMeasurement.value}，弯曲${parseFloat(llMeasurement.value) < 40 ? '偏小' : '正常'}\n`;
+        }
+
+        if (svaMeasurement) {
+          const svaValue = parseFloat(svaMeasurement.value);
+          if (svaValue > 40) {
+            report += `• 矢状面平衡异常，存在前倾趋势\n`;
+          }
         }
       }
 
-      if (rshMeasurement) {
-        const rshValue = parseFloat(rshMeasurement.value);
-        if (rshValue > 10) {
-          report += `• 双肩高度差异明显，提示存在肩部不平衡\n`;
-        }
-      }
-    } else if (imageData.examType === '侧位X光片') {
-      const tkMeasurement = measurements.find(m => m.type === 'TK');
-      const llMeasurement = measurements.find(m => m.type === 'LL');
-      const svaMeasurement = measurements.find(m => m.type === 'SVA');
+      report += `\n报告生成时间：${new Date().toLocaleString('zh-CN')}\n`;
+      report += `系统：AI辅助测量分析`;
 
-      if (tkMeasurement) {
-        report += `• 胸椎后凸角：${tkMeasurement.value}，形态${parseFloat(tkMeasurement.value) > 40 ? '偏大' : '正常'}\n`;
-      }
-
-      if (llMeasurement) {
-        report += `• 腰椎前凸角：${llMeasurement.value}，弯曲${parseFloat(llMeasurement.value) < 40 ? '偏小' : '正常'}\n`;
-      }
-
-      if (svaMeasurement) {
-        const svaValue = parseFloat(svaMeasurement.value);
-        if (svaValue > 40) {
-          report += `• 矢状面平衡异常，存在前倾趋势\n`;
-        }
-      }
+      setReportText(report);
+      setSaveMessage('使用本地模式生成报告');
+      setTimeout(() => setSaveMessage(''), 3000);
     }
-
-    report += `\n报告生成时间：${new Date().toLocaleString('zh-CN')}\n`;
-    report += `系统：AI辅助测量分析`;
-
-    setReportText(report);
   };
 
   // 获取当前工具
@@ -1925,6 +1954,64 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 </div>
               )}
             </div>
+
+            {/* 报告展示区域 */}
+            {reportText && (
+              <div className="mb-4">
+                <div className="bg-gray-700/50 rounded-lg p-3 max-h-96 overflow-y-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-white flex items-center">
+                      <i className="ri-file-text-line w-4 h-4 mr-1"></i>
+                      分析报告
+                    </h4>
+                    <button
+                      onClick={() => {
+                        // 复制报告到剪贴板（Markdown格式）
+                        navigator.clipboard.writeText(reportText);
+                        setSaveMessage('报告已复制到剪贴板');
+                        setTimeout(() => setSaveMessage(''), 2000);
+                      }}
+                      className="text-xs text-blue-400 hover:text-blue-300 flex items-center"
+                    >
+                      <i className="ri-file-copy-line w-3 h-3 mr-1"></i>
+                      复制
+                    </button>
+                  </div>
+                  {/* Markdown渲染区域 */}
+                  <div className="prose prose-invert prose-sm max-w-none">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // 自定义样式
+                        h1: ({node, ...props}) => <h1 className="text-lg font-bold text-white mb-3 mt-4 first:mt-0" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-base font-semibold text-blue-300 mb-2 mt-3" {...props} />,
+                        h3: ({node, ...props}) => <h3 className="text-sm font-medium text-green-300 mb-2 mt-2" {...props} />,
+                        p: ({node, ...props}) => <p className="text-xs text-gray-300 mb-2 leading-relaxed" {...props} />,
+                        ul: ({node, ...props}) => <ul className="text-xs text-gray-300 mb-2 ml-4 list-disc" {...props} />,
+                        ol: ({node, ...props}) => <ol className="text-xs text-gray-300 mb-2 ml-4 list-decimal" {...props} />,
+                        li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                        table: ({node, ...props}) => (
+                          <div className="overflow-x-auto mb-3">
+                            <table className="min-w-full text-xs border border-gray-600" {...props} />
+                          </div>
+                        ),
+                        thead: ({node, ...props}) => <thead className="bg-gray-600" {...props} />,
+                        tbody: ({node, ...props}) => <tbody className="bg-gray-700/30" {...props} />,
+                        tr: ({node, ...props}) => <tr className="border-b border-gray-600" {...props} />,
+                        th: ({node, ...props}) => <th className="px-3 py-2 text-left font-semibold text-white" {...props} />,
+                        td: ({node, ...props}) => <td className="px-3 py-2 text-gray-300" {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-bold text-yellow-300" {...props} />,
+                        em: ({node, ...props}) => <em className="italic text-blue-300" {...props} />,
+                        code: ({node, ...props}) => <code className="bg-gray-600 px-1 py-0.5 rounded text-green-300" {...props} />,
+                        hr: ({node, ...props}) => <hr className="border-gray-600 my-3" {...props} />,
+                      }}
+                    >
+                      {reportText}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            )}
             </div>
           </div>
         </div>
