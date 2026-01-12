@@ -52,7 +52,7 @@ class ImageFileResponse(BaseModel):
     upload_progress: int
     created_at: datetime
     uploaded_at: Optional[datetime]
-    
+
     class Config:
         from_attributes = True
 
@@ -81,44 +81,56 @@ async def get_my_images(
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     file_type: Optional[ImageFileTypeEnum] = Query(None, description="文件类型"),
     file_status: Optional[ImageFileStatusEnum] = Query(None, description="文件状态"),
-    modality: Optional[str] = Query(None, description="影像模态"),
+    description: Optional[str] = Query(None, description="检查类型"),
     start_date: Optional[date] = Query(None, description="开始日期"),
     end_date: Optional[date] = Query(None, description="结束日期"),
-    search: Optional[str] = Query(None, description="搜索关键词(文件名)"),
+    search: Optional[str] = Query(None, description="搜索关键词(文件名/患者姓名/检查类型)"),
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
     获取当前用户上传的所有影像文件
-    
+
     支持分页、筛选和搜索
+    搜索支持：文件名、患者姓名、检查类型的模糊匹配
     """
     try:
-        # 构建查询
-        query = db.query(ImageFile).filter(
+        from app.models.patient import Patient
+        from sqlalchemy import or_
+
+        # 构建查询，关联患者表以支持按患者姓名搜索
+        query = db.query(ImageFile).outerjoin(
+            Patient, ImageFile.patient_id == Patient.id
+        ).filter(
             ImageFile.uploaded_by == current_user.get('id'),
             ImageFile.is_deleted == False
         )
-        
+
         # 应用筛选条件
         if file_type:
             query = query.filter(ImageFile.file_type == file_type)
-        
+
         if file_status:
             query = query.filter(ImageFile.status == file_status)
-            
-        if modality:
-            query = query.filter(ImageFile.modality == modality)
-            
+
+        if description:
+            query = query.filter(ImageFile.description == description)
+
         if start_date:
             query = query.filter(ImageFile.created_at >= start_date)
-            
+
         if end_date:
             end_datetime = datetime.combine(end_date, datetime.max.time())
             query = query.filter(ImageFile.created_at <= end_datetime)
-            
+
         if search:
-            query = query.filter(ImageFile.original_filename.like(f"%{search}%"))
+            # 模糊搜索：文件名、患者姓名、检查类型
+            search_filter = or_(
+                ImageFile.original_filename.like(f"%{search}%"),
+                Patient.name.like(f"%{search}%"),
+                ImageFile.description.like(f"%{search}%")
+            )
+            query = query.filter(search_filter)
         
         # 获取总数
         total = query.count()

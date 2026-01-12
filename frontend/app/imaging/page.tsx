@@ -75,13 +75,25 @@ export default function ImagingPage() {
 
   // 搜索和筛选状态
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedFileType, setSelectedFileType] = useState<string>('all');
-  const [selectedModality, setSelectedModality] = useState<string>('all');
+  const [selectedExamType, setSelectedExamType] = useState<string>('all'); // 检查类型
+
+  // 判断是否有激活的筛选条件
+  const hasActiveFilters = searchTerm.trim() !== '' || selectedExamType !== 'all';
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  // 搜索防抖：延迟500ms后更新debouncedSearchTerm
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // 加载影像数据
   const loadImages = async () => {
@@ -94,9 +106,8 @@ export default function ImagingPage() {
         page_size: pageSize,
       };
 
-      if (searchTerm) filters.search = searchTerm;
-      if (selectedFileType !== 'all') filters.file_type = selectedFileType as any;
-      if (selectedModality !== 'all') filters.modality = selectedModality;
+      if (debouncedSearchTerm) filters.search = debouncedSearchTerm;
+      if (selectedExamType !== 'all') filters.description = selectedExamType;
       if (dateFrom) filters.start_date = dateFrom;
       if (dateTo) filters.end_date = dateTo;
 
@@ -116,13 +127,23 @@ export default function ImagingPage() {
       setImageUrls(urls);
     } catch (err: any) {
       console.error('Failed to load images:', err);
+      console.log('错误类型检查:', {
+        hasResponse: !!err.response,
+        status: err.response?.status,
+        message: err.message,
+        isAuthError: err.response?.status === 401 || err.message?.toLowerCase().includes('authentication'),
+      });
 
       // 检查并处理认证错误
-      if (checkAndHandleAuthError(err, { showAlert: false })) {
+      if (checkAndHandleAuthError(err, { showAlert: false, redirectDelay: 0 })) {
+        // 认证错误，不设置错误消息，直接跳转
+        console.log('✅ 检测到认证错误，准备跳转到登录页');
+        setLoading(false);
         return;
       }
 
       // 设置错误消息
+      console.log('⚠️ 非认证错误，显示错误消息');
       setError(getErrorMessage(err, '加载影像失败，请重试'));
       setImageFiles([]);
     } finally {
@@ -142,7 +163,7 @@ export default function ImagingPage() {
     if (isAuthenticated) {
       loadImages();
     }
-    
+
     // 清理Object URLs
     return () => {
       Object.values(imageUrls).forEach(url => {
@@ -151,12 +172,12 @@ export default function ImagingPage() {
         }
       });
     };
-  }, [isAuthenticated, currentPage, searchTerm, selectedFileType, selectedModality, dateFrom, dateTo]);
+  }, [isAuthenticated, currentPage, debouncedSearchTerm, selectedExamType, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedFileType('all');
-    setSelectedModality('all');
+    setDebouncedSearchTerm('');
+    setSelectedExamType('all');
     setDateFrom('');
     setDateTo('');
     setCurrentPage(1);
@@ -303,7 +324,7 @@ export default function ImagingPage() {
                 <i className="ri-search-line w-4 h-4 flex items-center justify-center absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                 <input
                   type="text"
-                  placeholder="搜索影像ID或影像类型"
+                  placeholder="搜索患者姓名、检查类型或文件名"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -319,7 +340,7 @@ export default function ImagingPage() {
                   }`}
               >
                 筛选
-                {(selectedFileType !== 'all' || selectedModality !== 'all' || dateFrom || dateTo) && (
+                {(selectedExamType !== 'all' || dateFrom || dateTo) && (
                   <span className="ml-1 bg-blue-500 text-white text-xs rounded-full px-1.5">
                     !
                   </span>
@@ -334,7 +355,7 @@ export default function ImagingPage() {
                 {total > 0 && ` (共 ${total} 条)`}
               </span>
 
-              <div className="flex border rounded-lg">
+              <div className="flex border rounded-lg overflow-hidden">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`px-3 py-1.5 ${viewMode === 'grid'
@@ -362,35 +383,19 @@ export default function ImagingPage() {
             <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  文件类型
+                  检查类型
                 </label>
                 <select
-                  value={selectedFileType}
-                  onChange={e => setSelectedFileType(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+                  value={selectedExamType}
+                  onChange={e => setSelectedExamType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">全部类型</option>
-                  <option value="DICOM">DICOM</option>
-                  <option value="JPEG">JPEG</option>
-                  <option value="PNG">PNG</option>
-                  <option value="TIFF">TIFF</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  影像模态
-                </label>
-                <select
-                  value={selectedModality}
-                  onChange={e => setSelectedModality(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
-                >
-                  <option value="all">全部模态</option>
-                  <option value="CT">CT</option>
-                  <option value="MR">MR</option>
-                  <option value="XR">X光</option>
-                  <option value="US">超声</option>
+                  <option value="正位X光片">正位X光片</option>
+                  <option value="侧位X光片">侧位X光片</option>
+                  <option value="左侧曲位">左侧曲位</option>
+                  <option value="右侧曲位">右侧曲位</option>
+                  <option value="体态照片">体态照片</option>
                 </select>
               </div>
 
@@ -663,11 +668,37 @@ export default function ImagingPage() {
             )
           ) : (
             <div className="p-12 text-center text-gray-400">
-              <i className="ri-image-line w-16 h-16 flex items-center justify-center mx-auto mb-4 text-4xl"></i>
-              <h3 className="text-lg font-medium text-gray-500 mb-2">
-                未找到匹配的影像
-              </h3>
-              <p>请尝试调整搜索条件或筛选器</p>
+              {hasActiveFilters ? (
+                // 有筛选条件但没有结果
+                <>
+                  <i className="ri-search-line w-16 h-16 flex items-center justify-center mx-auto mb-4 text-4xl"></i>
+                  <h3 className="text-lg font-medium text-gray-500 mb-2">
+                    未找到匹配的影像
+                  </h3>
+                  <p className="text-gray-400 mb-4">请尝试调整搜索条件或筛选器</p>
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSelectedExamType('all');
+                      setDateFrom('');
+                      setDateTo('');
+                    }}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <i className="ri-refresh-line"></i>
+                    <span>清除筛选条件</span>
+                  </button>
+                </>
+              ) : (
+                // 完全没有图片
+                <>
+                  <i className="ri-image-add-line w-16 h-16 flex items-center justify-center mx-auto mb-4 text-4xl"></i>
+                  <h3 className="text-lg font-medium text-gray-500 mb-2">
+                    还没有上传任何影像
+                  </h3>
+                  <p className="text-gray-400">开始上传您的第一张医疗影像吧</p>
+                </>
+              )}
             </div>
           )}
         </div>

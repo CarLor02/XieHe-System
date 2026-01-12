@@ -12,19 +12,32 @@ export function isAuthError(error: any): boolean {
   if (error.response?.status === 401) {
     return true;
   }
-  
-  // 检查错误消息
+
+  // 检查错误消息（包括 axios 拦截器抛出的错误）
   const message = error.message?.toLowerCase() || '';
   if (
     message.includes('认证') ||
     message.includes('authentication') ||
     message.includes('unauthorized') ||
     message.includes('token') ||
-    message.includes('登录')
+    message.includes('登录') ||
+    message.includes('redirecting to login') // axios 拦截器的错误消息
   ) {
     return true;
   }
-  
+
+  // 检查错误详情
+  const detail = error.response?.data?.detail?.toLowerCase() || '';
+  if (
+    detail.includes('认证') ||
+    detail.includes('authentication') ||
+    detail.includes('unauthorized') ||
+    detail.includes('token') ||
+    detail.includes('登录')
+  ) {
+    return true;
+  }
+
   return false;
 }
 
@@ -45,18 +58,27 @@ export function handleAuthError(
     alertMessage = '登录已过期，请重新登录',
     redirectDelay = 500,
   } = options;
-  
+
   console.log('❌ 认证失败，session 已过期');
-  
+  console.log('错误详情:', {
+    status: error.response?.status,
+    message: error.message,
+    detail: error.response?.data?.detail,
+  });
+
   // 显示提示
   if (showAlert) {
     alert(alertMessage);
   }
-  
+
   // 跳转到登录页
-  setTimeout(() => {
+  if (redirectDelay === 0) {
     window.location.href = '/auth/login';
-  }, redirectDelay);
+  } else {
+    setTimeout(() => {
+      window.location.href = '/auth/login';
+    }, redirectDelay);
+  }
 }
 
 /**
