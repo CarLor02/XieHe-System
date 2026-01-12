@@ -394,83 +394,67 @@ export default function Home() {
           </div>
         )}
 
-        {/* 快捷功能 - 参考设计图的功能卡片 */}
+        {/* 快捷功能 - 干净简洁的卡片设计 */}
         <div className="mb-10">
           <h2 className="text-xl font-bold text-gray-800 mb-5">快捷功能</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Tooltip content="进入工作台查看系统概览、统计数据和待办事项" position="top">
               <Link
                 href="/dashboard"
-                className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 group"
+                className="group block rounded-2xl bg-white p-6 transition-all duration-300 hover:shadow-lg hover:scale-105 border border-gray-100"
               >
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors flex-shrink-0">
-                    <i className="ri-dashboard-line text-2xl text-blue-600"></i>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 mb-1">工作台</h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                      查看系统概览和统计
-                    </p>
-                  </div>
+                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg group-hover:shadow-blue-600/50 transition-shadow">
+                  <i className="ri-dashboard-line text-xl"></i>
                 </div>
+                <h3 className="font-semibold text-gray-900 mb-1.5">工作台</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  查看系统概览和统计
+                </p>
               </Link>
             </Tooltip>
 
             <Tooltip content="管理患者信息、查看病历和影像记录" position="top">
               <Link
                 href="/patients"
-                className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 group"
+                className="group block rounded-2xl bg-white p-6 transition-all duration-300 hover:shadow-lg hover:scale-105 border border-gray-100"
               >
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors flex-shrink-0">
-                    <i className="ri-user-line text-2xl text-green-600"></i>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 mb-1">患者管理</h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                      管理患者信息和档案
-                    </p>
-                  </div>
+                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-green-600 text-white shadow-lg group-hover:shadow-green-600/50 transition-shadow">
+                  <i className="ri-user-line text-xl"></i>
                 </div>
+                <h3 className="font-semibold text-gray-900 mb-1.5">患者管理</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  管理患者信息和档案
+                </p>
               </Link>
             </Tooltip>
 
             <Tooltip content="浏览、查看和分析医学影像，支持多种格式" position="top">
               <Link
                 href="/imaging"
-                className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 group"
+                className="group block rounded-2xl bg-white p-6 transition-all duration-300 hover:shadow-lg hover:scale-105 border border-gray-100"
               >
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 bg-purple-50 rounded-xl flex items-center justify-center group-hover:bg-purple-100 transition-colors flex-shrink-0">
-                    <i className="ri-image-line text-2xl text-purple-600"></i>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 mb-1">影像中心</h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                      查看和管理医学影像
-                    </p>
-                  </div>
+                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-purple-600 text-white shadow-lg group-hover:shadow-purple-600/50 transition-shadow">
+                  <i className="ri-image-line text-xl"></i>
                 </div>
+                <h3 className="font-semibold text-gray-900 mb-1.5">影像中心</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  查看和管理医学影像
+                </p>
               </Link>
             </Tooltip>
 
             <Tooltip content="管理AI诊断模型、配置参数和查看性能" position="top">
               <Link
                 href="/model-center"
-                className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 group"
+                className="group block rounded-2xl bg-white p-6 transition-all duration-300 hover:shadow-lg hover:scale-105 border border-gray-100"
               >
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 bg-orange-50 rounded-xl flex items-center justify-center group-hover:bg-orange-100 transition-colors flex-shrink-0">
-                    <i className="ri-cpu-line text-2xl text-orange-600"></i>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 mb-1">模型中心</h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                      AI模型管理和配置
-                    </p>
-                  </div>
+                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-orange-600 text-white shadow-lg group-hover:shadow-orange-600/50 transition-shadow">
+                  <i className="ri-cpu-line text-xl"></i>
                 </div>
+                <h3 className="font-semibold text-gray-900 mb-1.5">模型中心</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  AI模型管理和配置
+                </p>
               </Link>
             </Tooltip>
           </div>
