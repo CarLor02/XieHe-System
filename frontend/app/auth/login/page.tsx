@@ -233,15 +233,6 @@ export default function LoginPage() {
             </Link>
           </div>
         </form>
-
-        {/* 演示账号 */}
-        <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">演示账号</h4>
-          <div className="text-xs text-gray-600 space-y-1">
-            <div>管理员: admin / admin123</div>
-            <div>医生: doctor / doctor123</div>
-          </div>
-        </div>
       </div>
     </div>
   );
