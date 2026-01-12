@@ -102,7 +102,7 @@ class User(Base):
     roles = relationship("Role", secondary=user_roles, back_populates="users")
     department = relationship("Department", back_populates="users")
     team_memberships = relationship("TeamMembership", back_populates="user", cascade="all, delete-orphan")
-    led_teams = relationship("Team", back_populates="leader", foreign_keys='Team.leader_id')
+    created_teams = relationship("Team", back_populates="creator", foreign_keys='Team.creator_id')
     team_join_requests = relationship(
         "TeamJoinRequest",
         back_populates="applicant",
@@ -226,13 +226,13 @@ class Team(Base):
     description = Column(Text, nullable=True)
     hospital = Column(String(120), nullable=True)
     department = Column(String(120), nullable=True)
-    leader_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    creator_id = Column(Integer, ForeignKey('users.id'), nullable=True, comment="创建者ID")
     max_members = Column(Integer, default=50, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
-    leader = relationship("User", back_populates="led_teams", foreign_keys=[leader_id])
+    creator = relationship("User", back_populates="created_teams", foreign_keys=[creator_id])
     memberships = relationship("TeamMembership", back_populates="team", cascade="all, delete-orphan")
     join_requests = relationship("TeamJoinRequest", back_populates="team", cascade="all, delete-orphan")
     invitations = relationship("TeamInvitation", back_populates="team", cascade="all, delete-orphan")
@@ -701,9 +701,9 @@ def init_teams(session):
     ]
 
     for config in team_configs:
-        leader = users.get(config["leader_username"])
-        if not leader:
-            print(f"   ⚠️ 未找到负责人用户: {config['leader_username']}，跳过团队 {config['name']}")
+        creator = users.get(config["leader_username"])
+        if not creator:
+            print(f"   ⚠️ 未找到创建者用户: {config['leader_username']}，跳过团队 {config['name']}")
             continue
 
         team = Team(
@@ -711,7 +711,7 @@ def init_teams(session):
             description=config.get("description"),
             hospital=config.get("hospital"),
             department=config.get("department"),
-            leader_id=leader.id,
+            creator_id=creator.id,
             max_members=config.get("max_members", 50),
             is_active=True,
         )
@@ -720,13 +720,13 @@ def init_teams(session):
 
         member_count = 0
 
-        leader_membership = TeamMembership(
+        creator_membership = TeamMembership(
             team_id=team.id,
-            user_id=leader.id,
+            user_id=creator.id,
             role=TeamMembershipRole.ADMIN,
             status=TeamMembershipStatus.ACTIVE,
         )
-        session.add(leader_membership)
+        session.add(creator_membership)
         member_count += 1
 
         for member_cfg in config.get("members", []):

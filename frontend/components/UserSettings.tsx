@@ -33,6 +33,13 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
   // 获取 authStore 的 fetchUserInfo 方法
   const { fetchUserInfo } = useAuthStore();
 
+  // 当 type 改变时，更新 activeTab
+  useEffect(() => {
+    if (type) {
+      setActiveTab(type);
+    }
+  }, [type]);
+
   // 加载用户信息
   useEffect(() => {
     if (isOpen) {
@@ -139,7 +146,7 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
     { id: 'qilu-liu-team', name: '齐鲁刘主任团队', type: '医疗团队' }
   ];
 
-  const tabs = [
+  const tabs: Array<{ id: 'profile' | 'organization' | 'password' | 'system'; name: string; icon: string }> = [
     { id: 'profile', name: '个人信息', icon: 'ri-user-line' },
     { id: 'organization', name: '组织设置', icon: 'ri-building-line' },
     { id: 'password', name: '密码安全', icon: 'ri-lock-line' },
@@ -153,8 +160,8 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 backdrop-blur-sm bg-gray-900/20 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl">
         <div className="flex">
           {/* 左侧导航 */}
           <div className="w-64 bg-gray-50 border-r border-gray-200">
