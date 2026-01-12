@@ -276,57 +276,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           id: 't1-slope',
           name: 'T1 Slope',
           icon: 'ri-focus-3-line',
-          description: 'T1倾斜角测量',
-          pointsNeeded: 4,
-        },
-        {
-          id: 'c2c7-cobb',
-          name: 'C2-C7 Cobb',
-          icon: 'ri-compass-3-line',
-          description: '颈椎Cobb角测量',
-          pointsNeeded: 4,
-        },
-        {
-          id: 'tk',
-          name: 'TK',
-          icon: 'ri-moon-line',
-          description: '胸椎后凸角(Thoracic Kyphosis)',
-          pointsNeeded: 4,
-        },
-        {
-          id: 'll',
-          name: 'LL',
-          icon: 'ri-bow-line',
-          description: '腰椎前凸角(Lumbar Lordosis)',
-          pointsNeeded: 4,
-        },
-        {
-          id: 'sva',
-          name: 'SVA',
-          icon: 'ri-ruler-line',
-          description: '矢状面椎体轴线(Sagittal Vertical Axis)',
+          description: 'T1倾斜角测量（侧位）',
           pointsNeeded: 2,
-        },
-        {
-          id: 'pi',
-          name: 'PI',
-          icon: 'ri-triangle-line',
-          description: '骨盆入射角(Pelvic Incidence)',
-          pointsNeeded: 3,
-        },
-        {
-          id: 'pt',
-          name: 'PT',
-          icon: 'ri-triangle-fill',
-          description: '骨盆倾斜角(Pelvic Tilt)',
-          pointsNeeded: 3,
-        },
-        {
-          id: 'ss',
-          name: 'SS',
-          icon: 'ri-square-line',
-          description: '骶骨倾斜角(Sacral Slope)',
-          pointsNeeded: 4,
         },
         {
           id: 'circle',
@@ -335,6 +286,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           description: '辅助圆形',
           pointsNeeded: 0,
         },
+
         {
           id: 'ellipse',
           name: 'Auxiliary Ellipse',
@@ -545,6 +497,30 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     return Math.abs(angle);
   };
 
+  // T1 Slope 专门的角度计算函数（侧位）
+  const calculateT1SlopeAngle = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // T1 Slope 是T1椎体上终板与水平线的夹角（侧位测量）
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算椎体上终板的角度（相对于水平线）
+    const vertebralPlateAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 侧位测量通常取绝对值，表示倾斜程度
+    let slopeAngle = vertebralPlateAngle;
+    
+    // 将角度规范化到-90到90度范围内
+    if (slopeAngle > 90) {
+      slopeAngle = slopeAngle - 180;
+    } else if (slopeAngle < -90) {
+      slopeAngle = slopeAngle + 180;
+    }
+    
+    return slopeAngle;
+  };
+
   // calculateAVT 函数 - 计算两条垂直线之间的水平距离（单位：mm）
   const calculateAVT = (points: Point[], imageWidth: number, referenceWidth: number) => {
     if (points.length < 2) return 0;
@@ -731,8 +707,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         description = '躯干偏移量(Trunk Shift)';
         break;
       case 'T1 Slope':
-        defaultValue = `${(Math.random() * 25 + 15).toFixed(1)}°`;
-        description = 'T1倾斜角测量';
+        if (points.length >= 2) {
+          // 使用实际计算的角度（侧位）
+          const calculatedAngle = calculateT1SlopeAngle(points);
+          defaultValue = `${calculatedAngle.toFixed(1)}°`;
+        } else {
+          defaultValue = `${(Math.random() * 25 + 15).toFixed(1)}°`;
+        }
+        description = 'T1倾斜角测量（侧位）';
         break;
       case 'C2-C7 Cobb':
         defaultValue = `${(Math.random() * 20 + 5).toFixed(1)}°`;
@@ -977,7 +959,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       'Sacral': '骶骨倾斜角测量',
       'AVT': '顶椎平移量(Apical Vertebral Translation)',
       'TS': '躯干偏移量(Trunk Shift)',
-      'T1 Slope': 'T1倾斜角测量',
+      'T1 Slope': 'T1倾斜角测量（侧位）',
       'C2-C7 Cobb': '颈椎Cobb角测量',
       'TK': '胸椎后凸角(Thoracic Kyphosis)',
       'LL': '腰椎前凸角(Lumbar Lordosis)',
@@ -1005,6 +987,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       case 'T1 Tilt':
         if (points.length >= 2) {
           const angle = calculateT1TiltAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      case 'T1 Slope':
+        if (points.length >= 2) {
+          const angle = calculateT1SlopeAngle(points);
           return `${angle.toFixed(1)}°`;
         }
         return '0.0°';
@@ -2377,6 +2366,30 @@ function ImageCanvas({
     return tiltAngle;
   };
 
+  // T1 Slope 专门的角度计算函数（侧位）
+  const calculateT1SlopeAngle = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    // T1 Slope 是T1椎体上终板与水平线的夹角（侧位测量）
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算椎体上终板的角度（相对于水平线）
+    const vertebralPlateAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 侧位测量通常取绝对值，表示倾斜程度
+    let slopeAngle = vertebralPlateAngle;
+    
+    // 将角度规范化到-90到90度范围内
+    if (slopeAngle > 90) {
+      slopeAngle = slopeAngle - 180;
+    } else if (slopeAngle < -90) {
+      slopeAngle = slopeAngle + 180;
+    }
+    
+    return slopeAngle;
+  };
+
   // Cobb角专门的角度计算函数
   const calculateCobbAngle = (points: Point[]) => {
     if (points.length < 4) return 0;
@@ -2503,10 +2516,18 @@ function ImageCanvas({
     
     // 根据测量类型重新计算值
     switch (type) {
-      // T1 Tilt 特殊处理 - 2点测量
+      // T1 Tilt 特殊处理 - 2点测量（正位）
       case 'T1 Tilt':
         if (points.length >= 2) {
           const angle = calculateT1TiltAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+        
+      // T1 Slope 特殊处理 - 2点测量（侧位）
+      case 'T1 Slope':
+        if (points.length >= 2) {
+          const angle = calculateT1SlopeAngle(points);
           return `${angle.toFixed(1)}°`;
         }
         break;
@@ -3213,6 +3234,20 @@ function ImageCanvas({
 
           // T1 Tilt 特殊处理
           if (selectedTool.includes('t1-tilt')) {
+            if (newPoints.length === 1) {
+              // 第一个点：设置水平参考线位置
+              setT1TiltHorizontalLine(imagePoint);
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setT1TiltHorizontalLine(null); // 清除水平参考线
+              }
+            }
+          } else if (selectedTool.includes('t1-slope')) {
+            // T1 Slope 特殊处理（侧位）
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
               setT1TiltHorizontalLine(imagePoint);
@@ -3966,7 +4001,7 @@ function ImageCanvas({
   const clearCurrentMeasurement = () => {
     setClickedPoints([]);
     // 清除T1 tilt的水平参考线
-    if (selectedTool.includes('t1-tilt')) {
+    if (selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) {
       setT1TiltHorizontalLine(null);
     }
   };
@@ -5036,6 +5071,17 @@ function ImageCanvas({
                   strokeWidth="2"
                   strokeDasharray="2,2"
                 />
+              ) : selectedTool.includes('t1-slope') && screenPoints.length === 2 ? (
+                // T1 Slope 特殊预览：椎体线（侧位）
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[1].x}
+                  y2={screenPoints[1].y}
+                  stroke="#ef4444"
+                  strokeWidth="2"
+                  strokeDasharray="2,2"
+                />
               ) : selectedTool.includes('rsh') && screenPoints.length === 2 ? (
                 // RSH 特殊预览：两肩连线
                 <line
@@ -5085,7 +5131,7 @@ function ImageCanvas({
         })()}
 
         {/* T1 Tilt 专用水平参考线 HRL */}
-        {selectedTool.includes('t1-tilt') && t1TiltHorizontalLine && (
+        {(selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) && t1TiltHorizontalLine && (
           <>
             {(() => {
               const referencePoint = imageToScreen(t1TiltHorizontalLine);
