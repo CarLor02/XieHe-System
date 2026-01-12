@@ -18,6 +18,7 @@ import {
   type ImageFile,
   type ImageFileFilters
 } from '@/services/imageFileService';
+import { checkAndHandleAuthError, getErrorMessage } from '@/utils/authErrorHandler';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -102,7 +103,7 @@ export default function ImagingPage() {
       const response = await getMyImages(filters);
       setImageFiles(response.items);
       setTotal(response.total);
-      
+
       // 异步加载图片预览URL
       const urls: Record<number, string> = {};
       for (const file of response.items) {
@@ -115,7 +116,14 @@ export default function ImagingPage() {
       setImageUrls(urls);
     } catch (err: any) {
       console.error('Failed to load images:', err);
-      setError('加载影像失败');
+
+      // 检查并处理认证错误
+      if (checkAndHandleAuthError(err, { showAlert: false })) {
+        return;
+      }
+
+      // 设置错误消息
+      setError(getErrorMessage(err, '加载影像失败，请重试'));
       setImageFiles([]);
     } finally {
       setLoading(false);
@@ -170,9 +178,13 @@ export default function ImagingPage() {
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-        } catch (error) {
+        } catch (error: any) {
           console.error('下载失败:', error);
-          alert('下载失败，请重试');
+          // 检查并处理认证错误
+          if (checkAndHandleAuthError(error)) {
+            return;
+          }
+          alert(getErrorMessage(error, '下载失败，请重试'));
         }
         break;
       case 'delete':
@@ -184,8 +196,11 @@ export default function ImagingPage() {
             alert('影像删除成功');
           } catch (error: any) {
             console.error('删除影像失败:', error);
-            const errorMessage = error.response?.data?.detail || '删除失败，请重试';
-            alert(errorMessage);
+            // 检查并处理认证错误
+            if (checkAndHandleAuthError(error)) {
+              return;
+            }
+            alert(getErrorMessage(error, '删除失败，请重试'));
           }
         }
         break;
