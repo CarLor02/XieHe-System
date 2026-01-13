@@ -342,14 +342,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           name: 'PI',
           icon: 'ri-compass-line',
           description: '骨盆入射角(Pelvic Incidence)',
-          pointsNeeded: 4,
+          pointsNeeded: 3,
         },
         {
           id: 'pt',
           name: 'PT',
           icon: 'ri-compass-2-line',
           description: '骨盆倾斜角(Pelvic Tilt)',
-          pointsNeeded: 4,
+          pointsNeeded: 3,
         },
         {
           id: 'ss',
@@ -656,32 +656,32 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     return pixelDistance;
   };
 
-  // PI（骨盆入射角）计算函数 - 4点测量
+  // PI（骨盆入射角）计算函数 - 3点测量
   const calculatePIAngle = (points: Point[]) => {
-    if (points.length < 4) return 0;
+    if (points.length < 3) return 0;
 
-    // 计算点1和点2的中点
+    // 点1是骶骨中点
     const mid12 = {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2
+      x: points[0].x,
+      y: points[0].y
     };
 
-    // 计算点3和点4的中点
+    // 计算点2和点3的中点（股骨头中点）
     const mid34 = {
-      x: (points[2].x + points[3].x) / 2,
-      y: (points[2].y + points[3].y) / 2
+      x: (points[1].x + points[2].x) / 2,
+      y: (points[1].y + points[2].y) / 2
     };
 
     // 计算两中点连线的向量
     const lineVectorX = mid12.x - mid34.x;
     const lineVectorY = mid12.y - mid34.y;
 
-    // 计算点3-4的中垂线向量（垂直于点3-4连线）
-    const line34X = points[3].x - points[2].x;
-    const line34Y = points[3].y - points[2].y;
-    // 中垂线向量：将点3-4线段旋转90度
-    const perpVectorX = -line34Y;
-    const perpVectorY = line34X;
+    // 计算点2-3的中垂线向量（垂直于点2-3连线）
+    const line23X = points[2].x - points[1].x;
+    const line23Y = points[2].y - points[1].y;
+    // 中垂线向量：将点2-3线段旋转90度
+    const perpVectorX = -line23Y;
+    const perpVectorY = line23X;
 
     // 计算两个向量的夹角
     const dotProduct = lineVectorX * perpVectorX + lineVectorY * perpVectorY;
@@ -697,20 +697,20 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     return angle;
   };
 
-  // PT（骨盆倾斜角）计算函数 - 4点测量
+  // PT（骨盆倾斜角）计算函数 - 3点测量
   const calculatePTAngle = (points: Point[]) => {
-    if (points.length < 4) return 0;
+    if (points.length < 3) return 0;
 
-    // 计算点1和点2的中点（骶骨中点）
+    // 点1是骶骨中点
     const mid12 = {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2
+      x: points[0].x,
+      y: points[0].y
     };
 
-    // 计算点3和点4的中点（股骨头中点）
+    // 计算点2和点3的中点（股骨头中点）
     const mid34 = {
-      x: (points[2].x + points[3].x) / 2,
-      y: (points[2].y + points[3].y) / 2
+      x: (points[1].x + points[2].x) / 2,
+      y: (points[1].y + points[2].y) / 2
     };
 
     // 计算从mid12到mid34的向量（从骶骨中点到股骨头中点）
@@ -1059,7 +1059,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         break;
       case 'pi':
       case 'PI':
-        if (points.length >= 4) {
+        if (points.length >= 3) {
           const calculatedAngle = calculatePIAngle(points);
           defaultValue = `${calculatedAngle.toFixed(1)}°`;
         } else {
@@ -1069,7 +1069,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         break;
       case 'pt':
       case 'PT':
-        if (points.length >= 4) {
+        if (points.length >= 3) {
           const calculatedAngle = calculatePTAngle(points);
           defaultValue = `${calculatedAngle.toFixed(1)}°`;
         } else {
@@ -3169,25 +3169,25 @@ function ImageCanvas({
         }
         break;
         
-      // PI特殊处理 - 4点测量，骨盆入射角
+      // PI特殊处理 - 3点测量，骨盆入射角
       case 'PI':
       case 'pi':
-        if (points.length >= 4) {
-          // 计算点1和点2的中点
-          const mid12X = (points[0].x + points[1].x) / 2;
-          const mid12Y = (points[0].y + points[1].y) / 2;
-          // 计算点3和点4的中点
-          const mid34X = (points[2].x + points[3].x) / 2;
-          const mid34Y = (points[2].y + points[3].y) / 2;
+        if (points.length >= 3) {
+          // 点1是骶骨中点
+          const mid12X = points[0].x;
+          const mid12Y = points[0].y;
+          // 计算点2和点3的中点（股骨头中点）
+          const mid34X = (points[1].x + points[2].x) / 2;
+          const mid34Y = (points[1].y + points[2].y) / 2;
           // 计算两中点连线的向量
           const lineVectorX = mid12X - mid34X;
           const lineVectorY = mid12Y - mid34Y;
-          // 计算点3-4的中垂线向量（垂直于点3-4连线）
-          const line34X = points[3].x - points[2].x;
-          const line34Y = points[3].y - points[2].y;
-          // 中垂线向量：将点3-4线段旋转90度
-          const perpVectorX = -line34Y;
-          const perpVectorY = line34X;
+          // 计算点2-3的中垂线向量（垂直于点2-3连线）
+          const line23X = points[2].x - points[1].x;
+          const line23Y = points[2].y - points[1].y;
+          // 中垂线向量：将点2-3线段旋转90度
+          const perpVectorX = -line23Y;
+          const perpVectorY = line23X;
           // 计算两个向量的夹角
           const dotProduct = lineVectorX * perpVectorX + lineVectorY * perpVectorY;
           const mag1 = Math.sqrt(lineVectorX * lineVectorX + lineVectorY * lineVectorY);
@@ -3201,16 +3201,16 @@ function ImageCanvas({
         }
         break;
       
-      // PT特殊处理 - 4点测量，骨盆倾斜角
+      // PT特殊处理 - 3点测量，骨盆倾斜角
       case 'PT':
       case 'pt':
-        if (points.length >= 4) {
-          // 计算点1和点2的中点（骶骨中点）
-          const mid12X = (points[0].x + points[1].x) / 2;
-          const mid12Y = (points[0].y + points[1].y) / 2;
-          // 计算点3和点4的中点（股骨头中点）
-          const mid34X = (points[2].x + points[3].x) / 2;
-          const mid34Y = (points[2].y + points[3].y) / 2;
+        if (points.length >= 3) {
+          // 点1是骶骨中点
+          const mid12X = points[0].x;
+          const mid12Y = points[0].y;
+          // 计算点2和点3的中点（股骨头中点）
+          const mid34X = (points[1].x + points[2].x) / 2;
+          const mid34Y = (points[1].y + points[2].y) / 2;
           // 计算从mid12到mid34的向量（从骶骨中点到股骨头中点）
           const dx = mid34X - mid12X;
           const dy = mid34Y - mid12Y;
@@ -3486,11 +3486,11 @@ function ImageCanvas({
             textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale; // 向上偏移
           } else if (measurement.type === 'PI' || measurement.type === 'pi') {
             // PI 特殊定位：在两个中点连线的中间
-            if (measurement.points.length >= 4) {
-              const mid12X = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const mid12Y = (measurement.points[0].y + measurement.points[1].y) / 2;
-              const mid34X = (measurement.points[2].x + measurement.points[3].x) / 2;
-              const mid34Y = (measurement.points[2].y + measurement.points[3].y) / 2;
+            if (measurement.points.length >= 3) {
+              const mid12X = measurement.points[0].x;
+              const mid12Y = measurement.points[0].y;
+              const mid34X = (measurement.points[1].x + measurement.points[2].x) / 2;
+              const mid34Y = (measurement.points[1].y + measurement.points[2].y) / 2;
               textX = (mid12X + mid34X) / 2;
               textY = (mid12Y + mid34Y) / 2 - 30 / imageScale;
             } else {
@@ -3499,11 +3499,11 @@ function ImageCanvas({
             }
           } else if (measurement.type === 'PT' || measurement.type === 'pt') {
             // PT 特殊定位：在两个中点连线的中间
-            if (measurement.points.length >= 4) {
-              const mid12X = (measurement.points[0].x + measurement.points[1].x) / 2;
-              const mid12Y = (measurement.points[0].y + measurement.points[1].y) / 2;
-              const mid34X = (measurement.points[2].x + measurement.points[3].x) / 2;
-              const mid34Y = (measurement.points[2].y + measurement.points[3].y) / 2;
+            if (measurement.points.length >= 3) {
+              const mid12X = measurement.points[0].x;
+              const mid12Y = measurement.points[0].y;
+              const mid34X = (measurement.points[1].x + measurement.points[2].x) / 2;
+              const mid34Y = (measurement.points[1].y + measurement.points[2].y) / 2;
               textX = (mid12X + mid34X) / 2;
               textY = (mid12Y + mid34Y) / 2 - 30 / imageScale;
             } else {
@@ -5296,7 +5296,10 @@ function ImageCanvas({
                 );
               })}
               {/* 连接线 - 辅助图形不显示连接线 */}
-              {!isAuxiliaryShape && screenPoints.length >= 2 && (
+              {!isAuxiliaryShape && screenPoints.length >= 2 && 
+               !((measurement.type === 'PI' || measurement.type === 'pi' || 
+                  measurement.type === 'PT' || measurement.type === 'pt') && 
+                 screenPoints.length < 3) && (
                 <>
                   {measurement.type === 'T1 Tilt' ? (
                     // T1 Tilt 特殊显示：椎体线 + 水平参考线
@@ -5504,47 +5507,37 @@ function ImageCanvas({
                       </>
                     ) : null
                   ) : measurement.type === 'PI' || measurement.type === 'pi' ? (
-                    // PI（骨盆入射角）特殊显示：连接两个中点，并显示中垂线
-                    screenPoints.length >= 4 ? (
+                    // PI（骨盆入射角）特殊显示：点1是骶骨中点，点2-3计算股骨头中点，显示中垂线
+                    // 点数不足3时不显示任何连线
+                    screenPoints.length >= 3 ? (
                       <>
                         {(() => {
-                          // 计算点1和点2的中点
-                          const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
-                          const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                          // 点1是骶骨中点
+                          const mid12X = screenPoints[0].x;
+                          const mid12Y = screenPoints[0].y;
                           
-                          // 计算点3和点4的中点
-                          const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
-                          const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                          // 计算点2和点3的中点（股骨头中点）
+                          const mid34X = (screenPoints[1].x + screenPoints[2].x) / 2;
+                          const mid34Y = (screenPoints[1].y + screenPoints[2].y) / 2;
                           
-                          // 点3-4连线（辅助线）
-                          const line34DX = screenPoints[3].x - screenPoints[2].x;
-                          const line34DY = screenPoints[3].y - screenPoints[2].y;
-                          const line34Length = Math.sqrt(line34DX * line34DX + line34DY * line34DY);
+                          // 点2-3连线
+                          const line23DX = screenPoints[2].x - screenPoints[1].x;
+                          const line23DY = screenPoints[2].y - screenPoints[1].y;
+                          const line23Length = Math.sqrt(line23DX * line23DX + line23DY * line23DY);
                           
-                          // 中垂线方向（垂直于点3-4连线）
-                          const perpDX = -line34DY / line34Length;
-                          const perpDY = line34DX / line34Length;
+                          // 中垂线方向（垂直于点2-3连线）
+                          const perpDX = -line23DY / line23Length;
+                          const perpDY = line23DX / line23Length;
                           const perpLength = 80;
                           
                           return (
                             <>
-                              {/* 点1到点2的连线 */}
+                              {/* 点2到点3的连线 */}
                               <line
-                                x1={screenPoints[0].x}
-                                y1={screenPoints[0].y}
-                                x2={screenPoints[1].x}
-                                y2={screenPoints[1].y}
-                                stroke={displayColor}
-                                strokeWidth="1"
-                                strokeDasharray="5,5"
-                                opacity="0.5"
-                              />
-                              {/* 点3到点4的连线 */}
-                              <line
-                                x1={screenPoints[2].x}
-                                y1={screenPoints[2].y}
-                                x2={screenPoints[3].x}
-                                y2={screenPoints[3].y}
+                                x1={screenPoints[1].x}
+                                y1={screenPoints[1].y}
+                                x2={screenPoints[2].x}
+                                y2={screenPoints[2].y}
                                 stroke={displayColor}
                                 strokeWidth="2"
                               />
@@ -5638,43 +5631,33 @@ function ImageCanvas({
                               />
                             </>
                           );
-                        })()}
+                      })()}
                       </>
-                    ) : null
+                    ) : <></>
                   ) : measurement.type === 'PT' || measurement.type === 'pt' ? (
-                    // PT（骨盆倾斜角）特殊显示：连接两个中点，并显示垂直参考线
-                    screenPoints.length >= 4 ? (
+                    // PT（骨盆倾斜角）特殊显示：点1是骶骨中点，点2-3计算股骨头中点，显示垂直参考线
+                    // 点数不足3时不显示任何连线
+                    screenPoints.length >= 3 ? (
                       <>
                         {(() => {
-                          // 计算点1和点2的中点
-                          const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
-                          const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                          // 点1是骶骨中点
+                          const mid12X = screenPoints[0].x;
+                          const mid12Y = screenPoints[0].y;
                           
-                          // 计算点3和点4的中点
-                          const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
-                          const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                          // 计算点2和点3的中点（股骨头中点）
+                          const mid34X = (screenPoints[1].x + screenPoints[2].x) / 2;
+                          const mid34Y = (screenPoints[1].y + screenPoints[2].y) / 2;
                           
                           return (
                             <>
-                              {/* 点1到点2的连线 */}
+                              {/* 点2到点3的连线 */}
                               <line
-                                x1={screenPoints[0].x}
-                                y1={screenPoints[0].y}
-                                x2={screenPoints[1].x}
-                                y2={screenPoints[1].y}
+                                x1={screenPoints[1].x}
+                                y1={screenPoints[1].y}
+                                x2={screenPoints[2].x}
+                                y2={screenPoints[2].y}
                                 stroke={displayColor}
                                 strokeWidth="2"
-                              />
-                              {/* 点3到点4的连线 */}
-                              <line
-                                x1={screenPoints[2].x}
-                                y1={screenPoints[2].y}
-                                x2={screenPoints[3].x}
-                                y2={screenPoints[3].y}
-                                stroke={displayColor}
-                                strokeWidth="1"
-                                strokeDasharray="5,5"
-                                opacity="0.5"
                               />
                               {/* 两个中点的连线 */}
                               <line
@@ -5757,7 +5740,7 @@ function ImageCanvas({
                           );
                         })()}
                       </>
-                    ) : null
+                    ) : <></>
                   ) : measurement.type === 'T1 Slope' ? (
                     // T1 Slope 特殊显示（侧位）：椎体线 + 水平参考线 + 角度弧线
                     <>
@@ -6627,7 +6610,8 @@ function ImageCanvas({
                     strokeDasharray="2,6"
                   />
                 )
-              ) : currentTool?.pointsNeeded === 3 && screenPoints.length >= 2 ? (
+              ) : currentTool?.pointsNeeded === 3 && screenPoints.length >= 2 && 
+                 !selectedTool.includes('pi') && !selectedTool.includes('pt') ? (
                 screenPoints
                   .slice(0, -1)
                   .map((point, index) => (
@@ -6697,6 +6681,9 @@ function ImageCanvas({
                   strokeWidth="2"
                   strokeDasharray="2,2"
                 />
+              ) : (selectedTool.includes('pi') || selectedTool.includes('pt')) && screenPoints.length < 3 ? (
+                // PI/PT 特殊处理：点数不足3时不显示任何连线
+                <></>
               ) : (
                 <line
                   x1={screenPoints[0].x}
