@@ -701,36 +701,36 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const calculatePTAngle = (points: Point[]) => {
     if (points.length < 4) return 0;
 
-    // 计算点1和点2的中点
+    // 计算点1和点2的中点（骶骨中点）
     const mid12 = {
       x: (points[0].x + points[1].x) / 2,
       y: (points[0].y + points[1].y) / 2
     };
 
-    // 计算点3和点4的中点
+    // 计算点3和点4的中点（股骨头中点）
     const mid34 = {
       x: (points[2].x + points[3].x) / 2,
       y: (points[2].y + points[3].y) / 2
     };
 
-    // 计算两中点连线的向量
-    const lineVectorX = mid34.x - mid12.x;
-    const lineVectorY = mid34.y - mid12.y;
+    // 计算从mid12到mid34的向量（从骶骨中点到股骨头中点）
+    const dx = mid34.x - mid12.x;
+    const dy = mid34.y - mid12.y;
 
-    // 竖直线向量（沿 y 轴方向）
-    const verticalVectorX = 0;
-    const verticalVectorY = 1;
+    // 计算向量长度
+    const vectorLength = Math.sqrt(dx * dx + dy * dy);
+    
+    if (vectorLength === 0) return 0;
 
-    // 计算两个向量的夹角
-    const dotProduct = lineVectorX * verticalVectorX + lineVectorY * verticalVectorY;
-    const mag1 = Math.sqrt(lineVectorX * lineVectorX + lineVectorY * lineVectorY);
-    const mag2 = Math.sqrt(verticalVectorX * verticalVectorX + verticalVectorY * verticalVectorY);
-
-    if (mag1 === 0 || mag2 === 0) return 0;
-
-    const cosAngle = dotProduct / (mag1 * mag2);
-    const clampedCos = Math.max(-1, Math.min(1, cosAngle));
-    const angle = Math.acos(clampedCos) * (180 / Math.PI);
+    // 竖直线向量为 (0, -1) 表示向上（因为骶骨在下方，股骨头在上方）
+    // 点积：dx * 0 + dy * (-1) = -dy
+    const dotProduct = -dy;
+    
+    // 计算夹角（弧度）
+    const angleRad = Math.acos(dotProduct / vectorLength);
+    
+    // 转换为角度
+    const angle = angleRad * (180 / Math.PI);
 
     return angle;
   };
@@ -3174,28 +3174,28 @@ function ImageCanvas({
       case 'pi':
         if (points.length >= 4) {
           // 计算点1和点2的中点
-          const mid12 = {
-            x: (points[0].x + points[1].x) / 2,
-            y: (points[0].y + points[1].y) / 2
-          };
+          const mid12X = (points[0].x + points[1].x) / 2;
+          const mid12Y = (points[0].y + points[1].y) / 2;
           // 计算点3和点4的中点
-          const mid34 = {
-            x: (points[2].x + points[3].x) / 2,
-            y: (points[2].y + points[3].y) / 2
-          };
+          const mid34X = (points[2].x + points[3].x) / 2;
+          const mid34Y = (points[2].y + points[3].y) / 2;
           // 计算两中点连线的向量
-          const lineVectorX = mid34.x - mid12.x;
-          const lineVectorY = mid34.y - mid12.y;
-          // 竖直线向量（沿 y 轴方向）
-          const verticalVectorX = 0;
-          const verticalVectorY = 1;
-          // 计算向量长度
-          const lineMagnitude = Math.sqrt(lineVectorX * lineVectorX + lineVectorY * lineVectorY);
-          // 点积
-          const dotProduct = lineVectorX * verticalVectorX + lineVectorY * verticalVectorY;
-          // 计算夹角（弧度）
-          const angleRad = Math.acos(dotProduct / lineMagnitude);
-          // 转换为度数
+          const lineVectorX = mid12X - mid34X;
+          const lineVectorY = mid12Y - mid34Y;
+          // 计算点3-4的中垂线向量（垂直于点3-4连线）
+          const line34X = points[3].x - points[2].x;
+          const line34Y = points[3].y - points[2].y;
+          // 中垂线向量：将点3-4线段旋转90度
+          const perpVectorX = -line34Y;
+          const perpVectorY = line34X;
+          // 计算两个向量的夹角
+          const dotProduct = lineVectorX * perpVectorX + lineVectorY * perpVectorY;
+          const mag1 = Math.sqrt(lineVectorX * lineVectorX + lineVectorY * lineVectorY);
+          const mag2 = Math.sqrt(perpVectorX * perpVectorX + perpVectorY * perpVectorY);
+          if (mag1 === 0 || mag2 === 0) return '0.0°';
+          const cosAngle = dotProduct / (mag1 * mag2);
+          const clampedCos = Math.max(-1, Math.min(1, cosAngle));
+          const angleRad = Math.acos(clampedCos);
           const angle = angleRad * (180 / Math.PI);
           return `${angle.toFixed(1)}°`;
         }
@@ -3211,12 +3211,18 @@ function ImageCanvas({
           // 计算点3和点4的中点（股骨头中点）
           const mid34X = (points[2].x + points[3].x) / 2;
           const mid34Y = (points[2].y + points[3].y) / 2;
-          // 计算从mid34到mid12的向量
-          const dx = mid12X - mid34X;
-          const dy = mid12Y - mid34Y;
-          // 计算该向量与水平线的夹角
-          const angleRad = Math.atan2(dy, dx);
-          const angle = Math.abs(angleRad * (180 / Math.PI));
+          // 计算从mid12到mid34的向量（从骶骨中点到股骨头中点）
+          const dx = mid34X - mid12X;
+          const dy = mid34Y - mid12Y;
+          // 计算该向量与竖直线（y轴向上）的夹角
+          // 竖直线向量为 (0, -1) 表示向上（因为骶骨在下方，股骨头在上方）
+          const vectorLength = Math.sqrt(dx * dx + dy * dy);
+          // 点积：dx * 0 + dy * (-1) = -dy
+          const dotProduct = -dy;
+          // 计算夹角（弧度）
+          const angleRad = Math.acos(dotProduct / vectorLength);
+          // 转换为角度
+          const angle = angleRad * (180 / Math.PI);
           return `${angle.toFixed(1)}°`;
         }
         break;
@@ -5562,6 +5568,59 @@ function ImageCanvas({
                                 strokeWidth="2"
                                 strokeDasharray="3,3"
                               />
+                              {/* 角度弧线：显示两中点连线与中垂线的夹角 */}
+                              {(() => {
+                                // 计算两中点连线的向量
+                                const lineVectorX = mid12X - mid34X;
+                                const lineVectorY = mid12Y - mid34Y;
+                                // 计算中垂线向量
+                                const perpVectorX = perpDX;
+                                const perpVectorY = perpDY;
+                                
+                                // 计算两个向量的夹角
+                                const dotProduct = lineVectorX * perpVectorX + lineVectorY * perpVectorY;
+                                const mag1 = Math.sqrt(lineVectorX * lineVectorX + lineVectorY * lineVectorY);
+                                const mag2 = Math.sqrt(perpVectorX * perpVectorX + perpVectorY * perpVectorY);
+                                const cosAngle = dotProduct / (mag1 * mag2);
+                                const clampedCos = Math.max(-1, Math.min(1, cosAngle));
+                                const angleRad = Math.acos(clampedCos);
+                                const angle = angleRad * (180 / Math.PI);
+                                
+                                // 弧线半径
+                                const radius = 50;
+                                
+                                // 计算两个向量的角度（相对于水平轴）
+                                const lineAngle = Math.atan2(lineVectorY, lineVectorX) * (180 / Math.PI);
+                                const perpAngle = Math.atan2(perpVectorY, perpVectorX) * (180 / Math.PI);
+                                
+                                // 起点和终点角度
+                                const startAngle = perpAngle;
+                                const endAngle = lineAngle;
+                                
+                                // 计算弧线起点和终点坐标
+                                const startX = mid34X + radius * Math.cos(startAngle * Math.PI / 180);
+                                const startY = mid34Y + radius * Math.sin(startAngle * Math.PI / 180);
+                                const endX = mid34X + radius * Math.cos(endAngle * Math.PI / 180);
+                                const endY = mid34Y + radius * Math.sin(endAngle * Math.PI / 180);
+                                
+                                // 判断是否为大弧
+                                const largeArcFlag = angle > 180 ? 1 : 0;
+                                // 判断扫描方向
+                                let angleDiff = endAngle - startAngle;
+                                if (angleDiff > 180) angleDiff -= 360;
+                                if (angleDiff < -180) angleDiff += 360;
+                                const sweepFlag = angleDiff > 0 ? 1 : 0;
+                                
+                                return (
+                                  <path
+                                    d={`M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY}`}
+                                    fill="none"
+                                    stroke={displayColor}
+                                    strokeWidth="1.5"
+                                    opacity="0.8"
+                                  />
+                                );
+                              })()}
                               {/* 中点标记 */}
                               <circle
                                 cx={mid12X}
@@ -5638,6 +5697,47 @@ function ImageCanvas({
                                 strokeDasharray="5,5"
                                 opacity="0.7"
                               />
+                              {/* 角度弧线：显示竖直线与两中点连线的夹角 */}
+                              {(() => {
+                                // 计算从mid12到mid34的向量（从骶骨中点到股骨头中点）
+                                const dx = mid34X - mid12X;
+                                const dy = mid34Y - mid12Y;
+                                const vectorLength = Math.sqrt(dx * dx + dy * dy);
+                                
+                                // 计算与竖直线向上方向的夹角
+                                const dotProduct = -dy; // 竖直线向量 (0, -1) 向上（因为骶骨在下方）
+                                const angleRad = Math.acos(dotProduct / vectorLength);
+                                const angle = angleRad * (180 / Math.PI);
+                                
+                                // 弧线半径
+                                const radius = 50;
+                                
+                                // 起点：mid12向上的方向（竖直线向上方向，角度270度或-90度）
+                                const startAngle = 270;
+                                // 终点角度：根据dx的正负判断是向左还是向右偏
+                                const endAngle = dx >= 0 ? 270 + angle : 270 - angle;
+                                
+                                // 计算弧线起点和终点坐标
+                                const startX = mid12X + radius * Math.cos(startAngle * Math.PI / 180);
+                                const startY = mid12Y + radius * Math.sin(startAngle * Math.PI / 180);
+                                const endX = mid12X + radius * Math.cos(endAngle * Math.PI / 180);
+                                const endY = mid12Y + radius * Math.sin(endAngle * Math.PI / 180);
+                                
+                                // 判断是否为大弧
+                                const largeArcFlag = Math.abs(angle) > 180 ? 1 : 0;
+                                // 判断扫描方向
+                                const sweepFlag = dx >= 0 ? 1 : 0;
+                                
+                                return (
+                                  <path
+                                    d={`M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY}`}
+                                    fill="none"
+                                    stroke={displayColor}
+                                    strokeWidth="1.5"
+                                    opacity="0.8"
+                                  />
+                                );
+                              })()}
                               {/* 中点标记 */}
                               <circle
                                 cx={mid12X}
