@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createAuthenticatedClient } from '../../../../store/authStore';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+// import ReactMarkdown from 'react-markdown';
+// import remarkGfm from 'remark-gfm';
 
 interface StudyData {
   id: number;
@@ -331,6 +331,34 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           pointsNeeded: 4,
         },
         {
+          id: 'sva',
+          name: 'SVA',
+          icon: 'ri-arrow-down-line',
+          description: '矢状面垂直轴(Sagittal Vertical Axis, C7-SVA)',
+          pointsNeeded: 2,
+        },
+        {
+          id: 'pi',
+          name: 'PI',
+          icon: 'ri-compass-line',
+          description: '骨盆入射角(Pelvic Incidence)',
+          pointsNeeded: 4,
+        },
+        {
+          id: 'pt',
+          name: 'PT',
+          icon: 'ri-compass-2-line',
+          description: '骨盆倾斜角(Pelvic Tilt)',
+          pointsNeeded: 4,
+        },
+        {
+          id: 'ss',
+          name: 'SS',
+          icon: 'ri-focus-line',
+          description: '骶骨倾斜角(Sacral Slope)',
+          pointsNeeded: 2,
+        },
+        {
           id: 'circle',
           name: 'Auxiliary Circle',
           icon: 'ri-circle-line',
@@ -603,6 +631,129 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     const angle = Math.acos(clampedCos) * (180 / Math.PI);
 
     return angle;
+  };
+
+  // SVA（矢状面垂直轴）计算函数 - 水平距离，使用标准距离计算
+  const calculateSVA = (points: Point[], useStandardDistance: boolean = false) => {
+    if (points.length < 2) return 0;
+    
+    // 计算两点的水平距离（x坐标差的绝对值）
+    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    
+    // 如果需要使用标准距离并且已设置
+    if (useStandardDistance && standardDistance && standardDistancePoints.length === 2) {
+      // 计算标准距离的像素长度
+      const standardPixelDx = standardDistancePoints[1].x - standardDistancePoints[0].x;
+      const standardPixelDy = standardDistancePoints[1].y - standardDistancePoints[0].y;
+      const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+      
+      // 按比例计算实际距离
+      const actualDistance = (pixelDistance / standardPixelLength) * standardDistance;
+      return actualDistance;
+    }
+    
+    // 如果没有设置标准距离，返回像素距离
+    return pixelDistance;
+  };
+
+  // PI（骨盆入射角）计算函数 - 4点测量
+  const calculatePIAngle = (points: Point[]) => {
+    if (points.length < 4) return 0;
+
+    // 计算点1和点2的中点
+    const mid12 = {
+      x: (points[0].x + points[1].x) / 2,
+      y: (points[0].y + points[1].y) / 2
+    };
+
+    // 计算点3和点4的中点
+    const mid34 = {
+      x: (points[2].x + points[3].x) / 2,
+      y: (points[2].y + points[3].y) / 2
+    };
+
+    // 计算两中点连线的向量
+    const lineVectorX = mid12.x - mid34.x;
+    const lineVectorY = mid12.y - mid34.y;
+
+    // 计算点3-4的中垂线向量（垂直于点3-4连线）
+    const line34X = points[3].x - points[2].x;
+    const line34Y = points[3].y - points[2].y;
+    // 中垂线向量：将点3-4线段旋转90度
+    const perpVectorX = -line34Y;
+    const perpVectorY = line34X;
+
+    // 计算两个向量的夹角
+    const dotProduct = lineVectorX * perpVectorX + lineVectorY * perpVectorY;
+    const mag1 = Math.sqrt(lineVectorX * lineVectorX + lineVectorY * lineVectorY);
+    const mag2 = Math.sqrt(perpVectorX * perpVectorX + perpVectorY * perpVectorY);
+
+    if (mag1 === 0 || mag2 === 0) return 0;
+
+    const cosAngle = dotProduct / (mag1 * mag2);
+    const clampedCos = Math.max(-1, Math.min(1, cosAngle));
+    const angle = Math.acos(clampedCos) * (180 / Math.PI);
+
+    return angle;
+  };
+
+  // PT（骨盆倾斜角）计算函数 - 4点测量
+  const calculatePTAngle = (points: Point[]) => {
+    if (points.length < 4) return 0;
+
+    // 计算点1和点2的中点
+    const mid12 = {
+      x: (points[0].x + points[1].x) / 2,
+      y: (points[0].y + points[1].y) / 2
+    };
+
+    // 计算点3和点4的中点
+    const mid34 = {
+      x: (points[2].x + points[3].x) / 2,
+      y: (points[2].y + points[3].y) / 2
+    };
+
+    // 计算两中点连线的向量
+    const lineVectorX = mid34.x - mid12.x;
+    const lineVectorY = mid34.y - mid12.y;
+
+    // 竖直线向量（沿 y 轴方向）
+    const verticalVectorX = 0;
+    const verticalVectorY = 1;
+
+    // 计算两个向量的夹角
+    const dotProduct = lineVectorX * verticalVectorX + lineVectorY * verticalVectorY;
+    const mag1 = Math.sqrt(lineVectorX * lineVectorX + lineVectorY * lineVectorY);
+    const mag2 = Math.sqrt(verticalVectorX * verticalVectorX + verticalVectorY * verticalVectorY);
+
+    if (mag1 === 0 || mag2 === 0) return 0;
+
+    const cosAngle = dotProduct / (mag1 * mag2);
+    const clampedCos = Math.max(-1, Math.min(1, cosAngle));
+    const angle = Math.acos(clampedCos) * (180 / Math.PI);
+
+    return angle;
+  };
+
+  // SS（骶骨倾斜角）计算函数 - 与T1 Slope相同
+  const calculateSSAngle = (points: Point[]) => {
+    if (points.length < 2) return 0;
+
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    
+    // 计算与水平线的夹角
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // 规范化到-90到90度范围
+    let normalizedAngle = angle;
+    if (normalizedAngle > 90) {
+      normalizedAngle = normalizedAngle - 180;
+    } else if (normalizedAngle < -90) {
+      normalizedAngle = normalizedAngle + 180;
+    }
+    
+    return Math.abs(normalizedAngle);
   };
 
   // C2-C7前凸角（CL）计算函数 - 照搬Cobb角实现
@@ -895,6 +1046,46 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           defaultValue = `${(Math.random() * 15 + 10).toFixed(1)}°`;
         }
         description = 'T1骨盆角(T1 Pelvic Angle)';
+        break;
+      case 'sva':
+      case 'SVA':
+        if (points.length >= 2) {
+          const distance = calculateSVA(points, true); // 使用标准距离
+          defaultValue = `${distance.toFixed(1)}mm`;
+        } else {
+          defaultValue = `${(Math.random() * 40 + 10).toFixed(1)}mm`;
+        }
+        description = '矢状面垂直轴(C7-SVA)';
+        break;
+      case 'pi':
+      case 'PI':
+        if (points.length >= 4) {
+          const calculatedAngle = calculatePIAngle(points);
+          defaultValue = `${calculatedAngle.toFixed(1)}°`;
+        } else {
+          defaultValue = `${(Math.random() * 30 + 40).toFixed(1)}°`;
+        }
+        description = '骨盆入射角(Pelvic Incidence)';
+        break;
+      case 'pt':
+      case 'PT':
+        if (points.length >= 4) {
+          const calculatedAngle = calculatePTAngle(points);
+          defaultValue = `${calculatedAngle.toFixed(1)}°`;
+        } else {
+          defaultValue = `${(Math.random() * 20 + 10).toFixed(1)}°`;
+        }
+        description = '骨盆倾斜角(Pelvic Tilt)';
+        break;
+      case 'ss':
+      case 'SS':
+        if (points.length >= 2) {
+          const calculatedAngle = calculateSSAngle(points);
+          defaultValue = `${calculatedAngle.toFixed(1)}°`;
+        } else {
+          defaultValue = `${(Math.random() * 25 + 20).toFixed(1)}°`;
+        }
+        description = '骶骨倾斜角(Sacral Slope)';
         break;
       case 'C2-C7 Cobb':
         defaultValue = `${(Math.random() * 20 + 5).toFixed(1)}°`;
@@ -2187,35 +2378,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                   </div>
                   {/* Markdown渲染区域 */}
                   <div className="prose prose-invert prose-sm max-w-none">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        // 自定义样式
-                        h1: ({node, ...props}) => <h1 className="text-lg font-bold text-white mb-3 mt-4 first:mt-0" {...props} />,
-                        h2: ({node, ...props}) => <h2 className="text-base font-semibold text-blue-300 mb-2 mt-3" {...props} />,
-                        h3: ({node, ...props}) => <h3 className="text-sm font-medium text-green-300 mb-2 mt-2" {...props} />,
-                        p: ({node, ...props}) => <p className="text-xs text-gray-300 mb-2 leading-relaxed" {...props} />,
-                        ul: ({node, ...props}) => <ul className="text-xs text-gray-300 mb-2 ml-4 list-disc" {...props} />,
-                        ol: ({node, ...props}) => <ol className="text-xs text-gray-300 mb-2 ml-4 list-decimal" {...props} />,
-                        li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                        table: ({node, ...props}) => (
-                          <div className="overflow-x-auto mb-3">
-                            <table className="min-w-full text-xs border border-gray-600" {...props} />
-                          </div>
-                        ),
-                        thead: ({node, ...props}) => <thead className="bg-gray-600" {...props} />,
-                        tbody: ({node, ...props}) => <tbody className="bg-gray-700/30" {...props} />,
-                        tr: ({node, ...props}) => <tr className="border-b border-gray-600" {...props} />,
-                        th: ({node, ...props}) => <th className="px-3 py-2 text-left font-semibold text-white" {...props} />,
-                        td: ({node, ...props}) => <td className="px-3 py-2 text-gray-300" {...props} />,
-                        strong: ({node, ...props}) => <strong className="font-bold text-yellow-300" {...props} />,
-                        em: ({node, ...props}) => <em className="italic text-blue-300" {...props} />,
-                        code: ({node, ...props}) => <code className="bg-gray-600 px-1 py-0.5 rounded text-green-300" {...props} />,
-                        hr: ({node, ...props}) => <hr className="border-gray-600 my-3" {...props} />,
-                      }}
-                    >
+                    <div className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">
                       {reportText}
-                    </ReactMarkdown>
+                    </div>
+                    {/* TODO: 安装 react-markdown 和 remark-gfm 包后启用 Markdown 渲染 */}
                   </div>
                 </div>
               </div>
@@ -2442,6 +2608,12 @@ function ImageCanvas({
 
   // TS 特殊状态管理 - 存储第一个点用于绘制第一条垂直线
   const [tsFirstVerticalLine, setTsFirstVerticalLine] = useState<Point | null>(null);
+
+  // SS（骶骨倾斜角）特殊状态管理 - 侧位，水平参考线
+  const [ssHorizontalLine, setSsHorizontalLine] = useState<Point | null>(null);
+
+  // SVA（矢状面垂直轴）特殊状态管理 - 存储第一个点用于绘制第一条垂直线
+  const [svaFirstVerticalLine, setSvaFirstVerticalLine] = useState<Point | null>(null);
 
   // 悬浮高亮状态 - 用于预览即将被选中的元素
   const [hoveredMeasurementId, setHoveredMeasurementId] = useState<string | null>(null);
@@ -2718,6 +2890,29 @@ function ImageCanvas({
     return angle;
   };
 
+  // SVA（矢状面垂直轴）计算函数（ImageCanvas组件中）- 水平距离，使用标准距离计算
+  const calculateSVA = (points: Point[], useStandardDistance: boolean = false) => {
+    if (points.length < 2) return 0;
+    
+    // 计算两点的水平距离（x坐标差的绝对值）
+    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    
+    // 如果需要使用标准距离并且已设置
+    if (useStandardDistance && standardDistance && standardDistancePoints.length === 2) {
+      // 计算标准距离的像素长度
+      const standardPixelDx = standardDistancePoints[1].x - standardDistancePoints[0].x;
+      const standardPixelDy = standardDistancePoints[1].y - standardDistancePoints[0].y;
+      const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+      
+      // 按比例计算实际距离
+      const actualDistance = (pixelDistance / standardPixelLength) * standardDistance;
+      return actualDistance;
+    }
+    
+    // 如果没有设置标准距离，返回像素距离
+    return pixelDistance;
+  };
+
   // C2-C7前凸角（CL）计算函数（ImageCanvas组件中）- 照搬Cobb角实现
   const calculateCLAngle = (points: Point[]) => {
     if (points.length < 4) return 0;
@@ -2945,6 +3140,15 @@ function ImageCanvas({
         }
         break;
         
+      // SVA特殊处理 - 2点测量，距离，使用标准距离
+      case 'SVA':
+      case 'sva':
+        if (points.length >= 2) {
+          const distance = calculateSVA(points, true); // 使用标准距离
+          return `${distance.toFixed(1)}mm`;
+        }
+        break;
+        
       // AVT特殊处理 - 2点测量，距离
       case 'AVT':
         if (points.length >= 2) {
@@ -2965,14 +3169,77 @@ function ImageCanvas({
         }
         break;
         
+      // PI特殊处理 - 4点测量，骨盆入射角
+      case 'PI':
+      case 'pi':
+        if (points.length >= 4) {
+          // 计算点1和点2的中点
+          const mid12 = {
+            x: (points[0].x + points[1].x) / 2,
+            y: (points[0].y + points[1].y) / 2
+          };
+          // 计算点3和点4的中点
+          const mid34 = {
+            x: (points[2].x + points[3].x) / 2,
+            y: (points[2].y + points[3].y) / 2
+          };
+          // 计算两中点连线的向量
+          const lineVectorX = mid34.x - mid12.x;
+          const lineVectorY = mid34.y - mid12.y;
+          // 竖直线向量（沿 y 轴方向）
+          const verticalVectorX = 0;
+          const verticalVectorY = 1;
+          // 计算向量长度
+          const lineMagnitude = Math.sqrt(lineVectorX * lineVectorX + lineVectorY * lineVectorY);
+          // 点积
+          const dotProduct = lineVectorX * verticalVectorX + lineVectorY * verticalVectorY;
+          // 计算夹角（弧度）
+          const angleRad = Math.acos(dotProduct / lineMagnitude);
+          // 转换为度数
+          const angle = angleRad * (180 / Math.PI);
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+      
+      // PT特殊处理 - 4点测量，骨盆倾斜角
+      case 'PT':
+      case 'pt':
+        if (points.length >= 4) {
+          // 计算点1和点2的中点（骶骨中点）
+          const mid12X = (points[0].x + points[1].x) / 2;
+          const mid12Y = (points[0].y + points[1].y) / 2;
+          // 计算点3和点4的中点（股骨头中点）
+          const mid34X = (points[2].x + points[3].x) / 2;
+          const mid34Y = (points[2].y + points[3].y) / 2;
+          // 计算从mid34到mid12的向量
+          const dx = mid12X - mid34X;
+          const dy = mid12Y - mid34Y;
+          // 计算该向量与水平线的夹角
+          const angleRad = Math.atan2(dy, dx);
+          const angle = Math.abs(angleRad * (180 / Math.PI));
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+      
+      // SS特殊处理 - 2点测量，骶骨倾斜角
+      case 'SS':
+      case 'ss':
+        if (points.length >= 2) {
+          // SS 是骶骨线与水平线的夹角
+          const dx = points[1].x - points[0].x;
+          const dy = points[1].y - points[0].y;
+          // 计算骶骨线相对于水平线的角度
+          const angleRad = Math.atan2(dy, dx);
+          const angle = Math.abs(angleRad * (180 / Math.PI));
+          return `${angle.toFixed(1)}°`;
+        }
+        break;
+      
       // 其他角度类测量
       case 'T1 Slope':
       case 'C2-C7 Cobb':
       case 'TK':
       case 'LL':
-      case 'PI':
-      case 'PT':
-      case 'SS':
       case '角度测量':
         if (points.length >= 3) {
           const angle = calculateAngle(points);
@@ -3211,6 +3478,42 @@ function ImageCanvas({
             // TS 特殊定位：在两点中间
             textX = (measurement.points[0].x + measurement.points[1].x) / 2;
             textY = (measurement.points[0].y + measurement.points[1].y) / 2 - 15 / imageScale; // 向上偏移
+          } else if (measurement.type === 'PI' || measurement.type === 'pi') {
+            // PI 特殊定位：在两个中点连线的中间
+            if (measurement.points.length >= 4) {
+              const mid12X = (measurement.points[0].x + measurement.points[1].x) / 2;
+              const mid12Y = (measurement.points[0].y + measurement.points[1].y) / 2;
+              const mid34X = (measurement.points[2].x + measurement.points[3].x) / 2;
+              const mid34Y = (measurement.points[2].y + measurement.points[3].y) / 2;
+              textX = (mid12X + mid34X) / 2;
+              textY = (mid12Y + mid34Y) / 2 - 30 / imageScale;
+            } else {
+              textX = (measurement.points[0].x + measurement.points[measurement.points.length - 1].x) / 2;
+              textY = (measurement.points[0].y + measurement.points[measurement.points.length - 1].y) / 2 - 10 / imageScale;
+            }
+          } else if (measurement.type === 'PT' || measurement.type === 'pt') {
+            // PT 特殊定位：在两个中点连线的中间
+            if (measurement.points.length >= 4) {
+              const mid12X = (measurement.points[0].x + measurement.points[1].x) / 2;
+              const mid12Y = (measurement.points[0].y + measurement.points[1].y) / 2;
+              const mid34X = (measurement.points[2].x + measurement.points[3].x) / 2;
+              const mid34Y = (measurement.points[2].y + measurement.points[3].y) / 2;
+              textX = (mid12X + mid34X) / 2;
+              textY = (mid12Y + mid34Y) / 2 - 30 / imageScale;
+            } else {
+              textX = (measurement.points[0].x + measurement.points[measurement.points.length - 1].x) / 2;
+              textY = (measurement.points[0].y + measurement.points[measurement.points.length - 1].y) / 2 - 10 / imageScale;
+            }
+          } else if (measurement.type === 'SVA' || measurement.type === 'sva') {
+            // SVA 特殊定位：在两点中间的上方（与SVG渲染对应：midY - 30屏幕像素）
+            textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+            const midY = (measurement.points[0].y + measurement.points[1].y) / 2;
+            textY = midY - 30 / imageScale; // 向上偏移30屏幕像素
+          } else if (measurement.type === 'SS' || measurement.type === 'ss') {
+            // SS 特殊定位：在两点上方（与SVG渲染对应：minY - 30屏幕像素）
+            textX = (measurement.points[0].x + measurement.points[1].x) / 2;
+            const minY = Math.min(measurement.points[0].y, measurement.points[1].y);
+            textY = minY - 30 / imageScale; // 向上偏移30屏幕像素
           } else {
             // 其他测量的默认位置
             const firstPoint = measurement.points[0];
@@ -3219,9 +3522,13 @@ function ImageCanvas({
             textY = (firstPoint.y + lastPoint.y) / 2 + 10 / imageScale; // 向上偏移
           }
           
-          // 估算文字宽度和高度 (粗略估算)
-          const textWidth = (measurement.type.length + measurement.value.length) * 8 / imageScale;
-          const textHeight = 20 / imageScale;
+          // 估算文字宽度和高度（与SVG渲染保持一致）
+          const textContent = `${measurement.type}: ${measurement.value}`;
+          const fontSize = 14; // 默认字号（非hover状态）
+          const padding = 4; // padding值
+          // 在图像坐标系中，需要将屏幕像素转换为图像坐标
+          const textWidth = (textContent.length * fontSize * 0.6 + padding * 2) / imageScale;
+          const textHeight = (fontSize * 1.4 + padding * 2) / imageScale;
           
           return point.x >= textX - textWidth / 2 && point.x <= textX + textWidth / 2 &&
                  point.y >= textY - textHeight / 2 && point.y <= textY + textHeight / 2;
@@ -3445,15 +3752,54 @@ function ImageCanvas({
               } else if (measurement.type === 'TS') {
                 textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
                 textBaselineY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
+              } else if (measurement.type === 'PI' || measurement.type === 'pi') {
+                // PI 特殊定位：在两个中点连线的中间
+                if (screenPoints.length >= 4) {
+                  const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                  const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
+                  const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                  textBaselineX = (mid12X + mid34X) / 2;
+                  textBaselineY = (mid12Y + mid34Y) / 2 - 30;
+                } else {
+                  textBaselineX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
+                  textBaselineY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
+                }
+              } else if (measurement.type === 'PT' || measurement.type === 'pt') {
+                // PT 特殊定位：在两个中点连线的中间
+                if (screenPoints.length >= 4) {
+                  const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                  const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
+                  const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                  textBaselineX = (mid12X + mid34X) / 2;
+                  textBaselineY = (mid12Y + mid34Y) / 2 - 30;
+                } else {
+                  textBaselineX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
+                  textBaselineY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
+                }
+              } else if (measurement.type === 'SVA' || measurement.type === 'sva') {
+                // SVA 特殊定位：在两点中间的上方
+                textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
+                textBaselineY = midY - 30;
+              } else if (measurement.type === 'SS' || measurement.type === 'ss') {
+                // SS 特殊定位：在两点上方
+                textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                textBaselineY = minY - 30;
               } else {
                 textBaselineX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
                 textBaselineY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
               }
               
               const textContent = `${measurement.type}: ${measurement.value}`;
-              const textWidth = textContent.length * 8;
-              const textTop = textBaselineY - 14;
-              const textBottom = textBaselineY + 4;
+              const fontSize = 14; // 默认字号（与SVG渲染保持一致）
+              const padding = 4; // padding值（与SVG渲染保持一致）
+              const textWidth = textContent.length * fontSize * 0.6 + padding * 2;
+              const textHeight = fontSize * 1.4 + padding * 2;
+              const textTop = textBaselineY - textHeight / 2;
+              const textBottom = textBaselineY + textHeight / 2;
               
               if (screenPoint.x >= textBaselineX - textWidth / 2 && screenPoint.x <= textBaselineX + textWidth / 2 &&
                   screenPoint.y >= textTop && screenPoint.y <= textBottom) {
@@ -3745,6 +4091,34 @@ function ImageCanvas({
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
                 setSacralHorizontalLine(null); // 清除水平参考线
+              }
+            }
+          } else if (selectedTool.includes('ss')) {
+            // SS（骶骨倾斜角）特殊处理 - 侧位
+            if (newPoints.length === 1) {
+              // 第一个点：设置水平参考线位置
+              setSsHorizontalLine(imagePoint);
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setSsHorizontalLine(null); // 清除水平参考线
+              }
+            }
+          } else if (selectedTool.includes('sva')) {
+            // SVA（矢状面垂直轴）特殊处理
+            if (newPoints.length === 1) {
+              // 第一个点：设置第一条垂直线位置
+              setSvaFirstVerticalLine(imagePoint);
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setSvaFirstVerticalLine(null); // 清除第一条垂直线
               }
             }
           } else if (selectedTool.includes('avt')) {
@@ -4270,6 +4644,50 @@ function ImageCanvas({
               if (screenPoints.length < 2) continue;
               textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
               textBaselineY = (screenPoints[0].y + screenPoints[1].y) / 2 - 15;
+            } else if (measurement.type === 'PI' || measurement.type === 'pi') {
+              // PI 特殊定位：在两个中点连线的中间
+              if (screenPoints.length >= 4) {
+                const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
+                const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
+                const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                textBaselineX = (mid12X + mid34X) / 2;
+                textBaselineY = (mid12Y + mid34Y) / 2 - 30;
+              } else if (screenPoints.length >= 1) {
+                const lastPoint = screenPoints[screenPoints.length - 1];
+                textBaselineX = (screenPoints[0].x + lastPoint.x) / 2;
+                textBaselineY = (screenPoints[0].y + lastPoint.y) / 2 - 10;
+              } else {
+                continue;
+              }
+            } else if (measurement.type === 'PT' || measurement.type === 'pt') {
+              // PT 特殊定位：在两个中点连线的中间
+              if (screenPoints.length >= 4) {
+                const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
+                const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
+                const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                textBaselineX = (mid12X + mid34X) / 2;
+                textBaselineY = (mid12Y + mid34Y) / 2 - 30;
+              } else if (screenPoints.length >= 1) {
+                const lastPoint = screenPoints[screenPoints.length - 1];
+                textBaselineX = (screenPoints[0].x + lastPoint.x) / 2;
+                textBaselineY = (screenPoints[0].y + lastPoint.y) / 2 - 10;
+              } else {
+                continue;
+              }
+            } else if (measurement.type === 'SVA' || measurement.type === 'sva') {
+              // SVA 特殊定位：在两点中间的上方
+              if (screenPoints.length < 2) continue;
+              textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+              const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
+              textBaselineY = midY - 30;
+            } else if (measurement.type === 'SS' || measurement.type === 'ss') {
+              // SS 特殊定位：在两点上方
+              if (screenPoints.length < 2) continue;
+              textBaselineX = (screenPoints[0].x + screenPoints[1].x) / 2;
+              const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+              textBaselineY = minY - 30;
             } else {
               // 其他测量的默认位置：中间偏上
               if (screenPoints.length < 1) continue;
@@ -4280,14 +4698,14 @@ function ImageCanvas({
             
             // 文字尺寸估算（屏幕像素，fontSize=14）
             const textContent = `${measurement.type}: ${measurement.value}`;
-            const textWidth = textContent.length * 8; // 每个字符约8像素宽
-            const textHeight = 20; // 文字高度约20像素
+            const fontSize = 14;
+            const padding = 4;
+            const textWidth = textContent.length * fontSize * 0.6 + padding * 2;
+            const textHeight = fontSize * 1.4 + padding * 2;
             
             // SVG text的y坐标是基线，文字实际在基线上方
-            // 文字顶部约在 baseline - 14px（字号大小）
-            // 文字底部约在 baseline + 4px
-            const textTop = textBaselineY - 14;
-            const textBottom = textBaselineY + 4;
+            const textTop = textBaselineY - textHeight / 2;
+            const textBottom = textBaselineY + textHeight / 2;
             
             if (screenPoint.x >= textBaselineX - textWidth / 2 && screenPoint.x <= textBaselineX + textWidth / 2 &&
                 screenPoint.y >= textTop && screenPoint.y <= textBottom) {
@@ -4487,6 +4905,14 @@ function ImageCanvas({
     // 清除T1 tilt的水平参考线
     if (selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) {
       setT1TiltHorizontalLine(null);
+    }
+    // 清除SS的水平参考线
+    if (selectedTool.includes('ss')) {
+      setSsHorizontalLine(null);
+    }
+    // 清除SVA的垂直参考线
+    if (selectedTool.includes('sva')) {
+      setSvaFirstVerticalLine(null);
     }
   };
 
@@ -4755,9 +5181,9 @@ function ImageCanvas({
             if (type.includes('Slope') || type === 'T1 Slope') return '#a855f7'; // 亮紫色
             if (type.includes('Pelvic') || type === 'Pelvic') return '#ec4899'; // 粉色
             if (type.includes('Sacral') || type === 'Sacral') return '#f43f5e'; // 玫红色
-            if (type === 'PI') return '#ef4444'; // 红色 - 骨盆入射角
-            if (type === 'PT') return '#f97316'; // 橙红色 - 骨盆倾斜角
-            if (type === 'SS') return '#f59e0b'; // 橙色 - 骶骨倾斜角
+            if (type === 'PI' || type === 'pi') return '#ef4444'; // 红色 - 骨盆入射角
+            if (type === 'PT' || type === 'pt') return '#f97316'; // 橙红色 - 骨盆倾斜角
+            if (type === 'SS' || type === 'ss') return '#f59e0b'; // 橙色 - 骶骨倾斜角
             if (type === 'TK') return '#06b6d4'; // 青色 - 胸椎后凸角
             if (type === 'LL') return '#14b8a6'; // 蓝绿色 - 腰椎前凸角
             
@@ -4765,7 +5191,7 @@ function ImageCanvas({
             if (type === 'RSH') return '#10b981'; // 绿色 - 肩高差
             if (type === 'AVT') return '#059669'; // 深绿色 - 顶椎平移量
             if (type === 'TS') return '#84cc16'; // 黄绿色 - 躯干偏移量
-            if (type === 'SVA') return '#65a30d'; // 橄榄绿 - 矢状面椎体轴线
+            if (type === 'SVA' || type === 'sva') return '#65a30d'; // 橄榄绿 - 矢状面垂直轴
             if (type.includes('长度') || type === '长度测量') return '#22c55e'; // 浅绿色
             
             // 颈椎相关
@@ -5066,6 +5492,167 @@ function ImageCanvas({
                                   />
                                 );
                               })()}
+                            </>
+                          );
+                        })()}
+                      </>
+                    ) : null
+                  ) : measurement.type === 'PI' || measurement.type === 'pi' ? (
+                    // PI（骨盆入射角）特殊显示：连接两个中点，并显示中垂线
+                    screenPoints.length >= 4 ? (
+                      <>
+                        {(() => {
+                          // 计算点1和点2的中点
+                          const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
+                          const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                          
+                          // 计算点3和点4的中点
+                          const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
+                          const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                          
+                          // 点3-4连线（辅助线）
+                          const line34DX = screenPoints[3].x - screenPoints[2].x;
+                          const line34DY = screenPoints[3].y - screenPoints[2].y;
+                          const line34Length = Math.sqrt(line34DX * line34DX + line34DY * line34DY);
+                          
+                          // 中垂线方向（垂直于点3-4连线）
+                          const perpDX = -line34DY / line34Length;
+                          const perpDY = line34DX / line34Length;
+                          const perpLength = 80;
+                          
+                          return (
+                            <>
+                              {/* 点1到点2的连线 */}
+                              <line
+                                x1={screenPoints[0].x}
+                                y1={screenPoints[0].y}
+                                x2={screenPoints[1].x}
+                                y2={screenPoints[1].y}
+                                stroke={displayColor}
+                                strokeWidth="1"
+                                strokeDasharray="5,5"
+                                opacity="0.5"
+                              />
+                              {/* 点3到点4的连线 */}
+                              <line
+                                x1={screenPoints[2].x}
+                                y1={screenPoints[2].y}
+                                x2={screenPoints[3].x}
+                                y2={screenPoints[3].y}
+                                stroke={displayColor}
+                                strokeWidth="2"
+                              />
+                              {/* 两个中点的连线 */}
+                              <line
+                                x1={mid12X}
+                                y1={mid12Y}
+                                x2={mid34X}
+                                y2={mid34Y}
+                                stroke={displayColor}
+                                strokeWidth="2"
+                                strokeDasharray="3,3"
+                              />
+                              {/* 点3-4的中垂线 */}
+                              <line
+                                x1={mid34X - perpDX * perpLength}
+                                y1={mid34Y - perpDY * perpLength}
+                                x2={mid34X + perpDX * perpLength}
+                                y2={mid34Y + perpDY * perpLength}
+                                stroke={displayColor}
+                                strokeWidth="2"
+                                strokeDasharray="3,3"
+                              />
+                              {/* 中点标记 */}
+                              <circle
+                                cx={mid12X}
+                                cy={mid12Y}
+                                r="4"
+                                fill={displayColor}
+                                opacity="0.8"
+                              />
+                              <circle
+                                cx={mid34X}
+                                cy={mid34Y}
+                                r="4"
+                                fill={displayColor}
+                                opacity="0.8"
+                              />
+                            </>
+                          );
+                        })()}
+                      </>
+                    ) : null
+                  ) : measurement.type === 'PT' || measurement.type === 'pt' ? (
+                    // PT（骨盆倾斜角）特殊显示：连接两个中点，并显示垂直参考线
+                    screenPoints.length >= 4 ? (
+                      <>
+                        {(() => {
+                          // 计算点1和点2的中点
+                          const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
+                          const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                          
+                          // 计算点3和点4的中点
+                          const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
+                          const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                          
+                          return (
+                            <>
+                              {/* 点1到点2的连线 */}
+                              <line
+                                x1={screenPoints[0].x}
+                                y1={screenPoints[0].y}
+                                x2={screenPoints[1].x}
+                                y2={screenPoints[1].y}
+                                stroke={displayColor}
+                                strokeWidth="2"
+                              />
+                              {/* 点3到点4的连线 */}
+                              <line
+                                x1={screenPoints[2].x}
+                                y1={screenPoints[2].y}
+                                x2={screenPoints[3].x}
+                                y2={screenPoints[3].y}
+                                stroke={displayColor}
+                                strokeWidth="1"
+                                strokeDasharray="5,5"
+                                opacity="0.5"
+                              />
+                              {/* 两个中点的连线 */}
+                              <line
+                                x1={mid12X}
+                                y1={mid12Y}
+                                x2={mid34X}
+                                y2={mid34Y}
+                                stroke={displayColor}
+                                strokeWidth="2"
+                                strokeDasharray="3,3"
+                              />
+                              {/* 垂直参考线 (从mid12向下延伸) */}
+                              <line
+                                x1={mid12X}
+                                y1={mid12Y - 100 * imageScale}
+                                x2={mid12X}
+                                y2={mid12Y + 100 * imageScale}
+                                stroke="#00ff00"
+                                strokeWidth="1"
+                                strokeDasharray="5,5"
+                                opacity="0.7"
+                              />
+                              {/* 中点标记 */}
+                              <circle
+                                cx={mid12X}
+                                cy={mid12Y}
+                                r="4"
+                                fill={displayColor}
+                                opacity="0.8"
+                              />
+                              <circle
+                                cx={mid34X}
+                                cy={mid34Y}
+                                r="4"
+                                fill={displayColor}
+                                opacity="0.8"
+                              />
                             </>
                           );
                         })()}
@@ -5417,6 +6004,130 @@ function ImageCanvas({
                         );
                       })()}
                     </>
+                  ) : measurement.type === 'SVA' || measurement.type === 'sva' ? (
+                    // SVA（矢状面垂直轴） 特殊显示：两条垂直线 + 水平距离线段（与AVT相同）
+                    <>
+                      {(() => {
+                        // 计算两个点在竖直方向上的中点Y坐标
+                        const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
+                        // 垂直线长度随缩放变化
+                        const verticalLineLength = 50 * imageScale;
+                        return (
+                          <>
+                            {/* 第一条垂直线 */}
+                            <line
+                              x1={screenPoints[0].x}
+                              y1={screenPoints[0].y - verticalLineLength}
+                              x2={screenPoints[0].x}
+                              y2={screenPoints[0].y + verticalLineLength}
+                              stroke="#00ff00"
+                              strokeWidth="1"
+                              strokeDasharray="5,5"
+                              opacity="0.7"
+                            />
+                            {/* 第二条垂直线 */}
+                            <line
+                              x1={screenPoints[1].x}
+                              y1={screenPoints[1].y - verticalLineLength}
+                              x2={screenPoints[1].x}
+                              y2={screenPoints[1].y + verticalLineLength}
+                              stroke="#00ff00"
+                              strokeWidth="1"
+                              strokeDasharray="5,5"
+                              opacity="0.7"
+                            />
+                            {/* 水平距离线段（使用竖直方向中点） */}
+                            <line
+                              x1={screenPoints[0].x}
+                              y1={midY}
+                              x2={screenPoints[1].x}
+                              y2={midY}
+                              stroke={displayColor}
+                              strokeWidth="2"
+                            />
+                            {/* 距离箭头（左侧） */}
+                            <line
+                              x1={screenPoints[0].x}
+                              y1={midY - 8 * imageScale}
+                              x2={screenPoints[0].x}
+                              y2={midY + 8 * imageScale}
+                              stroke={displayColor}
+                              strokeWidth="2"
+                            />
+                            {/* 距离箭头（右侧） */}
+                            <line
+                              x1={screenPoints[1].x}
+                              y1={midY - 8 * imageScale}
+                              x2={screenPoints[1].x}
+                              y2={midY + 8 * imageScale}
+                              stroke={displayColor}
+                              strokeWidth="2"
+                            />
+                          </>
+                        );
+                      })()}
+                    </>
+                  ) : measurement.type === 'SS' || measurement.type === 'ss' ? (
+                    // SS（骶骨倾斜角） 特殊显示：与T1 Slope相同，椎体线 + 水平参考线 + 角度弧线
+                    <>
+                      {/* 骶骨线 */}
+                      <line
+                        x1={screenPoints[0].x}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[1].x}
+                        y2={screenPoints[1].y}
+                        stroke={displayColor}
+                        strokeWidth="2"
+                      />
+                      {/* 水平参考线 */}
+                      <line
+                        x1={screenPoints[0].x - 100 * imageScale}
+                        y1={screenPoints[0].y}
+                        x2={screenPoints[0].x + 100 * imageScale}
+                        y2={screenPoints[0].y}
+                        stroke="#00ff00"
+                        strokeWidth="1"
+                        strokeDasharray="5,5"
+                        opacity="0.7"
+                      />
+                      {/* 角度弧线 */}
+                      {(() => {
+                        const dx = screenPoints[1].x - screenPoints[0].x;
+                        const dy = screenPoints[1].y - screenPoints[0].y;
+                        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                        const radius = 30;
+                        
+                        // 将角度限制在-90到90度范围内
+                        let displayAngle = angle;
+                        if (displayAngle > 90) {
+                          displayAngle = displayAngle - 180;
+                        } else if (displayAngle < -90) {
+                          displayAngle = displayAngle + 180;
+                        }
+                        
+                        const startAngle = 0; // 水平线角度
+                        const endAngle = displayAngle;
+                        
+                        // 计算弧线路径
+                        const startX = screenPoints[0].x + radius;
+                        const startY = screenPoints[0].y;
+                        const endX = screenPoints[0].x + radius * Math.cos(endAngle * Math.PI / 180);
+                        const endY = screenPoints[0].y + radius * Math.sin(endAngle * Math.PI / 180);
+                        
+                        const largeArcFlag = Math.abs(endAngle) > 180 ? 1 : 0;
+                        const sweepFlag = endAngle > 0 ? 1 : 0;
+                        
+                        return (
+                          <path
+                            d={`M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY}`}
+                            fill="none"
+                            stroke={displayColor}
+                            strokeWidth="1"
+                            opacity="0.8"
+                          />
+                        );
+                      })()}
+                    </>
                   ) : measurement.type.includes('角') ||
                   measurement.type.includes('Cobb') ||
                   measurement.type.includes('Tilt') ||
@@ -5522,6 +6233,42 @@ function ImageCanvas({
                     textX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
                     textY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
                   }
+                } else if (measurement.type === 'SVA' || measurement.type === 'sva') {
+                  // SVA 特殊定位：在两个垂直线中间的上方（与AVT相同）
+                  textX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
+                  textY = midY - 30;
+                } else if (measurement.type === 'PI' || measurement.type === 'pi') {
+                  // PI 特殊定位：在两个中点连线的中间
+                  if (screenPoints.length >= 4) {
+                    const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
+                    const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                    const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
+                    const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                    textX = (mid12X + mid34X) / 2;
+                    textY = (mid12Y + mid34Y) / 2 - 30;
+                  } else {
+                    textX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
+                    textY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
+                  }
+                } else if (measurement.type === 'PT' || measurement.type === 'pt') {
+                  // PT 特殊定位：在两个中点连线的中间
+                  if (screenPoints.length >= 4) {
+                    const mid12X = (screenPoints[0].x + screenPoints[1].x) / 2;
+                    const mid12Y = (screenPoints[0].y + screenPoints[1].y) / 2;
+                    const mid34X = (screenPoints[2].x + screenPoints[3].x) / 2;
+                    const mid34Y = (screenPoints[2].y + screenPoints[3].y) / 2;
+                    textX = (mid12X + mid34X) / 2;
+                    textY = (mid12Y + mid34Y) / 2 - 30;
+                  } else {
+                    textX = (screenPoints[0].x + screenPoints[screenPoints.length - 1].x) / 2;
+                    textY = (screenPoints[0].y + screenPoints[screenPoints.length - 1].y) / 2 - 10;
+                  }
+                } else if (measurement.type === 'SS' || measurement.type === 'ss') {
+                  // SS 特殊定位：在两点上方（与T1 Slope相同）
+                  textX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                  const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
+                  textY = minY - 30;
                 } else if (measurement.type === 'RSH') {
                   // RSH 特殊定位：在两点上方
                   textX = (screenPoints[0].x + screenPoints[1].x) / 2;
@@ -5962,6 +6709,52 @@ function ImageCanvas({
           <>
             {(() => {
               const referencePoint = imageToScreen(pelvicHorizontalLine);
+              const lineLength = 200 * imageScale; // 水平线长度随缩放变化
+              return (
+                <g>
+                  {/* 水平参考线 */}
+                  <line
+                    x1={referencePoint.x - lineLength/2}
+                    y1={referencePoint.y}
+                    x2={referencePoint.x + lineLength/2}
+                    y2={referencePoint.y}
+                    stroke="#00ff00"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                    opacity="0.8"
+                  />
+                  {/* 水平线标识背景 */}
+                  <rect
+                    x={referencePoint.x + lineLength/2 + 7}
+                    y={referencePoint.y - 6}
+                    width="28"
+                    height="16"
+                    fill="white"
+                    opacity="0.9"
+                    rx="2"
+                  />
+                  {/* 水平线标识 */}
+                  <text
+                    x={referencePoint.x + lineLength/2 + 21}
+                    y={referencePoint.y + 4.2}
+                    fill="#00ff00"
+                    fontSize="12"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    HRL
+                  </text>
+                </g>
+              );
+            })()}
+          </>
+        )}
+
+        {/* SS（骶骨倾斜角）专用水平参考线 HRL - 侧位 */}
+        {selectedTool.includes('ss') && ssHorizontalLine && (
+          <>
+            {(() => {
+              const referencePoint = imageToScreen(ssHorizontalLine);
               const lineLength = 200 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>
