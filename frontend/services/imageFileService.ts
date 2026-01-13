@@ -48,9 +48,8 @@ export interface ImageFileStats {
 export interface ImageFileFilters {
   page?: number;
   page_size?: number;
-  file_type?: 'DICOM' | 'JPEG' | 'PNG' | 'TIFF' | 'OTHER';
+  description?: string; // 检查类型筛选
   status?: string;
-  modality?: string;
   start_date?: string;
   end_date?: string;
   search?: string;
@@ -66,10 +65,9 @@ export async function getMyImages(filters: ImageFileFilters = {}): Promise<Image
     page: filters.page || 1,
     page_size: filters.page_size || 20,
   };
-  
-  if (filters.file_type) params.file_type = filters.file_type;
+
+  if (filters.description) params.description = filters.description;
   if (filters.status) params.status = filters.status;
-  if (filters.modality) params.modality = filters.modality;
   if (filters.start_date) params.start_date = filters.start_date;
   if (filters.end_date) params.end_date = filters.end_date;
   if (filters.search) params.search = filters.search;

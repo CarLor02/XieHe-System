@@ -185,14 +185,14 @@ export default function Header() {
               <Tooltip content={unreadCount > 0 ? `${unreadCount} 条未读消息` : '消息通知'} position="bottom">
                 <button
                   onClick={() => setShowMessages(!showMessages)}
-                  className="flex items-center space-x-2"
+                  className="relative"
                 >
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors">
                     <i className="ri-notification-line w-4 h-4 flex items-center justify-center text-blue-600"></i>
                   </div>
                   {unreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                      {unreadCount}
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center font-medium shadow-sm">
+                      {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
                 </button>

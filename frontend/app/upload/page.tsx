@@ -296,7 +296,7 @@ function UploadContent() {
                 <select
                   value={examType}
                   onChange={e => setExamType(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">请选择检查类型</option>
                   {examTypes.map(type => (

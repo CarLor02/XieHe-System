@@ -498,8 +498,12 @@ export const createAuthenticatedClient = (): AxiosInstance => {
 
       // 处理其他 401 错误（没有重试机会的情况）
       if (error.response?.status === 401 && originalRequest._retry) {
+        console.log('❌ Token 刷新后仍然 401，强制退出登录');
         const { forceLogout } = useAuthStore.getState();
         forceLogout();
+        return Promise.reject(
+          new Error('Authentication failed, redirecting to login')
+        );
       }
 
       return Promise.reject(error);
