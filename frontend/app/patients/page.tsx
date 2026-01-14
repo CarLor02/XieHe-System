@@ -44,6 +44,7 @@ export default function PatientsPage() {
   const [totalPatients, setTotalPatients] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGender, setSelectedGender] = useState('');
+  const [selectedAgeRange, setSelectedAgeRange] = useState('');
 
   const { isAuthenticated } = useUser();
   const router = useRouter();
@@ -76,6 +77,17 @@ export default function PatientsPage() {
         params.append('gender', selectedGender);
       }
 
+      // 年龄范围筛选
+      if (selectedAgeRange) {
+        const [min, max] = selectedAgeRange.split('-').map(Number);
+        if (min !== undefined && !isNaN(min)) {
+          params.append('age_min', min.toString());
+        }
+        if (max !== undefined && !isNaN(max)) {
+          params.append('age_max', max.toString());
+        }
+      }
+
       const response = await client.get(
         `/api/v1/patients/?${params.toString()}`
       );
@@ -97,7 +109,7 @@ export default function PatientsPage() {
 
   useEffect(() => {
     loadPatients();
-  }, [currentPage, searchTerm, selectedGender]);
+  }, [currentPage, searchTerm, selectedGender, selectedAgeRange]);
 
   const displayedPatients = patients;
 
@@ -125,26 +137,71 @@ export default function PatientsPage() {
           </div>
 
           {/* 搜索和筛选 */}
-          <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6">
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
+              {/* 搜索框 */}
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <i className="ri-search-line text-gray-400 text-lg"></i>
+                </div>
                 <input
                   type="text"
                   placeholder="搜索患者姓名、ID或电话..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg 
+                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+                    transition-all duration-200 hover:border-gray-400
+                    text-gray-700 placeholder-gray-400"
                 />
               </div>
-              <div className="md:w-48">
+              
+              {/* 性别筛选 */}
+              <div className="md:w-52 relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                  <i className="ri-user-line text-gray-400 text-lg group-focus-within:text-blue-500 transition-colors"></i>
+                </div>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
+                  <i className="ri-arrow-down-s-line text-gray-400 text-lg"></i>
+                </div>
                 <select
                   value={selectedGender}
                   onChange={e => setSelectedGender(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg 
+                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+                    transition-all duration-200 hover:border-gray-400
+                    text-gray-700 appearance-none cursor-pointer
+                    bg-white"
                 >
                   <option value="">全部性别</option>
                   <option value="男">男</option>
                   <option value="女">女</option>
+                </select>
+              </div>
+              
+              {/* 年龄筛选 */}
+              <div className="md:w-52 relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                  <i className="ri-calendar-line text-gray-400 text-lg group-focus-within:text-blue-500 transition-colors"></i>
+                </div>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
+                  <i className="ri-arrow-down-s-line text-gray-400 text-lg"></i>
+                </div>
+                <select
+                  value={selectedAgeRange}
+                  onChange={e => setSelectedAgeRange(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg 
+                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+                    transition-all duration-200 hover:border-gray-400
+                    text-gray-700 appearance-none cursor-pointer
+                    bg-white"
+                >
+                  <option value="">全部年龄</option>
+                  <option value="0-20">0-20岁</option>
+                  <option value="20-40">20-40岁</option>
+                  <option value="40-60">40-60岁</option>
+                  <option value="60-80">60-80岁</option>
+                  <option value="80-100">80-100岁</option>
                 </select>
               </div>
             </div>

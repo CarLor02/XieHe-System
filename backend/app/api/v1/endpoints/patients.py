@@ -6,7 +6,7 @@
 @author XieHe Medical System
 @created 2025-09-28
 """
-
+from app.services.patient_service import PatientService
 from typing import List, Dict, Any, Optional
 from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -205,48 +205,39 @@ async def get_patients(
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     search: Optional[str] = Query(None, description="搜索关键词（姓名、患者ID、电话）"),
     gender: Optional[str] = Query(None, description="性别筛选"),
+    age_min: Optional[int] = Query(None, ge=0, le=150, description="最小年龄"),
+    age_max: Optional[int] = Query(None, ge=0, le=150, description="最大年龄"),
     status: Optional[str] = Query(None, description="状态筛选"),
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
-    获取患者列表
-    
-    支持分页、搜索和筛选功能
+    获取患者列表（改用 Service 层，支持年龄区间）
     """
     try:
-        # 构建查询
-        query = db.query(Patient).filter(Patient.is_deleted == False)
+        # 用 Service 统一查
+        patients = PatientService.list_patients(
+            db=db,
+            search=search,
+            gender=gender,
+            age_min=age_min,
+            age_max=age_max,
+            status=status,
+            skip=(page - 1) * page_size,
+            limit=page_size,
+        )
 
-        # 搜索筛选
-        if search:
-            search_filter = or_(
-                Patient.name.contains(search),
-                Patient.patient_id.contains(search),
-                Patient.phone.contains(search)
-            )
-            query = query.filter(search_filter)
+        # 总数同样用 Service 的 count 方法（下面给实现）
+        total = PatientService.count_patients(
+            db=db,
+            search=search,
+            gender=gender,
+            age_min=age_min,
+            age_max=age_max,
+            status=status,
+        )
 
-        # 性别筛选
-        if gender:
-            gender_enum = convert_gender_to_enum(gender)
-            query = query.filter(Patient.gender == gender_enum)
-
-        # 状态筛选
-        if status:
-            if status == "active":
-                query = query.filter(Patient.status == PatientStatusEnum.ACTIVE)
-            elif status == "inactive":
-                query = query.filter(Patient.status == PatientStatusEnum.INACTIVE)
-
-        # 获取总数
-        total = query.count()
-
-        # 分页
-        offset = (page - 1) * page_size
-        patients = query.order_by(desc(Patient.created_at)).offset(offset).limit(page_size).all()
-
-        # 转换为响应格式
+        # 组装返回
         patient_responses = []
         for patient in patients:
             response_data = {
@@ -271,6 +262,20 @@ async def get_patients(
 
         total_pages = (total + page_size - 1) // page_size
 
+        return PatientListResponse(
+            patients=patient_responses,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages
+        )
+
+    except Exception as e:
+        logger.error(f"获取患者列表失败: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取患者列表过程中发生错误"
+        )
         return PatientListResponse(
             patients=patient_responses,
             total=total,
