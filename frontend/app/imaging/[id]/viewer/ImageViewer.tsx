@@ -2107,23 +2107,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             </button>
 
             <button
-              onClick={saveMeasurements}
-              disabled={isSaving || measurements.length === 0}
-              className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-            >
-              {isSaving ? (
-                <>
-                  <i className="ri-loader-line w-4 h-4 flex items-center justify-center animate-spin"></i>
-                  <span>保存中...</span>
-                </>
-              ) : (
-                <>
-                  <i className="ri-save-line w-4 h-4 flex items-center justify-center"></i>
-                  <span>保存测量</span>
-                </>
-              )}
-            </button>
-            <button
               onClick={generateReport}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"
             >
