@@ -1469,6 +1469,47 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         }
         return '0.0mm';
       
+      case 'SVA':
+      case 'sva':
+        if (points.length >= 2) {
+          const distance = calculateSVA(points, true);
+          return `${distance.toFixed(1)}mm`;
+        }
+        return '0.0mm';
+      
+      case 'PI':
+      case 'pi':
+        if (points.length >= 3) {
+          const angle = calculatePIAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      case 'PT':
+      case 'pt':
+        if (points.length >= 3) {
+          const angle = calculatePTAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      case 'SS':
+      case 'ss':
+        if (points.length >= 2) {
+          const angle = calculateSSAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
+      case 'CL':
+      case 'cl':
+      case 'C2-C7 CL':
+        if (points.length >= 4) {
+          const angle = calculateCLAngle(points);
+          return `${angle.toFixed(1)}°`;
+        }
+        return '0.0°';
+      
       case '长度测量':
         if (points.length >= 2) {
           const distance = calculateDistance(points);
@@ -1767,8 +1808,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       formData.append('file', imageBlob, 'image.png');
       formData.append('image_id', imageId);
 
-      // 调用AI检测接口
-      const aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_URL || 'http://localhost:8001/predict';
+      // 根据examType选择不同的AI检测接口
+      let aiDetectUrl: string;
+      if (imageData.examType === '侧位X光片') {
+        // 侧位使用专用检测接口
+        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_LATERAL_URL || 'http://115.190.121.59:8002/api/detect_and_keypoints';
+      } else {
+        // 正位或其他类型使用默认接口
+        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_URL || 'http://localhost:8001/predict';
+      }
+      
       const aiResponse = await fetch(aiDetectUrl, {
         method: 'POST',
         body: formData,
