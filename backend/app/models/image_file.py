@@ -65,6 +65,9 @@ class ImageFile(Base):
     study_date = Column(DateTime, comment="检查日期")
     description = Column(Text, comment="文件描述")
     
+    # 标注数据
+    annotation = Column(Text, comment="标注数据(JSON格式)")
+    
     # 状态信息
     status = Column(Enum(ImageFileStatusEnum), nullable=False, default=ImageFileStatusEnum.UPLOADING, comment="文件状态")
     upload_progress = Column(Integer, default=0, comment="上传进度(0-100)")

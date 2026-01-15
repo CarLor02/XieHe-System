@@ -130,6 +130,25 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           status: imageFile.status,
           created_at: imageFile.created_at,
         });
+        
+        // 加载标注数据
+        if (imageFile.annotation) {
+          try {
+            const annotationData = JSON.parse(imageFile.annotation);
+            if (annotationData.measurements && Array.isArray(annotationData.measurements)) {
+              setMeasurements(annotationData.measurements);
+              console.log(`从数据库加载了 ${annotationData.measurements.length} 个标注`);
+            }
+            if (annotationData.standardDistance) {
+              setStandardDistance(annotationData.standardDistance);
+            }
+            if (annotationData.standardDistancePoints) {
+              setStandardDistancePoints(annotationData.standardDistancePoints);
+            }
+          } catch (e) {
+            console.error('解析标注数据失败:', e);
+          }
+        }
       } catch (error) {
         console.error('获取影像数据失败:', error);
         // 如果API失败，使用默认数据
@@ -1913,6 +1932,50 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     }
   };
 
+  // 保存标注数据到数据库
+  const saveAnnotationsToDatabase = async () => {
+    if (measurements.length === 0) {
+      setSaveMessage('暂无测量数据需要保存');
+      setTimeout(() => setSaveMessage(''), 3000);
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage('正在保存...');
+
+    try {
+      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
+      const client = createAuthenticatedClient();
+      
+      const annotationData = {
+        measurements: measurements,
+        standardDistance: standardDistance,
+        standardDistancePoints: standardDistancePoints,
+        imageWidth: imageNaturalSize?.width,
+        imageHeight: imageNaturalSize?.height,
+        savedAt: new Date().toISOString(),
+      };
+
+      const response = await client.patch(
+        `/api/v1/image-files/${numericId}/annotation`,
+        { annotation: JSON.stringify(annotationData) }
+      );
+
+      if (response.status === 200) {
+        setSaveMessage('标注数据保存成功');
+        setTimeout(() => setSaveMessage(''), 3000);
+      } else {
+        throw new Error('保存失败');
+      }
+    } catch (error) {
+      console.error('保存标注数据失败:', error);
+      setSaveMessage('保存标注数据失败，请重试');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const saveMeasurements = async () => {
     if (measurements.length === 0) {
       setSaveMessage('暂无测量数据需要保存');
@@ -1990,13 +2053,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             {/* 标注操作按钮组 */}
             <div className="flex items-center space-x-2 border-r border-gray-600 pr-3">
               <button
-                onClick={saveAnnotationsToLocalStorage}
-                disabled={measurements.length === 0}
+                onClick={saveAnnotationsToDatabase}
+                disabled={measurements.length === 0 || isSaving}
                 className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                title="保存标注到本地"
+                title="保存标注到数据库"
               >
                 <i className="ri-save-3-line w-4 h-4 flex items-center justify-center"></i>
-                <span>本地保存</span>
+                <span>{isSaving ? '保存中...' : '保存'}</span>
               </button>
 
               <button

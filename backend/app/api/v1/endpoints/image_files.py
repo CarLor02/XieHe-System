@@ -15,7 +15,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc
+from sqlalchemy import and_, or_, desc, func
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
@@ -48,6 +48,7 @@ class ImageFileResponse(BaseModel):
     body_part: Optional[str]
     study_date: Optional[datetime]
     description: Optional[str]
+    annotation: Optional[str] = None
     status: str
     upload_progress: int
     created_at: datetime
@@ -286,6 +287,7 @@ async def get_image_file(
             "body_part": image.body_part,
             "study_date": image.study_date,
             "description": image.description,
+            "annotation": image.annotation,
             "status": image.status.value,
             "upload_progress": image.upload_progress,
             "created_at": image.created_at,
@@ -456,4 +458,85 @@ async def get_image_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取影像统计失败"
+        )
+
+
+class UpdateAnnotationRequest(BaseModel):
+    """更新标注数据请求模型"""
+    annotation: str = Field(..., description="标注数据(JSON字符串)")
+
+
+@router.patch("/{file_id}/annotation", response_model=ImageFileResponse, summary="更新影像文件的标注数据")
+async def update_annotation(
+    file_id: int,
+    request: UpdateAnnotationRequest,
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    更新指定影像文件的标注数据
+    
+    标注数据以JSON字符串格式存储
+    """
+    try:
+        # 查询影像文件
+        image = db.query(ImageFile).filter(
+            ImageFile.id == file_id,
+            ImageFile.is_deleted == False
+        ).first()
+        
+        if not image:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="影像文件不存在"
+            )
+        
+        # 更新标注数据
+        image.annotation = request.annotation
+        image.updated_at = func.now()
+        db.commit()
+        db.refresh(image)
+        
+        logger.info(f"用户 {current_user.get('username')} 更新了影像文件 {file_id} 的标注数据")
+        
+        # 构建响应
+        img_dict = {
+            "id": image.id,
+            "file_uuid": image.file_uuid,
+            "original_filename": image.original_filename,
+            "file_type": image.file_type.value,
+            "mime_type": image.mime_type,
+            "file_size": image.file_size,
+            "storage_path": image.storage_path,
+            "thumbnail_path": image.thumbnail_path,
+            "uploaded_by": image.uploaded_by,
+            "patient_id": image.patient_id,
+            "study_id": image.study_id,
+            "modality": image.modality,
+            "body_part": image.body_part,
+            "study_date": image.study_date,
+            "description": image.description,
+            "annotation": image.annotation,
+            "status": image.status.value,
+            "upload_progress": image.upload_progress,
+            "created_at": image.created_at,
+            "uploaded_at": image.uploaded_at
+        }
+        
+        # 获取上传者信息
+        if image.uploaded_by:
+            uploader = db.query(User).filter(User.id == image.uploaded_by).first()
+            if uploader:
+                img_dict["uploader_name"] = uploader.username
+        
+        return ImageFileResponse(**img_dict)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新标注数据失败: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="更新标注数据失败"
         )
