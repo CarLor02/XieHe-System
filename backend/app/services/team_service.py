@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.logging import get_logger
 from app.models.team import (
     Team,
     TeamInvitation,
@@ -20,6 +21,8 @@ from app.models.team import (
     TeamMembershipStatus,
 )
 from app.models.user import User
+
+logger = get_logger(__name__)
 
 
 def _normalize_user_id(user_id: Optional[int | str]) -> Optional[int]:
@@ -80,6 +83,9 @@ class TeamService:
             "is_member": bool(
                 membership and membership.status == TeamMembershipStatus.ACTIVE
             ),
+            "my_role": membership.role.value if membership else None,
+            "my_status": membership.status.value if membership else None,
+            "is_creator": team.creator_id == current_user_id if current_user_id else False,
             "join_status": join_request.status.value if join_request else None,
             "join_request_id": join_request_id,
             "created_at": team.created_at,
@@ -283,7 +289,10 @@ class TeamService:
             raise PermissionError("您不是该团队成员，无法查看成员列表")
 
         members: List[Dict[str, object]] = []
+        # 只显示激活状态的成员
         for member in team.memberships:
+            if member.status != TeamMembershipStatus.ACTIVE:
+                continue
             user = member.user
             department_name = None
             if user and user.department:
@@ -298,6 +307,8 @@ class TeamService:
                     "status": member.status.value,
                     "department": department_name,
                     "is_creator": team.creator_id == member.user_id,  # 改为is_creator
+                    "is_system_admin": bool(user.is_system_admin) if user and user.is_system_admin is not None else False,
+                    "system_admin_level": user.system_admin_level if user and user.system_admin_level is not None else 0,
                     "joined_at": member.joined_at,
                 }
             )
@@ -698,16 +709,305 @@ class TeamService:
             TeamMembership.user_id == target_user_id,
             TeamMembership.status == TeamMembershipStatus.ACTIVE
         ).first()
-        
+
         if not target_membership:
             raise ValueError("目标成员不存在或未激活")
-        
+
+        # 获取目标用户信息，检查是否为系统管理员
+        target_user = db.query(User).filter(User.id == target_user_id).first()
+        if not target_user:
+            raise ValueError("目标用户不存在")
+
+        # 权限检查：超级系统管理员（level 1）不能被任何人修改角色
+        if target_user.is_system_admin and target_user.system_admin_level == 1:
+            raise PermissionError("无法修改超级系统管理员的角色")
+
+        # 获取操作者信息
+        operator_user = db.query(User).filter(User.id == operator_user_id).first()
+        if not operator_user:
+            raise ValueError("操作者用户不存在")
+
+        # 权限检查：团队管理员不能修改系统管理员的角色（除非操作者本身是超级系统管理员）
+        if target_user.is_system_admin:
+            if not (operator_user.is_system_admin and operator_user.system_admin_level == 1):
+                raise PermissionError("只有超级系统管理员可以修改系统管理员的角色")
+
         # 更新角色
         target_membership.role = new_role_enum
         target_membership.updated_at = datetime.utcnow()
-        
+
         db.commit()
         db.refresh(target_membership)
+
+    def remove_member(
+        self,
+        db: Session,
+        team_id: int,
+        operator_user_id: int,
+        target_user_id: int,
+    ) -> None:
+        """
+        团队管理员删除成员
+
+        Args:
+            db: 数据库会话
+            team_id: 团队ID
+            operator_user_id: 操作者用户ID（管理员）
+            target_user_id: 目标用户ID（被删除的成员）
+
+        Raises:
+            ValueError: 参数错误、团队不存在、成员不存在
+            PermissionError: 权限不足
+        """
+        operator_user_id = _normalize_user_id(operator_user_id)
+        target_user_id = _normalize_user_id(target_user_id)
+
+        if operator_user_id is None or target_user_id is None:
+            raise ValueError("无效的用户ID")
+
+        # 查询团队
+        team = db.query(Team).filter(
+            Team.id == team_id,
+            Team.is_active.is_(True)
+        ).first()
+        if not team:
+            raise ValueError("团队不存在或已停用")
+
+        # 验证操作者是否是管理员
+        operator_membership = db.query(TeamMembership).filter(
+            TeamMembership.team_id == team_id,
+            TeamMembership.user_id == operator_user_id,
+            TeamMembership.status == TeamMembershipStatus.ACTIVE
+        ).first()
+
+        if not operator_membership or operator_membership.role != TeamMembershipRole.ADMIN:
+            raise PermissionError("只有团队管理员可以删除成员")
+
+        # 查询目标成员
+        target_membership = db.query(TeamMembership).filter(
+            TeamMembership.team_id == team_id,
+            TeamMembership.user_id == target_user_id,
+            TeamMembership.status == TeamMembershipStatus.ACTIVE
+        ).first()
+
+        if not target_membership:
+            raise ValueError("目标成员不存在或未激活")
+
+        # 不能删除团队创建者
+        if target_user_id == team.creator_id:
+            raise PermissionError("不能删除团队创建者")
+
+        # 获取目标用户信息，检查是否为系统管理员
+        target_user = db.query(User).filter(User.id == target_user_id).first()
+        if not target_user:
+            raise ValueError("目标用户不存在")
+
+        # 权限检查：超级系统管理员（level 1）不能被删除
+        if target_user.is_system_admin and target_user.system_admin_level == 1:
+            raise PermissionError("无法删除超级系统管理员")
+
+        # 获取操作者信息
+        operator_user = db.query(User).filter(User.id == operator_user_id).first()
+        if not operator_user:
+            raise ValueError("操作者用户不存在")
+
+        # 权限检查：团队管理员不能删除系统管理员（除非操作者本身是超级系统管理员）
+        if target_user.is_system_admin:
+            if not (operator_user.is_system_admin and operator_user.system_admin_level == 1):
+                raise PermissionError("只有超级系统管理员可以删除系统管理员")
+
+        # 删除成员（软删除，将状态改为INACTIVE）
+        target_membership.status = TeamMembershipStatus.INACTIVE
+        target_membership.updated_at = datetime.utcnow()
+
+        db.commit()
+        logger.info(
+            f"团队 {team_id} 成员 {target_user_id} 已被 {operator_user_id} 删除"
+        )
+
+    def get_user_invitations(self, db: Session, user_id: int) -> List[Dict]:
+        """
+        获取用户收到的团队邀请列表
+
+        Args:
+            db: 数据库会话
+            user_id: 用户ID
+
+        Returns:
+            邀请列表
+        """
+        user_id = _normalize_user_id(user_id)
+        if user_id is None:
+            raise ValueError("无效的用户ID")
+
+        # 获取用户信息
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("用户不存在")
+
+        # 查询用户收到的邀请（通过邮箱或用户ID）
+        invitations = (
+            db.query(TeamInvitation)
+            .options(
+                joinedload(TeamInvitation.team),
+                joinedload(TeamInvitation.inviter)
+            )
+            .filter(
+                or_(
+                    TeamInvitation.invitee_user_id == user_id,
+                    func.lower(TeamInvitation.invitee_email) == func.lower(user.email)
+                ),
+                TeamInvitation.status == TeamInvitationStatus.PENDING,
+                TeamInvitation.expires_at > datetime.utcnow()
+            )
+            .order_by(TeamInvitation.created_at.desc())
+            .all()
+        )
+
+        result = []
+        for invitation in invitations:
+            team = invitation.team
+            inviter = invitation.inviter
+
+            result.append({
+                "id": invitation.id,
+                "team_id": invitation.team_id,
+                "team_name": team.name if team else None,
+                "team_description": team.description if team else None,
+                "inviter_id": invitation.inviter_id,
+                "inviter_name": inviter.real_name or inviter.username if inviter else None,
+                "role": invitation.role.value,
+                "message": invitation.message,
+                "created_at": invitation.created_at,
+                "expires_at": invitation.expires_at,
+                "status": invitation.status.value,
+            })
+
+        return result
+
+    def respond_to_invitation(
+        self,
+        db: Session,
+        user_id: int,
+        invitation_id: int,
+        accept: bool
+    ) -> Dict:
+        """
+        响应团队邀请（接受或拒绝）
+
+        Args:
+            db: 数据库会话
+            user_id: 用户ID
+            invitation_id: 邀请ID
+            accept: True表示接受，False表示拒绝
+
+        Returns:
+            处理结果
+
+        Raises:
+            ValueError: 参数错误、邀请不存在、邀请已过期等
+            PermissionError: 权限不足
+        """
+        user_id = _normalize_user_id(user_id)
+        if user_id is None:
+            raise ValueError("无效的用户ID")
+
+        # 获取用户信息
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("用户不存在")
+
+        # 查询邀请
+        invitation = (
+            db.query(TeamInvitation)
+            .options(joinedload(TeamInvitation.team))
+            .filter(TeamInvitation.id == invitation_id)
+            .first()
+        )
+
+        if not invitation:
+            raise ValueError("邀请不存在")
+
+        # 验证邀请是否属于当前用户
+        if invitation.invitee_user_id != user_id and func.lower(invitation.invitee_email) != func.lower(user.email):
+            raise PermissionError("无权处理此邀请")
+
+        # 检查邀请状态
+        if invitation.status != TeamInvitationStatus.PENDING:
+            raise ValueError("邀请已处理")
+
+        # 检查邀请是否过期
+        if invitation.expires_at < datetime.utcnow():
+            invitation.status = TeamInvitationStatus.EXPIRED
+            db.commit()
+            raise ValueError("邀请已过期")
+
+        team = invitation.team
+        if not team or not team.is_active:
+            raise ValueError("团队不存在或已停用")
+
+        now = datetime.utcnow()
+        invitation.responded_at = now
+
+        if accept:
+            # 接受邀请
+            invitation.status = TeamInvitationStatus.ACCEPTED
+
+            # 更新或创建成员记录
+            membership = (
+                db.query(TeamMembership)
+                .filter(
+                    TeamMembership.team_id == invitation.team_id,
+                    TeamMembership.user_id == user_id
+                )
+                .first()
+            )
+
+            if membership:
+                membership.status = TeamMembershipStatus.ACTIVE
+                membership.role = invitation.role
+                membership.updated_at = now
+            else:
+                membership = TeamMembership(
+                    team_id=invitation.team_id,
+                    user_id=user_id,
+                    role=invitation.role,
+                    status=TeamMembershipStatus.ACTIVE,
+                    joined_at=now
+                )
+                db.add(membership)
+
+            message = f"已成功加入团队 {team.name}"
+        else:
+            # 拒绝邀请
+            invitation.status = TeamInvitationStatus.REVOKED
+
+            # 如果有INVITED状态的成员记录，将其设为INACTIVE
+            membership = (
+                db.query(TeamMembership)
+                .filter(
+                    TeamMembership.team_id == invitation.team_id,
+                    TeamMembership.user_id == user_id,
+                    TeamMembership.status == TeamMembershipStatus.INVITED
+                )
+                .first()
+            )
+
+            if membership:
+                membership.status = TeamMembershipStatus.INACTIVE
+                membership.updated_at = now
+
+            message = "已拒绝邀请"
+
+        db.commit()
+        db.refresh(invitation)
+
+        return {
+            "message": message,
+            "status": invitation.status.value,
+            "team_id": invitation.team_id,
+            "team_name": team.name
+        }
 
 
 team_service = TeamService()
