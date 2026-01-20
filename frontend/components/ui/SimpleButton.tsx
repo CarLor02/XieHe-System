@@ -7,7 +7,7 @@
  * @created 2025-09-24
  */
 
-import React from 'react'
+import * as React from 'react'
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
@@ -16,17 +16,20 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   fullWidth?: boolean
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ 
-    className = '', 
-    variant = 'primary', 
-    size = 'md', 
-    loading = false,
-    fullWidth = false,
-    disabled,
-    children, 
-    ...props 
-  }, ref) => {
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    { 
+      className = '', 
+      variant = 'primary', 
+      size = 'md', 
+      loading = false,
+      fullWidth = false,
+      disabled,
+      children, 
+      ...props 
+    }, 
+    ref
+  ) {
     const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
     
     const variantClasses = {
@@ -71,7 +74,3 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     )
   }
 )
-
-Button.displayName = 'Button'
-
-export { Button }

@@ -19,8 +19,6 @@ from .endpoints import (
     auth,
     users,
     patients,
-    images,
-    studies,
     reports,
     permissions,
     ai_diagnosis,
@@ -70,18 +68,6 @@ api_router.include_router(
     patients.router,
     prefix="/patients",
     tags=["患者管理"]
-)
-
-api_router.include_router(
-    images.router,
-    prefix="/images",
-    tags=["影像管理"]
-)
-
-api_router.include_router(
-    studies.router,
-    prefix="/studies",
-    tags=["影像检查"]
 )
 
 api_router.include_router(

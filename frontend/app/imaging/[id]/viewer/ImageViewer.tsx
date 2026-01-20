@@ -320,14 +320,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       try {
         const client = createAuthenticatedClient();
         const response = await client.get(
-          '/api/v1/studies?page=1&page_size=100'
+          '/api/v1/image-files?page=1&page_size=100'
         );
 
-        if (response.data && response.data.studies) {
+        if (response.data && response.data.items) {
           // 从API响应中提取影像ID，格式为IMG{id}
-          const ids = response.data.studies.map((study: any) => {
-            // 使用study.id来生成影像ID
-            return `IMG${study.id.toString().padStart(3, '0')}`;
+          const ids = response.data.items.map((item: any) => {
+            // 使用item.id来生成影像ID
+            return `IMG${item.id.toString().padStart(3, '0')}`;
           });
           setImageList(ids);
         }
@@ -571,16 +571,26 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     }
   };
 
-  // 保存标注数据到localStorage
-  const saveAnnotationsToLocalStorage = () => {
+  // 保存标注数据到localStorage和服务器
+  const saveAnnotationsToLocalStorage = async () => {
+    if (measurements.length === 0) {
+      setSaveMessage('暂无测量数据需要保存');
+      setTimeout(() => setSaveMessage(''), 3000);
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage('');
+
     try {
+      // 1. 保存到本地存储
       const key = `annotations_${imageId}`;
       // 只保存type和points，移除id、value和description
       const simplifiedMeasurements = measurements.map(m => ({
         type: m.type,
         points: m.points
       }));
-      const data = {
+      const localData = {
         imageId: imageId,
         imageWidth: imageNaturalSize?.width,
         imageHeight: imageNaturalSize?.height,
@@ -588,14 +598,44 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         standardDistance: standardDistance,
         standardDistancePoints: standardDistancePoints
       };
-      localStorage.setItem(key, JSON.stringify(data, null, 2));
-      setSaveMessage('标注已保存到本地');
-      setTimeout(() => setSaveMessage(''), 2000);
+      localStorage.setItem(key, JSON.stringify(localData, null, 2));
       console.log(`已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`);
-    } catch (error) {
-      console.error('保存本地标注数据失败:', error);
-      setSaveMessage('保存失败，请重试');
-      setTimeout(() => setSaveMessage(''), 2000);
+
+      // 2. 保存到服务器
+      const client = createAuthenticatedClient();
+      // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
+      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
+      const measurementData = {
+        imageId: numericId,
+        patientId: imageData.patientId,
+        examType: imageData.examType,
+        measurements: measurements,
+        reportText: reportText,
+        savedAt: new Date().toISOString(),
+      };
+
+      const response = await client.post(
+        `/api/v1/measurements/${numericId}`,
+        measurementData
+      );
+
+      console.log('保存响应:', response.status, response.data);
+
+      if (response.status === 200) {
+        setSaveMessage('标注已保存到本地和服务器');
+        setTimeout(() => setSaveMessage(''), 3000);
+      } else {
+        const errorMsg = response.data?.message || response.data?.detail || '保存到服务器失败';
+        console.error('保存失败:', response.status, errorMsg);
+        throw new Error(errorMsg);
+      }
+    } catch (error: any) {
+      console.error('保存标注数据失败:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.detail || error.message || '保存失败，请重试';
+      setSaveMessage(`保存失败: ${errorMessage}`);
+      setTimeout(() => setSaveMessage(''), 5000);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -922,8 +962,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
     try {
       const client = createAuthenticatedClient();
+      // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
+      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
       const measurementData = {
-        imageId: imageId,
+        imageId: numericId,
         patientId: imageData.patientId,
         examType: imageData.examType,
         measurements: measurements,
@@ -932,20 +974,25 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       };
 
       const response = await client.post(
-        `/api/v1/measurements/${imageId}`,
+        `/api/v1/measurements/${numericId}`,
         measurementData
       );
+
+      console.log('保存响应:', response.status, response.data);
 
       if (response.status === 200) {
         setSaveMessage('测量数据保存成功');
         setTimeout(() => setSaveMessage(''), 3000);
       } else {
-        throw new Error('保存失败');
+        const errorMsg = response.data?.message || response.data?.detail || '保存失败';
+        console.error('保存失败:', response.status, errorMsg);
+        throw new Error(errorMsg);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('保存测量数据失败:', error);
-      setSaveMessage('保存测量数据失败，请重试');
-      setTimeout(() => setSaveMessage(''), 3000);
+      const errorMessage = error.response?.data?.message || error.response?.data?.detail || error.message || '保存失败，请重试';
+      setSaveMessage(`保存失败: ${errorMessage}`);
+      setTimeout(() => setSaveMessage(''), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -987,12 +1034,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             {/* 标注操作按钮组 */}
             <div className="flex items-center space-x-2 border-r border-gray-600 pr-3">
               <button
-                onClick={saveAnnotationsToDatabase}
                 disabled={measurements.length === 0 || isSaving}
                 className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 title="保存标注到数据库"
               >
-                <i className="ri-save-3-line w-4 h-4 flex items-center justify-center"></i>
                 <span>{isSaving ? '保存中...' : '保存'}</span>
               </button>
 

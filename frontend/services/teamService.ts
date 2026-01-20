@@ -27,7 +27,7 @@ export interface TeamSearchResponse {
 }
 
 export interface TeamMember {
-  id: number; // 后端实际返回的字段名是 id（user_id 的别名）
+  user_id: number; // 后端返回的字段名是 user_id
   username: string;
   real_name?: string | null;
   email?: string | null;
@@ -35,6 +35,8 @@ export interface TeamMember {
   status: string;
   department?: string | null;
   is_creator: boolean; // 改为is_creator，是否是团队创建者
+  is_system_admin: boolean; // 是否系统管理员
+  system_admin_level: number; // 系统管理员级别：0-非系统管理员，1-超级系统管理员，2-二级系统管理员
   joined_at?: string | null;
 }
 
@@ -248,6 +250,80 @@ export async function updateMemberRole(
     return response.data;
   } catch (error) {
     handleApiError(error, 'team_update_member_role');
+    throw error;
+  }
+}
+
+// 删除团队成员
+export async function removeMember(
+  teamId: number,
+  userId: number
+): Promise<{ message: string }> {
+  try {
+    const response = await client.delete<{ message: string }>(
+      `/api/v1/permissions/teams/${teamId}/members/${userId}`
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'team_remove_member');
+    throw error;
+  }
+}
+
+// 团队邀请相关接口
+
+export interface TeamInvitationItem {
+  id: number;
+  team_id: number;
+  team_name?: string | null;
+  team_description?: string | null;
+  inviter_id: number;
+  inviter_name?: string | null;
+  role: string;
+  message?: string | null;
+  created_at: string;
+  expires_at: string;
+  status: string;
+}
+
+export interface TeamInvitationListResponse {
+  items: TeamInvitationItem[];
+  total: number;
+}
+
+export interface TeamInvitationRespondResponse {
+  message: string;
+  status: string;
+  team_id: number;
+  team_name: string;
+}
+
+// 获取我的团队邀请
+export async function getMyInvitations(): Promise<TeamInvitationListResponse> {
+  try {
+    const response = await client.get<TeamInvitationListResponse>(
+      '/api/v1/permissions/invitations/my'
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'team_invitations_get');
+    throw error;
+  }
+}
+
+// 响应团队邀请（接受或拒绝）
+export async function respondToInvitation(
+  invitationId: number,
+  accept: boolean
+): Promise<TeamInvitationRespondResponse> {
+  try {
+    const response = await client.post<TeamInvitationRespondResponse>(
+      `/api/v1/permissions/invitations/${invitationId}/respond`,
+      { accept }
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'team_invitation_respond');
     throw error;
   }
 }

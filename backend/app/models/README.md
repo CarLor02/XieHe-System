@@ -40,15 +40,19 @@ models/
 | `PatientAllergy` | `patient_allergies` | 患者过敏史表 |
 | `PatientMedicalHistory` | `patient_medical_history` | 患者病史表 |
 
-### 3. 影像管理模块 (5 个表)
+### 3. 影像管理模块 (6 个表)
 
-| 模型名 | 表名 | 说明 |
-|--------|------|------|
-| `Study` | `studies` | 检查表 |
-| `Series` | `series` | 序列表 |
-| `Instance` | `instances` | 实例表 |
-| `ImageAnnotation` | `image_annotations` | 影像标注表 |
-| `AITask` | `ai_tasks` | AI 任务表 |
+| 模型名 | 表名 | 说明 | 状态 |
+|--------|------|------|------|
+| `ImageFile` | `image_files` | 影像文件表 | ✅ 活跃 |
+| `ImageAnnotation` | `image_annotations` | 影像标注表 | ✅ 活跃 |
+| `AITask` | `ai_tasks` | AI 任务表 | ✅ 活跃 |
+| `Study` | `studies` | 检查表 | ⚠️ 已废弃 |
+| `Series` | `series` | 序列表 | ⚠️ 已废弃 |
+| `Instance` | `instances` | 实例表 | ⚠️ 已废弃 |
+
+> **注意**：Study/Series/Instance 模型已废弃，保留用于数据迁移和向后兼容。
+> 新功能请使用 `ImageFile` 模型。详见 [数据模型简化重构文档](../../../docs/refactoring/simplified-model-migration.md)
 
 ### 4. 报告管理模块 (4 个表)
 
@@ -78,7 +82,7 @@ models/
 from app.models import (
     User, Role, Permission, Department,
     Patient, PatientVisit,
-    Study, Series, Instance,
+    ImageFile, ImageAnnotation, AITask,  # 新的影像管理模型
     DiagnosticReport, ReportTemplate,
     SystemConfig, SystemLog
 )
@@ -86,9 +90,13 @@ from app.models import (
 # 或者按模块导入
 from app.models.user import User, Role
 from app.models.patient import Patient
-from app.models.image import Study, Series
+from app.models.image_file import ImageFile  # 新模型
+from app.models.image import ImageAnnotation, AITask  # 活跃模型
 from app.models.report import DiagnosticReport
 from app.models.system import SystemConfig
+
+# 废弃的模型（仅用于数据迁移）
+from app.models.image import Study, Series, Instance  # ⚠️ 已废弃
 ```
 
 ### 创建数据

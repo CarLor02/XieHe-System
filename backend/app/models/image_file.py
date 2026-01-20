@@ -56,9 +56,7 @@ class ImageFile(Base):
     # 关联信息
     uploaded_by = Column(Integer, ForeignKey('users.id'), nullable=False, comment="上传用户ID")
     patient_id = Column(Integer, ForeignKey('patients.id'), comment="关联患者ID")
-    study_id = Column(Integer, ForeignKey('studies.id'), comment="关联检查ID")
-    series_id = Column(Integer, ForeignKey('series.id'), comment="关联序列ID")
-    
+
     # 影像元数据
     modality = Column(String(16), comment="影像模态(CT/MR/XR等)")
     body_part = Column(String(64), comment="身体部位")

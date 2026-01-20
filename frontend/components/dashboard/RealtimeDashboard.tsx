@@ -16,18 +16,23 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { useDashboardWebSocket } from '@/hooks/useWebSocket'
 import { WebSocketStatus, WebSocketMessage } from '@/hooks/useWebSocket'
 
 // 数据类型定义
 interface DashboardOverview {
-  total_reports: number
-  pending_reports: number
-  completed_reports: number
-  overdue_reports: number
   total_patients: number
   new_patients_today: number
-  active_users: number
+  new_patients_week: number
+  active_patients: number
+  total_images: number
+  images_today: number
+  images_week: number
+  pending_images: number
+  processed_images: number
+  completion_rate: number
+  average_processing_time: number
   system_alerts: number
 }
 
@@ -183,7 +188,8 @@ const RealtimeDashboard: React.FC = () => {
     value: number
     icon: string
     color: string
-  }> = ({ title, value, icon, color }) => (
+    href?: string
+  }> = ({ title, value, icon, color, href }) => (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center">
         <div className={`flex-shrink-0 ${color}`}>
@@ -194,7 +200,15 @@ const RealtimeDashboard: React.FC = () => {
         <div className="ml-5 w-0 flex-1">
           <dl>
             <dt className="text-sm font-medium text-gray-500 truncate">{title}</dt>
-            <dd className="text-lg font-medium text-gray-900">{value.toLocaleString()}</dd>
+            <dd className="text-lg font-medium text-gray-900">
+              {href ? (
+                <Link href={href} className="hover:text-blue-600 transition-colors cursor-pointer">
+                  {value.toLocaleString()}
+                </Link>
+              ) : (
+                value.toLocaleString()
+              )}
+            </dd>
           </dl>
         </div>
       </div>
@@ -332,22 +346,24 @@ const RealtimeDashboard: React.FC = () => {
       {dashboardData?.overview && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <OverviewCard
-            title="总报告数"
-            value={dashboardData.overview.total_reports}
+            title="总影像数"
+            value={dashboardData.overview.total_images}
             icon="📊"
             color="bg-blue-500"
           />
           <OverviewCard
-            title="待处理报告"
-            value={dashboardData.overview.pending_reports}
+            title="待处理影像"
+            value={dashboardData.overview.pending_images}
             icon="⏳"
             color="bg-yellow-500"
+            href="/imaging?status=pending"
           />
           <OverviewCard
-            title="已完成报告"
-            value={dashboardData.overview.completed_reports}
+            title="已完成影像"
+            value={dashboardData.overview.processed_images}
             icon="✅"
             color="bg-green-500"
+            href="/imaging?review_status=reviewed"
           />
           <OverviewCard
             title="总患者数"

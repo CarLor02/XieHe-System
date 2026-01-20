@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Tooltip from './ui/Tooltip';
+import { useUser } from '@/store/authStore';
 
 const navigation = [
   { name: '主页', href: '/', icon: 'ri-home-line', tooltip: '返回系统主页' },
@@ -10,12 +11,16 @@ const navigation = [
   { name: '患者管理', href: '/patients', icon: 'ri-user-line', tooltip: '管理患者信息和档案' },
   { name: '影像中心', href: '/imaging', icon: 'ri-image-line', tooltip: '查看和管理医学影像' },
   { name: '上传影像', href: '/upload', icon: 'ri-upload-line', tooltip: '上传新的医学影像' },
-  { name: '模型中心', href: '/model-center', icon: 'ri-cpu-line', tooltip: 'AI模型管理和配置' },
+  { name: '模型中心', href: '/model-center', icon: 'ri-cpu-line', tooltip: 'AI模型管理和配置', adminOnly: true },
   { name: '权限管理', href: '/permissions', icon: 'ri-shield-user-line', tooltip: '用户权限和角色管理' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useUser();
+
+  // 检查用户是否是超级管理员
+  const isSuperuser = user?.is_superuser || false;
 
   return (
     <div className="w-56 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 z-10">
@@ -28,6 +33,11 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="mt-6 flex flex-col">
         {navigation.map(item => {
+          // 如果菜单项需要管理员权限，但用户不是管理员，则不显示
+          if (item.adminOnly && !isSuperuser) {
+            return null;
+          }
+
           const isActive = pathname === item.href;
           return (
             <Tooltip key={item.name} content={item.tooltip} position="right" delay={300}>

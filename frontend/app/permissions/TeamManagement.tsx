@@ -13,11 +13,14 @@ import {
   getMyTeams,
   getTeamJoinRequests,
   getTeamMembers,
+  inviteTeamMember,
+  removeMember,
   reviewTeamJoinRequest,
   searchTeams,
   updateMemberRole,
 } from '@/services/teamService';
 import { useUser } from '@/store/authStore';
+import TeamInvitations from './TeamInvitations';
 
 const STATUS_BADGE_MAP: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-700',
@@ -67,7 +70,7 @@ export default function TeamManagement() {
   // 判断是否为系统管理员
   const isSystemAdmin = Boolean(actualUser?.is_system_admin);
 
-  const [activeTab, setActiveTab] = useState<'list' | 'members'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'members' | 'invitations'>('list');
 
   // 团队列表
   const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
@@ -115,6 +118,13 @@ export default function TeamManagement() {
   const [submittingJoinRequest, setSubmittingJoinRequest] = useState(false);
   const [cancellingRequestId, setCancellingRequestId] = useState<number | null>(null);
 
+  // 邀请成员
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'ADMIN' | 'MEMBER'>('MEMBER');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [invitingMember, setInvitingMember] = useState(false);
+
   const selectedTeam = useMemo(
     () => myTeams.find(team => team.id === selectedTeamId) ?? null,
     [myTeams, selectedTeamId]
@@ -141,7 +151,7 @@ export default function TeamManagement() {
       if (!userId) return null;
 
       // 确保类型一致再比较
-      return members.find(member => Number(member.id) === Number(userId)) ?? null;
+      return members.find(member => Number(member.user_id) === Number(userId)) ?? null;
     },
     [members, user]
   );
@@ -324,7 +334,7 @@ export default function TeamManagement() {
     // 初始化编辑状态，记录所有成员的当前角色
     const initialRoles: Record<number, 'ADMIN' | 'MEMBER' | 'GUEST'> = {};
     members.forEach(member => {
-      initialRoles[member.id] = member.role;
+      initialRoles[member.user_id] = member.role;
     });
     setEditedRoles(initialRoles);
     setIsRoleEditMode(true);
@@ -351,10 +361,10 @@ export default function TeamManagement() {
     // 找出所有发生变化的角色
     const changes: Array<{ userId: number; oldRole: string; newRole: string }> = [];
     members.forEach(member => {
-      const newRole = editedRoles[member.id];
+      const newRole = editedRoles[member.user_id];
       if (newRole && newRole !== member.role) {
         changes.push({
-          userId: member.id,
+          userId: member.user_id,
           oldRole: member.role,
           newRole: newRole,
         });
@@ -389,6 +399,59 @@ export default function TeamManagement() {
     }
   };
 
+  // 删除成员
+  const handleRemoveMember = async (member: TeamMember) => {
+    if (!selectedTeamId) return;
+
+    const confirmMessage = `确定要删除成员 ${member.real_name || member.username} 吗？`;
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const result = await removeMember(selectedTeamId, member.user_id);
+      setSuccessMessage(result.message || '成员已删除');
+      // 刷新成员列表
+      await loadMembers(selectedTeamId);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.response?.data?.detail || '删除成员失败');
+    }
+  };
+
+  // 邀请成员
+  const handleInviteSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedTeamId) return;
+
+    if (!inviteEmail.trim()) {
+      setError('请输入邮箱地址');
+      return;
+    }
+
+    try {
+      setInvitingMember(true);
+      const message = await inviteTeamMember(
+        selectedTeamId,
+        inviteEmail.trim(),
+        inviteRole,
+        inviteMessage.trim() || undefined
+      );
+      setSuccessMessage(message || '邀请已发送');
+      setInviteModalOpen(false);
+      setInviteEmail('');
+      setInviteRole('MEMBER');
+      setInviteMessage('');
+      // 刷新成员列表
+      await loadMembers(selectedTeamId);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.response?.data?.detail || '发送邀请失败');
+    } finally {
+      setInvitingMember(false);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated) return;
     loadTeams();
@@ -417,6 +480,18 @@ export default function TeamManagement() {
     // 当 members 为空时不做任何操作，等待加载完成
   }, [selectedTeamId, isAuthenticated, isCurrentUserAdmin, members.length]);
 
+  // 监听从通知栏切换到邀请标签页的事件
+  useEffect(() => {
+    const handleSwitchToInvitations = () => {
+      setActiveTab('invitations');
+    };
+
+    window.addEventListener('switchToInvitations', handleSwitchToInvitations);
+    return () => {
+      window.removeEventListener('switchToInvitations', handleSwitchToInvitations);
+    };
+  }, []);
+
   if (!isAuthenticated) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-gray-600">
@@ -426,11 +501,42 @@ export default function TeamManagement() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-200px)] gap-6">
-      {/* 左侧：团队列表 */}
-      <div className="flex w-80 flex-col gap-4">
-        {/* 操作按钮 */}
-        <div className="flex gap-2">
+    <div className="space-y-4">
+      {/* 标签页切换 */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('list')}
+            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+              activeTab === 'list'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+            }`}
+          >
+            我的团队
+          </button>
+          <button
+            onClick={() => setActiveTab('invitations')}
+            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+              activeTab === 'invitations'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+            }`}
+          >
+            我的邀请
+          </button>
+        </nav>
+      </div>
+
+      {/* 标签页内容 */}
+      {activeTab === 'invitations' ? (
+        <TeamInvitations />
+      ) : (
+        <div className="flex h-[calc(100vh-280px)] gap-6">
+          {/* 左侧：团队列表 */}
+          <div className="flex w-80 flex-col gap-4">
+            {/* 操作按钮 */}
+            <div className="flex gap-2">
           {isSystemAdmin ? (
             <>
               <button
@@ -633,13 +739,22 @@ export default function TeamManagement() {
                           </button>
                         </>
                       ) : (
-                        <button
-                          onClick={handleEnterRoleEditMode}
-                          className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          <i className="ri-shield-user-line" />
-                          <span>身份管理</span>
-                        </button>
+                        <>
+                          <button
+                            onClick={() => setInviteModalOpen(true)}
+                            className="flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                          >
+                            <i className="ri-user-add-line" />
+                            <span>邀请成员</span>
+                          </button>
+                          <button
+                            onClick={handleEnterRoleEditMode}
+                            className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            <i className="ri-shield-user-line" />
+                            <span>身份管理</span>
+                          </button>
+                        </>
                       )}
                     </>
                   )}
@@ -653,10 +768,55 @@ export default function TeamManagement() {
                   <div className="px-4 py-6 text-center text-sm text-gray-500">暂无成员</div>
                 ) : (
                   filteredMembers.map(member => {
-                    const canEditThisMember = true; // 管理员可以修改所有成员的角色
+                    // 权限判断逻辑：
+                    // 1. 超级系统管理员（level 1）不能被任何人修改
+                    // 2. 团队管理员（ADMIN）不能修改超级系统管理员
+                    // 3. 普通成员（MEMBER）不能修改任何管理员
+                    const canEditThisMember = (() => {
+                      // 如果目标成员是超级系统管理员（level 1），任何人都不能修改
+                      if (member.is_system_admin && member.system_admin_level === 1) {
+                        return false;
+                      }
+
+                      // 如果当前用户是团队管理员
+                      if (isCurrentUserAdmin) {
+                        // 团队管理员不能修改超级系统管理员（已在上面处理）
+                        // 团队管理员可以修改其他所有人（包括二级系统管理员和普通成员）
+                        return true;
+                      }
+
+                      // 如果当前用户是普通成员
+                      // 普通成员不能修改任何管理员（包括团队管理员和系统管理员）
+                      if (member.role === 'ADMIN' || member.is_system_admin) {
+                        return false;
+                      }
+
+                      // 普通成员可以修改其他普通成员
+                      return true;
+                    })();
+
+                    // 判断是否可以删除该成员
+                    const canRemoveThisMember = (() => {
+                      // 不能删除创建者
+                      if (member.is_creator) {
+                        return false;
+                      }
+
+                      // 如果目标成员是超级系统管理员（level 1），任何人都不能删除
+                      if (member.is_system_admin && member.system_admin_level === 1) {
+                        return false;
+                      }
+
+                      // 只有管理员可以删除成员
+                      if (!isCurrentUserAdmin) {
+                        return false;
+                      }
+
+                      return true;
+                    })();
 
                     return (
-                      <div key={member.id} className="flex items-center justify-between px-4 py-3">
+                      <div key={member.user_id} className="flex items-center justify-between px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
                             <i className="ri-user-line text-gray-600" />
@@ -678,8 +838,8 @@ export default function TeamManagement() {
                         <div className="flex items-center gap-2">
                           {isRoleEditMode && canEditThisMember ? (
                             <select
-                              value={editedRoles[member.id] || member.role}
-                              onChange={(e) => handleRoleChange(member.id, e.target.value as 'ADMIN' | 'MEMBER' | 'GUEST')}
+                              value={editedRoles[member.user_id] || member.role}
+                              onChange={(e) => handleRoleChange(member.user_id, e.target.value as 'ADMIN' | 'MEMBER' | 'GUEST')}
                               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                               disabled={savingRoles}
                             >
@@ -692,8 +852,17 @@ export default function TeamManagement() {
                               className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_MAP[member.status] || 'bg-gray-100 text-gray-500'
                                 }`}
                             >
-                              {ROLE_LABEL_MAP[editedRoles[member.id] || member.role] || member.role}
+                              {ROLE_LABEL_MAP[editedRoles[member.user_id] || member.role] || member.role}
                             </span>
+                          )}
+                          {!isRoleEditMode && canRemoveThisMember && (
+                            <button
+                              onClick={() => handleRemoveMember(member)}
+                              className="rounded-lg p-1.5 text-red-600 hover:bg-red-50"
+                              title="删除成员"
+                            >
+                              <i className="ri-delete-bin-line text-base" />
+                            </button>
                           )}
                         </div>
                       </div>
@@ -1048,6 +1217,95 @@ export default function TeamManagement() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* 邀请成员模态框 */}
+      {inviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">邀请新成员</h3>
+              <button
+                onClick={() => !invitingMember && setInviteModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="ri-close-line text-xl" />
+              </button>
+            </div>
+
+            <form onSubmit={handleInviteSubmit} className="space-y-4 px-6 py-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  邮箱地址 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="请输入被邀请人的邮箱"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  required
+                  disabled={invitingMember}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  如果该邮箱已注册，用户将直接收到邀请；否则需要先注册账号
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  团队角色
+                </label>
+                <select
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value as 'ADMIN' | 'MEMBER')}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  disabled={invitingMember}
+                >
+                  <option value="MEMBER">成员</option>
+                  <option value="ADMIN">管理员</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  管理员可以管理团队成员和审核加入申请
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  邀请留言（可选）
+                </label>
+                <textarea
+                  value={inviteMessage}
+                  onChange={e => setInviteMessage(e.target.value)}
+                  rows={3}
+                  placeholder="可以添加一些邀请说明"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  disabled={invitingMember}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
+                <button
+                  type="button"
+                  onClick={() => !invitingMember && setInviteModalOpen(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  disabled={invitingMember}
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                  disabled={invitingMember}
+                >
+                  {invitingMember ? '发送中...' : '发送邀请'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
         </div>
       )}
     </div>

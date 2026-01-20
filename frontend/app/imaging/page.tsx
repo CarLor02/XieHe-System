@@ -20,7 +20,7 @@ import {
 } from '@/services/imageFileService';
 import { checkAndHandleAuthError, getErrorMessage } from '@/utils/authErrorHandler';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 interface Study {
@@ -62,7 +62,12 @@ interface ImageItem {
 
 export default function ImagingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated } = useUser();
+
+  // 从 URL 参数读取初始筛选条件
+  const urlStatus = searchParams.get('status');
+  const urlReviewStatus = searchParams.get('review_status');
 
   // 数据状态
   const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
@@ -76,11 +81,15 @@ export default function ImagingPage() {
   // 搜索和筛选状态
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  // 如果有 URL 参数，自动展开筛选器
+  const [showFilters, setShowFilters] = useState(!!urlStatus || !!urlReviewStatus);
   const [selectedExamType, setSelectedExamType] = useState<string>('all'); // 检查类型
+  const [selectedReviewStatus, setSelectedReviewStatus] = useState<string>(
+    urlReviewStatus || (urlStatus === 'pending' ? 'unreviewed' : 'all')
+  ); // 审核状态
 
   // 判断是否有激活的筛选条件
-  const hasActiveFilters = searchTerm.trim() !== '' || selectedExamType !== 'all';
+  const hasActiveFilters = searchTerm.trim() !== '' || selectedExamType !== 'all' || selectedReviewStatus !== 'all';
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -108,12 +117,29 @@ export default function ImagingPage() {
 
       if (debouncedSearchTerm) filters.search = debouncedSearchTerm;
       if (selectedExamType !== 'all') filters.description = selectedExamType;
+
+      // 处理审核状态筛选
+      if (selectedReviewStatus !== 'all') {
+        filters.review_status = selectedReviewStatus as 'reviewed' | 'unreviewed';
+      }
+
       if (dateFrom) filters.start_date = dateFrom;
       if (dateTo) filters.end_date = dateTo;
 
       const response = await getMyImages(filters);
+
+      // 验证响应数据格式
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid response format');
+      }
+
+      if (!Array.isArray(response.items)) {
+        console.error('Invalid response.items:', response);
+        throw new Error('Response items is not an array');
+      }
+
       setImageFiles(response.items);
-      setTotal(response.total);
+      setTotal(response.total || 0);
 
       // 异步加载图片预览URL
       const urls: Record<number, string> = {};
@@ -125,6 +151,7 @@ export default function ImagingPage() {
         }
       }
       setImageUrls(urls);
+      setLoading(false);
     } catch (err: any) {
       console.error('Failed to load images:', err);
       console.log('错误类型检查:', {
@@ -136,17 +163,18 @@ export default function ImagingPage() {
 
       // 检查并处理认证错误
       if (checkAndHandleAuthError(err, { showAlert: false, redirectDelay: 0 })) {
-        // 认证错误，不设置错误消息，直接跳转
+        // 认证错误，显示跳转提示
         console.log('✅ 检测到认证错误，准备跳转到登录页');
-        setLoading(false);
+        setError('登录已过期，正在跳转到登录页...');
+        setImageFiles([]);
+        // 保持 loading 状态，避免显示错误页面
         return;
       }
 
-      // 设置错误消息
+      // 设置错误消息（仅非认证错误）
       console.log('⚠️ 非认证错误，显示错误消息');
       setError(getErrorMessage(err, '加载影像失败，请重试'));
       setImageFiles([]);
-    } finally {
       setLoading(false);
     }
   };
@@ -172,12 +200,13 @@ export default function ImagingPage() {
         }
       });
     };
-  }, [isAuthenticated, currentPage, debouncedSearchTerm, selectedExamType, dateFrom, dateTo]);
+  }, [isAuthenticated, currentPage, debouncedSearchTerm, selectedExamType, selectedReviewStatus, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setSearchTerm('');
     setDebouncedSearchTerm('');
     setSelectedExamType('all');
+    setSelectedReviewStatus('all');
     setDateFrom('');
     setDateTo('');
     setCurrentPage(1);
@@ -237,13 +266,9 @@ export default function ImagingPage() {
         <Header />
         <main className="ml-56 p-6">
           <div className="bg-white rounded-lg border border-gray-200 p-8">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="bg-gray-200 rounded-lg h-80"></div>
-                ))}
-              </div>
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-gray-600">{error || '加载影像数据中...'}</p>
             </div>
           </div>
         </main>
@@ -340,7 +365,7 @@ export default function ImagingPage() {
                   }`}
               >
                 筛选
-                {(selectedExamType !== 'all' || dateFrom || dateTo) && (
+                {(selectedExamType !== 'all' || selectedReviewStatus !== 'all' || dateFrom || dateTo) && (
                   <span className="ml-1 bg-blue-500 text-white text-xs rounded-full px-1.5">
                     !
                   </span>
@@ -380,7 +405,7 @@ export default function ImagingPage() {
 
           {/* 高级筛选 */}
           {showFilters && (
-            <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   检查类型
@@ -396,6 +421,21 @@ export default function ImagingPage() {
                   <option value="左侧曲位">左侧曲位</option>
                   <option value="右侧曲位">右侧曲位</option>
                   <option value="体态照片">体态照片</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  审核状态
+                </label>
+                <select
+                  value={selectedReviewStatus}
+                  onChange={e => setSelectedReviewStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">全部状态</option>
+                  <option value="reviewed">已审核</option>
+                  <option value="unreviewed">未审核</option>
                 </select>
               </div>
 
@@ -423,7 +463,7 @@ export default function ImagingPage() {
                 />
               </div>
 
-              <div className="md:col-span-3 flex justify-end">
+              <div className="md:col-span-4 flex justify-end">
                 <button
                   onClick={clearFilters}
                   className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap"

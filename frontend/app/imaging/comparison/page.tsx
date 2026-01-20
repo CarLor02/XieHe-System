@@ -164,23 +164,23 @@ const ImageComparisonContent: React.FC = () => {
 
     try {
       const client = createAuthenticatedClient();
-      const response = await client.get('/api/v1/studies/?page=1&page_size=20');
+      const response = await client.get('/api/v1/image-files/?page=1&page_size=20');
 
       // 转换API数据为ImageData格式
-      const studies = response.data.studies || [];
-      const imageData: ImageData[] = studies.map((study: any) => ({
-        id: `IMG${study.id.toString().padStart(3, '0')}`,
-        url: `https://readdy.ai/api/search-image?query=medical%20${study.modality || 'imaging'}%20professional%20radiological%20image&width=512&height=512&seq=${study.id}&orientation=square`,
-        thumbnailUrl: `https://readdy.ai/api/search-image?query=medical%20${study.modality || 'imaging'}%20professional%20radiological%20image&width=128&height=128&seq=${study.id}&orientation=square`,
-        title: `${study.modality || '未知'} - ${study.study_description || '影像检查'}`,
-        description: `患者${study.patient_name || '未知'}，${study.study_description || '影像检查'}`,
+      const items = response.data.items || [];
+      const imageData: ImageData[] = items.map((item: any) => ({
+        id: `IMG${item.id.toString().padStart(3, '0')}`,
+        url: `https://readdy.ai/api/search-image?query=medical%20${item.modality || 'imaging'}%20professional%20radiological%20image&width=512&height=512&seq=${item.id}&orientation=square`,
+        thumbnailUrl: `https://readdy.ai/api/search-image?query=medical%20${item.modality || 'imaging'}%20professional%20radiological%20image&width=128&height=128&seq=${item.id}&orientation=square`,
+        title: `${item.modality || '未知'} - ${item.description || '影像检查'}`,
+        description: `患者${item.patient_name || '未知'}，${item.description || '影像检查'}`,
         metadata: {
-          patientName: study.patient_name || '未知患者',
+          patientName: item.patient_name || '未知患者',
           studyDate:
-            study.study_date || study.created_at?.split('T')[0] || '未知日期',
-          modality: study.modality || 'Unknown',
-          windowCenter: study.modality === 'CT' ? 40 : 128,
-          windowWidth: study.modality === 'CT' ? 400 : 256,
+            item.study_date || item.created_at?.split('T')[0] || '未知日期',
+          modality: item.modality || 'Unknown',
+          windowCenter: item.modality === 'CT' ? 40 : 128,
+          windowWidth: item.modality === 'CT' ? 400 : 256,
           rows: 512,
           columns: 512,
         },

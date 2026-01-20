@@ -104,40 +104,44 @@ export function checkAndHandleAuthError(
  * 获取用户友好的错误消息
  */
 export function getErrorMessage(error: any, defaultMessage: string = '操作失败，请重试'): string {
-  // 认证错误
+  // 认证错误 - 优先检查
   if (isAuthError(error)) {
-    return '登录已过期，请重新登录';
+    return '登录已过期，正在跳转到登录页...';
   }
-  
-  // 网络错误
-  if (!error.response) {
-    return '网络连接失败，请检查网络后重试';
-  }
-  
+
   // 服务器返回的错误消息
   if (error.response?.data?.detail) {
     return error.response.data.detail;
   }
-  
+
   if (error.response?.data?.message) {
     return error.response.data.message;
   }
-  
+
   // 根据状态码返回消息
-  switch (error.response?.status) {
-    case 400:
-      return '请求参数错误';
-    case 403:
-      return '没有权限执行此操作';
-    case 404:
-      return '请求的资源不存在';
-    case 500:
-      return '服务器错误，请稍后重试';
-    case 503:
-      return '服务暂时不可用，请稍后重试';
-    default:
-      return defaultMessage;
+  if (error.response?.status) {
+    switch (error.response.status) {
+      case 400:
+        return '请求参数错误';
+      case 403:
+        return '没有权限执行此操作';
+      case 404:
+        return '请求的资源不存在';
+      case 500:
+        return '服务器错误，请稍后重试';
+      case 503:
+        return '服务暂时不可用，请稍后重试';
+      default:
+        return defaultMessage;
+    }
   }
+
+  // 网络错误（没有 response）
+  if (!error.response) {
+    return '网络连接失败，请检查网络后重试';
+  }
+
+  return defaultMessage;
 }
 
 /**

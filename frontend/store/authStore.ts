@@ -27,6 +27,7 @@ export interface User {
   role: string;
   permissions: string[];
   is_active: boolean;
+  is_superuser?: boolean; // 是否超级管理员（可查看所有影像、访问模型中心）
   is_system_admin?: boolean; // 是否系统管理员（可创建团队）
   system_admin_level?: number; // 系统管理员级别：0-非系统管理员，1-超级系统管理员，2-二级系统管理员
   created_at: string;

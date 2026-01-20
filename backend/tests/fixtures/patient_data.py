@@ -26,7 +26,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from app.core.database import get_db
 from app.models.patient import Patient, GenderEnum, PatientStatusEnum
-from app.models.image import Study, StudyStatusEnum, ModalityEnum, BodyPartEnum
+from app.models.image import ModalityEnum, BodyPartEnum
+from app.models.image_file import ImageFile, ImageFileStatusEnum
 
 
 # 测试患者数据
@@ -183,55 +184,8 @@ def create_test_patients(db=None):
             db.close()
 
 
-def create_test_studies(db=None):
-    """
-    创建测试检查数据
-    
-    Args:
-        db: 数据库会话，如果为None则创建新会话
-        
-    Returns:
-        list: 创建的检查对象列表
-    """
-    if db is None:
-        db = next(get_db())
-        should_close = True
-    else:
-        should_close = False
-    
-    try:
-        print("📋 开始创建测试检查数据...")
-        
-        studies = []
-        for study_data in TEST_STUDIES_DATA:
-            # 检查是否已存在
-            existing = db.query(Study).filter(
-                Study.study_id == study_data['study_id']
-            ).first()
-            
-            if existing:
-                print(f"  ⏭️  检查 {study_data['study_id']} 已存在，跳过")
-                studies.append(existing)
-                continue
-            
-            # 创建新检查
-            study = Study(**study_data)
-            db.add(study)
-            studies.append(study)
-            print(f"  ✅ 创建检查: {study_data['study_id']} - {study_data['study_description']}")
-        
-        db.commit()
-        print(f"✅ 成功创建 {len([s for s in studies if s.id])} 个测试检查")
-        
-        return studies
-        
-    except Exception as e:
-        print(f"❌ 创建测试检查失败: {e}")
-        db.rollback()
-        raise
-    finally:
-        if should_close:
-            db.close()
+# 已废弃：create_test_studies 函数已移除
+# Study/Series/Instance 模型已废弃，现在使用 ImageFile 模型
 
 
 def main():
@@ -239,20 +193,16 @@ def main():
     print("=" * 60)
     print("测试患者数据插入工具")
     print("=" * 60)
-    
+
     try:
         # 创建测试患者
         patients = create_test_patients()
-        
-        # 创建测试检查
-        studies = create_test_studies()
-        
+
         print("\n" + "=" * 60)
         print("✅ 测试数据插入完成！")
         print(f"   患者数量: {len(patients)}")
-        print(f"   检查数量: {len(studies)}")
         print("=" * 60)
-        
+
     except Exception as e:
         print(f"\n❌ 插入测试数据失败: {e}")
         import traceback

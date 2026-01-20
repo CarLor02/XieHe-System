@@ -28,6 +28,7 @@ interface ModelData {
 export default function ModelCenter() {
   const router = useRouter();
   const { user } = useUser();
+  const isSuperuser = user?.is_superuser || false;
   const isAdmin = user?.is_system_admin || user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'team_admin';
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -90,6 +91,36 @@ export default function ModelCenter() {
     if (activeTab === 'all') return true;
     return m.view_type === activeTab;
   });
+
+  // 权限检查：只有超级管理员可以访问模型中心
+  if (!isSuperuser) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Sidebar />
+        <Header />
+
+        <main className="ml-64 p-6">
+          <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+            <div className="text-center">
+              <div className="mb-4">
+                <i className="ri-lock-line text-6xl text-gray-400"></i>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">访问受限</h2>
+              <p className="text-gray-600 mb-6">
+                抱歉，只有超级管理员可以访问模型中心。
+              </p>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+              >
+                返回工作台
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

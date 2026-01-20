@@ -19,6 +19,7 @@ export default function TaskList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [filterMode, setFilterMode] = useState<'today' | 'all'>('all');
   const tasksPerPage = 5;
 
   // 加载任务数据
@@ -29,19 +30,19 @@ export default function TaskList() {
 
       const client = createAuthenticatedClient();
       const response = await client.get(
-        '/api/v1/studies/?status=pending&page=1&page_size=20'
+        '/api/v1/image-files/?status=pending&page=1&page_size=20'
       );
 
       // 转换API数据为Task格式
-      const studies = response.data.studies || [];
-      const taskData: Task[] = studies.map((study: any) => ({
-        id: study.id,
-        patient_name: study.patient_name || '未知患者',
-        patient_id: study.patient_id || '',
-        study_type: study.modality || '未知类型',
-        created_at: study.created_at,
+      const items = response.data.items || [];
+      const taskData: Task[] = items.map((item: any) => ({
+        id: item.id,
+        patient_name: item.patient_name || '未知患者',
+        patient_id: item.patient_id || '',
+        study_type: item.modality || '未知类型',
+        created_at: item.created_at,
         priority: Math.random() > 0.5 ? 'high' : 'normal', // 临时随机分配优先级
-        status: study.status || 'pending',
+        status: item.status || 'pending',
       }));
 
       setTasks(taskData);
@@ -59,9 +60,18 @@ export default function TaskList() {
     loadTasks();
   }, []);
 
-  const totalPages = Math.ceil(tasks.length / tasksPerPage);
+  // 过滤今日任务
+  const filteredTasks = filterMode === 'today'
+    ? tasks.filter(task => {
+        const taskDate = new Date(task.created_at);
+        const today = new Date();
+        return taskDate.toDateString() === today.toDateString();
+      })
+    : tasks;
+
+  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
   const startIndex = (currentPage - 1) * tasksPerPage;
-  const displayedTasks = tasks.slice(startIndex, startIndex + tasksPerPage);
+  const displayedTasks = filteredTasks.slice(startIndex, startIndex + tasksPerPage);
 
   // 根据任务生成对应的影像ID
   const getImageIdForTask = (task: Task) => {
@@ -105,11 +115,40 @@ export default function TaskList() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">待处理任务</h3>
         <div className="flex items-center space-x-3">
+          {/* 切换按钮 */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => {
+                setFilterMode('all');
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 text-xs rounded transition-colors ${
+                filterMode === 'all'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              全部任务
+            </button>
+            <button
+              onClick={() => {
+                setFilterMode('today');
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 text-xs rounded transition-colors ${
+                filterMode === 'today'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              今日任务
+            </button>
+          </div>
           <span className="text-sm text-gray-500">
-            共 {tasks.length} 个任务
+            共 {filteredTasks.length} 个任务
           </span>
           <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-            {tasks.filter((task: Task) => task.priority === 'high').length} 紧急
+            {filteredTasks.filter((task: Task) => task.priority === 'high').length} 紧急
           </span>
         </div>
       </div>
@@ -159,8 +198,8 @@ export default function TaskList() {
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500">
             显示 {startIndex + 1}-
-            {Math.min(startIndex + tasksPerPage, tasks.length)} 条，共{' '}
-            {tasks.length} 条
+            {Math.min(startIndex + tasksPerPage, filteredTasks.length)} 条，共{' '}
+            {filteredTasks.length} 条
           </div>
 
           <div className="flex items-center space-x-2">

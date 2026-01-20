@@ -10,32 +10,18 @@ import { useEffect, useState } from 'react';
 
 // 类型定义
 interface DashboardOverview {
-  total_reports: number;
-  pending_reports: number;
-  completed_reports: number;
-  overdue_reports: number;
   total_patients: number;
   new_patients_today: number;
-  active_users: number;
-  system_alerts: number;
+  new_patients_week: number;
+  active_patients: number;
+  total_images: number;
+  images_today: number;
+  images_week: number;
+  pending_images: number;
+  processed_images: number;
   completion_rate: number;
   average_processing_time: number;
-}
-
-interface TaskItem {
-  task_id: string;
-  title: string;
-  description?: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'overdue' | 'cancelled';
-  priority: 'low' | 'normal' | 'high' | 'urgent';
-  created_at: string;
-  due_date?: string;
-  assigned_to?: string;
-  assigned_to_name?: string;
-  progress: number;
-  tags: string[];
-  estimated_hours?: number;
-  actual_hours?: number;
+  system_alerts: number;
 }
 
 export default function Home() {
@@ -44,7 +30,6 @@ export default function Home() {
   const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(
     null
   );
-  const [recentTasks, setRecentTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -69,73 +54,64 @@ export default function Home() {
       } else {
         // 未登录用户显示默认数据
         dashboardResult = {
-          total_reports: 0,
-          pending_analysis: 0,
           total_patients: 0,
-          today_processed: 0,
+          new_patients_today: 0,
+          new_patients_week: 0,
+          active_patients: 0,
+          total_images: 0,
+          images_today: 0,
+          images_week: 0,
+          pending_images: 0,
+          processed_images: 0,
+          completion_rate: 0,
           average_processing_time: 0,
+          system_alerts: 0,
         };
       }
 
-      // 转换数据格式
-      const overview: DashboardOverview = {
-        total_reports: dashboardResult.total_reports || 0,
-        pending_reports: dashboardResult.pending_analysis || 0,
-        completed_reports:
-          (dashboardResult.total_reports || 0) -
-          (dashboardResult.pending_analysis || 0),
-        overdue_reports: 0,
-        total_patients: dashboardResult.total_patients || 0,
-        new_patients_today: dashboardResult.today_processed || 0,
-        active_users: 1,
-        system_alerts: 0,
-        completion_rate: Math.round(
-          (((dashboardResult.total_reports || 0) -
-            (dashboardResult.pending_analysis || 0)) /
-            (dashboardResult.total_reports || 1)) *
-          100
-        ),
-        average_processing_time: dashboardResult.average_processing_time || 0,
-      };
+      // 直接使用 API 返回的数据（字段名已匹配）
+      setDashboardData(dashboardResult as DashboardOverview);
 
-      setDashboardData(overview);
 
-      // 获取最近任务（仅在已登录时）
-      if (isAuthenticated) {
-        try {
-          const client = createAuthenticatedClient();
-          const tasksResponse = await client.get(
-            '/api/v1/studies/?status=pending&page=1&page_size=5'
-          );
-          const tasksData = tasksResponse.data;
-
-          if (tasksData && tasksData.studies) {
-            const tasks: TaskItem[] = tasksData.studies.map(
-              (study: any, index: number) => ({
-                task_id: `TASK_${study.id || index}`,
-                title: `处理${study.modality || 'X线'}影像`,
-                description: `患者: ${study.patient_name || '未知'} - ${study.study_description || '影像检查'}`,
-                status: 'pending' as const,
-                priority: 'normal' as const,
-                created_at: study.created_at || new Date().toISOString(),
-                progress: 0,
-                tags: [study.modality || 'X线', '待处理'],
-                estimated_hours: 1.0,
-              })
-            );
-            setRecentTasks(tasks);
-          }
-        } catch (taskError) {
-          console.warn('获取任务数据失败:', taskError);
-          setRecentTasks([]);
-        }
-      } else {
-        // 未登录用户不显示任务
-        setRecentTasks([]);
-      }
     } catch (err: any) {
       console.error('获取仪表板数据失败:', err);
-      setError(err.message || '加载数据失败');
+
+      // 检查是否是认证错误
+      if (err.response?.status === 401 || err.message?.includes('Authentication failed')) {
+        console.log('认证失败，用户将被重定向到登录页');
+        // axios 拦截器会自动处理重定向，这里只需要设置默认数据
+        setDashboardData({
+          total_patients: 0,
+          new_patients_today: 0,
+          new_patients_week: 0,
+          active_patients: 0,
+          total_images: 0,
+          images_today: 0,
+          images_week: 0,
+          pending_images: 0,
+          processed_images: 0,
+          completion_rate: 0,
+          average_processing_time: 0,
+          system_alerts: 0,
+        });
+      } else {
+        setError(err.message || '加载数据失败');
+        // 即使出错也设置默认数据，避免 undefined 错误
+        setDashboardData({
+          total_patients: 0,
+          new_patients_today: 0,
+          new_patients_week: 0,
+          active_patients: 0,
+          total_images: 0,
+          images_today: 0,
+          images_week: 0,
+          pending_images: 0,
+          processed_images: 0,
+          completion_rate: 0,
+          average_processing_time: 0,
+          system_alerts: 0,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -270,7 +246,7 @@ export default function Home() {
                   <div className="flex-1">
                     <p className="text-sm text-gray-500 mb-1">总患者数</p>
                     <p className="text-3xl font-bold text-gray-900">
-                      {dashboardData.total_patients}
+                      {(dashboardData.total_patients ?? 0).toLocaleString()}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
@@ -279,35 +255,35 @@ export default function Home() {
                 </div>
                 <p className="text-xs text-green-600 flex items-center">
                   <i className="ri-arrow-up-line mr-1"></i>
-                  今日新增 {dashboardData.new_patients_today}
+                  今日新增 {dashboardData.new_patients_today ?? 0}
                 </p>
               </div>
 
-              {/* 总报告数 */}
+              {/* 总影像数 */}
               <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <p className="text-sm text-gray-500 mb-1">总报告数</p>
+                    <p className="text-sm text-gray-500 mb-1">总影像数</p>
                     <p className="text-3xl font-bold text-gray-900">
-                      {dashboardData.total_reports}
+                      {(dashboardData.total_images ?? 0).toLocaleString()}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
-                    <i className="ri-file-list-3-line text-2xl text-green-600"></i>
+                    <i className="ri-image-line text-2xl text-green-600"></i>
                   </div>
                 </div>
                 <p className="text-xs text-gray-600">
-                  完成率 {dashboardData.completion_rate}%
+                  完成率 {dashboardData.completion_rate ?? 0}%
                 </p>
               </div>
 
-              {/* 待处理报告 */}
+              {/* 待处理影像 */}
               <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <p className="text-sm text-gray-500 mb-1">待处理报告</p>
+                    <p className="text-sm text-gray-500 mb-1">待处理影像</p>
                     <p className="text-3xl font-bold text-gray-900">
-                      {dashboardData.pending_reports}
+                      {(dashboardData.pending_images ?? 0).toLocaleString()}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
@@ -317,13 +293,13 @@ export default function Home() {
                 <p className="text-xs text-orange-600">需要关注</p>
               </div>
 
-              {/* 已完成报告 */}
+              {/* 已完成影像 */}
               <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <p className="text-sm text-gray-500 mb-1">已完成报告</p>
+                    <p className="text-sm text-gray-500 mb-1">已完成影像</p>
                     <p className="text-3xl font-bold text-gray-900">
-                      {dashboardData.completed_reports}
+                      {(dashboardData.processed_images ?? 0).toLocaleString()}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
@@ -336,63 +312,7 @@ export default function Home() {
           </div>
         ) : null}
 
-        {/* 最近任务 */}
-        {recentTasks.length > 0 && (
-          <div className="mb-10">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="px-6 py-5 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-800">
-                    最近任务
-                  </h3>
-                  <Link
-                    href="/dashboard"
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center"
-                  >
-                    查看全部
-                    <i className="ri-arrow-right-line ml-1"></i>
-                  </Link>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="space-y-3">
-                  {recentTasks.slice(0, 3).map(task => (
-                    <div
-                      key={task.task_id}
-                      className="border border-gray-100 rounded-lg p-5 hover:border-blue-200 hover:bg-blue-50/30 transition-all"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-2">
-                            {task.title}
-                          </h4>
-                          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
-                            {task.description}
-                          </p>
-                          <div className="flex items-center space-x-2">
-                            {task.tags.map((tag, index) => (
-                              <span
-                                key={index}
-                                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="ml-4 flex-shrink-0">
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-100">
-                            待处理
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* 快捷功能 - 干净简洁的卡片设计 */}
         <div className="mb-10">

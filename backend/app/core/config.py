@@ -126,6 +126,8 @@ class Settings(BaseSettings):
         """构建数据库连接 URL"""
         # 优先使用环境变量中的 DATABASE_URL
         import os
+        from urllib.parse import quote_plus
+
         env_url = os.getenv("DATABASE_URL")
         if env_url:
             # 如果是 mysql:// 格式，转换为 mysql+pymysql://
@@ -135,12 +137,19 @@ class Settings(BaseSettings):
             if "?" not in url:
                 url += "?charset=utf8mb4"
             return url
-        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
+
+        # URL编码用户名和密码，避免特殊字符问题
+        encoded_user = quote_plus(self.DB_USER)
+        encoded_password = quote_plus(self.DB_PASSWORD)
+        return f"mysql+pymysql://{encoded_user}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
     
     @property
     def ASYNC_DATABASE_URL(self) -> str:
         """构建异步数据库连接 URL"""
-        return f"mysql+aiomysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
+        from urllib.parse import quote_plus
+        encoded_user = quote_plus(self.DB_USER)
+        encoded_password = quote_plus(self.DB_PASSWORD)
+        return f"mysql+aiomysql://{encoded_user}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
     
     # 测试数据库配置
     TEST_DB_NAME: str = "medical_imaging_system_test"
@@ -148,7 +157,10 @@ class Settings(BaseSettings):
     @property
     def TEST_DATABASE_URL(self) -> str:
         """构建测试数据库连接 URL"""
-        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.TEST_DB_NAME}?charset=utf8mb4"
+        from urllib.parse import quote_plus
+        encoded_user = quote_plus(self.DB_USER)
+        encoded_password = quote_plus(self.DB_PASSWORD)
+        return f"mysql+pymysql://{encoded_user}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.TEST_DB_NAME}?charset=utf8mb4"
     
     # ==========================================
     # Redis 配置

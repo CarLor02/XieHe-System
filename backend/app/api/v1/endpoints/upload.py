@@ -25,7 +25,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.models.image import Study, Series, Instance, ModalityEnum, BodyPartEnum, StudyStatusEnum, SeriesStatusEnum, InstanceStatusEnum
+from app.models.image import ModalityEnum, BodyPartEnum
 from app.models.image_file import ImageFile, ImageFileTypeEnum, ImageFileStatusEnum
 
 logger = get_logger(__name__)
@@ -149,81 +149,8 @@ def determine_body_part_from_description(description: str) -> BodyPartEnum:
     else:
         return BodyPartEnum.OTHER
 
-def create_medical_imaging_records(
-    db: Session,
-    file_path: Path,
-    file_size: int,
-    patient_id: int,
-    description: str,
-    current_user_id: int
-) -> tuple[Study, Series, Instance]:
-    """创建医学影像相关的数据库记录"""
-
-    # 确定影像模态和身体部位
-    modality = determine_modality_from_description(description)
-    body_part = determine_body_part_from_description(description)
-
-    # 生成唯一标识符
-    study_instance_uid = f"1.2.826.0.1.3680043.8.498.{uuid.uuid4().hex}"
-    series_instance_uid = f"1.2.826.0.1.3680043.8.498.{uuid.uuid4().hex}"
-    sop_instance_uid = f"1.2.826.0.1.3680043.8.498.{uuid.uuid4().hex}"
-
-    # 生成Study ID
-    study_count = db.query(Study).count()
-    study_id = f"ST{study_count + 1:03d}"
-
-    # 创建Study记录
-    study = Study(
-        study_instance_uid=study_instance_uid,
-        study_id=study_id,
-        patient_id=patient_id,
-        study_date=date.today(),
-        study_time=datetime.now().strftime("%H%M%S"),
-        study_description=description or "上传的影像",
-        modality=modality,
-        body_part=body_part,
-        series_count=1,
-        instance_count=1,
-        total_size=file_size,
-        status=StudyStatusEnum.COMPLETED,
-        created_by=current_user_id
-    )
-    db.add(study)
-    db.flush()  # 获取study.id
-
-    # 创建Series记录
-    series = Series(
-        series_instance_uid=series_instance_uid,
-        series_number=1,
-        study_id=study.id,
-        series_date=date.today(),
-        series_time=datetime.now().strftime("%H%M%S"),
-        series_description=description or "上传的影像序列",
-        modality=modality,
-        body_part=body_part,
-        instance_count=1,
-        total_size=file_size,
-        status=SeriesStatusEnum.RECEIVED,
-        created_by=current_user_id
-    )
-    db.add(series)
-    db.flush()  # 获取series.id
-
-    # 创建Instance记录
-    instance = Instance(
-        sop_instance_uid=sop_instance_uid,
-        instance_number=1,
-        series_id=series.id,
-        file_path=str(file_path),
-        file_name=file_path.name,
-        file_size=file_size,
-        file_hash=calculate_file_hash(file_path),
-        status=InstanceStatusEnum.UPLOADED,
-        created_by=current_user_id
-    )
-    db.add(instance)
-
-    return study, series, instance
+# 已废弃：create_medical_imaging_records 函数已移除
+# 现在使用 create_image_file_record 直接创建 ImageFile 记录
 
 def create_image_file_record(
     db: Session,
@@ -233,12 +160,10 @@ def create_image_file_record(
     mime_type: str,
     uploaded_by: int,
     patient_id: Optional[int] = None,
-    study_id: Optional[int] = None,
-    series_id: Optional[int] = None,
     description: Optional[str] = None
 ) -> ImageFile:
     """创建影像文件记录"""
-    
+
     # 确定文件类型
     ext = file_path.suffix.lower()
     if ext in ['.dcm', '.dicom']:
@@ -251,19 +176,19 @@ def create_image_file_record(
         file_type = ImageFileTypeEnum.TIFF
     else:
         file_type = ImageFileTypeEnum.OTHER
-    
+
     # 生成UUID
     file_uuid = str(uuid.uuid4())
-    
+
     # 计算相对路径
     try:
         storage_path = str(file_path.relative_to(UPLOAD_DIR))
     except ValueError:
         storage_path = str(file_path)
-    
+
     # 计算文件哈希
     file_hash = calculate_file_hash(file_path)
-    
+
     # 确定模态
     modality = None
     body_part = None
@@ -272,7 +197,7 @@ def create_image_file_record(
         modality = mod_enum.value if mod_enum else None
         body_enum = determine_body_part_from_description(description)
         body_part = body_enum.value if body_enum else None
-    
+
     # 创建记录
     image_file = ImageFile(
         file_uuid=file_uuid,
@@ -284,8 +209,6 @@ def create_image_file_record(
         file_hash=file_hash,
         uploaded_by=uploaded_by,
         patient_id=patient_id,
-        study_id=study_id,
-        series_id=series_id,
         modality=modality,
         body_part=body_part,
         study_date=datetime.now(),
@@ -294,7 +217,7 @@ def create_image_file_record(
         upload_progress=100,
         uploaded_at=datetime.now()
     )
-    
+
     db.add(image_file)
     return image_file
 
@@ -358,29 +281,10 @@ async def upload_single_file(
                 detail="文件上传不完整"
             )
 
-        # 创建医学影像记录
-        study_id = None
-        series_id = None
+        # 创建影像文件记录
         try:
-            if patient_id and patient_id.isdigit():
-                patient_id_int = int(patient_id)
-                study, series, instance = create_medical_imaging_records(
-                    db=db,
-                    file_path=file_path,
-                    file_size=actual_size,
-                    patient_id=patient_id_int,
-                    description=description or "上传的影像",
-                    current_user_id=current_user.get('id')
-                )
-                study_id = study.id
-                series_id = series.id
-                db.flush()  # 获取ID但不提交
-                logger.info(f"医学影像记录创建成功: Study ID {study.study_id}, Patient ID {patient_id_int}")
-            else:
-                logger.warning(f"未提供有效的患者ID，跳过医学影像记录创建")
-                patient_id_int = None
-                
-            # 创建影像文件记录
+            patient_id_int = int(patient_id) if patient_id and patient_id.isdigit() else None
+
             image_file = create_image_file_record(
                 db=db,
                 file_path=file_path,
@@ -388,13 +292,11 @@ async def upload_single_file(
                 file_size=actual_size,
                 mime_type=file.content_type,
                 uploaded_by=current_user.get('id'),
-                patient_id=patient_id_int if patient_id and patient_id.isdigit() else None,
-                study_id=study_id,
-                series_id=series_id,
+                patient_id=patient_id_int,
                 description=description
             )
             db.commit()
-            logger.info(f"影像文件记录创建成功: File UUID {image_file.file_uuid}")
+            logger.info(f"影像文件记录创建成功: File UUID {image_file.file_uuid}, Patient ID {patient_id_int}")
             
         except Exception as e:
             logger.error(f"创建数据库记录失败: {e}")
@@ -707,119 +609,9 @@ async def get_upload_records(
         )
 
 
-@router.get("/files/{study_id}", summary="获取影像文件")
-async def get_study_file(
-    study_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    """
-    根据Study ID获取对应的影像文件
-    """
-    try:
-        # 查询study对应的instance记录
-        instance = db.query(Instance).join(Series).join(Study).filter(
-            Study.id == study_id
-        ).first()
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="影像文件不存在"
-            )
-
-        # 构建文件完整路径
-        file_path = Path(instance.file_path)
-        if not file_path.is_absolute():
-            # 如果是相对路径，相对于backend目录
-            # __file__ 是 backend/app/api/v1/endpoints/upload.py
-            # 需要回到 backend/ 目录，所以是 .parent.parent.parent.parent.parent
-            backend_dir = Path(__file__).parent.parent.parent.parent.parent
-            file_path = backend_dir / file_path
-
-        if not file_path.exists():
-            logger.error(f"文件不存在: {file_path}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="影像文件不存在"
-            )
-
-        # 确定MIME类型
-        mime_type, _ = mimetypes.guess_type(str(file_path))
-        if not mime_type:
-            mime_type = "application/octet-stream"
-
-        logger.info(f"返回影像文件: {file_path}, MIME: {mime_type}")
-
-        return FileResponse(
-            path=str(file_path),
-            media_type=mime_type,
-            filename=instance.file_name
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取影像文件失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取影像文件失败"
-        )
-
-
-@router.get("/files/instance/{instance_id}", summary="根据Instance ID获取影像文件")
-async def get_instance_file(
-    instance_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    """
-    根据Instance ID直接获取影像文件
-    """
-    try:
-        # 查询instance记录
-        instance = db.query(Instance).filter(Instance.id == instance_id).first()
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="影像文件不存在"
-            )
-
-        # 构建文件完整路径
-        file_path = Path(instance.file_path)
-        if not file_path.is_absolute():
-            # 如果是相对路径，相对于backend目录
-            # __file__ 是 backend/app/api/v1/endpoints/upload.py
-            # 需要回到 backend/ 目录，所以是 .parent.parent.parent.parent.parent
-            backend_dir = Path(__file__).parent.parent.parent.parent.parent
-            file_path = backend_dir / file_path
-
-        if not file_path.exists():
-            logger.error(f"文件不存在: {file_path}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="影像文件不存在"
-            )
-
-        # 确定MIME类型
-        mime_type, _ = mimetypes.guess_type(str(file_path))
-        if not mime_type:
-            mime_type = "application/octet-stream"
-
-        logger.info(f"返回影像文件: {file_path}, MIME: {mime_type}")
-
-        return FileResponse(
-            path=str(file_path),
-            media_type=mime_type,
-            filename=instance.file_name
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取影像文件失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取影像文件失败"
-        )
+# 已废弃的API端点已移除：
+# - GET /files/{study_id} - 根据Study ID获取影像文件
+# - GET /files/instance/{instance_id} - 根据Instance ID获取影像文件
+#
+# 请使用新的API端点：
+# - GET /api/v1/image-files/{file_id}/download - 根据ImageFile ID下载文件

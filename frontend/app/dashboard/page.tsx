@@ -14,14 +14,11 @@ interface DashboardOverview {
   new_patients_today: number;
   new_patients_week: number;
   active_patients: number;
-  total_studies: number;
-  studies_today: number;
-  studies_week: number;
-  pending_studies: number;
-  total_reports: number;
-  pending_reports: number;
-  completed_reports: number;
-  overdue_reports: number;
+  total_images: number;
+  images_today: number;
+  images_week: number;
+  pending_images: number;
+  processed_images: number;
   completion_rate: number;
   average_processing_time: number;
   system_alerts: number;
@@ -35,28 +32,22 @@ const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
     const response = await client.get('/api/v1/dashboard/stats');
     const data = response.data;
 
-    // 转换数据格式以匹配前端接口
+    console.log('工作台收到的 API 数据:', data);
+
+    // 直接使用 API 返回的数据（字段名已匹配）
     return {
       total_patients: data.total_patients || 0,
-      new_patients_today: data.today_processed || 0,
-      new_patients_week: Math.floor((data.today_processed || 0) * 7),
-      active_patients: data.total_patients || 0,
-      total_studies: data.total_images || 0,
-      studies_today: data.today_processed || 0,
-      studies_week: Math.floor((data.today_processed || 0) * 7),
-      pending_studies: data.pending_analysis || 0,
-      total_reports: data.total_reports || 0,
-      pending_reports: data.pending_analysis || 0,
-      completed_reports:
-        (data.total_reports || 0) - (data.pending_analysis || 0),
-      overdue_reports: 0,
-      completion_rate: Math.round(
-        (((data.total_reports || 0) - (data.pending_analysis || 0)) /
-          (data.total_reports || 1)) *
-        100
-      ),
-      average_processing_time: 2.5,
-      system_alerts: data.pending_analysis > 20 ? 1 : 0,
+      new_patients_today: data.new_patients_today || 0,
+      new_patients_week: data.new_patients_week || 0,
+      active_patients: data.active_patients || 0,
+      total_images: data.total_images || 0,
+      images_today: data.images_today || 0,
+      images_week: data.images_week || 0,
+      pending_images: data.pending_images || 0,
+      processed_images: data.processed_images || 0,
+      completion_rate: data.completion_rate || 0,
+      average_processing_time: data.average_processing_time || 0,
+      system_alerts: data.system_alerts || 0,
       generated_at: new Date().toISOString(),
     };
   } catch (error) {
@@ -151,43 +142,47 @@ const DashboardPage: React.FC = () => {
             : 0,
         icon: 'ri-user-line',
         color: 'blue' as const,
+        href: '/patients', // 添加链接到患者页面
       },
       {
-        title: '待处理检查',
-        value: dashboardData.pending_studies,
+        title: '待处理影像',
+        value: dashboardData.pending_images,
         change:
-          dashboardData.studies_today > 0
-            ? (dashboardData.studies_today /
+          dashboardData.images_today > 0
+            ? (dashboardData.images_today /
               Math.max(
-                dashboardData.total_studies - dashboardData.studies_today,
+                dashboardData.total_images - dashboardData.images_today,
                 1
               )) *
             100
             : 0,
         icon: 'ri-image-line',
         color: 'orange' as const,
+        href: '/imaging?status=pending', // 添加链接到待审核影像
       },
       {
-        title: '累计检查',
-        value: dashboardData.total_studies,
+        title: '已完成影像',
+        value: dashboardData.processed_images,
+        change: dashboardData.completion_rate - 50, // 相对于50%基准的变化
+        icon: 'ri-check-line',
+        color: 'green' as const,
+        href: '/imaging?review_status=reviewed', // 添加链接到已审核影像
+      },
+      {
+        title: '累计影像',
+        value: dashboardData.total_images,
         change:
-          dashboardData.studies_week > 0
-            ? (dashboardData.studies_week /
+          dashboardData.images_week > 0
+            ? (dashboardData.images_week /
               Math.max(
-                dashboardData.total_studies - dashboardData.studies_week,
+                dashboardData.total_images - dashboardData.images_week,
                 1
               )) *
             100
             : 0,
         icon: 'ri-gallery-line',
-        color: 'green' as const,
-      },
-      {
-        title: '待处理报告',
-        value: dashboardData.pending_reports,
-        change: dashboardData.completion_rate - 50, // 相对于50%基准的变化
-        icon: 'ri-stethoscope-line',
         color: 'purple' as const,
+        href: '/imaging', // 添加链接到影像中心页面
       },
     ]
     : [];
@@ -207,7 +202,7 @@ const DashboardPage: React.FC = () => {
                   ? '加载中...'
                   : error
                     ? '数据加载失败'
-                    : `欢迎回来，今天有 ${dashboardData?.pending_studies || 0} 个检查等待处理`}
+                    : `欢迎回来，今天有 ${dashboardData?.pending_images || 0} 个影像等待处理`}
               </p>
             </div>
 
@@ -272,21 +267,27 @@ const DashboardPage: React.FC = () => {
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">接诊患者</span>
+                  <span className="text-gray-600">今日新增患者</span>
                   <span className="font-semibold text-gray-900">
                     {dashboardData?.new_patients_today || 0}人
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">待处理检查</span>
+                  <span className="text-gray-600">今日上传影像</span>
                   <span className="font-semibold text-gray-900">
-                    {dashboardData?.pending_studies || 0}份
+                    {dashboardData?.images_today || 0}份
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">平均用时</span>
+                  <span className="text-gray-600">待处理影像</span>
                   <span className="font-semibold text-gray-900">
-                    {dashboardData?.average_processing_time || 0}分钟
+                    {dashboardData?.pending_images || 0}份
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">完成率</span>
+                  <span className="font-semibold text-gray-900">
+                    {dashboardData?.completion_rate || 0}%
                   </span>
                 </div>
               </div>

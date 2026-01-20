@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.logging import get_logger
-from app.models.image import ImageAnnotation, Study
+from app.models.image import ImageAnnotation
 from app.models.patient import Patient
 from app.services.template_service import TemplateService
 

@@ -30,7 +30,7 @@ class TeamSummary(BaseModel):
 class TeamMember(BaseModel):
     """团队成员信息"""
 
-    user_id: int = Field(..., alias="id")
+    user_id: int  # 移除 alias，直接使用 user_id
     username: str
     real_name: Optional[str] = None
     email: Optional[str] = None
@@ -38,6 +38,8 @@ class TeamMember(BaseModel):
     status: str
     department: Optional[str] = None
     is_creator: bool = False  # 改为is_creator
+    is_system_admin: bool = False  # 是否系统管理员
+    system_admin_level: int = 0  # 系统管理员级别
     joined_at: Optional[datetime] = None
 
     model_config = ConfigDict(populate_by_name=True)
@@ -150,3 +152,41 @@ class TeamListResponse(BaseModel):
 
     items: List[TeamSummary]
     total: int
+
+
+class TeamInvitationItem(BaseModel):
+    """团队邀请项"""
+
+    id: int
+    team_id: int
+    team_name: Optional[str] = None
+    team_description: Optional[str] = None
+    inviter_id: int
+    inviter_name: Optional[str] = None
+    role: str
+    message: Optional[str] = None
+    created_at: datetime
+    expires_at: datetime
+    status: str
+
+
+class TeamInvitationListResponse(BaseModel):
+    """团队邀请列表响应"""
+
+    items: List[TeamInvitationItem]
+    total: int
+
+
+class TeamInvitationRespondRequest(BaseModel):
+    """响应团队邀请请求"""
+
+    accept: bool = Field(..., description="是否接受邀请，true表示接受，false表示拒绝")
+
+
+class TeamInvitationRespondResponse(BaseModel):
+    """响应团队邀请响应"""
+
+    message: str
+    status: str
+    team_id: int
+    team_name: str

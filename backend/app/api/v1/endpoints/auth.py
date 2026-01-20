@@ -105,6 +105,7 @@ class UserResponse(BaseModel):
     role: str = Field(default="doctor", description="用户角色")
     roles: list = Field(default=[], description="角色列表")
     permissions: list = Field(default=[], description="权限列表")
+    is_superuser: bool = Field(default=False, description="是否超级管理员")
     is_system_admin: bool = Field(default=False, description="是否系统管理员")
     system_admin_level: int = Field(default=0, description="系统管理员级别：0-非，1-超级，2-二级")
     created_at: str | None = Field(None, description="创建时间")
@@ -257,6 +258,7 @@ async def login(
             full_name=user["full_name"],
             is_active=user["is_active"],
             roles=user.get("roles", []),
+            is_superuser=user.get("is_superuser", False),  # 添加超级管理员标志
             is_system_admin=user.get("is_system_admin", False),  # 添加系统管理员标志
             system_admin_level=user.get("system_admin_level", 0)  # 添加系统管理员级别
         ).dict()
@@ -629,6 +631,7 @@ async def get_current_user_info(
             role=role,
             roles=roles,
             permissions=permissions,
+            is_superuser=user.is_superuser or False,
             is_system_admin=user.is_system_admin or False,
             system_admin_level=user.system_admin_level or 0,
             created_at=user.created_at.isoformat() if user.created_at else None,
@@ -728,6 +731,7 @@ async def update_current_user_info(
             role=role,
             roles=roles,
             permissions=permissions,
+            is_superuser=user.is_superuser or False,
             is_system_admin=user.is_system_admin or False,
             system_admin_level=user.system_admin_level or 0,
             created_at=user.created_at.isoformat() if user.created_at else None,

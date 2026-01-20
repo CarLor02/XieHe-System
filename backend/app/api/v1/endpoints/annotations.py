@@ -17,7 +17,8 @@ from sqlalchemy import text
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.logging import get_logger
-from app.models.image import ImageAnnotation, Study
+from app.models.image import ImageAnnotation
+from app.models.image_file import ImageFile
 
 logger = get_logger(__name__)
 
@@ -62,24 +63,36 @@ async def get_measurements(
 ):
     """
     获取指定影像的所有测量数据
+
+    支持两种模式：
+    1. 新模式：image_id为ImageFile的ID或UUID
+    2. 旧模式：image_id为IMG前缀的Study ID（如IMG007）
     """
     try:
-        # 从image_id提取study_id（例如IMG007 -> 7）
-        study_id_str = image_id.replace('IMG', '')
-        if not study_id_str.isdigit():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="无效的影像ID格式"
-            )
-        
-        study_id = int(study_id_str)
-        
-        # 查询该study的所有标注
-        annotations = db.query(ImageAnnotation).filter(
-            ImageAnnotation.study_id == study_id,
-            ImageAnnotation.is_deleted == False
-        ).all()
-        
+        annotations = []
+
+        # 尝试新模式：直接使用image_file_id
+        if image_id.isdigit():
+            # 纯数字，可能是ImageFile的ID
+            image_file_id = int(image_id)
+            annotations = db.query(ImageAnnotation).filter(
+                ImageAnnotation.image_file_id == image_file_id,
+                ImageAnnotation.is_deleted == False
+            ).all()
+
+        else:
+            # 可能是UUID
+            image_file = db.query(ImageFile).filter(
+                ImageFile.file_uuid == image_id,
+                ImageFile.is_deleted == False
+            ).first()
+
+            if image_file:
+                annotations = db.query(ImageAnnotation).filter(
+                    ImageAnnotation.image_file_id == image_file.id,
+                    ImageAnnotation.is_deleted == False
+                ).all()
+
         if not annotations:
             return MeasurementsResponse(measurements=[], reportText=None)
         
@@ -140,29 +153,41 @@ async def save_measurements(
 ):
     """
     保存影像的测量数据
+
+    image_id 可以是：
+    1. ImageFile 的数字 ID
+    2. ImageFile 的 UUID
     """
     try:
-        # 从image_id提取study_id
-        study_id_str = image_id.replace('IMG', '')
-        if not study_id_str.isdigit():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="无效的影像ID格式"
-            )
-        
-        study_id = int(study_id_str)
-        
-        # 验证study是否存在
-        study = db.query(Study).filter(Study.id == study_id).first()
-        if not study:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="影像不存在"
-            )
-        
+        image_file_id = None
+
+        # 解析image_id
+        if image_id.isdigit():
+            # 纯数字，ImageFile的ID
+            image_file_id = int(image_id)
+            image_file = db.query(ImageFile).filter(ImageFile.id == image_file_id).first()
+            if not image_file:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="影像文件不存在"
+                )
+        else:
+            # UUID格式
+            image_file = db.query(ImageFile).filter(
+                ImageFile.file_uuid == image_id,
+                ImageFile.is_deleted == False
+            ).first()
+
+            if not image_file:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="影像文件不存在"
+                )
+            image_file_id = image_file.id
+
         # 删除旧的标注数据
         db.query(ImageAnnotation).filter(
-            ImageAnnotation.study_id == study_id
+            ImageAnnotation.image_file_id == image_file_id
         ).delete()
         
         # 保存新的标注数据
@@ -201,7 +226,7 @@ async def save_measurements(
                         measurement_value = None
 
             annotation = ImageAnnotation(
-                study_id=study_id,
+                image_file_id=image_file_id,
                 annotation_type=annotation_type,
                 coordinates=coordinates,
                 label=measurement.type,
@@ -211,11 +236,31 @@ async def save_measurements(
                 created_by=current_user.get('id')
             )
             db.add(annotation)
-        
+
         db.commit()
-        
-        logger.info(f"保存测量数据成功: Study ID {study_id}, 共 {len(request.measurements)} 条标注")
-        
+
+        # 更新图像状态为 PROCESSED（已处理）- 使用原生SQL避免外键检查问题
+        if image_file_id:
+            try:
+                db.execute(
+                    text("""
+                        UPDATE image_files
+                        SET status = 'PROCESSED',
+                            uploaded_at = :now,
+                            updated_at = :now
+                        WHERE id = :image_file_id
+                    """),
+                    {"now": datetime.now(), "image_file_id": image_file_id}
+                )
+                db.commit()
+                logger.info(f"影像文件 {image_file_id} 状态已更新为 PROCESSED")
+            except Exception as e:
+                logger.warning(f"更新影像文件状态失败: {e}")
+                # 不影响主流程，继续执行
+
+        log_msg = f"保存测量数据成功: ImageFile ID {image_file_id}, 共 {len(request.measurements)} 条标注"
+        logger.info(log_msg)
+
         return {
             "success": True,
             "message": "测量数据保存成功",

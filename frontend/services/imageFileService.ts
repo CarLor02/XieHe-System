@@ -53,6 +53,7 @@ export interface ImageFileFilters {
   start_date?: string;
   end_date?: string;
   search?: string;
+  review_status?: 'reviewed' | 'unreviewed'; // 审核状态筛选
 }
 
 /**
@@ -60,7 +61,7 @@ export interface ImageFileFilters {
  */
 export async function getMyImages(filters: ImageFileFilters = {}): Promise<ImageFileListResponse> {
   const client = createAuthenticatedClient();
-  
+
   const params: any = {
     page: filters.page || 1,
     page_size: filters.page_size || 20,
@@ -71,7 +72,8 @@ export async function getMyImages(filters: ImageFileFilters = {}): Promise<Image
   if (filters.start_date) params.start_date = filters.start_date;
   if (filters.end_date) params.end_date = filters.end_date;
   if (filters.search) params.search = filters.search;
-  
+  if (filters.review_status) params.review_status = filters.review_status;
+
   const response = await client.get('/api/v1/image-files/my-images', { params });
   return response.data;
 }

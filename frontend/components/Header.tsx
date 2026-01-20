@@ -44,12 +44,13 @@ export default function Header() {
 
       try {
         const client = createAuthenticatedClient();
-        const response = await client.get('/api/v1/notifications/messages');
-        const notificationData = response.data;
 
-        // 转换API数据为消息格式
-        const formattedMessages: Message[] = notificationData.map(
-          (item: any) => ({
+        // 获取系统通知
+        let systemMessages: Message[] = [];
+        try {
+          const response = await client.get('/api/v1/notifications/messages');
+          const notificationData = response.data;
+          systemMessages = notificationData.map((item: any) => ({
             id: item.id || Math.random().toString(),
             title: item.title || '系统通知',
             content: item.message || item.content || '',
@@ -58,19 +59,41 @@ export default function Header() {
               ? new Date(item.created_at).toLocaleString()
               : '刚刚',
             isRead: item.is_read || false,
-          })
-        );
+          }));
+        } catch (error) {
+          console.warn('获取系统消息失败:', error);
+        }
 
-        setMessages(formattedMessages);
+        // 获取团队邀请
+        let invitationMessages: Message[] = [];
+        try {
+          const invitationsResponse = await client.get('/api/v1/permissions/invitations/my');
+          const invitations = invitationsResponse.data.items || [];
+          invitationMessages = invitations.map((inv: any) => ({
+            id: `invitation-${inv.id}`,
+            title: '团队邀请',
+            content: `${inv.inviter_name || '某人'}邀请您加入团队"${inv.team_name}"`,
+            type: 'info' as const,
+            time: new Date(inv.created_at).toLocaleString(),
+            isRead: false,
+          }));
+        } catch (error) {
+          console.warn('获取团队邀请失败:', error);
+        }
+
+        // 合并所有消息
+        setMessages([...invitationMessages, ...systemMessages]);
       } catch (error) {
         console.warn('获取消息失败:', error);
-        // 设置默认消息
         setMessages([]);
       }
     };
 
     if (mounted && user) {
       fetchMessages();
+      // 每30秒刷新一次消息
+      const interval = setInterval(fetchMessages, 30000);
+      return () => clearInterval(interval);
     }
   }, [mounted, user]);
 
@@ -116,6 +139,17 @@ export default function Header() {
     setMessages(prev =>
       prev.map(msg => (msg.id === messageId ? { ...msg, isRead: true } : msg))
     );
+
+    // 如果是团队邀请消息，跳转到邀请页面
+    if (messageId.startsWith('invitation-')) {
+      setShowMessages(false);
+      router.push('/permissions');
+      // 使用 setTimeout 确保页面加载后再切换标签
+      setTimeout(() => {
+        // 触发切换到邀请标签页的事件
+        window.dispatchEvent(new CustomEvent('switchToInvitations'));
+      }, 100);
+    }
   };
 
   const markAllAsRead = () => {

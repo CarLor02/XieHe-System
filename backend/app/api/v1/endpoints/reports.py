@@ -21,7 +21,6 @@ from app.core.exceptions import BusinessLogicException, ResourceNotFoundExceptio
 from app.core.logging import get_logger
 from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, PriorityEnum, ReportTypeEnum
 from app.models.patient import Patient
-from app.models.image import Study
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -138,11 +137,8 @@ async def create_report(
         if not patient:
             raise ResourceNotFoundException(f"患者 ID {report_data.patient_id} 不存在")
 
-        # 验证检查是否存在（如果提供了study_id）
-        if report_data.study_id:
-            study = db.query(Study).filter(Study.id == report_data.study_id).first()
-            if not study:
-                raise ResourceNotFoundException(f"检查 ID {report_data.study_id} 不存在")
+        # 注意：study_id 字段已废弃，保留仅为向后兼容
+        # 新代码应使用 image_file_id 关联影像文件
 
         # 创建新报告
         new_report = DiagnosticReport(

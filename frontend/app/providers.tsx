@@ -9,7 +9,6 @@
  * @created 2025-10-16
  */
 
-import ErrorBoundary from '@/components/common/ErrorBoundary';
 import { useAuthStore } from '@/store/authStore';
 import React, { useEffect, useState } from 'react';
 
@@ -77,13 +76,6 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
  */
 export default function Providers({ children }: ProvidersProps) {
   return (
-    <ErrorBoundary
-      showDetails={process.env.NODE_ENV === 'development'}
-      onError={(error, errorInfo) => {
-        console.error('Error caught by boundary:', error, errorInfo);
-      }}
-    >
-      <AuthInitializer>{children}</AuthInitializer>
-    </ErrorBoundary>
+    <AuthInitializer>{children}</AuthInitializer>
   );
 }

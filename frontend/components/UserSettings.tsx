@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { getCurrentUser, updateCurrentUser, UserInfo } from '@/services/userService';
 import { useAuthStore } from '@/store/authStore';
+import { getMyTeams } from '@/services/teamService';
+import type { TeamSummary } from '@/services/teamService';
 
 interface UserSettingsProps {
   isOpen: boolean;
@@ -15,6 +17,8 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -24,7 +28,7 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
     department_id: null as number | null,
     position: '',
     title: '',
-    organization: 'xiehe-wu-team',
+    organization: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -44,8 +48,28 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
   useEffect(() => {
     if (isOpen) {
       loadUserInfo();
+      loadMyTeams();
     }
   }, [isOpen]);
+
+  // 加载用户所属的团队
+  const loadMyTeams = async () => {
+    setLoadingTeams(true);
+    try {
+      const response = await getMyTeams();
+      setMyTeams(response.items || []);
+
+      // 如果用户有团队，设置第一个团队为默认选中
+      if (response.items && response.items.length > 0 && !formData.organization) {
+        setFormData(prev => ({ ...prev, organization: response.items[0].id.toString() }));
+      }
+    } catch (error) {
+      console.error('加载团队列表失败:', error);
+      setMyTeams([]);
+    } finally {
+      setLoadingTeams(false);
+    }
+  };
 
   const loadUserInfo = async () => {
     try {
@@ -139,12 +163,6 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
       setSaving(false);
     }
   };
-
-  const organizations = [
-    { id: 'xiehe-wu-team', name: '协和吴主任团队', type: '医疗团队' },
-    { id: 'xiehe-zhang-team', name: '协和张主任团队', type: '医疗团队' },
-    { id: 'qilu-liu-team', name: '齐鲁刘主任团队', type: '医疗团队' }
-  ];
 
   const tabs: Array<{ id: 'profile' | 'organization' | 'password' | 'system'; name: string; icon: string }> = [
     { id: 'profile', name: '个人信息', icon: 'ri-user-line' },
@@ -305,31 +323,70 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
               {activeTab === 'organization' && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-6">组织设置</h3>
-                  
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">当前组织</label>
-                      <select
-                        value={formData.organization}
-                        onChange={(e) => handleInputChange('organization', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        {organizations.map((org) => (
-                          <option key={org.id} value={org.id}>
-                            {org.name} ({org.type})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
 
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">组织信息</h4>
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <p>组织名称: 协和吴主任团队</p>
-                        <p>组织类型: 医疗团队</p>
+                  {loadingTeams ? (
+                    <div className="text-center py-8">
+                      <div className="text-gray-500">加载团队信息中...</div>
+                    </div>
+                  ) : myTeams.length === 0 ? (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                      <div className="flex items-start space-x-3">
+                        <i className="ri-information-line text-yellow-600 text-xl mt-0.5"></i>
+                        <div>
+                          <h4 className="font-medium text-yellow-900 mb-1">您还未加入任何团队</h4>
+                          <p className="text-sm text-yellow-700 mb-3">
+                            加入团队后，您可以与团队成员协作处理影像数据。
+                          </p>
+                          <p className="text-sm text-yellow-700">
+                            请联系系统管理员创建团队，或申请加入现有团队。
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">当前组织</label>
+                        <select
+                          value={formData.organization}
+                          onChange={(e) => handleInputChange('organization', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          disabled={myTeams.length === 0}
+                        >
+                          {myTeams.map((team) => (
+                            <option key={team.id} value={team.id.toString()}>
+                              {team.name}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          您共加入了 {myTeams.length} 个团队
+                        </p>
+                      </div>
+
+                      {formData.organization && myTeams.find(t => t.id.toString() === formData.organization) && (
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <h4 className="font-medium text-gray-900 mb-2">组织信息</h4>
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <p>
+                              <span className="font-medium">组织名称:</span>{' '}
+                              {myTeams.find(t => t.id.toString() === formData.organization)?.name}
+                            </p>
+                            <p>
+                              <span className="font-medium">成员数量:</span>{' '}
+                              {myTeams.find(t => t.id.toString() === formData.organization)?.member_count || 0} 人
+                            </p>
+                            {myTeams.find(t => t.id.toString() === formData.organization)?.creator_name && (
+                              <p>
+                                <span className="font-medium">创建者:</span>{' '}
+                                {myTeams.find(t => t.id.toString() === formData.organization)?.creator_name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

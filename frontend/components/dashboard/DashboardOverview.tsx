@@ -1,20 +1,23 @@
 'use client';
 
 import { Button } from '@/components/ui/Button';
+import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
 // 类型定义
 interface DashboardOverview {
-  total_reports: number;
-  pending_reports: number;
-  completed_reports: number;
-  overdue_reports: number;
   total_patients: number;
   new_patients_today: number;
-  active_users: number;
-  system_alerts: number;
+  new_patients_week: number;
+  active_patients: number;
+  total_images: number;
+  images_today: number;
+  images_week: number;
+  pending_images: number;
+  processed_images: number;
   completion_rate: number;
   average_processing_time: number;
+  system_alerts: number;
 }
 
 interface TaskItem {
@@ -100,17 +103,18 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
       // 获取仪表板统计数据
       const statsResponse = await client.get('/api/v1/dashboard/stats');
       const overview: DashboardOverview = {
-        total_reports: statsResponse.data.total_reports || 0,
-        pending_reports: statsResponse.data.pending_reports || 0,
-        completed_reports: statsResponse.data.completed_reports || 0,
-        overdue_reports: statsResponse.data.overdue_reports || 0,
         total_patients: statsResponse.data.total_patients || 0,
         new_patients_today: statsResponse.data.new_patients_today || 0,
-        active_users: statsResponse.data.active_users || 0,
-        system_alerts: statsResponse.data.system_alerts || 0,
+        new_patients_week: statsResponse.data.new_patients_week || 0,
+        active_patients: statsResponse.data.active_patients || 0,
+        total_images: statsResponse.data.total_images || 0,
+        images_today: statsResponse.data.images_today || 0,
+        images_week: statsResponse.data.images_week || 0,
+        pending_images: statsResponse.data.pending_images || 0,
+        processed_images: statsResponse.data.processed_images || 0,
         completion_rate: statsResponse.data.completion_rate || 0,
-        average_processing_time:
-          statsResponse.data.average_processing_time || 0,
+        average_processing_time: statsResponse.data.average_processing_time || 0,
+        system_alerts: statsResponse.data.system_alerts || 0,
       };
 
       // 获取任务数据
@@ -338,12 +342,12 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <i className="ri-file-list-3-line text-2xl text-blue-600"></i>
+                <i className="ri-image-line text-2xl text-blue-600"></i>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">总报告数</p>
+                <p className="text-sm font-medium text-gray-500">总影像数</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {overview.total_reports}
+                  {overview.total_images}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   完成率: {overview.completion_rate}%
@@ -358,12 +362,20 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
                 <i className="ri-time-line text-2xl text-orange-600"></i>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">待处理</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {overview.pending_reports}
-                </p>
-                <p className="text-xs text-red-500 mt-1">
-                  超期: {overview.overdue_reports}
+                <p className="text-sm font-medium text-gray-500">待处理影像</p>
+                <Link
+                  href="/imaging?status=pending"
+                  className="text-2xl font-bold text-gray-900 hover:text-orange-600 transition-colors cursor-pointer"
+                >
+                  {overview.pending_images}
+                </Link>
+                <p className="text-xs text-green-500 mt-1">
+                  已完成: <Link
+                    href="/imaging?review_status=reviewed"
+                    className="hover:text-green-700 transition-colors cursor-pointer underline"
+                  >
+                    {overview.processed_images}
+                  </Link>
                 </p>
               </div>
             </div>
@@ -389,12 +401,12 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <i className="ri-user-line text-2xl text-purple-600"></i>
+                <i className="ri-upload-line text-2xl text-purple-600"></i>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">在线用户</p>
+                <p className="text-sm font-medium text-gray-500">今日上传</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {overview.active_users}
+                  {overview.images_today}
                 </p>
                 <p className="text-xs text-yellow-500 mt-1">
                   系统警告: {overview.system_alerts}

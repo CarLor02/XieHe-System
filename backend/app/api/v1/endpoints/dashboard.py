@@ -18,7 +18,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.logging import get_logger
 from app.models.patient import Patient, PatientStatusEnum
-from app.models.image import Study, StudyStatusEnum
+from app.models.image_file import ImageFile, ImageFileStatusEnum
 from app.models.report import DiagnosticReport, ReportStatusEnum, PriorityEnum
 
 logger = get_logger(__name__)
@@ -32,19 +32,14 @@ class DashboardOverview(BaseModel):
     new_patients_today: int = Field(..., description="今日新增患者")
     new_patients_week: int = Field(..., description="本周新增患者")
     active_patients: int = Field(..., description="活跃患者数")
-    
-    # 检查统计
-    total_studies: int = Field(..., description="总检查数")
-    studies_today: int = Field(..., description="今日检查数")
-    studies_week: int = Field(..., description="本周检查数")
-    pending_studies: int = Field(..., description="待处理检查")
-    
-    # 报告统计
-    total_reports: int = Field(..., description="总报告数")
-    pending_reports: int = Field(..., description="待审核报告")
-    completed_reports: int = Field(..., description="已完成报告")
-    overdue_reports: int = Field(..., description="逾期报告")
-    
+
+    # 影像统计（原检查统计）
+    total_images: int = Field(..., description="总影像数")
+    images_today: int = Field(..., description="今日上传影像")
+    images_week: int = Field(..., description="本周上传影像")
+    pending_images: int = Field(..., description="待处理影像")
+    processed_images: int = Field(..., description="已处理影像")
+
     # 系统统计
     completion_rate: float = Field(..., description="完成率")
     average_processing_time: float = Field(..., description="平均处理时间(小时)")
@@ -84,33 +79,75 @@ async def get_dashboard_overview(
 ):
     """
     获取仪表板概览数据
-    
+
     基于真实数据库查询生成统计信息
+
+    权限控制：
+    - 普通用户：只统计自己上传的影像
+    - 团队负责人(ADMIN)：统计团队所有成员上传的影像
+    - 超级管理员(is_superuser)：统计全部影像
     """
     try:
+        from app.models.team import TeamMembership, TeamMembershipRole, TeamMembershipStatus
+
         # 时间范围定义
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
         today_start = datetime.combine(today, datetime.min.time())
         week_start_dt = datetime.combine(week_start, datetime.min.time())
 
-        # 患者统计
+        # 获取用户权限信息
+        user_id = current_user.get('id')
+        is_superuser = current_user.get('is_superuser', False)
+
+        # 构建影像文件的权限过滤条件
+        image_permission_filter = None
+        if not is_superuser:
+            # 非超级管理员需要进行权限过滤
+            # 1. 获取用户作为ADMIN的所有团队
+            admin_teams = db.query(TeamMembership).filter(
+                TeamMembership.user_id == user_id,
+                TeamMembership.role == TeamMembershipRole.ADMIN,
+                TeamMembership.status == TeamMembershipStatus.ACTIVE
+            ).all()
+
+            if admin_teams:
+                # 用户是某些团队的负责人，可以看到这些团队所有成员上传的影像
+                team_ids = [tm.team_id for tm in admin_teams]
+
+                # 获取这些团队的所有成员ID
+                team_member_ids = db.query(TeamMembership.user_id).filter(
+                    TeamMembership.team_id.in_(team_ids),
+                    TeamMembership.status == TeamMembershipStatus.ACTIVE
+                ).distinct().all()
+                team_member_ids = [mid[0] for mid in team_member_ids]
+
+                # 可以看到：自己上传的 + 团队成员上传的
+                image_permission_filter = or_(
+                    ImageFile.uploaded_by == user_id,
+                    ImageFile.uploaded_by.in_(team_member_ids)
+                )
+            else:
+                # 普通用户，只能看到自己上传的影像
+                image_permission_filter = ImageFile.uploaded_by == user_id
+
+        # 患者统计（不受权限限制，显示全部患者）
         total_patients = db.query(func.count(Patient.id)).filter(Patient.is_deleted == False).scalar() or 0
-        
+
         new_patients_today = db.query(func.count(Patient.id)).filter(
             and_(
                 Patient.is_deleted == False,
                 Patient.created_at >= today_start
             )
         ).scalar() or 0
-        
+
         new_patients_week = db.query(func.count(Patient.id)).filter(
             and_(
                 Patient.is_deleted == False,
                 Patient.created_at >= week_start_dt
             )
         ).scalar() or 0
-        
+
         active_patients = db.query(func.count(Patient.id)).filter(
             and_(
                 Patient.is_deleted == False,
@@ -118,66 +155,70 @@ async def get_dashboard_overview(
             )
         ).scalar() or 0
 
-        # 检查统计
-        total_studies = db.query(func.count(Study.id)).scalar() or 0
-        
-        studies_today = db.query(func.count(Study.id)).filter(
-            Study.created_at >= today_start
-        ).scalar() or 0
-        
-        studies_week = db.query(func.count(Study.id)).filter(
-            Study.created_at >= week_start_dt
-        ).scalar() or 0
-        
-        pending_studies = db.query(func.count(Study.id)).filter(
-            Study.status.in_([StudyStatusEnum.SCHEDULED, StudyStatusEnum.IN_PROGRESS])
+        # 影像文件统计（应用权限过滤）
+        base_image_filter = ImageFile.is_deleted == False
+        if image_permission_filter is not None:
+            base_image_filter = and_(base_image_filter, image_permission_filter)
+
+        total_studies = db.query(func.count(ImageFile.id)).filter(
+            base_image_filter
         ).scalar() or 0
 
-        # 报告统计（简化版本，因为diagnostic_reports表不存在）
-        # 使用studies表作为报告的代理
-        total_reports = total_studies  # 假设每个study对应一个报告
-
-        # 根据study状态推断报告状态
-        pending_reports = pending_studies  # 待处理的study对应待处理的报告
-        completed_reports = total_studies - pending_studies  # 已完成的study对应已完成的报告
-
-        # 逾期报告（假设超过3天未完成的为逾期）
-        overdue_threshold = datetime.now() - timedelta(days=3)
-        overdue_reports = db.query(func.count(Study.id)).filter(
+        studies_today = db.query(func.count(ImageFile.id)).filter(
             and_(
-                Study.status.in_([StudyStatusEnum.SCHEDULED, StudyStatusEnum.IN_PROGRESS]),
-                Study.created_at < overdue_threshold
+                ImageFile.created_at >= today_start,
+                base_image_filter
+            )
+        ).scalar() or 0
+
+        studies_week = db.query(func.count(ImageFile.id)).filter(
+            and_(
+                ImageFile.created_at >= week_start_dt,
+                base_image_filter
+            )
+        ).scalar() or 0
+
+        # 待处理影像 = 状态为 UPLOADED 或 PROCESSING 的影像文件
+        pending_images = db.query(func.count(ImageFile.id)).filter(
+            and_(
+                base_image_filter,
+                or_(
+                    ImageFile.status == ImageFileStatusEnum.UPLOADED,
+                    ImageFile.status == ImageFileStatusEnum.PROCESSING
+                )
+            )
+        ).scalar() or 0
+
+        # 已处理影像 = 状态为 PROCESSED 的影像文件
+        processed_images = db.query(func.count(ImageFile.id)).filter(
+            and_(
+                base_image_filter,
+                ImageFile.status == ImageFileStatusEnum.PROCESSED
             )
         ).scalar() or 0
 
         # 计算完成率
         completion_rate = 0.0
-        if total_reports > 0:
-            completion_rate = round((completed_reports / total_reports) * 100, 1)
+        if total_studies > 0:
+            completion_rate = round((processed_images / total_studies) * 100, 1)
 
         # 计算平均处理时间（小时）
         # 简化实现，使用固定值
         avg_processing_time = 2.5  # 假设平均处理时间为2.5小时
-
-        # 系统警告数（简化实现）
-        system_alerts = overdue_reports + (1 if pending_reports > 50 else 0)
 
         overview = DashboardOverview(
             total_patients=total_patients,
             new_patients_today=new_patients_today,
             new_patients_week=new_patients_week,
             active_patients=active_patients,
-            total_studies=total_studies,
-            studies_today=studies_today,
-            studies_week=studies_week,
-            pending_studies=pending_studies,
-            total_reports=total_reports,
-            pending_reports=pending_reports,
-            completed_reports=completed_reports,
-            overdue_reports=overdue_reports,
+            total_images=total_studies,
+            images_today=studies_today,
+            images_week=studies_week,
+            pending_images=pending_images,
+            processed_images=processed_images,
             completion_rate=completion_rate,
             average_processing_time=avg_processing_time,
-            system_alerts=system_alerts,
+            system_alerts=pending_images,  # 待处理影像数作为系统警告
             generated_at=datetime.now()
         )
 
@@ -217,17 +258,19 @@ async def get_recent_activities(
                 status="new"
             ))
 
-        # 获取最近的检查
-        recent_studies = db.query(Study).order_by(desc(Study.created_at)).limit(limit // 3).all()
+        # 获取最近的影像文件
+        recent_files = db.query(ImageFile).filter(
+            ImageFile.is_deleted == False
+        ).order_by(desc(ImageFile.created_at)).limit(limit // 3).all()
 
-        for study in recent_studies:
+        for file in recent_files:
             activities.append(RecentActivity(
-                id=study.id,
-                type="study",
-                title=f"新检查: {study.study_description or '影像检查'}",
-                description=f"检查ID: {study.study_id or study.study_instance_uid[:8]}",
-                timestamp=study.created_at,
-                status=study.status.value if hasattr(study.status, 'value') else str(study.status)
+                id=file.id,
+                type="image",
+                title=f"新影像: {file.original_filename or '影像文件'}",
+                description=f"文件ID: {file.id}",
+                timestamp=file.created_at,
+                status=file.status.value if hasattr(file.status, 'value') else str(file.status)
             ))
 
         # 获取最近的报告
@@ -315,70 +358,164 @@ async def get_system_metrics(
         )
 
 
-@router.get("/stats", summary="获取仪表板统计数据（简化版）")
-async def get_dashboard_stats(db: Session = Depends(get_db)):
+@router.get("/stats", response_model=DashboardOverview, summary="获取仪表板统计数据")
+async def get_dashboard_stats(
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
     """
-    获取仪表板统计数据（简化版，无需认证）
+    获取仪表板统计数据
 
     返回基本的统计信息，用于前端仪表板显示
+
+    权限控制：
+    - 普通用户：只统计自己上传的影像
+    - 团队负责人(ADMIN)：统计团队所有成员上传的影像
+    - 超级管理员(is_superuser)：统计全部影像
     """
     try:
+        from app.models.team import TeamMembership, TeamMembershipRole, TeamMembershipStatus
+
         # 时间范围定义
         today = date.today()
+        week_start = today - timedelta(days=today.weekday())
         today_start = datetime.combine(today, datetime.min.time())
+        week_start_dt = datetime.combine(week_start, datetime.min.time())
 
-        # 患者统计
+        # 获取用户权限信息
+        user_id = current_user.get('id')
+        is_superuser = current_user.get('is_superuser', False)
+
+        # 构建影像文件的权限过滤条件
+        image_permission_filter = None
+        if not is_superuser:
+            # 非超级管理员需要进行权限过滤
+            # 1. 获取用户作为ADMIN的所有团队
+            admin_teams = db.query(TeamMembership).filter(
+                TeamMembership.user_id == user_id,
+                TeamMembership.role == TeamMembershipRole.ADMIN,
+                TeamMembership.status == TeamMembershipStatus.ACTIVE
+            ).all()
+
+            if admin_teams:
+                # 用户是某些团队的负责人，可以看到这些团队所有成员上传的影像
+                team_ids = [tm.team_id for tm in admin_teams]
+
+                # 获取这些团队的所有成员ID
+                team_member_ids = db.query(TeamMembership.user_id).filter(
+                    TeamMembership.team_id.in_(team_ids),
+                    TeamMembership.status == TeamMembershipStatus.ACTIVE
+                ).distinct().all()
+                team_member_ids = [mid[0] for mid in team_member_ids]
+
+                # 可以看到：自己上传的 + 团队成员上传的
+                image_permission_filter = or_(
+                    ImageFile.uploaded_by == user_id,
+                    ImageFile.uploaded_by.in_(team_member_ids)
+                )
+            else:
+                # 普通用户，只能看到自己上传的影像
+                image_permission_filter = ImageFile.uploaded_by == user_id
+
+        # 患者统计（不受权限限制，显示全部患者）
         total_patients = db.query(func.count(Patient.id)).filter(Patient.is_deleted == False).scalar() or 0
 
-        # 影像统计
-        total_images = db.query(func.count(Study.id)).scalar() or 0
-
-        # 报告统计 - 如果表不存在则跳过
-        try:
-            total_reports = db.query(func.count(DiagnosticReport.id)).filter(
-                DiagnosticReport.is_deleted == False
-            ).scalar() or 0
-        except Exception:
-            total_reports = 0
-
-        # 待分析数量
-        pending_analysis = db.query(func.count(Study.id)).filter(
-            Study.status.in_([StudyStatusEnum.SCHEDULED, StudyStatusEnum.IN_PROGRESS])
+        new_patients_today = db.query(func.count(Patient.id)).filter(
+            and_(
+                Patient.is_deleted == False,
+                Patient.created_at >= today_start
+            )
         ).scalar() or 0
 
-        # 今日处理数量 - 如果表不存在则跳过
-        try:
-            today_processed = db.query(func.count(DiagnosticReport.id)).filter(
-                and_(
-                    DiagnosticReport.is_deleted == False,
-                    DiagnosticReport.created_at >= today_start
-                )
-            ).scalar() or 0
-        except Exception:
-            today_processed = 0
+        new_patients_week = db.query(func.count(Patient.id)).filter(
+            and_(
+                Patient.is_deleted == False,
+                Patient.created_at >= week_start_dt
+            )
+        ).scalar() or 0
 
-        return {
-            "total_patients": total_patients,
-            "total_images": total_images,
-            "total_reports": total_reports,
-            "pending_analysis": pending_analysis,
-            "today_processed": today_processed,
-            "ai_accuracy": 0.94,  # 模拟AI准确率
-            "system_status": "正常运行"
-        }
+        active_patients = db.query(func.count(Patient.id)).filter(
+            and_(
+                Patient.is_deleted == False,
+                Patient.status == PatientStatusEnum.ACTIVE
+            )
+        ).scalar() or 0
+
+        # 影像统计（应用权限过滤）
+        base_image_filter = ImageFile.is_deleted == False
+        if image_permission_filter is not None:
+            base_image_filter = and_(base_image_filter, image_permission_filter)
+
+        total_studies = db.query(func.count(ImageFile.id)).filter(
+            base_image_filter
+        ).scalar() or 0
+
+        studies_today = db.query(func.count(ImageFile.id)).filter(
+            and_(
+                ImageFile.created_at >= today_start,
+                base_image_filter
+            )
+        ).scalar() or 0
+
+        studies_week = db.query(func.count(ImageFile.id)).filter(
+            and_(
+                ImageFile.created_at >= week_start_dt,
+                base_image_filter
+            )
+        ).scalar() or 0
+
+        # 待处理影像 = 状态为 UPLOADED 或 PROCESSING 的影像文件
+        pending_images = db.query(func.count(ImageFile.id)).filter(
+            and_(
+                base_image_filter,
+                or_(
+                    ImageFile.status == ImageFileStatusEnum.UPLOADED,
+                    ImageFile.status == ImageFileStatusEnum.PROCESSING
+                )
+            )
+        ).scalar() or 0
+
+        # 已处理影像 = 状态为 PROCESSED 的影像文件
+        processed_images = db.query(func.count(ImageFile.id)).filter(
+            and_(
+                base_image_filter,
+                ImageFile.status == ImageFileStatusEnum.PROCESSED
+            )
+        ).scalar() or 0
+
+        # 计算完成率
+        completion_rate = 0.0
+        if total_studies > 0:
+            completion_rate = round((processed_images / total_studies) * 100, 1)
+
+        # 计算平均处理时间（小时）
+        # 简化实现，使用固定值
+        avg_processing_time = 2.5  # 假设平均处理时间为2.5小时
+
+        overview = DashboardOverview(
+            total_patients=total_patients,
+            new_patients_today=new_patients_today,
+            new_patients_week=new_patients_week,
+            active_patients=active_patients,
+            total_images=total_studies,
+            images_today=studies_today,
+            images_week=studies_week,
+            pending_images=pending_images,
+            processed_images=processed_images,
+            completion_rate=completion_rate,
+            average_processing_time=avg_processing_time,
+            system_alerts=pending_images,  # 待处理影像数作为系统警告
+            generated_at=datetime.now()
+        )
+
+        return overview
 
     except Exception as e:
         logger.error(f"获取仪表板统计数据失败: {e}")
-        # 如果数据库查询失败，返回默认值
-        return {
-            "total_patients": 0,
-            "total_images": 0,
-            "total_reports": 0,
-            "pending_analysis": 0,
-            "today_processed": 0,
-            "ai_accuracy": 0.94,
-            "system_status": "数据库连接异常"
-        }
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取仪表板统计数据过程中发生错误"
+        )
 
 
 @router.get("/tasks")

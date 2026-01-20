@@ -9,7 +9,6 @@
  * @created 2025-09-24
  */
 
-import { Button } from '@/components/ui/SimpleButton';
 import { useAuth, useUser } from '@/store/authStore';
 import { Building2, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
@@ -113,12 +112,22 @@ export default function RegisterPage() {
       return;
     }
 
-    const success = await register(formData);
-    if (success) {
-      setIsSuccess(true);
-      setTimeout(() => {
-        router.push('/auth/login');
-      }, 2000);
+    try {
+      const success = await register(formData);
+      if (success) {
+        // 使用 setTimeout 确保状态更新在下一个事件循环中执行
+        setTimeout(() => {
+          setIsSuccess(true);
+        }, 0);
+
+        // 延迟跳转
+        setTimeout(() => {
+          router.push('/auth/login');
+        }, 2000);
+      }
+    } catch (err) {
+      // 错误已经在 authStore 中处理
+      console.error('注册失败:', err);
     }
   };
 
@@ -146,7 +155,12 @@ export default function RegisterPage() {
           <p className="text-gray-600 mb-4">
             您的账号已创建成功，即将跳转到登录页面...
           </p>
-          <Button onClick={() => router.push('/auth/login')}>立即登录</Button>
+          <button
+            onClick={() => router.push('/auth/login')}
+            className="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-4 py-2 text-sm"
+          >
+            立即登录
+          </button>
         </div>
       </div>
     );
@@ -367,9 +381,23 @@ export default function RegisterPage() {
           </div>
 
           {/* 注册按钮 */}
-          <Button type="submit" className="w-full mt-6" disabled={isLoading}>
-            {isLoading ? '注册中...' : '注册账号'}
-          </Button>
+          <button
+            type="submit"
+            className="w-full mt-6 inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-4 py-2 text-sm"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                注册中...
+              </>
+            ) : (
+              '注册账号'
+            )}
+          </button>
 
           {/* 登录链接 */}
           <div className="text-center text-sm mt-4">

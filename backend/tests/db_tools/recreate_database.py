@@ -33,7 +33,8 @@ def import_all_models():
 
     # 导入所有模型
     from app.models.patient import Patient, PatientVisit, PatientAllergy, PatientMedicalHistory
-    from app.models.image import Study, Series, Instance, ImageAnnotation, AITask
+    from app.models.image import ImageAnnotation, AITask
+    from app.models.image_file import ImageFile
     from app.models.report import ReportTemplate, DiagnosticReport, ReportFinding, ReportRevision
     from app.models.user import User, Role, Permission, Department
     from app.models.system import SystemConfig, SystemLog, SystemMonitor, SystemAlert, Notification
@@ -41,7 +42,7 @@ def import_all_models():
     # 验证模型导入
     models = [
         Patient, PatientVisit, PatientAllergy, PatientMedicalHistory,
-        Study, Series, Instance, ImageAnnotation, AITask,
+        ImageFile, ImageAnnotation, AITask,
         ReportTemplate, DiagnosticReport, ReportFinding, ReportRevision,
         User, Role, Permission, Department,
         SystemConfig, SystemLog, SystemMonitor, SystemAlert, Notification
