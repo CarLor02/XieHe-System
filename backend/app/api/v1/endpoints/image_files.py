@@ -12,7 +12,7 @@ from typing import List, Optional
 from datetime import datetime, date
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
@@ -84,6 +84,7 @@ async def get_image_files_list(
     file_status: Optional[ImageFileStatusEnum] = Query(None, description="文件状态（UPLOADED/PROCESSING/PROCESSED/FAILED）"),
     status: Optional[str] = Query(None, description="兼容参数：pending=待处理"),
     pending_only: Optional[bool] = Query(None, description="仅显示待处理（状态不是PROCESSED 或 没有测量数据）"),
+    review_status: Optional[str] = Query(None, description="审核状态(reviewed/unreviewed)"),
     description: Optional[str] = Query(None, description="检查类型"),
     start_date: Optional[date] = Query(None, description="开始日期"),
     end_date: Optional[date] = Query(None, description="结束日期"),
@@ -96,6 +97,8 @@ async def get_image_files_list(
 
     支持多种筛选条件：
     - status=pending 或 pending_only=true: 仅显示待处理（状态不是PROCESSED 或 没有ImageAnnotation）
+    - review_status=reviewed: 已审核（有ImageAnnotation）
+    - review_status=unreviewed: 未审核（没有ImageAnnotation）
     - file_status: 按具体状态筛选（UPLOADED/PROCESSING/PROCESSED/FAILED）
     - file_type: 按文件类型筛选
     - search: 搜索文件名、患者姓名、检查类型
@@ -164,6 +167,21 @@ async def get_image_files_list(
                     subquery.c.image_file_id == None
                 )
             )
+        elif review_status:
+            # 审核状态筛选
+            subquery = db.query(ImageAnnotation.image_file_id).distinct().subquery()
+            if review_status == 'reviewed':
+                # 已审核：有ImageAnnotation记录
+                query = query.join(
+                    subquery,
+                    ImageFile.id == subquery.c.image_file_id
+                )
+            elif review_status == 'unreviewed':
+                # 未审核：没有ImageAnnotation记录
+                query = query.outerjoin(
+                    subquery,
+                    ImageFile.id == subquery.c.image_file_id
+                ).filter(subquery.c.image_file_id == None)
         elif file_status:
             # 按具体状态筛选
             query = query.filter(ImageFile.status == file_status)
@@ -232,150 +250,8 @@ async def get_image_files_list(
     except Exception as e:
         logger.error(f"获取影像列表失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取影像列表失败: {str(e)}"
-        )
-
-
-@router.get("/my-images", response_model=ImageFileListResponse, summary="获取当前用户的影像文件")
-async def get_my_images(
-    page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    file_type: Optional[ImageFileTypeEnum] = Query(None, description="文件类型"),
-    file_status: Optional[ImageFileStatusEnum] = Query(None, description="文件状态"),
-    description: Optional[str] = Query(None, description="检查类型"),
-    start_date: Optional[date] = Query(None, description="开始日期"),
-    end_date: Optional[date] = Query(None, description="结束日期"),
-    search: Optional[str] = Query(None, description="搜索关键词(文件名/患者姓名/检查类型)"),
-    review_status: Optional[str] = Query(None, description="审核状态(reviewed/unreviewed)"),
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    """
-    获取当前用户上传的所有影像文件
-
-    超级管理员可以查看所有影像文件
-    普通用户只能查看自己上传的影像文件
-
-    支持分页、筛选和搜索
-    搜索支持：文件名、患者姓名、检查类型的模糊匹配
-    审核状态筛选：reviewed(已审核) / unreviewed(未审核)
-    """
-    try:
-        from app.models.patient import Patient
-        from sqlalchemy import or_
-
-        # 构建查询，关联患者表以支持按患者姓名搜索
-        query = db.query(ImageFile).outerjoin(
-            Patient, ImageFile.patient_id == Patient.id
-        ).filter(
-            ImageFile.is_deleted == False
-        )
-
-        # 超级管理员可以查看所有影像，普通用户只能查看自己上传的
-        is_superuser = current_user.get('is_superuser', False)
-        if not is_superuser:
-            query = query.filter(ImageFile.uploaded_by == current_user.get('id'))
-
-        # 应用筛选条件
-        if file_type:
-            query = query.filter(ImageFile.file_type == file_type)
-
-        if file_status:
-            query = query.filter(ImageFile.status == file_status)
-
-        if description:
-            query = query.filter(ImageFile.description == description)
-
-        if start_date:
-            query = query.filter(ImageFile.created_at >= start_date)
-
-        if end_date:
-            end_datetime = datetime.combine(end_date, datetime.max.time())
-            query = query.filter(ImageFile.created_at <= end_datetime)
-
-        # 审核状态筛选
-        if review_status:
-            if review_status == 'reviewed':
-                # 已审核：有关联的 ImageAnnotation 且状态为 PROCESSED
-                subquery = db.query(ImageAnnotation.image_file_id).distinct().subquery()
-                query = query.join(
-                    subquery,
-                    ImageFile.id == subquery.c.image_file_id
-                ).filter(ImageFile.status == ImageFileStatusEnum.PROCESSED)
-            elif review_status == 'unreviewed':
-                # 未审核：状态不是PROCESSED 或 没有ImageAnnotation（与待审核逻辑一致）
-                subquery = db.query(ImageAnnotation.image_file_id).distinct().subquery()
-                query = query.outerjoin(
-                    subquery,
-                    ImageFile.id == subquery.c.image_file_id
-                ).filter(
-                    or_(
-                        ImageFile.status != ImageFileStatusEnum.PROCESSED,
-                        subquery.c.image_file_id == None
-                    )
-                )
-
-        if search:
-            # 模糊搜索：文件名、患者姓名、检查类型
-            search_filter = or_(
-                ImageFile.original_filename.like(f"%{search}%"),
-                Patient.name.like(f"%{search}%"),
-                ImageFile.description.like(f"%{search}%")
-            )
-            query = query.filter(search_filter)
-        
-        # 获取总数
-        total = query.count()
-        
-        # 分页查询
-        images = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-        
-        # 获取上传者信息
-        items = []
-        for img in images:
-            img_dict = {
-                "id": img.id,
-                "file_uuid": img.file_uuid,
-                "original_filename": img.original_filename,
-                "file_type": img.file_type.value,
-                "mime_type": img.mime_type,
-                "file_size": img.file_size,
-                "storage_path": img.storage_path,
-                "thumbnail_path": img.thumbnail_path,
-                "uploaded_by": img.uploaded_by,
-                "uploader_name": None,
-                "patient_id": img.patient_id,
-                "modality": img.modality,
-                "body_part": img.body_part,
-                "study_date": img.study_date,
-                "description": img.description,
-                "status": img.status.value,
-                "upload_progress": img.upload_progress,
-                "created_at": img.created_at,
-                "uploaded_at": img.uploaded_at
-            }
-            
-            # 获取上传者姓名
-            if img.uploaded_by:
-                uploader = db.query(User).filter(User.id == img.uploaded_by).first()
-                if uploader:
-                    img_dict["uploader_name"] = uploader.username
-            
-            items.append(ImageFileResponse(**img_dict))
-        
-        return ImageFileListResponse(
-            total=total,
-            page=page,
-            page_size=page_size,
-            items=items
-        )
-        
-    except Exception as e:
-        logger.error(f"获取影像文件列表失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取影像文件列表失败"
         )
 
 
@@ -434,7 +310,7 @@ async def get_patient_images(
     except Exception as e:
         logger.error(f"获取患者影像文件失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取患者影像文件失败"
         )
 
@@ -453,10 +329,10 @@ async def get_image_file(
             ImageFile.id == file_id,
             ImageFile.is_deleted == False
         ).first()
-        
+
         if not image:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="影像文件不存在"
             )
         
@@ -496,7 +372,7 @@ async def get_image_file(
     except Exception as e:
         logger.error(f"获取影像文件详情失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取影像文件详情失败"
         )
 
@@ -518,17 +394,17 @@ async def download_image_file(
         
         if not image:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="影像文件不存在"
             )
-        
+
         # 构建文件路径
         file_path = Path(settings.UPLOAD_DIR) / image.storage_path
-        
+
         if not file_path.exists():
             logger.error(f"文件不存在: {file_path}")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="文件不存在"
             )
         
@@ -543,7 +419,7 @@ async def download_image_file(
     except Exception as e:
         logger.error(f"下载影像文件失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="下载影像文件失败"
         )
 
@@ -565,14 +441,14 @@ async def delete_image_file(
         
         if not image:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="影像文件不存在"
             )
-        
+
         # 检查权限：只能删除自己上传的文件
         if image.uploaded_by != current_user.get('id'):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
+                status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="无权删除此文件"
             )
         
@@ -591,7 +467,7 @@ async def delete_image_file(
         logger.error(f"删除影像文件失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除影像文件失败"
         )
 
@@ -645,7 +521,7 @@ async def get_image_stats(
     except Exception as e:
         logger.error(f"获取影像统计失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取影像统计失败"
         )
 
@@ -676,7 +552,7 @@ async def update_annotation(
         
         if not image:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="影像文件不存在"
             )
         
@@ -726,6 +602,6 @@ async def update_annotation(
         logger.error(f"更新标注数据失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="更新标注数据失败"
         )

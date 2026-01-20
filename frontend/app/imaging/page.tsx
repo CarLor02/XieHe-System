@@ -9,7 +9,7 @@ import {
   useUser,
 } from '@/store/authStore';
 import {
-  getMyImages,
+  getImageFiles,
   deleteImageFile,
   downloadImageFile,
   getImagePreviewUrl,
@@ -126,7 +126,7 @@ export default function ImagingPage() {
       if (dateFrom) filters.start_date = dateFrom;
       if (dateTo) filters.end_date = dateTo;
 
-      const response = await getMyImages(filters);
+      const response = await getImageFiles(filters);
 
       // 验证响应数据格式
       if (!response || typeof response !== 'object') {

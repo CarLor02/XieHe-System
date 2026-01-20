@@ -57,9 +57,21 @@ export interface ImageFileFilters {
 }
 
 /**
- * 获取当前用户的影像文件列表
+ * 获取影像文件列表
+ *
+ * 权限控制：
+ * - 超级管理员：看所有影像
+ * - 团队负责人(ADMIN)：看团队所有成员上传的影像
+ * - 普通用户：只看自己上传的影像
+ *
+ * 支持筛选：
+ * - status: 'pending' (待处理)
+ * - review_status: 'reviewed' (已审核) / 'unreviewed' (未审核)
+ * - description: 检查类型
+ * - search: 搜索关键词
+ * - start_date / end_date: 日期范围
  */
-export async function getMyImages(filters: ImageFileFilters = {}): Promise<ImageFileListResponse> {
+export async function getImageFiles(filters: ImageFileFilters = {}): Promise<ImageFileListResponse> {
   const client = createAuthenticatedClient();
 
   const params: any = {
@@ -74,7 +86,7 @@ export async function getMyImages(filters: ImageFileFilters = {}): Promise<Image
   if (filters.search) params.search = filters.search;
   if (filters.review_status) params.review_status = filters.review_status;
 
-  const response = await client.get('/api/v1/image-files/my-images', { params });
+  const response = await client.get('/api/v1/image-files', { params });
   return response.data;
 }
 
