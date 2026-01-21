@@ -105,8 +105,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     useState(false);
   const [isSettingStandardDistance, setIsSettingStandardDistance] = useState(false);
   const [standardDistancePoints, setStandardDistancePoints] = useState<Point[]>([]);
-  const [showStandardDistanceDialog, setShowStandardDistanceDialog] = useState(false);
   const [showStandardDistanceWarning, setShowStandardDistanceWarning] = useState(false);
+  const [hoveredStandardPointIndex, setHoveredStandardPointIndex] = useState<number | null>(null);
+  const [draggingStandardPointIndex, setDraggingStandardPointIndex] = useState<number | null>(null);
 
   // AI检测
   const [isAIDetecting, setIsAIDetecting] = useState(false);
@@ -243,41 +244,28 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     const pointsToUse = newStandardDistancePoints !== undefined ? newStandardDistancePoints : standardDistancePoints;
     
     const updatedMeasurements = measurements.map((measurement) => {
-      if (measurement.type === 'AVT' || measurement.type === 'TS') {
+      // 处理所有依赖标准距离的测量类型：AVT, TS, SVA
+      if ((measurement.type === 'AVT' || measurement.type === 'TS' || measurement.type === 'SVA') 
+          && measurement.points.length >= 2) {
         const imageWidth = 1000;
         const referenceWidth = 300;
-        let newValue = measurement.value;
         
-        if (measurement.type === 'AVT' && measurement.points.length >= 2) {
-          // 临时使用新的标准距离值进行计算
-          let distance: number;
-          if (distanceToUse && pointsToUse && pointsToUse.length === 2) {
-            const standardPixelDx = pointsToUse[1].x - pointsToUse[0].x;
-            const standardPixelDy = pointsToUse[1].y - pointsToUse[0].y;
-            const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
-            const pixelDistance = Math.abs(measurement.points[1].x - measurement.points[0].x);
-            distance = (pixelDistance / standardPixelLength) * distanceToUse;
-          } else {
-            const pixelDistance = Math.abs(measurement.points[1].x - measurement.points[0].x);
-            distance = (pixelDistance / imageWidth) * referenceWidth;
-          }
-          newValue = `${distance.toFixed(1)}mm`;
-        } else if (measurement.type === 'TS' && measurement.points.length >= 2) {
-          // 临时使用新的标准距离值进行计算
-          let distance: number;
-          if (distanceToUse && pointsToUse && pointsToUse.length === 2) {
-            const standardPixelDx = pointsToUse[1].x - pointsToUse[0].x;
-            const standardPixelDy = pointsToUse[1].y - pointsToUse[0].y;
-            const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
-            const pixelDistance = Math.abs(measurement.points[1].x - measurement.points[0].x);
-            distance = (pixelDistance / standardPixelLength) * distanceToUse;
-          } else {
-            const pixelDistance = Math.abs(measurement.points[1].x - measurement.points[0].x);
-            distance = (pixelDistance / imageWidth) * referenceWidth;
-          }
-          newValue = `${distance.toFixed(1)}mm`;
+        // 计算水平像素距离
+        const pixelDistance = Math.abs(measurement.points[1].x - measurement.points[0].x);
+        
+        // 根据是否有标准距离来计算实际距离
+        let distance: number;
+        if (distanceToUse && pointsToUse && pointsToUse.length === 2) {
+          const standardPixelDx = pointsToUse[1].x - pointsToUse[0].x;
+          const standardPixelDy = pointsToUse[1].y - pointsToUse[0].y;
+          const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+          distance = (pixelDistance / standardPixelLength) * distanceToUse;
+        } else {
+          // 如果没有标准距离，使用默认比例
+          distance = (pixelDistance / imageWidth) * referenceWidth;
         }
         
+        const newValue = `${distance.toFixed(1)}mm`;
         return { ...measurement, value: newValue };
       }
       return measurement;
@@ -1127,12 +1115,15 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               setClickedPoints={setClickedPoints}
               imageId={imageId}
               isSettingStandardDistance={isSettingStandardDistance}
+              setIsSettingStandardDistance={setIsSettingStandardDistance}
               standardDistancePoints={standardDistancePoints}
               setStandardDistancePoints={setStandardDistancePoints}
               standardDistance={standardDistance}
-              onStandardDistanceComplete={() => {
-                setShowStandardDistanceDialog(true);
-              }}
+              hoveredStandardPointIndex={hoveredStandardPointIndex}
+              setHoveredStandardPointIndex={setHoveredStandardPointIndex}
+              draggingStandardPointIndex={draggingStandardPointIndex}
+              setDraggingStandardPointIndex={setDraggingStandardPointIndex}
+              recalculateAVTandTS={recalculateAVTandTS}
               onImageSizeChange={(size) => setImageNaturalSize(size)}
             />
           </div>
@@ -1341,12 +1332,39 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 <span>{isSettingStandardDistance ? '设置标准距离中...' : '标准距离设置'}</span>
               </button>
 
-              {/* 显示当前标准距离 */}
-              {standardDistance !== null && (
-                <div className="mt-2 text-xs text-green-400 text-center">
-                  ✓ 当前标准距离: {standardDistance}mm
-                </div>
-              )}
+              {/* 常驻输入框：设置标准距离 */}
+              <div className="mt-2">
+                <label className="text-xs text-gray-400 mb-1 block">标准距离值 (mm)</label>
+                <input
+                  type="number"
+                  value={standardDistanceValue}
+                  onChange={(e) => setStandardDistanceValue(e.target.value)}
+                  onBlur={() => {
+                    const value = parseFloat(standardDistanceValue);
+                    if (!isNaN(value) && value > 0 && standardDistancePoints.length === 2) {
+                      recalculateAVTandTS(value, standardDistancePoints);
+                      setStandardDistance(value);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const value = parseFloat(standardDistanceValue);
+                      if (!isNaN(value) && value > 0 && standardDistancePoints.length === 2) {
+                        recalculateAVTandTS(value, standardDistancePoints);
+                        setStandardDistance(value);
+                        setIsSettingStandardDistance(false);
+                      }
+                    }
+                  }}
+                  placeholder="例如: 100"
+                  className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 text-white text-sm rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                />
+                {standardDistance !== null && standardDistancePoints.length === 2 && (
+                  <div className="mt-1.5 text-xs text-green-400">
+                    ✓ 已设置: {standardDistance}mm
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* 标签系统按钮 */}
@@ -1481,89 +1499,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       </div>
     </div>
 
-    {/* 标准距离输入对话框 */}
-    {showStandardDistanceDialog && (
-      <div 
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-        onClick={(e) => {
-          // 点击背景关闭对话框（可选）
-          if (e.target === e.currentTarget) {
-            setShowStandardDistanceDialog(false);
-            setIsSettingStandardDistance(false);
-            setStandardDistancePoints([]);
-            setStandardDistanceValue('');
-          }
-        }}
-      >
-        <div 
-          className="bg-white rounded-lg p-6 w-96"
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onMouseUp={(e) => e.stopPropagation()}
-          onMouseMove={(e) => e.stopPropagation()}
-        >
-          <h3 className="text-lg font-semibold mb-4">设置标准距离</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            请输入这两个点之间的实际距离（单位：mm）
-          </p>
-          <input
-            type="number"
-            value={standardDistanceValue}
-            onChange={(e) => setStandardDistanceValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const value = parseFloat(standardDistanceValue);
-                if (!isNaN(value) && value > 0) {
-                  // 先重新计算，使用新的值
-                  recalculateAVTandTS(value, standardDistancePoints);
-                  // 然后更新状态
-                  setStandardDistance(value);
-                  setShowStandardDistanceDialog(false);
-                  setIsSettingStandardDistance(false);
-                  // 不清除 standardDistancePoints，保留标注点和线段
-                  setStandardDistanceValue('');
-                }
-              }
-            }}
-            placeholder="例如: 100"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none mb-4"
-            autoFocus
-          />
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={() => {
-                setShowStandardDistanceDialog(false);
-                setIsSettingStandardDistance(false);
-                setStandardDistancePoints([]);
-                setStandardDistanceValue('');
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-            >
-              取消
-            </button>
-            <button
-              onClick={() => {
-                const value = parseFloat(standardDistanceValue);
-                if (!isNaN(value) && value > 0) {
-                  // 先重新计算，使用新的值
-                  recalculateAVTandTS(value, standardDistancePoints);
-                  // 然后更新状态
-                  setStandardDistance(value);
-                  setShowStandardDistanceDialog(false);
-                  setIsSettingStandardDistance(false);
-                  // 不清除 standardDistancePoints，保留标注点和线段
-                  setStandardDistanceValue('');
-                }
-              }}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-            >
-              确认
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
     {/* 标准距离未设置警告对话框 */}
     {showStandardDistanceWarning && (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -1621,10 +1556,15 @@ function ImageCanvas({
   setClickedPoints,
   imageId,
   isSettingStandardDistance,
+  setIsSettingStandardDistance,
   standardDistancePoints,
   setStandardDistancePoints,
   standardDistance,
-  onStandardDistanceComplete,
+  hoveredStandardPointIndex,
+  setHoveredStandardPointIndex,
+  draggingStandardPointIndex,
+  setDraggingStandardPointIndex,
+  recalculateAVTandTS,
   onImageSizeChange,
 }: {
   selectedImage: any;
@@ -1638,10 +1578,15 @@ function ImageCanvas({
   setClickedPoints: (points: Point[]) => void;
   imageId: string;
   isSettingStandardDistance: boolean;
+  setIsSettingStandardDistance: (value: boolean) => void;
   standardDistancePoints: Point[];
   setStandardDistancePoints: (points: Point[]) => void;
   standardDistance: number | null;
-  onStandardDistanceComplete: () => void;
+  hoveredStandardPointIndex: number | null;
+  setHoveredStandardPointIndex: (index: number | null) => void;
+  draggingStandardPointIndex: number | null;
+  setDraggingStandardPointIndex: (index: number | null) => void;
+  recalculateAVTandTS: (distance?: number, points?: Point[]) => void;
   onImageSizeChange: (size: { width: number; height: number }) => void;
 }) {
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
@@ -1716,6 +1661,9 @@ function ImageCanvas({
   // 隐藏整个标注状态 - 用于控制整个标注（图形+标识）的显示/隐藏
   const [hiddenAnnotationIds, setHiddenAnnotationIds] = useState<Set<string>>(new Set());
   const [hideAllAnnotations, setHideAllAnnotations] = useState(false);
+  
+  // 标准距离可见性状态
+  const [isStandardDistanceHidden, setIsStandardDistanceHidden] = useState(false);
 
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
@@ -1947,14 +1895,55 @@ function ImageCanvas({
     // 优先处理标准距离设置模式
     if (isSettingStandardDistance && e.button === 0) {
       const imagePoint = screenToImage(x, y);
-      const newPoints = [...standardDistancePoints, imagePoint];
-      setStandardDistancePoints(newPoints);
       
-      if (newPoints.length === 2) {
-        // 两个点已标注完成，触发对话框
-        onStandardDistanceComplete();
+      // 检查是否点击了已有的标准距离点（用于拖拽）
+      if (standardDistancePoints.length === 2) {
+        const clickRadius = 10; // 屏幕像素，与其他标注点保持一致
+        
+        for (let i = 0; i < standardDistancePoints.length; i++) {
+          const point = standardDistancePoints[i];
+          const pointScreen = imageToScreen(point);
+          const distance = Math.sqrt(
+            Math.pow(x - pointScreen.x, 2) + Math.pow(y - pointScreen.y, 2)
+          );
+          
+          if (distance < clickRadius) {
+            setDraggingStandardPointIndex(i);
+            return; // 开始拖拽，阻止其他逻辑
+          }
+        }
       }
+      
+      // 如果未点击已有点，且点数未满2个，则添加新点
+      if (standardDistancePoints.length < 2) {
+        const newPoints = [...standardDistancePoints, imagePoint];
+        setStandardDistancePoints(newPoints);
+        
+        // 如果标注了两个点，自动结束设置模式
+        if (newPoints.length === 2) {
+          setIsSettingStandardDistance(false);
+        }
+      }
+      
       return; // 阻止其他逻辑执行
+    }
+    
+    // 在hand模式下，允许拖拽标准距离点（即使不在设置模式）
+    if (selectedTool === 'hand' && e.button === 0 && standardDistancePoints.length === 2) {
+      const clickRadius = 10; // 屏幕像素，与其他标注点保持一致
+      
+      for (let i = 0; i < standardDistancePoints.length; i++) {
+        const point = standardDistancePoints[i];
+        const pointScreen = imageToScreen(point);
+        const distance = Math.sqrt(
+          Math.pow(x - pointScreen.x, 2) + Math.pow(y - pointScreen.y, 2)
+        );
+        
+        if (distance < clickRadius) {
+          setDraggingStandardPointIndex(i);
+          return; // 开始拖拽，阻止其他逻辑
+        }
+      }
     }
 
     // 按住左键时的调整模式
@@ -2581,6 +2570,44 @@ function ImageCanvas({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    // 处理标准距离点的拖拽
+    if (draggingStandardPointIndex !== null && e.buttons === 1) {
+      const imagePoint = screenToImage(x, y);
+      const newPoints = [...standardDistancePoints];
+      newPoints[draggingStandardPointIndex] = imagePoint;
+      setStandardDistancePoints(newPoints);
+      
+      // 实时重新计算所有依赖标准距离的测量结果
+      if (standardDistance !== null && newPoints.length === 2) {
+        recalculateAVTandTS(standardDistance, newPoints);
+      }
+      return;
+    }
+
+    // 检测是否悬浮在标准距离点上（不限制工具类型）
+    if (standardDistancePoints.length > 0) {
+      const hoverRadius = 10; // 屏幕像素，与其他标注点保持一致
+      let foundHover = false;
+      
+      for (let i = 0; i < standardDistancePoints.length; i++) {
+        const point = standardDistancePoints[i];
+        const pointScreen = imageToScreen(point);
+        const distance = Math.sqrt(
+          Math.pow(x - pointScreen.x, 2) + Math.pow(y - pointScreen.y, 2)
+        );
+        
+        if (distance < hoverRadius) {
+          setHoveredStandardPointIndex(i);
+          foundHover = true;
+          break;
+        }
+      }
+      
+      if (!foundHover && hoveredStandardPointIndex !== null) {
+        setHoveredStandardPointIndex(null);
+      }
+    }
+
     // 更新绘制状态中的当前点（用于预览）
     if (drawingState.isDrawing) {
       const imagePoint = screenToImage(x, y);
@@ -3058,6 +3085,11 @@ function ImageCanvas({
   };
 
   const handleMouseUp = () => {
+    // 清除标准距离点拖拽状态
+    if (draggingStandardPointIndex !== null) {
+      setDraggingStandardPointIndex(null);
+    }
+    
     // 结束拖拽选中对象
     if (isDraggingSelection) {
       setIsDraggingSelection(false);
@@ -3114,6 +3146,12 @@ function ImageCanvas({
       startPoint: null,
       currentPoint: null,
     });
+    
+    // 清除标准距离点拖拽状态
+    if (draggingStandardPointIndex !== null) {
+      setDraggingStandardPointIndex(null);
+    }
+    
     setIsDragging(false);
     setAdjustMode('none');
   };
@@ -3251,7 +3289,7 @@ function ImageCanvas({
         onPointerMove={(e) => e.stopPropagation()}
         onPointerUp={(e) => e.stopPropagation()}
       >
-        <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden w-[192px]">
+        <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden w-[240px]">
           <div className="flex items-center justify-between px-3 py-2 bg-black/20 w-full">
             <div className="flex items-center min-w-0">
               <button
@@ -3259,12 +3297,14 @@ function ImageCanvas({
                   e.stopPropagation();
                   const newHideAll = !hideAllAnnotations;
                   setHideAllAnnotations(newHideAll);
-                  // 同步所有个体标注按钮状态
+                  // 同步所有个体标注按钮状态（包括标准距离）
                   if (newHideAll) {
                     const allIds = new Set(measurements.map(m => m.id));
                     setHiddenAnnotationIds(allIds);
+                    setIsStandardDistanceHidden(true);
                   } else {
                     setHiddenAnnotationIds(new Set());
+                    setIsStandardDistanceHidden(false);
                   }
                 }}
                 className="text-white/80 hover:text-white w-5 h-5 flex items-center justify-center flex-shrink-0 mr-1"
@@ -3304,11 +3344,50 @@ function ImageCanvas({
 
           {showResults && (
             <div 
-              className="max-w-48 max-h-[50vh] overflow-y-auto"
+              className="max-h-[50vh] overflow-y-auto"
               onWheel={(e) => e.stopPropagation()}
             >
-              {measurements.length > 0 ? (
+              {(standardDistance !== null && standardDistancePoints.length === 2) || measurements.length > 0 ? (
                 <div className="px-3 py-2 space-y-1">
+                  {/* 标准距离显示项 - 始终显示在最前面 */}
+                  {standardDistance !== null && standardDistancePoints.length === 2 && (
+                    <div
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-purple-500/20 border border-purple-500/40"
+                    >
+                      {/* 标注显示按钮 */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newHidden = !isStandardDistanceHidden;
+                          setIsStandardDistanceHidden(newHidden);
+                          
+                          // 同步全局标注隐藏状态
+                          const allHidden = newHidden && measurements.every(m => hiddenAnnotationIds.has(m.id));
+                          setHideAllAnnotations(allHidden);
+                        }}
+                        className="text-purple-400/60 hover:text-purple-400 w-4 h-4 flex items-center justify-center flex-shrink-0"
+                        title={isStandardDistanceHidden ? "显示标注" : "隐藏标注"}
+                      >
+                        <i className={`${isStandardDistanceHidden ? 'ri-eye-off-line' : 'ri-eye-line'} text-xs`}></i>
+                      </button>
+                      {/* 标识显示占位（保持对齐） */}
+                      <div className="w-4 h-4 flex-shrink-0"></div>
+                      
+                      {/* 中间内容区域 */}
+                      <div className="flex-1 flex items-center justify-between min-w-0">
+                        <span className="truncate mr-2 font-medium text-purple-300">
+                          标准距离
+                        </span>
+                        <span className="font-mono whitespace-nowrap text-purple-200">
+                          {standardDistance}mm
+                        </span>
+                      </div>
+                      
+                      {/* 右侧占位（保持对齐） */}
+                      <div className="w-4 h-4 flex-shrink-0"></div>
+                    </div>
+                  )}
+                  
                   {measurements.map(measurement => {
                     // 判断当前测量是否被选中或悬浮
                     const isSelected = selectedMeasurementId === measurement.id;
@@ -3836,44 +3915,46 @@ function ImageCanvas({
           );
         })}
 
-        {/* 绘制标准距离设置的点 - 仅在只有一个点时显示 */}
-        {standardDistancePoints.length === 1 && (() => {
-          const screenPoint = imageToScreen(standardDistancePoints[0]);
+        {/* 绘制标准距离设置的点 */}
+        {!isStandardDistanceHidden && standardDistancePoints.map((point, index) => {
+          const screenPoint = imageToScreen(point);
+          const isHovered = hoveredStandardPointIndex === index;
+          const isDragging = draggingStandardPointIndex === index;
           return (
-            <g key="standard-distance-0">
+            <g key={`standard-distance-${index}`}>
               <circle
                 cx={screenPoint.x}
                 cy={screenPoint.y}
-                r="4"
-                fill="#ef4444"
+                r={isHovered || isDragging ? "6" : "4"}
+                fill={isHovered || isDragging ? "#fbbf24" : "#9333ea"}
                 stroke="#ffffff"
                 strokeWidth="2"
+                style={{ cursor: 'pointer' }}
               />
               {/* 点序号背景 */}
               <rect
-                x={screenPoint.x + 4}
-                y={screenPoint.y - 14}
-                width="10"
-                height="12"
+                x={screenPoint.x + (isHovered || isDragging ? 7 : 5)}
+                y={screenPoint.y - (isHovered || isDragging ? 16 : 14)}
+                width={isHovered || isDragging ? "12" : "10"}
+                height={isHovered || isDragging ? "14" : "12"}
                 fill="white"
                 opacity="0.9"
                 rx="2"
               />
               <text
-                x={screenPoint.x + 9}
-                y={screenPoint.y - 4}
-                fill="#ef4444"
-                fontSize="12"
+                x={screenPoint.x + (isHovered || isDragging ? 13 : 10)}
+                y={screenPoint.y - (isHovered || isDragging ? 4 : 4)}
+                fill={isHovered || isDragging ? "#fbbf24" : "#9333ea"}
+                fontSize={isHovered || isDragging ? "14" : "12"}
                 fontWeight="bold"
+                textAnchor="middle"
               >
-                1
+                {index + 1}
               </text>
             </g>
           );
-        })()}
-
-        {/* 绘制标准距离设置的尺子样式 */}
-        {standardDistancePoints.length === 2 && (() => {
+        })}        {/* 绘制标准距离设置的尺子样式 */}
+        {!isStandardDistanceHidden && standardDistancePoints.length === 2 && (() => {
           const p1 = imageToScreen(standardDistancePoints[0]);
           const p2 = imageToScreen(standardDistancePoints[1]);
           const midX = (p1.x + p2.x) / 2;
@@ -3920,39 +4001,6 @@ function ImageCanvas({
                 stroke="#9333ea"
                 strokeWidth="2"
               />
-              
-              {/* 显示距离标识 */}
-              {standardDistance && (() => {
-                const textContent = `${standardDistance}mm`;
-                const textWidth = textContent.length * 16 * 0.6;
-                const textHeight = 16 * 1.4;
-                const padding = 4;
-                return (
-                  <g>
-                    {/* 白色背景 */}
-                    <rect
-                      x={midX - textWidth/2 - padding}
-                      y={midY - 10 - textHeight/2 - padding}
-                      width={textWidth + padding * 2}
-                      height={textHeight + padding * 2}
-                      fill="white"
-                      opacity="0.9"
-                      rx="3"
-                    />
-                    {/* 文字 */}
-                    <text
-                      x={midX}
-                      y={midY - 10 + 16 * 0.35}
-                      fill="#9333ea"
-                      fontSize="16"
-                      fontWeight="bold"
-                      textAnchor="middle"
-                    >
-                      {standardDistance}mm
-                    </text>
-                  </g>
-                );
-              })()}
             </g>
           );
         })()}
