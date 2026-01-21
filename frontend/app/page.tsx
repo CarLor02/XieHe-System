@@ -117,11 +117,11 @@ export default function Home() {
     }
   };
 
-  // 认证检查 - 简化逻辑，允许未登录用户访问主页
+  // 认证检查 - 未登录用户重定向到登录页面
   useEffect(() => {
     if (mounted && !isAuthenticated) {
-      // 不强制重定向，允许访客查看主页
-      console.log('用户未登录，显示访客模式');
+      console.log('用户未登录，重定向到登录页面');
+      router.push('/auth/login');
     }
   }, [mounted, isAuthenticated, router]);
 

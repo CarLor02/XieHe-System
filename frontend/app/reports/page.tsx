@@ -10,6 +10,8 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useUser } from '@/store/authStore';
 import ReportEditor from '../../components/reports/ReportEditor';
 import ReportExport from '../../components/reports/ReportExport';
 import ReportPreview from '../../components/reports/ReportPreview';
@@ -104,6 +106,8 @@ const fetchReports = async (
 };
 
 export default function ReportsPage() {
+  const router = useRouter();
+  const { isAuthenticated } = useUser();
   const [reports, setReports] = useState<ReportData[]>([]);
   const [templates, setTemplates] = useState<ReportTemplate[]>([]);
   const [selectedReport, setSelectedReport] = useState<ReportData | null>(null);
@@ -123,6 +127,14 @@ export default function ReportsPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const reportsPerPage = 20;
+
+  // 认证检查
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [isAuthenticated, router]);
 
   // 获取报告数据
   const fetchReports = async () => {

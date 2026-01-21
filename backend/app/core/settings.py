@@ -116,7 +116,7 @@ class Settings(BaseSettings):
     
     JWT_SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 720  # 12小时
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # 密码配置

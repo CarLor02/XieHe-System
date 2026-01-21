@@ -27,7 +27,7 @@ interface ModelData {
 
 export default function ModelCenter() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, isAuthenticated } = useUser();
   const isSuperuser = user?.is_superuser || false;
   const isAdmin = user?.is_system_admin || user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'team_admin';
   const [showUserSettings, setShowUserSettings] = useState(false);
@@ -39,6 +39,14 @@ export default function ModelCenter() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
+
+  // 认证检查
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  }, [isAuthenticated, router]);
 
   const loadModels = async () => {
     try {
