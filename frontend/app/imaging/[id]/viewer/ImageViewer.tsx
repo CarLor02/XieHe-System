@@ -464,7 +464,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setIsMeasurementsLoading(true);
     try {
       const client = createAuthenticatedClient();
-      const response = await client.get(`/api/v1/measurements/${imageId}`);
+      // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零），与保存时保持一致
+      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
+      const response = await client.get(`/api/v1/measurements/${numericId}`);
       if (response.status === 200) {
         const data = response.data;
         if (data.measurements && data.measurements.length > 0) {
@@ -870,8 +872,20 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         const aiMeasurements = aiData.measurements.map((m: any) => {
           console.log(`处理测量 ${m.type}，原始点:`, m.points);
           
+          // 获取该标注类型所需的点数
+          const tools = getTools(imageData.examType);
+          const tool = tools.find((t: any) => t.id === m.type.toLowerCase() || t.name === m.type);
+          const requiredPoints = tool?.pointsNeeded || m.points.length;
+          
+          // 如果返回的点数超过所需点数，只保留所需数量的点
+          let processedPoints = m.points;
+          if (requiredPoints > 0 && m.points.length > requiredPoints) {
+            processedPoints = m.points.slice(0, requiredPoints);
+            console.log(`${m.type} 返回了 ${m.points.length} 个点，只保留前 ${requiredPoints} 个点`);
+          }
+          
           // 转换坐标
-          const scaledPoints = m.points.map((p: any) => ({
+          const scaledPoints = processedPoints.map((p: any) => ({
             x: p.x * scaleX,
             y: p.y * scaleY
           }));
@@ -1034,6 +1048,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             {/* 标注操作按钮组 */}
             <div className="flex items-center space-x-2 border-r border-gray-600 pr-3">
               <button
+                onClick={saveMeasurements}
                 disabled={measurements.length === 0 || isSaving}
                 className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 title="保存标注到数据库"
@@ -1694,6 +1709,14 @@ function ImageCanvas({
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
   const [hoveredElementType, setHoveredElementType] = useState<'point' | 'whole' | null>(null);
 
+  // 隐藏标注状态 - 用于控制标注标识的显示/隐藏
+  const [hiddenMeasurementIds, setHiddenMeasurementIds] = useState<Set<string>>(new Set());
+  const [hideAllLabels, setHideAllLabels] = useState(false);
+  
+  // 隐藏整个标注状态 - 用于控制整个标注（图形+标识）的显示/隐藏
+  const [hiddenAnnotationIds, setHiddenAnnotationIds] = useState<Set<string>>(new Set());
+  const [hideAllAnnotations, setHideAllAnnotations] = useState(false);
+
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
@@ -2016,6 +2039,11 @@ function ImageCanvas({
         
         // 1. 检查是否点击了已完成的测量结果
         for (const measurement of measurements) {
+          // 跳过被隐藏的标注（标注整体被隐藏时，不响应任何鼠标事件）
+          if (hideAllAnnotations || hiddenAnnotationIds.has(measurement.id)) {
+            continue;
+          }
+          
           const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
           
           // 1.1 检查是否点击了任意点 - 优先级最高
@@ -2794,6 +2822,11 @@ function ImageCanvas({
 
       // 检查是否悬浮在已完成的测量结果上
       for (const measurement of measurements) {
+        // 跳过被隐藏的标注（标注整体被隐藏时，不响应任何鼠标事件）
+        if (hideAllAnnotations || hiddenAnnotationIds.has(measurement.id)) {
+          continue;
+        }
+        
         const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
         
         // 1. 检查是否悬浮在点上 - 优先级最高
@@ -3202,45 +3235,213 @@ function ImageCanvas({
       onMouseLeave={handleMouseLeave}
       onWheel={handleWheel}
       onDoubleClick={handleDoubleClick}
+      onDragStart={(e) => e.preventDefault()}
+      onDrag={(e) => e.preventDefault()}
+      onDragEnd={(e) => e.preventDefault()}
     >
       {/* 左上角测量结果展示区 */}
       <div 
-        className="absolute top-4 left-48 z-10"
+        className="absolute top-4 left-48 z-50"
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
         onMouseUp={(e) => e.stopPropagation()}
         onMouseMove={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerMove={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
       >
-        <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 bg-black/20">
-            <span className="text-white text-xs font-medium">测量结果</span>
+        <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden w-[192px]">
+          <div className="flex items-center justify-between px-3 py-2 bg-black/20 w-full">
+            <div className="flex items-center min-w-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newHideAll = !hideAllAnnotations;
+                  setHideAllAnnotations(newHideAll);
+                  // 同步所有个体标注按钮状态
+                  if (newHideAll) {
+                    const allIds = new Set(measurements.map(m => m.id));
+                    setHiddenAnnotationIds(allIds);
+                  } else {
+                    setHiddenAnnotationIds(new Set());
+                  }
+                }}
+                className="text-white/80 hover:text-white w-5 h-5 flex items-center justify-center flex-shrink-0 mr-1"
+                title={hideAllAnnotations ? "显示所有标注" : "隐藏所有标注"}
+              >
+                <i className={`${hideAllAnnotations ? 'ri-eye-off-line' : 'ri-eye-line'} text-sm`}></i>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newHideAll = !hideAllLabels;
+                  setHideAllLabels(newHideAll);
+                  // 同步所有个体标识按钮状态
+                  if (newHideAll) {
+                    const allIds = new Set(measurements.map(m => m.id));
+                    setHiddenMeasurementIds(allIds);
+                  } else {
+                    setHiddenMeasurementIds(new Set());
+                  }
+                }}
+                className="text-white/80 hover:text-white w-5 h-5 flex items-center justify-center flex-shrink-0 mr-2"
+                title={hideAllLabels ? "显示所有标识" : "隐藏所有标识"}
+              >
+                <i className={`${hideAllLabels ? 'ri-format-clear' : 'ri-text'} text-sm`}></i>
+              </button>
+              <span className="text-white text-xs font-medium whitespace-nowrap">测量结果</span>
+            </div>
             <button
               onClick={() => setShowResults(!showResults)}
-              className="text-white/80 hover:text-white p-0.5"
+              className="text-white/80 hover:text-white w-5 h-5 flex items-center justify-center flex-shrink-0 ml-2"
             >
               <i
-                className={`${showResults ? 'ri-eye-close-line' : 'ri-eye-line'} w-3 h-3 flex items-center justify-center`}
+                className={`${showResults ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} text-sm`}
               ></i>
             </button>
           </div>
 
           {showResults && (
-            <div className="max-w-48 max-h-64 overflow-y-auto">
+            <div 
+              className="max-w-48 max-h-[50vh] overflow-y-auto"
+              onWheel={(e) => e.stopPropagation()}
+            >
               {measurements.length > 0 ? (
                 <div className="px-3 py-2 space-y-1">
-                  {measurements.map(measurement => (
-                    <div
-                      key={measurement.id}
-                      className="flex items-center justify-between text-xs"
-                    >
-                      <span className="text-white/90 truncate mr-2">
-                        {measurement.type}
-                      </span>
-                      <span className="text-yellow-400 font-mono whitespace-nowrap">
-                        {measurement.value}
-                      </span>
-                    </div>
-                  ))}
+                  {measurements.map(measurement => {
+                    // 判断当前测量是否被选中或悬浮
+                    const isSelected = selectedMeasurementId === measurement.id;
+                    const isHovered = !isSelected && hoveredMeasurementId === measurement.id;
+                    const isLabelHidden = hiddenMeasurementIds.has(measurement.id);
+                    const isAnnotationHidden = hiddenAnnotationIds.has(measurement.id);
+                    
+                    return (
+                      <div
+                        key={measurement.id}
+                        className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-all ${
+                          isSelected 
+                            ? 'bg-white/20 border border-white/50' 
+                            : isHovered 
+                            ? 'bg-yellow-500/20 border border-yellow-500/40' 
+                            : 'hover:bg-white/5 border border-transparent'
+                        }`}
+                      >
+                        {/* 左侧标注显示按钮 */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newHidden = new Set(hiddenAnnotationIds);
+                            if (isAnnotationHidden) {
+                              newHidden.delete(measurement.id);
+                            } else {
+                              newHidden.add(measurement.id);
+                            }
+                            setHiddenAnnotationIds(newHidden);
+                            
+                            // 同步全局标注隐藏状态
+                            const allHidden = measurements.every(m => 
+                              m.id === measurement.id ? !isAnnotationHidden : newHidden.has(m.id)
+                            );
+                            setHideAllAnnotations(allHidden);
+                          }}
+                          className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center flex-shrink-0"
+                          title={isAnnotationHidden ? "显示标注" : "隐藏标注"}
+                        >
+                          <i className={`${isAnnotationHidden ? 'ri-eye-off-line' : 'ri-eye-line'} text-xs`}></i>
+                        </button>
+                        {/* 标识显示按钮 */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newHidden = new Set(hiddenMeasurementIds);
+                            if (isLabelHidden) {
+                              newHidden.delete(measurement.id);
+                            } else {
+                              newHidden.add(measurement.id);
+                            }
+                            setHiddenMeasurementIds(newHidden);
+                            
+                            // 同步全局标识隐藏状态
+                            const allHidden = measurements.every(m => 
+                              m.id === measurement.id ? !isLabelHidden : newHidden.has(m.id)
+                            );
+                            setHideAllLabels(allHidden);
+                          }}
+                          className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center flex-shrink-0"
+                          title={isLabelHidden ? "显示标识" : "隐藏标识"}
+                        >
+                          <i className={`${isLabelHidden ? 'ri-format-clear' : 'ri-text'} text-xs`}></i>
+                        </button>
+                        
+                        {/* 中间内容区域 */}
+                        <div
+                          className="flex-1 flex items-center justify-between cursor-pointer min-w-0"
+                          onMouseEnter={(e) => {
+                            e.stopPropagation();
+                            setHoveredMeasurementId(measurement.id);
+                            setHoveredElementType('whole');
+                            setHoveredPointIndex(null);
+                          }}
+                          onMouseLeave={(e) => {
+                            e.stopPropagation();
+                            setHoveredMeasurementId(null);
+                            setHoveredElementType(null);
+                            setHoveredPointIndex(null);
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedTool === 'hand') {
+                              if (selectedMeasurementId === measurement.id) {
+                                // 如果已选中，则取消选中
+                                setSelectedMeasurementId(null);
+                                setSelectionType(null);
+                                setSelectedPointIndex(null);
+                              } else {
+                                // 选中该测量
+                                setSelectedMeasurementId(measurement.id);
+                                setSelectionType('whole');
+                                setSelectedPointIndex(null);
+                              }
+                            }
+                          }}
+                        >
+                          <span className={`truncate mr-2 font-medium ${
+                            isSelected ? 'text-white' : isHovered ? 'text-yellow-300' : 'text-white/90'
+                          }`}>
+                            {measurement.type}
+                          </span>
+                          <span className={`font-mono whitespace-nowrap ${
+                            isSelected ? 'text-white' : isHovered ? 'text-yellow-200' : 'text-yellow-400'
+                          }`}>
+                            {measurement.value}
+                          </span>
+                        </div>
+                        
+                        {/* 右侧删除按钮 */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMeasurementsUpdate(measurements.filter(m => m.id !== measurement.id));
+                            // 如果删除的是选中项，清除选中状态
+                            if (selectedMeasurementId === measurement.id) {
+                              setSelectedMeasurementId(null);
+                              setSelectionType(null);
+                              setSelectedPointIndex(null);
+                            }
+                            // 同时从隐藏列表中移除
+                            const newHidden = new Set(hiddenMeasurementIds);
+                            newHidden.delete(measurement.id);
+                            setHiddenMeasurementIds(newHidden);
+                          }}
+                          className="text-red-400/60 hover:text-red-400 w-4 h-4 flex items-center justify-center flex-shrink-0"
+                          title="删除标注"
+                        >
+                          <i className="ri-delete-bin-line text-xs"></i>
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="px-3 py-4 text-center">
@@ -3358,6 +3559,7 @@ function ImageCanvas({
             alt={selectedImage.examType}
             className="max-w-full max-h-full object-contain pointer-events-none select-none"
             draggable={false}
+            onDragStart={(e) => e.preventDefault()}
             onLoad={(e) => {
               const img = e.target as HTMLImageElement;
               const size = {
@@ -3435,6 +3637,10 @@ function ImageCanvas({
         {[false, true].map(renderHovered => 
           measurements
             .filter(measurement => {
+              // 过滤掉被隐藏的标注
+              if (hideAllAnnotations || hiddenAnnotationIds.has(measurement.id)) {
+                return false;
+              }
               const isMeasurementHovered = hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
               return renderHovered ? isMeasurementHovered : !isMeasurementHovered;
             })
@@ -3530,7 +3736,7 @@ function ImageCanvas({
               )}
               
               {/* 测量值标注 - 显示在测量线中间,辅助图形不显示 */}
-              {!isAuxiliaryShape && screenPoints.length >= 2 && (() => {
+              {!isAuxiliaryShape && screenPoints.length >= 2 && !hideAllLabels && !hiddenMeasurementIds.has(measurement.id) && (() => {
                 const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
                 const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
                 
@@ -4577,64 +4783,6 @@ function ImageCanvas({
                 strokeDasharray="5,5"
                 opacity="0.8"
               />
-              {/* 删除按钮 - 右上角 */}
-              <g
-                style={{ cursor: 'pointer', pointerEvents: 'all' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  // 删除选中的对象
-                  if (selectedMeasurementId) {
-                    onMeasurementsUpdate(measurements.filter(m => m.id !== selectedMeasurementId));
-                    setSelectedMeasurementId(null);
-                    setSelectedPointIndex(null);
-                    setSelectionType(null);
-                  } else if (selectedPointIndex !== null) {
-                    const newPoints = clickedPoints.filter((_, idx) => idx !== selectedPointIndex);
-                    setClickedPoints(newPoints);
-                    setSelectedPointIndex(null);
-                    setSelectionType(null);
-                  }
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onMouseUp={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                onMouseMove={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                <circle
-                  cx={maxX}
-                  cy={minY}
-                  r="12"
-                  fill="#ef4444"
-                  stroke="#ffffff"
-                  strokeWidth="2"
-                />
-                <line
-                  x1={maxX - 6}
-                  y1={minY - 6}
-                  x2={maxX + 6}
-                  y2={minY + 6}
-                  stroke="#ffffff"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                <line
-                  x1={maxX - 6}
-                  y1={minY + 6}
-                  x2={maxX + 6}
-                  y2={minY - 6}
-                  stroke="#ffffff"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </g>
             </g>
           );
         })()}

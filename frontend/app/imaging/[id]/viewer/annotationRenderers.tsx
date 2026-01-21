@@ -111,24 +111,33 @@ export function renderTPA(
   displayColor: string,
   imageScale: number
 ): React.ReactNode {
-  if (screenPoints.length < 4) return null;
+  if (screenPoints.length < 7) return null;
 
-  const midX = (screenPoints[2].x + screenPoints[3].x) / 2;
-  const midY = (screenPoints[2].y + screenPoints[3].y) / 2;
+  // 计算前4个点的中心作为实际的第1个点
+  const centerX = (screenPoints[0].x + screenPoints[1].x + screenPoints[2].x + screenPoints[3].x) / 4;
+  const centerY = (screenPoints[0].y + screenPoints[1].y + screenPoints[2].y + screenPoints[3].y) / 4;
   
-  const dx1 = screenPoints[0].x - screenPoints[1].x;
-  const dy1 = screenPoints[0].y - screenPoints[1].y;
+  // 第6和第7个点的中点
+  const midX = (screenPoints[5].x + screenPoints[6].x) / 2;
+  const midY = (screenPoints[5].y + screenPoints[6].y) / 2;
+  
+  // 第5个点作为顶点
+  const vertexX = screenPoints[4].x;
+  const vertexY = screenPoints[4].y;
+  
+  const dx1 = centerX - vertexX;
+  const dy1 = centerY - vertexY;
   const angle1 = Math.atan2(dy1, dx1) * (180 / Math.PI);
   
-  const dx2 = midX - screenPoints[1].x;
-  const dy2 = midY - screenPoints[1].y;
+  const dx2 = midX - vertexX;
+  const dy2 = midY - vertexY;
   const angle2 = Math.atan2(dy2, dx2) * (180 / Math.PI);
   
   const radius = 40 * imageScale;
-  const startX = screenPoints[1].x + radius * Math.cos(angle1 * Math.PI / 180);
-  const startY = screenPoints[1].y + radius * Math.sin(angle1 * Math.PI / 180);
-  const endX = screenPoints[1].x + radius * Math.cos(angle2 * Math.PI / 180);
-  const endY = screenPoints[1].y + radius * Math.sin(angle2 * Math.PI / 180);
+  const startX = vertexX + radius * Math.cos(angle1 * Math.PI / 180);
+  const startY = vertexY + radius * Math.sin(angle1 * Math.PI / 180);
+  const endX = vertexX + radius * Math.cos(angle2 * Math.PI / 180);
+  const endY = vertexY + radius * Math.sin(angle2 * Math.PI / 180);
   
   let angleDiff = angle2 - angle1;
   if (angleDiff > 180) angleDiff -= 360;
@@ -138,23 +147,26 @@ export function renderTPA(
 
   return (
     <>
+      {/* 前4个点连线形成区域 */}
       <line
         x1={screenPoints[0].x}
         y1={screenPoints[0].y}
         x2={screenPoints[1].x}
         y2={screenPoints[1].y}
         stroke={displayColor}
-        strokeWidth="2"
-        strokeDasharray="3,3"
+        strokeWidth="1"
+        strokeDasharray="5,5"
+        opacity="0.3"
       />
       <line
         x1={screenPoints[1].x}
         y1={screenPoints[1].y}
-        x2={midX}
-        y2={midY}
+        x2={screenPoints[2].x}
+        y2={screenPoints[2].y}
         stroke={displayColor}
-        strokeWidth="2"
-        strokeDasharray="3,3"
+        strokeWidth="1"
+        strokeDasharray="5,5"
+        opacity="0.3"
       />
       <line
         x1={screenPoints[2].x}
@@ -164,9 +176,54 @@ export function renderTPA(
         stroke={displayColor}
         strokeWidth="1"
         strokeDasharray="5,5"
+        opacity="0.3"
+      />
+      <line
+        x1={screenPoints[3].x}
+        y1={screenPoints[3].y}
+        x2={screenPoints[0].x}
+        y2={screenPoints[0].y}
+        stroke={displayColor}
+        strokeWidth="1"
+        strokeDasharray="5,5"
+        opacity="0.3"
+      />
+      
+      {/* 中心点到顶点的线 */}
+      <line
+        x1={centerX}
+        y1={centerY}
+        x2={vertexX}
+        y2={vertexY}
+        stroke={displayColor}
+        strokeWidth="2"
+        strokeDasharray="3,3"
+      />
+      
+      {/* 顶点到第6、7个点中点的线 */}
+      <line
+        x1={vertexX}
+        y1={vertexY}
+        x2={midX}
+        y2={midY}
+        stroke={displayColor}
+        strokeWidth="2"
+        strokeDasharray="3,3"
+      />
+      
+      {/* 第6和第7个点的连线 */}
+      <line
+        x1={screenPoints[5].x}
+        y1={screenPoints[5].y}
+        x2={screenPoints[6].x}
+        y2={screenPoints[6].y}
+        stroke={displayColor}
+        strokeWidth="1"
+        strokeDasharray="5,5"
         opacity="0.5"
       />
-      <circle cx={midX} cy={midY} r={4 * imageScale} fill={displayColor} opacity="0.8" />
+      
+      {/* 角度弧线 */}
       <path
         d={`M ${startX} ${startY} A ${radius} ${radius} 0 0 ${sweepFlag} ${endX} ${endY}`}
         fill="none"
@@ -252,8 +309,6 @@ export function renderPI(
         strokeWidth="1.5"
         opacity="0.8"
       />
-      <circle cx={mid12X} cy={mid12Y} r={4 * imageScale} fill={displayColor} opacity="0.8" />
-      <circle cx={mid34X} cy={mid34Y} r={4 * imageScale} fill={displayColor} opacity="0.8" />
     </>
   );
 }
@@ -325,8 +380,6 @@ export function renderPT(
         strokeWidth="1.5"
         opacity="0.8"
       />
-      <circle cx={mid12X} cy={mid12Y} r={4 * imageScale} fill={displayColor} opacity="0.8" />
-      <circle cx={mid34X} cy={mid34Y} r={4 * imageScale} fill={displayColor} opacity="0.8" />
     </>
   );
 }
