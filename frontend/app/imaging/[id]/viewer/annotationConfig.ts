@@ -304,14 +304,14 @@ export const COBB_ANGLE_CONFIG: AnnotationConfig = {
 };
 
 /**
- * RSH 肩高差测量
+ * CA 锁骨角测量
  * 2点测量：两点连线与水平线的夹角（绝对值）
  */
-export const RSH_CONFIG: AnnotationConfig = {
-  id: 'rsh',
-  name: 'RSH',
+export const CA_CONFIG: AnnotationConfig = {
+  id: 'ca',
+  name: 'CA',
   icon: 'ri-contrast-line',
-  description: '肩高差测量(Radiographic Shoulder Height)',
+  description: '锁骨角测量(Clavicle Angle)',
   pointsNeeded: 2,
   category: 'measurement',
   color: '#10b981',
@@ -322,7 +322,7 @@ export const RSH_CONFIG: AnnotationConfig = {
     const angle = Math.abs(calculateAngleToHorizontal(points[0], points[1]));
     
     return [{
-      name: 'RSH',
+      name: 'CA',
       value: angle.toFixed(1),
       unit: '°'
     }];
@@ -347,7 +347,7 @@ export const RSH_CONFIG: AnnotationConfig = {
   },
   
   isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
-    return RSH_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+    return CA_CONFIG.isInHoverRange(mousePoint, points, tolerance);
   },
   
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
@@ -1352,7 +1352,7 @@ export const POLYGON_CONFIG: AnnotationConfig = {
 export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   't1-tilt': T1_TILT_CONFIG,
   'cobb': COBB_ANGLE_CONFIG,
-  'rsh': RSH_CONFIG,
+  'ca': CA_CONFIG,
   'pelvic': PELVIC_CONFIG,
   'sacral': SACRAL_CONFIG,
   'avt': AVT_CONFIG,

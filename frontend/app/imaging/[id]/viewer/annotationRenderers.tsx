@@ -396,7 +396,7 @@ export function renderT1Slope(
 }
 
 /**
- * RSH/Pelvic/Sacral/SS渲染器：单线 + 水平参考线
+ * CA/Pelvic/Sacral/SS渲染器：单线 + 水平参考线
  */
 export function renderSingleLineWithHorizontal(
   screenPoints: Point[],

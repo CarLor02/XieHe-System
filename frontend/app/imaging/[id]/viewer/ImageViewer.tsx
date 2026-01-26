@@ -393,7 +393,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       // 根据不同影像类型生成专业分析
       if (imageData.examType === '正位X光片') {
         const cobbMeasurement = measurements.find(m => m.type === 'Cobb');
-        const rshMeasurement = measurements.find(m => m.type === 'RSH');
+        const caMeasurement = measurements.find(m => m.type === 'CA');
 
         if (cobbMeasurement) {
           const cobbValue = parseFloat(cobbMeasurement.value);
@@ -402,9 +402,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           }
         }
 
-        if (rshMeasurement) {
-          const rshValue = parseFloat(rshMeasurement.value);
-          if (rshValue > 10) {
+        if (caMeasurement) {
+          const caValue = parseFloat(caMeasurement.value);
+          if (caValue > 10) {
             report += `• 双肩高度差异明显，提示存在肩部不平衡\n`;
           }
         }
@@ -1628,8 +1628,8 @@ function ImageCanvas({
   // T1 tilt 特殊状态管理
   const [t1TiltHorizontalLine, setT1TiltHorizontalLine] = useState<Point | null>(null);
 
-  // RSH 特殊状态管理
-  const [rshHorizontalLine, setRshHorizontalLine] = useState<Point | null>(null);
+  // CA 特殊状态管理
+  const [caHorizontalLine, setCaHorizontalLine] = useState<Point | null>(null);
 
   // Pelvic 特殊状态管理
   const [pelvicHorizontalLine, setPelvicHorizontalLine] = useState<Point | null>(null);
@@ -1668,13 +1668,13 @@ function ImageCanvas({
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
-  // 监听工具切换，清理T1 Tilt和RSH状态
+  // 监听工具切换，清理T1 Tilt和CA状态
   useEffect(() => {
     if (!selectedTool.includes('t1-tilt')) {
       setT1TiltHorizontalLine(null);
     }
-    if (!selectedTool.includes('rsh')) {
-      setRshHorizontalLine(null);
+    if (!selectedTool.includes('ca')) {
+      setCaHorizontalLine(null);
     }
     if (!selectedTool.includes('pelvic')) {
       setPelvicHorizontalLine(null);
@@ -2450,18 +2450,18 @@ function ImageCanvas({
                 setT1TiltHorizontalLine(null); // 清除水平参考线
               }
             }
-          } else if (selectedTool.includes('rsh')) {
-            // RSH 特殊处理
+          } else if (selectedTool.includes('ca')) {
+            // CA 特殊处理
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
-              setRshHorizontalLine(imagePoint);
+              setCaHorizontalLine(imagePoint);
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setRshHorizontalLine(null); // 清除水平参考线
+                setCaHorizontalLine(null); // 清除水平参考线
               }
             }
           } else if (selectedTool.includes('pelvic')) {
@@ -4062,8 +4062,8 @@ function ImageCanvas({
                   strokeWidth="2"
                   strokeDasharray="2,2"
                 />
-              ) : selectedTool.includes('rsh') && screenPoints.length === 2 ? (
-                // RSH 特殊预览：两肩连线
+              ) : selectedTool.includes('ca') && screenPoints.length === 2 ? (
+                // CA 特殊预览：两肩连线
                 <line
                   x1={screenPoints[0].x}
                   y1={screenPoints[0].y}
@@ -4159,11 +4159,11 @@ function ImageCanvas({
           </>
         )}
 
-        {/* RSH 专用水平参考线 HRL */}
-        {selectedTool.includes('rsh') && rshHorizontalLine && (
+        {/* CA 专用水平参考线 HRL */}
+        {selectedTool.includes('ca') && caHorizontalLine && (
           <>
             {(() => {
-              const referencePoint = imageToScreen(rshHorizontalLine);
+              const referencePoint = imageToScreen(caHorizontalLine);
               const lineLength = 200 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>

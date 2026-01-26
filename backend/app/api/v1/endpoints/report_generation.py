@@ -52,7 +52,7 @@ FRONTAL_XRAY_TEMPLATE = """# 脊柱X光正位影像分析报告
 | **Cobb角 (Main Curve)** | {{Cobb_Angle}}° | 主弯角度 |
 | **椎体旋转 (Nash-Moe)** | {{Nash_Moe_Grade}}级 | 0级(正常)-IV级(严重) |
 | **T1 倾斜角 (T1 Tilt)** | {{T1_Tilt}}° | 上胸椎/肩部平衡参考 |
-| **两肩倾斜距离 (RSH)** | {{RSH_Value}} mm | >15mm提示外观不对称 |
+| **锁骨角 (CA)** | {{CA_Value}}° | >10°提示外观不对称 |
 | **骨盆倾斜角 (Pelvic Obliquity)** | {{Pelvic_Obliquity}}° | 髂嵴连线与水平线夹角 |
 | **躯干偏移 (Trunk Shift/C7-CSVL)**| {{Trunk_Shift}} mm | >10mm提示失平衡 |
 | **C7偏移距离 (C7 shift)** | {{C7_Shift}} mm | C7铅垂线与CSVL距离 |
@@ -72,7 +72,7 @@ FRONTAL_XRAY_TEMPLATE = """# 脊柱X光正位影像分析报告
     {{IF Trunk_Shift <= 10}}*   躯干冠状面整体平衡维持良好。{{END IF}}
 
 3.  **骨盆与肩部对称性：**
-    *   **肩部：** 两肩高度差 (RSH) 为 {{RSH_Value}} mm。{{IF RSH_Value > 15}} 存在肉眼可见的肩部不等高 (高低肩)。{{END IF}}
+    *   **肩部：** 锁骨角 (CA) 为 {{CA_Value}}°。{{IF CA_Value > 10}} 存在肉眼可见的肩部不等高 (高低肩)。{{END IF}}
     *   **骨盆：** 骨盆倾斜角为 {{Pelvic_Obliquity}}°。{{IF Pelvic_Obliquity > 2}} 提示可能存在双下肢不等长或骨盆倾斜。{{END IF}}
 
 ## 【结论建议】

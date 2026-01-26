@@ -169,7 +169,7 @@ export function getAnteriorTools() {
   return [
     't1-tilt',
     'cobb',
-    'rsh',
+    'ca',
     'pelvic',
     'sacral',
     'avt',

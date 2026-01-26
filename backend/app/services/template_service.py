@@ -191,7 +191,7 @@ class TemplateService:
             data['Cobb_Angle'] = measurement_dict.get('Cobb', {}).get('value', 0.0)
             data['Nash_Moe_Grade'] = measurement_dict.get('Nash-Moe', {}).get('value', 0)
             data['T1_Tilt'] = measurement_dict.get('T1 Tilt', {}).get('value', 0.0)
-            data['RSH_Value'] = measurement_dict.get('RSH', {}).get('value', 0.0)
+            data['CA_Value'] = measurement_dict.get('CA', {}).get('value', 0.0)
             data['Pelvic_Obliquity'] = measurement_dict.get('Pelvic', {}).get('value', 0.0)
             data['Trunk_Shift'] = measurement_dict.get('TS', {}).get('value', 0.0)
             data['C7_Shift'] = measurement_dict.get('C7 shift', {}).get('value', 0.0)
