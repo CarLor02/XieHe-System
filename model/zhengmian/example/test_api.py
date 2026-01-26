@@ -76,14 +76,25 @@ def test_predict():
         
         # 打印结果摘要
         print(f"\n图片ID: {result['imageId']}")
+        print(f"图片尺寸: {result.get('imageWidth', 'N/A')} x {result.get('imageHeight', 'N/A')}")
         print(f"检测到的测量项: {len(result['measurements'])} 个")
         print("\n测量项列表:")
-        print("-" * 40)
-        
+        print("-" * 80)
+
         for m in result["measurements"]:
             points_str = ", ".join([f"({p['x']:.1f}, {p['y']:.1f})" for p in m["points"]])
-            print(f"  {m['type']:12s} | {len(m['points'])} 点 | {points_str[:50]}...")
-        
+
+            # 如果是Cobb角，显示额外信息
+            if m['type'].startswith('Cobb'):
+                angle = m.get('angle', 'N/A')
+                upper = m.get('upper_vertebra', 'N/A')
+                lower = m.get('lower_vertebra', 'N/A')
+                apex = m.get('apex_vertebra', 'N/A')
+                print(f"  {m['type']:20s} | {len(m['points'])} 点 | 角度: {angle:6.2f}° | {upper} → {apex} → {lower}")
+                print(f"    └─ 点位: {points_str[:60]}...")
+            else:
+                print(f"  {m['type']:20s} | {len(m['points'])} 点 | {points_str[:60]}...")
+
         return True
         
     except requests.exceptions.ConnectionError:

@@ -57,7 +57,7 @@ GET /health
 }
 ```
 
-### 图片推理
+### 1. 图片推理（计算指标）
 
 ```bash
 POST /predict
@@ -74,20 +74,35 @@ curl -X POST http://localhost:8000/predict \
 ```json
 {
   "imageId": "IMG018",
+  "imageWidth": 1920,
+  "imageHeight": 2560,
   "measurements": [
     {
       "type": "T1 Tilt",
       "points": [{"x": 1.78, "y": 170.79}, {"x": 61.54, "y": 202.90}]
     },
     {
-      "type": "Cobb",
+      "type": "Cobb-Thoracic",
+      "angle": 25.3,
+      "upper_vertebra": "T5",
+      "lower_vertebra": "T11",
       "points": [
         {"x": -3.57, "y": 98.55}, {"x": 73.13, "y": 105.69},
         {"x": 0.89, "y": 72.69}, {"x": 71.35, "y": 54.85}
       ]
     },
     {
-      "type": "RSH",
+      "type": "Cobb-Lumbar",
+      "angle": -15.7,
+      "upper_vertebra": "L1",
+      "lower_vertebra": "L4",
+      "points": [
+        {"x": -3.57, "y": 98.55}, {"x": 73.13, "y": 105.69},
+        {"x": 0.89, "y": 72.69}, {"x": 71.35, "y": 54.85}
+      ]
+    },
+    {
+      "type": "CA",
       "points": [{"x": 8.03, "y": 28.09}, {"x": 76.70, "y": 9.36}]
     },
     {
@@ -110,24 +125,102 @@ curl -X POST http://localhost:8000/predict \
 }
 ```
 
+### 2. 检测关键点（原始数据）
+
+```bash
+POST /detect_keypoints
+```
+
+**请求:**
+```bash
+curl -X POST http://localhost:8000/detect_keypoints \
+     -F "file=@spine_xray.jpg" \
+     -F "image_id=IMG018"
+```
+
+**响应 (所有检测到的点):**
+```json
+{
+  "imageId": "IMG018",
+  "imageWidth": 1920,
+  "imageHeight": 2560,
+  "pose_keypoints": {
+    "CR": {"x": 555.5, "y": 472.1, "confidence": 0.95},
+    "CL": {"x": 1135.1, "y": 464.5, "confidence": 0.93},
+    "IR": {"x": 588.7, "y": 1561.2, "confidence": 0.91},
+    "IL": {"x": 1078.3, "y": 1558.0, "confidence": 0.89},
+    "SR": {"x": 766.9, "y": 1621.1, "confidence": 0.87},
+    "SL": {"x": 894.0, "y": 1624.0, "confidence": 0.85}
+  },
+  "vertebrae": {
+    "C7": {
+      "corners": {
+        "top_left": {"x": 780.5, "y": 340.2, "conf": 0.92},
+        "top_right": {"x": 920.3, "y": 338.5, "conf": 0.91},
+        "bottom_left": {"x": 782.1, "y": 375.8, "conf": 0.90},
+        "bottom_right": {"x": 918.7, "y": 374.2, "conf": 0.89},
+        "top_mid": {"x": 850.4, "y": 339.35},
+        "bottom_mid": {"x": 850.4, "y": 375.0},
+        "center": {"x": 850.4, "y": 357.2}
+      },
+      "confidence": 0.93,
+      "class_id": 0
+    },
+    "T1": {
+      "corners": {
+        "top_left": {"x": 800.7, "y": 390.8, "conf": 0.94},
+        "top_right": {"x": 906.0, "y": 389.9, "conf": 0.93},
+        "bottom_left": {"x": 802.3, "y": 425.5, "conf": 0.92},
+        "bottom_right": {"x": 904.4, "y": 424.6, "conf": 0.91},
+        "top_mid": {"x": 853.35, "y": 390.35},
+        "bottom_mid": {"x": 853.35, "y": 425.05},
+        "center": {"x": 853.35, "y": 407.7}
+      },
+      "confidence": 0.95,
+      "class_id": 1
+    }
+  }
+}
+```
+
+**说明:**
+- `pose_keypoints`: 6个躯干关键点 (CR, CL, IR, IL, SR, SL)
+- `vertebrae`: 检测到的所有椎骨 (C7, T1-T12, L1-L5)
+  - 每个椎骨包含4个角点 + 3个计算点（上中点、下中点、中心）
+  - 包含置信度和class_id
+
 ## 指标说明
 
-| type | 中文名 | 点位说明 |
-|------|--------|----------|
-| `T1 Tilt` | T1倾斜角 | T1(V1)上终板左右端点 |
-| `Cobb` | Cobb角 | 上端椎上终板 + 下端椎下终板 (4点) |
-| `RSH` | 两肩倾斜角 | 左右锁骨最高点 (CR, CL) |
-| `Pelvic` | 骨盆倾斜角 | 左右髂骨最高点 (IR, IL) |
-| `Sacral` | 骶骨倾斜角 | 骶一上终板左右缘点 (SR, SL) |
-| `AVT` | 顶椎偏移 | 顶椎中心 → CSVL |
-| `TS` | 躯干偏移 | C7中心 → CSVL |
+| type | 中文名 | 点位说明 | 备注 |
+|------|--------|----------|------|
+| `T1 Tilt` | T1倾斜角 | T1上终板左右端点 | - |
+| `Cobb-Thoracic` | 胸弯Cobb角 | 上端椎**下边缘** + 下端椎**上边缘** (4点) | T2-T11/T12范围，>10°才返回 |
+| `Cobb-Thoracolumbar` | 胸腰弯Cobb角 | 上端椎**下边缘** + 下端椎**上边缘** (4点) | T2-L1范围，>10°才返回 |
+| `Cobb-Lumbar` | 腰弯Cobb角 | 上端椎**下边缘** + 下端椎**上边缘** (4点) | L1/L2-L4范围，>10°才返回 |
+| `CA` | 两肩倾斜角 | 左右锁骨最高点 (CR, CL) | - |
+| `Pelvic` | 骨盆倾斜角 | 左右髂骨最高点 (IR, IL) | - |
+| `Sacral` | 骶骨倾斜角 | 骶一上终板左右缘点 (SR, SL) | - |
+| `AVT` | 顶椎偏移 | 顶椎中心 → CSVL | - |
+| `TS` | 躯干偏移 | C7中心 → CSVL | - |
+
+**Cobb角说明:**
+- 自动在3个区域（胸弯、胸腰弯、腰弯）分别查找最大Cobb角
+- 上端椎选择倾斜角最大的椎体，使用**下边缘**
+- 下端椎选择倾斜角最小的椎体，使用**上边缘**
+- 角度正负：左边高为正，右边高为负
+- 只返回绝对值 > 10° 的Cobb角
 
 ## 模型信息
 
 | 模型 | 文件 | 输出 |
 |------|------|------|
 | Pose | `weights/pose.pt` | 6个躯干关键点: CR, CL, IR, IL, SR, SL |
-| Pose Corner | `weights/pose_corner.pt` | 18类椎体(V0-V17)，每个4角点: TL, TR, BR, BL |
+| Pose Corner | `weights/pose_corner.pt` | 18类椎体，每个4角点: TL, TR, BR, BL |
+
+**椎体标注映射:**
+- Class 0: C7
+- Class 1-12: T1-T12
+- Class 13-17: L1-L5
 
 ## Docker 部署 (可选)
 
