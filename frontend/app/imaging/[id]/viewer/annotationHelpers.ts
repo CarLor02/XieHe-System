@@ -168,7 +168,8 @@ export function generateDefaultValue(
 export function getAnteriorTools() {
   return [
     't1-tilt',
-    'cobb',
+    'cobb-thoracic',
+    'cobb-lumbar',
     'ca',
     'pelvic',
     'sacral',

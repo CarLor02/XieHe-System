@@ -236,17 +236,17 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
 };
 
 /**
- * Cobb角测量
+ * Cobb-Thoracic 胸弯Cobb角测量
  * 4点测量：两条终板线的夹角
  */
-export const COBB_ANGLE_CONFIG: AnnotationConfig = {
-  id: 'cobb',
-  name: 'Cobb',
+export const COBB_THORACIC_CONFIG: AnnotationConfig = {
+  id: 'cobb-thoracic',
+  name: 'Cobb-Thoracic',
   icon: 'ri-compass-3-line',
-  description: 'Cobb角测量',
+  description: '胸弯Cobb角测量',
   pointsNeeded: 4,
   category: 'measurement',
-  color: '#3b82f6',
+  color: '#f59e0b',
   
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 4) return [];
@@ -270,7 +270,7 @@ export const COBB_ANGLE_CONFIG: AnnotationConfig = {
     }
     
     return [{
-      name: 'Cobb角',
+      name: '胸弯Cobb角',
       value: angleDiff.toFixed(1),
       unit: '°'
     }];
@@ -295,7 +295,75 @@ export const COBB_ANGLE_CONFIG: AnnotationConfig = {
   },
   
   isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
-    return COBB_ANGLE_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+    return COBB_THORACIC_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+  },
+  
+  renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
+    return Renderers.renderTwoLines(points, displayColor);
+  }
+};
+
+/**
+ * Cobb-Lumbar 腰弯Cobb角测量
+ * 4点测量：两条终板线的夹角
+ */
+export const COBB_LUMBAR_CONFIG: AnnotationConfig = {
+  id: 'cobb-lumbar',
+  name: 'Cobb-Lumbar',
+  icon: 'ri-compass-3-line',
+  description: '腰弯Cobb角测量',
+  pointsNeeded: 4,
+  category: 'measurement',
+  color: '#10b981',
+  
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 4) return [];
+    
+    // 计算第一条线的角度（点1到点2）
+    const dx1 = points[1].x - points[0].x;
+    const dy1 = points[1].y - points[0].y;
+    const angle1 = Math.atan2(dy1, dx1);
+
+    // 计算第二条线的角度（点3到点4）
+    const dx2 = points[3].x - points[2].x;
+    const dy2 = points[3].y - points[2].y;
+    const angle2 = Math.atan2(dy2, dx2);
+
+    // 计算两条线的夹角（0-180度范围）
+    let angleDiff = Math.abs(angle2 - angle1) * (180 / Math.PI);
+    
+    // 确保角度在0-180度范围内
+    if (angleDiff > 180) {
+      angleDiff = 360 - angleDiff;
+    }
+    
+    return [{
+      name: '腰弯Cobb角',
+      value: angleDiff.toFixed(1),
+      unit: '°'
+    }];
+  },
+  
+  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    if (points.length < 4) return points[0] || { x: 0, y: 0 };
+    return calculateCenterPoint(points);
+  },
+  
+  isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
+    if (points.length < 4) return false;
+    
+    // 检查是否接近任意点
+    for (const point of points) {
+      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
+    }
+    
+    // 检查是否接近两条线段
+    return isPointNearLine(mousePoint, points[0], points[1], tolerance) ||
+           isPointNearLine(mousePoint, points[2], points[3], tolerance);
+  },
+  
+  isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
+    return COBB_LUMBAR_CONFIG.isInHoverRange(mousePoint, points, tolerance);
   },
   
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
@@ -626,15 +694,15 @@ export const CL_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#0ea5e9',
   
-  calculateResults: COBB_ANGLE_CONFIG.calculateResults,
+  calculateResults: COBB_THORACIC_CONFIG.calculateResults,
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
     return { x: centerX, y: minY - 40 / imageScale };
   },
-  isInHoverRange: COBB_ANGLE_CONFIG.isInHoverRange,
-  isInSelectionRange: COBB_ANGLE_CONFIG.isInSelectionRange,
+  isInHoverRange: COBB_THORACIC_CONFIG.isInHoverRange,
+  isInSelectionRange: COBB_THORACIC_CONFIG.isInSelectionRange,
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
     return Renderers.renderTwoLines(points, displayColor);
   }
@@ -653,15 +721,15 @@ export const TK_T2_T5_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#7c3aed',
   
-  calculateResults: COBB_ANGLE_CONFIG.calculateResults,
+  calculateResults: COBB_THORACIC_CONFIG.calculateResults,
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
     return { x: centerX, y: minY - 40 / imageScale };
   },
-  isInHoverRange: COBB_ANGLE_CONFIG.isInHoverRange,
-  isInSelectionRange: COBB_ANGLE_CONFIG.isInSelectionRange,
+  isInHoverRange: COBB_THORACIC_CONFIG.isInHoverRange,
+  isInSelectionRange: COBB_THORACIC_CONFIG.isInSelectionRange,
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
     return Renderers.renderTwoLines(points, displayColor);
   }
@@ -680,15 +748,15 @@ export const TK_T5_T12_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#9333ea',
   
-  calculateResults: COBB_ANGLE_CONFIG.calculateResults,
+  calculateResults: COBB_THORACIC_CONFIG.calculateResults,
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
     return { x: centerX, y: minY - 40 / imageScale };
   },
-  isInHoverRange: COBB_ANGLE_CONFIG.isInHoverRange,
-  isInSelectionRange: COBB_ANGLE_CONFIG.isInSelectionRange,
+  isInHoverRange: COBB_THORACIC_CONFIG.isInHoverRange,
+  isInSelectionRange: COBB_THORACIC_CONFIG.isInSelectionRange,
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
     return Renderers.renderTwoLines(points, displayColor);
   }
@@ -707,15 +775,15 @@ export const LL_L1_S1_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#ea580c',
   
-  calculateResults: COBB_ANGLE_CONFIG.calculateResults,
+  calculateResults: COBB_THORACIC_CONFIG.calculateResults,
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
     return { x: centerX, y: minY - 40 / imageScale };
   },
-  isInHoverRange: COBB_ANGLE_CONFIG.isInHoverRange,
-  isInSelectionRange: COBB_ANGLE_CONFIG.isInSelectionRange,
+  isInHoverRange: COBB_THORACIC_CONFIG.isInHoverRange,
+  isInSelectionRange: COBB_THORACIC_CONFIG.isInSelectionRange,
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
     return Renderers.renderTwoLines(points, displayColor);
   }
@@ -734,15 +802,15 @@ export const LL_L1_L4_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#f97316',
   
-  calculateResults: COBB_ANGLE_CONFIG.calculateResults,
+  calculateResults: COBB_THORACIC_CONFIG.calculateResults,
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
     return { x: centerX, y: minY - 40 / imageScale };
   },
-  isInHoverRange: COBB_ANGLE_CONFIG.isInHoverRange,
-  isInSelectionRange: COBB_ANGLE_CONFIG.isInSelectionRange,
+  isInHoverRange: COBB_THORACIC_CONFIG.isInHoverRange,
+  isInSelectionRange: COBB_THORACIC_CONFIG.isInSelectionRange,
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
     return Renderers.renderTwoLines(points, displayColor);
   }
@@ -761,15 +829,15 @@ export const LL_L4_S1_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#fb923c',
   
-  calculateResults: COBB_ANGLE_CONFIG.calculateResults,
+  calculateResults: COBB_THORACIC_CONFIG.calculateResults,
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
     return { x: centerX, y: minY - 40 / imageScale };
   },
-  isInHoverRange: COBB_ANGLE_CONFIG.isInHoverRange,
-  isInSelectionRange: COBB_ANGLE_CONFIG.isInSelectionRange,
+  isInHoverRange: COBB_THORACIC_CONFIG.isInHoverRange,
+  isInSelectionRange: COBB_THORACIC_CONFIG.isInSelectionRange,
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
     return Renderers.renderTwoLines(points, displayColor);
   }
@@ -1351,7 +1419,8 @@ export const POLYGON_CONFIG: AnnotationConfig = {
 
 export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   't1-tilt': T1_TILT_CONFIG,
-  'cobb': COBB_ANGLE_CONFIG,
+  'cobb-thoracic': COBB_THORACIC_CONFIG,
+  'cobb-lumbar': COBB_LUMBAR_CONFIG,
   'ca': CA_CONFIG,
   'pelvic': PELVIC_CONFIG,
   'sacral': SACRAL_CONFIG,

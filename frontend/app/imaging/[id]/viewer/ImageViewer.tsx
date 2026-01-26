@@ -857,39 +857,51 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           console.warn('缺少图像尺寸信息，无法进行坐标转换');
         }
         
-        const aiMeasurements = aiData.measurements.map((m: any) => {
-          console.log(`处理测量 ${m.type}，原始点:`, m.points);
-          
-          // 获取该标注类型所需的点数
-          const tools = getTools(imageData.examType);
-          const tool = tools.find((t: any) => t.id === m.type.toLowerCase() || t.name === m.type);
-          const requiredPoints = tool?.pointsNeeded || m.points.length;
-          
-          // 如果返回的点数超过所需点数，只保留所需数量的点
-          let processedPoints = m.points;
-          if (requiredPoints > 0 && m.points.length > requiredPoints) {
-            processedPoints = m.points.slice(0, requiredPoints);
-            console.log(`${m.type} 返回了 ${m.points.length} 个点，只保留前 ${requiredPoints} 个点`);
-          }
-          
-          // 转换坐标
-          const scaledPoints = processedPoints.map((p: any) => ({
-            x: p.x * scaleX,
-            y: p.y * scaleY
-          }));
-          
-          console.log(`转换后的点:`, scaledPoints);
-          
-          // 根据type和points重新计算value
-          const value = calculateMeasurementValue(m.type, scaledPoints);
-          return {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            type: m.type,
-            value: value,
-            points: scaledPoints,
-            description: getDescriptionForType(m.type)
-          };
-        });
+        const aiMeasurements = aiData.measurements
+          .filter((m: any) => {
+            // 检查标注类型是否存在于配置中
+            const tools = getTools(imageData.examType);
+            const tool = tools.find((t: any) => t.id === m.type.toLowerCase() || t.name === m.type);
+            
+            if (!tool) {
+              console.warn(`跳过未知的标注类型: ${m.type}`);
+              return false;
+            }
+            return true;
+          })
+          .map((m: any) => {
+            console.log(`处理测量 ${m.type}，原始点:`, m.points);
+            
+            // 获取该标注类型所需的点数
+            const tools = getTools(imageData.examType);
+            const tool = tools.find((t: any) => t.id === m.type.toLowerCase() || t.name === m.type);
+            const requiredPoints = tool?.pointsNeeded || m.points.length;
+            
+            // 如果返回的点数超过所需点数，只保留所需数量的点
+            let processedPoints = m.points;
+            if (requiredPoints > 0 && m.points.length > requiredPoints) {
+              processedPoints = m.points.slice(0, requiredPoints);
+              console.log(`${m.type} 返回了 ${m.points.length} 个点，只保留前 ${requiredPoints} 个点`);
+            }
+            
+            // 转换坐标
+            const scaledPoints = processedPoints.map((p: any) => ({
+              x: p.x * scaleX,
+              y: p.y * scaleY
+            }));
+            
+            console.log(`转换后的点:`, scaledPoints);
+            
+            // 根据type和points重新计算value
+            const value = calculateMeasurementValue(m.type, scaledPoints);
+            return {
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              type: m.type,
+              value: value,
+              points: scaledPoints,
+              description: getDescriptionForType(m.type)
+            };
+          });
         
         console.log('转换后的测量结果:', aiMeasurements);
         setMeasurements(aiMeasurements);
