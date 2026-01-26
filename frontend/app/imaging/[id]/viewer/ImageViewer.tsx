@@ -860,23 +860,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         const aiMeasurements = aiData.measurements.map((m: any) => {
           console.log(`处理测量 ${m.type}，原始点:`, m.points);
           
-          // 特殊处理：将AI返回的RSH转换为CA
-          let measurementType = m.type;
-          if (measurementType === 'RSH' || measurementType === 'rsh') {
-            measurementType = 'CA';
-            console.log('AI检测返回RSH，已转换为CA');
-          }
-          
           // 获取该标注类型所需的点数
           const tools = getTools(imageData.examType);
-          const tool = tools.find((t: any) => t.id === measurementType.toLowerCase() || t.name === measurementType);
+          const tool = tools.find((t: any) => t.id === m.type.toLowerCase() || t.name === m.type);
           const requiredPoints = tool?.pointsNeeded || m.points.length;
           
           // 如果返回的点数超过所需点数，只保留所需数量的点
           let processedPoints = m.points;
           if (requiredPoints > 0 && m.points.length > requiredPoints) {
             processedPoints = m.points.slice(0, requiredPoints);
-            console.log(`${measurementType} 返回了 ${m.points.length} 个点，只保留前 ${requiredPoints} 个点`);
+            console.log(`${m.type} 返回了 ${m.points.length} 个点，只保留前 ${requiredPoints} 个点`);
           }
           
           // 转换坐标
@@ -888,13 +881,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           console.log(`转换后的点:`, scaledPoints);
           
           // 根据type和points重新计算value
-          const value = calculateMeasurementValue(measurementType, scaledPoints);
+          const value = calculateMeasurementValue(m.type, scaledPoints);
           return {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            type: measurementType,
+            type: m.type,
             value: value,
             points: scaledPoints,
-            description: getDescriptionForType(measurementType)
+            description: getDescriptionForType(m.type)
           };
         });
         
