@@ -73,7 +73,13 @@ def debug_vertebrae():
         for i, m in enumerate(result['measurements'], 1):
             print(f"\n{i}. {m['type']}")
             if 'angle' in m:
-                print(f"   角度: {m['angle']:.2f}°")
+                angle = m['angle']
+                if angle > 0:
+                    print(f"   角度: {angle:.2f}° (左边高)")
+                elif angle < 0:
+                    print(f"   角度: {angle:.2f}° (右边高)")
+                else:
+                    print(f"   角度: {angle:.2f}° (水平)")
             if 'upper_vertebra' in m:
                 print(f"   上端椎: {m['upper_vertebra']}")
             if 'apex_vertebra' in m:
