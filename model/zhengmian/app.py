@@ -202,6 +202,37 @@ def calc_angle(p1: dict, p2: dict) -> float:
     return math.degrees(math.atan2(dy, dx))
 
 
+def calc_tilt_angle(left_point: dict, right_point: dict) -> float:
+    """
+    计算倾斜角（带正负）
+    左边高为正，右边高为负
+
+    参数:
+        left_point: 左侧点 (x, y)
+        right_point: 右侧点 (x, y)
+
+    返回:
+        倾斜角（度），左边高为正，右边高为负
+    """
+    # 计算角度
+    angle = calc_angle(left_point, right_point)
+
+    # 在图像坐标系中（y轴向下）：
+    # 如果左边点的y值小于右边点（左边高），dy > 0，angle > 0，应该返回正值
+    # 如果右边点的y值小于左边点（右边高），dy < 0，angle < 0，应该返回负值
+
+    # 但是 atan2 返回的角度范围是 -180° 到 +180°
+    # 我们需要的是小角度范围，所以直接使用 angle 即可
+    # 如果 angle 接近 ±180°，需要调整到 ±0° 附近
+
+    if angle > 90:
+        angle = angle - 180
+    elif angle < -90:
+        angle = angle + 180
+
+    return angle
+
+
 def calc_cobb_angle(upper_left: dict, upper_right: dict, lower_left: dict, lower_right: dict) -> float:
     """
     计算Cobb角
@@ -410,8 +441,13 @@ def convert_to_annotations(
 
     # 3. CA (两肩倾斜角) - CR, CL
     if "CR" in pose_data and "CL" in pose_data:
+        # CR是右侧（图像左侧），CL是左侧（图像右侧）
+        # 注意：在医学影像中，左右是相对于患者的，所以CR在图像右侧，CL在图像左侧
+        # 但根据标注，我们需要确认哪个是左哪个是右
+        ca_angle = calc_tilt_angle(pose_data["CR"], pose_data["CL"])
         measurements.append({
             "type": "CA",
+            "angle": ca_angle,
             "points": [
                 {"x": pose_data["CR"]["x"], "y": pose_data["CR"]["y"]},
                 {"x": pose_data["CL"]["x"], "y": pose_data["CL"]["y"]}
@@ -420,8 +456,11 @@ def convert_to_annotations(
 
     # 4. Pelvic (骨盆倾斜角) - IR, IL
     if "IR" in pose_data and "IL" in pose_data:
+        # IR是右侧髂骨，IL是左侧髂骨
+        pelvic_angle = calc_tilt_angle(pose_data["IR"], pose_data["IL"])
         measurements.append({
             "type": "Pelvic",
+            "angle": pelvic_angle,
             "points": [
                 {"x": pose_data["IR"]["x"], "y": pose_data["IR"]["y"]},
                 {"x": pose_data["IL"]["x"], "y": pose_data["IL"]["y"]}
@@ -430,8 +469,11 @@ def convert_to_annotations(
 
     # 5. Sacral (骶骨倾斜角) - SR, SL
     if "SR" in pose_data and "SL" in pose_data:
+        # SR是右侧骶骨，SL是左侧骶骨
+        sacral_angle = calc_tilt_angle(pose_data["SR"], pose_data["SL"])
         measurements.append({
             "type": "Sacral",
+            "angle": sacral_angle,
             "points": [
                 {"x": pose_data["SR"]["x"], "y": pose_data["SR"]["y"]},
                 {"x": pose_data["SL"]["x"], "y": pose_data["SL"]["y"]}

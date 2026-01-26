@@ -92,6 +92,10 @@ def test_predict():
                 apex = m.get('apex_vertebra', 'N/A')
                 print(f"  {m['type']:20s} | {len(m['points'])} 点 | 角度: {angle:6.2f}° | {upper} → {apex} → {lower}")
                 print(f"    └─ 点位: {points_str[:60]}...")
+            # 如果有角度信息（CA, Pelvic, Sacral），显示角度
+            elif 'angle' in m:
+                angle = m['angle']
+                print(f"  {m['type']:20s} | {len(m['points'])} 点 | 角度: {angle:6.2f}° | {points_str[:60]}...")
             else:
                 print(f"  {m['type']:20s} | {len(m['points'])} 点 | {points_str[:60]}...")
 
