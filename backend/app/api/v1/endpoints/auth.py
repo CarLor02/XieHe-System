@@ -172,6 +172,8 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
         return None
 
 
+from app.core.config import settings
+
 def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> TokenResponse:
     """
     为用户创建访问令牌和刷新令牌
@@ -197,9 +199,9 @@ def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> Token
         "system_admin_level": user.get("system_admin_level", 0)  # 添加系统管理员级别
     }
 
-    # 设置过期时间
-    access_expires = timedelta(minutes=30)  # 30分钟
-    refresh_expires = timedelta(days=30 if remember_me else 7)  # 记住我30天，否则7天
+    # 设置过期时间（使用默认配置）
+    access_expires = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)  # 12小时
+    refresh_expires = timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)  # 7天
 
     # 创建令牌
     access_token = security_manager.create_access_token(token_data, access_expires)
