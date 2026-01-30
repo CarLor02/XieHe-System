@@ -5,7 +5,7 @@
 XieHe医疗影像诊断系统API文档，基于FastAPI构建，提供RESTful API接口。
 
 **基础信息:**
-- 基础URL: `http://localhost:8000/api/v1`
+- 基础URL: `http://localhost:8080/api/v1`
 - 认证方式: JWT Bearer Token
 - 数据格式: JSON
 - 字符编码: UTF-8
@@ -370,13 +370,13 @@ Content-Type: application/json
 ```http
 GET /patients/?search=张&sort_by=created_at&sort_order=desc
 ```
-
+  
 ## WebSocket
-
 ### 连接
 
+
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws');
+const ws = new WebSocket('ws://localhost:8080/ws');
 ```
 
 ### 消息格式
@@ -398,7 +398,7 @@ const ws = new WebSocket('ws://localhost:8000/ws');
 
 ```typescript
 class XieHeAPI {
-  private baseURL = 'http://localhost:8000/api/v1';
+  private baseURL = 'http://localhost:8080/api/v1';
   private token: string;
 
   async login(username: string, password: string) {
@@ -430,7 +430,7 @@ class XieHeAPI {
 import requests
 
 class XieHeAPI:
-    def __init__(self, base_url='http://localhost:8000/api/v1'):
+    def __init__(self, base_url='http://localhost:8080/api/v1'):
         self.base_url = base_url
         self.token = None
     
@@ -469,5 +469,5 @@ API版本通过URL路径控制：
 
 如有问题，请联系：
 - 邮箱: support@xiehe-medical.com
-- 文档: http://localhost:8000/docs
-- 交互式文档: http://localhost:8000/redoc
+- 文档: http://localhost:8080/docs
+- 交互式文档: http://localhost:8080/redoc

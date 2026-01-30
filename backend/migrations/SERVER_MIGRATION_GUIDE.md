@@ -137,13 +137,13 @@ pm2 restart xiehe-backend
 
 ```bash
 # 测试根端点
-curl http://localhost:8000/
+curl http://localhost:8080/
 
 # 测试影像文件列表
-curl http://localhost:8000/api/v1/image-files/
+curl http://localhost:8080/api/v1/image-files/
 
 # 测试患者影像列表
-curl http://localhost:8000/api/v1/image-files/patient/1
+curl http://localhost:8080/api/v1/image-files/patient/1
 ```
 
 ## 🔙 回滚方案
@@ -201,4 +201,3 @@ sqlalchemy.exc.OperationalError: Unknown column 'study_id'
 - [数据迁移脚本说明](README.md)
 - [模型清理总结](../../docs/refactoring/model-cleanup-summary.md)
 - [重构总结文档](../../docs/refactoring/REFACTORING_SUMMARY.md)
-

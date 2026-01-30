@@ -43,14 +43,14 @@ Write-Host "🚀 启动应用..." -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "📍 访问地址:" -ForegroundColor Yellow
-Write-Host "   - API 文档:    http://localhost:8000/api/v1/docs" -ForegroundColor White
-Write-Host "   - ReDoc 文档:  http://localhost:8000/api/v1/redoc" -ForegroundColor White
-Write-Host "   - 健康检查:    http://localhost:8000/health" -ForegroundColor White
-Write-Host "   - 根路径:      http://localhost:8000/" -ForegroundColor White
+Write-Host "   - API 文档:    http://localhost:8080/api/v1/docs" -ForegroundColor White
+Write-Host "   - ReDoc 文档:  http://localhost:8080/api/v1/redoc" -ForegroundColor White
+Write-Host "   - 健康检查:    http://localhost:8080/health" -ForegroundColor White
+Write-Host "   - 根路径:      http://localhost:8080/" -ForegroundColor White
 Write-Host ""
 Write-Host "⚙️  配置信息:" -ForegroundColor Yellow
 Write-Host "   - 环境: xiehe" -ForegroundColor White
-Write-Host "   - 端口: 8000" -ForegroundColor White
+Write-Host "   - 端口: 8080" -ForegroundColor White
 Write-Host "   - 热重载: 启用" -ForegroundColor White
 Write-Host ""
 Write-Host "💡 提示: 按 Ctrl+C 停止服务器" -ForegroundColor Cyan
@@ -60,4 +60,3 @@ Write-Host ""
 
 # 启动应用
 conda run -n xiehe uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-

@@ -129,7 +129,7 @@
   "environments": {
     "development": {
       "database": "medical_imaging_system_dev",
-      "api_url": "http://localhost:8000",
+      "api_url": "http://localhost:8080",
       "frontend_url": "http://localhost:3000"
     },
     "staging": {

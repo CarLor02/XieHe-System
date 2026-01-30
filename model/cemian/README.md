@@ -98,9 +98,9 @@ python3 app.py
 ```
 
 服务启动后：
-- **访问地址**: http://localhost:8000
-- **API文档**: http://localhost:8000/docs
-- **健康检查**: http://localhost:8000/health
+- **访问地址**: http://localhost:8080
+- **API文档**: http://localhost:8080/docs
+- **健康检查**: http://localhost:8080/health
 
 ### 4. 测试服务
 
@@ -175,4 +175,3 @@ pip install -r requirements.txt
 **创建时间**: 2026-01-07  
 **版本**: 1.0.0  
 **状态**: ✅ 已完成
-

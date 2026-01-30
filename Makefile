@@ -46,8 +46,8 @@ start:
 	@docker-compose up -d
 	@echo "✅ 服务启动完成"
 	@echo "🌐 前端: http://localhost:3000"
-	@echo "🔌 后端: http://localhost:8000"
-	@echo "📚 API文档: http://localhost:8000/docs"
+	@echo "🔌 后端: http://localhost:8080"
+	@echo "📚 API文档: http://localhost:8080/docs"
 
 stop:
 	@echo "🛑 停止所有服务..."

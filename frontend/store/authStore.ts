@@ -86,7 +86,7 @@ export interface RegisterData {
 }
 
 // API 基础URL
-// 开发环境：使用 NEXT_PUBLIC_API_URL 直接访问后端 (http://127.0.0.1:8000)
+// 开发环境：使用 NEXT_PUBLIC_API_URL 直接访问后端 (http://127.0.0.1:8080)
 // 生产环境：使用环境变量或空字符串（相对路径）
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 

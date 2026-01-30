@@ -33,7 +33,7 @@
 ### 基础 URL
 
 ```
-开发环境: http://localhost:8000/api/v1
+开发环境: http://localhost:8080/api/v1
 测试环境: https://test-api.medical-system.com/api/v1
 生产环境: https://api.medical-system.com/api/v1
 ```

@@ -417,7 +417,7 @@ npm install
 
 #### API 连接问题
 如果前端无法连接后端：
-- 确保后端服务运行在 http://localhost:8000
+- 确保后端服务运行在 http://localhost:8080
 - 检查浏览器控制台是否有 CORS 错误
 - 确认后端 CORS 配置允许 http://localhost:3000
 

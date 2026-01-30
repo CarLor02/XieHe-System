@@ -60,7 +60,7 @@ export interface UseWebSocketReturn {
 }
 
 const DEFAULT_OPTIONS: UseWebSocketOptions = {
-  url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8000/ws',
+  url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8080/ws',
   reconnectInterval: 5000,
   maxReconnectAttempts: 5,
   heartbeatInterval: 30000,
@@ -150,7 +150,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
   
   // 连接WebSocket
   const connect = useCallback(() => {
-    if (!isAuthenticated || !user?.user_id) {
+    if (!isAuthenticated || !user?.id) {
       log('用户未认证，无法建立WebSocket连接')
       return
     }
@@ -164,7 +164,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       setStatus(WebSocketStatus.CONNECTING)
       setError(null)
       
-      const wsUrl = `${config.url}/${user.user_id}`
+      const wsUrl = `${config.url}/${user.id}`
       log('连接WebSocket:', wsUrl)
       
       const ws = new WebSocket(wsUrl)

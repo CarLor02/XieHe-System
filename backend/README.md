@@ -264,9 +264,9 @@ chmod +x start.sh
 ## 📊 API 接口
 
 ### 自动生成文档
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI JSON**: http://localhost:8000/openapi.json
+- **Swagger UI**: http://localhost:8080/docs
+- **ReDoc**: http://localhost:8080/redoc
+- **OpenAPI JSON**: http://localhost:8080/openapi.json
 
 ### 主要 API 端点
 

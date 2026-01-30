@@ -3,7 +3,7 @@
 手动认证测试工具
 
 用于手动测试登录、注册等认证功能
-需要后端服务运行在 http://localhost:8000
+需要后端服务运行在 http://localhost:8080
 
 使用方法:
     python tests/manual/test_auth_manual.py
@@ -250,4 +250,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

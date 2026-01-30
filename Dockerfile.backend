@@ -47,10 +47,10 @@ RUN mkdir -p uploads logs storage/images storage/reports storage/temp && \
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # 暴露端口
-EXPOSE 8000
+EXPOSE 8080
 
 # 使用启动脚本（会自动初始化数据库）
 ENTRYPOINT ["/entrypoint.sh"]
