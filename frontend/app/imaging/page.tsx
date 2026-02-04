@@ -516,11 +516,14 @@ export default function ImagingPage() {
                               ? 'bg-green-500/80 text-white'
                               : imageFile.status === 'PROCESSING'
                               ? 'bg-blue-500/80 text-white'
+                              : imageFile.status === 'PROCESSED'
+                              ? 'bg-purple-500/80 text-white'
                               : 'bg-gray-500/80 text-white'
                               }`}
                           >
-                            {imageFile.status === 'UPLOADED' ? '已上传' : 
-                             imageFile.status === 'PROCESSING' ? '处理中' : imageFile.status}
+                            {imageFile.status === 'UPLOADED' ? '已上传' :
+                             imageFile.status === 'PROCESSING' ? '处理中' :
+                             imageFile.status === 'PROCESSED' ? '已处理' : imageFile.status}
                           </span>
                         </div>
                       </div>
@@ -649,11 +652,14 @@ export default function ImagingPage() {
                               ? 'bg-green-100 text-green-800'
                               : imageFile.status === 'PROCESSING'
                               ? 'bg-blue-100 text-blue-800'
+                              : imageFile.status === 'PROCESSED'
+                              ? 'bg-purple-100 text-purple-800'
                               : 'bg-gray-100 text-gray-800'
                               }`}
                           >
-                            {imageFile.status === 'UPLOADED' ? '已上传' : 
-                             imageFile.status === 'PROCESSING' ? '处理中' : imageFile.status}
+                            {imageFile.status === 'UPLOADED' ? '已上传' :
+                             imageFile.status === 'PROCESSING' ? '处理中' :
+                             imageFile.status === 'PROCESSED' ? '已处理' : imageFile.status}
                           </span>
                         </div>
 

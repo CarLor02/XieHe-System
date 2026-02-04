@@ -1614,6 +1614,29 @@ function ImageCanvas({
   // 图像调整参数
   const [brightness, setBrightness] = useState(0); // -100 to 100
   const [contrast, setContrast] = useState(0); // -100 to 100
+
+  // 调试：监控组件挂载
+  useEffect(() => {
+    console.log('🎬 ImageCanvas 组件挂载/重新挂载，imageId:', imageId);
+    return () => {
+      console.log('🎬 ImageCanvas 组件卸载，imageId:', imageId);
+    };
+  }, []);
+
+  // 调试：监控 imageScale 变化
+  useEffect(() => {
+    console.log('🔍 ImageCanvas imageScale 变化:', imageScale);
+  }, [imageScale]);
+
+  // 调试：监控 contrast 变化
+  useEffect(() => {
+    console.log('🎨 ImageCanvas contrast 变化:', contrast);
+  }, [contrast]);
+
+  // 调试：监控 brightness 变化
+  useEffect(() => {
+    console.log('💡 ImageCanvas brightness 变化:', brightness);
+  }, [brightness]);
   const [adjustMode, setAdjustMode] = useState<
     'none' | 'zoom' | 'brightness' | 'contrast'
   >('none');
@@ -3179,8 +3202,8 @@ function ImageCanvas({
       e.stopPropagation();
 
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      const newScale = Math.max(0.1, Math.min(5, imageScale * delta));
-      setImageScale(newScale);
+      // 使用函数式更新，避免闭包问题
+      setImageScale(prev => Math.max(0.1, Math.min(5, prev * delta)));
     }
   };
 
@@ -3199,8 +3222,8 @@ function ImageCanvas({
 
         // 改进：使用更小的步长，便于精确调整
         const delta = wheelEvent.deltaY > 0 ? 0.95 : 1.05;
-        const newScale = Math.max(0.1, Math.min(5, imageScale * delta));
-        setImageScale(newScale);
+        // 使用函数式更新，避免依赖 imageScale
+        setImageScale(prev => Math.max(0.1, Math.min(5, prev * delta)));
       }
     };
 
@@ -3211,7 +3234,7 @@ function ImageCanvas({
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
-      
+
       // R 键：重置视图到 100%
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
@@ -3243,9 +3266,10 @@ function ImageCanvas({
       container.removeEventListener('wheel', handleWheelEvent as EventListener);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isHovering, imageScale]);
+  }, [isHovering]);
 
   const resetView = () => {
+    console.log('🔄 resetView 被调用，将重置 imageScale 为 1');
     setImagePosition({ x: 0, y: 0 });
     setImageScale(1);
     setClickedPoints([]);
@@ -3546,12 +3570,17 @@ function ImageCanvas({
       </div>
 
       {/* 右上角控制工具栏 */}
-      <div 
+      <div
         className="absolute top-4 right-4 z-10 bg-black/80 border border-blue-500/30 backdrop-blur-sm rounded-lg p-3 flex flex-col gap-3 min-w-max"
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
         onMouseUp={(e) => e.stopPropagation()}
         onMouseMove={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          console.log('🚫 控制面板阻止了双击事件');
+        }}
       >
         {/* 清空按钮 */}
         <div className="flex items-center justify-center">
@@ -3572,17 +3601,37 @@ function ImageCanvas({
         <div className="flex items-center justify-between gap-3">
           <span className="text-white text-xs whitespace-nowrap">缩放</span>
           <button
-            onClick={() => setImageScale(Math.max(0.1, imageScale * 0.8))}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('🔽 点击缩小按钮，当前 imageScale:', imageScale);
+              setImageScale(prev => {
+                const newScale = Math.max(0.1, prev * 0.8);
+                console.log('🔽 缩小后 imageScale:', prev, '->', newScale);
+                return newScale;
+              });
+            }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="缩小 (快捷键: -)"
           >
             −
           </button>
           <span className="text-white text-xs font-bold w-8 text-center">
-            {Math.round(imageScale * 100)}%
+            {(() => {
+              const percent = Math.round(imageScale * 100);
+              console.log('📊 渲染缩放百分比:', percent, 'imageScale:', imageScale);
+              return `${percent}%`;
+            })()}
           </span>
           <button
-            onClick={() => setImageScale(Math.min(5, imageScale * 1.2))}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('🔼 点击放大按钮，当前 imageScale:', imageScale);
+              setImageScale(prev => {
+                const newScale = Math.min(5, prev * 1.2);
+                console.log('🔼 放大后 imageScale:', prev, '->', newScale);
+                return newScale;
+              });
+            }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="放大 (快捷键: +)"
           >
@@ -3594,7 +3643,15 @@ function ImageCanvas({
         <div className="flex items-center justify-between gap-3">
           <span className="text-white text-xs whitespace-nowrap">对比度</span>
           <button
-            onClick={() => setContrast(Math.max(-100, contrast - 5))}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('🎨➖ 点击降低对比度按钮，当前 contrast:', contrast, 'imageScale:', imageScale);
+              setContrast(prev => {
+                const newContrast = Math.max(-100, prev - 5);
+                console.log('🎨➖ 对比度变化:', prev, '->', newContrast);
+                return newContrast;
+              });
+            }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="降低对比度"
           >
@@ -3604,7 +3661,15 @@ function ImageCanvas({
             {Math.round(contrast)}
           </span>
           <button
-            onClick={() => setContrast(Math.min(100, contrast + 5))}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('🎨➕ 点击提高对比度按钮，当前 contrast:', contrast, 'imageScale:', imageScale);
+              setContrast(prev => {
+                const newContrast = Math.min(100, prev + 5);
+                console.log('🎨➕ 对比度变化:', prev, '->', newContrast);
+                return newContrast;
+              });
+            }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="提高对比度"
           >
@@ -3616,7 +3681,10 @@ function ImageCanvas({
         <div className="flex items-center justify-between gap-3">
           <span className="text-white text-xs whitespace-nowrap">亮度</span>
           <button
-            onClick={() => setBrightness(Math.max(-100, brightness - 5))}
+            onClick={(e) => {
+              e.stopPropagation();
+              setBrightness(prev => Math.max(-100, prev - 5));
+            }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="降低亮度"
           >
@@ -3626,7 +3694,10 @@ function ImageCanvas({
             {Math.round(brightness)}
           </span>
           <button
-            onClick={() => setBrightness(Math.min(100, brightness + 5))}
+            onClick={(e) => {
+              e.stopPropagation();
+              setBrightness(prev => Math.min(100, prev + 5));
+            }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="提高亮度"
           >
