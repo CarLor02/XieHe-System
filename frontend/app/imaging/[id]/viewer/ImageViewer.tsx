@@ -93,6 +93,20 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [reportText, setReportText] = useState('');
   const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  // 包装工具切换函数，在切换辅助工具时先清理状态
+  const handleToolChange = (newTool: string) => {
+    const auxiliaryTools = ['circle', 'ellipse', 'rectangle', 'arrow'];
+    const isLeavingAuxiliaryTool = auxiliaryTools.includes(selectedTool) && !auxiliaryTools.includes(newTool);
+
+    if (isLeavingAuxiliaryTool) {
+      // 如果从辅助工具切换到其他工具，先清理 clickedPoints
+      setClickedPoints([]);
+    }
+
+    // 切换工具
+    setSelectedTool(newTool);
+  };
   const [isMeasurementsLoading, setIsMeasurementsLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [studyData, setStudyData] = useState<StudyData | null>(null);
@@ -1137,6 +1151,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               setDraggingStandardPointIndex={setDraggingStandardPointIndex}
               recalculateAVTandTS={recalculateAVTandTS}
               onImageSizeChange={(size) => setImageNaturalSize(size)}
+              onToolChange={handleToolChange}
             />
           </div>
         </div>
@@ -1578,6 +1593,7 @@ function ImageCanvas({
   setDraggingStandardPointIndex,
   recalculateAVTandTS,
   onImageSizeChange,
+  onToolChange,
 }: {
   selectedImage: any;
   measurements: Measurement[];
@@ -1600,6 +1616,7 @@ function ImageCanvas({
   setDraggingStandardPointIndex: (index: number | null) => void;
   recalculateAVTandTS: (distance?: number, points?: Point[]) => void;
   onImageSizeChange: (size: { width: number; height: number }) => void;
+  onToolChange: (tool: string) => void;
 }) {
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(1);
@@ -1615,28 +1632,7 @@ function ImageCanvas({
   const [brightness, setBrightness] = useState(0); // -100 to 100
   const [contrast, setContrast] = useState(0); // -100 to 100
 
-  // 调试：监控组件挂载
-  useEffect(() => {
-    console.log('🎬 ImageCanvas 组件挂载/重新挂载，imageId:', imageId);
-    return () => {
-      console.log('🎬 ImageCanvas 组件卸载，imageId:', imageId);
-    };
-  }, []);
 
-  // 调试：监控 imageScale 变化
-  useEffect(() => {
-    console.log('🔍 ImageCanvas imageScale 变化:', imageScale);
-  }, [imageScale]);
-
-  // 调试：监控 contrast 变化
-  useEffect(() => {
-    console.log('🎨 ImageCanvas contrast 变化:', contrast);
-  }, [contrast]);
-
-  // 调试：监控 brightness 变化
-  useEffect(() => {
-    console.log('💡 ImageCanvas brightness 变化:', brightness);
-  }, [brightness]);
   const [adjustMode, setAdjustMode] = useState<
     'none' | 'zoom' | 'brightness' | 'contrast'
   >('none');
@@ -1863,6 +1859,8 @@ function ImageCanvas({
 
   // 获取图像数据
   useEffect(() => {
+    let currentImageUrl: string | null = null;
+
     const fetchImage = async () => {
       try {
         setImageLoading(true);
@@ -1885,6 +1883,7 @@ function ImageCanvas({
 
         const imageBlob = await response.blob();
         const imageObjectUrl = URL.createObjectURL(imageBlob);
+        currentImageUrl = imageObjectUrl;
         setImageUrl(imageObjectUrl);
       } catch (error) {
         console.error('获取图像失败:', error);
@@ -1898,8 +1897,8 @@ function ImageCanvas({
 
     // 清理函数：释放blob URL
     return () => {
-      if (imageUrl) {
-        URL.revokeObjectURL(imageUrl);
+      if (currentImageUrl) {
+        URL.revokeObjectURL(currentImageUrl);
       }
     };
   }, [imageId]);
@@ -3196,6 +3195,35 @@ function ImageCanvas({
     resetView();
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault(); // 阻止默认右键菜单
+    e.stopPropagation(); // 阻止事件冒泡
+
+    // 辅助图形工具列表
+    const auxiliaryTools = ['circle', 'ellipse', 'rectangle', 'arrow'];
+
+    // 如果当前是辅助图形工具，切换回 hand 工具
+    if (auxiliaryTools.includes(selectedTool)) {
+      console.log('🖱️ 右键点击，从', selectedTool, '切换回 hand 工具');
+
+      // 找到最后一个辅助图形（刚绘制的）
+      const auxiliaryShapeTypes = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注'];
+      const lastAuxiliaryShape = [...measurements]
+        .reverse()
+        .find(m => auxiliaryShapeTypes.includes(m.type));
+
+      // 如果找到了刚绘制的图形，选中它
+      if (lastAuxiliaryShape) {
+        setSelectedMeasurementId(lastAuxiliaryShape.id);
+        setSelectionType('whole');
+        setSelectedPointIndex(null);
+      }
+
+      // 切换工具
+      onToolChange('hand');
+    }
+  };
+
   const handleWheel = (e: React.WheelEvent) => {
     if (isHovering) {
       e.preventDefault();
@@ -3263,7 +3291,10 @@ function ImageCanvas({
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      container.removeEventListener('wheel', handleWheelEvent as EventListener);
+      // 安全地移除事件监听器
+      if (container && container.removeEventListener) {
+        container.removeEventListener('wheel', handleWheelEvent as EventListener);
+      }
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isHovering]);
@@ -3309,6 +3340,7 @@ function ImageCanvas({
       onMouseLeave={handleMouseLeave}
       onWheel={handleWheel}
       onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
       onDragStart={(e) => e.preventDefault()}
       onDrag={(e) => e.preventDefault()}
       onDragEnd={(e) => e.preventDefault()}
@@ -3603,12 +3635,7 @@ function ImageCanvas({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              console.log('🔽 点击缩小按钮，当前 imageScale:', imageScale);
-              setImageScale(prev => {
-                const newScale = Math.max(0.1, prev * 0.8);
-                console.log('🔽 缩小后 imageScale:', prev, '->', newScale);
-                return newScale;
-              });
+              setImageScale(prev => Math.max(0.1, prev * 0.8));
             }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="缩小 (快捷键: -)"
@@ -3616,21 +3643,12 @@ function ImageCanvas({
             −
           </button>
           <span className="text-white text-xs font-bold w-8 text-center">
-            {(() => {
-              const percent = Math.round(imageScale * 100);
-              console.log('📊 渲染缩放百分比:', percent, 'imageScale:', imageScale);
-              return `${percent}%`;
-            })()}
+            {Math.round(imageScale * 100)}%
           </span>
           <button
             onClick={(e) => {
               e.stopPropagation();
-              console.log('🔼 点击放大按钮，当前 imageScale:', imageScale);
-              setImageScale(prev => {
-                const newScale = Math.min(5, prev * 1.2);
-                console.log('🔼 放大后 imageScale:', prev, '->', newScale);
-                return newScale;
-              });
+              setImageScale(prev => Math.min(5, prev * 1.2));
             }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="放大 (快捷键: +)"
@@ -3645,12 +3663,7 @@ function ImageCanvas({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              console.log('🎨➖ 点击降低对比度按钮，当前 contrast:', contrast, 'imageScale:', imageScale);
-              setContrast(prev => {
-                const newContrast = Math.max(-100, prev - 5);
-                console.log('🎨➖ 对比度变化:', prev, '->', newContrast);
-                return newContrast;
-              });
+              setContrast(prev => Math.max(-100, prev - 5));
             }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="降低对比度"
@@ -3663,12 +3676,7 @@ function ImageCanvas({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              console.log('🎨➕ 点击提高对比度按钮，当前 contrast:', contrast, 'imageScale:', imageScale);
-              setContrast(prev => {
-                const newContrast = Math.min(100, prev + 5);
-                console.log('🎨➕ 对比度变化:', prev, '->', newContrast);
-                return newContrast;
-              });
+              setContrast(prev => Math.min(100, prev + 5));
             }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="提高对比度"
@@ -4564,6 +4572,7 @@ function ImageCanvas({
             );
             return (
               <circle
+                key="circle-preview"
                 cx={startScreen.x}
                 cy={startScreen.y}
                 r={radius}
@@ -4618,6 +4627,7 @@ function ImageCanvas({
             const endScreen = imageToScreen(drawingState.currentPoint);
             return (
               <ellipse
+                key="ellipse-preview"
                 cx={startScreen.x}
                 cy={startScreen.y}
                 rx={Math.abs(endScreen.x - startScreen.x)}
@@ -4668,6 +4678,7 @@ function ImageCanvas({
             const endScreen = imageToScreen(drawingState.currentPoint);
             return (
               <rect
+                key="rectangle-preview"
                 x={Math.min(startScreen.x, endScreen.x)}
                 y={Math.min(startScreen.y, endScreen.y)}
                 width={Math.abs(endScreen.x - startScreen.x)}
@@ -4725,6 +4736,7 @@ function ImageCanvas({
             const end = imageToScreen(drawingState.currentPoint);
             return (
               <line
+                key="arrow-preview"
                 x1={start.x}
                 y1={start.y}
                 x2={end.x}
