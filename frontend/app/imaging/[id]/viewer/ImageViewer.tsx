@@ -1624,41 +1624,52 @@ function ImageCanvas({
     currentPoint: null,
   });
 
-  // 选中状态 - 重新设计的选中系统
-  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
-  const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
-  const [selectionType, setSelectionType] = useState<'point' | 'whole' | null>(null);
-  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  // 选中状态 - 重新设计的选中系统（优化：合并为一个对象状态）
+  const [selectionState, setSelectionState] = useState<{
+    measurementId: string | null;
+    pointIndex: number | null;
+    type: 'point' | 'whole' | null;
+    isDragging: boolean;
+    dragOffset: { x: number; y: number };
+  }>({
+    measurementId: null,
+    pointIndex: null,
+    type: null,
+    isDragging: false,
+    dragOffset: { x: 0, y: 0 },
+  });
 
-  // T1 tilt 特殊状态管理
-  const [t1TiltHorizontalLine, setT1TiltHorizontalLine] = useState<Point | null>(null);
+  // 参考线状态管理（优化：合并为一个对象状态）
+  const [referenceLines, setReferenceLines] = useState<{
+    t1Tilt: Point | null;      // T1 tilt 水平参考线
+    ca: Point | null;          // CA 水平参考线
+    pelvic: Point | null;      // Pelvic 水平参考线
+    sacral: Point | null;      // Sacral 水平参考线
+    avt: Point | null;         // AVT 第一条垂直线
+    ts: Point | null;          // TS 第一条垂直线
+    ss: Point | null;          // SS（骶骨倾斜角）水平参考线
+    sva: Point | null;         // SVA（矢状面垂直轴）第一条垂直线
+  }>({
+    t1Tilt: null,
+    ca: null,
+    pelvic: null,
+    sacral: null,
+    avt: null,
+    ts: null,
+    ss: null,
+    sva: null,
+  });
 
-  // CA 特殊状态管理
-  const [caHorizontalLine, setCaHorizontalLine] = useState<Point | null>(null);
-
-  // Pelvic 特殊状态管理
-  const [pelvicHorizontalLine, setPelvicHorizontalLine] = useState<Point | null>(null);
-
-  // Sacral 特殊状态管理
-  const [sacralHorizontalLine, setSacralHorizontalLine] = useState<Point | null>(null);
-
-  // AVT 特殊状态管理 - 存储第一个点用于绘制第一条垂直线
-  const [avtFirstVerticalLine, setAvtFirstVerticalLine] = useState<Point | null>(null);
-
-  // TS 特殊状态管理 - 存储第一个点用于绘制第一条垂直线
-  const [tsFirstVerticalLine, setTsFirstVerticalLine] = useState<Point | null>(null);
-
-  // SS（骶骨倾斜角）特殊状态管理 - 侧位，水平参考线
-  const [ssHorizontalLine, setSsHorizontalLine] = useState<Point | null>(null);
-
-  // SVA（矢状面垂直轴）特殊状态管理 - 存储第一个点用于绘制第一条垂直线
-  const [svaFirstVerticalLine, setSvaFirstVerticalLine] = useState<Point | null>(null);
-
-  // 悬浮高亮状态 - 用于预览即将被选中的元素
-  const [hoveredMeasurementId, setHoveredMeasurementId] = useState<string | null>(null);
-  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
-  const [hoveredElementType, setHoveredElementType] = useState<'point' | 'whole' | null>(null);
+  // 悬浮高亮状态 - 用于预览即将被选中的元素（优化：合并为一个对象状态）
+  const [hoverState, setHoverState] = useState<{
+    measurementId: string | null;
+    pointIndex: number | null;
+    elementType: 'point' | 'whole' | null;
+  }>({
+    measurementId: null,
+    pointIndex: null,
+    elementType: null,
+  });
 
   // 隐藏标注状态 - 用于控制标注标识的显示/隐藏
   const [hiddenMeasurementIds, setHiddenMeasurementIds] = useState<Set<string>>(new Set());
@@ -1674,26 +1685,17 @@ function ImageCanvas({
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
-  // 监听工具切换，清理T1 Tilt和CA状态
+  // 监听工具切换，清理参考线状态（优化：使用referenceLines）
   useEffect(() => {
-    if (!selectedTool.includes('t1-tilt')) {
-      setT1TiltHorizontalLine(null);
-    }
-    if (!selectedTool.includes('ca')) {
-      setCaHorizontalLine(null);
-    }
-    if (!selectedTool.includes('pelvic')) {
-      setPelvicHorizontalLine(null);
-    }
-    if (!selectedTool.includes('sacral')) {
-      setSacralHorizontalLine(null);
-    }
-    if (!selectedTool.includes('avt')) {
-      setAvtFirstVerticalLine(null);
-    }
-    if (!selectedTool.includes('ts')) {
-      setTsFirstVerticalLine(null);
-    }
+    setReferenceLines(prev => ({
+      ...prev,
+      t1Tilt: selectedTool.includes('t1-tilt') ? prev.t1Tilt : null,
+      ca: selectedTool.includes('ca') ? prev.ca : null,
+      pelvic: selectedTool.includes('pelvic') ? prev.pelvic : null,
+      sacral: selectedTool.includes('sacral') ? prev.sacral : null,
+      avt: selectedTool.includes('avt') ? prev.avt : null,
+      ts: selectedTool.includes('ts') ? prev.ts : null,
+    }));
     // 工具切换时清空当前点击的点
     setClickedPoints([]);
   }, [selectedTool]);
@@ -1973,30 +1975,37 @@ function ImageCanvas({
           }
           
           if (foundSelection) {
-            setSelectedMeasurementId(selectedMeasurement.id);
-            setSelectionType(selType);
-            setIsDraggingSelection(false); // 初始不拖拽,点击时只选中
-            
+            // 优化：一次性更新所有选中状态
             if (selType === 'point') {
               // 选中单个点（dragOffset仍使用图像坐标）
-              setSelectedPointIndex(selectedPointIdx);
               const point = selectedMeasurement.points[selectedPointIdx!];
               const imagePoint = screenToImage(x, y);
-              setDragOffset({
-                x: imagePoint.x - point.x,
-                y: imagePoint.y - point.y,
+              setSelectionState({
+                measurementId: selectedMeasurement.id,
+                pointIndex: selectedPointIdx,
+                type: selType,
+                isDragging: false,
+                dragOffset: {
+                  x: imagePoint.x - point.x,
+                  y: imagePoint.y - point.y,
+                },
               });
             } else {
               // 选中整个测量结果（dragOffset仍使用图像坐标）
-              setSelectedPointIndex(null);
               const xs = selectedMeasurement.points.map((p: Point) => p.x);
               const ys = selectedMeasurement.points.map((p: Point) => p.y);
               const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
               const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
               const imagePoint = screenToImage(x, y);
-              setDragOffset({
-                x: imagePoint.x - centerX,
-                y: imagePoint.y - centerY,
+              setSelectionState({
+                measurementId: selectedMeasurement.id,
+                pointIndex: null,
+                type: selType,
+                isDragging: false,
+                dragOffset: {
+                  x: imagePoint.x - centerX,
+                  y: imagePoint.y - centerY,
+                },
               });
             }
             break;
@@ -2012,14 +2021,17 @@ function ImageCanvas({
               Math.pow(screenPoint.x - pointScreen.x, 2) + Math.pow(screenPoint.y - pointScreen.y, 2)
             );
             if (distance < pointClickRadius) {
-              setSelectedMeasurementId(null);
-              setSelectedPointIndex(i);
-              setSelectionType('point');
-              setIsDraggingSelection(false); // 初始不拖拽
+              // 优化：选中标准距离点
               const imagePoint = screenToImage(x, y);
-              setDragOffset({
-                x: imagePoint.x - point.x,
-                y: imagePoint.y - point.y,
+              setSelectionState({
+                measurementId: null,
+                pointIndex: i,
+                type: 'point',
+                isDragging: false,
+                dragOffset: {
+                  x: imagePoint.x - point.x,
+                  y: imagePoint.y - point.y,
+                },
               });
               foundSelection = true;
               break;
@@ -2028,12 +2040,12 @@ function ImageCanvas({
         }
         
         // 3. 如果没有点击到任何对象,检查是否点击了已选中对象的允许拖拽区域内
-        if (!foundSelection && selectedMeasurementId) {
-          const measurement = measurements.find(m => m.id === selectedMeasurementId);
+        if (!foundSelection && selectionState.measurementId) {
+          const measurement = measurements.find(m => m.id === selectionState.measurementId);
           if (measurement && measurement.points.length > 0) {
             // 如果是点级别选择，只允许在选中点的选中框内拖拽
-            if (selectionType === 'point' && selectedPointIndex !== null) {
-              const selectedPoint = measurement.points[selectedPointIndex];
+            if (selectionState.type === 'point' && selectionState.pointIndex !== null) {
+              const selectedPoint = measurement.points[selectionState.pointIndex];
               
               // 计算选中框范围（与绘制逻辑一致）
               const screenPoint = imageToScreen(selectedPoint);
@@ -2048,14 +2060,17 @@ function ImageCanvas({
               // 检查是否在选中框内
               if (mouseScreenPoint.x >= selectionBoxMinX && mouseScreenPoint.x <= selectionBoxMaxX &&
                   mouseScreenPoint.y >= selectionBoxMinY && mouseScreenPoint.y <= selectionBoxMaxY) {
-                // 在选中框内,可以拖拽
-                setDragOffset({
-                  x: imagePoint.x - selectedPoint.x,
-                  y: imagePoint.y - selectedPoint.y,
+                // 在选中框内,可以拖拽（优化：更新dragOffset）
+                setSelectionState({
+                  ...selectionState,
+                  dragOffset: {
+                    x: imagePoint.x - selectedPoint.x,
+                    y: imagePoint.y - selectedPoint.y,
+                  },
                 });
                 foundSelection = true;
               }
-            } else if (selectionType === 'whole') {
+            } else if (selectionState.type === 'whole') {
               // 整体选择模式下，允许在整个测量结果的选中框内拖拽
               
               // 计算整体选中框范围（与绘制逻辑一致）
@@ -2103,12 +2118,15 @@ function ImageCanvas({
               // 检查是否在选中框内
               if (mouseScreenPoint.x >= selectionBoxMinX && mouseScreenPoint.x <= selectionBoxMaxX &&
                   mouseScreenPoint.y >= selectionBoxMinY && mouseScreenPoint.y <= selectionBoxMaxY) {
-                // 在选中框内,重新计算到中心的偏移
+                // 在选中框内,重新计算到中心的偏移（优化：更新dragOffset）
                 const centerX = (Math.min(...measurement.points.map(p => p.x)) + Math.max(...measurement.points.map(p => p.x))) / 2;
                 const centerY = (Math.min(...measurement.points.map(p => p.y)) + Math.max(...measurement.points.map(p => p.y))) / 2;
-                setDragOffset({
-                  x: imagePoint.x - centerX,
-                  y: imagePoint.y - centerY,
+                setSelectionState({
+                  ...selectionState,
+                  dragOffset: {
+                    x: imagePoint.x - centerX,
+                    y: imagePoint.y - centerY,
+                  },
                 });
                 foundSelection = true;
               }
@@ -2118,9 +2136,14 @@ function ImageCanvas({
         
         // 4. 如果没有点击到任何对象且不在已选中对象的边界框内,则取消选中并进入拖拽图像模式
         if (!foundSelection) {
-          setSelectedMeasurementId(null);
-          setSelectedPointIndex(null);
-          setSelectionType(null);
+          // 优化：清空所有选中状态
+          setSelectionState({
+            measurementId: null,
+            pointIndex: null,
+            type: null,
+            isDragging: false,
+            dragOffset: { x: 0, y: 0 },
+          });
           setAdjustMode('zoom');
           setIsDragging(true);
           setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
@@ -2185,130 +2208,130 @@ function ImageCanvas({
           const newPoints = [...clickedPoints, imagePoint];
           setClickedPoints(newPoints);
 
-          // T1 Tilt 特殊处理
+          // T1 Tilt 特殊处理（优化：使用referenceLines）
           if (selectedTool.includes('t1-tilt')) {
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
-              setT1TiltHorizontalLine(imagePoint);
+              setReferenceLines(prev => ({ ...prev, t1Tilt: imagePoint }));
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setT1TiltHorizontalLine(null); // 清除水平参考线
+                setReferenceLines(prev => ({ ...prev, t1Tilt: null })); // 清除水平参考线
               }
             }
           } else if (selectedTool.includes('t1-slope')) {
-            // T1 Slope 特殊处理（侧位）
+            // T1 Slope 特殊处理（侧位）（优化：使用referenceLines）
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
-              setT1TiltHorizontalLine(imagePoint);
+              setReferenceLines(prev => ({ ...prev, t1Tilt: imagePoint }));
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setT1TiltHorizontalLine(null); // 清除水平参考线
+                setReferenceLines(prev => ({ ...prev, t1Tilt: null })); // 清除水平参考线
               }
             }
           } else if (selectedTool.includes('ca')) {
-            // CA 特殊处理
+            // CA 特殊处理（优化：使用referenceLines）
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
-              setCaHorizontalLine(imagePoint);
+              setReferenceLines(prev => ({ ...prev, ca: imagePoint }));
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setCaHorizontalLine(null); // 清除水平参考线
+                setReferenceLines(prev => ({ ...prev, ca: null })); // 清除水平参考线
               }
             }
           } else if (selectedTool.includes('pelvic')) {
-            // Pelvic 特殊处理
+            // Pelvic 特殊处理（优化：使用referenceLines）
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
-              setPelvicHorizontalLine(imagePoint);
+              setReferenceLines(prev => ({ ...prev, pelvic: imagePoint }));
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setPelvicHorizontalLine(null); // 清除水平参考线
+                setReferenceLines(prev => ({ ...prev, pelvic: null })); // 清除水平参考线
               }
             }
           } else if (selectedTool.includes('sacral')) {
-            // Sacral 特殊处理
+            // Sacral 特殊处理（优化：使用referenceLines）
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
-              setSacralHorizontalLine(imagePoint);
+              setReferenceLines(prev => ({ ...prev, sacral: imagePoint }));
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setSacralHorizontalLine(null); // 清除水平参考线
+                setReferenceLines(prev => ({ ...prev, sacral: null })); // 清除水平参考线
               }
             }
           } else if (selectedTool.includes('ss')) {
-            // SS（骶骨倾斜角）特殊处理 - 侧位
+            // SS（骶骨倾斜角）特殊处理 - 侧位（优化：使用referenceLines）
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
-              setSsHorizontalLine(imagePoint);
+              setReferenceLines(prev => ({ ...prev, ss: imagePoint }));
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setSsHorizontalLine(null); // 清除水平参考线
+                setReferenceLines(prev => ({ ...prev, ss: null })); // 清除水平参考线
               }
             }
           } else if (selectedTool.includes('sva')) {
-            // SVA（矢状面垂直轴）特殊处理
+            // SVA（矢状面垂直轴）特殊处理（优化：使用referenceLines）
             if (newPoints.length === 1) {
               // 第一个点：设置第一条垂直线位置
-              setSvaFirstVerticalLine(imagePoint);
+              setReferenceLines(prev => ({ ...prev, sva: imagePoint }));
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setSvaFirstVerticalLine(null); // 清除第一条垂直线
+                setReferenceLines(prev => ({ ...prev, sva: null })); // 清除第一条垂直线
               }
             }
           } else if (selectedTool.includes('avt')) {
-            // AVT 特殊处理 - 两条垂直线的距离测量
+            // AVT 特殊处理 - 两条垂直线的距离测量（优化：使用referenceLines）
             if (newPoints.length === 1) {
               // 第一个点：设置第一条垂直线位置
-              setAvtFirstVerticalLine(imagePoint);
+              setReferenceLines(prev => ({ ...prev, avt: imagePoint }));
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setAvtFirstVerticalLine(null); // 清除第一条垂直线
+                setReferenceLines(prev => ({ ...prev, avt: null })); // 清除第一条垂直线
               }
             }
           } else if (selectedTool.includes('ts')) {
-            // TS 特殊处理 - 两条垂直线的距离测量
+            // TS 特殊处理 - 两条垂直线的距离测量（优化：使用referenceLines）
             if (newPoints.length === 1) {
               // 第一个点：设置第一条垂直线位置
-              setTsFirstVerticalLine(imagePoint);
+              setReferenceLines(prev => ({ ...prev, ts: imagePoint }));
             } else if (newPoints.length === 2) {
               // 第二个点：完成测量
               const currentTool = tools.find(t => t.id === selectedTool);
               if (currentTool) {
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
-                setTsFirstVerticalLine(null); // 清除第一条垂直线
+                setReferenceLines(prev => ({ ...prev, ts: null })); // 清除第一条垂直线
               }
             }
           } else {
@@ -2379,22 +2402,22 @@ function ImageCanvas({
       }));
     }
 
-    // 处理选中对象的拖拽
-    if ((selectedMeasurementId || selectedPointIndex !== null) && selectedTool === 'hand' && e.buttons === 1) {
+    // 处理选中对象的拖拽（优化：使用selectionState）
+    if ((selectionState.measurementId || selectionState.pointIndex !== null) && selectedTool === 'hand' && e.buttons === 1) {
       const imagePoint = screenToImage(x, y);
-      
+
       // 如果还没开始拖拽,检查鼠标是否在边界框内
-      if (!isDraggingSelection) {
+      if (!selectionState.isDragging) {
         let canDrag = false;
-        
-        if (selectedMeasurementId) {
-          const measurement = measurements.find(m => m.id === selectedMeasurementId);
+
+        if (selectionState.measurementId) {
+          const measurement = measurements.find(m => m.id === selectionState.measurementId);
           if (measurement && measurement.points.length > 0) {
             // 使用与蓝色选中框相同的边界框计算逻辑
             let minX: number, maxX: number, minY: number, maxY: number;
-            
+
             // 针对不同类型的图形计算不同的边界框（与选中框渲染逻辑一致）
-            if (selectionType === 'whole') {
+            if (selectionState.type === 'whole') {
               // 辅助图形需要特殊处理
               if (measurement.type === '圆形标注' && measurement.points.length >= 2) {
                 const center = measurement.points[0];
@@ -2472,34 +2495,34 @@ function ImageCanvas({
               canDrag = true;
             }
           }
-        } else if (selectedPointIndex !== null && clickedPoints[selectedPointIndex]) {
+        } else if (selectionState.pointIndex !== null && clickedPoints[selectionState.pointIndex]) {
           // 对于单个点,始终允许拖拽
           canDrag = true;
         }
-        
+
         if (canDrag) {
-          setIsDraggingSelection(true);
+          setSelectionState({ ...selectionState, isDragging: true });
         }
         // 如果不能拖拽,不执行任何操作,让其他鼠标处理逻辑处理
       }
       
-      // 如果已经在拖拽状态,继续拖拽(无论鼠标是否在边界框内)
-      if (isDraggingSelection || selectedMeasurementId || selectedPointIndex !== null) {
-        if (selectedMeasurementId) {
-          const measurement = measurements.find(m => m.id === selectedMeasurementId);
+      // 如果已经在拖拽状态,继续拖拽(无论鼠标是否在边界框内)（优化：使用selectionState）
+      if (selectionState.isDragging || selectionState.measurementId || selectionState.pointIndex !== null) {
+        if (selectionState.measurementId) {
+          const measurement = measurements.find(m => m.id === selectionState.measurementId);
           if (measurement && measurement.points.length > 0) {
-            
-            if (selectionType === 'point' && selectedPointIndex !== null) {
+
+            if (selectionState.type === 'point' && selectionState.pointIndex !== null) {
               // 移动单个点
-              const newPointX = imagePoint.x - dragOffset.x;
-              const newPointY = imagePoint.y - dragOffset.y;
-              
+              const newPointX = imagePoint.x - selectionState.dragOffset.x;
+              const newPointY = imagePoint.y - selectionState.dragOffset.y;
+
               const updatedMeasurements = measurements.map(m => {
-                if (m.id === selectedMeasurementId) {
+                if (m.id === selectionState.measurementId) {
                   const updatedMeasurement = {
                     ...m,
-                    points: m.points.map((p, idx) => 
-                      idx === selectedPointIndex ? { x: newPointX, y: newPointY } : p
+                    points: m.points.map((p, idx) =>
+                      idx === selectionState.pointIndex ? { x: newPointX, y: newPointY } : p
                     ),
                   };
                   // 重新计算测量值
@@ -2512,7 +2535,7 @@ function ImageCanvas({
                 }
                 return m;
               });
-              
+
               onMeasurementsUpdate(updatedMeasurements);
             } else {
               // 移动整个测量结果 - 使用中心点计算偏移
@@ -2520,18 +2543,18 @@ function ImageCanvas({
               const ys = measurement.points.map(p => p.y);
               const currentCenterX = (Math.min(...xs) + Math.max(...xs)) / 2;
               const currentCenterY = (Math.min(...ys) + Math.max(...ys)) / 2;
-              
+
               // 计算新的中心点位置
-              const newCenterX = imagePoint.x - dragOffset.x;
-              const newCenterY = imagePoint.y - dragOffset.y;
-              
+              const newCenterX = imagePoint.x - selectionState.dragOffset.x;
+              const newCenterY = imagePoint.y - selectionState.dragOffset.y;
+
               // 计算偏移量
               const deltaX = newCenterX - currentCenterX;
               const deltaY = newCenterY - currentCenterY;
-              
+
               // 更新所有点的位置
               const updatedMeasurements = measurements.map(m => {
-                if (m.id === selectedMeasurementId) {
+                if (m.id === selectionState.measurementId) {
                   const updatedMeasurement = {
                     ...m,
                     points: m.points.map(p => ({
@@ -2549,23 +2572,23 @@ function ImageCanvas({
                 }
                 return m;
               });
-              
+
               onMeasurementsUpdate(updatedMeasurements);
             }
           }
-        } else if (selectedPointIndex !== null) {
+        } else if (selectionState.pointIndex !== null) {
           // 移动单个点
           const newPoints = [...clickedPoints];
-          const newPoint = { 
-            x: imagePoint.x - dragOffset.x, 
-            y: imagePoint.y - dragOffset.y 
+          const newPoint = {
+            x: imagePoint.x - selectionState.dragOffset.x,
+            y: imagePoint.y - selectionState.dragOffset.y
           };
-          newPoints[selectedPointIndex] = newPoint;
+          newPoints[selectionState.pointIndex] = newPoint;
           setClickedPoints(newPoints);
-          
-          // T1 Tilt 特殊处理：第一个点移动时，水平参考线跟随移动
-          if (selectedTool.includes('t1-tilt') && selectedPointIndex === 0 && t1TiltHorizontalLine) {
-            setT1TiltHorizontalLine(newPoint);
+
+          // T1 Tilt 特殊处理：第一个点移动时，水平参考线跟随移动（优化：使用referenceLines）
+          if (selectedTool.includes('t1-tilt') && selectionState.pointIndex === 0 && referenceLines.t1Tilt) {
+            setReferenceLines(prev => ({ ...prev, t1Tilt: newPoint }));
           }
         }
       }
@@ -2597,8 +2620,8 @@ function ImageCanvas({
       setDragStartPos({ x: e.clientX, y: e.clientY });
     }
 
-    // 在移动模式下，且没有正在拖拽时，检测悬浮高亮（即使有选中元素也允许悬浮预览）
-    if (selectedTool === 'hand' && !isDraggingSelection && !isDragging && !drawingState.isDrawing) {
+    // 在移动模式下，且没有正在拖拽时，检测悬浮高亮（即使有选中元素也允许悬浮预览）（优化：使用selectionState）
+    if (selectedTool === 'hand' && !selectionState.isDragging && !isDragging && !drawingState.isDrawing) {
       // 计算点和线的hover阈值（屏幕像素距离）- 使用常量
       const screenPoint = { x, y };
       const pointHoverRadius = INTERACTION_CONSTANTS.HOVER_RADIUS;
@@ -2785,15 +2808,19 @@ function ImageCanvas({
         }
       }
 
-      // 更新悬浮状态
-      setHoveredMeasurementId(hoveredMeasurementId);
-      setHoveredPointIndex(hoveredPointIdx);
-      setHoveredElementType(hoveredElementType);
+      // 更新悬浮状态（优化：一次性更新所有悬浮状态，减少重渲染）
+      setHoverState({
+        measurementId: hoveredMeasurementId,
+        pointIndex: hoveredPointIdx,
+        elementType: hoveredElementType,
+      });
     } else {
       // 清除悬浮状态
-      setHoveredMeasurementId(null);
-      setHoveredPointIndex(null);
-      setHoveredElementType(null);
+      setHoverState({
+        measurementId: null,
+        pointIndex: null,
+        elementType: null,
+      });
     }
   };
 
@@ -2810,9 +2837,9 @@ function ImageCanvas({
       setDraggingStandardPointIndex(null);
     }
     
-    // 结束拖拽选中对象
-    if (isDraggingSelection) {
-      setIsDraggingSelection(false);
+    // 结束拖拽选中对象（优化：使用selectionState）
+    if (selectionState.isDragging) {
+      setSelectionState({ ...selectionState, isDragging: false });
     }
     
     if (
@@ -2898,11 +2925,15 @@ function ImageCanvas({
         .reverse()
         .find(m => auxiliaryShapeTypes.includes(m.type));
 
-      // 如果找到了刚绘制的图形，选中它
+      // 如果找到了刚绘制的图形，选中它（优化：使用selectionState）
       if (lastAuxiliaryShape) {
-        setSelectedMeasurementId(lastAuxiliaryShape.id);
-        setSelectionType('whole');
-        setSelectedPointIndex(null);
+        setSelectionState({
+          measurementId: lastAuxiliaryShape.id,
+          pointIndex: null,
+          type: 'whole',
+          isDragging: false,
+          dragOffset: { x: 0, y: 0 },
+        });
       }
 
       // 切换工具
@@ -2995,18 +3026,13 @@ function ImageCanvas({
 
   const clearCurrentMeasurement = () => {
     setClickedPoints([]);
-    // 清除T1 tilt的水平参考线
-    if (selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) {
-      setT1TiltHorizontalLine(null);
-    }
-    // 清除SS的水平参考线
-    if (selectedTool.includes('ss')) {
-      setSsHorizontalLine(null);
-    }
-    // 清除SVA的垂直参考线
-    if (selectedTool.includes('sva')) {
-      setSvaFirstVerticalLine(null);
-    }
+    // 清除参考线（优化：使用referenceLines）
+    setReferenceLines(prev => ({
+      ...prev,
+      t1Tilt: (selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) ? null : prev.t1Tilt,
+      ss: selectedTool.includes('ss') ? null : prev.ss,
+      sva: selectedTool.includes('sva') ? null : prev.sva,
+    }));
   };
 
   const getCursorStyle = () => {
@@ -3143,9 +3169,9 @@ function ImageCanvas({
                   )}
                   
                   {measurements.map(measurement => {
-                    // 判断当前测量是否被选中或悬浮
-                    const isSelected = selectedMeasurementId === measurement.id;
-                    const isHovered = !isSelected && hoveredMeasurementId === measurement.id;
+                    // 判断当前测量是否被选中或悬浮（优化：使用selectionState）
+                    const isSelected = selectionState.measurementId === measurement.id;
+                    const isHovered = !isSelected && hoverState.measurementId === measurement.id;
                     const isLabelHidden = hiddenMeasurementIds.has(measurement.id);
                     const isAnnotationHidden = hiddenAnnotationIds.has(measurement.id);
                     
@@ -3212,29 +3238,41 @@ function ImageCanvas({
                           className="flex-1 flex items-center justify-between cursor-pointer min-w-0"
                           onMouseEnter={(e) => {
                             e.stopPropagation();
-                            setHoveredMeasurementId(measurement.id);
-                            setHoveredElementType('whole');
-                            setHoveredPointIndex(null);
+                            setHoverState({
+                              measurementId: measurement.id,
+                              elementType: 'whole',
+                              pointIndex: null,
+                            });
                           }}
                           onMouseLeave={(e) => {
                             e.stopPropagation();
-                            setHoveredMeasurementId(null);
-                            setHoveredElementType(null);
-                            setHoveredPointIndex(null);
+                            setHoverState({
+                              measurementId: null,
+                              elementType: null,
+                              pointIndex: null,
+                            });
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (selectedTool === 'hand') {
-                              if (selectedMeasurementId === measurement.id) {
-                                // 如果已选中，则取消选中
-                                setSelectedMeasurementId(null);
-                                setSelectionType(null);
-                                setSelectedPointIndex(null);
+                              if (selectionState.measurementId === measurement.id) {
+                                // 如果已选中，则取消选中（优化：使用selectionState）
+                                setSelectionState({
+                                  measurementId: null,
+                                  pointIndex: null,
+                                  type: null,
+                                  isDragging: false,
+                                  dragOffset: { x: 0, y: 0 },
+                                });
                               } else {
-                                // 选中该测量
-                                setSelectedMeasurementId(measurement.id);
-                                setSelectionType('whole');
-                                setSelectedPointIndex(null);
+                                // 选中该测量（优化：使用selectionState）
+                                setSelectionState({
+                                  measurementId: measurement.id,
+                                  pointIndex: null,
+                                  type: 'whole',
+                                  isDragging: false,
+                                  dragOffset: { x: 0, y: 0 },
+                                });
                               }
                             }
                           }}
@@ -3256,11 +3294,15 @@ function ImageCanvas({
                           onClick={(e) => {
                             e.stopPropagation();
                             onMeasurementsUpdate(measurements.filter(m => m.id !== measurement.id));
-                            // 如果删除的是选中项，清除选中状态
-                            if (selectedMeasurementId === measurement.id) {
-                              setSelectedMeasurementId(null);
-                              setSelectionType(null);
-                              setSelectedPointIndex(null);
+                            // 如果删除的是选中项，清除选中状态（优化：使用selectionState）
+                            if (selectionState.measurementId === measurement.id) {
+                              setSelectionState({
+                                measurementId: null,
+                                pointIndex: null,
+                                type: null,
+                                isDragging: false,
+                                dragOffset: { x: 0, y: 0 },
+                              });
                             }
                             // 同时从隐藏列表中移除
                             const newHidden = new Set(hiddenMeasurementIds);
@@ -3514,7 +3556,7 @@ function ImageCanvas({
               if (hideAllAnnotations || hiddenAnnotationIds.has(measurement.id)) {
                 return false;
               }
-              const isMeasurementHovered = hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              const isMeasurementHovered = hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
               return renderHovered ? isMeasurementHovered : !isMeasurementHovered;
             })
             .map((measurement) => {
@@ -3526,26 +3568,26 @@ function ImageCanvas({
           
           // 将图像坐标转换为屏幕坐标
           const screenPoints = measurement.points.map(p => imageToScreen(p));
-          // 检查整个测量是否为选中或悬浮状态
-          const isMeasurementSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
-          const isMeasurementHovered = !isMeasurementSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
-          
+          // 检查整个测量是否为选中或悬浮状态（优化：使用selectionState）
+          const isMeasurementSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+          const isMeasurementHovered = !isMeasurementSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
+
           // 根据状态确定颜色
           const displayColor = isMeasurementSelected ? "#ef4444" : isMeasurementHovered ? "#fbbf24" : color;
-          
+
           return (
             <g key={measurement.id}>
               {/* 关键点 - 辅助图形不显示定位点 */}
               {!isAuxiliaryShape && screenPoints.map((point, pointIndex) => {
-                // 检查是否为选中状态
-                const isSelected = selectedMeasurementId === measurement.id && 
-                  ((selectionType === 'point' && selectedPointIndex === pointIndex) ||
-                   (selectionType === 'whole'));
+                // 检查是否为选中状态（优化：使用selectionState）
+                const isSelected = selectionState.measurementId === measurement.id &&
+                  ((selectionState.type === 'point' && selectionState.pointIndex === pointIndex) ||
+                   (selectionState.type === 'whole'));
                 
                 // 检查是否为悬浮高亮状态（只有在非选中状态下才显示悬浮）
-                const isHovered = !isSelected && hoveredMeasurementId === measurement.id && 
-                  ((hoveredElementType === 'point' && hoveredPointIndex === pointIndex) ||
-                   (hoveredElementType === 'whole'));
+                const isHovered = !isSelected && hoverState.measurementId === measurement.id &&
+                  ((hoverState.elementType === 'point' && hoverState.pointIndex === pointIndex) ||
+                   (hoverState.elementType === 'whole'));
                 
                 return (
                   <g key={pointIndex}>
@@ -3610,8 +3652,8 @@ function ImageCanvas({
               
               {/* 测量值标注 - 显示在测量线中间,辅助图形不显示 */}
               {!isAuxiliaryShape && screenPoints.length >= 2 && !hideAllLabels && !hiddenMeasurementIds.has(measurement.id) && (() => {
-                const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
-                const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+                const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+                const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
                 
                 // 使用配置文件中的标注位置计算函数 - 传入图像坐标，返回图像坐标
                 const labelPosInImage = getLabelPositionForType(measurement.type, measurement.points, imageScale);
@@ -3662,7 +3704,7 @@ function ImageCanvas({
         {clickedPoints.map((point, index) => {
           const screenPoint = imageToScreen(point);
           // 检查是否为悬浮高亮状态
-          const isHovered = !hoveredMeasurementId && hoveredElementType === 'point' && hoveredPointIndex === index;
+          const isHovered = !hoverState.measurementId && hoverState.elementType === 'point' && hoverState.pointIndex === index;
           
           return (
             <g key={`current-${index}`}>
@@ -3904,11 +3946,11 @@ function ImageCanvas({
           );
         })()}
 
-        {/* T1 Tilt 专用水平参考线 HRL */}
-        {(selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) && t1TiltHorizontalLine && (
+        {/* T1 Tilt 专用水平参考线 HRL（优化：使用referenceLines） */}
+        {(selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) && referenceLines.t1Tilt && (
           <>
             {(() => {
-              const referencePoint = imageToScreen(t1TiltHorizontalLine);
+              const referencePoint = imageToScreen(referenceLines.t1Tilt);
               const lineLength = 200 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>
@@ -3950,11 +3992,11 @@ function ImageCanvas({
           </>
         )}
 
-        {/* CA 专用水平参考线 HRL */}
-        {selectedTool.includes('ca') && caHorizontalLine && (
+        {/* CA 专用水平参考线 HRL（优化：使用referenceLines） */}
+        {selectedTool.includes('ca') && referenceLines.ca && (
           <>
             {(() => {
-              const referencePoint = imageToScreen(caHorizontalLine);
+              const referencePoint = imageToScreen(referenceLines.ca);
               const lineLength = 200 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>
@@ -3996,11 +4038,11 @@ function ImageCanvas({
           </>
         )}
 
-        {/* Pelvic 专用水平参考线 HRL */}
-        {selectedTool.includes('pelvic') && pelvicHorizontalLine && (
+        {/* Pelvic 专用水平参考线 HRL（优化：使用referenceLines） */}
+        {selectedTool.includes('pelvic') && referenceLines.pelvic && (
           <>
             {(() => {
-              const referencePoint = imageToScreen(pelvicHorizontalLine);
+              const referencePoint = imageToScreen(referenceLines.pelvic);
               const lineLength = 200 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>
@@ -4042,11 +4084,11 @@ function ImageCanvas({
           </>
         )}
 
-        {/* SS（骶骨倾斜角）专用水平参考线 HRL - 侧位 */}
-        {selectedTool.includes('ss') && ssHorizontalLine && (
+        {/* SS（骶骨倾斜角）专用水平参考线 HRL - 侧位（优化：使用referenceLines） */}
+        {selectedTool.includes('ss') && referenceLines.ss && (
           <>
             {(() => {
-              const referencePoint = imageToScreen(ssHorizontalLine);
+              const referencePoint = imageToScreen(referenceLines.ss);
               const lineLength = 200 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>
@@ -4088,11 +4130,11 @@ function ImageCanvas({
           </>
         )}
 
-        {/* Sacral 专用水平参考线 HRL */}
-        {selectedTool.includes('sacral') && sacralHorizontalLine && (
+        {/* Sacral 专用水平参考线 HRL（优化：使用referenceLines） */}
+        {selectedTool.includes('sacral') && referenceLines.sacral && (
           <>
             {(() => {
-              const referencePoint = imageToScreen(sacralHorizontalLine);
+              const referencePoint = imageToScreen(referenceLines.sacral);
               const lineLength = 200 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>
@@ -4134,11 +4176,11 @@ function ImageCanvas({
           </>
         )}
 
-        {/* AVT 专用第一条垂直辅助线 */}
-        {selectedTool.includes('avt') && avtFirstVerticalLine && (
+        {/* AVT 专用第一条垂直辅助线（优化：使用referenceLines） */}
+        {selectedTool.includes('avt') && referenceLines.avt && (
           <>
             {(() => {
-              const referencePoint = imageToScreen(avtFirstVerticalLine);
+              const referencePoint = imageToScreen(referenceLines.avt);
               const lineLength = 100 * imageScale; // 垂直线长度随缩放变化
               return (
                 <g>
@@ -4180,11 +4222,11 @@ function ImageCanvas({
           </>
         )}
 
-        {/* TS 专用第一条垂直辅助线 */}
-        {selectedTool.includes('ts') && tsFirstVerticalLine && (
+        {/* TS 专用第一条垂直辅助线（优化：使用referenceLines） */}
+        {selectedTool.includes('ts') && referenceLines.ts && (
           <>
             {(() => {
-              const referencePoint = imageToScreen(tsFirstVerticalLine);
+              const referencePoint = imageToScreen(referenceLines.ts);
               const lineLength = 100 * imageScale; // 垂直线长度随缩放变化
               return (
                 <g>
@@ -4239,8 +4281,8 @@ function ImageCanvas({
               const radius = Math.sqrt(
                 Math.pow(screenEdge.x - screenCenter.x, 2) + Math.pow(screenEdge.y - screenCenter.y, 2)
               );
-              const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
-              const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+              const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
               
               return (
                 <circle
@@ -4297,8 +4339,8 @@ function ImageCanvas({
               const screenEdge = imageToScreen(edge);
               const radiusX = Math.abs(screenEdge.x - screenCenter.x);
               const radiusY = Math.abs(screenEdge.y - screenCenter.y);
-              const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
-              const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+              const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
               
               return (
                 <ellipse
@@ -4348,8 +4390,8 @@ function ImageCanvas({
             if (measurement.points.length >= 2) {
               const topLeft = imageToScreen(measurement.points[0]);
               const bottomRight = imageToScreen(measurement.points[1]);
-              const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
-              const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+              const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
               
               return (
                 <rect
@@ -4399,8 +4441,8 @@ function ImageCanvas({
             if (measurement.points.length >= 2) {
               const start = imageToScreen(measurement.points[0]);
               const end = imageToScreen(measurement.points[1]);
-              const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
-              const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+              const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+              const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
               
               // 确定箭头头部的marker
               let markerEnd = "url(#arrowhead-normal)";
@@ -4455,8 +4497,8 @@ function ImageCanvas({
           .filter(m => m.type === '多边形标注')
           .map(measurement => {
             const screenPoints = measurement.points.map(p => imageToScreen(p));
-            const isSelected = selectedMeasurementId === measurement.id && selectionType === 'whole';
-            const isHovered = !isSelected && hoveredMeasurementId === measurement.id && hoveredElementType === 'whole';
+            const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+            const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
             
             return (
               <polygon
@@ -4514,32 +4556,32 @@ function ImageCanvas({
           // 获取选中的对象
           let selectedPoints: Point[] = [];
           let selectedMeasurement: any = null;
-          
-          if (selectedMeasurementId) {
-            // 选中了测量结果
-            const measurement = measurements.find(m => m.id === selectedMeasurementId);
+
+          if (selectionState.measurementId) {
+            // 选中了测量结果（优化：使用selectionState）
+            const measurement = measurements.find(m => m.id === selectionState.measurementId);
             if (measurement) {
               selectedMeasurement = measurement;
-              if (selectionType === 'point' && selectedPointIndex !== null) {
+              if (selectionState.type === 'point' && selectionState.pointIndex !== null) {
                 // 只显示选中的点
-                selectedPoints = [measurement.points[selectedPointIndex]];
+                selectedPoints = [measurement.points[selectionState.pointIndex]];
               } else {
                 // 显示整个测量结果
                 selectedPoints = measurement.points;
               }
             }
-          } else if (selectedPointIndex !== null && clickedPoints[selectedPointIndex]) {
+          } else if (selectionState.pointIndex !== null && clickedPoints[selectionState.pointIndex]) {
             // 选中了单个点
-            selectedPoints = [clickedPoints[selectedPointIndex]];
+            selectedPoints = [clickedPoints[selectionState.pointIndex]];
           }
-          
+
           if (selectedPoints.length === 0) return null;
-          
+
           // 计算边界框
           let minX: number, maxX: number, minY: number, maxY: number;
-          
-          // 针对不同类型的图形计算不同的边界框
-          if (selectedMeasurement && selectionType === 'whole') {
+
+          // 针对不同类型的图形计算不同的边界框（优化：使用selectionState）
+          if (selectedMeasurement && selectionState.type === 'whole') {
             // 辅助图形需要特殊处理
             if (selectedMeasurement.type === '圆形标注' && selectedMeasurement.points.length >= 2) {
               const center = selectedMeasurement.points[0];
