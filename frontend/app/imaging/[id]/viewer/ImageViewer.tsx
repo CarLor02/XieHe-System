@@ -127,6 +127,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [treatmentAdvice, setTreatmentAdvice] = useState('');
   const [showAdvicePanel, setShowAdvicePanel] = useState(false);
 
+  // 锁定图像平移
+  const [isImagePanLocked, setIsImagePanLocked] = useState(false);
+
   // 从API获取真实的影像数据
   useEffect(() => {
     const fetchStudyData = async () => {
@@ -1129,6 +1132,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               recalculateAVTandTS={recalculateAVTandTS}
               onImageSizeChange={(size) => setImageNaturalSize(size)}
               onToolChange={handleToolChange}
+              isImagePanLocked={isImagePanLocked}
             />
           </div>
         </div>
@@ -1167,11 +1171,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                   title="移动、选择、删除工具"
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <div 
-                    className="flex flex-col text-center" 
-                    style={{ 
-                      transform: 'translateY(0)', 
-                      alignItems: 'center', 
+                  <div
+                    className="flex flex-col text-center"
+                    style={{
+                      transform: 'translateY(0)',
+                      alignItems: 'center',
                       justifyContent: 'center',
                       height: '100%',
                       display: 'flex'
@@ -1182,6 +1186,27 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                   </div>
                   {selectedTool === 'hand' && (
                     <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -right-1 bg-blue-500 rounded-full"></i>
+                  )}
+                </button>
+              </div>
+
+              {/* 锁定图像平移按钮 */}
+              <div className="mt-2">
+                <button
+                  onClick={() => {
+                    setIsImagePanLocked(!isImagePanLocked);
+                  }}
+                  className={`rounded-lg w-full h-10 transition-all relative flex items-center justify-center gap-2 ${
+                    isImagePanLocked
+                      ? 'bg-yellow-600 text-white ring-2 ring-yellow-400 shadow-lg'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                  title={isImagePanLocked ? "图像已锁定，点击解锁" : "锁定图像平移，防止拖拽时移动图像"}
+                >
+                  <i className={isImagePanLocked ? "ri-lock-line text-base" : "ri-lock-unlock-line text-base"}></i>
+                  <span className="text-xs">{isImagePanLocked ? "已锁定" : "锁定图像"}</span>
+                  {isImagePanLocked && (
+                    <i className="ri-check-line w-3 h-3 flex items-center justify-center text-yellow-200 absolute -top-1 -right-1 bg-yellow-500 rounded-full"></i>
                   )}
                 </button>
               </div>
@@ -1571,6 +1596,7 @@ function ImageCanvas({
   recalculateAVTandTS,
   onImageSizeChange,
   onToolChange,
+  isImagePanLocked,
 }: {
   selectedImage: any;
   measurements: Measurement[];
@@ -1594,6 +1620,7 @@ function ImageCanvas({
   recalculateAVTandTS: (distance?: number, points?: Point[]) => void;
   onImageSizeChange: (size: { width: number; height: number }) => void;
   onToolChange: (tool: string) => void;
+  isImagePanLocked: boolean;
 }) {
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(1);
@@ -1608,7 +1635,6 @@ function ImageCanvas({
   // 图像调整参数
   const [brightness, setBrightness] = useState(0); // -100 to 100
   const [contrast, setContrast] = useState(0); // -100 to 100
-
 
   const [adjustMode, setAdjustMode] = useState<
     'none' | 'zoom' | 'brightness' | 'contrast'
@@ -2629,7 +2655,8 @@ function ImageCanvas({
           }
         }
       }
-    } else if (adjustMode === 'zoom' && isDragging && selectedTool === 'hand') {
+    } else if (adjustMode === 'zoom' && isDragging && selectedTool === 'hand' && !isImagePanLocked) {
+      // 只有在未锁定图像平移时才允许移动图像
       setImagePosition({
         x: x - dragStart.x,
         y: y - dragStart.y,
@@ -3479,7 +3506,7 @@ function ImageCanvas({
             <span>清空全部</span>
           </button>
         </div>
-        
+
         {/* 缩放调节 */}
         <div className="flex items-center justify-between gap-3">
           <span className="text-white text-xs whitespace-nowrap">缩放</span>
@@ -4864,9 +4891,9 @@ function ImageCanvas({
       <div className="absolute bottom-4 left-4 bg-black/70 text-white text-xs px-3 py-2 rounded">
         {selectedTool === 'hand' ? (
           <div>
-            <p className="font-medium">移动模式</p>
+            <p className="font-medium">移动模式 {isImagePanLocked && <span className="text-yellow-400">🔒 图像已锁定</span>}</p>
             <p>点击选中标注 | 拖拽移动 | 点击删除按钮删除</p>
-            <p className="text-gray-400 mt-1">或拖拽移动图像 | 滚轮缩放</p>
+            <p className="text-gray-400 mt-1">{isImagePanLocked ? '图像已锁定，拖拽不会移动图像' : '或拖拽移动图像'} | 滚轮缩放</p>
           </div>
         ) : selectedTool === 'polygon' ? (
           <div>
