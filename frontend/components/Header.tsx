@@ -196,10 +196,15 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
+      // 先清除认证状态
       await logout();
-      router.push('/auth/login');
+      // 使用 window.location.href 进行完整页面跳转，避免闪烁
+      // 这样可以确保所有状态都被清除，不会触发中间状态的渲染
+      window.location.href = '/auth/login';
     } catch (error) {
       console.error('Logout error:', error);
+      // 即使出错也跳转到登录页
+      window.location.href = '/auth/login';
     }
   };
 

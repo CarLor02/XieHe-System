@@ -31,10 +31,16 @@ export default function LoginPage() {
   >({});
 
   // 如果已登录，重定向到仪表板
+  // 添加延迟检查，避免在登出过程中触发不必要的重定向
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/');
-    }
+    // 使用 setTimeout 延迟检查，避免在状态更新过程中触发
+    const timer = setTimeout(() => {
+      if (isAuthenticated) {
+        router.push('/');
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [isAuthenticated, router]);
 
   // 清除错误信息

@@ -190,6 +190,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { accessToken } = get();
           if (accessToken) {
+            // 调用后端登出接口，将 token 加入黑名单
             await axios.post(
               `${API_BASE_URL}/api/v1/auth/logout`,
               {},
@@ -200,14 +201,27 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error) {
           console.error('Logout error:', error);
+          // 即使后端登出失败，也要清除本地状态
         } finally {
+          // 清除所有认证相关状态
           set({
             isAuthenticated: false,
             user: null,
             accessToken: null,
             refreshToken: null,
             error: null,
+            isLoading: false,
           });
+
+          // 清除 localStorage 中的持久化数据
+          // 注意：zustand persist 会自动处理，但我们手动清除以确保彻底
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.removeItem('auth-storage');
+            } catch (e) {
+              console.error('Failed to clear localStorage:', e);
+            }
+          }
         }
       },
 
