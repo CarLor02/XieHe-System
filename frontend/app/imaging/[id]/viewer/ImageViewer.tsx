@@ -1795,6 +1795,12 @@ function ImageCanvas({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // 🔒 安全检查：图像未加载完成时，禁止所有交互操作
+    if (!imageNaturalSize) {
+      console.warn('⚠️ 图像尚未加载完成，请稍候再进行操作');
+      return;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -2352,6 +2358,11 @@ function ImageCanvas({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    // 🔒 安全检查：图像未加载完成时，禁止所有交互操作
+    if (!imageNaturalSize) {
+      return;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -2911,6 +2922,12 @@ function ImageCanvas({
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault(); // 阻止默认右键菜单
     e.stopPropagation(); // 阻止事件冒泡
+
+    // 🔒 安全检查：图像未加载完成时，禁止所有交互操作
+    if (!imageNaturalSize) {
+      console.warn('⚠️ 图像尚未加载完成，请稍候再进行操作');
+      return;
+    }
 
     // 辅助图形工具列表
     const auxiliaryTools = ['circle', 'ellipse', 'rectangle', 'arrow'];
