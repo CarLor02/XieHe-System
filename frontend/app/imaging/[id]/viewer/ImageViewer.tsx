@@ -3635,7 +3635,14 @@ function ImageCanvas({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setImageScale(prev => Math.max(0.1, prev * 0.8));
+              setImageScale(prev => {
+                const newScale = Math.max(0.1, prev * 0.8);
+                return newScale;
+              });
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
             }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="缩小 (快捷键: -)"
@@ -3643,12 +3650,22 @@ function ImageCanvas({
             −
           </button>
           <span className="text-white text-xs font-bold w-8 text-center">
-            {Math.round(imageScale * 100)}%
+            {(() => {
+              const percentage = Math.round(imageScale * 100);
+              return percentage + '%';
+            })()}
           </span>
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setImageScale(prev => Math.min(5, prev * 1.2));
+              setImageScale(prev => {
+                const newScale = Math.min(5, prev * 1.2);
+                return newScale;
+              });
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
             }}
             className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
             title="放大 (快捷键: +)"
