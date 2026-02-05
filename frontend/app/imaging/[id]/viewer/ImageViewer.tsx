@@ -13,7 +13,6 @@ import {
   getToolsForExamType as getTools,
   getColorForType,
   getLabelPositionForType,
-  isAuxiliaryShape as checkIsAuxiliaryShape,
   renderSpecialSVGElements,
 } from './annotationHelpers';
 // 导入工具函数库
@@ -28,6 +27,9 @@ import {
   // 几何计算
   calculateDistance,
   pointToLineDistance,
+
+  // 工具判断（使用 toolUtils 中的实现，支持中文名称）
+  isAuxiliaryShape as checkIsAuxiliaryShape,
 
   // 坐标转换
   imageToScreen as utilImageToScreen,
@@ -67,7 +69,7 @@ interface Measurement {
   type: string;
   value: string;
   points: any[];
-  description?: string;
+  description?: string;  // 对于辅助图形，用于存储用户自定义的文字标注
 }
 
 interface Point {
@@ -1682,6 +1684,30 @@ function ImageCanvas({
   // 标准距离可见性状态
   const [isStandardDistanceHidden, setIsStandardDistanceHidden] = useState(false);
 
+  // 右键菜单状态
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    measurementId: string | null;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    measurementId: null,
+  });
+
+  // 文字编辑对话框状态
+  const [editLabelDialog, setEditLabelDialog] = useState<{
+    visible: boolean;
+    measurementId: string | null;
+    currentLabel: string;
+  }>({
+    visible: false,
+    measurementId: null,
+    currentLabel: '',
+  });
+
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
@@ -2929,6 +2955,26 @@ function ImageCanvas({
       return;
     }
 
+    // 检查是否选中了辅助图形（优先级最高）
+    if (selectionState.measurementId && selectionState.type === 'whole') {
+      const selectedMeasurement = measurements.find(
+        m => m.id === selectionState.measurementId
+      );
+
+      const auxiliaryShapeTypes = ['圆形标注', '椭圆标注', '矩形标注', '箭头标注'];
+
+      if (selectedMeasurement && auxiliaryShapeTypes.includes(selectedMeasurement.type)) {
+        // 显示右键菜单
+        setContextMenu({
+          visible: true,
+          x: e.clientX,
+          y: e.clientY,
+          measurementId: selectedMeasurement.id,
+        });
+        return;
+      }
+    }
+
     // 辅助图形工具列表
     const auxiliaryTools = ['circle', 'ellipse', 'rectangle', 'arrow'];
 
@@ -2957,6 +3003,66 @@ function ImageCanvas({
       onToolChange('hand');
     }
   };
+
+  // 右键菜单：编辑文字
+  const handleEditLabel = () => {
+    const measurement = measurements.find(m => m.id === contextMenu.measurementId);
+    if (measurement) {
+      setEditLabelDialog({
+        visible: true,
+        measurementId: measurement.id,
+        currentLabel: measurement.description || '',
+      });
+      setContextMenu({ visible: false, x: 0, y: 0, measurementId: null });
+    }
+  };
+
+  // 右键菜单：删除图形
+  const handleDeleteShape = () => {
+    if (contextMenu.measurementId) {
+      // 使用 onMeasurementsUpdate 过滤掉被删除的测量
+      onMeasurementsUpdate(measurements.filter(m => m.id !== contextMenu.measurementId));
+      setSelectionState({
+        measurementId: null,
+        pointIndex: null,
+        type: null,
+        isDragging: false,
+        dragOffset: { x: 0, y: 0 },
+      });
+    }
+    setContextMenu({ visible: false, x: 0, y: 0, measurementId: null });
+  };
+
+  // 文字编辑对话框：保存
+  const handleSaveLabel = () => {
+    if (editLabelDialog.measurementId) {
+      // 使用 onMeasurementsUpdate 更新测量数据
+      // 对于辅助图形，使用 description 字段存储用户自定义的文字标注
+      onMeasurementsUpdate(measurements.map(m =>
+        m.id === editLabelDialog.measurementId
+          ? { ...m, description: editLabelDialog.currentLabel }
+          : m
+      ));
+    }
+    setEditLabelDialog({ visible: false, measurementId: null, currentLabel: '' });
+  };
+
+  // 文字编辑对话框：取消
+  const handleCancelEdit = () => {
+    setEditLabelDialog({ visible: false, measurementId: null, currentLabel: '' });
+  };
+
+  // 点击其他地方关闭右键菜单
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu.visible) {
+        setContextMenu({ visible: false, x: 0, y: 0, measurementId: null });
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [contextMenu.visible]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (isHovering) {
@@ -3667,7 +3773,7 @@ function ImageCanvas({
                 </>
               )}
               
-              {/* 测量值标注 - 显示在测量线中间,辅助图形不显示 */}
+              {/* 测量值标注 - 显示在测量线中间,辅助图形不显示系统文字 */}
               {!isAuxiliaryShape && screenPoints.length >= 2 && !hideAllLabels && !hiddenMeasurementIds.has(measurement.id) && (() => {
                 const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
                 const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
@@ -4300,19 +4406,34 @@ function ImageCanvas({
               );
               const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
               const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
-              
+
               return (
-                <circle
-                  key={measurement.id}
-                  cx={screenCenter.x}
-                  cy={screenCenter.y}
-                  r={radius}
-                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
-                  fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
-                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#3b82f6"}
-                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
-                  opacity={isSelected || isHovered ? "1" : "0.6"}
-                />
+                <g key={measurement.id}>
+                  <circle
+                    cx={screenCenter.x}
+                    cy={screenCenter.y}
+                    r={radius}
+                    fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
+                    fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
+                    stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#3b82f6"}
+                    strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                    opacity={isSelected || isHovered ? "1" : "0.6"}
+                  />
+                  {/* 文字标注 - 显示在圆形中心 */}
+                  {measurement.description && (
+                    <text
+                      x={screenCenter.x}
+                      y={screenCenter.y + 5}
+                      fill="#1e40af"
+                      fontSize="14"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      style={{ userSelect: 'none', pointerEvents: 'none' }}
+                    >
+                      {measurement.description}
+                    </text>
+                  )}
+                </g>
               );
             }
             return null;
@@ -4358,20 +4479,35 @@ function ImageCanvas({
               const radiusY = Math.abs(screenEdge.y - screenCenter.y);
               const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
               const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
-              
+
               return (
-                <ellipse
-                  key={measurement.id}
-                  cx={screenCenter.x}
-                  cy={screenCenter.y}
-                  rx={radiusX}
-                  ry={radiusY}
-                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
-                  fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
-                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#8b5cf6"}
-                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
-                  opacity={isSelected || isHovered ? "1" : "0.6"}
-                />
+                <g key={measurement.id}>
+                  <ellipse
+                    cx={screenCenter.x}
+                    cy={screenCenter.y}
+                    rx={radiusX}
+                    ry={radiusY}
+                    fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
+                    fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
+                    stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#8b5cf6"}
+                    strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                    opacity={isSelected || isHovered ? "1" : "0.6"}
+                  />
+                  {/* 文字标注 - 显示在椭圆中心 */}
+                  {measurement.description && (
+                    <text
+                      x={screenCenter.x}
+                      y={screenCenter.y + 5}
+                      fill="#6d28d9"
+                      fontSize="14"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      style={{ userSelect: 'none', pointerEvents: 'none' }}
+                    >
+                      {measurement.description}
+                    </text>
+                  )}
+                </g>
               );
             }
             return null;
@@ -4409,20 +4545,39 @@ function ImageCanvas({
               const bottomRight = imageToScreen(measurement.points[1]);
               const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
               const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
-              
+              const minX = Math.min(topLeft.x, bottomRight.x);
+              const minY = Math.min(topLeft.y, bottomRight.y);
+              const width = Math.abs(bottomRight.x - topLeft.x);
+              const height = Math.abs(bottomRight.y - topLeft.y);
+
               return (
-                <rect
-                  key={measurement.id}
-                  x={Math.min(topLeft.x, bottomRight.x)}
-                  y={Math.min(topLeft.y, bottomRight.y)}
-                  width={Math.abs(bottomRight.x - topLeft.x)}
-                  height={Math.abs(bottomRight.y - topLeft.y)}
-                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
-                  fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
-                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#ec4899"}
-                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
-                  opacity={isSelected || isHovered ? "1" : "0.6"}
-                />
+                <g key={measurement.id}>
+                  <rect
+                    x={minX}
+                    y={minY}
+                    width={width}
+                    height={height}
+                    fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
+                    fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
+                    stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#ec4899"}
+                    strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                    opacity={isSelected || isHovered ? "1" : "0.6"}
+                  />
+                  {/* 文字标注 - 显示在矩形中心 */}
+                  {measurement.description && (
+                    <text
+                      x={minX + width / 2}
+                      y={minY + height / 2 + 5}
+                      fill="#be185d"
+                      fontSize="14"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      style={{ userSelect: 'none', pointerEvents: 'none' }}
+                    >
+                      {measurement.description}
+                    </text>
+                  )}
+                </g>
               );
             }
             return null;
@@ -4460,7 +4615,7 @@ function ImageCanvas({
               const end = imageToScreen(measurement.points[1]);
               const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
               const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
-              
+
               // 确定箭头头部的marker
               let markerEnd = "url(#arrowhead-normal)";
               if (isSelected) {
@@ -4468,19 +4623,34 @@ function ImageCanvas({
               } else if (isHovered) {
                 markerEnd = "url(#arrowhead-hovered)";
               }
-              
+
               return (
-                <line
-                  key={measurement.id}
-                  x1={start.x}
-                  y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
-                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#f59e0b"}
-                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
-                  markerEnd={markerEnd}
-                  opacity={isSelected || isHovered ? "1" : "0.6"}
-                />
+                <g key={measurement.id}>
+                  <line
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#f59e0b"}
+                    strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                    markerEnd={markerEnd}
+                    opacity={isSelected || isHovered ? "1" : "0.6"}
+                  />
+                  {/* 文字标注 - 显示在箭头中心 */}
+                  {measurement.description && (
+                    <text
+                      x={(start.x + end.x) / 2}
+                      y={(start.y + end.y) / 2 + 5}
+                      fill="#b45309"
+                      fontSize="14"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      style={{ userSelect: 'none', pointerEvents: 'none' }}
+                    >
+                      {measurement.description}
+                    </text>
+                  )}
+                </g>
               );
             }
             return null;
@@ -4743,6 +4913,79 @@ function ImageCanvas({
         )}
         {isHovering && <p className="text-blue-400 mt-1">滚轮缩放已激活</p>}
       </div>
+
+      {/* 右键菜单 */}
+      {contextMenu.visible && (
+        <div
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 9999,
+          }}
+          className="bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[150px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={handleEditLabel}
+            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
+          >
+            <span>✏️</span>
+            <span>编辑文字</span>
+          </button>
+          <button
+            onClick={handleDeleteShape}
+            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-red-600"
+          >
+            <span>🗑️</span>
+            <span>删除图形</span>
+          </button>
+        </div>
+      )}
+
+      {/* 文字编辑对话框 */}
+      {editLabelDialog.visible && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]"
+          onClick={handleCancelEdit}
+        >
+          <div
+            className="bg-white rounded-lg p-6 w-96 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-4">编辑图形文字</h3>
+            <input
+              type="text"
+              value={editLabelDialog.currentLabel}
+              onChange={(e) => setEditLabelDialog(prev => ({
+                ...prev,
+                currentLabel: e.target.value
+              }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveLabel();
+                if (e.key === 'Escape') handleCancelEdit();
+              }}
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="输入文字标注..."
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={handleCancelEdit}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveLabel}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
