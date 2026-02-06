@@ -5619,11 +5619,11 @@ function ImageCanvas({
       {/* 文字编辑对话框 */}
       {editLabelDialog.visible && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]"
+          className="fixed inset-0 flex items-center justify-center z-[10000]"
           onClick={handleCancelEdit}
         >
           <div
-            className="bg-white rounded-lg p-6 w-96 shadow-xl"
+            className="bg-white rounded-lg p-6 w-96 shadow-2xl border border-gray-300"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-4">编辑图形文字</h3>
