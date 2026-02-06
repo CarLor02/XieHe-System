@@ -426,6 +426,7 @@ export const CA_CONFIG: AnnotationConfig = {
 /**
  * Pelvic 骨盆倾斜角
  * 2点测量：与水平线夹角
+ * 正负规则：左边高为正，右边高为负
  */
 export const PELVIC_CONFIG: AnnotationConfig = {
   id: 'pelvic',
@@ -435,12 +436,19 @@ export const PELVIC_CONFIG: AnnotationConfig = {
   pointsNeeded: 2,
   category: 'measurement',
   color: '#ec4899',
-  
+
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 2) return [];
-    
-    const angle = Math.abs(calculateAngleToHorizontal(points[0], points[1]));
-    
+
+    // 计算角度（图像左边高为正）
+    // points[0] 是图像左侧点，points[1] 是图像右侧点
+    // dx = points[1].x - points[0].x > 0（右侧x更大）
+    // dy = points[1].y - points[0].y
+    // 如果图像左侧高：points[0].y < points[1].y → dy > 0 → angle > 0 ✅
+    // 如果图像右侧高：points[0].y > points[1].y → dy < 0 → angle < 0 ✅
+    // 直接使用原始角度，不反转
+    const angle = calculateAngleToHorizontal(points[0], points[1]);
+
     return [{
       name: 'Pelvic',
       value: angle.toFixed(1),
@@ -478,6 +486,7 @@ export const PELVIC_CONFIG: AnnotationConfig = {
 /**
  * Sacral 骶骨倾斜角
  * 2点测量：与水平线夹角
+ * 正负规则：左边高为正，右边高为负
  */
 export const SACRAL_CONFIG: AnnotationConfig = {
   id: 'sacral',
@@ -487,12 +496,19 @@ export const SACRAL_CONFIG: AnnotationConfig = {
   pointsNeeded: 2,
   category: 'measurement',
   color: '#f43f5e',
-  
+
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 2) return [];
-    
-    const angle = Math.abs(calculateAngleToHorizontal(points[0], points[1]));
-    
+
+    // 计算角度（图像左边高为正）
+    // points[0] 是图像左侧点，points[1] 是图像右侧点
+    // dx = points[1].x - points[0].x > 0（右侧x更大）
+    // dy = points[1].y - points[0].y
+    // 如果图像左侧高：points[0].y < points[1].y → dy > 0 → angle > 0 ✅
+    // 如果图像右侧高：points[0].y > points[1].y → dy < 0 → angle < 0 ✅
+    // 直接使用原始角度，不反转
+    const angle = calculateAngleToHorizontal(points[0], points[1]);
+
     return [{
       name: 'Sacral',
       value: angle.toFixed(1),

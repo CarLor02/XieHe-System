@@ -100,6 +100,9 @@ def infer_pose(img: np.ndarray) -> Dict[str, dict]:
     if pose_model is None:
         return {}
 
+    # 获取原始图像尺寸
+    orig_h, orig_w = img.shape[:2]
+
     results = pose_model.predict(img, verbose=False)
     result = results[0]
 
@@ -107,9 +110,14 @@ def infer_pose(img: np.ndarray) -> Dict[str, dict]:
     pose_data = {}
 
     if result.keypoints is not None and len(result.keypoints) > 0:
+        # 获取原始关键点坐标（可能是基于模型输入尺寸的）
         keypoints = result.keypoints.xy.cpu().numpy()
         confidences = result.keypoints.conf.cpu().numpy() if result.keypoints.conf is not None else None
         box_confs = result.boxes.conf.cpu().numpy()
+
+        # 使用归一化坐标来计算正确的像素坐标
+        # keypoints.xyn 是归一化坐标 (0-1)，我们直接用它乘以原始图像尺寸
+        keypoints_xyn = result.keypoints.xyn.cpu().numpy() if hasattr(result.keypoints, 'xyn') and result.keypoints.xyn is not None else None
 
         # 取置信度最高的检测结果
         best_idx = 0
@@ -119,10 +127,14 @@ def infer_pose(img: np.ndarray) -> Dict[str, dict]:
                 best_conf = box_confs[obj_idx]
                 best_idx = obj_idx
 
-        if best_conf >= CONF_THRESHOLD:
+        if best_conf >= CONF_THRESHOLD and keypoints_xyn is not None:
             for kpt_idx in range(min(6, len(keypoints[best_idx]))):
-                x, y = keypoints[best_idx][kpt_idx]
+                # 使用归一化坐标计算像素坐标
+                x_norm, y_norm = keypoints_xyn[best_idx][kpt_idx]
+                x = x_norm * orig_w
+                y = y_norm * orig_h
                 conf = confidences[best_idx][kpt_idx] if confidences is not None else 1.0
+
                 pose_data[keypoint_names[kpt_idx]] = {
                     "x": float(x),
                     "y": float(y),
@@ -269,9 +281,6 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
     """
     cobb_angles = []
 
-    # 打印调试信息：检测到的椎骨
-    print(f"[DEBUG] 检测到的椎骨: {list(vertebrae_data.keys())}")
-
     # 定义三个区域的椎骨范围
     regions = [
         {"name": "Thoracic", "range": ["T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"]},
@@ -283,10 +292,7 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
         # 筛选出该区域内存在的椎骨
         available_vertebrae = {name: data for name, data in vertebrae_data.items() if name in region["range"]}
 
-        print(f"[DEBUG] {region['name']} 区域可用椎骨: {list(available_vertebrae.keys())}")
-
         if len(available_vertebrae) < 2:
-            print(f"[DEBUG] {region['name']} 区域椎骨数量不足 (<2)，跳过")
             continue
 
         # 步骤1: 找到顶椎（离中线最远的椎骨）
@@ -311,10 +317,7 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
                 apex_tilt = calc_angle(data["corners"]["top_left"], data["corners"]["top_right"])
 
         if apex_vertebra is None:
-            print(f"[DEBUG] {region['name']} 未找到顶椎，跳过")
             continue
-
-        print(f"[DEBUG] {region['name']} 顶椎: {apex_name} (y={apex_y:.1f}, 偏移={max_offset:.1f}, 倾斜={apex_tilt:.2f}°)")
 
         # 步骤2: 在顶椎上方找倾斜角最大的椎骨作为上端椎（如果没有，顶椎就是上端椎）
         max_tilt = apex_tilt
@@ -350,17 +353,6 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
 
         # 必须有上端椎和下端椎，且不能是同一个椎骨
         if upper_vertebra and lower_vertebra and upper_name != lower_name:
-            # 判断顶椎是否参与计算
-            if upper_name == apex_name:
-                print(f"[DEBUG] {region['name']} 上端椎: {upper_name} (顶椎, 倾斜角={max_tilt:.2f}°)")
-            else:
-                print(f"[DEBUG] {region['name']} 上端椎: {upper_name} (倾斜角={max_tilt:.2f}°)")
-
-            if lower_name == apex_name:
-                print(f"[DEBUG] {region['name']} 下端椎: {lower_name} (顶椎, 倾斜角={min_tilt:.2f}°)")
-            else:
-                print(f"[DEBUG] {region['name']} 下端椎: {lower_name} (倾斜角={min_tilt:.2f}°)")
-
             # 上端椎使用下边缘，下端椎使用上边缘
             cobb = calc_cobb_angle(
                 upper_vertebra["bottom_left"],
@@ -369,19 +361,8 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
                 lower_vertebra["top_right"]
             )
 
-            # 显示椎骨关系
-            if upper_name == apex_name and lower_name == apex_name:
-                print(f"[DEBUG] {region['name']}: 只有顶椎 {apex_name}，无法计算Cobb角")
-            elif upper_name == apex_name:
-                print(f"[DEBUG] {region['name']}: {upper_name}(顶椎) → {lower_name}, Cobb角 = {cobb:.2f}°")
-            elif lower_name == apex_name:
-                print(f"[DEBUG] {region['name']}: {upper_name} → {lower_name}(顶椎), Cobb角 = {cobb:.2f}°")
-            else:
-                print(f"[DEBUG] {region['name']}: {upper_name} → {apex_name}(顶椎) → {lower_name}, Cobb角 = {cobb:.2f}°")
-
             # 只保留绝对值大于10度的（临床标准）
             if abs(cobb) > 10:
-                print(f"[DEBUG] ✓ {region['name']} Cobb角 {cobb:.2f}° 已添加")
                 cobb_angles.append({
                     "type": f"Cobb-{region['name']}",
                     "angle": cobb,
@@ -395,10 +376,6 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
                         {"x": lower_vertebra["top_right"]["x"], "y": lower_vertebra["top_right"]["y"]}
                     ]
                 })
-            else:
-                print(f"[DEBUG] ✗ {region['name']} Cobb角 {cobb:.2f}° 小于阈值，已过滤")
-        else:
-            print(f"[DEBUG] {region['name']} 只有一个椎骨，无法计算Cobb角")
 
     return cobb_angles
 
@@ -457,7 +434,8 @@ def convert_to_annotations(
     # 4. Pelvic (骨盆倾斜角) - IR, IL
     if "IR" in pose_data and "IL" in pose_data:
         # IR是右侧髂骨，IL是左侧髂骨
-        pelvic_angle = calc_tilt_angle(pose_data["IR"], pose_data["IL"])
+        # calc_tilt_angle的参数顺序是(left_point, right_point)
+        pelvic_angle = calc_tilt_angle(pose_data["IL"], pose_data["IR"])
         measurements.append({
             "type": "Pelvic",
             "angle": pelvic_angle,
@@ -470,7 +448,8 @@ def convert_to_annotations(
     # 5. Sacral (骶骨倾斜角) - SR, SL
     if "SR" in pose_data and "SL" in pose_data:
         # SR是右侧骶骨，SL是左侧骶骨
-        sacral_angle = calc_tilt_angle(pose_data["SR"], pose_data["SL"])
+        # calc_tilt_angle的参数顺序是(left_point, right_point)
+        sacral_angle = calc_tilt_angle(pose_data["SL"], pose_data["SR"])
         measurements.append({
             "type": "Sacral",
             "angle": sacral_angle,
