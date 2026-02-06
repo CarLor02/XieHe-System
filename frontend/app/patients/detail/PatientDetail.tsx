@@ -159,7 +159,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
 
             <div className="flex space-x-3">
               <Link
-                href={`/patients/${patientId}/edit`}
+                href={`/patients/edit?id=${patientId}`}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow"
               >
                 编辑信息
@@ -325,7 +325,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">影像记录</h3>
               <Link
-                href={`/upload?returnTo=/patients/${patientId}&patientId=${patient.patient_id}&patientName=${encodeURIComponent(patient.name)}`}
+                href={`/upload?returnTo=/patients/detail?id=${patientId}&patientId=${patient.patient_id}&patientName=${encodeURIComponent(patient.name)}`}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 上传影像
@@ -393,7 +393,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                         <td className="px-4 py-4">
                           <div className="flex items-center space-x-2">
                             <Link
-                              href={`/imaging/${imageFile.id}/viewer`}
+                              href={`/imaging/viewer?id=${imageFile.id}`}
                               className="text-blue-600 hover:text-blue-700 text-sm transition-colors"
                             >
                               查看影像

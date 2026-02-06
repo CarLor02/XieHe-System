@@ -486,7 +486,7 @@ export default function ImagingPage() {
                     className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                   >
                     {/* 影像预览 */}
-                    <Link href={`/imaging/${imageFile.id}/viewer`}>
+                    <Link href={`/imaging/viewer?id=${imageFile.id}`}>
                       <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer flex items-center justify-center">
                         {imageUrls[imageFile.id] ? (
                           <img
@@ -554,7 +554,7 @@ export default function ImagingPage() {
                       {/* 操作按钮 */}
                       <div className="flex space-x-2">
                         <Link
-                          href={`/imaging/${imageFile.id}/viewer`}
+                          href={`/imaging/viewer?id=${imageFile.id}`}
                           className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"
                         >
                           标注分析
@@ -609,7 +609,7 @@ export default function ImagingPage() {
                   <div key={imageFile.id} className="p-6 hover:bg-gray-50">
                     <div className="flex items-center space-x-4">
                       {/* 缩略图 */}
-                      <Link href={`/imaging/${imageFile.id}/viewer`}>
+                      <Link href={`/imaging/viewer?id=${imageFile.id}`}>
                         <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
                           {imageUrls[imageFile.id] ? (
                             <img
@@ -681,7 +681,7 @@ export default function ImagingPage() {
                         {/* 操作按钮 */}
                         <div className="flex items-center space-x-3">
                           <Link
-                            href={`/imaging/${imageFile.id}/viewer`}
+                            href={`/imaging/viewer?id=${imageFile.id}`}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center space-x-2 whitespace-nowrap"
                           >
                             <i className="ri-eye-line w-4 h-4 flex items-center justify-center"></i>

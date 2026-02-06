@@ -182,7 +182,7 @@ export default function TaskList() {
                   {new Date(task.created_at).toLocaleString('zh-CN')}
                 </p>
                 <Link
-                  href={`/imaging/${getImageIdForTask(task)}/viewer`}
+                  href={`/imaging/viewer?id=${getImageIdForTask(task)}`}
                   className="mt-1 bg-blue-600 text-white text-xs px-3 py-1 rounded hover:bg-blue-700 whitespace-nowrap inline-block"
                 >
                   开始审核

@@ -311,13 +311,13 @@ export default function PatientsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link
-                          href={`/patients/${patient.id}`}
+                          href={`/patients/detail?id=${patient.id}`}
                           className="text-blue-600 hover:text-blue-900 mr-4"
                         >
                           查看
                         </Link>
                         <Link
-                          href={`/patients/${patient.id}/edit`}
+                          href={`/patients/edit?id=${patient.id}`}
                           className="text-green-600 hover:text-green-900"
                         >
                           编辑

@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Docker部署使用standalone模式(支持动态路由)
+  // Docker部署使用standalone模式(支持所有路由类型，包括动态路由和查询参数路由)
   output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
 
   images: {

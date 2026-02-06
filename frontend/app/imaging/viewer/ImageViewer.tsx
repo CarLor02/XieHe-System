@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { createAuthenticatedClient } from '../../../../store/authStore';
+import { createAuthenticatedClient } from '../../../store/authStore';
 import {
   CalculationContext,
 } from './annotationConfig';
@@ -764,7 +764,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
     try {
       // 获取图片文件
-      const { accessToken } = require('../../../../store/authStore').useAuthStore.getState();
+      const { accessToken } = require('../../../store/authStore').useAuthStore.getState();
       const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
       
       // 先获取图片
@@ -1797,7 +1797,7 @@ function ImageCanvas({
 
         // 使用fetch API直接获取，确保认证头被正确传递
         const { accessToken } =
-          require('../../../../store/authStore').useAuthStore.getState();
+          require('../../../store/authStore').useAuthStore.getState();
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         const response = await fetch(`${apiUrl}/api/v1/image-files/${numericId}/download`, {

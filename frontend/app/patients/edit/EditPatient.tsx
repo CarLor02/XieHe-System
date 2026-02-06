@@ -469,7 +469,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                   <button
                     onClick={() => {
                       setShowSaveModal(false);
-                      router.push(`/patients/${patientId}`);
+                      router.push(`/patients/detail?id=${patientId}`);
                     }}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap flex items-center justify-center"
                   >
