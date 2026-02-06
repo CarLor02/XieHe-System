@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { createAuthenticatedClient } from '../../../store/authStore';
 import {
   CalculationContext,
+  getAnnotationConfig,
 } from './annotationConfig';
 import {
   calculateMeasurementValue as calcMeasurementValue,
@@ -285,8 +286,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
   const addMeasurement = (type: string, points: Point[] = []) => {
     // 使用统一的配置系统计算测量值
-    const defaultValue = calculateMeasurementValue(type, points) || '0.0°';
-    const description = getDescriptionForType(type);
+    const defaultValue = calcMeasurementValue(type, points, {
+      standardDistance,
+      standardDistancePoints,
+      imageNaturalSize,
+    }) || '0.0°';
+    const description = getDesc(type);
 
     const newMeasurement: Measurement = {
       id: Date.now().toString(),
@@ -295,7 +300,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       points: points,
       description,
     };
-    
+
     setMeasurements(prev => [...prev, newMeasurement]);
   };
 
@@ -474,50 +479,19 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       const jsonStr = localStorage.getItem(key);
       if (jsonStr) {
         const data = JSON.parse(jsonStr);
-        if (data.measurements && Array.isArray(data.measurements)) {
-          // 检查是否需要坐标转换
-          const storedImageWidth = data.imageWidth;
-          const storedImageHeight = data.imageHeight;
-          let scaleX = 1;
-          let scaleY = 1;
-          
-          if (storedImageWidth && storedImageHeight && imageNaturalSize) {
-            scaleX = imageNaturalSize.width / storedImageWidth;
-            scaleY = imageNaturalSize.height / storedImageHeight;
-            console.log('从本地加载标注，坐标缩放比例:', {
-              storedSize: { width: storedImageWidth, height: storedImageHeight },
-              currentSize: imageNaturalSize,
-              scale: { scaleX, scaleY }
-            });
-          }
-          
-          // 恢复measurements，重新生成id、value和description
-          const restoredMeasurements = data.measurements.map((m: any) => {
-            // 转换坐标（如果需要）
-            const scaledPoints = m.points.map((p: any) => ({
-              x: p.x * scaleX,
-              y: p.y * scaleY
-            }));
-            
-            return {
-              id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
-              type: m.type,
-              value: calculateMeasurementValue(m.type, scaledPoints),
-              points: scaledPoints,
-              description: getDescriptionForType(m.type)
-            };
-          });
-          setMeasurements(restoredMeasurements);
-          console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);
-        }
-        
-        // 加载或设置默认标准距离
+
+        // 先加载或设置标准距离（必须在加载measurements之前）
+        let loadedStandardDistance = standardDistance;
+        let loadedStandardDistancePoints = standardDistancePoints;
+
         if (data.standardDistance && data.standardDistancePoints && data.standardDistancePoints.length === 2) {
           // 如果有保存的标准距离，加载它
           const scaledStandardPoints = data.standardDistancePoints.map((p: any) => ({
             x: p.x * (imageNaturalSize ? imageNaturalSize.width / (data.imageWidth || imageNaturalSize.width) : 1),
             y: p.y * (imageNaturalSize ? imageNaturalSize.height / (data.imageHeight || imageNaturalSize.height) : 1)
           }));
+          loadedStandardDistance = data.standardDistance;
+          loadedStandardDistancePoints = scaledStandardPoints;
           setStandardDistance(data.standardDistance);
           setStandardDistancePoints(scaledStandardPoints);
           console.log(`已加载标准距离: ${data.standardDistance}mm`);
@@ -527,9 +501,53 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             { x: 0, y: 0 },
             { x: 200, y: 0 }
           ];
+          loadedStandardDistance = 100;
+          loadedStandardDistancePoints = defaultPoints;
           setStandardDistance(100);
           setStandardDistancePoints(defaultPoints);
           console.log('未找到标准距离，已设置默认值: 100mm，标注点: (0,0)到(200,0)');
+        }
+
+        // 然后加载measurements（使用已加载的标准距离）
+        if (data.measurements && Array.isArray(data.measurements)) {
+          // 检查是否需要坐标转换
+          const storedImageWidth = data.imageWidth;
+          const storedImageHeight = data.imageHeight;
+          let scaleX = 1;
+          let scaleY = 1;
+
+          if (storedImageWidth && storedImageHeight && imageNaturalSize) {
+            scaleX = imageNaturalSize.width / storedImageWidth;
+            scaleY = imageNaturalSize.height / storedImageHeight;
+            console.log('从本地加载标注，坐标缩放比例:', {
+              storedSize: { width: storedImageWidth, height: storedImageHeight },
+              currentSize: imageNaturalSize,
+              scale: { scaleX, scaleY }
+            });
+          }
+
+          // 恢复measurements，重新生成id、value和description
+          const restoredMeasurements = data.measurements.map((m: any) => {
+            // 转换坐标（如果需要）
+            const scaledPoints = m.points.map((p: any) => ({
+              x: p.x * scaleX,
+              y: p.y * scaleY
+            }));
+
+            return {
+              id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
+              type: m.type,
+              value: calcMeasurementValue(m.type, scaledPoints, {
+                standardDistance: loadedStandardDistance,
+                standardDistancePoints: loadedStandardDistancePoints,
+                imageNaturalSize,
+              }),
+              points: scaledPoints,
+              description: getDesc(m.type)
+            };
+          });
+          setMeasurements(restoredMeasurements);
+          console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);
         }
       } else if (imageNaturalSize) {
         // 如果完全没有保存的数据，设置默认标准距离
@@ -970,6 +988,25 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setSaveMessage('');
 
     try {
+      // 1. 先保存到本地存储
+      const key = `annotations_${imageId}`;
+      // 只保存type和points，移除id、value和description
+      const simplifiedMeasurements = measurements.map(m => ({
+        type: m.type,
+        points: m.points
+      }));
+      const localData = {
+        imageId: imageId,
+        imageWidth: imageNaturalSize?.width,
+        imageHeight: imageNaturalSize?.height,
+        measurements: simplifiedMeasurements,
+        standardDistance: standardDistance,
+        standardDistancePoints: standardDistancePoints
+      };
+      localStorage.setItem(key, JSON.stringify(localData, null, 2));
+      console.log(`已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`);
+
+      // 2. 保存到服务器
       const client = createAuthenticatedClient();
       // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
       const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
@@ -990,7 +1027,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       console.log('保存响应:', response.status, response.data);
 
       if (response.status === 200) {
-        setSaveMessage('测量数据保存成功');
+        setSaveMessage('标注已保存到本地和服务器');
         setTimeout(() => setSaveMessage(''), 3000);
       } else {
         const errorMsg = response.data?.message || response.data?.detail || '保存失败';
@@ -2027,6 +2064,23 @@ function ImageCanvas({
                     foundSelection = true;
                   }
                 }
+              } else if (measurement.type === '距离标注' && measurement.points.length === 2) {
+                // 距离标注:检查是否点击了线段
+                const context = getTransformContext();
+                if (isLineClicked(screenPoint, measurement.points[0], measurement.points[1], context, lineClickRadius)) {
+                  selectedMeasurement = measurement;
+                  selType = 'whole';
+                  foundSelection = true;
+                }
+              } else if (measurement.type === '角度标注' && measurement.points.length === 3) {
+                // 角度标注:检查是否点击了两条线段
+                const context = getTransformContext();
+                if (isLineClicked(screenPoint, measurement.points[0], measurement.points[1], context, lineClickRadius) ||
+                    isLineClicked(screenPoint, measurement.points[1], measurement.points[2], context, lineClickRadius)) {
+                  selectedMeasurement = measurement;
+                  selType = 'whole';
+                  foundSelection = true;
+                }
               }
             } else {
               // 非辅助图形:检查文字标识区域（使用屏幕坐标）
@@ -2268,6 +2322,30 @@ function ImageCanvas({
         // 如果已经点击了4个点，自动完成
         if (newPoints.length === 4) {
           onMeasurementAdd('锥体中心', newPoints);
+          setClickedPoints([]);
+        }
+      } else if (selectedTool === 'aux-length') {
+        // 距离标注绘制模式 - 点击2个点
+        const imagePoint = screenToImage(x, y);
+
+        const newPoints = [...clickedPoints, imagePoint];
+        setClickedPoints(newPoints);
+
+        // 如果已经点击了2个点，自动完成
+        if (newPoints.length === 2) {
+          onMeasurementAdd('距离标注', newPoints);
+          setClickedPoints([]);
+        }
+      } else if (selectedTool === 'aux-angle') {
+        // 角度标注绘制模式 - 点击3个点
+        const imagePoint = screenToImage(x, y);
+
+        const newPoints = [...clickedPoints, imagePoint];
+        setClickedPoints(newPoints);
+
+        // 如果已经点击了3个点，自动完成
+        if (newPoints.length === 3) {
+          onMeasurementAdd('角度标注', newPoints);
           setClickedPoints([]);
         }
       } else {
@@ -2877,6 +2955,32 @@ function ImageCanvas({
                   hoveredElementType = 'whole';
                   foundHover = true;
                 }
+              }
+            } else if (measurement.type === '距离标注' && measurement.points.length === 2) {
+              // 距离标注：检查是否悬浮在线段上
+              const startScreen = imageToScreen(measurement.points[0]);
+              const endScreen = imageToScreen(measurement.points[1]);
+
+              const distToLine = pointToLineDistance(screenPoint, startScreen, endScreen);
+
+              if (distToLine < lineHoverRadius) {
+                hoveredMeasurementId = measurement.id;
+                hoveredElementType = 'whole';
+                foundHover = true;
+              }
+            } else if (measurement.type === '角度标注' && measurement.points.length === 3) {
+              // 角度标注：检查是否悬浮在两条线段上
+              const p0Screen = imageToScreen(measurement.points[0]);
+              const p1Screen = imageToScreen(measurement.points[1]);
+              const p2Screen = imageToScreen(measurement.points[2]);
+
+              const distToLine1 = pointToLineDistance(screenPoint, p0Screen, p1Screen);
+              const distToLine2 = pointToLineDistance(screenPoint, p1Screen, p2Screen);
+
+              if (distToLine1 < lineHoverRadius || distToLine2 < lineHoverRadius) {
+                hoveredMeasurementId = measurement.id;
+                hoveredElementType = 'whole';
+                foundHover = true;
               }
             }
           } else {
@@ -3490,7 +3594,10 @@ function ImageCanvas({
                           <span className={`truncate mr-2 font-medium ${
                             isSelected ? 'text-white' : isHovered ? 'text-yellow-300' : 'text-white/90'
                           }`}>
-                            {measurement.type}
+                            {/* 对于辅助图形，如果有自定义description则显示，否则显示type */}
+                            {checkIsAuxiliaryShape(measurement.type) && measurement.description && measurement.description !== getDesc(measurement.type)
+                              ? measurement.description
+                              : measurement.type}
                           </span>
                           <span className={`font-mono whitespace-nowrap ${
                             isSelected ? 'text-white' : isHovered ? 'text-yellow-200' : 'text-yellow-400'
@@ -4998,6 +5105,261 @@ function ImageCanvas({
           );
         })()}
 
+        {/* 绘制距离标注 - 从 measurements 中筛选 */}
+        {measurements
+          .filter(m => m.type === '距离标注')
+          .map(measurement => {
+            if (measurement.points.length !== 2) return null;
+
+            const screenPoints = measurement.points.map(p => imageToScreen(p));
+            const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+            const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
+
+            // 计算距离值
+            const config = getAnnotationConfig('aux-length');
+            const results = config?.calculateResults(measurement.points, {
+              standardDistance,
+              standardDistancePoints,
+              imageNaturalSize,
+            }) || [];
+            const distanceText = results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
+
+            // 计算中点位置
+            const midX = (screenPoints[0].x + screenPoints[1].x) / 2;
+            const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
+
+            return (
+              <g key={measurement.id}>
+                {/* 绘制线段 */}
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[1].x}
+                  y2={screenPoints[1].y}
+                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#3b82f6"}
+                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                  opacity={isSelected || isHovered ? "1" : "0.8"}
+                />
+                {/* 绘制端点 */}
+                {screenPoints.map((point, idx) => (
+                  <circle
+                    key={`point-${idx}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r="5"
+                    fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#3b82f6"}
+                    opacity={isSelected || isHovered ? "1" : "0.8"}
+                  />
+                ))}
+                {/* 绘制距离文字 */}
+                <text
+                  x={midX}
+                  y={midY - 10}
+                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#3b82f6"}
+                  fontSize="14"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  opacity="0.9"
+                >
+                  {distanceText}
+                </text>
+              </g>
+            );
+          })}
+
+        {/* 绘制距离标注预览 - 使用 clickedPoints */}
+        {selectedTool === 'aux-length' && clickedPoints.length > 0 && (() => {
+          const screenPoints = clickedPoints.map(p => imageToScreen(p));
+          return (
+            <>
+              {/* 绘制已添加的点 */}
+              {screenPoints.map((point, idx) => (
+                <circle
+                  key={`aux-length-point-${idx}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r="4"
+                  fill="#3b82f6"
+                  opacity="0.8"
+                />
+              ))}
+              {/* 如果有2个点，绘制线段和距离 */}
+              {screenPoints.length === 2 && (() => {
+                const config = getAnnotationConfig('aux-length');
+                const results = config?.calculateResults(clickedPoints, {
+                  standardDistance,
+                  standardDistancePoints,
+                  imageNaturalSize,
+                }) || [];
+                const distanceText = results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
+                const midX = (screenPoints[0].x + screenPoints[1].x) / 2;
+                const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
+
+                return (
+                  <>
+                    <line
+                      x1={screenPoints[0].x}
+                      y1={screenPoints[0].y}
+                      x2={screenPoints[1].x}
+                      y2={screenPoints[1].y}
+                      stroke="#3b82f6"
+                      strokeWidth="2"
+                      strokeDasharray="5,5"
+                      opacity="0.6"
+                    />
+                    <text
+                      x={midX}
+                      y={midY - 10}
+                      fill="#3b82f6"
+                      fontSize="12"
+                      textAnchor="middle"
+                      opacity="0.7"
+                    >
+                      {distanceText}
+                    </text>
+                  </>
+                );
+              })()}
+            </>
+          );
+        })()}
+
+        {/* 绘制角度标注 - 从 measurements 中筛选 */}
+        {measurements
+          .filter(m => m.type === '角度标注')
+          .map(measurement => {
+            if (measurement.points.length !== 3) return null;
+
+            const screenPoints = measurement.points.map(p => imageToScreen(p));
+            const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+            const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
+
+            // 计算角度值
+            const config = getAnnotationConfig('aux-angle');
+            const results = config?.calculateResults(measurement.points, {
+              standardDistance,
+              standardDistancePoints,
+              imageNaturalSize,
+            }) || [];
+            const angleText = results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
+
+            return (
+              <g key={measurement.id}>
+                {/* 绘制两条线段 */}
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[1].x}
+                  y2={screenPoints[1].y}
+                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#8b5cf6"}
+                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                  opacity={isSelected || isHovered ? "1" : "0.8"}
+                />
+                <line
+                  x1={screenPoints[1].x}
+                  y1={screenPoints[1].y}
+                  x2={screenPoints[2].x}
+                  y2={screenPoints[2].y}
+                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#8b5cf6"}
+                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                  opacity={isSelected || isHovered ? "1" : "0.8"}
+                />
+                {/* 绘制三个点 */}
+                {screenPoints.map((point, idx) => (
+                  <circle
+                    key={`point-${idx}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r="5"
+                    fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#8b5cf6"}
+                    opacity={isSelected || isHovered ? "1" : "0.8"}
+                  />
+                ))}
+                {/* 绘制角度文字（在顶点上方） */}
+                <text
+                  x={screenPoints[1].x}
+                  y={screenPoints[1].y - 15}
+                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#8b5cf6"}
+                  fontSize="14"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  opacity="0.9"
+                >
+                  {angleText}
+                </text>
+              </g>
+            );
+          })}
+
+        {/* 绘制角度标注预览 - 使用 clickedPoints */}
+        {selectedTool === 'aux-angle' && clickedPoints.length > 0 && (() => {
+          const screenPoints = clickedPoints.map(p => imageToScreen(p));
+          return (
+            <>
+              {/* 绘制已添加的点 */}
+              {screenPoints.map((point, idx) => (
+                <circle
+                  key={`aux-angle-point-${idx}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r="4"
+                  fill="#8b5cf6"
+                  opacity="0.8"
+                />
+              ))}
+              {/* 绘制线段 */}
+              {screenPoints.length >= 2 && (
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[1].x}
+                  y2={screenPoints[1].y}
+                  stroke="#8b5cf6"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                  opacity="0.6"
+                />
+              )}
+              {screenPoints.length === 3 && (
+                <>
+                  <line
+                    x1={screenPoints[1].x}
+                    y1={screenPoints[1].y}
+                    x2={screenPoints[2].x}
+                    y2={screenPoints[2].y}
+                    stroke="#8b5cf6"
+                    strokeWidth="2"
+                    strokeDasharray="5,5"
+                    opacity="0.6"
+                  />
+                  {(() => {
+                    const config = getAnnotationConfig('aux-angle');
+                    const results = config?.calculateResults(clickedPoints, {
+                      standardDistance,
+                      standardDistancePoints,
+                      imageNaturalSize,
+                    }) || [];
+                    const angleText = results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
+
+                    return (
+                      <text
+                        x={screenPoints[1].x}
+                        y={screenPoints[1].y - 15}
+                        fill="#8b5cf6"
+                        fontSize="12"
+                        textAnchor="middle"
+                        opacity="0.7"
+                      >
+                        {angleText}
+                      </text>
+                    );
+                  })()}
+                </>
+              )}
+            </>
+          );
+        })()}
+
         {/* 选中边界框和删除按钮 */}
         {(() => {
           // 获取选中的对象
@@ -5159,6 +5521,37 @@ function ImageCanvas({
                 <p>点击第4个角点完成标注</p>
                 <p>中心点将自动计算</p>
               </div>
+            )}
+          </div>
+        ) : selectedTool === 'aux-length' ? (
+          <div>
+            <p className="font-medium">距离标注模式</p>
+            <p>已标注 {clickedPoints.length}/2 个点</p>
+            {clickedPoints.length === 0 && (
+              <p className="text-yellow-400 mt-1">点击起点</p>
+            )}
+            {clickedPoints.length === 1 && (
+              <p className="text-yellow-400 mt-1">点击终点完成测量</p>
+            )}
+            {clickedPoints.length === 2 && (
+              <p className="text-green-400 mt-1">距离已计算（根据标准距离换算）</p>
+            )}
+          </div>
+        ) : selectedTool === 'aux-angle' ? (
+          <div>
+            <p className="font-medium">角度标注模式</p>
+            <p>已标注 {clickedPoints.length}/3 个点</p>
+            {clickedPoints.length === 0 && (
+              <p className="text-yellow-400 mt-1">点击第1个点</p>
+            )}
+            {clickedPoints.length === 1 && (
+              <p className="text-yellow-400 mt-1">点击顶点（第2个点）</p>
+            )}
+            {clickedPoints.length === 2 && (
+              <p className="text-yellow-400 mt-1">点击第3个点完成测量</p>
+            )}
+            {clickedPoints.length === 3 && (
+              <p className="text-green-400 mt-1">角度已计算</p>
             )}
           </div>
         ) : selectedTool.includes('t1-tilt') ? (

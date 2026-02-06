@@ -1483,6 +1483,127 @@ export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
   }
 };
 
+/**
+ * 辅助距离测量
+ */
+export const AUX_LENGTH_CONFIG: AnnotationConfig = {
+  id: 'aux-length',
+  name: '距离标注',
+  icon: 'ri-ruler-2-line',
+  description: '辅助距离测量',
+  pointsNeeded: 2,
+  category: 'auxiliary',
+  color: '#3b82f6', // 蓝色
+
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 2) return [];
+
+    const pixelDistance = calculateDistance2D(points[0], points[1]);
+
+    // 根据标准距离换算
+    let actualDistance: number;
+    if (context.standardDistance && context.standardDistancePoints?.length === 2) {
+      const standardPixelDx = context.standardDistancePoints[1].x - context.standardDistancePoints[0].x;
+      const standardPixelDy = context.standardDistancePoints[1].y - context.standardDistancePoints[0].y;
+      const standardPixelLength = Math.sqrt(standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy);
+      actualDistance = (pixelDistance / standardPixelLength) * context.standardDistance;
+    } else {
+      // 默认比例
+      actualDistance = pixelDistance * 0.1;
+    }
+
+    return [{
+      name: '距离',
+      value: actualDistance.toFixed(1),
+      unit: 'mm'
+    }];
+  },
+
+  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    return {
+      x: (points[0].x + points[1].x) / 2,
+      y: (points[0].y + points[1].y) / 2 - 20 / imageScale
+    };
+  },
+
+  isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
+    if (points.length < 2) return false;
+
+    // 检查是否靠近端点
+    for (const point of points) {
+      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
+    }
+
+    // 检查是否靠近线段
+    return isPointNearLine(mousePoint, points[0], points[1], tolerance);
+  },
+
+  isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
+    return AUX_LENGTH_CONFIG.isInHoverRange!(mousePoint, points, tolerance);
+  }
+};
+
+/**
+ * 辅助角度测量
+ */
+export const AUX_ANGLE_CONFIG: AnnotationConfig = {
+  id: 'aux-angle',
+  name: '角度标注',
+  icon: 'ri-compass-3-line',
+  description: '辅助角度测量',
+  pointsNeeded: 3,
+  category: 'auxiliary',
+  color: '#8b5cf6', // 紫色
+
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 3) return [];
+
+    const v1 = {
+      x: points[0].x - points[1].x,
+      y: points[0].y - points[1].y
+    };
+
+    const v2 = {
+      x: points[2].x - points[1].x,
+      y: points[2].y - points[1].y
+    };
+
+    const angle = calculateAngleBetweenVectors(v1, v2);
+
+    return [{
+      name: '角度',
+      value: angle.toFixed(1),
+      unit: '°'
+    }];
+  },
+
+  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    if (points.length < 3) return points[0] || { x: 0, y: 0 };
+    return {
+      x: points[1].x,
+      y: points[1].y - 25 / imageScale
+    };
+  },
+
+  isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
+    if (points.length < 3) return false;
+
+    // 检查是否靠近任意点
+    for (const point of points) {
+      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
+    }
+
+    // 检查是否靠近两条线段
+    return isPointNearLine(mousePoint, points[0], points[1], tolerance) ||
+           isPointNearLine(mousePoint, points[1], points[2], tolerance);
+  },
+
+  isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
+    return AUX_ANGLE_CONFIG.isInHoverRange!(mousePoint, points, tolerance);
+  }
+};
+
 // ==================== 配置映射表 ====================
 
 export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
@@ -1514,6 +1635,8 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   'arrow': ARROW_CONFIG,
   'polygon': POLYGON_CONFIG,
   'vertebra-center': VERTEBRA_CENTER_CONFIG,
+  'aux-length': AUX_LENGTH_CONFIG,
+  'aux-angle': AUX_ANGLE_CONFIG,
 };
 
 /**

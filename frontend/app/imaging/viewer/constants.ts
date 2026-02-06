@@ -93,6 +93,8 @@ export const AUXILIARY_TOOL_TYPES = [
   'arrow',
   'polygon',
   'vertebra-center',
+  'aux-length',
+  'aux-angle',
 ] as const;
 
 /**
