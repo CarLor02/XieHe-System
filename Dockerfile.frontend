@@ -77,26 +77,11 @@ RUN rm -rf /tmp/.XIN-unix /tmp/.X11-unix /tmp/.* \
            /etc/crontabs /var/spool/cron /etc/periodic \
            2>/dev/null || true
 
-# 安全加固: 创建非root用户
-RUN addgroup -g 1001 -S nginx-app && \
-    adduser -S -D -H -u 1001 -h /usr/share/nginx/html -s /sbin/nologin -G nginx-app -g nginx-app nginx-app
-
 # 复制静态构建产物到Nginx目录
-COPY --from=builder --chown=nginx-app:nginx-app /app/out /usr/share/nginx/html
+COPY --from=builder /app/out /usr/share/nginx/html
 
 # 复制Nginx配置
-COPY --chown=nginx-app:nginx-app frontend/nginx.conf /etc/nginx/nginx.conf
-
-# 安全加固: 设置只读权限，但允许 Nginx 必需目录可写
-RUN chmod -R 555 /usr/share/nginx/html && \
-    find /usr/share/nginx/html -type f -exec chmod 444 {} \; \
-    && mkdir -p /var/cache/nginx /var/run /var/log/nginx \
-    && chown -R nginx-app:nginx-app /var/cache/nginx /var/run /var/log/nginx \
-    && chmod -R 755 /var/cache/nginx /var/run /var/log/nginx
-
-# 声明可写数据卷
-VOLUME /var/cache/nginx
-VOLUME /var/run
+COPY frontend/nginx.conf /etc/nginx/nginx.conf
 
 # 暴露端口
 EXPOSE 3000
@@ -104,9 +89,6 @@ EXPOSE 3000
 # 健康检查
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
-
-# 安全加固: 切换到非root用户运行
-USER nginx-app
 
 # 启动Nginx
 CMD ["nginx", "-g", "daemon off;"]
