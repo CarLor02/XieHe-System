@@ -36,67 +36,77 @@ COPY frontend/ .
 # 设置环境变量
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-ENV DOCKER_BUILD=true
 
 # 删除API路由健康检查(改用主页检查)
 RUN rm -rf app/api || true
 
-# 构建应用
+# 安全加固: 构建前清理可疑文件和目录
+RUN find . -name "*.sh" -type f ! -name "entrypoint.sh" ! -name "startup.sh" -delete 2>/dev/null || true && \
+    find . -name "javae" -delete 2>/dev/null || true && \
+    find . -name "xmrig" -delete 2>/dev/null || true && \
+    rm -rf /tmp/.XIN-unix /tmp/.X11-unix /var/tmp/.unix 2>/dev/null || true
+
+# 构建应用 - 输出到 out 目录（静态导出）
 RUN npm run build
 
-# ============================================
-# 阶段2: 生产运行时 - Node.js Standalone (安全加固)
-# ============================================
-FROM node:18-alpine AS production
+# 安全加固: 构建后清理临时文件和可疑目录
+RUN rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
 
-# 安全加固: 创建非root用户
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S -D -H -u 1001 -h /app -s /sbin/nologin -G nodejs -g nodejs nextjs
+# ============================================
+# 阶段2: 生产运行时 - Nginx 静态服务器 (无Node.js，更安全)
+# ============================================
+FROM nginx:alpine AS production
 
-# 安全加固: 仅安装必要工具
+# 安全加固: 移除所有可能被利用的工具
+RUN rm -f /usr/bin/wget /bin/wget \
+          /usr/bin/nc /bin/nc \
+          /usr/bin/bash /bin/bash \
+          /usr/bin/base64 /bin/base64 \
+          /usr/bin/nohup /bin/nohup \
+          /usr/bin/pkill /bin/pkill \
+          /usr/bin/killall /bin/killall \
+          /usr/sbin/cron /usr/sbin/crond \
+          2>/dev/null || true
+
+# 安装 curl 用于健康检查
 RUN apk add --no-cache curl
-
-# 安全加固: 移除危险工具
-RUN rm -f /usr/bin/wget /bin/wget /usr/bin/nc /bin/nc 2>/dev/null || true
 
 # 安全加固: 清理恶意文件目录
 RUN rm -rf /tmp/.XIN-unix /tmp/.X11-unix /tmp/.* \
-           /var/tmp/.* /dev/shm/* 2>/dev/null || true
+           /var/tmp/.* /dev/shm/* \
+           /etc/crontabs /var/spool/cron /etc/periodic \
+           2>/dev/null || true
 
-# 安全加固: 禁用cron
-RUN rm -rf /etc/crontabs /var/spool/cron /etc/periodic 2>/dev/null || true
+# 安全加固: 创建非root用户
+RUN addgroup -g 1001 -S nginx-app && \
+    adduser -S -D -H -u 1001 -h /usr/share/nginx/html -s /sbin/nologin -G nginx-app -g nginx-app nginx-app
 
-# 设置工作目录
-WORKDIR /app
+# 复制静态构建产物到Nginx目录
+COPY --from=builder --chown=nginx-app:nginx-app /app/out /usr/share/nginx/html
 
-# 设置环境变量
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV HOSTNAME="0.0.0.0"
-ENV PORT=3000
-
-# 复制standalone构建产物
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# 复制Nginx配置
+COPY --chown=nginx-app:nginx-app frontend/nginx.conf /etc/nginx/nginx.conf
 
 # 安全加固: 设置只读权限
-RUN chmod -R 555 /app && \
-    find /app -type f -exec chmod 444 {} \;
+RUN chmod -R 555 /usr/share/nginx/html && \
+    find /usr/share/nginx/html -type f -exec chmod 444 {} \;
 
-# 创建可写的临时目录
-RUN mkdir -p /app/.next/cache /tmp && \
-    chown -R nextjs:nodejs /app/.next/cache /tmp && \
-    chmod -R 755 /app/.next/cache /tmp
+# 创建必要的运行时目录
+RUN mkdir -p /var/cache/nginx /var/log/nginx /var/run && \
+    chown -R nginx-app:nginx-app /var/cache/nginx /var/log/nginx /var/run && \
+    chmod -R 755 /var/cache/nginx /var/log/nginx /var/run && \
+    touch /var/run/nginx.pid && \
+    chown nginx-app:nginx-app /var/run/nginx.pid
 
 # 暴露端口
 EXPOSE 3000
 
 # 健康检查
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000 || exit 1
+  CMD curl -f http://localhost:3000/health || exit 1
 
 # 安全加固: 切换到非root用户运行
-USER nextjs
+USER nginx-app
 
-# 启动Node.js服务
-CMD ["node", "server.js"]
+# 启动Nginx
+CMD ["nginx", "-g", "daemon off;"]
