@@ -184,3 +184,29 @@ export function isPointNearEllipse(
   return Math.abs(normalizedDist - 1) <= tolerance / Math.min(radiusX, radiusY);
 }
 
+/**
+ * 计算四边形的质心（几何中心）
+ * 使用四个顶点坐标的平均值
+ * @param points 四个顶点坐标（按顺序）
+ * @returns 质心坐标
+ */
+export function calculateQuadrilateralCenter(points: Point[]): Point {
+  if (points.length !== 4) {
+    console.warn('calculateQuadrilateralCenter: 需要4个点，当前有', points.length, '个点');
+    // 如果点数不足4个，返回已有点的平均值
+    if (points.length === 0) return { x: 0, y: 0 };
+    const sumX = points.reduce((sum, p) => sum + p.x, 0);
+    const sumY = points.reduce((sum, p) => sum + p.y, 0);
+    return {
+      x: sumX / points.length,
+      y: sumY / points.length,
+    };
+  }
+
+  // 计算四个点的平均坐标（质心）
+  const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+  const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+
+  return { x: centerX, y: centerY };
+}
+

@@ -179,7 +179,8 @@ export function getAnteriorTools() {
     'ellipse',
     'rectangle',
     'arrow',
-    'polygon'
+    'polygon',
+    'vertebra-center'
   ].map(id => {
     const config = ANNOTATION_CONFIGS[id];
     return {
@@ -213,7 +214,8 @@ export function getLateralTools() {
     'ellipse',
     'rectangle',
     'arrow',
-    'polygon'
+    'polygon',
+    'vertebra-center'
   ].map(id => {
     const config = ANNOTATION_CONFIGS[id];
     return {
@@ -237,7 +239,8 @@ export function getGenericTools() {
     'ellipse',
     'rectangle',
     'arrow',
-    'polygon'
+    'polygon',
+    'vertebra-center'
   ].map(id => {
     const config = ANNOTATION_CONFIGS[id];
     return {

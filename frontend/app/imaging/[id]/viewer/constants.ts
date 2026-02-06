@@ -92,6 +92,7 @@ export const AUXILIARY_TOOL_TYPES = [
   'rectangle',
   'arrow',
   'polygon',
+  'vertebra-center',
 ] as const;
 
 /**

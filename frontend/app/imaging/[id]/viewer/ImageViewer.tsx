@@ -27,6 +27,7 @@ import {
   // 几何计算
   calculateDistance,
   pointToLineDistance,
+  calculateQuadrilateralCenter,
 
   // 工具判断（使用 toolUtils 中的实现，支持中文名称）
   isAuxiliaryShape as checkIsAuxiliaryShape,
@@ -2007,6 +2008,25 @@ function ImageCanvas({
                   selType = 'whole';
                   foundSelection = true;
                 }
+              } else if (measurement.type === '锥体中心' && measurement.points.length === 4) {
+                // 锥体中心:检查是否点击了四边形的任意一条边或中心点
+                const context = getTransformContext();
+                // 检查四边形边缘
+                if (isPolygonClicked(screenPoint, measurement.points, context, lineClickRadius)) {
+                  selectedMeasurement = measurement;
+                  selType = 'whole';
+                  foundSelection = true;
+                } else {
+                  // 检查中心点
+                  const center = calculateQuadrilateralCenter(measurement.points);
+                  const centerScreen = imageToScreen(center);
+                  const distToCenter = calculateDistance(screenPoint, centerScreen);
+                  if (distToCenter < 15) { // 中心点点击范围稍大一些
+                    selectedMeasurement = measurement;
+                    selType = 'whole';
+                    foundSelection = true;
+                  }
+                }
               }
             } else {
               // 非辅助图形:检查文字标识区域（使用屏幕坐标）
@@ -2222,7 +2242,7 @@ function ImageCanvas({
       } else if (selectedTool === 'polygon') {
         // 多边形绘制模式 - 使用 clickedPoints 来管理点，这样可以使用点级别的撤销/回退
         const imagePoint = screenToImage(x, y);
-        
+
         // 检查是否点击接近第一个点（自动闭合）
         if (clickedPoints.length >= 3) {
           const firstPoint = clickedPoints[0];
@@ -2235,9 +2255,21 @@ function ImageCanvas({
             return;
           }
         }
-        
+
         const newPoints = [...clickedPoints, imagePoint];
         setClickedPoints(newPoints);
+      } else if (selectedTool === 'vertebra-center') {
+        // 锥体中心绘制模式 - 点击4个角点
+        const imagePoint = screenToImage(x, y);
+
+        const newPoints = [...clickedPoints, imagePoint];
+        setClickedPoints(newPoints);
+
+        // 如果已经点击了4个点，自动完成
+        if (newPoints.length === 4) {
+          onMeasurementAdd('锥体中心', newPoints);
+          setClickedPoints([]);
+        }
       } else {
         // 其他工具时，检查是否点击了已有的点（用于删除）
         // 或者开始调整亮度和对比度
@@ -2817,6 +2849,34 @@ function ImageCanvas({
                 hoveredMeasurementId = measurement.id;
                 hoveredElementType = 'whole';
                 foundHover = true;
+              }
+            } else if (measurement.type === '锥体中心' && measurement.points.length === 4) {
+              // 锥体中心：检查是否悬浮在四边形边缘或中心点
+              // 检查四边形边缘
+              for (let i = 0; i < measurement.points.length; i++) {
+                const currentScreen = imageToScreen(measurement.points[i]);
+                const nextScreen = imageToScreen(measurement.points[(i + 1) % measurement.points.length]);
+
+                const distToEdge = pointToLineDistance(screenPoint, currentScreen, nextScreen);
+
+                if (distToEdge < lineHoverRadius) {
+                  hoveredMeasurementId = measurement.id;
+                  hoveredElementType = 'whole';
+                  foundHover = true;
+                  break;
+                }
+              }
+
+              // 如果没有悬浮在边缘，检查中心点
+              if (!foundHover) {
+                const center = calculateQuadrilateralCenter(measurement.points);
+                const centerScreen = imageToScreen(center);
+                const distToCenter = calculateDistance(screenPoint, centerScreen);
+                if (distToCenter < 15) {
+                  hoveredMeasurementId = measurement.id;
+                  hoveredElementType = 'whole';
+                  foundHover = true;
+                }
               }
             }
           } else {
@@ -4765,6 +4825,179 @@ function ImageCanvas({
           );
         })()}
 
+        {/* 绘制锥体中心 - 从 measurements 中筛选 */}
+        {measurements
+          .filter(m => m.type === '锥体中心')
+          .map(measurement => {
+            if (measurement.points.length !== 4) return null;
+
+            const screenPoints = measurement.points.map(p => imageToScreen(p));
+            const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
+            const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
+
+            // 计算中心点
+            const center = calculateQuadrilateralCenter(measurement.points);
+            const centerScreen = imageToScreen(center);
+
+            return (
+              <g key={measurement.id}>
+                {/* 绘制四边形轮廓 */}
+                <polygon
+                  points={screenPoints.map(p => `${p.x},${p.y}`).join(' ')}
+                  fill="none"
+                  stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#10b981"}
+                  strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
+                  opacity={isSelected || isHovered ? "1" : "0.6"}
+                />
+
+                {/* 绘制四个角点 */}
+                {screenPoints.map((point, idx) => (
+                  <circle
+                    key={`corner-${idx}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r="4"
+                    fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#10b981"}
+                    opacity="0.8"
+                  />
+                ))}
+
+                {/* 绘制中心点标记 - 十字 + 圆圈 */}
+                <g>
+                  {/* 外圆 */}
+                  <circle
+                    cx={centerScreen.x}
+                    cy={centerScreen.y}
+                    r="8"
+                    fill="none"
+                    stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#10b981"}
+                    strokeWidth="2"
+                    opacity="0.9"
+                  />
+                  {/* 内圆 */}
+                  <circle
+                    cx={centerScreen.x}
+                    cy={centerScreen.y}
+                    r="3"
+                    fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#10b981"}
+                    opacity="0.9"
+                  />
+                  {/* 十字 - 水平线 */}
+                  <line
+                    x1={centerScreen.x - 12}
+                    y1={centerScreen.y}
+                    x2={centerScreen.x + 12}
+                    y2={centerScreen.y}
+                    stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#10b981"}
+                    strokeWidth="2"
+                    opacity="0.9"
+                  />
+                  {/* 十字 - 垂直线 */}
+                  <line
+                    x1={centerScreen.x}
+                    y1={centerScreen.y - 12}
+                    x2={centerScreen.x}
+                    y2={centerScreen.y + 12}
+                    stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#10b981"}
+                    strokeWidth="2"
+                    opacity="0.9"
+                  />
+                </g>
+
+                {/* 中心点文字标签 */}
+                <text
+                  x={centerScreen.x}
+                  y={centerScreen.y - 18}
+                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#10b981"}
+                  fontSize="14"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  opacity="0.9"
+                >
+                  中心
+                </text>
+              </g>
+            );
+          })}
+
+        {/* 绘制锥体中心预览 - 使用 clickedPoints */}
+        {selectedTool === 'vertebra-center' && clickedPoints.length > 0 && (() => {
+          const screenPoints = clickedPoints.map(p => imageToScreen(p));
+          return (
+            <>
+              {/* 绘制已添加的角点 */}
+              {screenPoints.map((point, idx) => (
+                <circle
+                  key={`vertebra-point-${idx}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r="4"
+                  fill="#10b981"
+                  opacity="0.8"
+                />
+              ))}
+              {/* 绘制连接线 */}
+              {screenPoints.length > 1 && (
+                <>
+                  {screenPoints.slice(0, -1).map((point, idx) => (
+                    <line
+                      key={`vertebra-line-${idx}`}
+                      x1={point.x}
+                      y1={point.y}
+                      x2={screenPoints[idx + 1].x}
+                      y2={screenPoints[idx + 1].y}
+                      stroke="#10b981"
+                      strokeWidth="2"
+                      strokeDasharray="5,5"
+                      opacity="0.6"
+                    />
+                  ))}
+                  {/* 如果有3个或4个点，连接最后一个点到第一个点 */}
+                  {screenPoints.length >= 3 && (
+                    <line
+                      key="vertebra-line-close"
+                      x1={screenPoints[screenPoints.length - 1].x}
+                      y1={screenPoints[screenPoints.length - 1].y}
+                      x2={screenPoints[0].x}
+                      y2={screenPoints[0].y}
+                      stroke="#10b981"
+                      strokeWidth="2"
+                      strokeDasharray="5,5"
+                      opacity="0.6"
+                    />
+                  )}
+                </>
+              )}
+              {/* 如果已经有4个点，显示中心点预览 */}
+              {clickedPoints.length === 4 && (() => {
+                const center = calculateQuadrilateralCenter(clickedPoints);
+                const centerScreen = imageToScreen(center);
+                return (
+                  <g>
+                    <circle
+                      cx={centerScreen.x}
+                      cy={centerScreen.y}
+                      r="6"
+                      fill="#10b981"
+                      opacity="0.5"
+                    />
+                    <text
+                      x={centerScreen.x}
+                      y={centerScreen.y - 12}
+                      fill="#10b981"
+                      fontSize="12"
+                      textAnchor="middle"
+                      opacity="0.7"
+                    >
+                      中心
+                    </text>
+                  </g>
+                );
+              })()}
+            </>
+          );
+        })()}
+
         {/* 选中边界框和删除按钮 */}
         {(() => {
           // 获取选中的对象
@@ -4905,6 +5138,26 @@ function ImageCanvas({
               <div className="text-green-400 mt-1">
                 <p>点击回第一个点自动闭合</p>
                 <p>Alt+Z 撤销点</p>
+              </div>
+            )}
+          </div>
+        ) : selectedTool === 'vertebra-center' ? (
+          <div>
+            <p className="font-medium">锥体中心标注模式</p>
+            <p>已标注 {clickedPoints.length}/4 个角点</p>
+            {clickedPoints.length === 0 && (
+              <p className="text-yellow-400 mt-1">点击第1个角点</p>
+            )}
+            {clickedPoints.length === 1 && (
+              <p className="text-yellow-400 mt-1">点击第2个角点</p>
+            )}
+            {clickedPoints.length === 2 && (
+              <p className="text-yellow-400 mt-1">点击第3个角点</p>
+            )}
+            {clickedPoints.length === 3 && (
+              <div className="text-green-400 mt-1">
+                <p>点击第4个角点完成标注</p>
+                <p>中心点将自动计算</p>
               </div>
             )}
           </div>
