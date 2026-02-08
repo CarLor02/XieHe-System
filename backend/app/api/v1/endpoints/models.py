@@ -54,7 +54,7 @@ class ModelStats(BaseModel):
     active_models: int
     view_distribution: Dict[str, int]
 
-@router.get("", response_model=ModelListResponse)
+@router.get("")
 async def get_models(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
@@ -62,35 +62,43 @@ async def get_models(
     search: Optional[str] = Query(None, description="搜索关键词"),
     current_user: Dict[str, Any] = Depends(get_current_active_user)
 ):
-    """获取模型列表"""
+    """获取模型列表（增强版，包含系统默认标识和删除权限）"""
     try:
         all_models = model_manager.get_models()
-        
+
         # Filtering
         filtered_models = all_models
         if view_type:
             filtered_models = [m for m in filtered_models if m.view_type == view_type]
-        
+
         if search:
             search_lower = search.lower()
             filtered_models = [
-                m for m in filtered_models 
-                if search_lower in m.name.lower() or 
+                m for m in filtered_models
+                if search_lower in m.name.lower() or
                    (m.description and search_lower in m.description.lower())
             ]
-            
+
+        # 增强：添加 is_system_default 和 can_delete 字段
+        enhanced_models = []
+        for model in filtered_models:
+            model_dict = model.dict()
+            model_dict["is_system_default"] = model_manager.is_default_model(model.id)
+            model_dict["can_delete"] = not model_dict["is_system_default"]
+            enhanced_models.append(model_dict)
+
         # Pagination
-        total = len(filtered_models)
+        total = len(enhanced_models)
         start = (page - 1) * page_size
         end = start + page_size
-        paginated_models = filtered_models[start:end]
-        
-        return ModelListResponse(
-            models=paginated_models,
-            total=total,
-            page=page,
-            page_size=page_size
-        )
+        paginated_models = enhanced_models[start:end]
+
+        return {
+            "models": paginated_models,
+            "total": total,
+            "page": page,
+            "page_size": page_size
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -99,9 +107,9 @@ async def create_model(
     request: CreateModelRequest,
     current_user: Dict[str, Any] = Depends(check_model_admin)
 ):
-    """创建新模型"""
+    """创建新模型（带健康检查）"""
     try:
-        model = model_manager.create_model(request.dict())
+        model = await model_manager.create_model(request.dict())
         return model
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建模型失败: {str(e)}")
@@ -174,16 +182,45 @@ async def update_model(
         raise HTTPException(status_code=404, detail="模型未找到")
     return model
 
+@router.post("/{model_id}/refresh-status")
+async def refresh_model_status(
+    model_id: str,
+    current_user: Dict[str, Any] = Depends(check_model_admin)
+):
+    """刷新模型状态（检查健康）"""
+    try:
+        model = await model_manager.refresh_model_status(model_id)
+        if not model:
+            raise HTTPException(status_code=404, detail="模型未找到")
+        return model
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"刷新状态失败: {str(e)}")
+
+@router.post("/{model_id}/activate")
+async def activate_model(
+    model_id: str,
+    current_user: Dict[str, Any] = Depends(check_model_admin)
+):
+    """激活模型"""
+    try:
+        result = model_manager.activate_model(model_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.delete("/{model_id}")
 async def delete_model(
     model_id: str,
     current_user: Dict[str, Any] = Depends(check_model_admin)
 ):
-    """删除模型"""
-    success = model_manager.delete_model(model_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="模型未找到")
-    return {"success": True, "message": "模型删除成功"}
+    """删除模型（增强版，带保护和回退逻辑）"""
+    try:
+        result = model_manager.delete_model(model_id)
+        if not result.get("success"):
+            raise HTTPException(status_code=404, detail="模型未找到或删除失败")
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{model_id}/test")
 async def test_model(
