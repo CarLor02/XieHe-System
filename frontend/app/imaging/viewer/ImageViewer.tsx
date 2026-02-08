@@ -824,10 +824,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       let aiDetectUrl: string;
       if (imageData.examType === '侧位X光片') {
         // 侧位使用专用测量接口
-        aiDetectUrl =process.env.NEXT_PUBLIC_AI_DETECT_LATERAL_URL || 'http://115.190.121.59:8002/api/detect_and_keypoints';
+        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_LATERAL_URL || '';
+        if (!aiDetectUrl) {
+          throw new Error('侧位X光片AI检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_LATERAL_URL');
+        }
       } else {
-       // 正位或其他类型使用默认接口
-        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_URL || 'http://115.190.121.59:8001/predict';
+        // 正位或其他类型使用默认接口
+        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_URL || '';
+        if (!aiDetectUrl) {
+          throw new Error('正位X光片AI检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_URL');
+        }
       }
 
       console.log('🤖 使用AI测量接口:', aiDetectUrl);
@@ -1010,10 +1016,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       let aiDetectUrl: string;
       if (imageData.examType === '侧位X光片') {
         // 侧位使用 /api/detect 接口（返回椎体4个角点）
-        aiDetectUrl = 'http://115.190.121.59:8002/api/detect';
+        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL || '';
+        if (!aiDetectUrl) {
+          throw new Error('侧位X光片AI检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL');
+        }
       } else {
         // 正位使用 detect_keypoints 接口
-        aiDetectUrl = 'http://115.190.121.59:8001/detect_keypoints';
+        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL || '';
+        if (!aiDetectUrl) {
+          throw new Error('正位X光片AI关键点检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL');
+        }
       }
 
       console.log('🤖 使用AI检测接口:', aiDetectUrl);
