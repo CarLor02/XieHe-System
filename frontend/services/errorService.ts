@@ -14,6 +14,15 @@
  */
 
 import { toast } from 'react-hot-toast';
+import {
+  extractErrorMessage,
+  extractErrorCode,
+  extractErrorDetails,
+  formatFieldErrors,
+  isNetworkError,
+  isTimeoutError,
+  getStatusCode,
+} from '../utils/apiResponseHandler';
 
 // 错误类型枚举
 export enum ErrorType {
@@ -165,39 +174,148 @@ class ErrorService {
 
   // 处理API错误
   public handleApiError(error: any, context?: string): string {
-    const response = error.response;
-
-    if (!response) {
-      // 网络错误
+    // 检查是否为网络错误
+    if (isNetworkError(error)) {
       return this.handleError(error, {
         type: ErrorType.NETWORK,
         severity: ErrorSeverity.HIGH,
         context: context || 'api_network_error',
+        message: '网络连接失败，请检查网络设置',
       });
     }
 
-    const status = response.status;
-    const data = response.data;
+    // 检查是否为超时错误
+    if (isTimeoutError(error)) {
+      return this.handleError(error, {
+        type: ErrorType.NETWORK,
+        severity: ErrorSeverity.HIGH,
+        context: context || 'api_timeout_error',
+        message: '请求超时，请稍后重试',
+      });
+    }
 
+    const response = error.response;
+
+    if (!response) {
+      // 其他未知错误
+      return this.handleError(error, {
+        type: ErrorType.UNKNOWN,
+        severity: ErrorSeverity.MEDIUM,
+        context: context || 'api_unknown_error',
+      });
+    }
+
+    // 提取后端返回的错误信息
+    const errorCode = extractErrorCode(error);
+    const errorMessage = extractErrorMessage(error);
+    const errorDetails = extractErrorDetails(error);
+    const status = getStatusCode(error) || response.status;
+
+    // 优先使用业务错误码进行处理
+    if (errorCode) {
+      return this.handleErrorByCode(errorCode, errorMessage, errorDetails, context);
+    }
+
+    // 降级到 HTTP 状态码处理
+    return this.handleErrorByStatus(status, errorMessage, errorDetails, context);
+  }
+
+  // 根据业务错误码处理错误
+  private handleErrorByCode(
+    errorCode: string,
+    message: string,
+    details?: Record<string, any>,
+    context?: string
+  ): string {
     let errorType: ErrorType;
     let severity: ErrorSeverity;
+    let userMessage = message;
+
+    // 根据错误码前缀判断错误类型
+    if (errorCode.startsWith('AUTH_')) {
+      errorType = ErrorType.AUTHENTICATION;
+      severity = ErrorSeverity.MEDIUM;
+    } else if (errorCode.startsWith('PERM_')) {
+      errorType = ErrorType.AUTHORIZATION;
+      severity = ErrorSeverity.MEDIUM;
+    } else if (errorCode.startsWith('VAL_')) {
+      errorType = ErrorType.VALIDATION;
+      severity = ErrorSeverity.LOW;
+      // 如果有字段级错误，格式化显示
+      if (details) {
+        const fieldErrors = formatFieldErrors(details);
+        if (fieldErrors) {
+          userMessage = `${message}\n${fieldErrors}`;
+        }
+      }
+    } else if (errorCode.startsWith('NOT_FOUND_')) {
+      errorType = ErrorType.NOT_FOUND;
+      severity = ErrorSeverity.LOW;
+    } else if (errorCode.startsWith('SERVER_')) {
+      errorType = ErrorType.SERVER;
+      severity = ErrorSeverity.HIGH;
+    } else {
+      errorType = ErrorType.UNKNOWN;
+      severity = ErrorSeverity.MEDIUM;
+    }
+
+    return this.handleError(new Error(userMessage), {
+      type: errorType,
+      severity,
+      context: context || 'api_error',
+      errorCode,
+      details,
+    });
+  }
+
+  // 根据 HTTP 状态码处理错误
+  private handleErrorByStatus(
+    status: number,
+    message: string,
+    details?: Record<string, any>,
+    context?: string
+  ): string {
+    let errorType: ErrorType;
+    let severity: ErrorSeverity;
+    let userMessage = message;
 
     switch (status) {
       case 400:
         errorType = ErrorType.VALIDATION;
         severity = ErrorSeverity.LOW;
+        // 如果有字段级错误，格式化显示
+        if (details) {
+          const fieldErrors = formatFieldErrors(details);
+          if (fieldErrors) {
+            userMessage = `${message}\n${fieldErrors}`;
+          }
+        }
         break;
       case 401:
         errorType = ErrorType.AUTHENTICATION;
         severity = ErrorSeverity.MEDIUM;
+        userMessage = message || '身份验证失败，请重新登录';
         break;
       case 403:
         errorType = ErrorType.AUTHORIZATION;
         severity = ErrorSeverity.MEDIUM;
+        userMessage = message || '您没有执行此操作的权限';
         break;
       case 404:
         errorType = ErrorType.NOT_FOUND;
         severity = ErrorSeverity.LOW;
+        userMessage = message || '请求的资源不存在';
+        break;
+      case 422:
+        errorType = ErrorType.VALIDATION;
+        severity = ErrorSeverity.LOW;
+        // 422 通常包含详细的字段验证错误
+        if (details) {
+          const fieldErrors = formatFieldErrors(details);
+          if (fieldErrors) {
+            userMessage = `${message}\n${fieldErrors}`;
+          }
+        }
         break;
       case 500:
       case 502:
@@ -205,18 +323,20 @@ class ErrorService {
       case 504:
         errorType = ErrorType.SERVER;
         severity = ErrorSeverity.HIGH;
+        userMessage = message || '服务器内部错误，请稍后重试';
         break;
       default:
         errorType = ErrorType.UNKNOWN;
         severity = ErrorSeverity.MEDIUM;
+        userMessage = message || '发生未知错误，请联系技术支持';
     }
 
-    return this.handleError(error, {
+    return this.handleError(new Error(userMessage), {
       type: errorType,
       severity,
       context: context || 'api_error',
       apiStatus: status,
-      apiData: data,
+      details,
     });
   }
 

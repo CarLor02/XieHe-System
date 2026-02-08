@@ -9,6 +9,7 @@ import {
   extractGenderFromIdCard,
   validateIdCard,
 } from '@/utils/idCardUtils';
+import { extractData } from '@/utils/apiResponseHandler';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
@@ -58,22 +59,21 @@ export default function EditPatient({ patientId }: { patientId: string }) {
         const client = createAuthenticatedClient();
         const response = await client.get(`/api/v1/patients/${patientId}`);
 
-        if (response.data) {
-          const patient = response.data;
-          setFormData({
-            patient_id: patient.patient_id || '',
-            name: patient.name || '',
-            gender: patient.gender || '',
-            birth_date: patient.birth_date || '',
-            phone: patient.phone || '',
-            email: patient.email || '',
-            id_card: patient.id_card || '',
-            address: patient.address || '',
-            emergency_contact_name: patient.emergency_contact_name || '',
-            emergency_contact_phone: patient.emergency_contact_phone || '',
-            insurance_number: patient.insurance_number || '',
-          });
-        }
+        // 使用 extractData 提取患者数据
+        const patient = extractData<any>(response);
+        setFormData({
+          patient_id: patient.patient_id || '',
+          name: patient.name || '',
+          gender: patient.gender || '',
+          birth_date: patient.birth_date || '',
+          phone: patient.phone || '',
+          email: patient.email || '',
+          id_card: patient.id_card || '',
+          address: patient.address || '',
+          emergency_contact_name: patient.emergency_contact_name || '',
+          emergency_contact_phone: patient.emergency_contact_phone || '',
+          insurance_number: patient.insurance_number || '',
+        });
       } catch (err: any) {
         console.error('Failed to fetch patient data:', err);
         setError(err.response?.data?.message || '加载患者信息失败');

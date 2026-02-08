@@ -18,6 +18,7 @@ import json
 from app.core.auth import get_current_active_user
 from app.core.database import get_db
 from app.core.exceptions import ValidationException
+from app.core.response import success_response, paginated_response
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,7 @@ error_storage: List[Dict[str, Any]] = []
 MAX_STORED_ERRORS = 1000
 
 
-@router.post("/report", response_model=ErrorReportResponse)
+@router.post("/report", response_model=Dict[str, Any])
 async def report_error(
     error_report: ErrorReport,
     background_tasks: BackgroundTasks,
@@ -124,10 +125,11 @@ async def report_error(
             process_error_report,
             error_record
         )
-        
-        return ErrorReportResponse(
-            success=True,
-            errorId=error_report.errorId,
+
+        return success_response(
+            data={
+                "errorId": error_report.errorId
+            },
             message="错误报告已接收"
         )
         
@@ -139,7 +141,7 @@ async def report_error(
         )
 
 
-@router.get("/stats", response_model=ErrorStats)
+@router.get("/stats", response_model=Dict[str, Any])
 async def get_error_stats(
     hours: int = 24,
     current_user: dict = Depends(get_current_active_user)
@@ -204,13 +206,16 @@ async def get_error_stats(
                 "userId": error.get("userId")
             }
             cleaned_recent_errors.append(cleaned_error)
-        
-        return ErrorStats(
-            totalErrors=len(recent_errors),
-            errorsByType=errors_by_type,
-            errorsBySeverity=errors_by_severity,
-            recentErrors=cleaned_recent_errors,
-            timeRange=f"最近 {hours} 小时"
+
+        return success_response(
+            data={
+                "totalErrors": len(recent_errors),
+                "errorsByType": errors_by_type,
+                "errorsBySeverity": errors_by_severity,
+                "recentErrors": cleaned_recent_errors,
+                "timeRange": f"最近 {hours} 小时"
+            },
+            message="获取错误统计成功"
         )
         
     except HTTPException:
@@ -223,7 +228,7 @@ async def get_error_stats(
         )
 
 
-@router.delete("/clear")
+@router.delete("/clear", response_model=Dict[str, Any])
 async def clear_error_logs(
     current_user: dict = Depends(get_current_active_user)
 ):
@@ -246,15 +251,17 @@ async def clear_error_logs(
         
         # 记录操作
         logger.info(f"用户 {current_user.username} 清空了错误日志")
-        
+
         # 清空错误存储
         error_count = len(error_storage)
         error_storage.clear()
-        
-        return {
-            "success": True,
-            "message": f"已清空 {error_count} 条错误记录"
-        }
+
+        return success_response(
+            data={
+                "clearedCount": error_count
+            },
+            message=f"已清空 {error_count} 条错误记录"
+        )
         
     except HTTPException:
         raise

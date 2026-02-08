@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from app.core.auth import get_current_active_user
+from app.core.response import success_response, paginated_response
 from app.models.user import User
 from app.services.monitoring_service import monitoring_service
 
@@ -54,19 +55,19 @@ class MetricPoint(BaseModel):
     tags: Dict[str, str]
 
 
-@router.get("/status", response_model=SystemStatus)
+@router.get("/status", response_model=Dict[str, Any])
 async def get_system_status(
     current_user: dict = Depends(get_current_active_user)
 ):
     """获取系统当前状态"""
     try:
         status = monitoring_service.get_current_status()
-        return status
+        return success_response(data=status, message="获取系统状态成功")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取系统状态失败: {str(e)}")
 
 
-@router.get("/metrics", response_model=List[MetricPoint])
+@router.get("/metrics", response_model=Dict[str, Any])
 async def get_metrics(
     metric_type: Optional[str] = Query(None, description="指标类型: api_response, database, system"),
     hours: int = Query(24, ge=1, le=168, description="查询时间范围(小时)"),
@@ -75,12 +76,12 @@ async def get_metrics(
     """获取性能指标历史数据"""
     try:
         metrics = monitoring_service.get_metrics_history(metric_type, hours)
-        return metrics
+        return success_response(data=metrics, message="获取指标数据成功")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取指标数据失败: {str(e)}")
 
 
-@router.get("/metrics/statistics")
+@router.get("/metrics/statistics", response_model=Dict[str, Any])
 async def get_metrics_statistics(
     metric_type: Optional[str] = Query(None, description="指标类型"),
     minutes: int = Query(60, ge=1, le=1440, description="统计时间范围(分钟)"),
@@ -89,32 +90,34 @@ async def get_metrics_statistics(
     """获取指标统计信息"""
     try:
         stats = monitoring_service.collector.get_statistics(metric_type, minutes)
-        return {
+        data = {
             "metric_type": metric_type or "all",
             "time_range_minutes": minutes,
             "statistics": stats
         }
+        return success_response(data=data, message="获取统计信息成功")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取统计信息失败: {str(e)}")
 
 
-@router.get("/alerts")
+@router.get("/alerts", response_model=Dict[str, Any])
 async def get_current_alerts(
     current_user: dict = Depends(get_current_active_user)
 ):
     """获取当前告警信息"""
     try:
         alerts = monitoring_service._get_current_alerts()
-        return {
+        data = {
             "timestamp": datetime.now().isoformat(),
             "alert_count": len(alerts),
             "alerts": alerts
         }
+        return success_response(data=data, message="获取告警信息成功")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取告警信息失败: {str(e)}")
 
 
-@router.put("/thresholds")
+@router.put("/thresholds", response_model=Dict[str, Any])
 async def update_thresholds(
     thresholds: ThresholdUpdate,
     current_user: dict = Depends(get_current_active_user)
@@ -133,27 +136,27 @@ async def update_thresholds(
             new_thresholds["memory_usage"] = thresholds.memory_usage
         if thresholds.disk_usage is not None:
             new_thresholds["disk_usage"] = thresholds.disk_usage
-        
+
         if not new_thresholds:
             raise HTTPException(status_code=400, detail="至少需要提供一个阈值")
-        
+
         monitoring_service.update_thresholds(new_thresholds)
-        
-        return {
-            "message": "阈值更新成功",
+
+        data = {
             "updated_thresholds": new_thresholds,
             "current_thresholds": monitoring_service.thresholds
         }
+        return success_response(data=data, message="阈值更新成功")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"更新阈值失败: {str(e)}")
 
 
-@router.get("/thresholds")
+@router.get("/thresholds", response_model=Dict[str, Any])
 async def get_thresholds(
     current_user: dict = Depends(get_current_active_user)
 ):
     """获取当前性能阈值"""
-    return {
+    data = {
         "thresholds": monitoring_service.thresholds,
         "description": {
             "api_response_time": "API响应时间阈值(秒)",
@@ -163,26 +166,27 @@ async def get_thresholds(
             "disk_usage": "磁盘使用率阈值(%)"
         }
     }
+    return success_response(data=data, message="获取阈值成功")
 
 
-@router.get("/health")
+@router.get("/health", response_model=Dict[str, Any])
 async def health_check():
     """健康检查端点"""
     try:
         status = monitoring_service.get_current_status()
-        
+
         # 检查关键指标
         system = status.get("system", {})
         alerts = status.get("alerts", [])
-        
+
         is_healthy = (
             system.get("cpu_usage", 0) < 90 and
             system.get("memory_usage", 0) < 95 and
             system.get("disk_usage", 0) < 95 and
             len(alerts) == 0
         )
-        
-        return {
+
+        data = {
             "status": "healthy" if is_healthy else "unhealthy",
             "timestamp": datetime.now().isoformat(),
             "checks": {
@@ -198,15 +202,17 @@ async def health_check():
                 "alert_count": len(alerts)
             }
         }
+        return success_response(data=data, message="健康检查完成")
     except Exception as e:
-        return {
+        data = {
             "status": "unhealthy",
             "timestamp": datetime.now().isoformat(),
             "error": str(e)
         }
+        return success_response(data=data, message="健康检查失败")
 
 
-@router.get("/performance/api")
+@router.get("/performance/api", response_model=Dict[str, Any])
 async def get_api_performance(
     hours: int = Query(24, ge=1, le=168),
     current_user: dict = Depends(get_current_active_user)
@@ -215,14 +221,15 @@ async def get_api_performance(
     try:
         # 获取API响应时间指标
         api_metrics = monitoring_service.collector.get_recent_metrics("api_response", hours * 60)
-        
+
         if not api_metrics:
-            return {
+            data = {
                 "message": "暂无API性能数据",
                 "time_range_hours": hours,
                 "metrics": []
             }
-        
+            return success_response(data=data, message="暂无API性能数据")
+
         # 按端点分组统计
         endpoint_stats = {}
         for metric in api_metrics:
@@ -230,7 +237,7 @@ async def get_api_performance(
             if endpoint not in endpoint_stats:
                 endpoint_stats[endpoint] = []
             endpoint_stats[endpoint].append(metric.value)
-        
+
         # 计算每个端点的统计信息
         performance_data = []
         for endpoint, response_times in endpoint_stats.items():
@@ -244,22 +251,23 @@ async def get_api_performance(
                     "max_response_time": max(response_times),
                     "p95_response_time": statistics.quantiles(response_times, n=20)[18] if len(response_times) >= 20 else max(response_times)
                 })
-        
+
         # 按平均响应时间排序
         performance_data.sort(key=lambda x: x["avg_response_time"], reverse=True)
-        
-        return {
+
+        data = {
             "time_range_hours": hours,
             "total_requests": len(api_metrics),
             "unique_endpoints": len(endpoint_stats),
             "performance_data": performance_data
         }
-        
+        return success_response(data=data, message="获取API性能数据成功")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取API性能数据失败: {str(e)}")
 
 
-@router.get("/performance/database")
+@router.get("/performance/database", response_model=Dict[str, Any])
 async def get_database_performance(
     hours: int = Query(24, ge=1, le=168),
     current_user: dict = Depends(get_current_active_user)
@@ -268,19 +276,20 @@ async def get_database_performance(
     try:
         # 获取数据库指标
         db_metrics = monitoring_service.collector.get_recent_metrics("database", hours * 60)
-        
+
         if not db_metrics:
-            return {
+            data = {
                 "message": "暂无数据库性能数据",
                 "time_range_hours": hours,
                 "metrics": []
             }
-        
+            return success_response(data=data, message="暂无数据库性能数据")
+
         # 分类统计
         query_times = []
         connections = []
         db_sizes = []
-        
+
         for metric in db_metrics:
             if metric.metric_name == "query_time":
                 query_times.append(metric.value)
@@ -288,14 +297,14 @@ async def get_database_performance(
                 connections.append(metric.value)
             elif metric.metric_name == "database_size":
                 db_sizes.append(metric.value)
-        
+
         import statistics
-        
+
         result = {
             "time_range_hours": hours,
             "total_metrics": len(db_metrics)
         }
-        
+
         if query_times:
             result["query_performance"] = {
                 "total_queries": len(query_times),
@@ -304,34 +313,34 @@ async def get_database_performance(
                 "max_query_time": max(query_times),
                 "p95_query_time": statistics.quantiles(query_times, n=20)[18] if len(query_times) >= 20 else max(query_times)
             }
-        
+
         if connections:
             result["connection_stats"] = {
                 "avg_connections": statistics.mean(connections),
                 "max_connections": max(connections),
                 "min_connections": min(connections)
             }
-        
+
         if db_sizes:
             result["database_size"] = {
                 "current_size_bytes": db_sizes[-1] if db_sizes else 0,
                 "current_size_mb": (db_sizes[-1] / 1024 / 1024) if db_sizes else 0
             }
-        
-        return result
-        
+
+        return success_response(data=result, message="获取数据库性能数据成功")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取数据库性能数据失败: {str(e)}")
 
 
-@router.post("/test/api-performance")
+@router.post("/test/api-performance", response_model=Dict[str, Any])
 async def test_api_performance(
     current_user: dict = Depends(get_current_active_user)
 ):
     """测试API性能记录"""
     import time
     import random
-    
+
     # 模拟一些API调用
     test_endpoints = [
         "/api/v1/patients",
@@ -339,7 +348,7 @@ async def test_api_performance(
         "/api/v1/reports",
         "/api/v1/users"
     ]
-    
+
     for endpoint in test_endpoints:
         # 模拟不同的响应时间
         response_time = random.uniform(0.1, 2.5)
@@ -349,8 +358,8 @@ async def test_api_performance(
             response_time=response_time,
             status_code=200
         )
-    
-    return {
-        "message": "API性能测试数据已生成",
+
+    data = {
         "test_endpoints": test_endpoints
     }
+    return success_response(data=data, message="API性能测试数据已生成")

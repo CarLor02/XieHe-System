@@ -1,11 +1,12 @@
 /**
  * 影像文件管理API服务
- * 
+ *
  * 提供影像文件的查询、下载、删除等功能
  * 基于新的 image_files 表
  */
 
 import { createAuthenticatedClient } from '@/store/authStore';
+import { extractData, extractPaginatedData } from '@/utils/apiResponseHandler';
 
 export interface ImageFile {
   id: number;
@@ -87,7 +88,14 @@ export async function getImageFiles(filters: ImageFileFilters = {}): Promise<Ima
   if (filters.review_status) params.review_status = filters.review_status;
 
   const response = await client.get('/api/v1/image-files', { params });
-  return response.data;
+  const result = extractPaginatedData<ImageFile>(response);
+
+  return {
+    total: result.total,
+    page: result.page,
+    page_size: result.pageSize,
+    items: result.items,
+  };
 }
 
 /**
@@ -98,7 +106,14 @@ export async function getPatientImages(patientId: number, page = 1, pageSize = 2
   const response = await client.get(`/api/v1/image-files/patient/${patientId}`, {
     params: { page, page_size: pageSize }
   });
-  return response.data;
+  const result = extractPaginatedData<ImageFile>(response);
+
+  return {
+    total: result.total,
+    page: result.page,
+    page_size: result.pageSize,
+    items: result.items,
+  };
 }
 
 /**
@@ -107,7 +122,7 @@ export async function getPatientImages(patientId: number, page = 1, pageSize = 2
 export async function getImageFile(fileId: number): Promise<ImageFile> {
   const client = createAuthenticatedClient();
   const response = await client.get(`/api/v1/image-files/${fileId}`);
-  return response.data;
+  return extractData<ImageFile>(response);
 }
 
 /**
@@ -118,6 +133,7 @@ export async function downloadImageFile(fileId: number): Promise<Blob> {
   const response = await client.get(`/api/v1/image-files/${fileId}/download`, {
     responseType: 'blob'
   });
+  // Blob 响应不需要使用 extractData
   return response.data;
 }
 
@@ -127,7 +143,7 @@ export async function downloadImageFile(fileId: number): Promise<Blob> {
 export async function deleteImageFile(fileId: number): Promise<{ message: string; file_id: number }> {
   const client = createAuthenticatedClient();
   const response = await client.delete(`/api/v1/image-files/${fileId}`);
-  return response.data;
+  return extractData<{ message: string; file_id: number }>(response);
 }
 
 /**
@@ -136,7 +152,7 @@ export async function deleteImageFile(fileId: number): Promise<{ message: string
 export async function getImageStats(): Promise<ImageFileStats> {
   const client = createAuthenticatedClient();
   const response = await client.get('/api/v1/image-files/stats/summary');
-  return response.data;
+  return extractData<ImageFileStats>(response);
 }
 
 /**

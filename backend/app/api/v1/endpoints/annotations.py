@@ -7,7 +7,7 @@
 @created 2025-10-17
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,6 +17,7 @@ from sqlalchemy import text
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.logging import get_logger
+from app.core.response import success_response, paginated_response
 from app.models.image import ImageAnnotation
 from app.models.image_file import ImageFile
 
@@ -55,7 +56,7 @@ class MeasurementsResponse(BaseModel):
 
 
 # API端点
-@router.get("/{image_id}", response_model=MeasurementsResponse, summary="获取影像的测量数据")
+@router.get("/{image_id}", response_model=Dict[str, Any], summary="获取影像的测量数据")
 async def get_measurements(
     image_id: str,
     current_user: dict = Depends(get_current_active_user),
@@ -94,8 +95,15 @@ async def get_measurements(
                 ).all()
 
         if not annotations:
-            return MeasurementsResponse(measurements=[], reportText=None)
-        
+            return success_response(
+                data={
+                    "measurements": [],
+                    "reportText": None,
+                    "savedAt": None
+                },
+                message="未找到测量数据"
+            )
+
         # 转换为前端格式
         measurements = []
         for ann in annotations:
@@ -127,11 +135,14 @@ async def get_measurements(
             except Exception as e:
                 logger.warning(f"转换标注数据失败: {e}, 跳过此标注")
                 continue
-        
-        return MeasurementsResponse(
-            measurements=measurements,
-            reportText=None,
-            savedAt=annotations[0].created_at.isoformat() if annotations else None
+
+        return success_response(
+            data={
+                "measurements": [m.dict() for m in measurements],
+                "reportText": None,
+                "savedAt": annotations[0].created_at.isoformat() if annotations else None
+            },
+            message="获取测量数据成功"
         )
         
     except HTTPException:
@@ -144,7 +155,7 @@ async def get_measurements(
         )
 
 
-@router.post("/{image_id}", response_model=dict, summary="保存影像的测量数据")
+@router.post("/{image_id}", response_model=Dict[str, Any], summary="保存影像的测量数据")
 async def save_measurements(
     image_id: str,
     request: SaveMeasurementsRequest,
@@ -261,11 +272,13 @@ async def save_measurements(
         log_msg = f"保存测量数据成功: ImageFile ID {image_file_id}, 共 {len(request.measurements)} 条标注"
         logger.info(log_msg)
 
-        return {
-            "success": True,
-            "message": "测量数据保存成功",
-            "count": len(request.measurements)
-        }
+        return success_response(
+            data={
+                "count": len(request.measurements),
+                "image_file_id": image_file_id
+            },
+            message="测量数据保存成功"
+        )
         
     except HTTPException:
         raise

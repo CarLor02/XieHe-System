@@ -7,7 +7,7 @@ AI辅助诊断API端点
 @created 2025-09-24
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
@@ -19,6 +19,7 @@ from app.core.auth import get_current_active_user
 from app.core.storage import storage_manager
 from app.core.ai_diagnosis import ai_diagnosis_engine
 from app.core.logging import get_logger
+from app.core.response import success_response, paginated_response
 
 logger = get_logger(__name__)
 
@@ -72,7 +73,7 @@ class BatchAnalysisResult(BaseModel):
     results: List[dict]
     status: str
 
-@router.get("/ai/models", response_model=List[str])
+@router.get("/ai/models", response_model=Dict[str, Any])
 async def get_available_models(
     current_user: dict = Depends(get_current_active_user)
 ):
@@ -82,8 +83,11 @@ async def get_available_models(
     try:
         models = ai_diagnosis_engine.get_available_models()
         logger.info(f"获取AI模型列表: {len(models)} 个模型")
-        return models
-        
+        return success_response(
+            data=models,
+            message=f"成功获取 {len(models)} 个AI模型"
+        )
+
     except Exception as e:
         logger.error(f"获取AI模型列表失败: {e}")
         raise HTTPException(
@@ -91,7 +95,7 @@ async def get_available_models(
             detail="获取AI模型列表失败"
         )
 
-@router.get("/ai/models/{model_name}", response_model=AIModelInfo)
+@router.get("/ai/models/{model_name}", response_model=Dict[str, Any])
 async def get_model_info(
     model_name: str,
     current_user: dict = Depends(get_current_active_user)
@@ -101,15 +105,18 @@ async def get_model_info(
     """
     try:
         model_info = ai_diagnosis_engine.get_model_info(model_name)
-        
+
         if "error" in model_info:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=model_info["error"]
             )
-        
-        return AIModelInfo(**model_info)
-        
+
+        return success_response(
+            data=model_info,
+            message=f"成功获取模型 {model_name} 的信息"
+        )
+
     except HTTPException:
         raise
     except Exception as e:
@@ -119,7 +126,7 @@ async def get_model_info(
             detail="获取模型信息失败"
         )
 
-@router.get("/ai/models/suggest/{modality}")
+@router.get("/ai/models/suggest/{modality}", response_model=Dict[str, Any])
 async def suggest_models_for_modality(
     modality: str,
     current_user: dict = Depends(get_current_active_user)
@@ -129,13 +136,16 @@ async def suggest_models_for_modality(
     """
     try:
         suggested_models = ai_diagnosis_engine.suggest_models_for_modality(modality.upper())
-        
-        return {
-            "modality": modality,
-            "suggested_models": suggested_models,
-            "model_count": len(suggested_models)
-        }
-        
+
+        return success_response(
+            data={
+                "modality": modality,
+                "suggested_models": suggested_models,
+                "model_count": len(suggested_models)
+            },
+            message=f"成功为 {modality} 推荐 {len(suggested_models)} 个模型"
+        )
+
     except Exception as e:
         logger.error(f"推荐AI模型失败 {modality}: {e}")
         raise HTTPException(
@@ -143,7 +153,7 @@ async def suggest_models_for_modality(
             detail="推荐AI模型失败"
         )
 
-@router.post("/ai/analyze", response_model=AIAnalysisResult)
+@router.post("/ai/analyze", response_model=Dict[str, Any])
 async def analyze_image(
     request: AIAnalysisRequest,
     background_tasks: BackgroundTasks,
@@ -161,7 +171,7 @@ async def analyze_image(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="图像文件不存在"
             )
-        
+
         # 获取图像文件到临时路径
         image_content = storage_manager.load_file(image_path)
         if not image_content:
@@ -169,58 +179,61 @@ async def analyze_image(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="无法加载图像文件"
             )
-        
+
         # 保存到临时文件
         temp_path = Path(f"/tmp/{request.image_id}")
         with open(temp_path, 'wb') as f:
             f.write(image_content)
-        
+
         try:
             # 执行AI分析
             result = ai_diagnosis_engine.analyze_image(
-                temp_path, 
+                temp_path,
                 request.model_name
             )
-            
+
             if "error" in result:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=result["error"]
                 )
-            
+
             # 生成分析ID
             analysis_id = f"analysis_{request.image_id}_{int(result.get('timestamp', '0').replace('-', '').replace(':', '').replace('T', '').replace('.', '')[:14])}"
-            
+
             # 构建响应
-            analysis_result = AIAnalysisResult(
-                analysis_id=analysis_id,
-                image_id=request.image_id,
-                model_name=request.model_name,
-                predicted_class=result.get("predicted_class", "未知"),
-                confidence=result.get("confidence", 0.0),
-                results=result.get("results", []),
-                suggestions=result.get("suggestions", []),
-                processing_time=result.get("processing_time", 0.0),
-                timestamp=result.get("timestamp", ""),
-                status="completed"
-            )
-            
+            analysis_result = {
+                "analysis_id": analysis_id,
+                "image_id": request.image_id,
+                "model_name": request.model_name,
+                "predicted_class": result.get("predicted_class", "未知"),
+                "confidence": result.get("confidence", 0.0),
+                "results": result.get("results", []),
+                "suggestions": result.get("suggestions", []),
+                "processing_time": result.get("processing_time", 0.0),
+                "timestamp": result.get("timestamp", ""),
+                "status": "completed"
+            }
+
             # 后台任务：保存分析结果到数据库
             background_tasks.add_task(
                 save_analysis_result,
-                analysis_result.dict(),
+                analysis_result,
                 request.patient_id,
                 current_user.get("user_id")
             )
-            
+
             logger.info(f"AI分析完成: {request.image_id} -> {request.model_name}")
-            return analysis_result
-            
+            return success_response(
+                data=analysis_result,
+                message="AI图像分析完成"
+            )
+
         finally:
             # 清理临时文件
             if temp_path.exists():
                 temp_path.unlink()
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -230,7 +243,7 @@ async def analyze_image(
             detail="AI图像分析失败"
         )
 
-@router.post("/ai/batch-analyze", response_model=BatchAnalysisResult)
+@router.post("/ai/batch-analyze", response_model=Dict[str, Any])
 async def batch_analyze_images(
     request: BatchAnalysisRequest,
     background_tasks: BackgroundTasks,
@@ -246,7 +259,7 @@ async def batch_analyze_images(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="批量分析最多支持50张图像"
             )
-        
+
         # 准备图像文件路径
         image_paths = []
         for image_id in request.image_ids:
@@ -254,7 +267,7 @@ async def batch_analyze_images(
             if not storage_manager.file_exists(image_path):
                 logger.warning(f"图像文件不存在: {image_id}")
                 continue
-            
+
             # 获取图像内容并保存到临时文件
             image_content = storage_manager.load_file(image_path)
             if image_content:
@@ -262,50 +275,53 @@ async def batch_analyze_images(
                 with open(temp_path, 'wb') as f:
                     f.write(image_content)
                 image_paths.append(temp_path)
-        
+
         if not image_paths:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="没有找到有效的图像文件"
             )
-        
+
         try:
             # 执行批量分析
             batch_result = ai_diagnosis_engine.batch_analyze(
                 image_paths,
                 request.model_name
             )
-            
+
             # 生成批次ID
             batch_id = f"batch_{int(batch_result['summary']['batch_timestamp'].replace('-', '').replace(':', '').replace('T', '').replace('.', '')[:14])}"
-            
+
             # 构建响应
-            result = BatchAnalysisResult(
-                batch_id=batch_id,
-                total_images=batch_result["summary"]["total_images"],
-                success_count=batch_result["summary"]["success_count"],
-                error_count=batch_result["summary"]["error_count"],
-                results=batch_result["results"],
-                status="completed"
-            )
-            
+            result = {
+                "batch_id": batch_id,
+                "total_images": batch_result["summary"]["total_images"],
+                "success_count": batch_result["summary"]["success_count"],
+                "error_count": batch_result["summary"]["error_count"],
+                "results": batch_result["results"],
+                "status": "completed"
+            }
+
             # 后台任务：保存批量分析结果
             background_tasks.add_task(
                 save_batch_analysis_result,
-                result.dict(),
+                result,
                 request.patient_id,
                 current_user.get("user_id")
             )
-            
+
             logger.info(f"批量AI分析完成: {len(request.image_ids)} 张图像")
-            return result
-            
+            return success_response(
+                data=result,
+                message=f"批量AI分析完成，成功 {result['success_count']} 张，失败 {result['error_count']} 张"
+            )
+
         finally:
             # 清理临时文件
             for temp_path in image_paths:
                 if temp_path.exists():
                     temp_path.unlink()
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -315,7 +331,7 @@ async def batch_analyze_images(
             detail="批量AI分析失败"
         )
 
-@router.post("/ai/compare-models")
+@router.post("/ai/compare-models", response_model=Dict[str, Any])
 async def compare_models(
     request: ModelComparisonRequest,
     background_tasks: BackgroundTasks,
@@ -332,7 +348,7 @@ async def compare_models(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="图像文件不存在"
             )
-        
+
         # 获取图像文件到临时路径
         image_content = storage_manager.load_file(image_path)
         if not image_content:
@@ -340,37 +356,40 @@ async def compare_models(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="无法加载图像文件"
             )
-        
+
         temp_path = Path(f"/tmp/{request.image_id}")
         with open(temp_path, 'wb') as f:
             f.write(image_content)
-        
+
         try:
             # 执行模型比较
             comparison_result = ai_diagnosis_engine.compare_models(
                 temp_path,
                 request.model_names
             )
-            
+
             # 生成比较ID
             comparison_id = f"comparison_{request.image_id}_{int(comparison_result['comparison_timestamp'].replace('-', '').replace(':', '').replace('T', '').replace('.', '')[:14])}"
             comparison_result["comparison_id"] = comparison_id
-            
+
             # 后台任务：保存比较结果
             background_tasks.add_task(
                 save_comparison_result,
                 comparison_result,
                 current_user.get("user_id")
             )
-            
+
             logger.info(f"AI模型比较完成: {request.image_id} -> {request.model_names}")
-            return comparison_result
-            
+            return success_response(
+                data=comparison_result,
+                message=f"成功比较 {len(request.model_names)} 个AI模型"
+            )
+
         finally:
             # 清理临时文件
             if temp_path.exists():
                 temp_path.unlink()
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -380,7 +399,7 @@ async def compare_models(
             detail="AI模型比较失败"
         )
 
-@router.get("/ai/analysis/{analysis_id}")
+@router.get("/ai/analysis/{analysis_id}", response_model=Dict[str, Any])
 async def get_analysis_result(
     analysis_id: str,
     current_user: dict = Depends(get_current_active_user),
@@ -392,12 +411,14 @@ async def get_analysis_result(
     try:
         # 这里应该从数据库查询分析结果
         # 暂时返回模拟数据
-        return {
-            "analysis_id": analysis_id,
-            "status": "completed",
-            "message": "分析结果查询功能开发中"
-        }
-        
+        return success_response(
+            data={
+                "analysis_id": analysis_id,
+                "status": "completed"
+            },
+            message="分析结果查询功能开发中"
+        )
+
     except Exception as e:
         logger.error(f"获取分析结果失败: {e}")
         raise HTTPException(

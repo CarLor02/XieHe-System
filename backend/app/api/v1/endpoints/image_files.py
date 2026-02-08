@@ -22,6 +22,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.response import success_response, paginated_response
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 from app.models.user import User
 from app.models.image import ImageAnnotation
@@ -76,7 +77,7 @@ class ImageFileStatsResponse(BaseModel):
 
 
 # API 端点
-@router.get("", response_model=ImageFileListResponse, summary="获取影像文件列表")
+@router.get("", response_model=dict, summary="获取影像文件列表")
 async def get_image_files_list(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -238,13 +239,14 @@ async def get_image_files_list(
                 upload_progress=img.upload_progress,
                 created_at=img.created_at,
                 uploaded_at=img.uploaded_at
-            ))
+            ).dict())
 
-        return ImageFileListResponse(
+        return paginated_response(
+            items=items,
             total=total,
             page=page,
             page_size=page_size,
-            items=items
+            message="影像文件列表查询成功"
         )
 
     except Exception as e:
@@ -255,7 +257,7 @@ async def get_image_files_list(
         )
 
 
-@router.get("/patient/{patient_id}", response_model=ImageFileListResponse, summary="获取患者的影像文件")
+@router.get("/patient/{patient_id}", response_model=dict, summary="获取患者的影像文件")
 async def get_patient_images(
     patient_id: int,
     page: int = Query(1, ge=1),
@@ -298,13 +300,14 @@ async def get_patient_images(
                 "created_at": img.created_at,
                 "uploaded_at": img.uploaded_at
             }
-            items.append(ImageFileResponse(**img_dict))
-        
-        return ImageFileListResponse(
+            items.append(ImageFileResponse(**img_dict).dict())
+
+        return paginated_response(
+            items=items,
             total=total,
             page=page,
             page_size=page_size,
-            items=items
+            message="患者影像文件查询成功"
         )
         
     except Exception as e:
@@ -315,7 +318,7 @@ async def get_patient_images(
         )
 
 
-@router.get("/{file_id}", response_model=ImageFileResponse, summary="获取影像文件详情")
+@router.get("/{file_id}", response_model=dict, summary="获取影像文件详情")
 async def get_image_file(
     file_id: int,
     current_user: dict = Depends(get_current_active_user),
@@ -358,15 +361,18 @@ async def get_image_file(
             "created_at": image.created_at,
             "uploaded_at": image.uploaded_at
         }
-        
+
         # 获取上传者信息
         if image.uploaded_by:
             uploader = db.query(User).filter(User.id == image.uploaded_by).first()
             if uploader:
                 img_dict["uploader_name"] = uploader.username
-        
-        return ImageFileResponse(**img_dict)
-        
+
+        return success_response(
+            data=ImageFileResponse(**img_dict).dict(),
+            message="影像文件详情查询成功"
+        )
+
     except HTTPException:
         raise
     except Exception as e:
@@ -456,10 +462,13 @@ async def delete_image_file(
         image.is_deleted = True
         image.deleted_at = datetime.now()
         image.deleted_by = current_user.get('id')
-        
+
         db.commit()
-        
-        return {"message": "影像文件已删除", "file_id": file_id}
+
+        return success_response(
+            data={"file_id": file_id},
+            message="影像文件已删除"
+        )
         
     except HTTPException:
         raise
@@ -472,7 +481,7 @@ async def delete_image_file(
         )
 
 
-@router.get("/stats/summary", response_model=ImageFileStatsResponse, summary="获取影像文件统计")
+@router.get("/stats/summary", response_model=dict, summary="获取影像文件统计")
 async def get_image_stats(
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -509,13 +518,16 @@ async def get_image_stats(
         for img in images:
             if img.modality:
                 by_modality[img.modality] = by_modality.get(img.modality, 0) + 1
-        
-        return ImageFileStatsResponse(
-            total_files=total_files,
-            total_size=total_size,
-            by_type=by_type,
-            by_status=by_status,
-            by_modality=by_modality
+
+        return success_response(
+            data=ImageFileStatsResponse(
+                total_files=total_files,
+                total_size=total_size,
+                by_type=by_type,
+                by_status=by_status,
+                by_modality=by_modality
+            ).dict(),
+            message="影像统计查询成功"
         )
         
     except Exception as e:
@@ -531,7 +543,7 @@ class UpdateAnnotationRequest(BaseModel):
     annotation: str = Field(..., description="标注数据(JSON字符串)")
 
 
-@router.patch("/{file_id}/annotation", response_model=ImageFileResponse, summary="更新影像文件的标注数据")
+@router.patch("/{file_id}/annotation", response_model=dict, summary="更新影像文件的标注数据")
 async def update_annotation(
     file_id: int,
     request: UpdateAnnotationRequest,
@@ -593,8 +605,11 @@ async def update_annotation(
             uploader = db.query(User).filter(User.id == image.uploaded_by).first()
             if uploader:
                 img_dict["uploader_name"] = uploader.username
-        
-        return ImageFileResponse(**img_dict)
+
+        return success_response(
+            data=ImageFileResponse(**img_dict).dict(),
+            message="标注数据更新成功"
+        )
         
     except HTTPException:
         raise

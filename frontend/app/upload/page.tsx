@@ -3,6 +3,7 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { createAuthenticatedClient, useUser } from '@/store/authStore';
+import { extractPaginatedData } from '@/utils/apiResponseHandler';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
@@ -70,10 +71,12 @@ function UploadContent() {
         const response = await client.get(
           '/api/v1/patients/?page=1&page_size=100'
         );
-        const data = response.data;
+
+        // 使用 extractPaginatedData 提取患者列表
+        const result = extractPaginatedData<any>(response);
 
         // 转换数据格式
-        const patientList = (data.patients || []).map((patient: any) => ({
+        const patientList = result.items.map((patient: any) => ({
           id: patient.id.toString(),
           name: patient.name,
         }));

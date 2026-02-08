@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/store/authStore';
+import { extractPaginatedData } from '@/utils/apiResponseHandler';
 import ReportEditor from '../../components/reports/ReportEditor';
 import ReportExport from '../../components/reports/ReportExport';
 import ReportPreview from '../../components/reports/ReportPreview';
@@ -162,37 +163,39 @@ export default function ReportsPage() {
 
       const response = await client.get(`/api/v1/reports/?${params}`);
 
-      if (response.data && response.data.reports) {
-        // 转换API数据格式
-        const apiReports = response.data.reports.map((report: any) => ({
-          id: report.id,
-          report_number: report.report_no || `RPT-${report.id}`,
-          report_title: report.title || '诊断报告',
-          status: report.status || 'draft',
-          priority: report.priority || 'normal',
-          patient_name: report.patient_name || '未知患者',
-          patient_id: report.patient_id,
-          examination_date:
-            report.study_date || report.created_at?.split('T')[0] || '',
-          report_date:
-            report.report_date || report.created_at?.split('T')[0] || '',
-          reporting_physician: report.doctor_name || '未指定医生',
-          primary_diagnosis: report.diagnosis || '',
-          clinical_history: report.clinical_history || '',
-          examination_technique: report.examination_technique || '',
-          findings: report.findings || '',
-          impression: report.impression || '',
-          recommendations: report.recommendations || '',
-          notes: report.notes || '',
-          tags: report.tags || [],
-          ai_assisted: report.ai_assisted || false,
-          ai_confidence: report.ai_confidence || 0,
-          created_at: report.created_at || '',
-          updated_at: report.updated_at || '',
-        }));
+      // 使用 extractPaginatedData 提取分页数据
+      const result = extractPaginatedData<any>(response);
 
-        setReports(apiReports);
-        setTotalReports(response.data.total || apiReports.length);
+      // 转换API数据格式
+      const apiReports = result.items.map((report: any) => ({
+        id: report.id,
+        report_number: report.report_no || `RPT-${report.id}`,
+        report_title: report.title || '诊断报告',
+        status: report.status || 'draft',
+        priority: report.priority || 'normal',
+        patient_name: report.patient_name || '未知患者',
+        patient_id: report.patient_id,
+        examination_date:
+          report.study_date || report.created_at?.split('T')[0] || '',
+        report_date:
+          report.report_date || report.created_at?.split('T')[0] || '',
+        reporting_physician: report.doctor_name || '未指定医生',
+        primary_diagnosis: report.diagnosis || '',
+        clinical_history: report.clinical_history || '',
+        examination_technique: report.examination_technique || '',
+        findings: report.findings || '',
+        impression: report.impression || '',
+        recommendations: report.recommendations || '',
+        notes: report.notes || '',
+        tags: report.tags || [],
+        ai_assisted: report.ai_assisted || false,
+        ai_confidence: report.ai_confidence || 0,
+        created_at: report.created_at || '',
+        updated_at: report.updated_at || '',
+      }));
+
+      setReports(apiReports);
+      setTotalReports(result.total);
       } else {
         setReports([]);
         setTotalReports(0);

@@ -11,7 +11,7 @@ import os
 import hashlib
 import mimetypes
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 from pathlib import Path
 
@@ -25,6 +25,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.response import success_response, paginated_response
 from app.models.image import ModalityEnum, BodyPartEnum
 from app.models.image_file import ImageFile, ImageFileTypeEnum, ImageFileStatusEnum
 
@@ -234,7 +235,7 @@ def get_completed_file_path(file_id: str, filename: str) -> Path:
     return UPLOAD_DIR / 'completed' / safe_filename
 
 # API端点
-@router.post("/single", response_model=FileUploadResponse)
+@router.post("/single", response_model=Dict[str, Any])
 async def upload_single_file(
     file: UploadFile = File(...),
     patient_id: Optional[str] = Form(None),
@@ -311,13 +312,17 @@ async def upload_single_file(
 
         logger.info(f"文件上传成功: {file.filename} ({actual_size} bytes)")
 
-        return FileUploadResponse(
-            file_id=file_id,
-            filename=file.filename,
-            size=actual_size,
-            mime_type=file.content_type,
-            upload_url=f"/api/v1/files/{file_id}",
-            created_at=datetime.now()
+        return success_response(
+            data={
+                "file_id": file_id,
+                "filename": file.filename,
+                "size": actual_size,
+                "mime_type": file.content_type,
+                "upload_url": f"/api/v1/files/{file_id}",
+                "status": "uploaded",
+                "created_at": datetime.now().isoformat()
+            },
+            message="文件上传成功"
         )
         
     except Exception as e:
@@ -327,7 +332,7 @@ async def upload_single_file(
             detail="文件上传失败"
         )
 
-@router.post("/chunk", response_model=ChunkUploadResponse)
+@router.post("/chunk", response_model=Dict[str, Any])
 async def upload_chunk(
     chunk_data: ChunkUploadRequest,
     file: UploadFile = File(...),
@@ -371,14 +376,17 @@ async def upload_chunk(
         is_complete = len(uploaded_chunks) == chunk_data.total_chunks
         
         logger.info(f"分片上传: {file_id} chunk {chunk_index}/{chunk_data.total_chunks}")
-        
-        return ChunkUploadResponse(
-            file_id=file_id,
-            chunk_index=chunk_index,
-            status="chunk_uploaded",
-            uploaded_chunks=uploaded_chunks,
-            missing_chunks=missing_chunks,
-            is_complete=is_complete
+
+        return success_response(
+            data={
+                "file_id": file_id,
+                "chunk_index": chunk_index,
+                "status": "chunk_uploaded",
+                "uploaded_chunks": uploaded_chunks,
+                "missing_chunks": missing_chunks,
+                "is_complete": is_complete
+            },
+            message="分片上传成功"
         )
         
     except Exception as e:
@@ -388,7 +396,7 @@ async def upload_chunk(
             detail="分片上传失败"
         )
 
-@router.post("/complete/{file_id}")
+@router.post("/complete/{file_id}", response_model=Dict[str, Any])
 async def complete_upload(
     file_id: str,
     filename: str = Form(...),
@@ -447,14 +455,18 @@ async def complete_upload(
         mime_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
         
         logger.info(f"文件合并完成: {filename} ({file_size} bytes)")
-        
-        return FileUploadResponse(
-            file_id=file_id,
-            filename=filename,
-            size=file_size,
-            mime_type=mime_type,
-            upload_url=f"/api/v1/files/{file_id}",
-            created_at=datetime.now()
+
+        return success_response(
+            data={
+                "file_id": file_id,
+                "filename": filename,
+                "size": file_size,
+                "mime_type": mime_type,
+                "upload_url": f"/api/v1/files/{file_id}",
+                "status": "uploaded",
+                "created_at": datetime.now().isoformat()
+            },
+            message="文件合并完成"
         )
         
     except Exception as e:
@@ -464,7 +476,7 @@ async def complete_upload(
             detail="文件合并失败"
         )
 
-@router.get("/status/{file_id}", response_model=FileUploadStatus)
+@router.get("/status/{file_id}", response_model=Dict[str, Any])
 async def get_upload_status(
     file_id: str,
     current_user: dict = Depends(get_current_active_user)
@@ -480,17 +492,20 @@ async def get_upload_status(
         if completed_files:
             file_path = completed_files[0]
             file_size = file_path.stat().st_size
-            
-            return FileUploadStatus(
-                file_id=file_id,
-                filename=file_path.name,
-                total_size=file_size,
-                uploaded_size=file_size,
-                total_chunks=1,
-                uploaded_chunks=[0],
-                missing_chunks=[],
-                status="completed",
-                progress=100.0
+
+            return success_response(
+                data={
+                    "file_id": file_id,
+                    "filename": file_path.name,
+                    "total_size": file_size,
+                    "uploaded_size": file_size,
+                    "total_chunks": 1,
+                    "uploaded_chunks": [0],
+                    "missing_chunks": [],
+                    "status": "completed",
+                    "progress": 100.0
+                },
+                message="文件上传已完成"
             )
         
         # 检查分片状态
@@ -513,19 +528,22 @@ async def get_upload_status(
         uploaded_chunks.sort()
         max_chunk = max(uploaded_chunks) if uploaded_chunks else 0
         missing_chunks = [i for i in range(max_chunk + 1) if i not in uploaded_chunks]
-        
+
         progress = len(uploaded_chunks) / (max_chunk + 1) * 100 if max_chunk >= 0 else 0
-        
-        return FileUploadStatus(
-            file_id=file_id,
-            filename=f"upload_{file_id}",
-            total_size=total_size,
-            uploaded_size=total_size,
-            total_chunks=max_chunk + 1,
-            uploaded_chunks=uploaded_chunks,
-            missing_chunks=missing_chunks,
-            status="uploading",
-            progress=progress
+
+        return success_response(
+            data={
+                "file_id": file_id,
+                "filename": f"upload_{file_id}",
+                "total_size": total_size,
+                "uploaded_size": total_size,
+                "total_chunks": max_chunk + 1,
+                "uploaded_chunks": uploaded_chunks,
+                "missing_chunks": missing_chunks,
+                "status": "uploading",
+                "progress": progress
+            },
+            message="获取上传状态成功"
         )
         
     except Exception as e:
@@ -535,7 +553,7 @@ async def get_upload_status(
             detail="获取上传状态失败"
         )
 
-@router.get("/records", summary="获取文件上传记录")
+@router.get("/records", response_model=Dict[str, Any], summary="获取文件上传记录")
 async def get_upload_records(
     page: int = 1,
     page_size: int = 20,
@@ -581,25 +599,28 @@ async def get_upload_records(
         params.update({'limit': page_size, 'offset': offset})
         records = db.execute(text(records_sql), params).fetchall()
 
-        return {
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "records": [
-                {
-                    "file_id": record[0],
-                    "filename": record[1],
-                    "file_size": record[2],
-                    "file_type": record[3],
-                    "mime_type": record[4],
-                    "upload_status": record[5],
-                    "patient_id": record[6],
-                    "uploaded_at": record[7],
-                    "description": record[8]
-                }
-                for record in records
-            ]
-        }
+        items = [
+            {
+                "file_id": record[0],
+                "filename": record[1],
+                "file_size": record[2],
+                "file_type": record[3],
+                "mime_type": record[4],
+                "upload_status": record[5],
+                "patient_id": record[6],
+                "uploaded_at": record[7],
+                "description": record[8]
+            }
+            for record in records
+        ]
+
+        return paginated_response(
+            items=items,
+            total=total,
+            page=page,
+            page_size=page_size,
+            message="获取上传记录成功"
+        )
 
     except Exception as e:
         logger.error(f"获取上传记录失败: {str(e)}")

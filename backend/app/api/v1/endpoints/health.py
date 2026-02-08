@@ -19,6 +19,7 @@ from sqlalchemy import text
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.response import success_response
 
 router = APIRouter()
 
@@ -224,21 +225,24 @@ async def check_cpu_health() -> ComponentHealth:
         )
 
 
-@router.get("/", response_model=HealthStatus)
+@router.get("/", response_model=Dict[str, Any])
 async def basic_health_check():
     """基础健康检查"""
     import app
-    
-    return HealthStatus(
-        status="healthy",
-        timestamp=datetime.now().isoformat(),
-        uptime=time.time() - getattr(app, 'start_time', time.time()),
-        version=getattr(settings, 'VERSION', '1.0.0'),
-        environment=getattr(settings, 'ENVIRONMENT', 'development')
+
+    return success_response(
+        data=HealthStatus(
+            status="healthy",
+            timestamp=datetime.now().isoformat(),
+            uptime=time.time() - getattr(app, 'start_time', time.time()),
+            version=getattr(settings, 'VERSION', '1.0.0'),
+            environment=getattr(settings, 'ENVIRONMENT', 'development')
+        ).dict(),
+        message="系统健康"
     )
 
 
-@router.get("/detailed", response_model=SystemHealth)
+@router.get("/detailed", response_model=Dict[str, Any])
 async def detailed_health_check():
     """详细健康检查"""
     # 并行检查所有组件
@@ -250,10 +254,10 @@ async def detailed_health_check():
         check_cpu_health(),
         return_exceptions=True
     )
-    
+
     # 过滤异常结果
     valid_components = [c for c in components if isinstance(c, ComponentHealth)]
-    
+
     # 确定整体状态
     statuses = [c.status for c in valid_components]
     if "critical" in statuses or "unhealthy" in statuses:
@@ -262,7 +266,7 @@ async def detailed_health_check():
         overall_status = "warning"
     else:
         overall_status = "healthy"
-    
+
     # 系统信息
     system_info = {
         "platform": psutil.WINDOWS if psutil.WINDOWS else "linux",
@@ -270,12 +274,15 @@ async def detailed_health_check():
         "boot_time": datetime.fromtimestamp(psutil.boot_time()).isoformat(),
         "process_count": len(psutil.pids())
     }
-    
-    return SystemHealth(
-        overall_status=overall_status,
-        timestamp=datetime.now().isoformat(),
-        components=valid_components,
-        system_info=system_info
+
+    return success_response(
+        data=SystemHealth(
+            overall_status=overall_status,
+            timestamp=datetime.now().isoformat(),
+            components=valid_components,
+            system_info=system_info
+        ).dict(),
+        message="系统详细健康检查完成"
     )
 
 
@@ -289,15 +296,18 @@ async def check_component_health(component_name: str):
         "memory": check_memory_health,
         "cpu": check_cpu_health
     }
-    
+
     if component_name not in component_checkers:
         raise HTTPException(
-            status_code=404, 
+            status_code=404,
             detail=f"Component '{component_name}' not found. Available: {list(component_checkers.keys())}"
         )
-    
+
     component_health = await component_checkers[component_name]()
-    return component_health
+    return success_response(
+        data=component_health.dict(),
+        message=f"组件 {component_name} 健康检查完成"
+    )
 
 
 @router.get("/readiness")
@@ -306,15 +316,17 @@ async def readiness_check():
     try:
         # 检查关键组件
         db_health = await check_database_health()
-        
+
         if db_health.status == "unhealthy":
             raise HTTPException(status_code=503, detail="Database not ready")
-        
-        return {
-            "status": "ready",
-            "timestamp": datetime.now().isoformat(),
-            "message": "Application is ready to serve traffic"
-        }
+
+        return success_response(
+            data={
+                "status": "ready",
+                "timestamp": datetime.now().isoformat()
+            },
+            message="Application is ready to serve traffic"
+        )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Application not ready: {str(e)}")
 
@@ -322,11 +334,13 @@ async def readiness_check():
 @router.get("/liveness")
 async def liveness_check():
     """存活检查 - 检查应用是否还活着"""
-    return {
-        "status": "alive",
-        "timestamp": datetime.now().isoformat(),
-        "message": "Application is alive"
-    }
+    return success_response(
+        data={
+            "status": "alive",
+            "timestamp": datetime.now().isoformat()
+        },
+        message="Application is alive"
+    )
 
 
 @router.get("/metrics")
@@ -337,33 +351,36 @@ async def health_metrics():
         cpu_percent = psutil.cpu_percent()
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
-        
+
         # 网络统计
         network = psutil.net_io_counters()
-        
-        return {
-            "timestamp": datetime.now().isoformat(),
-            "cpu": {
-                "usage_percent": cpu_percent,
-                "count": psutil.cpu_count()
+
+        return success_response(
+            data={
+                "timestamp": datetime.now().isoformat(),
+                "cpu": {
+                    "usage_percent": cpu_percent,
+                    "count": psutil.cpu_count()
+                },
+                "memory": {
+                    "usage_percent": memory.percent,
+                    "available_bytes": memory.available,
+                    "total_bytes": memory.total
+                },
+                "disk": {
+                    "usage_percent": (disk.used / disk.total) * 100,
+                    "free_bytes": disk.free,
+                    "total_bytes": disk.total
+                },
+                "network": {
+                    "bytes_sent": network.bytes_sent,
+                    "bytes_recv": network.bytes_recv,
+                    "packets_sent": network.packets_sent,
+                    "packets_recv": network.packets_recv
+                }
             },
-            "memory": {
-                "usage_percent": memory.percent,
-                "available_bytes": memory.available,
-                "total_bytes": memory.total
-            },
-            "disk": {
-                "usage_percent": (disk.used / disk.total) * 100,
-                "free_bytes": disk.free,
-                "total_bytes": disk.total
-            },
-            "network": {
-                "bytes_sent": network.bytes_sent,
-                "bytes_recv": network.bytes_recv,
-                "packets_sent": network.packets_sent,
-                "packets_recv": network.packets_recv
-            }
-        }
+            message="系统指标获取成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}")
 
@@ -376,18 +393,25 @@ async def test_component(component_name: str):
             db = next(get_db())
             # 执行一个简单的查询测试
             result = db.execute(text("SELECT COUNT(*) FROM users")).fetchone()
-            return {
-                "component": component_name,
-                "test_result": "passed",
-                "details": {"user_count": result[0] if result else 0}
-            }
+            return success_response(
+                data={
+                    "component": component_name,
+                    "test_result": "passed",
+                    "details": {"user_count": result[0] if result else 0}
+                },
+                message="数据库测试通过"
+            )
         except Exception as e:
-            return {
-                "component": component_name,
-                "test_result": "failed",
-                "error": str(e)
-            }
-    
+            return success_response(
+                data={
+                    "component": component_name,
+                    "test_result": "failed",
+                    "error": str(e)
+                },
+                message="数据库测试失败",
+                code=500
+            )
+
     elif component_name == "redis":
         try:
             redis = aioredis.from_url(settings.REDIS_URL)
@@ -396,18 +420,25 @@ async def test_component(component_name: str):
             value = await redis.get("health_test")
             await redis.delete("health_test")
             await redis.close()
-            
-            return {
-                "component": component_name,
-                "test_result": "passed" if value == b"ok" else "failed",
-                "details": {"read_write_test": "ok"}
-            }
+
+            return success_response(
+                data={
+                    "component": component_name,
+                    "test_result": "passed" if value == b"ok" else "failed",
+                    "details": {"read_write_test": "ok"}
+                },
+                message="Redis测试通过"
+            )
         except Exception as e:
-            return {
-                "component": component_name,
-                "test_result": "failed",
-                "error": str(e)
-            }
-    
+            return success_response(
+                data={
+                    "component": component_name,
+                    "test_result": "failed",
+                    "error": str(e)
+                },
+                message="Redis测试失败",
+                code=500
+            )
+
     else:
         raise HTTPException(status_code=404, detail=f"Test not available for component: {component_name}")

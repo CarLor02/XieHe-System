@@ -2,6 +2,7 @@
 
 import UserSettings from '@/components/UserSettings';
 import { createAuthenticatedClient, useAuth, useUser } from '@/store/authStore';
+import { extractData } from '@/utils/apiResponseHandler';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Tooltip from './ui/Tooltip';
@@ -49,7 +50,8 @@ export default function Header() {
         let systemMessages: Message[] = [];
         try {
           const response = await client.get('/api/v1/notifications/messages');
-          const notificationData = response.data;
+          // 使用 extractData 提取通知数据
+          const notificationData = extractData<any[]>(response);
           systemMessages = notificationData.map((item: any) => ({
             id: item.id || Math.random().toString(),
             title: item.title || '系统通知',
@@ -68,7 +70,9 @@ export default function Header() {
         let invitationMessages: Message[] = [];
         try {
           const invitationsResponse = await client.get('/api/v1/permissions/invitations/my');
-          const invitations = invitationsResponse.data.items || [];
+          // 使用 extractData 提取邀请数据
+          const invitationsData = extractData<{ items: any[] }>(invitationsResponse);
+          const invitations = invitationsData.items || [];
           invitationMessages = invitations.map((inv: any) => ({
             id: `invitation-${inv.id}`,
             title: '团队邀请',

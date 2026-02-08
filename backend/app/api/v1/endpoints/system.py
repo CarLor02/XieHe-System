@@ -10,13 +10,14 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import psutil
 import os
 
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
+from app.core.response import success_response, paginated_response
 from app.models.system import SystemConfig, SystemLog, SystemMonitor, SystemAlert, Notification
 from pydantic import BaseModel
 
@@ -46,7 +47,7 @@ class SystemHealthResponse(BaseModel):
     components: dict
     timestamp: datetime
 
-@router.get("/configs", response_model=List[SystemConfigResponse], summary="获取系统配置")
+@router.get("/configs", response_model=Dict[str, Any], summary="获取系统配置")
 async def get_system_configs(
     config_type: Optional[str] = Query(None, description="配置类型筛选"),
     is_system: Optional[bool] = Query(None, description="是否系统配置"),
@@ -69,17 +70,22 @@ async def get_system_configs(
 
         configs = query.filter(SystemConfig.is_deleted == False).all()
 
-        return [
-            SystemConfigResponse(
-                config_key=config.config_key,
-                config_name=config.config_name,
-                config_value=config.config_value or "",
-                config_type=config.config_type,
-                data_type=config.data_type,
-                description=config.description
-            )
+        config_list = [
+            {
+                "config_key": config.config_key,
+                "config_name": config.config_name,
+                "config_value": config.config_value or "",
+                "config_type": config.config_type,
+                "data_type": config.data_type,
+                "description": config.description
+            }
             for config in configs
         ]
+
+        return success_response(
+            data=config_list,
+            message="获取系统配置成功"
+        )
 
     except Exception as e:
         raise HTTPException(
@@ -87,7 +93,7 @@ async def get_system_configs(
             detail=f"获取系统配置失败: {str(e)}"
         )
 
-@router.get("/stats", response_model=SystemStatsResponse, summary="获取系统统计")
+@router.get("/stats", response_model=Dict[str, Any], summary="获取系统统计")
 async def get_system_stats(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
@@ -116,15 +122,20 @@ async def get_system_stats(
         uptime_minutes = int((uptime_seconds % 3600) // 60)
         uptime_str = f"{uptime_hours}小时{uptime_minutes}分钟"
 
-        return SystemStatsResponse(
-            total_patients=total_patients,
-            total_studies=total_studies,
-            total_reports=total_reports,
-            active_users=active_users,
-            system_uptime=uptime_str,
-            cpu_usage=round(cpu_usage, 1),
-            memory_usage=round(memory.percent, 1),
-            disk_usage=round(disk.percent, 1)
+        stats_data = {
+            "total_patients": total_patients,
+            "total_studies": total_studies,
+            "total_reports": total_reports,
+            "active_users": active_users,
+            "system_uptime": uptime_str,
+            "cpu_usage": round(cpu_usage, 1),
+            "memory_usage": round(memory.percent, 1),
+            "disk_usage": round(disk.percent, 1)
+        }
+
+        return success_response(
+            data=stats_data,
+            message="获取系统统计成功"
         )
 
     except Exception as e:
@@ -133,7 +144,7 @@ async def get_system_stats(
             detail=f"获取系统统计失败: {str(e)}"
         )
 
-@router.get("/health", response_model=SystemHealthResponse, summary="系统健康检查")
+@router.get("/health", response_model=Dict[str, Any], summary="系统健康检查")
 async def system_health(
     db: Session = Depends(get_db)
 ):
@@ -190,10 +201,15 @@ async def system_health(
         else:
             components["cpu"] = "healthy"
 
-        return SystemHealthResponse(
-            status=overall_status,
-            components=components,
-            timestamp=datetime.now()
+        health_data = {
+            "status": overall_status,
+            "components": components,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        return success_response(
+            data=health_data,
+            message="系统健康检查完成"
         )
 
     except Exception as e:

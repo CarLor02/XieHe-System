@@ -19,6 +19,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.exceptions import BusinessLogicException, ResourceNotFoundException
 from app.core.logging import get_logger
+from app.core.response import success_response, paginated_response
 from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, PriorityEnum, ReportTypeEnum
 from app.models.patient import Patient
 
@@ -119,7 +120,7 @@ def generate_report_number() -> str:
     return f"RPT{today.strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
 
 # API端点
-@router.post("/", response_model=ReportResponse, summary="创建报告")
+@router.post("/", response_model=Dict[str, Any], summary="创建报告")
 async def create_report(
     report_data: ReportCreate,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
@@ -193,7 +194,11 @@ async def create_report(
             "reviewed_at": new_report.reviewed_at
         }
 
-        return ReportResponse(**response_data)
+        return success_response(
+            data=ReportResponse(**response_data).dict(),
+            message="报告创建成功",
+            code=201
+        )
 
     except (ResourceNotFoundException, BusinessLogicException):
         raise
@@ -302,25 +307,25 @@ async def get_reports(
             }
             reports.append(report_data)
 
-        return {
-            "reports": reports,
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": (total + page_size - 1) // page_size
-        }
+        return paginated_response(
+            items=reports,
+            total=total,
+            page=page,
+            page_size=page_size,
+            message="报告列表查询成功"
+        )
 
     except Exception as e:
         logger.error(f"获取报告列表失败: {e}")
-        return {
-            "reports": [],
-            "total": 0,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": 0
-        }
+        return paginated_response(
+            items=[],
+            total=0,
+            page=page,
+            page_size=page_size,
+            message="获取报告列表失败"
+        )
 
-@router.get("/{report_id}", response_model=ReportResponse, summary="获取报告详情")
+@router.get("/{report_id}", response_model=Dict[str, Any], summary="获取报告详情")
 async def get_report(
     report_id: int,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
@@ -369,7 +374,10 @@ async def get_report(
             "reviewed_at": report.reviewed_date
         }
 
-        return ReportResponse(**response_data)
+        return success_response(
+            data=ReportResponse(**response_data).dict(),
+            message="报告详情查询成功"
+        )
 
     except ResourceNotFoundException:
         raise
@@ -380,7 +388,7 @@ async def get_report(
             detail="获取报告详情过程中发生错误"
         )
 
-@router.put("/{report_id}", response_model=ReportResponse, summary="更新报告")
+@router.put("/{report_id}", response_model=Dict[str, Any], summary="更新报告")
 async def update_report(
     report_id: int,
     report_data: ReportUpdate,
@@ -450,7 +458,10 @@ async def update_report(
             "reviewed_at": report.reviewed_at
         }
 
-        return ReportResponse(**response_data)
+        return success_response(
+            data=ReportResponse(**response_data).dict(),
+            message="报告更新成功"
+        )
 
     except (ResourceNotFoundException, BusinessLogicException):
         raise
@@ -490,7 +501,10 @@ async def delete_report(
 
         logger.info(f"报告删除成功: {report.report_number}")
 
-        return {"message": "报告删除成功"}
+        return success_response(
+            data=None,
+            message="报告删除成功"
+        )
 
     except (ResourceNotFoundException, BusinessLogicException):
         raise

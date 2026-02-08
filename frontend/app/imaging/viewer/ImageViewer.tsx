@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createAuthenticatedClient } from '../../../store/authStore';
+import { extractData, extractPaginatedData } from '../../../utils/apiResponseHandler';
 import {
   CalculationContext,
   getAnnotationConfig,
@@ -141,8 +142,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
         const client = createAuthenticatedClient();
         const response = await client.get(`/api/v1/image-files/${numericId}`);
-        const imageFile = response.data;
-        
+
+        // 使用 extractData 提取影像文件数据
+        const imageFile = extractData<any>(response);
+
         // 将ImageFile数据转换为StudyData格式
         setStudyData({
           id: imageFile.id,
@@ -330,14 +333,15 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           '/api/v1/image-files?page=1&page_size=100'
         );
 
-        if (response.data && response.data.items) {
-          // 从API响应中提取影像ID，格式为IMG{id}
-          const ids = response.data.items.map((item: any) => {
-            // 使用item.id来生成影像ID
-            return `IMG${item.id.toString().padStart(3, '0')}`;
-          });
-          setImageList(ids);
-        }
+        // 使用 extractPaginatedData 提取影像列表
+        const result = extractPaginatedData<any>(response);
+
+        // 从API响应中提取影像ID，格式为IMG{id}
+        const ids = result.items.map((item: any) => {
+          // 使用item.id来生成影像ID
+          return `IMG${item.id.toString().padStart(3, '0')}`;
+        });
+        setImageList(ids);
       } catch (error) {
         console.error('获取影像列表失败:', error);
         // 如果获取失败，使用空列表
@@ -371,10 +375,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         }))
       });
 
-      if (response.status === 200 && response.data.report) {
-        setReportText(response.data.report);
-        setSaveMessage('报告生成成功');
-        setTimeout(() => setSaveMessage(''), 3000);
+      if (response.status === 200) {
+        // 使用 extractData 提取报告数据
+        const result = extractData<{ report: string }>(response);
+        if (result.report) {
+          setReportText(result.report);
+          setSaveMessage('报告生成成功');
+          setTimeout(() => setSaveMessage(''), 3000);
+        } else {
+          throw new Error('报告生成失败');
+        }
       } else {
         throw new Error('报告生成失败');
       }
@@ -463,7 +473,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
       const response = await client.get(`/api/v1/measurements/${numericId}`);
       if (response.status === 200) {
-        const data = response.data;
+        // 使用 extractData 提取测量数据
+        const data = extractData<any>(response);
         if (data.measurements && data.measurements.length > 0) {
           setMeasurements(data.measurements);
           if (data.reportText) {
@@ -629,7 +640,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         measurementData
       );
 
-      console.log('保存响应:', response.status, response.data);
+      console.log('保存响应:', response.status);
 
       if (response.status === 200) {
         setSaveMessage('标注已保存到本地和服务器');
@@ -1038,7 +1049,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         measurementData
       );
 
-      console.log('保存响应:', response.status, response.data);
+      console.log('保存响应:', response.status);
 
       if (response.status === 200) {
         setSaveMessage('标注已保存到本地和服务器');

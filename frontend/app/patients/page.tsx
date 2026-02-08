@@ -4,6 +4,7 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Tooltip from '@/components/ui/Tooltip';
 import { createAuthenticatedClient, useUser } from '@/store/authStore';
+import { extractPaginatedData } from '@/utils/apiResponseHandler';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -91,11 +92,13 @@ export default function PatientsPage() {
       const response = await client.get(
         `/api/v1/patients/?${params.toString()}`
       );
-      const data: PatientListResponse = response.data;
 
-      setPatients(data.patients || []);
-      setTotalPatients(data.total || 0);
-      setTotalPages(data.total_pages || 1);
+      // 使用 extractPaginatedData 提取分页数据
+      const result = extractPaginatedData<Patient>(response);
+
+      setPatients(result.items);
+      setTotalPatients(result.total);
+      setTotalPages(result.totalPages);
     } catch (err: any) {
       console.error('Failed to load patients:', err);
       const errorMessage =

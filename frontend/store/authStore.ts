@@ -10,6 +10,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { extractData } from '../utils/apiResponseHandler';
 
 // 用户信息接口
 export interface User {
@@ -114,7 +115,10 @@ export const useAuthStore = create<AuthState>()(
           );
 
           console.log('✅ 登录响应:', response.data);
-          const { access_token, refresh_token, user } = response.data;
+
+          // 使用 extractData 提取数据，兼容新旧格式
+          const result = extractData<{ access_token: string; refresh_token: string; user: User }>(response);
+          const { access_token, refresh_token, user } = result;
 
           console.log('📝 保存 Token 到 store...');
           console.log('Access Token:', access_token ? `${access_token.substring(0, 20)}...` : 'null');
@@ -173,13 +177,18 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
 
-          await axios.post(`${API_BASE_URL}/api/v1/auth/register`, userData);
+          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/register`, userData);
+
+          // 注册接口可能返回成功消息或用户信息，使用 extractData 处理
+          extractData(response);
 
           set({ isLoading: false, error: null });
           return true;
         } catch (error: any) {
           const errorMessage =
-            error.response?.data?.detail || '注册失败，请稍后重试';
+            error.response?.data?.message ||
+            error.response?.data?.detail ||
+            '注册失败，请稍后重试';
           set({ isLoading: false, error: errorMessage });
           return false;
         }
@@ -246,9 +255,9 @@ export const useAuthStore = create<AuthState>()(
 
           console.log('✅ Token 刷新成功:', response.data);
 
-          // 处理嵌套的tokens结构
-          const tokens = response.data.tokens || response.data;
-          const { access_token, refresh_token: newRefreshToken } = tokens;
+          // 使用 extractData 提取数据，兼容新旧格式
+          const result = extractData<{ access_token: string; refresh_token?: string }>(response);
+          const { access_token, refresh_token: newRefreshToken } = result;
 
           set({
             accessToken: access_token,
@@ -299,7 +308,9 @@ export const useAuthStore = create<AuthState>()(
             headers: { Authorization: `Bearer ${accessToken}` },
           });
 
-          set({ user: response.data });
+          // 使用 extractData 提取用户数据
+          const user = extractData<User>(response);
+          set({ user });
           return true;
         } catch (error) {
           console.error('Fetch user info error:', error);
@@ -323,7 +334,9 @@ export const useAuthStore = create<AuthState>()(
             }
           );
 
-          set({ user: response.data });
+          // 使用 extractData 提取更新后的用户数据
+          const user = extractData<User>(response);
+          set({ user });
           return true;
         } catch (error) {
           console.error('Update user info error:', error);

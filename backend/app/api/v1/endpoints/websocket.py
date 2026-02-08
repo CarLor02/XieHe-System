@@ -25,6 +25,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.cache import get_cache_manager
 from app.core.logging import get_logger
+from app.core.response import success_response
 
 logger = get_logger(__name__)
 
@@ -368,32 +369,35 @@ async def send_dashboard_data(user_id: str, connection_id: str, db: Session):
         logger.error(f"发送仪表板数据失败: {e}")
 
 # WebSocket管理API端点
-@router.get("/ws/stats")
+@router.get("/ws/stats", response_model=Dict[str, Any])
 async def get_websocket_stats():
     """获取WebSocket连接统计"""
-    return manager.get_connection_stats()
+    stats = manager.get_connection_stats()
+    return success_response(data=stats, message="获取WebSocket连接统计成功")
 
-@router.post("/ws/broadcast/{channel}")
+@router.post("/ws/broadcast/{channel}", response_model=Dict[str, Any])
 async def broadcast_message(channel: str, message: dict):
     """向指定频道广播消息"""
     message["timestamp"] = datetime.now().isoformat()
     success_count = await manager.broadcast_to_channel(message, channel)
-    
-    return {
-        "success": True,
-        "channel": channel,
-        "recipients": success_count,
-        "message": "消息已广播"
-    }
 
-@router.post("/ws/send/{user_id}")
+    data = {
+        "channel": channel,
+        "recipients": success_count
+    }
+    return success_response(data=data, message="消息已广播")
+
+@router.post("/ws/send/{user_id}", response_model=Dict[str, Any])
 async def send_user_message(user_id: str, message: dict):
     """向指定用户发送消息"""
     message["timestamp"] = datetime.now().isoformat()
     success = await manager.send_personal_message(message, user_id)
-    
-    return {
-        "success": success,
+
+    data = {
         "user_id": user_id,
-        "message": "消息已发送" if success else "用户不在线"
+        "sent": success
     }
+    return success_response(
+        data=data,
+        message="消息已发送" if success else "用户不在线"
+    )

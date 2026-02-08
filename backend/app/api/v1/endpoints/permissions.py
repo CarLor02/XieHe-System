@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.core.auth import get_current_active_user
 from app.core.database import get_db as get_core_db
 from app.core.logging import get_logger
+from app.core.response import success_response, paginated_response
 from app.models.team import TeamJoinRequestStatus
 from app.schemas.team import (
     TeamCreateRequest,
@@ -211,13 +212,14 @@ class PermissionMatrix(BaseModel):
     matrix: Dict[str, Dict[str, Dict[str, bool]]]  # role -> resource -> permission -> allowed
 
 # API端点
-@router.get("/permissions", response_model=List[Permission])
+@router.get("/permissions", response_model=Dict[str, Any])
 async def get_permissions(
     resource_type: Optional[ResourceType] = Query(None, description="资源类型筛选"),
     permission_type: Optional[PermissionType] = Query(None, description="权限类型筛选"),
     is_system: Optional[bool] = Query(None, description="是否系统权限"),
     search: Optional[str] = Query(None, description="搜索关键词"),
-    limit: int = Query(50, ge=1, le=200, description="返回数量限制")
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(50, ge=1, le=200, description="每页数量")
 ):
     """获取权限列表"""
     try:
@@ -236,7 +238,7 @@ async def get_permissions(
             ("系统管理", "system:admin", "系统管理权限", ResourceType.SYSTEM, PermissionType.ADMIN),
             ("数据分析", "analytics:read", "查看数据分析", ResourceType.ANALYTICS, PermissionType.READ)
         ]
-        
+
         for i, (name, code, desc, res_type, perm_type) in enumerate(permission_templates, 1):
             permission = Permission(
                 permission_id=f"PERM_{i:03d}",
@@ -252,7 +254,7 @@ async def get_permissions(
                 usage_count=random.randint(10, 500)
             )
             mock_permissions.append(permission)
-        
+
         # 应用筛选
         filtered_permissions = mock_permissions
         if resource_type:
@@ -262,11 +264,23 @@ async def get_permissions(
         if is_system is not None:
             filtered_permissions = [p for p in filtered_permissions if p.is_system == is_system]
         if search:
-            filtered_permissions = [p for p in filtered_permissions if 
-                                  search.lower() in p.name.lower() or 
+            filtered_permissions = [p for p in filtered_permissions if
+                                  search.lower() in p.name.lower() or
                                   search.lower() in p.code.lower()]
-        
-        return filtered_permissions[:limit]
+
+        # 分页
+        total = len(filtered_permissions)
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_items = filtered_permissions[start:end]
+
+        return paginated_response(
+            items=[p.dict() for p in paginated_items],
+            total=total,
+            page=page,
+            page_size=page_size,
+            message="获取权限列表成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取权限列表失败: {str(e)}")
 
@@ -276,7 +290,7 @@ async def create_permission(permission_request: PermissionRequest):
     try:
         # 模拟创建权限
         permission_id = f"PERM_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         new_permission = Permission(
             permission_id=permission_id,
             name=permission_request.name,
@@ -290,21 +304,21 @@ async def create_permission(permission_request: PermissionRequest):
             created_by="CURRENT_USER",
             usage_count=0
         )
-        
-        return {
-            "success": True,
-            "message": "权限创建成功",
-            "data": new_permission.dict()
-        }
+
+        return success_response(
+            data=new_permission.dict(),
+            message="权限创建成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建权限失败: {str(e)}")
 
-@router.get("/roles", response_model=List[Role])
+@router.get("/roles", response_model=Dict[str, Any])
 async def get_roles(
     status: Optional[RoleStatus] = Query(None, description="角色状态筛选"),
     is_system: Optional[bool] = Query(None, description="是否系统角色"),
     search: Optional[str] = Query(None, description="搜索关键词"),
-    limit: int = Query(50, ge=1, le=200, description="返回数量限制")
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(50, ge=1, le=200, description="每页数量")
 ):
     """获取角色列表"""
     try:
@@ -320,16 +334,18 @@ async def get_roles(
             ("数据分析师", "analyst", "数据分析师", False, 25),
             ("访客", "guest", "访客用户", False, 10)
         ]
-        
+
         # 获取权限列表用于角色分配
-        permissions = await get_permissions(limit=100)
-        
+        permissions_response = await get_permissions(page=1, page_size=100)
+        permissions_data = permissions_response.get("data", {}).get("items", [])
+        permissions = [Permission(**p) for p in permissions_data]
+
         for i, (name, code, desc, is_sys, user_count) in enumerate(role_templates, 1):
             # 为每个角色分配不同的权限
             max_perms = min(8, len(permissions))
             min_perms = min(3, max_perms)
             role_permissions = random.sample(permissions, random.randint(min_perms, max_perms)) if permissions else []
-            
+
             role = Role(
                 role_id=f"ROLE_{i:03d}",
                 name=name,
@@ -347,7 +363,7 @@ async def get_roles(
                 created_by="SYSTEM" if is_sys else "ADMIN"
             )
             mock_roles.append(role)
-        
+
         # 应用筛选
         filtered_roles = mock_roles
         if status:
@@ -355,11 +371,23 @@ async def get_roles(
         if is_system is not None:
             filtered_roles = [r for r in filtered_roles if r.is_system == is_system]
         if search:
-            filtered_roles = [r for r in filtered_roles if 
-                            search.lower() in r.name.lower() or 
+            filtered_roles = [r for r in filtered_roles if
+                            search.lower() in r.name.lower() or
                             search.lower() in r.code.lower()]
-        
-        return filtered_roles[:limit]
+
+        # 分页
+        total = len(filtered_roles)
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_items = filtered_roles[start:end]
+
+        return paginated_response(
+            items=[r.dict() for r in paginated_items],
+            total=total,
+            page=page,
+            page_size=page_size,
+            message="获取角色列表成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取角色列表失败: {str(e)}")
 
@@ -369,11 +397,13 @@ async def create_role(role_request: RoleRequest):
     try:
         # 模拟创建角色
         role_id = f"ROLE_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         # 获取权限详情
-        permissions = await get_permissions(limit=100)
+        permissions_response = await get_permissions(page=1, page_size=100)
+        permissions_data = permissions_response.get("data", {}).get("items", [])
+        permissions = [Permission(**p) for p in permissions_data]
         role_permissions = [p for p in permissions if p.permission_id in role_request.permissions]
-        
+
         new_role = Role(
             role_id=role_id,
             name=role_request.name,
@@ -390,19 +420,19 @@ async def create_role(role_request: RoleRequest):
             updated_at=datetime.now(),
             created_by="CURRENT_USER"
         )
-        
-        return {
-            "success": True,
-            "message": "角色创建成功",
-            "data": new_role.dict()
-        }
+
+        return success_response(
+            data=new_role.dict(),
+            message="角色创建成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建角色失败: {str(e)}")
 
-@router.get("/user-groups", response_model=List[UserGroup])
+@router.get("/user-groups", response_model=Dict[str, Any])
 async def get_user_groups(
     search: Optional[str] = Query(None, description="搜索关键词"),
-    limit: int = Query(50, ge=1, le=200, description="返回数量限制")
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(50, ge=1, le=200, description="每页数量")
 ):
     """获取用户组列表"""
     try:
@@ -416,16 +446,18 @@ async def get_user_groups(
             ("管理员组", "系统管理员用户组", 5),
             ("实习生组", "实习生用户组", 8)
         ]
-        
+
         # 获取角色列表用于用户组分配
-        roles = await get_roles(limit=20)
-        
+        roles_response = await get_roles(page=1, page_size=20)
+        roles_data = roles_response.get("data", {}).get("items", [])
+        roles = [Role(**r) for r in roles_data]
+
         for i, (name, desc, user_count) in enumerate(group_templates, 1):
             # 为每个用户组分配角色
             max_roles = min(3, len(roles))
             min_roles = min(1, max_roles)
             group_roles = random.sample(roles, random.randint(min_roles, max_roles)) if roles else []
-            
+
             # 模拟用户列表
             users = []
             for j in range(user_count):
@@ -436,7 +468,7 @@ async def get_user_groups(
                     "email": f"user{i}_{j}@hospital.com",
                     "status": "active"
                 })
-            
+
             group = UserGroup(
                 group_id=f"GROUP_{i:03d}",
                 name=name,
@@ -449,24 +481,44 @@ async def get_user_groups(
                 created_by="ADMIN"
             )
             mock_groups.append(group)
-        
+
         # 应用筛选
         if search:
             mock_groups = [g for g in mock_groups if search.lower() in g.name.lower()]
-        
-        return mock_groups[:limit]
+
+        # 分页
+        total = len(mock_groups)
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_items = mock_groups[start:end]
+
+        return paginated_response(
+            items=[g.dict() for g in paginated_items],
+            total=total,
+            page=page,
+            page_size=page_size,
+            message="获取用户组列表成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取用户组列表失败: {str(e)}")
 
-@router.get("/users/{user_id}/permissions", response_model=UserPermissions)
+@router.get("/users/{user_id}/permissions", response_model=Dict[str, Any])
 async def get_user_permissions(user_id: str):
     """获取用户权限详情"""
     try:
         # 获取基础数据
-        permissions = await get_permissions(limit=100)
-        roles = await get_roles(limit=20)
-        groups = await get_user_groups(search=None, limit=10)
-        
+        permissions_response = await get_permissions(page=1, page_size=100)
+        permissions_data = permissions_response.get("data", {}).get("items", [])
+        permissions = [Permission(**p) for p in permissions_data]
+
+        roles_response = await get_roles(page=1, page_size=20)
+        roles_data = roles_response.get("data", {}).get("items", [])
+        roles = [Role(**r) for r in roles_data]
+
+        groups_response = await get_user_groups(search=None, page=1, page_size=10)
+        groups_data = groups_response.get("data", {}).get("items", [])
+        groups = [UserGroup(**g) for g in groups_data]
+
         # 模拟用户权限
         max_perms = min(5, len(permissions))
         min_perms = min(2, max_perms)
@@ -478,18 +530,18 @@ async def get_user_permissions(user_id: str):
 
         max_groups = min(2, len(groups))
         user_groups = random.sample(groups, random.randint(0, max_groups)) if groups else []
-        
+
         # 计算角色权限
         role_permissions = []
         for role in user_roles:
             role_permissions.extend(role.permissions)
-        
+
         # 计算用户组权限
         group_permissions = []
         for group in user_groups:
             for role in group.roles:
                 group_permissions.extend(role.permissions)
-        
+
         # 计算有效权限（去重）
         all_permissions = direct_permissions + role_permissions + group_permissions
         effective_permissions = []
@@ -498,7 +550,7 @@ async def get_user_permissions(user_id: str):
             if perm.permission_id not in seen_ids:
                 effective_permissions.append(perm)
                 seen_ids.add(perm.permission_id)
-        
+
         user_permissions = UserPermissions(
             user_id=user_id,
             username=f"user_{user_id}",
@@ -510,8 +562,11 @@ async def get_user_permissions(user_id: str):
             groups=user_groups,
             last_updated=datetime.now()
         )
-        
-        return user_permissions
+
+        return success_response(
+            data=user_permissions.dict(),
+            message="获取用户权限成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取用户权限失败: {str(e)}")
 
@@ -522,7 +577,7 @@ async def assign_permissions(assign_request: PermissionAssignRequest):
         # 模拟权限分配
         target_type = "user" if assign_request.user_id else ("role" if assign_request.role_id else "group")
         target_id = assign_request.user_id or assign_request.role_id or assign_request.group_id
-        
+
         # 创建审计日志
         audit_log = PermissionAuditLog(
             log_id=f"AUDIT_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -539,33 +594,33 @@ async def assign_permissions(assign_request: PermissionAssignRequest):
             user_agent="Mozilla/5.0...",
             created_at=datetime.now()
         )
-        
-        return {
-            "success": True,
-            "message": f"权限{assign_request.action.value}成功",
-            "data": {
+
+        return success_response(
+            data={
                 "target_type": target_type,
                 "target_id": target_id,
                 "permissions_count": len(assign_request.permissions),
                 "audit_log": audit_log.dict()
-            }
-        }
+            },
+            message=f"权限{assign_request.action.value}成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"分配权限失败: {str(e)}")
 
-@router.get("/audit-logs", response_model=List[PermissionAuditLog])
+@router.get("/audit-logs", response_model=Dict[str, Any])
 async def get_permission_audit_logs(
     target_type: Optional[str] = Query(None, description="目标类型筛选"),
     action: Optional[PermissionAction] = Query(None, description="操作类型筛选"),
     start_date: Optional[str] = Query(None, description="开始日期"),
     end_date: Optional[str] = Query(None, description="结束日期"),
-    limit: int = Query(50, ge=1, le=200, description="返回数量限制")
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(50, ge=1, le=200, description="每页数量")
 ):
     """获取权限审计日志"""
     try:
         # 模拟审计日志数据
         mock_logs = []
-        for i in range(1, min(limit + 1, 51)):
+        for i in range(1, 101):
             log = PermissionAuditLog(
                 log_id=f"AUDIT_{i:03d}",
                 action=random.choice(list(PermissionAction)),
@@ -582,34 +637,51 @@ async def get_permission_audit_logs(
                 created_at=datetime.now() - timedelta(days=random.randint(0, 30))
             )
             mock_logs.append(log)
-        
+
         # 应用筛选
         filtered_logs = mock_logs
         if target_type:
             filtered_logs = [log for log in filtered_logs if log.target_type == target_type]
         if action:
             filtered_logs = [log for log in filtered_logs if log.action == action]
-        
+
         # 按时间排序
         filtered_logs.sort(key=lambda x: x.created_at, reverse=True)
-        
-        return filtered_logs[:limit]
+
+        # 分页
+        total = len(filtered_logs)
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_items = filtered_logs[start:end]
+
+        return paginated_response(
+            items=[log.dict() for log in paginated_items],
+            total=total,
+            page=page,
+            page_size=page_size,
+            message="获取审计日志成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取审计日志失败: {str(e)}")
 
-@router.get("/permission-matrix", response_model=PermissionMatrix)
+@router.get("/permission-matrix", response_model=Dict[str, Any])
 async def get_permission_matrix():
     """获取权限矩阵"""
     try:
         # 获取基础数据
-        permissions = await get_permissions(limit=50)
-        roles = await get_roles(limit=20)
-        
+        permissions_response = await get_permissions(page=1, page_size=50)
+        permissions_data = permissions_response.get("data", {}).get("items", [])
+        permissions = [Permission(**p) for p in permissions_data]
+
+        roles_response = await get_roles(page=1, page_size=20)
+        roles_data = roles_response.get("data", {}).get("items", [])
+        roles = [Role(**r) for r in roles_data]
+
         # 构建权限矩阵
         resources = list(set([p.resource_type.value for p in permissions]))
         permission_types = list(set([p.permission_type.value for p in permissions]))
         role_names = [r.name for r in roles]
-        
+
         # 模拟权限矩阵数据
         matrix = {}
         for role in roles:
@@ -619,15 +691,18 @@ async def get_permission_matrix():
                 for perm_type in permission_types:
                     # 模拟权限分配
                     matrix[role.name][resource][perm_type] = random.choice([True, False])
-        
+
         permission_matrix = PermissionMatrix(
             resources=resources,
             permissions=permission_types,
             roles=role_names,
             matrix=matrix
         )
-        
-        return permission_matrix
+
+        return success_response(
+            data=permission_matrix.dict(),
+            message="获取权限矩阵成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取权限矩阵失败: {str(e)}")
 
@@ -639,7 +714,7 @@ async def get_permission_matrix():
 
 @router.post(
     "/teams",
-    response_model=TeamSummary,
+    response_model=Dict[str, Any],
     status_code=201,
     summary="创建团队",
 )
@@ -669,7 +744,10 @@ async def create_team_endpoint(
             department=request.department,
             max_members=request.max_members,
         )
-        return TeamSummary(**team_data)
+        return success_response(
+            data=TeamSummary(**team_data).dict(),
+            message="团队创建成功"
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except PermissionError as exc:
@@ -679,7 +757,7 @@ async def create_team_endpoint(
         raise HTTPException(status_code=500, detail="创建团队失败，请稍后重试")
 
 
-@router.get("/teams/search", response_model=TeamSearchResponse, summary="搜索团队")
+@router.get("/teams/search", response_model=Dict[str, Any], summary="搜索团队")
 async def search_teams_endpoint(
     keyword: Optional[str] = Query(None, description="搜索关键词"),
     limit: int = Query(20, ge=1, le=50, description="返回数量限制"),
@@ -691,16 +769,19 @@ async def search_teams_endpoint(
     try:
         user_id = _extract_user_id(current_user)
         results = team_service.search_teams(db, keyword, user_id, limit)
-        return TeamSearchResponse(
-            results=[TeamSummary(**item) for item in results],
-            total=len(results),
+        return success_response(
+            data={
+                "results": [TeamSummary(**item).dict() for item in results],
+                "total": len(results)
+            },
+            message="搜索团队成功"
         )
     except Exception as exc:
         logger.exception("团队搜索失败: %s", exc)
         raise HTTPException(status_code=500, detail="搜索团队失败，请稍后重试")
 
 
-@router.get("/teams/my", response_model=TeamListResponse, summary="获取我的团队")
+@router.get("/teams/my", response_model=Dict[str, Any], summary="获取我的团队")
 async def list_my_teams(
     db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_active_user),
@@ -710,9 +791,12 @@ async def list_my_teams(
     try:
         user_id = _extract_user_id(current_user)
         items = team_service.list_user_teams(db, user_id)
-        return TeamListResponse(
-            items=[TeamSummary(**item) for item in items],
-            total=len(items),
+        return success_response(
+            data={
+                "items": [TeamSummary(**item).dict() for item in items],
+                "total": len(items)
+            },
+            message="获取我的团队成功"
         )
     except Exception as exc:
         logger.exception("获取我的团队失败: %s", exc)
@@ -721,7 +805,7 @@ async def list_my_teams(
 
 @router.post(
     "/teams/{team_id}/apply",
-    response_model=TeamJoinRequestResponse,
+    response_model=Dict[str, Any],
     summary="申请加入团队",
 )
 async def apply_to_team(
@@ -735,11 +819,13 @@ async def apply_to_team(
     try:
         user_id = _extract_user_id(current_user)
         join_request = team_service.apply_to_join(db, user_id, team_id, request.message)
-        return TeamJoinRequestResponse(
-            request_id=join_request.id,
-            message="申请已提交，等待团队审核",
-            status=join_request.status.value,
-            requested_at=join_request.created_at,
+        return success_response(
+            data={
+                "request_id": join_request.id,
+                "status": join_request.status.value,
+                "requested_at": join_request.created_at.isoformat()
+            },
+            message="申请已提交，等待团队审核"
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -752,7 +838,7 @@ async def apply_to_team(
 
 @router.get(
     "/teams/{team_id}/join-requests",
-    response_model=TeamJoinRequestListResponse,
+    response_model=Dict[str, Any],
     summary="获取团队加入申请列表",
 )
 async def list_team_join_requests(
@@ -776,10 +862,13 @@ async def list_team_join_requests(
         pending_count = sum(
             1 for item in items if item["status"] == TeamJoinRequestStatus.PENDING.value
         )
-        return TeamJoinRequestListResponse(
-            items=[TeamJoinRequestItem(**item) for item in items],
-            total=len(items),
-            pending_count=pending_count,
+        return success_response(
+            data={
+                "items": [TeamJoinRequestItem(**item).dict() for item in items],
+                "total": len(items),
+                "pending_count": pending_count
+            },
+            message="获取加入申请列表成功"
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
@@ -794,7 +883,7 @@ async def list_team_join_requests(
 
 @router.post(
     "/teams/{team_id}/join-requests/{request_id}/review",
-    response_model=TeamJoinRequestReviewResponse,
+    response_model=Dict[str, Any],
     summary="审核团队加入申请",
 )
 async def review_team_join_request(
@@ -833,10 +922,12 @@ async def review_team_join_request(
 
         success_message = "加入申请已通过" if result.status == TeamJoinRequestStatus.APPROVED else "加入申请已拒绝"
 
-        return TeamJoinRequestReviewResponse(
-            message=success_message,
-            status=result.status.value,
-            request=item,
+        return success_response(
+            data={
+                "status": result.status.value,
+                "request": item.dict()
+            },
+            message=success_message
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
@@ -852,7 +943,7 @@ async def review_team_join_request(
 
 @router.delete(
     "/teams/{team_id}/join-requests/{request_id}",
-    response_model=TeamJoinRequestReviewResponse,
+    response_model=Dict[str, Any],
     summary="撤销团队加入申请",
 )
 async def cancel_team_join_request(
@@ -887,10 +978,12 @@ async def cancel_team_join_request(
             reviewer_id=result.reviewer_id,
         )
 
-        return TeamJoinRequestReviewResponse(
-            message="申请已撤销",
-            status=result.status.value,
-            request=item,
+        return success_response(
+            data={
+                "status": result.status.value,
+                "request": item.dict()
+            },
+            message="申请已撤销"
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
@@ -906,7 +999,7 @@ async def cancel_team_join_request(
 
 @router.get(
     "/teams/{team_id}/members",
-    response_model=TeamMembersResponse,
+    response_model=Dict[str, Any],
     summary="查看团队成员",
 )
 async def list_team_members(
@@ -919,9 +1012,12 @@ async def list_team_members(
     try:
         user_id = _extract_user_id(current_user)
         data = team_service.get_team_members(db, team_id, user_id)
-        return TeamMembersResponse(
-            team=TeamSummary(**data["team"]),
-            members=[TeamMember(**member) for member in data["members"]],
+        return success_response(
+            data={
+                "team": TeamSummary(**data["team"]).dict(),
+                "members": [TeamMember(**member).dict() for member in data["members"]]
+            },
+            message="获取团队成员成功"
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -939,6 +1035,7 @@ class MemberRoleUpdateRequest(BaseModel):
 
 @router.patch(
     "/teams/{team_id}/members/{user_id}/role",
+    response_model=Dict[str, Any],
     summary="修改团队成员角色",
 )
 async def update_team_member_role(
@@ -963,7 +1060,10 @@ async def update_team_member_role(
             target_user_id=user_id,
             new_role=body.role,
         )
-        return {"message": "角色已更新"}
+        return success_response(
+            data=None,
+            message="角色已更新"
+        )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except ValueError as exc:
@@ -978,6 +1078,7 @@ async def update_team_member_role(
 
 @router.delete(
     "/teams/{team_id}/members/{user_id}",
+    response_model=Dict[str, Any],
     summary="删除团队成员",
 )
 async def remove_team_member(
@@ -1001,7 +1102,10 @@ async def remove_team_member(
             operator_user_id=operator_user_id,
             target_user_id=user_id,
         )
-        return {"message": "成员已删除"}
+        return success_response(
+            data=None,
+            message="成员已删除"
+        )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except ValueError as exc:
@@ -1016,7 +1120,7 @@ async def remove_team_member(
 
 @router.post(
     "/teams/{team_id}/invite",
-    response_model=TeamInviteResponse,
+    response_model=Dict[str, Any],
     summary="邀请成员加入团队",
 )
 async def invite_team_member(
@@ -1037,12 +1141,14 @@ async def invite_team_member(
             role=invite_request.role,
             message=invite_request.message,
         )
-        return TeamInviteResponse(
-            message="邀请已发送",
-            status=invitation.status.value,
-            invitation_id=invitation.id,
-            invitee_email=invitation.invitee_email,
-            expires_at=invitation.expires_at,
+        return success_response(
+            data={
+                "status": invitation.status.value,
+                "invitation_id": invitation.id,
+                "invitee_email": invitation.invitee_email,
+                "expires_at": invitation.expires_at.isoformat()
+            },
+            message="邀请已发送"
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -1053,7 +1159,7 @@ async def invite_team_member(
         raise HTTPException(status_code=500, detail="发送邀请失败，请稍后重试")
 
 
-@router.get("/users")
+@router.get("/users", response_model=Dict[str, Any])
 async def get_users(
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -1093,14 +1199,17 @@ async def get_users(
             }
             users.append(user_data)
 
-        return {"users": users}
+        return success_response(
+            data={"users": users},
+            message="获取用户列表成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取用户列表失败: {str(e)}")
 
 
 @router.get(
     "/invitations/my",
-    response_model=TeamInvitationListResponse,
+    response_model=Dict[str, Any],
     summary="获取我的团队邀请",
 )
 async def get_my_invitations(
@@ -1112,9 +1221,12 @@ async def get_my_invitations(
     try:
         user_id = _extract_user_id(current_user)
         items = team_service.get_user_invitations(db, user_id)
-        return TeamInvitationListResponse(
-            items=[TeamInvitationItem(**item) for item in items],
-            total=len(items),
+        return success_response(
+            data={
+                "items": [TeamInvitationItem(**item).dict() for item in items],
+                "total": len(items)
+            },
+            message="获取邀请列表成功"
         )
     except Exception as exc:
         logger.exception("获取邀请列表失败: %s", exc)
@@ -1123,7 +1235,7 @@ async def get_my_invitations(
 
 @router.post(
     "/invitations/{invitation_id}/respond",
-    response_model=TeamInvitationRespondResponse,
+    response_model=Dict[str, Any],
     summary="响应团队邀请",
 )
 async def respond_to_invitation(
@@ -1142,7 +1254,10 @@ async def respond_to_invitation(
             invitation_id=invitation_id,
             accept=request.accept
         )
-        return TeamInvitationRespondResponse(**result)
+        return success_response(
+            data=result,
+            message="邀请响应成功"
+        )
     except ValueError as exc:
         detail = str(exc)
         if "不存在" in detail:
@@ -1153,7 +1268,3 @@ async def respond_to_invitation(
     except Exception as exc:
         logger.exception("响应邀请失败: %s", exc)
         raise HTTPException(status_code=500, detail="处理邀请失败，请稍后重试")
-
-    except Exception as e:
-        logger.error(f"获取用户列表失败: {e}")
-        return {"users": []}

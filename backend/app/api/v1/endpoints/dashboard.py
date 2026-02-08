@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.logging import get_logger
+from app.core.response import success_response
 from app.models.patient import Patient, PatientStatusEnum
 from app.models.image_file import ImageFile, ImageFileStatusEnum
 from app.models.report import DiagnosticReport, ReportStatusEnum, PriorityEnum
@@ -72,7 +73,7 @@ class DashboardStats(BaseModel):
     system_metrics: List[SystemMetric]
 
 # API端点
-@router.get("/overview", response_model=DashboardOverview, summary="获取仪表板概览")
+@router.get("/overview", response_model=Dict[str, Any], summary="获取仪表板概览")
 async def get_dashboard_overview(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -222,7 +223,7 @@ async def get_dashboard_overview(
             generated_at=datetime.now()
         )
 
-        return overview
+        return success_response(data=overview.model_dump(), message="获取仪表板概览成功")
 
     except Exception as e:
         logger.error(f"获取仪表板概览失败: {e}")
@@ -231,7 +232,7 @@ async def get_dashboard_overview(
             detail="获取仪表板概览过程中发生错误"
         )
 
-@router.get("/recent-activities", summary="获取最近活动")
+@router.get("/recent-activities", response_model=Dict[str, Any], summary="获取最近活动")
 async def get_recent_activities(
     limit: int = Query(10, ge=1, le=50, description="返回数量限制"),
     current_user: Dict[str, Any] = Depends(get_current_active_user),
@@ -292,7 +293,10 @@ async def get_recent_activities(
         activities.sort(key=lambda x: x.timestamp, reverse=True)
         activities = activities[:limit]
 
-        return {"activities": activities, "total": len(activities)}
+        return success_response(
+            data={"activities": [activity.model_dump() for activity in activities], "total": len(activities)},
+            message="获取最近活动成功"
+        )
 
     except Exception as e:
         logger.error(f"获取最近活动失败: {e}")
@@ -301,7 +305,7 @@ async def get_recent_activities(
             detail="获取最近活动过程中发生错误"
         )
 
-@router.get("/system-metrics", summary="获取系统指标")
+@router.get("/system-metrics", response_model=Dict[str, Any], summary="获取系统指标")
 async def get_system_metrics(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -348,7 +352,10 @@ async def get_system_metrics(
             trend="up"
         ))
 
-        return {"metrics": metrics}
+        return success_response(
+            data={"metrics": [metric.model_dump() for metric in metrics]},
+            message="获取系统指标成功"
+        )
 
     except Exception as e:
         logger.error(f"获取系统指标失败: {e}")
@@ -358,7 +365,7 @@ async def get_system_metrics(
         )
 
 
-@router.get("/stats", response_model=DashboardOverview, summary="获取仪表板统计数据")
+@router.get("/stats", response_model=Dict[str, Any], summary="获取仪表板统计数据")
 async def get_dashboard_stats(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -508,7 +515,7 @@ async def get_dashboard_stats(
             generated_at=datetime.now()
         )
 
-        return overview
+        return success_response(data=overview.model_dump(), message="获取仪表板统计数据成功")
 
     except Exception as e:
         logger.error(f"获取仪表板统计数据失败: {e}")
@@ -518,7 +525,7 @@ async def get_dashboard_stats(
         )
 
 
-@router.get("/tasks")
+@router.get("/tasks", response_model=Dict[str, Any])
 async def get_dashboard_tasks(
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -571,7 +578,7 @@ async def get_dashboard_tasks(
             }
         ]
 
-        return {"tasks": tasks}
+        return success_response(data={"tasks": tasks}, message="获取任务列表成功")
 
     except Exception as e:
         logger.error(f"获取任务列表失败: {e}")

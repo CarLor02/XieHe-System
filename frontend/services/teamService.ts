@@ -1,5 +1,6 @@
 import { createAuthenticatedClient } from '@/store/authStore';
 import { handleApiError } from './errorService';
+import { extractData } from '@/utils/apiResponseHandler';
 
 export interface TeamSummary {
   id: number;
@@ -90,13 +91,13 @@ const client = createAuthenticatedClient();
 
 export async function searchTeams(keyword: string): Promise<TeamSearchResponse> {
   try {
-    const response = await client.get<TeamSearchResponse>(
+    const response = await client.get(
       '/api/v1/permissions/teams/search',
       {
         params: { keyword },
       }
     );
-    return response.data;
+    return extractData<TeamSearchResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_search');
     throw error;
@@ -105,8 +106,8 @@ export async function searchTeams(keyword: string): Promise<TeamSearchResponse> 
 
 export async function getMyTeams(): Promise<TeamListResponse> {
   try {
-    const response = await client.get<TeamListResponse>('/api/v1/permissions/teams/my');
-    return response.data;
+    const response = await client.get('/api/v1/permissions/teams/my');
+    return extractData<TeamListResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_my_list');
     throw error;
@@ -118,11 +119,11 @@ export async function applyToJoinTeam(
   message?: string
 ): Promise<TeamJoinRequestSubmitResponse> {
   try {
-    const response = await client.post<TeamJoinRequestSubmitResponse>(
+    const response = await client.post(
       `/api/v1/permissions/teams/${teamId}/apply`,
       { message: message || '' }
     );
-    return response.data;
+    return extractData<TeamJoinRequestSubmitResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_apply');
     throw error;
@@ -131,10 +132,10 @@ export async function applyToJoinTeam(
 
 export async function getTeamMembers(teamId: number): Promise<TeamMembersResponse> {
   try {
-    const response = await client.get<TeamMembersResponse>(
+    const response = await client.get(
       `/api/v1/permissions/teams/${teamId}/members`
     );
-    return response.data;
+    return extractData<TeamMembersResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_members');
     throw error;
@@ -146,13 +147,13 @@ export async function getTeamJoinRequests(
   status?: 'pending' | 'approved' | 'rejected'
 ): Promise<TeamJoinRequestListResponse> {
   try {
-    const response = await client.get<TeamJoinRequestListResponse>(
+    const response = await client.get(
       `/api/v1/permissions/teams/${teamId}/join-requests`,
       {
         params: status ? { status } : undefined,
       }
     );
-    return response.data;
+    return extractData<TeamJoinRequestListResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_join_requests');
     throw error;
@@ -165,11 +166,11 @@ export async function reviewTeamJoinRequest(
   decision: 'approve' | 'reject'
 ): Promise<TeamJoinRequestActionResponse> {
   try {
-    const response = await client.post<TeamJoinRequestActionResponse>(
+    const response = await client.post(
       `/api/v1/permissions/teams/${teamId}/join-requests/${requestId}/review`,
       { decision }
     );
-    return response.data;
+    return extractData<TeamJoinRequestActionResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_join_request_review');
     throw error;
@@ -181,10 +182,10 @@ export async function cancelTeamJoinRequest(
   requestId: number
 ): Promise<TeamJoinRequestActionResponse> {
   try {
-    const response = await client.delete<TeamJoinRequestActionResponse>(
+    const response = await client.delete(
       `/api/v1/permissions/teams/${teamId}/join-requests/${requestId}`
     );
-    return response.data;
+    return extractData<TeamJoinRequestActionResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_join_request_cancel');
     throw error;
@@ -198,11 +199,12 @@ export async function inviteTeamMember(
   message?: string
 ): Promise<string> {
   try {
-    const response = await client.post<{ message: string }>(
+    const response = await client.post(
       `/api/v1/permissions/teams/${teamId}/invite`,
       { email, role, message }
     );
-    return response.data.message;
+    const result = extractData<{ message: string }>(response);
+    return result.message;
   } catch (error) {
     handleApiError(error, 'team_invite');
     throw error;
@@ -211,8 +213,8 @@ export async function inviteTeamMember(
 
 export async function createTeam(payload: TeamCreateRequest): Promise<TeamSummary> {
   try {
-    const response = await client.post<TeamSummary>('/api/v1/permissions/teams', payload);
-    return response.data;
+    const response = await client.post('/api/v1/permissions/teams', payload);
+    return extractData<TeamSummary>(response);
   } catch (error) {
     handleApiError(error, 'team_create');
     throw error;
@@ -222,10 +224,11 @@ export async function createTeam(payload: TeamCreateRequest): Promise<TeamSummar
 // 获取用户的申请记录
 export async function getMyApplications(): Promise<TeamJoinRequestItem[]> {
   try {
-    const response = await client.get<{ items: TeamJoinRequestItem[] }>(
+    const response = await client.get(
       '/api/v1/permissions/teams/my-applications'
     );
-    return response.data.items;
+    const result = extractData<{ items: TeamJoinRequestItem[] }>(response);
+    return result.items;
   } catch (error) {
     // 如果接口不存在，返回空数组
     if ((error as any)?.response?.status === 404) {
@@ -243,11 +246,11 @@ export async function updateMemberRole(
   newRole: 'ADMIN' | 'MEMBER' // 移除GUEST角色
 ): Promise<{ message: string }> {
   try {
-    const response = await client.patch<{ message: string }>(
+    const response = await client.patch(
       `/api/v1/permissions/teams/${teamId}/members/${userId}/role`,
       { role: newRole }
     );
-    return response.data;
+    return extractData<{ message: string }>(response);
   } catch (error) {
     handleApiError(error, 'team_update_member_role');
     throw error;
@@ -260,10 +263,10 @@ export async function removeMember(
   userId: number
 ): Promise<{ message: string }> {
   try {
-    const response = await client.delete<{ message: string }>(
+    const response = await client.delete(
       `/api/v1/permissions/teams/${teamId}/members/${userId}`
     );
-    return response.data;
+    return extractData<{ message: string }>(response);
   } catch (error) {
     handleApiError(error, 'team_remove_member');
     throw error;
@@ -301,10 +304,10 @@ export interface TeamInvitationRespondResponse {
 // 获取我的团队邀请
 export async function getMyInvitations(): Promise<TeamInvitationListResponse> {
   try {
-    const response = await client.get<TeamInvitationListResponse>(
+    const response = await client.get(
       '/api/v1/permissions/invitations/my'
     );
-    return response.data;
+    return extractData<TeamInvitationListResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_invitations_get');
     throw error;
@@ -317,11 +320,11 @@ export async function respondToInvitation(
   accept: boolean
 ): Promise<TeamInvitationRespondResponse> {
   try {
-    const response = await client.post<TeamInvitationRespondResponse>(
+    const response = await client.post(
       `/api/v1/permissions/invitations/${invitationId}/respond`,
       { accept }
     );
-    return response.data;
+    return extractData<TeamInvitationRespondResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_invitation_respond');
     throw error;

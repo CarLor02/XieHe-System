@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import StatsCard from '@/components/StatsCard';
 import TaskList from '@/components/TaskList';
 import { createAuthenticatedClient, useUser } from '@/store/authStore';
+import { extractData } from '@/utils/apiResponseHandler';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -30,7 +31,9 @@ const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
   try {
     const client = createAuthenticatedClient();
     const response = await client.get('/api/v1/dashboard/stats');
-    const data = response.data;
+
+    // 使用 extractData 提取数据
+    const data = extractData<any>(response);
 
     console.log('工作台收到的 API 数据:', data);
 

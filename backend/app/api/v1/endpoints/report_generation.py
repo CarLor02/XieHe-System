@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.logging import get_logger
+from app.core.response import success_response, paginated_response
 from app.models.image import ImageAnnotation
 from app.models.patient import Patient
 from app.services.template_service import TemplateService
@@ -129,7 +130,7 @@ LATERAL_XRAY_TEMPLATE = """# 脊柱X光侧位影像分析报告
 """
 
 
-@router.post("/generate", response_model=GenerateReportResponse, summary="生成分析报告")
+@router.post("/generate", response_model=Dict[str, Any], summary="生成分析报告")
 async def generate_report(
     request: GenerateReportRequest,
     current_user: dict = Depends(get_current_active_user),
@@ -141,10 +142,10 @@ async def generate_report(
     try:
         # 从measurements中提取数据
         data = TemplateService._extract_measurement_data(request.measurements, request.examType)
-        
+
         # 添加生成时间
         data['Generated_Time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
+
         # 选择模板
         if request.examType == '正位X光片':
             template = FRONTAL_XRAY_TEMPLATE
@@ -155,17 +156,20 @@ async def generate_report(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"不支持的影像类型: {request.examType}"
             )
-        
+
         # 渲染报告
         report = TemplateService.render_template(template, data)
-        
+
         logger.info(f"成功生成报告: {request.imageId}, 类型: {request.examType}")
-        
-        return GenerateReportResponse(
-            report=report,
-            generatedAt=data['Generated_Time']
+
+        return success_response(
+            data={
+                "report": report,
+                "generatedAt": data['Generated_Time']
+            },
+            message="报告生成成功"
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

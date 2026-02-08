@@ -4,6 +4,7 @@
  */
 
 import { createAuthenticatedClient } from '@/store/authStore';
+import { extractData, isSuccessResponse } from '@/utils/apiResponseHandler';
 
 export interface UserInfo {
   id: number;
@@ -39,11 +40,11 @@ export async function getCurrentUser(): Promise<UserInfo> {
   const response = await client.get('/api/v1/auth/me');
 
   // 检查是否是错误响应
-  if (response.data?.error || response.status >= 400) {
+  if (!isSuccessResponse(response)) {
     throw new Error(response.data?.message || '获取用户信息失败');
   }
 
-  return response.data;
+  return extractData<UserInfo>(response);
 }
 
 /**
@@ -54,10 +55,10 @@ export async function updateCurrentUser(data: UserUpdateData): Promise<UserInfo>
   const response = await client.put('/api/v1/auth/me', data);
 
   // 检查是否是错误响应
-  if (response.data?.error || response.status >= 400) {
+  if (!isSuccessResponse(response)) {
     throw new Error(response.data?.message || '更新用户信息失败');
   }
 
-  return response.data;
+  return extractData<UserInfo>(response);
 }
 

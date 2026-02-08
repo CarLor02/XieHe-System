@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from pydantic import BaseModel
 from app.services.model_manager import ModelManager, AIModel, ModelViewType, ModelConfiguration, ModelStatus
 from app.core.auth import get_current_active_user
+from app.core.response import success_response, paginated_response
 
 router = APIRouter()
 model_manager = ModelManager()
@@ -54,7 +55,7 @@ class ModelStats(BaseModel):
     active_models: int
     view_distribution: Dict[str, int]
 
-@router.get("", response_model=ModelListResponse)
+@router.get("", response_model=Dict[str, Any])
 async def get_models(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
@@ -65,36 +66,37 @@ async def get_models(
     """获取模型列表"""
     try:
         all_models = model_manager.get_models()
-        
+
         # Filtering
         filtered_models = all_models
         if view_type:
             filtered_models = [m for m in filtered_models if m.view_type == view_type]
-        
+
         if search:
             search_lower = search.lower()
             filtered_models = [
-                m for m in filtered_models 
-                if search_lower in m.name.lower() or 
+                m for m in filtered_models
+                if search_lower in m.name.lower() or
                    (m.description and search_lower in m.description.lower())
             ]
-            
+
         # Pagination
         total = len(filtered_models)
         start = (page - 1) * page_size
         end = start + page_size
         paginated_models = filtered_models[start:end]
-        
-        return ModelListResponse(
-            models=paginated_models,
+
+        return paginated_response(
+            items=[m.dict() for m in paginated_models],
             total=total,
             page=page,
-            page_size=page_size
+            page_size=page_size,
+            message="获取模型列表成功"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("", response_model=AIModel)
+@router.post("", response_model=Dict[str, Any])
 async def create_model(
     request: CreateModelRequest,
     current_user: Dict[str, Any] = Depends(check_model_admin)
@@ -102,34 +104,36 @@ async def create_model(
     """创建新模型"""
     try:
         model = model_manager.create_model(request.dict())
-        return model
+        return success_response(data=model.dict(), message="创建模型成功")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建模型失败: {str(e)}")
 
-@router.get("/configuration", response_model=ModelConfiguration)
+@router.get("/configuration", response_model=Dict[str, Any])
 async def get_configuration(
     current_user: Dict[str, Any] = Depends(get_current_active_user)
 ):
     """获取当前模型配置"""
-    return model_manager.get_configuration()
+    config = model_manager.get_configuration()
+    return success_response(data=config.dict(), message="获取模型配置成功")
 
-@router.put("/configuration", response_model=ModelConfiguration)
+@router.put("/configuration", response_model=Dict[str, Any])
 async def update_configuration(
     request: Dict[str, Optional[str]],
     current_user: Dict[str, Any] = Depends(check_model_admin)
 ):
     """更新当前模型配置"""
-    # Convert pydantic model to dict, filtering None if needed, but here we expect full updates or partial? 
+    # Convert pydantic model to dict, filtering None if needed, but here we expect full updates or partial?
     # Usually config updates might be partial.
     update_data = {}
     if request.get("front_model_id") is not None:
         update_data["front_model_id"] = request["front_model_id"]
     if request.get("side_model_id") is not None:
         update_data["side_model_id"] = request["side_model_id"]
-        
-    return model_manager.update_configuration(update_data)
 
-@router.get("/stats", response_model=ModelStats)
+    config = model_manager.update_configuration(update_data)
+    return success_response(data=config.dict(), message="更新模型配置成功")
+
+@router.get("/stats", response_model=Dict[str, Any])
 async def get_model_stats(
     current_user: Dict[str, Any] = Depends(get_current_active_user)
 ):
@@ -137,20 +141,22 @@ async def get_model_stats(
     models = model_manager.get_models()
     total = len(models)
     active = len([m for m in models if m.is_active])
-    
+
     distribution = {
         "front": len([m for m in models if m.view_type == ModelViewType.FRONT]),
         "side": len([m for m in models if m.view_type == ModelViewType.SIDE]),
         "other": len([m for m in models if m.view_type == ModelViewType.OTHER]),
     }
-    
-    return ModelStats(
-        total_models=total,
-        active_models=active,
-        view_distribution=distribution
-    )
 
-@router.get("/{model_id}", response_model=AIModel)
+    stats_data = {
+        "total_models": total,
+        "active_models": active,
+        "view_distribution": distribution
+    }
+
+    return success_response(data=stats_data, message="获取模型统计成功")
+
+@router.get("/{model_id}", response_model=Dict[str, Any])
 async def get_model(
     model_id: str,
     current_user: Dict[str, Any] = Depends(get_current_active_user)
@@ -159,11 +165,11 @@ async def get_model(
     model = model_manager.get_model(model_id)
     if not model:
         raise HTTPException(status_code=404, detail="模型未找到")
-    return model
+    return success_response(data=model.dict(), message="获取模型详情成功")
 
-@router.put("/{model_id}", response_model=AIModel)
+@router.put("/{model_id}", response_model=Dict[str, Any])
 async def update_model(
-    model_id: str, 
+    model_id: str,
     request: CreateModelRequest,
     current_user: Dict[str, Any] = Depends(check_model_admin)
 ):
@@ -172,9 +178,9 @@ async def update_model(
     model = model_manager.update_model(model_id, update_data)
     if not model:
         raise HTTPException(status_code=404, detail="模型未找到")
-    return model
+    return success_response(data=model.dict(), message="更新模型成功")
 
-@router.delete("/{model_id}")
+@router.delete("/{model_id}", response_model=Dict[str, Any])
 async def delete_model(
     model_id: str,
     current_user: Dict[str, Any] = Depends(check_model_admin)
@@ -183,11 +189,11 @@ async def delete_model(
     success = model_manager.delete_model(model_id)
     if not success:
         raise HTTPException(status_code=404, detail="模型未找到")
-    return {"success": True, "message": "模型删除成功"}
+    return success_response(data={"success": True}, message="模型删除成功")
 
-@router.post("/{model_id}/test")
+@router.post("/{model_id}/test", response_model=Dict[str, Any])
 async def test_model(
-    model_id: str, 
+    model_id: str,
     files: List[UploadFile] = File(...),
     current_user: Dict[str, Any] = Depends(get_current_active_user)
 ):
@@ -198,9 +204,9 @@ async def test_model(
         for file in files:
             content = await file.read()
             file_list.append(('files', (file.filename, content, file.content_type)))
-            
+
         result = await model_manager.test_model(model_id, file_list)
-        return result
+        return success_response(data=result, message="模型测试成功")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

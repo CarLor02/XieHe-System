@@ -20,6 +20,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_active_user
 from app.core.exceptions import BusinessLogicException, ResourceNotFoundException
 from app.core.logging import get_logger
+from app.core.response import success_response, paginated_response
 from app.models.patient import Patient, GenderEnum, PatientStatusEnum
 
 logger = get_logger(__name__)
@@ -123,8 +124,8 @@ def convert_enum_to_gender(gender_enum: GenderEnum) -> str:
     return gender_map.get(gender_enum, "未知")
 
 # API端点
-@router.post("/", response_model=PatientResponse, summary="创建患者")
-@router.post("", response_model=PatientResponse, summary="创建患者")
+@router.post("/", response_model=Dict[str, Any], summary="创建患者")
+@router.post("", response_model=Dict[str, Any], summary="创建患者")
 async def create_patient(
     patient_data: PatientCreate,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
@@ -186,7 +187,11 @@ async def create_patient(
             "updated_at": new_patient.updated_at
         }
 
-        return PatientResponse(**response_data)
+        return success_response(
+            data=PatientResponse(**response_data).dict(),
+            message="患者创建成功",
+            code=201
+        )
 
     except BusinessLogicException:
         raise
@@ -198,8 +203,8 @@ async def create_patient(
             detail="患者创建过程中发生错误"
         )
 
-@router.get("/", response_model=PatientListResponse, summary="获取患者列表")
-@router.get("", response_model=PatientListResponse, summary="获取患者列表")
+@router.get("/", response_model=Dict[str, Any], summary="获取患者列表")
+@router.get("", response_model=Dict[str, Any], summary="获取患者列表")
 async def get_patients(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -258,30 +263,14 @@ async def get_patients(
                 "created_at": patient.created_at,
                 "updated_at": patient.updated_at
             }
-            patient_responses.append(PatientResponse(**response_data))
+            patient_responses.append(PatientResponse(**response_data).dict())
 
-        total_pages = (total + page_size - 1) // page_size
-
-        return PatientListResponse(
-            patients=patient_responses,
+        return paginated_response(
+            items=patient_responses,
             total=total,
             page=page,
             page_size=page_size,
-            total_pages=total_pages
-        )
-
-    except Exception as e:
-        logger.error(f"获取患者列表失败: {e}")
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取患者列表过程中发生错误"
-        )
-        return PatientListResponse(
-            patients=patient_responses,
-            total=total,
-            page=page,
-            page_size=page_size,
-            total_pages=total_pages
+            message="患者列表查询成功"
         )
 
     except Exception as e:
@@ -291,7 +280,7 @@ async def get_patients(
             detail="获取患者列表过程中发生错误"
         )
 
-@router.get("/{patient_id}", response_model=PatientResponse, summary="获取患者详情")
+@router.get("/{patient_id}", response_model=Dict[str, Any], summary="获取患者详情")
 async def get_patient(
     patient_id: int,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
@@ -328,7 +317,10 @@ async def get_patient(
             "updated_at": patient.updated_at
         }
 
-        return PatientResponse(**response_data)
+        return success_response(
+            data=PatientResponse(**response_data).dict(),
+            message="患者详情查询成功"
+        )
 
     except ResourceNotFoundException:
         raise
@@ -339,7 +331,7 @@ async def get_patient(
             detail="获取患者详情过程中发生错误"
         )
 
-@router.put("/{patient_id}", response_model=PatientResponse, summary="更新患者信息")
+@router.put("/{patient_id}", response_model=Dict[str, Any], summary="更新患者信息")
 async def update_patient(
     patient_id: int,
     patient_data: PatientUpdate,
@@ -396,7 +388,10 @@ async def update_patient(
             "updated_at": patient.updated_at
         }
 
-        return PatientResponse(**response_data)
+        return success_response(
+            data=PatientResponse(**response_data).dict(),
+            message="患者信息更新成功"
+        )
 
     except ResourceNotFoundException:
         raise
@@ -434,7 +429,10 @@ async def delete_patient(
 
         logger.info(f"患者删除成功: {patient.patient_id} - {patient.name}")
 
-        return {"message": "患者删除成功"}
+        return success_response(
+            data=None,
+            message="患者删除成功"
+        )
 
     except ResourceNotFoundException:
         raise

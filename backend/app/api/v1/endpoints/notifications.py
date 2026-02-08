@@ -15,6 +15,7 @@ from pydantic import BaseModel, EmailStr
 
 from app.core.auth import get_current_active_user
 from app.core.database import get_db
+from app.core.response import success_response, paginated_response
 from app.models.user import User
 from app.services.email_service import email_service, send_system_notification
 from app.core.websocket import websocket_manager
@@ -143,18 +144,20 @@ async def send_message(
                 message.action_text
             )
         
-        return {
-            "message": "消息发送成功",
-            "recipients_count": len(recipients),
-            "message_id": message_data["id"]
-        }
+        return success_response(
+            data={
+                "recipients_count": len(recipients),
+                "message_id": message_data["id"]
+            },
+            message="消息发送成功"
+        )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"发送消息失败: {str(e)}")
 
 
-@router.get("/messages", response_model=List[MessageResponse])
-@router.get("messages", response_model=List[MessageResponse])
+@router.get("/messages", response_model=Dict[str, Any])
+@router.get("messages", response_model=Dict[str, Any])
 async def get_messages(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
@@ -194,19 +197,29 @@ async def get_messages(
             "sender_name": "AI诊断系统"
         }
     ]
-    
+
     # 应用过滤条件
     filtered_messages = messages
     if message_type:
         filtered_messages = [m for m in filtered_messages if m["message_type"] == message_type]
     if is_read is not None:
         filtered_messages = [m for m in filtered_messages if m["is_read"] == is_read]
-    
+
     # 分页
-    return filtered_messages[skip:skip + limit]
+    total = len(filtered_messages)
+    page = (skip // limit) + 1
+    items = filtered_messages[skip:skip + limit]
+
+    return paginated_response(
+        items=items,
+        total=total,
+        page=page,
+        page_size=limit,
+        message="获取消息列表成功"
+    )
 
 
-@router.put("/messages/{message_id}/read")
+@router.put("/messages/{message_id}/read", response_model=Dict[str, Any])
 async def mark_message_read(
     message_id: int,
     current_user: dict = Depends(get_current_active_user),
@@ -214,10 +227,13 @@ async def mark_message_read(
 ):
     """标记消息为已读"""
     # 这里简化处理，实际应该更新数据库
-    return {"message": "消息已标记为已读", "message_id": message_id}
+    return success_response(
+        data={"message_id": message_id},
+        message="消息已标记为已读"
+    )
 
 
-@router.delete("/messages/{message_id}")
+@router.delete("/messages/{message_id}", response_model=Dict[str, Any])
 async def delete_message(
     message_id: int,
     current_user: dict = Depends(get_current_active_user),
@@ -225,17 +241,20 @@ async def delete_message(
 ):
     """删除消息"""
     # 这里简化处理，实际应该从数据库删除
-    return {"message": "消息已删除", "message_id": message_id}
+    return success_response(
+        data=None,
+        message="消息已删除"
+    )
 
 
-@router.get("/messages/stats", response_model=NotificationStats)
+@router.get("/messages/stats", response_model=Dict[str, Any])
 async def get_notification_stats(
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """获取消息统计"""
     # 这里简化处理，实际应该从数据库统计
-    return {
+    stats_data = {
         "total_messages": 15,
         "unread_messages": 3,
         "messages_by_type": {
@@ -251,10 +270,14 @@ async def get_notification_stats(
             "urgent": 1
         }
     }
+    return success_response(
+        data=stats_data,
+        message="获取消息统计成功"
+    )
 
 
 # 邮件通知相关API
-@router.post("/email/send")
+@router.post("/email/send", response_model=Dict[str, Any])
 async def send_email(
     email_request: EmailSendRequest,
     background_tasks: BackgroundTasks,
@@ -278,17 +301,20 @@ async def send_email(
                 html_content=email_request.content,
                 to_name=email_request.to_name
             )
-        
+
         if success:
-            return {"message": "邮件发送成功", "to_email": email_request.to_email}
+            return success_response(
+                data={"to_email": email_request.to_email},
+                message="邮件发送成功"
+            )
         else:
             raise HTTPException(status_code=500, detail="邮件发送失败")
-            
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"邮件发送异常: {str(e)}")
 
 
-@router.post("/email/batch")
+@router.post("/email/batch", response_model=Dict[str, Any])
 async def send_batch_emails(
     batch_request: BatchEmailRequest,
     background_tasks: BackgroundTasks,
@@ -303,7 +329,7 @@ async def send_batch_emails(
                 "to_email": email_req.to_email,
                 "to_name": email_req.to_name
             }
-            
+
             if email_req.template_name and email_req.template_context:
                 email_data.update({
                     "template_name": email_req.template_name,
@@ -314,41 +340,49 @@ async def send_batch_emails(
                     "subject": email_req.subject,
                     "html_content": email_req.content
                 })
-            
+
             email_data_list.append(email_data)
-        
+
         # 批量发送
         results = await email_service.send_batch_emails(
             emails=email_data_list,
             max_concurrent=batch_request.max_concurrent
         )
-        
-        return {
-            "message": "批量邮件发送完成",
-            "total": len(batch_request.emails),
-            "success": results["success"],
-            "failed": results["failed"],
-            "errors": results["errors"]
-        }
-        
+
+        return success_response(
+            data={
+                "total": len(batch_request.emails),
+                "success": results["success"],
+                "failed": results["failed"],
+                "errors": results["errors"]
+            },
+            message="批量邮件发送完成"
+        )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量邮件发送异常: {str(e)}")
 
 
-@router.get("/email/templates")
+@router.get("/email/templates", response_model=Dict[str, Any])
 async def get_email_templates(current_user: dict = Depends(get_current_active_user)):
     """获取邮件模板列表"""
     templates = email_service.list_templates()
-    return {"templates": templates}
+    return success_response(
+        data={"templates": templates},
+        message="获取邮件模板列表成功"
+    )
 
 
-@router.post("/email/test")
+@router.post("/email/test", response_model=Dict[str, Any])
 async def test_email_connection(current_user: dict = Depends(get_current_active_user)):
     """测试邮件服务连接"""
     try:
         success = await email_service.test_connection()
         if success:
-            return {"message": "邮件服务连接正常"}
+            return success_response(
+                data=None,
+                message="邮件服务连接正常"
+            )
         else:
             raise HTTPException(status_code=500, detail="邮件服务连接失败")
     except Exception as e:
@@ -356,22 +390,26 @@ async def test_email_connection(current_user: dict = Depends(get_current_active_
 
 
 # 通知设置相关API
-@router.get("/settings", response_model=NotificationSettings)
+@router.get("/settings", response_model=Dict[str, Any])
 async def get_notification_settings(
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """获取用户通知设置"""
     # 这里简化处理，实际应该从数据库查询用户设置
-    return {
+    settings_data = {
         "email_notifications": True,
         "push_notifications": True,
         "sms_notifications": False,
         "notification_types": ["system", "diagnosis", "report", "reminder"]
     }
+    return success_response(
+        data=settings_data,
+        message="获取通知设置成功"
+    )
 
 
-@router.put("/settings")
+@router.put("/settings", response_model=Dict[str, Any])
 async def update_notification_settings(
     settings: NotificationSettings,
     current_user: dict = Depends(get_current_active_user),
@@ -379,7 +417,10 @@ async def update_notification_settings(
 ):
     """更新用户通知设置"""
     # 这里简化处理，实际应该更新数据库
-    return {"message": "通知设置已更新", "settings": settings}
+    return success_response(
+        data=settings.dict(),
+        message="通知设置已更新"
+    )
 
 
 # 后台任务函数
@@ -406,7 +447,7 @@ async def send_email_notifications(
 
 
 # WebSocket推送消息
-@router.post("/push/{user_id}")
+@router.post("/push/{user_id}", response_model=Dict[str, Any])
 async def push_message_to_user(
     user_id: int,
     message: Dict[str, Any],
@@ -418,12 +459,15 @@ async def push_message_to_user(
             message=message,
             user_id=user_id
         )
-        return {"message": "消息推送成功", "user_id": user_id}
+        return success_response(
+            data={"user_id": user_id},
+            message="消息推送成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"消息推送失败: {str(e)}")
 
 
-@router.post("/broadcast")
+@router.post("/broadcast", response_model=Dict[str, Any])
 async def broadcast_message(
     message: Dict[str, Any],
     current_user: dict = Depends(get_current_active_user)
@@ -431,6 +475,9 @@ async def broadcast_message(
     """广播消息给所有在线用户"""
     try:
         await websocket_manager.broadcast(message)
-        return {"message": "消息广播成功"}
+        return success_response(
+            data=None,
+            message="消息广播成功"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"消息广播失败: {str(e)}")

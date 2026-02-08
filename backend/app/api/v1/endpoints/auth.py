@@ -19,6 +19,8 @@ from app.core.security import security_manager, hash_password, verify_password
 from app.core.auth import get_current_active_user, get_current_user, security
 from app.core.exceptions import AuthenticationException, BusinessLogicException
 from app.core.cache import get_cache_manager
+from app.core.response import success_response
+from app.core.error_codes import ErrorCode
 
 import logging
 logger = logging.getLogger(__name__)
@@ -265,13 +267,16 @@ async def login(
             system_admin_level=user.get("system_admin_level", 0)  # 添加系统管理员级别
         ).dict()
 
-        return {
-            "access_token": tokens_dict["access_token"],
-            "refresh_token": tokens_dict["refresh_token"],
-            "token_type": tokens_dict["token_type"],
-            "expires_in": tokens_dict["expires_in"],
-            "user": user_dict
-        }
+        return success_response(
+            data={
+                "access_token": tokens_dict["access_token"],
+                "refresh_token": tokens_dict["refresh_token"],
+                "token_type": tokens_dict["token_type"],
+                "expires_in": tokens_dict["expires_in"],
+                "user": user_dict
+            },
+            message="登录成功"
+        )
 
     except AuthenticationException:
         raise
@@ -364,17 +369,19 @@ async def register(
         # 记录注册日志
         logger.info(f"用户注册成功: {new_user['username']} ({new_user['email']})")
 
-        return {
-            "message": "注册成功",
-            "user": UserResponse(
-                id=new_user["id"],
-                username=new_user["username"],
-                email=new_user["email"],
-                full_name=new_user["full_name"],
-                is_active=new_user["is_active"],
-                roles=new_user.get("roles", [])
-            ).dict()
-        }
+        return success_response(
+            data={
+                "user": UserResponse(
+                    id=new_user["id"],
+                    username=new_user["username"],
+                    email=new_user["email"],
+                    full_name=new_user["full_name"],
+                    is_active=new_user["is_active"],
+                    roles=new_user.get("roles", [])
+                ).dict()
+            },
+            message="注册成功"
+        )
 
     except (AuthenticationException, BusinessLogicException):
         raise
@@ -404,10 +411,10 @@ async def refresh_token(
 
         logger.info("令牌刷新成功")
 
-        return {
-            "message": "令牌刷新成功",
-            "tokens": new_tokens
-        }
+        return success_response(
+            data={"tokens": new_tokens},
+            message="令牌刷新成功"
+        )
 
     except AuthenticationException:
         raise
@@ -437,9 +444,10 @@ async def logout(
 
         logger.info(f"用户登出成功: {current_user['username']}")
 
-        return {
-            "message": "登出成功"
-        }
+        return success_response(
+            data=None,
+            message="登出成功"
+        )
 
     except Exception as e:
         logger.error(f"登出失败: {e}")
@@ -476,10 +484,10 @@ async def request_password_reset(
 
         logger.info(f"密码重置请求: {user['email']}")
 
-        return {
-            "message": "如果邮箱存在，重置链接已发送到您的邮箱",
-            "reset_token": reset_token  # 仅用于测试，生产环境不应返回
-        }
+        return success_response(
+            data={"reset_token": reset_token},  # 仅用于测试，生产环境不应返回
+            message="如果邮箱存在，重置链接已发送到您的邮箱"
+        )
 
     except Exception as e:
         logger.error(f"密码重置请求失败: {e}")
@@ -525,9 +533,10 @@ async def confirm_password_reset(
 
         logger.info(f"密码重置成功: 用户ID {user_id}")
 
-        return {
-            "message": "密码重置成功"
-        }
+        return success_response(
+            data=None,
+            message="密码重置成功"
+        )
 
     except (AuthenticationException, BusinessLogicException):
         raise
@@ -571,9 +580,10 @@ async def change_password(
 
         logger.info(f"密码修改成功: {current_user['username']}")
 
-        return {
-            "message": "密码修改成功"
-        }
+        return success_response(
+            data=None,
+            message="密码修改成功"
+        )
 
     except (AuthenticationException, BusinessLogicException):
         raise
@@ -585,7 +595,7 @@ async def change_password(
         )
 
 
-@router.get("/me", response_model=UserResponse, summary="获取当前用户信息")
+@router.get("/me", response_model=Dict[str, Any], summary="获取当前用户信息")
 async def get_current_user_info(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -617,27 +627,30 @@ async def get_current_user_info(
         roles = current_user.get("roles", ["doctor"])
         permissions = current_user.get("permissions", ["patient_manage", "image_view"])
 
-        return UserResponse(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            full_name=user.real_name or user.username,
-            phone=user.phone,
-            real_name=user.real_name,
-            employee_id=user.employee_id,
-            department=department_name,
-            department_id=user.department_id,
-            position=user.position,
-            title=user.title,
-            is_active=user.status == 'active',
-            role=role,
-            roles=roles,
-            permissions=permissions,
-            is_superuser=user.is_superuser or False,
-            is_system_admin=user.is_system_admin or False,
-            system_admin_level=user.system_admin_level or 0,
-            created_at=user.created_at.isoformat() if user.created_at else None,
-            updated_at=user.updated_at.isoformat() if user.updated_at else None
+        return success_response(
+            data=UserResponse(
+                id=user.id,
+                username=user.username,
+                email=user.email,
+                full_name=user.real_name or user.username,
+                phone=user.phone,
+                real_name=user.real_name,
+                employee_id=user.employee_id,
+                department=department_name,
+                department_id=user.department_id,
+                position=user.position,
+                title=user.title,
+                is_active=user.status == 'active',
+                role=role,
+                roles=roles,
+                permissions=permissions,
+                is_superuser=user.is_superuser or False,
+                is_system_admin=user.is_system_admin or False,
+                system_admin_level=user.system_admin_level or 0,
+                created_at=user.created_at.isoformat() if user.created_at else None,
+                updated_at=user.updated_at.isoformat() if user.updated_at else None
+            ).dict(),
+            message="获取用户信息成功"
         )
     except HTTPException:
         raise
@@ -649,7 +662,7 @@ async def get_current_user_info(
         )
 
 
-@router.put("/me", response_model=UserResponse, summary="更新当前用户信息")
+@router.put("/me", response_model=Dict[str, Any], summary="更新当前用户信息")
 async def update_current_user_info(
     user_data: UserUpdate,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
@@ -717,27 +730,30 @@ async def update_current_user_info(
         roles = current_user.get("roles", ["doctor"])
         permissions = current_user.get("permissions", ["patient_manage", "image_view"])
 
-        return UserResponse(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            full_name=user.real_name or user.username,
-            phone=user.phone,
-            real_name=user.real_name,
-            employee_id=user.employee_id,
-            department=department_name,
-            department_id=user.department_id,
-            position=user.position,
-            title=user.title,
-            is_active=user.status == 'active',
-            role=role,
-            roles=roles,
-            permissions=permissions,
-            is_superuser=user.is_superuser or False,
-            is_system_admin=user.is_system_admin or False,
-            system_admin_level=user.system_admin_level or 0,
-            created_at=user.created_at.isoformat() if user.created_at else None,
-            updated_at=user.updated_at.isoformat() if user.updated_at else None
+        return success_response(
+            data=UserResponse(
+                id=user.id,
+                username=user.username,
+                email=user.email,
+                full_name=user.real_name or user.username,
+                phone=user.phone,
+                real_name=user.real_name,
+                employee_id=user.employee_id,
+                department=department_name,
+                department_id=user.department_id,
+                position=user.position,
+                title=user.title,
+                is_active=user.status == 'active',
+                role=role,
+                roles=roles,
+                permissions=permissions,
+                is_superuser=user.is_superuser or False,
+                is_system_admin=user.is_system_admin or False,
+                system_admin_level=user.system_admin_level or 0,
+                created_at=user.created_at.isoformat() if user.created_at else None,
+                updated_at=user.updated_at.isoformat() if user.updated_at else None
+            ).dict(),
+            message="用户信息更新成功"
         )
     except HTTPException:
         raise

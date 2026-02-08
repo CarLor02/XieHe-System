@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { createAuthenticatedClient } from '@/store/authStore';
+import { extractData, extractPaginatedData } from '@/utils/apiResponseHandler';
 
 // 患者详情数据接口
 interface PatientDetail {
@@ -54,7 +55,10 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
         setLoading(true);
         const client = createAuthenticatedClient();
         const response = await client.get(`/api/v1/patients/${patientId}`);
-        setPatient(response.data);
+
+        // 使用 extractData 提取患者数据
+        const patientData = extractData<PatientDetail>(response);
+        setPatient(patientData);
         setError(null);
       } catch (err: any) {
         console.error('获取患者详情失败:', err);
@@ -75,7 +79,10 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
         const client = createAuthenticatedClient();
         // 通过患者ID获取影像文件列表
         const response = await client.get(`/api/v1/image-files/patient/${patientId}?page=1&page_size=20`);
-        setImageFiles(response.data.items || []);
+
+        // 使用 extractPaginatedData 提取影像列表
+        const result = extractPaginatedData<ImageFile>(response);
+        setImageFiles(result.items);
       } catch (err: any) {
         console.error('获取影像记录失败:', err);
         setImageFiles([]);
