@@ -20,6 +20,12 @@ export function calculateMeasurementValue(
   points: Point[],
   context: CalculationContext
 ): string {
+  // 特殊处理：AI检测的标注（type格式：AI检测-L1-1）
+  if (type.startsWith('AI检测-')) {
+    // AI检测的标注不需要计算值，直接返回空字符串
+    return '';
+  }
+
   // 特殊处理：CobbN 类型使用 cobb 配置
   const configType = /^Cobb\d+$/i.test(type) ? 'cobb' : type;
   const config = getAnnotationConfig(configType);
@@ -42,6 +48,13 @@ export function calculateMeasurementValue(
  * 根据标注类型获取描述
  */
 export function getDescriptionForType(type: string): string {
+  // 特殊处理：AI检测的标注（type格式：AI检测-L1-1, AI检测-CFH等）
+  if (type.startsWith('AI检测-')) {
+    // AI检测的标注，description字段在创建时已经设置好了
+    // 这里返回type本身作为默认值
+    return type;
+  }
+
   // 特殊处理：CobbN 类型
   if (/^Cobb\d+$/i.test(type)) {
     return 'Cobb角测量';
@@ -55,6 +68,11 @@ export function getDescriptionForType(type: string): string {
  * 根据标注类型获取颜色
  */
 export function getColorForType(type: string): string {
+  // AI检测点使用特殊颜色
+  if (type.startsWith('AI检测-')) {
+    return '#22c55e'; // 绿色 - 用于AI检测的椎骨和关键点
+  }
+
   const config = getAnnotationConfig(type);
   return config?.color || '#10b981'; // 默认绿色
 }
