@@ -285,17 +285,24 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   };
 
   const addMeasurement = (type: string, points: Point[] = []) => {
+    // 如果是Cobb工具，自动编号
+    let finalType = type;
+    if (type === 'cobb') {
+      const cobbCount = measurements.filter(m => m.type.startsWith('Cobb')).length;
+      finalType = `Cobb${cobbCount + 1}`;
+    }
+
     // 使用统一的配置系统计算测量值
-    const defaultValue = calcMeasurementValue(type, points, {
+    const defaultValue = calcMeasurementValue(type === 'cobb' ? 'cobb' : finalType, points, {
       standardDistance,
       standardDistancePoints,
       imageNaturalSize,
     }) || '0.0°';
-    const description = getDesc(type);
+    const description = type === 'cobb' ? 'Cobb角测量' : getDesc(finalType);
 
     const newMeasurement: Measurement = {
       id: Date.now().toString(),
-      type,
+      type: finalType,  // 使用编号后的类型（Cobb1, Cobb2, Cobb3...）
       value: defaultValue,
       points: points,
       description,
@@ -810,9 +817,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         // 侧位使用专用检测接口
         aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_LATERAL_URL || 'http://115.190.121.59:8002/api/detect_and_keypoints';
       } else {
-        // 正位或其他类型使用默认接口
+       // 正位或其他类型使用默认接口
         aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_URL || 'http://localhost:8001/predict';
       }
+
+      console.log('🤖 使用AI检测接口:', aiDetectUrl);
       
       const aiResponse = await fetch(aiDetectUrl, {
         method: 'POST',
@@ -824,7 +833,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       }
 
       const aiData = await aiResponse.json();
-      console.log('AI检测原始结果:', aiData);
 
       // 解析AI返回的JSON数据并加载到标注界面
       if (aiData.measurements && Array.isArray(aiData.measurements)) {
@@ -843,80 +851,86 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             };
             // 同时更新state
             setImageNaturalSize(actualImageSize);
-            console.log('从DOM获取图像尺寸:', actualImageSize);
           }
         }
-        
-        console.log('AI返回的图像尺寸:', {
-          aiWidth: aiImageWidth,
-          aiHeight: aiImageHeight,
-          actualImageSize: actualImageSize
-        });
-        
+
         // 坐标转换：AI返回的是基于原始图像尺寸的坐标
         // 我们需要检查是否需要缩放
         let scaleX = 1;
         let scaleY = 1;
-        
+
         if (actualImageSize && aiImageWidth && aiImageHeight) {
           // 如果AI处理的图像尺寸与实际图像尺寸不同，需要缩放坐标
           scaleX = actualImageSize.width / aiImageWidth;
           scaleY = actualImageSize.height / aiImageHeight;
-          console.log('坐标缩放比例:', { scaleX, scaleY });
-        } else if (aiImageWidth && aiImageHeight) {
-          // 如果获取不到实际尺寸，假设AI返回的尺寸就是实际尺寸（不需要缩放）
-          console.log('使用AI图像尺寸作为实际尺寸，不进行缩放');
-        } else {
-          console.warn('缺少图像尺寸信息，无法进行坐标转换');
         }
-        
+
+        const tools = getTools(imageData.examType);
+
+        // 统计已有的Cobb角数量（用于自动编号）
+        let cobbCount = measurements.filter(m => m.type.startsWith('Cobb')).length;
+
         const aiMeasurements = aiData.measurements
           .filter((m: any) => {
             // 检查标注类型是否存在于配置中
-            const tools = getTools(imageData.examType);
-            const tool = tools.find((t: any) => t.id === m.type.toLowerCase() || t.name === m.type);
-            
-            if (!tool) {
-              console.warn(`跳过未知的标注类型: ${m.type}`);
-              return false;
-            }
-            return true;
+            // 优先匹配 name（精确匹配），然后匹配 id（小写匹配），最后匹配 name（不区分大小写）
+            const tool = tools.find((t: any) =>
+              t.name === m.type ||
+              t.id === m.type.toLowerCase() ||
+              t.name.toLowerCase() === m.type.toLowerCase() ||
+              // 特殊处理：所有Cobb-*类型都匹配到cobb工具
+              (m.type.startsWith('Cobb-') && t.id === 'cobb')
+            );
+
+            return !!tool;
           })
           .map((m: any) => {
-            console.log(`处理测量 ${m.type}，原始点:`, m.points);
-            
             // 获取该标注类型所需的点数
             const tools = getTools(imageData.examType);
-            const tool = tools.find((t: any) => t.id === m.type.toLowerCase() || t.name === m.type);
+            const tool = tools.find((t: any) =>
+              t.name === m.type ||
+              t.id === m.type.toLowerCase() ||
+              t.name.toLowerCase() === m.type.toLowerCase() ||
+              (m.type.startsWith('Cobb-') && t.id === 'cobb')
+            );
             const requiredPoints = tool?.pointsNeeded || m.points.length;
-            
+
             // 如果返回的点数超过所需点数，只保留所需数量的点
             let processedPoints = m.points;
             if (requiredPoints > 0 && m.points.length > requiredPoints) {
               processedPoints = m.points.slice(0, requiredPoints);
-              console.log(`${m.type} 返回了 ${m.points.length} 个点，只保留前 ${requiredPoints} 个点`);
             }
-            
+
             // 转换坐标
             const scaledPoints = processedPoints.map((p: any) => ({
               x: p.x * scaleX,
               y: p.y * scaleY
             }));
-            
-            console.log(`转换后的点:`, scaledPoints);
-            
+
+            // 将所有Cobb-*类型统一映射为Cobb1, Cobb2, Cobb3
+            let finalType = m.type;
+            let isCobb = false;
+            if (m.type.startsWith('Cobb-')) {
+              cobbCount++;
+              finalType = `Cobb${cobbCount}`;
+              isCobb = true;
+            }
+
             // 根据type和points重新计算value
-            const value = calculateMeasurementValue(m.type, scaledPoints);
+            // 对于Cobb类型，使用'cobb'配置；其他类型使用原始类型
+            const typeForCalculation = isCobb ? 'cobb' : m.type;
+            const value = calculateMeasurementValue(typeForCalculation, scaledPoints);
+
             return {
               id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
-              type: m.type,
+              type: finalType,  // 使用映射后的类型（Cobb1, Cobb2, Cobb3）
               value: value,
               points: scaledPoints,
-              description: getDescriptionForType(m.type)
+              description: isCobb ? 'Cobb角测量' : getDescriptionForType(m.type),
+              originalType: m.type  // 保留原始类型用于调试
             };
           });
-        
-        console.log('转换后的测量结果:', aiMeasurements);
+
         setMeasurements(aiMeasurements);
         setSaveMessage(`AI检测完成，已加载 ${aiMeasurements.length} 个标注`);
         setTimeout(() => setSaveMessage(''), 3000);
@@ -3600,7 +3614,11 @@ function ImageCanvas({
                               : measurement.type}
                           </span>
                           <span className={`font-mono whitespace-nowrap ${
-                            isSelected ? 'text-white' : isHovered ? 'text-yellow-200' : 'text-yellow-400'
+                            isSelected
+                              ? 'text-white'
+                              : isHovered
+                                ? (measurement.value.startsWith('-') ? 'text-blue-300' : 'text-yellow-200')
+                                : (measurement.value.startsWith('-') ? 'text-blue-400' : 'text-yellow-400')
                           }`}>
                             {measurement.value}
                           </span>

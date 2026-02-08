@@ -20,18 +20,20 @@ export function calculateMeasurementValue(
   points: Point[],
   context: CalculationContext
 ): string {
-  const config = getAnnotationConfig(type);
-  
+  // 特殊处理：CobbN 类型使用 cobb 配置
+  const configType = /^Cobb\d+$/i.test(type) ? 'cobb' : type;
+  const config = getAnnotationConfig(configType);
+
   if (!config) {
     return '辅助标注';
   }
-  
+
   const results = config.calculateResults(points, context);
-  
+
   if (results.length === 0) {
     return '辅助标注';
   }
-  
+
   // 如果有多个测量结果，返回第一个
   return `${results[0].value}${results[0].unit}`;
 }
@@ -40,6 +42,11 @@ export function calculateMeasurementValue(
  * 根据标注类型获取描述
  */
 export function getDescriptionForType(type: string): string {
+  // 特殊处理：CobbN 类型
+  if (/^Cobb\d+$/i.test(type)) {
+    return 'Cobb角测量';
+  }
+
   const config = getAnnotationConfig(type);
   return config?.description || type;
 }
@@ -168,8 +175,7 @@ export function generateDefaultValue(
 export function getAnteriorTools() {
   return [
     't1-tilt',
-    'cobb-thoracic',
-    'cobb-lumbar',
+    'cobb',  // 统一的Cobb工具
     'ca',
     'pelvic',
     'sacral',

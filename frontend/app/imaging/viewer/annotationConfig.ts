@@ -236,140 +236,87 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
 };
 
 /**
- * Cobb-Thoracic 胸弯Cobb角测量
+ * Cobb 通用Cobb角测量
  * 4点测量：两条终板线的夹角
+ * 用于所有类型的Cobb角（胸弯、腰弯、胸腰弯等）
  */
-export const COBB_THORACIC_CONFIG: AnnotationConfig = {
-  id: 'cobb-thoracic',
-  name: 'Cobb-Thoracic',
+export const COBB_CONFIG: AnnotationConfig = {
+  id: 'cobb',
+  name: 'Cobb',
   icon: 'ri-compass-3-line',
-  description: '胸弯Cobb角测量',
+  description: 'Cobb角测量',
   pointsNeeded: 4,
   category: 'measurement',
   color: '#f59e0b',
-  
+
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 4) return [];
-    
-    // 计算第一条线的角度（点1到点2）
+
+    // 计算第一条线的角度（点1到点2，上端椎的上边缘）
     const dx1 = points[1].x - points[0].x;
     const dy1 = points[1].y - points[0].y;
     const angle1 = Math.atan2(dy1, dx1);
 
-    // 计算第二条线的角度（点3到点4）
+    // 计算第二条线的角度（点3到点4，下端椎的下边缘）
     const dx2 = points[3].x - points[2].x;
     const dy2 = points[3].y - points[2].y;
     const angle2 = Math.atan2(dy2, dx2);
 
-    // 计算两条线的夹角（0-180度范围）
+    // 计算两条线的夹角（绝对值）
     let angleDiff = Math.abs(angle2 - angle1) * (180 / Math.PI);
-    
+
     // 确保角度在0-180度范围内
     if (angleDiff > 180) {
       angleDiff = 360 - angleDiff;
     }
-    
+
+    // 判断正负：比较左右两侧的y坐标距离
+    // 左边点的y距离（点1到点3）
+    const leftYDistance = Math.abs(points[2].y - points[0].y);
+    // 右边点的y距离（点2到点4）
+    const rightYDistance = Math.abs(points[3].y - points[1].y);
+
+    // 左凸（左边距离大）→ 正值
+    // 右凸（右边距离大）→ 负值
+    const signedAngle = leftYDistance > rightYDistance ? angleDiff : -angleDiff;
+
     return [{
-      name: '胸弯Cobb角',
-      value: angleDiff.toFixed(1),
+      name: 'Cobb角',
+      value: signedAngle.toFixed(1),
       unit: '°'
     }];
   },
-  
+
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     return calculateCenterPoint(points);
   },
-  
+
   isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
     if (points.length < 4) return false;
-    
+
     // 检查是否接近任意点
     for (const point of points) {
       if (isPointNearPoint(mousePoint, point, tolerance)) return true;
     }
-    
+
     // 检查是否接近两条线段
     return isPointNearLine(mousePoint, points[0], points[1], tolerance) ||
            isPointNearLine(mousePoint, points[2], points[3], tolerance);
   },
-  
+
   isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
-    return COBB_THORACIC_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+    return COBB_CONFIG.isInHoverRange(mousePoint, points, tolerance);
   },
-  
+
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
     return Renderers.renderTwoLines(points, displayColor);
   }
 };
 
-/**
- * Cobb-Lumbar 腰弯Cobb角测量
- * 4点测量：两条终板线的夹角
- */
-export const COBB_LUMBAR_CONFIG: AnnotationConfig = {
-  id: 'cobb-lumbar',
-  name: 'Cobb-Lumbar',
-  icon: 'ri-compass-3-line',
-  description: '腰弯Cobb角测量',
-  pointsNeeded: 4,
-  category: 'measurement',
-  color: '#10b981',
-  
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 4) return [];
-    
-    // 计算第一条线的角度（点1到点2）
-    const dx1 = points[1].x - points[0].x;
-    const dy1 = points[1].y - points[0].y;
-    const angle1 = Math.atan2(dy1, dx1);
-
-    // 计算第二条线的角度（点3到点4）
-    const dx2 = points[3].x - points[2].x;
-    const dy2 = points[3].y - points[2].y;
-    const angle2 = Math.atan2(dy2, dx2);
-
-    // 计算两条线的夹角（0-180度范围）
-    let angleDiff = Math.abs(angle2 - angle1) * (180 / Math.PI);
-    
-    // 确保角度在0-180度范围内
-    if (angleDiff > 180) {
-      angleDiff = 360 - angleDiff;
-    }
-    
-    return [{
-      name: '腰弯Cobb角',
-      value: angleDiff.toFixed(1),
-      unit: '°'
-    }];
-  },
-  
-  getLabelPosition: (points: Point[], imageScale: number = 1) => {
-    if (points.length < 4) return points[0] || { x: 0, y: 0 };
-    return calculateCenterPoint(points);
-  },
-  
-  isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
-    if (points.length < 4) return false;
-    
-    // 检查是否接近任意点
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-    
-    // 检查是否接近两条线段
-    return isPointNearLine(mousePoint, points[0], points[1], tolerance) ||
-           isPointNearLine(mousePoint, points[2], points[3], tolerance);
-  },
-  
-  isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
-    return COBB_LUMBAR_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
-  
-  renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
-    return Renderers.renderTwoLines(points, displayColor);
-  }
-};
+// 保留旧的配置作为别名，以兼容现有代码
+export const COBB_THORACIC_CONFIG = COBB_CONFIG;
+export const COBB_LUMBAR_CONFIG = COBB_CONFIG;
 
 /**
  * CA 锁骨角测量
@@ -1624,8 +1571,10 @@ export const AUX_ANGLE_CONFIG: AnnotationConfig = {
 
 export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   't1-tilt': T1_TILT_CONFIG,
-  'cobb-thoracic': COBB_THORACIC_CONFIG,
-  'cobb-lumbar': COBB_LUMBAR_CONFIG,
+  'cobb': COBB_CONFIG,
+  'cobb-thoracic': COBB_CONFIG,  // 兼容旧数据
+  'cobb-lumbar': COBB_CONFIG,     // 兼容旧数据
+  'cobb-thoracolumbar': COBB_CONFIG,  // 兼容AI返回
   'ca': CA_CONFIG,
   'pelvic': PELVIC_CONFIG,
   'sacral': SACRAL_CONFIG,
@@ -1659,6 +1608,11 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
  * 根据标注类型ID获取配置
  */
 export function getAnnotationConfig(typeId: string): AnnotationConfig | undefined {
+  // 特殊处理：Cobb1, Cobb2, Cobb3 等都映射到 cobb 配置
+  if (/^Cobb\d+$/i.test(typeId)) {
+    return ANNOTATION_CONFIGS['cobb'];
+  }
+
   // 标准化typeId：转小写并将空格替换为连字符
   const normalizedId = typeId.toLowerCase().replace(/\s+/g, '-');
   return ANNOTATION_CONFIGS[normalizedId];

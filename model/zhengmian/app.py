@@ -247,24 +247,30 @@ def calc_tilt_angle(left_point: dict, right_point: dict) -> float:
 
 def calc_cobb_angle(upper_left: dict, upper_right: dict, lower_left: dict, lower_right: dict) -> float:
     """
-    计算Cobb角
-    上端椎使用下边缘，下端椎使用上边缘
-    返回角度，左凸为正（脊柱向左侧弯），右凸为负（脊柱向右侧弯）
+    计算Cobb角（带正负）
+    上端椎使用上边缘（点1-2），下端椎使用下边缘（点3-4）
+
+    正负判断逻辑：
+    - 左凸（正值）：左边点的y距离 > 右边点的y距离（点1到点3的距离 > 点2到点4的距离）
+    - 右凸（负值）：右边点的y距离 > 左边点的y距离（点2到点4的距离 > 点1到点3的距离）
     """
-    # 上端椎下边缘的倾斜角
+    # 上端椎上边缘的倾斜角
     upper_angle = calc_angle(upper_left, upper_right)
-    # 下端椎上边缘的倾斜角
+    # 下端椎下边缘的倾斜角
     lower_angle = calc_angle(lower_left, lower_right)
 
-    # Cobb角 = 两条线的夹角
+    # Cobb角 = 两条线的夹角（绝对值）
     cobb_magnitude = abs(upper_angle - lower_angle)
 
-    # 判断正负：基于上端椎和下端椎的倾斜方向
-    # 左凸（向左侧弯）：上端椎右边高（upper_angle > 0），下端椎左边高（lower_angle < 0）
-    # 右凸（向右侧弯）：上端椎左边高（upper_angle < 0），下端椎右边高（lower_angle > 0）
+    # 判断正负：比较左右两侧的y坐标距离
+    # 左边点的y距离（点1到点3）
+    left_y_distance = abs(lower_left["y"] - upper_left["y"])
+    # 右边点的y距离（点2到点4）
+    right_y_distance = abs(lower_right["y"] - upper_right["y"])
 
-    # 简化判断：如果上端椎倾斜角 > 下端椎倾斜角，说明是左凸
-    if upper_angle > lower_angle:
+    # 左凸（左边距离大）→ 正值
+    # 右凸（右边距离大）→ 负值
+    if left_y_distance > right_y_distance:
         return cobb_magnitude  # 左凸为正
     else:
         return -cobb_magnitude  # 右凸为负
@@ -273,19 +279,30 @@ def calc_cobb_angle(upper_left: dict, upper_right: dict, lower_left: dict, lower
 def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
     """
     自动查找最多3个Cobb角：
-    1. 胸弯 (T2-T11/T12)
-    2. 胸腰弯 (T2-L1)
-    3. 腰弯 (L1/L2-L4)
+    1. 胸弯 (Thoracic): 顶椎在 T2-T12
+    2. 胸腰弯 (Thoracolumbar): 顶椎在 T12-L1
+    3. 腰弯 (Lumbar): 顶椎在 L2-L4
+
+    注意：T12 可能同时出现在胸弯和胸腰弯中，优先归为胸腰弯
+
+    Cobb角正负判断：
+    - 顶椎在中线右侧 → 右凸 → 正值
+    - 顶椎在中线左侧 → 左凸 → 负值
 
     只返回绝对值大于10度的Cobb角
     """
     cobb_angles = []
+    used_apex_vertebrae = set()  # 记录已使用的顶椎，避免重复
 
     # 定义三个区域的椎骨范围
+    # 胸弯: 顶椎在 T2-T12
+    # 胸腰弯: 顶椎在 T12-L1
+    # 腰弯: 顶椎在 L2-L4
+    # 注意：T12 在胸弯和胸腰弯中重叠，优先归为胸腰弯
     regions = [
+        {"name": "Thoracolumbar", "range": ["T12", "L1"]},  # 先计算胸腰弯，T12优先归这里
         {"name": "Thoracic", "range": ["T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"]},
-        {"name": "Thoracolumbar", "range": ["T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "L1"]},
-        {"name": "Lumbar", "range": ["L1", "L2", "L3", "L4"]}
+        {"name": "Lumbar", "range": ["L2", "L3", "L4"]}
     ]
 
     for region in regions:
@@ -296,7 +313,7 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
             continue
 
         # 步骤1: 找到顶椎（离中线最远的椎骨）
-        # 先计算所有椎骨的中心x坐标的平均值作为中线
+        # 先计算该区域所有椎骨的中心x坐标的平均值作为中线
         center_x_values = [data["corners"]["center"]["x"] for data in available_vertebrae.values()]
         midline_x = sum(center_x_values) / len(center_x_values)
 
@@ -319,10 +336,18 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
         if apex_vertebra is None:
             continue
 
-        # 步骤2: 在顶椎上方找倾斜角最大的椎骨作为上端椎（如果没有，顶椎就是上端椎）
+        # 检查该顶椎是否已被使用（避免重复计算）
+        if apex_name in used_apex_vertebrae:
+            continue
+
+        # 步骤2: 在顶椎上方找倾斜角最大的椎骨作为上端椎
+        # 如果没有找到倾斜角更大的，使用该区域最上方的椎骨
         max_tilt = apex_tilt
-        upper_vertebra = apex_vertebra
-        upper_name = apex_name
+        upper_vertebra = None
+        upper_name = None
+        topmost_vertebra = None
+        topmost_name = None
+        topmost_y = float('inf')
 
         for name, data in available_vertebrae.items():
             center_y = data["corners"]["center"]["y"]
@@ -330,15 +355,36 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
             if center_y < apex_y - 10:  # 至少相差10像素
                 corners = data["corners"]
                 tilt = calc_angle(corners["top_left"], corners["top_right"])
+
+                # 记录倾斜角最大的椎骨
                 if tilt > max_tilt:
                     max_tilt = tilt
                     upper_vertebra = corners
                     upper_name = name
 
-        # 步骤3: 在顶椎下方找倾斜角最小的椎骨作为下端椎（如果没有，顶椎就是下端椎）
+                # 记录最上方的椎骨（y坐标最小）
+                if center_y < topmost_y:
+                    topmost_y = center_y
+                    topmost_vertebra = corners
+                    topmost_name = name
+
+        # 如果没有找到倾斜角更大的，使用最上方的椎骨
+        if upper_vertebra is None and topmost_vertebra is not None:
+            upper_vertebra = topmost_vertebra
+            upper_name = topmost_name
+        # 如果顶椎上方没有任何椎骨，使用顶椎本身
+        elif upper_vertebra is None:
+            upper_vertebra = apex_vertebra
+            upper_name = apex_name
+
+        # 步骤3: 在顶椎下方找倾斜角最小的椎骨作为下端椎
+        # 如果没有找到倾斜角更小的，使用该区域最下方的椎骨
         min_tilt = apex_tilt
-        lower_vertebra = apex_vertebra
-        lower_name = apex_name
+        lower_vertebra = None
+        lower_name = None
+        bottommost_vertebra = None
+        bottommost_name = None
+        bottommost_y = float('-inf')
 
         for name, data in available_vertebrae.items():
             center_y = data["corners"]["center"]["y"]
@@ -346,23 +392,43 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
             if center_y > apex_y + 10:  # 至少相差10像素
                 corners = data["corners"]
                 tilt = calc_angle(corners["top_left"], corners["top_right"])
+
+                # 记录倾斜角最小的椎骨
                 if tilt < min_tilt:
                     min_tilt = tilt
                     lower_vertebra = corners
                     lower_name = name
 
+                # 记录最下方的椎骨（y坐标最大）
+                if center_y > bottommost_y:
+                    bottommost_y = center_y
+                    bottommost_vertebra = corners
+                    bottommost_name = name
+
+        # 如果没有找到倾斜角更小的，使用最下方的椎骨
+        if lower_vertebra is None and bottommost_vertebra is not None:
+            lower_vertebra = bottommost_vertebra
+            lower_name = bottommost_name
+        # 如果顶椎下方没有任何椎骨，使用顶椎本身
+        elif lower_vertebra is None:
+            lower_vertebra = apex_vertebra
+            lower_name = apex_name
+
         # 必须有上端椎和下端椎，且不能是同一个椎骨
         if upper_vertebra and lower_vertebra and upper_name != lower_name:
-            # 上端椎使用下边缘，下端椎使用上边缘
+            # Cobb角定义：上端椎的上边缘 与 下端椎的下边缘 的夹角
+            # calc_cobb_angle 会自动判断正负
             cobb = calc_cobb_angle(
-                upper_vertebra["bottom_left"],
-                upper_vertebra["bottom_right"],
-                lower_vertebra["top_left"],
-                lower_vertebra["top_right"]
+                upper_vertebra["top_left"],      # 上端椎的上边缘左端点（点1）
+                upper_vertebra["top_right"],     # 上端椎的上边缘右端点（点2）
+                lower_vertebra["bottom_left"],   # 下端椎的下边缘左端点（点3）
+                lower_vertebra["bottom_right"]   # 下端椎的下边缘右端点（点4）
             )
 
             # 只保留绝对值大于10度的（临床标准）
+            print(f"[DEBUG] {region['name']} Cobb角 = {cobb:.2f}° (上端椎={upper_name}, 下端椎={lower_name}, 顶椎={apex_name})")
             if abs(cobb) > 10:
+                print(f"[DEBUG] ✓ {region['name']} Cobb角 {cobb:.2f}° 已添加")
                 cobb_angles.append({
                     "type": f"Cobb-{region['name']}",
                     "angle": cobb,
@@ -370,12 +436,16 @@ def find_cobb_angles(vertebrae_data: Dict[str, dict]) -> List[Dict]:
                     "lower_vertebra": lower_name,
                     "apex_vertebra": apex_name,
                     "points": [
-                        {"x": upper_vertebra["bottom_left"]["x"], "y": upper_vertebra["bottom_left"]["y"]},
-                        {"x": upper_vertebra["bottom_right"]["x"], "y": upper_vertebra["bottom_right"]["y"]},
-                        {"x": lower_vertebra["top_left"]["x"], "y": lower_vertebra["top_left"]["y"]},
-                        {"x": lower_vertebra["top_right"]["x"], "y": lower_vertebra["top_right"]["y"]}
+                        {"x": upper_vertebra["top_left"]["x"], "y": upper_vertebra["top_left"]["y"]},
+                        {"x": upper_vertebra["top_right"]["x"], "y": upper_vertebra["top_right"]["y"]},
+                        {"x": lower_vertebra["bottom_left"]["x"], "y": lower_vertebra["bottom_left"]["y"]},
+                        {"x": lower_vertebra["bottom_right"]["x"], "y": lower_vertebra["bottom_right"]["y"]}
                     ]
                 })
+                # 标记该顶椎已被使用
+                used_apex_vertebrae.add(apex_name)
+            else:
+                print(f"[DEBUG] ✗ {region['name']} Cobb角 {cobb:.2f}° 小于阈值，已过滤")
 
     return cobb_angles
 
