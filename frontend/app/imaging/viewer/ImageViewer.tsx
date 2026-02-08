@@ -72,6 +72,10 @@ interface Measurement {
   value: string;
   points: any[];
   description?: string;  // 对于辅助图形，用于存储用户自定义的文字标注
+  // Cobb角椎体信息（仅用于AI检测的Cobb角）
+  upperVertebra?: string;   // 上端椎，例如 "T6"
+  lowerVertebra?: string;   // 下端椎，例如 "T12"
+  apexVertebra?: string;    // 顶椎，例如 "T9"
 }
 
 interface Point {
@@ -921,13 +925,27 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             const typeForCalculation = isCobb ? 'cobb' : m.type;
             const value = calculateMeasurementValue(typeForCalculation, scaledPoints);
 
+            // 调试：打印椎体信息
+            if (isCobb) {
+              console.log(`[DEBUG] ${finalType} 椎体信息:`, {
+                upper_vertebra: m.upper_vertebra,
+                lower_vertebra: m.lower_vertebra,
+                apex_vertebra: m.apex_vertebra,
+                原始数据: m
+              });
+            }
+
             return {
               id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
               type: finalType,  // 使用映射后的类型（Cobb1, Cobb2, Cobb3）
               value: value,
               points: scaledPoints,
               description: isCobb ? 'Cobb角测量' : getDescriptionForType(m.type),
-              originalType: m.type  // 保留原始类型用于调试
+              originalType: m.type,  // 保留原始类型用于调试
+              // 保存椎体信息（仅Cobb角有）
+              upperVertebra: m.upper_vertebra,
+              lowerVertebra: m.lower_vertebra,
+              apexVertebra: m.apex_vertebra,
             };
           });
 
@@ -3604,6 +3622,12 @@ function ImageCanvas({
                               }
                             }
                           }}
+                          title={
+                            // 方案C：悬浮时显示完整椎体信息
+                            measurement.upperVertebra && measurement.lowerVertebra && measurement.apexVertebra
+                              ? `上端椎: ${measurement.upperVertebra} | 下端椎: ${measurement.lowerVertebra} | 顶椎: ${measurement.apexVertebra}`
+                              : undefined
+                          }
                         >
                           <span className={`truncate mr-2 font-medium ${
                             isSelected ? 'text-white' : isHovered ? 'text-yellow-300' : 'text-white/90'
@@ -3620,7 +3644,13 @@ function ImageCanvas({
                                 ? (measurement.value.startsWith('-') ? 'text-blue-300' : 'text-yellow-200')
                                 : (measurement.value.startsWith('-') ? 'text-blue-400' : 'text-yellow-400')
                           }`}>
+                            {/* 方案B：紧凑显示椎体范围 */}
                             {measurement.value}
+                            {measurement.upperVertebra && measurement.lowerVertebra && (
+                              <span className="text-white/60 text-xs ml-1">
+                                ({measurement.upperVertebra}-{measurement.lowerVertebra})
+                              </span>
+                            )}
                           </span>
                         </div>
                         
