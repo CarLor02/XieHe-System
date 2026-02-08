@@ -44,6 +44,10 @@ class PointXY(BaseModel):
 class Measurement(BaseModel):
     type: str
     points: List[PointXY]
+    angle: Optional[float] = None  # Cobb角的角度值
+    upper_vertebra: Optional[str] = None  # 上端椎（例如 "T6"）
+    lower_vertebra: Optional[str] = None  # 下端椎（例如 "T12"）
+    apex_vertebra: Optional[str] = None   # 顶椎（例如 "T9"）
 
 class AnnotationsResponse(BaseModel):
     """前端交互系统需要的格式"""

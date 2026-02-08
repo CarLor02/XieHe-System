@@ -10,15 +10,18 @@ interface ModelCardProps {
     status: string;
     view_type: string;
     isActive?: boolean;
+    is_system_default?: boolean;
+    can_delete?: boolean;
     accuracy: string;
     lastUpdated: string;
     category: string;
     endpoint_url?: string;
   };
-  onTestClick: (model: any) => void;
+  onActivateClick: (model: any) => void;
+  onDeleteClick: (model: any) => void;
 }
 
-export default function ModelCard({ model, onTestClick }: ModelCardProps) {
+export default function ModelCard({ model, onActivateClick, onDeleteClick }: ModelCardProps) {
 
   const getViewTypeLabel = (type: string) => {
     switch (type) {
@@ -37,18 +40,40 @@ export default function ModelCard({ model, onTestClick }: ModelCardProps) {
     }
   }
 
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'ready':
+        return { label: '就绪', color: 'bg-green-500', textColor: 'text-green-700' };
+      case 'error':
+        return { label: '错误', color: 'bg-red-500', textColor: 'text-red-700' };
+      case 'stopped':
+        return { label: '离线', color: 'bg-gray-400', textColor: 'text-gray-700' };
+      case 'training':
+        return { label: '训练中', color: 'bg-yellow-500', textColor: 'text-yellow-700' };
+      default:
+        return { label: '未知', color: 'bg-gray-400', textColor: 'text-gray-700' };
+    }
+  };
+
+  const statusInfo = getStatusDisplay(model.status);
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow group relative">
 
-      {/* Active Badge */}
-      {model.isActive && (
-        <div className="absolute top-0 right-0 mt-4 mr-4">
+      {/* Badges */}
+      <div className="absolute top-0 right-0 mt-4 mr-4 flex flex-col items-end gap-2">
+        {model.is_system_default && (
+          <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+            系统默认
+          </span>
+        )}
+        {model.isActive && (
           <span className="flex items-center space-x-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
             <i className="ri-check-line"></i>
             <span>当前使用中</span>
           </span>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex items-start mb-4">
         <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center mr-4 border border-gray-100">
@@ -73,9 +98,9 @@ export default function ModelCard({ model, onTestClick }: ModelCardProps) {
       <div className="space-y-2 mb-4">
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-500">状态</span>
-          <span className="text-gray-700 flex items-center">
-            <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-            就绪
+          <span className={`${statusInfo.textColor} flex items-center font-medium`}>
+            <span className={`w-2 h-2 rounded-full ${statusInfo.color} mr-2`}></span>
+            {statusInfo.label}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
@@ -84,17 +109,33 @@ export default function ModelCard({ model, onTestClick }: ModelCardProps) {
         </div>
       </div>
 
-      <div className="pt-4 border-t border-gray-100 flex items-center space-x-3">
-        <button
-          onClick={() => onTestClick(model)}
-          className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center"
-        >
-          <i className="ri-flask-line mr-1"></i>
-          测试模型
-        </button>
-        <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-colors">
-          <i className="ri-settings-3-line text-lg"></i>
-        </button>
+      <div className="pt-4 border-t border-gray-100 flex items-center gap-3">
+        {/* 激活按钮（非激活状态时显示） */}
+        {!model.isActive && (
+          <button
+            onClick={() => onActivateClick(model)}
+            className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            切换使用
+          </button>
+        )}
+
+        {/* 已激活状态 */}
+        {model.isActive && (
+          <div className="flex-1 bg-green-50 text-green-700 py-2 rounded-md text-sm font-medium text-center">
+            ✓ 当前使用中
+          </div>
+        )}
+
+        {/* 删除按钮（仅用户自定义模型显示） */}
+        {model.can_delete && (
+          <button
+            onClick={() => onDeleteClick(model)}
+            className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-md text-sm font-medium transition-colors"
+          >
+            删除
+          </button>
+        )}
       </div>
     </div>
   );

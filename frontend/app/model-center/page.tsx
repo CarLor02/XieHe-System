@@ -6,7 +6,7 @@ import UserSettings from '@/components/UserSettings';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AddModelDialog from './AddModelDialog';
-import TestModelDialog from './TestModelDialog';
+import DeleteModelDialog from './DeleteModelDialog';
 import ModelCard from './ModelCard';
 import { createAuthenticatedClient, useUser } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
@@ -19,6 +19,8 @@ interface ModelData {
   endpoint_url: string;
   status: string;
   isActive: boolean;
+  is_system_default?: boolean;
+  can_delete?: boolean;
   accuracy: string;
   lastUpdated: string;
   category: string;
@@ -32,7 +34,7 @@ export default function ModelCenter() {
   const isAdmin = user?.is_system_admin || user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'team_admin';
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [testModel, setTestModel] = useState<{ id: string, name: string } | null>(null);
+  const [deleteModel, setDeleteModel] = useState<any>(null);
 
   const [activeTab, setActiveTab] = useState('all');
   const [models, setModels] = useState<ModelData[]>([]);
@@ -76,6 +78,8 @@ export default function ModelCenter() {
         endpoint_url: model.endpoint_url,
         status: model.status || 'ready',
         isActive: model.is_active,
+        is_system_default: model.is_system_default,
+        can_delete: model.can_delete,
         accuracy: '0%',
         lastUpdated: new Date(model.updated_at).toLocaleDateString('zh-CN'),
         category: model.view_type === 'front' ? '正面' : model.view_type === 'side' ? '侧面' : '其他',
@@ -99,6 +103,54 @@ export default function ModelCenter() {
     if (activeTab === 'all') return true;
     return m.view_type === activeTab;
   });
+
+  // 激活模型
+  const handleActivateModel = async (model: ModelData) => {
+    try {
+      const { createAuthenticatedClient } = await import('@/store/authStore');
+      const client = createAuthenticatedClient();
+
+      await client.post(`/api/v1/models/${model.id}/activate`);
+
+      // 刷新模型列表
+      await loadModels();
+
+      // 显示成功提示（可选）
+      alert(`已切换到模型: ${model.title}`);
+    } catch (err: any) {
+      console.error('Failed to activate model:', err);
+      alert(err.response?.data?.detail || '激活模型失败');
+    }
+  };
+
+  // 删除模型
+  const handleDeleteModel = async () => {
+    if (!deleteModel) return;
+
+    try {
+      const { createAuthenticatedClient } = await import('@/store/authStore');
+      const client = createAuthenticatedClient();
+
+      const response = await client.delete(`/api/v1/models/${deleteModel.id}`);
+
+      // 关闭对话框
+      setDeleteModel(null);
+
+      // 刷新模型列表
+      await loadModels();
+
+      // 显示提示
+      if (response.data.fallback_to_default) {
+        alert(`模型已删除，已自动切换到系统默认模型`);
+      } else {
+        alert('模型删除成功');
+      }
+    } catch (err: any) {
+      console.error('Failed to delete model:', err);
+      alert(err.response?.data?.detail || '删除模型失败');
+      setDeleteModel(null);
+    }
+  };
 
   // 权限检查：只有超级管理员可以访问模型中心
   if (!isSuperuser) {
@@ -222,7 +274,8 @@ export default function ModelCenter() {
                 <ModelCard
                   key={model.id}
                   model={model}
-                  onTestClick={(m) => setTestModel({ id: m.id, name: m.title })}
+                  onActivateClick={handleActivateModel}
+                  onDeleteClick={(m) => setDeleteModel(m)}
                 />
               ))}
             </div>
@@ -248,14 +301,12 @@ export default function ModelCenter() {
         onSuccess={loadModels}
       />
 
-      {testModel && (
-        <TestModelDialog
-          isOpen={!!testModel}
-          modelId={testModel.id}
-          modelName={testModel.name}
-          onClose={() => setTestModel(null)}
-        />
-      )}
+      <DeleteModelDialog
+        isOpen={!!deleteModel}
+        model={deleteModel}
+        onConfirm={handleDeleteModel}
+        onCancel={() => setDeleteModel(null)}
+      />
     </div>
   );
 }
