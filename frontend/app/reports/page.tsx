@@ -26,11 +26,11 @@ interface ReportData {
   study_id?: number;
   template_id?: number;
   report_title: string;
-  clinical_history?: string;
-  examination_technique?: string;
-  findings?: string;
-  impression?: string;
-  recommendations?: string;
+  clinical_history: string;
+  examination_technique: string;
+  findings: string;
+  impression: string;
+  recommendations: string;
   primary_diagnosis?: string;
   secondary_diagnosis?: string;
   priority: string;
@@ -51,14 +51,6 @@ interface ReportData {
   notes?: string;
 }
 
-interface ReportListResponse {
-  reports: ReportData[];
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-}
-
 interface ReportTemplate {
   id: number;
   template_name: string;
@@ -70,47 +62,10 @@ interface ReportTemplate {
   };
 }
 
-// API调用函数
-const fetchReports = async (
-  page: number = 1,
-  pageSize: number = 20,
-  search?: string,
-  status?: string,
-  priority?: string
-): Promise<ReportListResponse> => {
-  try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      page_size: pageSize.toString(),
-    });
-
-    if (search) params.append('search', search);
-    if (status && status !== 'all') params.append('status', status);
-    if (priority && priority !== 'all') params.append('priority', priority);
-
-    const response = await fetch(`/api/v1/reports?${params}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('获取报告列表失败');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('获取报告列表错误:', error);
-    throw error;
-  }
-};
-
 export default function ReportsPage() {
   const router = useRouter();
   const { isAuthenticated } = useUser();
   const [reports, setReports] = useState<ReportData[]>([]);
-  const [templates, setTemplates] = useState<ReportTemplate[]>([]);
   const [selectedReport, setSelectedReport] = useState<ReportData | null>(null);
   const [selectedTemplate, setSelectedTemplate] =
     useState<ReportTemplate | null>(null);
@@ -125,7 +80,6 @@ export default function ReportsPage() {
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
   const [totalReports, setTotalReports] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const reportsPerPage = 20;
 
@@ -167,35 +121,36 @@ export default function ReportsPage() {
       const result = extractPaginatedData<any>(response);
 
       // 转换API数据格式
-      const apiReports = result.items.map((report: any) => ({
-        id: report.id,
-        report_number: report.report_no || `RPT-${report.id}`,
-        report_title: report.title || '诊断报告',
-        status: report.status || 'draft',
-        priority: report.priority || 'normal',
-        patient_name: report.patient_name || '未知患者',
-        patient_id: report.patient_id,
-        examination_date:
-          report.study_date || report.created_at?.split('T')[0] || '',
-        report_date:
-          report.report_date || report.created_at?.split('T')[0] || '',
-        reporting_physician: report.doctor_name || '未指定医生',
-        primary_diagnosis: report.diagnosis || '',
-        clinical_history: report.clinical_history || '',
-        examination_technique: report.examination_technique || '',
-        findings: report.findings || '',
-        impression: report.impression || '',
-        recommendations: report.recommendations || '',
-        notes: report.notes || '',
-        tags: report.tags || [],
-        ai_assisted: report.ai_assisted || false,
-        ai_confidence: report.ai_confidence || 0,
-        created_at: report.created_at || '',
-        updated_at: report.updated_at || '',
-      }));
+      if (result.items && result.items.length > 0) {
+        const apiReports = result.items.map((report: any) => ({
+          id: report.id,
+          report_number: report.report_no || `RPT-${report.id}`,
+          report_title: report.title || '诊断报告',
+          status: report.status || 'draft',
+          priority: report.priority || 'normal',
+          patient_name: report.patient_name || '未知患者',
+          patient_id: report.patient_id,
+          examination_date:
+            report.study_date || report.created_at?.split('T')[0] || '',
+          report_date:
+            report.report_date || report.created_at?.split('T')[0] || '',
+          reporting_physician: report.doctor_name || '未指定医生',
+          primary_diagnosis: report.diagnosis || '',
+          clinical_history: report.clinical_history || '',
+          examination_technique: report.examination_technique || '',
+          findings: report.findings || '',
+          impression: report.impression || '',
+          recommendations: report.recommendations || '',
+          notes: report.notes || '',
+          tags: report.tags || [],
+          ai_assisted: report.ai_assisted || false,
+          ai_confidence: report.ai_confidence || 0,
+          created_at: report.created_at || '',
+          updated_at: report.updated_at || '',
+        }));
 
-      setReports(apiReports);
-      setTotalReports(result.total);
+        setReports(apiReports);
+        setTotalReports(result.total);
       } else {
         setReports([]);
         setTotalReports(0);
