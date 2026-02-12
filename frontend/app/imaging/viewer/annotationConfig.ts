@@ -520,7 +520,7 @@ export const AVT_CONFIG: AnnotationConfig = {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
     return {
       x: (points[0].x + points[1].x) / 2,
-      y: Math.min(points[0].y, points[1].y) - 20
+      y: Math.min(points[0].y, points[1].y) - 20 / imageScale
     };
   },
   
@@ -571,7 +571,7 @@ export const TS_CONFIG: AnnotationConfig = {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
     return {
       x: (points[0].x + points[1].x) / 2,
-      y: Math.min(points[0].y, points[1].y) - 20
+      y: Math.min(points[0].y, points[1].y) - 20 / imageScale
     };
   },
   
@@ -584,6 +584,106 @@ export const TS_CONFIG: AnnotationConfig = {
   
   isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
     return TS_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+  },
+  
+  renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
+    return Renderers.renderVerticalLines(points, displayColor, imageScale);
+  }
+};
+
+/**
+ * C7 Offset C7偏移距离
+ * 2点测量：两条垂直线之间的水平距离
+ */
+export const C7_OFFSET_CONFIG: AnnotationConfig = {
+  id: 'c7-offset',
+  name: 'C7 Offset',
+  icon: 'ri-arrow-left-right-line',
+  description: 'C7偏移距离',
+  pointsNeeded: 2,
+  category: 'measurement',
+  color: '#06b6d4',
+  
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 2) return [];
+    
+    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    const actualDistance = calculateActualDistance(pixelDistance, context);
+    
+    return [{
+      name: 'C7 Offset',
+      value: actualDistance.toFixed(1),
+      unit: 'mm'
+    }];
+  },
+  
+  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    return {
+      x: (points[0].x + points[1].x) / 2,
+      y: Math.min(points[0].y, points[1].y) - 20 / imageScale
+    };
+  },
+  
+  isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
+    if (points.length < 2) return false;
+    
+    return Math.abs(mousePoint.x - points[0].x) <= tolerance ||
+           Math.abs(mousePoint.x - points[1].x) <= tolerance;
+  },
+  
+  isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
+    return C7_OFFSET_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+  },
+  
+  renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
+    return Renderers.renderVerticalLines(points, displayColor, imageScale);
+  }
+};
+
+/**
+ * Thoracic Shift 胸廓躯干偏移
+ * 2点测量：两条垂直线之间的水平距离
+ */
+export const THORACIC_SHIFT_CONFIG: AnnotationConfig = {
+  id: 'thoracic-shift',
+  name: 'Thoracic Shift',
+  icon: 'ri-align-center',
+  description: '胸廓躯干偏移',
+  pointsNeeded: 2,
+  category: 'measurement',
+  color: '#8b5cf6',
+  
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 2) return [];
+    
+    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    const actualDistance = calculateActualDistance(pixelDistance, context);
+    
+    return [{
+      name: 'Thoracic Shift',
+      value: actualDistance.toFixed(1),
+      unit: 'mm'
+    }];
+  },
+  
+  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    return {
+      x: (points[0].x + points[1].x) / 2,
+      y: Math.min(points[0].y, points[1].y) - 20 / imageScale
+    };
+  },
+  
+  isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
+    if (points.length < 2) return false;
+    
+    return Math.abs(mousePoint.x - points[0].x) <= tolerance ||
+           Math.abs(mousePoint.x - points[1].x) <= tolerance;
+  },
+  
+  isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
+    return THORACIC_SHIFT_CONFIG.isInHoverRange(mousePoint, points, tolerance);
   },
   
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
@@ -1580,6 +1680,8 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   'sacral': SACRAL_CONFIG,
   'avt': AVT_CONFIG,
   'ts': TS_CONFIG,
+  'c7-offset': C7_OFFSET_CONFIG,
+  'thoracic-shift': THORACIC_SHIFT_CONFIG,
   't1-slope': T1_SLOPE_CONFIG,
   'cl': CL_CONFIG,
   'tk-t2-t5': TK_T2_T5_CONFIG,

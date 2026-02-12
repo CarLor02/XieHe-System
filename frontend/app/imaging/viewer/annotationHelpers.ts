@@ -199,6 +199,8 @@ export function getAnteriorTools() {
     'sacral',
     'avt',
     'ts',
+    'c7-offset',
+    'thoracic-shift',
     'circle',
     'ellipse',
     'rectangle',
