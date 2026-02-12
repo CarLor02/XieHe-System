@@ -486,7 +486,7 @@ export const SACRAL_CONFIG: AnnotationConfig = {
   },
   
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
-    return Renderers.renderSingleLineWithHorizontal(points, displayColor, imageScale);
+    return Renderers.renderSacralWithPerpendicular(points, displayColor, imageScale);
   }
 };
 
