@@ -6,51 +6,55 @@ import { useEffect, useState } from 'react';
 import { createAuthenticatedClient } from '../../../store/authStore';
 import { extractData, extractPaginatedData } from '../../../utils/apiResponseHandler';
 import {
-  CalculationContext,
-  getAnnotationConfig,
+    AnnotationBindings,
+    applyPointBindings,
+    autoCreateS1Bindings,
+    cleanupBindings,
+    createEmptyBindings,
+    getBindingIndicatorColor
+} from './annotationBindingConfig';
+import {
+    CalculationContext,
+    getAnnotationConfig,
 } from './annotationConfig';
 import {
-  calculateMeasurementValue as calcMeasurementValue,
-  getDescriptionForType as getDesc,
-  getToolsForExamType as getTools,
-  getColorForType,
-  getLabelPositionForType,
-  renderSpecialSVGElements,
+    calculateMeasurementValue as calcMeasurementValue,
+    getColorForType,
+    getDescriptionForType as getDesc,
+    getLabelPositionForType,
+    getToolsForExamType as getTools,
+    renderSpecialSVGElements,
 } from './annotationHelpers';
 // 导入工具函数库
 import {
-  // 常量
-  INTERACTION_CONSTANTS,
-  TEXT_LABEL_CONSTANTS,
+    // 常量
+    INTERACTION_CONSTANTS,
+    TEXT_LABEL_CONSTANTS,
 
-  // 类型
-  TransformContext,
+    // 类型
+    TransformContext,
 
-  // 几何计算
-  calculateDistance,
-  pointToLineDistance,
-  calculateQuadrilateralCenter,
+    // 几何计算
+    calculateDistance,
+    calculateQuadrilateralCenter,
 
-  // 工具判断（使用 toolUtils 中的实现，支持中文名称）
-  isAuxiliaryShape as checkIsAuxiliaryShape,
-
-  // 坐标转换
-  imageToScreen as utilImageToScreen,
-  screenToImage as utilScreenToImage,
-
-  // 选择检测
-  isLineClicked,
-  isCircleClicked,
-  isEllipseClicked,
-  isRectangleClicked,
-  isPolygonClicked,
-
-  // 工具判断
-  shouldClearToolState,
-
-  // 文字标注
-  estimateTextWidth,
-  estimateTextHeight,
+    // 工具判断（使用 toolUtils 中的实现，支持中文名称）
+    isAuxiliaryShape as checkIsAuxiliaryShape,
+    estimateTextHeight,
+    // 文字标注
+    estimateTextWidth,
+    isCircleClicked,
+    isEllipseClicked,
+    // 选择检测
+    isLineClicked,
+    isPolygonClicked,
+    isRectangleClicked,
+    pointToLineDistance,
+    // 工具判断
+    shouldClearToolState,
+    // 坐标转换
+    imageToScreen as utilImageToScreen,
+    screenToImage as utilScreenToImage,
 } from './utils';
 // import ReactMarkdown from 'react-markdown';
 // import remarkGfm from 'remark-gfm';
@@ -138,6 +142,29 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   // 锁定图像平移
   const [isImagePanLocked, setIsImagePanLocked] = useState(false);
 
+  // ==================== 点绑定状态 ====================
+  /** 点绑定配置：记录跨标注共享的同步点组（如 S1 上缘两端点）及中点导出绑定 */
+  const [pointBindings, setPointBindings] = useState<AnnotationBindings>(createEmptyBindings());
+
+  /**
+   * 当标注列表变化时自动重建 S1 上缘点绑定。
+   * 只要存在 ≥2 个 S1 相关标注（SS / LL L1-S1 / LL L4-S1 / PI / PT），即自动绑定，无需用户操作。
+   */
+  useEffect(() => {
+    const S1_RELATED_TYPES = new Set(['SS', 'LL L1-S1', 'LL L4-S1', 'PI', 'PT', 'TPA']);
+    const s1Count = measurements.filter(m => S1_RELATED_TYPES.has(m.type)).length;
+    setPointBindings(s1Count >= 2 ? autoCreateS1Bindings(measurements) : createEmptyBindings());
+  // measurements 变化时重新计算，忽略其他依赖警告
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measurements]);
+
+  /** 手动解除绑定（临时清空，下次添加/删除标注时将自动恢复） */
+  const handleClearBindings = () => {
+    setPointBindings(createEmptyBindings());
+    setSaveMessage('已清除点绑定（再次增减标注时将自动重建）');
+    setTimeout(() => setSaveMessage(''), 3000);
+  };
+
   // 从API获取真实的影像数据
   useEffect(() => {
     const fetchStudyData = async () => {
@@ -177,6 +204,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             }
             if (annotationData.standardDistancePoints) {
               setStandardDistancePoints(annotationData.standardDistancePoints);
+            }
+            // 加载点绑定配置
+            if (annotationData.pointBindings) {
+              setPointBindings(annotationData.pointBindings);
             }
           } catch (e) {
             console.error('解析标注数据失败:', e);
@@ -325,6 +356,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const clearAllMeasurements = () => {
     setMeasurements([]);
     setClickedPoints([]);
+    setPointBindings(createEmptyBindings()); // 同时清除点绑定
   };
 
   // 影像导航功能 - 从API动态获取影像列表
@@ -575,6 +607,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           setMeasurements(restoredMeasurements);
           console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);
         }
+        // 加载点绑定配置（如果有）
+        if (data.pointBindings) {
+          setPointBindings(data.pointBindings);
+        }
       } else if (imageNaturalSize) {
         // 如果完全没有保存的数据，设置默认标准距离
         const defaultPoints = [
@@ -625,7 +661,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         imageHeight: imageNaturalSize?.height,
         measurements: simplifiedMeasurements,
         standardDistance: standardDistance,
-        standardDistancePoints: standardDistancePoints
+        standardDistancePoints: standardDistancePoints,
+        pointBindings: pointBindings,
       };
       localStorage.setItem(key, JSON.stringify(localData, null, 2));
       console.log(`已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`);
@@ -1228,6 +1265,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         measurements: measurements,
         standardDistance: standardDistance,
         standardDistancePoints: standardDistancePoints,
+        pointBindings: pointBindings,
         imageWidth: imageNaturalSize?.width,
         imageHeight: imageNaturalSize?.height,
         savedAt: new Date().toISOString(),
@@ -1480,6 +1518,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               onImageSizeChange={(size) => setImageNaturalSize(size)}
               onToolChange={handleToolChange}
               isImagePanLocked={isImagePanLocked}
+              pointBindings={pointBindings}
+              setPointBindings={setPointBindings}
             />
           </div>
         </div>
@@ -1556,6 +1596,48 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                     <i className="ri-check-line w-3 h-3 flex items-center justify-center text-yellow-200 absolute -top-1 -right-1 bg-yellow-500 rounded-full"></i>
                   )}
                 </button>
+              </div>
+
+              {/* S1 上缘点绑定管理 */}
+              <div className="mt-3 border border-gray-600 rounded-lg p-3">
+                <h4 className="text-xs font-semibold text-amber-400 mb-2 flex items-center gap-1">
+                  <i className="ri-links-line text-sm"></i>
+                  S1 上缘点绑定
+                </h4>
+                <p className="text-xs text-gray-400 mb-2 leading-relaxed">
+                  SS / LL-L1-S1 / LL-L4-S1 / PI / PT / TPA 共享 S1 上缘两端点，绑定后移动任一标注的对应点，其余自动同步。
+                </p>
+                {/* 自动绑定状态 */}
+                {pointBindings.syncGroups.length > 0 ? (
+                  <div className="mb-2 space-y-1">
+                    <div className="flex items-center gap-1 mb-1">
+                      <i className="ri-check-line text-xs text-green-400"></i>
+                      <span className="text-xs text-green-400 font-medium">已自动绑定</span>
+                    </div>
+                    {pointBindings.syncGroups.map(group => (
+                      <div key={group.id} className="flex items-center gap-1">
+                        <span
+                          className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <span className="text-xs text-gray-300 truncate">{group.name}</span>
+                        <span className="text-xs text-gray-500">({group.members.length})</span>
+                      </div>
+                    ))}
+                    <button
+                      onClick={handleClearBindings}
+                      className="mt-2 w-full bg-gray-600 hover:bg-gray-500 text-gray-200 text-xs py-1.5 px-2 rounded flex items-center justify-center gap-1 transition-colors"
+                      title="临时清除绑定（增减标注时将自动重建）"
+                    >
+                      <i className="ri-scissors-line text-sm"></i>
+                      解除绑定
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 italic">
+                    当前无绑定（需 SS/LL-L1-S1/LL-L4-S1/PI/PT/TPA 中至少 2 个）
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1944,6 +2026,8 @@ function ImageCanvas({
   onImageSizeChange,
   onToolChange,
   isImagePanLocked,
+  pointBindings,
+  setPointBindings,
 }: {
   selectedImage: any;
   measurements: Measurement[];
@@ -1968,6 +2052,8 @@ function ImageCanvas({
   onImageSizeChange: (size: { width: number; height: number }) => void;
   onToolChange: (tool: string) => void;
   isImagePanLocked: boolean;
+  pointBindings: AnnotationBindings;
+  setPointBindings: (bindings: AnnotationBindings) => void;
 }) {
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(1);
@@ -2999,21 +3085,49 @@ function ImageCanvas({
               const newPointX = imagePoint.x - selectionState.dragOffset.x;
               const newPointY = imagePoint.y - selectionState.dragOffset.y;
 
-              const updatedMeasurements = measurements.map(m => {
+              // 先应用点绑定传播（同步绑定组内其他点 & 更新中点导出绑定）
+              const bindingPropagated = applyPointBindings(
+                measurements,
+                selectionState.measurementId!,
+                selectionState.pointIndex,
+                newPointX,
+                newPointY,
+                pointBindings
+              );
+
+              // 再对 moved 本身的点坐标做最终落位（applyPointBindings 不更新 moved 本体，外部已依赖 newPointX/Y）
+              const updatedMeasurements = bindingPropagated.map(m => {
                 if (m.id === selectionState.measurementId) {
-                  const updatedMeasurement = {
+                  const pts = m.points.map((p, idx) =>
+                    idx === selectionState.pointIndex ? { x: newPointX, y: newPointY } : p
+                  );
+                  return {
                     ...m,
-                    points: m.points.map((p, idx) =>
-                      idx === selectionState.pointIndex ? { x: newPointX, y: newPointY } : p
-                    ),
+                    points: pts,
+                    value: calcMeasurementValue(m.type, pts, {
+                      standardDistance,
+                      standardDistancePoints,
+                      imageNaturalSize
+                    }) || m.value,
                   };
-                  // 重新计算测量值
-                  updatedMeasurement.value = calcMeasurementValue(m.type, updatedMeasurement.points, {
-                    standardDistance,
-                    standardDistancePoints,
-                    imageNaturalSize
-                  }) || updatedMeasurement.value;
-                  return updatedMeasurement;
+                }
+                // 重新计算所有被绑定更新的标注的测量值
+                const originalMeasurement = measurements.find(orig => orig.id === m.id);
+                const pointsChanged = originalMeasurement
+                  ? m.points.some((p, i) => {
+                      const op = originalMeasurement.points[i];
+                      return !op || p.x !== op.x || p.y !== op.y;
+                    })
+                  : false;
+                if (pointsChanged) {
+                  return {
+                    ...m,
+                    value: calcMeasurementValue(m.type, m.points, {
+                      standardDistance,
+                      standardDistancePoints,
+                      imageNaturalSize
+                    }) || m.value,
+                  };
                 }
                 return m;
               });
@@ -3521,7 +3635,11 @@ function ImageCanvas({
   const handleDeleteShape = () => {
     if (contextMenu.measurementId) {
       // 使用 onMeasurementsUpdate 过滤掉被删除的测量
-      onMeasurementsUpdate(measurements.filter(m => m.id !== contextMenu.measurementId));
+      const remainingMeasurements = measurements.filter(m => m.id !== contextMenu.measurementId);
+      onMeasurementsUpdate(remainingMeasurements);
+      // 清理绑定中指向已删除标注的悬空引用
+      const remainingIds = new Set(remainingMeasurements.map(m => m.id));
+      setPointBindings(cleanupBindings(pointBindings, remainingIds));
       setSelectionState({
         measurementId: null,
         pointIndex: null,
@@ -3584,15 +3702,12 @@ function ImageCanvas({
 
     const handleWheelEvent = (e: Event) => {
       const wheelEvent = e as WheelEvent;
-      if (isHovering) {
-        wheelEvent.preventDefault();
-        wheelEvent.stopPropagation();
-
-        // 改进：使用更小的步长，便于精确调整
-        const delta = wheelEvent.deltaY > 0 ? 0.95 : 1.05;
-        // 使用函数式更新，避免依赖 imageScale
-        setImageScale(prev => Math.max(0.1, Math.min(5, prev * delta)));
-      }
+      wheelEvent.preventDefault();
+      wheelEvent.stopPropagation();
+      // 改进：使用更小的步长，便于精确调整
+      const delta = wheelEvent.deltaY > 0 ? 0.95 : 1.05;
+      // 使用函数式更新，避免依赖 imageScale
+      setImageScale(prev => Math.max(0.1, Math.min(5, prev * delta)));
     };
 
     // 键盘快捷键处理
@@ -3637,7 +3752,7 @@ function ImageCanvas({
       }
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isHovering]);
+  }, []);
 
   const resetView = () => {
     console.log('🔄 resetView 被调用，将重置 imageScale 为 1');
@@ -4230,9 +4345,25 @@ function ImageCanvas({
                 const isHovered = !isSelected && hoverState.measurementId === measurement.id &&
                   ((hoverState.elementType === 'point' && hoverState.pointIndex === pointIndex) ||
                    (hoverState.elementType === 'whole'));
+
+                // 检查是否为绑定点（有绑定时显示彩色外环）
+                const bindingColor = getBindingIndicatorColor(measurement.id, pointIndex, pointBindings);
                 
                 return (
                   <g key={pointIndex}>
+                    {/* 绑定指示环（最底层，在点本身之下渲染） */}
+                    {bindingColor && !isSelected && !isHovered && (
+                      <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r="7"
+                        fill="none"
+                        stroke={bindingColor}
+                        strokeWidth="2"
+                        opacity="0.85"
+                        strokeDasharray="3,2"
+                      />
+                    )}
                     <circle
                       cx={point.x}
                       cy={point.y}
