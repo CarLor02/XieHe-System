@@ -183,6 +183,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   /** 手动绑定模式 */
   const [isManualBindingMode, setIsManualBindingMode] = useState(false);
   /** 手动绑定模式中已选中的点 */
+  /** DB annotation 已成功加载时置 true，防止 localStorage 后续覆盖 */
+  const dbAnnotationLoadedRef = useRef(false);
   const [manualBindingSelectedPoints, setManualBindingSelectedPoints] = useState<PointRef[]>([]);
 
   useEffect(() => {
@@ -299,6 +301,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             const annotationData = JSON.parse(imageFile.annotation);
             if (annotationData.measurements && Array.isArray(annotationData.measurements)) {
               setMeasurements(annotationData.measurements);
+              // 标记 DB 数据已加载，阻止 localStorage 后续覆盖
+              dbAnnotationLoadedRef.current = true;
               console.log(`从数据库加载了 ${annotationData.measurements.length} 个标注`);
             }
             if (annotationData.standardDistance) {
@@ -307,9 +311,17 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             if (annotationData.standardDistancePoints) {
               setStandardDistancePoints(annotationData.standardDistancePoints);
             }
-            // 加载点绑定配置
-            if (annotationData.pointBindings) {
-              setPointBindings(annotationData.pointBindings);
+            // 加载点绑定配置：同步校验成员 annotationId 是否存在于当前标注列表
+            if (annotationData.pointBindings && annotationData.measurements) {
+              const validIds = new Set<string>(
+                (annotationData.measurements as any[]).map((m: any) => m.id).filter(Boolean)
+              );
+              const validated = {
+                syncGroups: (annotationData.pointBindings.syncGroups as any[])
+                  .map((g: any) => ({ ...g, members: g.members.filter((mbr: any) => validIds.has(mbr.annotationId)) }))
+                  .filter((g: any) => g.members.length >= 2),
+              };
+              setPointBindings(validated);
             }
           } catch (e) {
             console.error('解析标注数据失败:', e);
@@ -601,7 +613,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   // 加载测量数据 - 异步加载，不阻止图像显示
   useEffect(() => {
     loadMeasurements();
-    loadAnnotationsFromLocalStorage(); // 自动加载本地标注数据
+    // loadAnnotationsFromLocalStorage 由 imageNaturalSize useEffect 统一调用，此处不重复
   }, [imageId]);
 
   const loadMeasurements = async () => {
@@ -614,7 +626,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       if (response.status === 200) {
         // 使用 extractData 提取测量数据
         const data = extractData<any>(response);
-        if (data.measurements && data.measurements.length > 0) {
+        // DB annotation 已加载时跳过，避免覆盖正确的 measurements+bindings
+        if (!dbAnnotationLoadedRef.current && data.measurements && data.measurements.length > 0) {
           setMeasurements(data.measurements);
           if (data.reportText) {
             setReportText(data.reportText);
@@ -631,6 +644,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
   // 从localStorage加载标注数据
   const loadAnnotationsFromLocalStorage = () => {
+    // 若 DB 已成功加载标注数据，localStorage 仅作历史备份，不再覆盖
+    if (dbAnnotationLoadedRef.current) {
+      console.log('DB 标注数据已加载，跳过 localStorage');
+      return;
+    }
     try {
       const key = `annotations_${imageId}`;
       const jsonStr = localStorage.getItem(key);
@@ -683,7 +701,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             });
           }
 
-          // 恢复measurements，重新生成id、value和description
+          // 恢复measurements；优先使用保存的id（确保绑定引用有效），否则生成新id
           const restoredMeasurements = data.measurements.map((m: any) => {
             // 转换坐标（如果需要）
             const scaledPoints = m.points.map((p: any) => ({
@@ -695,7 +713,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             const isAIDetection = m.type.startsWith('AI检测-');
 
             return {
-              id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
+              id: m.id || (Date.now().toString() + Math.random().toString(36).substring(2, 11)),
               type: m.type,
               value: isAIDetection ? (m.value || '') : calcMeasurementValue(m.type, scaledPoints, {
                 standardDistance: loadedStandardDistance,
@@ -709,9 +727,27 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           setMeasurements(restoredMeasurements);
           console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);
         }
-        // 加载点绑定配置（如果有）
-        if (data.pointBindings) {
-          setPointBindings(data.pointBindings);
+        // 与已恢复的 measurements ids 同步校验绑定配置
+        // 无论曾设置过什么绑定（包括从 DB 加载的），都必须在此更新为与当前 measurements 匹配的版本
+        if (data.measurements && Array.isArray(data.measurements)) {
+          const validIds = new Set<string>(
+            data.measurements.map((m: any) => m.id).filter(Boolean)
+          );
+          if (validIds.size > 0 && data.pointBindings) {
+            // localStorage 有 id 且有绑定数据：校验后设置
+            const validated = {
+              syncGroups: (data.pointBindings.syncGroups as any[])
+                .map((g: any) => ({ ...g, members: g.members.filter((mbr: any) => validIds.has(mbr.annotationId)) }))
+                .filter((g: any) => g.members.length >= 2),
+            };
+            setPointBindings(validated);
+          } else {
+            // 旧格式无 id 或无绑定数据：清空绑定，避免 DB 界面的旧绑定残留；useEffect 将自动重建 S1 绑定
+            setPointBindings({ syncGroups: [] });
+          }
+        } else {
+          // localStorage 无 measurements 数据，同样清空绑定
+          setPointBindings({ syncGroups: [] });
         }
       } else if (imageNaturalSize) {
         // 如果完全没有保存的数据，设置默认标准距离
@@ -752,8 +788,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     try {
       // 1. 保存到本地存储
       const key = `annotations_${imageId}`;
-      // 只保存type和points，移除id、value和description
+      // 保存id、type和points（id用于绑定引用，value和description可重新计算）
       const simplifiedMeasurements = measurements.map(m => ({
+        id: m.id,
         type: m.type,
         points: m.points
       }));
@@ -1413,19 +1450,22 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       // 1. 先保存到本地存储
       const key = `annotations_${imageId}`;
       // 对于AI检测标注，需要保存value和description；其他标注只保存type和points
+      // 同时保存id，确保加载时绑定数据中的annotationId引用仍然有效
       const simplifiedMeasurements = measurements.map(m => {
         const isAIDetection = m.type.startsWith('AI检测-');
         if (isAIDetection) {
-          // AI检测标注：保存type, points, value, description
+          // AI检测标注：保存id, type, points, value, description
           return {
+            id: m.id,
             type: m.type,
             points: m.points,
             value: m.value,
             description: m.description
           };
         } else {
-          // 其他标注：只保存type和points（value和description可以重新计算）
+          // 其他标注：保存id, type和points（value和description可以重新计算）
           return {
+            id: m.id,
             type: m.type,
             points: m.points
           };
@@ -1437,7 +1477,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         imageHeight: imageNaturalSize?.height,
         measurements: simplifiedMeasurements,
         standardDistance: standardDistance,
-        standardDistancePoints: standardDistancePoints
+        standardDistancePoints: standardDistancePoints,
+        pointBindings: pointBindings,
       };
       localStorage.setItem(key, JSON.stringify(localData, null, 2));
       console.log(`已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`);
@@ -1469,6 +1510,27 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         const errorMsg = response.data?.message || response.data?.detail || '保存失败';
         console.error('保存失败:', response.status, errorMsg);
         throw new Error(errorMsg);
+      }
+
+      // 3. 同时更新 image-files 的 annotation 字段，持久化绑定数据
+      try {
+        const annotationData = {
+          measurements: measurements,
+          standardDistance: standardDistance,
+          standardDistancePoints: standardDistancePoints,
+          pointBindings: pointBindings,
+          imageWidth: imageNaturalSize?.width,
+          imageHeight: imageNaturalSize?.height,
+          savedAt: new Date().toISOString(),
+        };
+        await client.patch(
+          `/api/v1/image-files/${numericId}/annotation`,
+          { annotation: JSON.stringify(annotationData) }
+        );
+        console.log('绑定数据已同步至 annotation 字段');
+      } catch (annotationErr) {
+        // 不阻断主保存流程
+        console.warn('更新 annotation 字段失败（不影响主保存）:', annotationErr);
       }
     } catch (error: any) {
       console.error('保存测量数据失败:', error);

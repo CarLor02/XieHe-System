@@ -15,7 +15,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc
+from sqlalchemy import and_, or_, desc, func
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
@@ -588,7 +588,6 @@ async def update_annotation(
             "thumbnail_path": image.thumbnail_path,
             "uploaded_by": image.uploaded_by,
             "patient_id": image.patient_id,
-            "study_id": image.study_id,
             "modality": image.modality,
             "body_part": image.body_part,
             "study_date": image.study_date,
