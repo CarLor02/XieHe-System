@@ -237,3 +237,121 @@ export function cleanupBindings(
 
   return { syncGroups };
 }
+
+// ==================== 基于位置的自动绑定 ====================
+
+/**
+ * 容差：同一位置判断点的像素距离阈值
+ */
+const POSITION_TOLERANCE = 0;
+
+/**
+ * 扫描所有标注的所有点，将坐标重合（距离 ≤ tolerance）的跨标注点自动组建同步组。
+ * 常用于 AI 返回结果后识别共享点并自动绑定。
+ *
+ * @param measurements 当前标注列表
+ * @param tolerance    重合判断的像素距离阈值（默认 2）
+ */
+export function autoCreatePositionBindings(
+  measurements: Array<{ id: string; type: string; points: Array<{ x: number; y: number }> }>,
+  tolerance: number = POSITION_TOLERANCE
+): AnnotationBindings {
+  // 收集所有点（附带坐标信息）
+  const allPoints: Array<PointRef & { x: number; y: number }> = [];
+  for (const m of measurements) {
+    for (let i = 0; i < m.points.length; i++) {
+      allPoints.push({
+        annotationId: m.id,
+        pointIndex: i,
+        x: m.points[i].x,
+        y: m.points[i].y,
+      });
+    }
+  }
+
+  const visited = new Set<string>();
+  const groups: PointSyncGroup[] = [];
+  let groupCounter = 0;
+
+  for (let i = 0; i < allPoints.length; i++) {
+    const keyI = `${allPoints[i].annotationId}:${allPoints[i].pointIndex}`;
+    if (visited.has(keyI)) continue;
+
+    const members: PointRef[] = [
+      { annotationId: allPoints[i].annotationId, pointIndex: allPoints[i].pointIndex },
+    ];
+    visited.add(keyI);
+
+    for (let j = i + 1; j < allPoints.length; j++) {
+      const keyJ = `${allPoints[j].annotationId}:${allPoints[j].pointIndex}`;
+      if (visited.has(keyJ)) continue;
+      // 同一标注内的点不绑定
+      if (allPoints[j].annotationId === allPoints[i].annotationId) continue;
+
+      const dx = allPoints[j].x - allPoints[i].x;
+      const dy = allPoints[j].y - allPoints[i].y;
+      if (Math.sqrt(dx * dx + dy * dy) <= tolerance) {
+        members.push({
+          annotationId: allPoints[j].annotationId,
+          pointIndex: allPoints[j].pointIndex,
+        });
+        visited.add(keyJ);
+      }
+    }
+
+    if (members.length > 1) {
+      groupCounter++;
+      groups.push({
+        id: `pos-${groupCounter}`,
+        name: `共享点-${groupCounter}`,
+        color: '#f59e0b',
+        members,
+      });
+    }
+  }
+
+  return { syncGroups: groups };
+}
+
+/**
+ * 合并两个绑定配置，势重a（保留a中已命名的组）并压制重复对。
+ * 对于 b 中的每个同步组，只有当其成员对 (pairset) 完全不被 a 中任一组覆盖时，才并入。
+ */
+export function mergeBindings(
+  a: AnnotationBindings,
+  b: AnnotationBindings
+): AnnotationBindings {
+  // 构建 a 中已存在的成员对集合， key = 小 ID:index大 ID:index排序
+  const existingPairs = new Set<string>();
+  for (const g of a.syncGroups) {
+    for (let i = 0; i < g.members.length; i++) {
+      for (let j = i + 1; j < g.members.length; j++) {
+        const keyA = `${g.members[i].annotationId}:${g.members[i].pointIndex}`;
+        const keyB = `${g.members[j].annotationId}:${g.members[j].pointIndex}`;
+        existingPairs.add([keyA, keyB].sort().join('|'));
+      }
+    }
+  }
+
+  // 筛选 b 中尚未被覆盖的组
+  const newGroups: PointSyncGroup[] = [];
+  for (const g of b.syncGroups) {
+    // 检查该组里是否存在至少一对未被 a 覆盖的成员对
+    let hasNewPair = false;
+    outer: for (let i = 0; i < g.members.length; i++) {
+      for (let j = i + 1; j < g.members.length; j++) {
+        const keyA = `${g.members[i].annotationId}:${g.members[i].pointIndex}`;
+        const keyB = `${g.members[j].annotationId}:${g.members[j].pointIndex}`;
+        if (!existingPairs.has([keyA, keyB].sort().join('|'))) {
+          hasNewPair = true;
+          break outer;
+        }
+      }
+    }
+    if (hasNewPair) {
+      newGroups.push(g);
+    }
+  }
+
+  return { syncGroups: [...a.syncGroups, ...newGroups] };
+}

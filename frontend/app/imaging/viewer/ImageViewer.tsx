@@ -2,16 +2,21 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createAuthenticatedClient } from '../../../store/authStore';
 import { extractData, extractPaginatedData } from '../../../utils/apiResponseHandler';
 import {
     AnnotationBindings,
+    PointRef,
+    PointSyncGroup,
     applyPointBindings,
+    autoCreatePositionBindings,
     autoCreateS1Bindings,
     cleanupBindings,
     createEmptyBindings,
-    getBindingIndicatorColor
+    getBindingIndicatorColor,
+    getSyncGroupsForPoint,
+    mergeBindings,
 } from './annotationBindingConfig';
 import {
     CalculationContext,
@@ -153,7 +158,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   useEffect(() => {
     const S1_RELATED_TYPES = new Set(['SS', 'LL L1-S1', 'LL L4-S1', 'PI', 'PT', 'TPA']);
     const s1Count = measurements.filter(m => S1_RELATED_TYPES.has(m.type)).length;
-    setPointBindings(s1Count >= 2 ? autoCreateS1Bindings(measurements) : createEmptyBindings());
+    const s1Bindings = s1Count >= 2 ? autoCreateS1Bindings(measurements) : createEmptyBindings();
+    // 仅重建 S1 上缘绑定，保留 AI 创建的位置重合绑定（不以 'S1' 开头的组）
+    setPointBindings(prev => {
+      const posGroups = prev.syncGroups.filter(g => !g.id.startsWith('S1'));
+      return mergeBindings({ syncGroups: posGroups }, s1Bindings);
+    });
   // measurements 变化时重新计算，忽略其他依赖警告
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [measurements]);
@@ -163,6 +173,98 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setPointBindings(createEmptyBindings());
     setSaveMessage('已清除点绑定（再次增减标注时将自动重建）');
     setTimeout(() => setSaveMessage(''), 3000);
+  };
+
+  /** 当前在面板中选中高亮的绑定组 ID */
+  const [selectedBindingGroupId, setSelectedBindingGroupId] = useState<string | null>(null);
+  const [isBindingPanelOpen, setIsBindingPanelOpen] = useState(false);
+  /** 当选中绑定组时，将该组第一个点居中显示 */
+  const [centerOnPoint, setCenterOnPoint] = useState<Point | null>(null);
+  /** 手动绑定模式 */
+  const [isManualBindingMode, setIsManualBindingMode] = useState(false);
+  /** 手动绑定模式中已选中的点 */
+  const [manualBindingSelectedPoints, setManualBindingSelectedPoints] = useState<PointRef[]>([]);
+
+  useEffect(() => {
+    if (!selectedBindingGroupId) return;
+    const group = pointBindings.syncGroups.find(g => g.id === selectedBindingGroupId);
+    if (!group || group.members.length === 0) return;
+    const firstMember = group.members[0];
+    const annotation = measurements.find(m => m.id === firstMember.annotationId);
+    const pt = annotation?.points[firstMember.pointIndex];
+    if (pt) setCenterOnPoint({ x: pt.x, y: pt.y });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBindingGroupId]);
+
+  /** 解除单个同步组的绑定 */
+  const removeBindingGroup = (groupId: string) => {
+    setPointBindings(prev => ({
+      syncGroups: prev.syncGroups.filter(g => g.id !== groupId),
+    }));
+    if (selectedBindingGroupId === groupId) setSelectedBindingGroupId(null);
+  };
+
+  /** 从同步组中移除单个成员，若组内剩余成员 < 2 则解散该组 */
+  const removeBindingMember = (groupId: string, annotationId: string, pointIndex: number) => {
+    setPointBindings(prev => ({
+      syncGroups: prev.syncGroups
+        .map(g => {
+          if (g.id !== groupId) return g;
+          return { ...g, members: g.members.filter(m => !(m.annotationId === annotationId && m.pointIndex === pointIndex)) };
+        })
+        .filter(g => g.members.length >= 2),
+    }));
+  };
+
+  /** 切换手动绑定点的选中状态 */
+  const handleManualBindingPointToggle = (annotationId: string, pointIndex: number) => {
+    setManualBindingSelectedPoints(prev => {
+      const exists = prev.some(p => p.annotationId === annotationId && p.pointIndex === pointIndex);
+      if (exists) return prev.filter(p => !(p.annotationId === annotationId && p.pointIndex === pointIndex));
+      return [...prev, { annotationId, pointIndex }];
+    });
+  };
+
+  /** 完成手动绑定：将所有选中点（含已有绑定组）合并为一个新组 */
+  const handleCompleteManualBinding = () => {
+    if (manualBindingSelectedPoints.length >= 2) {
+      // 找出所有选中点已所属的绑定组
+      const involvedGroupIds = new Set<string>();
+      for (const p of manualBindingSelectedPoints) {
+        getSyncGroupsForPoint(p.annotationId, p.pointIndex, pointBindings).forEach(g => involvedGroupIds.add(g.id));
+      }
+      // 收集这些组的所有成员（去重合并）
+      const mergedMembersMap = new Map<string, PointRef>();
+      for (const g of pointBindings.syncGroups) {
+        if (involvedGroupIds.has(g.id)) {
+          g.members.forEach(m => mergedMembersMap.set(`${m.annotationId}:${m.pointIndex}`, m));
+        }
+      }
+      manualBindingSelectedPoints.forEach(p => mergedMembersMap.set(`${p.annotationId}:${p.pointIndex}`, p));
+      const allMembers = Array.from(mergedMembersMap.values());
+      if (allMembers.length >= 2) {
+        const newGroup: PointSyncGroup = {
+          id: `manual-${Date.now()}`,
+          name: `手动绑定组 ${pointBindings.syncGroups.filter(g => g.id.startsWith('manual-')).length + 1}`,
+          color: '#22d3ee',
+          members: allMembers,
+        };
+        setPointBindings(prev => ({
+          syncGroups: [
+            ...prev.syncGroups.filter(g => !involvedGroupIds.has(g.id)),
+            newGroup,
+          ],
+        }));
+      }
+    }
+    setIsManualBindingMode(false);
+    setManualBindingSelectedPoints([]);
+  };
+
+  /** 取消手动绑定模式 */
+  const handleCancelManualBinding = () => {
+    setIsManualBindingMode(false);
+    setManualBindingSelectedPoints([]);
   };
 
   // 从API获取真实的影像数据
@@ -1009,6 +1111,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           });
 
         setMeasurements(aiMeasurements);
+        // AI 返回后执行一次基于坐标重合的自动绑定
+        const S1_RELATED_TYPES = new Set(['SS', 'LL L1-S1', 'LL L4-S1', 'PI', 'PT', 'TPA']);
+        const s1Count = aiMeasurements.filter((m: any) => S1_RELATED_TYPES.has(m.type)).length;
+        const s1Bindings = s1Count >= 2 ? autoCreateS1Bindings(aiMeasurements) : createEmptyBindings();
+        const posBindings = autoCreatePositionBindings(aiMeasurements);
+        setPointBindings(mergeBindings(s1Bindings, posBindings));
         setSaveMessage(`AI测量完成，已加载 ${aiMeasurements.length} 个标注`);
         setTimeout(() => setSaveMessage(''), 3000);
       } else {
@@ -1520,6 +1628,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               isImagePanLocked={isImagePanLocked}
               pointBindings={pointBindings}
               setPointBindings={setPointBindings}
+              selectedBindingGroupId={selectedBindingGroupId}
+              centerOnPoint={centerOnPoint}
+              onCenterConsumed={() => setCenterOnPoint(null)}
+              onCanvasClick={() => { if (!isManualBindingMode) setSelectedBindingGroupId(null); }}
+              isManualBindingMode={isManualBindingMode}
+              manualBindingSelectedPoints={manualBindingSelectedPoints}
+              onManualBindingPointToggle={handleManualBindingPointToggle}
             />
           </div>
         </div>
@@ -1527,13 +1642,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         {/* 右侧工具栏 */}
         <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col flex-shrink-0 overflow-hidden">
           {/* 工具选择区 */}
-          <div className="bg-gray-800 px-4 py-3 flex-1 flex flex-col overflow-hidden">
-            <h3 className="font-semibold text-white mb-3 flex-shrink-0">
+          <div className="bg-gray-800 px-4 py-3 flex-1 overflow-y-auto">
+            <h3 className="font-semibold text-white mb-3">
               测量工具 - {imageData.examType}
             </h3>
 
-            {/* 工具和设置区域 - 可滚动 */}
-            <div className="flex-shrink-0 overflow-y-auto mb-4">
+            {/* 工具和设置区域 */}
+            <div className="mb-4">
               {/* 基础移动模式 */}
               <div className="mb-4">
               <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
@@ -1598,45 +1713,138 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 </button>
               </div>
 
-              {/* S1 上缘点绑定管理 */}
-              <div className="mt-3 border border-gray-600 rounded-lg p-3">
-                <h4 className="text-xs font-semibold text-amber-400 mb-2 flex items-center gap-1">
-                  <i className="ri-links-line text-sm"></i>
-                  S1 上缘点绑定
-                </h4>
-                <p className="text-xs text-gray-400 mb-2 leading-relaxed">
-                  SS / LL-L1-S1 / LL-L4-S1 / PI / PT / TPA 共享 S1 上缘两端点，绑定后移动任一标注的对应点，其余自动同步。
-                </p>
-                {/* 自动绑定状态 */}
-                {pointBindings.syncGroups.length > 0 ? (
-                  <div className="mb-2 space-y-1">
-                    <div className="flex items-center gap-1 mb-1">
-                      <i className="ri-check-line text-xs text-green-400"></i>
-                      <span className="text-xs text-green-400 font-medium">已自动绑定</span>
-                    </div>
-                    {pointBindings.syncGroups.map(group => (
-                      <div key={group.id} className="flex items-center gap-1">
-                        <span
-                          className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: group.color }}
-                        />
-                        <span className="text-xs text-gray-300 truncate">{group.name}</span>
-                        <span className="text-xs text-gray-500">({group.members.length})</span>
-                      </div>
-                    ))}
+              {/* 共享点位绑定面板 */}
+              <div className="mt-3 border border-gray-600 rounded-lg overflow-hidden">
+                {/* 标题行（始终可见） */}
+                <button
+                  onClick={() => setIsBindingPanelOpen(open => !open)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-amber-400 hover:bg-gray-700/50 transition-colors"
+                >
+                  <span className="flex items-center gap-1">
+                    <i className="ri-links-line text-sm"></i>
+                    共享点位绑定面板
+                    {pointBindings.syncGroups.length > 0 && (
+                      <span className="ml-1 bg-amber-700/60 text-amber-300 rounded-full px-1.5 py-0 text-xs">
+                        {pointBindings.syncGroups.length}
+                      </span>
+                    )}
+                  </span>
+                  <i className={`ri-arrow-${isBindingPanelOpen ? 'up' : 'down'}-s-line text-sm text-gray-400`}></i>
+                </button>
+                {/* 操作按钮行（始终可见） */}
+                <div className="px-3 py-2 flex gap-2 border-t border-gray-700/60">
+                  <button
+                    onClick={handleClearBindings}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-1.5 px-2 rounded flex items-center justify-center gap-1 transition-colors"
+                    title="临时清除所有绑定（增减标注时将自动重建）"
+                  >
+                    <i className="ri-scissors-line text-xs"></i>
+                    解除全部绑定
+                  </button>
+                  {isManualBindingMode ? (
+                    <>
+                      <button
+                        onClick={handleCompleteManualBinding}
+                        disabled={manualBindingSelectedPoints.length < 2}
+                        className="flex-1 bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs py-1.5 px-2 rounded flex items-center justify-center gap-1 transition-colors"
+                        title={manualBindingSelectedPoints.length < 2 ? '请至少选择 2 个点' : '完成绑定'}
+                      >
+                        <i className="ri-check-line text-xs"></i>
+                        完成绑定{manualBindingSelectedPoints.length >= 1 ? ` (${manualBindingSelectedPoints.length})` : ''}
+                      </button>
+                      <button
+                        onClick={handleCancelManualBinding}
+                        className="bg-gray-700 hover:bg-gray-600 text-gray-400 text-xs py-1.5 px-2 rounded transition-colors"
+                        title="取消手动绑定"
+                      >
+                        <i className="ri-close-line text-xs"></i>
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={handleClearBindings}
-                      className="mt-2 w-full bg-gray-600 hover:bg-gray-500 text-gray-200 text-xs py-1.5 px-2 rounded flex items-center justify-center gap-1 transition-colors"
-                      title="临时清除绑定（增减标注时将自动重建）"
+                      onClick={() => { setIsManualBindingMode(true); setManualBindingSelectedPoints([]); }}
+                      className="flex-1 bg-gray-700 hover:bg-cyan-700 text-gray-300 hover:text-white text-xs py-1.5 px-2 rounded flex items-center justify-center gap-1 transition-colors"
+                      title="进入手动绑定模式，点击图像中的标注点以选中"
                     >
-                      <i className="ri-scissors-line text-sm"></i>
-                      解除绑定
+                      <i className="ri-cursor-line text-xs"></i>
+                      手动绑定
                     </button>
+                  )}
+                </div>
+                {/* 手动绑定提示（手动绑定模式下始终可见） */}
+                {isManualBindingMode && (
+                  <div className="px-3 py-1.5 bg-cyan-900/30 border-t border-cyan-700/40 text-xs text-cyan-300 flex items-center gap-1">
+                    <i className="ri-cursor-line text-xs"></i>
+                    点击左侧图像中的标注点以选中 / 取消选中
                   </div>
-                ) : (
-                  <p className="text-xs text-gray-500 italic">
-                    当前无绑定（需 SS/LL-L1-S1/LL-L4-S1/PI/PT/TPA 中至少 2 个）
-                  </p>
+                )}
+                {/* 绑定组列表（折叠控制） */}
+                {isBindingPanelOpen && (
+                  <div className="px-3 pb-3 pt-1 border-t border-gray-700/60">
+                    {pointBindings.syncGroups.length > 0 ? (
+                      <div className="space-y-2 mt-1">
+                        {pointBindings.syncGroups.map(group => {
+                          const isGroupSelected = selectedBindingGroupId === group.id;
+                          return (
+                            <div
+                              key={group.id}
+                              className={`rounded border p-2 cursor-pointer transition-colors ${
+                                isGroupSelected
+                                  ? 'border-amber-400 bg-amber-900/30'
+                                  : 'border-gray-600 bg-gray-700/40 hover:border-gray-500'
+                              }`}
+                              onClick={() => setSelectedBindingGroupId(isGroupSelected ? null : group.id)}
+                            >
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-1 min-w-0">
+                                  <span
+                                    className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: group.color }}
+                                  />
+                                  <span className="text-xs font-medium text-gray-200 truncate">{group.name}</span>
+                                </div>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); removeBindingGroup(group.id); }}
+                                  className="text-xs text-red-400 hover:text-red-300 flex items-center gap-0.5 flex-shrink-0 ml-2"
+                                  title="解除该同步组的全部绑定"
+                                >
+                                  <i className="ri-scissors-line text-xs"></i>
+                                  解绑
+                                </button>
+                              </div>
+                              <div className="space-y-1">
+                                {group.members.map(member => {
+                                  const annotation = measurements.find(m => m.id === member.annotationId);
+                                  return (
+                                    <div
+                                      key={`${member.annotationId}-${member.pointIndex}`}
+                                      className="flex items-center justify-between"
+                                    >
+                                      <span className="text-xs text-gray-400 truncate">
+                                        <span className="text-gray-300">{annotation?.type ?? '未知标注'}</span>
+                                        {' · '}第 {member.pointIndex + 1} 点
+                                      </span>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); removeBindingMember(group.id, member.annotationId, member.pointIndex); }}
+                                        className="text-gray-600 hover:text-red-400 flex-shrink-0 ml-1 transition-colors"
+                                        title="将此点从同步组中移除"
+                                      >
+                                        <i className="ri-close-line text-xs"></i>
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic mt-1">
+                        当前无共享点位绑定
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -2028,6 +2236,13 @@ function ImageCanvas({
   isImagePanLocked,
   pointBindings,
   setPointBindings,
+  selectedBindingGroupId,
+  centerOnPoint,
+  onCenterConsumed,
+  onCanvasClick,
+  isManualBindingMode,
+  manualBindingSelectedPoints,
+  onManualBindingPointToggle,
 }: {
   selectedImage: any;
   measurements: Measurement[];
@@ -2054,9 +2269,18 @@ function ImageCanvas({
   isImagePanLocked: boolean;
   pointBindings: AnnotationBindings;
   setPointBindings: (bindings: AnnotationBindings) => void;
+  selectedBindingGroupId: string | null;
+  centerOnPoint: Point | null;
+  onCenterConsumed: () => void;
+  onCanvasClick: () => void;
+  isManualBindingMode: boolean;
+  manualBindingSelectedPoints: PointRef[];
+  onManualBindingPointToggle: (annotationId: string, pointIndex: number) => void;
 }) {
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showResults, setShowResults] = useState(true);
@@ -2064,6 +2288,38 @@ function ImageCanvas({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(true);
   const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number } | null>(null);
+
+  // 居中显示指定图像坐标点
+  useEffect(() => {
+    if (!centerOnPoint || !imageNaturalSize) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+
+    // 计算 object-contain 的实际显示尺寸（与 coordinateTransform.ts 保持一致）
+    const containerAspect = rect.width / rect.height;
+    const imageAspect = imageNaturalSize.width / imageNaturalSize.height;
+    let displayWidth: number, displayHeight: number;
+    if (containerAspect > imageAspect) {
+      displayHeight = rect.height;
+      displayWidth = displayHeight * imageAspect;
+    } else {
+      displayWidth = rect.width;
+      displayHeight = displayWidth / imageAspect;
+    }
+
+    const scaleX = displayWidth / imageNaturalSize.width;
+    const scaleY = displayHeight / imageNaturalSize.height;
+    const imageCenterX = imageNaturalSize.width / 2;
+    const imageCenterY = imageNaturalSize.height / 2;
+
+    setImagePosition({
+      x: -(centerOnPoint.x - imageCenterX) * scaleX * imageScale,
+      y: -(centerOnPoint.y - imageCenterY) * scaleY * imageScale,
+    });
+    onCenterConsumed();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerOnPoint]);
 
   // 图像调整参数
   const [brightness, setBrightness] = useState(0); // -100 to 100
@@ -2283,6 +2539,8 @@ function ImageCanvas({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // 左键点击时通知父组件取消共享点选中状态
+    if (e.button === 0) onCanvasClick();
     // 🔒 安全检查：图像未加载完成时，禁止所有交互操作
     if (!imageNaturalSize) {
       console.warn('⚠️ 图像尚未加载完成，请稍候再进行操作');
@@ -2292,6 +2550,24 @@ function ImageCanvas({
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
+    // 手动绑定模式：左键点击标注点以选中/取消选中
+    if (isManualBindingMode && e.button === 0) {
+      const clickRadius = INTERACTION_CONSTANTS.POINT_CLICK_RADIUS;
+      const screenPt = { x, y };
+      for (const measurement of measurements) {
+        if (hideAllAnnotations || hiddenAnnotationIds.has(measurement.id)) continue;
+        for (let i = 0; i < measurement.points.length; i++) {
+          const ps = imageToScreen(measurement.points[i]);
+          if (calculateDistance(screenPt, ps) < clickRadius) {
+            onManualBindingPointToggle(measurement.id, i);
+            return;
+          }
+        }
+      }
+      // 点击了空白区域：不触发拖拽或其他操作
+      return;
+    }
 
     // 优先处理标准距离设置模式
     if (isSettingStandardDistance && e.button === 0) {
@@ -3798,6 +4074,7 @@ function ImageCanvas({
 
   return (
     <div
+      ref={containerRef}
       data-image-canvas
       className={`relative w-full h-full overflow-hidden ${getCursorStyle()} ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
       onMouseDown={handleMouseDown}
@@ -4365,7 +4642,11 @@ function ImageCanvas({
 
                 // 检查是否为绑定点（有绑定时显示彩色外环）
                 const bindingColor = getBindingIndicatorColor(measurement.id, pointIndex, pointBindings);
-                
+                const isInSelectedGroup = selectedBindingGroupId !== null &&
+                  getSyncGroupsForPoint(measurement.id, pointIndex, pointBindings).some(g => g.id === selectedBindingGroupId);
+                const isManualSelected = isManualBindingMode &&
+                  manualBindingSelectedPoints.some(p => p.annotationId === measurement.id && p.pointIndex === pointIndex);
+
                 return (
                   <g key={pointIndex}>
                     {/* 绑定指示环（最底层，在点本身之下渲染） */}
@@ -4373,12 +4654,37 @@ function ImageCanvas({
                       <circle
                         cx={point.x}
                         cy={point.y}
-                        r="7"
+                        r={isInSelectedGroup ? "10" : "7"}
+                        fill={isInSelectedGroup ? `#ef444433` : "none"}
+                        stroke={isInSelectedGroup ? "#ef4444" : bindingColor}
+                        strokeWidth={isInSelectedGroup ? "2.5" : "2"}
+                        opacity={isInSelectedGroup ? "1" : "0.85"}
+                        strokeDasharray={isInSelectedGroup ? undefined : "3,2"}
+                      />
+                    )}
+                    {/* 手动绑定选中指示环 */}
+                    {isManualSelected && (
+                      <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r="11"
+                        fill="#22d3ee33"
+                        stroke="#22d3ee"
+                        strokeWidth="2.5"
+                        opacity="1"
+                      />
+                    )}
+                    {/* 手动绑定模式下所有可选点的淡色外环提示 */}
+                    {isManualBindingMode && !isManualSelected && (
+                      <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r="9"
                         fill="none"
-                        stroke={bindingColor}
-                        strokeWidth="2"
-                        opacity="0.85"
-                        strokeDasharray="3,2"
+                        stroke="#22d3ee"
+                        strokeWidth="1"
+                        opacity="0.35"
+                        strokeDasharray="2,2"
                       />
                     )}
                     <circle
