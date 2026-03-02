@@ -477,8 +477,8 @@ export function renderVerticalLines(
 }
 
 /**
- * Sacral（骶骨倾斜角）渲染器：骶骨连线 + 中垂线参考线
- * 中垂线覆盖整个图片高度，用于辅助其他标注
+ * Sacral（骶骨倾斜角）渲染器：骶骨连线 + 过中点的垂直线参考线
+ * 垂直线覆盖整个图片高度，用于辅助其他标注
  */
 export function renderSacralWithPerpendicular(
   screenPoints: Point[],
@@ -491,36 +491,9 @@ export function renderSacralWithPerpendicular(
   const midX = (screenPoints[0].x + screenPoints[1].x) / 2;
   const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
 
-  // 计算连线的方向向量
-  const dx = screenPoints[1].x - screenPoints[0].x;
-  const dy = screenPoints[1].y - screenPoints[0].y;
-  const lineLength = Math.sqrt(dx * dx + dy * dy);
-
-  // 计算中垂线的方向向量（垂直于原连线）
-  // 垂直向量为 (-dy, dx)，单位化后乘以长度
-  const perpDX = -dy / lineLength;
-  const perpDY = dx / lineLength;
-  
-  // 中垂线长度设置为适中值，足够覆盖图片高度但不过长
+  // 垂直线长度设置为适中值，足够覆盖图片高度但不过长
   // 使用 800 像素的基础长度，会随着缩放自动调整
   const perpLength = 800 * imageScale;
-
-  // 计算直角标记的大小和位置
-  const rightAngleSize = 4 * imageScale; // 直角标记的边长
-  
-  // 原线方向的单位向量
-  const lineDX = dx / lineLength;
-  const lineDY = dy / lineLength;
-  
-  // 直角标记的四个点（形成一个小正方形的三条边）
-  const corner1X = midX + lineDX * rightAngleSize;
-  const corner1Y = midY + lineDY * rightAngleSize;
-  
-  const corner2X = midX + lineDX * rightAngleSize + perpDX * rightAngleSize;
-  const corner2Y = midY + lineDY * rightAngleSize + perpDY * rightAngleSize;
-  
-  const corner3X = midX + perpDX * rightAngleSize;
-  const corner3Y = midY + perpDY * rightAngleSize;
 
   return (
     <>
@@ -533,24 +506,52 @@ export function renderSacralWithPerpendicular(
         stroke={displayColor}
         strokeWidth="2"
       />
-      {/* 中垂线参考线 - 覆盖图片高度 */}
+      {/* 过中点的垂直线参考线 - 覆盖图片高度 */}
       <line
-        x1={midX - perpDX * perpLength}
-        y1={midY - perpDY * perpLength}
-        x2={midX + perpDX * perpLength}
-        y2={midY + perpDY * perpLength}
+        x1={midX}
+        y1={midY - perpLength}
+        x2={midX}
+        y2={midY + perpLength}
         stroke="#00ff00"
         strokeWidth="1"
         strokeDasharray="5,5"
         opacity="0.7"
       />
-      {/* 直角标记 */}
-      <path
-        d={`M ${corner1X} ${corner1Y} L ${corner2X} ${corner2Y} L ${corner3X} ${corner3Y}`}
-        fill="none"
-        stroke="#00ff00"
-        strokeWidth="1"
-        opacity="0.8"
+    </>
+  );
+}
+
+/**
+ * LLD 双下肢不等长渲染器：两条水平线
+ */
+export function renderHorizontalLines(
+  screenPoints: Point[],
+  displayColor: string,
+  imageScale: number
+): React.ReactNode {
+  if (screenPoints.length < 2) return null;
+
+  const width = 150 * imageScale;
+
+  return (
+    <>
+      <line
+        x1={screenPoints[0].x - width / 2}
+        y1={screenPoints[0].y}
+        x2={screenPoints[0].x + width / 2}
+        y2={screenPoints[0].y}
+        stroke={displayColor}
+        strokeWidth="2"
+        strokeDasharray="3,3"
+      />
+      <line
+        x1={screenPoints[1].x - width / 2}
+        y1={screenPoints[1].y}
+        x2={screenPoints[1].x + width / 2}
+        y2={screenPoints[1].y}
+        stroke={displayColor}
+        strokeWidth="2"
+        strokeDasharray="3,3"
       />
     </>
   );

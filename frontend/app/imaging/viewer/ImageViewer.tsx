@@ -2108,6 +2108,7 @@ function ImageCanvas({
     sacral: Point | null;      // Sacral 水平参考线
     avt: Point | null;         // AVT 第一条垂直线
     ts: Point | null;          // TS 第一条垂直线
+    lld: Point | null;         // LLD 第一条水平线
     ss: Point | null;          // SS（骶骨倾斜角）水平参考线
     sva: Point | null;         // SVA（矢状面垂直轴）第一条垂直线
   }>({
@@ -2117,6 +2118,7 @@ function ImageCanvas({
     sacral: null,
     avt: null,
     ts: null,
+    lld: null,
     ss: null,
     sva: null,
   });
@@ -2180,6 +2182,7 @@ function ImageCanvas({
       sacral: selectedTool.includes('sacral') ? prev.sacral : null,
       avt: selectedTool.includes('avt') ? prev.avt : null,
       ts: selectedTool.includes('ts') ? prev.ts : null,
+      lld: selectedTool.includes('lld') ? prev.lld : null,
     }));
     // 工具切换时清空当前点击的点
     setClickedPoints([]);
@@ -2895,6 +2898,20 @@ function ImageCanvas({
                 onMeasurementAdd(currentTool.name, newPoints);
                 setClickedPoints([]);
                 setReferenceLines(prev => ({ ...prev, ts: null })); // 清除第一条垂直线
+              }
+            }
+          } else if (selectedTool.includes('lld')) {
+            // LLD 特殊处理 - 两条水平线的距离测量
+            if (newPoints.length === 1) {
+              // 第一个点：设置第一条水平线位置
+              setReferenceLines(prev => ({ ...prev, lld: imagePoint }));
+            } else if (newPoints.length === 2) {
+              // 第二个点：完成测量
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+                setReferenceLines(prev => ({ ...prev, lld: null })); // 清除第一条水平线
               }
             }
           } else {
@@ -5037,6 +5054,52 @@ function ImageCanvas({
                     textAnchor="middle"
                   >
                     VL1
+                  </text>
+                </g>
+              );
+            })()}
+          </>
+        )}
+
+        {/* LLD 专用第一条水平辅助线 */}
+        {selectedTool.includes('lld') && referenceLines.lld && (
+          <>
+            {(() => {
+              const referencePoint = imageToScreen(referenceLines.lld);
+              const lineLength = 100 * imageScale; // 水平线长度随缩放变化
+              return (
+                <g>
+                  {/* 水平辅助线 */}
+                  <line
+                    x1={referencePoint.x - lineLength/2}
+                    y1={referencePoint.y}
+                    x2={referencePoint.x + lineLength/2}
+                    y2={referencePoint.y}
+                    stroke="#00ff00"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                    opacity="0.8"
+                  />
+                  {/* 水平线标识背景 */}
+                  <rect
+                    x={referencePoint.x + lineLength/2 - 33}
+                    y={referencePoint.y - 22}
+                    width="26"
+                    height="16"
+                    fill="white"
+                    opacity="0.9"
+                    rx="2"
+                  />
+                  {/* 水平线标识 */}
+                  <text
+                    x={referencePoint.x + lineLength/2 - 20}
+                    y={referencePoint.y - 9.8}
+                    fill="#00ff00"
+                    fontSize="12"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    HL1
                   </text>
                 </g>
               );
