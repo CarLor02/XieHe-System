@@ -642,22 +642,31 @@ export const LLD_CONFIG: AnnotationConfig = {
 };
 
 /**
- * C7 Offset C7偏移距离
- * 2点测量：两条垂直线之间的水平距离
+ * C7 Offset C7偏移距离（正面）
+ * 6点测量：
+ *   点1-4：C7椎体四角，中心为锥体中心
+ *   点5-6：参考线两端点，中点作为参考中心
+ * 测量结果：锥体中心与参考中点之间的水平距离
  */
 export const C7_OFFSET_CONFIG: AnnotationConfig = {
   id: 'c7-offset',
   name: 'C7 Offset',
   icon: 'ri-arrow-left-right-line',
-  description: 'C7偏移距离',
-  pointsNeeded: 2,
+  description: 'C7偏移距离（正面6点法）',
+  pointsNeeded: 6,
   category: 'measurement',
   color: '#06b6d4',
   
   calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 2) return [];
+    if (points.length < 6) return [];
     
-    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    // 前4个点的锥体中心
+    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+    
+    // 后2个点的中点
+    const refX = (points[4].x + points[5].x) / 2;
+    
+    const pixelDistance = Math.abs(centerX - refX);
     const actualDistance = calculateActualDistance(pixelDistance, context);
     
     return [{
@@ -668,18 +677,37 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
   },
   
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
-    if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    if (points.length < 6) return points[0] || { x: 0, y: 0 };
+    
+    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+    const refX = (points[4].x + points[5].x) / 2;
+    const refY = (points[4].y + points[5].y) / 2;
+    
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: Math.min(points[0].y, points[1].y) - 20 / imageScale
+      x: (centerX + refX) / 2,
+      y: Math.min(centerY, refY) - 20 / imageScale
     };
   },
   
   isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
-    if (points.length < 2) return false;
+    if (points.length < 6) return false;
     
-    return Math.abs(mousePoint.x - points[0].x) <= tolerance ||
-           Math.abs(mousePoint.x - points[1].x) <= tolerance;
+    // 检查原始6个点
+    for (const point of points) {
+      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
+    }
+    
+    // 检查锥体中心与参考中点
+    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+    const refX = (points[4].x + points[5].x) / 2;
+    const refY = (points[4].y + points[5].y) / 2;
+    
+    return isPointNearPoint(mousePoint, { x: centerX, y: centerY }, tolerance) ||
+           isPointNearPoint(mousePoint, { x: refX, y: refY }, tolerance) ||
+           Math.abs(mousePoint.x - centerX) <= tolerance ||
+           Math.abs(mousePoint.x - refX) <= tolerance;
   },
   
   isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
@@ -687,7 +715,7 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
   },
   
   renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
-    return Renderers.renderVerticalLines(points, displayColor, imageScale);
+    return Renderers.renderC7Offset(points, displayColor, imageScale);
   }
 };
 

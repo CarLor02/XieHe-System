@@ -522,6 +522,85 @@ export function renderSacralWithPerpendicular(
 }
 
 /**
+ * C7 Offset渲染器（正面）：
+ * - 前4个点连线形成锥体区域（虚线），中心点作为第一条垂直线
+ * - 后2个点连线及中点作为第二条垂直线
+ * - 两条垂直线之间显示水平测量线
+ */
+export function renderC7Offset(
+  screenPoints: Point[],
+  displayColor: string,
+  imageScale: number
+): React.ReactNode {
+  if (screenPoints.length < 1) return null;
+
+  const height = 150 * imageScale;
+
+  // 前4个点（锥体四角）——够4个点才画
+  const has4 = screenPoints.length >= 4;
+  const has6 = screenPoints.length >= 6;
+
+  const centerX = has4
+    ? (screenPoints[0].x + screenPoints[1].x + screenPoints[2].x + screenPoints[3].x) / 4
+    : screenPoints[0].x;
+  const centerY = has4
+    ? (screenPoints[0].y + screenPoints[1].y + screenPoints[2].y + screenPoints[3].y) / 4
+    : screenPoints[0].y;
+
+  const midX = has6 ? (screenPoints[4].x + screenPoints[5].x) / 2 : null;
+  const midY = has6 ? (screenPoints[4].y + screenPoints[5].y) / 2 : null;
+
+  return (
+    <>
+      {/* 前4个点连线（虚线矩形代表锥体轮廓） */}
+      {has4 && (
+        <>
+          <line x1={screenPoints[0].x} y1={screenPoints[0].y} x2={screenPoints[1].x} y2={screenPoints[1].y}
+            stroke={displayColor} strokeWidth="1" strokeDasharray="5,5" opacity="0.4" />
+          <line x1={screenPoints[1].x} y1={screenPoints[1].y} x2={screenPoints[2].x} y2={screenPoints[2].y}
+            stroke={displayColor} strokeWidth="1" strokeDasharray="5,5" opacity="0.4" />
+          <line x1={screenPoints[2].x} y1={screenPoints[2].y} x2={screenPoints[3].x} y2={screenPoints[3].y}
+            stroke={displayColor} strokeWidth="1" strokeDasharray="5,5" opacity="0.4" />
+          <line x1={screenPoints[3].x} y1={screenPoints[3].y} x2={screenPoints[0].x} y2={screenPoints[0].y}
+            stroke={displayColor} strokeWidth="1" strokeDasharray="5,5" opacity="0.4" />
+          {/* 锥体中心点 */}
+          <circle cx={centerX} cy={centerY} r="3" fill={displayColor} opacity="0.8" />
+        </>
+      )}
+
+      {/* 锥体中心处的垂直线 */}
+      <line
+        x1={centerX} y1={centerY - height / 2}
+        x2={centerX} y2={centerY + height / 2}
+        stroke={displayColor} strokeWidth="2" strokeDasharray="3,3"
+      />
+
+      {/* 后两个点的连线及中点垂直线 */}
+      {screenPoints.length >= 5 && (
+        <>
+          {has6 && (
+            <>
+              <line x1={screenPoints[4].x} y1={screenPoints[4].y}
+                x2={screenPoints[5].x} y2={screenPoints[5].y}
+                stroke={displayColor} strokeWidth="1" strokeDasharray="5,5" opacity="0.5" />
+              {/* 中点标记 */}
+              <circle cx={midX!} cy={midY!} r="3" fill={displayColor} opacity="0.8" />
+              {/* 中点处的垂直线 */}
+              <line
+                x1={midX!} y1={midY! - height / 2}
+                x2={midX!} y2={midY! + height / 2}
+                stroke={displayColor} strokeWidth="2" strokeDasharray="3,3"
+              />
+
+            </>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+/**
  * LLD 双下肢不等长渲染器：两条水平线
  */
 export function renderHorizontalLines(

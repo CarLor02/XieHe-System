@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createAuthenticatedClient } from '../../../store/authStore';
 import { extractData, extractPaginatedData } from '../../../utils/apiResponseHandler';
 import {
@@ -24,8 +24,11 @@ import {
 } from './annotationConfig';
 import {
     calculateMeasurementValue as calcMeasurementValue,
+    autoCreateInheritanceBindings,
     getColorForType,
     getDescriptionForType as getDesc,
+    getEffectivePointsNeeded,
+    getInheritedPoints,
     getLabelPositionForType,
     getToolsForExamType as getTools,
     renderSpecialSVGElements,
@@ -152,21 +155,35 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [pointBindings, setPointBindings] = useState<AnnotationBindings>(createEmptyBindings());
 
   /**
-   * 当标注列表变化时自动重建 S1 上缘点绑定。
+   * 仅跟踪标注的结构变化（增删 / 类型变更），忽略点位坐标变化。
+   * 拖动点位时 measurements 内容变化但此 key 不变，从而避免重建绑定。
+   */
+  const measurementStructureKey = useMemo(
+    () => measurements.map(m => `${m.id}:${m.type}`).join('|'),
+    [measurements]
+  );
+
+  /**
+   * 当标注列表的结构（增删）变化时自动重建 S1 上缘点绑定。
    * 只要存在 ≥2 个 S1 相关标注（SS / LL L1-S1 / LL L4-S1 / PI / PT），即自动绑定，无需用户操作。
+   * 绑定重建仅在 AI 返回数据、标注完成这两个时刻触发，手动拖动不会重置绑定状态。
    */
   useEffect(() => {
     const S1_RELATED_TYPES = new Set(['SS', 'LL L1-S1', 'LL L4-S1', 'PI', 'PT', 'TPA']);
     const s1Count = measurements.filter(m => S1_RELATED_TYPES.has(m.type)).length;
     const s1Bindings = s1Count >= 2 ? autoCreateS1Bindings(measurements) : createEmptyBindings();
-    // 仅重建 S1 上缘绑定，保留 AI 创建的位置重合绑定（不以 'S1' 开头的组）
+    // 保留手动绑定和AI位置绑定，重建 S1上缘绑定 和 继承绑定（均为确定性重算）
     setPointBindings(prev => {
-      const posGroups = prev.syncGroups.filter(g => !g.id.startsWith('S1'));
-      return mergeBindings({ syncGroups: posGroups }, s1Bindings);
+      const keptGroups = prev.syncGroups.filter(
+        g => !g.id.startsWith('S1-') && !g.id.startsWith('inherit-') && !g.id.startsWith('shared-')
+      );
+      const withS1 = mergeBindings({ syncGroups: keptGroups }, s1Bindings);
+      // 继承绑定在 withS1 基础上就地合并，避免对已绑定的点重复建组
+      return autoCreateInheritanceBindings(measurements, withS1);
     });
-  // measurements 变化时重新计算，忽略其他依赖警告
+  // 仅在标注结构（增删）变化时重新计算；拖动坐标不触发此 effect
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [measurements]);
+  }, [measurementStructureKey]);
 
   /** 手动解除绑定（临时清空，下次添加/删除标注时将自动恢复） */
   const handleClearBindings = () => {
@@ -227,7 +244,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     });
   };
 
-  /** 完成手动绑定：将所有选中点（含已有绑定组）合并为一个新组 */
+  /** 完成手动绑定：将所有选中点（含已有绑定组）合并为一个新组，并将所有点位统一到最后一个选中点的坐标 */
   const handleCompleteManualBinding = () => {
     if (manualBindingSelectedPoints.length >= 2) {
       // 找出所有选中点已所属的绑定组
@@ -257,6 +274,26 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             newGroup,
           ],
         }));
+
+        // 获取最后一个选中点的坐标，将所有绑定成员统一到该位置
+        const anchor = manualBindingSelectedPoints[manualBindingSelectedPoints.length - 1];
+        const anchorMeasurement = measurements.find(m => m.id === anchor.annotationId);
+        const anchorPoint = anchorMeasurement?.points[anchor.pointIndex];
+        if (anchorPoint) {
+          setMeasurements(prev => prev.map(m => {
+            // 找出属于本标注、且不是锚点本身的所有绑定成员
+            const affected = allMembers.filter(mb =>
+              mb.annotationId === m.id &&
+              !(mb.annotationId === anchor.annotationId && mb.pointIndex === anchor.pointIndex)
+            );
+            if (affected.length === 0) return m;
+            const newPoints = [...m.points];
+            for (const mb of affected) {
+              newPoints[mb.pointIndex] = { ...anchorPoint };
+            }
+            return { ...m, points: newPoints };
+          }));
+        }
       }
     }
     setIsManualBindingMode(false);
@@ -461,7 +498,39 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       description,
     };
 
-    setMeasurements(prev => [...prev, newMeasurement]);
+    setMeasurements(prev => {
+      // 将本次新增标注加入列表
+      const accumulated: Measurement[] = [...prev, newMeasurement];
+
+      // 检查是否有其他工具的全部点位均可由继承/共享获得，若是则自动创建对应标注
+      for (const tool of tools) {
+        if (!tool.pointsNeeded || tool.pointsNeeded <= 0) continue;
+        // 已存在该类型的标注则跳过
+        if (accumulated.some(m => m.type === tool.name)) continue;
+
+        const { points: inheritedPts, count } = getInheritedPoints(tool.id, accumulated);
+        if (count >= tool.pointsNeeded) {
+          // 所有点位均可由已有标注推导出，自动创建
+          const autoPoints = inheritedPts.slice(0, tool.pointsNeeded);
+          const autoValue = calcMeasurementValue(tool.name, autoPoints, {
+            standardDistance,
+            standardDistancePoints,
+            imageNaturalSize,
+          }) || '0.0°';
+          const autoMeasurement: Measurement = {
+            id: `${Date.now()}-auto-${tool.id}-${accumulated.length}`,
+            type: tool.name,
+            value: autoValue,
+            points: autoPoints,
+            description: getDesc(tool.name),
+          };
+          // 立即追加到 accumulated，以便后续工具可以从本次自动创建的标注中继续推导
+          accumulated.push(autoMeasurement);
+        }
+      }
+
+      return accumulated;
+    });
   };
 
 
@@ -2585,7 +2654,10 @@ function ImageCanvas({
     };
   }, [imageId]);
 
-  const pointsNeeded = currentTool?.pointsNeeded || 2;
+  // 实际所需点击次数（扣除可从其他标注继承的点位）
+  const pointsNeeded = currentTool
+    ? getEffectivePointsNeeded(currentTool.id, currentTool.pointsNeeded, measurements)
+    : 2;
 
   const handleMouseEnter = () => {
     setIsHovering(true);
@@ -3252,13 +3324,29 @@ function ImageCanvas({
                 setReferenceLines(prev => ({ ...prev, lld: null })); // 清除第一条水平线
               }
             }
+          } else if (selectedTool.includes('c7-offset')) {
+            // C7 Offset 特殊处理：前4个点手动标注，第5、6个点可从骶骨倾斜角继承
+            const { points: inheritedPts, count: inheritedCount } = getInheritedPoints('c7-offset', measurements);
+            const effectiveNeeded = 6 - inheritedCount; // 若有骶骨标注则为4，否则为6
+            if (newPoints.length === effectiveNeeded) {
+              const allPoints = [...newPoints, ...inheritedPts];
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, allPoints);
+                setClickedPoints([]);
+              }
+            }
           } else {
-            // 其他工具的原有逻辑
+            // 其他工具的通用逻辑（支持继承点位自动填充）
             const currentTool = tools.find(t => t.id === selectedTool);
-            if (currentTool && newPoints.length === currentTool.pointsNeeded) {
-              onMeasurementAdd(currentTool.name, newPoints);
-              const emptyPoints: Point[] = [];
-              setClickedPoints(emptyPoints);
+            if (currentTool) {
+              const { points: inheritedPts } = getInheritedPoints(currentTool.id, measurements);
+              const effectiveNeeded = currentTool.pointsNeeded - inheritedPts.length;
+              if (newPoints.length === effectiveNeeded) {
+                const allPoints = [...newPoints, ...inheritedPts];
+                onMeasurementAdd(currentTool.name, allPoints);
+                setClickedPoints([]);
+              }
             }
           }
         }
@@ -5092,6 +5180,9 @@ function ImageCanvas({
               ) : (selectedTool.includes('pi') || selectedTool.includes('pt')) && screenPoints.length < 3 ? (
                 // PI/PT 特殊处理：点数不足3时不显示任何连线
                 <></>
+              ) : selectedTool.includes('c7-offset') ? (
+                // C7 Offset 特殊处理：标注过程中不显示连线
+                <></>
               ) : (
                 <line
                   x1={screenPoints[0].x}
@@ -6468,6 +6559,11 @@ function ImageCanvas({
             <p className="font-medium">测量模式: {currentTool?.name}</p>
             <p>
               已标注 {clickedPoints.length}/{pointsNeeded} 个点
+              {currentTool && getInheritedPoints(currentTool.id, measurements).count > 0 && (
+                <span className="text-cyan-400 ml-2 text-xs">
+                  (+{getInheritedPoints(currentTool.id, measurements).count}个点已自动继承)
+                </span>
+              )}
             </p>
             {clickedPoints.length < pointsNeeded && (
               <p className="text-yellow-400 mt-1">点击图像标注关键点</p>
