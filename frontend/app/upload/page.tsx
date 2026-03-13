@@ -272,6 +272,14 @@ function UploadContent() {
           </div>
 
           <div className="bg-white rounded-lg border border-gray-200 p-6">
+            {/* 提示信息 */}
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start space-x-3">
+              <i className="ri-information-line w-5 h-5 flex items-center justify-center text-blue-600 mt-0.5 flex-shrink-0"></i>
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">提示：</span>默认屏幕左侧对应患者左侧以计算角度正负
+              </p>
+            </div>
+
             {/* 患者和检查信息 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>

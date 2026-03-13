@@ -276,9 +276,9 @@ export const COBB_CONFIG: AnnotationConfig = {
     // 右边点的y距离（点2到点4）
     const rightYDistance = Math.abs(points[3].y - points[1].y);
 
-    // 左凸（左边距离大）→ 正值
-    // 右凸（右边距离大）→ 负值
-    const signedAngle = leftYDistance > rightYDistance ? angleDiff : -angleDiff;
+    // 右凸（右边距离大）→ 正值
+    // 左凸（左边距离大）→ 负值
+    const signedAngle = leftYDistance > rightYDistance ? -angleDiff : angleDiff;
 
     return [{
       name: 'Cobb角',
