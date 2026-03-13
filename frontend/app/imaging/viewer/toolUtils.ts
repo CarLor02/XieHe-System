@@ -32,8 +32,8 @@ export function isAuxiliaryShape(measurementType: string): boolean {
     '箭头标注',
     '多边形标注',
     '锥体中心',
-    '距离标注',
-    '角度标注',
+    '辅助水平线',
+    '辅助垂直线',
   ];
   return auxiliaryShapeNames.includes(measurementType);
 }

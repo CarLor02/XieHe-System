@@ -475,20 +475,21 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   };
 
   const addMeasurement = (type: string, points: Point[] = []) => {
-    // 如果是Cobb工具，自动编号
+    // 如果是Cobb工具，自动编号（统一处理 'cobb' 和 'Cobb'）
     let finalType = type;
-    if (type === 'cobb') {
+    const isCobb = type.toLowerCase() === 'cobb';
+    if (isCobb) {
       const cobbCount = measurements.filter(m => m.type.startsWith('Cobb')).length;
       finalType = `Cobb${cobbCount + 1}`;
     }
 
     // 使用统一的配置系统计算测量值
-    const defaultValue = calcMeasurementValue(type === 'cobb' ? 'cobb' : finalType, points, {
+    const defaultValue = calcMeasurementValue(isCobb ? 'cobb' : finalType, points, {
       standardDistance,
       standardDistancePoints,
       imageNaturalSize,
     }) || '0.0°';
-    const description = type === 'cobb' ? 'Cobb角测量' : getDesc(finalType);
+    const description = isCobb ? 'Cobb角测量' : getDesc(finalType);
 
     const newMeasurement: Measurement = {
       id: Date.now().toString(),
@@ -629,13 +630,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
       // 根据不同影像类型生成专业分析
       if (imageData.examType === '正位X光片') {
-        const cobbMeasurement = measurements.find(m => m.type === 'Cobb');
+        // 查找 Cobb 测量（可能是 Cobb、Cobb1、Cobb2 等）
+        const cobbMeasurement = measurements.find(m => m.type.startsWith('Cobb'));
         const caMeasurement = measurements.find(m => m.type === 'CA');
 
         if (cobbMeasurement) {
           const cobbValue = parseFloat(cobbMeasurement.value);
           if (cobbValue > 10) {
-            report += `• 脊柱侧弯程度：${cobbValue < 25 ? '轻度' : cobbValue < 40 ? '中度' : '重度'}（Cobb角 ${cobbMeasurement.value}）\n`;
+            report += `• 脊柱侧弯程度：${cobbValue < 25 ? '轻度' : cobbValue < 40 ? '中度' : '重度'}（${cobbMeasurement.type} ${cobbMeasurement.value}）\n`;
           }
         }
 
@@ -1737,6 +1739,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               selectedImage={imageData}
               measurements={measurements}
               selectedTool={selectedTool}
+              setSelectedTool={setSelectedTool}
               onMeasurementAdd={addMeasurement}
               onMeasurementsUpdate={setMeasurements}
               onClearAll={clearAllMeasurements}
@@ -1982,7 +1985,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
             {/* 专业测量工具 */}
             {(() => {
-              const measurementTools = tools.filter(tool => tool.pointsNeeded > 0);
+              const measurementTools = tools.filter(tool => 
+                tool.pointsNeeded > 0 && 
+                tool.id !== 'aux-angle' &&
+                tool.id !== 'aux-horizontal-line' &&
+                tool.id !== 'aux-vertical-line'
+              );
               if (measurementTools.length === 0) return null;
               
               return (
@@ -2051,7 +2059,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
             {/* 辅助图形工具 */}
             {(() => {
-              const auxiliaryTools = tools.filter(tool => tool.pointsNeeded === 0);
+              const auxiliaryTools = tools.filter(tool => 
+                tool.pointsNeeded === 0 || 
+                tool.id === 'aux-angle' ||
+                tool.id === 'aux-horizontal-line' ||
+                tool.id === 'aux-vertical-line'
+              );
               if (auxiliaryTools.length === 0) return null;
               
               return (
@@ -2345,6 +2358,7 @@ function ImageCanvas({
   selectedImage,
   measurements,
   selectedTool,
+  setSelectedTool,
   onMeasurementAdd,
   onMeasurementsUpdate,
   onClearAll,
@@ -2378,6 +2392,7 @@ function ImageCanvas({
   selectedImage: any;
   measurements: Measurement[];
   selectedTool: string;
+  setSelectedTool: (tool: string) => void;
   onMeasurementAdd: (type: string, points: Point[]) => void;
   onMeasurementsUpdate: (measurements: Measurement[]) => void;
   onClearAll: () => void;
@@ -2498,6 +2513,8 @@ function ImageCanvas({
     lld: Point | null;         // LLD 第一条水平线
     ss: Point | null;          // SS（骶骨倾斜角）水平参考线
     sva: Point | null;         // SVA（矢状面垂直轴）第一条垂直线
+    horizontalLine: Point | null;  // 辅助水平线
+    verticalLine: Point | null;    // 辅助垂直线
   }>({
     t1Tilt: null,
     ca: null,
@@ -2508,6 +2525,8 @@ function ImageCanvas({
     lld: null,
     ss: null,
     sva: null,
+    horizontalLine: null,
+    verticalLine: null,
   });
 
   // 悬浮高亮状态 - 用于预览即将被选中的元素（优化：合并为一个对象状态）
@@ -3145,14 +3164,14 @@ function ImageCanvas({
           setClickedPoints([]);
         }
       } else if (selectedTool === 'aux-angle') {
-        // 角度标注绘制模式 - 点击3个点
+        // 角度标注绘制模式 - 点击4个点（两条线段）
         const imagePoint = screenToImage(x, y);
 
         const newPoints = [...clickedPoints, imagePoint];
         setClickedPoints(newPoints);
 
-        // 如果已经点击了3个点，自动完成
-        if (newPoints.length === 3) {
+        // 如果已经点击了4个点，自动完成
+        if (newPoints.length === 4) {
           onMeasurementAdd('角度标注', newPoints);
           setClickedPoints([]);
         }
@@ -3184,8 +3203,18 @@ function ImageCanvas({
           const newPoints = [...clickedPoints, imagePoint];
           setClickedPoints(newPoints);
 
+          // 辅助图形（单点完成）早期检查
+          if (selectedTool === 'aux-horizontal-line' || selectedTool === 'aux-vertical-line') {
+            if (newPoints.length === 1) {
+              const currentTool = tools.find(t => t.id === selectedTool);
+              if (currentTool) {
+                onMeasurementAdd(currentTool.name, newPoints);
+                setClickedPoints([]);
+              }
+            }
+          }
           // T1 Tilt 特殊处理（优化：使用referenceLines）
-          if (selectedTool.includes('t1-tilt')) {
+          else if (selectedTool.includes('t1-tilt')) {
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
               setReferenceLines(prev => ({ ...prev, t1Tilt: imagePoint }));
@@ -4213,6 +4242,7 @@ function ImageCanvas({
       t1Tilt: (selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) ? null : prev.t1Tilt,
       ss: selectedTool.includes('ss') ? null : prev.ss,
       sva: selectedTool.includes('sva') ? null : prev.sva,
+      // aux-horizontal-line 和 aux-vertical-line 不再使用 referenceLines，已改为从 measurements 中渲染
     }));
   };
 
@@ -4436,26 +4466,27 @@ function ImageCanvas({
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (selectedTool === 'hand') {
-                              if (selectionState.measurementId === measurement.id) {
-                                // 如果已选中，则取消选中（优化：使用selectionState）
-                                setSelectionState({
-                                  measurementId: null,
-                                  pointIndex: null,
-                                  type: null,
-                                  isDragging: false,
-                                  dragOffset: { x: 0, y: 0 },
-                                });
-                              } else {
-                                // 选中该测量（优化：使用selectionState）
-                                setSelectionState({
-                                  measurementId: measurement.id,
-                                  pointIndex: null,
-                                  type: 'whole',
-                                  isDragging: false,
-                                  dragOffset: { x: 0, y: 0 },
-                                });
-                              }
+                            // 在左侧测量结果面板中点击标注时，优先级最高，自动切换为移动模式
+                            setSelectedTool('hand');
+                            
+                            if (selectionState.measurementId === measurement.id) {
+                              // 如果已选中，则取消选中（优化：使用selectionState）
+                              setSelectionState({
+                                measurementId: null,
+                                pointIndex: null,
+                                type: null,
+                                isDragging: false,
+                                dragOffset: { x: 0, y: 0 },
+                              });
+                            } else {
+                              // 选中该测量（优化：使用selectionState）
+                              setSelectionState({
+                                measurementId: measurement.id,
+                                pointIndex: null,
+                                type: 'whole',
+                                isDragging: false,
+                                dragOffset: { x: 0, y: 0 },
+                              });
                             }
                           }}
                           title={
@@ -4778,8 +4809,8 @@ function ImageCanvas({
 
           return (
             <g key={measurement.id}>
-              {/* 关键点 - 辅助图形不显示定位点 */}
-              {!isAuxiliaryShape && screenPoints.map((point, pointIndex) => {
+              {/* 关键点 - 辅助图形不显示定位点，除了辅助水平线和垂直线需要显示点标记 */}
+              {(!isAuxiliaryShape || measurement.type === '辅助水平线' || measurement.type === '辅助垂直线') && screenPoints.map((point, pointIndex) => {
                 // 检查是否为选中状态（优化：使用selectionState）
                 const isSelected = selectionState.measurementId === measurement.id &&
                   ((selectionState.type === 'point' && selectionState.pointIndex === pointIndex) ||
@@ -4890,7 +4921,9 @@ function ImageCanvas({
                 );
               })}
               {/* 连接线 - 辅助图形不显示连接线，使用配置文件中的特殊渲染函数 */}
-              {!isAuxiliaryShape && screenPoints.length >= 2 && 
+              {/* 对于辅助水平线和垂直线，需要特别处理因为它们是特殊的单点辅助图形 */}
+              {((!isAuxiliaryShape && screenPoints.length >= 2) || 
+                (isAuxiliaryShape && (measurement.type === '辅助水平线' || measurement.type === '辅助垂直线') && screenPoints.length >= 1)) && 
                !((measurement.type === 'PI' || measurement.type === 'pi' || 
                   measurement.type === 'PT' || measurement.type === 'pt') && 
                  screenPoints.length < 3) && (
@@ -6301,18 +6334,20 @@ function ImageCanvas({
                   opacity="0.6"
                 />
               )}
-              {screenPoints.length === 3 && (
+              {screenPoints.length >= 4 && (
+                <line
+                  x1={screenPoints[2].x}
+                  y1={screenPoints[2].y}
+                  x2={screenPoints[3].x}
+                  y2={screenPoints[3].y}
+                  stroke="#8b5cf6"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                  opacity="0.6"
+                />
+              )}
+              {screenPoints.length === 4 && (
                 <>
-                  <line
-                    x1={screenPoints[1].x}
-                    y1={screenPoints[1].y}
-                    x2={screenPoints[2].x}
-                    y2={screenPoints[2].y}
-                    stroke="#8b5cf6"
-                    strokeWidth="2"
-                    strokeDasharray="5,5"
-                    opacity="0.6"
-                  />
                   {(() => {
                     const config = getAnnotationConfig('aux-angle');
                     const results = config?.calculateResults(clickedPoints, {
@@ -6321,11 +6356,14 @@ function ImageCanvas({
                       imageNaturalSize,
                     }) || [];
                     const angleText = results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
-
+                    const centerPoint = {
+                      x: (screenPoints[0].x + screenPoints[1].x + screenPoints[2].x + screenPoints[3].x) / 4,
+                      y: (screenPoints[0].y + screenPoints[1].y + screenPoints[2].y + screenPoints[3].y) / 4
+                    };
                     return (
                       <text
-                        x={screenPoints[1].x}
-                        y={screenPoints[1].y - 15}
+                        x={centerPoint.x}
+                        y={centerPoint.y - 15}
                         fill="#8b5cf6"
                         fontSize="12"
                         textAnchor="middle"
@@ -6520,18 +6558,21 @@ function ImageCanvas({
           </div>
         ) : selectedTool === 'aux-angle' ? (
           <div>
-            <p className="font-medium">角度标注模式</p>
-            <p>已标注 {clickedPoints.length}/3 个点</p>
+            <p className="font-medium">角度标注模式（两条线段）</p>
+            <p>已标注 {clickedPoints.length}/4 个点</p>
             {clickedPoints.length === 0 && (
-              <p className="text-yellow-400 mt-1">点击第1个点</p>
+              <p className="text-yellow-400 mt-1">点击第一条线段的起点</p>
             )}
             {clickedPoints.length === 1 && (
-              <p className="text-yellow-400 mt-1">点击顶点（第2个点）</p>
+              <p className="text-yellow-400 mt-1">点击第一条线段的终点</p>
             )}
             {clickedPoints.length === 2 && (
-              <p className="text-yellow-400 mt-1">点击第3个点完成测量</p>
+              <p className="text-yellow-400 mt-1">点击第二条线段的起点</p>
             )}
             {clickedPoints.length === 3 && (
+              <p className="text-yellow-400 mt-1">点击第二条线段的终点完成测量</p>
+            )}
+            {clickedPoints.length === 4 && (
               <p className="text-green-400 mt-1">角度已计算</p>
             )}
           </div>

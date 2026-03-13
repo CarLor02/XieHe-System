@@ -212,7 +212,9 @@ export function getAnteriorTools() {
     'polygon',
     'vertebra-center',
     'aux-length',
-    'aux-angle'
+    'aux-angle',
+    'aux-horizontal-line',
+    'aux-vertical-line'
   ].map(id => {
     const config = ANNOTATION_CONFIGS[id];
     return {
@@ -249,7 +251,9 @@ export function getLateralTools() {
     'polygon',
     'vertebra-center',
     'aux-length',
-    'aux-angle'
+    'aux-angle',
+    'aux-horizontal-line',
+    'aux-vertical-line'
   ].map(id => {
     const config = ANNOTATION_CONFIGS[id];
     return {
@@ -276,7 +280,9 @@ export function getGenericTools() {
     'polygon',
     'vertebra-center',
     'aux-length',
-    'aux-angle'
+    'aux-angle',
+    'aux-horizontal-line',
+    'aux-vertical-line'
   ].map(id => {
     const config = ANNOTATION_CONFIGS[id];
     return {

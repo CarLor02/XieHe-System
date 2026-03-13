@@ -635,3 +635,63 @@ export function renderHorizontalLines(
     </>
   );
 }
+
+/**
+ * 单点水平线渲染器：通过一个点的整屏水平线
+ */
+export function renderSingleHorizontalLine(
+  screenPoints: Point[],
+  displayColor: string,
+  imageScale: number
+): React.ReactNode {
+  if (screenPoints.length < 1) return null;
+
+  const point = screenPoints[0];
+  const lineLength = 500 * imageScale; // 再缩小一倍的线长
+
+  return (
+    <>
+      {/* 通过点的水平线 */}
+      <line
+        x1={point.x - lineLength / 2}
+        y1={point.y}
+        x2={point.x + lineLength / 2}
+        y2={point.y}
+        stroke={displayColor}
+        strokeWidth="2"
+        strokeDasharray="5,5"
+        opacity="0.8"
+      />
+    </>
+  );
+}
+
+/**
+ * 单点垂直线渲染器：通过一个点的整屏垂直线
+ */
+export function renderSingleVerticalLine(
+  screenPoints: Point[],
+  displayColor: string,
+  imageScale: number
+): React.ReactNode {
+  if (screenPoints.length < 1) return null;
+
+  const point = screenPoints[0];
+  const lineLength = 500 * imageScale; // 再缩小一倍的线长
+
+  return (
+    <>
+      {/* 通过点的垂直线 */}
+      <line
+        x1={point.x}
+        y1={point.y - lineLength / 2}
+        x2={point.x}
+        y2={point.y + lineLength / 2}
+        stroke={displayColor}
+        strokeWidth="2"
+        strokeDasharray="5,5"
+        opacity="0.8"
+      />
+    </>
+  );
+}
