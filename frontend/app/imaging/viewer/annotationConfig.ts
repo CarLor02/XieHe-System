@@ -854,6 +854,33 @@ export const TK_T5_T12_CONFIG: AnnotationConfig = {
 };
 
 /**
+ * T10-L2 胸腰椎后凸角
+ * 4点测量：使用Cobb角算法
+ */
+export const T10_L2_CONFIG: AnnotationConfig = {
+  id: 't10-l2',
+  name: 'T10-L2',
+  icon: 'ri-compass-4-line',
+  description: '胸腰椎后凸角(T10上终板与L2下终板)',
+  pointsNeeded: 4,
+  category: 'measurement',
+  color: '#a855f7',
+  
+  calculateResults: COBB_THORACIC_CONFIG.calculateResults,
+  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    if (points.length < 4) return points[0] || { x: 0, y: 0 };
+    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+    const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
+    return { x: centerX, y: minY - 40 / imageScale };
+  },
+  isInHoverRange: COBB_THORACIC_CONFIG.isInHoverRange,
+  isInSelectionRange: COBB_THORACIC_CONFIG.isInSelectionRange,
+  renderSpecialElements: (points: Point[], displayColor: string, imageScale: number = 1) => {
+    return Renderers.renderTwoLines(points, displayColor);
+  }
+};
+
+/**
  * LL L1-S1 整体腰椎前凸
  * 4点测量：使用Cobb角算法
  */
@@ -1055,15 +1082,23 @@ export const SVA_CONFIG: AnnotationConfig = {
   id: 'sva',
   name: 'SVA',
   icon: 'ri-arrow-down-line',
-  description: '矢状面垂直轴(Sagittal Vertical Axis, C7-SVA)',
-  pointsNeeded: 2,
+  description: '矢状面垂直轴(Sagittal Vertical Axis)',
+  pointsNeeded: 5,
   category: 'measurement',
   color: '#65a30d',
   
   calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 2) return [];
+    if (points.length < 5) return [];
     
-    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    // 计算前4个点的锥体中心
+    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+    
+    // 第5个点
+    const point5 = points[4];
+    
+    // 计算水平距离（只考虑X坐标）
+    const pixelDistance = Math.abs(point5.x - centerX);
     const actualDistance = calculateActualDistance(pixelDistance, context);
     
     return [{
@@ -1074,23 +1109,37 @@ export const SVA_CONFIG: AnnotationConfig = {
   },
   
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
-    if (points.length < 2) return points[0] || { x: 0, y: 0 };
-    const midY = (points[0].y + points[1].y) / 2;
+    if (points.length < 5) return points[0] || { x: 0, y: 0 };
+    
+    // 计算锥体中心
+    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+    
+    // 标签显示在锥体中心和第5个点的中点，上方30像素
+    const midX = (centerX + points[4].x) / 2;
+    const midY = (centerY + points[4].y) / 2;
+    
     return {
-      x: (points[0].x + points[1].x) / 2,
+      x: midX,
       y: midY - 30 / imageScale
     };
   },
   
   isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
-    if (points.length < 2) return false;
+    if (points.length < 5) return false;
     
+    // 检查是否靠近任何一个点
     for (const point of points) {
       if (isPointNearPoint(mousePoint, point, tolerance)) return true;
     }
     
-    return Math.abs(mousePoint.x - points[0].x) <= tolerance ||
-           Math.abs(mousePoint.x - points[1].x) <= tolerance;
+    // 检查是否靠近锥体中心
+    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+    if (isPointNearPoint(mousePoint, { x: centerX, y: centerY }, tolerance)) return true;
+    
+    // 检查是否靠近中心到第5个点的连线
+    return isPointNearLine(mousePoint, { x: centerX, y: centerY }, points[4], tolerance);
   },
   
   isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
@@ -1825,6 +1874,7 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   'c2-c7-cl': CL_CONFIG,  // 'C2-C7 CL' 规范化后的别名
   'tk-t2-t5': TK_T2_T5_CONFIG,
   'tk-t5-t12': TK_T5_T12_CONFIG,
+  't10-l2': T10_L2_CONFIG,
   'll-l1-s1': LL_L1_S1_CONFIG,
   'll-l1-l4': LL_L1_L4_CONFIG,
   'll-l4-s1': LL_L4_S1_CONFIG,

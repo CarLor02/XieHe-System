@@ -431,6 +431,8 @@ export function renderSingleLineWithHorizontal(
 
 /**
  * SVA渲染器：两条垂直线
+ * - 2点模式：显示两个端点的垂直线
+ * - 5点模式：基于前4个点计算锥体中心，显示中心与第5个点的垂直线
  */
 export function renderSVA(
   screenPoints: Point[],
@@ -440,7 +442,93 @@ export function renderSVA(
   if (screenPoints.length < 2) return null;
 
   const height = 150 * imageScale;
-  
+
+  // 5点模式：锥体中心 + 第5个点的垂直线
+  if (screenPoints.length === 5) {
+    const centerX = (screenPoints[0].x + screenPoints[1].x + screenPoints[2].x + screenPoints[3].x) / 4;
+    const centerY = (screenPoints[0].y + screenPoints[1].y + screenPoints[2].y + screenPoints[3].y) / 4;
+    const point5 = screenPoints[4];
+
+    return (
+      <>
+        {/* 前4个点连线形成区域 */}
+        <line
+          x1={screenPoints[0].x}
+          y1={screenPoints[0].y}
+          x2={screenPoints[1].x}
+          y2={screenPoints[1].y}
+          stroke={displayColor}
+          strokeWidth="1"
+          strokeDasharray="5,5"
+          opacity="0.3"
+        />
+        <line
+          x1={screenPoints[1].x}
+          y1={screenPoints[1].y}
+          x2={screenPoints[2].x}
+          y2={screenPoints[2].y}
+          stroke={displayColor}
+          strokeWidth="1"
+          strokeDasharray="5,5"
+          opacity="0.3"
+        />
+        <line
+          x1={screenPoints[2].x}
+          y1={screenPoints[2].y}
+          x2={screenPoints[3].x}
+          y2={screenPoints[3].y}
+          stroke={displayColor}
+          strokeWidth="1"
+          strokeDasharray="5,5"
+          opacity="0.3"
+        />
+        <line
+          x1={screenPoints[3].x}
+          y1={screenPoints[3].y}
+          x2={screenPoints[0].x}
+          y2={screenPoints[0].y}
+          stroke={displayColor}
+          strokeWidth="1"
+          strokeDasharray="5,5"
+          opacity="0.3"
+        />
+        
+        {/* 通过锥体中心的垂直线 */}
+        <line
+          x1={centerX}
+          y1={centerY - height / 2}
+          x2={centerX}
+          y2={centerY + height / 2}
+          stroke={displayColor}
+          strokeWidth="2"
+          strokeDasharray="3,3"
+        />
+        {/* 锥体中心点 */}
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r="3"
+          fill={displayColor}
+          stroke="#ffffff"
+          strokeWidth="1"
+          opacity="0.8"
+        />
+        
+        {/* 通过第5个点的垂直线 */}
+        <line
+          x1={point5.x}
+          y1={point5.y - height / 2}
+          x2={point5.x}
+          y2={point5.y + height / 2}
+          stroke={displayColor}
+          strokeWidth="2"
+          strokeDasharray="3,3"
+        />
+      </>
+    );
+  }
+
+  // 2点模式：原有逻辑
   return (
     <>
       <line

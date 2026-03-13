@@ -422,6 +422,22 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   // 使用配置文件获取工具列表
   const tools = getTools(imageData.examType);
 
+  /** 当选择新工具时，如果有继承的点且用户未开始标注，则自动加载继承点 */
+  useEffect(() => {
+    if (!selectedTool || selectedTool === 'hand' || clickedPoints.length > 0) return;
+
+    const currentTool = tools.find(t => t.id === selectedTool);
+    if (!currentTool || !currentTool.pointsNeeded || currentTool.pointsNeeded <= 0) return;
+
+    // SVA/SS/CL 存在非连续继承索引（如 SVA: 0/1/4, SS: 1, CL: 2/3），不直接预填 clickedPoints，避免点序混排与计数冲突
+    if (currentTool.id === 'sva' || currentTool.id === 'ss' || currentTool.id === 'cl') return;
+
+    const { points: inheritedPts } = getInheritedPoints(currentTool.id, measurements);
+    if (inheritedPts.length > 0) {
+      setClickedPoints(inheritedPts);
+    }
+  }, [selectedTool, measurements, clickedPoints.length, tools]);
+
   // 获取计算上下文（用于标注计算）
   const getCalculationContext = (): CalculationContext => ({
     standardDistance,
@@ -3297,30 +3313,89 @@ function ImageCanvas({
             }
           } else if (selectedTool.includes('ss')) {
             // SS（骶骨倾斜角）特殊处理 - 侧位（优化：使用referenceLines）
-            if (newPoints.length === 1) {
-              // 第一个点：设置水平参考线位置
-              setReferenceLines(prev => ({ ...prev, ss: imagePoint }));
-            } else if (newPoints.length === 2) {
-              // 第二个点：完成测量
-              const currentTool = tools.find(t => t.id === selectedTool);
-              if (currentTool) {
-                onMeasurementAdd(currentTool.name, newPoints);
+            const currentTool = tools.find(t => t.id === selectedTool);
+            if (currentTool) {
+              const asymRules = POINT_INHERITANCE_RULES[currentTool.id] || [];
+              const inheritedMap = new Map<number, Point>(); // destinationIndex -> point
+
+              for (const rule of asymRules) {
+                const source = measurements.find(m => m.type === rule.fromType);
+                if (source) {
+                  for (let i = 0; i < rule.sourcePointIndices.length; i++) {
+                    const srcIdx = rule.sourcePointIndices[i];
+                    const dstIdx = rule.destinationPointIndices[i];
+                    if (srcIdx < source.points.length) {
+                      inheritedMap.set(dstIdx, source.points[srcIdx]);
+                    }
+                  }
+                }
+              }
+
+              const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
+              if (newPoints.length === 1) {
+                // 第一个手动点：设置水平参考线位置
+                setReferenceLines(prev => ({ ...prev, ss: imagePoint }));
+              }
+
+              if (newPoints.length === effectiveNeeded) {
+                // 按索引位置组装完整2点（继承点与手动点混合）
+                const allPoints: Point[] = [];
+                let userPointIndex = 0;
+                for (let i = 0; i < currentTool.pointsNeeded; i++) {
+                  if (inheritedMap.has(i)) {
+                    allPoints[i] = inheritedMap.get(i)!;
+                  } else {
+                    allPoints[i] = newPoints[userPointIndex++];
+                  }
+                }
+
+                onMeasurementAdd(currentTool.name, allPoints);
                 setClickedPoints([]);
                 setReferenceLines(prev => ({ ...prev, ss: null })); // 清除水平参考线
               }
             }
           } else if (selectedTool.includes('sva')) {
-            // SVA（矢状面垂直轴）特殊处理（优化：使用referenceLines）
-            if (newPoints.length === 1) {
-              // 第一个点：设置第一条垂直线位置
-              setReferenceLines(prev => ({ ...prev, sva: imagePoint }));
-            } else if (newPoints.length === 2) {
-              // 第二个点：完成测量
-              const currentTool = tools.find(t => t.id === selectedTool);
-              if (currentTool) {
-                onMeasurementAdd(currentTool.name, newPoints);
+            // SVA（矢状面垂直轴）特殊处理：5个点标注
+            // 前4个点：锥体中心的四角点，第5个点：参考点
+            const currentTool = tools.find(t => t.id === selectedTool);
+            if (currentTool) {
+              const asymRules = POINT_INHERITANCE_RULES[currentTool.id] || [];
+              const inheritedMap = new Map<number, Point>(); // destinationIndex -> point
+
+              for (const rule of asymRules) {
+                const source = measurements.find(m => m.type === rule.fromType);
+                if (source) {
+                  for (let i = 0; i < rule.sourcePointIndices.length; i++) {
+                    const srcIdx = rule.sourcePointIndices[i];
+                    const dstIdx = rule.destinationPointIndices[i];
+                    if (srcIdx < source.points.length) {
+                      inheritedMap.set(dstIdx, source.points[srcIdx]);
+                    }
+                  }
+                }
+              }
+
+              const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
+              if (newPoints.length === 1) {
+                // 第一个手动点：设置参考线
+                setReferenceLines(prev => ({ ...prev, sva: imagePoint }));
+              }
+
+              if (newPoints.length === effectiveNeeded) {
+                // 按索引位置组装完整5点（继承点与手动点混合）
+                const allPoints: Point[] = [];
+                let userPointIndex = 0;
+                for (let i = 0; i < currentTool.pointsNeeded; i++) {
+                  if (inheritedMap.has(i)) {
+                    allPoints[i] = inheritedMap.get(i)!;
+                  } else {
+                    allPoints[i] = newPoints[userPointIndex++];
+                  }
+                }
+
+                onMeasurementAdd(currentTool.name, allPoints);
                 setClickedPoints([]);
-                setReferenceLines(prev => ({ ...prev, sva: null })); // 清除第一条垂直线
+                setReferenceLines(prev => ({ ...prev, sva: null })); // 清除参考线
               }
             }
           } else if (selectedTool.includes('avt')) {
@@ -3677,23 +3752,52 @@ function ImageCanvas({
               const deltaX = newCenterX - currentCenterX;
               const deltaY = newCenterY - currentCenterY;
 
-              // 更新所有点的位置
-              const updatedMeasurements = measurements.map(m => {
-                if (m.id === selectionState.measurementId) {
-                  const updatedMeasurement = {
+              // 先计算当前被拖拽标注的目标点位
+              const movedPoints = measurement.points.map(p => ({
+                x: p.x + deltaX,
+                y: p.y + deltaY,
+              }));
+
+              // 逐点应用绑定传播：确保绑定组内所有关联点一起移动
+              let bindingPropagated = measurements;
+              for (let pointIdx = 0; pointIdx < movedPoints.length; pointIdx++) {
+                const movedPoint = movedPoints[pointIdx];
+                bindingPropagated = applyPointBindings(
+                  bindingPropagated,
+                  selectionState.measurementId!,
+                  pointIdx,
+                  movedPoint.x,
+                  movedPoint.y,
+                  pointBindings
+                );
+
+                // applyPointBindings 不更新 moved 本体点，手动落位
+                bindingPropagated = bindingPropagated.map(m => {
+                  if (m.id !== selectionState.measurementId) return m;
+                  const pts = m.points.map((p, idx) => (idx === pointIdx ? movedPoint : p));
+                  return { ...m, points: pts };
+                });
+              }
+
+              // 仅对实际变更的标注重算测量值
+              const updatedMeasurements = bindingPropagated.map(m => {
+                const originalMeasurement = measurements.find(orig => orig.id === m.id);
+                const pointsChanged = originalMeasurement
+                  ? m.points.some((p, i) => {
+                      const op = originalMeasurement.points[i];
+                      return !op || p.x !== op.x || p.y !== op.y;
+                    })
+                  : false;
+
+                if (pointsChanged) {
+                  return {
                     ...m,
-                    points: m.points.map(p => ({
-                      x: p.x + deltaX,
-                      y: p.y + deltaY,
-                    })),
+                    value: calcMeasurementValue(m.type, m.points, {
+                      standardDistance,
+                      standardDistancePoints,
+                      imageNaturalSize
+                    }) || m.value,
                   };
-                  // 重新计算测量值
-                  updatedMeasurement.value = calcMeasurementValue(m.type, updatedMeasurement.points, {
-                    standardDistance,
-                    standardDistancePoints,
-                    imageNaturalSize
-                  }) || updatedMeasurement.value;
-                  return updatedMeasurement;
                 }
                 return m;
               });

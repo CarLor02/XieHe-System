@@ -236,6 +236,7 @@ export function getLateralTools() {
     'cl',
     'tk-t2-t5',
     'tk-t5-t12',
+    't10-l2',
     'll-l1-s1',
     'll-l1-l4',
     'll-l4-s1',
@@ -330,6 +331,37 @@ export const POINT_INHERITANCE_RULES: Record<string, PointInheritanceRule[]> = {
       sourcePointIndices: [4, 5],        // C7 Offset 的参考线端点
       destinationPointIndices: [0, 1],   // 对应 Sacral 的两个端点
     }
+  ],
+  // SVA（5点法）：
+  // - 第1、2个点继承 C2-C7 CL 的第3、4个点
+  // - 第5个点继承 SS 的第2个点
+  'sva': [
+    {
+      fromType: 'C2-C7 CL',
+      sourcePointIndices: [2, 3],
+      destinationPointIndices: [0, 1],
+    },
+    {
+      fromType: 'SS',
+      sourcePointIndices: [1],
+      destinationPointIndices: [4],
+    }
+  ],
+  // 反向：若 SVA 先标注，C2-C7 CL 可从 SVA 的第1、2个点中推导其第3、4个点
+  'cl': [
+    {
+      fromType: 'SVA',
+      sourcePointIndices: [0, 1],
+      destinationPointIndices: [2, 3],
+    }
+  ],
+  // 反向：若 SVA 先标注，SS 可从 SVA 的第5个点中推导其第2个点
+  'ss': [
+    {
+      fromType: 'SVA',
+      sourcePointIndices: [4],
+      destinationPointIndices: [1],
+    }
   ]
 };
 
@@ -419,8 +451,8 @@ export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
  *
  * 来源优先级：POINT_INHERITANCE_RULES（非对称）> SHARED_ANATOMICAL_POINT_GROUPS（对称）
  *
- * 返回的 points 按 destinationIndex 升序排列，将被追加到用户手动点击点之后。
- * 注意：此机制假设继承点均位于目标 points[] 的末尾（高索引侧）。
+ * 返回的 points 按 destinationIndex 升序排列。
+ * 注意：当继承索引不连续时，调用方需要按 destinationIndex 回填到完整 points[]。
  */
 export function getInheritedPoints(
   toolId: string,
