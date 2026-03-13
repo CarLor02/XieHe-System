@@ -1414,14 +1414,27 @@ export const CIRCLE_CONFIG: AnnotationConfig = {
   name: 'Auxiliary Circle',
   icon: 'ri-circle-line',
   description: '辅助圆形',
-  pointsNeeded: 0, // 动态绘制
+  pointsNeeded: 0, // 动态绘制，但存储圆心和边缘点两个点
   category: 'auxiliary',
   color: '#10b981',
   
   calculateResults: () => [],
   
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
-    return points[0] || { x: 0, y: 0 };
+    // label 放在圆心正下方，避免遮挡圆心点
+    if (points.length < 1) return { x: 0, y: 0 };
+    const center = points[0];
+    // 如果有边缘点，计算圆的半径
+    if (points.length >= 2) {
+      const radius = Math.sqrt(
+        Math.pow(points[1].x - center.x, 2) + 
+        Math.pow(points[1].y - center.y, 2)
+      );
+      // label 放在圆心下方，距离为半径/2 或 30 像素，取大值
+      const labelDistance = Math.max(radius / 2, 30 / imageScale);
+      return { x: center.x, y: center.y + labelDistance };
+    }
+    return center;
   },
   
   isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
@@ -1447,7 +1460,20 @@ export const ELLIPSE_CONFIG: AnnotationConfig = {
   color: '#14b8a6',
   
   calculateResults: () => [],
-  getLabelPosition: (points: Point[], imageScale: number = 1) => points[0] || { x: 0, y: 0 },
+  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    // label 放在椭圆中心正下方，避免遮挡中心点
+    if (points.length < 1) return { x: 0, y: 0 };
+    const center = points[0];
+    // 如果有边界点，计算椭圆的半径
+    if (points.length >= 2) {
+      const radiusX = Math.abs(points[1].x - center.x);
+      const radiusY = Math.abs(points[1].y - center.y);
+      // label 放在中心下方，距离为Y半径/2 或 30 像素，取大值
+      const labelDistance = Math.max(radiusY / 2, 30 / imageScale);
+      return { x: center.x, y: center.y + labelDistance };
+    }
+    return center;
+  },
   isInHoverRange: () => false,
   isInSelectionRange: () => false
 };
@@ -1465,7 +1491,13 @@ export const RECTANGLE_CONFIG: AnnotationConfig = {
   color: '#06b6d4',
   
   calculateResults: () => [],
-  getLabelPosition: (points: Point[], imageScale: number = 1) => points[0] || { x: 0, y: 0 },
+  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    // label 显示在矩形上方，避免遮挡角点
+    if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    const minY = Math.min(points[0].y, points[1].y);
+    const centerX = (points[0].x + points[1].x) / 2;
+    return { x: centerX, y: minY - 20 / imageScale };
+  },
   isInHoverRange: () => false,
   isInSelectionRange: () => false
 };
@@ -1790,6 +1822,7 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   'c7-offset': C7_OFFSET_CONFIG,
   't1-slope': T1_SLOPE_CONFIG,
   'cl': CL_CONFIG,
+  'c2-c7-cl': CL_CONFIG,  // 'C2-C7 CL' 规范化后的别名
   'tk-t2-t5': TK_T2_T5_CONFIG,
   'tk-t5-t12': TK_T5_T12_CONFIG,
   'll-l1-s1': LL_L1_S1_CONFIG,
@@ -1800,6 +1833,8 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   'pi': PI_CONFIG,
   'pt': PT_CONFIG,
   'ss': SS_CONFIG,
+  'tts': TS_CONFIG,  // 'TTS' 规范化后的别名
+  'ts(trunk-shift)': C7_OFFSET_CONFIG,  // 'TS(Trunk Shift)' 规范化后的别名
   'length': LENGTH_CONFIG,
   'angle': ANGLE_CONFIG,
   'circle': CIRCLE_CONFIG,

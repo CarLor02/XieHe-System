@@ -32,6 +32,8 @@ import {
     getLabelPositionForType,
     getToolsForExamType as getTools,
     renderSpecialSVGElements,
+    POINT_INHERITANCE_RULES,
+    SHARED_ANATOMICAL_POINT_GROUPS,
 } from './annotationHelpers';
 // 导入工具函数库
 import {
@@ -483,8 +485,20 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       finalType = `Cobb${cobbCount + 1}`;
     }
 
+    // 查找工具ID用于配置查找
+    // 优先使用工具对象的ID，如果是Cobb则使用'cobb'，否则通过名称反查ID
+    let configLookupType = finalType;
+    if (isCobb) {
+      configLookupType = 'cobb';
+    } else {
+      const tool = tools.find(t => t.name === type);
+      if (tool) {
+        configLookupType = tool.id;
+      }
+    }
+
     // 使用统一的配置系统计算测量值
-    const defaultValue = calcMeasurementValue(isCobb ? 'cobb' : finalType, points, {
+    const defaultValue = calcMeasurementValue(configLookupType, points, {
       standardDistance,
       standardDistancePoints,
       imageNaturalSize,
@@ -513,7 +527,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         if (count >= tool.pointsNeeded) {
           // 所有点位均可由已有标注推导出，自动创建
           const autoPoints = inheritedPts.slice(0, tool.pointsNeeded);
-          const autoValue = calcMeasurementValue(tool.name, autoPoints, {
+          const autoValue = calcMeasurementValue(tool.id, autoPoints, {
             standardDistance,
             standardDistancePoints,
             imageNaturalSize,
@@ -2809,20 +2823,18 @@ function ImageCanvas({
           const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
           
           // 1.1 检查是否点击了任意点 - 优先级最高
-          // 对于圆形和椭圆标注，跳过端点选择
-          if (!isAuxiliaryShape || (measurement.type !== '圆形标注' && measurement.type !== '椭圆标注')) {
-            for (let i = 0; i < measurement.points.length; i++) {
-              const point = measurement.points[i];
-              const pointScreen = imageToScreen(point);
-              // 使用工具函数计算距离
-              const distance = calculateDistance(screenPoint, pointScreen);
-              if (distance < pointClickRadius) {
-                selectedMeasurement = measurement;
-                selectedPointIdx = i;
-                selType = 'point';
-                foundSelection = true;
-                break;
-              }
+          // 检查所有点，包括圆形和椭圆的点
+          for (let i = 0; i < measurement.points.length; i++) {
+            const point = measurement.points[i];
+            const pointScreen = imageToScreen(point);
+            // 使用工具函数计算距离
+            const distance = calculateDistance(screenPoint, pointScreen);
+            if (distance < pointClickRadius) {
+              selectedMeasurement = measurement;
+              selectedPointIdx = i;
+              selType = 'point';
+              foundSelection = true;
+              break;
             }
           }
           
@@ -3369,10 +3381,55 @@ function ImageCanvas({
             // 其他工具的通用逻辑（支持继承点位自动填充）
             const currentTool = tools.find(t => t.id === selectedTool);
             if (currentTool) {
-              const { points: inheritedPts } = getInheritedPoints(currentTool.id, measurements);
-              const effectiveNeeded = currentTool.pointsNeeded - inheritedPts.length;
+              // 获取从已有标注中继承的点及其目标索引
+              const asymRules = POINT_INHERITANCE_RULES[currentTool.id] || [];
+              const inheritedMap = new Map<number, Point>(); // destinationIndex -> point
+              
+              // 处理非对称继承规则
+              for (const rule of asymRules) {
+                const source = measurements.find(m => m.type === rule.fromType);
+                if (source) {
+                  for (let i = 0; i < rule.sourcePointIndices.length; i++) {
+                    const srcIdx = rule.sourcePointIndices[i];
+                    const dstIdx = rule.destinationPointIndices[i];
+                    if (srcIdx < source.points.length) {
+                      inheritedMap.set(dstIdx, source.points[srcIdx]);
+                    }
+                  }
+                }
+              }
+
+              // 处理对称共享解剖点
+              for (const group of SHARED_ANATOMICAL_POINT_GROUPS) {
+                const my = group.participants.find(p => p.toolId === currentTool.id);
+                if (!my || inheritedMap.has(my.pointIndex)) continue;
+                
+                for (const p of group.participants) {
+                  if (p.toolId === currentTool.id) continue;
+                  const source = measurements.find(m => m.type === p.typeName);
+                  if (source && p.pointIndex < source.points.length) {
+                    inheritedMap.set(my.pointIndex, source.points[p.pointIndex]);
+                    break;
+                  }
+                }
+              }
+
+              const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
               if (newPoints.length === effectiveNeeded) {
-                const allPoints = [...newPoints, ...inheritedPts];
+                // 构建完整的 allPoints 数组，按正确的索引位置填入点
+                const allPoints: Point[] = [];
+                let userPointIndex = 0;
+                
+                for (let i = 0; i < currentTool.pointsNeeded; i++) {
+                  if (inheritedMap.has(i)) {
+                    // 该位置有继承点
+                    allPoints[i] = inheritedMap.get(i)!;
+                  } else {
+                    // 该位置用用户手动点击的点
+                    allPoints[i] = newPoints[userPointIndex++];
+                  }
+                }
+                
                 onMeasurementAdd(currentTool.name, allPoints);
                 setClickedPoints([]);
               }
@@ -3711,21 +3768,18 @@ function ImageCanvas({
         const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
         
         // 1. 检查是否悬浮在点上 - 优先级最高
-        // 对于圆形和椭圆标注，跳过端点悬浮
-        if (!isAuxiliaryShape || (measurement.type !== '圆形标注' && measurement.type !== '椭圆标注')) {
-          for (let i = 0; i < measurement.points.length; i++) {
-            const point = measurement.points[i];
-            const screenPointPos = imageToScreen(point);
-            const distance = Math.sqrt(
-              Math.pow(screenPoint.x - screenPointPos.x, 2) + Math.pow(screenPoint.y - screenPointPos.y, 2)
-            );
-            if (distance < pointHoverRadius) {
-              hoveredMeasurementId = measurement.id;
-              hoveredPointIdx = i;
-              hoveredElementType = 'point';
-              foundHover = true;
-              break;
-            }
+        for (let i = 0; i < measurement.points.length; i++) {
+          const point = measurement.points[i];
+          const screenPointPos = imageToScreen(point);
+          const distance = Math.sqrt(
+            Math.pow(screenPoint.x - screenPointPos.x, 2) + Math.pow(screenPoint.y - screenPointPos.y, 2)
+          );
+          if (distance < pointHoverRadius) {
+            hoveredMeasurementId = measurement.id;
+            hoveredPointIdx = i;
+            hoveredElementType = 'point';
+            foundHover = true;
+            break;
           }
         }
         
@@ -5615,8 +5669,15 @@ function ImageCanvas({
               const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
               const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
 
+              // 获取点的选中/悬浮状态
+              const centerSelected = selectionState.measurementId === measurement.id && selectionState.pointIndex === 0;
+              const centerHovered = !centerSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'point' && hoverState.pointIndex === 0;
+              const edgeSelected = selectionState.measurementId === measurement.id && selectionState.pointIndex === 1;
+              const edgeHovered = !edgeSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'point' && hoverState.pointIndex === 1;
+
               return (
                 <g key={measurement.id}>
+                  {/* 圆形 */}
                   <circle
                     cx={screenCenter.x}
                     cy={screenCenter.y}
@@ -5627,20 +5688,125 @@ function ImageCanvas({
                     strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
                     opacity={isSelected || isHovered ? "1" : "0.6"}
                   />
-                  {/* 文字标注 - 显示在圆形中心 */}
-                  {measurement.description && (
+                  
+                  {/* 圆心点 */}
+                  <g>
+                    <circle
+                      cx={screenCenter.x}
+                      cy={screenCenter.y}
+                      r={centerSelected ? "5" : centerHovered ? "6" : "3"}
+                      fill={centerSelected ? "#ef4444" : centerHovered ? "#fbbf24" : "#10b981"}
+                      stroke={centerSelected ? "#ef4444" : centerHovered ? "#fbbf24" : "#ffffff"}
+                      strokeWidth={centerSelected ? "2" : centerHovered ? "3" : "1"}
+                      opacity={centerSelected || centerHovered ? "1" : "0.8"}
+                    />
+                    {/* 选中时的外层圆圈 */}
+                    {centerSelected && (
+                      <circle
+                        cx={screenCenter.x}
+                        cy={screenCenter.y}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 悬浮时的外层圆圈 */}
+                    {centerHovered && (
+                      <circle
+                        cx={screenCenter.x}
+                        cy={screenCenter.y}
+                        r="9"
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 圆心点序号标注 */}
                     <text
-                      x={screenCenter.x}
-                      y={screenCenter.y + 5}
-                      fill="#1e40af"
-                      fontSize="14"
+                      x={screenCenter.x + 8}
+                      y={screenCenter.y - 8}
+                      fill={centerSelected ? "#ef4444" : centerHovered ? "#fbbf24" : "#10b981"}
+                      fontSize={centerSelected || centerHovered ? "14" : "12"}
                       fontWeight="bold"
-                      textAnchor="middle"
-                      style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      stroke="#000000"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
                     >
-                      {measurement.description}
+                      1
                     </text>
-                  )}
+                  </g>
+
+                  {/* 边缘点 */}
+                  <g>
+                    <circle
+                      cx={screenEdge.x}
+                      cy={screenEdge.y}
+                      r={edgeSelected ? "5" : edgeHovered ? "6" : "3"}
+                      fill={edgeSelected ? "#ef4444" : edgeHovered ? "#fbbf24" : "#10b981"}
+                      stroke={edgeSelected ? "#ef4444" : edgeHovered ? "#fbbf24" : "#ffffff"}
+                      strokeWidth={edgeSelected ? "2" : edgeHovered ? "3" : "1"}
+                      opacity={edgeSelected || edgeHovered ? "1" : "0.8"}
+                    />
+                    {/* 选中时的外层圆圈 */}
+                    {edgeSelected && (
+                      <circle
+                        cx={screenEdge.x}
+                        cy={screenEdge.y}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 悬浮时的外层圆圈 */}
+                    {edgeHovered && (
+                      <circle
+                        cx={screenEdge.x}
+                        cy={screenEdge.y}
+                        r="9"
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 边缘点序号标注 */}
+                    <text
+                      x={screenEdge.x + 8}
+                      y={screenEdge.y - 8}
+                      fill={edgeSelected ? "#ef4444" : edgeHovered ? "#fbbf24" : "#10b981"}
+                      fontSize={edgeSelected || edgeHovered ? "14" : "12"}
+                      fontWeight="bold"
+                      stroke="#000000"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
+                    >
+                      2
+                    </text>
+                  </g>
+
+                  {/* 文字标注 - 显示在圆心下方，使用配置中的位置计算 */}
+                  {measurement.description && (() => {
+                    const labelPosInImage = getLabelPositionForType(measurement.type, measurement.points, imageScale);
+                    const labelPosInScreen = imageToScreen(labelPosInImage);
+                    return (
+                      <text
+                        x={labelPosInScreen.x}
+                        y={labelPosInScreen.y + 5}
+                        fill="#1e40af"
+                        fontSize="14"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      >
+                        {measurement.description}
+                      </text>
+                    );
+                  })()}
                 </g>
               );
             }
@@ -5688,8 +5854,15 @@ function ImageCanvas({
               const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
               const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
 
+              // 获取点的选中/悬浮状态
+              const centerSelected = selectionState.measurementId === measurement.id && selectionState.pointIndex === 0;
+              const centerHovered = !centerSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'point' && hoverState.pointIndex === 0;
+              const edgeSelected = selectionState.measurementId === measurement.id && selectionState.pointIndex === 1;
+              const edgeHovered = !edgeSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'point' && hoverState.pointIndex === 1;
+
               return (
                 <g key={measurement.id}>
+                  {/* 椭圆 */}
                   <ellipse
                     cx={screenCenter.x}
                     cy={screenCenter.y}
@@ -5701,20 +5874,125 @@ function ImageCanvas({
                     strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
                     opacity={isSelected || isHovered ? "1" : "0.6"}
                   />
-                  {/* 文字标注 - 显示在椭圆中心 */}
-                  {measurement.description && (
+                  
+                  {/* 椭圆中心点 */}
+                  <g>
+                    <circle
+                      cx={screenCenter.x}
+                      cy={screenCenter.y}
+                      r={centerSelected ? "5" : centerHovered ? "6" : "3"}
+                      fill={centerSelected ? "#ef4444" : centerHovered ? "#fbbf24" : "#14b8a6"}
+                      stroke={centerSelected ? "#ef4444" : centerHovered ? "#fbbf24" : "#ffffff"}
+                      strokeWidth={centerSelected ? "2" : centerHovered ? "3" : "1"}
+                      opacity={centerSelected || centerHovered ? "1" : "0.8"}
+                    />
+                    {/* 选中时的外层圆圈 */}
+                    {centerSelected && (
+                      <circle
+                        cx={screenCenter.x}
+                        cy={screenCenter.y}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 悬浮时的外层圆圈 */}
+                    {centerHovered && (
+                      <circle
+                        cx={screenCenter.x}
+                        cy={screenCenter.y}
+                        r="9"
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 椭圆中心点序号标注 */}
                     <text
-                      x={screenCenter.x}
-                      y={screenCenter.y + 5}
-                      fill="#6d28d9"
-                      fontSize="14"
+                      x={screenCenter.x + 8}
+                      y={screenCenter.y - 8}
+                      fill={centerSelected ? "#ef4444" : centerHovered ? "#fbbf24" : "#14b8a6"}
+                      fontSize={centerSelected || centerHovered ? "14" : "12"}
                       fontWeight="bold"
-                      textAnchor="middle"
-                      style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      stroke="#000000"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
                     >
-                      {measurement.description}
+                      1
                     </text>
-                  )}
+                  </g>
+
+                  {/* 椭圆边界点 */}
+                  <g>
+                    <circle
+                      cx={screenEdge.x}
+                      cy={screenEdge.y}
+                      r={edgeSelected ? "5" : edgeHovered ? "6" : "3"}
+                      fill={edgeSelected ? "#ef4444" : edgeHovered ? "#fbbf24" : "#14b8a6"}
+                      stroke={edgeSelected ? "#ef4444" : edgeHovered ? "#fbbf24" : "#ffffff"}
+                      strokeWidth={edgeSelected ? "2" : edgeHovered ? "3" : "1"}
+                      opacity={edgeSelected || edgeHovered ? "1" : "0.8"}
+                    />
+                    {/* 选中时的外层圆圈 */}
+                    {edgeSelected && (
+                      <circle
+                        cx={screenEdge.x}
+                        cy={screenEdge.y}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 悬浮时的外层圆圈 */}
+                    {edgeHovered && (
+                      <circle
+                        cx={screenEdge.x}
+                        cy={screenEdge.y}
+                        r="9"
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 椭圆边界点序号标注 */}
+                    <text
+                      x={screenEdge.x + 8}
+                      y={screenEdge.y - 8}
+                      fill={edgeSelected ? "#ef4444" : edgeHovered ? "#fbbf24" : "#14b8a6"}
+                      fontSize={edgeSelected || edgeHovered ? "14" : "12"}
+                      fontWeight="bold"
+                      stroke="#000000"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
+                    >
+                      2
+                    </text>
+                  </g>
+
+                  {/* 文字标注 - 显示在椭圆中心下方，使用配置中的位置计算 */}
+                  {measurement.description && (() => {
+                    const labelPosInImage = getLabelPositionForType(measurement.type, measurement.points, imageScale);
+                    const labelPosInScreen = imageToScreen(labelPosInImage);
+                    return (
+                      <text
+                        x={labelPosInScreen.x}
+                        y={labelPosInScreen.y + 5}
+                        fill="#6d28d9"
+                        fontSize="14"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      >
+                        {measurement.description}
+                      </text>
+                    );
+                  })()}
                 </g>
               );
             }
@@ -5749,42 +6027,168 @@ function ImageCanvas({
           .filter(m => m.type === '矩形标注')
           .map(measurement => {
             if (measurement.points.length >= 2) {
-              const topLeft = imageToScreen(measurement.points[0]);
-              const bottomRight = imageToScreen(measurement.points[1]);
+              const p0 = measurement.points[0]; // 点0：左上角
+              const p1 = measurement.points[1]; // 点1：右下角
+              
+              // 计算矩形的四个角（图像坐标）
+              const minX = Math.min(p0.x, p1.x);
+              const maxX = Math.max(p0.x, p1.x);
+              const minY = Math.min(p0.y, p1.y);
+              const maxY = Math.max(p0.y, p1.y);
+              
+              // 转换为屏幕坐标
+              const p0Screen = imageToScreen(p0);
+              const p1Screen = imageToScreen(p1);
+              
               const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
               const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
-              const minX = Math.min(topLeft.x, bottomRight.x);
-              const minY = Math.min(topLeft.y, bottomRight.y);
-              const width = Math.abs(bottomRight.x - topLeft.x);
-              const height = Math.abs(bottomRight.y - topLeft.y);
+              
+              // 获取两个点的选中/悬浮状态
+              const p0Selected = selectionState.measurementId === measurement.id && selectionState.pointIndex === 0;
+              const p0Hovered = !p0Selected && hoverState.measurementId === measurement.id && hoverState.elementType === 'point' && hoverState.pointIndex === 0;
+              const p1Selected = selectionState.measurementId === measurement.id && selectionState.pointIndex === 1;
+              const p1Hovered = !p1Selected && hoverState.measurementId === measurement.id && hoverState.elementType === 'point' && hoverState.pointIndex === 1;
+              
+              const minXScreen = Math.min(p0Screen.x, p1Screen.x);
+              const maxXScreen = Math.max(p0Screen.x, p1Screen.x);
+              const minYScreen = Math.min(p0Screen.y, p1Screen.y);
+              const maxYScreen = Math.max(p0Screen.y, p1Screen.y);
+              const rectWidth = maxXScreen - minXScreen;
+              const rectHeight = maxYScreen - minYScreen;
 
               return (
                 <g key={measurement.id}>
+                  {/* 矩形 */}
                   <rect
-                    x={minX}
-                    y={minY}
-                    width={width}
-                    height={height}
+                    x={minXScreen}
+                    y={minYScreen}
+                    width={rectWidth}
+                    height={rectHeight}
                     fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "none"}
                     fillOpacity={isSelected ? "0.1" : isHovered ? "0.1" : "0"}
                     stroke={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#ec4899"}
                     strokeWidth={isSelected ? "3" : isHovered ? "3" : "2"}
                     opacity={isSelected || isHovered ? "1" : "0.6"}
                   />
-                  {/* 文字标注 - 显示在矩形中心 */}
-                  {measurement.description && (
+                  
+                  {/* 点0 - 通常是左上角 */}
+                  <g>
+                    <circle
+                      cx={p0Screen.x}
+                      cy={p0Screen.y}
+                      r={p0Selected ? "5" : p0Hovered ? "6" : "3"}
+                      fill={p0Selected ? "#ef4444" : p0Hovered ? "#fbbf24" : "#06b6d4"}
+                      stroke={p0Selected ? "#ef4444" : p0Hovered ? "#fbbf24" : "#ffffff"}
+                      strokeWidth={p0Selected ? "2" : p0Hovered ? "3" : "1"}
+                      opacity={p0Selected || p0Hovered ? "1" : "0.8"}
+                    />
+                    {/* 选中时的外层圆圈 */}
+                    {p0Selected && (
+                      <circle
+                        cx={p0Screen.x}
+                        cy={p0Screen.y}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 悬浮时的外层圆圈 */}
+                    {p0Hovered && (
+                      <circle
+                        cx={p0Screen.x}
+                        cy={p0Screen.y}
+                        r="9"
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 点0的序号标注 */}
                     <text
-                      x={minX + width / 2}
-                      y={minY + height / 2 + 5}
-                      fill="#be185d"
-                      fontSize="14"
+                      x={p0Screen.x + 8}
+                      y={p0Screen.y - 8}
+                      fill={p0Selected ? "#ef4444" : p0Hovered ? "#fbbf24" : "#06b6d4"}
+                      fontSize={p0Selected || p0Hovered ? "14" : "12"}
                       fontWeight="bold"
-                      textAnchor="middle"
-                      style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      stroke="#000000"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
                     >
-                      {measurement.description}
+                      1
                     </text>
-                  )}
+                  </g>
+                  
+                  {/* 点1 - 通常是右下角 */}
+                  <g>
+                    <circle
+                      cx={p1Screen.x}
+                      cy={p1Screen.y}
+                      r={p1Selected ? "5" : p1Hovered ? "6" : "3"}
+                      fill={p1Selected ? "#ef4444" : p1Hovered ? "#fbbf24" : "#06b6d4"}
+                      stroke={p1Selected ? "#ef4444" : p1Hovered ? "#fbbf24" : "#ffffff"}
+                      strokeWidth={p1Selected ? "2" : p1Hovered ? "3" : "1"}
+                      opacity={p1Selected || p1Hovered ? "1" : "0.8"}
+                    />
+                    {/* 选中时的外层圆圈 */}
+                    {p1Selected && (
+                      <circle
+                        cx={p1Screen.x}
+                        cy={p1Screen.y}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 悬浮时的外层圆圈 */}
+                    {p1Hovered && (
+                      <circle
+                        cx={p1Screen.x}
+                        cy={p1Screen.y}
+                        r="9"
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 点1的序号标注 */}
+                    <text
+                      x={p1Screen.x + 8}
+                      y={p1Screen.y - 8}
+                      fill={p1Selected ? "#ef4444" : p1Hovered ? "#fbbf24" : "#06b6d4"}
+                      fontSize={p1Selected || p1Hovered ? "14" : "12"}
+                      fontWeight="bold"
+                      stroke="#000000"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
+                    >
+                      2
+                    </text>
+                  </g>
+                  
+                  {/* 文字标注 - 显示在矩形上方，使用配置中的位置计算 */}
+                  {measurement.description && (() => {
+                    const labelPosInImage = getLabelPositionForType(measurement.type, measurement.points, imageScale);
+                    const labelPosInScreen = imageToScreen(labelPosInImage);
+                    return (
+                      <text
+                        x={labelPosInScreen.x}
+                        y={labelPosInScreen.y + 5}
+                        fill="#be185d"
+                        fontSize="14"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        style={{ userSelect: 'none', pointerEvents: 'none' }}
+                      >
+                        {measurement.description}
+                      </text>
+                    );
+                  })()}
                 </g>
               );
             }
@@ -5824,6 +6228,12 @@ function ImageCanvas({
               const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
               const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
 
+              // 起点和终点的选中/悬浮状态
+              const startPointSelected = selectionState.measurementId === measurement.id && selectionState.pointIndex === 0;
+              const endPointSelected = selectionState.measurementId === measurement.id && selectionState.pointIndex === 1;
+              const startPointHovered = !startPointSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'point' && hoverState.pointIndex === 0;
+              const endPointHovered = !endPointSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'point' && hoverState.pointIndex === 1;
+
               // 确定箭头头部的marker
               let markerEnd = "url(#arrowhead-normal)";
               if (isSelected) {
@@ -5844,6 +6254,107 @@ function ImageCanvas({
                     markerEnd={markerEnd}
                     opacity={isSelected || isHovered ? "1" : "0.6"}
                   />
+
+                  {/* 起点 */}
+                  <g>
+                    <circle
+                      cx={start.x}
+                      cy={start.y}
+                      r={startPointSelected ? "5" : startPointHovered ? "6" : "3"}
+                      fill={startPointSelected ? "#ef4444" : startPointHovered ? "#fbbf24" : "#f59e0b"}
+                      stroke={startPointSelected ? "#ef4444" : startPointHovered ? "#fbbf24" : "#ffffff"}
+                      strokeWidth={startPointSelected ? "2" : startPointHovered ? "3" : "1"}
+                      opacity={startPointSelected || startPointHovered ? "1" : "0.8"}
+                    />
+                    {/* 选中时的外层圆圈 */}
+                    {startPointSelected && (
+                      <circle
+                        cx={start.x}
+                        cy={start.y}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 悬浮时的外层圆圈 */}
+                    {startPointHovered && (
+                      <circle
+                        cx={start.x}
+                        cy={start.y}
+                        r="9"
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 起点序号标注 */}
+                    <text
+                      x={start.x + 8}
+                      y={start.y - 8}
+                      fill={startPointSelected ? "#ef4444" : startPointHovered ? "#fbbf24" : "#f59e0b"}
+                      fontSize={startPointSelected || startPointHovered ? "14" : "12"}
+                      fontWeight="bold"
+                      stroke="#000000"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
+                    >
+                      1
+                    </text>
+                  </g>
+
+                  {/* 终点 */}
+                  <g>
+                    <circle
+                      cx={end.x}
+                      cy={end.y}
+                      r={endPointSelected ? "5" : endPointHovered ? "6" : "3"}
+                      fill={endPointSelected ? "#ef4444" : endPointHovered ? "#fbbf24" : "#f59e0b"}
+                      stroke={endPointSelected ? "#ef4444" : endPointHovered ? "#fbbf24" : "#ffffff"}
+                      strokeWidth={endPointSelected ? "2" : endPointHovered ? "3" : "1"}
+                      opacity={endPointSelected || endPointHovered ? "1" : "0.8"}
+                    />
+                    {/* 选中时的外层圆圈 */}
+                    {endPointSelected && (
+                      <circle
+                        cx={end.x}
+                        cy={end.y}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 悬浮时的外层圆圈 */}
+                    {endPointHovered && (
+                      <circle
+                        cx={end.x}
+                        cy={end.y}
+                        r="9"
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        opacity="0.6"
+                      />
+                    )}
+                    {/* 终点序号标注 */}
+                    <text
+                      x={end.x + 8}
+                      y={end.y - 8}
+                      fill={endPointSelected ? "#ef4444" : endPointHovered ? "#fbbf24" : "#f59e0b"}
+                      fontSize={endPointSelected || endPointHovered ? "14" : "12"}
+                      fontWeight="bold"
+                      stroke="#000000"
+                      strokeWidth="0.5"
+                      paintOrder="stroke"
+                    >
+                      2
+                    </text>
+                  </g>
+
                   {/* 文字标注 - 显示在箭头中心 */}
                   {measurement.description && (
                     <text

@@ -356,11 +356,29 @@ export interface SharedAnatomicalPoint {
 
 /**
  * 侧位共享解剖点组
- * - S1上缘左端点: LL L1-S1[2] / LL L4-S1[2] / TPA[5] / PI[1] / PT[1] / SS[0]
- * - S1上缘右端点: LL L1-S1[3] / LL L4-S1[3] / TPA[6] / PI[2] / PT[2] / SS[1]
- * - T1椎体中心:   TPA[4] / PI[0] / PT[0]
+ * - L1上缘左端点:  LL L1-L4[0] / LL L1-S1[0]
+ * - L1上缘右端点:  LL L1-L4[1] / LL L1-S1[1]
+ * - S1上缘左端点:  LL L1-S1[2] / LL L4-S1[2] / TPA[5] / PI[1] / PT[1] / SS[0]
+ * - S1上缘右端点:  LL L1-S1[3] / LL L4-S1[3] / TPA[6] / PI[2] / PT[2] / SS[1]
+ * - T1椎体中心:    TPA[4] / PI[0] / PT[0]
  */
 export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
+  {
+    name: 'L1上缘-左端点',
+    color: '#fb7185',
+    participants: [
+      { toolId: 'll-l1-l4', typeName: 'LL L1-L4', pointIndex: 0 },
+      { toolId: 'll-l1-s1', typeName: 'LL L1-S1', pointIndex: 0 },
+    ]
+  },
+  {
+    name: 'L1上缘-右端点',
+    color: '#fb7185',
+    participants: [
+      { toolId: 'll-l1-l4', typeName: 'LL L1-L4', pointIndex: 1 },
+      { toolId: 'll-l1-s1', typeName: 'LL L1-S1', pointIndex: 1 },
+    ]
+  },
   {
     name: 'S1上缘-左端点',
     color: '#f59e0b',
@@ -386,7 +404,7 @@ export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
     ]
   },
   {
-    name: 'T1椎体中心',
+    name: 'S1中心和股骨中心',
     color: '#a855f7',
     participants: [
       { toolId: 'tpa', typeName: 'TPA', pointIndex: 4 },
