@@ -320,7 +320,7 @@ export const POINT_INHERITANCE_RULES: Record<string, PointInheritanceRule[]> = {
   // 反向：若 C7 Offset 先标注，骶骨倾斜角可从 C7 Offset 的第5、6个点中推导
   'sacral': [
     {
-      fromType: 'C7 Offset',
+      fromType: 'TS(Trunk Shift)',
       sourcePointIndices: [4, 5],        // C7 Offset 的参考线端点
       destinationPointIndices: [0, 1],   // 对应 Sacral 的两个端点
     }

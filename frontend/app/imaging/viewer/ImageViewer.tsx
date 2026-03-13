@@ -465,7 +465,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           distance = (pixelDistance / imageWidth) * referenceWidth;
         }
         
-        const newValue = `${distance.toFixed(1)}mm`;
+        const newValue = `${distance.toFixed(2)}mm`;
         return { ...measurement, value: newValue };
       }
       return measurement;

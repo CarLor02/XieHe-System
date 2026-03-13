@@ -90,7 +90,7 @@ export function getToolDisplayName(toolId: string): string {
     cobb: 'Cobb角',
     ca: '肩部角度',
     avt: 'AVT',
-    ts: 'TS',
+    ts: 'TTS',
     sva: 'SVA',
     tk: 'TK',
     ll: 'LL',

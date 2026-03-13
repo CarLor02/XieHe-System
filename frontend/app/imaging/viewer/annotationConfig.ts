@@ -201,7 +201,7 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
     
     return [{
       name: 'T1 Tilt',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -282,7 +282,7 @@ export const COBB_CONFIG: AnnotationConfig = {
 
     return [{
       name: 'Cobb角',
-      value: signedAngle.toFixed(1),
+      value: signedAngle.toFixed(2),
       unit: '°'
     }];
   },
@@ -338,7 +338,7 @@ export const CA_CONFIG: AnnotationConfig = {
     
     return [{
       name: 'CA',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -398,7 +398,7 @@ export const PELVIC_CONFIG: AnnotationConfig = {
 
     return [{
       name: 'Pelvic',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -458,7 +458,7 @@ export const SACRAL_CONFIG: AnnotationConfig = {
 
     return [{
       name: 'Sacral',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -511,7 +511,7 @@ export const AVT_CONFIG: AnnotationConfig = {
     
     return [{
       name: 'AVT',
-      value: actualDistance.toFixed(1),
+      value: actualDistance.toFixed(2),
       unit: 'mm'
     }];
   },
@@ -547,7 +547,7 @@ export const AVT_CONFIG: AnnotationConfig = {
  */
 export const TS_CONFIG: AnnotationConfig = {
   id: 'ts',
-  name: 'TS',
+  name: 'TTS',
   icon: 'ri-crosshair-2-line',
   description: '躯干偏移量(Trunk Shift)',
   pointsNeeded: 2,
@@ -561,8 +561,8 @@ export const TS_CONFIG: AnnotationConfig = {
     const actualDistance = calculateActualDistance(pixelDistance, context);
     
     return [{
-      name: 'TS',
-      value: actualDistance.toFixed(1),
+      name: 'TTS',
+      value: actualDistance.toFixed(2),
       unit: 'mm'
     }];
   },
@@ -612,7 +612,7 @@ export const LLD_CONFIG: AnnotationConfig = {
 
     return [{
       name: 'LLD',
-      value: actualDistance.toFixed(1),
+      value: actualDistance.toFixed(2),
       unit: 'mm'
     }];
   },
@@ -650,7 +650,7 @@ export const LLD_CONFIG: AnnotationConfig = {
  */
 export const C7_OFFSET_CONFIG: AnnotationConfig = {
   id: 'c7-offset',
-  name: 'C7 Offset',
+  name: 'TS(Trunk Shift)',
   icon: 'ri-arrow-left-right-line',
   description: 'C7偏移距离（正面6点法）',
   pointsNeeded: 6,
@@ -670,8 +670,8 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
     const actualDistance = calculateActualDistance(pixelDistance, context);
     
     return [{
-      name: 'C7 Offset',
-      value: actualDistance.toFixed(1),
+      name: 'TS(Trunk Shift)',
+      value: actualDistance.toFixed(2),
       unit: 'mm'
     }];
   },
@@ -739,7 +739,7 @@ export const T1_SLOPE_CONFIG: AnnotationConfig = {
     
     return [{
       name: 'T1 Slope',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -986,7 +986,7 @@ export const TPA_CONFIG: AnnotationConfig = {
     
     return [{
       name: 'TPA',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -1068,7 +1068,7 @@ export const SVA_CONFIG: AnnotationConfig = {
     
     return [{
       name: 'SVA',
-      value: actualDistance.toFixed(1),
+      value: actualDistance.toFixed(2),
       unit: 'mm'
     }];
   },
@@ -1143,7 +1143,7 @@ export const PI_CONFIG: AnnotationConfig = {
     
     return [{
       name: 'PI',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -1220,7 +1220,7 @@ export const PT_CONFIG: AnnotationConfig = {
     
     return [{
       name: 'PT',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -1267,7 +1267,7 @@ export const SS_CONFIG: AnnotationConfig = {
     
     return [{
       name: 'SS',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -1321,7 +1321,7 @@ export const LENGTH_CONFIG: AnnotationConfig = {
     
     return [{
       name: '长度',
-      value: actualDistance.toFixed(1),
+      value: actualDistance.toFixed(2),
       unit: 'mm'
     }];
   },
@@ -1378,7 +1378,7 @@ export const ANGLE_CONFIG: AnnotationConfig = {
     
     return [{
       name: '角度',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },
@@ -1605,7 +1605,7 @@ export const AUX_LENGTH_CONFIG: AnnotationConfig = {
 
     return [{
       name: '距离',
-      value: actualDistance.toFixed(1),
+      value: actualDistance.toFixed(2),
       unit: 'mm'
     }];
   },
@@ -1664,7 +1664,7 @@ export const AUX_ANGLE_CONFIG: AnnotationConfig = {
 
     return [{
       name: '角度',
-      value: angle.toFixed(1),
+      value: angle.toFixed(2),
       unit: '°'
     }];
   },

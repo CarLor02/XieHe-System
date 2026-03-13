@@ -123,7 +123,7 @@ export const VERTICAL_LINE_TOOLS = [
  */
 export const STANDARD_DISTANCE_DEPENDENT_TYPES = [
   'AVT',
-  'TS',
+  'TTS',
   'SVA',
 ] as const;
 
