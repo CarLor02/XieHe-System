@@ -1185,7 +1185,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               (m.type.startsWith('Cobb-') && t.id === 'cobb')
             );
 
-            return !!tool;
+            if (!tool) return false;
+
+            // SVA 改为 5 点法：AI 返回的 SVA 非 5 点时直接过滤，不显示
+            if (tool.id === 'sva') {
+              return Array.isArray(m.points) && m.points.length === 5;
+            }
+
+            return true;
           })
           .map((m: any) => {
             // 获取该标注类型所需的点数
