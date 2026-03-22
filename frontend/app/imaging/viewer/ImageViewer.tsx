@@ -6751,19 +6751,6 @@ function ImageCanvas({
             const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
             const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
 
-            // 计算距离值
-            const config = getAnnotationConfig('aux-length');
-            const results = config?.calculateResults(measurement.points, {
-              standardDistance,
-              standardDistancePoints,
-              imageNaturalSize,
-            }) || [];
-            const distanceText = results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
-
-            // 计算中点位置
-            const midX = (screenPoints[0].x + screenPoints[1].x) / 2;
-            const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
-
             return (
               <g key={measurement.id}>
                 {/* 绘制线段 */}
@@ -6787,18 +6774,6 @@ function ImageCanvas({
                     opacity={isSelected || isHovered ? "1" : "0.8"}
                   />
                 ))}
-                {/* 绘制距离文字 */}
-                <text
-                  x={midX}
-                  y={midY - 10}
-                  fill={isSelected ? "#ef4444" : isHovered ? "#fbbf24" : "#3b82f6"}
-                  fontSize="14"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                  opacity="0.9"
-                >
-                  {distanceText}
-                </text>
               </g>
             );
           })}

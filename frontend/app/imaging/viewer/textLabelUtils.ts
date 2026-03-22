@@ -27,7 +27,19 @@ export function estimateTextWidth(
   fontSize: number = TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE,
   padding: number = TEXT_LABEL_CONSTANTS.PADDING
 ): number {
-  return text.length * fontSize * TEXT_LABEL_CONSTANTS.CHAR_WIDTH_RATIO + padding * 2;
+  // 中文/全角字符通常接近 1em，英文与数字按常规比例估算。
+  const cjkCharPattern = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF\uFF00-\uFFEF]/;
+  let estimatedWidth = 0;
+
+  for (const char of text) {
+    estimatedWidth += cjkCharPattern.test(char)
+      ? fontSize
+      : fontSize * TEXT_LABEL_CONSTANTS.CHAR_WIDTH_RATIO;
+  }
+
+  // 给粗体渲染和不同字体留少量冗余，避免背景刚好压住文字边缘。
+  const safetyBuffer = Math.max(2, fontSize * 0.1);
+  return estimatedWidth + padding * 2 + safetyBuffer;
 }
 
 /**
