@@ -2471,6 +2471,8 @@ function ImageCanvas({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(true);
   const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number } | null>(null);
+  // 鼠标当前图像坐标（用于辅助线段的动态预览）
+  const [liveMouseImagePoint, setLiveMouseImagePoint] = useState<Point | null>(null);
 
   // 居中显示指定图像坐标点
   useEffect(() => {
@@ -2538,6 +2540,17 @@ function ImageCanvas({
     isDragging: false,
     dragOffset: { x: 0, y: 0 },
   });
+
+  // 约束辅助水平/垂直线第二点，保证线段方向正确
+  const constrainAuxLinePoint = (toolId: string, anchor: Point, rawPoint: Point): Point => {
+    if (toolId === 'aux-horizontal-line') {
+      return { x: rawPoint.x, y: anchor.y };
+    }
+    if (toolId === 'aux-vertical-line') {
+      return { x: anchor.x, y: rawPoint.y };
+    }
+    return rawPoint;
+  };
 
   // 参考线状态管理（优化：合并为一个对象状态）
   const [referenceLines, setReferenceLines] = useState<{
@@ -2934,6 +2947,14 @@ function ImageCanvas({
                   selType = 'whole';
                   foundSelection = true;
                 }
+              } else if ((measurement.type === '辅助水平线' || measurement.type === '辅助垂直线') && measurement.points.length === 2) {
+                // 辅助水平/垂直线段:检查是否点击了线段
+                const context = getTransformContext();
+                if (isLineClicked(screenPoint, measurement.points[0], measurement.points[1], context, lineClickRadius)) {
+                  selectedMeasurement = measurement;
+                  selType = 'whole';
+                  foundSelection = true;
+                }
               } else if (measurement.type === '角度标注' && measurement.points.length === 3) {
                 // 角度标注:检查是否点击了两条线段
                 const context = getTransformContext();
@@ -3210,6 +3231,23 @@ function ImageCanvas({
           onMeasurementAdd('角度标注', newPoints);
           setClickedPoints([]);
         }
+      } else if (selectedTool === 'aux-horizontal-line' || selectedTool === 'aux-vertical-line') {
+        // 辅助水平/垂直线段：2点完成，第二点自动约束到水平/垂直方向
+        const imagePoint = screenToImage(x, y);
+        const nextPoint = clickedPoints.length === 1
+          ? constrainAuxLinePoint(selectedTool, clickedPoints[0], imagePoint)
+          : imagePoint;
+
+        const newPoints = [...clickedPoints, nextPoint];
+        setClickedPoints(newPoints);
+
+        if (newPoints.length === 2) {
+          const currentTool = tools.find(t => t.id === selectedTool);
+          if (currentTool) {
+            onMeasurementAdd(currentTool.name, newPoints);
+            setClickedPoints([]);
+          }
+        }
       } else {
         // 其他工具时，检查是否点击了已有的点（用于删除）
         // 或者开始调整亮度和对比度
@@ -3238,18 +3276,8 @@ function ImageCanvas({
           const newPoints = [...clickedPoints, imagePoint];
           setClickedPoints(newPoints);
 
-          // 辅助图形（单点完成）早期检查
-          if (selectedTool === 'aux-horizontal-line' || selectedTool === 'aux-vertical-line') {
-            if (newPoints.length === 1) {
-              const currentTool = tools.find(t => t.id === selectedTool);
-              if (currentTool) {
-                onMeasurementAdd(currentTool.name, newPoints);
-                setClickedPoints([]);
-              }
-            }
-          }
           // T1 Tilt 特殊处理（优化：使用referenceLines）
-          else if (selectedTool.includes('t1-tilt')) {
+          if (selectedTool.includes('t1-tilt')) {
             if (newPoints.length === 1) {
               // 第一个点：设置水平参考线位置
               setReferenceLines(prev => ({ ...prev, t1Tilt: imagePoint }));
@@ -3534,6 +3562,7 @@ function ImageCanvas({
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    setLiveMouseImagePoint(screenToImage(x, y));
 
     // 处理标准距离点的拖拽
     if (draggingStandardPointIndex !== null && e.buttons === 1) {
@@ -4021,6 +4050,17 @@ function ImageCanvas({
               const startScreen = imageToScreen(measurement.points[0]);
               const endScreen = imageToScreen(measurement.points[1]);
 
+              const distToLine = pointToLineDistance(screenPoint, startScreen, endScreen);
+
+              if (distToLine < lineHoverRadius) {
+                hoveredMeasurementId = measurement.id;
+                hoveredElementType = 'whole';
+                foundHover = true;
+              }
+            } else if ((measurement.type === '辅助水平线' || measurement.type === '辅助垂直线') && measurement.points.length === 2) {
+              // 辅助水平/垂直线段：检查是否悬浮在线段上
+              const startScreen = imageToScreen(measurement.points[0]);
+              const endScreen = imageToScreen(measurement.points[1]);
               const distToLine = pointToLineDistance(screenPoint, startScreen, endScreen);
 
               if (distToLine < lineHoverRadius) {
@@ -5086,9 +5126,9 @@ function ImageCanvas({
                 );
               })}
               {/* 连接线 - 辅助图形不显示连接线，使用配置文件中的特殊渲染函数 */}
-              {/* 对于辅助水平线和垂直线，需要特别处理因为它们是特殊的单点辅助图形 */}
+              {/* 对于辅助水平线和垂直线，按线段处理 */}
               {((!isAuxiliaryShape && screenPoints.length >= 2) || 
-                (isAuxiliaryShape && (measurement.type === '辅助水平线' || measurement.type === '辅助垂直线') && screenPoints.length >= 1)) && 
+                (isAuxiliaryShape && (measurement.type === '辅助水平线' || measurement.type === '辅助垂直线') && screenPoints.length >= 2)) && 
                !((measurement.type === 'PI' || measurement.type === 'pi' || 
                   measurement.type === 'PT' || measurement.type === 'pt') && 
                  screenPoints.length < 3) && (
@@ -5097,8 +5137,9 @@ function ImageCanvas({
                 </>
               )}
               
-              {/* 测量值标注 - 显示在测量线中间,辅助图形不显示系统文字 */}
-              {!isAuxiliaryShape && screenPoints.length >= 2 && !hideAllLabels && !hiddenMeasurementIds.has(measurement.id) && (() => {
+              {/* 测量值标注 - 显示在测量线中间 */}
+              {(!isAuxiliaryShape || measurement.type === '辅助水平线' || measurement.type === '辅助垂直线') &&
+                screenPoints.length >= 2 && !hideAllLabels && !hiddenMeasurementIds.has(measurement.id) && (() => {
                 const isSelected = selectionState.measurementId === measurement.id && selectionState.type === 'whole';
                 const isHovered = !isSelected && hoverState.measurementId === measurement.id && hoverState.elementType === 'whole';
                 
@@ -6835,6 +6876,44 @@ function ImageCanvas({
           );
         })()}
 
+        {/* 绘制辅助水平/垂直线段预览（第二点自动约束） */}
+        {(selectedTool === 'aux-horizontal-line' || selectedTool === 'aux-vertical-line') && clickedPoints.length > 0 && (() => {
+          const previewPoints = [...clickedPoints];
+          if (clickedPoints.length === 1 && liveMouseImagePoint) {
+            previewPoints.push(constrainAuxLinePoint(selectedTool, clickedPoints[0], liveMouseImagePoint));
+          }
+
+          const screenPreviewPoints = previewPoints.map(p => imageToScreen(p));
+
+          return (
+            <>
+              {screenPreviewPoints.map((point, idx) => (
+                <circle
+                  key={`aux-orth-point-${idx}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r="4"
+                  fill="#22c55e"
+                  opacity="0.85"
+                />
+              ))}
+
+              {screenPreviewPoints.length === 2 && (
+                <line
+                  x1={screenPreviewPoints[0].x}
+                  y1={screenPreviewPoints[0].y}
+                  x2={screenPreviewPoints[1].x}
+                  y2={screenPreviewPoints[1].y}
+                  stroke="#22c55e"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                  opacity="0.8"
+                />
+              )}
+            </>
+          );
+        })()}
+
         {/* 绘制角度标注 - 从 measurements 中筛选 */}
         {measurements
           .filter(m => m.type === '角度标注')
@@ -7159,6 +7238,28 @@ function ImageCanvas({
               )}
               {clickedPoints.length === 2 && (
                 <p className="text-green-400 mt-1">距离已计算（根据标准距离换算）</p>
+              )}
+            </div>
+          ) : selectedTool === 'aux-horizontal-line' ? (
+            <div>
+              <p className="font-medium">辅助水平线段模式</p>
+              <p>已标注 {clickedPoints.length}/2 个点</p>
+              {clickedPoints.length === 0 && (
+                <p className="text-yellow-400 mt-1">点击第1个点</p>
+              )}
+              {clickedPoints.length === 1 && (
+                <p className="text-yellow-400 mt-1">点击第2个点（自动保持水平）</p>
+              )}
+            </div>
+          ) : selectedTool === 'aux-vertical-line' ? (
+            <div>
+              <p className="font-medium">辅助垂直线段模式</p>
+              <p>已标注 {clickedPoints.length}/2 个点</p>
+              {clickedPoints.length === 0 && (
+                <p className="text-yellow-400 mt-1">点击第1个点</p>
+              )}
+              {clickedPoints.length === 1 && (
+                <p className="text-yellow-400 mt-1">点击第2个点（自动保持垂直）</p>
               )}
             </div>
           ) : selectedTool === 'aux-angle' ? (

@@ -1785,29 +1785,43 @@ export const AUX_ANGLE_CONFIG: AnnotationConfig = {
 };
 
 /**
- * 辅助水平线：通过一个点的水平线
+ * 辅助水平线：两点线段（第二点与第一点保持同一水平）
  */
 export const AUX_HORIZONTAL_LINE_CONFIG: AnnotationConfig = {
   id: 'aux-horizontal-line',
   name: '辅助水平线',
   icon: 'ri-minus-line',
-  description: '辅助水平参考线',
-  pointsNeeded: 1,
+  description: '辅助水平线段长度测量',
+  pointsNeeded: 2,
   category: 'auxiliary',
   color: '#00ff00', // 绿色
 
-  calculateResults: () => [],
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 2) return [];
+
+    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    const actualDistance = calculateActualDistance(pixelDistance, context);
+
+    return [{
+      name: '水平距离',
+      value: actualDistance.toFixed(2),
+      unit: 'mm'
+    }];
+  },
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
-    return points[0] || { x: 0, y: 0 };
+    if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    return {
+      x: (points[0].x + points[1].x) / 2,
+      y: points[0].y - 16 / imageScale,
+    };
   },
 
   isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
-    if (points.length < 1) return false;
-    // 检查是否接近点
-    if (isPointNearPoint(mousePoint, points[0], tolerance)) return true;
-    // 检查是否接近水平线
-    return Math.abs(mousePoint.y - points[0].y) <= tolerance;
+    if (points.length < 2) return false;
+    return isPointNearPoint(mousePoint, points[0], tolerance) ||
+           isPointNearPoint(mousePoint, points[1], tolerance) ||
+           isPointNearLine(mousePoint, points[0], points[1], tolerance);
   },
 
   isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
@@ -1820,29 +1834,43 @@ export const AUX_HORIZONTAL_LINE_CONFIG: AnnotationConfig = {
 };
 
 /**
- * 辅助垂直线：通过一个点的垂直线
+ * 辅助垂直线：两点线段（第二点与第一点保持同一垂直）
  */
 export const AUX_VERTICAL_LINE_CONFIG: AnnotationConfig = {
   id: 'aux-vertical-line',
   name: '辅助垂直线',
   icon: 'ri-sep-line',
-  description: '辅助垂直参考线',
-  pointsNeeded: 1,
+  description: '辅助垂直线段长度测量',
+  pointsNeeded: 2,
   category: 'auxiliary',
   color: '#00ff00', // 绿色
 
-  calculateResults: () => [],
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 2) return [];
+
+    const pixelDistance = Math.abs(points[1].y - points[0].y);
+    const actualDistance = calculateActualDistance(pixelDistance, context);
+
+    return [{
+      name: '垂直距离',
+      value: actualDistance.toFixed(2),
+      unit: 'mm'
+    }];
+  },
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
-    return points[0] || { x: 0, y: 0 };
+    if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    return {
+      x: points[0].x + 16 / imageScale,
+      y: (points[0].y + points[1].y) / 2,
+    };
   },
 
   isInHoverRange: (mousePoint: Point, points: Point[], tolerance: number = 10) => {
-    if (points.length < 1) return false;
-    // 检查是否接近点
-    if (isPointNearPoint(mousePoint, points[0], tolerance)) return true;
-    // 检查是否接近垂直线
-    return Math.abs(mousePoint.x - points[0].x) <= tolerance;
+    if (points.length < 2) return false;
+    return isPointNearPoint(mousePoint, points[0], tolerance) ||
+           isPointNearPoint(mousePoint, points[1], tolerance) ||
+           isPointNearLine(mousePoint, points[0], points[1], tolerance);
   },
 
   isInSelectionRange: (mousePoint: Point, points: Point[], tolerance: number = 15) => {
