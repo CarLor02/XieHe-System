@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createAuthenticatedClient } from '../../../store/authStore';
+import { createAuthenticatedClient, useUser } from '../../../store/authStore';
 import { extractData, extractPaginatedData } from '../../../utils/apiResponseHandler';
 import {
     AnnotationBindings,
@@ -104,11 +104,19 @@ interface ImageViewerProps {
 
 export default function ImageViewer({ imageId }: ImageViewerProps) {
   const router = useRouter();
+  const { user } = useUser(); // 获取当前用户信息
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [selectedTool, setSelectedTool] = useState('hand');
   const [reportText, setReportText] = useState('');
   const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  // 权限检查：判断当前用户是否为管理员
+  const isAdmin = useMemo(() => {
+    if (!user) return false;
+    // 超级管理员或系统管理员都算作admin
+    return user.is_superuser === true || user.is_system_admin === true;
+  }, [user]);
 
   // 包装工具切换函数，在切换辅助工具时先清理状态
   const handleToolChange = (newTool: string) => {
@@ -945,8 +953,15 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     }
   };
 
-  // 导出标注数据为JSON文件
+  // 导出标注数据为JSON文件（仅管理员）
   const exportAnnotationsToJSON = () => {
+    // 权限检查
+    if (!isAdmin) {
+      setSaveMessage('无权限：仅管理员可以导出JSON文件');
+      setTimeout(() => setSaveMessage(''), 3000);
+      return;
+    }
+
     try {
       // 只保存type和points，移除id、value和description
       const simplifiedMeasurements = measurements.map(m => ({
@@ -1277,8 +1292,15 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     }
   };
 
-  // AI检测函数（仅检测椎骨，不包含测量）
+  // AI检测函数（仅检测椎骨，不包含测量）- 仅管理员可用
   const handleAIDetection = async () => {
+    // 权限检查
+    if (!isAdmin) {
+      setSaveMessage('无权限：仅管理员可以使用AI检测功能');
+      setTimeout(() => setSaveMessage(''), 3000);
+      return;
+    }
+
     setIsAIDetecting(true);
     setSaveMessage('');
 
@@ -1694,15 +1716,18 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 <span>{isSaving ? '保存中...' : '保存'}</span>
               </button>
 
-              <button
-                onClick={exportAnnotationsToJSON}
-                disabled={measurements.length === 0}
-                className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                title="导出标注文件"
-              >
-                <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
-                <span>导出JSON</span>
-              </button>
+              {/* 导出JSON按钮 - 仅管理员可见 */}
+              {isAdmin && (
+                <button
+                  onClick={exportAnnotationsToJSON}
+                  disabled={measurements.length === 0}
+                  className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  title="导出标注文件（仅管理员）"
+                >
+                  <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
+                  <span>导出JSON</span>
+                </button>
+              )}
 
               <label
                 className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap cursor-pointer flex items-center space-x-2"
@@ -1719,24 +1744,27 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               </label>
             </div>
 
-            <button
-              onClick={handleAIDetection}
-              disabled={isAIDetecting}
-              className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              title="使用AI检测椎骨位置"
-            >
-              {isAIDetecting ? (
-                <>
-                  <i className="ri-loader-line w-4 h-4 flex items-center justify-center animate-spin"></i>
-                  <span>检测中...</span>
-                </>
-              ) : (
-                <>
-                  <i className="ri-scan-line w-4 h-4 flex items-center justify-center"></i>
-                  <span>AI检测</span>
-                </>
-              )}
-            </button>
+            {/* AI检测按钮 - 仅管理员可见 */}
+            {isAdmin && (
+              <button
+                onClick={handleAIDetection}
+                disabled={isAIDetecting}
+                className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                title="使用AI检测椎骨位置（仅管理员）"
+              >
+                {isAIDetecting ? (
+                  <>
+                    <i className="ri-loader-line w-4 h-4 flex items-center justify-center animate-spin"></i>
+                    <span>检测中...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="ri-scan-line w-4 h-4 flex items-center justify-center"></i>
+                    <span>AI检测</span>
+                  </>
+                )}
+              </button>
+            )}
 
             <button
               onClick={handleAIMeasurement}
