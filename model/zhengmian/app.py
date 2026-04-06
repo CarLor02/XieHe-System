@@ -147,9 +147,62 @@ def infer_pose(img: np.ndarray) -> Dict[str, dict]:
 
     return pose_data
 
+# ==================== 去重 & 排序工具 ====================
+def _box_iou(b1, b2):
+    """计算两个 xyxy 格式边界框的 IoU"""
+    ix1, iy1 = max(b1[0], b2[0]), max(b1[1], b2[1])
+    ix2, iy2 = min(b1[2], b2[2]), min(b1[3], b2[3])
+    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+    a1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+    a2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
+    return inter / (a1 + a2 - inter + 1e-6)
+
+
+def _reassign_by_ypos(keypoints, boxes, conf_thr, iou_thr=0.3):
+    """
+    IoU 去空间重叠（贪心 NMS）+ 按 y 从上到下排序
+    返回 list of (new_rank, orig_idx)
+    """
+    cands = []
+    for i in range(len(keypoints)):
+        if float(boxes.conf[i]) < conf_thr:
+            continue
+        kp = keypoints[i]
+        yc = float(kp[:, 1].mean())
+        b = boxes.xyxy[i].cpu().numpy()
+        cands.append((float(boxes.conf[i]), i, yc, b))
+    # 按置信度降序贪心 NMS
+    cands.sort(key=lambda x: -x[0])
+    kept = []
+    for c in cands:
+        if not any(_box_iou(c[3], k[3]) > iou_thr for k in kept):
+            kept.append(c)
+    # 按 y 从上到下，赋予新编号
+    kept.sort(key=lambda x: x[2])
+    return [(rank, c[1]) for rank, c in enumerate(kept)]
+
+
+def rank_to_vertebra_name(rank: int) -> str:
+    """
+    将 y 排序序号映射为椎骨名称（与 cls_id_to_vertebra_name 映射表相同，
+    但输入是去重+排序后的位置序号，而非模型预测的类别 ID）
+    0: C7
+    1-12: T1-T12
+    13-17: L1-L5
+    """
+    if rank == 0:
+        return "C7"
+    elif 1 <= rank <= 12:
+        return f"T{rank}"
+    elif 13 <= rank <= 17:
+        return f"L{rank - 12}"
+    else:
+        return f"V{rank}"
+
+
 def cls_id_to_vertebra_name(cls_id: int) -> str:
     """
-    将class_id转换为椎骨名称
+    将class_id转换为椎骨名称（保留备用，infer_pose_corner 已改用 rank_to_vertebra_name）
     0: C7
     1-12: T1-T12
     13-17: L1-L5
@@ -168,6 +221,12 @@ def infer_pose_corner(img: np.ndarray) -> Dict[str, dict]:
     """
     Pose Corner 模型推理 - 椎骨4角点
     返回: {vertebra_name: {corners: {top_left, top_right, bottom_right, bottom_left}, class_id: int}}
+
+    后处理流程：
+    1. IoU NMS 去重：同一位置被不同类别重复预测时，保留置信度最高的结果
+    2. 按 y 坐标从上到下排序，依次编号 rank 0, 1, 2, ...
+    3. 用 rank_to_vertebra_name(rank) 映射为解剖名称（C7, T1...T12, L1...L5）
+       不依赖模型预测的原始类别 ID，避免类别预测偏移或重复导致的命名错误
     """
     if pose_corner_model is None:
         return {}
@@ -182,13 +241,13 @@ def infer_pose_corner(img: np.ndarray) -> Dict[str, dict]:
         keypoints = result.keypoints.data.cpu().numpy()
         boxes = result.boxes
 
-        for i, kpts in enumerate(keypoints):
-            conf = float(boxes.conf[i])
-            if conf < CONF_THRESHOLD:
-                continue
+        # IoU 去重 + 按 y 从上到下排序，new_rank 即解剖位置序号
+        assignments = _reassign_by_ypos(keypoints, boxes, CONF_THRESHOLD)
 
-            cls_id = int(boxes.cls[i])
-            vertebra_name = cls_id_to_vertebra_name(cls_id)
+        for new_rank, i in assignments:
+            kpts = keypoints[i]
+            conf = float(boxes.conf[i])
+            vertebra_name = rank_to_vertebra_name(new_rank)
 
             corners = {}
             for j, (x, y, v) in enumerate(kpts):
@@ -205,7 +264,7 @@ def infer_pose_corner(img: np.ndarray) -> Dict[str, dict]:
                 "y": (tl["y"] + tr["y"] + bl["y"] + br["y"]) / 4
             }
 
-            vertebrae[vertebra_name] = {"corners": corners, "confidence": conf, "class_id": cls_id}
+            vertebrae[vertebra_name] = {"corners": corners, "confidence": conf, "class_id": new_rank}
 
     return vertebrae
 
@@ -588,7 +647,7 @@ async def health_check():
     }
 
 
-@app.post("/predict", response_model=AnnotationsResponse)
+@app.post("/predict", response_model=AnnotationsResponse, response_model_exclude_none=True)
 async def predict(
     file: UploadFile = File(...),
     image_id: Optional[str] = Query(None, description="图片ID，默认使用文件名")

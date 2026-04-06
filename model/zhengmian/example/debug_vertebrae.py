@@ -72,8 +72,8 @@ def debug_vertebrae():
         print("-" * 60)
         for i, m in enumerate(result['measurements'], 1):
             print(f"\n{i}. {m['type']}")
-            if 'angle' in m:
-                angle = m['angle']
+            angle = m.get('angle')
+            if angle is not None:
                 if angle > 0:
                     print(f"   角度: {angle:.2f}° (左边高)")
                 elif angle < 0:
