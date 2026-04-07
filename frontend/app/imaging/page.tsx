@@ -16,12 +16,15 @@ import {
   formatFileSize,
   formatDate,
   type ImageFile,
-  type ImageFileFilters
+  type ImageFileFilters,
 } from '@/services/imageFileService';
-import { checkAndHandleAuthError, getErrorMessage } from '@/utils/authErrorHandler';
+import {
+  checkAndHandleAuthError,
+  getErrorMessage,
+} from '@/utils/authErrorHandler';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Study {
   id: number;
@@ -77,19 +80,27 @@ export default function ImagingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
+  const imageUrlsRef = useRef<Record<number, string>>({});
+  const previewLoadingIdsRef = useRef<Set<number>>(new Set());
+  const previewQueueVersionRef = useRef(0);
 
   // 搜索和筛选状态
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   // 如果有 URL 参数，自动展开筛选器
-  const [showFilters, setShowFilters] = useState(!!urlStatus || !!urlReviewStatus);
+  const [showFilters, setShowFilters] = useState(
+    !!urlStatus || !!urlReviewStatus
+  );
   const [selectedExamType, setSelectedExamType] = useState<string>('all'); // 检查类型
   const [selectedReviewStatus, setSelectedReviewStatus] = useState<string>(
     urlReviewStatus || (urlStatus === 'pending' ? 'unreviewed' : 'all')
   ); // 审核状态
 
   // 判断是否有激活的筛选条件
-  const hasActiveFilters = searchTerm.trim() !== '' || selectedExamType !== 'all' || selectedReviewStatus !== 'all';
+  const hasActiveFilters =
+    searchTerm.trim() !== '' ||
+    selectedExamType !== 'all' ||
+    selectedReviewStatus !== 'all';
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -109,6 +120,7 @@ export default function ImagingPage() {
     try {
       setLoading(true);
       setError(null);
+      previewQueueVersionRef.current += 1;
 
       const filters: ImageFileFilters = {
         page: currentPage,
@@ -120,7 +132,9 @@ export default function ImagingPage() {
 
       // 处理审核状态筛选
       if (selectedReviewStatus !== 'all') {
-        filters.review_status = selectedReviewStatus as 'reviewed' | 'unreviewed';
+        filters.review_status = selectedReviewStatus as
+          | 'reviewed'
+          | 'unreviewed';
       }
 
       if (dateFrom) filters.start_date = dateFrom;
@@ -140,17 +154,6 @@ export default function ImagingPage() {
 
       setImageFiles(response.items);
       setTotal(response.total || 0);
-
-      // 异步加载图片预览URL
-      const urls: Record<number, string> = {};
-      for (const file of response.items) {
-        try {
-          urls[file.id] = await getImagePreviewUrl(file.id);
-        } catch (error) {
-          console.error(`Failed to load preview for file ${file.id}:`, error);
-        }
-      }
-      setImageUrls(urls);
       setLoading(false);
     } catch (err: any) {
       console.error('Failed to load images:', err);
@@ -158,11 +161,15 @@ export default function ImagingPage() {
         hasResponse: !!err.response,
         status: err.response?.status,
         message: err.message,
-        isAuthError: err.response?.status === 401 || err.message?.toLowerCase().includes('authentication'),
+        isAuthError:
+          err.response?.status === 401 ||
+          err.message?.toLowerCase().includes('authentication'),
       });
 
       // 检查并处理认证错误
-      if (checkAndHandleAuthError(err, { showAlert: false, redirectDelay: 0 })) {
+      if (
+        checkAndHandleAuthError(err, { showAlert: false, redirectDelay: 0 })
+      ) {
         // 认证错误，显示跳转提示
         console.log('✅ 检测到认证错误，准备跳转到登录页');
         setError('登录已过期，正在跳转到登录页...');
@@ -181,6 +188,10 @@ export default function ImagingPage() {
 
   // 认证检查
   useEffect(() => {
+    imageUrlsRef.current = imageUrls;
+  }, [imageUrls]);
+
+  useEffect(() => {
     if (!isAuthenticated) {
       router.push('/auth/login');
       return;
@@ -191,16 +202,104 @@ export default function ImagingPage() {
     if (isAuthenticated) {
       loadImages();
     }
+  }, [
+    isAuthenticated,
+    currentPage,
+    debouncedSearchTerm,
+    selectedExamType,
+    selectedReviewStatus,
+    dateFrom,
+    dateTo,
+  ]);
 
-    // 清理Object URLs
+  useEffect(() => {
     return () => {
-      Object.values(imageUrls).forEach(url => {
+      Object.values(imageUrlsRef.current).forEach(url => {
         if (url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
         }
       });
     };
-  }, [isAuthenticated, currentPage, debouncedSearchTerm, selectedExamType, selectedReviewStatus, dateFrom, dateTo]);
+  }, []);
+
+  useEffect(() => {
+    const currentFileIds = new Set(imageFiles.map(file => file.id));
+
+    setImageUrls(prev => {
+      const next: Record<number, string> = {};
+      for (const [idStr, url] of Object.entries(prev)) {
+        const id = Number(idStr);
+        if (currentFileIds.has(id)) {
+          next[id] = url;
+        } else if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      }
+      return next;
+    });
+
+    if (imageFiles.length === 0) {
+      previewQueueVersionRef.current += 1;
+      previewLoadingIdsRef.current.clear();
+      return;
+    }
+
+    const queueVersion = ++previewQueueVersionRef.current;
+    const pendingFiles = imageFiles.filter(
+      file =>
+        !imageUrlsRef.current[file.id] &&
+        !previewLoadingIdsRef.current.has(file.id)
+    );
+
+    if (pendingFiles.length === 0) return;
+
+    const maxConcurrentLoads = 4;
+    let nextIndex = 0;
+
+    const loadNextPreview = async () => {
+      while (nextIndex < pendingFiles.length) {
+        const file = pendingFiles[nextIndex++];
+        previewLoadingIdsRef.current.add(file.id);
+
+        try {
+          const previewUrl = await getImagePreviewUrl(file.id);
+
+          if (previewQueueVersionRef.current !== queueVersion) {
+            if (previewUrl.startsWith('blob:')) {
+              URL.revokeObjectURL(previewUrl);
+            }
+            continue;
+          }
+
+          setImageUrls(prev => {
+            if (prev[file.id]) {
+              if (previewUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(previewUrl);
+              }
+              return prev;
+            }
+
+            return {
+              ...prev,
+              [file.id]: previewUrl,
+            };
+          });
+        } catch (previewError) {
+          console.error(
+            `Failed to load preview for file ${file.id}:`,
+            previewError
+          );
+        } finally {
+          previewLoadingIdsRef.current.delete(file.id);
+        }
+      }
+    };
+
+    Array.from(
+      { length: Math.min(maxConcurrentLoads, pendingFiles.length) },
+      () => loadNextPreview()
+    );
+  }, [imageFiles]);
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -359,13 +458,17 @@ export default function ImagingPage() {
               {/* 筛选按钮 */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`px-4 py-2 border rounded-lg ${showFilters
-                  ? 'bg-blue-50 border-blue-300 text-blue-600'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
+                className={`px-4 py-2 border rounded-lg ${
+                  showFilters
+                    ? 'bg-blue-50 border-blue-300 text-blue-600'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
               >
                 筛选
-                {(selectedExamType !== 'all' || selectedReviewStatus !== 'all' || dateFrom || dateTo) && (
+                {(selectedExamType !== 'all' ||
+                  selectedReviewStatus !== 'all' ||
+                  dateFrom ||
+                  dateTo) && (
                   <span className="ml-1 bg-blue-500 text-white text-xs rounded-full px-1.5">
                     !
                   </span>
@@ -383,19 +486,21 @@ export default function ImagingPage() {
               <div className="flex border rounded-lg overflow-hidden">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`px-3 py-1.5 ${viewMode === 'grid'
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
-                    }`}
+                  className={`px-3 py-1.5 ${
+                    viewMode === 'grid'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
                 >
                   <i className="ri-grid-line w-4 h-4 flex items-center justify-center"></i>
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`px-3 py-1.5 ${viewMode === 'list'
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
-                    }`}
+                  className={`px-3 py-1.5 ${
+                    viewMode === 'list'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
                 >
                   <i className="ri-list-check w-4 h-4 flex items-center justify-center"></i>
                 </button>
@@ -493,14 +598,20 @@ export default function ImagingPage() {
                             src={imageUrls[imageFile.id]}
                             alt={imageFile.original_filename}
                             className="w-full h-full object-contain"
-                            onError={(e) => {
+                            onError={e => {
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
                               const parent = target.parentElement;
-                              if (parent && !parent.querySelector('.placeholder-icon')) {
-                                const placeholder = document.createElement('div');
-                                placeholder.className = 'placeholder-icon w-full h-full flex items-center justify-center text-gray-400';
-                                placeholder.innerHTML = '<i class="ri-image-line text-4xl"></i>';
+                              if (
+                                parent &&
+                                !parent.querySelector('.placeholder-icon')
+                              ) {
+                                const placeholder =
+                                  document.createElement('div');
+                                placeholder.className =
+                                  'placeholder-icon w-full h-full flex items-center justify-center text-gray-400';
+                                placeholder.innerHTML =
+                                  '<i class="ri-image-line text-4xl"></i>';
                                 parent.appendChild(placeholder);
                               }
                             }}
@@ -512,18 +623,23 @@ export default function ImagingPage() {
                         )}
                         <div className="absolute top-2 right-2">
                           <span
-                            className={`text-xs px-2 py-1 rounded-full ${imageFile.status === 'UPLOADED'
-                              ? 'bg-green-500/80 text-white'
-                              : imageFile.status === 'PROCESSING'
-                              ? 'bg-blue-500/80 text-white'
-                              : imageFile.status === 'PROCESSED'
-                              ? 'bg-purple-500/80 text-white'
-                              : 'bg-gray-500/80 text-white'
-                              }`}
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              imageFile.status === 'UPLOADED'
+                                ? 'bg-green-500/80 text-white'
+                                : imageFile.status === 'PROCESSING'
+                                  ? 'bg-blue-500/80 text-white'
+                                  : imageFile.status === 'PROCESSED'
+                                    ? 'bg-purple-500/80 text-white'
+                                    : 'bg-gray-500/80 text-white'
+                            }`}
                           >
-                            {imageFile.status === 'UPLOADED' ? '已上传' :
-                             imageFile.status === 'PROCESSING' ? '处理中' :
-                             imageFile.status === 'PROCESSED' ? '已处理' : imageFile.status}
+                            {imageFile.status === 'UPLOADED'
+                              ? '已上传'
+                              : imageFile.status === 'PROCESSING'
+                                ? '处理中'
+                                : imageFile.status === 'PROCESSED'
+                                  ? '已处理'
+                                  : imageFile.status}
                           </span>
                         </div>
                       </div>
@@ -532,7 +648,10 @@ export default function ImagingPage() {
                     {/* 影像信息 */}
                     <div className="p-4">
                       <div className="mb-3">
-                        <h3 className="font-semibold text-gray-900 text-lg mb-1 truncate" title={imageFile.original_filename}>
+                        <h3
+                          className="font-semibold text-gray-900 text-lg mb-1 truncate"
+                          title={imageFile.original_filename}
+                        >
                           {imageFile.original_filename}
                         </h3>
                         <p className="text-blue-600 font-medium text-sm">
@@ -543,11 +662,15 @@ export default function ImagingPage() {
                       <div className="space-y-2 text-sm text-gray-600 mb-4">
                         <div className="flex justify-between">
                           <span>上传日期:</span>
-                          <span className="font-medium">{formatDate(imageFile.created_at)}</span>
+                          <span className="font-medium">
+                            {formatDate(imageFile.created_at)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>文件大小:</span>
-                          <span className="font-medium">{formatFileSize(imageFile.file_size)}</span>
+                          <span className="font-medium">
+                            {formatFileSize(imageFile.file_size)}
+                          </span>
                         </div>
                       </div>
 
@@ -563,7 +686,9 @@ export default function ImagingPage() {
                           <button
                             onClick={() =>
                               setOpenDropdown(
-                                openDropdown === imageFile.id.toString() ? null : imageFile.id.toString()
+                                openDropdown === imageFile.id.toString()
+                                  ? null
+                                  : imageFile.id.toString()
                               )
                             }
                             className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
@@ -616,14 +741,20 @@ export default function ImagingPage() {
                               src={imageUrls[imageFile.id]}
                               alt={imageFile.original_filename}
                               className="w-full h-full object-contain"
-                              onError={(e) => {
+                              onError={e => {
                                 const target = e.target as HTMLImageElement;
                                 target.style.display = 'none';
                                 const parent = target.parentElement;
-                                if (parent && !parent.querySelector('.placeholder-icon')) {
-                                  const placeholder = document.createElement('div');
-                                  placeholder.className = 'placeholder-icon w-full h-full flex items-center justify-center text-gray-400';
-                                  placeholder.innerHTML = '<i class="ri-image-line text-2xl"></i>';
+                                if (
+                                  parent &&
+                                  !parent.querySelector('.placeholder-icon')
+                                ) {
+                                  const placeholder =
+                                    document.createElement('div');
+                                  placeholder.className =
+                                    'placeholder-icon w-full h-full flex items-center justify-center text-gray-400';
+                                  placeholder.innerHTML =
+                                    '<i class="ri-image-line text-2xl"></i>';
                                   parent.appendChild(placeholder);
                                 }
                               }}
@@ -640,7 +771,10 @@ export default function ImagingPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-3">
-                            <span className="text-lg font-semibold text-gray-900 truncate" title={imageFile.original_filename}>
+                            <span
+                              className="text-lg font-semibold text-gray-900 truncate"
+                              title={imageFile.original_filename}
+                            >
                               {imageFile.original_filename}
                             </span>
                             <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded">
@@ -648,18 +782,23 @@ export default function ImagingPage() {
                             </span>
                           </div>
                           <span
-                            className={`text-sm px-3 py-1 rounded-full ${imageFile.status === 'UPLOADED'
-                              ? 'bg-green-100 text-green-800'
-                              : imageFile.status === 'PROCESSING'
-                              ? 'bg-blue-100 text-blue-800'
-                              : imageFile.status === 'PROCESSED'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-gray-100 text-gray-800'
-                              }`}
+                            className={`text-sm px-3 py-1 rounded-full ${
+                              imageFile.status === 'UPLOADED'
+                                ? 'bg-green-100 text-green-800'
+                                : imageFile.status === 'PROCESSING'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : imageFile.status === 'PROCESSED'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-gray-100 text-gray-800'
+                            }`}
                           >
-                            {imageFile.status === 'UPLOADED' ? '已上传' :
-                             imageFile.status === 'PROCESSING' ? '处理中' :
-                             imageFile.status === 'PROCESSED' ? '已处理' : imageFile.status}
+                            {imageFile.status === 'UPLOADED'
+                              ? '已上传'
+                              : imageFile.status === 'PROCESSING'
+                                ? '处理中'
+                                : imageFile.status === 'PROCESSED'
+                                  ? '已处理'
+                                  : imageFile.status}
                           </span>
                         </div>
 
@@ -721,7 +860,9 @@ export default function ImagingPage() {
                   <h3 className="text-lg font-medium text-gray-500 mb-2">
                     未找到匹配的影像
                   </h3>
-                  <p className="text-gray-400 mb-4">请尝试调整搜索条件或筛选器</p>
+                  <p className="text-gray-400 mb-4">
+                    请尝试调整搜索条件或筛选器
+                  </p>
                   <button
                     onClick={() => {
                       setSearchTerm('');
@@ -753,9 +894,15 @@ export default function ImagingPage() {
         {total > pageSize && (
           <div className="bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-between">
             <div className="text-sm text-gray-700">
-              显示 <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> 到{' '}
-              <span className="font-medium">{Math.min(currentPage * pageSize, total)}</span> 条，
-              共 <span className="font-medium">{total}</span> 条
+              显示{' '}
+              <span className="font-medium">
+                {(currentPage - 1) * pageSize + 1}
+              </span>{' '}
+              到{' '}
+              <span className="font-medium">
+                {Math.min(currentPage * pageSize, total)}
+              </span>{' '}
+              条， 共 <span className="font-medium">{total}</span> 条
             </div>
             <div className="flex space-x-2">
               <button
