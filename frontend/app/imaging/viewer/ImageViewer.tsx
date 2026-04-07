@@ -3146,6 +3146,8 @@ function ImageCanvas({
 
     // 清理函数：释放blob URL
     return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
       if (currentImageUrl) {
         URL.revokeObjectURL(currentImageUrl);
       }
