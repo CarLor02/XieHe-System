@@ -2,7 +2,7 @@
 from typing import Optional, List
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, exists
 from app.db.dao.patient_dao import PatientDAO
 from app.models.patient import Patient, GenderEnum, PatientStatusEnum
 
@@ -18,6 +18,9 @@ class PatientService:
         age_min: Optional[int] = None,
         age_max: Optional[int] = None,
         status: Optional[str] = None,
+        has_images: Optional[bool] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
         skip: int = 0,
         limit: int = 100,
     ) -> List[Patient]:
@@ -76,7 +79,27 @@ class PatientService:
                 dob_min = date(today.year - age_max - 1, 2, 28)
             q = q.filter(Patient.birth_date >= dob_min)
 
-        return q.order_by(Patient.created_at.desc()).offset(skip).limit(limit).all()
+        # 有无影像筛选（子查询）
+        if has_images is not None:
+            from app.models.image_file import ImageFile
+            image_exists = exists().where(
+                (ImageFile.patient_id == Patient.id) & (ImageFile.is_deleted == False)
+            )
+            if has_images:
+                q = q.filter(image_exists)
+            else:
+                q = q.filter(~image_exists)
+
+        # 排序
+        sort_col_map = {
+            "name": Patient.name,
+            "age": Patient.age,
+            "created_at": Patient.created_at,
+        }
+        sort_col = sort_col_map.get(sort_by, Patient.created_at)
+        order_expr = sort_col.asc() if sort_order == "asc" else sort_col.desc()
+
+        return q.order_by(order_expr).offset(skip).limit(limit).all()
 
     @staticmethod
     def count_patients(
@@ -87,6 +110,7 @@ class PatientService:
         age_min: Optional[int] = None,
         age_max: Optional[int] = None,
         status: Optional[str] = None,
+        has_images: Optional[bool] = None,
     ) -> int:
         q = PatientDAO.query(db).filter(Patient.is_deleted == False)
         if search:
@@ -134,4 +158,13 @@ class PatientService:
                 q = q.filter(Patient.status == PatientStatusEnum.ACTIVE)
             elif status == "inactive":
                 q = q.filter(Patient.status == PatientStatusEnum.INACTIVE)
+        if has_images is not None:
+            from app.models.image_file import ImageFile
+            image_exists = exists().where(
+                (ImageFile.patient_id == Patient.id) & (ImageFile.is_deleted == False)
+            )
+            if has_images:
+                q = q.filter(image_exists)
+            else:
+                q = q.filter(~image_exists)
         return q.count()

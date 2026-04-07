@@ -212,7 +212,10 @@ async def get_patients(
     gender: Optional[str] = Query(None, description="性别筛选"),
     age_min: Optional[int] = Query(None, ge=0, le=150, description="最小年龄"),
     age_max: Optional[int] = Query(None, ge=0, le=150, description="最大年龄"),
-    status: Optional[str] = Query(None, description="状态筛选"),
+    status: Optional[str] = Query(None, description="状态筛选（active/inactive）"),
+    has_images: Optional[bool] = Query(None, description="是否有影像（true/false）"),
+    sort_by: str = Query("created_at", description="排序字段（created_at/name/age）"),
+    sort_order: str = Query("desc", description="排序方向（asc/desc）"),
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -228,11 +231,13 @@ async def get_patients(
             age_min=age_min,
             age_max=age_max,
             status=status,
+            has_images=has_images,
+            sort_by=sort_by,
+            sort_order=sort_order,
             skip=(page - 1) * page_size,
             limit=page_size,
         )
 
-        # 总数同样用 Service 的 count 方法（下面给实现）
         total = PatientService.count_patients(
             db=db,
             search=search,
@@ -240,6 +245,7 @@ async def get_patients(
             age_min=age_min,
             age_max=age_max,
             status=status,
+            has_images=has_images,
         )
 
         # 组装返回
