@@ -25,7 +25,14 @@ export interface ImageFile {
   body_part?: string;
   study_date?: string;
   description?: string;
-  status: 'UPLOADING' | 'UPLOADED' | 'PROCESSING' | 'PROCESSED' | 'FAILED' | 'ARCHIVED' | 'DELETED';
+  status:
+    | 'UPLOADING'
+    | 'UPLOADED'
+    | 'PROCESSING'
+    | 'PROCESSED'
+    | 'FAILED'
+    | 'ARCHIVED'
+    | 'DELETED';
   upload_progress: number;
   created_at: string;
   uploaded_at?: string;
@@ -72,7 +79,9 @@ export interface ImageFileFilters {
  * - search: 搜索关键词
  * - start_date / end_date: 日期范围
  */
-export async function getImageFiles(filters: ImageFileFilters = {}): Promise<ImageFileListResponse> {
+export async function getImageFiles(
+  filters: ImageFileFilters = {}
+): Promise<ImageFileListResponse> {
   const client = createAuthenticatedClient();
 
   const params: any = {
@@ -101,11 +110,18 @@ export async function getImageFiles(filters: ImageFileFilters = {}): Promise<Ima
 /**
  * 获取患者的影像文件列表
  */
-export async function getPatientImages(patientId: number, page = 1, pageSize = 20): Promise<ImageFileListResponse> {
+export async function getPatientImages(
+  patientId: number,
+  page = 1,
+  pageSize = 20
+): Promise<ImageFileListResponse> {
   const client = createAuthenticatedClient();
-  const response = await client.get(`/api/v1/image-files/patient/${patientId}`, {
-    params: { page, page_size: pageSize }
-  });
+  const response = await client.get(
+    `/api/v1/image-files/patient/${patientId}`,
+    {
+      params: { page, page_size: pageSize },
+    }
+  );
   const result = extractPaginatedData<ImageFile>(response);
 
   return {
@@ -128,10 +144,14 @@ export async function getImageFile(fileId: number): Promise<ImageFile> {
 /**
  * 下载影像文件
  */
-export async function downloadImageFile(fileId: number): Promise<Blob> {
+export async function downloadImageFile(
+  fileId: number,
+  options: { signal?: AbortSignal } = {}
+): Promise<Blob> {
   const client = createAuthenticatedClient();
   const response = await client.get(`/api/v1/image-files/${fileId}/download`, {
-    responseType: 'blob'
+    responseType: 'blob',
+    signal: options.signal,
   });
   // Blob 响应不需要使用 extractData
   return response.data;
@@ -140,7 +160,9 @@ export async function downloadImageFile(fileId: number): Promise<Blob> {
 /**
  * 删除影像文件（软删除）
  */
-export async function deleteImageFile(fileId: number): Promise<{ message: string; file_id: number }> {
+export async function deleteImageFile(
+  fileId: number
+): Promise<{ message: string; file_id: number }> {
   const client = createAuthenticatedClient();
   const response = await client.delete(`/api/v1/image-files/${fileId}`);
   return extractData<{ message: string; file_id: number }>(response);
@@ -203,6 +225,6 @@ export function formatDate(dateString: string): string {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 }

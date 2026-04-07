@@ -3,16 +3,11 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Tooltip from '@/components/ui/Tooltip';
-import {
-  createAuthenticatedClient,
-  useAuthStore,
-  useUser,
-} from '@/store/authStore';
+import { useUser } from '@/store/authStore';
 import {
   getImageFiles,
   deleteImageFile,
   downloadImageFile,
-  getImagePreviewUrl,
   formatFileSize,
   formatDate,
   type ImageFile,
@@ -25,6 +20,13 @@ import {
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+
+const PREVIEW_REQUEST_TIMEOUT_MS = 60000;
+const PREVIEW_RETRY_ATTEMPTS = 3;
+const PREVIEW_RETRY_DELAY_MS = 800;
+const MAX_CONCURRENT_PREVIEW_LOADS = 6;
+
+type PreviewLoadState = 'fallback';
 
 interface Study {
   id: number;
@@ -80,8 +82,13 @@ export default function ImagingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
+  const [previewStates, setPreviewStates] = useState<
+    Record<number, PreviewLoadState>
+  >({});
   const imageUrlsRef = useRef<Record<number, string>>({});
+  const previewStatesRef = useRef<Record<number, PreviewLoadState>>({});
   const previewLoadingIdsRef = useRef<Set<number>>(new Set());
+  const previewControllersRef = useRef<Map<number, AbortController>>(new Map());
   const previewQueueVersionRef = useRef(0);
 
   // 搜索和筛选状态
@@ -183,10 +190,150 @@ export default function ImagingPage() {
     }
   };
 
+  const delay = (ms: number) =>
+    new Promise(resolve => {
+      window.setTimeout(resolve, ms);
+    });
+
+  const abortAllPreviewRequests = () => {
+    previewControllersRef.current.forEach(controller => {
+      controller.abort();
+    });
+    previewControllersRef.current.clear();
+    previewLoadingIdsRef.current.clear();
+  };
+
+  const createPreviewUrlWithTimeout = async (
+    fileId: number
+  ): Promise<string> => {
+    const controller = new AbortController();
+    previewControllersRef.current.set(fileId, controller);
+    const timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, PREVIEW_REQUEST_TIMEOUT_MS);
+    let timeoutRejectId = 0;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutRejectId = window.setTimeout(() => {
+        reject(
+          new Error(
+            `Preview request timed out after ${PREVIEW_REQUEST_TIMEOUT_MS}ms`
+          )
+        );
+      }, PREVIEW_REQUEST_TIMEOUT_MS);
+    });
+
+    try {
+      const blob = (await Promise.race([
+        downloadImageFile(fileId, {
+          signal: controller.signal,
+        }),
+        timeoutPromise,
+      ])) as Blob;
+      return URL.createObjectURL(blob);
+    } finally {
+      window.clearTimeout(timeoutId);
+      window.clearTimeout(timeoutRejectId);
+      if (previewControllersRef.current.get(fileId) === controller) {
+        previewControllersRef.current.delete(fileId);
+      }
+    }
+  };
+
+  const loadPreviewWithRetry = async (
+    fileId: number,
+    queueVersion: number
+  ): Promise<string | null> => {
+    for (let attempt = 1; attempt <= PREVIEW_RETRY_ATTEMPTS; attempt++) {
+      if (previewQueueVersionRef.current !== queueVersion) {
+        return null;
+      }
+
+      try {
+        return await createPreviewUrlWithTimeout(fileId);
+      } catch (error) {
+        if (previewQueueVersionRef.current !== queueVersion) {
+          return null;
+        }
+
+        const isLastAttempt = attempt === PREVIEW_RETRY_ATTEMPTS;
+        console.warn(
+          `Preview load attempt ${attempt}/${PREVIEW_RETRY_ATTEMPTS} failed for file ${fileId}:`,
+          error
+        );
+
+        if (isLastAttempt) {
+          return null;
+        }
+
+        await delay(PREVIEW_RETRY_DELAY_MS);
+      }
+    }
+
+    return null;
+  };
+
+  const renderPreviewFallback = (iconClassName: string) => (
+    <div className="placeholder-icon w-full h-full flex items-center justify-center text-gray-400">
+      <i className={iconClassName}></i>
+    </div>
+  );
+
+  const renderPreviewContent = (
+    imageFile: ImageFile,
+    options: {
+      imgClassName: string;
+      loadingIconClassName: string;
+      fallbackIconClassName: string;
+    }
+  ) => {
+    const previewUrl = imageUrls[imageFile.id];
+    const previewState = previewStates[imageFile.id];
+
+    if (previewUrl) {
+      return (
+        <img
+          src={previewUrl}
+          alt={imageFile.original_filename}
+          className={options.imgClassName}
+          onError={() => {
+            setImageUrls(prev => {
+              const existingUrl = prev[imageFile.id];
+              if (existingUrl?.startsWith('blob:')) {
+                URL.revokeObjectURL(existingUrl);
+              }
+
+              const next = { ...prev };
+              delete next[imageFile.id];
+              return next;
+            });
+            setPreviewStates(prev => ({
+              ...prev,
+              [imageFile.id]: 'fallback',
+            }));
+          }}
+        />
+      );
+    }
+
+    if (previewState === 'fallback') {
+      return renderPreviewFallback(options.fallbackIconClassName);
+    }
+
+    return (
+      <div className="w-full h-full flex items-center justify-center text-gray-400">
+        <i className={options.loadingIconClassName}></i>
+      </div>
+    );
+  };
+
   // 认证检查
   useEffect(() => {
     imageUrlsRef.current = imageUrls;
   }, [imageUrls]);
+
+  useEffect(() => {
+    previewStatesRef.current = previewStates;
+  }, [previewStates]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -211,6 +358,7 @@ export default function ImagingPage() {
 
   useEffect(() => {
     return () => {
+      abortAllPreviewRequests();
       Object.values(imageUrlsRef.current).forEach(url => {
         if (url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
@@ -220,6 +368,8 @@ export default function ImagingPage() {
   }, []);
 
   useEffect(() => {
+    abortAllPreviewRequests();
+
     const currentFileIds = new Set(imageFiles.map(file => file.id));
 
     setImageUrls(prev => {
@@ -235,9 +385,19 @@ export default function ImagingPage() {
       return next;
     });
 
+    setPreviewStates(prev => {
+      const next: Record<number, PreviewLoadState> = {};
+      for (const [idStr, state] of Object.entries(prev)) {
+        const id = Number(idStr);
+        if (currentFileIds.has(id)) {
+          next[id] = state;
+        }
+      }
+      return next;
+    });
+
     if (imageFiles.length === 0) {
       previewQueueVersionRef.current += 1;
-      previewLoadingIdsRef.current.clear();
       return;
     }
 
@@ -245,12 +405,12 @@ export default function ImagingPage() {
     const pendingFiles = imageFiles.filter(
       file =>
         !imageUrlsRef.current[file.id] &&
-        !previewLoadingIdsRef.current.has(file.id)
+        !previewLoadingIdsRef.current.has(file.id) &&
+        previewStatesRef.current[file.id] !== 'fallback'
     );
 
     if (pendingFiles.length === 0) return;
 
-    const maxConcurrentLoads = 4;
     let nextIndex = 0;
 
     const loadNextPreview = async () => {
@@ -259,7 +419,17 @@ export default function ImagingPage() {
         previewLoadingIdsRef.current.add(file.id);
 
         try {
-          const previewUrl = await getImagePreviewUrl(file.id);
+          const previewUrl = await loadPreviewWithRetry(file.id, queueVersion);
+
+          if (!previewUrl) {
+            if (previewQueueVersionRef.current === queueVersion) {
+              setPreviewStates(prev => ({
+                ...prev,
+                [file.id]: 'fallback',
+              }));
+            }
+            continue;
+          }
 
           if (previewQueueVersionRef.current !== queueVersion) {
             if (previewUrl.startsWith('blob:')) {
@@ -281,11 +451,23 @@ export default function ImagingPage() {
               [file.id]: previewUrl,
             };
           });
+          setPreviewStates(prev => {
+            if (!prev[file.id]) return prev;
+            const next = { ...prev };
+            delete next[file.id];
+            return next;
+          });
         } catch (previewError) {
           console.error(
             `Failed to load preview for file ${file.id}:`,
             previewError
           );
+          if (previewQueueVersionRef.current === queueVersion) {
+            setPreviewStates(prev => ({
+              ...prev,
+              [file.id]: 'fallback',
+            }));
+          }
         } finally {
           previewLoadingIdsRef.current.delete(file.id);
         }
@@ -293,7 +475,9 @@ export default function ImagingPage() {
     };
 
     Array.from(
-      { length: Math.min(maxConcurrentLoads, pendingFiles.length) },
+      {
+        length: Math.min(MAX_CONCURRENT_PREVIEW_LOADS, pendingFiles.length),
+      },
       () => loadNextPreview()
     );
   }, [imageFiles]);
@@ -599,34 +783,12 @@ export default function ImagingPage() {
                     {/* 影像预览 */}
                     <Link href={`/imaging/viewer?id=${imageFile.id}`}>
                       <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer flex items-center justify-center">
-                        {imageUrls[imageFile.id] ? (
-                          <img
-                            src={imageUrls[imageFile.id]}
-                            alt={imageFile.original_filename}
-                            className="w-full h-full object-contain"
-                            onError={e => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              const parent = target.parentElement;
-                              if (
-                                parent &&
-                                !parent.querySelector('.placeholder-icon')
-                              ) {
-                                const placeholder =
-                                  document.createElement('div');
-                                placeholder.className =
-                                  'placeholder-icon w-full h-full flex items-center justify-center text-gray-400';
-                                placeholder.innerHTML =
-                                  '<i class="ri-image-line text-4xl"></i>';
-                                parent.appendChild(placeholder);
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <i className="ri-loader-4-line text-4xl animate-spin"></i>
-                          </div>
-                        )}
+                        {renderPreviewContent(imageFile, {
+                          imgClassName: 'w-full h-full object-contain',
+                          loadingIconClassName:
+                            'ri-loader-4-line text-4xl animate-spin',
+                          fallbackIconClassName: 'ri-image-line text-4xl',
+                        })}
                         <div className="absolute top-2 right-2">
                           <span
                             className={`text-xs px-2 py-1 rounded-full ${
@@ -742,34 +904,12 @@ export default function ImagingPage() {
                       {/* 缩略图 */}
                       <Link href={`/imaging/viewer?id=${imageFile.id}`}>
                         <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
-                          {imageUrls[imageFile.id] ? (
-                            <img
-                              src={imageUrls[imageFile.id]}
-                              alt={imageFile.original_filename}
-                              className="w-full h-full object-contain"
-                              onError={e => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                const parent = target.parentElement;
-                                if (
-                                  parent &&
-                                  !parent.querySelector('.placeholder-icon')
-                                ) {
-                                  const placeholder =
-                                    document.createElement('div');
-                                  placeholder.className =
-                                    'placeholder-icon w-full h-full flex items-center justify-center text-gray-400';
-                                  placeholder.innerHTML =
-                                    '<i class="ri-image-line text-2xl"></i>';
-                                  parent.appendChild(placeholder);
-                                }
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <i className="ri-loader-4-line text-2xl animate-spin"></i>
-                            </div>
-                          )}
+                          {renderPreviewContent(imageFile, {
+                            imgClassName: 'w-full h-full object-contain',
+                            loadingIconClassName:
+                              'ri-loader-4-line text-2xl animate-spin',
+                            fallbackIconClassName: 'ri-image-line text-2xl',
+                          })}
                         </div>
                       </Link>
 
