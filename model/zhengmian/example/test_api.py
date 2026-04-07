@@ -3,7 +3,7 @@
 Spine Analysis API 测试脚本
 
 使用方法:
-    1. 先启动服务: cd 3-inference && python app.py
+    1. 先启动服务: python app.py
     2. 运行测试: python example/test_api.py
 
 依赖:
@@ -93,7 +93,7 @@ def test_predict():
                 print(f"  {m['type']:20s} | {len(m['points'])} 点 | 角度: {angle:6.2f}° | {upper} → {apex} → {lower}")
                 print(f"    └─ 点位: {points_str[:60]}...")
             # 如果有角度信息（CA, Pelvic, Sacral），显示角度
-            elif 'angle' in m:
+            elif m.get('angle') is not None:
                 angle = m['angle']
                 print(f"  {m['type']:20s} | {len(m['points'])} 点 | 角度: {angle:6.2f}° | {points_str[:60]}...")
             else:

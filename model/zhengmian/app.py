@@ -145,11 +145,130 @@ def infer_pose(img: np.ndarray) -> Dict[str, dict]:
                     "confidence": float(conf)
                 }
 
+            # 合理性校验：6个点应分布在图像有效区域内
+            # 正常脊柱X光中，肩膀到骶骨横向跨度 > 图像宽度10%，纵向跨度 > 图像高度20%
+            if len(pose_data) == 6:
+                xs = [v["x"] for v in pose_data.values()]
+                ys = [v["y"] for v in pose_data.values()]
+                spread_x = max(xs) - min(xs)
+                spread_y = max(ys) - min(ys)
+                if spread_x < orig_w * 0.10 or spread_y < orig_h * 0.20:
+                    print(f"[WARN] Pose keypoints collapsed "
+                          f"(spread_x={spread_x:.1f}/{orig_w*0.10:.1f}, "
+                          f"spread_y={spread_y:.1f}/{orig_h*0.20:.1f}), discarding.")
+                    pose_data = {}
+
     return pose_data
+
+
+def estimate_pose_from_vertebrae(vertebrae_data: Dict[str, dict]) -> Dict[str, dict]:
+    """
+    当 pose 模型检测失败时，根据椎骨位置解剖估算躯干关键点。
+
+    精度说明（医学影像坐标：y 轴向下，患者右侧在图像左侧）：
+    - SR/SL (骶骨): ⭐⭐⭐ 高精度 — S1 紧贴 L5 下方，宽度相近，CSVL 误差小
+    - IR/IL (髂骨): ⭐⭐  中精度 — L3/L4 水平横向扩展，宽度因人而异
+    - CR/CL (肩部): ⭐    低精度 — T1/T2 水平横向扩展，受手臂姿势影响大
+
+    估算点的 confidence 统一设为 0.0，便于与真实检测点区分。
+    """
+    pose_data = {}
+
+    def _pt(x, y):
+        return {"x": float(x), "y": float(y), "confidence": 0.0}
+
+    # ── SR / SL：从 L5 底边缘推算 S1 ────────────────────────────────────────
+    # 解剖：S1 上终板紧贴 L5 下方，间距约 L5 椎体高度的 0.5 倍
+    # 医学影像左右：SR（患者右）在图像左侧 → bottom_left；SL（患者左）→ bottom_right
+    if "L5" in vertebrae_data:
+        l5c = vertebrae_data["L5"]["corners"]
+        l5_height = l5c["bottom_mid"]["y"] - l5c["top_mid"]["y"]
+        gap = l5_height * 0.5
+        s1_y = l5c["bottom_mid"]["y"] + gap
+        pose_data["SR"] = _pt(l5c["bottom_left"]["x"],  s1_y)
+        pose_data["SL"] = _pt(l5c["bottom_right"]["x"], s1_y)
+
+    # ── IR / IL：L3/L4 水平，横向约 2.5 倍椎骨宽度 ──────────────────────────
+    # 解剖：髂骨嵴约在 L3-L4 节段高度，向两侧延伸
+    ref_iliac = vertebrae_data.get("L3") or vertebrae_data.get("L4")
+    if ref_iliac:
+        c = ref_iliac["corners"]
+        v_width = c["top_right"]["x"] - c["top_left"]["x"]
+        cx, cy = c["center"]["x"], c["center"]["y"]
+        pose_data["IR"] = _pt(cx - v_width * 2.5, cy)
+        pose_data["IL"] = _pt(cx + v_width * 2.5, cy)
+
+    # ── CR / CL：T1/T2 水平，横向约 4.5 倍椎骨宽度 ──────────────────────────
+    # 解剖：锁骨最高点约在 T1-T2 节段高度，向两侧大幅延伸
+    ref_shoulder = (vertebrae_data.get("T1") or
+                    vertebrae_data.get("T2") or
+                    vertebrae_data.get("C7"))
+    if ref_shoulder:
+        c = ref_shoulder["corners"]
+        v_width = c["top_right"]["x"] - c["top_left"]["x"]
+        cx, cy = c["center"]["x"], c["center"]["y"]
+        pose_data["CR"] = _pt(cx - v_width * 4.5, cy)
+        pose_data["CL"] = _pt(cx + v_width * 4.5, cy)
+
+    return pose_data
+
+
+# ==================== 去重 & 排序工具 ====================
+def _box_iou(b1, b2):
+    """计算两个 xyxy 格式边界框的 IoU"""
+    ix1, iy1 = max(b1[0], b2[0]), max(b1[1], b2[1])
+    ix2, iy2 = min(b1[2], b2[2]), min(b1[3], b2[3])
+    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+    a1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+    a2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
+    return inter / (a1 + a2 - inter + 1e-6)
+
+
+def _reassign_by_ypos(keypoints, boxes, conf_thr, iou_thr=0.3):
+    """
+    IoU 去空间重叠（贪心 NMS）+ 按 y 从上到下排序
+    返回 list of (new_rank, orig_idx)
+    """
+    cands = []
+    for i in range(len(keypoints)):
+        if float(boxes.conf[i]) < conf_thr:
+            continue
+        kp = keypoints[i]
+        yc = float(kp[:, 1].mean())
+        b = boxes.xyxy[i].cpu().numpy()
+        cands.append((float(boxes.conf[i]), i, yc, b))
+    # 按置信度降序贪心 NMS
+    cands.sort(key=lambda x: -x[0])
+    kept = []
+    for c in cands:
+        if not any(_box_iou(c[3], k[3]) > iou_thr for k in kept):
+            kept.append(c)
+    # 按 y 从上到下，赋予新编号
+    kept.sort(key=lambda x: x[2])
+    return [(rank, c[1]) for rank, c in enumerate(kept)]
+
+
+def rank_to_vertebra_name(rank: int) -> str:
+    """
+    将 y 排序序号映射为椎骨名称（与 cls_id_to_vertebra_name 映射表相同，
+    但输入是去重+排序后的位置序号，而非模型预测的类别 ID）
+    0: C7
+    1-12: T1-T12
+    13-17: L1-L5
+    """
+    if rank == 0:
+        return "C7"
+    elif 1 <= rank <= 12:
+        return f"T{rank}"
+    elif 13 <= rank <= 17:
+        return f"L{rank - 12}"
+    else:
+        return f"V{rank}"
+
 
 def cls_id_to_vertebra_name(cls_id: int) -> str:
     """
-    将class_id转换为椎骨名称
+    将class_id转换为椎骨名称（保留备用，infer_pose_corner 已改用 rank_to_vertebra_name）
     0: C7
     1-12: T1-T12
     13-17: L1-L5
@@ -168,6 +287,12 @@ def infer_pose_corner(img: np.ndarray) -> Dict[str, dict]:
     """
     Pose Corner 模型推理 - 椎骨4角点
     返回: {vertebra_name: {corners: {top_left, top_right, bottom_right, bottom_left}, class_id: int}}
+
+    后处理流程：
+    1. IoU NMS 去重：同一位置被不同类别重复预测时，保留置信度最高的结果
+    2. 按 y 坐标从上到下排序，依次编号 rank 0, 1, 2, ...
+    3. 用 rank_to_vertebra_name(rank) 映射为解剖名称（C7, T1...T12, L1...L5）
+       不依赖模型预测的原始类别 ID，避免类别预测偏移或重复导致的命名错误
     """
     if pose_corner_model is None:
         return {}
@@ -182,13 +307,13 @@ def infer_pose_corner(img: np.ndarray) -> Dict[str, dict]:
         keypoints = result.keypoints.data.cpu().numpy()
         boxes = result.boxes
 
-        for i, kpts in enumerate(keypoints):
-            conf = float(boxes.conf[i])
-            if conf < CONF_THRESHOLD:
-                continue
+        # IoU 去重 + 按 y 从上到下排序，new_rank 即解剖位置序号
+        assignments = _reassign_by_ypos(keypoints, boxes, CONF_THRESHOLD)
 
-            cls_id = int(boxes.cls[i])
-            vertebra_name = cls_id_to_vertebra_name(cls_id)
+        for new_rank, i in assignments:
+            kpts = keypoints[i]
+            conf = float(boxes.conf[i])
+            vertebra_name = rank_to_vertebra_name(new_rank)
 
             corners = {}
             for j, (x, y, v) in enumerate(kpts):
@@ -205,7 +330,7 @@ def infer_pose_corner(img: np.ndarray) -> Dict[str, dict]:
                 "y": (tl["y"] + tr["y"] + bl["y"] + br["y"]) / 4
             }
 
-            vertebrae[vertebra_name] = {"corners": corners, "confidence": conf, "class_id": cls_id}
+            vertebrae[vertebra_name] = {"corners": corners, "confidence": conf, "class_id": new_rank}
 
     return vertebrae
 
@@ -588,7 +713,7 @@ async def health_check():
     }
 
 
-@app.post("/predict", response_model=AnnotationsResponse)
+@app.post("/predict", response_model=AnnotationsResponse, response_model_exclude_none=True)
 async def predict(
     file: UploadFile = File(...),
     image_id: Optional[str] = Query(None, description="图片ID，默认使用文件名")
@@ -632,6 +757,11 @@ async def predict(
     # 推理
     pose_data = infer_pose(img)
     vertebrae_data = infer_pose_corner(img)
+
+    # Fallback：pose 检测失败时根据椎骨位置解剖估算
+    if not pose_data and vertebrae_data:
+        print("[INFO] Pose detection failed, falling back to anatomical estimation from vertebrae.")
+        pose_data = estimate_pose_from_vertebrae(vertebrae_data)
 
     # 转换为前端格式
     result = convert_to_annotations(pose_data, vertebrae_data, image_id, image_width, image_height)
@@ -678,6 +808,11 @@ async def detect_keypoints(
     # 推理
     pose_data = infer_pose(img)
     vertebrae_data = infer_pose_corner(img)
+
+    # Fallback：pose 检测失败时根据椎骨位置解剖估算
+    if not pose_data and vertebrae_data:
+        print("[INFO] Pose detection failed, falling back to anatomical estimation from vertebrae.")
+        pose_data = estimate_pose_from_vertebrae(vertebrae_data)
 
     # 返回原始检测数据
     return {

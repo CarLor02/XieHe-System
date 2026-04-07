@@ -5,10 +5,11 @@
 ## 目录结构
 
 ```
-3-inference/
-├── app.py              # FastAPI 服务主文件
+zhengmian/
+├── app.py              # FastAPI 服务主文件（生产版本）
 ├── requirements.txt    # Python 依赖
 ├── README.md           # 本文件
+├── example/            # 测试脚本和示例结果
 └── weights/
     ├── pose.pt         # 躯干标志点检测模型 (6个关键点)
     └── pose_corner.pt  # 椎体角点检测模型 (18类椎体，每个4角点)
@@ -19,7 +20,6 @@
 ### 1. 安装依赖
 
 ```bash
-cd 3-inference
 pip install -r requirements.txt
 ```
 
@@ -30,7 +30,7 @@ pip install -r requirements.txt
 python app.py
 
 # 方式2: 使用 uvicorn (支持热重载)
-uvicorn app:app --reload --host 0.0.0.0 --port 8888
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 服务启动后访问: http://localhost:8000
@@ -187,21 +187,22 @@ curl -X POST http://localhost:8000/detect_keypoints \
 - `pose_keypoints`: 6个躯干关键点 (CR, CL, IR, IL, SR, SL)
 - `vertebrae`: 检测到的所有椎骨 (C7, T1-T12, L1-L5)
   - 每个椎骨包含4个角点 + 3个计算点（上中点、下中点、中心）
-  - 包含置信度和class_id
+  - `confidence`: 模型检测置信度
+  - `class_id`: y 坐标排序后的位置序号（0=C7, 1=T1, ...），非模型原始类别 ID
 
 ## 指标说明
 
 | type | 中文名 | 点位说明 | 角度 | 备注 |
 |------|--------|----------|------|------|
 | `T1 Tilt` | T1倾斜角 | T1上终板左右端点 | - | - |
-| `Cobb-Thoracic` | 胸弯Cobb角 | 上端椎**下边缘** + 下端椎**上边缘** (4点) | ✓ | T2-T11/T12范围，>10°才返回 |
-| `Cobb-Thoracolumbar` | 胸腰弯Cobb角 | 上端椎**下边缘** + 下端椎**上边缘** (4点) | ✓ | T2-L1范围，>10°才返回 |
-| `Cobb-Lumbar` | 腰弯Cobb角 | 上端椎**下边缘** + 下端椎**上边缘** (4点) | ✓ | L1/L2-L4范围，>10°才返回 |
+| `Cobb-Thoracic` | 胸弯Cobb角 | 上端椎**上边缘（上终板）** + 下端椎**下边缘（下终板）** (4点) | ✓ | T2-T11/T12范围，>10°才返回 |
+| `Cobb-Thoracolumbar` | 胸腰弯Cobb角 | 上端椎**上边缘（上终板）** + 下端椎**下边缘（下终板）** (4点) | ✓ | T2-L1范围，>10°才返回 |
+| `Cobb-Lumbar` | 腰弯Cobb角 | 上端椎**上边缘（上终板）** + 下端椎**下边缘（下终板）** (4点) | ✓ | L1/L2-L4范围，>10°才返回 |
 | `CA` | 两肩倾斜角 | 左右锁骨最高点 (CR, CL) | ✓ | 左边高为正，右边高为负 |
 | `Pelvic` | 骨盆倾斜角 | 左右髂骨最高点 (IR, IL) | ✓ | 左边高为正，右边高为负 |
 | `Sacral` | 骶骨倾斜角 | 骶一上终板左右缘点 (SR, SL) | ✓ | 左边高为正，右边高为负 |
 | `AVT` | 顶椎偏移 | 顶椎中心 → CSVL | - | - |
-| `TS` | 躯干偏移 | C7中心 → CSVL | - | - |
+| `TTS` | 躯干偏移 | C7中心 → CSVL | - | - |
 
 **角度说明:**
 - **Cobb角**: 左凸为正（左边高），右凸为负（右边高），只返回绝对值 > 10° 的
@@ -211,8 +212,8 @@ curl -X POST http://localhost:8000/detect_keypoints \
 **Cobb角计算逻辑:**
 - 自动在3个区域（胸弯、胸腰弯、腰弯）分别查找最大Cobb角
 - 先找顶椎（离中线最远的椎体）
-- 上端椎：在顶椎上方找倾斜角最大的椎体（如无则用顶椎），使用**下边缘**
-- 下端椎：在顶椎下方找倾斜角最小的椎体（如无则用顶椎），使用**上边缘**
+- 上端椎：在顶椎上方找倾斜角最大的椎体（如无则用顶椎），使用**上边缘（上终板）**
+- 下端椎：在顶椎下方找倾斜角最小的椎体（如无则用顶椎），使用**下边缘（下终板）**
 
 ## 模型信息
 
@@ -221,10 +222,18 @@ curl -X POST http://localhost:8000/detect_keypoints \
 | Pose | `weights/pose.pt` | 6个躯干关键点: CR, CL, IR, IL, SR, SL |
 | Pose Corner | `weights/pose_corner.pt` | 18类椎体，每个4角点: TL, TR, BR, BL |
 
-**椎体标注映射:**
-- Class 0: C7
-- Class 1-12: T1-T12
-- Class 13-17: L1-L5
+**椎体编号规则（推理后处理）:**
+
+Pose Corner 模型输出的椎体编号**不依赖**模型预测的原始类别 ID，而是在推理时自动处理：
+
+1. **IoU 去重**：同一位置被不同类别重复预测时，保留置信度最高的结果（IoU 阈值 0.3）
+2. **按 y 坐标排序**：从图像顶部到底部依次编为位置序号 0, 1, 2, ...
+3. **映射为解剖名称**：位置序号 → 椎骨名（与原映射表一致）
+   - 序号 0 → C7
+   - 序号 1~12 → T1~T12
+   - 序号 13~17 → L1~L5
+
+`class_id` 字段存储的是 y 排序后的位置序号（而非模型原始类别 ID），这样可以避免类别预测偏移或空间重复导致的命名错误。
 
 ## Docker 部署 (可选)
 
