@@ -14,7 +14,9 @@ interface UploadFile {
   type: string;
   status: 'pending' | 'uploading' | 'completed' | 'error';
   progress: number;
-  file: File; // 保存原始文件对象
+  file: File;       // 保存原始（或翻转后）的文件对象
+  flipped: boolean; // 是否已左右翻转
+  previewUrl: string; // 本地预览 URL（URL.createObjectURL）
 }
 
 function UploadContent() {
@@ -124,12 +126,12 @@ function UploadContent() {
       type: file.type,
       status: 'pending',
       progress: 0,
-      file: file, // 保存原始文件对象
+      file: file,
+      flipped: false,
+      previewUrl: URL.createObjectURL(file),
     }));
 
     setUploadFiles(prev => [...prev, ...newFiles]);
-
-    // 不立即上传，等待用户点击确认上传按钮
   };
 
   const uploadFile = async (fileId: string, file: File) => {
@@ -178,7 +180,50 @@ function UploadContent() {
   };
 
   const removeFile = (fileId: string) => {
-    setUploadFiles(prev => prev.filter(file => file.id !== fileId));
+    setUploadFiles(prev => {
+      const target = prev.find(f => f.id === fileId);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter(f => f.id !== fileId);
+    });
+  };
+
+  // 左右翻转指定文件（Canvas 像素级翻转，生成新 File 对象）
+  const handleFlip = (fileId: string) => {
+    setUploadFiles(prev =>
+      prev.map(f => {
+        if (f.id !== fileId) return f;
+
+        const img = new Image();
+        const oldUrl = f.previewUrl;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          // 水平镜像：原点移到右边缘，X 轴取反
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(img, 0, 0);
+
+          canvas.toBlob(blob => {
+            if (!blob) return;
+            const newFile = new File([blob], f.name, { type: f.type || 'image/png' });
+            const newPreviewUrl = URL.createObjectURL(newFile);
+            URL.revokeObjectURL(oldUrl);
+            setUploadFiles(prev2 =>
+              prev2.map(f2 =>
+                f2.id === fileId
+                  ? { ...f2, file: newFile, flipped: !f2.flipped, previewUrl: newPreviewUrl }
+                  : f2
+              )
+            );
+          }, f.type || 'image/png');
+        };
+        img.src = oldUrl;
+        return f; // 暂时保持不变，等 canvas 异步完成后再更新
+      })
+    );
   };
 
   const handleConfirmUpload = () => {
@@ -366,14 +411,26 @@ function UploadContent() {
                   {uploadFiles.map(file => (
                     <div
                       key={file.id}
-                      className="flex items-center p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
                     >
+                      {/* 缩略图预览 */}
+                      <div className="w-14 h-16 flex-shrink-0 bg-black rounded overflow-hidden">
+                        <img
+                          src={file.previewUrl}
+                          alt={file.name}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+
+                      {/* 文件信息 */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {file.name}
-                          </p>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {file.name}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
                             <span className="text-xs text-gray-500">
                               {formatFileSize(file.size)}
                             </span>
@@ -413,7 +470,20 @@ function UploadContent() {
                         )}
 
                         {file.status === 'pending' && (
-                          <p className="text-xs text-gray-600">待上传</p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <p className="text-xs text-gray-600">待上传</p>
+                            <button
+                              onClick={() => handleFlip(file.id)}
+                              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded border transition-colors ${
+                                file.flipped
+                                  ? 'border-blue-400 bg-blue-50 text-blue-600'
+                                  : 'border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50'
+                              }`}
+                            >
+                              <i className="ri-arrow-left-right-line"></i>
+                              左右翻转{file.flipped ? '（已翻转）' : ''}
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -469,7 +539,8 @@ function UploadContent() {
               <li>• 请确保选择正确的患者和检查类型</li>
               <li>• 支持的文件格式：DCM（DICOM）、JPG、PNG、GIF</li>
               <li>• 单个文件大小不能超过 100MB</li>
-              <li>• 支持批量选择和拖拽上传</li>
+              <li>• 支持拖拽上传</li>
+              <li>• 若影像左右方向有误，可点击文件列表中的 ⇌ 按钮进行翻转，翻转后再上传</li>
               <li>• 上传的文件将自动关联到选中的患者</li>
               <li>• 上传完成后可直接返回原来的页面</li>
             </ul>
