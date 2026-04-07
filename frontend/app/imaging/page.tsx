@@ -21,7 +21,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
-const PREVIEW_REQUEST_TIMEOUT_MS = 24000;
+const PREVIEW_REQUEST_TIMEOUT_MS = 60000;
 const PREVIEW_RETRY_ATTEMPTS = 3;
 const PREVIEW_RETRY_DELAY_MS = 800;
 const MAX_CONCURRENT_PREVIEW_LOADS = 6;
