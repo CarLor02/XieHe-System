@@ -36,7 +36,7 @@ export default function LoginPage() {
     // 使用 setTimeout 延迟检查，避免在状态更新过程中触发
     const timer = setTimeout(() => {
       if (isAuthenticated) {
-        router.push('/');
+        router.push('/dashboard');
       }
     }, 100);
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
 
     const success = await login(formData);
     if (success) {
-      router.push('/');
+      router.push('/dashboard');
     }
   };
 

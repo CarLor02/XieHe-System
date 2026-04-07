@@ -205,7 +205,7 @@ async def get_image_files_list(
             search_pattern = f"%{search}%"
             query = query.filter(
                 or_(
-                    ImageFile.file_name.ilike(search_pattern),
+                    ImageFile.original_filename.ilike(search_pattern),
                     ImageFile.description.ilike(search_pattern),
                     Patient.name.ilike(search_pattern)
                 )

@@ -6,7 +6,6 @@ import Tooltip from './ui/Tooltip';
 import { useUser } from '@/store/authStore';
 
 const navigation = [
-  { name: '主页', href: '/', icon: 'ri-home-line', tooltip: '返回系统主页' },
   { name: '工作台', href: '/dashboard', icon: 'ri-dashboard-line', tooltip: '查看工作台和统计数据' },
   { name: '患者管理', href: '/patients', icon: 'ri-user-line', tooltip: '管理患者信息和档案' },
   { name: '影像中心', href: '/imaging', icon: 'ri-image-line', tooltip: '查看和管理医学影像' },

@@ -106,14 +106,11 @@ export default function ImagingPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  // 搜索防抖：延迟500ms后更新debouncedSearchTerm
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  // 搜索：按回车或点击搜索按钮时触发
+  const handleSearch = () => {
+    setCurrentPage(1);
+    setDebouncedSearchTerm(searchTerm);
+  };
 
   // 加载影像数据
   const loadImages = async () => {
@@ -451,11 +448,20 @@ export default function ImagingPage() {
                   placeholder="搜索患者姓名、检查类型或文件名"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
                   className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              {/* 筛选按钮 */}
+              {/* 搜索按钮 */}
+              <button
+                onClick={handleSearch}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                搜索
+              </button>
+
+              {/* 更多选项按钮 */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`px-4 py-2 border rounded-lg ${
@@ -464,7 +470,7 @@ export default function ImagingPage() {
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                筛选
+                更多选项
                 {(selectedExamType !== 'all' ||
                   selectedReviewStatus !== 'all' ||
                   dateFrom ||

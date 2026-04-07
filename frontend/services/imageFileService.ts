@@ -160,12 +160,24 @@ export async function getImageStats(): Promise<ImageFileStats> {
  * 注意：此函数返回一个Promise，需要await使用
  */
 export async function getImagePreviewUrl(fileId: number): Promise<string> {
+  // 30 秒超时：超时后抛出错误，由 catch 降级为占位图，避免 spinner 永久悬挂
+  const PREVIEW_TIMEOUT_MS = 30_000;
+
   try {
-    const blob = await downloadImageFile(fileId);
+    const client = createAuthenticatedClient();
+    const response = await client.get(`/api/v1/image-files/${fileId}/download`, {
+      responseType: 'blob',
+      timeout: PREVIEW_TIMEOUT_MS,
+    });
+    const blob: Blob = response.data;
+    // 如果服务端返回非图片（如 JSON 错误体），blob type 不是 image/*，直接降级
+    if (!blob.type.startsWith('image/') && blob.type !== 'application/octet-stream' && blob.type !== '') {
+      throw new Error(`Unexpected content-type: ${blob.type}`);
+    }
     return URL.createObjectURL(blob);
   } catch (error) {
-    console.error('Failed to load image:', error);
-    // 返回一个占位图片
+    console.warn(`[Preview] file ${fileId} 加载失败，使用占位图:`, error);
+    // 返回一个占位图片（灰色背景 + "暂无图片"文字）
     return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7ml6Dlh7rliqDovb08L3RleHQ+PC9zdmc+';
   }
 }
