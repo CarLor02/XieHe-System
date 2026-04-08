@@ -538,6 +538,56 @@ async def get_image_stats(
         )
 
 
+class UpdateExamTypeRequest(BaseModel):
+    """修改检查类型请求模型"""
+    description: str = Field(..., description="检查类型（正位X光片/侧位X光片等）")
+
+
+@router.patch("/{file_id}/exam-type", response_model=dict, summary="修改影像检查类型")
+async def update_exam_type(
+    file_id: int,
+    request: UpdateExamTypeRequest,
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    修改影像检查类型（description 字段，如正位/侧位）。
+    已处理或有标注的影像仍可修改，但会在响应中附带警告提示。
+    """
+    try:
+        image = db.query(ImageFile).filter(
+            ImageFile.id == file_id,
+            ImageFile.is_deleted == False
+        ).first()
+
+        if not image:
+            raise HTTPException(status_code=404, detail="影像文件不存在")
+
+        warning = None
+        if image.status == ImageFileStatusEnum.PROCESSED:
+            warning = "该影像已完成AI分析，修改检查类型可能影响结果解读"
+        elif image.annotation:
+            warning = "该影像已有标注数据，修改检查类型可能影响标注关联"
+
+        image.description = request.description
+        image.updated_at = func.now()
+        db.commit()
+        db.refresh(image)
+
+        logger.info(f"用户 {current_user.get('username')} 将影像 {file_id} 检查类型修改为 {request.description}")
+        return success_response(
+            data={"id": image.id, "description": image.description, "warning": warning},
+            message="检查类型修改成功"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"修改检查类型失败: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="修改检查类型失败")
+
+
 class UpdateAnnotationRequest(BaseModel):
     """更新标注数据请求模型"""
     annotation: str = Field(..., description="标注数据(JSON字符串)")

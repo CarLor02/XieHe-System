@@ -171,6 +171,15 @@ export async function deleteImageFile(
 /**
  * 获取影像统计信息
  */
+export async function updateImageExamType(
+  fileId: number,
+  description: string
+): Promise<{ id: number; description: string; warning: string | null }> {
+  const client = createAuthenticatedClient();
+  const response = await client.patch(`/api/v1/image-files/${fileId}/exam-type`, { description });
+  return extractData<{ id: number; description: string; warning: string | null }>(response);
+}
+
 export async function getImageStats(): Promise<ImageFileStats> {
   const client = createAuthenticatedClient();
   const response = await client.get('/api/v1/image-files/stats/summary');

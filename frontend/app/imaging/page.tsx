@@ -8,6 +8,7 @@ import {
   getImageFiles,
   deleteImageFile,
   downloadImageFile,
+  updateImageExamType,
   formatFileSize,
   formatDate,
   type ImageFile,
@@ -112,6 +113,34 @@ export default function ImagingPage() {
   const [dateTo, setDateTo] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  // 修改检查类型弹窗
+  const EXAM_TYPES = ['正位X光片', '侧位X光片', '左侧曲位', '右侧曲位', '体态照片'];
+  const [changeTypeModal, setChangeTypeModal] = useState<{ fileId: number; currentDesc: string; status: string } | null>(null);
+  const [changeTypeSelected, setChangeTypeSelected] = useState('');
+  const [changeTypeLoading, setChangeTypeLoading] = useState(false);
+
+  const openChangeTypeModal = (fileId: number, currentDesc: string, status: string) => {
+    setChangeTypeSelected(currentDesc || '');
+    setChangeTypeModal({ fileId, currentDesc, status });
+    setOpenDropdown(null);
+  };
+
+  const handleChangeType = async () => {
+    if (!changeTypeModal) return;
+    setChangeTypeLoading(true);
+    try {
+      const result = await updateImageExamType(changeTypeModal.fileId, changeTypeSelected);
+      setChangeTypeModal(null);
+      loadImages();
+      if (result.warning) alert(`✓ 修改成功\n⚠️ ${result.warning}`);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? '修改失败，请重试';
+      alert(msg);
+    } finally {
+      setChangeTypeLoading(false);
+    }
+  };
 
   // 搜索：按回车或点击搜索按钮时触发
   const handleSearch = () => {
@@ -823,7 +852,7 @@ export default function ImagingPage() {
                           {imageFile.original_filename}
                         </h3>
                         <p className="text-blue-600 font-medium text-sm">
-                          {imageFile.modality || imageFile.file_type}
+                          {imageFile.description || imageFile.modality || imageFile.file_type}
                         </p>
                       </div>
 
@@ -877,6 +906,16 @@ export default function ImagingPage() {
                                   <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
                                   <span>下载</span>
                                 </button>
+                                <>
+                                  <div className="border-t border-gray-100"></div>
+                                  <button
+                                    onClick={() => openChangeTypeModal(imageFile.id, imageFile.description ?? '', imageFile.status)}
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                                    >
+                                      <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
+                                      <span>修改类型</span>
+                                    </button>
+                                  </>
                                 <div className="border-t border-gray-100"></div>
                                 <button
                                   onClick={() =>
@@ -924,7 +963,7 @@ export default function ImagingPage() {
                               {imageFile.original_filename}
                             </span>
                             <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                              {imageFile.modality || imageFile.file_type}
+                              {imageFile.description || imageFile.modality || imageFile.file_type}
                             </span>
                           </div>
                           <span
@@ -1076,6 +1115,51 @@ export default function ImagingPage() {
           className="fixed inset-0 z-0"
           onClick={() => setOpenDropdown(null)}
         ></div>
+      )}
+
+      {/* 修改检查类型弹窗 */}
+      {changeTypeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-80 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <i className="ri-edit-line text-blue-500 text-xl"></i>
+              <h3 className="text-base font-semibold text-gray-800">修改检查类型</h3>
+            </div>
+            <p className="text-sm text-gray-500 mb-1">
+              当前类型：<span className="font-medium text-gray-700">{changeTypeModal.currentDesc || '未设置'}</span>
+            </p>
+            {changeTypeModal.status !== 'UPLOADED' && (
+              <p className="text-xs text-amber-600 bg-amber-50 rounded px-2 py-1 mb-3">
+                ⚠️ 该影像已处理，修改类型可能影响分析结果解读
+              </p>
+            )}
+            <select
+              value={changeTypeSelected}
+              onChange={e => setChangeTypeSelected(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-3 mb-5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">请选择检查类型</option>
+              {EXAM_TYPES.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setChangeTypeModal(null)}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleChangeType}
+                disabled={changeTypeLoading || !changeTypeSelected || changeTypeSelected === changeTypeModal.currentDesc}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {changeTypeLoading ? '保存中…' : '确认修改'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
