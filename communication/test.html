@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>文件索引服务 — 测试页</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; }
+  header { background: #1a56db; color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 18px; font-weight: 600; }
+  .badge { background: #fff2; border-radius: 4px; padding: 2px 8px; font-size: 12px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px 16px; display: grid; gap: 16px; }
+
+  /* 配置栏 */
+  .config-bar { background: #fff; border-radius: 8px; padding: 14px 16px;
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+    box-shadow: 0 1px 3px #0001; }
+  .config-bar label { font-size: 12px; color: #555; display: flex; flex-direction: column; gap: 4px; }
+  .config-bar input { border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px;
+    font-size: 13px; width: 240px; }
+  .config-bar input:focus { outline: none; border-color: #1a56db; }
+
+  /* 按钮 */
+  button { cursor: pointer; border: none; border-radius: 6px; padding: 7px 14px;
+    font-size: 13px; font-weight: 500; transition: opacity .15s; }
+  button:hover { opacity: .85; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: #1a56db; color: #fff; }
+  .btn-success { background: #0e9f6e; color: #fff; }
+  .btn-warning { background: #f59e0b; color: #fff; }
+  .btn-danger  { background: #e02424; color: #fff; }
+  .btn-ghost   { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+
+  /* 卡片 */
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px #0001; }
+  .card-header { display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
+  .card-header h2 { font-size: 15px; font-weight: 600; }
+  .card-body { padding: 16px; }
+
+  /* 统计 */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 10px; }
+  .stat-item { background: #f9fafb; border-radius: 6px; padding: 12px; text-align: center; }
+  .stat-item .val { font-size: 26px; font-weight: 700; color: #1a56db; }
+  .stat-item .lbl { font-size: 12px; color: #6b7280; margin-top: 2px; }
+  .stat-months { margin-top: 12px; font-size: 12px; color: #6b7280; }
+  .stat-months span { display: inline-block; background: #eff6ff; color: #1e40af;
+    border-radius: 4px; padding: 2px 8px; margin: 2px; }
+
+  /* 筛选 */
+  .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .filter-bar select, .filter-bar input[type=text] {
+    border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px;
+    font-size: 13px; background: #fff; }
+
+  /* 文件表格 */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: #f9fafb; padding: 8px 12px; text-align: left;
+    font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid #f3f4f6; }
+  tbody tr:hover { background: #f9fafb; }
+  tbody td { padding: 8px 12px; vertical-align: middle; }
+  tbody tr.selected { background: #eff6ff; }
+
+  /* 标签 */
+  .tag { display: inline-block; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 600; }
+  .tag-primary { background: #dbeafe; color: #1e40af; }
+  .tag-sidecar { background: #f3f4f6; color: #6b7280; }
+  .tag-synced  { background: #d1fae5; color: #065f46; }
+  .tag-pending { background: #fef3c7; color: #92400e; }
+  .tag-invalid { background: #fee2e2; color: #991b1b; }
+
+  /* 分页 */
+  .pagination { display: flex; gap: 6px; align-items: center; justify-content: flex-end; margin-top: 12px; font-size: 13px; }
+  .pagination span { color: #6b7280; }
+
+  /* 操作栏 */
+  .action-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .action-bar .selected-info { font-size: 13px; color: #6b7280; }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: #111827; color: #fff;
+    padding: 10px 18px; border-radius: 8px; font-size: 13px; opacity: 0;
+    transition: opacity .3s; pointer-events: none; z-index: 999; max-width: 320px; }
+  #toast.show { opacity: 1; }
+  #toast.ok  { background: #065f46; }
+  #toast.err { background: #991b1b; }
+
+  /* 弹窗 */
+  #modal-backdrop { display: none; position: fixed; inset: 0; background: #0006; z-index: 100;
+    align-items: center; justify-content: center; }
+  #modal-backdrop.open { display: flex; }
+  #modal { background: #fff; border-radius: 12px; width: 560px; max-width: 95vw;
+    max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 20px 60px #0003; }
+  #modal-title { padding: 16px 20px; font-weight: 600; font-size: 15px;
+    border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+  #modal-body { overflow-y: auto; padding: 16px 20px; flex: 1; }
+  #modal-body table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  #modal-body td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+  #modal-body td:first-child { color: #6b7280; width: 160px; font-weight: 500; white-space: nowrap; }
+  #modal-body td:last-child { font-family: monospace; word-break: break-all; }
+  #preview-box { text-align: center; background: #000; border-radius: 6px;
+    margin-bottom: 12px; min-height: 60px; display: flex; align-items: center; justify-content: center; }
+  #preview-box img { max-width: 100%; max-height: 420px; object-fit: contain; display: block; }
+  #preview-box .preview-msg { color: #6b7280; font-size: 13px; padding: 16px; }
+  .modal-section { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase;
+    letter-spacing: .05em; padding: 10px 0 4px; }
+  #modal-footer { padding: 12px 20px; border-top: 1px solid #e5e7eb;
+    display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📂 文件索引服务 · 测试页</h1>
+  <span class="badge" id="conn-badge">未连接</span>
+</header>
+
+<div class="container">
+
+  <!-- 配置 -->
+  <div class="config-bar">
+    <label>服务地址
+      <input id="cfg-url" value="http://localhost:9000" placeholder="http://localhost:9000">
+    </label>
+    <label>API Key（无则留空）
+      <input id="cfg-key" type="password" placeholder="X-API-Key">
+    </label>
+    <button class="btn-primary" onclick="loadAll()">连接并刷新</button>
+    <button class="btn-warning" onclick="triggerScan()">手动触发扫描</button>
+  </div>
+
+  <!-- 统计 -->
+  <div class="card">
+    <div class="card-header"><h2>📊 汇总统计</h2></div>
+    <div class="card-body" id="stats-body">
+      <p style="color:#9ca3af;font-size:13px">点击「连接并刷新」加载数据</p>
+    </div>
+  </div>
+
+  <!-- 文件列表 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>🗂 文件列表</h2>
+      <div class="action-bar">
+        <span class="selected-info" id="sel-info">未选中</span>
+        <button class="btn-success" id="btn-sync" onclick="syncSelected()" disabled>✓ 标记已同步</button>
+        <button class="btn-danger"  id="btn-clear" onclick="clearSyncSelected()" disabled>✕ 清除同步状态</button>
+        <button class="btn-ghost" onclick="selectAll()">全选当页</button>
+        <button class="btn-ghost" onclick="clearSel()">清除选择</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <!-- 筛选 -->
+      <div class="filter-bar" style="margin-bottom:12px">
+        <select id="f-month" onchange="loadFiles(1)"><option value="">全部月份</option></select>
+        <select id="f-synced" onchange="loadFiles(1)">
+          <option value="">全部状态</option>
+          <option value="false">未同步</option>
+          <option value="true">已同步</option>
+        </select>
+        <select id="f-primary" onchange="loadFiles(1)">
+          <option value="">全部文件</option>
+          <option value="true">仅主影像</option>
+          <option value="false">仅边车文件</option>
+        </select>
+        <input type="text" id="f-patient" placeholder="患者文件夹（如 6-1-1）" style="width:180px"
+          onkeydown="if(event.key==='Enter')loadFiles(1)">
+        <button class="btn-ghost" onclick="loadFiles(1)">筛选</button>
+        <button class="btn-ghost" onclick="resetFilters()">重置</button>
+      </div>
+
+      <!-- 表格 -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="chk-all" onchange="toggleAll(this.checked)"></th>
+              <th>月份</th><th>患者文件夹</th><th>文件名</th>
+              <th>序号</th><th>类型</th><th>大小</th><th>修改时间</th>
+              <th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="file-tbody">
+            <tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:32px">暂无数据</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<!-- DICOM 读取弹窗 -->
+<div id="modal-backdrop" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <div id="modal-title">
+      <span id="modal-title-text">文件详情</span>
+      <button class="btn-ghost" style="padding:4px 8px" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+    <div id="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">关闭</button>
+      <button class="btn-danger" id="modal-clear-btn" onclick="modalClear()">✕ 清除同步状态</button>
+      <button class="btn-success" id="modal-sync-btn" onclick="modalSync()">✓ 标记已同步</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 工具 ──────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const url = () => $('cfg-url').value.replace(/\/$/, '');
+const headers = () => {
+  const h = { 'Content-Type': 'application/json' };
+  const k = $('cfg-key').value.trim();
+  if (k) h['X-API-Key'] = k;
+  return h;
+};
+
+let currentPage = 1;
+let selectedIds = new Set();
+
+function toast(msg, type = 'ok') {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', 3000);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(url() + path, { headers: headers(), ...opts });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+function fmtSize(b) {
+  if (b == null) return '—';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+function fmtTime(s) {
+  if (!s) return '—';
+  return new Date(s).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit' });
+}
+
+// ── 统计 ──────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const d = await api('/api/v1/stats');
+    $('conn-badge').textContent = '已连接';
+    $('conn-badge').style.background = '#0e9f6e33';
+
+    // 月份下拉
+    const sel = $('f-month');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">全部月份</option>' +
+      (d.months || []).map(m => `<option value="${m.month}">${m.month}（${m.file_count}个）</option>`).join('');
+    if (cur) sel.value = cur;
+
+    $('stats-body').innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-item"><div class="val">${d.total_records}</div><div class="lbl">总记录数</div></div>
+        <div class="stat-item"><div class="val">${d.valid_files}</div><div class="lbl">有效文件</div></div>
+        <div class="stat-item"><div class="val">${d.primary_files}</div><div class="lbl">主影像</div></div>
+        <div class="stat-item"><div class="val" style="color:#0e9f6e">${d.synced_files}</div><div class="lbl">已同步</div></div>
+        <div class="stat-item"><div class="val" style="color:#f59e0b">${d.unsynced_primary_files}</div><div class="lbl">待同步主影像</div></div>
+      </div>
+      <div class="stat-months">月份分布：${(d.months||[]).map(m=>`<span>${m.month} · ${m.file_count}个</span>`).join('')||'暂无'}</div>`;
+  } catch(e) {
+    $('conn-badge').textContent = '连接失败';
+    $('conn-badge').style.background = '#e0242433';
+    toast('连接失败: ' + e.message, 'err');
+  }
+}
+
+// ── 文件列表 ──────────────────────────────────────────────────────────────────
+async function loadFiles(page = 1) {
+  currentPage = page;
+  const params = new URLSearchParams({ page, page_size: 20 });
+  const m = $('f-month').value, s = $('f-synced').value;
+  const p = $('f-primary').value, pt = $('f-patient').value.trim();
+  if (m)  params.set('month', m);
+  if (s !== '') params.set('is_synced', s);
+  if (p !== '') params.set('is_primary', p);
+  if (pt) params.set('patient_folder', pt);
+
+  try {
+    const d = await api('/api/v1/files?' + params);
+    renderTable(d.items);
+    renderPagination(d.total, d.page, d.page_size);
+  } catch(e) { toast('加载文件列表失败: ' + e.message, 'err'); }
+}
+
+function renderTable(items) {
+  if (!items.length) {
+    $('file-tbody').innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:32px">无匹配文件</td></tr>';
+    return;
+  }
+  $('file-tbody').innerHTML = items.map(f => {
+    const isSelected = selectedIds.has(f.id);
+    const typTag = f.is_primary
+      ? '<span class="tag tag-primary">主影像</span>'
+      : '<span class="tag tag-sidecar">边车</span>';
+    const statusTag = !f.is_valid
+      ? '<span class="tag tag-invalid">已失效</span>'
+      : f.is_synced
+        ? `<span class="tag tag-synced">已同步</span><br><small style="color:#9ca3af">${fmtTime(f.synced_at)}</small>`
+        : '<span class="tag tag-pending">待同步</span>';
+    return `<tr class="${isSelected?'selected':''}" id="row-${f.id}">
+      <td><input type="checkbox" ${isSelected?'checked':''} onchange="toggleOne(${f.id}, this.checked)"></td>
+      <td>${f.month_folder}</td>
+      <td>${f.patient_folder}</td>
+      <td style="font-family:monospace">${f.filename}</td>
+      <td style="text-align:center">${f.scan_index||'—'}</td>
+      <td>${typTag}</td>
+      <td>${fmtSize(f.file_size)}</td>
+      <td>${fmtTime(f.file_mtime)}</td>
+      <td>${statusTag}</td>
+      <td style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn-primary" style="font-size:12px;padding:4px 8px"
+          onclick="inspectFile(${f.id}, '${f.filename}')">读取</button>
+        <a href="${url()}/api/v1/files/${f.id}/download" target="_blank">
+          <button class="btn-ghost" style="font-size:12px;padding:4px 8px">下载</button>
+        </a>
+        ${!f.is_synced && f.is_valid ? `<button class="btn-success" style="font-size:12px;padding:4px 8px"
+          onclick="markOne(${f.id})">同步</button>` : ''}
+        ${f.is_synced ? `<button class="btn-danger" style="font-size:12px;padding:4px 8px"
+          onclick="clearOne(${f.id})">清除</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+  updateSelInfo();
+}
+
+function renderPagination(total, page, size) {
+  const pages = Math.ceil(total / size);
+  $('pagination').innerHTML = `
+    <span>共 ${total} 条 · 第 ${page}/${pages} 页</span>
+    <button class="btn-ghost" onclick="loadFiles(${page-1})" ${page<=1?'disabled':''}>‹ 上一页</button>
+    <button class="btn-ghost" onclick="loadFiles(${page+1})" ${page>=pages?'disabled':''}>下一页 ›</button>`;
+}
+
+// ── 选择 ──────────────────────────────────────────────────────────────────────
+function toggleOne(id, checked) {
+  checked ? selectedIds.add(id) : selectedIds.delete(id);
+  const row = $('row-' + id);
+  if (row) row.className = checked ? 'selected' : '';
+  updateSelInfo();
+}
+
+function toggleAll(checked) {
+  document.querySelectorAll('#file-tbody input[type=checkbox]').forEach(cb => {
+    const id = parseInt(cb.closest('tr').id.replace('row-',''));
+    cb.checked = checked;
+    checked ? selectedIds.add(id) : selectedIds.delete(id);
+    cb.closest('tr').className = checked ? 'selected' : '';
+  });
+  updateSelInfo();
+}
+
+function selectAll() { $('chk-all').checked = true; toggleAll(true); }
+function clearSel()  { $('chk-all').checked = false; toggleAll(false); }
+
+function updateSelInfo() {
+  const n = selectedIds.size;
+  $('sel-info').textContent = n ? `已选 ${n} 个文件` : '未选中';
+  $('btn-sync').disabled = n === 0;
+  $('btn-clear').disabled = n === 0;
+}
+
+function resetFilters() {
+  $('f-month').value = '';
+  $('f-synced').value = '';
+  $('f-primary').value = 'true';
+  $('f-patient').value = '';
+  loadFiles(1);
+}
+
+// ── 同步操作 ──────────────────────────────────────────────────────────────────
+async function syncSelected() {
+  if (!selectedIds.size) return;
+  try {
+    const d = await api('/api/v1/files/batch-mark-synced', {
+      method: 'POST',
+      body: JSON.stringify({ file_ids: [...selectedIds], sync_note: '测试页手动标记' })
+    });
+    toast(`✓ 成功标记 ${d.updated} 个文件为已同步`, 'ok');
+    selectedIds.clear();
+    await loadAll();
+  } catch(e) { toast('批量同步失败: ' + e.message, 'err'); }
+}
+
+async function markOne(id) {
+  try {
+    await api(`/api/v1/files/${id}/mark-synced`, { method: 'POST' });
+    toast('✓ 已标记为同步', 'ok');
+    await loadAll();
+  } catch(e) { toast('标记失败: ' + e.message, 'err'); }
+}
+
+async function clearOne(id) {
+  try {
+    await api(`/api/v1/files/${id}/clear-synced`, { method: 'POST' });
+    toast('✓ 已清除同步状态', 'ok');
+    await loadAll();
+  } catch(e) { toast('清除失败: ' + e.message, 'err'); }
+}
+
+async function clearSyncSelected() {
+  if (!selectedIds.size) return;
+  try {
+    const d = await api('/api/v1/files/batch-clear-synced', {
+      method: 'POST',
+      body: JSON.stringify({ file_ids: [...selectedIds] })
+    });
+    toast(`✓ 已清除 ${d.updated} 个文件的同步状态`, 'ok');
+    selectedIds.clear();
+    await loadAll();
+  } catch(e) { toast('批量清除失败: ' + e.message, 'err'); }
+}
+
+// ── 手动扫描 ──────────────────────────────────────────────────────────────────
+async function triggerScan() {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '扫描中…';
+  try {
+    const d = await api('/api/v1/scan', { method: 'POST' });
+    toast(`扫描完成 — 新增 ${d.new_files}，更新 ${d.updated_files}，失效 ${d.invalid_files}，耗时 ${d.duration_seconds}s`, 'ok');
+    await loadAll();
+  } catch(e) { toast('扫描失败: ' + e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = '手动触发扫描'; }
+}
+
+// ── 文件读取 & 弹窗 ───────────────────────────────────────────────────────────
+let _modalFileId = null;
+
+async function inspectFile(id, filename) {
+  _modalFileId = id;
+  $('modal-title-text').textContent = `文件读取 · ${filename}`;
+  $('modal-body').innerHTML = '<p style="color:#9ca3af;padding:24px 0;text-align:center">读取中…</p>';
+  $('modal-sync-btn').disabled = false;
+  $('modal-backdrop').classList.add('open');
+
+  try {
+    const d = await api(`/api/v1/files/${id}/inspect`);
+
+    // 同步状态区
+    const syncRow = d.is_synced
+      ? `<tr><td>同步状态</td><td><span class="tag tag-synced">已同步</span></td></tr>
+         <tr><td>同步时间</td><td>${fmtTime(d.synced_at)}</td></tr>`
+      : `<tr><td>同步状态</td><td><span class="tag tag-pending">待同步</span></td></tr>`;
+
+    $('modal-sync-btn').disabled = d.is_synced;
+    $('modal-clear-btn').disabled = !d.is_synced;
+
+    // DICOM 字段区
+    let dicomRows = '';
+    if (d.error) {
+      dicomRows = `<tr><td colspan="2" style="color:#e02424;padding:12px 8px">${d.error}</td></tr>`;
+    } else if (d.dicom) {
+      const labels = {
+        PatientID:'患者ID', PatientName:'患者姓名', PatientSex:'性别',
+        PatientBirthDate:'出生日期', PatientAge:'年龄',
+        StudyDate:'检查日期', StudyTime:'检查时间', Modality:'检查模态',
+        StudyDescription:'检查描述', SeriesDescription:'序列描述',
+        Rows:'图像行数', Columns:'图像列数', BitsAllocated:'位深度',
+        StudyInstanceUID:'StudyUID', SOPInstanceUID:'SOPUID',
+      };
+      dicomRows = Object.entries(labels).map(([k, lbl]) => {
+        const v = d.dicom[k];
+        return v ? `<tr><td>${lbl}</td><td>${v}</td></tr>` : '';
+      }).join('');
+    }
+
+    $('modal-body').innerHTML = `
+      <div id="preview-box">
+        <span class="preview-msg">图像加载中…</span>
+      </div>
+      <table>
+        <tr><td colspan="2" class="modal-section">文件信息</td></tr>
+        <tr><td>文件名</td><td style="font-family:monospace">${d.filename}</td></tr>
+        <tr><td>文件大小</td><td>${fmtSize(d.file_size)}</td></tr>
+        <tr><td>路径</td><td style="font-size:11px;font-family:monospace;word-break:break-all">${d.file_path}</td></tr>
+        ${syncRow}
+        ${dicomRows ? `<tr><td colspan="2" class="modal-section">DICOM 元数据</td></tr>${dicomRows}` : ''}
+      </table>`;
+
+    // 异步加载图像预览
+    const imgUrl = `${url()}/api/v1/files/${id}/preview-image`;
+    const imgEl = new window.Image();
+    imgEl.onload = () => {
+      const box = $('preview-box');
+      if (box) { box.innerHTML = ''; box.appendChild(imgEl); }
+    };
+    imgEl.onerror = () => {
+      const box = $('preview-box');
+      if (box) box.innerHTML = '<span class="preview-msg">图像预览不可用（非标准DICOM或缺少像素数据）</span>';
+    };
+    // 需要带认证头，用 fetch + blob URL
+    fetch(imgUrl, { headers: headers() })
+      .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+      .then(blob => { imgEl.src = URL.createObjectURL(blob); })
+      .catch(() => {
+        const box = $('preview-box');
+        if (box) box.innerHTML = '<span class="preview-msg">图像预览不可用</span>';
+      });
+  } catch(e) {
+    $('modal-body').innerHTML = `<p style="color:#e02424;padding:12px">读取失败: ${e.message}</p>`;
+  }
+}
+
+async function modalSync() {
+  if (!_modalFileId) return;
+  try {
+    await api(`/api/v1/files/${_modalFileId}/mark-synced`, { method: 'POST' });
+    toast('✓ 已标记为同步', 'ok');
+    await loadAll();
+    const d = await api(`/api/v1/files/${_modalFileId}/inspect`);
+    inspectFile(_modalFileId, d.filename);
+  } catch(e) { toast('标记失败: ' + e.message, 'err'); }
+}
+
+async function modalClear() {
+  if (!_modalFileId) return;
+  try {
+    await api(`/api/v1/files/${_modalFileId}/clear-synced`, { method: 'POST' });
+    toast('✓ 已清除同步状态', 'ok');
+    await loadAll();
+    const d = await api(`/api/v1/files/${_modalFileId}/inspect`);
+    inspectFile(_modalFileId, d.filename);
+  } catch(e) { toast('清除失败: ' + e.message, 'err'); }
+}
+
+function closeModal() {
+  $('modal-backdrop').classList.remove('open');
+  _modalFileId = null;
+}
+
+// ── 初始化 ────────────────────────────────────────────────────────────────────
+async function loadAll() {
+  await loadStats();
+  await loadFiles(currentPage);
+}
+</script>
+</body>
+</html>

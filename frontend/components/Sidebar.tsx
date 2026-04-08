@@ -10,6 +10,7 @@ const navigation = [
   { name: '患者管理', href: '/patients', icon: 'ri-user-line', tooltip: '管理患者信息和档案' },
   { name: '影像中心', href: '/imaging', icon: 'ri-image-line', tooltip: '查看和管理医学影像' },
   { name: '上传影像', href: '/upload', icon: 'ri-upload-line', tooltip: '上传新的医学影像' },
+  { name: '同步数据', href: '/sync', icon: 'ri-refresh-line', tooltip: '从本地设备同步DICOM影像数据' },
   { name: '模型中心', href: '/model-center', icon: 'ri-cpu-line', tooltip: 'AI模型管理和配置', adminOnly: true },
   { name: '权限管理', href: '/permissions', icon: 'ri-shield-user-line', tooltip: '用户权限和角色管理' },
 ];

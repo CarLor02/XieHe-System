@@ -255,17 +255,17 @@ async def upload_single_file(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail=f"文件大小超过限制 ({MAX_FILE_SIZE / 1024 / 1024 / 1024:.1f}GB)"
             )
-        
+
         # 验证文件类型
         if not validate_file_type(file.filename, file.content_type):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="不支持的文件类型"
             )
-        
+
         # 生成文件ID
         file_id = generate_file_id(file.filename, file.size or 0)
-        
+
         # 保存文件
         file_path = get_completed_file_path(file_id, file.filename)
 
@@ -298,11 +298,10 @@ async def upload_single_file(
             )
             db.commit()
             logger.info(f"影像文件记录创建成功: File UUID {image_file.file_uuid}, Patient ID {patient_id_int}")
-            
+
         except Exception as e:
             logger.error(f"创建数据库记录失败: {e}")
             db.rollback()
-            # 删除已上传的文件
             if file_path.exists():
                 file_path.unlink()
             raise HTTPException(
@@ -324,7 +323,9 @@ async def upload_single_file(
             },
             message="文件上传成功"
         )
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"文件上传失败: {str(e)}")
         raise HTTPException(
