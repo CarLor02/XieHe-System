@@ -4388,8 +4388,19 @@ function ImageCanvas({
               selectionState.pointIndex !== null
             ) {
               // 移动单个点
-              const newPointX = imagePoint.x - selectionState.dragOffset.x;
-              const newPointY = imagePoint.y - selectionState.dragOffset.y;
+              let newPointX = imagePoint.x - selectionState.dragOffset.x;
+              let newPointY = imagePoint.y - selectionState.dragOffset.y;
+
+              // 辅助水平线：只允许水平拖动（锁定 Y 到另一点的 Y）
+              if (measurement.type === '辅助水平线') {
+                const otherIdx = selectionState.pointIndex === 0 ? 1 : 0;
+                newPointY = measurement.points[otherIdx].y;
+              }
+              // 辅助垂直线：只允许垂直拖动（锁定 X 到另一点的 X）
+              if (measurement.type === '辅助垂直线') {
+                const otherIdx = selectionState.pointIndex === 0 ? 1 : 0;
+                newPointX = measurement.points[otherIdx].x;
+              }
 
               // 先应用点绑定传播（同步绑定组内其他点 & 更新中点导出绑定）
               const bindingPropagated = applyPointBindings(
