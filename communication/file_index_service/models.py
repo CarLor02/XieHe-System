@@ -20,11 +20,11 @@ class ScanFile(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
     # 文件夹层级
-    month_folder: Mapped[str] = mapped_column(String, index=True)       # e.g. "202601"
+    month_folder: Mapped[str] = mapped_column(String, index=True)       # e.g. "IMG2602" (26年02月)
     patient_folder: Mapped[str] = mapped_column(String, index=True)     # e.g. "6-1-1"
 
     # 文件信息
-    filename: Mapped[str] = mapped_column(String)                        # e.g. "6-1-1-001"
+    filename: Mapped[str] = mapped_column(String)                        # e.g. "6-1-1-001.dcm"
     file_path: Mapped[str] = mapped_column(String, unique=True, index=True)
     file_size: Mapped[int] = mapped_column(Integer, default=0)
     file_mtime: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

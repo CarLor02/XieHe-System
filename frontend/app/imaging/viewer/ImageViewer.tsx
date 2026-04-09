@@ -531,10 +531,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       currentTool.id === 'ss' ||
       currentTool.id === 'cl' ||
       currentTool.id === 'll-l1-s1' ||
+      currentTool.id === 'll-l1-l4' ||  // LL L1-L4: 继承点在索引0-1，手动点在2-3
       currentTool.id === 'll-l4-s1' ||
       currentTool.id === 'pi' ||
       currentTool.id === 'pt' ||
-      currentTool.id === 'tpa'
+      currentTool.id === 'tpa' ||
+      currentTool.id === 'c7-offset' ||  // C7 Offset: 继承点在索引4-5，手动点在0-3
+      currentTool.id === 'ts'            // TTS: 继承点在索引2-3，手动点在0-1
     ) {
       return;
     }
@@ -3870,7 +3873,13 @@ function ImageCanvas({
 
         // 如果没有点击已有的点，则添加新点
         if (!clickedExistingPoint) {
-          const newPoints = [...clickedPoints, imagePoint];
+          // TTS 特殊处理：第二个点约束为水平线（Y坐标与第一个点相同）
+          let finalPoint = imagePoint;
+          if (selectedTool.includes('ts') && clickedPoints.length === 1) {
+            finalPoint = { x: imagePoint.x, y: clickedPoints[0].y };
+          }
+
+          const newPoints = [...clickedPoints, finalPoint];
           setClickedPoints(newPoints);
 
           // T1 Tilt 特殊处理（优化：使用referenceLines）
@@ -4069,17 +4078,47 @@ function ImageCanvas({
               }
             }
           } else if (selectedTool.includes('ts')) {
-            // TS 特殊处理 - 两条垂直线的距离测量（优化：使用referenceLines）
-            if (newPoints.length === 1) {
-              // 第一个点：设置第一条垂直线位置
-              setReferenceLines(prev => ({ ...prev, ts: imagePoint }));
-            } else if (newPoints.length === 2) {
-              // 第二个点：完成测量
-              const currentTool = tools.find(t => t.id === selectedTool);
-              if (currentTool) {
-                onMeasurementAdd(currentTool.name, newPoints);
+            // TTS 特殊处理（4点法）：
+            // 点[0,1] = 躯干参考线（手动），点[2,3] = 骶骨参考线（继承自Sacral）
+            const currentTool = tools.find(t => t.id === selectedTool);
+            if (currentTool) {
+              // 构建继承点 Map（destinationIndex → Point）
+              const inheritedMap = new Map<number, Point>();
+              const rules = POINT_INHERITANCE_RULES['ts'] || [];
+              for (const rule of rules) {
+                const source = measurements.find(m => m.type === rule.fromType);
+                if (source) {
+                  for (let i = 0; i < rule.sourcePointIndices.length; i++) {
+                    const srcIdx = rule.sourcePointIndices[i];
+                    const dstIdx = rule.destinationPointIndices[i];
+                    if (srcIdx < source.points.length) {
+                      inheritedMap.set(dstIdx, source.points[srcIdx]);
+                    }
+                  }
+                }
+              }
+
+              const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
+
+              if (newPoints.length === 1) {
+                // 第一个手动点：设置参考线预览
+                setReferenceLines(prev => ({ ...prev, ts: imagePoint }));
+              }
+
+              if (newPoints.length === effectiveNeeded) {
+                // 按索引位置组装完整4点（继承点填入[2,3]，手动点填入[0,1]）
+                const allPoints: Point[] = [];
+                let userPointIndex = 0;
+                for (let i = 0; i < currentTool.pointsNeeded; i++) {
+                  if (inheritedMap.has(i)) {
+                    allPoints[i] = inheritedMap.get(i)!;
+                  } else {
+                    allPoints[i] = newPoints[userPointIndex++];
+                  }
+                }
+                onMeasurementAdd(currentTool.name, allPoints);
                 setClickedPoints([]);
-                setReferenceLines(prev => ({ ...prev, ts: null })); // 清除第一条垂直线
+                setReferenceLines(prev => ({ ...prev, ts: null }));
               }
             }
           } else if (selectedTool.includes('lld')) {
@@ -6400,7 +6439,18 @@ function ImageCanvas({
 
             return (
               <>
-                {currentTool?.pointsNeeded === 4 && screenPoints.length >= 2 ? (
+                {selectedTool.includes('ts') && screenPoints.length >= 2 ? (
+                  // TTS 特殊预览：躯干水平线
+                  <line
+                    x1={screenPoints[0].x}
+                    y1={screenPoints[0].y}
+                    x2={screenPoints[1].x}
+                    y2={screenPoints[1].y}
+                    stroke="#ef4444"
+                    strokeWidth="2"
+                    strokeDasharray="2,2"
+                  />
+                ) : currentTool?.pointsNeeded === 4 && screenPoints.length >= 2 ? (
                   screenPoints.length >= 2 &&
                   screenPoints.length < 4 && (
                     <line
@@ -6786,45 +6836,45 @@ function ImageCanvas({
             })()}
           </>
         )}
-        {/* TS 专用第一条垂直辅助线（优化：使用referenceLines） */}
+        {/* TTS 专用第一条水平辅助线（优化：使用referenceLines） */}
         {selectedTool.includes('ts') && referenceLines.ts && (
           <>
             {(() => {
               const referencePoint = imageToScreen(referenceLines.ts);
-              const lineLength = 100 * imageScale; // 垂直线长度随缩放变化
+              const lineLength = 150 * imageScale; // 水平线长度随缩放变化
               return (
                 <g>
-                  {/* 垂直辅助线 */}
+                  {/* 水平辅助线 */}
                   <line
-                    x1={referencePoint.x}
-                    y1={referencePoint.y - lineLength / 2}
-                    x2={referencePoint.x}
-                    y2={referencePoint.y + lineLength / 2}
+                    x1={referencePoint.x - lineLength / 2}
+                    y1={referencePoint.y}
+                    x2={referencePoint.x + lineLength / 2}
+                    y2={referencePoint.y}
                     stroke="#00ff00"
                     strokeWidth="1"
                     strokeDasharray="5,5"
                     opacity="0.8"
                   />
-                  {/* 垂直线标识背景 */}
+                  {/* 水平线标识背景 */}
                   <rect
-                    x={referencePoint.x + 7}
-                    y={referencePoint.y - lineLength / 2 - 16}
-                    width="26"
+                    x={referencePoint.x - lineLength / 2 - 5}
+                    y={referencePoint.y - 20}
+                    width="30"
                     height="16"
                     fill="white"
                     opacity="0.9"
                     rx="2"
                   />
-                  {/* 垂直线标识 */}
+                  {/* 水平线标识 */}
                   <text
-                    x={referencePoint.x + 20}
-                    y={referencePoint.y - lineLength / 2 - 3.8}
+                    x={referencePoint.x - lineLength / 2 + 10}
+                    y={referencePoint.y - 7}
                     fill="#00ff00"
                     fontSize="12"
                     fontWeight="bold"
                     textAnchor="middle"
                   >
-                    VL1
+                    HL1
                   </text>
                 </g>
               );
@@ -8242,6 +8292,29 @@ function ImageCanvas({
                     );
                   })()}
               </>
+            );
+          })()}
+        {/* TTS 工具的水平线预览（第二点自动约束为水平） */}
+        {selectedTool.includes('ts') &&
+          clickedPoints.length === 1 &&
+          liveMouseImagePoint &&
+          (() => {
+            const firstPoint = imageToScreen(clickedPoints[0]);
+            const constrainedSecondPoint = imageToScreen({
+              x: liveMouseImagePoint.x,
+              y: clickedPoints[0].y, // 约束Y坐标与第一个点相同
+            });
+            return (
+              <line
+                x1={firstPoint.x}
+                y1={firstPoint.y}
+                x2={constrainedSecondPoint.x}
+                y2={constrainedSecondPoint.y}
+                stroke="#ef4444"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                opacity="0.6"
+              />
             );
           })()}
         {/* 绘制辅助水平/垂直线段预览（第二点自动约束） */}

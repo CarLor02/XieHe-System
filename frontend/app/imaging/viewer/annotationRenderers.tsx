@@ -966,6 +966,119 @@ export function renderC7Offset(
 }
 
 /**
+ * TTS渲染器（4点法）：
+ * - 前2个点连线为躯干参考水平线，过中点画垂直线
+ * - 后2个点为骶骨参考线（继承自Sacral），过中点画垂直线
+ * - 两条垂直线之间画水平连接箭头
+ */
+export function renderTTS(
+  screenPoints: Point[],
+  displayColor: string,
+  imageScale: number
+): React.ReactNode {
+  if (screenPoints.length < 1) return null;
+
+  const height = 150 * imageScale;
+  const has2 = screenPoints.length >= 2;
+  const has4 = screenPoints.length >= 4;
+
+  // 躯干线中点（点0-1）
+  const trunkMidX = has2
+    ? (screenPoints[0].x + screenPoints[1].x) / 2
+    : screenPoints[0]?.x ?? 0;
+  const trunkMidY = has2
+    ? (screenPoints[0].y + screenPoints[1].y) / 2
+    : screenPoints[0]?.y ?? 0;
+
+  // 骶骨线中点（点2-3，继承自 Sacral）
+  const sacralMidX = has4
+    ? (screenPoints[2].x + screenPoints[3].x) / 2
+    : null;
+  const sacralMidY = has4
+    ? (screenPoints[2].y + screenPoints[3].y) / 2
+    : null;
+
+  // 水平连接线的 Y 坐标（取两个中点 Y 的平均）
+  const connectorY =
+    has4 && sacralMidY !== null
+      ? (trunkMidY + sacralMidY) / 2
+      : trunkMidY;
+
+  return (
+    <>
+      {/* 躯干参考水平线（点0-1） */}
+      {has2 && (
+        <line
+          x1={screenPoints[0].x}
+          y1={screenPoints[0].y}
+          x2={screenPoints[1].x}
+          y2={screenPoints[1].y}
+          stroke={displayColor}
+          strokeWidth="2"
+        />
+      )}
+      {/* 躯干中心垂直线（过点0-1中点） */}
+      {has2 && (
+        <line
+          x1={trunkMidX}
+          y1={trunkMidY - height / 2}
+          x2={trunkMidX}
+          y2={trunkMidY + height / 2}
+          stroke={displayColor}
+          strokeWidth="2"
+          strokeDasharray="4,4"
+        />
+      )}
+
+      {/* 骶骨参考线（点2-3，继承自Sacral） */}
+      {has4 && sacralMidX !== null && sacralMidY !== null && (
+        <>
+          <line
+            x1={screenPoints[2].x}
+            y1={screenPoints[2].y}
+            x2={screenPoints[3].x}
+            y2={screenPoints[3].y}
+            stroke={displayColor}
+            strokeWidth="2"
+            opacity="0.6"
+          />
+          {/* 骶骨垂直线（过点2-3中点） */}
+          <line
+            x1={sacralMidX}
+            y1={sacralMidY - height / 2}
+            x2={sacralMidX}
+            y2={sacralMidY + height / 2}
+            stroke={displayColor}
+            strokeWidth="2"
+            strokeDasharray="4,4"
+            opacity="0.7"
+          />
+          {/* 两垂直线之间的水平测量线 */}
+          <line
+            x1={trunkMidX}
+            y1={connectorY}
+            x2={sacralMidX}
+            y2={connectorY}
+            stroke={displayColor}
+            strokeWidth="1.5"
+          />
+          {/* 箭头左端 */}
+          <polygon
+            points={`${Math.min(trunkMidX, sacralMidX)},${connectorY} ${Math.min(trunkMidX, sacralMidX) + 6 * imageScale},${connectorY - 4 * imageScale} ${Math.min(trunkMidX, sacralMidX) + 6 * imageScale},${connectorY + 4 * imageScale}`}
+            fill={displayColor}
+          />
+          {/* 箭头右端 */}
+          <polygon
+            points={`${Math.max(trunkMidX, sacralMidX)},${connectorY} ${Math.max(trunkMidX, sacralMidX) - 6 * imageScale},${connectorY - 4 * imageScale} ${Math.max(trunkMidX, sacralMidX) - 6 * imageScale},${connectorY + 4 * imageScale}`}
+            fill={displayColor}
+          />
+        </>
+      )}
+    </>
+  );
+}
+
+/**
  * LLD 双下肢不等长渲染器：两条水平线
  */
 export function renderHorizontalLines(

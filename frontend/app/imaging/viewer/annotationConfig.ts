@@ -720,22 +720,29 @@ export const AVT_CONFIG: AnnotationConfig = {
 };
 
 /**
- * TS 躯干偏移量
- * 2点测量：两条垂直线之间的水平距离
+ * TTS 躯干偏移量（4点法）
+ *   点0-1：躯干参考水平线两端点（手动标注）
+ *   点2-3：骶骨参考线两端点（继承自 Sacral）
+ * 计算：躯干线中点 X 与骶骨中线 X 的水平距离
  */
 export const TS_CONFIG: AnnotationConfig = {
   id: 'ts',
   name: 'TTS',
   icon: 'ri-crosshair-2-line',
   description: '躯干偏移量(Trunk Shift)',
-  pointsNeeded: 2,
+  pointsNeeded: 4,
   category: 'measurement',
   color: '#84cc16',
 
   calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 2) return [];
+    if (points.length < 4) return [];
 
-    const pixelDistance = Math.abs(points[1].x - points[0].x);
+    // 躯干线中点 X（点0-1）
+    const trunkMidX = (points[0].x + points[1].x) / 2;
+    // 骶骨线中点 X（点2-3，继承自 Sacral）
+    const sacralMidX = (points[2].x + points[3].x) / 2;
+
+    const pixelDistance = Math.abs(trunkMidX - sacralMidX);
     const actualDistance = calculateActualDistance(pixelDistance, context);
 
     return [
@@ -748,10 +755,14 @@ export const TS_CONFIG: AnnotationConfig = {
   },
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
-    if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    if (points.length < 4) return points[0] || { x: 0, y: 0 };
+    const trunkMidX = (points[0].x + points[1].x) / 2;
+    const trunkMidY = (points[0].y + points[1].y) / 2;
+    const sacralMidX = (points[2].x + points[3].x) / 2;
+    const sacralMidY = (points[2].y + points[3].y) / 2;
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: Math.min(points[0].y, points[1].y) - 20 / imageScale,
+      x: (trunkMidX + sacralMidX) / 2,
+      y: Math.min(trunkMidY, sacralMidY) - 20 / imageScale,
     };
   },
 
@@ -760,12 +771,19 @@ export const TS_CONFIG: AnnotationConfig = {
     points: Point[],
     tolerance: number = 10
   ) => {
-    if (points.length < 2) return false;
-
-    return (
-      Math.abs(mousePoint.x - points[0].x) <= tolerance ||
-      Math.abs(mousePoint.x - points[1].x) <= tolerance
-    );
+    if (points.length < 1) return false;
+    for (const point of points) {
+      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
+    }
+    if (points.length >= 2) {
+      const trunkMidX = (points[0].x + points[1].x) / 2;
+      if (Math.abs(mousePoint.x - trunkMidX) <= tolerance) return true;
+    }
+    if (points.length >= 4) {
+      const sacralMidX = (points[2].x + points[3].x) / 2;
+      if (Math.abs(mousePoint.x - sacralMidX) <= tolerance) return true;
+    }
+    return false;
   },
 
   isInSelectionRange: (
@@ -781,7 +799,7 @@ export const TS_CONFIG: AnnotationConfig = {
     displayColor: string,
     imageScale: number = 1
   ) => {
-    return Renderers.renderVerticalLines(points, displayColor, imageScale);
+    return Renderers.renderTTS(points, displayColor, imageScale);
   },
 };
 
@@ -1360,7 +1378,13 @@ export const TPA_CONFIG: AnnotationConfig = {
 
 /**
  * SVA 矢状面垂直轴
- * 2点测量：水平距离
+ * 5点测量：C7中心相对于骶椎后缘的水平距离（带正负）
+ * 前4个点：C7椎体四角点（用于计算中心）
+ * 第5个点：骶椎后缘参考点
+ *
+ * 正负判断：
+ * - 正值（+）：C7中点在骶椎后缘的左侧（centerX < point5.x）
+ * - 负值（-）：C7中点在骶椎后缘的右侧（centerX > point5.x）
  */
 export const SVA_CONFIG: AnnotationConfig = {
   id: 'sva',
@@ -1374,21 +1398,24 @@ export const SVA_CONFIG: AnnotationConfig = {
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 5) return [];
 
-    // 计算前4个点的锥体中心
+    // 计算前4个点的C7锥体中心
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
 
-    // 第5个点
+    // 第5个点：骶椎后缘参考点
     const point5 = points[4];
 
-    // 计算水平距离（只考虑X坐标）
-    const pixelDistance = Math.abs(point5.x - centerX);
-    const actualDistance = calculateActualDistance(pixelDistance, context);
+    // 计算水平距离（带正负）
+    // 正值：C7中点在骶椎后缘左侧（centerX < point5.x）
+    // 负值：C7中点在骶椎后缘右侧（centerX > point5.x）
+    const pixelDistance = point5.x - centerX;
+    const actualDistance = calculateActualDistance(Math.abs(pixelDistance), context);
+    const signedDistance = pixelDistance > 0 ? actualDistance : -actualDistance;
 
     return [
       {
         name: 'SVA',
-        value: actualDistance.toFixed(2),
+        value: signedDistance.toFixed(2),
         unit: 'mm',
       },
     ];

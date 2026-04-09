@@ -324,11 +324,24 @@ export const POINT_INHERITANCE_RULES: Record<string, PointInheritanceRule[]> = {
       destinationPointIndices: [4, 5],   // 它们在 C7 Offset points[] 中的落地索引
     }
   ],
-  // 反向：若 C7 Offset 先标注，骶骨倾斜角可从 C7 Offset 的第5、6个点中推导
+  // TTS（4点法）：点2-3复用骶骨倾斜角的两个标注点
+  'ts': [
+    {
+      fromType: 'Sacral',               // 骶骨倾斜角
+      sourcePointIndices: [0, 1],        // 取骶骨标注的第1、2个点
+      destinationPointIndices: [2, 3],   // 它们在 TTS points[] 中的落地索引
+    }
+  ],
+  // 反向：若 C7 Offset 或 TTS 先标注，骶骨倾斜角可从这些标注中推导
   'sacral': [
     {
       fromType: 'TS(Trunk Shift)',
       sourcePointIndices: [4, 5],        // C7 Offset 的参考线端点
+      destinationPointIndices: [0, 1],   // 对应 Sacral 的两个端点
+    },
+    {
+      fromType: 'TTS',
+      sourcePointIndices: [2, 3],        // TTS 的骶骨继承点（后2个，索引2,3）
       destinationPointIndices: [0, 1],   // 对应 Sacral 的两个端点
     }
   ],

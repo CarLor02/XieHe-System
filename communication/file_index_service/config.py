@@ -23,8 +23,9 @@ class Settings(BaseSettings):
     # ── 扫描目录 ───────────────────────────────────────────────
     WATCH_PATH: str = "/data/dicom"
 
-    # 月份文件夹名正则，匹配 202601 或 2026-01
-    MONTH_FOLDER_PATTERN: str = r"^\d{4}-?\d{2}$"
+    # 月份文件夹名正则，匹配 IMG 开头的格式，如 IMG2602（26年02月）
+    # 格式：IMG + YY(年份后两位) + MM(月份)
+    MONTH_FOLDER_PATTERN: str = r"^IMG\d{4}$"
 
     # 视为"主影像"的扩展名列表（逗号分隔）；空扩展名文件始终视为主影像
     PRIMARY_EXTENSIONS: str = ".dcm,.dicom"

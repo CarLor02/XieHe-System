@@ -14,8 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -34,7 +34,7 @@ router = APIRouter()
 
 @router.get("/patients", response_model=list[PatientSummary])
 def list_patients(
-    month: Optional[str] = Query(None, description="按月份筛选，如 202601"),
+    month: Optional[str] = Query(None, description="按月份筛选，如 IMG2602"),
     db: Session = Depends(get_db),
 ):
     """列出所有患者文件夹及其文件统计"""
@@ -70,8 +70,8 @@ def list_patients(
 
 @router.get("/files", response_model=FileListResponse)
 def list_files(
-    month: Optional[str] = Query(None),
-    patient_folder: Optional[str] = Query(None),
+    month: Optional[str] = Query(None, description="月份文件夹，如 IMG2602"),
+    patient_folder: Optional[str] = Query(None, description="患者文件夹名称"),
     is_synced: Optional[bool] = Query(None),
     is_primary: Optional[bool] = Query(None, description="True=仅主影像，False=仅边车文件"),
     is_valid: Optional[bool] = Query(True, description="默认只返回有效文件"),
@@ -117,13 +117,21 @@ def inspect_file(file_id: int, db: Session = Depends(get_db)):
     用 pydicom 读取文件并返回 DICOM 元数据。
     供主服务端在同步前预览文件内容，同时验证文件可读性。
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     sf = db.query(ScanFile).filter(ScanFile.id == file_id).first()
     if not sf:
         raise HTTPException(status_code=404, detail="文件不存在")
 
     path = Path(sf.file_path)
+    logger.info(f"[INSPECT] 检查文件 ID={file_id}, path={sf.file_path}")
+    logger.info(f"[INSPECT] Path对象: {path}")
+    logger.info(f"[INSPECT] exists()={path.exists()}, is_file()={path.is_file()}")
+
     if not path.exists():
-        raise HTTPException(status_code=410, detail="文件已从磁盘消失")
+        logger.error(f"[INSPECT] 文件不存在! path={sf.file_path}")
+        raise HTTPException(status_code=410, detail=f"文件已从磁盘消失: {sf.file_path}")
 
     result = {
         "file_id": sf.id,
@@ -184,7 +192,15 @@ def inspect_file(file_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         result["error"] = f"读取失败: {str(e)}"
 
-    return result
+    # 返回 JSON 响应，并添加禁止缓存的头
+    return JSONResponse(
+        content=result,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
 
 # ── 图像预览 ──────────────────────────────────────────────────────────────────

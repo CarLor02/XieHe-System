@@ -12,6 +12,7 @@ const navigation = [
   { name: '上传影像', href: '/upload', icon: 'ri-upload-line', tooltip: '上传新的医学影像' },
   { name: '同步数据', href: '/sync', icon: 'ri-refresh-line', tooltip: '从本地设备同步DICOM影像数据' },
   { name: '模型中心', href: '/model-center', icon: 'ri-cpu-line', tooltip: 'AI模型管理和配置', adminOnly: true },
+  { name: '数据导出', href: '/data-export', icon: 'ri-download-line', tooltip: '批量导出标注和测量数据', adminOnly: true },
   { name: '权限管理', href: '/permissions', icon: 'ri-shield-user-line', tooltip: '用户权限和角色管理' },
 ];
 
