@@ -1,0 +1,1 @@
+export { renderTPA } from './AnnotationToolRenderer';
