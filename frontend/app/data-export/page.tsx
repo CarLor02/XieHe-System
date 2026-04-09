@@ -61,21 +61,50 @@ export default function DataExportPage() {
     }
   }, [mounted, isAuthenticated, user, router]);
 
-  // 获取影像列表
+  // 获取影像列表（支持分页自动加载所有数据）
   const fetchImages = async () => {
     setIsLoadingList(true);
+    setMessage(''); // 清空之前的错误消息
     try {
       const client = createAuthenticatedClient();
 
-      // 构建查询参数
-      const params: any = { page: 1, page_size: 1000 };
-      if (dateRange.start) params.start_date = dateRange.start;
-      if (dateRange.end) params.end_date = dateRange.end;
-      if (examType !== 'all') params.description = examType;
-      if (searchQuery) params.search = searchQuery;
+      // 构建基础查询参数
+      const baseParams: any = {};
+      if (dateRange.start) baseParams.start_date = dateRange.start;
+      if (dateRange.end) baseParams.end_date = dateRange.end;
+      if (examType !== 'all') baseParams.description = examType;
+      if (searchQuery) baseParams.search = searchQuery;
 
-      const response = await client.get('/api/v1/image_files/', { params });
-      const allImages = response.data?.items || [];
+      // 分页加载所有数据
+      let allImages: any[] = [];
+      let currentPage = 1;
+      const pageSize = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const params = { ...baseParams, page: currentPage, page_size: pageSize };
+        console.log('[数据导出] 请求参数 (第', currentPage, '页):', params);
+
+        const response = await client.get('/api/v1/image-files/', { params });
+        console.log('[数据导出] API原始响应:', response);
+        console.log('[数据导出] response.data:', response.data);
+
+        // API 返回格式: { code, message, data: { items, total, ... }, timestamp }
+        const responseData = response.data?.data || response.data;
+        const items = responseData?.items || [];
+        const total = responseData?.total || 0;
+
+        console.log('[数据导出] items数组:', items);
+        console.log('[数据导出] total:', total);
+
+        allImages = [...allImages, ...items];
+
+        // 判断是否还有更多数据
+        hasMore = allImages.length < total;
+        currentPage++;
+      }
+
+      console.log('[数据导出] 总影像数:', allImages.length);
 
       // 只显示有标注的影像
       const annotatedImages = allImages.filter((img: any) => {
@@ -88,10 +117,15 @@ export default function DataExportPage() {
         }
       });
 
+      console.log('[数据导出] 已标注影像数:', annotatedImages.length);
       setImages(annotatedImages);
-    } catch (error) {
-      console.error('获取影像列表失败:', error);
-      setMessage('获取影像列表失败，请重试');
+
+      if (annotatedImages.length === 0 && allImages.length > 0) {
+        setMessage('未找到已标注的影像数据');
+      }
+    } catch (error: any) {
+      console.error('[数据导出] 获取影像列表失败:', error);
+      setMessage(error.response?.data?.message || error.response?.data?.detail || '获取影像列表失败，请重试');
     } finally {
       setIsLoadingList(false);
     }
@@ -158,16 +192,25 @@ export default function DataExportPage() {
       // 准备导出数据
       const exportData = selectedImages.map((img: any) => {
         const measurements: any = {};
+        const pointsData: any = {};
 
         try {
           const annotationData = JSON.parse(img.annotation);
 
+          // 提取测量值
           if (annotationData.measurements && annotationData.measurements.length > 0) {
             annotationData.measurements.forEach((m: any) => {
-              // 提取测量类型和值
               const typeName = m.type || 'Unknown';
               const value = m.value || '';
-              measurements[typeName] = value;
+              measurements[`${typeName}_测量值`] = value;
+
+              // 提取点位坐标
+              if (m.points && Array.isArray(m.points)) {
+                const pointsStr = m.points.map((p: any, idx: number) =>
+                  `P${idx + 1}(${p.x?.toFixed(2) || 0},${p.y?.toFixed(2) || 0})`
+                ).join('; ');
+                pointsData[`${typeName}_点位坐标`] = pointsStr;
+              }
             });
           }
 
@@ -186,6 +229,7 @@ export default function DataExportPage() {
           上传日期: new Date(img.created_at).toLocaleDateString('zh-CN'),
           文件名: img.original_filename || '',
           ...measurements,
+          ...pointsData,
         };
       });
       

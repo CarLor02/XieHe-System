@@ -52,7 +52,9 @@ export default function Header() {
           const response = await client.get('/api/v1/notifications/messages');
           // 使用 extractData 提取通知数据
           const notificationData = extractData<any[]>(response);
-          systemMessages = notificationData.map((item: any) => ({
+          // 确保返回的是数组
+          const dataArray = Array.isArray(notificationData) ? notificationData : [];
+          systemMessages = dataArray.map((item: any) => ({
             id: item.id || Math.random().toString(),
             title: item.title || '系统通知',
             content: item.message || item.content || '',

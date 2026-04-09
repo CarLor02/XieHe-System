@@ -235,6 +235,7 @@ async def get_image_files_list(
                 body_part=img.body_part,
                 study_date=img.study_date,
                 description=img.description,
+                annotation=img.annotation,  # 添加标注数据
                 status=img.status.value,
                 upload_progress=img.upload_progress,
                 created_at=img.created_at,
