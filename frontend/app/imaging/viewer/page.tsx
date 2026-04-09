@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import React, { Suspense } from 'react';
-import ImageViewer from './ImageViewer';
+import ImageViewer from './image-viewer';
 
 function ImageViewerContent() {
   const searchParams = useSearchParams();
