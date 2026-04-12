@@ -4,6 +4,11 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useUser } from '@/lib/api';
 import { getImageFiles, type ImageFile } from '@/services/imageFileService';
+import {
+  getMeasurementRecord,
+  type MeasurementData,
+  type MeasurementRecord,
+} from '@/services/measurementService';
 import { Download, FileSpreadsheet, Search, CheckSquare, Square } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -21,6 +26,9 @@ export default function DataExportPage() {
 
   // 影像列表和选择
   const [images, setImages] = useState<ImageFile[]>([]);
+  const [measurementRecords, setMeasurementRecords] = useState<
+    Record<number, MeasurementRecord>
+  >({});
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isLoadingList, setIsLoadingList] = useState(false);
 
@@ -62,21 +70,25 @@ export default function DataExportPage() {
         search: searchQuery || undefined,
       });
       const allImages = response.items || [];
+      const records = await Promise.all(
+        allImages.map(async image => ({
+          image,
+          measurementRecord: await getMeasurementRecord(image.id),
+        }))
+      );
 
-      // 只显示有标注的影像
-      const annotatedImages = allImages.filter(img => {
-        if (!img.annotation) return false;
-        try {
-          const annotationData = JSON.parse(img.annotation);
-          return (
-            Array.isArray(annotationData.measurements) &&
-            annotationData.measurements.length > 0
-          );
-        } catch {
-          return false;
-        }
-      });
+      const nextMeasurementRecords: Record<number, MeasurementRecord> = {};
+      const annotatedImages = records
+        .filter(({ image, measurementRecord }) => {
+          if (!measurementRecord || !Array.isArray(measurementRecord.measurements)) {
+            return false;
+          }
+          nextMeasurementRecords[image.id] = measurementRecord;
+          return measurementRecord.measurements.length > 0;
+        })
+        .map(({ image }) => image);
 
+      setMeasurementRecords(nextMeasurementRecords);
       setImages(annotatedImages);
     } catch (error) {
       console.error('获取影像列表失败:', error);
@@ -147,33 +159,19 @@ export default function DataExportPage() {
       // 准备导出数据
       const exportData = selectedImages.map(img => {
         const measurements: Record<string, string | number> = {};
+        const measurementRecord = measurementRecords[img.id];
 
-        try {
-          const annotationData = JSON.parse(img.annotation || '{}');
-
-          if (
-            Array.isArray(annotationData.measurements) &&
-            annotationData.measurements.length > 0
-          ) {
-            annotationData.measurements.forEach((m: any) => {
-              // 提取测量类型和值
-              const typeName = m.type || 'Unknown';
-              const value = m.value || '';
-              measurements[typeName] = value;
-            });
-          }
-
-          // 添加标准距离信息
-          if (annotationData.standardDistance) {
-            measurements['标准距离(mm)'] = annotationData.standardDistance;
-          }
-        } catch (error) {
-          console.error('解析标注数据失败:', error);
+        if (measurementRecord) {
+          measurementRecord.measurements.forEach((m: MeasurementData) => {
+            const typeName = m.type || 'Unknown';
+            const value = m.value || '';
+            measurements[typeName] = value;
+          });
         }
 
         return {
           影像ID: img.id,
-          患者姓名: img.patient?.name || img.patient_name || '',
+          患者ID: img.patient_id || '',
           检查类型: img.description || '',
           上传日期: new Date(img.created_at).toLocaleDateString('zh-CN'),
           文件名: img.original_filename || '',
@@ -379,7 +377,7 @@ export default function DataExportPage() {
                         影像ID
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        患者姓名
+                        患者ID
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         检查类型
@@ -398,11 +396,8 @@ export default function DataExportPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {images.map((img) => {
                       const isSelected = selectedIds.has(img.id);
-                      let measurementCount = 0;
-                      try {
-                        const annotationData = JSON.parse(img.annotation || '{}');
-                        measurementCount = annotationData.measurements?.length || 0;
-                      } catch {}
+                      const measurementCount =
+                        measurementRecords[img.id]?.measurements?.length || 0;
 
                       return (
                         <tr
@@ -425,7 +420,7 @@ export default function DataExportPage() {
                             {img.id}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {img.patient?.name || '-'}
+                            {img.patient_id || '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {img.description || '-'}
@@ -527,7 +522,7 @@ export default function DataExportPage() {
               <li>• 选择导出格式后点击导出按钮，系统将自动下载数据文件</li>
               <li>• CSV 格式使用 UTF-8 编码，可直接在 Excel 中打开</li>
               <li>• JSON 格式包含完整的结构化数据，适合程序处理</li>
-              <li>• 导出数据包含：影像ID、患者姓名、检查类型、上传日期、文件名及所有测量结果</li>
+              <li>• 导出数据包含：影像ID、患者ID、检查类型、上传日期、文件名及所有测量结果</li>
             </ul>
           </div>
         </div>

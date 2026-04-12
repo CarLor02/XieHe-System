@@ -25,12 +25,6 @@ export interface ImageFile {
   body_part?: string;
   study_date?: string;
   description?: string;
-  annotation?: string;
-  patient?: {
-    id: number;
-    name: string;
-  };
-  patient_name?: string;
   status:
     | 'UPLOADING'
     | 'UPLOADED'
