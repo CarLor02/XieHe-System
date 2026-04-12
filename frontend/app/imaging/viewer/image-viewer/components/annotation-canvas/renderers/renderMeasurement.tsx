@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import {
   getBindingIndicatorColor,
   getSyncGroupsForPoint,
@@ -9,6 +10,7 @@ import {
   getDescriptionForType,
   getLabelPositionForType,
   renderSpecialSVGElements,
+  usesInlineAuxiliaryTag,
 } from '../../../domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools/tool-state';
 import { imageToScreen } from '../../../canvas/transform/coordinate-transform';
@@ -16,6 +18,7 @@ import { TEXT_LABEL_CONSTANTS } from '../../../shared/constants';
 import { estimateTextHeight, estimateTextWidth } from '../../../shared/labels';
 import { Measurement, Point } from '../../../types';
 import { HoverState, SelectionState } from '../types';
+import { renderAuxiliaryTag } from './support-shape-renderers/auxiliaryTagRenderer';
 
 interface RenderMeasurementProps {
   measurement: Measurement;
@@ -417,7 +420,7 @@ export default function renderMeasurement({
   selectedBindingGroupId,
   isManualBindingMode,
   manualBindingSelectedPoints,
-}: RenderMeasurementProps) {
+}: RenderMeasurementProps): JSX.Element {
   const context = {
     imageNaturalSize,
     imagePosition,
@@ -517,6 +520,17 @@ export default function renderMeasurement({
         )}
 
       {isAuxiliaryShape &&
+        renderAuxiliaryTag({
+          measurement,
+          labelPosition,
+          displayColor,
+          fontSize,
+          hideAllLabels,
+          hiddenMeasurementIds,
+        })}
+
+      {isAuxiliaryShape &&
+        !usesInlineAuxiliaryTag(measurement.type) &&
         measurement.description &&
         measurement.description !== getDescriptionForType(measurement.type) && (
           <text

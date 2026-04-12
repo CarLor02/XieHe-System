@@ -355,3 +355,6 @@ backend/app/core/database.py
 # 本地 Docker 环境变量
 docker/.env.docker
 docker-compose.yml
+
+# AI工具
+/.codex
