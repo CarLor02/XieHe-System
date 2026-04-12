@@ -1,14 +1,18 @@
+import type { ReactNode } from 'react';
 import { Measurement } from '../../../types';
 
-interface MeasurementLayerProps {
+export interface MeasurementLayerProps {
   measurements: Measurement[];
-  renderMeasurement: (measurement: Measurement) => React.ReactNode;
+  renderMeasurement: (measurement: Measurement) => ReactNode;
 }
 
 export default function MeasurementLayer({
   measurements,
   renderMeasurement,
 }: MeasurementLayerProps) {
-  return <>{measurements.map(renderMeasurement)}</>;
+  return (
+    <>
+      {measurements.map(renderMeasurement)}
+    </>
+  );
 }
-
