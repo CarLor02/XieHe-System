@@ -31,6 +31,21 @@ export default function renderPreview({
   imageToScreen,
   getInheritedPoints,
 }: RenderPreviewProps): React.ReactNode {
+  if (
+    selectedTool === 'circle' ||
+    selectedTool === 'ellipse' ||
+    selectedTool === 'rectangle' ||
+    selectedTool === 'arrow' ||
+    selectedTool === 'polygon' ||
+    selectedTool === 'vertebra-center' ||
+    selectedTool === 'aux-length' ||
+    selectedTool === 'aux-angle' ||
+    selectedTool === 'aux-horizontal-line' ||
+    selectedTool === 'aux-vertical-line'
+  ) {
+    return null;
+  }
+
   const isPelvicIncidenceTool =
     selectedTool.includes('pi') || selectedTool.includes('pt');
   const currentToolId = currentTool?.id || selectedTool;
