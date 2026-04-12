@@ -7,6 +7,8 @@ import {
 import { Point, Tool } from '../../../types';
 import { DrawingState, ReferenceLines } from '../types';
 
+const POLYGON_CLOSE_TOLERANCE_PX = 18;
+
 interface UseCanvasDrawingToolOptions {
   selectedTool: string;
   tools: Tool[];
@@ -156,7 +158,7 @@ export function useCanvasDrawingTool({
             imagePoint.x - firstPoint.x,
             imagePoint.y - firstPoint.y
           );
-          if (distance < 10 / imageScale) {
+          if (distance <= POLYGON_CLOSE_TOLERANCE_PX / imageScale) {
             completePolygon();
             return true;
           }

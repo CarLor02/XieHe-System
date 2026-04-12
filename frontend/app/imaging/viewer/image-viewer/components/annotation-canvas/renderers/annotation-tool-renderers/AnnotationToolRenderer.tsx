@@ -3,7 +3,7 @@
  * 原先聚合在 annotation-renderers.tsx 的实现现在下沉到文档允许的 renderer 目录中。
  */
 
-import React from 'react';
+import type { JSX } from 'react';
 import { Point } from '../../../../types';
 
 type PelvicMeasurementGeometry = {
@@ -113,7 +113,7 @@ export function renderT1Tilt(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
   const dx = screenPoints[1].x - screenPoints[0].x;
@@ -177,7 +177,7 @@ export function renderT1Tilt(
 export function renderTwoLines(
   screenPoints: Point[],
   displayColor: string
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 4) return null;
 
   return (
@@ -211,7 +211,7 @@ export function renderTPA(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 7) return null;
 
   const centerX =
@@ -338,7 +338,7 @@ export function renderPI(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   const geometry = getPelvicMeasurementGeometry(screenPoints);
   if (!geometry) return null;
 
@@ -432,7 +432,7 @@ export function renderPT(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   const geometry = getPelvicMeasurementGeometry(screenPoints);
   if (!geometry) return null;
 
@@ -521,7 +521,7 @@ export function renderT1Slope(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   return renderT1Tilt(screenPoints, displayColor, imageScale);
 }
 
@@ -532,7 +532,7 @@ export function renderSingleLineWithHorizontal(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
   return (
@@ -566,7 +566,7 @@ export function renderSS(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
   const geometry = getPelvicMeasurementGeometry(screenPoints);
@@ -623,7 +623,7 @@ export function renderSVA(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
   const height = 150 * imageScale;
@@ -747,7 +747,7 @@ export function renderVerticalLines(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   return renderSVA(screenPoints, displayColor, imageScale);
 }
 
@@ -759,7 +759,7 @@ export function renderSacralWithPerpendicular(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
   const midX = (screenPoints[0].x + screenPoints[1].x) / 2;
@@ -800,7 +800,7 @@ export function renderC7Offset(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 1) return null;
 
   const height = 150 * imageScale;
@@ -925,7 +925,7 @@ export function renderTTS(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 1) return null;
 
   const height = 150 * imageScale;
@@ -1022,7 +1022,7 @@ export function renderHorizontalLines(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
   const width = 150 * imageScale;
@@ -1058,7 +1058,7 @@ export function renderSingleHorizontalLine(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 1) return null;
 
   if (screenPoints.length >= 2) {
@@ -1100,7 +1100,7 @@ export function renderSingleVerticalLine(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode {
+): JSX.Element | null {
   if (screenPoints.length < 1) return null;
 
   if (screenPoints.length >= 2) {

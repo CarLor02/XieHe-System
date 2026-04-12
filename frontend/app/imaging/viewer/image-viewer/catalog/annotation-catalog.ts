@@ -8,7 +8,7 @@
  * - 悬浮高亮和选中范围计算函数
  */
 
-import React from 'react';
+import type { JSX } from 'react';
 import * as Renderers from '../components/annotation-canvas/renderers/annotation-tool-renderers';
 
 // ==================== 类型定义 ====================
@@ -61,7 +61,7 @@ export interface AnnotationConfig {
     points: Point[], // 屏幕坐标系中的点
     displayColor: string, // 当前显示颜色（根据选中/悬浮状态变化）
     imageScale: number // 图像缩放比例
-  ) => React.ReactNode;
+  ) => JSX.Element | null;
 }
 
 export interface CalculationContext {
@@ -1865,7 +1865,6 @@ export const CIRCLE_CONFIG: AnnotationConfig = {
     // label 放在圆心正下方，避免遮挡圆心点
     if (points.length < 1) return { x: 0, y: 0 };
     const center = points[0];
-    // 如果有边缘点，计算圆的半径
     if (points.length >= 2) {
       const radius = Math.sqrt(
         Math.pow(points[1].x - center.x, 2) +
@@ -1913,7 +1912,6 @@ export const ELLIPSE_CONFIG: AnnotationConfig = {
     // label 放在椭圆中心正下方，避免遮挡中心点
     if (points.length < 1) return { x: 0, y: 0 };
     const center = points[0];
-    // 如果有边界点，计算椭圆的半径
     if (points.length >= 2) {
       const radiusX = Math.abs(points[1].x - center.x);
       const radiusY = Math.abs(points[1].y - center.y);

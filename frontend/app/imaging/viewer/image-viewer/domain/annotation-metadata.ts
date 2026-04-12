@@ -3,8 +3,17 @@
  * 负责颜色、描述、标签位置以及特殊 SVG 图元的纯读取逻辑。
  */
 
-import React from 'react';
+import type { JSX } from 'react';
 import { Point, getAnnotationConfig } from '../catalog/annotation-catalog';
+import { Measurement } from '../types';
+
+const INLINE_TEXT_AUXILIARY_TYPES = new Set([
+  '圆形标注',
+  '椭圆标注',
+  '矩形标注',
+  '箭头标注',
+  '多边形标注',
+]);
 
 /**
  * 根据标注类型获取描述
@@ -70,6 +79,23 @@ export function isAuxiliaryShape(type: string): boolean {
 }
 
 /**
+ * 部分辅助图形使用内嵌彩色文字 tag，而不是白底测量值标签。
+ */
+export function usesInlineAuxiliaryTag(type: string): boolean {
+  return INLINE_TEXT_AUXILIARY_TYPES.has(type);
+}
+
+/**
+ * 辅助图形优先显示 description；如果未设置，回退到类型默认描述。
+ */
+export function getAuxiliaryTagText(
+  measurement: Pick<Measurement, 'type'> & { description?: string }
+): string {
+  const customText = measurement.description?.trim();
+  return customText || getDescriptionForType(measurement.type);
+}
+
+/**
  * 获取 SVG 特殊渲染元素
  */
 export function renderSpecialSVGElements(
@@ -77,7 +103,7 @@ export function renderSpecialSVGElements(
   screenPoints: Point[],
   displayColor: string,
   imageScale: number
-): React.ReactNode | null {
+): JSX.Element | null {
   const config = getAnnotationConfig(type);
   if (!config || !config.renderSpecialElements) {
     return null;

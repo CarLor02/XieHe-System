@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import { Point, Measurement } from '../../../types';
 import {
   POINT_INHERITANCE_RULES,
@@ -30,7 +31,7 @@ export default function renderPreview({
   imageScale,
   imageToScreen,
   getInheritedPoints,
-}: RenderPreviewProps): React.ReactNode {
+}: RenderPreviewProps): JSX.Element | null {
   if (
     selectedTool === 'circle' ||
     selectedTool === 'ellipse' ||
