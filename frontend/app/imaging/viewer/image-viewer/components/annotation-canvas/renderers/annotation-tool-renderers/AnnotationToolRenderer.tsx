@@ -527,7 +527,7 @@ export function renderT1Slope(
 }
 
 /**
- * CA/Pelvic/Sacral/SS渲染器：单线 + 水平参考线
+ * CA/Pelvic/Sacral/SS渲染器：单线（不带水平参考线）
  */
 export function renderSingleLineWithHorizontal(
   screenPoints: Point[],
@@ -537,26 +537,14 @@ export function renderSingleLineWithHorizontal(
   if (screenPoints.length < 2) return null;
 
   return (
-    <>
-      <line
-        x1={screenPoints[0].x}
-        y1={screenPoints[0].y}
-        x2={screenPoints[1].x}
-        y2={screenPoints[1].y}
-        stroke={displayColor}
-        strokeWidth="2"
-      />
-      <line
-        x1={screenPoints[0].x - 100 * imageScale}
-        y1={screenPoints[0].y}
-        x2={screenPoints[0].x + 100 * imageScale}
-        y2={screenPoints[0].y}
-        stroke="#00ff00"
-        strokeWidth="1"
-        strokeDasharray="5,5"
-        opacity="0.7"
-      />
-    </>
+    <line
+      x1={screenPoints[0].x}
+      y1={screenPoints[0].y}
+      x2={screenPoints[1].x}
+      y2={screenPoints[1].y}
+      stroke={displayColor}
+      strokeWidth="2"
+    />
   );
 }
 
@@ -757,8 +745,8 @@ export function renderVerticalLines(
 }
 
 /**
- * Sacral（骶骨倾斜角）渲染器：骶骨连线 + 过中点的垂直线参考线
- * 垂直线覆盖整个图片高度，用于辅助其他标注
+ * Sacral（骶骨倾斜角）渲染器：骶骨连线 + CSVL（中央骶骨垂直线）
+ * CSVL只显示下方部分，用于辅助AVT/TS等测量
  */
 export function renderSacralWithPerpendicular(
   screenPoints: Point[],
@@ -769,10 +757,11 @@ export function renderSacralWithPerpendicular(
 
   const midX = (screenPoints[0].x + screenPoints[1].x) / 2;
   const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
-  const perpLength = 800 * imageScale;
+  const perpLength = 300 * imageScale; // 缩短CSVL长度，从800改为300
 
   return (
     <>
+      {/* 骶骨连线（使用displayColor，通常是粉色） */}
       <line
         x1={screenPoints[0].x}
         y1={screenPoints[0].y}
@@ -781,15 +770,16 @@ export function renderSacralWithPerpendicular(
         stroke={displayColor}
         strokeWidth="2"
       />
+      {/* CSVL（中央骶骨垂直线）：统一绿色，仅显示下方部分 */}
       <line
         x1={midX}
-        y1={midY - perpLength}
+        y1={midY}
         x2={midX}
         y2={midY + perpLength}
-        stroke="#00ff00"
-        strokeWidth="1"
+        stroke="#22c55e"
+        strokeWidth="2"
         strokeDasharray="5,5"
-        opacity="0.7"
+        opacity="0.8"
       />
     </>
   );
