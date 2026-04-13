@@ -1,0 +1,17 @@
+<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <!-- PO (Pelvic Obliquity) - 骨盆倾斜角 -->
+  <!-- 左侧髂骨翼 -->
+  <path d="M 18 20 Q 14 22, 12 28 L 12 36 Q 12 42, 16 46 L 20 50" />
+  <!-- 右侧髂骨翼 -->
+  <path d="M 46 20 Q 50 22, 52 28 L 52 36 Q 52 42, 48 46 L 44 50" />
+  <!-- 骶骨 -->
+  <path d="M 26 18 L 26 24 L 38 24 L 38 18" />
+  <line x1="26" y1="18" x2="38" y2="18" />
+  <!-- 左髋臼 -->
+  <ellipse cx="20" cy="52" rx="5" ry="6" />
+  <!-- 右髋臼 -->
+  <ellipse cx="44" cy="52" rx="5" ry="6" />
+  <!-- 闭孔 -->
+  <ellipse cx="24" cy="44" rx="3" ry="4" opacity="0.5" />
+  <ellipse cx="40" cy="44" rx="3" ry="4" opacity="0.5" />
+</svg>

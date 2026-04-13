@@ -1,0 +1,10 @@
+<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <!-- CSS (Coronal Sacral Slope) - 冠状面骶骨倾斜角 -->
+  <!-- 骶骨外轮廓 -->
+  <path d="M 28 16 L 26 22 L 24 30 L 24 38 Q 24 44, 28 48 L 32 50 L 36 48 Q 40 44, 40 38 L 40 30 L 38 22 L 36 16 Z" />
+  <!-- 骶骨横线 -->
+  <line x1="28" y1="20" x2="36" y2="20" opacity="0.7" />
+  <line x1="26" y1="26" x2="38" y2="26" opacity="0.7" />
+  <line x1="25" y1="34" x2="39" y2="34" opacity="0.7" />
+  <line x1="26" y1="42" x2="38" y2="42" opacity="0.7" />
+</svg>
