@@ -289,7 +289,7 @@ monitor_config.json
 .DS_Store?
 .Spotlight-V100
 .Trashes
-Icon?
+Icon\r
 Thumbs.db
 Thumbs.db:encryptable
 ehthumbs.db

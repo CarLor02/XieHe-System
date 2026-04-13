@@ -355,7 +355,7 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
 export const COBB_CONFIG: AnnotationConfig = {
   id: 'cobb',
   name: 'Cobb',
-  icon: 'ri-compass-3-line',
+  icon: 'medical-cobb',
   description: 'Cobb角测量',
   pointsNeeded: 4,
   category: 'measurement',
@@ -563,7 +563,7 @@ export const CA_CONFIG: AnnotationConfig = {
 export const PELVIC_CONFIG: AnnotationConfig = {
   id: 'pelvic',
   name: 'PO',
-  icon: 'ri-triangle-line',
+  icon: 'medical-po',
   description: '骨盆倾斜角(Pelvic obliquity, PO)',
   pointsNeeded: 2,
   category: 'measurement',
@@ -643,7 +643,7 @@ export const PELVIC_CONFIG: AnnotationConfig = {
 export const SACRAL_CONFIG: AnnotationConfig = {
   id: 'sacral',
   name: 'CSS',
-  icon: 'ri-square-line',
+  icon: 'medical-css',
   description: '冠状面骶骨倾斜角CSS(Coronal Sacral Slope)',
   pointsNeeded: 2,
   category: 'measurement',
@@ -791,7 +791,7 @@ export const AVT_CONFIG: AnnotationConfig = {
 export const TS_CONFIG: AnnotationConfig = {
   id: 'ts',
   name: 'TS',
-  icon: 'ri-crosshair-2-line',
+  icon: 'medical-ts',
   description: '躯干偏移量TS(Trunk Shift)',
   pointsNeeded: 4,
   category: 'measurement',
@@ -945,7 +945,7 @@ export const LLD_CONFIG: AnnotationConfig = {
 export const C7_OFFSET_CONFIG: AnnotationConfig = {
   id: 'c7-offset',
   name: 'TTS',
-  icon: 'ri-arrow-left-right-line',
+  icon: 'medical-tts',
   description: 'C7偏移距离TTS(Trunk Shift)',
   pointsNeeded: 6,
   category: 'measurement',
@@ -1325,7 +1325,7 @@ export const LL_L4_S1_CONFIG: AnnotationConfig = {
 export const TPA_CONFIG: AnnotationConfig = {
   id: 'tpa',
   name: 'TPA',
-  icon: 'ri-triangle-line',
+  icon: 'medical-tpa',
   description: 'T1骨盆角(T1 Pelvic Angle)',
   pointsNeeded: 7,
   category: 'measurement',
@@ -1466,7 +1466,7 @@ export const TPA_CONFIG: AnnotationConfig = {
 export const SVA_CONFIG: AnnotationConfig = {
   id: 'sva',
   name: 'SVA',
-  icon: 'ri-arrow-down-line',
+  icon: 'medical-sva',
   description: '矢状面垂直轴(Sagittal Vertical Axis)',
   pointsNeeded: 5,
   category: 'measurement',
@@ -1567,7 +1567,7 @@ export const SVA_CONFIG: AnnotationConfig = {
 export const PI_CONFIG: AnnotationConfig = {
   id: 'pi',
   name: 'PI',
-  icon: 'ri-compass-line',
+  icon: 'medical-pi',
   description: '骨盆入射角(Pelvic Incidence)',
   pointsNeeded: 3,
   category: 'measurement',
@@ -1685,7 +1685,7 @@ export const PI_CONFIG: AnnotationConfig = {
 export const PT_CONFIG: AnnotationConfig = {
   id: 'pt',
   name: 'PT',
-  icon: 'ri-compass-2-line',
+  icon: 'medical-pt',
   description: '骨盆倾斜角(Pelvic Tilt)',
   pointsNeeded: 3,
   category: 'measurement',
@@ -1749,7 +1749,7 @@ export const PT_CONFIG: AnnotationConfig = {
 export const SS_CONFIG: AnnotationConfig = {
   id: 'ss',
   name: 'SS',
-  icon: 'ri-focus-line',
+  icon: 'medical-ss',
   description: '骶骨倾斜角(Sacral Slope)',
   pointsNeeded: 2,
   category: 'measurement',
@@ -2172,7 +2172,7 @@ export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
 export const AUX_LENGTH_CONFIG: AnnotationConfig = {
   id: 'aux-length',
   name: '距离标注',
-  icon: 'ri-ruler-2-line',
+  icon: 'medical-aux-length',
   description: '辅助距离测量',
   pointsNeeded: 2,
   category: 'auxiliary',
@@ -2256,7 +2256,7 @@ export const AUX_LENGTH_CONFIG: AnnotationConfig = {
 export const AUX_ANGLE_CONFIG: AnnotationConfig = {
   id: 'aux-angle',
   name: '角度标注',
-  icon: 'ri-compass-3-line',
+  icon: 'medical-aux-angle-4',
   description: '辅助角度测量（两条线段夹角）',
   pointsNeeded: 4,
   category: 'measurement',
