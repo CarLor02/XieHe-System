@@ -14,8 +14,7 @@ import Sidebar from '@/components/Sidebar';
 import ImageComparison, {
   ComparisonMode,
 } from '@/components/medical/ImageComparison';
-import { apiClient } from '@/lib/api';
-import { extractPaginatedData } from '@/lib/api/types';
+import { getImageFiles, type ImageFile } from '@/services/imageServices';
 import { useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
@@ -164,13 +163,11 @@ const ImageComparisonContent: React.FC = () => {
     setError(null);
 
     try {
-      const response = await apiClient.get('/api/v1/image-files/?page=1&page_size=20');
-
-      // 使用 extractPaginatedData 提取影像列表
-      const result = extractPaginatedData<any>(response);
+      const result = await getImageFiles({ page: 1, page_size: 20 });
+      const items = result.items as Array<ImageFile & { patient_name?: string }>;
 
       // 转换API数据为ImageData格式
-      const imageData: ImageData[] = result.items.map((item: any) => ({
+      const imageData: ImageData[] = items.map(item => ({
         id: `IMG${item.id.toString().padStart(3, '0')}`,
         url: `https://readdy.ai/api/search-image?query=medical%20${item.modality || 'imaging'}%20professional%20radiological%20image&width=512&height=512&seq=${item.id}&orientation=square`,
         thumbnailUrl: `https://readdy.ai/api/search-image?query=medical%20${item.modality || 'imaging'}%20professional%20radiological%20image&width=128&height=128&seq=${item.id}&orientation=square`,

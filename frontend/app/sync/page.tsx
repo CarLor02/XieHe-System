@@ -2,7 +2,11 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { apiClient } from '@/lib/api';
+import {
+  createPatient,
+  getPatients,
+} from '@/services/patientServices';
+import { uploadSingleFile } from '@/services/imageServices';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -191,20 +195,23 @@ export default function SyncPage() {
     let mainPatientId: number | null = null;
 
     // 先按 patient_id 搜索，找到直接关联，找不到才创建
-    const searchRes = await apiClient.get(`/api/v1/patients?search=${encodeURIComponent(patientIdRaw)}&page_size=20`);
-    const patientList: { id: number; patient_id: string }[] = searchRes.data?.data?.items ?? [];
+    const searchRes = await getPatients({
+      search: patientIdRaw,
+      page_size: 20,
+    });
+    const patientList = searchRes.items;
     const existing = patientList.find(p => p.patient_id === patientIdRaw);
 
     if (existing) {
       mainPatientId = existing.id;
     } else {
-      const createRes = await apiClient.post('/api/v1/patients', {
+      const createRes = await createPatient({
         patient_id: patientIdRaw,
         name: patientName,
         gender,
         birth_date: birthDate || undefined,
       });
-      mainPatientId = createRes.data?.data?.id ?? null;
+      mainPatientId = createRes.id ?? null;
     }
 
     if (!mainPatientId) throw new Error('无法创建或找到患者');
@@ -222,13 +229,10 @@ export default function SyncPage() {
 
     // 4. Upload to main backend
     setFileImportState(file.id, 'uploading', '上传到系统…');
-    const formData = new FormData();
-    formData.append('file', dicomBlob, uploadFilename);
-    formData.append('patient_id', String(mainPatientId));
-    formData.append('description', `DICOM导入 ${file.month_folder}/${file.patient_folder}`);
-
-    await apiClient.post('/api/v1/upload/single', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    await uploadSingleFile({
+      file: new File([dicomBlob], uploadFilename, { type: 'image/png' }),
+      patient_id: String(mainPatientId),
+      description: `DICOM导入 ${file.month_folder}/${file.patient_folder}`,
     });
 
     // 5. Mark synced

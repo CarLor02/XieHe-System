@@ -2,8 +2,9 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { apiClient, useUser } from '@/lib/api';
-import { extractPaginatedData } from '@/lib/api/types';
+import { useUser } from '@/lib/api';
+import { getPatients } from '@/services/patientServices';
+import { uploadSingleFile } from '@/services/imageServices';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
@@ -69,15 +70,8 @@ function UploadContent() {
     // 获取患者列表
     const fetchPatients = async () => {
       try {
-        const response = await apiClient.get(
-          '/api/v1/patients/?page=1&page_size=100'
-        );
-
-        // 使用 extractPaginatedData 提取患者列表
-        const result = extractPaginatedData<any>(response);
-
-        // 转换数据格式
-        const patientList = result.items.map((patient: any) => ({
+        const result = await getPatients({ page: 1, page_size: 100 });
+        const patientList = result.items.map(patient => ({
           id: patient.id.toString(),
           name: patient.name,
         }));
@@ -135,30 +129,16 @@ function UploadContent() {
 
   const uploadFile = async (fileId: string, file: File) => {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      if (selectedPatient) {
-        formData.append('patient_id', selectedPatient);
-      }
-      if (examType) {
-        formData.append('description', examType);
-      }
-
-      const response = await apiClient.post('/api/v1/upload/single', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      await uploadSingleFile({
+        file,
+        patient_id: selectedPatient || null,
+        description: examType || null,
       });
-
-      if (response.status === 200) {
-        setUploadFiles(prev =>
-          prev.map(f =>
-            f.id === fileId ? { ...f, status: 'completed', progress: 100 } : f
-          )
-        );
-      } else {
-        throw new Error('Upload failed');
-      }
+      setUploadFiles(prev =>
+        prev.map(f =>
+          f.id === fileId ? { ...f, status: 'completed', progress: 100 } : f
+        )
+      );
     } catch (error) {
       console.error('Upload error:', error);
       setUploadFiles(prev =>

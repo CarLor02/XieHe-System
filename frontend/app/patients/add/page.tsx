@@ -3,7 +3,8 @@
 import BirthDatePicker from '@/components/BirthDatePicker';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { apiClient, useUser } from '@/lib/api';
+import { useUser } from '@/lib/api';
+import { createPatient } from '@/services/patientServices';
 import {
   extractBirthDateFromIdCard,
   extractGenderFromIdCard,
@@ -138,15 +139,11 @@ export default function AddPatientPage() {
     try {
       setLoading(true);
       setError(null);
-
-      const response = await apiClient.post('/api/v1/patients/', formData);
-
-      if (response.status === 200 || response.status === 201) {
-        setSuccess(true);
-        setTimeout(() => {
-          router.push('/patients');
-        }, 2000);
-      }
+      await createPatient(formData);
+      setSuccess(true);
+      setTimeout(() => {
+        router.push('/patients');
+      }, 2000);
     } catch (err: any) {
       console.error('Failed to create patient:', err);
       const errorMessage =

@@ -14,154 +14,10 @@ import Sidebar from '@/components/Sidebar';
 import PatientSearchFilter, {
   SearchFilters,
 } from '@/components/patients/PatientSearchFilter';
+import { getPatients, Patient } from '@/services/patientServices';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-// 类型定义
-interface Patient {
-  id: number;
-  patient_id: string;
-  name: string;
-  gender: string;
-  birth_date: string;
-  age: number;
-  phone?: string;
-  email?: string;
-  address?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface PatientListResponse {
-  patients: Patient[];
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-}
-
-// 模拟API调用
-const mockPatients: Patient[] = [
-  {
-    id: 1,
-    patient_id: 'P001',
-    name: '张三',
-    gender: '男',
-    birth_date: '1980-05-15',
-    age: 44,
-    phone: '13800138001',
-    email: 'zhangsan@example.com',
-    address: '北京市朝阳区',
-    is_active: true,
-    created_at: '2024-01-01T10:00:00',
-    updated_at: '2024-01-01T10:00:00',
-  },
-  {
-    id: 2,
-    patient_id: 'P002',
-    name: '王五',
-    gender: '女',
-    birth_date: '1990-08-20',
-    age: 34,
-    phone: '13800138003',
-    email: 'wangwu@example.com',
-    address: '上海市浦东新区',
-    is_active: true,
-    created_at: '2024-01-02T10:00:00',
-    updated_at: '2024-01-02T10:00:00',
-  },
-  {
-    id: 3,
-    patient_id: 'P003',
-    name: '李四',
-    gender: '男',
-    birth_date: '1975-12-10',
-    age: 49,
-    phone: '13800138005',
-    email: 'lisi@example.com',
-    address: '广州市天河区',
-    is_active: false,
-    created_at: '2024-01-03T10:00:00',
-    updated_at: '2024-01-03T10:00:00',
-  },
-];
-
-const fetchPatients = async (params: {
-  page?: number;
-  page_size?: number;
-  search?: string;
-  gender?: string;
-  is_active?: boolean;
-}): Promise<PatientListResponse> => {
-  try {
-    // 构建查询参数
-    const queryParams = new URLSearchParams();
-    if (params.page) queryParams.append('page', params.page.toString());
-    if (params.page_size)
-      queryParams.append('page_size', params.page_size.toString());
-    if (params.search) queryParams.append('search', params.search);
-    if (params.gender) queryParams.append('gender', params.gender);
-    if (params.is_active !== undefined)
-      queryParams.append('is_active', params.is_active.toString());
-
-    const response = await apiClient.get(`/api/v1/patients/?${queryParams}`);
-
-    if (response.data && response.data.patients) {
-      // 转换API数据格式
-      const patients = response.data.patients.map((patient: any) => ({
-        id: patient.id,
-        patient_id: patient.patient_id || `P${patient.id}`,
-        name: patient.name || '未知患者',
-        gender: patient.gender || 'unknown',
-        age: patient.age || 0,
-        birth_date: patient.birth_date || '',
-        phone: patient.phone || '',
-        email: patient.email || '',
-        address: patient.address || '',
-        emergency_contact: patient.emergency_contact || '',
-        emergency_phone: patient.emergency_phone || '',
-        medical_history: patient.medical_history || '',
-        allergies: patient.allergies || '',
-        current_medications: patient.current_medications || '',
-        insurance_info: patient.insurance_info || '',
-        is_active: patient.is_active !== false,
-        created_at: patient.created_at || '',
-        updated_at: patient.updated_at || '',
-      }));
-
-      return {
-        patients,
-        total: response.data.total || patients.length,
-        page: response.data.page || params.page || 1,
-        page_size: response.data.page_size || params.page_size || 20,
-        total_pages:
-          response.data.total_pages ||
-          Math.ceil(
-            (response.data.total || patients.length) / (params.page_size || 20)
-          ),
-      };
-    } else {
-      return {
-        patients: [],
-        total: 0,
-        page: params.page || 1,
-        page_size: params.page_size || 20,
-        total_pages: 0,
-      };
-    }
-  } catch (error) {
-    console.error('获取患者数据失败:', error);
-    return {
-      patients: [],
-      total: 0,
-      page: params.page || 1,
-      page_size: params.page_size || 20,
-      total_pages: 0,
-    };
-  }
-};
 
 export default function EnhancedPatientsPage() {
   const router = useRouter();
@@ -179,20 +35,16 @@ export default function EnhancedPatientsPage() {
       setLoading(true);
       setError(null);
 
-      const params: any = {
+      const params = {
         page: currentPage,
         page_size: 20,
+        search: filters.search || undefined,
+        gender: filters.gender || undefined,
       };
-
-      if (filters.search) params.search = filters.search;
-      if (filters.gender) params.gender = filters.gender;
-      if (filters.isActive !== undefined) params.is_active = filters.isActive;
-
-      const response = await fetchPatients(params);
-
-      setPatients(response.patients);
+      const response = await getPatients(params);
+      setPatients(response.items);
       setTotal(response.total);
-      setTotalPages(response.total_pages);
+      setTotalPages(response.totalPages);
     } catch (err) {
       setError('加载患者列表失败');
       console.error('Load patients error:', err);
@@ -376,10 +228,10 @@ export default function EnhancedPatientsPage() {
                             {patient.phone || '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {getStatusBadge(patient.is_active)}
+                            {getStatusBadge(patient.status !== 'inactive')}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatDate(patient.created_at)}
+                            {formatDate(patient.created_at || '')}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end space-x-2">

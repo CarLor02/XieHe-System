@@ -4,64 +4,16 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import StatsCard from '@/components/StatsCard';
 import TaskList from '@/components/TaskList';
-import { apiClient, useUser } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
+import { useUser } from '@/lib/api';
+import { getDashboardStats, type DashboardStats } from '@/services/dashboardServices';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-interface DashboardOverview {
-  total_patients: number;
-  new_patients_today: number;
-  new_patients_week: number;
-  active_patients: number;
-  total_images: number;
-  images_today: number;
-  images_week: number;
-  pending_images: number;
-  processed_images: number;
-  completion_rate: number;
-  average_processing_time: number;
-  system_alerts: number;
-  generated_at: string;
-}
-
-// API调用函数
-const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
-  try {
-    const response = await apiClient.get('/api/v1/dashboard/stats');
-
-    // 使用 extractData 提取数据
-    const data = extractData<any>(response);
-
-    console.log('工作台收到的 API 数据:', data);
-
-    // 直接使用 API 返回的数据（字段名已匹配）
-    return {
-      total_patients: data.total_patients || 0,
-      new_patients_today: data.new_patients_today || 0,
-      new_patients_week: data.new_patients_week || 0,
-      active_patients: data.active_patients || 0,
-      total_images: data.total_images || 0,
-      images_today: data.images_today || 0,
-      images_week: data.images_week || 0,
-      pending_images: data.pending_images || 0,
-      processed_images: data.processed_images || 0,
-      completion_rate: data.completion_rate || 0,
-      average_processing_time: data.average_processing_time || 0,
-      system_alerts: data.system_alerts || 0,
-      generated_at: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error('获取仪表板数据错误:', error);
-    throw error;
-  }
-};
-
 const DashboardPage: React.FC = () => {
   const router = useRouter();
   const { isAuthenticated, user } = useUser();
-  const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(
+  const [dashboardData, setDashboardData] = useState<DashboardStats | null>(
     null
   );
   const [loading, setLoading] = useState(true);
@@ -86,7 +38,7 @@ const DashboardPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchDashboardOverview();
+      const data = await getDashboardStats();
       setDashboardData(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载仪表板数据失败');

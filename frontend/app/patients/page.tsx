@@ -3,38 +3,11 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Tooltip from '@/components/ui/Tooltip';
-import { apiClient, useUser } from '@/lib/api';
-import { extractPaginatedData } from '@/lib/api/types';
+import { useUser } from '@/lib/api';
+import { getPatients, Patient } from '@/services/patientServices';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-interface Patient {
-  id: number;
-  patient_id: string;
-  name: string;
-  gender: string;
-  birth_date: string;
-  age?: number;
-  phone?: string;
-  email?: string;
-  address?: string;
-  emergency_contact_name?: string;
-  emergency_contact_phone?: string;
-  id_card?: string;
-  insurance_number?: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface PatientListResponse {
-  patients: Patient[];
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-}
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -69,44 +42,26 @@ export default function PatientsPage() {
     try {
       setLoading(true);
       setError(null);
-
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        page_size: pageSize.toString(),
-      });
-
-      if (committedSearchTerm.trim()) {
-        params.append('search', committedSearchTerm.trim());
-      }
-
-      if (selectedGender) {
-        params.append('gender', selectedGender);
-      }
-
-      // 年龄范围筛选
+      let ageMin: number | undefined;
+      let ageMax: number | undefined;
       if (selectedAgeRange) {
         const [min, max] = selectedAgeRange.split('-').map(Number);
-        if (!isNaN(min)) params.append('age_min', min.toString());
-        if (!isNaN(max)) params.append('age_max', max.toString());
+        if (!isNaN(min)) ageMin = min;
+        if (!isNaN(max)) ageMax = max;
       }
 
-      if (selectedStatus) {
-        params.append('status', selectedStatus);
-      }
-
-      if (selectedHasImages !== '') {
-        params.append('has_images', selectedHasImages);
-      }
-
-      params.append('sort_by', sortBy);
-      params.append('sort_order', sortOrder);
-
-      const response = await apiClient.get(
-        `/api/v1/patients/?${params.toString()}`
-      );
-
-      // 使用 extractPaginatedData 提取分页数据
-      const result = extractPaginatedData<Patient>(response);
+      const result = await getPatients({
+        page: currentPage,
+        page_size: pageSize,
+        search: committedSearchTerm.trim() || undefined,
+        gender: selectedGender || undefined,
+        age_min: ageMin,
+        age_max: ageMax,
+        status: selectedStatus || undefined,
+        has_images: selectedHasImages === '' ? undefined : selectedHasImages === 'true',
+        sort_by: sortBy,
+        sort_order: sortOrder as 'asc' | 'desc',
+      });
 
       setPatients(result.items);
       setTotalPatients(result.total);
@@ -419,7 +374,7 @@ export default function PatientsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(patient.created_at).toLocaleDateString(
+                        {new Date(patient.created_at || '').toLocaleDateString(
                           'zh-CN'
                         )}
                       </td>
