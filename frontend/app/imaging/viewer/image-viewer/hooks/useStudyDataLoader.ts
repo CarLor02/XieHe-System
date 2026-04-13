@@ -1,4 +1,3 @@
-// 从API获取真实的影像数据
 import {RefObject, useEffect} from "react";
 import {Point, MeasurementData, AnnotationData} from "../types";
 import {getImageFile} from "@/services/imageServices/imageFileService"
@@ -15,6 +14,7 @@ export function useStudyDataLoader(
     setPointBindings: (pointBindings: AnnotationBindings) => void,
     dbAnnotationLoadedRef: RefObject<boolean>,
 ) {
+    // 从API获取真实的影像数据
     async function fetchStudyData() {
         try {
             setStudyLoading(true);

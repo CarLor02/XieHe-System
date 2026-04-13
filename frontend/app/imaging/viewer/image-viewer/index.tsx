@@ -1,11 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { apiClient, authenticatedBlobFetch, useUser } from '@/lib/api';
-import {
-  extractData,
-  extractPaginatedData,
-} from '@/lib/api/types';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import { authenticatedBlobFetch, useUser } from '@/lib/api';
 import AnnotationCanvas from './components/AnnotationCanvas';
 import AnnotationToolbar from './components/AnnotationToolbar';
 import StudyHeader from './components/StudyHeader';
@@ -24,13 +20,9 @@ import { getInheritedPoints } from './domain/annotation-inheritance';
 import { getDescriptionForType as getDesc } from './domain/annotation-metadata';
 import { getToolsForExamType as getTools } from './catalog/exam-tool-catalog';
 import { useAnnotationEngine } from './hooks/useAnnotationEngine';
-import { useAnnotationPersistence } from './hooks/useAnnotationPersistence';
-import { useCanvasInteraction } from './hooks/useCanvasInteraction';
-import { useImageStudy } from './hooks/useImageStudy';
-import { useMeasurements } from './hooks/useMeasurements';
+import * as hooks from "./hooks/index"
+import * as usecases from "./usecase/index"
 import {ImageSize, MeasurementData, Point} from './types';
-import {useStudyDataLoader} from "@/app/imaging/viewer/image-viewer/hooks/useStudyDataLoader";
-import {useLocalAnnotationsDataLoader} from "@/app/imaging/viewer/image-viewer/hooks/useLocalAnnotationsDataLoader";
 // import ReactMarkdown from 'react-markdown';
 // import remarkGfm from 'remark-gfm';
 
@@ -66,7 +58,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     showAdvicePanel,
     setShowAdvicePanel,
     recalculateAVTandTS,
-  } = useMeasurements();
+  } = hooks.useMeasurements();
   const {
     selectedTool,
     setSelectedTool,
@@ -80,7 +72,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setShowStandardDistanceWarning,
     isImagePanLocked,
     setIsImagePanLocked,
-  } = useCanvasInteraction();
+  } = hooks.useCanvasInteraction();
   const {
     isSaving,
     setIsSaving,
@@ -88,7 +80,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setIsMeasurementsLoading,
     saveMessage,
     setSaveMessage,
-  } = useAnnotationPersistence();
+  } = hooks.useAnnotationPersistence();
   const {
     studyData,
     setStudyData,
@@ -98,7 +90,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setImageList,
     imageNaturalSize,
     setImageNaturalSize,
-  } = useImageStudy();
+  } = hooks.useImageStudy();
 
   // 清空所有测量数据
   const clearAllMeasurements = () => {
@@ -165,7 +157,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   };
 
   // 从API获取真实的影像数据
-  useStudyDataLoader(
+  hooks.useStudyDataLoader(
       imageId,
       setStudyData,
       setStudyLoading,
@@ -177,7 +169,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   )
 
   // 当图像尺寸确定后，自动加载标注数据
-  useLocalAnnotationsDataLoader(
+  hooks.useLocalAnnotationsDataLoader(
       imageId,
       imageNaturalSize,
       setMeasurements,
@@ -273,213 +265,42 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     return getDesc(type);
   };
 
-  const addMeasurement = (type: string, points: Point[] = []) => {
-    // 如果是Cobb工具，自动编号（统一处理 'cobb' 和 'Cobb'）
-    let finalType = type;
-    const isCobb = type.toLowerCase() === 'cobb';
-    if (isCobb) {
-      const cobbCount = measurements.filter(m =>
-        m.type.startsWith('Cobb')
-      ).length;
-      finalType = `Cobb${cobbCount + 1}`;
-    }
+  const handleAddMeasurement = useCallback(
+      (toolType: string, points: Point[]) => {
+        usecases.addMeasurement(
+            toolType,
+            points,
+            measurements,
+            setMeasurements,
+            tools,
+            standardDistance,
+            standardDistancePoints,
+            imageNaturalSize
+        )
+      },
+      [tools]
+  )
 
-    // 查找工具ID用于配置查找
-    // 优先使用工具对象的ID，如果是Cobb则使用'cobb'，否则通过名称反查ID
-    let configLookupType = finalType;
-    if (isCobb) {
-      configLookupType = 'cobb';
-    } else {
-      const tool = tools.find(t => t.name === type);
-      if (tool) {
-        configLookupType = tool.id;
-      }
-    }
-
-    // 使用统一的配置系统计算测量值
-    const defaultValue =
-      calcMeasurementValue(configLookupType, points, {
-        standardDistance,
-        standardDistancePoints,
-        imageNaturalSize,
-      }) || '0.0°';
-    const description = isCobb ? 'Cobb角测量' : getDesc(finalType);
-
-    const newMeasurement: MeasurementData = {
-      id: Date.now().toString(),
-      type: finalType, // 使用编号后的类型（Cobb1, Cobb2, Cobb3...）
-      value: defaultValue,
-      points: points,
-      description,
-    };
-
-    setMeasurements(prev => {
-      // 将本次新增标注加入列表
-      const accumulated: MeasurementData[] = [...prev, newMeasurement];
-
-      // 检查是否有其他工具的全部点位均可由继承/共享获得，若是则自动创建对应标注
-      for (const tool of tools) {
-        if (!tool.pointsNeeded || tool.pointsNeeded <= 0) continue;
-        // 已存在该类型的标注则跳过
-        if (accumulated.some(m => m.type === tool.name)) continue;
-
-        const { points: inheritedPts, count } = getInheritedPoints(
-          tool.id,
-          accumulated
-        );
-        if (count >= tool.pointsNeeded) {
-          // 所有点位均可由已有标注推导出，自动创建
-          const autoPoints = inheritedPts.slice(0, tool.pointsNeeded);
-          const autoValue =
-            calcMeasurementValue(tool.id, autoPoints, {
-              standardDistance,
-              standardDistancePoints,
-              imageNaturalSize,
-            }) || '0.0°';
-          const autoMeasurement: MeasurementData = {
-            id: `${Date.now()}-auto-${tool.id}-${accumulated.length}`,
-            type: tool.name,
-            value: autoValue,
-            points: autoPoints,
-            description: getDesc(tool.name),
-          };
-          // 立即追加到 accumulated，以便后续工具可以从本次自动创建的标注中继续推导
-          accumulated.push(autoMeasurement);
-        }
-      }
-
-      return accumulated;
-    });
-  };
-
-  useEffect(() => {
-    const fetchImageList = async () => {
-      try {
-        const response = await apiClient.get(
-          '/api/v1/image-files?page=1&page_size=100'
-        );
-
-        // 使用 extractPaginatedData 提取影像列表
-        const result = extractPaginatedData<any>(response);
-
-        // 从API响应中提取影像ID，格式为IMG{id}
-        const ids = result.items.map((item: any) => {
-          // 使用item.id来生成影像ID
-          return `IMG${item.id.toString().padStart(3, '0')}`;
-        });
-        setImageList(ids);
-      } catch (error) {
-        console.error('获取影像列表失败:', error);
-        // 如果获取失败，使用空列表
-        setImageList([]);
-      }
-    };
-
-    fetchImageList();
-  }, []);
+  // 获取影像列表
+  hooks.useImageListFetcher(setImageList)
 
   const currentIndex = imageList.indexOf(imageId);
 
-  const generateReport = async () => {
-    if (measurements.length === 0) {
-      setReportText('暂无测量数据，无法生成报告。请先进行相关测量。');
-      return;
-    }
-
-    try {
-      // 调用后端API生成报告
-      const response = await apiClient.post('/api/v1/report-generation/generate', {
-        imageId: imageId,
-        examType: imageData.examType,
-        measurements: measurements.map(m => ({
-          type: m.type,
-          value: m.value,
-          description: m.description,
-        })),
-      });
-
-      if (response.status === 200) {
-        // 使用 extractData 提取报告数据
-        const result = extractData<{ report: string }>(response);
-        if (result.report) {
-          setReportText(result.report);
-          setSaveMessage('报告生成成功');
-          setTimeout(() => setSaveMessage(''), 3000);
-        } else {
-          throw new Error('报告生成失败');
-        }
-      } else {
-        throw new Error('报告生成失败');
-      }
-    } catch (error) {
-      console.error('生成报告失败:', error);
-
-      // 如果API调用失败，使用本地简单生成作为后备方案
-      let report = `【${imageData.examType}测量报告】\n\n`;
-      report += `患者：${imageData.patientName} (${imageData.patientId})\n`;
-      report += `检查日期：${imageData.studyDate}\n`;
-      report += `影像类型：${imageData.examType}\n\n`;
-
-      report += `【测量结果】\n`;
-      measurements.forEach((measurement, index) => {
-        report += `${index + 1}. ${measurement.type}：${measurement.value}\n`;
-        if (measurement.description) {
-          report += `   ${measurement.description}\n`;
-        }
-      });
-
-      report += `\n【分析建议】\n`;
-
-      // 根据不同影像类型生成专业分析
-      if (imageData.examType === '正位X光片') {
-        // 查找 Cobb 测量（可能是 Cobb、Cobb1、Cobb2 等）
-        const cobbMeasurement = measurements.find(m =>
-          m.type.startsWith('Cobb')
-        );
-        const caMeasurement = measurements.find(m => m.type === 'CA');
-
-        if (cobbMeasurement) {
-          const cobbValue = parseFloat(cobbMeasurement.value);
-          if (cobbValue > 10) {
-            report += `• 脊柱侧弯程度：${cobbValue < 25 ? '轻度' : cobbValue < 40 ? '中度' : '重度'}（${cobbMeasurement.type} ${cobbMeasurement.value}）\n`;
-          }
-        }
-
-        if (caMeasurement) {
-          const caValue = parseFloat(caMeasurement.value);
-          if (caValue > 10) {
-            report += `• 双肩高度差异明显，提示存在肩部不平衡\n`;
-          }
-        }
-      } else if (imageData.examType === '侧位X光片') {
-        const tkMeasurement = measurements.find(m => m.type === 'TK');
-        const llMeasurement = measurements.find(m => m.type === 'LL');
-        const svaMeasurement = measurements.find(m => m.type === 'SVA');
-
-        if (tkMeasurement) {
-          report += `• 胸椎后凸角：${tkMeasurement.value}，形态${parseFloat(tkMeasurement.value) > 40 ? '偏大' : '正常'}\n`;
-        }
-
-        if (llMeasurement) {
-          report += `• 腰椎前凸角：${llMeasurement.value}，弯曲${parseFloat(llMeasurement.value) < 40 ? '偏小' : '正常'}\n`;
-        }
-
-        if (svaMeasurement) {
-          const svaValue = parseFloat(svaMeasurement.value);
-          if (svaValue > 40) {
-            report += `• 矢状面平衡异常，存在前倾趋势\n`;
-          }
-        }
-      }
-
-      report += `\n报告生成时间：${new Date().toLocaleString('zh-CN')}\n`;
-      report += `系统：AI辅助测量分析`;
-
-      setReportText(report);
-      setSaveMessage('使用本地模式生成报告');
-      setTimeout(() => setSaveMessage(''), 3000);
-    }
-  };
+  // 报告生成回调
+  const handleReportGenerate = useCallback(
+    () => {
+      void usecases.generateReport(
+        imageData,
+        measurements,
+        setReportText,
+        setSaveMessage
+      )
+    },
+    [
+      imageData,
+      measurements,
+    ]
+  )
 
   // 获取当前工具
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
@@ -978,426 +799,48 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   };
 
   // AI检测函数（仅检测椎骨，不包含测量）- 仅管理员可用
-  const handleAIDetection = async () => {
-    // 权限检查
-    if (!isAdmin) {
-      setSaveMessage('无权限：仅管理员可以使用AI检测功能');
-      setTimeout(() => setSaveMessage(''), 3000);
-      return;
-    }
+  const handleAIDetection = useCallback(
+    () => {
+      void usecases.aiDetect(
+          isAdmin,
+          imageData,
+          setMeasurements,
+          setSaveMessage,
+          setIsAIDetecting
+      )
+    },
+    [
+      isAdmin,
+      imageData,
+    ]
+  )
 
-    setIsAIDetecting(true);
-    setSaveMessage('');
-
-    try {
-      // 获取图像元素
-      const imgElement = document.querySelector(
-        '[data-image-canvas] img'
-      ) as HTMLImageElement;
-      if (!imgElement) {
-        setSaveMessage('未找到图像元素');
-        setTimeout(() => setSaveMessage(''), 3000);
-        setIsAIDetecting(false);
-        return;
-      }
-
-      // 将图像转换为Blob
-      const imageBlob = await new Promise<Blob>((resolve, reject) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = imgElement.naturalWidth;
-        canvas.height = imgElement.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('无法创建canvas上下文'));
-          return;
-        }
-        ctx.drawImage(imgElement, 0, 0);
-        canvas.toBlob(blob => {
-          if (blob) resolve(blob);
-          else reject(new Error('无法生成图像'));
-        }, 'image/png');
-      });
-
-      // 构建FormData
-      const formData = new FormData();
-      formData.append('file', imageBlob, 'image.png');
-
-      // 根据examType选择不同的AI检测接口
-      let aiDetectUrl: string;
-      if (imageData.examType === '侧位X光片') {
-        // 侧位使用 /api/detect 接口（返回椎体4个角点）
-        aiDetectUrl =
-          process.env.NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL || '';
-        if (!aiDetectUrl) {
-          throw new Error(
-            '侧位X光片AI检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL'
-          );
-        }
-      } else {
-        // 正位使用 detect_keypoints 接口
-        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL || '';
-        if (!aiDetectUrl) {
-          throw new Error(
-            '正位X光片AI关键点检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL'
-          );
-        }
-      }
-
-      console.log('🤖 使用AI检测接口:', aiDetectUrl);
-
-      const aiResponse = await fetch(aiDetectUrl, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!aiResponse.ok) {
-        throw new Error('AI检测失败');
-      }
-
-      const aiData = await aiResponse.json();
-      console.log('AI检测返回数据:', aiData);
-
-      // 处理检测结果，将关键点转换为可视化标注
-      const detectionMeasurements: MeasurementData[] = [];
-      let pointCount = 0;
-
-      // 判断是侧位还是正位，使用不同的数据处理逻辑
-      if (imageData.examType === '侧位X光片') {
-        // 侧位：处理 /api/detect 返回的数据
-        // 数据格式：{ vertebrae: [...], cfh: {...}, image_width, image_height }
-
-        const imageWidth = aiData.image_width;
-        const imageHeight = aiData.image_height;
-
-        // 处理椎体检测结果
-        if (aiData.vertebrae && Array.isArray(aiData.vertebrae)) {
-          console.log(`🔍 原始检测到 ${aiData.vertebrae.length} 个椎体`);
-          console.log(
-            '原始椎体列表:',
-            aiData.vertebrae
-              .map(
-                (v: any) => `${v.label}(${(v.confidence * 100).toFixed(1)}%)`
-              )
-              .join(', ')
-          );
-
-          // 1. 过滤掉置信度过低的检测（< 0.5）
-          const highConfidenceVertebrae = aiData.vertebrae.filter(
-            (v: any) => v.confidence >= 0.1
-          );
-          console.log(
-            `🔍 过滤后剩余 ${highConfidenceVertebrae.length} 个高置信度椎体`
-          );
-
-          // 2. 去重：同一个椎体只保留置信度最高的
-          const vertebraeMap = new Map<string, any>();
-          highConfidenceVertebrae.forEach((vertebra: any) => {
-            const existing = vertebraeMap.get(vertebra.label);
-            if (!existing || vertebra.confidence > existing.confidence) {
-              vertebraeMap.set(vertebra.label, vertebra);
-            }
-          });
-
-          const uniqueVertebrae = Array.from(vertebraeMap.values());
-          console.log(`✅ 去重后剩余 ${uniqueVertebrae.length} 个唯一椎体`);
-          console.log(
-            '最终椎体列表:',
-            uniqueVertebrae
-              .map(
-                (v: any) => `${v.label}(${(v.confidence * 100).toFixed(1)}%)`
-              )
-              .join(', ')
-          );
-
-          // 3. 处理每个椎体的4个角点
-          uniqueVertebrae.forEach((vertebra: any) => {
-            if (!vertebra.keypoints || vertebra.keypoints.length !== 4) {
-              console.warn(
-                `⚠️ 椎体 ${vertebra.label} 的关键点数量不是4个:`,
-                vertebra.keypoints?.length
-              );
-              return;
-            }
-
-            // 椎体的4个角点（归一化坐标，需要转换为像素坐标）
-            const keypoints = vertebra.keypoints.map((kp: any) => ({
-              x: kp.x * imageWidth,
-              y: kp.y * imageHeight,
-            }));
-
-            // 按1、2、3、4编号显示4个角点
-            keypoints.forEach((point: any, index: number) => {
-              const cornerNum = index + 1;
-              const cornerNames = ['左上', '右上', '左下', '右下'];
-
-              // 生成唯一ID（使用时间戳+随机数）
-              const uniqueId = `ai-detection-${vertebra.label}-${cornerNum}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-              detectionMeasurements.push({
-                id: uniqueId,
-                type: `AI检测-${vertebra.label}-${cornerNum}`,
-                value: `${vertebra.label}-${cornerNum}`,
-                points: [point],
-                description: `AI检测-${vertebra.label}角点${cornerNum}(${cornerNames[index]}) (置信度: ${(vertebra.confidence * 100).toFixed(1)}%)`,
-              });
-              pointCount++;
-            });
-          });
-
-          console.log(`✅ 共生成 ${pointCount} 个椎体角点`);
-        }
-
-        // 处理股骨头检测结果
-        if (aiData.cfh && aiData.cfh.center) {
-          const cfhCenter = {
-            x: aiData.cfh.center.x * imageWidth,
-            y: aiData.cfh.center.y * imageHeight,
-          };
-
-          detectionMeasurements.push({
-            id: 'ai-detection-cfh',
-            type: 'AI检测-CFH',
-            value: 'CFH',
-            points: [cfhCenter],
-            description: `AI检测-股骨头中心 (置信度: ${(aiData.cfh.confidence * 100).toFixed(1)}%)`,
-          });
-          pointCount++;
-        }
-      } else {
-        // 正位：处理原有的 detect_keypoints 返回的数据
-        // 1. 处理躯干关键点 (pose_keypoints) - 对象格式
-        if (
-          aiData.pose_keypoints &&
-          typeof aiData.pose_keypoints === 'object'
-        ) {
-          Object.entries(aiData.pose_keypoints).forEach(
-            ([label, kp]: [string, any]) => {
-              if (kp && kp.x !== undefined && kp.y !== undefined) {
-                detectionMeasurements.push({
-                  id: `ai-detection-pose-${label}`,
-                  type: `AI检测-${label}`,
-                  value: label,
-                  points: [{ x: kp.x, y: kp.y }],
-                  description: `AI检测-躯干关键点 (置信度: ${(kp.confidence * 100).toFixed(1)}%)`,
-                });
-                pointCount++;
-              }
-            }
-          );
-        }
-
-        // 2. 处理椎骨关键点 (vertebrae) - 对象格式，显示4个角点
-        if (aiData.vertebrae && typeof aiData.vertebrae === 'object') {
-          Object.entries(aiData.vertebrae).forEach(
-            ([label, vertebra]: [string, any]) => {
-              if (!vertebra || !vertebra.corners) return;
-
-              // 添加椎骨的4个角点，按1、2、3、4编号
-              const corners = vertebra.corners;
-              const cornerNames = [
-                { key: 'top_left', num: '1', displayName: '左上' },
-                { key: 'top_right', num: '2', displayName: '右上' },
-                { key: 'bottom_right', num: '3', displayName: '右下' },
-                { key: 'bottom_left', num: '4', displayName: '左下' },
-              ];
-
-              cornerNames.forEach(corner => {
-                const point = corners[corner.key];
-                if (point && point.x !== undefined && point.y !== undefined) {
-                  detectionMeasurements.push({
-                    id: `ai-detection-${label}-${corner.num}`,
-                    type: `AI检测-${label}-${corner.num}`,
-                    value: `${label}-${corner.num}`,
-                    points: [{ x: point.x, y: point.y }],
-                    description: `AI检测-${label}角点${corner.num}(${corner.displayName}) (置信度: ${(vertebra.confidence * 100).toFixed(1)}%)`,
-                  });
-                  pointCount++;
-                }
-              });
-            }
-          );
-        }
-      }
-
-      // 3. 清除之前的AI检测结果，然后添加新的检测结果
-      if (detectionMeasurements.length > 0) {
-        // 先清除所有AI检测的标注（type以"AI检测-"开头的）
-        setMeasurements(prev => {
-          const nonAIDetections = prev.filter(
-            m => !m.type.startsWith('AI检测-')
-          );
-          return [...nonAIDetections, ...detectionMeasurements];
-        });
-        setSaveMessage(`AI检测完成，检测到 ${pointCount} 个关键点`);
-      } else {
-        setSaveMessage('AI检测完成，但未检测到关键点');
-      }
-      setTimeout(() => setSaveMessage(''), 3000);
-    } catch (error) {
-      console.error('AI检测失败:', error);
-      setSaveMessage('AI检测失败，请检查服务是否正常运行');
-      setTimeout(() => setSaveMessage(''), 3000);
-    } finally {
-      setIsAIDetecting(false);
-    }
-  };
-
-  // 保存标注数据到数据库
-  const saveAnnotationsToDatabase = async () => {
-    if (measurements.length === 0) {
-      setSaveMessage('暂无测量数据需要保存');
-      setTimeout(() => setSaveMessage(''), 3000);
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveMessage('正在保存...');
-
-    try {
-      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-      const annotationData = {
-        measurements: measurements,
-        standardDistance: standardDistance,
-        standardDistancePoints: standardDistancePoints,
-        pointBindings: pointBindings,
-        imageWidth: imageNaturalSize?.width,
-        imageHeight: imageNaturalSize?.height,
-        savedAt: new Date().toISOString(),
-      };
-
-      const response = await apiClient.patch(
-        `/api/v1/image-files/${numericId}/annotation`,
-        { annotation: JSON.stringify(annotationData) }
+  const handleSaveMeasurements = useCallback(
+    () => {
+      void usecases.saveMeasurements(
+        imageId,
+        studyData,
+        imageNaturalSize,
+        standardDistance,
+        standardDistancePoints,
+        pointBindings,
+        measurements,
+        reportText,
+        setIsSaving,
+        setSaveMessage
       );
-
-      if (response.status === 200) {
-        setSaveMessage('标注数据保存成功');
-        setTimeout(() => setSaveMessage(''), 3000);
-      } else {
-        throw new Error('保存失败');
-      }
-    } catch (error) {
-      console.error('保存标注数据失败:', error);
-      setSaveMessage('保存标注数据失败，请重试');
-      setTimeout(() => setSaveMessage(''), 3000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const saveMeasurements = async () => {
-    if (measurements.length === 0) {
-      setSaveMessage('暂无测量数据需要保存');
-      setTimeout(() => setSaveMessage(''), 3000);
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveMessage('');
-
-    try {
-      // 1. 先保存到本地存储
-      const key = `annotations_${imageId}`;
-      // 对于AI检测标注，需要保存value和description；其他标注只保存type和points
-      // 同时保存id，确保加载时绑定数据中的annotationId引用仍然有效
-      const simplifiedMeasurements = measurements.map(m => {
-        const isAIDetection = m.type.startsWith('AI检测-');
-        if (isAIDetection) {
-          // AI检测标注：保存id, type, points, value, description
-          return {
-            id: m.id,
-            type: m.type,
-            points: m.points,
-            value: m.value,
-            description: m.description,
-          };
-        } else {
-          // 其他标注：保存id, type和points（value和description可以重新计算）
-          return {
-            id: m.id,
-            type: m.type,
-            points: m.points,
-          };
-        }
-      });
-      const localData = {
-        imageId: imageId,
-        imageWidth: imageNaturalSize?.width,
-        imageHeight: imageNaturalSize?.height,
-        measurements: simplifiedMeasurements,
-        standardDistance: standardDistance,
-        standardDistancePoints: standardDistancePoints,
-        pointBindings: pointBindings,
-      };
-      localStorage.setItem(key, JSON.stringify(localData, null, 2));
-      console.log(
-        `已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`
-      );
-
-      // 2. 保存到服务器
-      // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
-      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-      const measurementData = {
-        imageId: numericId,
-        patientId: imageData.patientId,
-        examType: imageData.examType,
-        measurements: measurements,
-        reportText: reportText,
-        savedAt: new Date().toISOString(),
-      };
-
-      const response = await apiClient.post(
-        `/api/v1/measurements/${numericId}`,
-        measurementData
-      );
-
-      console.log('保存响应:', response.status);
-
-      if (response.status === 200) {
-        setSaveMessage('标注已保存到本地和服务器');
-        setTimeout(() => setSaveMessage(''), 3000);
-      } else {
-        const errorMsg =
-          response.data?.message || response.data?.detail || '保存失败';
-        console.error('保存失败:', response.status, errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      // 3. 同时更新 image-files 的 annotation 字段，持久化绑定数据
-      try {
-        const annotationData = {
-          measurements: measurements,
-          standardDistance: standardDistance,
-          standardDistancePoints: standardDistancePoints,
-          pointBindings: pointBindings,
-          imageWidth: imageNaturalSize?.width,
-          imageHeight: imageNaturalSize?.height,
-          savedAt: new Date().toISOString(),
-        };
-        await apiClient.patch(`/api/v1/image-files/${numericId}/annotation`, {
-          annotation: JSON.stringify(annotationData),
-        });
-        console.log('绑定数据已同步至 annotation 字段');
-      } catch (annotationErr) {
-        // 不阻断主保存流程
-        console.warn(
-          '更新 annotation 字段失败（不影响主保存）:',
-          annotationErr
-        );
-      }
-    } catch (error: any) {
-      console.error('保存测量数据失败:', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.detail ||
-        error.message ||
-        '保存失败，请重试';
-      setSaveMessage(`保存失败: ${errorMessage}`);
-      setTimeout(() => setSaveMessage(''), 5000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    },
+    [
+      imageId,
+      studyData,
+      imageNaturalSize,
+      standardDistance,
+      standardDistancePoints,
+      pointBindings,
+      measurements,
+      reportText,
+    ]
+  );
 
   return (
     <>
@@ -1410,12 +853,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           isAdmin={isAdmin}
           isAIDetecting={isAIDetecting}
           isAIMeasuring={isAIMeasuring}
-          onSave={saveMeasurements}
+          onSave={handleSaveMeasurements}
           onExportJson={exportAnnotationsToJSON}
           onImportJson={importAnnotationsFromJSON}
           onAIDetect={handleAIDetection}
           onAIMeasure={handleAIMeasurement}
-          onGenerateReport={generateReport}
+          onGenerateReport={handleReportGenerate}
         />
 
         <div className="flex-1 flex overflow-hidden">
@@ -1428,7 +871,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 measurements={measurements}
                 selectedTool={selectedTool}
                 setSelectedTool={setSelectedTool}
-                onMeasurementAdd={addMeasurement}
+                onMeasurementAdd={handleAddMeasurement}
                 onMeasurementsUpdate={setMeasurements}
                 onClearAll={clearAllMeasurements}
                 tools={tools}
