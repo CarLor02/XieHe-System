@@ -359,7 +359,7 @@ export const COBB_CONFIG: AnnotationConfig = {
   description: 'Cobb角测量',
   pointsNeeded: 4,
   category: 'measurement',
-  color: '#f59e0b',
+  color: '#f59e0b', // 橙色
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 4) return [];
@@ -451,6 +451,39 @@ export const COBB_CONFIG: AnnotationConfig = {
 // 保留旧的配置作为别名，以兼容现有代码
 export const COBB_THORACIC_CONFIG = COBB_CONFIG;
 export const COBB_LUMBAR_CONFIG = COBB_CONFIG;
+
+/**
+ * Cobb1 第一个Cobb角（蓝色）
+ */
+export const COBB1_CONFIG: AnnotationConfig = {
+  ...COBB_CONFIG,
+  id: 'cobb1',
+  name: 'Cobb1',
+  description: 'Cobb角1测量',
+  color: '#3b82f6', // 蓝色
+};
+
+/**
+ * Cobb2 第二个Cobb角（紫色）
+ */
+export const COBB2_CONFIG: AnnotationConfig = {
+  ...COBB_CONFIG,
+  id: 'cobb2',
+  name: 'Cobb2',
+  description: 'Cobb角2测量',
+  color: '#a855f7', // 紫色
+};
+
+/**
+ * Cobb3 第三个Cobb角（粉色）
+ */
+export const COBB3_CONFIG: AnnotationConfig = {
+  ...COBB_CONFIG,
+  id: 'cobb3',
+  name: 'Cobb3',
+  description: 'Cobb角3测量',
+  color: '#ec4899', // 粉色
+};
 
 /**
  * CA 锁骨角测量
@@ -2453,6 +2486,9 @@ export const AUX_VERTICAL_LINE_CONFIG: AnnotationConfig = {
 export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   't1-tilt': T1_TILT_CONFIG,
   cobb: COBB_CONFIG,
+  cobb1: COBB1_CONFIG,
+  cobb2: COBB2_CONFIG,
+  cobb3: COBB3_CONFIG,
   'cobb-thoracic': COBB_CONFIG, // 兼容旧数据
   'cobb-lumbar': COBB_CONFIG, // 兼容旧数据
   'cobb-thoracolumbar': COBB_CONFIG, // 兼容AI返回
@@ -2503,11 +2539,6 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
 export function getAnnotationConfig(
   typeId: string
 ): AnnotationConfig | undefined {
-  // 特殊处理：Cobb1, Cobb2, Cobb3 等都映射到 cobb 配置
-  if (/^Cobb\d+$/i.test(typeId)) {
-    return ANNOTATION_CONFIGS['cobb'];
-  }
-
   // 标准化typeId：转小写并将空格替换为连字符
   const normalizedId = typeId.toLowerCase().replace(/\s+/g, '-');
   return ANNOTATION_CONFIGS[normalizedId];
