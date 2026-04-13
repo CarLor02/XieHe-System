@@ -386,9 +386,10 @@ export function renderPI(
         stroke={displayColor}
         strokeWidth="2"
       />
+      {/* 骶骨中垂线：只显示下方部分（骶骨上终板下方） */}
       <line
-        x1={geometry.sacralMidpoint.x - geometry.sacralNormal.x * normalLength}
-        y1={geometry.sacralMidpoint.y - geometry.sacralNormal.y * normalLength}
+        x1={geometry.sacralMidpoint.x}
+        y1={geometry.sacralMidpoint.y}
         x2={geometry.sacralMidpoint.x + geometry.sacralNormal.x * normalLength}
         y2={geometry.sacralMidpoint.y + geometry.sacralNormal.y * normalLength}
         stroke={displayColor}
@@ -685,9 +686,10 @@ export function renderSVA(
           strokeDasharray="5,5"
           opacity="0.3"
         />
+        {/* C7铅垂线（C7PL）：仅显示下半部分 */}
         <line
           x1={centerX}
-          y1={centerY - height / 2}
+          y1={centerY}
           x2={centerX}
           y2={centerY + height / 2}
           stroke={displayColor}
@@ -703,9 +705,10 @@ export function renderSVA(
           strokeWidth="1"
           opacity="0.8"
         />
+        {/* 骶椎后缘铅垂线：仅显示下半部分 */}
         <line
           x1={point5.x}
-          y1={point5.y - height / 2}
+          y1={point5.y}
           x2={point5.x}
           y2={point5.y + height / 2}
           stroke={displayColor}
@@ -718,18 +721,20 @@ export function renderSVA(
 
   return (
     <>
+      {/* 第一条垂直线：仅显示下半部分 */}
       <line
         x1={screenPoints[0].x}
-        y1={screenPoints[0].y - height / 2}
+        y1={screenPoints[0].y}
         x2={screenPoints[0].x}
         y2={screenPoints[0].y + height / 2}
         stroke={displayColor}
         strokeWidth="2"
         strokeDasharray="3,3"
       />
+      {/* 第二条垂直线：仅显示下半部分 */}
       <line
         x1={screenPoints[1].x}
-        y1={screenPoints[1].y - height / 2}
+        y1={screenPoints[1].y}
         x2={screenPoints[1].x}
         y2={screenPoints[1].y + height / 2}
         stroke={displayColor}
