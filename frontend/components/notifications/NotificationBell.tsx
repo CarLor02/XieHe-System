@@ -18,6 +18,7 @@
 import React, { useState, useEffect } from 'react'
 import NotificationCenter from './NotificationCenter'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { authenticatedJsonFetch } from '@/lib/api'
 
 // 通知铃铛属性
 interface NotificationBellProps {
@@ -56,16 +57,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
   // 加载未读消息数量
   const loadUnreadCount = async () => {
     try {
-      const response = await fetch('/api/v1/notifications/messages/stats', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setUnreadCount(data.unread_messages || 0)
-      }
+      const data = await authenticatedJsonFetch<{
+        unread_messages?: number
+      }>('/api/v1/notifications/messages/stats')
+      setUnreadCount(data.unread_messages || 0)
     } catch (error) {
       console.error('加载未读消息数量失败:', error)
     }

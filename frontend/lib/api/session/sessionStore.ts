@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger';
 import {
   extractApiMessage,
   extractData,
+  getStatusCode,
   isApiEnvelope,
   isApiSuccessCode,
 } from '../types';
@@ -193,9 +194,11 @@ export const useSessionStore = create<SessionState>()(
           }
 
           logger.info('refresh token request');
-          const response = await axios.post(
-            `${API_BASE_URL}/api/v1/auth/refresh`,
-            { refresh_token: refreshToken }
+          const { apiClient } = await import('../authenticatedApiClient');
+          const response = await apiClient.post(
+            '/api/v1/auth/refresh',
+            { refresh_token: refreshToken },
+            { _skipAuthRefresh: true } as any
           );
 
           if (
@@ -221,8 +224,11 @@ export const useSessionStore = create<SessionState>()(
           return true;
         } catch (error) {
           logger.warn('refresh token failed', error);
-          get().forceLogout();
-          return false;
+          const status = getStatusCode(error);
+          if (status === 401 || status === 403) {
+            return false;
+          }
+          throw error;
         }
       },
 
@@ -244,22 +250,12 @@ export const useSessionStore = create<SessionState>()(
 
       fetchUserInfo: async () => {
         try {
-          const accessToken = get().session?.accessToken;
-          if (!accessToken || !get().isAuthenticated) {
+          if (!get().session?.accessToken || !get().isAuthenticated) {
             return false;
           }
 
-          const response = await axios.get(`${API_BASE_URL}/api/v1/auth/me`, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-
-          if (
-            isApiEnvelope(response.data) &&
-            !isApiSuccessCode(response.data.code)
-          ) {
-            throw createApiEnvelopeError(response.data, response);
-          }
-
+          const { apiClient } = await import('../authenticatedApiClient');
+          const response = await apiClient.get('/api/v1/auth/me');
           const user = extractData<SessionUser>(response);
           set({ user });
           return true;
@@ -271,26 +267,12 @@ export const useSessionStore = create<SessionState>()(
 
       updateUserInfo: async userData => {
         try {
-          const accessToken = get().session?.accessToken;
-          if (!accessToken) {
+          if (!get().session?.accessToken) {
             return false;
           }
 
-          const response = await axios.put(
-            `${API_BASE_URL}/api/v1/auth/me`,
-            userData,
-            {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            }
-          );
-
-          if (
-            isApiEnvelope(response.data) &&
-            !isApiSuccessCode(response.data.code)
-          ) {
-            throw createApiEnvelopeError(response.data, response);
-          }
-
+          const { apiClient } = await import('../authenticatedApiClient');
+          const response = await apiClient.put('/api/v1/auth/me', userData);
           const user = extractData<SessionUser>(response);
           set({ user });
           return true;

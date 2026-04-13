@@ -18,6 +18,7 @@
 import React, { useState, useEffect } from 'react'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { authenticatedJsonFetch } from '@/lib/api'
 import toast from 'react-hot-toast'
 
 // 消息接口
@@ -42,6 +43,8 @@ interface MessageStats {
   messages_by_type: Record<string, number>
   messages_by_priority: Record<string, number>
 }
+
+type ApiMutationResult = { message?: string } | Record<string, never>
 
 // 通知中心属性
 interface NotificationCenterProps {
@@ -102,18 +105,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
       const params = new URLSearchParams()
       if (filter.type) params.append('message_type', filter.type)
       if (filter.is_read !== undefined) params.append('is_read', filter.is_read.toString())
-      
-      const response = await fetch(`/api/v1/notifications/messages?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-      
-      const data = await response.json()
+
+      const data = await authenticatedJsonFetch<Message[]>(
+        `/api/v1/notifications/messages?${params}`
+      )
       setMessages(data)
     } catch (error) {
       handleApiError(error, 'load_messages')
@@ -125,17 +120,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
   // 加载消息统计
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/v1/notifications/messages/stats', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-      
-      const data = await response.json()
+      const data = await authenticatedJsonFetch<MessageStats>(
+        '/api/v1/notifications/messages/stats'
+      )
       setStats(data)
     } catch (error) {
       handleApiError(error, 'load_stats')
@@ -145,16 +132,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
   // 标记消息为已读
   const markAsRead = async (messageId: number) => {
     try {
-      const response = await fetch(`/api/v1/notifications/messages/${messageId}/read`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
+      await authenticatedJsonFetch<ApiMutationResult>(
+        `/api/v1/notifications/messages/${messageId}/read`,
+        { method: 'PUT' }
+      )
       
       // 更新本地状态
       setMessages(prev => prev.map(msg => 
@@ -171,16 +152,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
   // 删除消息
   const deleteMessage = async (messageId: number) => {
     try {
-      const response = await fetch(`/api/v1/notifications/messages/${messageId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
+      await authenticatedJsonFetch<ApiMutationResult>(
+        `/api/v1/notifications/messages/${messageId}`,
+        { method: 'DELETE' }
+      )
       
       // 更新本地状态
       setMessages(prev => prev.filter(msg => msg.id !== messageId))

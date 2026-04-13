@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
+import { authenticatedJsonFetch } from '@/lib/api'
 import {
   Card,
   CardContent,
@@ -114,15 +115,10 @@ const MonitoringDashboard: React.FC = () => {
   // 获取系统状态
   const fetchSystemStatus = async () => {
     try {
-      const response = await fetch('/api/v1/monitoring/status', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setSystemStatus(data)
-      }
+      const data = await authenticatedJsonFetch<SystemStatus>(
+        '/api/v1/monitoring/status'
+      )
+      setSystemStatus(data)
     } catch (error) {
       console.error('获取系统状态失败:', error)
     }
@@ -132,15 +128,10 @@ const MonitoringDashboard: React.FC = () => {
   const fetchMetrics = async (timeRange: string) => {
     try {
       const hours = timeRange === '1h' ? 1 : timeRange === '6h' ? 6 : 24
-      const response = await fetch(`/api/v1/monitoring/metrics?hours=${hours}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setMetrics(data)
-      }
+      const data = await authenticatedJsonFetch<MetricPoint[]>(
+        `/api/v1/monitoring/metrics?hours=${hours}`
+      )
+      setMetrics(data)
     } catch (error) {
       console.error('获取性能指标失败:', error)
     }
@@ -149,15 +140,10 @@ const MonitoringDashboard: React.FC = () => {
   // 获取告警信息
   const fetchAlerts = async () => {
     try {
-      const response = await fetch('/api/v1/monitoring/alerts', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setAlerts(data.alerts || [])
-      }
+      const data = await authenticatedJsonFetch<{ alerts?: Alert[] } | Alert[]>(
+        '/api/v1/monitoring/alerts'
+      )
+      setAlerts(Array.isArray(data) ? data : data.alerts || [])
     } catch (error) {
       console.error('获取告警信息失败:', error)
     }

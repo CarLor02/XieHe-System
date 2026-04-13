@@ -75,8 +75,8 @@ export async function authenticatedFetch(
   options: AuthFetchOptions = {}
 ): Promise<Response> {
   const { retryOn401 = true } = options;
-  const session = useSessionStore.getState().session;
   const isAuthenticated = useSessionStore.getState().isAuthenticated;
+  const session = useSessionStore.getState().session;
 
   logger.debug('fetch request', input);
   let response = await fetch(input, {
@@ -86,13 +86,18 @@ export async function authenticatedFetch(
 
   if (response.status === 401 && retryOn401 && isAuthenticated) {
     logger.info('fetch 401, attempting refresh', input);
-    const refreshed = await refreshAccessTokenWithLock();
-    if (refreshed) {
-      const nextToken = useSessionStore.getState().session?.accessToken;
-      response = await fetch(input, {
-        ...init,
-        headers: withAuthorizationHeader(init.headers, nextToken),
-      });
+    try {
+      const refreshed = await refreshAccessTokenWithLock();
+      if (refreshed) {
+        const nextToken = useSessionStore.getState().session?.accessToken;
+        response = await fetch(input, {
+          ...init,
+          headers: withAuthorizationHeader(init.headers, nextToken),
+        });
+      }
+    } catch (refreshError) {
+      logger.warn('fetch refresh failed, keeping session intact', refreshError);
+      throw refreshError;
     }
   }
 

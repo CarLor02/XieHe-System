@@ -11,6 +11,13 @@ import { useSessionStore } from './session/sessionStore';
 
 const logger = createLogger('api.authenticatedClient');
 
+function shouldSkipAuthRefresh(config: any): boolean {
+  return Boolean(
+    config?._skipAuthRefresh ||
+      config?.url?.includes('/api/v1/auth/refresh')
+  );
+}
+
 function createApiEnvelopeError(data: any, response?: any) {
   const error = new Error(
     extractApiMessage(data) || '请求失败'
@@ -34,7 +41,7 @@ function buildAuthenticatedClient(): AxiosInstance {
   });
 
   client.interceptors.request.use(
-    config => {
+    async config => {
       const accessToken = useSessionStore.getState().session?.accessToken;
       logger.debug('request', config.method?.toUpperCase(), config.url);
 
@@ -100,6 +107,11 @@ function buildAuthenticatedClient(): AxiosInstance {
         }
       }
 
+      if (error.response?.status === 401 && shouldSkipAuthRefresh(originalRequest)) {
+        logger.warn('skip auth refresh for request', originalRequest.url);
+        return Promise.reject(error);
+      }
+
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
         logger.info('401 received, attempting refresh', originalRequest.url);
@@ -109,15 +121,20 @@ function buildAuthenticatedClient(): AxiosInstance {
           return Promise.reject(error);
         }
 
-        const success = await refreshAccessTokenWithLock();
-        if (success) {
-          const accessToken = useSessionStore.getState().session?.accessToken;
-          if (!originalRequest.headers) {
-            originalRequest.headers = new AxiosHeaders();
+        try {
+          const success = await refreshAccessTokenWithLock();
+          if (success) {
+            const accessToken = useSessionStore.getState().session?.accessToken;
+            if (!originalRequest.headers) {
+              originalRequest.headers = new AxiosHeaders();
+            }
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            logger.info('refresh succeeded, retrying request', originalRequest.url);
+            return client(originalRequest);
           }
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          logger.info('refresh succeeded, retrying request', originalRequest.url);
-          return client(originalRequest);
+        } catch (refreshError) {
+          logger.warn('refresh request failed, keeping session intact', refreshError);
+          return Promise.reject(refreshError);
         }
 
         logger.warn('refresh failed, forcing logout');
