@@ -19,6 +19,7 @@ import { estimateTextHeight, estimateTextWidth } from '../../../shared/labels';
 import { MeasurementData, Point } from '../../../types';
 import { HoverState, SelectionState } from '../types';
 import { renderAuxiliaryTag } from './support-shape-renderers/auxiliaryTagRenderer';
+import { formatDisplayValue } from './shared/rendererUtils';
 
 interface RenderMeasurementProps {
   measurement: MeasurementData;
@@ -279,7 +280,7 @@ function renderAuxiliaryShape(
     );
   }
 
-  if (measurement.type === '锥体中心' && screenPoints.length === 4) {
+  if (measurement.type === '椎体中心' && screenPoints.length === 4) {
     const centerScreen = {
       x: (screenPoints[0].x + screenPoints[1].x + screenPoints[2].x + screenPoints[3].x) / 4,
       y: (screenPoints[0].y + screenPoints[1].y + screenPoints[2].y + screenPoints[3].y) / 4,
@@ -453,7 +454,9 @@ export default function renderMeasurement({
     getLabelPositionForType(measurement.type, measurement.points, imageScale),
     context
   );
-  const textContent = `${measurement.type}: ${measurement.value}`;
+  // 使用格式化后的值用于图表显示
+  const displayValue = formatDisplayValue(measurement.value);
+  const textContent = `${measurement.type}: ${displayValue}`;
   const fontSize = isMeasurementHovered
     ? TEXT_LABEL_CONSTANTS.HOVER_FONT_SIZE
     : TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE;
@@ -514,7 +517,7 @@ export default function renderMeasurement({
               fontWeight="bold"
               textAnchor="middle"
             >
-              {measurement.type}: {measurement.value}
+              {measurement.type}: {displayValue}
             </text>
           </g>
         )}

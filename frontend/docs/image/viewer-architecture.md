@@ -246,7 +246,7 @@
 
 - `renderers/support-shape-renderers/`
   - 辅助图形 renderer
-  - 例如圆形、椭圆、矩形、箭头、多边形、角度、距离、锥体中心
+  - 例如圆形、椭圆、矩形、箭头、多边形、角度、距离、椎体中心
 
 - `renderers/annotation-tool-renderers/`
   - 医学标注工具 renderer
@@ -337,7 +337,7 @@
 - `多边形标注`
 - `距离标注`
 - `角度标注`
-- `锥体中心`
+- `椎体中心`
 
 这些 renderer 位于 `renderers/support-shape-renderers/`。
 

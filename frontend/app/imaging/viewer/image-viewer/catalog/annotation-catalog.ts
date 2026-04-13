@@ -497,15 +497,15 @@ export const CA_CONFIG: AnnotationConfig = {
 };
 
 /**
- * Pelvic 骨盆倾斜角
+ * PO 骨盆倾斜角
  * 2点测量：与水平线夹角
  * 正负规则：左边高为正，右边高为负
  */
 export const PELVIC_CONFIG: AnnotationConfig = {
   id: 'pelvic',
-  name: 'Pelvic',
+  name: 'PO',
   icon: 'ri-triangle-line',
-  description: '骨盆倾斜角测量',
+  description: '骨盆倾斜角(Pelvic obliquity, PO)',
   pointsNeeded: 2,
   category: 'measurement',
   color: '#ec4899',
@@ -524,7 +524,7 @@ export const PELVIC_CONFIG: AnnotationConfig = {
 
     return [
       {
-        name: 'Pelvic',
+        name: 'PO',
         value: angle.toFixed(2),
         unit: '°',
       },
@@ -575,15 +575,15 @@ export const PELVIC_CONFIG: AnnotationConfig = {
 };
 
 /**
- * Sacral 骶骨倾斜角
+ * CSS 冠状面骶骨倾斜角
  * 2点测量：与水平线夹角
  * 正负规则：左边高为正，右边高为负
  */
 export const SACRAL_CONFIG: AnnotationConfig = {
   id: 'sacral',
-  name: 'Sacral',
+  name: 'CSS',
   icon: 'ri-square-line',
-  description: '骶骨倾斜角测量',
+  description: '冠状面骶骨倾斜角CSS(Coronal Sacral Slope)',
   pointsNeeded: 2,
   category: 'measurement',
   color: '#f43f5e',
@@ -602,7 +602,7 @@ export const SACRAL_CONFIG: AnnotationConfig = {
 
     return [
       {
-        name: 'Sacral',
+        name: 'CSS',
         value: angle.toFixed(2),
         unit: '°',
       },
@@ -720,16 +720,16 @@ export const AVT_CONFIG: AnnotationConfig = {
 };
 
 /**
- * TTS 躯干偏移量（4点法）
+ * TS 躯干偏移量（4点法）
  *   点0-1：躯干参考水平线两端点（手动标注）
  *   点2-3：骶骨参考线两端点（继承自 Sacral）
  * 计算：躯干线中点 X 与骶骨中线 X 的水平距离
  */
 export const TS_CONFIG: AnnotationConfig = {
   id: 'ts',
-  name: 'TTS',
+  name: 'TS',
   icon: 'ri-crosshair-2-line',
-  description: '躯干偏移量(Trunk Shift)',
+  description: '躯干偏移量TS(Trunk Shift)',
   pointsNeeded: 4,
   category: 'measurement',
   color: '#84cc16',
@@ -747,7 +747,7 @@ export const TS_CONFIG: AnnotationConfig = {
 
     return [
       {
-        name: 'TTS',
+        name: 'TS',
         value: actualDistance.toFixed(2),
         unit: 'mm',
       },
@@ -872,15 +872,15 @@ export const LLD_CONFIG: AnnotationConfig = {
 /**
  * C7 Offset C7偏移距离（正面）
  * 6点测量：
- *   点1-4：C7椎体四角，中心为锥体中心
+ *   点1-4：C7椎体四角，中心为椎体中心
  *   点5-6：参考线两端点，中点作为参考中心
- * 测量结果：锥体中心与参考中点之间的水平距离
+ * 测量结果：椎体中心与参考中点之间的水平距离
  */
 export const C7_OFFSET_CONFIG: AnnotationConfig = {
   id: 'c7-offset',
-  name: 'TS(Trunk Shift)',
+  name: 'TS',
   icon: 'ri-arrow-left-right-line',
-  description: 'C7偏移距离（正面6点法）',
+  description: '躯干偏移量TS(Trunk Shift)',
   pointsNeeded: 6,
   category: 'measurement',
   color: '#06b6d4',
@@ -888,7 +888,7 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 6) return [];
 
-    // 前4个点的锥体中心
+    // 前4个点的椎体中心
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
 
     // 后2个点的中点
@@ -899,7 +899,7 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
 
     return [
       {
-        name: 'TS(Trunk Shift)',
+        name: 'TS',
         value: actualDistance.toFixed(2),
         unit: 'mm',
       },
@@ -1398,7 +1398,7 @@ export const SVA_CONFIG: AnnotationConfig = {
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 5) return [];
 
-    // 计算前4个点的C7锥体中心
+    // 计算前4个点的C7椎体中心
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
 
@@ -1988,13 +1988,13 @@ export const POLYGON_CONFIG: AnnotationConfig = {
 };
 
 /**
- * 锥体中心（四边形 + 中心点标注）
+ * 椎体中心（四边形 + 中心点标注）
  */
 export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
   id: 'vertebra-center',
-  name: '锥体中心',
+  name: '椎体中心',
   icon: 'ri-focus-3-line',
-  description: '标注锥体中心（4个角点）',
+  description: '标注椎体中心（4个角点）',
   pointsNeeded: 4,
   category: 'auxiliary',
   color: '#10b981', // 绿色
