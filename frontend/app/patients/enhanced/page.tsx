@@ -96,9 +96,6 @@ const fetchPatients = async (params: {
   is_active?: boolean;
 }): Promise<PatientListResponse> => {
   try {
-    const { createAuthenticatedClient } = await import('@/store/authStore');
-    const client = createAuthenticatedClient();
-
     // 构建查询参数
     const queryParams = new URLSearchParams();
     if (params.page) queryParams.append('page', params.page.toString());
@@ -109,7 +106,7 @@ const fetchPatients = async (params: {
     if (params.is_active !== undefined)
       queryParams.append('is_active', params.is_active.toString());
 
-    const response = await client.get(`/api/v1/patients/?${queryParams}`);
+    const response = await apiClient.get(`/api/v1/patients/?${queryParams}`);
 
     if (response.data && response.data.patients) {
       // 转换API数据格式
@@ -443,3 +440,4 @@ export default function EnhancedPatientsPage() {
     </div>
   );
 }
+import { apiClient } from '@/lib/api';

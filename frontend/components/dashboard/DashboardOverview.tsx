@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/Button';
+import { apiClient } from '@/lib/api';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
@@ -97,11 +98,8 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
     try {
       setLoading(true);
 
-      const { createAuthenticatedClient } = await import('@/store/authStore');
-      const client = createAuthenticatedClient();
-
       // 获取仪表板统计数据
-      const statsResponse = await client.get('/api/v1/dashboard/stats');
+      const statsResponse = await apiClient.get('/api/v1/dashboard/stats');
       const overview: DashboardOverview = {
         total_patients: statsResponse.data.total_patients || 0,
         new_patients_today: statsResponse.data.new_patients_today || 0,
@@ -118,7 +116,7 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
       };
 
       // 获取任务数据
-      const tasksResponse = await client.get('/api/v1/dashboard/tasks');
+      const tasksResponse = await apiClient.get('/api/v1/dashboard/tasks');
       const tasks: TaskItem[] = (tasksResponse.data.tasks || []).map(
         (task: any) => ({
           task_id: task.task_id || task.id,
@@ -138,7 +136,7 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
       );
 
       // 获取通知数据
-      const notificationsResponse = await client.get(
+      const notificationsResponse = await apiClient.get(
         '/api/v1/notifications/messages'
       );
       const notifications: NotificationItem[] = (
@@ -156,7 +154,7 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
       }));
 
       // 获取系统指标
-      const metricsResponse = await client.get('/api/v1/system/stats');
+      const metricsResponse = await apiClient.get('/api/v1/system/stats');
       const metrics: SystemMetrics = {
         cpu_usage: metricsResponse.data.cpu_usage || 0,
         memory_usage: metricsResponse.data.memory_usage || 0,

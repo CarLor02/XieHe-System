@@ -2,7 +2,7 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { createAuthenticatedClient } from '@/store/authStore';
+import { apiClient } from '@/lib/api';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -174,7 +174,6 @@ export default function SyncPage() {
   };
 
   const importFile = async (file: ScanFile) => {
-    const client = createAuthenticatedClient();
     setFileImportState(file.id, 'inspecting', '读取DICOM元数据…');
 
     // 1. Inspect
@@ -192,14 +191,14 @@ export default function SyncPage() {
     let mainPatientId: number | null = null;
 
     // 先按 patient_id 搜索，找到直接关联，找不到才创建
-    const searchRes = await client.get(`/api/v1/patients?search=${encodeURIComponent(patientIdRaw)}&page_size=20`);
+    const searchRes = await apiClient.get(`/api/v1/patients?search=${encodeURIComponent(patientIdRaw)}&page_size=20`);
     const patientList: { id: number; patient_id: string }[] = searchRes.data?.data?.items ?? [];
     const existing = patientList.find(p => p.patient_id === patientIdRaw);
 
     if (existing) {
       mainPatientId = existing.id;
     } else {
-      const createRes = await client.post('/api/v1/patients', {
+      const createRes = await apiClient.post('/api/v1/patients', {
         patient_id: patientIdRaw,
         name: patientName,
         gender,
@@ -228,7 +227,7 @@ export default function SyncPage() {
     formData.append('patient_id', String(mainPatientId));
     formData.append('description', `DICOM导入 ${file.month_folder}/${file.patient_folder}`);
 
-    await client.post('/api/v1/upload/single', formData, {
+    await apiClient.post('/api/v1/upload/single', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 

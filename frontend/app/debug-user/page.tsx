@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from '@/store/authStore';
+import { useUser } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 
@@ -79,4 +79,3 @@ export default function DebugUserPage() {
     </div>
   );
 }
-

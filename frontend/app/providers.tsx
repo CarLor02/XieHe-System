@@ -9,7 +9,7 @@
  * @created 2025-10-16
  */
 
-import { useAuthStore } from '@/store/authStore';
+import { refreshAccessTokenWithLock, useSessionStore } from '@/lib/api';
 import React, { useEffect, useState } from 'react';
 
 interface ProvidersProps {
@@ -22,7 +22,9 @@ interface ProvidersProps {
  */
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
-  const { isAuthenticated, accessToken, fetchUserInfo } = useAuthStore();
+  const { isAuthenticated, session, fetchUserInfo } = useSessionStore();
+  const accessToken = session?.accessToken;
+  const refreshToken = session?.refreshToken;
 
   useEffect(() => {
     // 初始化认证状态
@@ -31,16 +33,22 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
         // 只在有访问令牌且已认证时才尝试验证 token
         if (accessToken && isAuthenticated) {
           // 尝试获取用户信息来验证 token 是否有效
-          const success = await fetchUserInfo();
+          let success = await fetchUserInfo();
+
+          if (!success && refreshToken) {
+            const refreshed = await refreshAccessTokenWithLock();
+            if (refreshed) {
+              success = await fetchUserInfo();
+            }
+          }
 
           if (!success) {
             // Token 无效或已过期，清除认证状态
             console.warn('Token validation failed, clearing auth state');
-            useAuthStore.setState({
+            useSessionStore.setState({
               isAuthenticated: false,
               user: null,
-              accessToken: null,
-              refreshToken: null,
+              session: null,
             });
           }
         }
@@ -53,7 +61,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     };
 
     initializeAuth();
-  }, [accessToken, isAuthenticated, fetchUserInfo]);
+  }, [accessToken, isAuthenticated, refreshToken, fetchUserInfo]);
 
   // 等待初始化完成
   if (!isInitialized) {

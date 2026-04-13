@@ -82,7 +82,7 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}): UseErrorH
     const id = handleApiError(error, context)
     
     // 如果是认证错误，设置错误状态
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 || error.status === 401) {
       setError(new Error('认证失败'))
       setErrorId(id)
       
@@ -197,7 +197,7 @@ export function useFormErrorHandler() {
   const { handleApiError } = useErrorHandler()
   
   const handleFormError = useCallback((error: any) => {
-    if (error.response?.status === 422) {
+    if (error.response?.status === 422 || error.status === 422) {
       // 验证错误
       const validationErrors = error.response.data.errors || []
       const newFieldErrors: Record<string, string> = {}

@@ -1,3 +1,4 @@
+import { apiClient } from '@/lib/api';
 import { useState } from 'react';
 
 interface AddModelDialogProps {
@@ -26,15 +27,12 @@ export default function AddModelDialog({ isOpen, onClose, onSuccess }: AddModelD
         setError(null);
 
         try {
-            const { createAuthenticatedClient } = await import('@/store/authStore');
-            const client = createAuthenticatedClient();
-
             const payload = {
                 ...formData,
                 tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean)
             };
 
-            await client.post('/api/v1/models/', payload);
+            await apiClient.post('/api/v1/models/', payload);
             onSuccess();
             onClose();
         } catch (err: any) {

@@ -9,7 +9,7 @@
  * @created 2025-09-24
  */
 
-import { useAuth, useUser } from '@/store/authStore';
+import { useAuth, useUser } from '@/lib/api';
 import { Building2, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';

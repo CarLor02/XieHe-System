@@ -3,7 +3,7 @@
 import BirthDatePicker from '@/components/BirthDatePicker';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { createAuthenticatedClient, useUser } from '@/store/authStore';
+import { apiClient, useUser } from '@/lib/api';
 import {
   extractBirthDateFromIdCard,
   extractGenderFromIdCard,
@@ -139,8 +139,7 @@ export default function AddPatientPage() {
       setLoading(true);
       setError(null);
 
-      const client = createAuthenticatedClient();
-      const response = await client.post('/api/v1/patients/', formData);
+      const response = await apiClient.post('/api/v1/patients/', formData);
 
       if (response.status === 200 || response.status === 201) {
         setSuccess(true);

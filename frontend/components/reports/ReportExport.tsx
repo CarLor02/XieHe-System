@@ -11,6 +11,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Button } from '../ui/Button'
+import { authenticatedJsonFetch } from '@/lib/api'
 
 interface ExportOptions {
   format: 'pdf' | 'word' | 'image' | 'html'
@@ -62,19 +63,18 @@ export default function ReportExport({
       const interval = setInterval(async () => {
         for (const task of processingTasks) {
           try {
-            const response = await fetch(`/api/v1/report-export/status/${task.taskId}`)
-            if (response.ok) {
-              const updatedTask = await response.json()
-              
-              setExportTasks(prev => prev.map(t => 
-                t.taskId === task.taskId ? updatedTask : t
-              ))
-              
-              if (updatedTask.status === 'completed' && updatedTask.downloadUrl) {
-                onExportComplete?.(updatedTask.taskId, updatedTask.downloadUrl)
-              } else if (updatedTask.status === 'failed') {
-                onExportError?.(updatedTask.message)
-              }
+            const updatedTask = await authenticatedJsonFetch<ExportTask>(
+              `/api/v1/report-export/status/${task.taskId}`
+            )
+
+            setExportTasks(prev => prev.map(t => 
+              t.taskId === task.taskId ? updatedTask : t
+            ))
+
+            if (updatedTask.status === 'completed' && updatedTask.downloadUrl) {
+              onExportComplete?.(updatedTask.taskId, updatedTask.downloadUrl)
+            } else if (updatedTask.status === 'failed') {
+              onExportError?.(updatedTask.message)
             }
           } catch (error) {
             console.error('检查导出状态失败:', error)
@@ -101,22 +101,15 @@ export default function ReportExport({
         ...(exportOptions.watermark && { watermark: exportOptions.watermark })
       })
 
-      const response = await fetch(
+      const result = await authenticatedJsonFetch<any>(
         `/api/v1/report-export/single/${reportId}?${params}`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
           }
         }
       )
-
-      if (!response.ok) {
-        throw new Error('导出请求失败')
-      }
-
-      const result = await response.json()
       
       const newTask: ExportTask = {
         taskId: result.task_id,
@@ -149,26 +142,22 @@ export default function ReportExport({
     onExportStart?.()
 
     try {
-      const response = await fetch('/api/v1/report-export/batch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify({
-          report_ids: reportIds,
-          format: exportOptions.format,
-          template: exportOptions.template,
-          include_images: exportOptions.includeImages,
-          watermark: exportOptions.watermark
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('批量导出请求失败')
-      }
-
-      const result = await response.json()
+      const result = await authenticatedJsonFetch<any>(
+        '/api/v1/report-export/batch',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            report_ids: reportIds,
+            format: exportOptions.format,
+            template: exportOptions.template,
+            include_images: exportOptions.includeImages,
+            watermark: exportOptions.watermark
+          })
+        }
+      )
       
       const newTask: ExportTask = {
         taskId: result.task_id,

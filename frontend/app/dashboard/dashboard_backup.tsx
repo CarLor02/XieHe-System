@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import StatsCard from '@/components/StatsCard';
 import TaskList from '@/components/TaskList';
 import { apiUrl } from '@/lib/config';
-import { useUser } from '@/store/authStore';
+import { useUser } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';

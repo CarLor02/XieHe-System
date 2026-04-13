@@ -1,6 +1,6 @@
 'use client';
 
-import { createAuthenticatedClient } from '@/store/authStore';
+import { apiClient } from '@/lib/api';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -28,8 +28,7 @@ export default function TaskList() {
       setLoading(true);
       setError(null);
 
-      const client = createAuthenticatedClient();
-      const response = await client.get(
+      const response = await apiClient.get(
         '/api/v1/image-files/?status=pending&page=1&page_size=20'
       );
 

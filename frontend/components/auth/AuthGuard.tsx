@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser, usePermissions } from '@/store/authStore'
+import { useUser, usePermissions } from '@/lib/api'
 import { Shield, AlertCircle, Loader2 } from 'lucide-react'
 
 interface AuthGuardProps {

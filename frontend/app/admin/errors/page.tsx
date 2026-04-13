@@ -12,6 +12,7 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
+import { authenticatedJsonFetch } from '@/lib/api';
 import React, { useEffect, useState } from 'react';
 
 // 错误统计数据接口
@@ -41,17 +42,9 @@ const ErrorMonitoringPage: React.FC = () => {
   const loadErrorStats = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/v1/errors/stats?hours=${timeRange}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await authenticatedJsonFetch<ErrorStats>(
+        `/api/v1/errors/stats?hours=${timeRange}`
+      );
       setErrorStats(data);
     } catch (error) {
       handleApiError(error, 'load_error_stats');
@@ -67,18 +60,10 @@ const ErrorMonitoringPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch('/api/v1/errors/clear', {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
+      const result = await authenticatedJsonFetch<{ message?: string }>(
+        '/api/v1/errors/clear',
+        { method: 'DELETE' }
+      );
       alert(result.message);
       loadErrorStats(); // 重新加载数据
     } catch (error) {

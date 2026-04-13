@@ -2,6 +2,7 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import { apiClient } from '@/lib/api';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -30,18 +31,15 @@ export default function ModelSettingsPage() {
 
     const fetchData = async () => {
         try {
-            const { createAuthenticatedClient } = await import('@/store/authStore');
-            const client = createAuthenticatedClient();
-
             // Fetch models
-            const modelsRes = await client.get('/api/v1/models/', { params: { page_size: 100 } });
+            const modelsRes = await apiClient.get('/api/v1/models/', { params: { page_size: 100 } });
             const allModels = modelsRes.data.models || [];
 
             setFrontModels(allModels.filter((m: any) => m.view_type === 'front'));
             setSideModels(allModels.filter((m: any) => m.view_type === 'side'));
 
             // Fetch config
-            const configRes = await client.get('/api/v1/models/configuration');
+            const configRes = await apiClient.get('/api/v1/models/configuration');
             setConfig({
                 front_model_id: configRes.data.front_model_id || '',
                 side_model_id: configRes.data.side_model_id || ''
@@ -57,10 +55,7 @@ export default function ModelSettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const { createAuthenticatedClient } = await import('@/store/authStore');
-            const client = createAuthenticatedClient();
-
-            await client.put('/api/v1/models/configuration', config);
+            await apiClient.put('/api/v1/models/configuration', config);
             alert('设置已保存');
             router.push('/model-center');
         } catch (error) {

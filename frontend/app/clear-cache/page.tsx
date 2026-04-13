@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useSessionStore } from '@/lib/api';
 
 export default function ClearCachePage() {
   const [cleared, setCleared] = useState(false);
   const router = useRouter();
-  const { forceLogout } = useAuthStore();
+  const { forceLogout } = useSessionStore();
 
   useEffect(() => {
     // 清除所有缓存
@@ -58,4 +58,3 @@ export default function ClearCachePage() {
     </div>
   );
 }
-

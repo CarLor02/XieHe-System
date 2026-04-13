@@ -1,6 +1,6 @@
 'use client';
 
-import { createAuthenticatedClient } from '@/store/authStore';
+import { apiClient } from '@/lib/api';
 import { useEffect, useState } from 'react';
 
 interface Role {
@@ -30,8 +30,7 @@ export default function RolesPage() {
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const client = createAuthenticatedClient();
-      const response = await client.get('/api/v1/permissions/roles');
+      const response = await apiClient.get('/api/v1/permissions/roles');
       setRoles(response.data);
       setError(null);
     } catch (err: any) {

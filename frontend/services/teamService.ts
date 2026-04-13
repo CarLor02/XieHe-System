@@ -1,6 +1,6 @@
-import { createAuthenticatedClient } from '@/store/authStore';
+import { apiClient } from '@/lib/api';
 import { handleApiError } from './errorService';
-import { extractData } from '@/utils/apiResponseHandler';
+import { extractData } from '@/lib/api/types';
 
 export interface TeamSummary {
   id: number;
@@ -87,7 +87,7 @@ export interface TeamCreateRequest {
   max_members?: number;
 }
 
-const client = createAuthenticatedClient();
+const client = apiClient;
 
 export async function searchTeams(keyword: string): Promise<TeamSearchResponse> {
   try {

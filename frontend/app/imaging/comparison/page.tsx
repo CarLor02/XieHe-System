@@ -14,8 +14,8 @@ import Sidebar from '@/components/Sidebar';
 import ImageComparison, {
   ComparisonMode,
 } from '@/components/medical/ImageComparison';
-import { createAuthenticatedClient } from '@/store/authStore';
-import { extractPaginatedData } from '@/utils/apiResponseHandler';
+import { apiClient } from '@/lib/api';
+import { extractPaginatedData } from '@/lib/api/types';
 import { useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
@@ -164,8 +164,7 @@ const ImageComparisonContent: React.FC = () => {
     setError(null);
 
     try {
-      const client = createAuthenticatedClient();
-      const response = await client.get('/api/v1/image-files/?page=1&page_size=20');
+      const response = await apiClient.get('/api/v1/image-files/?page=1&page_size=20');
 
       // 使用 extractPaginatedData 提取影像列表
       const result = extractPaginatedData<any>(response);

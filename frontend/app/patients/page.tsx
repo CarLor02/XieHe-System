@@ -3,8 +3,8 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Tooltip from '@/components/ui/Tooltip';
-import { createAuthenticatedClient, useUser } from '@/store/authStore';
-import { extractPaginatedData } from '@/utils/apiResponseHandler';
+import { apiClient, useUser } from '@/lib/api';
+import { extractPaginatedData } from '@/lib/api/types';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -70,7 +70,6 @@ export default function PatientsPage() {
       setLoading(true);
       setError(null);
 
-      const client = createAuthenticatedClient();
       const params = new URLSearchParams({
         page: currentPage.toString(),
         page_size: pageSize.toString(),
@@ -102,7 +101,7 @@ export default function PatientsPage() {
       params.append('sort_by', sortBy);
       params.append('sort_order', sortOrder);
 
-      const response = await client.get(
+      const response = await apiClient.get(
         `/api/v1/patients/?${params.toString()}`
       );
 

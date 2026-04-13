@@ -3,13 +3,13 @@
 import BirthDatePicker from '@/components/BirthDatePicker';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { createAuthenticatedClient } from '@/store/authStore';
+import { apiClient } from '@/lib/api';
 import {
   extractBirthDateFromIdCard,
   extractGenderFromIdCard,
   validateIdCard,
 } from '@/utils/idCardUtils';
-import { extractData } from '@/utils/apiResponseHandler';
+import { extractData } from '@/lib/api/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
@@ -56,8 +56,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
         setLoading(true);
         setError(null);
 
-        const client = createAuthenticatedClient();
-        const response = await client.get(`/api/v1/patients/${patientId}`);
+        const response = await apiClient.get(`/api/v1/patients/${patientId}`);
 
         // 使用 extractData 提取患者数据
         const patient = extractData<any>(response);
@@ -147,8 +146,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
       setSaving(true);
       setError(null);
 
-      const client = createAuthenticatedClient();
-      const response = await client.put(`/api/v1/patients/${patientId}`, formData);
+      const response = await apiClient.put(`/api/v1/patients/${patientId}`, formData);
 
       if (response.status === 200) {
         setShowSaveModal(true);

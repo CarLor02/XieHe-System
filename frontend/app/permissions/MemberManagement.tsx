@@ -13,7 +13,7 @@ import {
   inviteTeamMember,
   reviewTeamJoinRequest,
 } from '@/services/teamService';
-import { useUser } from '@/store/authStore';
+import { useUser } from '@/lib/api';
 
 const ROLE_OPTIONS = [
   { id: 'member', name: '普通成员', description: '参与团队协作' },

@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createAuthenticatedClient, useUser } from '../../../../store/authStore';
+import { apiClient, authenticatedBlobFetch, useUser } from '@/lib/api';
 import {
   extractData,
   extractPaginatedData,
-} from '../../../../utils/apiResponseHandler';
+} from '@/lib/api/types';
 import AnnotationCanvas from './components/AnnotationCanvas';
 import AnnotationToolbar from './components/AnnotationToolbar';
 import StudyHeader from './components/StudyHeader';
@@ -163,8 +163,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         setStudyLoading(true);
         // 直接使用imageId作为image_files表的ID
         const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-        const client = createAuthenticatedClient();
-        const response = await client.get(`/api/v1/image-files/${numericId}`);
+        const response = await apiClient.get(`/api/v1/image-files/${numericId}`);
 
         // 使用 extractData 提取影像文件数据
         const imageFile = extractData<any>(response);
@@ -427,8 +426,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   useEffect(() => {
     const fetchImageList = async () => {
       try {
-        const client = createAuthenticatedClient();
-        const response = await client.get(
+        const response = await apiClient.get(
           '/api/v1/image-files?page=1&page_size=100'
         );
 
@@ -461,8 +459,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
     try {
       // 调用后端API生成报告
-      const client = createAuthenticatedClient();
-      const response = await client.post('/api/v1/report-generation/generate', {
+      const response = await apiClient.post('/api/v1/report-generation/generate', {
         imageId: imageId,
         examType: imageData.examType,
         measurements: measurements.map(m => ({
@@ -568,10 +565,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const loadMeasurements = async () => {
     setIsMeasurementsLoading(true);
     try {
-      const client = createAuthenticatedClient();
       // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零），与保存时保持一致
       const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-      const response = await client.get(`/api/v1/measurements/${numericId}`);
+      const response = await apiClient.get(`/api/v1/measurements/${numericId}`);
       if (response.status === 200) {
         // 使用 extractData 提取测量数据
         const data = extractData<any>(response);
@@ -797,7 +793,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       );
 
       // 2. 保存到服务器
-      const client = createAuthenticatedClient();
       // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
       const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
       const measurementData = {
@@ -809,7 +804,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         savedAt: new Date().toISOString(),
       };
 
-      const response = await client.post(
+      const response = await apiClient.post(
         `/api/v1/measurements/${numericId}`,
         measurementData
       );
@@ -1008,26 +1003,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
     try {
       // 获取图片文件
-      const { accessToken } =
-        require('../../../../store/authStore').useAuthStore.getState();
       const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
 
       // 先获取图片
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const imageResponse = await fetch(
-        `${apiUrl}/api/v1/image-files/${numericId}/download`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
+      const imageBlob = await authenticatedBlobFetch(
+        `${apiUrl}/api/v1/image-files/${numericId}/download`
       );
-
-      if (!imageResponse.ok) {
-        throw new Error('获取图片失败');
-      }
-
-      const imageBlob = await imageResponse.blob();
 
       // 构建FormData
       const formData = new FormData();
@@ -1510,8 +1492,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
     try {
       const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-      const client = createAuthenticatedClient();
-
       const annotationData = {
         measurements: measurements,
         standardDistance: standardDistance,
@@ -1522,7 +1502,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         savedAt: new Date().toISOString(),
       };
 
-      const response = await client.patch(
+      const response = await apiClient.patch(
         `/api/v1/image-files/${numericId}/annotation`,
         { annotation: JSON.stringify(annotationData) }
       );
@@ -1592,7 +1572,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       );
 
       // 2. 保存到服务器
-      const client = createAuthenticatedClient();
       // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
       const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
       const measurementData = {
@@ -1604,7 +1583,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         savedAt: new Date().toISOString(),
       };
 
-      const response = await client.post(
+      const response = await apiClient.post(
         `/api/v1/measurements/${numericId}`,
         measurementData
       );
@@ -1632,7 +1611,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           imageHeight: imageNaturalSize?.height,
           savedAt: new Date().toISOString(),
         };
-        await client.patch(`/api/v1/image-files/${numericId}/annotation`, {
+        await apiClient.patch(`/api/v1/image-files/${numericId}/annotation`, {
           annotation: JSON.stringify(annotationData),
         });
         console.log('绑定数据已同步至 annotation 字段');

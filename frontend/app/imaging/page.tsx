@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Tooltip from '@/components/ui/Tooltip';
-import { useUser } from '@/store/authStore';
+import { useUser } from '@/lib/api';
 import {
   getImageFiles,
   deleteImageFile,
@@ -17,7 +17,7 @@ import {
 import {
   checkAndHandleAuthError,
   getErrorMessage,
-} from '@/utils/authErrorHandler';
+} from '@/lib/api';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';

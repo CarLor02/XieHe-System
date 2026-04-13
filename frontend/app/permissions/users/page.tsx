@@ -1,6 +1,6 @@
 'use client';
 
-import { createAuthenticatedClient } from '@/store/authStore';
+import { apiClient } from '@/lib/api';
 import { useEffect, useState } from 'react';
 
 interface UserPermission {
@@ -42,7 +42,6 @@ export default function UserPermissionsPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const client = createAuthenticatedClient();
       // 模拟用户数据，因为用户API还在开发中
       const mockUsers: User[] = [
         {
@@ -83,8 +82,7 @@ export default function UserPermissionsPage() {
   const fetchUserPermissions = async (userId: number) => {
     try {
       setPermissionsLoading(true);
-      const client = createAuthenticatedClient();
-      const response = await client.get(
+      const response = await apiClient.get(
         `/api/v1/permissions/users/${userId}/permissions`
       );
       setUserPermissions(response.data);

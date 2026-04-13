@@ -15,7 +15,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useAuthStore } from '@/store/authStore'
+import { useSessionStore } from '@/lib/api'
 
 // WebSocket连接状态
 export enum WebSocketStatus {
@@ -84,7 +84,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
   const subscribedChannelsRef = useRef<Set<string>>(new Set())
   
   // 获取用户信息
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated } = useSessionStore()
   
   // 日志函数
   const log = useCallback((message: string, ...args: any[]) => {

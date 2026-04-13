@@ -4,8 +4,8 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import StatsCard from '@/components/StatsCard';
 import TaskList from '@/components/TaskList';
-import { createAuthenticatedClient, useUser } from '@/store/authStore';
-import { extractData } from '@/utils/apiResponseHandler';
+import { apiClient, useUser } from '@/lib/api';
+import { extractData } from '@/lib/api/types';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -29,8 +29,7 @@ interface DashboardOverview {
 // API调用函数
 const fetchDashboardOverview = async (): Promise<DashboardOverview> => {
   try {
-    const client = createAuthenticatedClient();
-    const response = await client.get('/api/v1/dashboard/stats');
+    const response = await apiClient.get('/api/v1/dashboard/stats');
 
     // 使用 extractData 提取数据
     const data = extractData<any>(response);

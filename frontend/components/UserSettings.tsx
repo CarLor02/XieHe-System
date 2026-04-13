@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getCurrentUser, updateCurrentUser, UserInfo } from '@/services/userService';
-import { useAuthStore } from '@/store/authStore';
+import { useSessionStore } from '@/lib/api';
 import { getMyTeams } from '@/services/teamService';
 import type { TeamSummary } from '@/services/teamService';
 
@@ -35,7 +35,7 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
   });
 
   // 获取 authStore 的 fetchUserInfo 方法
-  const { fetchUserInfo } = useAuthStore();
+  const { fetchUserInfo } = useSessionStore();
 
   // 当 type 改变时，更新 activeTab
   useEffect(() => {

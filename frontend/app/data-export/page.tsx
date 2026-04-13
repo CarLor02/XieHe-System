@@ -2,23 +2,11 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { createAuthenticatedClient, useUser } from '@/store/authStore';
+import { useUser } from '@/lib/api';
+import { getImageFiles, type ImageFile } from '@/services/imageFileService';
 import { Download, FileSpreadsheet, Search, CheckSquare, Square } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-interface ImageItem {
-  id: number;
-  file_uuid: string;
-  original_filename: string;
-  description: string;
-  created_at: string;
-  annotation: string;
-  patient?: {
-    id: number;
-    name: string;
-  };
-}
 
 export default function DataExportPage() {
   const router = useRouter();
@@ -32,7 +20,7 @@ export default function DataExportPage() {
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel'>('csv');
 
   // 影像列表和选择
-  const [images, setImages] = useState<ImageItem[]>([]);
+  const [images, setImages] = useState<ImageFile[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isLoadingList, setIsLoadingList] = useState(false);
 
@@ -61,71 +49,38 @@ export default function DataExportPage() {
     }
   }, [mounted, isAuthenticated, user, router]);
 
-  // 获取影像列表（支持分页自动加载所有数据）
+  // 获取影像列表
   const fetchImages = async () => {
     setIsLoadingList(true);
-    setMessage(''); // 清空之前的错误消息
     try {
-      const client = createAuthenticatedClient();
-
-      // 构建基础查询参数
-      const baseParams: any = {};
-      if (dateRange.start) baseParams.start_date = dateRange.start;
-      if (dateRange.end) baseParams.end_date = dateRange.end;
-      if (examType !== 'all') baseParams.description = examType;
-      if (searchQuery) baseParams.search = searchQuery;
-
-      // 分页加载所有数据
-      let allImages: any[] = [];
-      let currentPage = 1;
-      const pageSize = 100;
-      let hasMore = true;
-
-      while (hasMore) {
-        const params = { ...baseParams, page: currentPage, page_size: pageSize };
-        console.log('[数据导出] 请求参数 (第', currentPage, '页):', params);
-
-        const response = await client.get('/api/v1/image-files/', { params });
-        console.log('[数据导出] API原始响应:', response);
-        console.log('[数据导出] response.data:', response.data);
-
-        // API 返回格式: { code, message, data: { items, total, ... }, timestamp }
-        const responseData = response.data?.data || response.data;
-        const items = responseData?.items || [];
-        const total = responseData?.total || 0;
-
-        console.log('[数据导出] items数组:', items);
-        console.log('[数据导出] total:', total);
-
-        allImages = [...allImages, ...items];
-
-        // 判断是否还有更多数据
-        hasMore = allImages.length < total;
-        currentPage++;
-      }
-
-      console.log('[数据导出] 总影像数:', allImages.length);
+      const response = await getImageFiles({
+        page: 1,
+        page_size: 20,
+        start_date: dateRange.start || undefined,
+        end_date: dateRange.end || undefined,
+        description: examType !== 'all' ? examType : undefined,
+        search: searchQuery || undefined,
+      });
+      const allImages = response.items || [];
 
       // 只显示有标注的影像
-      const annotatedImages = allImages.filter((img: any) => {
+      const annotatedImages = allImages.filter(img => {
         if (!img.annotation) return false;
         try {
           const annotationData = JSON.parse(img.annotation);
-          return annotationData.measurements && annotationData.measurements.length > 0;
+          return (
+            Array.isArray(annotationData.measurements) &&
+            annotationData.measurements.length > 0
+          );
         } catch {
           return false;
         }
       });
 
-      console.log('[数据导出] 已标注影像数:', annotatedImages.length);
       setImages(annotatedImages);
-
-      if (annotatedImages.length === 0 && allImages.length > 0) {
-        setMessage('未找到已标注的影像数据');
-      }
-    } catch (error: any) {
-      console.error('[数据导出] 获取影像列表失败:', error);
-      setMessage(error.response?.data?.message || error.response?.data?.detail || '获取影像列表失败，请重试');
+    } catch (error) {
+      console.error('获取影像列表失败:', error);
+      setMessage('获取影像列表失败，请重试');
     } finally {
       setIsLoadingList(false);
     }
@@ -190,27 +145,21 @@ export default function DataExportPage() {
       setExportProgress(70);
 
       // 准备导出数据
-      const exportData = selectedImages.map((img: any) => {
-        const measurements: any = {};
-        const pointsData: any = {};
+      const exportData = selectedImages.map(img => {
+        const measurements: Record<string, string | number> = {};
 
         try {
-          const annotationData = JSON.parse(img.annotation);
+          const annotationData = JSON.parse(img.annotation || '{}');
 
-          // 提取测量值
-          if (annotationData.measurements && annotationData.measurements.length > 0) {
+          if (
+            Array.isArray(annotationData.measurements) &&
+            annotationData.measurements.length > 0
+          ) {
             annotationData.measurements.forEach((m: any) => {
+              // 提取测量类型和值
               const typeName = m.type || 'Unknown';
               const value = m.value || '';
-              measurements[`${typeName}_测量值`] = value;
-
-              // 提取点位坐标
-              if (m.points && Array.isArray(m.points)) {
-                const pointsStr = m.points.map((p: any, idx: number) =>
-                  `P${idx + 1}(${p.x?.toFixed(2) || 0},${p.y?.toFixed(2) || 0})`
-                ).join('; ');
-                pointsData[`${typeName}_点位坐标`] = pointsStr;
-              }
+              measurements[typeName] = value;
             });
           }
 
@@ -224,12 +173,11 @@ export default function DataExportPage() {
 
         return {
           影像ID: img.id,
-          患者姓名: img.patient?.name || '',
+          患者姓名: img.patient?.name || img.patient_name || '',
           检查类型: img.description || '',
           上传日期: new Date(img.created_at).toLocaleDateString('zh-CN'),
           文件名: img.original_filename || '',
           ...measurements,
-          ...pointsData,
         };
       });
       
@@ -452,7 +400,7 @@ export default function DataExportPage() {
                       const isSelected = selectedIds.has(img.id);
                       let measurementCount = 0;
                       try {
-                        const annotationData = JSON.parse(img.annotation);
+                        const annotationData = JSON.parse(img.annotation || '{}');
                         measurementCount = annotationData.measurements?.length || 0;
                       } catch {}
 

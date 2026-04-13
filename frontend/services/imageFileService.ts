@@ -5,8 +5,8 @@
  * 基于新的 image_files 表
  */
 
-import { createAuthenticatedClient } from '@/store/authStore';
-import { extractData, extractPaginatedData } from '@/utils/apiResponseHandler';
+import { apiClient } from '@/lib/api';
+import { extractData, extractPaginatedData } from '@/lib/api/types';
 
 export interface ImageFile {
   id: number;
@@ -25,6 +25,12 @@ export interface ImageFile {
   body_part?: string;
   study_date?: string;
   description?: string;
+  annotation?: string;
+  patient?: {
+    id: number;
+    name: string;
+  };
+  patient_name?: string;
   status:
     | 'UPLOADING'
     | 'UPLOADED'
@@ -82,8 +88,6 @@ export interface ImageFileFilters {
 export async function getImageFiles(
   filters: ImageFileFilters = {}
 ): Promise<ImageFileListResponse> {
-  const client = createAuthenticatedClient();
-
   const params: any = {
     page: filters.page || 1,
     page_size: filters.page_size || 20,
@@ -96,7 +100,7 @@ export async function getImageFiles(
   if (filters.search) params.search = filters.search;
   if (filters.review_status) params.review_status = filters.review_status;
 
-  const response = await client.get('/api/v1/image-files', { params });
+  const response = await apiClient.get('/api/v1/image-files', { params });
   const result = extractPaginatedData<ImageFile>(response);
 
   return {
@@ -115,8 +119,7 @@ export async function getPatientImages(
   page = 1,
   pageSize = 20
 ): Promise<ImageFileListResponse> {
-  const client = createAuthenticatedClient();
-  const response = await client.get(
+  const response = await apiClient.get(
     `/api/v1/image-files/patient/${patientId}`,
     {
       params: { page, page_size: pageSize },
@@ -136,8 +139,7 @@ export async function getPatientImages(
  * 获取影像文件详情
  */
 export async function getImageFile(fileId: number): Promise<ImageFile> {
-  const client = createAuthenticatedClient();
-  const response = await client.get(`/api/v1/image-files/${fileId}`);
+  const response = await apiClient.get(`/api/v1/image-files/${fileId}`);
   return extractData<ImageFile>(response);
 }
 
@@ -148,8 +150,7 @@ export async function downloadImageFile(
   fileId: number,
   options: { signal?: AbortSignal } = {}
 ): Promise<Blob> {
-  const client = createAuthenticatedClient();
-  const response = await client.get(`/api/v1/image-files/${fileId}/download`, {
+  const response = await apiClient.get(`/api/v1/image-files/${fileId}/download`, {
     responseType: 'blob',
     signal: options.signal,
   });
@@ -163,8 +164,7 @@ export async function downloadImageFile(
 export async function deleteImageFile(
   fileId: number
 ): Promise<{ message: string; file_id: number }> {
-  const client = createAuthenticatedClient();
-  const response = await client.delete(`/api/v1/image-files/${fileId}`);
+  const response = await apiClient.delete(`/api/v1/image-files/${fileId}`);
   return extractData<{ message: string; file_id: number }>(response);
 }
 
@@ -175,14 +175,12 @@ export async function updateImageExamType(
   fileId: number,
   description: string
 ): Promise<{ id: number; description: string; warning: string | null }> {
-  const client = createAuthenticatedClient();
-  const response = await client.patch(`/api/v1/image-files/${fileId}/exam-type`, { description });
+  const response = await apiClient.patch(`/api/v1/image-files/${fileId}/exam-type`, { description });
   return extractData<{ id: number; description: string; warning: string | null }>(response);
 }
 
 export async function getImageStats(): Promise<ImageFileStats> {
-  const client = createAuthenticatedClient();
-  const response = await client.get('/api/v1/image-files/stats/summary');
+  const response = await apiClient.get('/api/v1/image-files/stats/summary');
   return extractData<ImageFileStats>(response);
 }
 
@@ -195,8 +193,7 @@ export async function getImagePreviewUrl(fileId: number): Promise<string> {
   const PREVIEW_TIMEOUT_MS = 30_000;
 
   try {
-    const client = createAuthenticatedClient();
-    const response = await client.get(`/api/v1/image-files/${fileId}/download`, {
+    const response = await apiClient.get(`/api/v1/image-files/${fileId}/download`, {
       responseType: 'blob',
       timeout: PREVIEW_TIMEOUT_MS,
     });

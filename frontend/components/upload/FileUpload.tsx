@@ -11,6 +11,7 @@
 
 import React, { useState, useRef, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
+import { authenticatedJsonFetch } from '@/lib/api'
 
 interface FileUploadProps {
   onUploadComplete?: (files: UploadedFile[]) => void
@@ -208,20 +209,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
     formData.append('file', file)
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${apiUrl}/api/v1/upload/single`, {
-      method: 'POST',
-      body: formData,
-      signal,
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+    const result = await authenticatedJsonFetch<any>(
+      `${apiUrl}/api/v1/upload/single`,
+      {
+        method: 'POST',
+        body: formData,
+        signal,
       }
-    })
-
-    if (!response.ok) {
-      throw new Error(`上传失败: ${response.statusText}`)
-    }
-
-    const result = await response.json()
+    )
 
     // 更新进度为完成
     const completedProgress: UploadProgress = {
@@ -270,18 +265,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
       formData.append('chunk_hash', chunkHash)
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/v1/upload/chunk`, {
-        method: 'POST',
-        body: formData,
-        signal,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      await authenticatedJsonFetch<any>(
+        `${apiUrl}/api/v1/upload/chunk`,
+        {
+          method: 'POST',
+          body: formData,
+          signal,
         }
-      })
-
-      if (!response.ok) {
-        throw new Error(`分片上传失败: ${response.statusText}`)
-      }
+      )
 
       // 更新进度
       const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100)
@@ -302,23 +293,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
     // 完成上传
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const completeResponse = await fetch(`${apiUrl}/api/v1/upload/complete/${fileId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-      },
-      body: new URLSearchParams({
-        filename: file.name
-      }),
-      signal
-    })
-
-    if (!completeResponse.ok) {
-      throw new Error(`完成上传失败: ${completeResponse.statusText}`)
-    }
-
-    const result = await completeResponse.json()
+    const result = await authenticatedJsonFetch<any>(
+      `${apiUrl}/api/v1/upload/complete/${fileId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          filename: file.name
+        }),
+        signal
+      }
+    )
 
     // 更新为完成状态
     const completedProgress: UploadProgress = {

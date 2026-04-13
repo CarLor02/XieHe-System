@@ -5,8 +5,12 @@ import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { createAuthenticatedClient } from '@/store/authStore';
-import { extractData, extractPaginatedData } from '@/utils/apiResponseHandler';
+import { apiClient } from '@/lib/api';
+import { extractData } from '@/lib/api/types';
+import {
+  getPatientImages,
+  type ImageFile,
+} from '@/services/imageFileService';
 
 // 患者详情数据接口
 interface PatientDetail {
@@ -29,16 +33,6 @@ interface PatientDetail {
   updated_at: string;
 }
 
-interface ImageFile {
-  id: number;
-  file_uuid: string;
-  original_filename: string;
-  file_type: string;
-  modality: string;
-  study_date: string;
-  status: string;
-}
-
 export default function PatientDetail({ patientId }: { patientId: string }) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -53,8 +47,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
     const fetchPatient = async () => {
       try {
         setLoading(true);
-        const client = createAuthenticatedClient();
-        const response = await client.get(`/api/v1/patients/${patientId}`);
+        const response = await apiClient.get(`/api/v1/patients/${patientId}`);
 
         // 使用 extractData 提取患者数据
         const patientData = extractData<PatientDetail>(response);
@@ -76,12 +69,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
     const fetchImages = async () => {
       try {
         setImagesLoading(true);
-        const client = createAuthenticatedClient();
-        // 通过患者ID获取影像文件列表
-        const response = await client.get(`/api/v1/image-files/patient/${patientId}?page=1&page_size=20`);
-
-        // 使用 extractPaginatedData 提取影像列表
-        const result = extractPaginatedData<ImageFile>(response);
+        const result = await getPatientImages(Number(patientId), 1, 20);
         setImageFiles(result.items);
       } catch (err: any) {
         console.error('获取影像记录失败:', err);
@@ -444,8 +432,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                 <button
                   onClick={async () => {
                     try {
-                      const client = createAuthenticatedClient();
-                      await client.delete(`/api/v1/patients/${patientId}`);
+                      await apiClient.delete(`/api/v1/patients/${patientId}`);
                       router.push('/patients');
                     } catch (err: any) {
                       console.error('删除患者失败:', err);

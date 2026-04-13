@@ -2,7 +2,7 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { useUser } from '@/store/authStore';
+import { useUser } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 // import DataPermissions from './DataPermissions'; // 暂时隐藏

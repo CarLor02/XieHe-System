@@ -8,7 +8,7 @@ import Link from 'next/link';
 import AddModelDialog from './AddModelDialog';
 import DeleteModelDialog from './DeleteModelDialog';
 import ModelCard from './ModelCard';
-import { createAuthenticatedClient, useUser } from '@/store/authStore';
+import { apiClient, useUser } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
 interface ModelData {
@@ -55,15 +55,12 @@ export default function ModelCenter() {
       setLoading(true);
       setError(null);
 
-      const { createAuthenticatedClient } = await import('@/store/authStore');
-      const client = createAuthenticatedClient();
-
-      const response = await client.get('/api/v1/models/', {
+      const response = await apiClient.get('/api/v1/models/', {
         params: { page_size: 100 }
       });
 
       try {
-        const statsRes = await client.get('/api/v1/models/stats');
+        const statsRes = await apiClient.get('/api/v1/models/stats');
         setStats(statsRes.data);
       } catch (e) {
         console.error("Stats fetch failed", e);
@@ -107,10 +104,7 @@ export default function ModelCenter() {
   // 激活模型
   const handleActivateModel = async (model: ModelData) => {
     try {
-      const { createAuthenticatedClient } = await import('@/store/authStore');
-      const client = createAuthenticatedClient();
-
-      await client.post(`/api/v1/models/${model.id}/activate`);
+      await apiClient.post(`/api/v1/models/${model.id}/activate`);
 
       // 刷新模型列表
       await loadModels();
@@ -128,10 +122,7 @@ export default function ModelCenter() {
     if (!deleteModel) return;
 
     try {
-      const { createAuthenticatedClient } = await import('@/store/authStore');
-      const client = createAuthenticatedClient();
-
-      const response = await client.delete(`/api/v1/models/${deleteModel.id}`);
+      const response = await apiClient.delete(`/api/v1/models/${deleteModel.id}`);
 
       // 关闭对话框
       setDeleteModel(null);

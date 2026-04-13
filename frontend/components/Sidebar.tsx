@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Tooltip from './ui/Tooltip';
-import { useUser } from '@/store/authStore';
+import { useUser } from '@/lib/api';
 
 const navigation = [
   { name: '工作台', href: '/dashboard', icon: 'ri-dashboard-line', tooltip: '查看工作台和统计数据' },

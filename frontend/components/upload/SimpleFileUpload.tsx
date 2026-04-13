@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useRef, DragEvent, ChangeEvent } from 'react'
+import { authenticatedJsonFetch } from '@/lib/api'
 
 interface SimpleFileUploadProps {
   onFilesSelected?: (files: File[]) => void
@@ -209,19 +210,13 @@ const SimpleFileUpload: React.FC<SimpleFileUploadProps> = ({
 
         // 上传文件
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/v1/upload/single`, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        const result = await authenticatedJsonFetch<any>(
+          `${apiUrl}/api/v1/upload/single`,
+          {
+            method: 'POST',
+            body: formData,
           }
-        })
-
-        if (!response.ok) {
-          throw new Error(`上传失败: ${response.statusText}`)
-        }
-
-        const result = await response.json()
+        )
 
         // 更新为完成状态
         const completedProgress: UploadProgress = {

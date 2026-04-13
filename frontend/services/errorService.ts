@@ -22,7 +22,7 @@ import {
   isNetworkError,
   isTimeoutError,
   getStatusCode,
-} from '../utils/apiResponseHandler';
+} from '@/lib/api/types';
 
 // 错误类型枚举
 export enum ErrorType {

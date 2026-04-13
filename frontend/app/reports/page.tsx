@@ -11,8 +11,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/store/authStore';
-import { extractPaginatedData } from '@/utils/apiResponseHandler';
+import { apiClient, useUser } from '@/lib/api';
+import { extractPaginatedData } from '@/lib/api/types';
 import ReportEditor from '../../components/reports/ReportEditor';
 import ReportExport from '../../components/reports/ReportExport';
 import ReportPreview from '../../components/reports/ReportPreview';
@@ -97,9 +97,6 @@ export default function ReportsPage() {
       setLoading(true);
       setError(null);
 
-      const { createAuthenticatedClient } = await import('@/store/authStore');
-      const client = createAuthenticatedClient();
-
       // 构建查询参数
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
@@ -115,7 +112,7 @@ export default function ReportsPage() {
         params.append('priority', priorityFilter);
       }
 
-      const response = await client.get(`/api/v1/reports/?${params}`);
+      const response = await apiClient.get(`/api/v1/reports/?${params}`);
 
       // 使用 extractPaginatedData 提取分页数据
       const result = extractPaginatedData<any>(response);

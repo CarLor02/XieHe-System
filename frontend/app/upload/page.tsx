@@ -2,8 +2,8 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { createAuthenticatedClient, useUser } from '@/store/authStore';
-import { extractPaginatedData } from '@/utils/apiResponseHandler';
+import { apiClient, useUser } from '@/lib/api';
+import { extractPaginatedData } from '@/lib/api/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
 
@@ -69,8 +69,7 @@ function UploadContent() {
     // 获取患者列表
     const fetchPatients = async () => {
       try {
-        const client = createAuthenticatedClient();
-        const response = await client.get(
+        const response = await apiClient.get(
           '/api/v1/patients/?page=1&page_size=100'
         );
 
@@ -136,7 +135,6 @@ function UploadContent() {
 
   const uploadFile = async (fileId: string, file: File) => {
     try {
-      const client = createAuthenticatedClient();
       const formData = new FormData();
       formData.append('file', file);
       if (selectedPatient) {
@@ -146,7 +144,7 @@ function UploadContent() {
         formData.append('description', examType);
       }
 
-      const response = await client.post('/api/v1/upload/single', formData, {
+      const response = await apiClient.post('/api/v1/upload/single', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

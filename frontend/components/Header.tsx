@@ -1,8 +1,8 @@
 'use client';
 
 import UserSettings from '@/components/UserSettings';
-import { createAuthenticatedClient, useAuth, useUser } from '@/store/authStore';
-import { extractData } from '@/utils/apiResponseHandler';
+import { apiClient, useAuth, useUser } from '@/lib/api';
+import { extractData } from '@/lib/api/types';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Tooltip from './ui/Tooltip';
@@ -44,12 +44,10 @@ export default function Header() {
       if (!user) return;
 
       try {
-        const client = createAuthenticatedClient();
-
         // 获取系统通知
         let systemMessages: Message[] = [];
         try {
-          const response = await client.get('/api/v1/notifications/messages');
+          const response = await apiClient.get('/api/v1/notifications/messages');
           // 使用 extractData 提取通知数据
           const notificationData = extractData<any[]>(response);
           // 确保返回的是数组
@@ -71,7 +69,7 @@ export default function Header() {
         // 获取团队邀请
         let invitationMessages: Message[] = [];
         try {
-          const invitationsResponse = await client.get('/api/v1/permissions/invitations/my');
+          const invitationsResponse = await apiClient.get('/api/v1/permissions/invitations/my');
           // 使用 extractData 提取邀请数据
           const invitationsData = extractData<{ items: any[] }>(invitationsResponse);
           const invitations = invitationsData.items || [];

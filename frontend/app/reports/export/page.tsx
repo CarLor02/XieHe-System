@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { apiClient } from '@/lib/api';
 import ReportExport from '../../../components/reports/ReportExport';
 import { Button } from '../../../components/ui/Button';
 
@@ -51,11 +52,8 @@ export default function ReportExportPage() {
     try {
       setLoading(true);
 
-      const { createAuthenticatedClient } = await import('@/store/authStore');
-      const client = createAuthenticatedClient();
-
       // 只获取已完成的报告用于导出
-      const response = await client.get(
+      const response = await apiClient.get(
         '/api/v1/reports/?status=finalized&status=approved'
       );
 

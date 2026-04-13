@@ -19,7 +19,7 @@ import {
   searchTeams,
   updateMemberRole,
 } from '@/services/teamService';
-import { useUser } from '@/store/authStore';
+import { useUser } from '@/lib/api';
 import TeamInvitations from './TeamInvitations';
 
 const STATUS_BADGE_MAP: Record<string, string> = {
