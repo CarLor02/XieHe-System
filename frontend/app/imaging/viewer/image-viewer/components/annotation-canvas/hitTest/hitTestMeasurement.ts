@@ -7,7 +7,7 @@ import {
 } from '../../../canvas/hit-test/shape-hit-test';
 import { isAuxiliaryShape } from '../../../canvas/tools/tool-state';
 import { calculateQuadrilateralCenter } from '../../../shared/geometry';
-import { Measurement, Point, TransformContext } from '../../../types';
+import { MeasurementData, Point, TransformContext } from '../../../types';
 import { hitTestMeasurementLabel } from './hitTestLabel';
 import { hitTestMeasurementPoint } from './hitTestPoint';
 
@@ -18,17 +18,17 @@ export type HitResult =
   | { kind: 'none' };
 
 interface HitTestMeasurementOptions {
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   screenPoint: Point;
   imageScale: number;
   imageToScreen: (point: Point) => Point;
   context: TransformContext;
-  isMeasurementHidden?: (measurement: Measurement) => boolean;
+  isMeasurementHidden?: (measurement: MeasurementData) => boolean;
   lineRadius?: number;
 }
 
 function hitTestMeasurementShape(
-  measurement: Measurement,
+  measurement: MeasurementData,
   screenPoint: Point,
   context: TransformContext,
   lineRadius: number,

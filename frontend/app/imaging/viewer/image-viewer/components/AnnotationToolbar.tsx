@@ -3,12 +3,12 @@
 import BindingPanel from './BindingPanel';
 import ReportPanel from './ReportPanel';
 import { AnnotationBindings } from '../domain/annotation-binding';
-import { Measurement, Tool } from '../types';
+import { MeasurementData, Tool } from '../types';
 
 interface AnnotationToolbarProps {
   examType: string;
   tools: Tool[];
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   selectedTool: string;
   isSettingStandardDistance: boolean;
   standardDistance: number | null;

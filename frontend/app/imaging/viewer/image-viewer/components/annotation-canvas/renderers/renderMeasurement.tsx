@@ -16,12 +16,12 @@ import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools
 import { imageToScreen } from '../../../canvas/transform/coordinate-transform';
 import { TEXT_LABEL_CONSTANTS } from '../../../shared/constants';
 import { estimateTextHeight, estimateTextWidth } from '../../../shared/labels';
-import { Measurement, Point } from '../../../types';
+import { MeasurementData, Point } from '../../../types';
 import { HoverState, SelectionState } from '../types';
 import { renderAuxiliaryTag } from './support-shape-renderers/auxiliaryTagRenderer';
 
 interface RenderMeasurementProps {
-  measurement: Measurement;
+  measurement: MeasurementData;
   imageScale: number;
   imagePosition: { x: number; y: number };
   imageNaturalSize: { width: number; height: number } | null;
@@ -57,7 +57,7 @@ function renderIndexedPoint({
   isManualBindingMode,
   manualBindingSelectedPoints,
 }: {
-  measurement: Measurement;
+  measurement: MeasurementData;
   point: Point;
   pointIndex: number;
   pointColor: string;
@@ -187,7 +187,7 @@ function renderIndexedPoint({
 }
 
 function renderAuxiliaryShape(
-  measurement: Measurement,
+  measurement: MeasurementData,
   screenPoints: Point[],
   displayColor: string,
   isMeasurementSelected: boolean,

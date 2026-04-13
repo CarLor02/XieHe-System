@@ -3,10 +3,10 @@ import {
   getAuxiliaryTagText,
   usesInlineAuxiliaryTag,
 } from '../../../../domain/annotation-metadata';
-import { Measurement, Point } from '../../../../types';
+import { MeasurementData, Point } from '../../../../types';
 
 interface RenderAuxiliaryTagProps {
-  measurement: Measurement;
+  measurement: MeasurementData;
   labelPosition: Point;
   displayColor: string;
   fontSize: number;

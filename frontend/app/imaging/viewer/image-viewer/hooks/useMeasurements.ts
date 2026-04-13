@@ -1,23 +1,17 @@
 import { useState } from 'react';
-import { Measurement, Point } from '../types';
+import { MeasurementData, Point } from '../types';
 
 /**
  * measurement 列表、报告文本、标准距离与辅助面板状态。
  */
 export function useMeasurements() {
-  const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [measurements, setMeasurements] = useState<MeasurementData[]>([]);
   const [reportText, setReportText] = useState('');
   const [standardDistance, setStandardDistance] = useState<number | null>(null);
   const [standardDistanceValue, setStandardDistanceValue] = useState('');
-  const [standardDistancePoints, setStandardDistancePoints] = useState<Point[]>(
-    []
-  );
-  const [hoveredStandardPointIndex, setHoveredStandardPointIndex] = useState<
-    number | null
-  >(null);
-  const [draggingStandardPointIndex, setDraggingStandardPointIndex] = useState<
-    number | null
-  >(null);
+  const [standardDistancePoints, setStandardDistancePoints] = useState<Point[]>([]);
+  const [hoveredStandardPointIndex, setHoveredStandardPointIndex] = useState<number | null>(null);
+  const [draggingStandardPointIndex, setDraggingStandardPointIndex] = useState<number | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   const [showTagPanel, setShowTagPanel] = useState(false);

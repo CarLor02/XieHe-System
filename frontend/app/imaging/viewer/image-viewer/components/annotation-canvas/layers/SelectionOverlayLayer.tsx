@@ -1,9 +1,9 @@
-import { Measurement, Point } from '../../../types';
+import { MeasurementData, Point } from '../../../types';
 import { SelectionState } from '../types';
 
 interface SelectionOverlayLayerProps {
   selectionState: SelectionState;
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   clickedPoints: Point[];
   imageToScreen: (point: Point) => Point;
 }
@@ -19,7 +19,7 @@ export default function SelectionOverlayLayer({
   imageToScreen,
 }: SelectionOverlayLayerProps) {
   let selectedPoints: Point[] = [];
-  let selectedMeasurement: Measurement | null = null;
+  let selectedMeasurement: MeasurementData | null = null;
 
   if (selectionState.measurementId) {
     const measurement =

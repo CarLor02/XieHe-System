@@ -49,7 +49,7 @@ function getAiAnnotationUrl(): string {
   return url;
 }
 
-export async function detectAiKeypoints(
+export async function aiDetectKeyPoints(
   file: File | Blob,
   filename = 'image.png'
 ): Promise<DetectKeypointsResponse> {

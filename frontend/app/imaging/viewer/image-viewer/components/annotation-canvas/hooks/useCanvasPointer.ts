@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { INTERACTION_CONSTANTS } from '../../../shared/constants';
 import { calculateDistance } from '../../../shared/geometry';
-import { Measurement, Point } from '../../../types';
+import { MeasurementData, Point } from '../../../types';
 import { hitTestMeasurement } from '../hitTest/hitTestMeasurement';
 import { hitTestWorkingPoint } from '../hitTest/hitTestPoint';
 import {
@@ -14,7 +14,7 @@ interface UseCanvasPointerOptions {
   imageNaturalSize: { width: number; height: number } | null;
   selectedTool: string;
   isManualBindingMode: boolean;
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   clickedPoints: Point[];
   hideAllAnnotations: boolean;
   hiddenAnnotationIds: Set<string>;

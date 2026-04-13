@@ -1,9 +1,9 @@
 import { INTERACTION_CONSTANTS } from '../../../shared/constants';
 import { calculateDistance } from '../../../shared/geometry';
-import { Measurement, Point } from '../../../types';
+import { MeasurementData, Point } from '../../../types';
 
 interface HitTestMeasurementPointOptions {
-  measurement: Measurement;
+  measurement: MeasurementData;
   screenPoint: Point;
   imageToScreen: (point: Point) => Point;
   radius?: number;

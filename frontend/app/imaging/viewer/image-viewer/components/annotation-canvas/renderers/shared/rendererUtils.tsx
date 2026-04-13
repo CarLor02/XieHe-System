@@ -1,4 +1,4 @@
-import { Measurement, Point } from '../../../../types';
+import { MeasurementData, Point } from '../../../../types';
 import { estimateTextHeight, estimateTextWidth } from '../../../../shared/labels';
 
 export function renderIndexedPoint(
@@ -24,7 +24,7 @@ export function renderIndexedPoint(
 }
 
 export function renderMeasurementValueTag(
-  measurement: Measurement,
+  measurement: MeasurementData,
   labelPosition: Point,
   fontSize: number = 14
 ) {

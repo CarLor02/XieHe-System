@@ -1,13 +1,13 @@
 import { applyPointBindings, AnnotationBindings } from '../../../domain/annotation-binding';
 import { calculateMeasurementValue } from '../../../domain/annotation-calculation';
-import { Measurement, Point } from '../../../types';
+import { MeasurementData, Point } from '../../../types';
 import { SelectionState } from '../types';
 
 interface UseCanvasDragOptions {
   selectedTool: string;
   selectionState: SelectionState;
   setSelectionState: React.Dispatch<React.SetStateAction<SelectionState>>;
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
   pointBindings: AnnotationBindings;
@@ -15,7 +15,7 @@ interface UseCanvasDragOptions {
   standardDistancePoints: Point[];
   imageNaturalSize: { width: number; height: number } | null;
   imageScale: number;
-  onMeasurementsUpdate: (measurements: Measurement[]) => void;
+  onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
   imageToScreen: (point: Point) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
   referenceLines: {

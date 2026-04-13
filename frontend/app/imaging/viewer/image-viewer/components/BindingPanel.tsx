@@ -1,12 +1,12 @@
 'use client';
 
 import { AnnotationBindings } from '../domain/annotation-binding';
-import { Measurement } from '../types';
+import { MeasurementData } from '../types';
 
 interface BindingPanelProps {
   pointBindings: AnnotationBindings;
   selectedBindingGroupId: string | null;
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   isBindingPanelOpen: boolean;
   isManualBindingMode: boolean;
   manualBindingSelectedPointsCount: number;

@@ -1,19 +1,12 @@
 import { apiClient } from '@/lib/api';
 import { extractData } from '@/lib/api/types';
+import {
+  MeasurementData,
+} from "@/app/imaging/viewer/image-viewer/types";
 
-export interface MeasurementPoint {
-  x: number;
-  y: number;
-}
-
-export interface MeasurementData {
-  id: string;
-  type: string;
-  value: string;
-  points: MeasurementPoint[];
-  description?: string | null;
-}
-
+/*
+* 这个只给 api/v1/measurements/{image_id} 这个接口用
+* */
 export interface MeasurementRecord {
   measurements: MeasurementData[];
   reportText?: string | null;

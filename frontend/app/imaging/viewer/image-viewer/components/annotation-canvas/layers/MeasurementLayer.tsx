@@ -1,9 +1,9 @@
 import type { JSX } from 'react';
-import { Measurement } from '../../../types';
+import { MeasurementData } from '../../../types';
 
 export interface MeasurementLayerProps {
-  measurements: Measurement[];
-  renderMeasurement: (measurement: Measurement) => JSX.Element | null;
+  measurements: MeasurementData[];
+  renderMeasurement: (measurement: MeasurementData) => JSX.Element | null;
 }
 
 export default function MeasurementLayer({

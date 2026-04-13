@@ -28,7 +28,9 @@ import { useAnnotationPersistence } from './hooks/useAnnotationPersistence';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useImageStudy } from './hooks/useImageStudy';
 import { useMeasurements } from './hooks/useMeasurements';
-import { Measurement, Point } from './types';
+import {ImageSize, MeasurementData, Point} from './types';
+import {useStudyDataLoader} from "@/app/imaging/viewer/image-viewer/hooks/useStudyDataLoader";
+import {useLocalAnnotationsDataLoader} from "@/app/imaging/viewer/image-viewer/hooks/useLocalAnnotationsDataLoader";
 // import ReactMarkdown from 'react-markdown';
 // import remarkGfm from 'remark-gfm';
 
@@ -98,6 +100,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setImageNaturalSize,
   } = useImageStudy();
 
+  // 清空所有测量数据
+  const clearAllMeasurements = () => {
+    setMeasurements([]);
+    setClickedPoints([]);
+    setPointBindings(createEmptyBindings()); // 同时清除点绑定
+  };
   // 权限检查：判断当前用户是否为管理员
   const isAdmin = useMemo(() => {
     if (!user) return false;
@@ -157,103 +165,31 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   };
 
   // 从API获取真实的影像数据
-  useEffect(() => {
-    const fetchStudyData = async () => {
-      try {
-        setStudyLoading(true);
-        // 直接使用imageId作为image_files表的ID
-        const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-        const response = await apiClient.get(`/api/v1/image-files/${numericId}`);
-
-        // 使用 extractData 提取影像文件数据
-        const imageFile = extractData<any>(response);
-
-        // 将ImageFile数据转换为StudyData格式
-        setStudyData({
-          id: imageFile.id,
-          study_id: imageFile.file_uuid,
-          patient_id: imageFile.patient_id || 0,
-          patient_name: imageFile.uploader_name || '未知用户',
-          study_date: imageFile.study_date || imageFile.created_at,
-          study_description: imageFile.description || imageFile.file_type,
-          modality: imageFile.modality || 'OTHER',
-          status: imageFile.status,
-          created_at: imageFile.created_at,
-        });
-
-        // 加载标注数据
-        if (imageFile.annotation) {
-          try {
-            const annotationData = JSON.parse(imageFile.annotation);
-            if (
-              annotationData.measurements &&
-              Array.isArray(annotationData.measurements)
-            ) {
-              setMeasurements(annotationData.measurements);
-              // 标记 DB 数据已加载，阻止 localStorage 后续覆盖
-              dbAnnotationLoadedRef.current = true;
-              console.log(
-                `从数据库加载了 ${annotationData.measurements.length} 个标注`
-              );
-            }
-            if (annotationData.standardDistance) {
-              setStandardDistance(annotationData.standardDistance);
-            }
-            if (annotationData.standardDistancePoints) {
-              setStandardDistancePoints(annotationData.standardDistancePoints);
-            }
-            // 加载点绑定配置：同步校验成员 annotationId 是否存在于当前标注列表
-            if (annotationData.pointBindings && annotationData.measurements) {
-              const validIds = new Set<string>(
-                (annotationData.measurements as any[])
-                  .map((m: any) => m.id)
-                  .filter(Boolean)
-              );
-              const validated = {
-                syncGroups: (annotationData.pointBindings.syncGroups as any[])
-                  .map((g: any) => ({
-                    ...g,
-                    members: g.members.filter((mbr: any) =>
-                      validIds.has(mbr.annotationId)
-                    ),
-                  }))
-                  .filter((g: any) => g.members.length >= 2),
-              };
-              setPointBindings(validated);
-            }
-          } catch (e) {
-            console.error('解析标注数据失败:', e);
-          }
-        }
-      } catch (error) {
-        console.error('获取影像数据失败:', error);
-        // 如果API失败，使用默认数据
-        setStudyData({
-          id: parseInt(imageId.replace('IMG', '').replace(/^0+/, '') || '0'),
-          study_id: imageId,
-          patient_id: 0,
-          patient_name: '未知患者',
-          study_date: new Date().toISOString().split('T')[0],
-          study_description: '未知检查',
-          modality: 'XR',
-          status: 'COMPLETED',
-          created_at: new Date().toISOString(),
-        });
-      } finally {
-        setStudyLoading(false);
-      }
-    };
-
-    fetchStudyData();
-  }, [imageId]);
+  useStudyDataLoader(
+      imageId,
+      setStudyData,
+      setStudyLoading,
+      setMeasurements,
+      setStandardDistance,
+      setStandardDistancePoints,
+      setPointBindings,
+      dbAnnotationLoadedRef,
+  )
 
   // 当图像尺寸确定后，自动加载标注数据
-  useEffect(() => {
-    if (imageNaturalSize) {
-      console.log('图像尺寸已确定，加载标注数据:', imageNaturalSize);
-      loadAnnotationsFromLocalStorage();
-    }
-  }, [imageNaturalSize, imageId]);
+  useLocalAnnotationsDataLoader(
+      imageId,
+      imageNaturalSize,
+      setMeasurements,
+      standardDistance,
+      setStandardDistance,
+      standardDistancePoints,
+      setStandardDistancePoints,
+      setPointBindings,
+      dbAnnotationLoadedRef,
+      calcMeasurementValue,
+      getDesc,
+  )
 
   // 构建兼容的imageData对象
   const imageData = studyData
@@ -369,7 +305,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       }) || '0.0°';
     const description = isCobb ? 'Cobb角测量' : getDesc(finalType);
 
-    const newMeasurement: Measurement = {
+    const newMeasurement: MeasurementData = {
       id: Date.now().toString(),
       type: finalType, // 使用编号后的类型（Cobb1, Cobb2, Cobb3...）
       value: defaultValue,
@@ -379,7 +315,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
     setMeasurements(prev => {
       // 将本次新增标注加入列表
-      const accumulated: Measurement[] = [...prev, newMeasurement];
+      const accumulated: MeasurementData[] = [...prev, newMeasurement];
 
       // 检查是否有其他工具的全部点位均可由继承/共享获得，若是则自动创建对应标注
       for (const tool of tools) {
@@ -400,7 +336,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               standardDistancePoints,
               imageNaturalSize,
             }) || '0.0°';
-          const autoMeasurement: Measurement = {
+          const autoMeasurement: MeasurementData = {
             id: `${Date.now()}-auto-${tool.id}-${accumulated.length}`,
             type: tool.name,
             value: autoValue,
@@ -414,13 +350,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
       return accumulated;
     });
-  };
-
-  // 清空所有测量数据
-  const clearAllMeasurements = () => {
-    setMeasurements([]);
-    setClickedPoints([]);
-    setPointBindings(createEmptyBindings()); // 同时清除点绑定
   };
 
   useEffect(() => {
@@ -556,283 +485,117 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const getCurrentTool = () => tools.find(t => t.id === selectedTool);
   const currentTool = getCurrentTool();
 
-  // 加载测量数据 - 异步加载，不阻止图像显示
-  useEffect(() => {
-    loadMeasurements();
-    // loadAnnotationsFromLocalStorage 由 imageNaturalSize useEffect 统一调用，此处不重复
-  }, [imageId]);
+  // 这段目前不需要，useStudyDataLoader 里面就加载了测量和标准数据
+  // // 加载测量数据 - 异步加载，不阻止图像显示
+  // useEffect(() => {
+  //   loadMeasurements();
+  //   // loadAnnotationsFromLocalStorage 由 imageNaturalSize useEffect 统一调用，此处不重复
+  // }, [imageId]);
+  //
+  // const loadMeasurements = async () => {
+  //   setIsMeasurementsLoading(true);
+  //   try {
+  //     // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零），与保存时保持一致
+  //     const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
+  //     const response = await apiClient.get(`/api/v1/measurements/${numericId}`);
+  //     if (response.status === 200) {
+  //       // 使用 extractData 提取测量数据
+  //       const data = extractData<any>(response);
+  //       // DB annotation 已加载时跳过，避免覆盖正确的 measurements+bindings
+  //       if (
+  //         !dbAnnotationLoadedRef.current &&
+  //         data.measurements &&
+  //         data.measurements.length > 0
+  //       ) {
+  //         setMeasurements(data.measurements);
+  //         if (data.reportText) {
+  //           setReportText(data.reportText);
+  //         }
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.log('加载测量数据失败:', error);
+  //     // 如果加载失败，使用默认空数据
+  //   } finally {
+  //     setIsMeasurementsLoading(false);
+  //   }
+  // };
 
-  const loadMeasurements = async () => {
-    setIsMeasurementsLoading(true);
-    try {
-      // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零），与保存时保持一致
-      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-      const response = await apiClient.get(`/api/v1/measurements/${numericId}`);
-      if (response.status === 200) {
-        // 使用 extractData 提取测量数据
-        const data = extractData<any>(response);
-        // DB annotation 已加载时跳过，避免覆盖正确的 measurements+bindings
-        if (
-          !dbAnnotationLoadedRef.current &&
-          data.measurements &&
-          data.measurements.length > 0
-        ) {
-          setMeasurements(data.measurements);
-          if (data.reportText) {
-            setReportText(data.reportText);
-          }
-        }
-      }
-    } catch (error) {
-      console.log('加载测量数据失败:', error);
-      // 如果加载失败，使用默认空数据
-    } finally {
-      setIsMeasurementsLoading(false);
-    }
-  };
-
-  // 从localStorage加载标注数据
-  const loadAnnotationsFromLocalStorage = () => {
-    // 若 DB 已成功加载标注数据，localStorage 仅作历史备份，不再覆盖
-    if (dbAnnotationLoadedRef.current) {
-      console.log('DB 标注数据已加载，跳过 localStorage');
-      return;
-    }
-    try {
-      const key = `annotations_${imageId}`;
-      const jsonStr = localStorage.getItem(key);
-      if (jsonStr) {
-        const data = JSON.parse(jsonStr);
-
-        // 先加载或设置标准距离（必须在加载measurements之前）
-        let loadedStandardDistance = standardDistance;
-        let loadedStandardDistancePoints = standardDistancePoints;
-
-        if (
-          data.standardDistance &&
-          data.standardDistancePoints &&
-          data.standardDistancePoints.length === 2
-        ) {
-          // 如果有保存的标准距离，加载它
-          const scaledStandardPoints = data.standardDistancePoints.map(
-            (p: any) => ({
-              x:
-                p.x *
-                (imageNaturalSize
-                  ? imageNaturalSize.width /
-                    (data.imageWidth || imageNaturalSize.width)
-                  : 1),
-              y:
-                p.y *
-                (imageNaturalSize
-                  ? imageNaturalSize.height /
-                    (data.imageHeight || imageNaturalSize.height)
-                  : 1),
-            })
-          );
-          loadedStandardDistance = data.standardDistance;
-          loadedStandardDistancePoints = scaledStandardPoints;
-          setStandardDistance(data.standardDistance);
-          setStandardDistancePoints(scaledStandardPoints);
-          console.log(`已加载标准距离: ${data.standardDistance}mm`);
-        } else if (imageNaturalSize) {
-          // 如果没有保存的标准距离，设置默认值：左上角(0,0)到(200,0)，标准距离100mm
-          const defaultPoints = [
-            { x: 0, y: 0 },
-            { x: 200, y: 0 },
-          ];
-          loadedStandardDistance = 100;
-          loadedStandardDistancePoints = defaultPoints;
-          setStandardDistance(100);
-          setStandardDistancePoints(defaultPoints);
-          console.log(
-            '未找到标准距离，已设置默认值: 100mm，标注点: (0,0)到(200,0)'
-          );
-        }
-
-        // 然后加载measurements（使用已加载的标准距离）
-        if (data.measurements && Array.isArray(data.measurements)) {
-          // 检查是否需要坐标转换
-          const storedImageWidth = data.imageWidth;
-          const storedImageHeight = data.imageHeight;
-          let scaleX = 1;
-          let scaleY = 1;
-
-          if (storedImageWidth && storedImageHeight && imageNaturalSize) {
-            scaleX = imageNaturalSize.width / storedImageWidth;
-            scaleY = imageNaturalSize.height / storedImageHeight;
-            console.log('从本地加载标注，坐标缩放比例:', {
-              storedSize: {
-                width: storedImageWidth,
-                height: storedImageHeight,
-              },
-              currentSize: imageNaturalSize,
-              scale: { scaleX, scaleY },
-            });
-          }
-
-          // 恢复measurements；优先使用保存的id（确保绑定引用有效），否则生成新id
-          const restoredMeasurements = data.measurements.map((m: any) => {
-            // 转换坐标（如果需要）
-            const scaledPoints = m.points.map((p: any) => ({
-              x: p.x * scaleX,
-              y: p.y * scaleY,
-            }));
-
-            // 对于AI检测的标注，保留原来的value和description
-            const isAIDetection = m.type.startsWith('AI检测-');
-
-            return {
-              id:
-                m.id ||
-                Date.now().toString() +
-                  Math.random().toString(36).substring(2, 11),
-              type: m.type,
-              value: isAIDetection
-                ? m.value || ''
-                : calcMeasurementValue(m.type, scaledPoints, {
-                    standardDistance: loadedStandardDistance,
-                    standardDistancePoints: loadedStandardDistancePoints,
-                    imageNaturalSize,
-                  }),
-              points: scaledPoints,
-              description: isAIDetection
-                ? m.description || m.type
-                : getDesc(m.type),
-            };
-          });
-          setMeasurements(restoredMeasurements);
-          console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);
-        }
-        // 与已恢复的 measurements ids 同步校验绑定配置
-        // 无论曾设置过什么绑定（包括从 DB 加载的），都必须在此更新为与当前 measurements 匹配的版本
-        if (data.measurements && Array.isArray(data.measurements)) {
-          const validIds = new Set<string>(
-            data.measurements.map((m: any) => m.id).filter(Boolean)
-          );
-          if (validIds.size > 0 && data.pointBindings) {
-            // localStorage 有 id 且有绑定数据：校验后设置
-            const validated = {
-              syncGroups: (data.pointBindings.syncGroups as any[])
-                .map((g: any) => ({
-                  ...g,
-                  members: g.members.filter((mbr: any) =>
-                    validIds.has(mbr.annotationId)
-                  ),
-                }))
-                .filter((g: any) => g.members.length >= 2),
-            };
-            setPointBindings(validated);
-          } else {
-            // 旧格式无 id 或无绑定数据：清空绑定，避免 DB 界面的旧绑定残留；useEffect 将自动重建 S1 绑定
-            setPointBindings({ syncGroups: [] });
-          }
-        } else {
-          // localStorage 无 measurements 数据，同样清空绑定
-          setPointBindings({ syncGroups: [] });
-        }
-      } else if (imageNaturalSize) {
-        // 如果完全没有保存的数据，设置默认标准距离
-        const defaultPoints = [
-          { x: 0, y: 0 },
-          { x: 200, y: 0 },
-        ];
-        setStandardDistance(100);
-        setStandardDistancePoints(defaultPoints);
-        console.log(
-          '未找到本地数据，已设置默认标准距离: 100mm，标注点: (0,0)到(200,0)'
-        );
-      }
-    } catch (error) {
-      console.error('加载本地标注数据失败:', error);
-      // 即使加载失败，也设置默认标准距离
-      if (imageNaturalSize) {
-        const defaultPoints = [
-          { x: 0, y: 0 },
-          { x: 200, y: 0 },
-        ];
-        setStandardDistance(100);
-        setStandardDistancePoints(defaultPoints);
-        console.log('加载失败，已设置默认标准距离: 100mm');
-      }
-    }
-  };
-
-  // 保存标注数据到localStorage和服务器
-  const saveAnnotationsToLocalStorage = async () => {
-    if (measurements.length === 0) {
-      setSaveMessage('暂无测量数据需要保存');
-      setTimeout(() => setSaveMessage(''), 3000);
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveMessage('');
-
-    try {
-      // 1. 保存到本地存储
-      const key = `annotations_${imageId}`;
-      // 保存id、type和points（id用于绑定引用，value和description可重新计算）
-      const simplifiedMeasurements = measurements.map(m => ({
-        id: m.id,
-        type: m.type,
-        points: m.points,
-      }));
-      const localData = {
-        imageId: imageId,
-        imageWidth: imageNaturalSize?.width,
-        imageHeight: imageNaturalSize?.height,
-        measurements: simplifiedMeasurements,
-        standardDistance: standardDistance,
-        standardDistancePoints: standardDistancePoints,
-        pointBindings: pointBindings,
-      };
-      localStorage.setItem(key, JSON.stringify(localData, null, 2));
-      console.log(
-        `已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`
-      );
-
-      // 2. 保存到服务器
-      // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
-      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-      const measurementData = {
-        imageId: numericId,
-        patientId: imageData.patientId,
-        examType: imageData.examType,
-        measurements: measurements,
-        reportText: reportText,
-        savedAt: new Date().toISOString(),
-      };
-
-      const response = await apiClient.post(
-        `/api/v1/measurements/${numericId}`,
-        measurementData
-      );
-
-      console.log('保存响应:', response.status);
-
-      if (response.status === 200) {
-        setSaveMessage('标注已保存到本地和服务器');
-        setTimeout(() => setSaveMessage(''), 3000);
-      } else {
-        const errorMsg =
-          response.data?.message || response.data?.detail || '保存到服务器失败';
-        console.error('保存失败:', response.status, errorMsg);
-        throw new Error(errorMsg);
-      }
-    } catch (error: any) {
-      console.error('保存标注数据失败:', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.detail ||
-        error.message ||
-        '保存失败，请重试';
-      setSaveMessage(`保存失败: ${errorMessage}`);
-      setTimeout(() => setSaveMessage(''), 5000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // // 保存标注数据到localStorage和服务器
+  // const saveAnnotationsToLocalStorage = async () => {
+  //   if (measurements.length === 0) {
+  //     setSaveMessage('暂无测量数据需要保存');
+  //     setTimeout(() => setSaveMessage(''), 3000);
+  //     return;
+  //   }
+  //
+  //   setIsSaving(true);
+  //   setSaveMessage('');
+  //
+  //   try {
+  //     // 1. 保存到本地存储
+  //     const key = `annotations_${imageId}`;
+  //     // 保存id、type和points（id用于绑定引用，value和description可重新计算）
+  //     const simplifiedMeasurements = measurements.map(m => ({
+  //       id: m.id,
+  //       type: m.type,
+  //       points: m.points,
+  //     }));
+  //     const localData = {
+  //       imageId: imageId,
+  //       imageWidth: imageNaturalSize?.width,
+  //       imageHeight: imageNaturalSize?.height,
+  //       measurements: simplifiedMeasurements,
+  //       standardDistance: standardDistance,
+  //       standardDistancePoints: standardDistancePoints,
+  //       pointBindings: pointBindings,
+  //     };
+  //     localStorage.setItem(key, JSON.stringify(localData, null, 2));
+  //     console.log(
+  //       `已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`
+  //     );
+  //
+  //     // 2. 保存到服务器
+  //     // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
+  //     const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
+  //     const measurementData = {
+  //       imageId: numericId,
+  //       patientId: imageData.patientId,
+  //       examType: imageData.examType,
+  //       measurements: measurements,
+  //       reportText: reportText,
+  //       savedAt: new Date().toISOString(),
+  //     };
+  //
+  //     const response = await apiClient.post(
+  //       `/api/v1/measurements/${numericId}`,
+  //       measurementData
+  //     );
+  //
+  //     console.log('保存响应:', response.status);
+  //
+  //     if (response.status === 200) {
+  //       setSaveMessage('标注已保存到本地和服务器');
+  //       setTimeout(() => setSaveMessage(''), 3000);
+  //     } else {
+  //       const errorMsg =
+  //         response.data?.message || response.data?.detail || '保存到服务器失败';
+  //       console.error('保存失败:', response.status, errorMsg);
+  //       throw new Error(errorMsg);
+  //     }
+  //   } catch (error: any) {
+  //     console.error('保存标注数据失败:', error);
+  //     const errorMessage =
+  //       error.response?.data?.message ||
+  //       error.response?.data?.detail ||
+  //       error.message ||
+  //       '保存失败，请重试';
+  //     setSaveMessage(`保存失败: ${errorMessage}`);
+  //     setTimeout(() => setSaveMessage(''), 5000);
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
 
   // 导出标注数据为JSON文件（仅管理员）
   const exportAnnotationsToJSON = () => {
@@ -1295,7 +1058,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       console.log('AI检测返回数据:', aiData);
 
       // 处理检测结果，将关键点转换为可视化标注
-      const detectionMeasurements: Measurement[] = [];
+      const detectionMeasurements: MeasurementData[] = [];
       let pointCount = 0;
 
       // 判断是侧位还是正位，使用不同的数据处理逻辑

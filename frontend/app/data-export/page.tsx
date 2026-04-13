@@ -6,9 +6,9 @@ import { useUser } from '@/lib/api';
 import { getImageFiles, type ImageFile } from '@/services/imageServices/imageFileService';
 import {
   getMeasurementRecord,
-  type MeasurementData,
-  type MeasurementRecord,
+  MeasurementRecord,
 } from '@/services/imageServices/measurementService';
+import {MeasurementData} from "../imaging/viewer/image-viewer/types"
 import { Download, FileSpreadsheet, Search, CheckSquare, Square } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';

@@ -1,6 +1,6 @@
 import { getAnnotationConfig } from '../../../catalog/annotation-catalog';
 import { calculateQuadrilateralCenter } from '../../../shared/geometry';
-import { Measurement, Point } from '../../../types';
+import { MeasurementData, Point } from '../../../types';
 import renderPreview from '../renderers/renderPreview';
 import { DrawingState, ReferenceLines } from '../types';
 
@@ -8,7 +8,7 @@ interface PreviewLayerProps {
   selectedTool: string;
   currentTool: { id: string; name: string; pointsNeeded: number } | null;
   clickedPoints: Point[];
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   referenceLines: ReferenceLines;
   standardDistance: number | null;
   standardDistancePoints: Point[];

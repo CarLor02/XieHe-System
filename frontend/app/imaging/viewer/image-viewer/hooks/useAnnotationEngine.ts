@@ -9,14 +9,14 @@ import {
   mergeBindings,
 } from '../domain/annotation-binding';
 import { autoCreateInheritanceBindings } from '../domain/annotation-inheritance';
-import { Measurement, Point } from '../types';
+import { MeasurementData, Point } from '../types';
 
 /**
  * 绑定、自动绑定、继承点与共享点位操作状态。
  */
 interface UseAnnotationEngineOptions {
-  measurements: Measurement[];
-  setMeasurements: React.Dispatch<React.SetStateAction<Measurement[]>>;
+  measurements: MeasurementData[];
+  setMeasurements: React.Dispatch<React.SetStateAction<MeasurementData[]>>;
 }
 
 export function useAnnotationEngine({

@@ -1,11 +1,11 @@
-import { Measurement, Point } from '../../../types';
+import { MeasurementData, Point } from '../../../types';
 import { getBoundingBox } from '../../../shared/geometry';
 
 /**
  * 计算标注的选择边界框，供选中态与 hover 态复用。
  */
 export function getMeasurementSelectionBox(
-  measurement: Measurement,
+  measurement: MeasurementData,
   padding: number = 0
 ) {
   const bounds = getBoundingBox(measurement.points);
@@ -31,7 +31,7 @@ export function isPointInSelectionBox(
 }
 
 export function getMeasurementSelectionBoxInScreen(
-  measurement: Measurement,
+  measurement: MeasurementData,
   imageToScreen: (point: Point) => Point,
   padding: number = 15
 ) {

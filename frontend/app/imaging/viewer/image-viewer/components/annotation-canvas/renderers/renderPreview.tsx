@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Point, Measurement } from '../../../types';
+import { Point, MeasurementData } from '../../../types';
 import {
   POINT_INHERITANCE_RULES,
   SHARED_ANATOMICAL_POINT_GROUPS,
@@ -10,7 +10,7 @@ interface RenderPreviewProps {
   selectedTool: string;
   currentTool: { id: string; name: string; pointsNeeded: number } | null;
   clickedPoints: Point[];
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   imageScale: number;
   imageToScreen: (point: Point) => Point;
   getInheritedPoints: (

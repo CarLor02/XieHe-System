@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Point, Measurement, ImageData, Tool } from '../types';
+import { Point, MeasurementData, ImageData, Tool } from '../types';
 import {
   AnnotationBindings,
   PointRef,
@@ -79,11 +79,11 @@ export default function AnnotationCanvas({
   onManualBindingPointToggle,
 }: {
   selectedImage: Pick<ImageData, 'examType'>;
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   selectedTool: string;
   setSelectedTool: (tool: string) => void;
   onMeasurementAdd: (type: string, points: Point[]) => void;
-  onMeasurementsUpdate: (measurements: Measurement[]) => void;
+  onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
   onClearAll: () => void;
   tools: Tool[];
   clickedPoints: Point[];
@@ -365,7 +365,7 @@ export default function AnnotationCanvas({
     constrainAuxLinePoint,
     screenToImage,
   });
-  const renderVisibleMeasurement = (measurement: Measurement) =>
+  const renderVisibleMeasurement = (measurement: MeasurementData) =>
     renderMeasurement({
       measurement,
       imageScale,

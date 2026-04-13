@@ -1,5 +1,5 @@
 import { createLogger } from '@/lib/logger';
-import { useSessionStore } from './sessionStore';
+import { useSessionStore } from '@/lib/api';
 
 const logger = createLogger('api.sessionRefresher');
 

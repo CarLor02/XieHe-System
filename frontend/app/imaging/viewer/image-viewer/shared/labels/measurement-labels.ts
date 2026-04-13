@@ -4,7 +4,7 @@
  */
 
 import { getLabelPositionForType } from '../../domain/annotation-metadata';
-import { Measurement, Point } from '../../types';
+import { MeasurementData, Point } from '../../types';
 import { TEXT_LABEL_CONSTANTS } from '../constants';
 
 /**
@@ -56,7 +56,7 @@ export function estimateTextHeight(
  */
 export function isPointInTextLabel(
   point: Point,
-  measurement: Measurement,
+  measurement: MeasurementData,
   imageScale: number
 ): boolean {
   // 计算测量值标注的位置和范围
@@ -153,6 +153,6 @@ export function getTextLabelBounds(
  * @param measurement 测量数据
  * @returns 格式化后的文本
  */
-export function formatMeasurementText(measurement: Measurement): string {
+export function formatMeasurementText(measurement: MeasurementData): string {
   return `${measurement.type}: ${measurement.value}`;
 }

@@ -5,10 +5,10 @@ import {
 } from '../../../domain/annotation-metadata';
 import { TEXT_LABEL_CONSTANTS } from '../../../shared/constants';
 import { estimateTextHeight, estimateTextWidth } from '../../../shared/labels';
-import { Measurement, Point } from '../../../types';
+import { MeasurementData, Point } from '../../../types';
 
 interface HitTestLabelOptions {
-  measurement: Measurement;
+  measurement: MeasurementData;
   screenPoint: Point;
   imageScale: number;
   imageToScreen: (point: Point) => Point;

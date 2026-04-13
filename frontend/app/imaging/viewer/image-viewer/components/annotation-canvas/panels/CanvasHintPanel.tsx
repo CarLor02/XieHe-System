@@ -1,4 +1,4 @@
-import { Measurement, Tool } from '../../../types';
+import { MeasurementData, Tool } from '../../../types';
 
 interface CanvasHintPanelProps {
   selectedTool: string;
@@ -7,7 +7,7 @@ interface CanvasHintPanelProps {
   clickedPointsCount: number;
   pointsNeeded: number;
   currentTool: Tool | null;
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   getInheritedPoints: (
     toolId: string,
     measurements: { type: string; points: { x: number; y: number }[] }[]

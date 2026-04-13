@@ -20,11 +20,12 @@ export interface ImageFile {
   uploaded_by: number;
   uploader_name?: string;
   patient_id?: number;
-  study_id?: number;
+  study_id?: number; // TODO 这个字段后端的接口没返回, 以后看一下
   modality?: string;
   body_part?: string;
   study_date?: string;
   description?: string;
+  annotation?: string; // api/v1/image-files/{image_id} 会以string的形式反回来 measurements 结构体
   status:
     | 'UPLOADING'
     | 'UPLOADED'

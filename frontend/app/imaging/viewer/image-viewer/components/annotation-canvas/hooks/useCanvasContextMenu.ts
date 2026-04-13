@@ -3,17 +3,17 @@ import {
   AnnotationBindings,
   cleanupBindings,
 } from '../../../domain/annotation-binding';
-import { Measurement } from '../../../types';
+import { MeasurementData } from '../../../types';
 import { SelectionState } from '../types';
 
 interface UseCanvasContextMenuOptions {
   imageNaturalSize: { width: number; height: number } | null;
   selectionState: SelectionState;
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   selectedTool: string;
   onToolChange: (tool: string) => void;
   setSelectionState: React.Dispatch<React.SetStateAction<SelectionState>>;
-  onMeasurementsUpdate: (measurements: Measurement[]) => void;
+  onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
   pointBindings: AnnotationBindings;
   setPointBindings: (bindings: AnnotationBindings) => void;
 }

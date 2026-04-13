@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Measurement } from '../../../types';
+import { MeasurementData } from '../../../types';
 
 interface UseCanvasOverlayStateOptions {
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   hiddenMeasurementIds: Set<string>;
   setHiddenMeasurementIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   hiddenAnnotationIds: Set<string>;

@@ -5,7 +5,7 @@
 
 import type { JSX } from 'react';
 import { Point, getAnnotationConfig } from '../catalog/annotation-catalog';
-import { Measurement } from '../types';
+import { MeasurementData } from '../types';
 
 const INLINE_TEXT_AUXILIARY_TYPES = new Set([
   '圆形标注',
@@ -89,7 +89,7 @@ export function usesInlineAuxiliaryTag(type: string): boolean {
  * 辅助图形优先显示 description；如果未设置，回退到类型默认描述。
  */
 export function getAuxiliaryTagText(
-  measurement: Pick<Measurement, 'type'> & { description?: string }
+    measurement: Pick<MeasurementData, 'type' | 'description'>
 ): string {
   const customText = measurement.description?.trim();
   return customText || getDescriptionForType(measurement.type);

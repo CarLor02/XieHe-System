@@ -1,4 +1,4 @@
-import { Measurement, Point } from '../types';
+import { MeasurementData, Point } from '../types';
 
 export interface SerializedAnnotationPayload {
   imageId?: string;
@@ -21,7 +21,7 @@ export interface SerializedAnnotationPayload {
 /**
  * 序列化时保留业务恢复所需的最小字段集。
  */
-export function serializeMeasurements(measurements: Measurement[]) {
+export function serializeMeasurements(measurements: MeasurementData[]) {
   return measurements.map(measurement => {
     if (measurement.type.startsWith('AI检测-')) {
       return {

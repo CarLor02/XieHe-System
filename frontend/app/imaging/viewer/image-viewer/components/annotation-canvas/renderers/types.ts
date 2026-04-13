@@ -1,7 +1,7 @@
-import { Measurement, Point } from '../../../types';
+import { MeasurementData, Point } from '../../../types';
 
 export interface MeasurementRendererProps {
-  measurement: Measurement;
+  measurement: MeasurementData;
   screenPoints: Point[];
   displayColor: string;
   imageScale: number;

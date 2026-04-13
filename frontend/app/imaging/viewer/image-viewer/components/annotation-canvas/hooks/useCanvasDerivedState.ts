@@ -1,11 +1,11 @@
 import { getEffectivePointsNeeded } from '../../../domain/annotation-inheritance';
-import { Measurement, Tool } from '../../../types';
+import { MeasurementData, Tool } from '../../../types';
 import { HoverState } from '../types';
 
 interface UseCanvasDerivedStateOptions {
   selectedTool: string;
   tools: Tool[];
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   hideAllAnnotations: boolean;
   hiddenAnnotationIds: Set<string>;
   hoverState: HoverState;
