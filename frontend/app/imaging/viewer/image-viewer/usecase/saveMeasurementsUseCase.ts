@@ -1,15 +1,14 @@
 import {apiClient} from "@/lib/api";
-import {MeasurementData, StudyData} from "@/app/imaging/viewer/image-viewer/types";
-import {Point} from "fabric";
+import {MeasurementData, StudyData, Point, ImageSize} from "../types";
 import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
 
 // TODO 没做完, 需要接入  service
 export async function saveMeasurements(
     imageId: string,
-    studyData: StudyData,
-    imageNaturalSize: {width: number, height: number} | null,
-    standardDistance: number,
-    standardDistancePoints: Point[],
+    studyData: StudyData | null,
+    imageNaturalSize: ImageSize | null,
+    standardDistance: number | null,
+    standardDistancePoints: Point[] | null,
     pointBindings:AnnotationBindings,
     measurements: MeasurementData[],
     reportText: string,
@@ -147,4 +146,4 @@ export async function saveMeasurements(
     } finally {
         setIsSaving(false);
     }
-};
+}
