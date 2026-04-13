@@ -3,12 +3,12 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useUser } from '@/lib/api';
-import { getImageFiles, type ImageFile } from '@/services/imageFileService';
+import { getImageFiles, type ImageFile } from '@/services/imageServices/imageFileService';
 import {
   getMeasurementRecord,
   type MeasurementData,
   type MeasurementRecord,
-} from '@/services/measurementService';
+} from '@/services/imageServices/measurementService';
 import { Download, FileSpreadsheet, Search, CheckSquare, Square } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';

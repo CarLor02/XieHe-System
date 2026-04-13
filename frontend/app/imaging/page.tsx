@@ -13,7 +13,7 @@ import {
   formatDate,
   type ImageFile,
   type ImageFileFilters,
-} from '@/services/imageFileService';
+} from '@/services/imageServices/imageFileService';
 import {
   checkAndHandleAuthError,
   getErrorMessage,

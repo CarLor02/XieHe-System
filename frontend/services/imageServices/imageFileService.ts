@@ -163,7 +163,9 @@ export async function deleteImageFile(
 }
 
 /**
- * 获取影像统计信息
+ * 更新影像的检查类型
+ * @param fileId 影像 id
+ * @param description description 为检查类型字段, 这里存在语义的误导, 实际 description 和 examType 语义等同
  */
 export async function updateImageExamType(
   fileId: number,
@@ -173,6 +175,9 @@ export async function updateImageExamType(
   return extractData<{ id: number; description: string; warning: string | null }>(response);
 }
 
+/**
+ * 获取影像统计信息
+ */
 export async function getImageStats(): Promise<ImageFileStats> {
   const response = await apiClient.get('/api/v1/image-files/stats/summary');
   return extractData<ImageFileStats>(response);

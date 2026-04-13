@@ -20,6 +20,15 @@ export interface MeasurementRecord {
   savedAt: string;
 }
 
+export interface SaveMeasurementRecordRequest {
+  imageId: string;
+  patientId: number;
+  examType: string;
+  measurements: MeasurementData[];
+  reportText?: string | null;
+  savedAt: string;
+}
+
 export async function getMeasurementRecord(
   imageFileId: number
 ): Promise<MeasurementRecord | null> {
@@ -32,4 +41,12 @@ export async function getMeasurementRecord(
     }
     throw error;
   }
+}
+
+export async function saveMeasurementRecord(
+  imageFileId: number,
+  payload: SaveMeasurementRecordRequest
+): Promise<MeasurementRecord> {
+  const response = await apiClient.post(`/api/v1/measurements/${imageFileId}`, payload);
+  return extractData<MeasurementRecord>(response);
 }

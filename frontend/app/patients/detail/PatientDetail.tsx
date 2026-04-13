@@ -10,7 +10,7 @@ import { extractData } from '@/lib/api/types';
 import {
   getPatientImages,
   type ImageFile,
-} from '@/services/imageFileService';
+} from '@/services/imageServices/imageFileService';
 
 // 患者详情数据接口
 interface PatientDetail {
