@@ -497,9 +497,12 @@ function renderStructuredPreview({
               x={centerPoint.x}
               y={centerPoint.y - 15}
               fill="#8b5cf6"
-              fontSize="12"
+              fontSize="11"
+              fontWeight="bold"
               textAnchor="middle"
-              opacity="0.7"
+              stroke="#000000"
+              strokeWidth="3"
+              paintOrder="stroke"
             >
               {angleText}
             </text>

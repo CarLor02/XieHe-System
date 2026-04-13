@@ -71,6 +71,104 @@ export function getLabelPositionForType(
 }
 
 /**
+ * 标签位置方向
+ */
+export type LabelDirection = 'right' | 'left' | 'top' | 'bottom';
+
+/**
+ * 计算智能标签位置，避免重叠
+ * @param basePosition 基础位置（已经是偏移后的初始位置）
+ * @param occupiedPositions 已占用的标签位置列表
+ * @param imageScale 图像缩放比例
+ * @param preferredDirection 优先方向（默认右侧）
+ * @returns 调整后的标签位置
+ */
+export function calculateSmartLabelPosition(
+  basePosition: Point,
+  occupiedPositions: Point[],
+  imageScale: number,
+  preferredDirection: LabelDirection = 'right'
+): Point {
+  // 如果没有已占用的位置，直接返回基础位置
+  if (occupiedPositions.length === 0) {
+    return basePosition;
+  }
+
+  // 根据缩放比例自适应调整偏移量
+  // imageScale 越小（放大），需要更大的图像坐标偏移
+  // imageScale 越大（缩小），需要更小的图像坐标偏移
+  // 基准偏移量：缩放到1:1时的像素偏移
+  const baseVerticalOffset = 40; // 屏幕像素
+  const baseHorizontalOffset = 50; // 屏幕像素
+  const baseOverlapThreshold = 90; // 屏幕像素
+
+  const verticalOffset = baseVerticalOffset / imageScale; // 转换为图像坐标
+  const horizontalOffset = baseHorizontalOffset / imageScale; // 转换为图像坐标
+  const overlapThreshold = baseOverlapThreshold / imageScale; // 转换为图像坐标
+
+  // 检查基础位置是否重叠
+  let hasOverlap = false;
+  for (const occupied of occupiedPositions) {
+    const distance = Math.sqrt(
+      Math.pow(basePosition.x - occupied.x, 2) + Math.pow(basePosition.y - occupied.y, 2)
+    );
+    if (distance < overlapThreshold) {
+      hasOverlap = true;
+      break;
+    }
+  }
+
+  // 如果基础位置不重叠，直接返回
+  if (!hasOverlap) {
+    return basePosition;
+  }
+
+  // 定义多个候选位置（基于基础位置的微调）
+  const candidates: Point[] = [
+    // 上下微调
+    { x: basePosition.x, y: basePosition.y - verticalOffset },
+    { x: basePosition.x, y: basePosition.y + verticalOffset },
+    // 左侧
+    { x: basePosition.x - horizontalOffset, y: basePosition.y },
+    // 上下左侧组合
+    { x: basePosition.x - horizontalOffset, y: basePosition.y - verticalOffset },
+    { x: basePosition.x - horizontalOffset, y: basePosition.y + verticalOffset },
+    // 上下右侧组合
+    { x: basePosition.x + horizontalOffset, y: basePosition.y - verticalOffset },
+    { x: basePosition.x + horizontalOffset, y: basePosition.y + verticalOffset },
+    // 更远的位置
+    { x: basePosition.x, y: basePosition.y - verticalOffset * 2 },
+    { x: basePosition.x, y: basePosition.y + verticalOffset * 2 },
+  ];
+
+  // 检查每个候选位置，找到第一个不重叠的
+  for (const candidate of candidates) {
+    let candidateOverlap = false;
+
+    for (const occupied of occupiedPositions) {
+      const distance = Math.sqrt(
+        Math.pow(candidate.x - occupied.x, 2) + Math.pow(candidate.y - occupied.y, 2)
+      );
+
+      if (distance < overlapThreshold) {
+        candidateOverlap = true;
+        break;
+      }
+    }
+
+    if (!candidateOverlap) {
+      return candidate;
+    }
+  }
+
+  // 如果所有候选位置都重叠，返回上方较远位置
+  return {
+    x: basePosition.x,
+    y: basePosition.y - verticalOffset * 2.5,
+  };
+}
+
+/**
  * 判断是否为辅助图形
  */
 export function isAuxiliaryShape(type: string): boolean {

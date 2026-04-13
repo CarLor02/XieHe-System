@@ -365,7 +365,7 @@ export default function AnnotationCanvas({
     constrainAuxLinePoint,
     screenToImage,
   });
-  const renderVisibleMeasurement = (measurement: MeasurementData) =>
+  const renderVisibleMeasurement = (measurement: MeasurementData, index: number, allMeasurements: MeasurementData[]) =>
     renderMeasurement({
       measurement,
       imageScale,
@@ -379,6 +379,8 @@ export default function AnnotationCanvas({
       selectedBindingGroupId,
       isManualBindingMode,
       manualBindingSelectedPoints,
+      allMeasurements,
+      measurementIndex: index,
     });
 
   const handleMouseEnter = () => {

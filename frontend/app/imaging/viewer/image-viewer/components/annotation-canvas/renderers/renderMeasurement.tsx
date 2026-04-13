@@ -11,6 +11,7 @@ import {
   getLabelPositionForType,
   renderSpecialSVGElements,
   usesInlineAuxiliaryTag,
+  calculateSmartLabelPosition,
 } from '../../../domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools/tool-state';
 import { imageToScreen } from '../../../canvas/transform/coordinate-transform';
@@ -34,6 +35,8 @@ interface RenderMeasurementProps {
   selectedBindingGroupId: string | null;
   isManualBindingMode: boolean;
   manualBindingSelectedPoints: PointRef[];
+  allMeasurements?: MeasurementData[];
+  measurementIndex?: number;
 }
 
 function getPointColor(
@@ -421,6 +424,8 @@ export default function renderMeasurement({
   selectedBindingGroupId,
   isManualBindingMode,
   manualBindingSelectedPoints,
+  allMeasurements = [],
+  measurementIndex = 0,
 }: RenderMeasurementProps): JSX.Element {
   const context = {
     imageNaturalSize,
@@ -450,10 +455,26 @@ export default function renderMeasurement({
     isMeasurementSelected,
     isMeasurementHovered
   );
-  const labelPosition = imageToScreen(
-    getLabelPositionForType(measurement.type, measurement.points, imageScale),
-    context
+
+  // 获取基础标签位置
+  const baseLabelPosition = getLabelPositionForType(measurement.type, measurement.points, imageScale);
+
+  // 计算已占用的标签位置（只考虑当前标注之前的标注）
+  const occupiedPositions = allMeasurements
+    .slice(0, measurementIndex)
+    .filter(m => !hiddenMeasurementIds.has(m.id))
+    .map(m => getLabelPositionForType(m.type, m.points, imageScale));
+
+  // 使用智能位置计算避免重叠
+  const smartLabelPosition = calculateSmartLabelPosition(
+    baseLabelPosition,
+    occupiedPositions,
+    imageScale,
+    'right' // 默认优先右侧
   );
+
+  const labelPosition = imageToScreen(smartLabelPosition, context);
+
   // 使用格式化后的值用于图表显示
   const displayValue = formatDisplayValue(measurement.value);
   const textContent = `${measurement.type}: ${displayValue}`;
@@ -499,27 +520,19 @@ export default function renderMeasurement({
         screenPoints.length >= 2 &&
         !hideAllLabels &&
         !hiddenMeasurementIds.has(measurement.id) && (
-          <g>
-            <rect
-              x={labelPosition.x - textWidth / 2 - padding}
-              y={labelPosition.y - textHeight / 2 - padding}
-              width={textWidth + padding * 2}
-              height={textHeight + padding * 2}
-              fill="white"
-              opacity="0.9"
-              rx="3"
-            />
-            <text
-              x={labelPosition.x}
-              y={labelPosition.y + fontSize * 0.35}
-              fill={displayColor}
-              fontSize={fontSize}
-              fontWeight="bold"
-              textAnchor="middle"
-            >
-              {measurement.type}: {displayValue}
-            </text>
-          </g>
+          <text
+            x={labelPosition.x}
+            y={labelPosition.y + fontSize * 0.35}
+            fill={displayColor}
+            fontSize={isMeasurementHovered ? 13 : 11}
+            fontWeight="bold"
+            textAnchor="middle"
+            stroke="#000000"
+            strokeWidth="3"
+            paintOrder="stroke"
+          >
+            {measurement.type}: {displayValue}
+          </text>
         )}
 
       {isAuxiliaryShape &&
@@ -540,9 +553,12 @@ export default function renderMeasurement({
             x={labelPosition.x}
             y={labelPosition.y + 5}
             fill={displayColor}
-            fontSize="14"
+            fontSize="11"
             fontWeight="bold"
             textAnchor="middle"
+            stroke="#000000"
+            strokeWidth="3"
+            paintOrder="stroke"
             style={{ userSelect: 'none', pointerEvents: 'none' }}
           >
             {measurement.description}

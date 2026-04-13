@@ -11,6 +11,26 @@
 import type { JSX } from 'react';
 import * as Renderers from '../components/annotation-canvas/renderers/annotation-tool-renderers';
 
+// ==================== 标签位置常量 ====================
+
+/**
+ * 标签位置常量配置
+ * 这些值是屏幕像素，会根据 imageScale 自动转换为图像坐标
+ * 使用方法：LABEL_OFFSET.RIGHT / imageScale
+ */
+export const LABEL_OFFSET = {
+  /** 标签右侧偏移（屏幕像素） */
+  RIGHT: 50,
+  /** 标签左侧偏移（屏幕像素） */
+  LEFT: 50,
+  /** 标签上方偏移（屏幕像素） */
+  TOP: 40,
+  /** 标签下方偏移（屏幕像素） */
+  BOTTOM: 40,
+  /** Cobb角等复杂测量的右侧偏移（屏幕像素） */
+  COMPLEX_RIGHT: 60,
+} as const;
+
 // ==================== 类型定义 ====================
 
 export interface Point {
@@ -383,7 +403,13 @@ export const COBB_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
-    return calculateCenterPoint(points);
+    // 找到最右侧的点，标签放在右上方，避免遮挡线段
+    const maxX = Math.max(points[0].x, points[1].x, points[2].x, points[3].x);
+    const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
+    return {
+      x: maxX + LABEL_OFFSET.COMPLEX_RIGHT / imageScale,
+      y: minY - LABEL_OFFSET.TOP / imageScale,
+    };
   },
 
   isInHoverRange: (
@@ -533,9 +559,11 @@ export const PELVIC_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在线段右端点的右上方，避免遮挡解剖结构和关键点
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -611,9 +639,11 @@ export const SACRAL_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在线段右端点的右上方，避免遮挡解剖结构和关键点
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -760,9 +790,12 @@ export const TS_CONFIG: AnnotationConfig = {
     const trunkMidY = (points[0].y + points[1].y) / 2;
     const sacralMidX = (points[2].x + points[3].x) / 2;
     const sacralMidY = (points[2].y + points[3].y) / 2;
+    // 标签放在测量区域右上方，避免遮挡线段
+    const maxX = Math.max(points[0].x, points[1].x, points[2].x, points[3].x);
+    const topY = Math.min(trunkMidY, sacralMidY);
     return {
-      x: (trunkMidX + sacralMidX) / 2,
-      y: Math.min(trunkMidY, sacralMidY) - 20 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: topY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -878,9 +911,9 @@ export const LLD_CONFIG: AnnotationConfig = {
  */
 export const C7_OFFSET_CONFIG: AnnotationConfig = {
   id: 'c7-offset',
-  name: 'TS',
+  name: 'TTS',
   icon: 'ri-arrow-left-right-line',
-  description: '躯干偏移量TS(Trunk Shift)',
+  description: 'C7偏移距离TTS(Trunk Shift)',
   pointsNeeded: 6,
   category: 'measurement',
   color: '#06b6d4',
@@ -899,7 +932,7 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
 
     return [
       {
-        name: 'TS',
+        name: 'TTS',
         value: actualDistance.toFixed(2),
         unit: 'mm',
       },
@@ -909,14 +942,19 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 6) return points[0] || { x: 0, y: 0 };
 
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-    const refX = (points[4].x + points[5].x) / 2;
     const refY = (points[4].y + points[5].y) / 2;
 
+    // 标签放在所有点的右上方，避免遮挡椎体和线段
+    const maxX = Math.max(
+      points[0].x, points[1].x, points[2].x, points[3].x,
+      points[4].x, points[5].x
+    );
+    const topY = Math.min(centerY, refY);
+
     return {
-      x: (centerX + refX) / 2,
-      y: Math.min(centerY, refY) - 20 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: topY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1316,12 +1354,18 @@ export const TPA_CONFIG: AnnotationConfig = {
     };
 
     // 第6和第7个点的中点
-    const midX = (points[5].x + points[6].x) / 2;
     const midY = (points[5].y + points[6].y) / 2;
 
+    // 标签放在所有点的右上方，避免遮挡角度线
+    const maxX = Math.max(
+      points[0].x, points[1].x, points[2].x, points[3].x,
+      points[4].x, points[5].x, points[6].x
+    );
+    const topY = Math.min(centerPoint.y, points[4].y, midY);
+
     return {
-      x: (centerPoint.x + points[4].x + midX) / 3,
-      y: (centerPoint.y + points[4].y + midY) / 3 - 20 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: topY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1424,17 +1468,18 @@ export const SVA_CONFIG: AnnotationConfig = {
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 5) return points[0] || { x: 0, y: 0 };
 
-    // 计算锥体中心
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+    // 计算椎体中心Y坐标
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
 
-    // 标签显示在锥体中心和第5个点的中点，上方30像素
-    const midX = (centerX + points[4].x) / 2;
-    const midY = (centerY + points[4].y) / 2;
+    // 标签显示在所有点的右上方，避免遮挡椎体
+    const maxX = Math.max(
+      points[0].x, points[1].x, points[2].x, points[3].x, points[4].x
+    );
+    const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
 
     return {
-      x: midX,
-      y: midY - 30 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: minY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1524,11 +1569,17 @@ export const PI_CONFIG: AnnotationConfig = {
     if (!geometry || !geometry.femoralHeadCenter)
       return points[0] || { x: 0, y: 0 };
 
+    // 标签放在测量结构右上方，避免遮挡骨盆线
+    const maxX = Math.max(
+      geometry.femoralHeadCenter.x,
+      geometry.sacralMidpoint.x,
+      ...(points.map(p => p.x))
+    );
+    const topY = Math.min(geometry.femoralHeadCenter.y, geometry.sacralMidpoint.y);
+
     return {
-      x: (geometry.femoralHeadCenter.x + geometry.sacralMidpoint.x) / 2,
-      y:
-        (geometry.femoralHeadCenter.y + geometry.sacralMidpoint.y) / 2 -
-        30 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: topY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1632,11 +1683,17 @@ export const PT_CONFIG: AnnotationConfig = {
     if (!geometry || !geometry.femoralHeadCenter)
       return points[0] || { x: 0, y: 0 };
 
+    // 标签放在测量结构右下方（与PI错开），避免遮挡骨盆线
+    const maxX = Math.max(
+      geometry.femoralHeadCenter.x,
+      geometry.sacralMidpoint.x,
+      ...(points.map(p => p.x))
+    );
+    const bottomY = Math.max(geometry.femoralHeadCenter.y, geometry.sacralMidpoint.y);
+
     return {
-      x: (geometry.femoralHeadCenter.x + geometry.sacralMidpoint.x) / 2,
-      y:
-        (geometry.femoralHeadCenter.y + geometry.sacralMidpoint.y) / 2 +
-        22 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: bottomY + LABEL_OFFSET.BOTTOM / imageScale,
     };
   },
 
@@ -1682,10 +1739,11 @@ export const SS_CONFIG: AnnotationConfig = {
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
 
-    const minY = Math.min(points[0].y, points[1].y);
+    // 标签放在线段右端点的右上方，避免遮挡线段
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: minY - 30 / imageScale,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1749,9 +1807,11 @@ export const LENGTH_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在线段右端点的右上方，避免遮挡线段
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1816,7 +1876,11 @@ export const ANGLE_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 3) return points[0] || { x: 0, y: 0 };
-    return points[1]; // 顶点位置
+    // 标签放在顶点右上方，避免遮挡角度顶点
+    return {
+      x: points[1].x + LABEL_OFFSET.RIGHT / imageScale,
+      y: points[1].y - LABEL_OFFSET.TOP / imageScale,
+    };
   },
 
   isInHoverRange: (
@@ -2119,9 +2183,11 @@ export const AUX_LENGTH_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在线段右端点的右上方，避免遮挡距离线
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20 / imageScale,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -2195,7 +2261,13 @@ export const AUX_ANGLE_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
-    return calculateCenterPoint(points);
+    // 标签放在所有点的右上方，避免遮挡角度线
+    const maxX = Math.max(points[0].x, points[1].x, points[2].x, points[3].x);
+    const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
+    return {
+      x: maxX + LABEL_OFFSET.COMPLEX_RIGHT / imageScale,
+      y: minY - LABEL_OFFSET.TOP / imageScale,
+    };
   },
 
   isInHoverRange: (

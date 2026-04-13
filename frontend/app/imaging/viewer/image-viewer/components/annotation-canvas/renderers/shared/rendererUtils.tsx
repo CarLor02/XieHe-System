@@ -46,35 +46,28 @@ export function renderIndexedPoint(
 export function renderMeasurementValueTag(
   measurement: MeasurementData,
   labelPosition: Point,
-  fontSize: number = 14
+  fontSize: number = 11,
+  color: string = '#10b981'
 ) {
   // 使用格式化后的值用于图表显示
   const displayValue = formatDisplayValue(measurement.value);
   const text = `${measurement.type}: ${displayValue}`;
-  const width = estimateTextWidth(text, fontSize);
-  const height = estimateTextHeight(fontSize, 0);
 
   return (
-    <g>
-      <rect
-        x={labelPosition.x - width / 2}
-        y={labelPosition.y - height / 2}
-        width={width}
-        height={height}
-        rx={6}
-        fill="rgba(17, 24, 39, 0.88)"
-      />
-      <text
-        x={labelPosition.x}
-        y={labelPosition.y}
-        fill="#fff"
-        fontSize={fontSize}
-        dominantBaseline="middle"
-        textAnchor="middle"
-      >
-        {text}
-      </text>
-    </g>
+    <text
+      x={labelPosition.x}
+      y={labelPosition.y}
+      fill={color}
+      fontSize={fontSize}
+      fontWeight="bold"
+      dominantBaseline="middle"
+      textAnchor="middle"
+      stroke="#000000"
+      strokeWidth="3"
+      paintOrder="stroke"
+    >
+      {text}
+    </text>
   );
 }
 
