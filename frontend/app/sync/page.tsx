@@ -7,6 +7,14 @@ import {
   getPatients,
 } from '@/services/patientServices';
 import { uploadSingleFile } from '@/services/imageServices';
+import {
+  downloadSyncPreviewImage,
+  getSyncFiles,
+  getSyncStats,
+  inspectSyncFile,
+  markSyncFileSynced,
+  type SyncServiceConfig,
+} from '@/services/syncServices';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -102,30 +110,16 @@ export default function SyncPage() {
     if (key) setApiKey(key);
   }, []);
 
-  // ── Service API ─────────────────────────────────────────────────────────────
-
-  const svcHeaders = useCallback(() => {
-    const h: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (apiKey) h['X-API-Key'] = apiKey;
-    return h;
-  }, [apiKey]);
-
-  const svcFetch = useCallback(async (path: string, opts?: RequestInit) => {
-    const res = await fetch(`${serviceUrl}${path}`, {
-      ...opts,
-      headers: { ...svcHeaders(), ...(opts?.headers || {}) },
-    });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    return res;
-  }, [serviceUrl, svcHeaders]);
+  const syncConfig = useCallback<() => SyncServiceConfig>(() => ({
+    serviceUrl,
+    apiKey,
+  }), [serviceUrl, apiKey]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      // stats
-      const statsRes = await svcFetch('/api/v1/stats');
-      const statsData = await statsRes.json();
+      const statsData = await getSyncStats(syncConfig());
       setStats({
         total: statsData.total_files ?? 0,
         valid: statsData.valid_files ?? 0,
@@ -144,9 +138,7 @@ export default function SyncPage() {
       if (filterSynced !== 'all') params.set('is_synced', filterSynced);
       if (filterPatient) params.set('patient_folder', filterPatient);
 
-      const filesRes = await svcFetch(`/api/v1/files?${params}`);
-      const filesData = await filesRes.json();
-      const items: ScanFile[] = filesData.items ?? [];
+      const items = await getSyncFiles(syncConfig(), params);
       setFiles(items);
       items.forEach(f => { monthsSet.add(f.month_folder); patientsSet.add(f.patient_folder); });
       setMonths(Array.from(monthsSet).sort());
@@ -156,7 +148,7 @@ export default function SyncPage() {
     } finally {
       setLoading(false);
     }
-  }, [svcFetch, filterMonth, filterSynced, filterPatient]);
+  }, [syncConfig, filterMonth, filterSynced, filterPatient]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -181,8 +173,7 @@ export default function SyncPage() {
     setFileImportState(file.id, 'inspecting', '读取DICOM元数据…');
 
     // 1. Inspect
-    const inspectRes = await svcFetch(`/api/v1/files/${file.id}/inspect`);
-    const inspectData = await inspectRes.json();
+    const inspectData = await inspectSyncFile(syncConfig(), file.id);
     const dicom = inspectData.dicom ?? {};
 
     const patientName = dicom.PatientName || file.patient_folder;
@@ -218,11 +209,7 @@ export default function SyncPage() {
 
     // 3. 从索引服务获取转换好的 PNG 图像
     setFileImportState(file.id, 'downloading', '转换图像…');
-    const dlHeaders: Record<string, string> = {};
-    if (apiKey) dlHeaders['X-API-Key'] = apiKey;
-    const dlRes = await fetch(`${serviceUrl}/api/v1/files/${file.id}/preview-image`, { headers: dlHeaders });
-    if (!dlRes.ok) throw new Error(`图像转换失败: ${dlRes.status}`);
-    const rawBlob = await dlRes.blob();
+    const rawBlob = await downloadSyncPreviewImage(syncConfig(), file.id);
 
     const uploadFilename = `${file.filename}.png`;
     const dicomBlob = new Blob([rawBlob], { type: 'image/png' });
@@ -237,7 +224,7 @@ export default function SyncPage() {
 
     // 5. Mark synced
     setFileImportState(file.id, 'marking', '标记已同步…');
-    await svcFetch(`/api/v1/files/${file.id}/mark-synced`, { method: 'POST' });
+    await markSyncFileSynced(syncConfig(), file.id);
 
     setFileImportState(file.id, 'done', '导入成功');
   };
@@ -261,7 +248,7 @@ export default function SyncPage() {
     setImporting(false);
     showToast(`导入完成：成功 ${ok} 个${fail ? `，失败 ${fail} 个` : ''}`);
     setSelectedIds(new Set());
-    loadData();
+    void loadData();
   };
 
   // ── Selection helpers ─────────────────────────────────────────────────────

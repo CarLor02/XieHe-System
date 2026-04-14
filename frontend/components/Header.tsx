@@ -1,10 +1,13 @@
 'use client';
 
 import UserSettings from '@/components/UserSettings';
-import { apiClient, useAuth, useUser } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
+import { useAuth, useUser } from '@/lib/api';
+import { redirectToLogin } from '@/lib/api/session/sessionEffects';
+import { createLogger } from '@/lib/logger';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { getNotificationMessages } from '@/services/notificationServices';
+import { getMyInvitations } from '@/services/teamService';
 import Tooltip from './ui/Tooltip';
 
 interface Message {
@@ -17,6 +20,8 @@ interface Message {
 }
 
 // 移除硬编码消息，将从API获取
+
+const logger = createLogger('components.header');
 
 export default function Header() {
   const router = useRouter();
@@ -47,33 +52,26 @@ export default function Header() {
         // 获取系统通知
         let systemMessages: Message[] = [];
         try {
-          const response = await apiClient.get('/api/v1/notifications/messages');
-          // 使用 extractData 提取通知数据
-          const notificationData = extractData<any[]>(response);
-          // 确保返回的是数组
-          const dataArray = Array.isArray(notificationData) ? notificationData : [];
-          systemMessages = dataArray.map((item: any) => ({
-            id: item.id || Math.random().toString(),
+          const notificationData = await getNotificationMessages();
+          systemMessages = notificationData.map(item => ({
+            id: String(item.id || Math.random()),
             title: item.title || '系统通知',
-            content: item.message || item.content || '',
-            type: item.type || 'info',
+            content: item.content || '',
+            type: item.message_type || 'info',
             time: item.created_at
               ? new Date(item.created_at).toLocaleString()
               : '刚刚',
             isRead: item.is_read || false,
           }));
         } catch (error) {
-          console.warn('获取系统消息失败:', error);
+          logger.warn('获取系统消息失败', error);
         }
 
         // 获取团队邀请
         let invitationMessages: Message[] = [];
         try {
-          const invitationsResponse = await apiClient.get('/api/v1/permissions/invitations/my');
-          // 使用 extractData 提取邀请数据
-          const invitationsData = extractData<{ items: any[] }>(invitationsResponse);
-          const invitations = invitationsData.items || [];
-          invitationMessages = invitations.map((inv: any) => ({
+          const invitationsData = await getMyInvitations();
+          invitationMessages = (invitationsData.items || []).map(inv => ({
             id: `invitation-${inv.id}`,
             title: '团队邀请',
             content: `${inv.inviter_name || '某人'}邀请您加入团队"${inv.team_name}"`,
@@ -82,13 +80,13 @@ export default function Header() {
             isRead: false,
           }));
         } catch (error) {
-          console.warn('获取团队邀请失败:', error);
+          logger.warn('获取团队邀请失败', error);
         }
 
         // 合并所有消息
         setMessages([...invitationMessages, ...systemMessages]);
       } catch (error) {
-        console.warn('获取消息失败:', error);
+        logger.warn('获取消息失败', error);
         setMessages([]);
       }
     };
@@ -204,11 +202,11 @@ export default function Header() {
       await logout();
       // 使用 window.location.href 进行完整页面跳转，避免闪烁
       // 这样可以确保所有状态都被清除，不会触发中间状态的渲染
-      window.location.href = '/auth/login';
+      redirectToLogin(0);
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.warn('Logout error', error);
       // 即使出错也跳转到登录页
-      window.location.href = '/auth/login';
+      redirectToLogin(0);
     }
   };
 

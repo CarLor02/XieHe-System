@@ -47,6 +47,18 @@ export interface MeasurementData {
 }
 
 /*
+* AI 测量数据结构体
+* */
+export interface AiMeasurementData {
+  type: string;
+  points: Point[];
+  angle?: number;
+  upper_vertebra?: string;
+  lower_vertebra?: string;
+  apex_vertebra?: string;
+}
+
+/*
 * 标注数据结构体, 用 api/v1/image-files/{image_id} 得到的 annotation 字段做 JSON.Unmarshal 得到
 * */
 export interface AnnotationData {

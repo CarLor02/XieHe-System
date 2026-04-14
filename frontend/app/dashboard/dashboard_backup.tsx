@@ -2,8 +2,8 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import StatsCard from '@/components/StatsCard';
-import TaskList from '@/components/TaskList';
+import StatsCard from '@/components/dashboard/StatsCard';
+import TaskList from '@/components/dashboard/TaskList';
 import { apiUrl } from '@/lib/config';
 import { useUser } from '@/lib/api';
 import Link from 'next/link';

@@ -1,6 +1,6 @@
 'use client';
 
-import BirthDatePicker from '@/components/BirthDatePicker';
+import BirthDatePicker from '@/components/patients/BirthDatePicker';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useUser } from '@/lib/api';

@@ -30,6 +30,16 @@ export interface DashboardTask {
   actual_hours?: number;
 }
 
+export interface DashboardPendingTask {
+  id: number;
+  patient_name: string;
+  patient_id: string;
+  study_type: string;
+  created_at: string;
+  priority: 'high' | 'normal';
+  status: string;
+}
+
 export interface DashboardOverview {
   stats: DashboardStats;
   tasks?: DashboardTask[];

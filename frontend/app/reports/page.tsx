@@ -11,8 +11,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient, useUser } from '@/lib/api';
-import { extractPaginatedData } from '@/lib/api/types';
+import { useUser } from '@/lib/api';
+import { getReports } from '@/services/reportServices';
 import ReportEditor from '../../components/reports/ReportEditor';
 import ReportExport from '../../components/reports/ReportExport';
 import ReportPreview from '../../components/reports/ReportPreview';
@@ -97,42 +97,30 @@ export default function ReportsPage() {
       setLoading(true);
       setError(null);
 
-      // 构建查询参数
-      const params = new URLSearchParams();
-      params.append('page', currentPage.toString());
-      params.append('page_size', reportsPerPage.toString());
-
-      if (searchTerm) {
-        params.append('search', searchTerm);
-      }
-      if (statusFilter !== 'all') {
-        params.append('status', statusFilter);
-      }
-      if (priorityFilter !== 'all') {
-        params.append('priority', priorityFilter);
-      }
-
-      const response = await apiClient.get(`/api/v1/reports/?${params}`);
-
-      // 使用 extractPaginatedData 提取分页数据
-      const result = extractPaginatedData<any>(response);
+      const result = await getReports({
+        page: currentPage,
+        page_size: reportsPerPage,
+        search: searchTerm || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        priority: priorityFilter !== 'all' ? priorityFilter : undefined,
+      });
 
       // 转换API数据格式
       if (result.items && result.items.length > 0) {
         const apiReports = result.items.map((report: any) => ({
           id: report.id,
-          report_number: report.report_no || `RPT-${report.id}`,
-          report_title: report.title || '诊断报告',
+          report_number: report.report_number || `RPT-${report.id}`,
+          report_title: report.report_title || '诊断报告',
           status: report.status || 'draft',
           priority: report.priority || 'normal',
           patient_name: report.patient_name || '未知患者',
           patient_id: report.patient_id,
           examination_date:
-            report.study_date || report.created_at?.split('T')[0] || '',
+            report.report_date || report.created_at?.split('T')[0] || '',
           report_date:
             report.report_date || report.created_at?.split('T')[0] || '',
-          reporting_physician: report.doctor_name || '未指定医生',
-          primary_diagnosis: report.diagnosis || '',
+          reporting_physician: report.reporting_physician || '未指定医生',
+          primary_diagnosis: report.primary_diagnosis || '',
           clinical_history: report.clinical_history || '',
           examination_technique: report.examination_technique || '',
           findings: report.findings || '',

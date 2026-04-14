@@ -14,10 +14,7 @@ import {
   type ImageFile,
   type ImageFileFilters,
 } from '@/services/imageServices/imageFileService';
-import {
-  checkAndHandleAuthError,
-  getErrorMessage,
-} from '@/lib/api';
+import { getErrorMessage } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -153,29 +150,6 @@ export default function ImagingPage() {
       setLoading(false);
     } catch (err: any) {
       console.error('Failed to load images:', err);
-      console.log('错误类型检查:', {
-        hasResponse: !!err.response,
-        status: err.response?.status,
-        message: err.message,
-        isAuthError:
-          err.response?.status === 401 ||
-          err.message?.toLowerCase().includes('authentication'),
-      });
-
-      // 检查并处理认证错误
-      if (
-        checkAndHandleAuthError(err, { showAlert: false, redirectDelay: 0 })
-      ) {
-        // 认证错误，显示跳转提示
-        console.log('✅ 检测到认证错误，准备跳转到登录页');
-        setError('登录已过期，正在跳转到登录页...');
-        setImageFiles([]);
-        // 保持 loading 状态，避免显示错误页面
-        return;
-      }
-
-      // 设置错误消息（仅非认证错误）
-      console.log('⚠️ 非认证错误，显示错误消息');
       setError(getErrorMessage(err, '加载影像失败，请重试'));
       setImageFiles([]);
       setLoading(false);
@@ -502,10 +476,6 @@ export default function ImagingPage() {
           URL.revokeObjectURL(url);
         } catch (error: any) {
           console.error('下载失败:', error);
-          // 检查并处理认证错误
-          if (checkAndHandleAuthError(error)) {
-            return;
-          }
           alert(getErrorMessage(error, '下载失败，请重试'));
         }
         break;
@@ -518,10 +488,6 @@ export default function ImagingPage() {
             alert('影像删除成功');
           } catch (error: any) {
             console.error('删除影像失败:', error);
-            // 检查并处理认证错误
-            if (checkAndHandleAuthError(error)) {
-              return;
-            }
             alert(getErrorMessage(error, '删除失败，请重试'));
           }
         }

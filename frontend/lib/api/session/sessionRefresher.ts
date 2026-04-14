@@ -1,22 +1,20 @@
-import { createLogger } from '@/lib/logger';
+import { sessionRefreshLockLogging } from '@/lib/logger/sessionLogging';
 import { useSessionStore } from '@/lib/api';
-
-const logger = createLogger('api.sessionRefresher');
 
 let refreshPromise: Promise<boolean> | null = null;
 
 export async function refreshAccessTokenWithLock(): Promise<boolean> {
   if (!refreshPromise) {
-    logger.debug('starting refresh');
+    sessionRefreshLockLogging.started();
     refreshPromise = useSessionStore
       .getState()
       .refreshAccessToken()
       .finally(() => {
-        logger.debug('refresh settled');
+        sessionRefreshLockLogging.settled();
         refreshPromise = null;
       });
   } else {
-    logger.debug('joining in-flight refresh');
+    sessionRefreshLockLogging.joined();
   }
 
   return refreshPromise;

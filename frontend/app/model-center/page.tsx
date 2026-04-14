@@ -8,8 +8,14 @@ import Link from 'next/link';
 import AddModelDialog from './AddModelDialog';
 import DeleteModelDialog from './DeleteModelDialog';
 import ModelCard from './ModelCard';
-import { apiClient, useUser } from '@/lib/api';
+import { useUser } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import {
+  activateModel,
+  deleteModel,
+  getModelStats,
+  getModels,
+} from '@/services/modelServices';
 
 interface ModelData {
   id: string;
@@ -55,18 +61,18 @@ export default function ModelCenter() {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get('/api/v1/models/', {
-        params: { page_size: 100 }
+      const response = await getModels({
+        page_size: 100,
       });
 
       try {
-        const statsRes = await apiClient.get('/api/v1/models/stats');
-        setStats(statsRes.data);
+        const statsRes = await getModelStats();
+        setStats(statsRes);
       } catch (e) {
         console.error("Stats fetch failed", e);
       }
 
-      const apiModels = response.data.models || [];
+      const apiModels = response.items || [];
       const convertedModels: ModelData[] = apiModels.map((model: any) => ({
         id: model.id,
         title: model.name,
@@ -104,7 +110,7 @@ export default function ModelCenter() {
   // 激活模型
   const handleActivateModel = async (model: ModelData) => {
     try {
-      await apiClient.post(`/api/v1/models/${model.id}/activate`);
+      await activateModel(model.id);
 
       // 刷新模型列表
       await loadModels();
@@ -122,7 +128,7 @@ export default function ModelCenter() {
     if (!deleteModel) return;
 
     try {
-      const response = await apiClient.delete(`/api/v1/models/${deleteModel.id}`);
+      const response = await deleteModel(deleteModel.id);
 
       // 关闭对话框
       setDeleteModel(null);
@@ -131,7 +137,7 @@ export default function ModelCenter() {
       await loadModels();
 
       // 显示提示
-      if (response.data.fallback_to_default) {
+      if (response.fallback_to_default) {
         alert(`模型已删除，已自动切换到系统默认模型`);
       } else {
         alert('模型删除成功');

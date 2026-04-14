@@ -10,10 +10,23 @@
  */
 
 import { refreshAccessTokenWithLock, useSessionStore } from '@/lib/api';
+import { hasUsableSession } from '@/lib/api/session/sessionStore';
+import { sessionInitializerLogging } from '@/lib/logger/sessionLogging';
 import React, { useEffect, useState } from 'react';
 
 interface ProvidersProps {
   children: React.ReactNode;
+}
+
+type PersistApi = {
+  hasHydrated?: () => boolean;
+  onHydrate?: (listener: () => void) => () => void;
+  onFinishHydration?: (listener: () => void) => () => void;
+};
+
+function getPersistApi(): PersistApi | undefined {
+  return (useSessionStore as typeof useSessionStore & { persist?: PersistApi })
+    .persist;
 }
 
 /**
@@ -22,49 +35,220 @@ interface ProvidersProps {
  */
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
-  const { isAuthenticated, session, fetchUserInfo } = useSessionStore();
+  const [isHydrated, setIsHydrated] = useState(() => {
+    const persist = getPersistApi();
+    return persist?.hasHydrated?.() ?? true;
+  });
+  const {
+    isAuthenticated,
+    session,
+    fetchUserInfoStatus,
+    forceLogout,
+  } = useSessionStore();
   const accessToken = session?.accessToken;
   const refreshToken = session?.refreshToken;
+  const accessTokenExpiresAtEpochSeconds =
+    session?.accessTokenExpiresAtEpochSeconds;
+  const hasStoredSession = hasUsableSession(session);
 
   useEffect(() => {
+    const persist = getPersistApi();
+
+    if (!persist) {
+      sessionInitializerLogging.persistApiUnavailable();
+      setIsHydrated(true);
+      return;
+    }
+
+    if (persist.hasHydrated?.()) {
+      sessionInitializerLogging.persistAlreadyHydrated();
+      setIsHydrated(true);
+      return;
+    }
+
+    const unsubscribeHydrate = persist.onHydrate?.(() => {
+      sessionInitializerLogging.persistHydrationStarted();
+      setIsHydrated(false);
+    });
+    const unsubscribeFinishHydration = persist.onFinishHydration?.(() => {
+      sessionInitializerLogging.persistHydrationFinished({
+        isAuthenticated: useSessionStore.getState().isAuthenticated,
+      });
+      setIsHydrated(true);
+    });
+
+    return () => {
+      unsubscribeHydrate?.();
+      unsubscribeFinishHydration?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
     // 初始化认证状态
     const initializeAuth = async () => {
       try {
-        // 只在有访问令牌且已认证时才尝试验证 token
-        if (accessToken && isAuthenticated) {
+        sessionInitializerLogging.initializeStarted({
+          isAuthenticated,
+          hasStoredSession,
+          accessTokenExpiresAtEpochSeconds,
+          session,
+        });
+        // 只要本地有可用 session，就按已登录态恢复并校验
+        if (hasStoredSession && accessToken) {
           // 尝试获取用户信息来验证 token 是否有效
-          let success = await fetchUserInfo();
+          let status = await fetchUserInfoStatus();
+          sessionInitializerLogging.initializeStatus(status);
 
-          if (!success && refreshToken) {
+          if (status === 'unauthorized' && refreshToken) {
+            sessionInitializerLogging.initializeRefreshAttempt();
             const refreshed = await refreshAccessTokenWithLock();
+            sessionInitializerLogging.initializeRefreshResult(refreshed);
             if (refreshed) {
-              success = await fetchUserInfo();
+              status = await fetchUserInfoStatus();
+              sessionInitializerLogging.initializePostRefreshStatus(status);
             }
           }
 
-          if (!success) {
-            // Token 无效或已过期，清除认证状态
-            console.warn('Token validation failed, clearing auth state');
-            useSessionStore.setState({
-              isAuthenticated: false,
-              user: null,
-              session: null,
+          if (status === 'unauthorized') {
+            sessionInitializerLogging.initializeForceLogout(status);
+            forceLogout({
+              source: 'providers.initializeAuth',
+              status,
             });
           }
         }
       } catch (error) {
-        console.error('Failed to initialize auth:', error);
+        sessionInitializerLogging.initializeFailed(error);
       } finally {
         // 立即标记为已初始化，不要等待异步操作
+        sessionInitializerLogging.initializeFinished();
         setIsInitialized(true);
       }
     };
 
     initializeAuth();
-  }, [accessToken, isAuthenticated, refreshToken, fetchUserInfo]);
+  }, [
+    isHydrated,
+    accessToken,
+    hasStoredSession,
+    refreshToken,
+    fetchUserInfoStatus,
+    forceLogout,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isHydrated ||
+      !hasStoredSession ||
+      !refreshToken ||
+      !accessTokenExpiresAtEpochSeconds
+    ) {
+      return;
+    }
+
+    const refreshLeadTimeMs = 2 * 60 * 1000;
+    const minDelayMs = 30 * 1000;
+    const expiresAtMs = accessTokenExpiresAtEpochSeconds * 1000;
+    const delayMs = Math.max(expiresAtMs - Date.now() - refreshLeadTimeMs, minDelayMs);
+    sessionInitializerLogging.scheduledRefreshPlanned({
+      accessTokenExpiresAtEpochSeconds,
+      delayMs,
+      refreshLeadTimeMs,
+    });
+
+    const timer = window.setTimeout(async () => {
+      try {
+        sessionInitializerLogging.scheduledRefreshTriggered();
+        const refreshed = await refreshAccessTokenWithLock();
+        if (!refreshed) {
+          forceLogout({
+            source: 'providers.scheduledRefresh',
+            reason: 'refresh-returned-false',
+          });
+        }
+      } catch (error) {
+        sessionInitializerLogging.scheduledRefreshFailed(error);
+      }
+    }, delayMs);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    isHydrated,
+    hasStoredSession,
+    refreshToken,
+    accessTokenExpiresAtEpochSeconds,
+    forceLogout,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isHydrated ||
+      !hasStoredSession ||
+      !refreshToken ||
+      !accessTokenExpiresAtEpochSeconds
+    ) {
+      return;
+    }
+
+    const refreshLeadTimeMs = 2 * 60 * 1000;
+
+    const maybeRefreshOnResume = async () => {
+      const expiresAtMs = accessTokenExpiresAtEpochSeconds * 1000;
+      const remainingMs = expiresAtMs - Date.now();
+      sessionInitializerLogging.resumeCheck({
+        remainingMs,
+        refreshLeadTimeMs,
+      });
+      if (remainingMs > refreshLeadTimeMs) {
+        return;
+      }
+
+      try {
+        sessionInitializerLogging.resumeRefreshTriggered();
+        const refreshed = await refreshAccessTokenWithLock();
+        if (!refreshed) {
+          forceLogout({
+            source: 'providers.resumeRefresh',
+            reason: 'refresh-returned-false',
+            remainingMs,
+          });
+        }
+      } catch (error) {
+        sessionInitializerLogging.resumeRefreshFailed(error);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void maybeRefreshOnResume();
+      }
+    };
+
+    const handleFocus = () => {
+      void maybeRefreshOnResume();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [
+    isHydrated,
+    hasStoredSession,
+    refreshToken,
+    accessTokenExpiresAtEpochSeconds,
+    forceLogout,
+  ]);
 
   // 等待初始化完成
-  if (!isInitialized) {
+  if (!isHydrated || !isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

@@ -1,17 +1,16 @@
 'use client';
 
-import BirthDatePicker from '@/components/BirthDatePicker';
+import BirthDatePicker from '@/components/patients/BirthDatePicker';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { apiClient } from '@/lib/api';
 import {
   extractBirthDateFromIdCard,
   extractGenderFromIdCard,
   validateIdCard,
 } from '@/utils/idCardUtils';
-import { extractData } from '@/lib/api/types';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { getPatientDetail, updatePatient } from '@/services/patientServices';
 
 interface PatientForm {
   patient_id: string;
@@ -56,10 +55,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
         setLoading(true);
         setError(null);
 
-        const response = await apiClient.get(`/api/v1/patients/${patientId}`);
-
-        // 使用 extractData 提取患者数据
-        const patient = extractData<any>(response);
+        const patient = await getPatientDetail(patientId);
         setFormData({
           patient_id: patient.patient_id || '',
           name: patient.name || '',
@@ -146,15 +142,11 @@ export default function EditPatient({ patientId }: { patientId: string }) {
       setSaving(true);
       setError(null);
 
-      const response = await apiClient.put(`/api/v1/patients/${patientId}`, formData);
-
-      if (response.status === 200) {
-        setShowSaveModal(true);
-        // 2秒后跳转回患者列表
-        setTimeout(() => {
-          router.push('/patients');
-        }, 2000);
-      }
+      await updatePatient(patientId, formData);
+      setShowSaveModal(true);
+      setTimeout(() => {
+        router.push('/patients');
+      }, 2000);
     } catch (err: any) {
       console.error('Failed to update patient:', err);
       setError(err.response?.data?.message || '更新患者信息失败');

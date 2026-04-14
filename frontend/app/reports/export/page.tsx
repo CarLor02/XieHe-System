@@ -10,9 +10,9 @@
  */
 
 import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/api';
 import ReportExport from '../../../components/reports/ReportExport';
 import { Button } from '../../../components/ui/Button';
+import { getReports } from '@/services/reportServices';
 
 interface ReportData {
   id: number;
@@ -52,26 +52,30 @@ export default function ReportExportPage() {
     try {
       setLoading(true);
 
-      // 只获取已完成的报告用于导出
-      const response = await apiClient.get(
-        '/api/v1/reports/?status=finalized&status=approved'
-      );
+      const result = await getReports({
+        page: 1,
+        page_size: 100,
+      });
 
-      if (response.data && response.data.reports) {
-        const apiReports = response.data.reports.map((report: any) => ({
+      if (result.items && result.items.length > 0) {
+        const apiReports = result.items
+          .filter(
+            report => report.status === 'finalized' || report.status === 'approved'
+          )
+          .map((report: any) => ({
           id: report.id,
-          report_number: report.report_no || `RPT-${report.id}`,
-          report_title: report.title || '诊断报告',
+          report_number: report.report_number || `RPT-${report.id}`,
+          report_title: report.report_title || '诊断报告',
           status: report.status || 'finalized',
           priority: report.priority || 'normal',
           patient_name: report.patient_name || '未知患者',
           patient_id: report.patient_id,
           examination_date:
-            report.study_date || report.created_at?.split('T')[0] || '',
+            report.report_date || report.created_at?.split('T')[0] || '',
           report_date:
             report.report_date || report.created_at?.split('T')[0] || '',
-          reporting_physician: report.doctor_name || '未指定医生',
-          primary_diagnosis: report.diagnosis || '',
+          reporting_physician: report.reporting_physician || '未指定医生',
+          primary_diagnosis: report.primary_diagnosis || '',
           created_at: report.created_at || '',
           updated_at: report.updated_at || '',
         }));

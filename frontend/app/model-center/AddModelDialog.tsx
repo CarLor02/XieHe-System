@@ -1,5 +1,5 @@
-import { apiClient } from '@/lib/api';
 import { useState } from 'react';
+import { createModel } from '@/services/modelServices';
 
 interface AddModelDialogProps {
     isOpen: boolean;
@@ -32,7 +32,7 @@ export default function AddModelDialog({ isOpen, onClose, onSuccess }: AddModelD
                 tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean)
             };
 
-            await apiClient.post('/api/v1/models/', payload);
+            await createModel(payload);
             onSuccess();
             onClose();
         } catch (err: any) {

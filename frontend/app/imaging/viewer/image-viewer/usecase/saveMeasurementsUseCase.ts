@@ -1,8 +1,10 @@
-import {apiClient} from "@/lib/api";
 import {MeasurementData, StudyData, Point, ImageSize} from "../types";
 import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
+import {
+    saveMeasurementRecord,
+    updateImageAnnotation,
+} from '@/services/imageServices';
 
-// TODO 没做完, 需要接入  service
 export async function saveMeasurements(
     imageId: string,
     studyData: StudyData | null,
@@ -88,29 +90,19 @@ export async function saveMeasurements(
         const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
         const measurementData = {
             imageId: numericId,
-            patientId: imageData.patientId,
+            patientId: Number(imageData.patientId) || 0,
             examType: imageData.examType,
             measurements: measurements,
             reportText: reportText,
             savedAt: new Date().toISOString(),
         };
 
-        const response = await apiClient.post(
-            `/api/v1/measurements/${numericId}`,
+        await saveMeasurementRecord(
+            Number(numericId),
             measurementData
         );
-
-        console.log('保存响应:', response.status);
-
-        if (response.status === 200) {
-            setSaveMessage('标注已保存到本地和服务器');
-            setTimeout(() => setSaveMessage(''), 3000);
-        } else {
-            const errorMsg =
-                response.data?.message || response.data?.detail || '保存失败';
-            console.error('保存失败:', response.status, errorMsg);
-            throw new Error(errorMsg);
-        }
+        setSaveMessage('标注已保存到本地和服务器');
+        setTimeout(() => setSaveMessage(''), 3000);
 
         // 3. 同时更新 image-files 的 annotation 字段，持久化绑定数据
         try {
@@ -123,9 +115,7 @@ export async function saveMeasurements(
                 imageHeight: imageNaturalSize?.height,
                 savedAt: new Date().toISOString(),
             };
-            await apiClient.patch(`/api/v1/image-files/${numericId}/annotation`, {
-                annotation: JSON.stringify(annotationData),
-            });
+            await updateImageAnnotation(numericId, JSON.stringify(annotationData));
             console.log('绑定数据已同步至 annotation 字段');
         } catch (annotationErr) {
             // 不阻断主保存流程

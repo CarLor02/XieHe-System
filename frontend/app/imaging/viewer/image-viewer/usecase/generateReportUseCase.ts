@@ -1,8 +1,8 @@
-import {apiClient, extractData} from "@/lib/api";
 import {MeasurementData, ImageData} from "@/app/imaging/viewer/image-viewer/types";
+import { generateMeasurementReport } from '@/services/imageServices';
 
 /*
-* 生成报告 TODO 接入 service
+* 生成报告
 * */
 export async function generateReport(
     imageData: ImageData,
@@ -17,7 +17,7 @@ export async function generateReport(
 
     try {
         // 调用后端API生成报告
-        const response = await apiClient.post('/api/v1/report-generation/generate', {
+        const result = await generateMeasurementReport({
             imageId: imageData.id,
             examType: imageData.examType,
             measurements: measurements.map(m => ({
@@ -27,16 +27,10 @@ export async function generateReport(
             })),
         });
 
-        if (response.status === 200) {
-            // 使用 extractData 提取报告数据
-            const result = extractData<{ report: string }>(response);
-            if (result.report) {
-                setReportText(result.report);
-                setSaveMessage('报告生成成功');
-                setTimeout(() => setSaveMessage(''), 3000);
-            } else {
-                throw new Error('报告生成失败');
-            }
+        if (result.report) {
+            setReportText(result.report);
+            setSaveMessage('报告生成成功');
+            setTimeout(() => setSaveMessage(''), 3000);
         } else {
             throw new Error('报告生成失败');
         }

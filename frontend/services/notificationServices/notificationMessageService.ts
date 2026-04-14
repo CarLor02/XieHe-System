@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
+import { extractData, extractPaginatedData } from '@/lib/api/types';
 import {
   NotificationActionResult,
   NotificationMessage,
@@ -19,7 +19,25 @@ export async function getNotificationMessages(
     ? `/api/v1/notifications/messages?${query}`
     : '/api/v1/notifications/messages';
   const response = await apiClient.get(url);
-  return extractData<NotificationMessage[]>(response);
+
+  const paginatedResult = extractPaginatedData<NotificationMessage>(response);
+  if (Array.isArray(paginatedResult.items)) {
+    return paginatedResult.items;
+  }
+
+  const data = extractData<NotificationMessage[] | { items?: NotificationMessage[] }>(
+    response
+  );
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.items)) {
+    return data.items;
+  }
+
+  return [];
 }
 
 export async function getNotificationMessageStats(): Promise<NotificationMessageStats> {

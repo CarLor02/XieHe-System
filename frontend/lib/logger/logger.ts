@@ -70,7 +70,8 @@ function shouldLog(level: Exclude<LogLevelName, 'silent'>) {
 export function createLogger(scope: string): Logger {
   const write = (level: Exclude<LogLevelName, 'silent'>, args: unknown[]) => {
     if (!shouldLog(level)) return;
-    CONSOLE_METHODS[level](`[${scope}]`, ...args);
+    const timestamp = new Date().toISOString();
+    CONSOLE_METHODS[level](`[${timestamp}] [${scope}]`, ...args);
   };
 
   return {

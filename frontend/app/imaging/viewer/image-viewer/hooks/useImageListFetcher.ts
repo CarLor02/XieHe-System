@@ -1,16 +1,13 @@
 import {useEffect} from "react";
-import {apiClient, extractPaginatedData} from "@/lib/api";
+import { getImageFiles } from '@/services/imageServices';
 
-// TODO 接入 service
 export function useImageListFetcher(setImageList:(imageIdList: string[]) => void) {
     async function fetchImageList(){
         try {
-            const response = await apiClient.get(
-                '/api/v1/image-files?page=1&page_size=100'
-            );
-
-            // 使用 extractPaginatedData 提取影像列表
-            const result = extractPaginatedData<any>(response);
+            const result = await getImageFiles({
+                page: 1,
+                page_size: 100,
+            });
 
             // 从API响应中提取影像ID，格式为IMG{id}
             const ids = result.items.map((item: any) => {
@@ -32,4 +29,3 @@ export function useImageListFetcher(setImageList:(imageIdList: string[]) => void
         []
     );
 }
-

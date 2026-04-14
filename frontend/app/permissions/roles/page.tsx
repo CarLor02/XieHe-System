@@ -1,7 +1,7 @@
 'use client';
 
-import { apiClient } from '@/lib/api';
 import { useEffect, useState } from 'react';
+import { getPermissionRoles } from '@/services/permissionServices';
 
 interface Role {
   role_id: string;
@@ -30,8 +30,8 @@ export default function RolesPage() {
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/v1/permissions/roles');
-      setRoles(response.data);
+      const response = await getPermissionRoles();
+      setRoles(response.items);
       setError(null);
     } catch (err: any) {
       console.error('获取角色列表失败:', err);

@@ -11,6 +11,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import ImageViewer from './ImageViewer'
+import { getDicomImageInfo, getDicomStudy } from '@/services/dicomServices'
 
 interface DICOMViewerProps {
   studyId?: string
@@ -99,13 +100,7 @@ const DICOMViewer: React.FC<DICOMViewerProps> = ({
     setError(null)
 
     try {
-      // 模拟API调用
-      const response = await fetch(`/api/v1/images/studies/${id}`)
-      if (!response.ok) {
-        throw new Error('加载研究失败')
-      }
-
-      const studyData = await response.json()
+      const studyData = await getDicomStudy(id)
       setStudy(studyData)
 
       // 设置默认序列和实例
@@ -134,10 +129,7 @@ const DICOMViewer: React.FC<DICOMViewerProps> = ({
     try {
       // 获取图像元数据
       const imageId = url.split('/').pop() || 'unknown'
-      const response = await fetch(`/api/v1/images/${imageId}/info`)
-      
-      if (response.ok) {
-        const imageInfo = await response.json()
+      const imageInfo = await getDicomImageInfo(imageId)
         
         // 创建虚拟研究结构
         const virtualInstance: DICOMInstance = {
@@ -180,7 +172,6 @@ const DICOMViewer: React.FC<DICOMViewerProps> = ({
         setStudy(virtualStudy)
         setCurrentSeries(virtualSeries)
         setCurrentInstance(virtualInstance)
-      }
 
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : '加载图像失败'

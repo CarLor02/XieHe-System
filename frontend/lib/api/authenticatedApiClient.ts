@@ -1,38 +1,23 @@
 import axios, { AxiosHeaders, AxiosInstance } from 'axios';
 import { API_BASE_URL } from './config';
 import { createLogger } from '@/lib/logger';
+import { sessionAuthenticatedClientLogging } from '@/lib/logger/sessionLogging';
 import {
-  extractApiMessage,
   isApiEnvelope,
   isApiSuccessCode,
 } from './types';
 import { refreshAccessTokenWithLock } from './session/sessionRefresher';
-import { useSessionStore } from './session/sessionStore';
+import {
+  hasUsableSession,
+  useSessionStore,
+} from './session/sessionStore';
+import {
+  shouldAttachAuthorization,
+  shouldSkipAuthRefresh,
+} from './client/authRequest';
+import { createApiEnvelopeError } from './client/errors';
 
 const logger = createLogger('api.authenticatedClient');
-
-function shouldSkipAuthRefresh(config: any): boolean {
-  return Boolean(
-    config?._skipAuthRefresh ||
-      config?.url?.includes('/api/v1/auth/refresh')
-  );
-}
-
-function createApiEnvelopeError(data: any, response?: any) {
-  const error = new Error(
-    extractApiMessage(data) || '请求失败'
-  ) as Error & {
-    data?: any;
-    response?: any;
-    apiCode?: number;
-    status?: number;
-  };
-  error.data = data;
-  error.response = response;
-  error.apiCode = data?.code;
-  error.status = response?.status;
-  return error;
-}
 
 function buildAuthenticatedClient(): AxiosInstance {
   const client = axios.create({
@@ -49,7 +34,7 @@ function buildAuthenticatedClient(): AxiosInstance {
         config.headers = new AxiosHeaders();
       }
 
-      if (accessToken) {
+      if (accessToken && shouldAttachAuthorization(config)) {
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
 
@@ -114,10 +99,18 @@ function buildAuthenticatedClient(): AxiosInstance {
 
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
-        logger.info('401 received, attempting refresh', originalRequest.url);
+        const session = useSessionStore.getState().session;
+        sessionAuthenticatedClientLogging.unauthorizedRetryStarted({
+          url: originalRequest.url,
+          method: originalRequest.method,
+          isAuthenticated: useSessionStore.getState().isAuthenticated,
+          session,
+        });
 
-        const isAuthenticated = useSessionStore.getState().isAuthenticated;
-        if (!isAuthenticated) {
+        if (!hasUsableSession(session)) {
+          sessionAuthenticatedClientLogging.unauthorizedWithoutSession(
+            originalRequest.url
+          );
           return Promise.reject(error);
         }
 
@@ -129,21 +122,42 @@ function buildAuthenticatedClient(): AxiosInstance {
               originalRequest.headers = new AxiosHeaders();
             }
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-            logger.info('refresh succeeded, retrying request', originalRequest.url);
+            sessionAuthenticatedClientLogging.retryingRequest({
+              url: originalRequest.url,
+              method: originalRequest.method,
+            });
             return client(originalRequest);
           }
         } catch (refreshError) {
-          logger.warn('refresh request failed, keeping session intact', refreshError);
+          sessionAuthenticatedClientLogging.refreshRequestFailed(refreshError);
           return Promise.reject(refreshError);
         }
 
-        logger.warn('refresh failed, forcing logout');
-        useSessionStore.getState().forceLogout();
+        sessionAuthenticatedClientLogging.refreshFailedForcingLogout({
+          url: originalRequest.url,
+          method: originalRequest.method,
+          status: error.response?.status,
+        });
+        useSessionStore.getState().forceLogout({
+          source: 'authenticatedApiClient.refreshRetry',
+          url: originalRequest.url,
+          method: originalRequest.method,
+          status: error.response?.status,
+        });
       }
 
       if (error.response?.status === 401 && originalRequest._retry) {
-        logger.warn('request still unauthorized after refresh', originalRequest.url);
-        useSessionStore.getState().forceLogout();
+        sessionAuthenticatedClientLogging.retryStillUnauthorized({
+          url: originalRequest.url,
+          method: originalRequest.method,
+          status: error.response?.status,
+        });
+        useSessionStore.getState().forceLogout({
+          source: 'authenticatedApiClient.retryUnauthorized',
+          url: originalRequest.url,
+          method: originalRequest.method,
+          status: error.response?.status,
+        });
       }
 
       return Promise.reject(error);

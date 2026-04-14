@@ -1,7 +1,11 @@
 import {ImageData, MeasurementData} from "../types"
 import {Dispatch, SetStateAction} from "react"
+import {
+    aiDetectKeyPoints,
+    aiDetectLateralKeyPoints,
+} from '@/services/imageServices';
 
-// AI检测函数（仅检测椎骨，不包含测量）- 仅管理员可用 TODO 接入 service
+// AI检测函数（仅检测椎骨，不包含测量）
 export async function aiDetect(
     isAdmin: boolean,
     imageData: ImageData,
@@ -48,43 +52,12 @@ export async function aiDetect(
             }, 'image/png');
         });
 
-        // 构建FormData
-        const formData = new FormData();
-        formData.append('file', imageBlob, 'image.png');
-
-        // 根据examType选择不同的AI检测接口
-        let aiDetectUrl: string;
+        let aiData: any;
         if (imageData.examType === '侧位X光片') {
-            // 侧位使用 /api/detect 接口（返回椎体4个角点）
-            aiDetectUrl =
-                process.env.NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL || '';
-            if (!aiDetectUrl) {
-                throw new Error(
-                    '侧位X光片AI检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL'
-                );
-            }
+            aiData = await aiDetectLateralKeyPoints(imageBlob, 'image.png');
         } else {
-            // 正位使用 detect_keypoints 接口
-            aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL || '';
-            if (!aiDetectUrl) {
-                throw new Error(
-                    '正位X光片AI关键点检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL'
-                );
-            }
+            aiData = await aiDetectKeyPoints(imageBlob, 'image.png');
         }
-
-        console.log('🤖 使用AI检测接口:', aiDetectUrl);
-
-        const aiResponse = await fetch(aiDetectUrl, {
-            method: 'POST',
-            body: formData,
-        });
-
-        if (!aiResponse.ok) {
-            throw new Error('AI检测失败');
-        }
-
-        const aiData = await aiResponse.json();
         console.log('AI检测返回数据:', aiData);
 
         // 处理检测结果，将关键点转换为可视化标注

@@ -15,7 +15,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { errorService, ErrorType, ErrorSeverity, handleError, handleApiError } from '@/services/errorService'
+import {
+  ErrorType,
+  ErrorSeverity,
+  handleError,
+  handleApiError,
+  sendClientErrorReport,
+} from '@/services/errorService'
 
 interface UseErrorHandlerOptions {
   enableAutoReport?: boolean
@@ -131,13 +137,7 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}): UseErrorH
         context
       }
       
-      await fetch('/api/v1/errors/report', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(errorReport)
-      })
+      await sendClientErrorReport(errorReport)
     } catch (reportError) {
       console.error('手动错误报告失败:', reportError)
     }

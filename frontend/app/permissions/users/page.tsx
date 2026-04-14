@@ -1,7 +1,7 @@
 'use client';
 
-import { apiClient } from '@/lib/api';
 import { useEffect, useState } from 'react';
+import { getUserPermissionDetail } from '@/services/permissionServices';
 
 interface UserPermission {
   user_id: string;
@@ -82,10 +82,8 @@ export default function UserPermissionsPage() {
   const fetchUserPermissions = async (userId: number) => {
     try {
       setPermissionsLoading(true);
-      const response = await apiClient.get(
-        `/api/v1/permissions/users/${userId}/permissions`
-      );
-      setUserPermissions(response.data);
+      const response = await getUserPermissionDetail(userId);
+      setUserPermissions(response);
     } catch (err: any) {
       console.error('获取用户权限失败:', err);
       setError(err.response?.data?.message || '获取用户权限失败');

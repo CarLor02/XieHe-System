@@ -1,21 +1,11 @@
 'use client';
 
-import { apiClient } from '@/lib/api';
+import { getDashboardPendingTasks, type DashboardPendingTask } from '@/services/dashboardServices';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-interface Task {
-  id: number;
-  patient_name: string;
-  patient_id: string;
-  study_type: string;
-  created_at: string;
-  priority: 'high' | 'normal';
-  status: string;
-}
-
 export default function TaskList() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<DashboardPendingTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,23 +17,7 @@ export default function TaskList() {
     try {
       setLoading(true);
       setError(null);
-
-      const response = await apiClient.get(
-        '/api/v1/image-files/?status=pending&page=1&page_size=20'
-      );
-
-      // 转换API数据为Task格式
-      const items = response.data.items || [];
-      const taskData: Task[] = items.map((item: any) => ({
-        id: item.id,
-        patient_name: item.patient_name || '未知患者',
-        patient_id: item.patient_id || '',
-        study_type: item.modality || '未知类型',
-        created_at: item.created_at,
-        priority: Math.random() > 0.5 ? 'high' : 'normal', // 临时随机分配优先级
-        status: item.status || 'pending',
-      }));
-
+      const taskData = await getDashboardPendingTasks();
       setTasks(taskData);
     } catch (err: any) {
       console.error('Failed to load tasks:', err);
@@ -71,12 +45,6 @@ export default function TaskList() {
   const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
   const startIndex = (currentPage - 1) * tasksPerPage;
   const displayedTasks = filteredTasks.slice(startIndex, startIndex + tasksPerPage);
-
-  // 根据任务生成对应的影像ID
-  const getImageIdForTask = (task: Task) => {
-    // 使用任务ID作为影像ID的基础，生成对应的影像标识
-    return `IMG${task.id.toString().padStart(3, '0')}`;
-  };
 
   if (loading) {
     return (
@@ -147,7 +115,7 @@ export default function TaskList() {
             共 {filteredTasks.length} 个任务
           </span>
           <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-            {filteredTasks.filter((task: Task) => task.priority === 'high').length} 紧急
+            {filteredTasks.filter(task => task.priority === 'high').length} 紧急
           </span>
         </div>
       </div>
@@ -181,7 +149,7 @@ export default function TaskList() {
                   {new Date(task.created_at).toLocaleString('zh-CN')}
                 </p>
                 <Link
-                  href={`/imaging/viewer?id=${getImageIdForTask(task)}`}
+                  href={`/imaging/viewer?id=${task.id}`}
                   className="mt-1 bg-blue-600 text-white text-xs px-3 py-1 rounded hover:bg-blue-700 whitespace-nowrap inline-block"
                 >
                   开始审核

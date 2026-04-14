@@ -1,9 +1,15 @@
 'use client';
 
 import { Button } from '@/components/ui/Button';
-import { apiClient } from '@/lib/api';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
+import {
+  getDashboardStats,
+  getDashboardTasks,
+  type DashboardTask,
+} from '@/services/dashboardServices';
+import { getNotificationMessages } from '@/services/notificationServices';
+import { getSystemStats } from '@/services/systemServices';
 
 // 类型定义
 interface DashboardOverview {
@@ -99,27 +105,26 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
       setLoading(true);
 
       // 获取仪表板统计数据
-      const statsResponse = await apiClient.get('/api/v1/dashboard/stats');
+      const statsResponse = await getDashboardStats();
       const overview: DashboardOverview = {
-        total_patients: statsResponse.data.total_patients || 0,
-        new_patients_today: statsResponse.data.new_patients_today || 0,
-        new_patients_week: statsResponse.data.new_patients_week || 0,
-        active_patients: statsResponse.data.active_patients || 0,
-        total_images: statsResponse.data.total_images || 0,
-        images_today: statsResponse.data.images_today || 0,
-        images_week: statsResponse.data.images_week || 0,
-        pending_images: statsResponse.data.pending_images || 0,
-        processed_images: statsResponse.data.processed_images || 0,
-        completion_rate: statsResponse.data.completion_rate || 0,
-        average_processing_time: statsResponse.data.average_processing_time || 0,
-        system_alerts: statsResponse.data.system_alerts || 0,
+        total_patients: statsResponse.total_patients || 0,
+        new_patients_today: statsResponse.new_patients_today || 0,
+        new_patients_week: statsResponse.new_patients_week || 0,
+        active_patients: statsResponse.active_patients || 0,
+        total_images: statsResponse.total_images || 0,
+        images_today: statsResponse.images_today || 0,
+        images_week: statsResponse.images_week || 0,
+        pending_images: statsResponse.pending_images || 0,
+        processed_images: statsResponse.processed_images || 0,
+        completion_rate: statsResponse.completion_rate || 0,
+        average_processing_time: statsResponse.average_processing_time || 0,
+        system_alerts: statsResponse.system_alerts || 0,
       };
 
       // 获取任务数据
-      const tasksResponse = await apiClient.get('/api/v1/dashboard/tasks');
-      const tasks: TaskItem[] = (tasksResponse.data.tasks || []).map(
-        (task: any) => ({
-          task_id: task.task_id || task.id,
+      const tasksResponse = await getDashboardTasks();
+      const tasks: TaskItem[] = tasksResponse.map((task: DashboardTask) => ({
+          task_id: task.task_id,
           title: task.title || '未知任务',
           description: task.description || '',
           status: task.status || 'pending',
@@ -132,42 +137,37 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
           tags: task.tags || [],
           estimated_hours: task.estimated_hours || 0,
           actual_hours: task.actual_hours || 0,
-        })
-      );
+        }));
 
       // 获取通知数据
-      const notificationsResponse = await apiClient.get(
-        '/api/v1/notifications/messages'
-      );
-      const notifications: NotificationItem[] = (
-        notificationsResponse.data || []
-      ).map((notif: any) => ({
-        notification_id: notif.id || notif.notification_id,
+      const notificationsResponse = await getNotificationMessages();
+      const notifications: NotificationItem[] = notificationsResponse.map(notif => ({
+        notification_id: String(notif.id),
         title: notif.title || '通知',
-        message: notif.content || notif.message || '',
-        type: notif.type || 'info',
+        message: notif.content || '',
+        type: notif.message_type || 'info',
         created_at: notif.created_at || '',
         read: notif.is_read || false,
-        sender: notif.sender_id || 'SYSTEM',
+        sender: 'SYSTEM',
         sender_name: notif.sender_name || '系统',
         action_url: notif.action_url || '',
       }));
 
       // 获取系统指标
-      const metricsResponse = await apiClient.get('/api/v1/system/stats');
+      const metricsResponse = await getSystemStats();
       const metrics: SystemMetrics = {
-        cpu_usage: metricsResponse.data.cpu_usage || 0,
-        memory_usage: metricsResponse.data.memory_usage || 0,
-        disk_usage: metricsResponse.data.disk_usage || 0,
+        cpu_usage: metricsResponse.cpu_usage || 0,
+        memory_usage: metricsResponse.memory_usage || 0,
+        disk_usage: metricsResponse.disk_usage || 0,
         network_io: {
-          incoming: metricsResponse.data.network_io?.incoming || 0,
-          outgoing: metricsResponse.data.network_io?.outgoing || 0,
+          incoming: 0,
+          outgoing: 0,
         },
-        database_connections: metricsResponse.data.database_connections || 0,
-        active_sessions: metricsResponse.data.active_sessions || 0,
-        api_response_time: metricsResponse.data.api_response_time || 0,
-        error_rate: metricsResponse.data.error_rate || 0,
-        uptime: metricsResponse.data.system_uptime || '未知',
+        database_connections: 0,
+        active_sessions: metricsResponse.active_users || 0,
+        api_response_time: 0,
+        error_rate: 0,
+        uptime: metricsResponse.system_uptime || '未知',
       };
 
       // 快速操作数据（可以保持静态）

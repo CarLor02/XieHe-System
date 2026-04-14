@@ -2,9 +2,13 @@
 
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { apiClient } from '@/lib/api';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+    getModelConfiguration,
+    getModels,
+    updateModelConfiguration,
+} from '@/services/modelServices';
 
 interface ModelOption {
     id: string;
@@ -32,17 +36,17 @@ export default function ModelSettingsPage() {
     const fetchData = async () => {
         try {
             // Fetch models
-            const modelsRes = await apiClient.get('/api/v1/models/', { params: { page_size: 100 } });
-            const allModels = modelsRes.data.models || [];
+            const modelsRes = await getModels({ page_size: 100 });
+            const allModels = modelsRes.items || [];
 
             setFrontModels(allModels.filter((m: any) => m.view_type === 'front'));
             setSideModels(allModels.filter((m: any) => m.view_type === 'side'));
 
             // Fetch config
-            const configRes = await apiClient.get('/api/v1/models/configuration');
+            const configRes = await getModelConfiguration();
             setConfig({
-                front_model_id: configRes.data.front_model_id || '',
-                side_model_id: configRes.data.side_model_id || ''
+                front_model_id: configRes.front_model_id || '',
+                side_model_id: configRes.side_model_id || ''
             });
 
         } catch (error) {
@@ -55,7 +59,7 @@ export default function ModelSettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await apiClient.put('/api/v1/models/configuration', config);
+            await updateModelConfiguration(config);
             alert('设置已保存');
             router.push('/model-center');
         } catch (error) {

@@ -29,3 +29,28 @@ export async function getPatients(
   const response = await apiClient.get(`/api/v1/patients/?${params.toString()}`);
   return extractPaginatedData<Patient>(response);
 }
+
+export async function getAllPatients(
+  filters: Omit<PatientListFilters, 'page' | 'page_size'> = {},
+  pageSize = 100
+): Promise<Patient[]> {
+  const firstPage = await getPatients({
+    ...filters,
+    page: 1,
+    page_size: pageSize,
+  });
+
+  const allItems = [...firstPage.items];
+  const totalPages = Math.max(firstPage.totalPages, 1);
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const nextPage = await getPatients({
+      ...filters,
+      page,
+      page_size: pageSize,
+    });
+    allItems.push(...nextPage.items);
+  }
+
+  return allItems;
+}

@@ -59,6 +59,17 @@ export interface ErrorInfo {
   sessionId?: string;
 }
 
+export interface ClientErrorReportPayload {
+  message: string;
+  stack?: string | null;
+  componentStack?: string | null;
+  timestamp: string;
+  url: string;
+  userAgent: string;
+  errorId?: string | null;
+  context?: Record<string, unknown>;
+}
+
 // 错误处理配置
 interface ErrorHandlerConfig {
   enableReporting: boolean;
@@ -561,6 +572,18 @@ class ErrorService {
       isReporting: this.isReporting,
     };
   }
+
+  public async sendClientErrorReport(
+    payload: ClientErrorReportPayload
+  ): Promise<void> {
+    await fetch(this.config.reportEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 // 创建全局错误服务实例
@@ -569,3 +592,5 @@ export const errorService = new ErrorService();
 // 导出便捷方法
 export const handleError = errorService.handleError.bind(errorService);
 export const handleApiError = errorService.handleApiError.bind(errorService);
+export const sendClientErrorReport =
+  errorService.sendClientErrorReport.bind(errorService);

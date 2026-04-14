@@ -292,4 +292,3 @@ export default function EnhancedPatientsPage() {
     </div>
   );
 }
-import { apiClient } from '@/lib/api';

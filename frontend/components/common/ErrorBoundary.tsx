@@ -16,6 +16,7 @@
 'use client'
 
 import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { sendClientErrorReport } from '@/services/errorService'
 
 interface Props {
   children: ReactNode
@@ -78,14 +79,7 @@ class ErrorBoundary extends Component<Props, State> {
         errorId: this.state.errorId
       }
       
-      // 发送到错误监控服务
-      await fetch('/api/v1/errors/report', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(errorReport)
-      })
+      await sendClientErrorReport(errorReport)
       
       console.error('错误已报告:', errorReport)
     } catch (reportError) {

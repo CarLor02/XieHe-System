@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './config';
 import { createLogger } from '@/lib/logger';
+import { sessionFetchClientLogging } from '@/lib/logger/sessionLogging';
 import {
   extractApiMessage,
   getStatusCode,
@@ -8,37 +9,19 @@ import {
   unwrapApiPayload,
 } from './types';
 import { refreshAccessTokenWithLock } from './session/sessionRefresher';
-import { useSessionStore } from './session/sessionStore';
+import {
+  hasUsableSession,
+  useSessionStore,
+} from './session/sessionStore';
+import { redirectToLogin } from './session/sessionEffects';
+import { createApiClientError, type ApiClientError } from './client/errors';
+import { parseResponsePayload } from './client/responsePayload';
 
 const logger = createLogger('api.fetchClient');
 
 type AuthFetchOptions = {
   retryOn401?: boolean;
 };
-
-export type ApiClientError = Error & {
-  status?: number;
-  data?: any;
-  response?: Response;
-  apiCode?: number;
-};
-
-export function createApiClientError(
-  message: string,
-  options: {
-    status?: number;
-    data?: any;
-    response?: Response;
-    apiCode?: number;
-  } = {}
-): ApiClientError {
-  const error = new Error(message) as ApiClientError;
-  error.status = options.status;
-  error.data = options.data;
-  error.response = options.response;
-  error.apiCode = options.apiCode;
-  return error;
-}
 
 function withAuthorizationHeader(
   headers: HeadersInit | undefined,
@@ -51,31 +34,12 @@ function withAuthorizationHeader(
   return mergedHeaders;
 }
 
-async function parseResponsePayload(response: Response): Promise<any> {
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    try {
-      return await response.json();
-    } catch {
-      return null;
-    }
-  }
-
-  try {
-    const text = await response.text();
-    return text ? { message: text } : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function authenticatedFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
   options: AuthFetchOptions = {}
 ): Promise<Response> {
   const { retryOn401 = true } = options;
-  const isAuthenticated = useSessionStore.getState().isAuthenticated;
   const session = useSessionStore.getState().session;
 
   logger.debug('fetch request', input);
@@ -84,8 +48,11 @@ export async function authenticatedFetch(
     headers: withAuthorizationHeader(init.headers, session?.accessToken),
   });
 
-  if (response.status === 401 && retryOn401 && isAuthenticated) {
-    logger.info('fetch 401, attempting refresh', input);
+  if (response.status === 401 && retryOn401 && hasUsableSession(session)) {
+    sessionFetchClientLogging.unauthorizedRetryStarted({
+      request: String(input),
+      session,
+    });
     try {
       const refreshed = await refreshAccessTokenWithLock();
       if (refreshed) {
@@ -96,7 +63,7 @@ export async function authenticatedFetch(
         });
       }
     } catch (refreshError) {
-      logger.warn('fetch refresh failed, keeping session intact', refreshError);
+      sessionFetchClientLogging.refreshFailed(refreshError);
       throw refreshError;
     }
   }
@@ -189,24 +156,13 @@ export function handleAuthError(
     redirectDelay = 500,
   } = options;
 
-  logger.warn('auth error', {
-    status: getStatusCode(error),
-    message: error.message,
-  });
+  sessionFetchClientLogging.authErrorHandled(error);
 
   if (showAlert && typeof window !== 'undefined') {
     alert(alertMessage);
   }
 
-  if (typeof window !== 'undefined') {
-    if (redirectDelay === 0) {
-      window.location.href = '/auth/login';
-    } else {
-      window.setTimeout(() => {
-        window.location.href = '/auth/login';
-      }, redirectDelay);
-    }
-  }
+  redirectToLogin(redirectDelay);
 }
 
 export function checkAndHandleAuthError(

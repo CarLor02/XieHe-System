@@ -5,12 +5,11 @@ import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { apiClient } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
 import {
   getPatientImages,
   type ImageFile,
 } from '@/services/imageServices/imageFileService';
+import { deletePatient, getPatientDetail } from '@/services/patientServices';
 
 // 患者详情数据接口
 interface PatientDetail {
@@ -47,10 +46,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
     const fetchPatient = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.get(`/api/v1/patients/${patientId}`);
-
-        // 使用 extractData 提取患者数据
-        const patientData = extractData<PatientDetail>(response);
+        const patientData = await getPatientDetail(patientId);
         setPatient(patientData);
         setError(null);
       } catch (err: any) {
@@ -432,7 +428,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                 <button
                   onClick={async () => {
                     try {
-                      await apiClient.delete(`/api/v1/patients/${patientId}`);
+                      await deletePatient(patientId);
                       router.push('/patients');
                     } catch (err: any) {
                       console.error('删除患者失败:', err);

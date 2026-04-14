@@ -1,7 +1,7 @@
 'use client';
 
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import { authenticatedBlobFetch, useUser } from '@/lib/api';
+import { useUser } from '@/lib/api';
 import AnnotationCanvas from './components/AnnotationCanvas';
 import AnnotationToolbar from './components/AnnotationToolbar';
 import StudyHeader from './components/StudyHeader';
@@ -22,6 +22,7 @@ import { getToolsForExamType as getTools } from './catalog/exam-tool-catalog';
 import { useAnnotationEngine } from './hooks/useAnnotationEngine';
 import * as hooks from "./hooks/index"
 import * as usecases from "./usecase/index"
+import { getAiMeasurementsResponse } from '@/services/imageServices';
 import {ImageSize, MeasurementData, Point} from './types';
 // import ReactMarkdown from 'react-markdown';
 // import remarkGfm from 'remark-gfm';
@@ -586,52 +587,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setSaveMessage('');
 
     try {
-      // 获取图片文件
-      const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-
-      // 先获取图片
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const imageBlob = await authenticatedBlobFetch(
-        `${apiUrl}/api/v1/image-files/${numericId}/download`
-      );
-
-      // 构建FormData
-      const formData = new FormData();
-      formData.append('file', imageBlob, 'image.png');
-      formData.append('image_id', imageId);
-
-      // 根据examType选择不同的AI测量接口
-      let aiDetectUrl: string;
-      if (imageData.examType === '侧位X光片') {
-        // 侧位使用专用测量接口
-        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_LATERAL_URL || '';
-        if (!aiDetectUrl) {
-          throw new Error(
-            '侧位X光片AI检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_LATERAL_URL'
-          );
-        }
-      } else {
-        // 正位或其他类型使用默认接口
-        aiDetectUrl = process.env.NEXT_PUBLIC_AI_DETECT_URL || '';
-        if (!aiDetectUrl) {
-          throw new Error(
-            '正位X光片AI检测接口未配置，请检查环境变量 NEXT_PUBLIC_AI_DETECT_URL'
-          );
-        }
-      }
-
-      console.log('🤖 使用AI测量接口:', aiDetectUrl);
-
-      const aiResponse = await fetch(aiDetectUrl, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!aiResponse.ok) {
-        throw new Error('AI测量失败');
-      }
-
-      const aiData = await aiResponse.json();
+      const aiData = await getAiMeasurementsResponse(imageId, imageData.examType);
 
       // 解析AI返回的JSON数据并加载到标注界面
       if (aiData.measurements && Array.isArray(aiData.measurements)) {

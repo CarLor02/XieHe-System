@@ -5,8 +5,8 @@
  * 基于新的 image_files 表
  */
 
-import { apiClient } from '@/lib/api';
-import { extractData, extractPaginatedData } from '@/lib/api/types';
+import {apiClient} from '@/lib/api';
+import {extractData, extractPaginatedData} from '@/lib/api/types';
 
 export interface ImageFile {
   id: number;
@@ -79,6 +79,7 @@ export interface ImageFileFilters {
  * - description: 检查类型
  * - search: 搜索关键词
  * - start_date / end_date: 日期范围
+ * - TODO 这里返回的数据是靠前端进行的筛选, 这个权限筛选行为需要后端提供
  */
 export async function getImageFiles(
   filters: ImageFileFilters = {}
@@ -104,6 +105,34 @@ export async function getImageFiles(
     page_size: result.pageSize,
     items: result.items,
   };
+}
+
+export async function getAllImageFiles(
+  filters: Omit<ImageFileFilters, 'page' | 'page_size'> = {},
+  pageSize = 100
+): Promise<ImageFile[]> {
+  const firstPage = await getImageFiles({
+    ...filters,
+    page: 1,
+    page_size: pageSize,
+  });
+
+  const allItems = [...firstPage.items];
+  const totalPages = Math.max(
+    Math.ceil(firstPage.total / Math.max(firstPage.page_size, 1)),
+    1
+  );
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const nextPage = await getImageFiles({
+      ...filters,
+      page,
+      page_size: pageSize,
+    });
+    allItems.push(...nextPage.items);
+  }
+
+  return allItems;
 }
 
 /**
@@ -176,6 +205,16 @@ export async function updateImageExamType(
   return extractData<{ id: number; description: string; warning: string | null }>(response);
 }
 
+export async function updateImageAnnotation(
+  fileId: number,
+  annotation: string
+): Promise<{ message?: string }> {
+  const response = await apiClient.patch(`/api/v1/image-files/${fileId}/annotation`, {
+    annotation,
+  });
+  return extractData<{ message?: string }>(response);
+}
+
 /**
  * 获取影像统计信息
  */
@@ -208,6 +247,16 @@ export async function getImagePreviewUrl(fileId: number): Promise<string> {
     // 返回一个占位图片（灰色背景 + "暂无图片"文字）
     return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7ml6Dlh7rliqDovb08L3RleHQ+PC9zdmc+';
   }
+}
+
+/**
+* 根据 imageId 获取 numericId
+ * TODO
+* */
+export function imageIdToNumericId(imageId: string): string {
+  return imageId
+      .replace('IMG', '')
+      .replace(/^0+/, '') || '0';
 }
 
 /**
