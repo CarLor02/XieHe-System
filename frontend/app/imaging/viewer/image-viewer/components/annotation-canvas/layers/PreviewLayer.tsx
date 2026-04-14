@@ -3,6 +3,7 @@ import { calculateQuadrilateralCenter } from '../../../shared/geometry';
 import { MeasurementData, Point } from '../../../types';
 import renderPreview from '../renderers/renderPreview';
 import { DrawingState, ReferenceLines } from '../types';
+import { formatDisplayValue } from '../renderers/shared/rendererUtils';
 
 interface PreviewLayerProps {
   selectedTool: string;
@@ -472,8 +473,10 @@ function renderStructuredPreview({
               standardDistancePoints,
               imageNaturalSize,
             }) || [];
-          const angleText =
+          const rawAngleText =
             results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
+          // 使用格式化后的值用于图表显示
+          const angleText = rawAngleText ? formatDisplayValue(rawAngleText) : '';
           const centerPoint = {
             x:
               (screenPoints[0].x +
@@ -494,9 +497,12 @@ function renderStructuredPreview({
               x={centerPoint.x}
               y={centerPoint.y - 15}
               fill="#8b5cf6"
-              fontSize="12"
+              fontSize="11"
+              fontWeight="bold"
               textAnchor="middle"
-              opacity="0.7"
+              stroke="#000000"
+              strokeWidth="3"
+              paintOrder="stroke"
             >
               {angleText}
             </text>

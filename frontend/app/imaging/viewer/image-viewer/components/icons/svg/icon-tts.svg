@@ -1,0 +1,12 @@
+<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <!-- TTS (C7 Offset) - C7偏移距离 -->
+  <!-- 脊柱曲线 -->
+  <path d="M 32 12 Q 28 20, 26 28 Q 25 36, 28 44 Q 30 52, 32 58" stroke-width="1.8" />
+  <!-- C7椎体 -->
+  <circle cx="32" cy="14" r="4" />
+  <rect x="28" y="22" width="10" height="6" rx="1" />
+  <rect x="26" y="32" width="10" height="6" rx="1" />
+  <rect x="27" y="42" width="10" height="6" rx="1" />
+  <!-- 垂直参考线 -->
+  <line x1="32" y1="10" x2="32" y2="56" stroke-dasharray="2,2" opacity="0.4" />
+</svg>

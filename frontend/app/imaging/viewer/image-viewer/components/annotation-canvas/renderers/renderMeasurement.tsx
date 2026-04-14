@@ -11,6 +11,7 @@ import {
   getLabelPositionForType,
   renderSpecialSVGElements,
   usesInlineAuxiliaryTag,
+  calculateSmartLabelPosition,
 } from '../../../domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools/tool-state';
 import { imageToScreen } from '../../../canvas/transform/coordinate-transform';
@@ -19,6 +20,7 @@ import { estimateTextHeight, estimateTextWidth } from '../../../shared/labels';
 import { MeasurementData, Point } from '../../../types';
 import { HoverState, SelectionState } from '../types';
 import { renderAuxiliaryTag } from './support-shape-renderers/auxiliaryTagRenderer';
+import { formatDisplayValue } from './shared/rendererUtils';
 
 interface RenderMeasurementProps {
   measurement: MeasurementData;
@@ -33,6 +35,8 @@ interface RenderMeasurementProps {
   selectedBindingGroupId: string | null;
   isManualBindingMode: boolean;
   manualBindingSelectedPoints: PointRef[];
+  allMeasurements?: MeasurementData[];
+  measurementIndex?: number;
 }
 
 function getPointColor(
@@ -279,7 +283,7 @@ function renderAuxiliaryShape(
     );
   }
 
-  if (measurement.type === '锥体中心' && screenPoints.length === 4) {
+  if (measurement.type === '椎体中心' && screenPoints.length === 4) {
     const centerScreen = {
       x: (screenPoints[0].x + screenPoints[1].x + screenPoints[2].x + screenPoints[3].x) / 4,
       y: (screenPoints[0].y + screenPoints[1].y + screenPoints[2].y + screenPoints[3].y) / 4,
@@ -420,6 +424,8 @@ export default function renderMeasurement({
   selectedBindingGroupId,
   isManualBindingMode,
   manualBindingSelectedPoints,
+  allMeasurements = [],
+  measurementIndex = 0,
 }: RenderMeasurementProps): JSX.Element {
   const context = {
     imageNaturalSize,
@@ -449,11 +455,29 @@ export default function renderMeasurement({
     isMeasurementSelected,
     isMeasurementHovered
   );
-  const labelPosition = imageToScreen(
-    getLabelPositionForType(measurement.type, measurement.points, imageScale),
-    context
+
+  // 获取基础标签位置
+  const baseLabelPosition = getLabelPositionForType(measurement.type, measurement.points, imageScale);
+
+  // 计算已占用的标签位置（只考虑当前标注之前的标注）
+  const occupiedPositions = allMeasurements
+    .slice(0, measurementIndex)
+    .filter(m => !hiddenMeasurementIds.has(m.id))
+    .map(m => getLabelPositionForType(m.type, m.points, imageScale));
+
+  // 使用智能位置计算避免重叠
+  const smartLabelPosition = calculateSmartLabelPosition(
+    baseLabelPosition,
+    occupiedPositions,
+    imageScale,
+    'right' // 默认优先右侧
   );
-  const textContent = `${measurement.type}: ${measurement.value}`;
+
+  const labelPosition = imageToScreen(smartLabelPosition, context);
+
+  // 使用格式化后的值用于图表显示
+  const displayValue = formatDisplayValue(measurement.value);
+  const textContent = `${measurement.type}: ${displayValue}`;
   const fontSize = isMeasurementHovered
     ? TEXT_LABEL_CONSTANTS.HOVER_FONT_SIZE
     : TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE;
@@ -496,27 +520,19 @@ export default function renderMeasurement({
         screenPoints.length >= 2 &&
         !hideAllLabels &&
         !hiddenMeasurementIds.has(measurement.id) && (
-          <g>
-            <rect
-              x={labelPosition.x - textWidth / 2 - padding}
-              y={labelPosition.y - textHeight / 2 - padding}
-              width={textWidth + padding * 2}
-              height={textHeight + padding * 2}
-              fill="white"
-              opacity="0.9"
-              rx="3"
-            />
-            <text
-              x={labelPosition.x}
-              y={labelPosition.y + fontSize * 0.35}
-              fill={displayColor}
-              fontSize={fontSize}
-              fontWeight="bold"
-              textAnchor="middle"
-            >
-              {measurement.type}: {measurement.value}
-            </text>
-          </g>
+          <text
+            x={labelPosition.x}
+            y={labelPosition.y + fontSize * 0.35}
+            fill={displayColor}
+            fontSize={isMeasurementHovered ? 13 : 11}
+            fontWeight="bold"
+            textAnchor="middle"
+            stroke="#000000"
+            strokeWidth="3"
+            paintOrder="stroke"
+          >
+            {measurement.type}: {displayValue}
+          </text>
         )}
 
       {isAuxiliaryShape &&
@@ -537,9 +553,12 @@ export default function renderMeasurement({
             x={labelPosition.x}
             y={labelPosition.y + 5}
             fill={displayColor}
-            fontSize="14"
+            fontSize="11"
             fontWeight="bold"
             textAnchor="middle"
+            stroke="#000000"
+            strokeWidth="3"
+            paintOrder="stroke"
             style={{ userSelect: 'none', pointerEvents: 'none' }}
           >
             {measurement.description}

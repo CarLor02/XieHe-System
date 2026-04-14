@@ -11,6 +11,26 @@
 import type { JSX } from 'react';
 import * as Renderers from '../components/annotation-canvas/renderers/annotation-tool-renderers';
 
+// ==================== 标签位置常量 ====================
+
+/**
+ * 标签位置常量配置
+ * 这些值是屏幕像素，会根据 imageScale 自动转换为图像坐标
+ * 使用方法：LABEL_OFFSET.RIGHT / imageScale
+ */
+export const LABEL_OFFSET = {
+  /** 标签右侧偏移（屏幕像素） */
+  RIGHT: 50,
+  /** 标签左侧偏移（屏幕像素） */
+  LEFT: 50,
+  /** 标签上方偏移（屏幕像素） */
+  TOP: 40,
+  /** 标签下方偏移（屏幕像素） */
+  BOTTOM: 40,
+  /** Cobb角等复杂测量的右侧偏移（屏幕像素） */
+  COMPLEX_RIGHT: 60,
+} as const;
+
 // ==================== 类型定义 ====================
 
 export interface Point {
@@ -335,11 +355,11 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
 export const COBB_CONFIG: AnnotationConfig = {
   id: 'cobb',
   name: 'Cobb',
-  icon: 'ri-compass-3-line',
+  icon: 'medical-cobb',
   description: 'Cobb角测量',
   pointsNeeded: 4,
   category: 'measurement',
-  color: '#f59e0b',
+  color: '#f59e0b', // 橙色
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 4) return [];
@@ -383,7 +403,13 @@ export const COBB_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
-    return calculateCenterPoint(points);
+    // 找到最右侧的点，标签放在右上方，避免遮挡线段
+    const maxX = Math.max(points[0].x, points[1].x, points[2].x, points[3].x);
+    const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
+    return {
+      x: maxX + LABEL_OFFSET.COMPLEX_RIGHT / imageScale,
+      y: minY - LABEL_OFFSET.TOP / imageScale,
+    };
   },
 
   isInHoverRange: (
@@ -425,6 +451,39 @@ export const COBB_CONFIG: AnnotationConfig = {
 // 保留旧的配置作为别名，以兼容现有代码
 export const COBB_THORACIC_CONFIG = COBB_CONFIG;
 export const COBB_LUMBAR_CONFIG = COBB_CONFIG;
+
+/**
+ * Cobb1 第一个Cobb角（蓝色）
+ */
+export const COBB1_CONFIG: AnnotationConfig = {
+  ...COBB_CONFIG,
+  id: 'cobb1',
+  name: 'Cobb1',
+  description: 'Cobb角1测量',
+  color: '#3b82f6', // 蓝色
+};
+
+/**
+ * Cobb2 第二个Cobb角（紫色）
+ */
+export const COBB2_CONFIG: AnnotationConfig = {
+  ...COBB_CONFIG,
+  id: 'cobb2',
+  name: 'Cobb2',
+  description: 'Cobb角2测量',
+  color: '#a855f7', // 紫色
+};
+
+/**
+ * Cobb3 第三个Cobb角（粉色）
+ */
+export const COBB3_CONFIG: AnnotationConfig = {
+  ...COBB_CONFIG,
+  id: 'cobb3',
+  name: 'Cobb3',
+  description: 'Cobb角3测量',
+  color: '#ec4899', // 粉色
+};
 
 /**
  * CA 锁骨角测量
@@ -497,15 +556,15 @@ export const CA_CONFIG: AnnotationConfig = {
 };
 
 /**
- * Pelvic 骨盆倾斜角
+ * PO 骨盆倾斜角
  * 2点测量：与水平线夹角
  * 正负规则：左边高为正，右边高为负
  */
 export const PELVIC_CONFIG: AnnotationConfig = {
   id: 'pelvic',
-  name: 'Pelvic',
-  icon: 'ri-triangle-line',
-  description: '骨盆倾斜角测量',
+  name: 'PO',
+  icon: 'medical-po',
+  description: '骨盆倾斜角(Pelvic obliquity, PO)',
   pointsNeeded: 2,
   category: 'measurement',
   color: '#ec4899',
@@ -524,7 +583,7 @@ export const PELVIC_CONFIG: AnnotationConfig = {
 
     return [
       {
-        name: 'Pelvic',
+        name: 'PO',
         value: angle.toFixed(2),
         unit: '°',
       },
@@ -533,9 +592,11 @@ export const PELVIC_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在线段右端点的右上方，避免遮挡解剖结构和关键点
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -575,15 +636,15 @@ export const PELVIC_CONFIG: AnnotationConfig = {
 };
 
 /**
- * Sacral 骶骨倾斜角
+ * CSS 冠状面骶骨倾斜角
  * 2点测量：与水平线夹角
  * 正负规则：左边高为正，右边高为负
  */
 export const SACRAL_CONFIG: AnnotationConfig = {
   id: 'sacral',
-  name: 'Sacral',
-  icon: 'ri-square-line',
-  description: '骶骨倾斜角测量',
+  name: 'CSS',
+  icon: 'medical-css',
+  description: '冠状面骶骨倾斜角CSS(Coronal Sacral Slope)',
   pointsNeeded: 2,
   category: 'measurement',
   color: '#f43f5e',
@@ -602,7 +663,7 @@ export const SACRAL_CONFIG: AnnotationConfig = {
 
     return [
       {
-        name: 'Sacral',
+        name: 'CSS',
         value: angle.toFixed(2),
         unit: '°',
       },
@@ -611,9 +672,11 @@ export const SACRAL_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在线段右端点的右上方，避免遮挡解剖结构和关键点
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -720,16 +783,16 @@ export const AVT_CONFIG: AnnotationConfig = {
 };
 
 /**
- * TTS 躯干偏移量（4点法）
+ * TS 躯干偏移量（4点法）
  *   点0-1：躯干参考水平线两端点（手动标注）
  *   点2-3：骶骨参考线两端点（继承自 Sacral）
  * 计算：躯干线中点 X 与骶骨中线 X 的水平距离
  */
 export const TS_CONFIG: AnnotationConfig = {
   id: 'ts',
-  name: 'TTS',
-  icon: 'ri-crosshair-2-line',
-  description: '躯干偏移量(Trunk Shift)',
+  name: 'TS',
+  icon: 'medical-ts',
+  description: '躯干偏移量TS(Trunk Shift)',
   pointsNeeded: 4,
   category: 'measurement',
   color: '#84cc16',
@@ -747,7 +810,7 @@ export const TS_CONFIG: AnnotationConfig = {
 
     return [
       {
-        name: 'TTS',
+        name: 'TS',
         value: actualDistance.toFixed(2),
         unit: 'mm',
       },
@@ -760,9 +823,12 @@ export const TS_CONFIG: AnnotationConfig = {
     const trunkMidY = (points[0].y + points[1].y) / 2;
     const sacralMidX = (points[2].x + points[3].x) / 2;
     const sacralMidY = (points[2].y + points[3].y) / 2;
+    // 标签放在测量区域右上方，避免遮挡线段
+    const maxX = Math.max(points[0].x, points[1].x, points[2].x, points[3].x);
+    const topY = Math.min(trunkMidY, sacralMidY);
     return {
-      x: (trunkMidX + sacralMidX) / 2,
-      y: Math.min(trunkMidY, sacralMidY) - 20 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: topY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -872,15 +938,15 @@ export const LLD_CONFIG: AnnotationConfig = {
 /**
  * C7 Offset C7偏移距离（正面）
  * 6点测量：
- *   点1-4：C7椎体四角，中心为锥体中心
+ *   点1-4：C7椎体四角，中心为椎体中心
  *   点5-6：参考线两端点，中点作为参考中心
- * 测量结果：锥体中心与参考中点之间的水平距离
+ * 测量结果：椎体中心与参考中点之间的水平距离
  */
 export const C7_OFFSET_CONFIG: AnnotationConfig = {
   id: 'c7-offset',
-  name: 'TS(Trunk Shift)',
-  icon: 'ri-arrow-left-right-line',
-  description: 'C7偏移距离（正面6点法）',
+  name: 'TTS',
+  icon: 'medical-tts',
+  description: 'C7偏移距离TTS(Trunk Shift)',
   pointsNeeded: 6,
   category: 'measurement',
   color: '#06b6d4',
@@ -888,7 +954,7 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 6) return [];
 
-    // 前4个点的锥体中心
+    // 前4个点的椎体中心
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
 
     // 后2个点的中点
@@ -899,7 +965,7 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
 
     return [
       {
-        name: 'TS(Trunk Shift)',
+        name: 'TTS',
         value: actualDistance.toFixed(2),
         unit: 'mm',
       },
@@ -909,14 +975,19 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 6) return points[0] || { x: 0, y: 0 };
 
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-    const refX = (points[4].x + points[5].x) / 2;
     const refY = (points[4].y + points[5].y) / 2;
 
+    // 标签放在所有点的右上方，避免遮挡椎体和线段
+    const maxX = Math.max(
+      points[0].x, points[1].x, points[2].x, points[3].x,
+      points[4].x, points[5].x
+    );
+    const topY = Math.min(centerY, refY);
+
     return {
-      x: (centerX + refX) / 2,
-      y: Math.min(centerY, refY) - 20 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: topY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1254,7 +1325,7 @@ export const LL_L4_S1_CONFIG: AnnotationConfig = {
 export const TPA_CONFIG: AnnotationConfig = {
   id: 'tpa',
   name: 'TPA',
-  icon: 'ri-triangle-line',
+  icon: 'medical-tpa',
   description: 'T1骨盆角(T1 Pelvic Angle)',
   pointsNeeded: 7,
   category: 'measurement',
@@ -1316,12 +1387,18 @@ export const TPA_CONFIG: AnnotationConfig = {
     };
 
     // 第6和第7个点的中点
-    const midX = (points[5].x + points[6].x) / 2;
     const midY = (points[5].y + points[6].y) / 2;
 
+    // 标签放在所有点的右上方，避免遮挡角度线
+    const maxX = Math.max(
+      points[0].x, points[1].x, points[2].x, points[3].x,
+      points[4].x, points[5].x, points[6].x
+    );
+    const topY = Math.min(centerPoint.y, points[4].y, midY);
+
     return {
-      x: (centerPoint.x + points[4].x + midX) / 3,
-      y: (centerPoint.y + points[4].y + midY) / 3 - 20 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: topY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1389,7 +1466,7 @@ export const TPA_CONFIG: AnnotationConfig = {
 export const SVA_CONFIG: AnnotationConfig = {
   id: 'sva',
   name: 'SVA',
-  icon: 'ri-arrow-down-line',
+  icon: 'medical-sva',
   description: '矢状面垂直轴(Sagittal Vertical Axis)',
   pointsNeeded: 5,
   category: 'measurement',
@@ -1398,7 +1475,7 @@ export const SVA_CONFIG: AnnotationConfig = {
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 5) return [];
 
-    // 计算前4个点的C7锥体中心
+    // 计算前4个点的C7椎体中心
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
 
@@ -1424,17 +1501,18 @@ export const SVA_CONFIG: AnnotationConfig = {
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 5) return points[0] || { x: 0, y: 0 };
 
-    // 计算锥体中心
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+    // 计算椎体中心Y坐标
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
 
-    // 标签显示在锥体中心和第5个点的中点，上方30像素
-    const midX = (centerX + points[4].x) / 2;
-    const midY = (centerY + points[4].y) / 2;
+    // 标签显示在所有点的右上方，避免遮挡椎体
+    const maxX = Math.max(
+      points[0].x, points[1].x, points[2].x, points[3].x, points[4].x
+    );
+    const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
 
     return {
-      x: midX,
-      y: midY - 30 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: minY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1489,7 +1567,7 @@ export const SVA_CONFIG: AnnotationConfig = {
 export const PI_CONFIG: AnnotationConfig = {
   id: 'pi',
   name: 'PI',
-  icon: 'ri-compass-line',
+  icon: 'medical-pi',
   description: '骨盆入射角(Pelvic Incidence)',
   pointsNeeded: 3,
   category: 'measurement',
@@ -1524,11 +1602,17 @@ export const PI_CONFIG: AnnotationConfig = {
     if (!geometry || !geometry.femoralHeadCenter)
       return points[0] || { x: 0, y: 0 };
 
+    // 标签放在测量结构右上方，避免遮挡骨盆线
+    const maxX = Math.max(
+      geometry.femoralHeadCenter.x,
+      geometry.sacralMidpoint.x,
+      ...(points.map(p => p.x))
+    );
+    const topY = Math.min(geometry.femoralHeadCenter.y, geometry.sacralMidpoint.y);
+
     return {
-      x: (geometry.femoralHeadCenter.x + geometry.sacralMidpoint.x) / 2,
-      y:
-        (geometry.femoralHeadCenter.y + geometry.sacralMidpoint.y) / 2 -
-        30 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: topY - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1601,7 +1685,7 @@ export const PI_CONFIG: AnnotationConfig = {
 export const PT_CONFIG: AnnotationConfig = {
   id: 'pt',
   name: 'PT',
-  icon: 'ri-compass-2-line',
+  icon: 'medical-pt',
   description: '骨盆倾斜角(Pelvic Tilt)',
   pointsNeeded: 3,
   category: 'measurement',
@@ -1632,11 +1716,17 @@ export const PT_CONFIG: AnnotationConfig = {
     if (!geometry || !geometry.femoralHeadCenter)
       return points[0] || { x: 0, y: 0 };
 
+    // 标签放在测量结构右下方（与PI错开），避免遮挡骨盆线
+    const maxX = Math.max(
+      geometry.femoralHeadCenter.x,
+      geometry.sacralMidpoint.x,
+      ...(points.map(p => p.x))
+    );
+    const bottomY = Math.max(geometry.femoralHeadCenter.y, geometry.sacralMidpoint.y);
+
     return {
-      x: (geometry.femoralHeadCenter.x + geometry.sacralMidpoint.x) / 2,
-      y:
-        (geometry.femoralHeadCenter.y + geometry.sacralMidpoint.y) / 2 +
-        22 / imageScale,
+      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
+      y: bottomY + LABEL_OFFSET.BOTTOM / imageScale,
     };
   },
 
@@ -1659,7 +1749,7 @@ export const PT_CONFIG: AnnotationConfig = {
 export const SS_CONFIG: AnnotationConfig = {
   id: 'ss',
   name: 'SS',
-  icon: 'ri-focus-line',
+  icon: 'medical-ss',
   description: '骶骨倾斜角(Sacral Slope)',
   pointsNeeded: 2,
   category: 'measurement',
@@ -1682,10 +1772,11 @@ export const SS_CONFIG: AnnotationConfig = {
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
 
-    const minY = Math.min(points[0].y, points[1].y);
+    // 标签放在线段右端点的右上方，避免遮挡线段
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: minY - 30 / imageScale,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1749,9 +1840,11 @@ export const LENGTH_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在线段右端点的右上方，避免遮挡线段
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -1816,7 +1909,11 @@ export const ANGLE_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 3) return points[0] || { x: 0, y: 0 };
-    return points[1]; // 顶点位置
+    // 标签放在顶点右上方，避免遮挡角度顶点
+    return {
+      x: points[1].x + LABEL_OFFSET.RIGHT / imageScale,
+      y: points[1].y - LABEL_OFFSET.TOP / imageScale,
+    };
   },
 
   isInHoverRange: (
@@ -1988,13 +2085,13 @@ export const POLYGON_CONFIG: AnnotationConfig = {
 };
 
 /**
- * 锥体中心（四边形 + 中心点标注）
+ * 椎体中心（四边形 + 中心点标注）
  */
 export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
   id: 'vertebra-center',
-  name: '锥体中心',
+  name: '椎体中心',
   icon: 'ri-focus-3-line',
-  description: '标注锥体中心（4个角点）',
+  description: '标注椎体中心（4个角点）',
   pointsNeeded: 4,
   category: 'auxiliary',
   color: '#10b981', // 绿色
@@ -2075,7 +2172,7 @@ export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
 export const AUX_LENGTH_CONFIG: AnnotationConfig = {
   id: 'aux-length',
   name: '距离标注',
-  icon: 'ri-ruler-2-line',
+  icon: 'medical-aux-length',
   description: '辅助距离测量',
   pointsNeeded: 2,
   category: 'auxiliary',
@@ -2119,9 +2216,11 @@ export const AUX_LENGTH_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在线段右端点的右上方，避免遮挡距离线
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20 / imageScale,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
@@ -2157,7 +2256,7 @@ export const AUX_LENGTH_CONFIG: AnnotationConfig = {
 export const AUX_ANGLE_CONFIG: AnnotationConfig = {
   id: 'aux-angle',
   name: '角度标注',
-  icon: 'ri-compass-3-line',
+  icon: 'medical-aux-angle-4',
   description: '辅助角度测量（两条线段夹角）',
   pointsNeeded: 4,
   category: 'measurement',
@@ -2195,7 +2294,13 @@ export const AUX_ANGLE_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
-    return calculateCenterPoint(points);
+    // 标签放在所有点的右上方，避免遮挡角度线
+    const maxX = Math.max(points[0].x, points[1].x, points[2].x, points[3].x);
+    const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
+    return {
+      x: maxX + LABEL_OFFSET.COMPLEX_RIGHT / imageScale,
+      y: minY - LABEL_OFFSET.TOP / imageScale,
+    };
   },
 
   isInHoverRange: (
@@ -2381,6 +2486,9 @@ export const AUX_VERTICAL_LINE_CONFIG: AnnotationConfig = {
 export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   't1-tilt': T1_TILT_CONFIG,
   cobb: COBB_CONFIG,
+  cobb1: COBB1_CONFIG,
+  cobb2: COBB2_CONFIG,
+  cobb3: COBB3_CONFIG,
   'cobb-thoracic': COBB_CONFIG, // 兼容旧数据
   'cobb-lumbar': COBB_CONFIG, // 兼容旧数据
   'cobb-thoracolumbar': COBB_CONFIG, // 兼容AI返回
@@ -2431,11 +2539,6 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
 export function getAnnotationConfig(
   typeId: string
 ): AnnotationConfig | undefined {
-  // 特殊处理：Cobb1, Cobb2, Cobb3 等都映射到 cobb 配置
-  if (/^Cobb\d+$/i.test(typeId)) {
-    return ANNOTATION_CONFIGS['cobb'];
-  }
-
   // 标准化typeId：转小写并将空格替换为连字符
   const normalizedId = typeId.toLowerCase().replace(/\s+/g, '-');
   return ANNOTATION_CONFIGS[normalizedId];

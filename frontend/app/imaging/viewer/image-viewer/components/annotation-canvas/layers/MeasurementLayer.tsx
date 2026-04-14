@@ -3,7 +3,7 @@ import { MeasurementData } from '../../../types';
 
 export interface MeasurementLayerProps {
   measurements: MeasurementData[];
-  renderMeasurement: (measurement: MeasurementData) => JSX.Element | null;
+  renderMeasurement: (measurement: MeasurementData, index: number, allMeasurements: MeasurementData[]) => JSX.Element | null;
 }
 
 export default function MeasurementLayer({
@@ -12,7 +12,7 @@ export default function MeasurementLayer({
 }: MeasurementLayerProps) {
   return (
     <>
-      {measurements.map(renderMeasurement)}
+      {measurements.map((measurement, index) => renderMeasurement(measurement, index, measurements))}
     </>
   );
 }

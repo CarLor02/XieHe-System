@@ -1,0 +1,9 @@
+<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <!-- SS (Sacral Slope) - 骶骨倾斜角 -->
+  <!-- 骶骨侧面轮廓 -->
+  <path d="M 24 18 Q 28 16, 34 18 L 38 24 L 40 32 L 40 42 Q 40 48, 36 52 L 32 54 Q 28 54, 26 52 Q 22 48, 22 42 L 22 32 L 24 24 Z" />
+  <!-- 骶骨分段线 -->
+  <path d="M 26 22 Q 30 20, 36 22" opacity="0.6" />
+  <path d="M 24 28 L 38 30" opacity="0.6" />
+  <path d="M 23 36 L 39 38" opacity="0.6" />
+</svg>

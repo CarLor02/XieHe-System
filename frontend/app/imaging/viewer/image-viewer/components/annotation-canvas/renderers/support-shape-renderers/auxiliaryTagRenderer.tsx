@@ -38,9 +38,12 @@ export function renderAuxiliaryTag({
       x={labelPosition.x}
       y={labelPosition.y + 5}
       fill={displayColor}
-      fontSize={fontSize}
+      fontSize={11}
       fontWeight="bold"
       textAnchor="middle"
+      stroke="#000000"
+      strokeWidth="3"
+      paintOrder="stroke"
       style={{ userSelect: 'none', pointerEvents: 'none' }}
     >
       {getAuxiliaryTagText(measurement)}

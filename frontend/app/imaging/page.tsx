@@ -595,15 +595,6 @@ export default function ImagingPage() {
                   上传影像
                 </Link>
               </Tooltip>
-              <Tooltip content="对比查看多个影像" position="bottom">
-                <Link
-                  href="/imaging/comparison"
-                  className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap inline-flex items-center"
-                >
-                  <i className="ri-file-copy-line mr-1"></i>
-                  影像对比
-                </Link>
-              </Tooltip>
               <Tooltip content="批量下载选中的影像文件" position="bottom">
                 <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap inline-flex items-center">
                   <i className="ri-download-line mr-1"></i>

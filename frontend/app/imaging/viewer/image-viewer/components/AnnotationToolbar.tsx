@@ -4,6 +4,7 @@ import BindingPanel from './BindingPanel';
 import ReportPanel from './ReportPanel';
 import { AnnotationBindings } from '../domain/annotation-binding';
 import { MeasurementData, Tool } from '../types';
+import IconMapper from './icons/IconMapper';
 
 interface AnnotationToolbarProps {
   examType: string;
@@ -248,10 +249,11 @@ export default function AnnotationToolbar({
                         display: 'flex',
                       }}
                     >
-                      <i
-                        className={`${tool.icon} text-lg mb-1`}
-                        style={{ lineHeight: '1' }}
-                      ></i>
+                      <IconMapper
+                        iconId={tool.icon}
+                        className="text-lg mb-1"
+                        style={{ lineHeight: '1', width: '1.25rem', height: '1.25rem' }}
+                      />
                       <span
                         className="text-xs text-center"
                         style={{ lineHeight: '1' }}

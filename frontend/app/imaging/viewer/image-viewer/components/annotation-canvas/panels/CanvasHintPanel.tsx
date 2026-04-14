@@ -70,7 +70,7 @@ export default function CanvasHintPanel({
           </div>
         ) : selectedTool === 'vertebra-center' ? (
           <div>
-            <p className="font-medium">锥体中心标注模式</p>
+            <p className="font-medium">椎体中心标注模式</p>
             <p>已标注 {clickedPointsCount}/4 个角点</p>
             {clickedPointsCount === 0 && (
               <p className="text-yellow-400 mt-1">点击第1个角点</p>
