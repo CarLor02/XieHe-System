@@ -4,7 +4,7 @@
 # ============================================
 # 阶段1: 构建阶段
 # ============================================
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
 # 安装系统依赖（包括 sharp 所需的构建工具）
