@@ -24,7 +24,7 @@ export default function Sidebar() {
   const isSuperuser = user?.is_superuser || false;
 
   return (
-    <div className="w-56 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 z-10">
+    <div className="w-64 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 z-10">
       {/* Logo */}
       <div className="flex items-center px-4 py-4 border-b border-gray-200">
         <div className="font-['Pacifico'] text-xl text-blue-600">Mesh</div>

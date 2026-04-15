@@ -291,11 +291,10 @@ export default function SyncPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 ml-56 flex flex-col">
-        <Header />
-        <main className="flex-1 p-6 pt-20">
+      <Header />
+      <main className="ml-64 p-6">
 
           {/* Page title + Config toggle */}
           <div className="flex items-center justify-between mb-4">
@@ -371,31 +370,58 @@ export default function SyncPage() {
           {/* Filters + Actions */}
           <div className="bg-white border border-gray-200 rounded-xl mb-4">
             <div className="flex flex-wrap gap-2 p-3 border-b border-gray-100 items-center">
-              <select
-                className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-700"
-                value={filterMonth}
-                onChange={e => setFilterMonth(e.target.value)}
-              >
-                <option value="">全部月份</option>
-                {months.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <select
-                className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-700"
-                value={filterSynced}
-                onChange={e => setFilterSynced(e.target.value)}
-              >
-                <option value="all">全部状态</option>
-                <option value="false">待导入</option>
-                <option value="true">已同步</option>
-              </select>
-              <select
-                className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-700"
-                value={filterPatient}
-                onChange={e => setFilterPatient(e.target.value)}
-              >
-                <option value="">全部患者</option>
-                {patients.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  className="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-1.5 text-sm text-gray-700 bg-white"
+                  style={{
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'none',
+                    backgroundImage: 'none',
+                  }}
+                  value={filterMonth}
+                  onChange={e => setFilterMonth(e.target.value)}
+                >
+                  <option value="">全部月份</option>
+                  {months.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <i className="ri-arrow-down-s-line pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              </div>
+              <div className="relative">
+                <select
+                  className="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-1.5 text-sm text-gray-700 bg-white"
+                  style={{
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'none',
+                    backgroundImage: 'none',
+                  }}
+                  value={filterSynced}
+                  onChange={e => setFilterSynced(e.target.value)}
+                >
+                  <option value="all">全部状态</option>
+                  <option value="false">待导入</option>
+                  <option value="true">已同步</option>
+                </select>
+                <i className="ri-arrow-down-s-line pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              </div>
+              <div className="relative">
+                <select
+                  className="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-1.5 text-sm text-gray-700 bg-white"
+                  style={{
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'none',
+                    backgroundImage: 'none',
+                  }}
+                  value={filterPatient}
+                  onChange={e => setFilterPatient(e.target.value)}
+                >
+                  <option value="">全部患者</option>
+                  {patients.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <i className="ri-arrow-down-s-line pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              </div>
               <button
                 onClick={loadData}
                 disabled={loading}
@@ -518,8 +544,7 @@ export default function SyncPage() {
             )}
           </div>
 
-        </main>
-      </div>
+      </main>
 
       {/* Toast */}
       {toast && (

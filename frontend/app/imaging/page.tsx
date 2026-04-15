@@ -502,7 +502,7 @@ export default function ImagingPage() {
       <div className="min-h-screen bg-gray-50">
         <Sidebar />
         <Header />
-        <main className="ml-56 p-6">
+        <main className="ml-64 p-6">
           <div className="bg-white rounded-lg border border-gray-200 p-8">
             <div className="flex flex-col items-center justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
@@ -519,7 +519,7 @@ export default function ImagingPage() {
       <div className="min-h-screen bg-gray-50">
         <Sidebar />
         <Header />
-        <main className="ml-56 p-6">
+        <main className="ml-64 p-6">
           <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
             <div className="text-red-600 mb-4">
               <i className="ri-error-warning-line text-4xl mb-2"></i>
@@ -542,7 +542,7 @@ export default function ImagingPage() {
       <Sidebar />
       <Header />
 
-      <main className="ml-56 p-6">
+      <main className="ml-64 p-6">
         {/* 顶部操作栏 */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <div className="flex items-center justify-between mb-6">
@@ -720,7 +720,7 @@ export default function ImagingPage() {
         </div>
 
         {/* 影像列表内容 */}
-        <div className="bg-white rounded-lg border border-gray-200">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           {imageFiles.length > 0 ? (
             viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
@@ -993,40 +993,40 @@ export default function ImagingPage() {
               )}
             </div>
           )}
-        </div>
 
-        {/* 分页 */}
-        {total > pageSize && (
-          <div className="bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              显示{' '}
-              <span className="font-medium">
-                {(currentPage - 1) * pageSize + 1}
-              </span>{' '}
-              到{' '}
-              <span className="font-medium">
-                {Math.min(currentPage * pageSize, total)}
-              </span>{' '}
-              条， 共 <span className="font-medium">{total}</span> 条
+          {/* 分页 */}
+          {total > pageSize && (
+            <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-between bg-white">
+              <div className="text-sm text-gray-700">
+                显示{' '}
+                <span className="font-medium">
+                  {(currentPage - 1) * pageSize + 1}
+                </span>{' '}
+                到{' '}
+                <span className="font-medium">
+                  {Math.min(currentPage * pageSize, total)}
+                </span>{' '}
+                条， 共 <span className="font-medium">{total}</span> 条
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  上一页
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={currentPage * pageSize >= total}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  下一页
+                </button>
+              </div>
             </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                上一页
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => p + 1)}
-                disabled={currentPage * pageSize >= total}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                下一页
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
 
       {/* 点击其他地方关闭下拉菜单 */}
