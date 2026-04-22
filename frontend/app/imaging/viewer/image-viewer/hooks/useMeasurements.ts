@@ -36,7 +36,7 @@ export function useMeasurements() {
       currentMeasurements.map(measurement => {
         if (
           (measurement.type === 'AVT' ||
-            measurement.type === 'TS' ||
+            measurement.type === 'TTS' ||
             measurement.type === 'SVA') &&
           measurement.points.length >= 2
         ) {

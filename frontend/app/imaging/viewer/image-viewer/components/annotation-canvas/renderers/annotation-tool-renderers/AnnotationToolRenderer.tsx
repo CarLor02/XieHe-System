@@ -770,12 +770,12 @@ export function renderSacralWithPerpendicular(
         stroke={displayColor}
         strokeWidth="2"
       />
-      {/* CSVL（中央骶骨垂直线）：统一绿色，仅显示下方部分 */}
+      {/* CSVL（中央骶骨垂直线）：统一绿色，仅显示连线上方部分 */}
       <line
         x1={midX}
         y1={midY}
         x2={midX}
-        y2={midY + perpLength}
+        y2={midY - perpLength}
         stroke="#22c55e"
         strokeWidth="2"
         strokeDasharray="5,5"
@@ -875,9 +875,9 @@ export function renderC7Offset(
       )}
       <line
         x1={centerX}
-        y1={centerY - height / 2}
+        y1={centerY}
         x2={centerX}
-        y2={centerY + height / 2}
+        y2={centerY + height}
         stroke={displayColor}
         strokeWidth="2"
         strokeDasharray="3,3"
@@ -897,9 +897,9 @@ export function renderC7Offset(
           <circle cx={midX!} cy={midY!} r="3" fill={displayColor} opacity="0.8" />
           <line
             x1={midX!}
-            y1={midY! - height / 2}
+            y1={midY! - height}
             x2={midX!}
-            y2={midY! + height / 2}
+            y2={midY!}
             stroke={displayColor}
             strokeWidth="2"
             strokeDasharray="3,3"
@@ -959,9 +959,9 @@ export function renderTTS(
       {has2 && (
         <line
           x1={trunkMidX}
-          y1={trunkMidY - height / 2}
+          y1={trunkMidY}
           x2={trunkMidX}
-          y2={trunkMidY + height / 2}
+          y2={trunkMidY + height}
           stroke={displayColor}
           strokeWidth="2"
           strokeDasharray="4,4"
@@ -980,9 +980,9 @@ export function renderTTS(
           />
           <line
             x1={sacralMidX}
-            y1={sacralMidY - height / 2}
+            y1={sacralMidY - height}
             x2={sacralMidX}
-            y2={sacralMidY + height / 2}
+            y2={sacralMidY}
             stroke={displayColor}
             strokeWidth="2"
             strokeDasharray="4,4"

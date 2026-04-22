@@ -71,7 +71,7 @@ export function dependsOnStandardDistance(measurementType: string): boolean {
  * @returns 是否需要标准距离
  */
 export function requiresStandardDistance(toolId: string): boolean {
-  return toolId === 'avt' || toolId === 'ts';
+  return toolId === 'avt' || toolId === 'tts';
 }
 
 /**
@@ -90,7 +90,8 @@ export function getToolDisplayName(toolId: string): string {
     cobb: 'Cobb角',
     ca: '肩部角度',
     avt: 'AVT',
-    ts: 'TTS',
+    tts: 'TTS',
+    'c7-offset': 'TS',
     sva: 'SVA',
     tk: 'TK',
     ll: 'LL',
@@ -161,7 +162,7 @@ export function getToolIcon(toolId: string): string {
     cobb: 'ri-ruler-line',
     ca: 'ri-ruler-2-line',
     avt: 'ri-align-vertically',
-    ts: 'ri-align-vertically',
+    tts: 'ri-align-vertically',
     sva: 'ri-align-vertically',
   };
 

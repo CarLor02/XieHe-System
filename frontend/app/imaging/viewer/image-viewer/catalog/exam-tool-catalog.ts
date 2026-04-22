@@ -30,7 +30,7 @@ export function getAnteriorTools(): Tool[] {
     'pelvic',
     'sacral',
     'avt',
-    'ts',
+    'tts',
     'lld',
     'c7-offset',
     'circle',

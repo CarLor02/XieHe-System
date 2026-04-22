@@ -28,28 +28,38 @@ export const POINT_INHERITANCE_RULES: Record<
   PointInheritanceRule[]
 > = {
   'c7-offset': [
+    // 优先级低：从 TTS 的骶骨参考点（索引2-3）继承
     {
-      fromType: 'Sacral',
+      fromType: 'TTS',
+      sourcePointIndices: [2, 3],
+      destinationPointIndices: [4, 5],
+    },
+    // 优先级高：直接从 CSS（骶骨倾斜）继承，会覆盖上面 TTS 的继承
+    {
+      fromType: 'CSS',
       sourcePointIndices: [0, 1],
       destinationPointIndices: [4, 5],
     },
   ],
-  ts: [
+  tts: [
+    // 从 CSS（骶骨倾斜）继承骶骨参考点
     {
-      fromType: 'Sacral',
+      fromType: 'CSS',
       sourcePointIndices: [0, 1],
       destinationPointIndices: [2, 3],
     },
   ],
   sacral: [
-    {
-      fromType: 'TS(Trunk Shift)',
-      sourcePointIndices: [4, 5],
-      destinationPointIndices: [0, 1],
-    },
+    // 优先级低：从 TTS 的骶骨参考点（索引2-3）继承
     {
       fromType: 'TTS',
       sourcePointIndices: [2, 3],
+      destinationPointIndices: [0, 1],
+    },
+    // 优先级高：直接从 TS（C7 Offset）继承骶骨参考点，会覆盖上面 TTS 的继承
+    {
+      fromType: 'TS',
+      sourcePointIndices: [4, 5],
       destinationPointIndices: [0, 1],
     },
   ],

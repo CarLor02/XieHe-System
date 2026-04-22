@@ -783,16 +783,16 @@ export const AVT_CONFIG: AnnotationConfig = {
 };
 
 /**
- * TS 躯干偏移量（4点法）
+ * TTS 躯干偏移量（4点法）
  *   点0-1：躯干参考水平线两端点（手动标注）
  *   点2-3：骶骨参考线两端点（继承自 Sacral）
  * 计算：躯干线中点 X 与骶骨中线 X 的水平距离
  */
 export const TS_CONFIG: AnnotationConfig = {
-  id: 'ts',
-  name: 'TS',
-  icon: 'medical-ts',
-  description: '躯干偏移量TS(Trunk Shift)',
+  id: 'tts',
+  name: 'TTS',
+  icon: 'medical-tts',
+  description: '胸廓躯干偏移TTS(Thoracic Trunk Shift)',
   pointsNeeded: 4,
   category: 'measurement',
   color: '#84cc16',
@@ -805,13 +805,15 @@ export const TS_CONFIG: AnnotationConfig = {
     // 骶骨线中点 X（点2-3，继承自 Sacral）
     const sacralMidX = (points[2].x + points[3].x) / 2;
 
-    const pixelDistance = Math.abs(trunkMidX - sacralMidX);
-    const actualDistance = calculateActualDistance(pixelDistance, context);
+    // 带符号的像素距离：躯干线中点在骶骨中点左侧时为负
+    const pixelOffset = trunkMidX - sacralMidX;
+    const actualDistance = calculateActualDistance(Math.abs(pixelOffset), context);
+    const signedDistance = pixelOffset < 0 ? -actualDistance : actualDistance;
 
     return [
       {
-        name: 'TS',
-        value: actualDistance.toFixed(2),
+        name: 'TTS',
+        value: signedDistance.toFixed(2),
         unit: 'mm',
       },
     ];
@@ -944,9 +946,9 @@ export const LLD_CONFIG: AnnotationConfig = {
  */
 export const C7_OFFSET_CONFIG: AnnotationConfig = {
   id: 'c7-offset',
-  name: 'TTS',
-  icon: 'medical-tts',
-  description: 'C7偏移距离TTS(Trunk Shift)',
+  name: 'TS',
+  icon: 'medical-ts',
+  description: '躯干偏移TS(Trunk Shift)',
   pointsNeeded: 6,
   category: 'measurement',
   color: '#06b6d4',
@@ -954,19 +956,21 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 6) return [];
 
-    // 前4个点的椎体中心
+    // 前4个点的椎体（C7）中心
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
 
-    // 后2个点的中点
+    // 后2个点（骶骨参考线）的中点
     const refX = (points[4].x + points[5].x) / 2;
 
-    const pixelDistance = Math.abs(centerX - refX);
-    const actualDistance = calculateActualDistance(pixelDistance, context);
+    // 带符号的像素距离：C7中心在骶骨中点左侧时为负
+    const pixelOffset = centerX - refX;
+    const actualDistance = calculateActualDistance(Math.abs(pixelOffset), context);
+    const signedDistance = pixelOffset < 0 ? -actualDistance : actualDistance;
 
     return [
       {
-        name: 'TTS',
-        value: actualDistance.toFixed(2),
+        name: 'TS',
+        value: signedDistance.toFixed(2),
         unit: 'mm',
       },
     ];
@@ -2496,7 +2500,8 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   pelvic: PELVIC_CONFIG,
   sacral: SACRAL_CONFIG,
   avt: AVT_CONFIG,
-  ts: TS_CONFIG,
+  tts: TS_CONFIG,
+  ts: C7_OFFSET_CONFIG,
   lld: LLD_CONFIG,
   'c7-offset': C7_OFFSET_CONFIG,
   't1-slope': T1_SLOPE_CONFIG,
@@ -2513,8 +2518,7 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   pi: PI_CONFIG,
   pt: PT_CONFIG,
   ss: SS_CONFIG,
-  tts: TS_CONFIG, // 'TTS' 规范化后的别名
-  'ts(trunk-shift)': C7_OFFSET_CONFIG, // 'TS(Trunk Shift)' 规范化后的别名
+  'ts(trunk-shift)': C7_OFFSET_CONFIG, // 'TS(Trunk Shift)' 规范化后的别名（向后兼容）
   length: LENGTH_CONFIG,
   angle: ANGLE_CONFIG,
   circle: CIRCLE_CONFIG,

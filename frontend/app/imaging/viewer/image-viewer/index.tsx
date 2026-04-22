@@ -234,8 +234,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       currentTool.id === 'pi' ||
       currentTool.id === 'pt' ||
       currentTool.id === 'tpa' ||
-      currentTool.id === 'c7-offset' ||  // C7 Offset: 继承点在索引4-5，手动点在0-3
-      currentTool.id === 'ts'            // TTS: 继承点在索引2-3，手动点在0-1
+      currentTool.id === 'c7-offset' ||  // C7 Offset(TS): 继承点在索引4-5，手动点在0-3
+      currentTool.id === 'tts'           // TTS: 继承点在索引2-3，手动点在0-1
     ) {
       return;
     }
@@ -886,7 +886,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             showAdvicePanel={showAdvicePanel}
             treatmentAdvice={treatmentAdvice}
             onSelectTool={toolId => {
-              if ((toolId === 'avt' || toolId === 'ts') && !standardDistance) {
+              if ((toolId === 'avt' || toolId === 'tts') && !standardDistance) {
                 setShowStandardDistanceWarning(true);
                 setSelectedTool('hand');
                 return;
@@ -991,7 +991,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                   请先设置标准距离
                 </h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  AVT和TS测量需要先设置标准距离以确保测量准确性。
+                  AVT和TTS测量需要先设置标准距离以确保测量准确性。
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                   <p className="text-sm font-medium text-blue-900 mb-2">
@@ -1001,7 +1001,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                     <li>点击右侧面板中的"标准距离设置"按钮</li>
                     <li>在图像上标注两个已知距离的点</li>
                     <li>输入实际距离值（单位：mm）</li>
-                    <li>确认后即可使用AVT/TS测量工具</li>
+                    <li>确认后即可使用AVT/TTS测量工具</li>
                   </ol>
                 </div>
               </div>
