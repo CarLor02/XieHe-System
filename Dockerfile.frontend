@@ -34,8 +34,18 @@ RUN npm config set registry https://registry.npmmirror.com && \
     npm config set fetch-retry-maxtimeout 120000 && \
     npm config set fetch-timeout 600000
 
+ARG NPM_LOGLEVEL=warn
+ARG NPM_FOREGROUND_SCRIPTS=false
+ARG NPM_TIMING=false
+
 # 安装前端 workspace 依赖（使用 --legacy-peer-deps 解决 React 19 兼容性问题）
-RUN npm ci --workspace frontend --legacy-peer-deps --no-audit --no-fund
+RUN if [ "$NPM_FOREGROUND_SCRIPTS" = "true" ]; then \
+      npm ci --workspace frontend --legacy-peer-deps --no-audit --no-fund \
+        --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING" --foreground-scripts; \
+    else \
+      npm ci --workspace frontend --legacy-peer-deps --no-audit --no-fund \
+        --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING"; \
+    fi
 
 # 复制源代码
 COPY frontend/ ./frontend/
