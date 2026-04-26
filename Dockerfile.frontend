@@ -25,11 +25,17 @@ RUN apk add --no-cache \
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/package.json
 
-# 配置npm使用淘宝镜像加速
-RUN npm config set registry https://registry.npmmirror.com
+# 配置 npm 使用国内镜像，并避免构建阶段访问额外下载/审计服务
+ENV CYPRESS_INSTALL_BINARY=0
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm config set replace-registry-host always && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set fetch-timeout 600000
 
 # 安装前端 workspace 依赖（使用 --legacy-peer-deps 解决 React 19 兼容性问题）
-RUN npm ci --workspace frontend --legacy-peer-deps
+RUN npm ci --workspace frontend --legacy-peer-deps --no-audit --no-fund
 
 # 复制源代码
 COPY frontend/ ./frontend/
