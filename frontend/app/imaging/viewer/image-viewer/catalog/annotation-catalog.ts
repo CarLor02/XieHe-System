@@ -2545,7 +2545,15 @@ export function getAnnotationConfig(
 ): AnnotationConfig | undefined {
   // 标准化typeId：转小写并将空格替换为连字符
   const normalizedId = typeId.toLowerCase().replace(/\s+/g, '-');
-  return ANNOTATION_CONFIGS[normalizedId];
+  const directConfig = ANNOTATION_CONFIGS[normalizedId];
+  if (directConfig) {
+    return directConfig;
+  }
+
+  return Object.values(ANNOTATION_CONFIGS).find(config => {
+    const normalizedConfigName = config.name.toLowerCase().replace(/\s+/g, '-');
+    return normalizedConfigName === normalizedId;
+  });
 }
 
 /**

@@ -17,6 +17,7 @@ import {
   calculateMeasurementValue as calcMeasurementValue,
 } from './domain/annotation-calculation';
 import { getInheritedPoints } from './domain/annotation-inheritance';
+import { filterUniqueAnnotationDuplicates } from './domain/annotation-uniqueness';
 import { getDescriptionForType as getDesc } from './domain/annotation-metadata';
 import { getToolsForExamType as getTools } from './catalog/exam-tool-catalog';
 import { useAnnotationEngine } from './hooks/useAnnotationEngine';
@@ -279,7 +280,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             imageNaturalSize
         )
       },
-      [tools]
+      [
+        imageNaturalSize,
+        measurements,
+        standardDistance,
+        standardDistancePoints,
+        tools,
+      ]
   )
 
   // 获取影像列表
@@ -629,8 +636,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           m.type.startsWith('Cobb')
         ).length;
 
-        const aiMeasurements = aiData.measurements
-          .filter((m: any) => {
+        const aiMeasurements = filterUniqueAnnotationDuplicates(
+          aiData.measurements.filter((m: any) => {
             // 检查标注类型是否存在于配置中
             // 优先匹配 name（精确匹配），然后匹配 id（小写匹配），最后匹配 name（不区分大小写）
             const tool = tools.find(
@@ -718,7 +725,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               lowerVertebra: m.lower_vertebra,
               apexVertebra: m.apex_vertebra,
             };
-          });
+          })
+        );
 
         setMeasurements(aiMeasurements);
         // AI 返回后执行一次基于坐标重合的自动绑定

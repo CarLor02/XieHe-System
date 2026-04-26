@@ -4,6 +4,7 @@ import {
   SHARED_ANATOMICAL_POINT_GROUPS,
   getInheritedPoints,
 } from '../../../domain/annotation-inheritance';
+import { hasUniqueAnnotationForTool } from '../../../domain/annotation-uniqueness';
 import { Point, Tool } from '../../../types';
 import { DrawingState, ReferenceLines } from '../types';
 
@@ -239,6 +240,11 @@ export function useCanvasDrawingTool({
       const currentTool = getCurrentTool();
       if (!currentTool) {
         return false;
+      }
+
+      if (hasUniqueAnnotationForTool(measurements, currentTool)) {
+        setClickedPoints([]);
+        return true;
       }
 
       let clickedExistingPoint = false;

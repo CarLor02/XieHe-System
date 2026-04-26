@@ -4,6 +4,10 @@ import {
 } from "@/app/imaging/viewer/image-viewer/domain/annotation-calculation";
 import {getDescriptionForType as getDesc} from "@/app/imaging/viewer/image-viewer/domain/annotation-metadata";
 import {getInheritedPoints} from "@/app/imaging/viewer/image-viewer/domain/annotation-inheritance";
+import {
+    hasAnnotationForTool,
+    hasUniqueAnnotationForTool
+} from "@/app/imaging/viewer/image-viewer/domain/annotation-uniqueness";
 import {Dispatch, SetStateAction} from "react";
 
 export function addMeasurement(
@@ -56,14 +60,19 @@ export function addMeasurement(
     };
 
     setMeasurements(prev => {
+        const currentTool = tools.find(t => t.name === type || t.id === configLookupType);
+        if (currentTool && hasUniqueAnnotationForTool(prev, currentTool)) {
+            return prev;
+        }
+
         // 将本次新增标注加入列表
         const accumulated: MeasurementData[] = [...prev, newMeasurement];
 
         // 检查是否有其他工具的全部点位均可由继承/共享获得，若是则自动创建对应标注
         for (const tool of tools) {
             if (!tool.pointsNeeded || tool.pointsNeeded <= 0) continue;
-            // 已存在该类型的标注则跳过
-            if (accumulated.some(m => m.type === tool.name)) continue;
+            // 已存在该类型的标注则跳过；唯一性工具同时兼容显示名与历史别名。
+            if (hasAnnotationForTool(accumulated, tool)) continue;
 
             const { points: inheritedPts, count } = getInheritedPoints(
                 tool.id,

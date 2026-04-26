@@ -36,7 +36,7 @@ class SecurityManager:
     """安全管理器"""
     
     def __init__(self):
-        self.secret_key = settings.SECRET_KEY
+        self.secret_key = settings.JWT_SECRET_KEY or settings.SECRET_KEY
         self.algorithm = ALGORITHM
         self.cache_manager = None
     

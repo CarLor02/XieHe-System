@@ -12,7 +12,7 @@
 
 1. 复制配置模板：
 ```bash
-cp .env.example .env.local
+cp .env.example .env.test
 ```
 
 2. 编辑 `.env.local`，填入实际配置值

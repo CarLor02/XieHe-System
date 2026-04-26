@@ -3,6 +3,10 @@
 import BindingPanel from './BindingPanel';
 import ReportPanel from './ReportPanel';
 import { AnnotationBindings } from '../domain/annotation-binding';
+import {
+  hasUniqueAnnotationForTool,
+  isUniqueAnnotationTool,
+} from '../domain/annotation-uniqueness';
 import { MeasurementData, Tool } from '../types';
 import IconMapper from './icons/IconMapper';
 
@@ -100,19 +104,17 @@ export default function AnnotationToolbar({
   onChangeTreatmentAdvice,
   onCopyReport,
 }: AnnotationToolbarProps) {
+  const auxiliaryPointToolIds = new Set([
+    'aux-length',
+    'aux-angle',
+    'aux-horizontal-line',
+    'aux-vertical-line',
+  ]);
   const measurementTools = tools.filter(
-    tool =>
-      tool.pointsNeeded > 0 &&
-      tool.id !== 'aux-angle' &&
-      tool.id !== 'aux-horizontal-line' &&
-      tool.id !== 'aux-vertical-line'
+    tool => tool.pointsNeeded > 0 && !auxiliaryPointToolIds.has(tool.id)
   );
   const auxiliaryTools = tools.filter(
-    tool =>
-      tool.pointsNeeded === 0 ||
-      tool.id === 'aux-angle' ||
-      tool.id === 'aux-horizontal-line' ||
-      tool.id === 'aux-vertical-line'
+    tool => tool.pointsNeeded === 0 || auxiliaryPointToolIds.has(tool.id)
   );
 
   return (
@@ -223,52 +225,74 @@ export default function AnnotationToolbar({
                 测量标注
               </h4>
               <div className="flex flex-wrap gap-2">
-                {measurementTools.map(tool => (
-                  <button
-                    key={tool.id}
-                    onClick={() => onSelectTool(tool.id)}
-                    className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
-                      selectedTool === tool.id
-                        ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                    title={tool.description}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <div
-                      className="flex flex-col text-center"
+                {measurementTools.map(tool => {
+                  const isUniquenessBlocked = hasUniqueAnnotationForTool(
+                    measurements,
+                    tool
+                  );
+
+                  return (
+                    <button
+                      key={tool.id}
+                      onClick={() => {
+                        if (!isUniquenessBlocked) {
+                          onSelectTool(tool.id);
+                        }
+                      }}
+                      disabled={isUniquenessBlocked}
+                      className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
+                        isUniquenessBlocked
+                          ? 'bg-gray-700/60 text-gray-500 cursor-not-allowed opacity-55'
+                          : selectedTool === tool.id
+                            ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                      title={
+                        isUniquenessBlocked && isUniqueAnnotationTool(tool.id)
+                          ? `${tool.name} 已存在，不能重复添加`
+                          : tool.description
+                      }
                       style={{
-                        transform: 'translateY(0)',
+                        display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        height: '100%',
-                        display: 'flex',
                       }}
                     >
-                      <IconMapper
-                        iconId={tool.icon}
-                        className="text-lg mb-1"
-                        style={{ lineHeight: '1', width: '1.25rem', height: '1.25rem' }}
-                      />
-                      <span
-                        className="text-xs text-center"
-                        style={{ lineHeight: '1' }}
+                      <div
+                        className="flex flex-col text-center"
+                        style={{
+                          transform: 'translateY(0)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: '100%',
+                          display: 'flex',
+                        }}
                       >
-                        {tool.name}
-                      </span>
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 bg-gray-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                      {tool.pointsNeeded}
-                    </div>
-                    {selectedTool === tool.id && (
-                      <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
-                    )}
-                  </button>
-                ))}
+                        <IconMapper
+                          iconId={tool.icon}
+                          className="text-lg mb-1"
+                          style={{
+                            lineHeight: '1',
+                            width: '1.25rem',
+                            height: '1.25rem',
+                          }}
+                        />
+                        <span
+                          className="text-xs text-center"
+                          style={{ lineHeight: '1' }}
+                        >
+                          {tool.name}
+                        </span>
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 bg-gray-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                        {tool.pointsNeeded}
+                      </div>
+                      {selectedTool === tool.id && !isUniquenessBlocked && (
+                        <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -307,10 +331,15 @@ export default function AnnotationToolbar({
                         display: 'flex',
                       }}
                     >
-                      <i
-                        className={`${tool.icon} text-lg mb-1`}
-                        style={{ lineHeight: '1' }}
-                      ></i>
+                      <IconMapper
+                        iconId={tool.icon}
+                        className="text-lg mb-1"
+                        style={{
+                          lineHeight: '1',
+                          width: '1.25rem',
+                          height: '1.25rem',
+                        }}
+                      />
                       <span
                         className="text-xs text-center"
                         style={{ lineHeight: '1' }}
@@ -466,4 +495,3 @@ export default function AnnotationToolbar({
     </div>
   );
 }
-

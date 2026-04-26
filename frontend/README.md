@@ -189,8 +189,8 @@ frontend/
 2. **配置环境变量**（可选）
    ```bash
    # 如果需要自定义配置
-   cp .env.local.example .env.local
-   vim .env.local
+   cp .env.test.example .env.test
+   vim .env.test
    ```
 
 3. **启动开发服务器**
