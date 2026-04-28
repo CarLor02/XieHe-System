@@ -104,7 +104,18 @@ private fun hitTestAuxiliaryShape(
         AnnotationRenderType.CIRCLE -> hitCircle(points, touchPoint, tolerance)
         AnnotationRenderType.ELLIPSE -> hitEllipse(points, touchPoint, tolerance)
         AnnotationRenderType.BOX -> hitBox(points, touchPoint, tolerance)
+        AnnotationRenderType.POLYGON -> hitPolygon(points, touchPoint, tolerance)
+        AnnotationRenderType.VERTEBRA_CENTER -> hitVertebraCenter(points, touchPoint, tolerance)
         AnnotationRenderType.ARROW -> pointToSegmentDistance(touchPoint, points[0], points[1]) <= tolerance
+        AnnotationRenderType.SIMPLE_LINE,
+        AnnotationRenderType.SINGLE_HORIZONTAL_LINE,
+        AnnotationRenderType.SINGLE_VERTICAL_LINE,
+        -> pointToSegmentDistance(touchPoint, points[0], points[1]) <= tolerance
+
+        AnnotationRenderType.TWO_DASHED_LINES,
+        AnnotationRenderType.THREE_POINT_ANGLE,
+        -> hitAnySegment(points, touchPoint, tolerance)
+
         else -> false
     }
 }
@@ -143,6 +154,45 @@ private fun hitBox(
     val top = min(points[0].y, points[1].y) - tolerance
     val bottom = max(points[0].y, points[1].y) + tolerance
     return touchPoint.x in left..right && touchPoint.y in top..bottom
+}
+
+private fun hitPolygon(
+    points: List<Offset>,
+    touchPoint: Offset,
+    tolerance: Float,
+): Boolean {
+    if (points.size < 3) return false
+    return points.indices.any { index ->
+        val nextIndex = (index + 1) % points.size
+        pointToSegmentDistance(touchPoint, points[index], points[nextIndex]) <= tolerance
+    }
+}
+
+private fun hitVertebraCenter(
+    points: List<Offset>,
+    touchPoint: Offset,
+    tolerance: Float,
+): Boolean {
+    if (points.size < 4) return false
+    val corners = points.take(4)
+    if (hitPolygon(corners, touchPoint, tolerance)) return true
+
+    val center = Offset(
+        x = corners.sumOf { it.x.toDouble() }.toFloat() / corners.size,
+        y = corners.sumOf { it.y.toDouble() }.toFloat() / corners.size,
+    )
+    return distance(center, touchPoint) <= tolerance
+}
+
+private fun hitAnySegment(
+    points: List<Offset>,
+    touchPoint: Offset,
+    tolerance: Float,
+): Boolean {
+    if (points.size < 2) return false
+    return points
+        .windowed(size = 2, step = 2, partialWindows = false)
+        .any { segment -> pointToSegmentDistance(touchPoint, segment[0], segment[1]) <= tolerance }
 }
 
 private data class AuxiliaryLabelHitArea(

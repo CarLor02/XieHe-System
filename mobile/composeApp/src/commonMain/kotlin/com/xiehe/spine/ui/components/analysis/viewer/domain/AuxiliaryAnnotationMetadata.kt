@@ -7,13 +7,7 @@ import com.xiehe.spine.ui.components.analysis.viewer.catalog.getAnnotationToolBy
 private const val GENERATED_AUXILIARY_DESCRIPTION_PREFIX = "辅助图形-"
 
 fun isEditableAuxiliaryAnnotation(measurement: AnnotationMeasurement): Boolean {
-    if (!measurement.auxiliary) return false
-    return resolveAnnotationRenderType(measurement.type, measurement.points.size) in setOf(
-        AnnotationRenderType.CIRCLE,
-        AnnotationRenderType.ELLIPSE,
-        AnnotationRenderType.BOX,
-        AnnotationRenderType.ARROW,
-    )
+    return measurement.auxiliary || isPersistedAuxiliaryAnnotationType(measurement.type)
 }
 
 fun editableAuxiliaryAnnotationLabel(measurement: AnnotationMeasurement): String {

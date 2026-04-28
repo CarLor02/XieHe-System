@@ -7,7 +7,9 @@ import {
 } from '../../../domain/annotation-binding';
 import {
   getColorForType,
-  getDescriptionForType,
+  getAuxiliaryTagText,
+  hasCustomAuxiliaryTagText,
+  isEditableAuxiliaryAnnotationType,
   getLabelPositionForType,
   renderSpecialSVGElements,
   usesInlineAuxiliaryTag,
@@ -434,6 +436,9 @@ export default function renderMeasurement({
   };
   const screenPoints = measurement.points.map(point => imageToScreen(point, context));
   const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
+  const hasCustomAuxiliaryTag =
+    isEditableAuxiliaryAnnotationType(measurement.type) &&
+    hasCustomAuxiliaryTagText(measurement);
   const isMeasurementSelected =
     selectionState.measurementId === measurement.id &&
     selectionState.type === 'whole';
@@ -514,9 +519,10 @@ export default function renderMeasurement({
           imageScale
         )}
 
-      {(!isAuxiliaryShape ||
-        measurement.type === '辅助水平线' ||
-        measurement.type === '辅助垂直线') &&
+      {!hasCustomAuxiliaryTag &&
+        (!isAuxiliaryShape ||
+          measurement.type === '辅助水平线' ||
+          measurement.type === '辅助垂直线') &&
         screenPoints.length >= 2 &&
         !hideAllLabels &&
         !hiddenMeasurementIds.has(measurement.id) && (
@@ -545,10 +551,10 @@ export default function renderMeasurement({
           hiddenMeasurementIds,
         })}
 
-      {isAuxiliaryShape &&
+      {hasCustomAuxiliaryTag &&
         !usesInlineAuxiliaryTag(measurement.type) &&
-        measurement.description &&
-        measurement.description !== getDescriptionForType(measurement.type) && (
+        !hideAllLabels &&
+        !hiddenMeasurementIds.has(measurement.id) && (
           <text
             x={labelPosition.x}
             y={labelPosition.y + 5}
@@ -561,7 +567,7 @@ export default function renderMeasurement({
             paintOrder="stroke"
             style={{ userSelect: 'none', pointerEvents: 'none' }}
           >
-            {measurement.description}
+            {getAuxiliaryTagText(measurement)}
           </text>
         )}
     </g>

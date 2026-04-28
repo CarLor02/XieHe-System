@@ -1,8 +1,6 @@
 # Docker Compose 安全配置
 # 用于替换 docker-compose.yml 中的不安全设置
 
-version: '3.8'
-
 # 安全配置说明：
 # 1. 禁用特权模式
 # 2. 限制系统调用

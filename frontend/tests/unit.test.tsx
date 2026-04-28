@@ -381,7 +381,7 @@ describe('React组件单元测试', () => {
     })
 
     test('数组处理函数', () => {
-      const removeDuplicates = <T>(array: T[]): T[] => {
+      const removeDuplicates = <T,>(array: T[]): T[] => {
         return Array.from(new Set(array))
       }
 

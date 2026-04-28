@@ -1,6 +1,8 @@
 import {
   getAuxiliaryTagText,
   getLabelPositionForType,
+  hasCustomAuxiliaryTagText,
+  isEditableAuxiliaryAnnotationType,
   usesInlineAuxiliaryTag,
 } from '../../../domain/annotation-metadata';
 import { TEXT_LABEL_CONSTANTS } from '../../../shared/constants';
@@ -21,20 +23,24 @@ export function hitTestMeasurementLabel({
   imageToScreen,
 }: HitTestLabelOptions) {
   const isInlineTag = usesInlineAuxiliaryTag(measurement.type);
+  const usesAuxiliaryTagText =
+    isInlineTag ||
+    (isEditableAuxiliaryAnnotationType(measurement.type) &&
+      hasCustomAuxiliaryTagText(measurement));
   const labelPosition = imageToScreen(
     getLabelPositionForType(measurement.type, measurement.points, imageScale)
   );
-  const textContent = isInlineTag
+  const textContent = usesAuxiliaryTagText
     ? getAuxiliaryTagText(measurement)
     : `${measurement.type}: ${measurement.value}`;
   const textWidth = estimateTextWidth(
     textContent,
     TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE,
-    isInlineTag ? 0 : TEXT_LABEL_CONSTANTS.PADDING
+    usesAuxiliaryTagText ? 0 : TEXT_LABEL_CONSTANTS.PADDING
   );
   const textHeight = estimateTextHeight(
     TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE,
-    isInlineTag ? 0 : TEXT_LABEL_CONSTANTS.PADDING
+    usesAuxiliaryTagText ? 0 : TEXT_LABEL_CONSTANTS.PADDING
   );
   const textTop = labelPosition.y - textHeight / 2;
   const textBottom = labelPosition.y + textHeight / 2;

@@ -3,7 +3,9 @@ import {
   AnnotationBindings,
   cleanupBindings,
 } from '../../../domain/annotation-binding';
+import { isEditableAuxiliaryAnnotationType } from '../../../domain/annotation-metadata';
 import { MeasurementData } from '../../../types';
+import { isAuxiliaryTool } from '../../../canvas/tools/tool-state';
 import { SelectionState } from '../types';
 
 interface UseCanvasContextMenuOptions {
@@ -58,21 +60,14 @@ export function useCanvasContextMenu({
       return;
     }
 
-    if (selectionState.measurementId && selectionState.type === 'whole') {
+    if (selectionState.measurementId) {
       const selectedMeasurement = measurements.find(
         measurement => measurement.id === selectionState.measurementId
       );
 
-      const auxiliaryShapeTypes = [
-        '圆形标注',
-        '椭圆标注',
-        '矩形标注',
-        '箭头标注',
-      ];
-
       if (
         selectedMeasurement &&
-        auxiliaryShapeTypes.includes(selectedMeasurement.type)
+        isEditableAuxiliaryAnnotationType(selectedMeasurement.type)
       ) {
         setContextMenu({
           visible: true,
@@ -84,17 +79,10 @@ export function useCanvasContextMenu({
       }
     }
 
-    const auxiliaryTools = ['circle', 'ellipse', 'rectangle', 'arrow'];
-    if (auxiliaryTools.includes(selectedTool)) {
-      const auxiliaryShapeTypes = [
-        '圆形标注',
-        '椭圆标注',
-        '矩形标注',
-        '箭头标注',
-      ];
+    if (isAuxiliaryTool(selectedTool)) {
       const lastAuxiliaryShape = [...measurements]
         .reverse()
-        .find(measurement => auxiliaryShapeTypes.includes(measurement.type));
+        .find(measurement => isEditableAuxiliaryAnnotationType(measurement.type));
 
       if (lastAuxiliaryShape) {
         setSelectionState({

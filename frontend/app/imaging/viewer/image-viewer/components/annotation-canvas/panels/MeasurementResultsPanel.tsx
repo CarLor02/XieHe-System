@@ -1,6 +1,9 @@
-import { getDescriptionForType } from '../../../domain/annotation-metadata';
-import { isAuxiliaryShape } from '../../../canvas/tools/tool-state';
-import { Measurement } from '../../../types';
+import {
+  getAuxiliaryTagText,
+  hasCustomAuxiliaryTagText,
+  isEditableAuxiliaryAnnotationType,
+} from '../../../domain/annotation-metadata';
+import { MeasurementData } from '../../../types';
 import { HoverState, SelectionState } from '../types';
 
 interface MeasurementResultsPanelProps {
@@ -10,7 +13,7 @@ interface MeasurementResultsPanelProps {
   isStandardDistanceHidden: boolean;
   standardDistance: number | null;
   standardDistancePoints: { x: number; y: number }[];
-  measurements: Measurement[];
+  measurements: MeasurementData[];
   selectionState: SelectionState;
   hoverState: HoverState;
   hiddenMeasurementIds: Set<string>;
@@ -153,6 +156,11 @@ export default function MeasurementResultsPanel({
                   const isAnnotationHidden = hiddenAnnotationIds.has(
                     measurement.id
                   );
+                  const displayName =
+                    isEditableAuxiliaryAnnotationType(measurement.type) &&
+                    hasCustomAuxiliaryTagText(measurement)
+                      ? getAuxiliaryTagText(measurement)
+                      : measurement.type;
 
                   return (
                     <div
@@ -221,12 +229,7 @@ export default function MeasurementResultsPanel({
                                 : 'text-white/90'
                           }`}
                         >
-                          {isAuxiliaryShape(measurement.type) &&
-                          measurement.description &&
-                          measurement.description !==
-                            getDescriptionForType(measurement.type)
-                            ? measurement.description
-                            : measurement.type}
+                          {displayName}
                         </span>
                         <span
                           className={`font-mono whitespace-nowrap ${

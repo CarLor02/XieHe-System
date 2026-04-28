@@ -125,14 +125,17 @@ fun shouldShowMetricTag(measurement: AnnotationMeasurement): Boolean {
 }
 
 fun shouldShowAuxiliaryShapeTag(measurement: AnnotationMeasurement): Boolean {
-    if (!measurement.auxiliary) return false
-    return resolveAnnotationRenderType(measurement.type, measurement.points.size) in setOf(
+    if (!isEditableAuxiliaryAnnotation(measurement)) return false
+    if (resolveAnnotationRenderType(measurement.type, measurement.points.size) in setOf(
         AnnotationRenderType.CIRCLE,
         AnnotationRenderType.ELLIPSE,
         AnnotationRenderType.BOX,
         AnnotationRenderType.ARROW,
         AnnotationRenderType.POLYGON,
-    )
+    )) return true
+
+    val custom = measurement.description?.trim()
+    return !custom.isNullOrEmpty() && !isGeneratedAuxiliaryDescription(custom)
 }
 
 fun formatMeasurementTag(measurement: AnnotationMeasurement): String =

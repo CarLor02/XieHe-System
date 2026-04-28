@@ -7,6 +7,21 @@ import type { JSX } from 'react';
 import { Point, getAnnotationConfig } from '../catalog/annotation-catalog';
 import { MeasurementData } from '../types';
 
+const EDITABLE_AUXILIARY_CONFIG_IDS = new Set([
+  'circle',
+  'ellipse',
+  'rectangle',
+  'arrow',
+  'polygon',
+  'vertebra-center',
+  'aux-length',
+  'aux-angle',
+  'aux-horizontal-line',
+  'aux-vertical-line',
+]);
+
+const LEGACY_AUXILIARY_TYPES = new Set(['锥体中心']);
+
 const INLINE_TEXT_AUXILIARY_TYPES = new Set([
   '圆形标注',
   '椭圆标注',
@@ -187,10 +202,37 @@ export function usesInlineAuxiliaryTag(type: string): boolean {
  * 辅助图形优先显示 description；如果未设置，回退到类型默认描述。
  */
 export function getAuxiliaryTagText(
-    measurement: Pick<MeasurementData, 'type' | 'description'>
+  measurement: Pick<MeasurementData, 'type' | 'description'>
 ): string {
   const customText = measurement.description?.trim();
   return customText || getDescriptionForType(measurement.type);
+}
+
+/**
+ * 判断辅助图形是否已经被用户改名。
+ */
+export function hasCustomAuxiliaryTagText(
+  measurement: Pick<MeasurementData, 'type' | 'description'>
+): boolean {
+  const customText = measurement.description?.trim();
+  return Boolean(
+    customText && customText !== getDescriptionForType(measurement.type)
+  );
+}
+
+/**
+ * 判断标注是否属于“辅助图形”区域，允许右键编辑文字。
+ */
+export function isEditableAuxiliaryAnnotationType(type: string): boolean {
+  const config = getAnnotationConfig(type);
+  if (!config) {
+    return LEGACY_AUXILIARY_TYPES.has(type);
+  }
+
+  return (
+    config.category === 'auxiliary' ||
+    EDITABLE_AUXILIARY_CONFIG_IDS.has(config.id)
+  );
 }
 
 /**

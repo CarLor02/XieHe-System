@@ -27,16 +27,38 @@ class AuxiliaryAnnotationMetadataTest {
     fun webAuxiliaryShapeTypesAreRecognizedWhenLoaded() {
         assertTrue(isPersistedAuxiliaryAnnotationType("箭头标注"))
         assertTrue(isPersistedAuxiliaryAnnotationType("圆形标注"))
+        assertTrue(isPersistedAuxiliaryAnnotationType("多边形标注"))
+        assertTrue(isPersistedAuxiliaryAnnotationType("角度标注"))
+        assertTrue(isPersistedAuxiliaryAnnotationType("距离标注"))
+    }
+
+    @Test
+    fun allAuxiliaryAnnotationsCanBeRenamed() {
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "Polygons")))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "椎体中心")))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "距离标注")))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "角度标注")))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "辅助水平线")))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "辅助垂直线")))
     }
 
     private fun arrowMeasurement(description: String): AnnotationMeasurement {
+        return auxiliaryMeasurement(type = "Arrow", description = description)
+    }
+
+    private fun auxiliaryMeasurement(
+        type: String,
+        description: String = "辅助图形-$type",
+    ): AnnotationMeasurement {
         return AnnotationMeasurement(
-            key = "arrow-1",
-            type = "Arrow",
+            key = "$type-1",
+            type = type,
             value = "辅助图形",
             points = listOf(
                 MeasurementPoint(10.0, 10.0),
                 MeasurementPoint(60.0, 60.0),
+                MeasurementPoint(80.0, 80.0),
+                MeasurementPoint(100.0, 100.0),
             ),
             description = description,
             auxiliary = true,

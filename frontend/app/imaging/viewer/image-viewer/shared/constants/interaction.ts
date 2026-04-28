@@ -30,6 +30,8 @@ export const AUXILIARY_TOOL_TYPES = [
   'vertebra-center',
   'aux-length',
   'aux-angle',
+  'aux-horizontal-line',
+  'aux-vertical-line',
 ] as const;
 
 export const HORIZONTAL_LINE_TOOLS = [

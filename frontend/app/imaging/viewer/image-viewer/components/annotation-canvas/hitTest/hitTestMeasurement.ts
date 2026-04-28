@@ -6,6 +6,7 @@ import {
   isRectangleClicked,
 } from '../../../canvas/hit-test/shape-hit-test';
 import { isAuxiliaryShape } from '../../../canvas/tools/tool-state';
+import { isEditableAuxiliaryAnnotationType } from '../../../domain/annotation-metadata';
 import { calculateQuadrilateralCenter } from '../../../shared/geometry';
 import { MeasurementData, Point, TransformContext } from '../../../types';
 import { hitTestMeasurementLabel } from './hitTestLabel';
@@ -89,7 +90,10 @@ function hitTestMeasurementShape(
     );
   }
 
-  if (measurement.type === '锥体中心' && measurement.points.length === 4) {
+  if (
+    (measurement.type === '椎体中心' || measurement.type === '锥体中心') &&
+    measurement.points.length === 4
+  ) {
     if (
       isPolygonClicked(screenPoint, measurement.points, context, lineRadius)
     ) {
@@ -105,7 +109,7 @@ function hitTestMeasurementShape(
     );
   }
 
-  if (measurement.type === '角度标注' && measurement.points.length === 3) {
+  if (measurement.type === '角度标注' && measurement.points.length >= 4) {
     return (
       isLineClicked(
         screenPoint,
@@ -116,8 +120,8 @@ function hitTestMeasurementShape(
       ) ||
       isLineClicked(
         screenPoint,
-        measurement.points[1],
         measurement.points[2],
+        measurement.points[3],
         context,
         lineRadius
       )
@@ -158,7 +162,12 @@ export function hitTestMeasurement({
       };
     }
 
-    if (isAuxiliaryShape(measurement.type)) {
+    const isSupportShape = isAuxiliaryShape(measurement.type);
+    const isEditableAuxiliary = isEditableAuxiliaryAnnotationType(
+      measurement.type
+    );
+
+    if (isSupportShape || isEditableAuxiliary) {
       if (
         hitTestMeasurementShape(
           measurement,
@@ -170,6 +179,21 @@ export function hitTestMeasurement({
       ) {
         return { kind: 'whole', measurementId: measurement.id };
       }
+
+      if (
+        isEditableAuxiliary &&
+        hitTestMeasurementLabel({
+          measurement,
+          screenPoint,
+          imageScale,
+          imageToScreen,
+        })
+      ) {
+        return { kind: 'whole', measurementId: measurement.id };
+      }
+    }
+
+    if (isSupportShape) {
       continue;
     }
 

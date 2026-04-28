@@ -2522,10 +2522,15 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   length: LENGTH_CONFIG,
   angle: ANGLE_CONFIG,
   circle: CIRCLE_CONFIG,
+  圆形标注: CIRCLE_CONFIG, // 中文别名
   ellipse: ELLIPSE_CONFIG,
+  椭圆标注: ELLIPSE_CONFIG, // 中文别名
   rectangle: RECTANGLE_CONFIG,
+  矩形标注: RECTANGLE_CONFIG, // 中文别名
   arrow: ARROW_CONFIG,
+  箭头标注: ARROW_CONFIG, // 中文别名
   polygon: POLYGON_CONFIG,
+  多边形标注: POLYGON_CONFIG, // 中文别名
   'vertebra-center': VERTEBRA_CENTER_CONFIG,
   'aux-length': AUX_LENGTH_CONFIG,
   距离标注: AUX_LENGTH_CONFIG, // 中文别名
