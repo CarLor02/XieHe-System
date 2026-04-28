@@ -8,15 +8,14 @@
 创建时间: 2026-01-05
 """
 
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime, date
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, func
-from pydantic import BaseModel, Field
+from sqlalchemy import or_, func
 
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
@@ -26,9 +25,12 @@ from app.core.response import success_response, paginated_response
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 from app.models.user import User
 from app.models.image import ImageAnnotation
+from app.services.image_file_visibility import (
+    apply_image_visibility_filter,
+    get_visible_image_file,
+)
 from ..schemas.files import (
     ImageFileResponse,
-    ImageFileListResponse,
     ImageFileStatsResponse,
     UpdateExamTypeRequest,
     UpdateAnnotationRequest,
@@ -36,8 +38,6 @@ from ..schemas.files import (
 
 logger = get_logger(__name__)
 router = APIRouter()
-
-
 
 
 # API 端点
@@ -75,47 +75,12 @@ async def get_image_files_list(
     """
     try:
         from app.models.patient import Patient
-        from app.models.team import TeamMembership, TeamMembershipRole, TeamMembershipStatus
 
         # 构建查询
         query = db.query(ImageFile).outerjoin(
             Patient, ImageFile.patient_id == Patient.id
         ).filter(ImageFile.is_deleted == False)
-
-        # 权限过滤：根据用户角色限制可见影像
-        user_id = current_user.get('id')
-        is_superuser = current_user.get('is_superuser', False)
-
-        if not is_superuser:
-            # 非超级管理员需要进行权限过滤
-            # 1. 获取用户作为ADMIN的所有团队
-            admin_teams = db.query(TeamMembership).filter(
-                TeamMembership.user_id == user_id,
-                TeamMembership.role == TeamMembershipRole.ADMIN,
-                TeamMembership.status == TeamMembershipStatus.ACTIVE
-            ).all()
-
-            if admin_teams:
-                # 用户是某些团队的负责人，可以看到这些团队所有成员上传的影像
-                team_ids = [tm.team_id for tm in admin_teams]
-
-                # 获取这些团队的所有成员ID
-                team_member_ids = db.query(TeamMembership.user_id).filter(
-                    TeamMembership.team_id.in_(team_ids),
-                    TeamMembership.status == TeamMembershipStatus.ACTIVE
-                ).distinct().all()
-                team_member_ids = [mid[0] for mid in team_member_ids]
-
-                # 可以看到：自己上传的 + 团队成员上传的
-                query = query.filter(
-                    or_(
-                        ImageFile.uploaded_by == user_id,
-                        ImageFile.uploaded_by.in_(team_member_ids)
-                    )
-                )
-            else:
-                # 普通用户，只能看到自己上传的影像
-                query = query.filter(ImageFile.uploaded_by == user_id)
+        query = apply_image_visibility_filter(query, db, current_user)
 
         # 待处理筛选 - 优先级最高
         # 支持 status=pending（兼容旧接口）或 pending_only=true
@@ -182,7 +147,6 @@ async def get_image_files_list(
         # 转换为响应格式
         items = []
         for img in images:
-            patient = db.query(Patient).filter(Patient.id == img.patient_id).first() if img.patient_id else None
             items.append(ImageFileResponse(
                 id=img.id,
                 file_uuid=img.file_uuid,
@@ -239,7 +203,8 @@ async def get_patient_images(
             ImageFile.patient_id == patient_id,
             ImageFile.is_deleted == False
         )
-        
+        query = apply_image_visibility_filter(query, db, current_user)
+
         total = query.count()
         images = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
         
@@ -293,10 +258,7 @@ async def get_image_file(
     获取指定影像文件的详细信息
     """
     try:
-        image = db.query(ImageFile).filter(
-            ImageFile.id == file_id,
-            ImageFile.is_deleted == False
-        ).first()
+        image = get_visible_image_file(db, file_id, current_user)
 
         if not image:
             raise HTTPException(
@@ -358,10 +320,7 @@ async def download_image_file(
     下载指定的影像文件
     """
     try:
-        image = db.query(ImageFile).filter(
-            ImageFile.id == file_id,
-            ImageFile.is_deleted == False
-        ).first()
+        image = get_visible_image_file(db, file_id, current_user)
         
         if not image:
             raise HTTPException(
@@ -452,16 +411,14 @@ async def get_image_stats(
     db: Session = Depends(get_db)
 ):
     """
-    获取当前用户的影像文件统计信息
+    获取当前用户可见范围内的影像文件统计信息
     """
     try:
-        user_id = current_user.get('id')
-        
         # 总文件数和总大小
-        images = db.query(ImageFile).filter(
-            ImageFile.uploaded_by == user_id,
+        query = db.query(ImageFile).filter(
             ImageFile.is_deleted == False
-        ).all()
+        )
+        images = apply_image_visibility_filter(query, db, current_user).all()
         
         total_files = len(images)
         total_size = sum(img.file_size for img in images)

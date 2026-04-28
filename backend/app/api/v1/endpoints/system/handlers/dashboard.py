@@ -7,12 +7,11 @@
 @created 2025-09-28
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime, date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, func, text
-from pydantic import BaseModel, Field
+from sqlalchemy import and_, or_, desc, func
 
 from app.core.database import get_db
 from app.core.auth import get_current_active_user
@@ -20,12 +19,15 @@ from app.core.logging import get_logger
 from app.core.response import success_response
 from app.models.patient import Patient, PatientStatusEnum
 from app.models.image_file import ImageFile, ImageFileStatusEnum
-from app.models.report import DiagnosticReport, ReportStatusEnum, PriorityEnum
+from app.models.report import DiagnosticReport
+from app.services.image_file_visibility import (
+    apply_image_visibility_filter,
+    build_image_visibility_filter,
+)
 from ..schemas.dashboard import (
     DashboardOverview,
     RecentActivity,
     SystemMetric,
-    DashboardStats,
 )
 
 logger = get_logger(__name__)
@@ -49,48 +51,14 @@ async def get_dashboard_overview(
     - 超级管理员(is_superuser)：统计全部影像
     """
     try:
-        from app.models.team import TeamMembership, TeamMembershipRole, TeamMembershipStatus
-
         # 时间范围定义
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
         today_start = datetime.combine(today, datetime.min.time())
         week_start_dt = datetime.combine(week_start, datetime.min.time())
 
-        # 获取用户权限信息
-        user_id = current_user.get('id')
-        is_superuser = current_user.get('is_superuser', False)
-
         # 构建影像文件的权限过滤条件
-        image_permission_filter = None
-        if not is_superuser:
-            # 非超级管理员需要进行权限过滤
-            # 1. 获取用户作为ADMIN的所有团队
-            admin_teams = db.query(TeamMembership).filter(
-                TeamMembership.user_id == user_id,
-                TeamMembership.role == TeamMembershipRole.ADMIN,
-                TeamMembership.status == TeamMembershipStatus.ACTIVE
-            ).all()
-
-            if admin_teams:
-                # 用户是某些团队的负责人，可以看到这些团队所有成员上传的影像
-                team_ids = [tm.team_id for tm in admin_teams]
-
-                # 获取这些团队的所有成员ID
-                team_member_ids = db.query(TeamMembership.user_id).filter(
-                    TeamMembership.team_id.in_(team_ids),
-                    TeamMembership.status == TeamMembershipStatus.ACTIVE
-                ).distinct().all()
-                team_member_ids = [mid[0] for mid in team_member_ids]
-
-                # 可以看到：自己上传的 + 团队成员上传的
-                image_permission_filter = or_(
-                    ImageFile.uploaded_by == user_id,
-                    ImageFile.uploaded_by.in_(team_member_ids)
-                )
-            else:
-                # 普通用户，只能看到自己上传的影像
-                image_permission_filter = ImageFile.uploaded_by == user_id
+        image_permission_filter = build_image_visibility_filter(db, current_user)
 
         # 患者统计（不受权限限制，显示全部患者）
         total_patients = db.query(func.count(Patient.id)).filter(Patient.is_deleted == False).scalar() or 0
@@ -220,8 +188,13 @@ async def get_recent_activities(
             ))
 
         # 获取最近的影像文件
-        recent_files = db.query(ImageFile).filter(
+        recent_files_query = db.query(ImageFile).filter(
             ImageFile.is_deleted == False
+        )
+        recent_files = apply_image_visibility_filter(
+            recent_files_query,
+            db,
+            current_user,
         ).order_by(desc(ImageFile.created_at)).limit(limit // 3).all()
 
         for file in recent_files:
@@ -341,48 +314,14 @@ async def get_dashboard_stats(
     - 超级管理员(is_superuser)：统计全部影像
     """
     try:
-        from app.models.team import TeamMembership, TeamMembershipRole, TeamMembershipStatus
-
         # 时间范围定义
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
         today_start = datetime.combine(today, datetime.min.time())
         week_start_dt = datetime.combine(week_start, datetime.min.time())
 
-        # 获取用户权限信息
-        user_id = current_user.get('id')
-        is_superuser = current_user.get('is_superuser', False)
-
         # 构建影像文件的权限过滤条件
-        image_permission_filter = None
-        if not is_superuser:
-            # 非超级管理员需要进行权限过滤
-            # 1. 获取用户作为ADMIN的所有团队
-            admin_teams = db.query(TeamMembership).filter(
-                TeamMembership.user_id == user_id,
-                TeamMembership.role == TeamMembershipRole.ADMIN,
-                TeamMembership.status == TeamMembershipStatus.ACTIVE
-            ).all()
-
-            if admin_teams:
-                # 用户是某些团队的负责人，可以看到这些团队所有成员上传的影像
-                team_ids = [tm.team_id for tm in admin_teams]
-
-                # 获取这些团队的所有成员ID
-                team_member_ids = db.query(TeamMembership.user_id).filter(
-                    TeamMembership.team_id.in_(team_ids),
-                    TeamMembership.status == TeamMembershipStatus.ACTIVE
-                ).distinct().all()
-                team_member_ids = [mid[0] for mid in team_member_ids]
-
-                # 可以看到：自己上传的 + 团队成员上传的
-                image_permission_filter = or_(
-                    ImageFile.uploaded_by == user_id,
-                    ImageFile.uploaded_by.in_(team_member_ids)
-                )
-            else:
-                # 普通用户，只能看到自己上传的影像
-                image_permission_filter = ImageFile.uploaded_by == user_id
+        image_permission_filter = build_image_visibility_filter(db, current_user)
 
         # 患者统计（不受权限限制，显示全部患者）
         total_patients = db.query(func.count(Patient.id)).filter(Patient.is_deleted == False).scalar() or 0
