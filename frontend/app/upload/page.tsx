@@ -7,6 +7,9 @@ import { getPatients } from '@/services/patientServices';
 import { uploadSingleFile } from '@/services/imageServices';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
+import UploadOptionsOverlay, {
+  CropArea,
+} from './_components/overlay/upload-options-overlay';
 
 interface UploadFile {
   id: string;
@@ -15,9 +18,13 @@ interface UploadFile {
   type: string;
   status: 'pending' | 'uploading' | 'completed' | 'error';
   progress: number;
-  file: File;       // 保存原始（或翻转后）的文件对象
-  flipped: boolean; // 是否已左右翻转
-  previewUrl: string; // 本地预览 URL（URL.createObjectURL）
+  file: File; // 当前上传用文件，包含已应用的翻转/裁剪
+  cropSourceFile: File; // 未裁剪源文件，重新裁剪时从这里生成结果
+  flipped: boolean;
+  cropped: boolean;
+  previewUrl: string; // 列表预览，展示当前上传内容
+  sourcePreviewUrl: string; // Overlay 裁剪源预览，保留未裁剪图像
+  examType: string;
 }
 
 function UploadContent() {
@@ -27,8 +34,11 @@ function UploadContent() {
   const { isAuthenticated } = useUser();
 
   const [selectedPatient, setSelectedPatient] = useState('');
-  const [examType, setExamType] = useState('');
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
+  const [activeOptionsFileId, setActiveOptionsFileId] = useState<string | null>(
+    null
+  );
+  const [optionsQueue, setOptionsQueue] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [allCompleted, setAllCompleted] = useState(false);
   const [patients, setPatients] = useState<Array<{ id: string; name: string }>>(
@@ -48,6 +58,10 @@ function UploadContent() {
     '右侧曲位',
     '体态照片',
   ];
+
+  const activeOptionsFile = uploadFiles.find(
+    file => file.id === activeOptionsFileId
+  );
 
   useEffect(() => {
     if (uploadFiles.length > 0) {
@@ -112,38 +126,71 @@ function UploadContent() {
   };
 
   const handleFiles = (files: File[]) => {
-    const newFiles: UploadFile[] = files.map((file, index) => ({
-      id: `file-${Date.now()}-${index}`,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      status: 'pending',
-      progress: 0,
-      file: file,
-      flipped: false,
-      previewUrl: URL.createObjectURL(file),
-    }));
+    const newFiles: UploadFile[] = files.map((file, index) => {
+      const previewUrl = URL.createObjectURL(file);
+      const sourcePreviewUrl = URL.createObjectURL(file);
+      return {
+        id: `file-${Date.now()}-${index}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        status: 'pending',
+        progress: 0,
+        file,
+        cropSourceFile: file,
+        flipped: false,
+        cropped: false,
+        previewUrl,
+        sourcePreviewUrl,
+        examType: examTypes[0],
+      };
+    });
 
     setUploadFiles(prev => [...prev, ...newFiles]);
+
+    const newFileIds = newFiles.map(file => file.id);
+    if (activeOptionsFileId) {
+      setOptionsQueue(prev => [...prev, ...newFileIds]);
+    } else {
+      const [firstFileId, ...remainingIds] = newFileIds;
+      setActiveOptionsFileId(firstFileId ?? null);
+      setOptionsQueue(prev => [...prev, ...remainingIds]);
+    }
   };
 
-  const uploadFile = async (fileId: string, file: File) => {
+  const handleFileOptionDone = () => {
+    const [nextFileId, ...remainingFileIds] = optionsQueue;
+    setActiveOptionsFileId(nextFileId ?? null);
+    setOptionsQueue(remainingFileIds);
+  };
+
+  const updateFileExamType = (fileId: string, nextExamType: string) => {
+    setUploadFiles(prev =>
+      prev.map(file =>
+        file.id === fileId ? { ...file, examType: nextExamType } : file
+      )
+    );
+  };
+
+  const uploadFile = async (uploadFileItem: UploadFile) => {
     try {
       await uploadSingleFile({
-        file,
+        file: uploadFileItem.file,
         patient_id: selectedPatient || null,
-        description: examType || null,
+        description: uploadFileItem.examType || null,
       });
       setUploadFiles(prev =>
         prev.map(f =>
-          f.id === fileId ? { ...f, status: 'completed', progress: 100 } : f
+          f.id === uploadFileItem.id
+            ? { ...f, status: 'completed', progress: 100 }
+            : f
         )
       );
     } catch (error) {
       console.error('Upload error:', error);
       setUploadFiles(prev =>
         prev.map(f =>
-          f.id === fileId ? { ...f, status: 'error', progress: 0 } : f
+          f.id === uploadFileItem.id ? { ...f, status: 'error', progress: 0 } : f
         )
       );
     }
@@ -161,52 +208,165 @@ function UploadContent() {
     setUploadFiles(prev => {
       const target = prev.find(f => f.id === fileId);
       if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      if (target?.sourcePreviewUrl) URL.revokeObjectURL(target.sourcePreviewUrl);
       return prev.filter(f => f.id !== fileId);
     });
+    setOptionsQueue(prev => prev.filter(id => id !== fileId));
+    setActiveOptionsFileId(current => (current === fileId ? null : current));
   };
 
-  // 左右翻转指定文件（Canvas 像素级翻转，生成新 File 对象）
-  const handleFlip = (fileId: string) => {
+  const replaceCurrentFile = (
+    fileId: string,
+    newFile: File,
+    patch: Partial<Pick<UploadFile, 'cropped'>>
+  ) => {
+    const newPreviewUrl = URL.createObjectURL(newFile);
     setUploadFiles(prev =>
-      prev.map(f => {
-        if (f.id !== fileId) return f;
-
-        const img = new Image();
-        const oldUrl = f.previewUrl;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-          // 水平镜像：原点移到右边缘，X 轴取反
-          ctx.translate(canvas.width, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(img, 0, 0);
-
-          canvas.toBlob(blob => {
-            if (!blob) return;
-            const newFile = new File([blob], f.name, { type: f.type || 'image/png' });
-            const newPreviewUrl = URL.createObjectURL(newFile);
-            URL.revokeObjectURL(oldUrl);
-            setUploadFiles(prev2 =>
-              prev2.map(f2 =>
-                f2.id === fileId
-                  ? { ...f2, file: newFile, flipped: !f2.flipped, previewUrl: newPreviewUrl }
-                  : f2
-              )
-            );
-          }, f.type || 'image/png');
+      prev.map(file => {
+        if (file.id !== fileId) return file;
+        URL.revokeObjectURL(file.previewUrl);
+        return {
+          ...file,
+          ...patch,
+          file: newFile,
+          size: newFile.size,
+          type: newFile.type || file.type,
+          previewUrl: newPreviewUrl,
         };
-        img.src = oldUrl;
-        return f; // 暂时保持不变，等 canvas 异步完成后再更新
       })
     );
   };
 
+  const replaceSourceAndCurrentFiles = (
+    fileId: string,
+    nextSourceFile: File,
+    nextCurrentFile: File,
+    patch: Partial<Pick<UploadFile, 'flipped'>>
+  ) => {
+    const nextSourcePreviewUrl = URL.createObjectURL(nextSourceFile);
+    const nextPreviewUrl = URL.createObjectURL(nextCurrentFile);
+    setUploadFiles(prev =>
+      prev.map(file => {
+        if (file.id !== fileId) return file;
+        URL.revokeObjectURL(file.sourcePreviewUrl);
+        URL.revokeObjectURL(file.previewUrl);
+        return {
+          ...file,
+          ...patch,
+          file: nextCurrentFile,
+          cropSourceFile: nextSourceFile,
+          size: nextCurrentFile.size,
+          type: nextCurrentFile.type || file.type,
+          previewUrl: nextPreviewUrl,
+          sourcePreviewUrl: nextSourcePreviewUrl,
+        };
+      })
+    );
+  };
+
+  const renderImageToFile = (
+    sourceFile: File,
+    sourceUrl: string,
+    render: (image: HTMLImageElement, canvas: HTMLCanvasElement) => void
+  ) =>
+    new Promise<File>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        const canvas = document.createElement('canvas');
+        render(image, canvas);
+        canvas.toBlob(blob => {
+          if (!blob) {
+            reject(new Error('无法生成调整后的影像文件'));
+            return;
+          }
+          resolve(
+            new File([blob], sourceFile.name, {
+              type: sourceFile.type || 'image/png',
+            })
+          );
+        }, sourceFile.type || 'image/png');
+      };
+      image.onerror = () => reject(new Error('无法读取待调整的影像文件'));
+      image.src = sourceUrl;
+    });
+
+  // 左右翻转指定文件（Canvas 像素级翻转，生成新 File 对象）
+  const handleFlip = async (fileId: string) => {
+    const target = uploadFiles.find(file => file.id === fileId);
+    if (!target || !target.cropSourceFile.type.startsWith('image/')) return;
+
+    const flipImage = (image: HTMLImageElement, canvas: HTMLCanvasElement) => {
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(image, 0, 0);
+    };
+
+    try {
+      const nextSourceFile = await renderImageToFile(
+        target.cropSourceFile,
+        target.sourcePreviewUrl,
+        flipImage
+      );
+      const nextCurrentFile = target.cropped
+        ? await renderImageToFile(target.file, target.previewUrl, flipImage)
+        : nextSourceFile;
+      replaceSourceAndCurrentFiles(fileId, nextSourceFile, nextCurrentFile, {
+        flipped: !target.flipped,
+      });
+    } catch (error) {
+      console.error('Flip image error:', error);
+    }
+  };
+
+  const handleCrop = async (fileId: string, crop: CropArea) => {
+    const target = uploadFiles.find(file => file.id === fileId);
+    if (!target || !target.cropSourceFile.type.startsWith('image/')) return;
+
+    try {
+      const nextFile = await renderImageToFile(
+        target.cropSourceFile,
+        target.sourcePreviewUrl,
+        (image, canvas) => {
+          const sourceX = Math.round(crop.x * image.naturalWidth);
+          const sourceY = Math.round(crop.y * image.naturalHeight);
+          const sourceWidth = Math.max(
+            1,
+            Math.round(crop.width * image.naturalWidth)
+          );
+          const sourceHeight = Math.max(
+            1,
+            Math.round(crop.height * image.naturalHeight)
+          );
+          canvas.width = sourceWidth;
+          canvas.height = sourceHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          ctx.drawImage(
+            image,
+            sourceX,
+            sourceY,
+            sourceWidth,
+            sourceHeight,
+            0,
+            0,
+            sourceWidth,
+            sourceHeight
+          );
+        }
+      );
+      replaceCurrentFile(fileId, nextFile, { cropped: true });
+    } catch (error) {
+      console.error('Crop image error:', error);
+    }
+  };
+
   const handleConfirmUpload = () => {
-    if (!selectedPatient || !examType) {
-      alert('请选择患者和检查类型');
+    if (!selectedPatient) {
+      alert('请选择患者');
       return;
     }
 
@@ -220,6 +380,11 @@ function UploadContent() {
       return;
     }
 
+    if (filesToUpload.some(file => !file.examType)) {
+      alert('请为所有待上传文件选择影像类型');
+      return;
+    }
+
     // 将文件状态设置为上传中
     setUploadFiles(prev =>
       prev.map(f =>
@@ -229,7 +394,7 @@ function UploadContent() {
 
     // 上传每个文件
     filesToUpload.forEach(uploadFileItem => {
-      uploadFile(uploadFileItem.id, uploadFileItem.file);
+      uploadFile(uploadFileItem);
     });
   };
 
@@ -323,22 +488,8 @@ function UploadContent() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  检查类型 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={examType}
-                  onChange={e => setExamType(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">请选择检查类型</option>
-                  {examTypes.map(type => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                文件选择后会逐个确认影像类型，可在同一批次中同时上传正位、侧位或其他类别影像。
               </div>
             </div>
 
@@ -421,6 +572,14 @@ function UploadContent() {
                             ) : (
                               <i className="ri-time-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
                             )}
+                            {file.status === 'pending' && (
+                              <button
+                                onClick={() => setActiveOptionsFileId(file.id)}
+                                className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                              >
+                                调整
+                              </button>
+                            )}
                             <button
                               onClick={() => removeFile(file.id)}
                               className="text-gray-400 hover:text-red-500"
@@ -450,17 +609,15 @@ function UploadContent() {
                         {file.status === 'pending' && (
                           <div className="flex items-center gap-3 mt-1">
                             <p className="text-xs text-gray-600">待上传</p>
-                            <button
-                              onClick={() => handleFlip(file.id)}
-                              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded border transition-colors ${
-                                file.flipped
-                                  ? 'border-blue-400 bg-blue-50 text-blue-600'
-                                  : 'border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50'
-                              }`}
-                            >
-                              <i className="ri-arrow-left-right-line"></i>
-                              左右翻转{file.flipped ? '（已翻转）' : ''}
-                            </button>
+                            <span className="rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                              {file.examType}
+                            </span>
+                            {file.flipped && (
+                              <span className="text-xs text-gray-500">已翻转</span>
+                            )}
+                            {file.cropped && (
+                              <span className="text-xs text-gray-500">已裁剪</span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -470,7 +627,15 @@ function UploadContent() {
 
                 <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
                   <button
-                    onClick={() => setUploadFiles([])}
+                    onClick={() => {
+                      uploadFiles.forEach(file => {
+                        URL.revokeObjectURL(file.previewUrl);
+                        URL.revokeObjectURL(file.sourcePreviewUrl);
+                      });
+                      setUploadFiles([]);
+                      setActiveOptionsFileId(null);
+                      setOptionsQueue([]);
+                    }}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 whitespace-nowrap"
                   >
                     清空列表
@@ -493,7 +658,7 @@ function UploadContent() {
                     <button
                       disabled={
                         !selectedPatient ||
-                        !examType ||
+                        uploadFiles.some(f => f.status === 'pending' && !f.examType) ||
                         uploadFiles.filter(f => f.status === 'pending')
                           .length === 0
                       }
@@ -515,16 +680,37 @@ function UploadContent() {
             </h3>
             <ul className="text-sm text-blue-800 space-y-1">
               <li>• 请确保选择正确的患者和检查类型</li>
+              <li>• 每个文件都可以单独选择影像类型，支持同一患者同批次上传正位和侧位影像</li>
               <li>• 支持的文件格式：DCM（DICOM）、JPG、PNG、GIF</li>
               <li>• 单个文件大小不能超过 100MB</li>
               <li>• 支持拖拽上传</li>
-              <li>• 若影像左右方向有误，可点击文件列表中的 ⇌ 按钮进行翻转，翻转后再上传</li>
+              <li>• 若影像左右方向或范围有误，可在文件选择后的弹窗中调整后再上传</li>
               <li>• 上传的文件将自动关联到选中的患者</li>
               <li>• 上传完成后可直接返回原来的页面</li>
             </ul>
           </div>
         </div>
       </main>
+
+      {activeOptionsFile && (
+        <UploadOptionsOverlay
+          file={{
+            id: activeOptionsFile.id,
+            name: activeOptionsFile.name,
+            previewUrl: activeOptionsFile.sourcePreviewUrl,
+            examType: activeOptionsFile.examType,
+            flipped: activeOptionsFile.flipped,
+            cropped: activeOptionsFile.cropped,
+            mimeType: activeOptionsFile.type,
+          }}
+          examTypes={examTypes}
+          onExamTypeChange={updateFileExamType}
+          onFlip={handleFlip}
+          onCrop={handleCrop}
+          onClose={handleFileOptionDone}
+          onConfirm={handleFileOptionDone}
+        />
+      )}
     </div>
   );
 }

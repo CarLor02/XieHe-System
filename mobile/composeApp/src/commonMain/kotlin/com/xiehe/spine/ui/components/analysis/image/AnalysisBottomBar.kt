@@ -100,7 +100,7 @@ private fun AnalysisBottomItem(
     val colors = SpineTheme.colors
     val contentColor = when {
         !enabled -> colors.textTertiary
-        destructive -> colors.error
+        destructive -> colors.destructive
         selected -> colors.onPrimary
         else -> colors.textSecondary
     }

@@ -104,6 +104,8 @@ data class SpineAppColors(
     val success: Color,
     val warning: Color,
     val error: Color,
+    val destructive: Color,
+    val destructiveMuted: Color,
     val info: Color,
     val tabInactive: Color,
     val examCategories: SpineExamCategoryColors,

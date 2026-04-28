@@ -32,13 +32,14 @@ import com.xiehe.spine.ui.components.text.shared.Text
 import com.xiehe.spine.ui.components.form.file.rememberImageFilePickerLauncher
 import com.xiehe.spine.ui.components.form.input.TextField
 import com.xiehe.spine.ui.components.form.picker.OptionPickerOverlay
+import com.xiehe.spine.ui.screens.image.components.ImageUploadFileList
+import com.xiehe.spine.ui.screens.image.components.ImageUploadOptionsOverlay
 import com.xiehe.spine.ui.theme.SpineTheme
 import com.xiehe.spine.ui.viewmodel.image.ImageUploadViewModel
-import com.xiehe.spine.ui.viewmodel.image.UploadFilePayload
+import com.xiehe.spine.ui.viewmodel.image.UploadFileStatus
 
 private enum class ImageUploadPicker {
     PATIENT,
-    EXAM_TYPE,
 }
 
 @Composable
@@ -52,17 +53,16 @@ fun ImageUploadScreen(
     val state by vm.state.collectAsState()
     val scroll = rememberScrollState()
     var picker by remember { mutableStateOf<ImageUploadPicker?>(null) }
+    var activeOptionsFileId by remember { mutableStateOf<String?>(null) }
 
     val imagePicker = rememberImageFilePickerLauncher { picked ->
-        vm.setSelectedFile(
-            picked?.let {
-                UploadFilePayload(
-                    name = it.name,
-                    mimeType = it.mimeType,
-                    bytes = it.bytes,
-                )
-            },
-        )
+        if (picked != null) {
+            activeOptionsFileId = vm.appendUploadFile(
+                name = picked.name,
+                mimeType = picked.mimeType,
+                bytes = picked.bytes,
+            )
+        }
     }
 
     LaunchedEffect(session.accessToken) {
@@ -74,6 +74,7 @@ fun ImageUploadScreen(
     }
 
     val selectedPatientName = state.patients.firstOrNull { it.id == state.selectedPatientId }?.name ?: "请选择患者"
+    val activeOptionsFile = state.uploadFiles.firstOrNull { it.id == activeOptionsFileId }
 
     Box(
         modifier = Modifier
@@ -91,21 +92,6 @@ fun ImageUploadScreen(
                 text = selectedPatientName,
                 leadingGlyph = IconToken.PATIENTS,
                 onClick = { picker = ImageUploadPicker.PATIENT },
-            )
-
-            PickerField(
-                text = state.selectedExamType.label,
-                leadingGlyph = IconToken.IMAGES,
-                onClick = { picker = ImageUploadPicker.EXAM_TYPE },
-            )
-
-            TextField(
-                value = state.selectedFile?.name ?: "",
-                onValueChange = {},
-                placeholder = "请选择影像文件",
-                modifier = Modifier.fillMaxWidth(),
-                readOnly = true,
-                leadingGlyph = IconToken.UPLOAD,
             )
 
             Row(
@@ -126,6 +112,17 @@ fun ImageUploadScreen(
                 )
             }
 
+            ImageUploadFileList(
+                files = state.uploadFiles,
+                onAdjust = { activeOptionsFileId = it },
+                onRemove = { fileId ->
+                    vm.removeUploadFile(fileId)
+                    if (activeOptionsFileId == fileId) {
+                        activeOptionsFileId = null
+                    }
+                },
+            )
+
             Button(
                 text = if (state.uploading) "上传中..." else "上传影像",
                 onClick = {
@@ -136,7 +133,7 @@ fun ImageUploadScreen(
                         onSessionExpired = onSessionExpired,
                     )
                 },
-                enabled = !state.uploading,
+                enabled = !state.uploading && state.uploadFiles.any { it.status == UploadFileStatus.PENDING },
                 modifier = Modifier.fillMaxWidth(),
                 leadingGlyph = IconToken.UPLOAD,
             )
@@ -179,19 +176,19 @@ fun ImageUploadScreen(
             )
         }
 
-        ImageUploadPicker.EXAM_TYPE -> {
-            OptionPickerOverlay(
-                title = "选择影像类别",
-                options = state.examTypes.map { it.label },
-                selected = state.selectedExamType.label,
-                onDismiss = { picker = null },
-                onSelect = { selectedLabel ->
-                    state.examTypes.firstOrNull { it.label == selectedLabel }?.let(vm::updateExamType)
-                },
-            )
-        }
-
         null -> Unit
+    }
+
+    if (activeOptionsFile != null) {
+        ImageUploadOptionsOverlay(
+            file = activeOptionsFile,
+            examTypes = state.examTypes,
+            onExamTypeChange = { vm.updateFileExamType(activeOptionsFile.id, it) },
+            onFlip = { vm.flipFile(activeOptionsFile.id) },
+            onCrop = { vm.cropFile(activeOptionsFile.id, it) },
+            onDismiss = { activeOptionsFileId = null },
+            onConfirm = { activeOptionsFileId = null },
+        )
     }
 }
 
