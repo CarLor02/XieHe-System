@@ -52,6 +52,7 @@ internal fun resolveAnnotationRenderType(
 
         "CA",
         "Pelvic",
+        "PO",
         -> AnnotationRenderType.SINGLE_LINE_WITH_HORIZONTAL
 
         "Cobb",
@@ -65,7 +66,9 @@ internal fun resolveAnnotationRenderType(
         "角度标注",
         -> AnnotationRenderType.TWO_DASHED_LINES
 
-        "Sacral" -> AnnotationRenderType.SACRAL_WITH_PERPENDICULAR
+        "Sacral",
+        "CSS",
+        -> AnnotationRenderType.SACRAL_WITH_PERPENDICULAR
         "SS" -> AnnotationRenderType.SS
         "PI" -> AnnotationRenderType.PI
         "PT" -> AnnotationRenderType.PT
@@ -76,11 +79,21 @@ internal fun resolveAnnotationRenderType(
         "角度测量" -> AnnotationRenderType.THREE_POINT_ANGLE
         "辅助水平线" -> AnnotationRenderType.SINGLE_HORIZONTAL_LINE
         "辅助垂直线" -> AnnotationRenderType.SINGLE_VERTICAL_LINE
-        "Auxiliary Circle" -> AnnotationRenderType.CIRCLE
-        "Auxiliary Ellipse" -> AnnotationRenderType.ELLIPSE
-        "Auxiliary Box" -> AnnotationRenderType.BOX
-        "Arrow" -> AnnotationRenderType.ARROW
-        "Polygons" -> AnnotationRenderType.POLYGON
+        "Auxiliary Circle",
+        "圆形标注",
+        -> AnnotationRenderType.CIRCLE
+        "Auxiliary Ellipse",
+        "椭圆标注",
+        -> AnnotationRenderType.ELLIPSE
+        "Auxiliary Box",
+        "矩形标注",
+        -> AnnotationRenderType.BOX
+        "Arrow",
+        "箭头标注",
+        -> AnnotationRenderType.ARROW
+        "Polygons",
+        "多边形标注",
+        -> AnnotationRenderType.POLYGON
         "椎体中心" -> AnnotationRenderType.VERTEBRA_CENTER
         else -> AnnotationRenderType.SIMPLE_LINE
     }
@@ -126,9 +139,8 @@ fun formatMeasurementTag(measurement: AnnotationMeasurement): String =
     "${measurement.type}: ${formatDisplayValue(measurement.value)}"
 
 fun formatAuxiliaryTag(measurement: AnnotationMeasurement): String {
-    val generatedPrefix = "辅助图形-"
     val custom = measurement.description?.trim()
-    if (!custom.isNullOrEmpty() && !custom.startsWith(generatedPrefix)) {
+    if (!custom.isNullOrEmpty() && !isGeneratedAuxiliaryDescription(custom)) {
         return custom
     }
 
@@ -213,7 +225,9 @@ private fun resolveCatalogTagAnchor(
         )
 
         "Pelvic",
+        "PO",
         "Sacral",
+        "CSS",
         "SS",
         "长度测量",
         "距离标注",
@@ -316,7 +330,9 @@ private fun resolveCatalogTagAnchor(
             y = (points[0].y + points[1].y) / 2f,
         )
 
-        "Auxiliary Circle" -> {
+        "Auxiliary Circle",
+        "圆形标注",
+        -> {
             val center = points[0]
             if (points.size >= 2) {
                 val radius = distance(points[1], center)
@@ -329,7 +345,9 @@ private fun resolveCatalogTagAnchor(
             }
         }
 
-        "Auxiliary Ellipse" -> {
+        "Auxiliary Ellipse",
+        "椭圆标注",
+        -> {
             val center = points[0]
             if (points.size >= 2) {
                 val radiusY = kotlin.math.abs(points[1].y - center.y)
@@ -342,13 +360,17 @@ private fun resolveCatalogTagAnchor(
             }
         }
 
-        "Auxiliary Box" -> Offset(
+        "Auxiliary Box",
+        "矩形标注",
+        -> Offset(
             x = (points[0].x + points[1].x) / 2f,
             y = minOf(points[0].y, points[1].y) - 20f / imageScale,
         )
 
         "Arrow",
+        "箭头标注",
         "Polygons",
+        "多边形标注",
         -> points.firstOrNull()
 
         "椎体中心" -> average(points.take(4)).copy(
@@ -368,12 +390,16 @@ private fun resolveMeasurementTool(measurement: AnnotationMeasurement) = when {
 private fun isTrunkShiftMeasurement(
     type: String,
     pointsCount: Int,
-): Boolean = type == "TS" || (type == "TTS" && pointsCount < 6)
+): Boolean {
+    return type in setOf("TS", "TTS") && pointsCount < 6
+}
 
 private fun isC7OffsetMeasurement(
     type: String,
     pointsCount: Int,
-): Boolean = type == "TS(Trunk Shift)" || (type == "TTS" && pointsCount >= 6)
+): Boolean {
+    return type == "TS(Trunk Shift)" || (type in setOf("TS", "TTS") && pointsCount >= 6)
+}
 
 private fun resolveTsTagAnchor(
     points: List<Offset>,

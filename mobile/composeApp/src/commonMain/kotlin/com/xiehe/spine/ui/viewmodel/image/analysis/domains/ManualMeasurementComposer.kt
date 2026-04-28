@@ -3,6 +3,8 @@ package com.xiehe.spine.ui.viewmodel.image
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.ANNOTATION_TOOL_CATALOG
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.AnnotationToolDefinition
+import com.xiehe.spine.ui.components.analysis.viewer.domain.hasAnnotationForTool
+import com.xiehe.spine.ui.components.analysis.viewer.domain.hasUniqueAnnotationForTool
 import com.xiehe.spine.ui.components.analysis.viewer.domain.buildInheritedPointMap
 import com.xiehe.spine.ui.components.analysis.viewer.domain.getEffectivePointsNeeded
 import com.xiehe.spine.ui.components.analysis.viewer.domain.getInheritedPoints
@@ -36,6 +38,8 @@ object ManualMeasurementComposer {
         standardDistancePoints: List<MeasurementPoint>,
         nextMeasurementKey: (String) -> String,
     ): ManualMeasurementBatch? {
+        if (hasUniqueAnnotationForTool(measurements, tool)) return null
+
         val finalPoints = assemblePoints(tool, userPoints, measurements) ?: return null
         val primaryMeasurement = ManualMeasurementBuilder.build(
             toolId = tool.id,
@@ -50,7 +54,7 @@ object ManualMeasurementComposer {
 
         ANNOTATION_TOOL_CATALOG.forEach { candidate ->
             if (candidate.pointsNeeded <= 0) return@forEach
-            if (accumulated.any { it.type == candidate.measurementType }) return@forEach
+            if (hasAnnotationForTool(accumulated, candidate)) return@forEach
 
             val inherited = getInheritedPoints(candidate.id, accumulated)
             if (inherited.count < candidate.pointsNeeded) return@forEach

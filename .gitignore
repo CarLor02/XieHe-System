@@ -357,4 +357,4 @@ docker/.env.docker
 docker-compose.yml
 
 # AI工具
-/.codex
+.codex

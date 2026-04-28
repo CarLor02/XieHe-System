@@ -36,9 +36,12 @@ import com.xiehe.spine.ui.components.analysis.image.AnalysisBottomAction
 import com.xiehe.spine.ui.components.analysis.image.AnalysisBottomBar
 import com.xiehe.spine.ui.components.analysis.image.AnalysisReportPanel
 import com.xiehe.spine.ui.components.analysis.image.AnalysisSettingsPanel
+import com.xiehe.spine.ui.components.analysis.image.AuxiliaryAnnotationLabelDialog
 import com.xiehe.spine.ui.components.analysis.image.AnalysisTopBar
 import com.xiehe.spine.ui.components.analysis.image.MeasureToolPanel
 import com.xiehe.spine.ui.components.analysis.image.MeasurementResultsPanel
+import com.xiehe.spine.ui.components.analysis.viewer.domain.editableAuxiliaryAnnotationLabel
+import com.xiehe.spine.ui.components.analysis.viewer.domain.isEditableAuxiliaryAnnotation
 import com.xiehe.spine.ui.components.feedback.shared.LoadingOverlay
 import com.xiehe.spine.ui.components.form.file.FileSaveResult
 import com.xiehe.spine.ui.components.form.file.rememberDownloadedFileSaver
@@ -79,6 +82,7 @@ fun ImageAnalysisScreen(
     var showClearConfirm by remember { mutableStateOf(false) }
     var activeOverlay by remember { mutableStateOf<ImageOverlayPanel?>(null) }
     var fullscreenMode by remember { mutableStateOf(false) }
+    var editingAuxiliaryMeasurementKey by remember { mutableStateOf<String?>(null) }
     val downloadedFileSaver = rememberDownloadedFileSaver()
     val jsonPicker = rememberJsonFilePickerLauncher { localJsonFile ->
         if (localJsonFile == null) {
@@ -126,6 +130,11 @@ fun ImageAnalysisScreen(
         }
     }
     val clearEnabled = state.measurements.isNotEmpty() || state.pendingPoints.isNotEmpty()
+    val editingAuxiliaryMeasurement = remember(state.measurements, editingAuxiliaryMeasurementKey) {
+        state.measurements
+            .firstOrNull { it.key == editingAuxiliaryMeasurementKey }
+            ?.takeIf { isEditableAuxiliaryAnnotation(it) }
+    }
 
     Column(
         modifier = Modifier
@@ -193,6 +202,11 @@ fun ImageAnalysisScreen(
                 brightness = state.brightness,
                 onCanvasTap = vm::onCanvasTap,
                 onCanvasDoubleTap = vm::onCanvasDoubleTap,
+                onMeasurementPointDrag = vm::onMeasurementPointDrag,
+                onAuxiliaryAnnotationLongPress = { measurementKey ->
+                    activeOverlay = null
+                    editingAuxiliaryMeasurementKey = measurementKey
+                },
                 modifier = Modifier.fillMaxSize(),
             )
 
@@ -208,6 +222,7 @@ fun ImageAnalysisScreen(
                     ImageOverlayPanel.TOOLKIT -> {
                         MeasureToolPanel(
                             tools = vm.availableTools(examType),
+                            measurements = state.measurements,
                             activeToolId = state.activeToolId,
                             standardDistanceInput = state.standardDistanceInput,
                             standardDistanceLabel = state.standardDistanceLabel,
@@ -382,6 +397,17 @@ fun ImageAnalysisScreen(
                 },
             )
         }
+    }
+
+    editingAuxiliaryMeasurement?.let { measurement ->
+        AuxiliaryAnnotationLabelDialog(
+            initialLabel = editableAuxiliaryAnnotationLabel(measurement),
+            onDismissRequest = { editingAuxiliaryMeasurementKey = null },
+            onSave = { label ->
+                vm.updateAuxiliaryAnnotationLabel(measurement.key, label)
+                editingAuxiliaryMeasurementKey = null
+            },
+        )
     }
 
     AppConfirmDialogHost(

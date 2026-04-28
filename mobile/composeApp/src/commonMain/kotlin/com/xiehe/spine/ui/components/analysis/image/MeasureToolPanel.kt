@@ -20,9 +20,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.xiehe.spine.ui.components.form.input.TextField
+import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.AnnotationToolDefinition
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.AnnotationToolSection
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_STANDARD_DISTANCE
+import com.xiehe.spine.ui.components.analysis.viewer.domain.hasUniqueAnnotationForTool
 import com.xiehe.spine.ui.components.icon.shared.AppIcon
 import com.xiehe.spine.ui.components.icon.shared.IconToken
 import com.xiehe.spine.ui.components.text.shared.Text
@@ -31,6 +33,7 @@ import com.xiehe.spine.ui.theme.SpineTheme
 @Composable
 fun MeasureToolPanel(
     tools: List<AnnotationToolDefinition>,
+    measurements: List<AnnotationMeasurement>,
     activeToolId: String,
     standardDistanceInput: String,
     standardDistanceLabel: String,
@@ -88,6 +91,7 @@ fun MeasureToolPanel(
                 ToolSection(
                     title = section.title,
                     tools = sectionTools,
+                    measurements = measurements,
                     activeToolId = activeToolId,
                     onSelectTool = onSelectTool,
                 )
@@ -108,6 +112,7 @@ fun MeasureToolPanel(
 private fun ToolSection(
     title: String,
     tools: List<AnnotationToolDefinition>,
+    measurements: List<AnnotationMeasurement>,
     activeToolId: String,
     onSelectTool: (String) -> Unit,
 ) {
@@ -126,10 +131,12 @@ private fun ToolSection(
             ) {
                 rowItems.forEach { item ->
                     val selected = item.id == activeToolId
+                    val blocked = hasUniqueAnnotationForTool(measurements, item)
                     ToolButton(
                         label = item.label,
                         icon = item.icon,
                         selected = selected,
+                        enabled = !blocked,
                         modifier = Modifier.weight(1f),
                         onClick = { onSelectTool(item.id) },
                     )
@@ -147,17 +154,33 @@ private fun ToolButton(
     label: String,
     icon: IconToken,
     selected: Boolean,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val colors = SpineTheme.colors
+    val background = when {
+        !enabled -> colors.surfaceMuted.copy(alpha = 0.55f)
+        selected -> colors.primaryMuted
+        else -> colors.surface
+    }
+    val iconBackground = when {
+        !enabled -> colors.surfaceMuted.copy(alpha = 0.5f)
+        selected -> colors.primary.copy(alpha = 0.16f)
+        else -> colors.surfaceMuted
+    }
+    val contentColor = when {
+        !enabled -> colors.textTertiary
+        selected -> colors.primary
+        else -> colors.textPrimary
+    }
     Column(
         modifier = modifier
             .background(
-                color = if (selected) colors.primaryMuted else colors.surface,
+                color = background,
                 shape = RoundedCornerShape(14.dp),
             )
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -166,21 +189,21 @@ private fun ToolButton(
             modifier = Modifier
                 .size(28.dp)
                 .background(
-                    color = if (selected) colors.primary.copy(alpha = 0.16f) else colors.surfaceMuted,
+                    color = iconBackground,
                     shape = RoundedCornerShape(10.dp),
                 ),
             contentAlignment = Alignment.Center,
         ) {
             AppIcon(
                 glyph = icon,
-                tint = if (selected) colors.primary else colors.textSecondary,
+                tint = if (enabled && selected) colors.primary else if (enabled) colors.textSecondary else colors.textTertiary,
                 modifier = Modifier.size(16.dp),
             )
         }
         Text(
             text = label,
             style = SpineTheme.typography.caption.copy(fontWeight = FontWeight.Medium),
-            color = if (selected) colors.primary else colors.textPrimary,
+            color = contentColor,
             maxLines = 1,
         )
     }

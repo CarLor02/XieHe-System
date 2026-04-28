@@ -21,7 +21,7 @@ class SaveMeasurementsUseCase(
         val fileId = snapshot.fileId ?: return SaveMeasurementsOutcome.Invalid("当前影像不存在")
         val computedMeasurements = snapshot.measurements
             .filter { it.kind == AnalysisMeasurementKind.COMPUTED }
-            .filter { it.points.size >= 2 && it.value != "--" && it.type != "标准距离" && !it.auxiliary }
+            .filter { it.points.size >= 2 && it.value != "--" && it.type != "标准距离" }
         val detectedKeypoints = snapshot.measurements
             .filter { it.kind == AnalysisMeasurementKind.DETECTED }
             .filter { it.points.isNotEmpty() }

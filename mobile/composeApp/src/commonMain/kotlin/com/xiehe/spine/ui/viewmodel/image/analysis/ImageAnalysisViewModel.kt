@@ -9,6 +9,10 @@ import com.xiehe.spine.data.measurement.MeasurementRepository
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.AnnotationToolDefinition
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.getAnnotationTool
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.getToolsForExamType
+import com.xiehe.spine.ui.components.analysis.viewer.domain.hasUniqueAnnotationForTool
+import com.xiehe.spine.ui.components.analysis.viewer.domain.isEditableAuxiliaryAnnotation
+import com.xiehe.spine.ui.components.analysis.viewer.domain.normalizeAuxiliaryAnnotationLabelInput
+import com.xiehe.spine.ui.components.analysis.viewer.domain.resolveAnnotationToolForMeasurement
 import com.xiehe.spine.ui.viewmodel.shared.BaseViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -234,8 +238,15 @@ class ImageAnalysisViewModel(
 
     fun selectTool(toolId: String) {
         val tool = getAnnotationTool(toolId) ?: return
-        _state.update {
-            it.copy(
+        _state.update { current ->
+            if (hasUniqueAnnotationForTool(current.measurements, tool)) {
+                return@update current.copy(
+                    pendingPoints = emptyList(),
+                    bannerMessage = "${tool.label} 已存在，不能重复添加",
+                )
+            }
+
+            current.copy(
                 activeToolId = tool.id,
                 pendingPoints = emptyList(),
                 showToolsPanel = false,
@@ -258,6 +269,31 @@ class ImageAnalysisViewModel(
         }
     }
 
+    fun updateAuxiliaryAnnotationLabel(
+        measurementKey: String,
+        label: String,
+    ) {
+        val normalizedLabel = normalizeAuxiliaryAnnotationLabelInput(label)
+        _state.update { current ->
+            var updated = false
+            val measurements = current.measurements.map { measurement ->
+                if (measurement.key == measurementKey && isEditableAuxiliaryAnnotation(measurement)) {
+                    updated = true
+                    measurement.copy(description = normalizedLabel)
+                } else {
+                    measurement
+                }
+            }
+            if (!updated) return@update current
+
+            current.copy(
+                measurements = measurements,
+                bannerMessage = "已更新辅助图形文字",
+                errorMessage = null,
+            )
+        }
+    }
+
     fun toggleImageLocked() {
         _state.update { it.copy(isImageLocked = !it.isImageLocked) }
     }
@@ -266,6 +302,15 @@ class ImageAnalysisViewModel(
         val snapshot = _state.value
         val tool = getAnnotationTool(snapshot.activeToolId) ?: return
         if (tool.id == TOOL_MOVE) return
+        if (hasUniqueAnnotationForTool(snapshot.measurements, tool)) {
+            _state.update {
+                it.copy(
+                    pendingPoints = emptyList(),
+                    bannerMessage = "${tool.label} 已存在，不能重复添加",
+                )
+            }
+            return
+        }
         if (tool.id == TOOL_AUX_POLYGON) {
             _state.update { it.copy(pendingPoints = it.pendingPoints + point) }
             return
@@ -311,6 +356,66 @@ class ImageAnalysisViewModel(
                 measurements = batch.addedMeasurements,
                 toolId = tool.id,
                 points = batch.finalPoints,
+            )
+        }
+    }
+
+    fun onMeasurementPointDrag(
+        measurementKey: String,
+        pointIndex: Int,
+        point: MeasurementPoint,
+    ) {
+        _state.update { current ->
+            val measurementIndex = current.measurements.indexOfFirst { it.key == measurementKey }
+            if (measurementIndex < 0) return@update current
+
+            val measurement = current.measurements[measurementIndex]
+            if (pointIndex !in measurement.points.indices) return@update current
+
+            val nextPoints = measurement.points.toMutableList().also { points ->
+                points[pointIndex] = point
+            }
+
+            val tool = resolveAnnotationToolForMeasurement(measurement)
+            val recalculated = tool?.let { resolvedTool ->
+                runCatching {
+                    ManualMeasurementBuilder.build(
+                        toolId = resolvedTool.id,
+                        points = nextPoints,
+                        measurementKey = measurement.key,
+                        standardDistanceMm = current.standardDistanceMm,
+                        standardDistancePoints = current.standardDistancePoints,
+                    )
+                }.getOrNull()
+            }
+
+            val updatedMeasurement = if (recalculated != null) {
+                recalculated.copy(
+                    type = measurement.type,
+                    description = measurement.description ?: recalculated.description,
+                    pointLabel = measurement.pointLabel,
+                    confidence = measurement.confidence,
+                    panelVisible = measurement.panelVisible,
+                    helperSegments = measurement.helperSegments,
+                    auxiliary = measurement.auxiliary || recalculated.auxiliary,
+                )
+            } else {
+                measurement.copy(points = nextPoints)
+            }
+
+            val nextMeasurements = current.measurements.toMutableList().also { measurements ->
+                measurements[measurementIndex] = updatedMeasurement
+            }
+
+            current.copy(
+                measurements = nextMeasurements,
+                standardDistancePoints = if (tool?.id == TOOL_STANDARD_DISTANCE) {
+                    updatedMeasurement.points
+                } else {
+                    current.standardDistancePoints
+                },
+                bannerMessage = null,
+                errorMessage = null,
             )
         }
     }

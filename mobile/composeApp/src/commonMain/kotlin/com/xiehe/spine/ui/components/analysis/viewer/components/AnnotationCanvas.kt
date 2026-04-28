@@ -1,15 +1,19 @@
 package com.xiehe.spine.ui.components.analysis.viewer.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +25,8 @@ import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
 import com.xiehe.spine.ui.components.analysis.viewer.canvas.tools.isMoveTool
 import com.xiehe.spine.ui.components.analysis.viewer.canvas.tools.supportsDoubleTapFinish
+import com.xiehe.spine.ui.components.analysis.viewer.components.annotationcanvas.hitTest.findNearestDraggableAnnotationPoint
+import com.xiehe.spine.ui.components.analysis.viewer.components.annotationcanvas.hitTest.hitTestEditableAuxiliaryAnnotation
 import com.xiehe.spine.ui.components.analysis.viewer.components.annotationcanvas.layers.ImageLayer
 import com.xiehe.spine.ui.components.analysis.viewer.components.annotationcanvas.layers.LabelLayer
 import com.xiehe.spine.ui.components.analysis.viewer.components.annotationcanvas.layers.MeasurementLayer
@@ -42,6 +48,8 @@ fun AnnotationCanvas(
     brightness: Int,
     onCanvasTap: (MeasurementPoint) -> Unit,
     onCanvasDoubleTap: () -> Unit,
+    onMeasurementPointDrag: (String, Int, MeasurementPoint) -> Unit = { _, _, _ -> },
+    onAuxiliaryAnnotationLongPress: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val colors = SpineTheme.colors
@@ -74,18 +82,39 @@ fun AnnotationCanvas(
         val currentOnTransformGesture by rememberUpdatedState(viewportState.onTransformGesture)
         val currentOnCanvasTap by rememberUpdatedState(onCanvasTap)
         val currentOnCanvasDoubleTap by rememberUpdatedState(onCanvasDoubleTap)
+        val currentOnMeasurementPointDrag by rememberUpdatedState(onMeasurementPointDrag)
+        val currentOnAuxiliaryAnnotationLongPress by rememberUpdatedState(onAuxiliaryAnnotationLongPress)
+        val currentVisibleMeasurements by rememberUpdatedState(visibleMeasurements)
         val moveToolActive = remember(activeToolId) { isMoveTool(activeToolId) }
         val doubleTapFinishEnabled = remember(activeToolId) { supportsDoubleTapFinish(activeToolId) }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(bitmap, activeToolId) {
+                .pointerInput(
+                    bitmap,
+                    activeToolId,
+                    viewportState.renderedScale,
+                    viewportState.imageWidthPx,
+                    viewportState.imageHeightPx,
+                ) {
                     detectTapGestures(
                         onTap = { offset ->
                             if (bitmap == null || moveToolActive) return@detectTapGestures
                             val point = currentMapScreenToImagePoint(offset) ?: return@detectTapGestures
                             currentOnCanvasTap(point)
+                        },
+                        onLongPress = longPress@{ offset ->
+                            val image = bitmap ?: return@longPress
+                            val point = currentMapScreenToImagePoint(offset) ?: return@longPress
+                            val measurementKey = hitTestEditableAuxiliaryAnnotation(
+                                touchImagePoint = point,
+                                measurements = currentVisibleMeasurements,
+                                sx = viewportState.imageWidthPx / image.width,
+                                sy = viewportState.imageHeightPx / image.height,
+                                imageScale = viewportState.renderedScale,
+                            ) ?: return@longPress
+                            currentOnAuxiliaryAnnotationLongPress(measurementKey)
                         },
                         onDoubleTap = {
                             if (doubleTapFinishEnabled) {
@@ -93,6 +122,51 @@ fun AnnotationCanvas(
                             }
                         },
                     )
+                }
+                .pointerInput(
+                    bitmap,
+                    viewportState.renderedScale,
+                    viewportState.imageWidthPx,
+                    viewportState.imageHeightPx,
+                    activeToolId,
+                ) {
+                    val image = bitmap ?: return@pointerInput
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val imagePoint = currentMapScreenToImagePoint(down.position)
+                            ?: return@awaitEachGesture
+                        val target = findNearestDraggableAnnotationPoint(
+                            touchImagePoint = imagePoint,
+                            measurements = currentVisibleMeasurements,
+                            sx = viewportState.imageWidthPx / image.width,
+                            sy = viewportState.imageHeightPx / image.height,
+                            renderedScale = viewportState.renderedScale,
+                        )
+                            ?: return@awaitEachGesture
+
+                        val slopChange = awaitTouchSlopOrCancellation(down.id) { change, _ ->
+                            change.consume()
+                        } ?: return@awaitEachGesture
+
+                        currentMapScreenToImagePoint(slopChange.position)?.let { point ->
+                            currentOnMeasurementPointDrag(
+                                target.measurementKey,
+                                target.pointIndex,
+                                point,
+                            )
+                        }
+
+                        drag(slopChange.id) { change ->
+                            val point = currentMapScreenToImagePoint(change.position)
+                                ?: return@drag
+                            change.consume()
+                            currentOnMeasurementPointDrag(
+                                target.measurementKey,
+                                target.pointIndex,
+                                point,
+                            )
+                        }
+                    }
                 }
                 .pointerInput(bitmap, isImageLocked) {
                     detectTransformGestures { _, pan, zoom, _ ->

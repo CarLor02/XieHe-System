@@ -20,6 +20,8 @@ fun ImageViewport(
     brightness: Int,
     onCanvasTap: (MeasurementPoint) -> Unit,
     onCanvasDoubleTap: () -> Unit,
+    onMeasurementPointDrag: (String, Int, MeasurementPoint) -> Unit = { _, _, _ -> },
+    onAuxiliaryAnnotationLongPress: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     ImageViewer(
@@ -34,6 +36,8 @@ fun ImageViewport(
         brightness = brightness,
         onCanvasTap = onCanvasTap,
         onCanvasDoubleTap = onCanvasDoubleTap,
+        onMeasurementPointDrag = onMeasurementPointDrag,
+        onAuxiliaryAnnotationLongPress = onAuxiliaryAnnotationLongPress,
         modifier = modifier,
     )
 }

@@ -444,11 +444,25 @@ val ANNOTATION_TOOL_CATALOG = listOf(
 private val annotationToolMap = ANNOTATION_TOOL_CATALOG.associateBy(AnnotationToolDefinition::id)
 private val annotationMeasurementTypeMap = ANNOTATION_TOOL_CATALOG.associateBy(AnnotationToolDefinition::measurementType)
 private val annotationMeasurementTypeAliases = mapOf(
+    "PO" to TOOL_PELVIC,
+    "CSS" to TOOL_SACRAL,
     "TS(Trunk Shift)" to TOOL_C7_OFFSET,
+    "圆形标注" to TOOL_AUX_CIRCLE,
+    "椭圆标注" to TOOL_AUX_ELLIPSE,
+    "矩形标注" to TOOL_AUX_BOX,
+    "箭头标注" to TOOL_AUX_ARROW,
+    "多边形标注" to TOOL_AUX_POLYGON,
 )
 
 fun getAnnotationTool(toolId: String): AnnotationToolDefinition? = annotationToolMap[toolId]
 fun getAnnotationToolByMeasurementType(type: String): AnnotationToolDefinition? {
     return annotationMeasurementTypeMap[type]
         ?: annotationMeasurementTypeAliases[type]?.let(annotationToolMap::get)
+        ?: ANNOTATION_TOOL_CATALOG.firstOrNull { tool ->
+            normalizeAnnotationLookupKey(tool.label) == normalizeAnnotationLookupKey(type)
+        }
+}
+
+private fun normalizeAnnotationLookupKey(value: String): String {
+    return value.trim().lowercase().replace(Regex("\\s+"), "-")
 }

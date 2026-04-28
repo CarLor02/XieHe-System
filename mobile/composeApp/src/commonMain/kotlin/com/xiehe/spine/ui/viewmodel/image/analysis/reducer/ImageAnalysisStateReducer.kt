@@ -2,6 +2,7 @@ package com.xiehe.spine.ui.viewmodel.image
 
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.domain.DEFAULT_STANDARD_DISTANCE_MM
+import com.xiehe.spine.ui.components.analysis.viewer.domain.filterUniqueAnnotationDuplicates
 
 object ImageAnalysisStateReducer {
     fun prepareLoad(
@@ -79,7 +80,7 @@ object ImageAnalysisStateReducer {
             aiRunningLabel = null,
             fileId = outcome.fileId,
             imageBytes = outcome.imageBytes,
-            measurements = outcome.measurements,
+            measurements = filterUniqueAnnotationDuplicates(outcome.measurements),
             standardDistanceMm = outcome.standardDistanceMm,
             standardDistancePoints = outcome.standardDistancePoints,
             standardDistanceInput = formatStandardDistanceInput(outcome.standardDistanceMm),
@@ -156,7 +157,7 @@ object ImageAnalysisStateReducer {
         imported: ImportedAnnotations,
     ): ImageAnalysisUiState {
         return state.copy(
-            measurements = imported.measurements,
+            measurements = filterUniqueAnnotationDuplicates(imported.measurements),
             standardDistanceMm = imported.standardDistanceMm,
             standardDistancePoints = imported.standardDistancePoints,
             standardDistanceInput = formatStandardDistanceInput(imported.standardDistanceMm),
@@ -187,7 +188,7 @@ object ImageAnalysisStateReducer {
         return state.copy(
             aiRunning = false,
             aiRunningLabel = null,
-            measurements = measurements,
+            measurements = filterUniqueAnnotationDuplicates(measurements),
             hiddenMeasurementKeys = emptySet(),
             pendingPoints = emptyList(),
             bannerMessage = "AI检测与测量完成，已覆盖当前标注层",

@@ -5,6 +5,7 @@ import com.xiehe.spine.data.measurement.ImageMeasurementItem
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.data.measurement.SaveMeasurementItem
 import com.xiehe.spine.ui.components.analysis.viewer.domain.DEFAULT_STANDARD_DISTANCE_MM
+import com.xiehe.spine.ui.components.analysis.viewer.domain.isPersistedAuxiliaryAnnotationType
 import kotlin.math.roundToInt
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -41,6 +42,7 @@ object AnnotationPersistenceMapper {
             kind = kind,
             pointLabel = label,
             panelVisible = panelVisible,
+            auxiliary = isPersistedAuxiliaryAnnotationType(measurement.type),
         )
     }
 
@@ -241,7 +243,7 @@ object AnnotationPersistenceMapper {
             confidence = confidence,
             panelVisible = panelVisible ?: fallback.third,
             helperSegments = helperSegments ?: emptyList(),
-            auxiliary = auxiliary ?: false,
+            auxiliary = auxiliary ?: isPersistedAuxiliaryAnnotationType(type),
         )
     }
 }
