@@ -17,7 +17,7 @@ from sqlalchemy import and_, or_, desc, asc, func, text
 import json
 from decimal import Decimal
 
-from app.core.database import get_db
+from app.core.database.session import get_db
 from app.models.patient import (
     Patient, PatientVisit, PatientAllergy, PatientMedicalHistory,
     VisitTypeEnum, SeverityEnum, GenderEnum, BloodTypeEnum

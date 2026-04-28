@@ -17,8 +17,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from .security import security_manager, verify_token
-from .database import get_db
-from .exceptions import AuthenticationException, AuthorizationException
+from app.core.database.session import get_db
+from app.core.system.exceptions import AuthenticationException, AuthorizationException
 
 import logging
 logger = logging.getLogger(__name__)

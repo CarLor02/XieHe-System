@@ -14,13 +14,13 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, Field
 
-from app.core.database import get_db
-from app.core.security import security_manager, hash_password, verify_password
-from app.core.auth import get_current_active_user, get_current_user, security
-from app.core.exceptions import AuthenticationException, BusinessLogicException
-from app.core.cache import get_cache_manager
-from app.core.response import success_response
-from app.core.error_codes import ErrorCode
+from app.core.database.session import get_db
+from app.core.access.security import security_manager, hash_password, verify_password
+from app.core.access.auth import get_current_active_user, get_current_user, security
+from app.core.system.exceptions import AuthenticationException, BusinessLogicException
+from app.core.system.cache import get_cache_manager
+from app.core.system.response import success_response
+from app.core.system.errors import ErrorCode
 
 import logging
 logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
         return None
 
 
-from app.core.config import settings as config_settings
+from app.core.system.config import settings as config_settings
 from ..schemas.auth import (
     UserLogin,
     UserRegister,

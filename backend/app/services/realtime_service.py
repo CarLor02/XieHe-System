@@ -21,9 +21,9 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from app.core.database import get_db
-from app.core.cache import get_cache_manager
-from app.core.logging import get_logger
+from app.core.database.session import get_db
+from app.core.system.cache import get_cache_manager
+from app.core.system.logging import get_logger
 
 logger = get_logger(__name__)
 

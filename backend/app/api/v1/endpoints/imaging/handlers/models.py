@@ -8,8 +8,8 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from pydantic import BaseModel
 from app.services.model_manager import ModelManager, AIModel, ModelViewType, ModelConfiguration, ModelStatus
-from app.core.auth import get_current_active_user
-from app.core.response import success_response, paginated_response
+from app.core.access.auth import get_current_active_user
+from app.core.system.response import success_response, paginated_response
 from ..schemas.models import (
     CreateModelRequest,
     UpdateModelRequest,

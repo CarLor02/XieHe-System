@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 import logging
 
-from app.core.database import get_db
+from app.core.database.session import get_db
 from app.models.user import User
 
 logger = logging.getLogger(__name__)

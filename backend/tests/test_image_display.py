@@ -17,7 +17,7 @@ from PIL import Image
 import io
 
 from app.main import app
-from app.core.database import get_db
+from app.core.database.session import get_db
 from app.models.user import User
 from app.models.patient import Patient
 

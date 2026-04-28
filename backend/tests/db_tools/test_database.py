@@ -13,10 +13,18 @@ from typing import Dict, Any
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from app.core.database import db_manager, SessionLocal, redis_pool
-from app.core.config import settings
+from app.core.database.session import db_manager, SessionLocal, redis_pool
+from app.core.system.config import settings
 import redis
 from sqlalchemy import text
+
+
+def setting_value(*names: str, default=None):
+    for name in names:
+        if hasattr(settings, name):
+            return getattr(settings, name)
+    return default
+
 
 class DatabaseTester:
     """数据库连接测试器"""
@@ -66,7 +74,7 @@ class DatabaseTester:
             response_time = round((time.time() - start_time) * 1000, 2)
             
             details = {
-                "host": f"{settings.MYSQL_HOST}:{settings.MYSQL_PORT}",
+                "host": f"{setting_value('DB_HOST', 'MYSQL_HOST')}:{setting_value('DB_PORT', 'MYSQL_PORT')}",
                 "database": db_name,
                 "version": version,
                 "charset": charset,
@@ -89,8 +97,8 @@ class DatabaseTester:
             
         except Exception as e:
             error_details = {
-                "host": f"{settings.MYSQL_HOST}:{settings.MYSQL_PORT}",
-                "database": settings.MYSQL_DATABASE,
+                "host": f"{setting_value('DB_HOST', 'MYSQL_HOST')}:{setting_value('DB_PORT', 'MYSQL_PORT')}",
+                "database": setting_value("DB_NAME", "MYSQL_DATABASE"),
                 "error": str(e),
                 "error_type": type(e).__name__
             }

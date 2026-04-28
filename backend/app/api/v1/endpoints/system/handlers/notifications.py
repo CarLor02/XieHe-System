@@ -13,12 +13,12 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 
-from app.core.auth import get_current_active_user
-from app.core.database import get_db
-from app.core.response import success_response, paginated_response
+from app.core.access.auth import get_current_active_user
+from app.core.database.session import get_db
+from app.core.system.response import success_response, paginated_response
 from app.models.user import User
 from app.services.email_service import email_service, send_system_notification
-from app.core.websocket import websocket_manager
+from app.core.system.websocket import websocket_manager
 from ..schemas.notifications import (
     MessageCreate,
     EmailSendRequest,

@@ -13,9 +13,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.core.database import get_db
-from app.core.security import security_manager, hash_password, verify_password
-from app.core.cache import get_cache_manager
+from app.core.database.session import get_db
+from app.core.access.security import security_manager, hash_password, verify_password
+from app.core.system.cache import get_cache_manager
 
 # 创建测试客户端
 client = TestClient(app)

@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.logging import get_logger
+from app.core.system.logging import get_logger
 from app.models.team import (
     Team,
     TeamInvitation,

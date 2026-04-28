@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any
 
-from app.core.config import settings
+from app.core.system.config import settings
 
 
 def setup_logging() -> None:

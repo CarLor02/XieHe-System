@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from collections import deque
 import statistics
 
-from app.core.database import get_db
+from app.core.database.session import get_db
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)

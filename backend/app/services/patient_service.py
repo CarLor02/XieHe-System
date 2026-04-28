@@ -3,7 +3,7 @@ from typing import Optional, List
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, exists
-from app.db.dao.patient_dao import PatientDAO
+from app.core.database.dao.patient_dao import PatientDAO
 from app.models.patient import Patient, GenderEnum, PatientStatusEnum
 
 class PatientService:

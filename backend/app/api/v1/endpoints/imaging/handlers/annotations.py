@@ -14,10 +14,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from app.core.database import get_db
-from app.core.auth import get_current_active_user
-from app.core.logging import get_logger
-from app.core.response import success_response, paginated_response
+from app.core.database.session import get_db
+from app.core.access.auth import get_current_active_user
+from app.core.system.logging import get_logger
+from app.core.system.response import success_response, paginated_response
 from app.models.image import ImageAnnotation
 from app.models.image_file import ImageFile
 from ..schemas.annotations import (

@@ -24,7 +24,7 @@ import uuid
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from app.core.database import get_db
+from app.core.database.session import get_db
 from app.models.patient import Patient, GenderEnum, PatientStatusEnum
 from app.models.image import ModalityEnum, BodyPartEnum
 from app.models.image_file import ImageFile, ImageFileStatusEnum

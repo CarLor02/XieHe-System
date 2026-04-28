@@ -17,8 +17,8 @@ from typing import Optional, Dict, Any, Union
 from passlib.context import CryptContext
 from passlib.hash import bcrypt as passlib_bcrypt
 
-from .config import settings
-from .cache import get_cache_manager
+from app.core.system.config import settings
+from app.core.system.cache import get_cache_manager
 
 import logging
 logger = logging.getLogger(__name__)

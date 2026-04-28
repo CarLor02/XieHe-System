@@ -15,9 +15,9 @@ from datetime import datetime, timedelta
 import psutil
 import os
 
-from app.core.database import get_db
-from app.core.auth import get_current_active_user
-from app.core.response import success_response, paginated_response
+from app.core.database.session import get_db
+from app.core.access.auth import get_current_active_user
+from app.core.system.response import success_response, paginated_response
 from app.models.system import SystemConfig, SystemLog, SystemMonitor, SystemAlert, Notification
 from pydantic import BaseModel
 from ..schemas.management import (

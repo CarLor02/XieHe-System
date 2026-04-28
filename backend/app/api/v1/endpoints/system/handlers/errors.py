@@ -15,10 +15,10 @@ from sqlalchemy.orm import Session
 import logging
 import json
 
-from app.core.auth import get_current_active_user
-from app.core.database import get_db
-from app.core.exceptions import ValidationException
-from app.core.response import success_response, paginated_response
+from app.core.access.auth import get_current_active_user
+from app.core.database.session import get_db
+from app.core.system.exceptions import ValidationException
+from app.core.system.response import success_response, paginated_response
 from app.models.user import User
 from ..schemas.errors import (
     ErrorReport,

@@ -12,8 +12,8 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from app.core.auth import get_current_active_user
-from app.core.response import success_response, paginated_response
+from app.core.access.auth import get_current_active_user
+from app.core.system.response import success_response, paginated_response
 from app.models.user import User
 from app.services.monitoring_service import monitoring_service
 from ..schemas.monitoring import (

@@ -24,8 +24,8 @@ try:
 except ImportError:
     PYDICOM_AVAILABLE = False
 
-from app.core.logging import get_logger
-from app.core.config import settings
+from app.core.system.logging import get_logger
+from app.core.system.config import settings
 
 logger = get_logger(__name__)
 

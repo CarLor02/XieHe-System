@@ -15,11 +15,11 @@ from sqlalchemy import and_, or_, desc, func
 from pydantic import BaseModel, Field
 import uuid
 
-from app.core.database import get_db
-from app.core.auth import get_current_active_user
-from app.core.exceptions import BusinessLogicException, ResourceNotFoundException
-from app.core.logging import get_logger
-from app.core.response import success_response, paginated_response
+from app.core.database.session import get_db
+from app.core.access.auth import get_current_active_user
+from app.core.system.exceptions import BusinessLogicException, ResourceNotFoundException
+from app.core.system.logging import get_logger
+from app.core.system.response import success_response, paginated_response
 from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, PriorityEnum, ReportTypeEnum
 from app.models.patient import Patient
 from ..schemas.management import (

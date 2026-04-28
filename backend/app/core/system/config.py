@@ -143,25 +143,6 @@ class Settings(BaseSettings):
         encoded_password = quote_plus(self.DB_PASSWORD)
         return f"mysql+pymysql://{encoded_user}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
     
-    @property
-    def ASYNC_DATABASE_URL(self) -> str:
-        """构建异步数据库连接 URL"""
-        from urllib.parse import quote_plus
-        encoded_user = quote_plus(self.DB_USER)
-        encoded_password = quote_plus(self.DB_PASSWORD)
-        return f"mysql+aiomysql://{encoded_user}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
-    
-    # 测试数据库配置
-    TEST_DB_NAME: str = "medical_imaging_system_test"
-    
-    @property
-    def TEST_DATABASE_URL(self) -> str:
-        """构建测试数据库连接 URL"""
-        from urllib.parse import quote_plus
-        encoded_user = quote_plus(self.DB_USER)
-        encoded_password = quote_plus(self.DB_PASSWORD)
-        return f"mysql+pymysql://{encoded_user}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.TEST_DB_NAME}?charset=utf8mb4"
-    
     # ==========================================
     # Redis 配置
     # ==========================================
@@ -291,6 +272,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"
 
 
 # 创建全局配置实例

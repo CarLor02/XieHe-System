@@ -16,8 +16,8 @@ from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timedelta
 
 from app.main import app
-from app.core.database import get_db, Base
-from app.core.config import settings
+from app.core.database.session import get_db, Base
+from app.core.system.config import settings
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.image import Image
@@ -343,7 +343,7 @@ class TestBusinessLogic:
     
     def test_password_hashing(self):
         """测试密码哈希"""
-        from app.core.security import get_password_hash, verify_password
+        from app.core.access.security import get_password_hash, verify_password
         
         password = "testpassword123"
         hashed = get_password_hash(password)
@@ -354,7 +354,7 @@ class TestBusinessLogic:
     
     def test_jwt_token_creation(self):
         """测试JWT令牌创建"""
-        from app.core.security import create_access_token, verify_token
+        from app.core.access.security import create_access_token, verify_token
         
         data = {"sub": "testuser", "user_id": 1}
         token = create_access_token(data)

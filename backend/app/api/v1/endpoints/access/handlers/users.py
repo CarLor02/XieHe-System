@@ -9,7 +9,7 @@
 
 from fastapi import APIRouter, HTTPException, status
 from typing import List, Dict, Any
-from app.core.response import success_response, paginated_response
+from app.core.system.response import success_response, paginated_response
 
 router = APIRouter()
 

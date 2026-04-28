@@ -13,10 +13,10 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func
 
-from app.core.database import get_db
-from app.core.auth import get_current_active_user
-from app.core.logging import get_logger
-from app.core.response import success_response
+from app.core.database.session import get_db
+from app.core.access.auth import get_current_active_user
+from app.core.system.logging import get_logger
+from app.core.system.response import success_response
 from app.models.patient import Patient, PatientStatusEnum
 from app.models.image_file import ImageFile, ImageFileStatusEnum
 from app.models.report import DiagnosticReport

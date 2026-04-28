@@ -44,8 +44,8 @@ for key in _settings_env_keys:
 backend_root = Path(__file__).resolve().parents[1]
 os.chdir(backend_root)
 
-from app.core.auth import get_current_active_user
-from app.core.database import get_db
+from app.core.access.auth import get_current_active_user
+from app.core.database.session import get_db
 from app.main import app
 from app.models.base import Base as ModelBase
 from app.models.team import (

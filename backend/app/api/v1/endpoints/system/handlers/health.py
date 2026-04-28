@@ -17,9 +17,9 @@ import psutil
 from redis import asyncio as aioredis
 from sqlalchemy import text
 
-from app.core.database import get_db
-from app.core.config import settings
-from app.core.response import success_response
+from app.core.database.session import get_db
+from app.core.system.config import settings
+from app.core.system.response import success_response
 from ..schemas.health import (
     HealthStatus,
     ComponentHealth,

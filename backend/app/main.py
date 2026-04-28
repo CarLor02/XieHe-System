@@ -24,16 +24,15 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
-from app.core.config import settings
-from app.core.exceptions import (
+from app.core.system.config import settings
+from app.core.system.exceptions import (
     CustomHTTPException,
     ValidationException,
     custom_http_exception_handler,
     http_exception_handler,
     validation_exception_handler,
 )
-from app.core.logging import setup_logging
-from app.db.session import engine
+from app.core.system.logging import setup_logging
 from app.services.realtime_service import start_realtime_service, stop_realtime_service
 
 
@@ -52,7 +51,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger = logging.getLogger(__name__)
 
     # 初始化数据库连接
-    from app.core.database import db_manager
+    from app.core.database.session import db_manager
     try:
         db_manager.connect()
         logger.info("✅ 数据库连接初始化成功")
@@ -86,10 +85,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("✅ 数据库连接清理完成")
     except Exception as e:
         logger.error(f"❌ 数据库连接清理失败: {e}")
-
-    # 清理异步引擎
-    if engine:
-        await engine.dispose()
 
 
 # 创建 FastAPI 应用实例

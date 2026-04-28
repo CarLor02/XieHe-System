@@ -17,9 +17,56 @@ from typing import Dict, Any, List
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.core.settings import settings, validate_settings
-from app.core.config_manager import config_manager
-from app.core.database import DatabaseManager
+from app.core.system.config import settings
+from app.core.database.session import DatabaseManager
+
+
+def setting_value(*names: str, default=None):
+    """Read the first existing setting name."""
+    for name in names:
+        if hasattr(settings, name):
+            return getattr(settings, name)
+    return default
+
+
+def validate_runtime_config() -> Dict[str, Any]:
+    """Validate the active runtime settings without depending on legacy config managers."""
+    result = {
+        "valid": True,
+        "errors": [],
+        "warnings": [],
+        "checks": {},
+    }
+
+    if not all([
+        setting_value("DB_HOST", "MYSQL_HOST"),
+        setting_value("DB_USER", "MYSQL_USER"),
+        setting_value("DB_NAME", "MYSQL_DATABASE"),
+    ]):
+        result["valid"] = False
+        result["errors"].append("数据库配置不完整")
+    else:
+        result["checks"]["database"] = "OK"
+
+    if not setting_value("REDIS_HOST"):
+        result["valid"] = False
+        result["errors"].append("Redis配置不完整")
+    else:
+        result["checks"]["redis"] = "OK"
+
+    upload_dir = Path(setting_value("UPLOAD_DIR", default="./uploads"))
+    if not upload_dir.exists():
+        result["warnings"].append(f"上传目录不存在: {upload_dir}")
+    else:
+        result["checks"]["storage"] = "OK"
+
+    if settings.ENVIRONMENT == "production" and settings.DEBUG:
+        result["valid"] = False
+        result["errors"].append("生产环境不应启用DEBUG模式")
+    else:
+        result["checks"]["security"] = "OK"
+
+    return result
 
 
 def print_header(title: str):
@@ -86,9 +133,9 @@ def check_database():
     print_section("数据库配置检查")
     
     # 检查配置参数
-    print_result("数据库主机", "INFO", f"{settings.MYSQL_HOST}:{settings.MYSQL_PORT}")
-    print_result("数据库名称", "INFO", settings.MYSQL_DATABASE)
-    print_result("数据库用户", "INFO", settings.MYSQL_USER)
+    print_result("数据库主机", "INFO", f"{setting_value('DB_HOST', 'MYSQL_HOST')}:{setting_value('DB_PORT', 'MYSQL_PORT')}")
+    print_result("数据库名称", "INFO", setting_value("DB_NAME", "MYSQL_DATABASE"))
+    print_result("数据库用户", "INFO", setting_value("DB_USER", "MYSQL_USER"))
     print_result("连接池大小", "INFO", str(settings.DB_POOL_SIZE))
     
     # 检查数据库连接
@@ -107,7 +154,7 @@ def check_redis():
     # 检查配置参数
     print_result("Redis主机", "INFO", f"{settings.REDIS_HOST}:{settings.REDIS_PORT}")
     print_result("Redis数据库", "INFO", str(settings.REDIS_DB))
-    print_result("连接池大小", "INFO", str(settings.REDIS_POOL_SIZE))
+    print_result("连接池大小", "INFO", str(setting_value("REDIS_POOL_SIZE", default=10)))
     
     # 检查Redis连接
     try:
@@ -139,8 +186,8 @@ def check_security():
     
     # 检查JWT配置
     print_result("JWT算法", "INFO", settings.JWT_ALGORITHM)
-    print_result("访问令牌过期时间", "INFO", f"{settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES}分钟")
-    print_result("刷新令牌过期时间", "INFO", f"{settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS}天")
+    print_result("访问令牌过期时间", "INFO", f"{setting_value('ACCESS_TOKEN_EXPIRE_MINUTES', 'JWT_ACCESS_TOKEN_EXPIRE_MINUTES')}分钟")
+    print_result("刷新令牌过期时间", "INFO", f"{setting_value('REFRESH_TOKEN_EXPIRE_DAYS', 'JWT_REFRESH_TOKEN_EXPIRE_DAYS')}天")
 
 
 def check_storage():
@@ -160,7 +207,7 @@ def check_storage():
             print_result("创建上传目录", "FAILED", str(e))
     
     # 检查DICOM目录
-    dicom_dir = Path(settings.DICOM_STORAGE_DIR)
+    dicom_dir = Path(setting_value("DICOM_STORAGE_DIR", default="dicom"))
     if dicom_dir.exists():
         print_result("DICOM目录", "OK", f"路径: {dicom_dir.absolute()}")
     else:
@@ -173,7 +220,8 @@ def check_storage():
     
     # 检查文件配置
     print_result("最大文件大小", "INFO", f"{settings.MAX_FILE_SIZE / 1024 / 1024:.1f}MB")
-    print_result("允许文件类型", "INFO", ", ".join(settings.ALLOWED_FILE_TYPES))
+    allowed_types = setting_value("ALLOWED_FILE_TYPES", "ALLOWED_IMAGE_TYPES", default=[])
+    print_result("允许文件类型", "INFO", ", ".join(allowed_types))
 
 
 def check_logging():
@@ -181,7 +229,7 @@ def check_logging():
     print_section("日志配置检查")
     
     # 检查日志目录
-    log_dir = Path(settings.LOG_DIR)
+    log_dir = Path(setting_value("LOG_DIR", default="logs"))
     if log_dir.exists():
         print_result("日志目录", "OK", f"路径: {log_dir.absolute()}")
     else:
@@ -203,12 +251,12 @@ def check_ai_config():
     """检查AI配置"""
     print_section("AI模型配置检查")
     
-    print_result("模型服务器", "INFO", settings.AI_MODEL_SERVER_URL)
+    print_result("模型服务器", "INFO", setting_value("AI_MODEL_SERVICE_URL", "AI_MODEL_SERVER_URL"))
     print_result("模型超时时间", "INFO", f"{settings.AI_MODEL_TIMEOUT}秒")
-    print_result("最大并发数", "INFO", str(settings.AI_MODEL_MAX_CONCURRENT))
+    print_result("最大并发数", "INFO", str(setting_value("AI_MODEL_MAX_CONCURRENT", default=1)))
     
     # 检查模型存储目录
-    model_dir = Path(settings.AI_MODEL_STORAGE_DIR)
+    model_dir = Path(setting_value("AI_MODELS_DIR", "AI_MODEL_STORAGE_DIR", default="./models"))
     if model_dir.exists():
         print_result("模型存储目录", "OK", f"路径: {model_dir.absolute()}")
     else:
@@ -219,8 +267,7 @@ def generate_config_report():
     """生成配置报告"""
     print_section("配置验证报告")
     
-    # 使用配置管理器验证
-    validation_result = config_manager.validate_config()
+    validation_result = validate_runtime_config()
     
     if validation_result["valid"]:
         print_result("整体配置", "OK", "所有配置项验证通过")

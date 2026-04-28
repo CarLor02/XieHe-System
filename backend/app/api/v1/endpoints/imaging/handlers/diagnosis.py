@@ -14,12 +14,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
-from app.core.database import get_db
-from app.core.auth import get_current_active_user
-from app.core.storage import storage_manager
-from app.core.ai_diagnosis import ai_diagnosis_engine
-from app.core.logging import get_logger
-from app.core.response import success_response, paginated_response
+from app.core.database.session import get_db
+from app.core.access.auth import get_current_active_user
+from app.core.imaging.storage import storage_manager
+from app.core.imaging.diagnosis import ai_diagnosis_engine
+from app.core.system.logging import get_logger
+from app.core.system.response import success_response, paginated_response
 from ..schemas.diagnosis import (
     AIModelInfo,
     AIAnalysisRequest,

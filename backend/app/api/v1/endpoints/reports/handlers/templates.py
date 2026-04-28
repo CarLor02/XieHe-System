@@ -15,10 +15,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc
 from pydantic import BaseModel, Field
 
-from app.core.database import get_db
-from app.core.auth import get_current_active_user
+from app.core.database.session import get_db
+from app.core.access.auth import get_current_active_user
 from app.models.report import ReportTemplate, TemplateTypeEnum, ReportTypeEnum
-from app.core.logging import get_logger
+from app.core.system.logging import get_logger
 from ..schemas.templates import (
     TemplateContentSection,
     TemplateContent,

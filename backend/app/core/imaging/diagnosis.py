@@ -22,9 +22,9 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
-from app.core.logging import get_logger
-from app.core.config import settings
-from app.core.dicom_processor import dicom_processor
+from app.core.system.logging import get_logger
+from app.core.system.config import settings
+from app.core.imaging.dicom import dicom_processor
 
 logger = get_logger(__name__)
 

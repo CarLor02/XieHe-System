@@ -4,23 +4,19 @@
 """
 
 import logging
-from typing import AsyncGenerator, Optional, Generator
-from contextlib import asynccontextmanager
+from typing import Optional, Generator
 
-from sqlalchemy import create_engine, event, pool, text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 import redis
 from redis import ConnectionPool
 
-from app.core.config import settings
+from app.core.system.config import settings
+from app.models.base import Base
 
 # 配置日志
 logger = logging.getLogger(__name__)
-
-# 创建数据库基类
-Base = declarative_base()
 
 # 数据库引擎配置
 SYNC_DATABASE_URL = settings.DATABASE_URL
@@ -223,71 +219,13 @@ def receive_checkin(dbapi_connection, connection_record):
     logger.debug("数据库连接已检入")
 
 
-# 上下文管理器：数据库事务
-@asynccontextmanager
-async def db_transaction():
-    """数据库事务上下文管理器"""
-    async with AsyncSessionLocal() as session:
-        async with session.begin():
-            try:
-                yield session
-            except Exception:
-                await session.rollback()
-                raise
-
-
-# 工具函数：创建所有表
-async def create_tables():
-    """创建所有数据库表"""
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("✅ 数据库表创建完成")
-
-
-# 工具函数：删除所有表
-async def drop_tables():
-    """删除所有数据库表"""
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    logger.info("✅ 数据库表删除完成")
-
-
-# 工具函数：测试数据库连接
-async def test_database_connection():
-    """测试数据库连接"""
-    try:
-        # 测试MySQL
-        async with AsyncSessionLocal() as session:
-            result = await session.execute("SELECT 1 as test")
-            test_value = result.scalar()
-            assert test_value == 1
-        
-        # 测试Redis
-        redis_conn = redis.Redis(connection_pool=redis_pool)
-        await redis_conn.ping()
-        await redis_conn.close()
-        
-        logger.info("✅ 数据库连接测试通过")
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ 数据库连接测试失败: {e}")
-        return False
-
-
 # 导出主要组件
 __all__ = [
     "Base",
-    "async_engine",
     "sync_engine",
-    "AsyncSessionLocal",
     "SessionLocal",
     "redis_client",
     "db_manager",
     "get_db",
     "get_redis",
-    "db_transaction",
-    "create_tables",
-    "drop_tables",
-    "test_database_connection"
 ]

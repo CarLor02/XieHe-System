@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 import redis
 from redis import Redis
 
-from .database import get_redis
+from app.core.database.session import get_redis
 
 logger = logging.getLogger(__name__)
 
