@@ -8,7 +8,7 @@ on:
   pull_request:
     branches: ["dev", "main"]
     paths:
-      - "mobile/"
+      - "mobile/**"
 
 permissions:
   contents: read
@@ -17,6 +17,9 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
 
     steps:
       - name: Checkout
@@ -40,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: composeApp-debug-apk
-          path: androidApp/build/outputs/apk/debug/*.apk
+          path: mobile/androidApp/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
   release:
@@ -50,6 +53,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: mobile
 
     steps:
       - name: Checkout
@@ -70,14 +76,14 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           SHA="${GITHUB_SHA}"
-          git fetch --no-tags origin dev main
+          git -C "$GITHUB_WORKSPACE" fetch --no-tags origin dev main
 
           IN_DEV=false
           IN_MAIN=false
-          if git merge-base --is-ancestor "$SHA" "origin/dev"; then
+          if git -C "$GITHUB_WORKSPACE" merge-base --is-ancestor "$SHA" "origin/dev"; then
             IN_DEV=true
           fi
-          if git merge-base --is-ancestor "$SHA" "origin/main"; then
+          if git -C "$GITHUB_WORKSPACE" merge-base --is-ancestor "$SHA" "origin/main"; then
             IN_MAIN=true
           fi
 
@@ -117,5 +123,5 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.meta.outputs.release_name }}
           prerelease: ${{ steps.meta.outputs.prerelease }}
-          files: xiehe-spine.apk
+          files: mobile/xiehe-spine.apk
           fail_on_unmatched_files: true
