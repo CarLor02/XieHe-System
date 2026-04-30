@@ -3,7 +3,10 @@ import {
   AnnotationBindings,
   cleanupBindings,
 } from '../../../domain/annotation-binding';
-import { isEditableAuxiliaryAnnotationType } from '../../../domain/annotation-metadata';
+import {
+  getEditableAuxiliaryAnnotationLabel,
+  isEditableAuxiliaryAnnotationType,
+} from '../../../domain/annotation-metadata';
 import { MeasurementData } from '../../../types';
 import { isAuxiliaryTool } from '../../../canvas/tools/tool-state';
 import { SelectionState } from '../types';
@@ -107,7 +110,7 @@ export function useCanvasContextMenu({
     setEditLabelDialog({
       visible: true,
       measurementId: measurement.id,
-      currentLabel: measurement.description || '',
+      currentLabel: getEditableAuxiliaryAnnotationLabel(measurement),
     });
     hideContextMenu();
   };

@@ -3,6 +3,7 @@ package com.xiehe.spine.ui.components.analysis.viewer.domain
 import androidx.compose.ui.geometry.Offset
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_LENGTH
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PI
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PT
@@ -143,13 +144,52 @@ class AnnotationMetadataTest {
         assertEquals(50f, adjusted.y)
     }
 
+    @Test
+    fun auxiliaryLengthShowsMeasurementValueTagWithDefaultName() {
+        val measurement = measurement(
+            type = TOOL_AUX_LENGTH,
+            points = listOf(
+                MeasurementPoint(10.0, 20.0),
+                MeasurementPoint(70.0, 20.0),
+            ),
+            value = "12.34mm",
+            description = "辅助距离测量",
+            auxiliary = true,
+        )
+
+        assertEquals(true, shouldShowMetricTag(measurement))
+        assertEquals(false, shouldShowAuxiliaryShapeTag(measurement))
+        assertEquals("距离标注: 12mm", formatMeasurementTag(measurement))
+    }
+
+    @Test
+    fun auxiliaryLengthMeasurementValueTagUsesCustomName() {
+        val measurement = measurement(
+            type = TOOL_AUX_LENGTH,
+            points = listOf(
+                MeasurementPoint(10.0, 20.0),
+                MeasurementPoint(70.0, 20.0),
+            ),
+            value = "12.34mm",
+            description = "术前距离",
+            auxiliary = true,
+        )
+
+        assertEquals("术前距离: 12mm", formatMeasurementTag(measurement))
+    }
+
     private fun measurement(
         type: String,
         points: List<MeasurementPoint>,
+        value: String = "10°",
+        description: String? = null,
+        auxiliary: Boolean = false,
     ) = AnnotationMeasurement(
         key = "test_$type",
         type = type,
-        value = "10°",
+        value = value,
         points = points,
+        description = description,
+        auxiliary = auxiliary,
     )
 }

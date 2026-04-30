@@ -33,6 +33,13 @@ const INLINE_TEXT_AUXILIARY_TYPES = new Set([
   'polygon',
 ]);
 
+const AUXILIARY_MEASUREMENT_VALUE_TAG_TYPES = new Set([
+  'aux-length',
+  'aux-angle',
+  'aux-horizontal-line',
+  'aux-vertical-line',
+]);
+
 /**
  * 根据标注类型获取描述
  */
@@ -221,6 +228,33 @@ export function hasCustomAuxiliaryTagText(
   return Boolean(
     customText && customText !== getDescriptionForType(measurement.type)
   );
+}
+
+/**
+ * 辅助测量值标签显示“名称: 数值”，名称可重命名。
+ */
+export function usesAuxiliaryMeasurementValueTag(type: string): boolean {
+  return AUXILIARY_MEASUREMENT_VALUE_TAG_TYPES.has(getAnnotationTypeId(type));
+}
+
+export function getAuxiliaryMeasurementValueTagName(
+  measurement: Pick<MeasurementData, 'type' | 'description'>
+): string {
+  if (hasCustomAuxiliaryTagText(measurement)) {
+    return getAuxiliaryTagText(measurement);
+  }
+
+  return getAnnotationDisplayName(measurement.type);
+}
+
+export function getEditableAuxiliaryAnnotationLabel(
+  measurement: Pick<MeasurementData, 'type' | 'description'>
+): string {
+  if (usesAuxiliaryMeasurementValueTag(measurement.type)) {
+    return getAuxiliaryMeasurementValueTagName(measurement);
+  }
+
+  return getAuxiliaryTagText(measurement);
 }
 
 /**

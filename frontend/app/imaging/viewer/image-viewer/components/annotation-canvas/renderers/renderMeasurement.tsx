@@ -11,11 +11,13 @@ import {
 } from '../../../catalog/annotation-catalog';
 import {
   getColorForType,
+  getAuxiliaryMeasurementValueTagName,
   getAuxiliaryTagText,
   hasCustomAuxiliaryTagText,
   isEditableAuxiliaryAnnotationType,
   getLabelPositionForType,
   renderSpecialSVGElements,
+  usesAuxiliaryMeasurementValueTag,
   usesInlineAuxiliaryTag,
   calculateSmartLabelPosition,
 } from '../../../domain/annotation-metadata';
@@ -441,9 +443,11 @@ export default function renderMeasurement({
     imageScale,
   };
   const screenPoints = measurement.points.map(point => imageToScreen(point, context));
-  const typeId = getAnnotationTypeId(measurement.type);
   const displayName = getAnnotationDisplayName(measurement.type);
   const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
+  const usesAuxiliaryValueTag = usesAuxiliaryMeasurementValueTag(
+    measurement.type
+  );
   const hasCustomAuxiliaryTag =
     isEditableAuxiliaryAnnotationType(measurement.type) &&
     hasCustomAuxiliaryTagText(measurement);
@@ -490,7 +494,10 @@ export default function renderMeasurement({
 
   // 使用格式化后的值用于图表显示
   const displayValue = formatDisplayValue(measurement.value);
-  const textContent = `${displayName}: ${displayValue}`;
+  const valueTagName = usesAuxiliaryValueTag
+    ? getAuxiliaryMeasurementValueTagName(measurement)
+    : displayName;
+  const textContent = `${valueTagName}: ${displayValue}`;
   const fontSize = isMeasurementHovered
     ? TEXT_LABEL_CONSTANTS.HOVER_FONT_SIZE
     : TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE;
@@ -500,9 +507,8 @@ export default function renderMeasurement({
 
   return (
     <g key={measurement.id}>
-      {( !isAuxiliaryShape ||
-        typeId === 'aux-horizontal-line' ||
-        typeId === 'aux-vertical-line' ||
+      {(!isAuxiliaryShape ||
+        usesAuxiliaryValueTag ||
         specialShapeNode) &&
         screenPoints.map((point, pointIndex) =>
           renderIndexedPoint({
@@ -527,10 +533,7 @@ export default function renderMeasurement({
           imageScale
         )}
 
-      {!hasCustomAuxiliaryTag &&
-        (!isAuxiliaryShape ||
-          typeId === 'aux-horizontal-line' ||
-          typeId === 'aux-vertical-line') &&
+      {(!isAuxiliaryShape || usesAuxiliaryValueTag) &&
         screenPoints.length >= 2 &&
         !hideAllLabels &&
         !hiddenMeasurementIds.has(measurement.id) && (
@@ -545,7 +548,7 @@ export default function renderMeasurement({
             strokeWidth="3"
             paintOrder="stroke"
           >
-            {displayName}: {displayValue}
+            {valueTagName}: {displayValue}
           </text>
         )}
 
@@ -561,6 +564,7 @@ export default function renderMeasurement({
 
       {hasCustomAuxiliaryTag &&
         !usesInlineAuxiliaryTag(measurement.type) &&
+        !usesAuxiliaryValueTag &&
         !hideAllLabels &&
         !hiddenMeasurementIds.has(measurement.id) && (
           <text

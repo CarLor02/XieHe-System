@@ -4,8 +4,10 @@
  */
 
 import {
+  getAuxiliaryMeasurementValueTagName,
   getDisplayName,
   getLabelPositionForType,
+  usesAuxiliaryMeasurementValueTag,
 } from '../../domain/annotation-metadata';
 import { MeasurementData, Point } from '../../types';
 import { TEXT_LABEL_CONSTANTS } from '../constants';
@@ -73,7 +75,10 @@ export function isPointInTextLabel(
   );
 
   // 估算文字宽度和高度（与SVG渲染保持一致）
-  const textContent = `${getDisplayName(measurement.type)}: ${measurement.value}`;
+  const labelName = usesAuxiliaryMeasurementValueTag(measurement.type)
+    ? getAuxiliaryMeasurementValueTagName(measurement)
+    : getDisplayName(measurement.type);
+  const textContent = `${labelName}: ${measurement.value}`;
   const fontSize = TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE;
   const padding = TEXT_LABEL_CONSTANTS.PADDING;
 
@@ -157,5 +162,8 @@ export function getTextLabelBounds(
  * @returns 格式化后的文本
  */
 export function formatMeasurementText(measurement: MeasurementData): string {
-  return `${getDisplayName(measurement.type)}: ${measurement.value}`;
+  const labelName = usesAuxiliaryMeasurementValueTag(measurement.type)
+    ? getAuxiliaryMeasurementValueTagName(measurement)
+    : getDisplayName(measurement.type);
+  return `${labelName}: ${measurement.value}`;
 }

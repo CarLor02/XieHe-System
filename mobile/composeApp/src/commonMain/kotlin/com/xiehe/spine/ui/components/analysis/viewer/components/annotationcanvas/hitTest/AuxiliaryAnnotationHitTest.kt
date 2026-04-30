@@ -6,7 +6,9 @@ import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
 import com.xiehe.spine.ui.components.analysis.viewer.domain.AnnotationRenderType
 import com.xiehe.spine.ui.components.analysis.viewer.domain.calculateSmartTagPosition
 import com.xiehe.spine.ui.components.analysis.viewer.domain.formatAuxiliaryTag
+import com.xiehe.spine.ui.components.analysis.viewer.domain.formatMeasurementTag
 import com.xiehe.spine.ui.components.analysis.viewer.domain.isEditableAuxiliaryAnnotation
+import com.xiehe.spine.ui.components.analysis.viewer.domain.isAuxiliaryMeasurementValueTagType
 import com.xiehe.spine.ui.components.analysis.viewer.domain.resolveAnnotationRenderType
 import com.xiehe.spine.ui.components.analysis.viewer.domain.resolveMeasurementTagAnchor
 import com.xiehe.spine.ui.components.analysis.viewer.domain.shouldShowAuxiliaryShapeTag
@@ -66,6 +68,18 @@ private fun editableAuxiliaryLabelHitAreas(
                 imageScale = imageScale,
             )
             occupiedLabelPositions += tagPosition
+
+            if (
+                isEditableAuxiliaryAnnotation(measurement) &&
+                isAuxiliaryMeasurementValueTagType(measurement.type)
+            ) {
+                hitAreas += AuxiliaryLabelHitArea(
+                    measurementKey = measurement.key,
+                    center = tagPosition,
+                    text = formatMeasurementTag(measurement),
+                    imageScale = imageScale,
+                )
+            }
         }
 
         if (shouldShowAuxiliaryShapeTag(measurement)) {

@@ -1,9 +1,11 @@
 import {
+  getAuxiliaryMeasurementValueTagName,
   getAuxiliaryTagText,
   getDisplayName,
   getLabelPositionForType,
   hasCustomAuxiliaryTagText,
   isEditableAuxiliaryAnnotationType,
+  usesAuxiliaryMeasurementValueTag,
   usesInlineAuxiliaryTag,
 } from '../../../domain/annotation-metadata';
 import { TEXT_LABEL_CONSTANTS } from '../../../shared/constants';
@@ -24,16 +26,23 @@ export function hitTestMeasurementLabel({
   imageToScreen,
 }: HitTestLabelOptions) {
   const isInlineTag = usesInlineAuxiliaryTag(measurement.type);
+  const usesAuxiliaryValueTag = usesAuxiliaryMeasurementValueTag(
+    measurement.type
+  );
   const usesAuxiliaryTagText =
-    isInlineTag ||
-    (isEditableAuxiliaryAnnotationType(measurement.type) &&
-      hasCustomAuxiliaryTagText(measurement));
+    !usesAuxiliaryValueTag &&
+    (isInlineTag ||
+      (isEditableAuxiliaryAnnotationType(measurement.type) &&
+        hasCustomAuxiliaryTagText(measurement)));
   const labelPosition = imageToScreen(
     getLabelPositionForType(measurement.type, measurement.points, imageScale)
   );
+  const valueTagName = usesAuxiliaryValueTag
+    ? getAuxiliaryMeasurementValueTagName(measurement)
+    : getDisplayName(measurement.type);
   const textContent = usesAuxiliaryTagText
     ? getAuxiliaryTagText(measurement)
-    : `${getDisplayName(measurement.type)}: ${measurement.value}`;
+    : `${valueTagName}: ${measurement.value}`;
   const textWidth = estimateTextWidth(
     textContent,
     TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE,

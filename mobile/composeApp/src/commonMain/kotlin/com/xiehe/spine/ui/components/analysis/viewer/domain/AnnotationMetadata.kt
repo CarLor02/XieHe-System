@@ -105,7 +105,7 @@ fun valueColorFor(
 
 fun shouldShowMetricTag(measurement: AnnotationMeasurement): Boolean {
     if (measurement.kind != AnnotationMeasurementKind.COMPUTED) return false
-    if (measurement.auxiliary && measurement.type !in setOf("aux-horizontal-line", "aux-vertical-line")) return false
+    if (measurement.auxiliary && !isAuxiliaryMeasurementValueTagType(measurement.type)) return false
     if (measurement.type == "standard_distance") return false
     if (measurement.value == "--") return false
     return measurement.points.size >= 2 || measurement.type == "vertebra-center"
@@ -113,6 +113,7 @@ fun shouldShowMetricTag(measurement: AnnotationMeasurement): Boolean {
 
 fun shouldShowAuxiliaryShapeTag(measurement: AnnotationMeasurement): Boolean {
     if (!isEditableAuxiliaryAnnotation(measurement)) return false
+    if (isAuxiliaryMeasurementValueTagType(measurement.type)) return false
     if (resolveAnnotationRenderType(measurement.type, measurement.points.size) in setOf(
         AnnotationRenderType.CIRCLE,
         AnnotationRenderType.ELLIPSE,
@@ -126,12 +127,20 @@ fun shouldShowAuxiliaryShapeTag(measurement: AnnotationMeasurement): Boolean {
 }
 
 fun formatMeasurementTag(measurement: AnnotationMeasurement): String =
-    "${getAnnotationToolByMeasurementType(measurement.type)?.label ?: measurement.type}: ${formatDisplayValue(measurement.value)}"
+    "${measurementValueTagLabel(measurement)}: ${formatDisplayValue(measurement.value)}"
 
 fun formatAuxiliaryTag(measurement: AnnotationMeasurement): String {
     val custom = measurement.description?.trim()
     if (!custom.isNullOrEmpty() && !isGeneratedAuxiliaryDescription(custom)) {
         return custom
+    }
+
+    return getAnnotationToolByMeasurementType(measurement.type)?.label ?: measurement.type
+}
+
+private fun measurementValueTagLabel(measurement: AnnotationMeasurement): String {
+    if (isAuxiliaryMeasurementValueTagType(measurement.type)) {
+        return auxiliaryMeasurementValueTagLabel(measurement)
     }
 
     return getAnnotationToolByMeasurementType(measurement.type)?.label ?: measurement.type

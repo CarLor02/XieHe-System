@@ -50,6 +50,26 @@ class AuxiliaryAnnotationMetadataTest {
         assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = TOOL_AUX_VERTICAL_LINE)))
     }
 
+    @Test
+    fun auxiliaryMeasurementValueLabelUsesToolLabelUntilRenamed() {
+        val defaultLength = auxiliaryMeasurement(
+            type = TOOL_AUX_LENGTH,
+            description = "辅助距离测量",
+        )
+        val customLength = auxiliaryMeasurement(
+            type = TOOL_AUX_LENGTH,
+            description = "术前距离",
+        )
+        val blankLength = auxiliaryMeasurement(
+            type = TOOL_AUX_LENGTH,
+            description = "",
+        )
+
+        assertEquals("距离标注", editableAuxiliaryAnnotationLabel(defaultLength))
+        assertEquals("术前距离", editableAuxiliaryAnnotationLabel(customLength))
+        assertEquals("距离标注", editableAuxiliaryAnnotationLabel(blankLength))
+    }
+
     private fun arrowMeasurement(description: String): AnnotationMeasurement {
         return auxiliaryMeasurement(type = TOOL_AUX_ARROW, description = description)
     }
