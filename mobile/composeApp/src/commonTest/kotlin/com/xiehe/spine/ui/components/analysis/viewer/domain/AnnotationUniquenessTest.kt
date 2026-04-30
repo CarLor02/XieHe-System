@@ -4,11 +4,25 @@ import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_LENGTH
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_C7_OFFSET
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CL
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_COBB
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_L4
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_S1
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L4_S1
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PELVIC
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PI
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PT
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SVA
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T10_L2
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_TILT
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_SLOPE
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TK_T2_T5
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TK_T5_T12
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TPA
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_VERTEBRA_CENTER
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.getAnnotationTool
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,6 +74,52 @@ class AnnotationUniquenessTest {
             filterUniqueAnnotationDuplicates(measurements).map { it.key },
         )
         assertTrue(isUniqueAnnotationTool(TOOL_T1_TILT))
+    }
+
+    @Test
+    fun lateralMeasurementsAreUniqueExceptVertebraCenter() {
+        val lateralToolIds = listOf(
+            TOOL_T1_SLOPE,
+            TOOL_CL,
+            TOOL_TK_T2_T5,
+            TOOL_TK_T5_T12,
+            TOOL_T10_L2,
+            TOOL_LL_L1_S1,
+            TOOL_LL_L1_L4,
+            TOOL_LL_L4_S1,
+            TOOL_TPA,
+            TOOL_SVA,
+            TOOL_PI,
+            TOOL_PT,
+            TOOL_SS,
+        )
+
+        lateralToolIds.forEach { toolId ->
+            val tool = requireNotNull(getAnnotationTool(toolId))
+            val measurements = listOf(measurement("${toolId}-1", tool.label))
+
+            assertTrue(isUniqueAnnotationTool(toolId), "$toolId should be unique")
+            assertTrue(hasUniqueAnnotationForTool(measurements, tool), "$toolId should be blocked after creation")
+        }
+
+        assertFalse(isUniqueAnnotationTool(TOOL_VERTEBRA_CENTER))
+    }
+
+    @Test
+    fun duplicateLateralMeasurementsAreFiltered() {
+        val measurements = listOf(
+            measurement("t1-slope-1", "T1 Slope"),
+            measurement("t1-slope-2", "T1 Slope"),
+            measurement("cl-1", "C2-C7 CL"),
+            measurement("cl-2", "C2-C7 CL"),
+            measurement("vertebra-center-1", "椎体中心"),
+            measurement("vertebra-center-2", "椎体中心"),
+        )
+
+        assertEquals(
+            listOf("t1-slope-1", "cl-1", "vertebra-center-1", "vertebra-center-2"),
+            filterUniqueAnnotationDuplicates(measurements).map { it.key },
+        )
     }
 
     @Test

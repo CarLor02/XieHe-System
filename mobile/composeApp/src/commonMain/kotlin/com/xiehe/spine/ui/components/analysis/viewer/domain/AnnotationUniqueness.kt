@@ -4,15 +4,29 @@ import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.AnnotationToolDefinition
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_C7_OFFSET
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CA
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CL
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_L4
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_S1
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L4_S1
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LLD
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PELVIC
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PI
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PT
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SVA
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T10_L2
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_TILT
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_SLOPE
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TK_T2_T5
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TK_T5_T12
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TPA
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.getAnnotationTool
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.getAnnotationToolByMeasurementType
 
 private val uniqueAnnotationToolIds = setOf(
+    // 正位标注：除 Cobb、椎体中心、辅助图形外唯一。
     TOOL_T1_TILT,
     TOOL_CA,
     TOOL_PELVIC,
@@ -20,6 +34,20 @@ private val uniqueAnnotationToolIds = setOf(
     TOOL_TS,
     TOOL_LLD,
     TOOL_C7_OFFSET,
+    // 侧位标注：除椎体中心、辅助图形外唯一。
+    TOOL_T1_SLOPE,
+    TOOL_CL,
+    TOOL_TK_T2_T5,
+    TOOL_TK_T5_T12,
+    TOOL_T10_L2,
+    TOOL_LL_L1_S1,
+    TOOL_LL_L1_L4,
+    TOOL_LL_L4_S1,
+    TOOL_TPA,
+    TOOL_SVA,
+    TOOL_PI,
+    TOOL_PT,
+    TOOL_SS,
 )
 
 fun getCanonicalAnnotationId(typeOrToolId: String): String {

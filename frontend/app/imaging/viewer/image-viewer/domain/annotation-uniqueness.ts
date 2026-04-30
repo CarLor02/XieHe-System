@@ -2,6 +2,7 @@ import { getAnnotationConfig } from '../catalog/annotation-catalog';
 import { MeasurementData, Tool } from '../types';
 
 const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
+  // 正位标注：除 Cobb、椎体中心、辅助图形外唯一。
   't1-tilt',
   'ca',
   'pelvic',
@@ -9,6 +10,20 @@ const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
   'tts',
   'lld',
   'c7-offset',
+  // 侧位标注：除椎体中心、辅助图形外唯一。
+  't1-slope',
+  'cl',
+  'tk-t2-t5',
+  'tk-t5-t12',
+  't10-l2',
+  'll-l1-s1',
+  'll-l1-l4',
+  'll-l4-s1',
+  'tpa',
+  'sva',
+  'pi',
+  'pt',
+  'ss',
 ]);
 
 export function getCanonicalAnnotationId(typeOrToolId: string): string {
