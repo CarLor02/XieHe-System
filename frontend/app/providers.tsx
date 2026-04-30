@@ -36,7 +36,6 @@ function getPersistApi(): PersistApi | undefined {
  */
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isInitialized, setIsInitialized] = useState(false);
   const [isHydrated, setIsHydrated] = useState(() => {
     const persist = getPersistApi();
     return persist?.hasHydrated?.() ?? true;
@@ -93,7 +92,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 初始化认证状态
+    // 后台校验认证状态，不阻塞首屏渲染。
     const initializeAuth = async () => {
       try {
         sessionInitializerLogging.initializeStarted({
@@ -129,13 +128,11 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
       } catch (error) {
         sessionInitializerLogging.initializeFailed(error);
       } finally {
-        // 立即标记为已初始化，不要等待异步操作
         sessionInitializerLogging.initializeFinished();
-        setIsInitialized(true);
       }
     };
 
-    initializeAuth();
+    void initializeAuth();
   }, [
     isHydrated,
     accessToken,
@@ -257,16 +254,8 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  // 等待初始化完成
-  if (!isAuthPage && (!isHydrated || !isInitialized)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">正在初始化应用...</p>
-        </div>
-      </div>
-    );
+  if (!isHydrated && !isAuthPage) {
+    return null;
   }
 
   return (
