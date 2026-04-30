@@ -17,6 +17,10 @@ import com.xiehe.spine.ui.screens.image.ImagesScreen
 import com.xiehe.spine.ui.screens.patient.PatientsScreen
 import com.xiehe.spine.ui.screens.profile.ProfileScreen
 import com.xiehe.spine.ui.screens.shared.MobileShell
+import com.xiehe.spine.ui.viewmodel.image.ImageStatusFilter
+import com.xiehe.spine.ui.viewmodel.image.ImageTypeFilter
+import com.xiehe.spine.ui.viewmodel.patient.AgeFilter
+import com.xiehe.spine.ui.viewmodel.patient.GenderFilter
 import kotlinx.coroutines.launch
 
 @Composable
@@ -113,7 +117,18 @@ internal fun MainShellHost(
                     },
                     onOpenPatientForm = { onRouteChange(OverlayRoute.PatientForm) },
                     onOpenImageUpload = { onRouteChange(OverlayRoute.ImageUpload) },
-                    onOpenImagesTab = { onTabSelected(2) },
+                    onOpenPatientsTab = {
+                        scopedViewModels.patientsVm.updateSearch("")
+                        scopedViewModels.patientsVm.updateGenderFilter(GenderFilter.ALL)
+                        scopedViewModels.patientsVm.updateAgeFilter(AgeFilter.ALL)
+                        onTabSelected(1)
+                    },
+                    onOpenImagesTab = {
+                        scopedViewModels.imagesVm.updateSearch("")
+                        scopedViewModels.imagesVm.updateTypeFilter(ImageTypeFilter.ALL)
+                        scopedViewModels.imagesVm.updateStatusFilter(ImageStatusFilter.ALL)
+                        onTabSelected(2)
+                    },
                     onOpenAppearance = { onRouteChange(OverlayRoute.Appearance) },
                     onOpenOrganization = { onRouteChange(OverlayRoute.Organization) },
                 )

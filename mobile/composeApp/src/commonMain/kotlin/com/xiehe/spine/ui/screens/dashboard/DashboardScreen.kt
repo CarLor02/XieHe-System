@@ -53,6 +53,7 @@ fun DashboardScreen(
     preloadedPatients: List<PatientSummary> = emptyList(),
     preloadedImages: List<ImageFileSummary> = emptyList(),
     onOpenAnalysis: (Int, Int?, String) -> Unit = { _, _, _ -> },
+    onOpenPatientsTab: () -> Unit = {},
     onOpenPatientForm: () -> Unit = {},
     onOpenImageUpload: () -> Unit = {},
     onOpenImagesTab: () -> Unit = {},
@@ -128,6 +129,7 @@ fun DashboardScreen(
                             icon = IconToken.HEART_PULSE,
                             colors = patientStatGradient(colors),
                             modifier = Modifier.weight(1f),
+                            onClick = onOpenPatientsTab,
                         )
                         DashboardStatCard(
                             title = "总影像数",
@@ -135,6 +137,7 @@ fun DashboardScreen(
                             icon = IconToken.IMAGE,
                             colors = imageStatGradient(colors),
                             modifier = Modifier.weight(1f),
+                            onClick = onOpenImagesTab,
                         )
                     }
                 }

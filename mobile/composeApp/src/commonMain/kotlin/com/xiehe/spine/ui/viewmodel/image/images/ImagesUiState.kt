@@ -17,8 +17,8 @@ enum class ImageTypeFilter(
 
 enum class ImageStatusFilter(val label: String) {
     ALL("全部状态"),
-    PENDING_REVIEW("待审核"),
-    ARCHIVED("已归档"),
+    UNREVIEWED("未审核"),
+    REVIEWED("已审核"),
     PROCESSING("处理中"),
     FAILED("失败"),
 }

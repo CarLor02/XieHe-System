@@ -408,13 +408,13 @@ fun imageStatusPresentation(rawStatus: String?): ImageStatusPresentation {
     val colors = SpineTheme.colors
     return when (normalizeImageStatus(rawStatus)) {
         ImageWorkflowStatus.UPLOADED -> ImageStatusPresentation(
-            text = "待审核",
+            text = "未审核",
             textColor = colors.primary,
             background = colors.primaryMuted,
         )
 
         ImageWorkflowStatus.PROCESSED -> ImageStatusPresentation(
-            text = "已归档",
+            text = "已审核",
             textColor = colors.textSecondary,
             background = colors.surfaceMuted,
         )

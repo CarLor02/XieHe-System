@@ -112,7 +112,7 @@ const DashboardPage: React.FC = () => {
             : 0,
         icon: 'ri-image-line',
         color: 'orange' as const,
-        href: '/imaging?status=pending', // 添加链接到待审核影像
+        href: '/imaging?review_status=unreviewed',
       },
       {
         title: '已完成影像',
@@ -120,7 +120,7 @@ const DashboardPage: React.FC = () => {
         change: dashboardData.completion_rate - 50, // 相对于50%基准的变化
         icon: 'ri-check-line',
         color: 'green' as const,
-        href: '/imaging?review_status=reviewed', // 添加链接到已审核影像
+        href: '/imaging?review_status=reviewed',
       },
       {
         title: '累计影像',

@@ -22,23 +22,34 @@ export default function StatsCard({ title, value, icon, color, href }: StatsCard
   // 安全地格式化数值，处理 undefined 和 null
   const formattedValue = (value ?? 0).toLocaleString();
 
-  return (
-    <div className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+  const cardContent = (
+    <>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-600 mb-1">{title}</p>
-          {href ? (
-            <Link href={href} className="text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">
-              {formattedValue}
-            </Link>
-          ) : (
-            <p className="text-2xl font-bold text-gray-900">{formattedValue}</p>
-          )}
+          <p className="text-2xl font-bold text-gray-900">{formattedValue}</p>
         </div>
         <div className={`w-12 h-12 rounded-lg ${colorClasses[color]} flex items-center justify-center`}>
           <i className={`${icon} w-6 h-6 flex items-center justify-center text-white`}></i>
         </div>
       </div>
+    </>
+  );
+
+  const cardClassName =
+    'block bg-white p-6 rounded-lg border border-gray-200 hover:shadow-md transition-shadow';
+
+  if (href) {
+    return (
+      <Link href={href} className={`${cardClassName} cursor-pointer`}>
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={cardClassName}>
+      {cardContent}
     </div>
   );
 }

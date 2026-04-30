@@ -14,8 +14,8 @@ object ImageFilterPolicy {
             } ?: true
             val matchesStatus = when (state.statusFilter) {
                 ImageStatusFilter.ALL -> true
-                ImageStatusFilter.PENDING_REVIEW -> normalizeImageStatus(item.status) == ImageWorkflowStatus.UPLOADED
-                ImageStatusFilter.ARCHIVED -> normalizeImageStatus(item.status) == ImageWorkflowStatus.PROCESSED
+                ImageStatusFilter.UNREVIEWED -> normalizeImageStatus(item.status) == ImageWorkflowStatus.UPLOADED
+                ImageStatusFilter.REVIEWED -> normalizeImageStatus(item.status) == ImageWorkflowStatus.PROCESSED
                 ImageStatusFilter.PROCESSING -> normalizeImageStatus(item.status) == ImageWorkflowStatus.PROCESSING
                 ImageStatusFilter.FAILED -> normalizeImageStatus(item.status) == ImageWorkflowStatus.FAILED
             }

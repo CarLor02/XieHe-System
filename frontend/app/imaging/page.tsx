@@ -25,6 +25,22 @@ const PREVIEW_RETRY_DELAY_MS = 800;
 const MAX_CONCURRENT_PREVIEW_LOADS = 6;
 
 type PreviewLoadState = 'fallback';
+type ReviewStatusFilter = 'all' | 'reviewed' | 'unreviewed';
+
+function getReviewStatusFilterFromUrl(
+  reviewStatus: string | null,
+  legacyStatus: string | null
+): ReviewStatusFilter {
+  if (reviewStatus === 'reviewed' || reviewStatus === 'unreviewed') {
+    return reviewStatus;
+  }
+
+  if (legacyStatus === 'pending') {
+    return 'unreviewed';
+  }
+
+  return 'all';
+}
 
 export default function ImagingPage() {
   const router = useRouter();
@@ -34,6 +50,10 @@ export default function ImagingPage() {
   // 从 URL 参数读取初始筛选条件
   const urlStatus = searchParams.get('status');
   const urlReviewStatus = searchParams.get('review_status');
+  const urlReviewStatusFilter = getReviewStatusFilterFromUrl(
+    urlReviewStatus,
+    urlStatus
+  );
 
   // 数据状态
   const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
@@ -57,12 +77,11 @@ export default function ImagingPage() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   // 如果有 URL 参数，自动展开筛选器
   const [showFilters, setShowFilters] = useState(
-    !!urlStatus || !!urlReviewStatus
+    urlReviewStatusFilter !== 'all'
   );
   const [selectedExamType, setSelectedExamType] = useState<string>('all'); // 检查类型
-  const [selectedReviewStatus, setSelectedReviewStatus] = useState<string>(
-    urlReviewStatus || (urlStatus === 'pending' ? 'unreviewed' : 'all')
-  ); // 审核状态
+  const [selectedReviewStatus, setSelectedReviewStatus] =
+    useState<ReviewStatusFilter>(urlReviewStatusFilter); // 审核状态
 
   // 判断是否有激活的筛选条件
   const hasActiveFilters =
@@ -309,6 +328,12 @@ export default function ImagingPage() {
   }, [isAuthenticated, router]);
 
   useEffect(() => {
+    setSelectedReviewStatus(urlReviewStatusFilter);
+    setShowFilters(urlReviewStatusFilter !== 'all');
+    setCurrentPage(1);
+  }, [urlReviewStatusFilter]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       loadImages();
     }
@@ -456,6 +481,9 @@ export default function ImagingPage() {
     setDateFrom('');
     setDateTo('');
     setCurrentPage(1);
+    if (searchParams.toString()) {
+      router.replace('/imaging', { scroll: false });
+    }
   };
 
   const handleMoreAction = async (fileId: number, action: string) => {
@@ -604,14 +632,6 @@ export default function ImagingPage() {
                 }`}
               >
                 更多选项
-                {(selectedExamType !== 'all' ||
-                  selectedReviewStatus !== 'all' ||
-                  dateFrom ||
-                  dateTo) && (
-                  <span className="ml-1 bg-blue-500 text-white text-xs rounded-full px-1.5">
-                    !
-                  </span>
-                )}
               </button>
             </div>
 
@@ -674,7 +694,11 @@ export default function ImagingPage() {
                 </label>
                 <select
                   value={selectedReviewStatus}
-                  onChange={e => setSelectedReviewStatus(e.target.value)}
+                  onChange={e =>
+                    setSelectedReviewStatus(
+                      e.target.value as ReviewStatusFilter
+                    )
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">全部状态</option>
