@@ -17,7 +17,7 @@ import {
 import { getErrorMessage } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 
 const PREVIEW_REQUEST_TIMEOUT_MS = 60000;
 const PREVIEW_RETRY_ATTEMPTS = 3;
@@ -42,7 +42,7 @@ function getReviewStatusFilterFromUrl(
   return 'all';
 }
 
-export default function ImagingPage() {
+function ImagingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useUser();
@@ -1106,5 +1106,13 @@ export default function ImagingPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ImagingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <ImagingPageContent />
+    </Suspense>
   );
 }
