@@ -171,6 +171,14 @@ export const useSessionStore = create<SessionState>()(
         sessionStoreLogging.logoutRequested(get().session);
 
         if (options.redirectToLogin && typeof window !== 'undefined') {
+          set({
+            isAuthenticated: false,
+            user: null,
+            session: null,
+            error: null,
+            isLoading: false,
+          });
+
           clearPersistedAuthState();
 
           if (accessToken) {

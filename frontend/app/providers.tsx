@@ -44,6 +44,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   const {
     isAuthenticated,
     session,
+    user,
     fetchUserInfoStatus,
     forceLogout,
   } = useSessionStore();
@@ -262,7 +263,11 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <React.Fragment key={user ? `user:${user.id}` : 'anonymous'}>
+      {children}
+    </React.Fragment>
+  );
 }
 
 /**
