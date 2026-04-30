@@ -5,13 +5,11 @@ import Sidebar from '@/components/Sidebar';
 import UserSettings from '@/components/UserSettings';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import DeleteModelDialog from './DeleteModelDialog';
 import ModelCard from './ModelCard';
 import { useUser } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import {
   activateModel,
-  deleteModel,
   getModelStats,
   getModels,
 } from '@/services/modelServices';
@@ -20,11 +18,9 @@ interface ModelData {
   id: string;
   title: string;
   view_type: string;
-  endpoint_url: string;
   status: string;
   isActive: boolean;
   is_system_default?: boolean;
-  can_delete?: boolean;
   accuracy: string;
   lastUpdated: string;
   category: string;
@@ -37,7 +33,6 @@ export default function ModelCenter() {
   const isSuperuser = user?.is_superuser || false;
   const isAdmin = user?.is_system_admin || user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'team_admin';
   const [showUserSettings, setShowUserSettings] = useState(false);
-  const [deleteModel, setDeleteModel] = useState<any>(null);
 
   const [activeTab, setActiveTab] = useState('all');
   const [models, setModels] = useState<ModelData[]>([]);
@@ -74,11 +69,9 @@ export default function ModelCenter() {
         id: model.id,
         title: model.name,
         view_type: model.view_type,
-        endpoint_url: model.endpoint_url,
         status: model.status || 'ready',
         isActive: model.is_active,
         is_system_default: model.is_system_default,
-        can_delete: model.can_delete,
         accuracy: '0%',
         lastUpdated: new Date(model.updated_at).toLocaleDateString('zh-CN'),
         category: model.view_type === 'front' ? '正面' : model.view_type === 'side' ? '侧面' : '其他',
@@ -116,32 +109,6 @@ export default function ModelCenter() {
     } catch (err: any) {
       console.error('Failed to activate model:', err);
       alert(err.response?.data?.detail || '激活模型失败');
-    }
-  };
-
-  // 删除模型
-  const handleDeleteModel = async () => {
-    if (!deleteModel) return;
-
-    try {
-      const response = await deleteModel(deleteModel.id);
-
-      // 关闭对话框
-      setDeleteModel(null);
-
-      // 刷新模型列表
-      await loadModels();
-
-      // 显示提示
-      if (response.fallback_to_default) {
-        alert(`模型已删除，已自动切换到系统默认模型`);
-      } else {
-        alert('模型删除成功');
-      }
-    } catch (err: any) {
-      console.error('Failed to delete model:', err);
-      alert(err.response?.data?.detail || '删除模型失败');
-      setDeleteModel(null);
     }
   };
 
@@ -265,7 +232,6 @@ export default function ModelCenter() {
                   key={model.id}
                   model={model}
                   onActivateClick={handleActivateModel}
-                  onDeleteClick={(m) => setDeleteModel(m)}
                 />
               ))}
             </div>
@@ -283,13 +249,6 @@ export default function ModelCenter() {
         isOpen={showUserSettings}
         onClose={() => setShowUserSettings(false)}
         type="profile"
-      />
-
-      <DeleteModelDialog
-        isOpen={!!deleteModel}
-        model={deleteModel}
-        onConfirm={handleDeleteModel}
-        onCancel={() => setDeleteModel(null)}
       />
     </div>
   );
