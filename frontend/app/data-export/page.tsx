@@ -17,9 +17,7 @@ import {
   buildAnnotationPointRows,
   buildExportFilename,
   buildMeasurementRows,
-  createAnnotatedImageBlob,
   createTabularBlob,
-  downloadExportFiles,
   ExportContentType,
   ExportFile,
   getAiDetectionMeasurements,
@@ -27,21 +25,12 @@ import {
   getParameterMeasurements,
   parseAnnotationData,
   TabularExportFormat,
-} from './_utils/export-utils';
+} from './domain';
+import { createAnnotatedImageBlob, downloadExportFiles } from './usecases';
+import { useExportContentOptions } from './hooks';
 import { Download, FileSpreadsheet, Search, CheckSquare, Square } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
-
-const EXPORT_CONTENT_OPTIONS: Array<{
-  value: ExportContentType;
-  label: string;
-  adminOnly?: boolean;
-}> = [
-  { value: 'original-image', label: '原图影像' },
-  { value: 'annotated-image', label: '绘图影像' },
-  { value: 'annotation-points', label: '标注点检测', adminOnly: true },
-  { value: 'measurement-parameters', label: '参数测量' },
-];
+import { useEffect, useState } from 'react';
 
 export default function DataExportPage() {
   const router = useRouter();
@@ -80,13 +69,7 @@ export default function DataExportPage() {
   const [exportProgress, setExportProgress] = useState(0);
   const [message, setMessage] = useState('');
 
-  const exportContentOptions = useMemo(
-    () =>
-      EXPORT_CONTENT_OPTIONS.filter(
-        option => !option.adminOnly || canExportAnnotationPoints
-      ),
-    [canExportAnnotationPoints]
-  );
+  const exportContentOptions = useExportContentOptions(canExportAnnotationPoints);
 
   useEffect(() => {
     setMounted(true);
