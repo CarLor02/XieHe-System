@@ -33,7 +33,7 @@ interface ModelData {
 
 export default function ModelCenter() {
   const router = useRouter();
-  const { user, isAuthenticated } = useUser();
+  const { user, isAuthenticated, isLoggingOut } = useUser();
   const isSuperuser = user?.is_superuser || false;
   const isAdmin = user?.is_system_admin || user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'team_admin';
   const [showUserSettings, setShowUserSettings] = useState(false);
@@ -145,9 +145,9 @@ export default function ModelCenter() {
     }
   };
 
-  // 未登录态：不渲染受限页面，等待 useEffect 中的跳转完成
+  // 未登录态或登出过程中：不渲染受限页面，等待跳转完成
   // 避免退出登录瞬间因为 user 被清空而闪现"访问受限"中间页
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isLoggingOut) {
     return null;
   }
 
