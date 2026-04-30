@@ -184,13 +184,7 @@ async def calculate_metrics(keypoints_data: KeypointsResponse):
             if len(points) >= 2:
                 metrics["T1_Slope"] = _calculate_angle_with_horizontal(points[0], points[1])
 
-        # 2. C2-C7 CL (Cervical Lordosis)
-        if "C2-C7 CL" in measurements_dict:
-            points = measurements_dict["C2-C7 CL"]
-            if len(points) >= 4:
-                angle1 = _calculate_angle_with_horizontal(points[0], points[1])
-                angle2 = _calculate_angle_with_horizontal(points[2], points[3])
-                metrics["Cervical_Lordosis"] = abs(angle1 - angle2)
+        # 2. C2-C7 CL：椎体检测模型不识别 C2，无法由 AI 计算（保留前端手工标注）。
 
         # 3. TK T2-T5 (Thoracic Kyphosis T2-T5)
         if "TK T2-T5" in measurements_dict:
@@ -207,6 +201,14 @@ async def calculate_metrics(keypoints_data: KeypointsResponse):
                 angle1 = _calculate_angle_with_horizontal(points[0], points[1])
                 angle2 = _calculate_angle_with_horizontal(points[2], points[3])
                 metrics["Thoracic_Kyphosis_T5_T12"] = abs(angle1 - angle2)
+
+        # 4b. T10-L2 胸腰段后凸角 (Thoracolumbar Kyphosis)
+        if "T10-L2" in measurements_dict:
+            points = measurements_dict["T10-L2"]
+            if len(points) >= 4:
+                angle1 = _calculate_angle_with_horizontal(points[0], points[1])
+                angle2 = _calculate_angle_with_horizontal(points[2], points[3])
+                metrics["Thoracolumbar_Kyphosis_T10_L2"] = abs(angle1 - angle2)
 
         # 5. LL L1-S1 (Lumbar Lordosis)
         if "LL L1-S1" in measurements_dict:

@@ -58,12 +58,8 @@ def compute_keypoints(
             points=[to_pixel(p) for p in vertebrae_dict['T1']['upper']]
         ))
 
-    # 2. C2-C7 CL (Cervical Lordosis) - C2下终板和C7下终板
-    if 'C2' in vertebrae_dict and 'C7' in vertebrae_dict:
-        measurements.append(Measurement(
-            type="C2-C7 CL",
-            points=[to_pixel(p) for p in (vertebrae_dict['C2']['lower'] + vertebrae_dict['C7']['lower'])]
-        ))
+    # 2. C2-C7 CL：颈椎前凸角依赖 C2，但当前椎体检测模型仅识别 C7 + T1-T12 + L1-L5，
+    #    无法获取 C2 关键点，因此此项不由 AI 输出（可在前端手工标注）。
 
     # 3. TK T2-T5 (Thoracic Kyphosis T2-T5)
     if 'T2' in vertebrae_dict and 'T5' in vertebrae_dict:
@@ -77,6 +73,13 @@ def compute_keypoints(
         measurements.append(Measurement(
             type="TK T5-T12",
             points=[to_pixel(p) for p in (vertebrae_dict['T5']['upper'] + vertebrae_dict['T12']['lower'])]
+        ))
+
+    # 4b. T10-L2 胸腰椎后凸角 (Thoracolumbar Kyphosis)
+    if 'T10' in vertebrae_dict and 'L2' in vertebrae_dict:
+        measurements.append(Measurement(
+            type="T10-L2",
+            points=[to_pixel(p) for p in (vertebrae_dict['T10']['upper'] + vertebrae_dict['L2']['lower'])]
         ))
 
     # 5. LL L1-S1 (Lumbar Lordosis L1-S1)
