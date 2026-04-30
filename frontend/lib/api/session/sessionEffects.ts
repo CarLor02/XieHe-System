@@ -1,5 +1,6 @@
 const AUTH_STORAGE_KEY = 'auth-storage';
 const LOGIN_PATH = '/auth/login';
+type LoginRedirectMode = 'assign' | 'replace';
 
 export function clearPersistedAuthState(): void {
   if (typeof window === 'undefined') {
@@ -9,17 +10,27 @@ export function clearPersistedAuthState(): void {
   localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
-export function redirectToLogin(delayMs = 500): void {
+export function redirectToLogin(
+  delayMs = 500,
+  mode: LoginRedirectMode = 'assign'
+): void {
   if (typeof window === 'undefined') {
     return;
   }
 
-  if (delayMs <= 0) {
+  const redirect = () => {
+    if (mode === 'replace') {
+      window.location.replace(LOGIN_PATH);
+      return;
+    }
+
     window.location.href = LOGIN_PATH;
+  };
+
+  if (delayMs <= 0) {
+    redirect();
     return;
   }
 
-  window.setTimeout(() => {
-    window.location.href = LOGIN_PATH;
-  }, delayMs);
+  window.setTimeout(redirect, delayMs);
 }

@@ -36,6 +36,10 @@ export interface RegisterData {
   phone?: string;
 }
 
+interface LogoutOptions {
+  redirectToLogin?: boolean;
+}
+
 interface SessionState {
   isAuthenticated: boolean;
   user: SessionUser | null;
@@ -44,7 +48,7 @@ interface SessionState {
   error: string | null;
   login: (credentials: LoginCredentials) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<boolean>;
-  logout: () => Promise<void>;
+  logout: (options?: LogoutOptions) => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
   forceLogout: (context?: Record<string, unknown>) => void;
   fetchUserInfo: () => Promise<boolean>;
@@ -162,10 +166,32 @@ export const useSessionStore = create<SessionState>()(
         }
       },
 
-      logout: async () => {
+      logout: async (options = {}) => {
+        const accessToken = get().session?.accessToken;
+        sessionStoreLogging.logoutRequested(get().session);
+
+        if (options.redirectToLogin && typeof window !== 'undefined') {
+          clearPersistedAuthState();
+
+          if (accessToken) {
+            void fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: '{}',
+              keepalive: true,
+            }).catch(error => {
+              sessionStoreLogging.logoutRequestFailed(error);
+            });
+          }
+
+          redirectToLogin(0, 'replace');
+          return;
+        }
+
         try {
-          const accessToken = get().session?.accessToken;
-          sessionStoreLogging.logoutRequested(get().session);
           if (accessToken) {
             await axios.post(
               `${API_BASE_URL}/api/v1/auth/logout`,

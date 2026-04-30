@@ -12,6 +12,7 @@
 import { refreshAccessTokenWithLock, useSessionStore } from '@/lib/api';
 import { hasUsableSession } from '@/lib/api/session/sessionStore';
 import { sessionInitializerLogging } from '@/lib/logger/sessionLogging';
+import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
 interface ProvidersProps {
@@ -34,6 +35,7 @@ function getPersistApi(): PersistApi | undefined {
  * 在应用启动时初始化认证状态
  */
 function AuthInitializer({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [isInitialized, setIsInitialized] = useState(false);
   const [isHydrated, setIsHydrated] = useState(() => {
     const persist = getPersistApi();
@@ -50,6 +52,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   const accessTokenExpiresAtEpochSeconds =
     session?.accessTokenExpiresAtEpochSeconds;
   const hasStoredSession = hasUsableSession(session);
+  const isAuthPage = pathname?.startsWith('/auth/') ?? false;
 
   useEffect(() => {
     const persist = getPersistApi();
@@ -248,7 +251,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   ]);
 
   // 等待初始化完成
-  if (!isHydrated || !isInitialized) {
+  if (!isAuthPage && (!isHydrated || !isInitialized)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

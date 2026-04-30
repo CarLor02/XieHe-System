@@ -2,7 +2,6 @@
 
 import UserSettings from '@/components/UserSettings';
 import { useAuth, useUser } from '@/lib/api';
-import { redirectToLogin } from '@/lib/api/session/sessionEffects';
 import { createLogger } from '@/lib/logger';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -196,17 +195,13 @@ export default function Header() {
     setShowUserMenu(false);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     try {
-      // 先清除认证状态
-      await logout();
-      // 使用 window.location.href 进行完整页面跳转，避免闪烁
-      // 这样可以确保所有状态都被清除，不会触发中间状态的渲染
-      redirectToLogin(0);
+      setShowUserMenu(false);
+      void logout({ redirectToLogin: true });
     } catch (error) {
       logger.warn('Logout error', error);
-      // 即使出错也跳转到登录页
-      redirectToLogin(0);
+      void logout({ redirectToLogin: true });
     }
   };
 
