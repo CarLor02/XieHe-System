@@ -203,13 +203,14 @@ export function useCanvasDrag({
           newPointX = measurement.points[otherIndex].x;
         }
         if (typeId === 'tts') {
-          // TTS 的点两两配对为水平线（0-1 胸廓线，2-3 骶骨线），拖动时锁定 y 坐标
-          const pairIndex =
-            selectionState.pointIndex % 2 === 0
-              ? selectionState.pointIndex + 1
-              : selectionState.pointIndex - 1;
-          if (pairIndex >= 0 && pairIndex < measurement.points.length) {
-            newPointY = measurement.points[pairIndex].y;
+          // 仅躯干参考线（点 0-1）保持水平，拖动时锁定 y 坐标。
+          // 骶骨参考线（点 2-3）继承自 CSS / Sacral，需保留其原始倾斜，
+          // 否则会通过点绑定把 CSS 的 y 拉平、CSS 角度被强制为 0°。
+          if (selectionState.pointIndex === 0 || selectionState.pointIndex === 1) {
+            const pairIndex = selectionState.pointIndex === 0 ? 1 : 0;
+            if (pairIndex < measurement.points.length) {
+              newPointY = measurement.points[pairIndex].y;
+            }
           }
         }
 
