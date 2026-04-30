@@ -2,6 +2,7 @@ package com.xiehe.spine.ui.viewmodel.image
 
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_COBB
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -22,7 +23,7 @@ class ImageAnalysisStateReducerTest {
             measurements = listOf(
                 AnnotationMeasurement(
                     key = "manual_1",
-                    type = "Cobb",
+                    type = TOOL_COBB,
                     value = "12.5°",
                     points = listOf(MeasurementPoint(10.0, 20.0)),
                 ),

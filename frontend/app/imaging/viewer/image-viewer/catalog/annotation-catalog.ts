@@ -1007,7 +1007,7 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
       if (isPointNearPoint(mousePoint, point, tolerance)) return true;
     }
 
-    // 检查锥体中心与参考中点
+    // 检查椎体中心与参考中点
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
     const refX = (points[4].x + points[5].x) / 2;
@@ -1532,7 +1532,7 @@ export const SVA_CONFIG: AnnotationConfig = {
       if (isPointNearPoint(mousePoint, point, tolerance)) return true;
     }
 
-    // 检查是否靠近锥体中心
+    // 检查是否靠近椎体中心
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
     if (isPointNearPoint(mousePoint, { x: centerX, y: centerY }, tolerance))
@@ -2518,29 +2518,23 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   pi: PI_CONFIG,
   pt: PT_CONFIG,
   ss: SS_CONFIG,
-  'ts(trunk-shift)': C7_OFFSET_CONFIG, // 'TS(Trunk Shift)' 规范化后的别名（向后兼容）
   length: LENGTH_CONFIG,
   angle: ANGLE_CONFIG,
   circle: CIRCLE_CONFIG,
-  圆形标注: CIRCLE_CONFIG, // 中文别名
   ellipse: ELLIPSE_CONFIG,
-  椭圆标注: ELLIPSE_CONFIG, // 中文别名
   rectangle: RECTANGLE_CONFIG,
-  矩形标注: RECTANGLE_CONFIG, // 中文别名
   arrow: ARROW_CONFIG,
-  箭头标注: ARROW_CONFIG, // 中文别名
   polygon: POLYGON_CONFIG,
-  多边形标注: POLYGON_CONFIG, // 中文别名
   'vertebra-center': VERTEBRA_CENTER_CONFIG,
   'aux-length': AUX_LENGTH_CONFIG,
-  距离标注: AUX_LENGTH_CONFIG, // 中文别名
   'aux-angle': AUX_ANGLE_CONFIG,
-  角度标注: AUX_ANGLE_CONFIG, // 中文别名
   'aux-horizontal-line': AUX_HORIZONTAL_LINE_CONFIG,
-  辅助水平线: AUX_HORIZONTAL_LINE_CONFIG, // 中文别名
   'aux-vertical-line': AUX_VERTICAL_LINE_CONFIG,
-  辅助垂直线: AUX_VERTICAL_LINE_CONFIG, // 中文别名
 };
+
+function normalizeAnnotationLookupKey(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, '-');
+}
 
 /**
  * 根据标注类型ID获取配置
@@ -2548,17 +2542,29 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
 export function getAnnotationConfig(
   typeId: string
 ): AnnotationConfig | undefined {
-  // 标准化typeId：转小写并将空格替换为连字符
-  const normalizedId = typeId.toLowerCase().replace(/\s+/g, '-');
-  const directConfig = ANNOTATION_CONFIGS[normalizedId];
-  if (directConfig) {
-    return directConfig;
+  // 内部只接受英文工具 key；中文只作为 UI 展示文案，不作为查找别名。
+  const normalizedId = normalizeAnnotationLookupKey(typeId);
+  return ANNOTATION_CONFIGS[normalizedId];
+}
+
+export function getAnnotationTypeId(typeId: string): string {
+  if (typeId.startsWith('AI检测-')) {
+    return typeId;
   }
 
-  return Object.values(ANNOTATION_CONFIGS).find(config => {
-    const normalizedConfigName = config.name.toLowerCase().replace(/\s+/g, '-');
-    return normalizedConfigName === normalizedId;
-  });
+  if (/^Cobb\d+$/i.test(typeId)) {
+    return typeId.toLowerCase();
+  }
+
+  return getAnnotationConfig(typeId)?.id || normalizeAnnotationLookupKey(typeId);
+}
+
+export function getAnnotationDisplayName(typeId: string): string {
+  if (typeId.startsWith('AI检测-')) {
+    return typeId;
+  }
+
+  return getAnnotationConfig(typeId)?.name || typeId;
 }
 
 /**

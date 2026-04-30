@@ -3,7 +3,9 @@ package com.xiehe.spine.ui.viewmodel.image
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PI
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PT
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SVA
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.getAnnotationTool
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,7 +17,7 @@ class ManualMeasurementComposerTest {
     fun piAfterSs_needsOneClick_andAutoCompletesPt() {
         val ssMeasurement = AnnotationMeasurement(
             key = "manual_ss",
-            type = "SS",
+            type = TOOL_SS,
             value = "32°",
             points = listOf(
                 MeasurementPoint(120.0, 240.0),
@@ -50,7 +52,7 @@ class ManualMeasurementComposerTest {
         )
 
         assertNotNull(batch)
-        assertEquals(listOf("PI", "PT"), batch.addedMeasurements.map { it.type })
+        assertEquals(listOf(TOOL_PI, TOOL_PT), batch.addedMeasurements.map { it.type })
         assertEquals(
             listOf(femoralHeadCenter, ssMeasurement.points[0], ssMeasurement.points[1]),
             batch.primaryMeasurement.points,
@@ -65,7 +67,7 @@ class ManualMeasurementComposerTest {
     fun ssAfterSva_reusesInheritedSacralPoint() {
         val svaMeasurement = AnnotationMeasurement(
             key = "manual_sva",
-            type = "SVA",
+            type = TOOL_SVA,
             value = "15mm",
             points = listOf(
                 MeasurementPoint(40.0, 100.0),
@@ -103,7 +105,7 @@ class ManualMeasurementComposerTest {
         )
 
         assertNotNull(batch)
-        assertEquals("SS", batch.primaryMeasurement.type)
+        assertEquals(TOOL_SS, batch.primaryMeasurement.type)
         assertEquals(
             listOf(sacralLeft, svaMeasurement.points[4]),
             batch.primaryMeasurement.points,

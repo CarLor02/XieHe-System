@@ -1,5 +1,6 @@
 import { MeasurementData, Point } from '../../../types';
 import { getBoundingBox } from '../../../shared/geometry';
+import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
 
 /**
  * 计算标注的选择边界框，供选中态与 hover 态复用。
@@ -35,7 +36,9 @@ export function getMeasurementSelectionBoxInScreen(
   imageToScreen: (point: Point) => Point,
   padding: number = 15
 ) {
-  if (measurement.type === '圆形标注' && measurement.points.length >= 2) {
+  const typeId = getAnnotationTypeId(measurement.type);
+
+  if (typeId === 'circle' && measurement.points.length >= 2) {
     const center = imageToScreen(measurement.points[0]);
     const edge = imageToScreen(measurement.points[1]);
     const radius = Math.hypot(edge.x - center.x, edge.y - center.y);
@@ -47,7 +50,7 @@ export function getMeasurementSelectionBoxInScreen(
     };
   }
 
-  if (measurement.type === '椭圆标注' && measurement.points.length >= 2) {
+  if (typeId === 'ellipse' && measurement.points.length >= 2) {
     const center = imageToScreen(measurement.points[0]);
     const edge = imageToScreen(measurement.points[1]);
     const radiusX = Math.abs(edge.x - center.x);

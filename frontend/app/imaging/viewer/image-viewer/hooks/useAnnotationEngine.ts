@@ -10,6 +10,7 @@ import {
 } from '../domain/annotation-binding';
 import { autoCreateInheritanceBindings } from '../domain/annotation-inheritance';
 import { MeasurementData, Point } from '../types';
+import { getAnnotationTypeId } from '../catalog/annotation-catalog';
 
 /**
  * 绑定、自动绑定、继承点与共享点位操作状态。
@@ -50,15 +51,15 @@ export function useAnnotationEngine({
    */
   useEffect(() => {
     const S1_RELATED_TYPES = new Set([
-      'SS',
-      'LL L1-S1',
-      'LL L4-S1',
-      'PI',
-      'PT',
-      'TPA',
+      'ss',
+      'll-l1-s1',
+      'll-l4-s1',
+      'pi',
+      'pt',
+      'tpa',
     ]);
     const s1Count = measurements.filter(measurement =>
-      S1_RELATED_TYPES.has(measurement.type)
+      S1_RELATED_TYPES.has(getAnnotationTypeId(measurement.type))
     ).length;
     const s1Bindings =
       s1Count >= 2 ? autoCreateS1Bindings(measurements) : createEmptyBindings();

@@ -2,7 +2,9 @@ package com.xiehe.spine.ui.components.analysis.viewer.domain
 
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_C7_OFFSET
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -14,7 +16,7 @@ class AnnotationInheritanceTest {
             toolId = TOOL_SACRAL,
             measurements = listOf(
                 measurement(
-                    type = "TS",
+                    type = TOOL_TS,
                     points = listOf(
                         MeasurementPoint(10.0, 20.0),
                         MeasurementPoint(50.0, 20.0),
@@ -35,7 +37,7 @@ class AnnotationInheritanceTest {
             toolId = TOOL_SACRAL,
             measurements = listOf(
                 measurement(
-                    type = "TTS",
+                    type = TOOL_C7_OFFSET,
                     points = listOf(
                         MeasurementPoint(10.0, 20.0),
                         MeasurementPoint(40.0, 20.0),

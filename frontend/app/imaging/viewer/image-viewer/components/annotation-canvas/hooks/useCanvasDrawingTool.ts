@@ -5,6 +5,7 @@ import {
   getInheritedPoints,
 } from '../../../domain/annotation-inheritance';
 import { hasUniqueAnnotationForTool } from '../../../domain/annotation-uniqueness';
+import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
 import { Point, Tool } from '../../../types';
 import { DrawingState, ReferenceLines } from '../types';
 
@@ -27,14 +28,15 @@ interface UseCanvasDrawingToolOptions {
 
 function buildInheritedMap(
   toolId: string,
-  toolName: string,
   measurements: { type: string; points: Point[] }[]
 ) {
   const inheritedMap = new Map<number, Point>();
   const asymRules = POINT_INHERITANCE_RULES[toolId] || [];
 
   for (const rule of asymRules) {
-    const source = measurements.find(measurement => measurement.type === rule.fromType);
+    const source = measurements.find(
+      measurement => getAnnotationTypeId(measurement.type) === rule.fromType
+    );
     if (!source) continue;
 
     for (let index = 0; index < rule.sourcePointIndices.length; index += 1) {
@@ -48,21 +50,18 @@ function buildInheritedMap(
 
   for (const group of SHARED_ANATOMICAL_POINT_GROUPS) {
     const ownParticipant = group.participants.find(
-      participant => participant.toolId === toolId || participant.typeName === toolName
+      participant => participant.toolId === toolId
     );
     if (!ownParticipant || inheritedMap.has(ownParticipant.pointIndex)) {
       continue;
     }
 
     for (const participant of group.participants) {
-      if (
-        participant.toolId === toolId ||
-        participant.typeName === toolName
-      ) {
+      if (participant.toolId === toolId) {
         continue;
       }
       const source = measurements.find(
-        measurement => measurement.type === participant.typeName
+        measurement => getAnnotationTypeId(measurement.type) === participant.typeName
       );
       if (source && participant.pointIndex < source.points.length) {
         inheritedMap.set(
@@ -121,7 +120,7 @@ export function useCanvasDrawingTool({
 
   const completePolygon = useCallback(() => {
     if (clickedPoints.length >= 3) {
-      onMeasurementAdd('多边形标注', clickedPoints);
+      onMeasurementAdd('polygon', clickedPoints);
       setClickedPoints([]);
     }
   }, [clickedPoints, onMeasurementAdd, setClickedPoints]);
@@ -173,7 +172,7 @@ export function useCanvasDrawingTool({
         const newPoints = [...clickedPoints, imagePoint];
         setClickedPoints(newPoints);
         if (newPoints.length === 4) {
-          onMeasurementAdd('锥体中心', newPoints);
+          onMeasurementAdd('vertebra-center', newPoints);
           setClickedPoints([]);
         }
         return true;
@@ -183,7 +182,7 @@ export function useCanvasDrawingTool({
         const newPoints = [...clickedPoints, imagePoint];
         setClickedPoints(newPoints);
         if (newPoints.length === 2) {
-          onMeasurementAdd('距离标注', newPoints);
+          onMeasurementAdd('aux-length', newPoints);
           setClickedPoints([]);
         }
         return true;
@@ -193,7 +192,7 @@ export function useCanvasDrawingTool({
         const newPoints = [...clickedPoints, imagePoint];
         setClickedPoints(newPoints);
         if (newPoints.length === 4) {
-          onMeasurementAdd('角度标注', newPoints);
+          onMeasurementAdd('aux-angle', newPoints);
           setClickedPoints([]);
         }
         return true;
@@ -212,7 +211,7 @@ export function useCanvasDrawingTool({
         if (newPoints.length === 2) {
           const currentTool = getCurrentTool();
           if (currentTool) {
-            onMeasurementAdd(currentTool.name, newPoints);
+            onMeasurementAdd(currentTool.id, newPoints);
             setClickedPoints([]);
           }
         }
@@ -274,7 +273,7 @@ export function useCanvasDrawingTool({
         if (newPoints.length === 1) {
           setReferenceLines(previous => ({ ...previous, t1Tilt: imagePoint }));
         } else if (newPoints.length === 2) {
-          onMeasurementAdd(currentTool.name, newPoints);
+          onMeasurementAdd(currentTool.id, newPoints);
           setClickedPoints([]);
           setReferenceLines(previous => ({ ...previous, t1Tilt: null }));
         }
@@ -298,7 +297,7 @@ export function useCanvasDrawingTool({
             [referenceKey]: imagePoint,
           }));
         } else if (newPoints.length === 2) {
-          onMeasurementAdd(currentTool.name, newPoints);
+          onMeasurementAdd(currentTool.id, newPoints);
           setClickedPoints([]);
           setReferenceLines(previous => ({
             ...previous,
@@ -313,11 +312,10 @@ export function useCanvasDrawingTool({
         selectedTool.includes('sva') ||
         selectedTool.includes('ts')
       ) {
-        const inheritedMap = buildInheritedMap(
-          currentTool.id,
-          currentTool.name,
-          measurements
-        );
+          const inheritedMap = buildInheritedMap(
+            currentTool.id,
+            measurements
+          );
         const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
 
         if (newPoints.length === 1) {
@@ -338,7 +336,7 @@ export function useCanvasDrawingTool({
             inheritedMap,
             newPoints
           );
-          onMeasurementAdd(currentTool.name, allPoints);
+          onMeasurementAdd(currentTool.id, allPoints);
           setClickedPoints([]);
           if (selectedTool.includes('ss')) {
             setReferenceLines(previous => ({ ...previous, ss: null }));
@@ -359,7 +357,7 @@ export function useCanvasDrawingTool({
             [referenceKey]: imagePoint,
           }));
         } else if (newPoints.length === 2) {
-          onMeasurementAdd(currentTool.name, newPoints);
+          onMeasurementAdd(currentTool.id, newPoints);
           setClickedPoints([]);
           setReferenceLines(previous => ({
             ...previous,
@@ -374,7 +372,7 @@ export function useCanvasDrawingTool({
           getInheritedPoints('c7-offset', measurements);
         const effectiveNeeded = 6 - inheritedCount;
         if (newPoints.length === effectiveNeeded) {
-          onMeasurementAdd(currentTool.name, [...newPoints, ...inheritedPoints]);
+          onMeasurementAdd(currentTool.id, [...newPoints, ...inheritedPoints]);
           setClickedPoints([]);
         }
         return true;
@@ -382,7 +380,6 @@ export function useCanvasDrawingTool({
 
       const inheritedMap = buildInheritedMap(
         currentTool.id,
-        currentTool.name,
         measurements
       );
       const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
@@ -392,7 +389,7 @@ export function useCanvasDrawingTool({
           inheritedMap,
           newPoints
         );
-        onMeasurementAdd(currentTool.name, allPoints);
+        onMeasurementAdd(currentTool.id, allPoints);
         setClickedPoints([]);
       }
       return true;
@@ -449,11 +446,11 @@ export function useCanvasDrawingTool({
     ) {
       const { startPoint, currentPoint } = drawingState;
       if (selectedTool === 'circle') {
-        onMeasurementAdd('圆形标注', [startPoint, currentPoint]);
+        onMeasurementAdd('circle', [startPoint, currentPoint]);
       } else if (selectedTool === 'ellipse') {
-        onMeasurementAdd('椭圆标注', [startPoint, currentPoint]);
+        onMeasurementAdd('ellipse', [startPoint, currentPoint]);
       } else if (selectedTool === 'rectangle') {
-        onMeasurementAdd('矩形标注', [
+        onMeasurementAdd('rectangle', [
           {
             x: Math.min(startPoint.x, currentPoint.x),
             y: Math.min(startPoint.y, currentPoint.y),
@@ -464,7 +461,7 @@ export function useCanvasDrawingTool({
           },
         ]);
       } else if (selectedTool === 'arrow') {
-        onMeasurementAdd('箭头标注', [startPoint, currentPoint]);
+        onMeasurementAdd('arrow', [startPoint, currentPoint]);
       }
     }
 

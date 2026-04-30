@@ -6,6 +6,7 @@ import {
   isRectangleClicked,
 } from '../../../canvas/hit-test/shape-hit-test';
 import { isAuxiliaryShape } from '../../../canvas/tools/tool-state';
+import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
 import { isEditableAuxiliaryAnnotationType } from '../../../domain/annotation-metadata';
 import { calculateQuadrilateralCenter } from '../../../shared/geometry';
 import { MeasurementData, Point, TransformContext } from '../../../types';
@@ -35,7 +36,9 @@ function hitTestMeasurementShape(
   lineRadius: number,
   imageToScreen: (point: Point) => Point
 ) {
-  if (measurement.type === '圆形标注' && measurement.points.length === 2) {
+  const typeId = getAnnotationTypeId(measurement.type);
+
+  if (typeId === 'circle' && measurement.points.length === 2) {
     return isCircleClicked(
       screenPoint,
       measurement.points[0],
@@ -45,7 +48,7 @@ function hitTestMeasurementShape(
     );
   }
 
-  if (measurement.type === '椭圆标注' && measurement.points.length === 2) {
+  if (typeId === 'ellipse' && measurement.points.length === 2) {
     return isEllipseClicked(
       screenPoint,
       measurement.points[0],
@@ -55,7 +58,7 @@ function hitTestMeasurementShape(
     );
   }
 
-  if (measurement.type === '矩形标注' && measurement.points.length === 2) {
+  if (typeId === 'rectangle' && measurement.points.length === 2) {
     return isRectangleClicked(
       screenPoint,
       measurement.points[0],
@@ -65,7 +68,7 @@ function hitTestMeasurementShape(
     );
   }
 
-  if (measurement.type === '多边形标注' && measurement.points.length >= 3) {
+  if (typeId === 'polygon' && measurement.points.length >= 3) {
     return isPolygonClicked(
       screenPoint,
       measurement.points,
@@ -75,10 +78,10 @@ function hitTestMeasurementShape(
   }
 
   if (
-    (measurement.type === '箭头标注' ||
-      measurement.type === '距离标注' ||
-      measurement.type === '辅助水平线' ||
-      measurement.type === '辅助垂直线') &&
+    (typeId === 'arrow' ||
+      typeId === 'aux-length' ||
+      typeId === 'aux-horizontal-line' ||
+      typeId === 'aux-vertical-line') &&
     measurement.points.length >= 2
   ) {
     return isLineClicked(
@@ -91,7 +94,7 @@ function hitTestMeasurementShape(
   }
 
   if (
-    (measurement.type === '椎体中心' || measurement.type === '锥体中心') &&
+    typeId === 'vertebra-center' &&
     measurement.points.length === 4
   ) {
     if (
@@ -109,7 +112,7 @@ function hitTestMeasurementShape(
     );
   }
 
-  if (measurement.type === '角度标注' && measurement.points.length >= 4) {
+  if (typeId === 'aux-angle' && measurement.points.length >= 4) {
     return (
       isLineClicked(
         screenPoint,

@@ -6,6 +6,7 @@ import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.data.measurement.SaveMeasurementItem
 import com.xiehe.spine.ui.components.analysis.viewer.domain.DEFAULT_STANDARD_DISTANCE_MM
 import com.xiehe.spine.ui.components.analysis.viewer.domain.isPersistedAuxiliaryAnnotationType
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.getAnnotationToolByMeasurementType
 import kotlin.math.roundToInt
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -27,22 +28,23 @@ object AnnotationPersistenceMapper {
             else -> "--"
         }
         val rawId = measurement.id?.takeIf { it.isNotBlank() } ?: "${measurement.type}#$index"
+        val typeId = normalizeMeasurementType(measurement.type)
         val (kind, label, panelVisible) = detectMeasurementKind(
             id = rawId,
-            type = measurement.type,
+            type = typeId,
             value = valueLabel,
             points = measurement.points,
         )
         return ImageAnalysisMeasurement(
             key = rawId,
-            type = measurement.type,
+            type = typeId,
             value = valueLabel,
             points = measurement.points,
             description = measurement.description,
             kind = kind,
             pointLabel = label,
             panelVisible = panelVisible,
-            auxiliary = isPersistedAuxiliaryAnnotationType(measurement.type),
+            auxiliary = isPersistedAuxiliaryAnnotationType(typeId),
         )
     }
 
@@ -86,7 +88,7 @@ object AnnotationPersistenceMapper {
     fun toGenerateReportItem(measurement: ImageAnalysisMeasurement): GenerateReportMeasurementItem? {
         if (measurement.auxiliary) return null
         if (measurement.kind == AnalysisMeasurementKind.COMPUTED && measurement.value == "--") return null
-        if (measurement.kind == AnalysisMeasurementKind.COMPUTED && measurement.type == "标准距离") return null
+        if (measurement.kind == AnalysisMeasurementKind.COMPUTED && measurement.type == "standard_distance") return null
 
         if (measurement.kind == AnalysisMeasurementKind.DETECTED) {
             val label = measurement.pointLabel ?: measurement.type
@@ -204,14 +206,14 @@ object AnnotationPersistenceMapper {
     private fun defaultDescription(type: String): String {
         return when {
             type.startsWith("AI检测", ignoreCase = true) -> "$type 自动检测结果"
-            else -> "$type 测量"
+            else -> "${getAnnotationToolByMeasurementType(type)?.label ?: type} 测量"
         }
     }
 
     private fun ImageAnalysisMeasurement.toExportItem(): ExportMeasurementItem {
         return ExportMeasurementItem(
             id = key,
-            type = type,
+            type = normalizeMeasurementType(type),
             value = value,
             points = points,
             description = description,
@@ -226,15 +228,16 @@ object AnnotationPersistenceMapper {
 
     private fun ExportMeasurementItem.toUiMeasurement(index: Int): ImageAnalysisMeasurement {
         val fallbackId = id?.takeIf { it.isNotBlank() } ?: "${type}#import#$index"
+        val typeId = normalizeMeasurementType(type)
         val fallback = detectMeasurementKind(
             id = fallbackId,
-            type = type,
+            type = typeId,
             value = value ?: "--",
             points = points,
         )
         return ImageAnalysisMeasurement(
             key = fallbackId,
-            type = type,
+            type = typeId,
             value = value ?: "--",
             points = points,
             description = description,
@@ -243,8 +246,13 @@ object AnnotationPersistenceMapper {
             confidence = confidence,
             panelVisible = panelVisible ?: fallback.third,
             helperSegments = helperSegments ?: emptyList(),
-            auxiliary = auxiliary ?: isPersistedAuxiliaryAnnotationType(type),
+            auxiliary = auxiliary ?: isPersistedAuxiliaryAnnotationType(typeId),
         )
+    }
+
+    private fun normalizeMeasurementType(type: String): String {
+        if (type.startsWith("AI检测", ignoreCase = true)) return type
+        return getAnnotationToolByMeasurementType(type)?.id ?: type.trim().lowercase().replace(Regex("\\s+"), "-")
     }
 }
 

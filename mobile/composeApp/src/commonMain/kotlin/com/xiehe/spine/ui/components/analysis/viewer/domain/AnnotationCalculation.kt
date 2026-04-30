@@ -70,7 +70,7 @@ fun createManualAnnotationMeasurement(
     return when (toolId) {
         TOOL_T1_TILT -> angularMeasurement(
             key = measurementKey,
-            type = "T1 Tilt",
+            type = TOOL_T1_TILT,
             description = "T1椎体倾斜角测量",
             points = points,
             angle = angleToHorizontal(points[0], points[1]),
@@ -79,14 +79,14 @@ fun createManualAnnotationMeasurement(
 
         TOOL_COBB -> cobbLikeMeasurement(
             key = measurementKey,
-            type = "Cobb",
+            type = TOOL_COBB,
             description = "Cobb角测量",
             points = points,
         )
 
         TOOL_CA -> angularMeasurement(
             key = measurementKey,
-            type = "CA",
+            type = TOOL_CA,
             description = "锁骨角测量(Clavicle Angle)",
             points = points,
             angle = abs(angleToHorizontal(points[0], points[1])),
@@ -95,7 +95,7 @@ fun createManualAnnotationMeasurement(
 
         TOOL_PELVIC -> angularMeasurement(
             key = measurementKey,
-            type = "Pelvic",
+            type = TOOL_PELVIC,
             description = "骨盆倾斜角测量",
             points = points,
             angle = angleToHorizontal(points[0], points[1]),
@@ -104,7 +104,7 @@ fun createManualAnnotationMeasurement(
 
         TOOL_SACRAL -> angularMeasurement(
             key = measurementKey,
-            type = "Sacral",
+            type = TOOL_SACRAL,
             description = "骶骨倾斜角测量",
             points = points,
             angle = angleToHorizontal(points[0], points[1]),
@@ -113,7 +113,7 @@ fun createManualAnnotationMeasurement(
 
         TOOL_AVT -> distanceMeasurement(
             key = measurementKey,
-            type = "AVT",
+            type = TOOL_AVT,
             description = "顶椎平移量(Apical Vertebral Translation)",
             points = points,
             distanceMm = calculateActualDistance(abs(points[1].x - points[0].x), calibration),
@@ -121,8 +121,8 @@ fun createManualAnnotationMeasurement(
 
         TOOL_TS -> distanceMeasurement(
             key = measurementKey,
-            type = "TS",
-            description = "躯干偏移量TS(Trunk Shift)",
+            type = TOOL_TS,
+            description = "胸廓躯干偏移TTS(Thoracic Trunk Shift)",
             points = points,
             distanceMm = calculateActualDistance(
                 abs(midpoint(points[0], points[1]).x - midpoint(points[2], points[3]).x),
@@ -132,7 +132,7 @@ fun createManualAnnotationMeasurement(
 
         TOOL_LLD -> distanceMeasurement(
             key = measurementKey,
-            type = "LLD",
+            type = TOOL_LLD,
             description = "双下肢不等长",
             points = points,
             distanceMm = calculateActualDistance(abs(points[1].y - points[0].y), calibration),
@@ -143,8 +143,8 @@ fun createManualAnnotationMeasurement(
             val reference = midpoint(points[4], points[5])
             distanceMeasurement(
                 key = measurementKey,
-                type = "TTS",
-                description = "C7偏移距离TTS(Trunk Shift)",
+                type = TOOL_C7_OFFSET,
+                description = "躯干偏移TS(Trunk Shift)",
                 points = points,
                 distanceMm = calculateActualDistance(abs(center.x - reference.x), calibration),
             )
@@ -152,7 +152,7 @@ fun createManualAnnotationMeasurement(
 
         TOOL_T1_SLOPE -> angularMeasurement(
             key = measurementKey,
-            type = "T1 Slope",
+            type = TOOL_T1_SLOPE,
             description = "T1倾斜角测量（侧位）",
             points = points,
             angle = angleToHorizontal(points[0], points[1]),
@@ -161,49 +161,49 @@ fun createManualAnnotationMeasurement(
 
         TOOL_CL -> cobbLikeMeasurement(
             key = measurementKey,
-            type = "C2-C7 CL",
+            type = TOOL_CL,
             description = "C2-C7前凸角测量(Cervical Lordosis)",
             points = points,
         )
 
         TOOL_TK_T2_T5 -> cobbLikeMeasurement(
             key = measurementKey,
-            type = "TK T2-T5",
+            type = TOOL_TK_T2_T5,
             description = "上胸椎后凸角(T2上终板与T5下终板)",
             points = points,
         )
 
         TOOL_TK_T5_T12 -> cobbLikeMeasurement(
             key = measurementKey,
-            type = "TK T5-T12",
+            type = TOOL_TK_T5_T12,
             description = "主胸椎后凸角(T5上终板与T12下终板)",
             points = points,
         )
 
         TOOL_T10_L2 -> cobbLikeMeasurement(
             key = measurementKey,
-            type = "T10-L2",
+            type = TOOL_T10_L2,
             description = "胸腰椎后凸角(T10上终板与L2下终板)",
             points = points,
         )
 
         TOOL_LL_L1_S1 -> cobbLikeMeasurement(
             key = measurementKey,
-            type = "LL L1-S1",
+            type = TOOL_LL_L1_S1,
             description = "整体腰椎前凸(L1上终板与S1上终板)",
             points = points,
         )
 
         TOOL_LL_L1_L4 -> cobbLikeMeasurement(
             key = measurementKey,
-            type = "LL L1-L4",
+            type = TOOL_LL_L1_L4,
             description = "腰椎前凸L1-L4(L1上终板与L4下终板)",
             points = points,
         )
 
         TOOL_LL_L4_S1 -> cobbLikeMeasurement(
             key = measurementKey,
-            type = "LL L4-S1",
+            type = TOOL_LL_L4_S1,
             description = "腰椎前凸L4-S1(L4上终板与S1上终板)",
             points = points,
         )
@@ -216,7 +216,7 @@ fun createManualAnnotationMeasurement(
             val secondVector = vectorFrom(vertex, tailMidpoint)
             AnnotationMeasurement(
                 key = measurementKey,
-                type = "TPA",
+                type = TOOL_TPA,
                 value = formatAngle(angleBetweenVectors(firstVector, secondVector), signed = false),
                 points = points,
                 description = "T1骨盆角(T1 Pelvic Angle)",
@@ -232,7 +232,7 @@ fun createManualAnnotationMeasurement(
             val signedDistance = if (pixelDistance > 0.0) actualDistance else -actualDistance
             AnnotationMeasurement(
                 key = measurementKey,
-                type = "SVA",
+                type = TOOL_SVA,
                 value = formatDistance(signedDistance),
                 points = points,
                 description = "矢状面垂直轴(Sagittal Vertical Axis)",
@@ -247,7 +247,7 @@ fun createManualAnnotationMeasurement(
             val angle = toAcuteAngle(angleBetweenVectors(cToM, geometry.sacralNormal))
             AnnotationMeasurement(
                 key = measurementKey,
-                type = "PI",
+                type = TOOL_PI,
                 value = formatAngle(angle, signed = false),
                 points = points,
                 description = "骨盆入射角(Pelvic Incidence)",
@@ -264,7 +264,7 @@ fun createManualAnnotationMeasurement(
             val angle = if (dx < 0) -magnitude else magnitude
             AnnotationMeasurement(
                 key = measurementKey,
-                type = "PT",
+                type = TOOL_PT,
                 value = formatAngle(angle, signed = true),
                 points = points,
                 description = "骨盆倾斜角(Pelvic Tilt)",
@@ -274,7 +274,7 @@ fun createManualAnnotationMeasurement(
 
         TOOL_SS -> angularMeasurement(
             key = measurementKey,
-            type = "SS",
+            type = TOOL_SS,
             description = "骶骨倾斜角(Sacral Slope)",
             points = points,
             angle = abs(angleToHorizontal(points[0], points[1])),
@@ -283,7 +283,7 @@ fun createManualAnnotationMeasurement(
 
         TOOL_LENGTH -> distanceMeasurement(
             key = measurementKey,
-            type = "长度测量",
+            type = TOOL_LENGTH,
             description = "距离测量工具",
             points = points,
             distanceMm = calculateRawLengthDistance(points[0], points[1], calibration),
@@ -292,7 +292,7 @@ fun createManualAnnotationMeasurement(
         TOOL_AUX_LENGTH,
         -> distanceMeasurement(
             key = measurementKey,
-            type = "距离标注",
+            type = TOOL_AUX_LENGTH,
             description = "辅助距离测量",
             points = points,
             distanceMm = calculateRawLengthDistance(points[0], points[1], calibration),
@@ -303,7 +303,7 @@ fun createManualAnnotationMeasurement(
             val angle = angleAtVertex(points[0], points[1], points[2])
             AnnotationMeasurement(
                 key = measurementKey,
-                type = "角度测量",
+                type = TOOL_ANGLE,
                 value = formatAngle(angle, signed = false),
                 points = points,
                 description = "通用角度测量",
@@ -316,7 +316,7 @@ fun createManualAnnotationMeasurement(
             val secondVector = vectorFrom(points[2], points[3])
             AnnotationMeasurement(
                 key = measurementKey,
-                type = "角度标注",
+                type = TOOL_AUX_ANGLE,
                 value = formatAngle(angleBetweenVectors(firstVector, secondVector), signed = false),
                 points = points,
                 description = "辅助角度测量（两条线段夹角）",
@@ -327,7 +327,7 @@ fun createManualAnnotationMeasurement(
 
         TOOL_AUX_HORIZONTAL_LINE -> distanceMeasurement(
             key = measurementKey,
-            type = "辅助水平线",
+            type = TOOL_AUX_HORIZONTAL_LINE,
             description = "辅助水平线段长度测量",
             points = listOf(points[0], MeasurementPoint(x = points[1].x, y = points[0].y)),
             distanceMm = calculateActualDistance(abs(points[1].x - points[0].x), calibration),
@@ -336,7 +336,7 @@ fun createManualAnnotationMeasurement(
 
         TOOL_AUX_VERTICAL_LINE -> distanceMeasurement(
             key = measurementKey,
-            type = "辅助垂直线",
+            type = TOOL_AUX_VERTICAL_LINE,
             description = "辅助垂直线段长度测量",
             points = listOf(points[0], MeasurementPoint(x = points[0].x, y = points[1].y)),
             distanceMm = calculateActualDistance(abs(points[1].y - points[0].y), calibration),
@@ -347,7 +347,7 @@ fun createManualAnnotationMeasurement(
             val mm = standardDistanceMm ?: DEFAULT_STANDARD_DISTANCE_MM
             AnnotationMeasurement(
                 key = measurementKey,
-                type = "标准距离",
+                type = TOOL_STANDARD_DISTANCE,
                 value = "${formatStandardDistanceInput(mm)}mm",
                 points = points,
                 description = "标准距离校准线",
@@ -357,23 +357,22 @@ fun createManualAnnotationMeasurement(
         }
 
         TOOL_VERTEBRA_CENTER -> {
-            val center = average(points)
             AnnotationMeasurement(
                 key = measurementKey,
-                type = "椎体中心",
-                value = formatPointValue(center),
+                type = TOOL_VERTEBRA_CENTER,
+                value = "椎体中心",
                 points = points,
-                description = "标注椎体中心（4个角点）",
+                description = "辅助图形-$TOOL_VERTEBRA_CENTER",
                 kind = AnnotationMeasurementKind.COMPUTED,
                 auxiliary = true,
             )
         }
 
-        TOOL_AUX_CIRCLE -> auxiliaryMeasurement(measurementKey, "Auxiliary Circle", points)
-        TOOL_AUX_ELLIPSE -> auxiliaryMeasurement(measurementKey, "Auxiliary Ellipse", points)
-        TOOL_AUX_BOX -> auxiliaryMeasurement(measurementKey, "Auxiliary Box", points)
-        TOOL_AUX_ARROW -> auxiliaryMeasurement(measurementKey, "Arrow", points)
-        TOOL_AUX_POLYGON -> auxiliaryMeasurement(measurementKey, "Polygons", points)
+        TOOL_AUX_CIRCLE -> auxiliaryMeasurement(measurementKey, TOOL_AUX_CIRCLE, points)
+        TOOL_AUX_ELLIPSE -> auxiliaryMeasurement(measurementKey, TOOL_AUX_ELLIPSE, points)
+        TOOL_AUX_BOX -> auxiliaryMeasurement(measurementKey, TOOL_AUX_BOX, points)
+        TOOL_AUX_ARROW -> auxiliaryMeasurement(measurementKey, TOOL_AUX_ARROW, points)
+        TOOL_AUX_POLYGON -> auxiliaryMeasurement(measurementKey, TOOL_AUX_POLYGON, points)
         else -> null
     }
 }
@@ -569,12 +568,6 @@ private fun formatAngle(value: Double, signed: Boolean): String {
 
 private fun formatDistance(value: Double): String {
     return "${value.toBigDecimal().setScale(2, java.math.RoundingMode.HALF_UP)}mm"
-}
-
-private fun formatPointValue(point: MeasurementPoint): String {
-    val x = point.x.toBigDecimal().setScale(1, java.math.RoundingMode.HALF_UP)
-    val y = point.y.toBigDecimal().setScale(1, java.math.RoundingMode.HALF_UP)
-    return "($x, $y)"
 }
 
 private fun formatStandardDistanceInput(value: Double): String {

@@ -39,52 +39,52 @@ data class InheritedPointsResult(
 private val pointInheritanceRules = mapOf(
     TOOL_C7_OFFSET to listOf(
         PointInheritanceRule(
-            fromType = "Sacral",
+            fromType = TOOL_SACRAL,
             sourcePointIndices = listOf(0, 1),
             destinationPointIndices = listOf(4, 5),
         ),
     ),
     TOOL_TS to listOf(
         PointInheritanceRule(
-            fromType = "Sacral",
+            fromType = TOOL_SACRAL,
             sourcePointIndices = listOf(0, 1),
             destinationPointIndices = listOf(2, 3),
         ),
     ),
     TOOL_SACRAL to listOf(
         PointInheritanceRule(
-            fromType = "TS(Trunk Shift)",
+            fromType = TOOL_C7_OFFSET,
             sourcePointIndices = listOf(4, 5),
             destinationPointIndices = listOf(0, 1),
         ),
         PointInheritanceRule(
-            fromType = "TTS",
+            fromType = TOOL_TS,
             sourcePointIndices = listOf(2, 3),
             destinationPointIndices = listOf(0, 1),
         ),
     ),
     TOOL_SVA to listOf(
         PointInheritanceRule(
-            fromType = "C2-C7 CL",
+            fromType = TOOL_CL,
             sourcePointIndices = listOf(2, 3),
             destinationPointIndices = listOf(0, 1),
         ),
         PointInheritanceRule(
-            fromType = "SS",
+            fromType = TOOL_SS,
             sourcePointIndices = listOf(1),
             destinationPointIndices = listOf(4),
         ),
     ),
     TOOL_CL to listOf(
         PointInheritanceRule(
-            fromType = "SVA",
+            fromType = TOOL_SVA,
             sourcePointIndices = listOf(0, 1),
             destinationPointIndices = listOf(2, 3),
         ),
     ),
     TOOL_SS to listOf(
         PointInheritanceRule(
-            fromType = "SVA",
+            fromType = TOOL_SVA,
             sourcePointIndices = listOf(4),
             destinationPointIndices = listOf(1),
         ),
@@ -94,41 +94,41 @@ private val pointInheritanceRules = mapOf(
 private val sharedAnatomicalPointGroups = listOf(
     SharedAnatomicalPoint(
         participants = listOf(
-            SharedAnatomicalPointParticipant(TOOL_LL_L1_L4, "LL L1-L4", 0),
-            SharedAnatomicalPointParticipant(TOOL_LL_L1_S1, "LL L1-S1", 0),
+            SharedAnatomicalPointParticipant(TOOL_LL_L1_L4, TOOL_LL_L1_L4, 0),
+            SharedAnatomicalPointParticipant(TOOL_LL_L1_S1, TOOL_LL_L1_S1, 0),
         ),
     ),
     SharedAnatomicalPoint(
         participants = listOf(
-            SharedAnatomicalPointParticipant(TOOL_LL_L1_L4, "LL L1-L4", 1),
-            SharedAnatomicalPointParticipant(TOOL_LL_L1_S1, "LL L1-S1", 1),
+            SharedAnatomicalPointParticipant(TOOL_LL_L1_L4, TOOL_LL_L1_L4, 1),
+            SharedAnatomicalPointParticipant(TOOL_LL_L1_S1, TOOL_LL_L1_S1, 1),
         ),
     ),
     SharedAnatomicalPoint(
         participants = listOf(
-            SharedAnatomicalPointParticipant(TOOL_LL_L1_S1, "LL L1-S1", 2),
-            SharedAnatomicalPointParticipant(TOOL_LL_L4_S1, "LL L4-S1", 2),
-            SharedAnatomicalPointParticipant(TOOL_TPA, "TPA", 5),
-            SharedAnatomicalPointParticipant(TOOL_PI, "PI", 1),
-            SharedAnatomicalPointParticipant(TOOL_PT, "PT", 1),
-            SharedAnatomicalPointParticipant(TOOL_SS, "SS", 0),
+            SharedAnatomicalPointParticipant(TOOL_LL_L1_S1, TOOL_LL_L1_S1, 2),
+            SharedAnatomicalPointParticipant(TOOL_LL_L4_S1, TOOL_LL_L4_S1, 2),
+            SharedAnatomicalPointParticipant(TOOL_TPA, TOOL_TPA, 5),
+            SharedAnatomicalPointParticipant(TOOL_PI, TOOL_PI, 1),
+            SharedAnatomicalPointParticipant(TOOL_PT, TOOL_PT, 1),
+            SharedAnatomicalPointParticipant(TOOL_SS, TOOL_SS, 0),
         ),
     ),
     SharedAnatomicalPoint(
         participants = listOf(
-            SharedAnatomicalPointParticipant(TOOL_LL_L1_S1, "LL L1-S1", 3),
-            SharedAnatomicalPointParticipant(TOOL_LL_L4_S1, "LL L4-S1", 3),
-            SharedAnatomicalPointParticipant(TOOL_TPA, "TPA", 6),
-            SharedAnatomicalPointParticipant(TOOL_PI, "PI", 2),
-            SharedAnatomicalPointParticipant(TOOL_PT, "PT", 2),
-            SharedAnatomicalPointParticipant(TOOL_SS, "SS", 1),
+            SharedAnatomicalPointParticipant(TOOL_LL_L1_S1, TOOL_LL_L1_S1, 3),
+            SharedAnatomicalPointParticipant(TOOL_LL_L4_S1, TOOL_LL_L4_S1, 3),
+            SharedAnatomicalPointParticipant(TOOL_TPA, TOOL_TPA, 6),
+            SharedAnatomicalPointParticipant(TOOL_PI, TOOL_PI, 2),
+            SharedAnatomicalPointParticipant(TOOL_PT, TOOL_PT, 2),
+            SharedAnatomicalPointParticipant(TOOL_SS, TOOL_SS, 1),
         ),
     ),
     SharedAnatomicalPoint(
         participants = listOf(
-            SharedAnatomicalPointParticipant(TOOL_TPA, "TPA", 4),
-            SharedAnatomicalPointParticipant(TOOL_PI, "PI", 0),
-            SharedAnatomicalPointParticipant(TOOL_PT, "PT", 0),
+            SharedAnatomicalPointParticipant(TOOL_TPA, TOOL_TPA, 4),
+            SharedAnatomicalPointParticipant(TOOL_PI, TOOL_PI, 0),
+            SharedAnatomicalPointParticipant(TOOL_PT, TOOL_PT, 0),
         ),
     ),
 )
@@ -189,11 +189,5 @@ private fun findMeasurementForInheritance(
     expectedType: String,
     measurements: List<AnnotationMeasurement>,
 ): AnnotationMeasurement? {
-    return measurements.firstOrNull { measurement ->
-        when (expectedType) {
-            "TTS" -> measurement.type == "TS" || (measurement.type == "TTS" && measurement.points.size < 6)
-            "TS(Trunk Shift)" -> measurement.type == "TS(Trunk Shift)" || (measurement.type == "TTS" && measurement.points.size >= 6)
-            else -> measurement.type == expectedType
-        }
-    }
+    return measurements.firstOrNull { measurement -> measurement.type == expectedType }
 }

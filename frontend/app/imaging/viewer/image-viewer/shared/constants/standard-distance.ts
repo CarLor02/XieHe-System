@@ -13,8 +13,7 @@ export const STANDARD_DISTANCE_CONSTANTS = {
 } as const;
 
 export const STANDARD_DISTANCE_DEPENDENT_TYPES = [
-  'AVT',
-  'TTS',
-  'SVA',
+  'avt',
+  'tts',
+  'sva',
 ] as const;
-

@@ -1,5 +1,6 @@
 import { MeasurementData, Point } from '../../../types';
 import { SelectionState } from '../types';
+import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
 
 interface SelectionOverlayLayerProps {
   selectionState: SelectionState;
@@ -51,8 +52,9 @@ export default function SelectionOverlayLayer({
   let maxY: number;
 
   if (selectedMeasurement && selectionState.type === 'whole') {
+    const typeId = getAnnotationTypeId(selectedMeasurement.type);
     if (
-      selectedMeasurement.type === '圆形标注' &&
+      typeId === 'circle' &&
       selectedMeasurement.points.length >= 2
     ) {
       const center = selectedMeasurement.points[0];
@@ -69,7 +71,7 @@ export default function SelectionOverlayLayer({
       minY = screenCenter.y - screenRadius - 15;
       maxY = screenCenter.y + screenRadius + 15;
     } else if (
-      selectedMeasurement.type === '椭圆标注' &&
+      typeId === 'ellipse' &&
       selectedMeasurement.points.length >= 2
     ) {
       const center = selectedMeasurement.points[0];
@@ -84,8 +86,8 @@ export default function SelectionOverlayLayer({
       minY = screenCenter.y - screenRadiusY - 15;
       maxY = screenCenter.y + screenRadiusY + 15;
     } else if (
-      (selectedMeasurement.type === '矩形标注' ||
-        selectedMeasurement.type === '箭头标注') &&
+      (typeId === 'rectangle' ||
+        typeId === 'arrow') &&
       selectedMeasurement.points.length >= 2
     ) {
       const startScreen = imageToScreen(selectedMeasurement.points[0]);

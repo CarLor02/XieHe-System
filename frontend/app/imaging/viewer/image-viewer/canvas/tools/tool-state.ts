@@ -9,6 +9,7 @@ import {
   VERTICAL_LINE_TOOLS,
   STANDARD_DISTANCE_DEPENDENT_TYPES,
 } from '../../shared/constants';
+import { getAnnotationTypeId } from '../../catalog/annotation-catalog';
 
 /**
  * 检查是否为辅助工具
@@ -25,18 +26,9 @@ export function isAuxiliaryTool(toolId: string): boolean {
  * @returns 是否为辅助图形
  */
 export function isAuxiliaryShape(measurementType: string): boolean {
-  const auxiliaryShapeNames = [
-    '圆形标注',
-    '椭圆标注',
-    '矩形标注',
-    '箭头标注',
-    '多边形标注',
-    '椎体中心',
-    '锥体中心',
-    '辅助水平线',
-    '辅助垂直线',
-  ];
-  return auxiliaryShapeNames.includes(measurementType);
+  return AUXILIARY_TOOL_TYPES.includes(
+    getAnnotationTypeId(measurementType) as any
+  );
 }
 
 /**
@@ -63,7 +55,9 @@ export function needsVerticalLine(toolId: string): boolean {
  * @returns 是否依赖标准距离
  */
 export function dependsOnStandardDistance(measurementType: string): boolean {
-  return STANDARD_DISTANCE_DEPENDENT_TYPES.includes(measurementType as any);
+  return STANDARD_DISTANCE_DEPENDENT_TYPES.includes(
+    getAnnotationTypeId(measurementType) as any
+  );
 }
 
 /**

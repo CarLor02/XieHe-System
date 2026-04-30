@@ -4,7 +4,12 @@
  */
 
 import type { JSX } from 'react';
-import { Point, getAnnotationConfig } from '../catalog/annotation-catalog';
+import {
+  Point,
+  getAnnotationConfig,
+  getAnnotationDisplayName,
+  getAnnotationTypeId,
+} from '../catalog/annotation-catalog';
 import { MeasurementData } from '../types';
 
 const EDITABLE_AUXILIARY_CONFIG_IDS = new Set([
@@ -20,14 +25,12 @@ const EDITABLE_AUXILIARY_CONFIG_IDS = new Set([
   'aux-vertical-line',
 ]);
 
-const LEGACY_AUXILIARY_TYPES = new Set(['锥体中心']);
-
 const INLINE_TEXT_AUXILIARY_TYPES = new Set([
-  '圆形标注',
-  '椭圆标注',
-  '矩形标注',
-  '箭头标注',
-  '多边形标注',
+  'circle',
+  'ellipse',
+  'rectangle',
+  'arrow',
+  'polygon',
 ]);
 
 /**
@@ -195,7 +198,7 @@ export function isAuxiliaryShape(type: string): boolean {
  * 部分辅助图形使用内嵌彩色文字 tag，而不是白底测量值标签。
  */
 export function usesInlineAuxiliaryTag(type: string): boolean {
-  return INLINE_TEXT_AUXILIARY_TYPES.has(type);
+  return INLINE_TEXT_AUXILIARY_TYPES.has(getAnnotationTypeId(type));
 }
 
 /**
@@ -225,9 +228,7 @@ export function hasCustomAuxiliaryTagText(
  */
 export function isEditableAuxiliaryAnnotationType(type: string): boolean {
   const config = getAnnotationConfig(type);
-  if (!config) {
-    return LEGACY_AUXILIARY_TYPES.has(type);
-  }
+  if (!config) return false;
 
   return (
     config.category === 'auxiliary' ||
@@ -271,6 +272,5 @@ export function isAuxiliaryType(type: string): boolean {
  * 获取标注类型的显示名称
  */
 export function getDisplayName(type: string): string {
-  const config = getAnnotationConfig(type);
-  return config?.name || type;
+  return getAnnotationDisplayName(type);
 }

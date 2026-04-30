@@ -1,7 +1,10 @@
 import {ImageSize, MeasurementData, Point, StudyData} from "../types";
 import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
 import {RefObject, useEffect} from "react";
-import {CalculationContext} from "@/app/imaging/viewer/image-viewer/catalog/annotation-catalog";
+import {
+    CalculationContext,
+    getAnnotationTypeId,
+} from "@/app/imaging/viewer/image-viewer/catalog/annotation-catalog";
 
 export function useLocalAnnotationsDataLoader(
     imageId: string,
@@ -110,16 +113,17 @@ export function useLocalAnnotationsDataLoader(
 
                         // 对于AI检测的标注，保留原来的value和description
                         const isAIDetection = m.type.startsWith('AI检测-');
+                        const typeId = isAIDetection ? m.type : getAnnotationTypeId(m.type);
 
                         return {
                             id:
                                 m.id ||
                                 Date.now().toString() +
                                 Math.random().toString(36).substring(2, 11),
-                            type: m.type,
+                            type: typeId,
                             value: isAIDetection
                                 ? m.value || ''
-                                : calcMeasurementValue(m.type, scaledPoints, {
+                                : calcMeasurementValue(typeId, scaledPoints, {
                                     standardDistance: loadedStandardDistance,
                                     standardDistancePoints: loadedStandardDistancePoints,
                                     imageNaturalSize,
@@ -127,7 +131,7 @@ export function useLocalAnnotationsDataLoader(
                             points: scaledPoints,
                             description: isAIDetection
                                 ? m.description || m.type
-                                : getDescriptionForType(m.type),
+                                : getDescriptionForType(typeId),
                         };
                     });
                     setMeasurements(restoredMeasurements);

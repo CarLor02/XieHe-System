@@ -1,5 +1,6 @@
 import {
   getAuxiliaryTagText,
+  getDisplayName,
   hasCustomAuxiliaryTagText,
   isEditableAuxiliaryAnnotationType,
 } from '../../../domain/annotation-metadata';
@@ -160,7 +161,7 @@ export default function MeasurementResultsPanel({
                     isEditableAuxiliaryAnnotationType(measurement.type) &&
                     hasCustomAuxiliaryTagText(measurement)
                       ? getAuxiliaryTagText(measurement)
-                      : measurement.type;
+                      : getDisplayName(measurement.type);
 
                   return (
                     <div

@@ -12,7 +12,10 @@ import {
   createEmptyBindings,
   mergeBindings,
 } from './domain/annotation-binding';
-import { CalculationContext } from './catalog/annotation-catalog';
+import {
+  CalculationContext,
+  getAnnotationTypeId,
+} from './catalog/annotation-catalog';
 import {
   calculateMeasurementValue as calcMeasurementValue,
 } from './domain/annotation-calculation';
@@ -523,19 +526,20 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
           // 对于AI检测的标注，保留原来的value和description
           const isAIDetection = m.type.startsWith('AI检测-');
+          const typeId = isAIDetection ? m.type : getAnnotationTypeId(m.type);
 
           return {
             id:
               Date.now().toString() +
               Math.random().toString(36).substring(2, 11),
-            type: m.type,
+            type: typeId,
             value: isAIDetection
               ? m.value || ''
-              : calculateMeasurementValue(m.type, scaledPoints),
+              : calculateMeasurementValue(typeId, scaledPoints),
             points: scaledPoints,
             description: isAIDetection
               ? m.description || m.type
-              : getDescriptionForType(m.type),
+              : getDescriptionForType(typeId),
           };
         });
 
@@ -633,15 +637,17 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
         // 统计已有的Cobb角数量（用于自动编号）
         let cobbCount = measurements.filter(m =>
-          m.type.startsWith('Cobb')
+          /^cobb\d+$/i.test(m.type)
         ).length;
 
         const aiMeasurements = filterUniqueAnnotationDuplicates(
           aiData.measurements.filter((m: any) => {
+            const incomingTypeId = getAnnotationTypeId(m.type);
             // 检查标注类型是否存在于配置中
             // 优先匹配 name（精确匹配），然后匹配 id（小写匹配），最后匹配 name（不区分大小写）
             const tool = tools.find(
               (t: any) =>
+                t.id === incomingTypeId ||
                 t.name === m.type ||
                 t.id === m.type.toLowerCase() ||
                 t.name.toLowerCase() === m.type.toLowerCase() ||
@@ -661,8 +667,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           .map((m: any) => {
             // 获取该标注类型所需的点数
             const tools = getTools(imageData.examType);
+            const incomingTypeId = getAnnotationTypeId(m.type);
             const tool = tools.find(
               (t: any) =>
+                t.id === incomingTypeId ||
                 t.name === m.type ||
                 t.id === m.type.toLowerCase() ||
                 t.name.toLowerCase() === m.type.toLowerCase() ||
@@ -683,17 +691,17 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             }));
 
             // 将所有Cobb-*类型统一映射为Cobb1, Cobb2, Cobb3
-            let finalType = m.type;
+            let finalType = tool?.id || incomingTypeId;
             let isCobb = false;
             if (m.type.startsWith('Cobb-')) {
               cobbCount++;
-              finalType = `Cobb${cobbCount}`;
+              finalType = `cobb${cobbCount}`;
               isCobb = true;
             }
 
             // 根据type和points重新计算value
             // 对于Cobb类型，使用'cobb'配置；其他类型使用原始类型
-            const typeForCalculation = isCobb ? 'cobb' : m.type;
+            const typeForCalculation = isCobb ? 'cobb' : finalType;
             const value = calculateMeasurementValue(
               typeForCalculation,
               scaledPoints
@@ -718,7 +726,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               points: scaledPoints,
               description: isCobb
                 ? 'Cobb角测量'
-                : getDescriptionForType(m.type),
+                : getDescriptionForType(finalType),
               originalType: m.type, // 保留原始类型用于调试
               // 保存椎体信息（仅Cobb角有）
               upperVertebra: m.upper_vertebra,
@@ -731,15 +739,15 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         setMeasurements(aiMeasurements);
         // AI 返回后执行一次基于坐标重合的自动绑定
         const S1_RELATED_TYPES = new Set([
-          'SS',
-          'LL L1-S1',
-          'LL L4-S1',
-          'PI',
-          'PT',
-          'TPA',
+          'ss',
+          'll-l1-s1',
+          'll-l4-s1',
+          'pi',
+          'pt',
+          'tpa',
         ]);
         const s1Count = aiMeasurements.filter((m: any) =>
-          S1_RELATED_TYPES.has(m.type)
+          S1_RELATED_TYPES.has(getAnnotationTypeId(m.type))
         ).length;
         const s1Bindings =
           s1Count >= 2

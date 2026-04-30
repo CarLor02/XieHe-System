@@ -3,6 +3,7 @@ import {Point, MeasurementData, AnnotationData} from "../types";
 import {getImageFile} from "@/services/imageServices/imageFileService"
 import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
 import {StudyData} from "@/app/imaging/viewer/image-viewer/types";
+import {getAnnotationTypeId} from "@/app/imaging/viewer/image-viewer/catalog/annotation-catalog";
 
 export function useStudyDataLoader(
     imageId: string,
@@ -44,7 +45,12 @@ export function useStudyDataLoader(
                         annotationData.measurements &&
                         Array.isArray(annotationData.measurements) // TODO 以后看下这里的校验能不能精准一些
                     ) {
-                        setMeasurements(annotationData.measurements as MeasurementData[]);
+                        setMeasurements(
+                            (annotationData.measurements as MeasurementData[]).map(measurement => ({
+                                ...measurement,
+                                type: getAnnotationTypeId(measurement.type),
+                            }))
+                        );
                         // 标记 DB 数据已加载，阻止 localStorage 后续覆盖
                         dbAnnotationLoadedRef.current = true;
                         console.log(
@@ -107,4 +113,3 @@ export function useStudyDataLoader(
         [imageId]
     );
 }
-

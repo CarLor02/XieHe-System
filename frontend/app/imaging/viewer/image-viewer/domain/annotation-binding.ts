@@ -10,6 +10,8 @@
  *    S1右点  ->  {SS, 1}  {LL L1-S1, 3}  {LL L4-S1, 3}  {PI, 2}  {PT, 2}  {TPA, 6}
  */
 
+import { getAnnotationTypeId } from '../catalog/annotation-catalog';
+
 // ==================== 类型定义 ====================
 
 /** 单个点的引用 */
@@ -46,12 +48,12 @@ export const S1_BINDING_POINT_MAP: Record<
   string,
   { left: number | null; right: number | null }
 > = {
-  'SS':       { left: 0, right: 1 },  // SS 骶骨倾斜角：points[0],points[1] = S1上缘两端
-  'LL L1-S1': { left: 2, right: 3 },  // LL L1-S1：points[2],points[3] = S1上缘
-  'LL L4-S1': { left: 2, right: 3 },  // LL L4-S1：points[2],points[3] = S1上缘
-  'PI':       { left: 1, right: 2 },  // PI：points[1],points[2] = S1上缘左右端点
-  'PT':       { left: 1, right: 2 },  // PT：points[1],points[2] = S1上缘左右端点
-  'TPA':      { left: 5, right: 6 },  // TPA：points[5],points[6] = S1上缘左右端点
+  ss: { left: 0, right: 1 },  // SS 骶骨倾斜角：points[0],points[1] = S1上缘两端
+  'll-l1-s1': { left: 2, right: 3 },  // LL L1-S1：points[2],points[3] = S1上缘
+  'll-l4-s1': { left: 2, right: 3 },  // LL L4-S1：points[2],points[3] = S1上缘
+  pi: { left: 1, right: 2 },  // PI：points[1],points[2] = S1上缘左右端点
+  pt: { left: 1, right: 2 },  // PT：points[1],points[2] = S1上缘左右端点
+  tpa: { left: 5, right: 6 },  // TPA：points[5],points[6] = S1上缘左右端点
 };
 
 // ==================== 工厂函数 ====================
@@ -72,7 +74,7 @@ export function autoCreateS1Bindings(
   const rightMembers: PointRef[] = [];
 
   for (const m of measurements) {
-    const mapping = S1_BINDING_POINT_MAP[m.type];
+    const mapping = S1_BINDING_POINT_MAP[getAnnotationTypeId(m.type)];
     if (!mapping) continue;
 
     if (mapping.left !== null && m.points.length > mapping.left) {

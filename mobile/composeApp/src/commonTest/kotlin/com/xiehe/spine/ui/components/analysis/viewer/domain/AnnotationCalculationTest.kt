@@ -18,13 +18,13 @@ class AnnotationCalculationTest {
                 MeasurementPoint(15.0, 60.0),
                 MeasurementPoint(55.0, 60.0),
             ),
-            measurementKey = "ts",
+            measurementKey = "tts",
             calibration = emptyCalibration(),
             standardDistanceMm = null,
         )
 
-        assertEquals("TS", measurement?.type)
-        assertEquals("躯干偏移量TS(Trunk Shift)", measurement?.description)
+        assertEquals(TOOL_TS, measurement?.type)
+        assertEquals("胸廓躯干偏移TTS(Thoracic Trunk Shift)", measurement?.description)
     }
 
     @Test
@@ -39,13 +39,13 @@ class AnnotationCalculationTest {
                 MeasurementPoint(15.0, 90.0),
                 MeasurementPoint(55.0, 90.0),
             ),
-            measurementKey = "tts",
+            measurementKey = "c7-offset",
             calibration = emptyCalibration(),
             standardDistanceMm = null,
         )
 
-        assertEquals("TTS", measurement?.type)
-        assertEquals("C7偏移距离TTS(Trunk Shift)", measurement?.description)
+        assertEquals(TOOL_C7_OFFSET, measurement?.type)
+        assertEquals("躯干偏移TS(Trunk Shift)", measurement?.description)
     }
 
     private fun emptyCalibration() = AnnotationCalibrationContext(

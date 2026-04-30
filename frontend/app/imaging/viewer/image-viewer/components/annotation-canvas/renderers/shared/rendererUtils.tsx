@@ -1,5 +1,6 @@
 import { MeasurementData, Point } from '../../../../types';
 import { estimateTextHeight, estimateTextWidth } from '../../../../shared/labels';
+import { getDisplayName } from '../../../../domain/annotation-metadata';
 
 /**
  * 格式化图表上显示的数值
@@ -51,7 +52,7 @@ export function renderMeasurementValueTag(
 ) {
   // 使用格式化后的值用于图表显示
   const displayValue = formatDisplayValue(measurement.value);
-  const text = `${measurement.type}: ${displayValue}`;
+  const text = `${getDisplayName(measurement.type)}: ${displayValue}`;
 
   return (
     <text

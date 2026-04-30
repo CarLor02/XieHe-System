@@ -1,5 +1,6 @@
 import {
   getAuxiliaryTagText,
+  getDisplayName,
   getLabelPositionForType,
   hasCustomAuxiliaryTagText,
   isEditableAuxiliaryAnnotationType,
@@ -32,7 +33,7 @@ export function hitTestMeasurementLabel({
   );
   const textContent = usesAuxiliaryTagText
     ? getAuxiliaryTagText(measurement)
-    : `${measurement.type}: ${measurement.value}`;
+    : `${getDisplayName(measurement.type)}: ${measurement.value}`;
   const textWidth = estimateTextWidth(
     textContent,
     TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE,

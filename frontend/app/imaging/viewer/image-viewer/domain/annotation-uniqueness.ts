@@ -1,4 +1,4 @@
-import { getAnnotationConfig } from '../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../catalog/annotation-catalog';
 import { MeasurementData, Tool } from '../types';
 
 const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
@@ -27,8 +27,7 @@ const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
 ]);
 
 export function getCanonicalAnnotationId(typeOrToolId: string): string {
-  const config = getAnnotationConfig(typeOrToolId);
-  return config?.id || typeOrToolId.toLowerCase().replace(/\s+/g, '-');
+  return getAnnotationTypeId(typeOrToolId);
 }
 
 export function isUniqueAnnotationTool(toolId: string): boolean {
@@ -39,10 +38,8 @@ export function measurementMatchesTool(
   measurement: Pick<MeasurementData, 'type'>,
   tool: Pick<Tool, 'id' | 'name'>
 ): boolean {
-  return (
-    getCanonicalAnnotationId(measurement.type) ===
-      getCanonicalAnnotationId(tool.id) || measurement.type === tool.name
-  );
+  return getCanonicalAnnotationId(measurement.type) ===
+    getCanonicalAnnotationId(tool.id);
 }
 
 export function hasAnnotationForTool(

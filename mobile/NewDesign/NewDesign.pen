@@ -2475,7 +2475,7 @@
                                   "id": "NQzEt",
                                   "name": "measureTileProtoLabel",
                                   "fill": "#C9D0DD",
-                                  "content": "锥体中心",
+                                  "content": "椎体中心",
                                   "fontFamily": "Inter",
                                   "fontSize": 12,
                                   "fontWeight": "500"

@@ -6,6 +6,10 @@ import {
   PointRef,
 } from '../../../domain/annotation-binding';
 import {
+  getAnnotationDisplayName,
+  getAnnotationTypeId,
+} from '../../../catalog/annotation-catalog';
+import {
   getColorForType,
   getAuxiliaryTagText,
   hasCustomAuxiliaryTagText,
@@ -199,7 +203,9 @@ function renderAuxiliaryShape(
   isMeasurementSelected: boolean,
   isMeasurementHovered: boolean
 ) {
-  if (measurement.type === '圆形标注' && screenPoints.length >= 2) {
+  const typeId = getAnnotationTypeId(measurement.type);
+
+  if (typeId === 'circle' && screenPoints.length >= 2) {
     const radius = Math.hypot(
       screenPoints[1].x - screenPoints[0].x,
       screenPoints[1].y - screenPoints[0].y
@@ -218,7 +224,7 @@ function renderAuxiliaryShape(
     );
   }
 
-  if (measurement.type === '椭圆标注' && screenPoints.length >= 2) {
+  if (typeId === 'ellipse' && screenPoints.length >= 2) {
     return (
       <ellipse
         cx={screenPoints[0].x}
@@ -234,7 +240,7 @@ function renderAuxiliaryShape(
     );
   }
 
-  if (measurement.type === '矩形标注' && screenPoints.length >= 2) {
+  if (typeId === 'rectangle' && screenPoints.length >= 2) {
     const minX = Math.min(screenPoints[0].x, screenPoints[1].x);
     const minY = Math.min(screenPoints[0].y, screenPoints[1].y);
     return (
@@ -252,7 +258,7 @@ function renderAuxiliaryShape(
     );
   }
 
-  if (measurement.type === '箭头标注' && screenPoints.length >= 2) {
+  if (typeId === 'arrow' && screenPoints.length >= 2) {
     return (
       <line
         x1={screenPoints[0].x}
@@ -273,7 +279,7 @@ function renderAuxiliaryShape(
     );
   }
 
-  if (measurement.type === '多边形标注' && screenPoints.length >= 3) {
+  if (typeId === 'polygon' && screenPoints.length >= 3) {
     return (
       <polygon
         points={screenPoints.map(point => `${point.x},${point.y}`).join(' ')}
@@ -285,7 +291,7 @@ function renderAuxiliaryShape(
     );
   }
 
-  if (measurement.type === '椎体中心' && screenPoints.length === 4) {
+  if (typeId === 'vertebra-center' && screenPoints.length === 4) {
     const centerScreen = {
       x: (screenPoints[0].x + screenPoints[1].x + screenPoints[2].x + screenPoints[3].x) / 4,
       y: (screenPoints[0].y + screenPoints[1].y + screenPoints[2].y + screenPoints[3].y) / 4,
@@ -349,7 +355,7 @@ function renderAuxiliaryShape(
     );
   }
 
-  if (measurement.type === '距离标注' && screenPoints.length === 2) {
+  if (typeId === 'aux-length' && screenPoints.length === 2) {
     return (
       <line
         x1={screenPoints[0].x}
@@ -363,7 +369,7 @@ function renderAuxiliaryShape(
     );
   }
 
-  if (measurement.type === '角度标注' && screenPoints.length === 3) {
+  if (typeId === 'aux-angle' && screenPoints.length === 3) {
     return (
       <>
         <line
@@ -389,8 +395,8 @@ function renderAuxiliaryShape(
   }
 
   if (
-    (measurement.type === '辅助水平线' ||
-      measurement.type === '辅助垂直线') &&
+    (typeId === 'aux-horizontal-line' ||
+      typeId === 'aux-vertical-line') &&
     screenPoints.length === 2
   ) {
     return (
@@ -435,6 +441,8 @@ export default function renderMeasurement({
     imageScale,
   };
   const screenPoints = measurement.points.map(point => imageToScreen(point, context));
+  const typeId = getAnnotationTypeId(measurement.type);
+  const displayName = getAnnotationDisplayName(measurement.type);
   const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
   const hasCustomAuxiliaryTag =
     isEditableAuxiliaryAnnotationType(measurement.type) &&
@@ -482,7 +490,7 @@ export default function renderMeasurement({
 
   // 使用格式化后的值用于图表显示
   const displayValue = formatDisplayValue(measurement.value);
-  const textContent = `${measurement.type}: ${displayValue}`;
+  const textContent = `${displayName}: ${displayValue}`;
   const fontSize = isMeasurementHovered
     ? TEXT_LABEL_CONSTANTS.HOVER_FONT_SIZE
     : TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE;
@@ -493,8 +501,8 @@ export default function renderMeasurement({
   return (
     <g key={measurement.id}>
       {( !isAuxiliaryShape ||
-        measurement.type === '辅助水平线' ||
-        measurement.type === '辅助垂直线' ||
+        typeId === 'aux-horizontal-line' ||
+        typeId === 'aux-vertical-line' ||
         specialShapeNode) &&
         screenPoints.map((point, pointIndex) =>
           renderIndexedPoint({
@@ -521,8 +529,8 @@ export default function renderMeasurement({
 
       {!hasCustomAuxiliaryTag &&
         (!isAuxiliaryShape ||
-          measurement.type === '辅助水平线' ||
-          measurement.type === '辅助垂直线') &&
+          typeId === 'aux-horizontal-line' ||
+          typeId === 'aux-vertical-line') &&
         screenPoints.length >= 2 &&
         !hideAllLabels &&
         !hiddenMeasurementIds.has(measurement.id) && (
@@ -537,7 +545,7 @@ export default function renderMeasurement({
             strokeWidth="3"
             paintOrder="stroke"
           >
-            {measurement.type}: {displayValue}
+            {displayName}: {displayValue}
           </text>
         )}
 

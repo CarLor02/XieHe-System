@@ -54,27 +54,17 @@ fun getCanonicalAnnotationId(typeOrToolId: String): String {
     getAnnotationTool(typeOrToolId)?.let { return it.id }
     getAnnotationToolByMeasurementType(typeOrToolId)?.let { return it.id }
 
-    return when (typeOrToolId.trim().lowercase().replace(Regex("\\s+"), "-")) {
-        "po" -> TOOL_PELVIC
-        "css" -> TOOL_SACRAL
-        else -> typeOrToolId.trim().lowercase().replace(Regex("\\s+"), "-")
-    }
+    return typeOrToolId.trim().lowercase().replace(Regex("\\s+"), "-")
 }
 
 fun getCanonicalMeasurementAnnotationId(measurement: AnnotationMeasurement): String {
     val normalizedType = measurement.type.trim().lowercase()
-    val pointsCount = measurement.points.size
 
     return when {
-        normalizedType == "po" -> TOOL_PELVIC
-        normalizedType == "css" -> TOOL_SACRAL
         normalizedType == "pelvic" -> TOOL_PELVIC
         normalizedType == "sacral" -> TOOL_SACRAL
-        normalizedType == "tts" && pointsCount >= 6 -> TOOL_C7_OFFSET
         normalizedType == "tts" -> TOOL_TS
-        normalizedType == "ts" && pointsCount >= 6 -> TOOL_C7_OFFSET
-        normalizedType == "ts" -> TOOL_TS
-        normalizedType == "ts(trunk shift)" -> TOOL_C7_OFFSET
+        normalizedType == "c7-offset" -> TOOL_C7_OFFSET
         else -> getCanonicalAnnotationId(measurement.type)
     }
 }

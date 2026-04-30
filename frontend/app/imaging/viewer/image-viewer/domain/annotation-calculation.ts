@@ -7,6 +7,8 @@ import {
   CalculationContext,
   Point,
   getAnnotationConfig,
+  getAnnotationDisplayName,
+  getAnnotationTypeId,
 } from '../catalog/annotation-catalog';
 
 /**
@@ -24,7 +26,7 @@ export function calculateMeasurementValue(
   }
 
   // 特殊处理：CobbN 类型使用 cobb 配置
-  const configType = /^Cobb\d+$/i.test(type) ? 'cobb' : type;
+  const configType = /^Cobb\d+$/i.test(type) ? 'cobb' : getAnnotationTypeId(type);
   const config = getAnnotationConfig(configType);
 
   if (!config) {
@@ -34,7 +36,9 @@ export function calculateMeasurementValue(
   const results = config.calculateResults(points, context);
 
   if (results.length === 0) {
-    return '辅助标注';
+    return config.category === 'auxiliary'
+      ? getAnnotationDisplayName(config.id)
+      : '辅助标注';
   }
 
   // 如果有多个测量结果，返回第一个

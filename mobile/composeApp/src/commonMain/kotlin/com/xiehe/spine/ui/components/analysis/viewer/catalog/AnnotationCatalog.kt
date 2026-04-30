@@ -11,7 +11,7 @@ const val TOOL_CA = "ca"
 const val TOOL_PELVIC = "pelvic"
 const val TOOL_SACRAL = "sacral"
 const val TOOL_AVT = "avt"
-const val TOOL_TS = "ts"
+const val TOOL_TS = "tts"
 const val TOOL_LLD = "lld"
 const val TOOL_C7_OFFSET = "c7-offset"
 
@@ -97,7 +97,7 @@ enum class AnnotationTagAnchorStyle {
 data class AnnotationToolDefinition(
     val id: String,
     val label: String,
-    val measurementType: String = label,
+    val measurementType: String = id,
     val icon: IconToken,
     val section: AnnotationToolSection,
     val colorKey: AnnotationToolColorKey = AnnotationToolColorKey.NONE,
@@ -173,7 +173,7 @@ val ANNOTATION_TOOL_CATALOG = listOf(
     ),
     AnnotationToolDefinition(
         id = TOOL_TS,
-        label = "TS",
+        label = "TTS",
         icon = IconToken.MEASURE_TS,
         section = AnnotationToolSection.MEASURE,
         colorKey = AnnotationToolColorKey.TS,
@@ -191,7 +191,7 @@ val ANNOTATION_TOOL_CATALOG = listOf(
     ),
     AnnotationToolDefinition(
         id = TOOL_C7_OFFSET,
-        label = "TTS",
+        label = "TS",
         icon = IconToken.MEASURE_C7_OFFSET,
         section = AnnotationToolSection.MEASURE,
         colorKey = AnnotationToolColorKey.C7_OFFSET,
@@ -395,8 +395,7 @@ val ANNOTATION_TOOL_CATALOG = listOf(
     ),
     AnnotationToolDefinition(
         id = TOOL_VERTEBRA_CENTER,
-        label = "锥体中心",
-        measurementType = "椎体中心",
+        label = "椎体中心",
         icon = IconToken.MEASURE_VERTEBRA_CENTER,
         section = AnnotationToolSection.AUXILIARY,
         colorKey = AnnotationToolColorKey.VERTEBRA_CENTER,
@@ -443,26 +442,9 @@ val ANNOTATION_TOOL_CATALOG = listOf(
 
 private val annotationToolMap = ANNOTATION_TOOL_CATALOG.associateBy(AnnotationToolDefinition::id)
 private val annotationMeasurementTypeMap = ANNOTATION_TOOL_CATALOG.associateBy(AnnotationToolDefinition::measurementType)
-private val annotationMeasurementTypeAliases = mapOf(
-    "PO" to TOOL_PELVIC,
-    "CSS" to TOOL_SACRAL,
-    "TS(Trunk Shift)" to TOOL_C7_OFFSET,
-    "圆形标注" to TOOL_AUX_CIRCLE,
-    "椭圆标注" to TOOL_AUX_ELLIPSE,
-    "矩形标注" to TOOL_AUX_BOX,
-    "箭头标注" to TOOL_AUX_ARROW,
-    "多边形标注" to TOOL_AUX_POLYGON,
-)
 
 fun getAnnotationTool(toolId: String): AnnotationToolDefinition? = annotationToolMap[toolId]
 fun getAnnotationToolByMeasurementType(type: String): AnnotationToolDefinition? {
-    return annotationMeasurementTypeMap[type]
-        ?: annotationMeasurementTypeAliases[type]?.let(annotationToolMap::get)
-        ?: ANNOTATION_TOOL_CATALOG.firstOrNull { tool ->
-            normalizeAnnotationLookupKey(tool.label) == normalizeAnnotationLookupKey(type)
-        }
-}
-
-private fun normalizeAnnotationLookupKey(value: String): String {
-    return value.trim().lowercase().replace(Regex("\\s+"), "-")
+    return annotationToolMap[type]
+        ?: annotationMeasurementTypeMap[type]
 }

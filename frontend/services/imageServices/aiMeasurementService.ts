@@ -7,6 +7,8 @@ export interface PredictMeasurementsResponse {
   imageId: string;
   imageWidth: number;
   imageHeight: number;
+  image_width?: number;
+  image_height?: number;
   measurements: AiMeasurementData[];
 }
 

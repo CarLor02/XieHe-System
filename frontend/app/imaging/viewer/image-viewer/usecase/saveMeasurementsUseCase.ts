@@ -115,7 +115,7 @@ export async function saveMeasurements(
                 imageHeight: imageNaturalSize?.height,
                 savedAt: new Date().toISOString(),
             };
-            await updateImageAnnotation(numericId, JSON.stringify(annotationData));
+            await updateImageAnnotation(Number(numericId), JSON.stringify(annotationData));
             console.log('绑定数据已同步至 annotation 字段');
         } catch (annotationErr) {
             // 不阻断主保存流程

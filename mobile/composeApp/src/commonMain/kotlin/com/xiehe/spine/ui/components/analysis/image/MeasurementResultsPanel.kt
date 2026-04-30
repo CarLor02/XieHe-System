@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.xiehe.spine.ui.components.icon.shared.AppIcon
 import com.xiehe.spine.ui.components.icon.shared.IconToken
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.getAnnotationToolByMeasurementType
 import com.xiehe.spine.ui.components.analysis.viewer.domain.valueColorFor
 import com.xiehe.spine.ui.components.text.shared.Text
 import com.xiehe.spine.ui.theme.SpineTheme
@@ -124,7 +125,7 @@ fun MeasurementResultsPanel(
             }
             items(computedMeasurements, key = { it.key }) { item ->
                 MeasurementRow(
-                    title = item.type,
+                    title = getAnnotationToolByMeasurementType(item.type)?.label ?: item.type,
                     value = item.value,
                     hidden = hiddenKeys.contains(item.key),
                     showValue = true,

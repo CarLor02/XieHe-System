@@ -6,6 +6,12 @@ import com.xiehe.spine.data.ai.AiInferenceRepository
 import com.xiehe.spine.data.ai.AiPointNode
 import com.xiehe.spine.data.ai.AiVertebraCorners
 import com.xiehe.spine.data.measurement.MeasurementPoint
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AVT
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CA
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PELVIC
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_TILT
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.acos
@@ -104,7 +110,7 @@ class RunAiDetectUseCase(
 
         output += angleMetricOrPlaceholder(
             key = "ai_compute_t1_tilt",
-            type = "T1 Tilt",
+            type = TOOL_T1_TILT,
             description = "T1椎体倾斜角测量",
             start = t1Corners?.topLeft?.toPoint(),
             end = t1Corners?.topRight?.toPoint(),
@@ -112,12 +118,12 @@ class RunAiDetectUseCase(
         )
         output += measurementPlaceholder(
             key = "ai_compute_ca",
-            type = "CA",
+            type = TOOL_CA,
             description = "Cobb角测量",
         )
         output += angleMetricOrPlaceholder(
             key = "ai_compute_pelvic",
-            type = "Pelvic",
+            type = TOOL_PELVIC,
             description = "骨盆倾斜角测量",
             start = pose["IR"]?.toPoint(),
             end = pose["IL"]?.toPoint(),
@@ -125,7 +131,7 @@ class RunAiDetectUseCase(
         )
         output += angleMetricOrPlaceholder(
             key = "ai_compute_sacral",
-            type = "Sacral",
+            type = TOOL_SACRAL,
             description = "骶骨倾斜角测量",
             start = pose["SR"]?.toPoint(),
             end = pose["SL"]?.toPoint(),
@@ -144,7 +150,7 @@ class RunAiDetectUseCase(
             val right = MeasurementPoint(x = c7Center.x, y = y)
             ImageAnalysisMeasurement(
                 key = "ai_compute_ts",
-                type = "TS",
+                type = TOOL_TS,
                 value = formatDistanceValue(abs(c7Center.x - csvlX), calibration),
                 points = listOf(left, right),
                 description = "躯干偏移测量",
@@ -152,7 +158,7 @@ class RunAiDetectUseCase(
                 panelVisible = true,
             )
         } else {
-            measurementPlaceholder("ai_compute_ts", "TS", "躯干偏移测量")
+            measurementPlaceholder("ai_compute_ts", TOOL_TS, "躯干偏移测量")
         }
 
         val vertebraCenters = vertebrae.mapNotNull { (name, node) ->
@@ -166,7 +172,7 @@ class RunAiDetectUseCase(
                 val right = MeasurementPoint(x = center.x, y = center.y)
                 ImageAnalysisMeasurement(
                     key = "ai_compute_avt",
-                    type = "AVT",
+                    type = TOOL_AVT,
                     value = formatDistanceValue(abs(center.x - csvlX), calibration),
                     points = listOf(left, right),
                     description = "顶椎偏移测量",
@@ -174,10 +180,10 @@ class RunAiDetectUseCase(
                     panelVisible = true,
                 )
             } else {
-                measurementPlaceholder("ai_compute_avt", "AVT", "顶椎偏移测量")
+                measurementPlaceholder("ai_compute_avt", TOOL_AVT, "顶椎偏移测量")
             }
         } else {
-            measurementPlaceholder("ai_compute_avt", "AVT", "顶椎偏移测量")
+            measurementPlaceholder("ai_compute_avt", TOOL_AVT, "顶椎偏移测量")
         }
 
         val candidates = mutableListOf<LineCandidate>()
@@ -200,7 +206,7 @@ class RunAiDetectUseCase(
                 val reference = if (abs(bestPair.first.angle) >= abs(bestPair.second.angle)) bestPair.first else bestPair.second
                 ImageAnalysisMeasurement(
                     key = "ai_compute_ca",
-                    type = "CA",
+                    type = TOOL_CA,
                     value = formatAngle(bestPair.third, signed = false),
                     points = listOf(reference.p1, reference.p2),
                     description = "Cobb角测量",
@@ -208,10 +214,10 @@ class RunAiDetectUseCase(
                     panelVisible = true,
                 )
             } else {
-                measurementPlaceholder("ai_compute_ca", "CA", "Cobb角测量")
+                measurementPlaceholder("ai_compute_ca", TOOL_CA, "Cobb角测量")
             }
         } else {
-            measurementPlaceholder("ai_compute_ca", "CA", "Cobb角测量")
+            measurementPlaceholder("ai_compute_ca", TOOL_CA, "Cobb角测量")
         }
 
         return output

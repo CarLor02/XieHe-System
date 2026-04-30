@@ -3,7 +3,11 @@
  * 这一层只保留纯规则与纯数据变换。
  */
 
-import { ANNOTATION_CONFIGS } from '../catalog/annotation-catalog';
+import {
+  ANNOTATION_CONFIGS,
+  getAnnotationDisplayName,
+  getAnnotationTypeId,
+} from '../catalog/annotation-catalog';
 import { Point } from '../types';
 import {
   AnnotationBindings,
@@ -11,7 +15,7 @@ import {
 } from './annotation-binding';
 
 export interface PointInheritanceRule {
-  /** 提供点的标注类型名称（measurement.type，与工具 name 对应） */
+  /** 提供点的标注英文 key（measurement.type） */
   fromType: string;
   /** 从源标注中取哪些点（按索引） */
   sourcePointIndices: number[];
@@ -30,13 +34,13 @@ export const POINT_INHERITANCE_RULES: Record<
   'c7-offset': [
     // 优先级低：从 TTS 的骶骨参考点（索引2-3）继承
     {
-      fromType: 'TTS',
+      fromType: 'tts',
       sourcePointIndices: [2, 3],
       destinationPointIndices: [4, 5],
     },
     // 优先级高：直接从 CSS（骶骨倾斜）继承，会覆盖上面 TTS 的继承
     {
-      fromType: 'CSS',
+      fromType: 'sacral',
       sourcePointIndices: [0, 1],
       destinationPointIndices: [4, 5],
     },
@@ -44,7 +48,7 @@ export const POINT_INHERITANCE_RULES: Record<
   tts: [
     // 从 CSS（骶骨倾斜）继承骶骨参考点
     {
-      fromType: 'CSS',
+      fromType: 'sacral',
       sourcePointIndices: [0, 1],
       destinationPointIndices: [2, 3],
     },
@@ -52,39 +56,39 @@ export const POINT_INHERITANCE_RULES: Record<
   sacral: [
     // 优先级低：从 TTS 的骶骨参考点（索引2-3）继承
     {
-      fromType: 'TTS',
+      fromType: 'tts',
       sourcePointIndices: [2, 3],
       destinationPointIndices: [0, 1],
     },
     // 优先级高：直接从 TS（C7 Offset）继承骶骨参考点，会覆盖上面 TTS 的继承
     {
-      fromType: 'TS',
+      fromType: 'c7-offset',
       sourcePointIndices: [4, 5],
       destinationPointIndices: [0, 1],
     },
   ],
   sva: [
     {
-      fromType: 'C2-C7 CL',
+      fromType: 'cl',
       sourcePointIndices: [2, 3],
       destinationPointIndices: [0, 1],
     },
     {
-      fromType: 'SS',
+      fromType: 'ss',
       sourcePointIndices: [1],
       destinationPointIndices: [4],
     },
   ],
   cl: [
     {
-      fromType: 'SVA',
+      fromType: 'sva',
       sourcePointIndices: [0, 1],
       destinationPointIndices: [2, 3],
     },
   ],
   ss: [
     {
-      fromType: 'SVA',
+      fromType: 'sva',
       sourcePointIndices: [4],
       destinationPointIndices: [1],
     },
@@ -99,7 +103,7 @@ export interface SharedAnatomicalPoint {
   /** 共享该解剖点的所有工具参与项 */
   participants: Array<{
     toolId: string;
-    /** 工具对应的 measurement.type */
+    /** 工具对应的 measurement.type 英文 key */
     typeName: string;
     /** 该点在 points[] 中的索引 */
     pointIndex: number;
@@ -119,49 +123,49 @@ export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
     name: 'L1上缘-左端点',
     color: '#fb7185',
     participants: [
-      { toolId: 'll-l1-l4', typeName: 'LL L1-L4', pointIndex: 0 },
-      { toolId: 'll-l1-s1', typeName: 'LL L1-S1', pointIndex: 0 },
+      { toolId: 'll-l1-l4', typeName: 'll-l1-l4', pointIndex: 0 },
+      { toolId: 'll-l1-s1', typeName: 'll-l1-s1', pointIndex: 0 },
     ],
   },
   {
     name: 'L1上缘-右端点',
     color: '#fb7185',
     participants: [
-      { toolId: 'll-l1-l4', typeName: 'LL L1-L4', pointIndex: 1 },
-      { toolId: 'll-l1-s1', typeName: 'LL L1-S1', pointIndex: 1 },
+      { toolId: 'll-l1-l4', typeName: 'll-l1-l4', pointIndex: 1 },
+      { toolId: 'll-l1-s1', typeName: 'll-l1-s1', pointIndex: 1 },
     ],
   },
   {
     name: 'S1上缘-左端点',
     color: '#f59e0b',
     participants: [
-      { toolId: 'll-l1-s1', typeName: 'LL L1-S1', pointIndex: 2 },
-      { toolId: 'll-l4-s1', typeName: 'LL L4-S1', pointIndex: 2 },
-      { toolId: 'tpa', typeName: 'TPA', pointIndex: 5 },
-      { toolId: 'pi', typeName: 'PI', pointIndex: 1 },
-      { toolId: 'pt', typeName: 'PT', pointIndex: 1 },
-      { toolId: 'ss', typeName: 'SS', pointIndex: 0 },
+      { toolId: 'll-l1-s1', typeName: 'll-l1-s1', pointIndex: 2 },
+      { toolId: 'll-l4-s1', typeName: 'll-l4-s1', pointIndex: 2 },
+      { toolId: 'tpa', typeName: 'tpa', pointIndex: 5 },
+      { toolId: 'pi', typeName: 'pi', pointIndex: 1 },
+      { toolId: 'pt', typeName: 'pt', pointIndex: 1 },
+      { toolId: 'ss', typeName: 'ss', pointIndex: 0 },
     ],
   },
   {
     name: 'S1上缘-右端点',
     color: '#f59e0b',
     participants: [
-      { toolId: 'll-l1-s1', typeName: 'LL L1-S1', pointIndex: 3 },
-      { toolId: 'll-l4-s1', typeName: 'LL L4-S1', pointIndex: 3 },
-      { toolId: 'tpa', typeName: 'TPA', pointIndex: 6 },
-      { toolId: 'pi', typeName: 'PI', pointIndex: 2 },
-      { toolId: 'pt', typeName: 'PT', pointIndex: 2 },
-      { toolId: 'ss', typeName: 'SS', pointIndex: 1 },
+      { toolId: 'll-l1-s1', typeName: 'll-l1-s1', pointIndex: 3 },
+      { toolId: 'll-l4-s1', typeName: 'll-l4-s1', pointIndex: 3 },
+      { toolId: 'tpa', typeName: 'tpa', pointIndex: 6 },
+      { toolId: 'pi', typeName: 'pi', pointIndex: 2 },
+      { toolId: 'pt', typeName: 'pt', pointIndex: 2 },
+      { toolId: 'ss', typeName: 'ss', pointIndex: 1 },
     ],
   },
   {
     name: 'S1中心和股骨中心',
     color: '#a855f7',
     participants: [
-      { toolId: 'tpa', typeName: 'TPA', pointIndex: 4 },
-      { toolId: 'pi', typeName: 'PI', pointIndex: 0 },
-      { toolId: 'pt', typeName: 'PT', pointIndex: 0 },
+      { toolId: 'tpa', typeName: 'tpa', pointIndex: 4 },
+      { toolId: 'pi', typeName: 'pi', pointIndex: 0 },
+      { toolId: 'pt', typeName: 'pt', pointIndex: 0 },
     ],
   },
 ];
@@ -182,7 +186,9 @@ export function getInheritedPoints(
 
   const asymRules = POINT_INHERITANCE_RULES[toolId] || [];
   for (const rule of asymRules) {
-    const source = measurements.find(measurement => measurement.type === rule.fromType);
+    const source = measurements.find(
+      measurement => getAnnotationTypeId(measurement.type) === rule.fromType
+    );
     if (source) {
       for (let index = 0; index < rule.sourcePointIndices.length; index += 1) {
         const srcIdx = rule.sourcePointIndices[index];
@@ -201,7 +207,7 @@ export function getInheritedPoints(
     for (const participant of group.participants) {
       if (participant.toolId === toolId) continue;
       const source = measurements.find(
-        measurement => measurement.type === participant.typeName
+        measurement => getAnnotationTypeId(measurement.type) === participant.typeName
       );
       if (source && participant.pointIndex < source.points.length) {
         inherited.set(mine.pointIndex, source.points[participant.pointIndex]);
@@ -293,16 +299,16 @@ export function autoCreateInheritanceBindings(
   for (const [targetToolId, rules] of Object.entries(POINT_INHERITANCE_RULES)) {
     const targetConfig = ANNOTATION_CONFIGS[targetToolId];
     if (!targetConfig) continue;
-    const targetTypeName = targetConfig.name;
+    const targetTypeName = targetConfig.id;
 
     const targetMeasurements = measurements.filter(
-      measurement => measurement.type === targetTypeName
+      measurement => getAnnotationTypeId(measurement.type) === targetTypeName
     );
     if (targetMeasurements.length === 0) continue;
 
     for (const rule of rules) {
       const sourceMeasurements = measurements.filter(
-        measurement => measurement.type === rule.fromType
+        measurement => getAnnotationTypeId(measurement.type) === rule.fromType
       );
       if (sourceMeasurements.length === 0) continue;
 
@@ -323,7 +329,7 @@ export function autoCreateInheritanceBindings(
             target.id,
             dstIdx,
             `inherit-${targetToolId}-${source.id}`,
-            `继承绑定(${rule.fromType}→${targetTypeName})-点${srcIdx + 1}`,
+            `继承绑定(${getAnnotationDisplayName(rule.fromType)}→${getAnnotationDisplayName(targetTypeName)})-点${srcIdx + 1}`,
             '#22d3ee'
           );
         }
@@ -335,7 +341,7 @@ export function autoCreateInheritanceBindings(
     const present: Array<{ mId: string; ptIdx: number }> = [];
     for (const participant of group.participants) {
       const measurement = measurements.find(
-        item => item.type === participant.typeName
+        item => getAnnotationTypeId(item.type) === participant.typeName
       );
       if (measurement && participant.pointIndex < measurement.points.length) {
         present.push({ mId: measurement.id, ptIdx: participant.pointIndex });

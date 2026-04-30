@@ -606,7 +606,7 @@ export function renderSS(
 /**
  * SVA渲染器：两条垂直线
  * - 2点模式：显示两个端点的垂直线
- * - 5点模式：基于前4个点计算锥体中心，显示中心与第5个点的垂直线
+ * - 5点模式：基于前4个点计算椎体中心，显示中心与第5个点的垂直线
  */
 export function renderSVA(
   screenPoints: Point[],

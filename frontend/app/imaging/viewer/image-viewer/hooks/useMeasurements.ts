@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MeasurementData, Point } from '../types';
+import { getAnnotationTypeId } from '../catalog/annotation-catalog';
 
 /**
  * measurement 列表、报告文本、标准距离与辅助面板状态。
@@ -34,10 +35,11 @@ export function useMeasurements() {
 
     setMeasurements(currentMeasurements =>
       currentMeasurements.map(measurement => {
+        const typeId = getAnnotationTypeId(measurement.type);
         if (
-          (measurement.type === 'AVT' ||
-            measurement.type === 'TTS' ||
-            measurement.type === 'SVA') &&
+          (typeId === 'avt' ||
+            typeId === 'c7-offset' ||
+            typeId === 'sva') &&
           measurement.points.length >= 2
         ) {
           const imageWidth = imageNaturalSize?.width || 1000;

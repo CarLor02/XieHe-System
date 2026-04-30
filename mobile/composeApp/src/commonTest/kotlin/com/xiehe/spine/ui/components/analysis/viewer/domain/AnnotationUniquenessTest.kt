@@ -31,10 +31,10 @@ import kotlin.test.assertTrue
 
 class AnnotationUniquenessTest {
     @Test
-    fun poAndCssAliasesBlockPelvicAndSacralTools() {
+    fun pelvicAndSacralKeysBlockTheirTools() {
         val measurements = listOf(
-            measurement("po", "PO"),
-            measurement("css", "CSS"),
+            measurement("pelvic", TOOL_PELVIC),
+            measurement("sacral", TOOL_SACRAL),
         )
 
         assertTrue(
@@ -48,8 +48,8 @@ class AnnotationUniquenessTest {
     @Test
     fun cobbAndDistanceAnnotationCanRepeat() {
         val measurements = listOf(
-            measurement("cobb-1", "Cobb"),
-            measurement("distance-1", "距离标注"),
+            measurement("cobb-1", TOOL_COBB),
+            measurement("distance-1", TOOL_AUX_LENGTH),
         )
 
         assertFalse(
@@ -63,10 +63,10 @@ class AnnotationUniquenessTest {
     @Test
     fun duplicateUniqueMeasurementsAreFilteredButRepeatableMeasurementsRemain() {
         val measurements = listOf(
-            measurement("t1-1", "T1 Tilt"),
-            measurement("t1-2", "T1 Tilt"),
-            measurement("cobb-1", "Cobb"),
-            measurement("cobb-2", "Cobb"),
+            measurement("t1-1", TOOL_T1_TILT),
+            measurement("t1-2", TOOL_T1_TILT),
+            measurement("cobb-1", TOOL_COBB),
+            measurement("cobb-2", TOOL_COBB),
         )
 
         assertEquals(
@@ -96,7 +96,7 @@ class AnnotationUniquenessTest {
 
         lateralToolIds.forEach { toolId ->
             val tool = requireNotNull(getAnnotationTool(toolId))
-            val measurements = listOf(measurement("${toolId}-1", tool.label))
+            val measurements = listOf(measurement("${toolId}-1", tool.id))
 
             assertTrue(isUniqueAnnotationTool(toolId), "$toolId should be unique")
             assertTrue(hasUniqueAnnotationForTool(measurements, tool), "$toolId should be blocked after creation")
@@ -108,12 +108,12 @@ class AnnotationUniquenessTest {
     @Test
     fun duplicateLateralMeasurementsAreFiltered() {
         val measurements = listOf(
-            measurement("t1-slope-1", "T1 Slope"),
-            measurement("t1-slope-2", "T1 Slope"),
-            measurement("cl-1", "C2-C7 CL"),
-            measurement("cl-2", "C2-C7 CL"),
-            measurement("vertebra-center-1", "椎体中心"),
-            measurement("vertebra-center-2", "椎体中心"),
+            measurement("t1-slope-1", TOOL_T1_SLOPE),
+            measurement("t1-slope-2", TOOL_T1_SLOPE),
+            measurement("cl-1", TOOL_CL),
+            measurement("cl-2", TOOL_CL),
+            measurement("vertebra-center-1", TOOL_VERTEBRA_CENTER),
+            measurement("vertebra-center-2", TOOL_VERTEBRA_CENTER),
         )
 
         assertEquals(
@@ -124,19 +124,15 @@ class AnnotationUniquenessTest {
 
     @Test
     fun tsAndTtsUsePointCountForCanonicalMatching() {
-        val fourPointTts = measurement("tts-4", "TTS", pointCount = 4)
-        val sixPointTts = measurement("tts-6", "TTS", pointCount = 6)
-        val sixPointTs = measurement("ts-6", "TS", pointCount = 6)
+        val trunkShift = measurement("tts-4", TOOL_TS, pointCount = 4)
+        val c7Offset = measurement("c7-offset-6", TOOL_C7_OFFSET, pointCount = 6)
 
-        assertTrue(measurementMatchesTool(fourPointTts, requireNotNull(getAnnotationTool(TOOL_TS))))
+        assertTrue(measurementMatchesTool(trunkShift, requireNotNull(getAnnotationTool(TOOL_TS))))
         assertFalse(
-            measurementMatchesTool(fourPointTts, requireNotNull(getAnnotationTool(TOOL_C7_OFFSET))),
+            measurementMatchesTool(trunkShift, requireNotNull(getAnnotationTool(TOOL_C7_OFFSET))),
         )
         assertTrue(
-            measurementMatchesTool(sixPointTts, requireNotNull(getAnnotationTool(TOOL_C7_OFFSET))),
-        )
-        assertTrue(
-            measurementMatchesTool(sixPointTs, requireNotNull(getAnnotationTool(TOOL_C7_OFFSET))),
+            measurementMatchesTool(c7Offset, requireNotNull(getAnnotationTool(TOOL_C7_OFFSET))),
         )
     }
 

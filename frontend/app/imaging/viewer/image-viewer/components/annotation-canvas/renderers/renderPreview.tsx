@@ -5,6 +5,7 @@ import {
   SHARED_ANATOMICAL_POINT_GROUPS,
 } from '../../../domain/annotation-inheritance';
 import { renderSpecialSVGElements } from '../../../domain/annotation-metadata';
+import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
 
 interface RenderPreviewProps {
   selectedTool: string;
@@ -67,7 +68,9 @@ export default function renderPreview({
 
     const asymRules = POINT_INHERITANCE_RULES[currentToolId] || [];
     for (const rule of asymRules) {
-      const source = measurements.find(measurement => measurement.type === rule.fromType);
+      const source = measurements.find(
+        measurement => getAnnotationTypeId(measurement.type) === rule.fromType
+      );
       if (!source) continue;
 
       for (let index = 0; index < rule.sourcePointIndices.length; index += 1) {
@@ -88,7 +91,7 @@ export default function renderPreview({
       for (const participant of group.participants) {
         if (participant.toolId === currentToolId) continue;
         const source = measurements.find(
-          measurement => measurement.type === participant.typeName
+          measurement => getAnnotationTypeId(measurement.type) === participant.typeName
         );
         if (source && participant.pointIndex < source.points.length) {
           inheritedMap.set(mine.pointIndex, source.points[participant.pointIndex]);

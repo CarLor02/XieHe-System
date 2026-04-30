@@ -1,5 +1,6 @@
 import { applyPointBindings, AnnotationBindings } from '../../../domain/annotation-binding';
 import { calculateMeasurementValue } from '../../../domain/annotation-calculation';
+import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
 import { MeasurementData, Point } from '../../../types';
 import { SelectionState } from '../types';
 
@@ -79,13 +80,14 @@ export function useCanvasDrag({
           item => item.id === selectionState.measurementId
         );
         if (measurement && measurement.points.length > 0) {
+          const typeId = getAnnotationTypeId(measurement.type);
           let minX: number;
           let maxX: number;
           let minY: number;
           let maxY: number;
 
           if (selectionState.type === 'whole') {
-            if (measurement.type === '圆形标注' && measurement.points.length >= 2) {
+            if (typeId === 'circle' && measurement.points.length >= 2) {
               const center = measurement.points[0];
               const edge = measurement.points[1];
               const radius = Math.sqrt(
@@ -98,7 +100,7 @@ export function useCanvasDrag({
               minY = screenCenter.y - screenRadius - 15;
               maxY = screenCenter.y + screenRadius + 15;
             } else if (
-              measurement.type === '椭圆标注' &&
+              typeId === 'ellipse' &&
               measurement.points.length >= 2
             ) {
               const center = measurement.points[0];
@@ -113,8 +115,8 @@ export function useCanvasDrag({
               minY = screenCenter.y - screenRadiusY - 15;
               maxY = screenCenter.y + screenRadiusY + 15;
             } else if (
-              (measurement.type === '矩形标注' ||
-                measurement.type === '箭头标注') &&
+              (typeId === 'rectangle' ||
+                typeId === 'arrow') &&
               measurement.points.length >= 2
             ) {
               const startScreen = imageToScreen(measurement.points[0]);
@@ -191,15 +193,16 @@ export function useCanvasDrag({
         let newPointX = imagePoint.x - selectionState.dragOffset.x;
         let newPointY = imagePoint.y - selectionState.dragOffset.y;
 
-        if (measurement.type === '辅助水平线') {
+        const typeId = getAnnotationTypeId(measurement.type);
+        if (typeId === 'aux-horizontal-line') {
           const otherIndex = selectionState.pointIndex === 0 ? 1 : 0;
           newPointY = measurement.points[otherIndex].y;
         }
-        if (measurement.type === '辅助垂直线') {
+        if (typeId === 'aux-vertical-line') {
           const otherIndex = selectionState.pointIndex === 0 ? 1 : 0;
           newPointX = measurement.points[otherIndex].x;
         }
-        if (measurement.type === 'TTS') {
+        if (typeId === 'tts') {
           // TTS 的点两两配对为水平线（0-1 胸廓线，2-3 骶骨线），拖动时锁定 y 坐标
           const pairIndex =
             selectionState.pointIndex % 2 === 0

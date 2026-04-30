@@ -4,6 +4,7 @@ import {
 } from "@/app/imaging/viewer/image-viewer/domain/annotation-calculation";
 import {getDescriptionForType as getDesc} from "@/app/imaging/viewer/image-viewer/domain/annotation-metadata";
 import {getInheritedPoints} from "@/app/imaging/viewer/image-viewer/domain/annotation-inheritance";
+import {getAnnotationTypeId} from "@/app/imaging/viewer/image-viewer/catalog/annotation-catalog";
 import {
     hasAnnotationForTool,
     hasUniqueAnnotationForTool
@@ -21,26 +22,17 @@ export function addMeasurement(
     imageNaturalSize: ImageSize
 ){
     // 如果是Cobb工具，自动编号（统一处理 'cobb' 和 'Cobb'）
-    let finalType = type;
-    const isCobb = type.toLowerCase() === 'cobb';
+    const requestedToolId = getAnnotationTypeId(type);
+    let finalType = requestedToolId;
+    const isCobb = requestedToolId === 'cobb';
     if (isCobb) {
         const cobbCount = measurements.filter(m =>
-            m.type.startsWith('Cobb')
+            /^cobb\d+$/i.test(m.type)
         ).length;
-        finalType = `Cobb${cobbCount + 1}`;
+        finalType = `cobb${cobbCount + 1}`;
     }
 
-    // 查找工具ID用于配置查找
-    // 优先使用工具对象的ID，如果是Cobb则使用'cobb'，否则通过名称反查ID
-    let configLookupType = finalType;
-    if (isCobb) {
-        configLookupType = 'cobb';
-    } else {
-        const tool = tools.find(t => t.name === type);
-        if (tool) {
-            configLookupType = tool.id;
-        }
-    }
+    const configLookupType = isCobb ? 'cobb' : finalType;
 
     // 使用统一的配置系统计算测量值
     const defaultValue =
@@ -49,7 +41,7 @@ export function addMeasurement(
             standardDistancePoints,
             imageNaturalSize,
         }) || '0.0°';
-    const description = isCobb ? 'Cobb角测量' : getDesc(finalType);
+    const description = isCobb ? 'Cobb角测量' : getDesc(configLookupType);
 
     const newMeasurement: MeasurementData = {
         id: Date.now().toString(),
@@ -60,7 +52,7 @@ export function addMeasurement(
     };
 
     setMeasurements(prev => {
-        const currentTool = tools.find(t => t.name === type || t.id === configLookupType);
+        const currentTool = tools.find(t => t.id === configLookupType);
         if (currentTool && hasUniqueAnnotationForTool(prev, currentTool)) {
             return prev;
         }
@@ -89,10 +81,10 @@ export function addMeasurement(
                     }) || '0.0°';
                 const autoMeasurement: MeasurementData = {
                     id: `${Date.now()}-auto-${tool.id}-${accumulated.length}`,
-                    type: tool.name,
+                    type: tool.id,
                     value: autoValue,
                     points: autoPoints,
-                    description: getDesc(tool.name),
+                    description: getDesc(tool.id),
                 };
                 // 立即追加到 accumulated，以便后续工具可以从本次自动创建的标注中继续推导
                 accumulated.push(autoMeasurement);

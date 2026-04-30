@@ -23,6 +23,10 @@ import com.xiehe.spine.ui.components.form.input.TextField
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.AnnotationToolDefinition
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.AnnotationToolSection
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_ANGLE
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_HORIZONTAL_LINE
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_LENGTH
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_VERTICAL_LINE
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_STANDARD_DISTANCE
 import com.xiehe.spine.ui.components.analysis.viewer.domain.hasUniqueAnnotationForTool
 import com.xiehe.spine.ui.components.icon.shared.AppIcon
@@ -42,9 +46,25 @@ fun MeasureToolPanel(
     modifier: Modifier = Modifier,
 ) {
     val colors = SpineTheme.colors
-    val groupedTools = tools
-        .filterNot { it.id == TOOL_STANDARD_DISTANCE }
-        .groupBy { it.section }
+    val visibleTools = tools.filterNot { it.id == TOOL_STANDARD_DISTANCE }
+    val auxiliaryPointToolIds = setOf(
+        TOOL_AUX_LENGTH,
+        TOOL_AUX_ANGLE,
+        TOOL_AUX_HORIZONTAL_LINE,
+        TOOL_AUX_VERTICAL_LINE,
+    )
+    val displaySections = listOf(
+        AnnotationToolSection.BASIC to visibleTools.filter { it.section == AnnotationToolSection.BASIC },
+        AnnotationToolSection.MEASURE to visibleTools.filter {
+            it.section != AnnotationToolSection.BASIC &&
+                it.pointsNeeded > 0 &&
+                it.id !in auxiliaryPointToolIds
+        },
+        AnnotationToolSection.AUXILIARY to visibleTools.filter {
+            it.section != AnnotationToolSection.BASIC &&
+                (it.pointsNeeded == 0 || it.id in auxiliaryPointToolIds)
+        },
+    )
 
     Column(
         modifier = modifier
@@ -85,12 +105,12 @@ fun MeasureToolPanel(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            AnnotationToolSection.entries.forEach { section ->
-                val sectionTools = groupedTools[section].orEmpty()
+            displaySections.forEach { (section, sectionTools) ->
                 if (sectionTools.isEmpty()) return@forEach
                 ToolSection(
                     title = section.title,
                     tools = sectionTools,
+                    section = section,
                     measurements = measurements,
                     activeToolId = activeToolId,
                     onSelectTool = onSelectTool,
@@ -112,6 +132,7 @@ fun MeasureToolPanel(
 private fun ToolSection(
     title: String,
     tools: List<AnnotationToolDefinition>,
+    section: AnnotationToolSection,
     measurements: List<AnnotationMeasurement>,
     activeToolId: String,
     onSelectTool: (String) -> Unit,
@@ -133,7 +154,7 @@ private fun ToolSection(
                     val selected = item.id == activeToolId
                     val blocked = hasUniqueAnnotationForTool(measurements, item)
                     ToolButton(
-                        label = item.label,
+                        label = displayToolLabel(item, section),
                         icon = item.icon,
                         selected = selected,
                         enabled = !blocked,
@@ -147,6 +168,17 @@ private fun ToolSection(
             }
         }
     }
+}
+
+private fun displayToolLabel(
+    tool: AnnotationToolDefinition,
+    section: AnnotationToolSection,
+): String {
+    if (section != AnnotationToolSection.AUXILIARY) return tool.label
+
+    return tool.label
+        .removePrefix("Auxiliary ")
+        .replace("Polygons", "多边形")
 }
 
 @Composable

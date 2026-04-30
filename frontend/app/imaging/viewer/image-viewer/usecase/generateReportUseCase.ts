@@ -1,5 +1,6 @@
 import {MeasurementData, ImageData} from "@/app/imaging/viewer/image-viewer/types";
 import { generateMeasurementReport } from '@/services/imageServices';
+import { getAnnotationDisplayName, getAnnotationTypeId } from "../catalog/annotation-catalog";
 
 /*
 * 生成报告
@@ -45,7 +46,7 @@ export async function generateReport(
 
         report += `【测量结果】\n`;
         measurements.forEach((measurement, index) => {
-            report += `${index + 1}. ${measurement.type}：${measurement.value}\n`;
+            report += `${index + 1}. ${getAnnotationDisplayName(measurement.type)}：${measurement.value}\n`;
             if (measurement.description) {
                 report += `   ${measurement.description}\n`;
             }
@@ -57,14 +58,14 @@ export async function generateReport(
         if (imageData.examType === '正位X光片') {
             // 查找 Cobb 测量（可能是 Cobb、Cobb1、Cobb2 等）
             const cobbMeasurement = measurements.find(m =>
-                m.type.startsWith('Cobb')
+                /^cobb\d+$/i.test(m.type)
             );
-            const caMeasurement = measurements.find(m => m.type === 'CA');
+            const caMeasurement = measurements.find(m => getAnnotationTypeId(m.type) === 'ca');
 
             if (cobbMeasurement) {
                 const cobbValue = parseFloat(cobbMeasurement.value);
                 if (cobbValue > 10) {
-                    report += `• 脊柱侧弯程度：${cobbValue < 25 ? '轻度' : cobbValue < 40 ? '中度' : '重度'}（${cobbMeasurement.type} ${cobbMeasurement.value}）\n`;
+                    report += `• 脊柱侧弯程度：${cobbValue < 25 ? '轻度' : cobbValue < 40 ? '中度' : '重度'}（${getAnnotationDisplayName(cobbMeasurement.type)} ${cobbMeasurement.value}）\n`;
                 }
             }
 
@@ -75,9 +76,9 @@ export async function generateReport(
                 }
             }
         } else if (imageData.examType === '侧位X光片') {
-            const tkMeasurement = measurements.find(m => m.type === 'TK');
-            const llMeasurement = measurements.find(m => m.type === 'LL');
-            const svaMeasurement = measurements.find(m => m.type === 'SVA');
+            const tkMeasurement = measurements.find(m => getAnnotationTypeId(m.type) === 'tk-t5-t12');
+            const llMeasurement = measurements.find(m => getAnnotationTypeId(m.type) === 'll-l1-s1');
+            const svaMeasurement = measurements.find(m => getAnnotationTypeId(m.type) === 'sva');
 
             if (tkMeasurement) {
                 report += `• 胸椎后凸角：${tkMeasurement.value}，形态${parseFloat(tkMeasurement.value) > 40 ? '偏大' : '正常'}\n`;

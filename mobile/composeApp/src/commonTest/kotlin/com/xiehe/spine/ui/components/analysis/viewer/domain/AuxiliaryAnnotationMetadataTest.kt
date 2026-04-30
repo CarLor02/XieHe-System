@@ -2,6 +2,14 @@ package com.xiehe.spine.ui.components.analysis.viewer.domain
 
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_ANGLE
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_ARROW
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_CIRCLE
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_HORIZONTAL_LINE
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_LENGTH
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_POLYGON
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_VERTICAL_LINE
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_VERTEBRA_CENTER
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -24,26 +32,26 @@ class AuxiliaryAnnotationMetadataTest {
     }
 
     @Test
-    fun webAuxiliaryShapeTypesAreRecognizedWhenLoaded() {
-        assertTrue(isPersistedAuxiliaryAnnotationType("箭头标注"))
-        assertTrue(isPersistedAuxiliaryAnnotationType("圆形标注"))
-        assertTrue(isPersistedAuxiliaryAnnotationType("多边形标注"))
-        assertTrue(isPersistedAuxiliaryAnnotationType("角度标注"))
-        assertTrue(isPersistedAuxiliaryAnnotationType("距离标注"))
+    fun auxiliaryShapeKeysAreRecognizedWhenLoaded() {
+        assertTrue(isPersistedAuxiliaryAnnotationType(TOOL_AUX_ARROW))
+        assertTrue(isPersistedAuxiliaryAnnotationType(TOOL_AUX_CIRCLE))
+        assertTrue(isPersistedAuxiliaryAnnotationType(TOOL_AUX_POLYGON))
+        assertTrue(isPersistedAuxiliaryAnnotationType(TOOL_AUX_ANGLE))
+        assertTrue(isPersistedAuxiliaryAnnotationType(TOOL_AUX_LENGTH))
     }
 
     @Test
     fun allAuxiliaryAnnotationsCanBeRenamed() {
-        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "Polygons")))
-        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "椎体中心")))
-        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "距离标注")))
-        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "角度标注")))
-        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "辅助水平线")))
-        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = "辅助垂直线")))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = TOOL_AUX_POLYGON)))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = TOOL_VERTEBRA_CENTER)))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = TOOL_AUX_LENGTH)))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = TOOL_AUX_ANGLE)))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = TOOL_AUX_HORIZONTAL_LINE)))
+        assertTrue(isEditableAuxiliaryAnnotation(auxiliaryMeasurement(type = TOOL_AUX_VERTICAL_LINE)))
     }
 
     private fun arrowMeasurement(description: String): AnnotationMeasurement {
-        return auxiliaryMeasurement(type = "Arrow", description = description)
+        return auxiliaryMeasurement(type = TOOL_AUX_ARROW, description = description)
     }
 
     private fun auxiliaryMeasurement(
