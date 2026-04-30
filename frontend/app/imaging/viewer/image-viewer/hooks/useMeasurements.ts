@@ -44,9 +44,10 @@ export function useMeasurements() {
         ) {
           const imageWidth = imageNaturalSize?.width || 1000;
           const referenceWidth = 300;
-          const pixelDistance = Math.abs(
-            measurement.points[1].x - measurement.points[0].x
-          );
+          // 带符号的像素偏移：约定 points[0] 为测量点（顶椎/C7），points[1] 为参考线
+          const pixelOffset =
+            measurement.points[0].x - measurement.points[1].x;
+          const pixelDistance = Math.abs(pixelOffset);
 
           let distance: number;
           if (distanceToUse && pointsToUse && pointsToUse.length === 2) {
@@ -61,9 +62,11 @@ export function useMeasurements() {
             distance = (pixelDistance / imageWidth) * referenceWidth;
           }
 
+          const signedDistance = pixelOffset < 0 ? -distance : distance;
+
           return {
             ...measurement,
-            value: `${distance.toFixed(2)}mm`,
+            value: `${signedDistance.toFixed(2)}mm`,
           };
         }
 
