@@ -22,7 +22,9 @@ import {
   downloadExportFiles,
   ExportContentType,
   ExportFile,
+  getAiDetectionMeasurements,
   getMeasurementsForImage,
+  getParameterMeasurements,
   parseAnnotationData,
   TabularExportFormat,
 } from './_utils/export-utils';
@@ -237,13 +239,19 @@ export default function DataExportPage() {
             blob,
           });
         } else if (exportContent === 'annotation-points') {
-          const rows = buildAnnotationPointRows(img, measurements);
+          const rows = buildAnnotationPointRows(
+            img,
+            getAiDetectionMeasurements(measurements)
+          );
           exportFiles.push({
             filename: buildExportFilename(img, exportContent, tabularExportFormat),
             blob: createTabularBlob(rows, tabularExportFormat, exportContent),
           });
         } else {
-          const rows = buildMeasurementRows(img, measurements);
+          const rows = buildMeasurementRows(
+            img,
+            getParameterMeasurements(measurements)
+          );
           exportFiles.push({
             filename: buildExportFilename(img, exportContent, tabularExportFormat),
             blob: createTabularBlob(rows, tabularExportFormat, exportContent),
@@ -419,9 +427,11 @@ export default function DataExportPage() {
                       const isSelected = selectedIds.has(img.id);
                       const annotationData = parseAnnotationData(img);
                       const measurementCount =
-                        annotationData?.measurements?.length ||
-                        measurementRecords[img.id]?.measurements?.length ||
-                        0;
+                        getParameterMeasurements(
+                          annotationData?.measurements ||
+                            measurementRecords[img.id]?.measurements ||
+                            []
+                        ).length;
 
                       return (
                         <tr
