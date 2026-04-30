@@ -786,7 +786,7 @@ export function renderSacralWithPerpendicular(
 }
 
 /**
- * C7 Offset渲染器（正面）：
+ * TS 渲染器（正面）：
  * - 前4个点连线形成锥体区域（虚线），中心点作为第一条垂直线
  * - 后2个点连线及中点作为第二条垂直线
  * - 两条垂直线之间显示水平测量线

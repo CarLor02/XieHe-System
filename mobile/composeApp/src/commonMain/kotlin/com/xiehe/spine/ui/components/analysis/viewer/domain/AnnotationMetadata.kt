@@ -24,7 +24,7 @@ internal enum class AnnotationRenderType {
     VERTICAL_GUIDE_LINES,
     TTS,
     HORIZONTAL_GUIDE_LINES,
-    C7_OFFSET,
+    TS,
     TPA,
     SVA,
     THREE_POINT_ANGLE,
@@ -43,7 +43,7 @@ internal fun resolveAnnotationRenderType(
     type: String,
     pointsCount: Int = 0,
 ): AnnotationRenderType = when {
-    isC7OffsetMeasurement(type, pointsCount) -> AnnotationRenderType.C7_OFFSET
+    isTsMeasurement(type, pointsCount) -> AnnotationRenderType.TS
     isTrunkShiftMeasurement(type, pointsCount) -> AnnotationRenderType.TTS
     else -> when (type) {
         "t1-tilt",
@@ -51,7 +51,7 @@ internal fun resolveAnnotationRenderType(
         -> AnnotationRenderType.LINE_WITH_HORIZONTAL_ARC
 
         "ca",
-        "pelvic",
+        "po",
         -> AnnotationRenderType.SINGLE_LINE_WITH_HORIZONTAL
 
         "cobb",
@@ -65,7 +65,7 @@ internal fun resolveAnnotationRenderType(
         "aux-angle",
         -> AnnotationRenderType.TWO_DASHED_LINES
 
-        "sacral" -> AnnotationRenderType.SACRAL_WITH_PERPENDICULAR
+        "css" -> AnnotationRenderType.SACRAL_WITH_PERPENDICULAR
         "ss" -> AnnotationRenderType.SS
         "pi" -> AnnotationRenderType.PI
         "pt" -> AnnotationRenderType.PT
@@ -214,8 +214,8 @@ private fun resolveCatalogTagAnchor(
             y = midpoint(points[0], points[1]).y - 20f,
         )
 
-        "pelvic",
-        "sacral",
+        "po",
+        "css",
         "ss",
         "length",
         "aux-length",
@@ -232,14 +232,14 @@ private fun resolveCatalogTagAnchor(
             y = minOf(points[0].y, points[1].y) - 20f / imageScale,
         )
 
-        "tts" -> resolveTsTagAnchor(points, imageScale)
+        "tts" -> resolveTtsTagAnchor(points, imageScale)
 
         "lld" -> Offset(
             x = max(points[0].x, points[1].x) + 20f / imageScale,
             y = (points[0].y + points[1].y) / 2f,
         )
 
-        "c7-offset" -> resolveC7OffsetTagAnchor(points, imageScale)
+        "ts" -> resolveTsTagAnchor(points, imageScale)
 
         "t1-slope" -> Offset(
             x = (points[0].x + points[1].x) / 2f,
@@ -356,7 +356,7 @@ private fun resolveCatalogTagAnchor(
 }
 
 private fun resolveMeasurementTool(measurement: AnnotationMeasurement) = when {
-    isC7OffsetMeasurement(measurement.type, measurement.points.size) -> getAnnotationToolByMeasurementType("c7-offset")
+    isTsMeasurement(measurement.type, measurement.points.size) -> getAnnotationToolByMeasurementType("ts")
     isTrunkShiftMeasurement(measurement.type, measurement.points.size) -> getAnnotationToolByMeasurementType("tts")
     else -> getAnnotationToolByMeasurementType(measurement.type)
 }
@@ -368,14 +368,14 @@ private fun isTrunkShiftMeasurement(
     return type == "tts" && pointsCount < 6
 }
 
-private fun isC7OffsetMeasurement(
+private fun isTsMeasurement(
     type: String,
     pointsCount: Int,
 ): Boolean {
-    return type == "c7-offset"
+    return type == "ts"
 }
 
-private fun resolveTsTagAnchor(
+private fun resolveTtsTagAnchor(
     points: List<Offset>,
     imageScale: Float,
 ): Offset {
@@ -393,12 +393,12 @@ private fun resolveTsTagAnchor(
     )
 }
 
-private fun resolveC7OffsetTagAnchor(
+private fun resolveTsTagAnchor(
     points: List<Offset>,
     imageScale: Float,
 ): Offset {
     if (points.size < 6) {
-        return resolveTsTagAnchor(points, imageScale)
+        return resolveTtsTagAnchor(points, imageScale)
     }
     val centerY = points.take(4).averageOf { it.y }
     val refY = (points[4].y + points[5].y) / 2f
@@ -443,12 +443,12 @@ private fun SpineAnnotationToolColors.resolveColor(colorKey: AnnotationToolColor
     AnnotationToolColorKey.T1_TILT -> t1Tilt
     AnnotationToolColorKey.COBB -> cobb
     AnnotationToolColorKey.CA -> ca
-    AnnotationToolColorKey.PELVIC -> pelvic
-    AnnotationToolColorKey.SACRAL -> sacral
+    AnnotationToolColorKey.PO -> po
+    AnnotationToolColorKey.CSS -> css
     AnnotationToolColorKey.AVT -> avt
-    AnnotationToolColorKey.TS -> ts
+    AnnotationToolColorKey.TTS -> tts
     AnnotationToolColorKey.LLD -> lld
-    AnnotationToolColorKey.C7_OFFSET -> c7Offset
+    AnnotationToolColorKey.TS -> ts
     AnnotationToolColorKey.T1_SLOPE -> t1Slope
     AnnotationToolColorKey.CL -> cl
     AnnotationToolColorKey.TK_T2_T5 -> tkT2T5

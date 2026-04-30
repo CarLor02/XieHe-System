@@ -25,12 +25,12 @@ fun getAnteriorTools(): List<AnnotationToolDefinition> {
             TOOL_T1_TILT,
             TOOL_COBB,
             TOOL_CA,
-            TOOL_PELVIC,
-            TOOL_SACRAL,
+            TOOL_PO,
+            TOOL_CSS,
             TOOL_AVT,
-            TOOL_TS,
+            TOOL_TTS,
             TOOL_LLD,
-            TOOL_C7_OFFSET,
+            TOOL_TS,
         ) + commonMeasurementToolIds,
     )
 }

@@ -14,7 +14,7 @@ import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_LENGTH
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_POLYGON
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_VERTICAL_LINE
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AVT
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_C7_OFFSET
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CA
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CL
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_COBB
@@ -23,10 +23,10 @@ import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LLD
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_L4
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_S1
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L4_S1
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PELVIC
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PO
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PI
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PT
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CSS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_STANDARD_DISTANCE
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SVA
@@ -36,7 +36,7 @@ import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_TILT
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TK_T2_T5
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TK_T5_T12
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TPA
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TTS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_VERTEBRA_CENTER
 import kotlin.math.PI
 import kotlin.math.abs
@@ -93,19 +93,19 @@ fun createManualAnnotationMeasurement(
             signed = false,
         )
 
-        TOOL_PELVIC -> angularMeasurement(
+        TOOL_PO -> angularMeasurement(
             key = measurementKey,
-            type = TOOL_PELVIC,
-            description = "骨盆倾斜角测量",
+            type = TOOL_PO,
+            description = "骨盆倾斜角(Pelvic obliquity, PO)",
             points = points,
             angle = angleToHorizontal(points[0], points[1]),
             signed = true,
         )
 
-        TOOL_SACRAL -> angularMeasurement(
+        TOOL_CSS -> angularMeasurement(
             key = measurementKey,
-            type = TOOL_SACRAL,
-            description = "骶骨倾斜角测量",
+            type = TOOL_CSS,
+            description = "冠状面骶骨倾斜角CSS(Coronal Sacral Slope)",
             points = points,
             angle = angleToHorizontal(points[0], points[1]),
             signed = true,
@@ -119,9 +119,9 @@ fun createManualAnnotationMeasurement(
             distanceMm = calculateActualDistance(abs(points[1].x - points[0].x), calibration),
         )
 
-        TOOL_TS -> distanceMeasurement(
+        TOOL_TTS -> distanceMeasurement(
             key = measurementKey,
-            type = TOOL_TS,
+            type = TOOL_TTS,
             description = "胸廓躯干偏移TTS(Thoracic Trunk Shift)",
             points = points,
             distanceMm = calculateActualDistance(
@@ -138,12 +138,12 @@ fun createManualAnnotationMeasurement(
             distanceMm = calculateActualDistance(abs(points[1].y - points[0].y), calibration),
         )
 
-        TOOL_C7_OFFSET -> {
+        TOOL_TS -> {
             val center = average(points.take(4))
             val reference = midpoint(points[4], points[5])
             distanceMeasurement(
                 key = measurementKey,
-                type = TOOL_C7_OFFSET,
+                type = TOOL_TS,
                 description = "躯干偏移TS(Trunk Shift)",
                 points = points,
                 distanceMm = calculateActualDistance(abs(center.x - reference.x), calibration),

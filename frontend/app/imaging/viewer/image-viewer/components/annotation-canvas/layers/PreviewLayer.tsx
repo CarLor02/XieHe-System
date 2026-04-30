@@ -664,9 +664,9 @@ export default function PreviewLayer({
           label="HRL"
         />
       )}
-      {selectedTool.includes('pelvic') && referenceLines.pelvic && (
+      {selectedTool === 'po' && referenceLines.po && (
         <ReferenceLinePreview
-          point={referenceLines.pelvic}
+          point={referenceLines.po}
           imageScale={imageScale}
           imageToScreen={imageToScreen}
           direction="horizontal"
@@ -682,9 +682,9 @@ export default function PreviewLayer({
           label="HRL"
         />
       )}
-      {selectedTool.includes('sacral') && referenceLines.sacral && (
+      {selectedTool === 'css' && referenceLines.css && (
         <ReferenceLinePreview
-          point={referenceLines.sacral}
+          point={referenceLines.css}
           imageScale={imageScale}
           imageToScreen={imageToScreen}
           direction="horizontal"
@@ -700,7 +700,7 @@ export default function PreviewLayer({
           label="VL1"
         />
       )}
-      {selectedTool.includes('ts') && referenceLines.ts && (
+      {selectedTool === 'ts' && referenceLines.ts && (
         <ReferenceLinePreview
           point={referenceLines.ts}
           imageScale={imageScale}
@@ -767,7 +767,7 @@ export default function PreviewLayer({
         );
       })}
 
-      {selectedTool.includes('ts') &&
+      {selectedTool === 'ts' &&
         clickedPoints.length === 1 &&
         liveMouseImagePoint &&
         (() => {

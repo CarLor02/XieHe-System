@@ -112,7 +112,7 @@ export default function renderPreview({
 
   const screenPoints = previewPoints.map(point => imageToScreen(point));
 
-  if (selectedTool.includes('ts') && screenPoints.length >= 2) {
+  if (selectedTool === 'ts' && screenPoints.length >= 2) {
     return (
       <line
         x1={screenPoints[0].x}
@@ -168,8 +168,8 @@ export default function renderPreview({
     (selectedTool.includes('t1-tilt') ||
       selectedTool.includes('t1-slope') ||
       selectedTool.includes('ca') ||
-      selectedTool.includes('pelvic') ||
-      selectedTool.includes('sacral')) &&
+      selectedTool === 'po' ||
+      selectedTool === 'css') &&
     screenPoints.length === 2
   ) {
     return (
@@ -194,7 +194,7 @@ export default function renderPreview({
     );
   }
 
-  if (selectedTool.includes('c7-offset')) {
+  if (selectedTool === 'ts') {
     return null;
   }
 

@@ -26,8 +26,8 @@ export interface HoverState {
 export interface ReferenceLines {
   t1Tilt: Point | null;
   ca: Point | null;
-  pelvic: Point | null;
-  sacral: Point | null;
+  po: Point | null;
+  css: Point | null;
   avt: Point | null;
   ts: Point | null;
   lld: Point | null;
@@ -36,4 +36,3 @@ export interface ReferenceLines {
   horizontalLine: Point | null;
   verticalLine: Point | null;
 }
-

@@ -8,12 +8,12 @@ const val TOOL_STANDARD_DISTANCE = "standard_distance"
 const val TOOL_T1_TILT = "t1-tilt"
 const val TOOL_COBB = "cobb"
 const val TOOL_CA = "ca"
-const val TOOL_PELVIC = "pelvic"
-const val TOOL_SACRAL = "sacral"
+const val TOOL_PO = "po"
+const val TOOL_CSS = "css"
 const val TOOL_AVT = "avt"
-const val TOOL_TS = "tts"
+const val TOOL_TTS = "tts"
 const val TOOL_LLD = "lld"
-const val TOOL_C7_OFFSET = "c7-offset"
+const val TOOL_TS = "ts"
 
 const val TOOL_T1_SLOPE = "t1-slope"
 const val TOOL_CL = "cl"
@@ -54,12 +54,12 @@ enum class AnnotationToolColorKey {
     T1_TILT,
     COBB,
     CA,
-    PELVIC,
-    SACRAL,
+    PO,
+    CSS,
     AVT,
-    TS,
+    TTS,
     LLD,
-    C7_OFFSET,
+    TS,
     T1_SLOPE,
     CL,
     TK_T2_T5,
@@ -145,20 +145,20 @@ val ANNOTATION_TOOL_CATALOG = listOf(
         pointsNeeded = 2,
     ),
     AnnotationToolDefinition(
-        id = TOOL_PELVIC,
-        label = "Pelvic",
+        id = TOOL_PO,
+        label = "PO",
         icon = IconToken.MEASURE_PELVIC,
         section = AnnotationToolSection.MEASURE,
-        colorKey = AnnotationToolColorKey.PELVIC,
+        colorKey = AnnotationToolColorKey.PO,
         tagAnchorStyle = AnnotationTagAnchorStyle.MIDPOINT_ABOVE,
         pointsNeeded = 2,
     ),
     AnnotationToolDefinition(
-        id = TOOL_SACRAL,
-        label = "Sacral",
+        id = TOOL_CSS,
+        label = "CSS",
         icon = IconToken.MEASURE_SACRAL,
         section = AnnotationToolSection.MEASURE,
-        colorKey = AnnotationToolColorKey.SACRAL,
+        colorKey = AnnotationToolColorKey.CSS,
         tagAnchorStyle = AnnotationTagAnchorStyle.MIDPOINT_ABOVE,
         pointsNeeded = 2,
     ),
@@ -172,11 +172,11 @@ val ANNOTATION_TOOL_CATALOG = listOf(
         pointsNeeded = 2,
     ),
     AnnotationToolDefinition(
-        id = TOOL_TS,
+        id = TOOL_TTS,
         label = "TTS",
         icon = IconToken.MEASURE_TS,
         section = AnnotationToolSection.MEASURE,
-        colorKey = AnnotationToolColorKey.TS,
+        colorKey = AnnotationToolColorKey.TTS,
         tagAnchorStyle = AnnotationTagAnchorStyle.AVERAGE_ABOVE,
         pointsNeeded = 4,
     ),
@@ -190,11 +190,11 @@ val ANNOTATION_TOOL_CATALOG = listOf(
         pointsNeeded = 2,
     ),
     AnnotationToolDefinition(
-        id = TOOL_C7_OFFSET,
+        id = TOOL_TS,
         label = "TS",
         icon = IconToken.MEASURE_C7_OFFSET,
         section = AnnotationToolSection.MEASURE,
-        colorKey = AnnotationToolColorKey.C7_OFFSET,
+        colorKey = AnnotationToolColorKey.TS,
         tagAnchorStyle = AnnotationTagAnchorStyle.AVERAGE_ABOVE,
         pointsNeeded = 6,
     ),

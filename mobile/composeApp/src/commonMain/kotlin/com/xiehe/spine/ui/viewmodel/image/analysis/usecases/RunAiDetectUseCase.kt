@@ -8,10 +8,10 @@ import com.xiehe.spine.data.ai.AiVertebraCorners
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AVT
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CA
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PELVIC
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_TILT
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PO
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CSS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_TILT
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.acos
@@ -122,17 +122,17 @@ class RunAiDetectUseCase(
             description = "Cobb角测量",
         )
         output += angleMetricOrPlaceholder(
-            key = "ai_compute_pelvic",
-            type = TOOL_PELVIC,
-            description = "骨盆倾斜角测量",
+            key = "ai_compute_po",
+            type = TOOL_PO,
+            description = "骨盆倾斜角(Pelvic obliquity, PO)",
             start = pose["IR"]?.toPoint(),
             end = pose["IL"]?.toPoint(),
             signed = true,
         )
         output += angleMetricOrPlaceholder(
-            key = "ai_compute_sacral",
-            type = TOOL_SACRAL,
-            description = "骶骨倾斜角测量",
+            key = "ai_compute_css",
+            type = TOOL_CSS,
+            description = "冠状面骶骨倾斜角CSS(Coronal Sacral Slope)",
             start = pose["SR"]?.toPoint(),
             end = pose["SL"]?.toPoint(),
             signed = true,
@@ -153,12 +153,12 @@ class RunAiDetectUseCase(
                 type = TOOL_TS,
                 value = formatDistanceValue(abs(c7Center.x - csvlX), calibration),
                 points = listOf(left, right),
-                description = "躯干偏移测量",
+                description = "躯干偏移TS(Trunk Shift)",
                 kind = AnalysisMeasurementKind.COMPUTED,
                 panelVisible = true,
             )
         } else {
-            measurementPlaceholder("ai_compute_ts", TOOL_TS, "躯干偏移测量")
+            measurementPlaceholder("ai_compute_ts", TOOL_TS, "躯干偏移TS(Trunk Shift)")
         }
 
         val vertebraCenters = vertebrae.mapNotNull { (name, node) ->

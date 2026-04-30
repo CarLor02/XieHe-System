@@ -38,7 +38,7 @@ export function useMeasurements() {
         const typeId = getAnnotationTypeId(measurement.type);
         if (
           (typeId === 'avt' ||
-            typeId === 'c7-offset' ||
+            typeId === 'ts' ||
             typeId === 'sva') &&
           measurement.points.length >= 2
         ) {

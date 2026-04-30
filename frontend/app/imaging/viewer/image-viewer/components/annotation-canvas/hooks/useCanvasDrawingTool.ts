@@ -262,7 +262,7 @@ export function useCanvasDrawingTool({
       }
 
       let finalPoint = imagePoint;
-      if (selectedTool.includes('ts') && clickedPoints.length === 1) {
+      if (selectedTool === 'ts' && clickedPoints.length === 1) {
         finalPoint = { x: imagePoint.x, y: clickedPoints[0].y };
       }
 
@@ -282,14 +282,14 @@ export function useCanvasDrawingTool({
 
       if (
         selectedTool.includes('ca') ||
-        selectedTool.includes('pelvic') ||
-        selectedTool.includes('sacral')
+        selectedTool === 'po' ||
+        selectedTool === 'css'
       ) {
         const referenceKey = selectedTool.includes('ca')
           ? 'ca'
-          : selectedTool.includes('pelvic')
-            ? 'pelvic'
-            : 'sacral';
+          : selectedTool === 'po'
+            ? 'po'
+            : 'css';
 
         if (newPoints.length === 1) {
           setReferenceLines(previous => ({
@@ -310,12 +310,9 @@ export function useCanvasDrawingTool({
       if (
         selectedTool.includes('ss') ||
         selectedTool.includes('sva') ||
-        selectedTool.includes('ts')
+        selectedTool === 'ts'
       ) {
-          const inheritedMap = buildInheritedMap(
-            currentTool.id,
-            measurements
-          );
+        const inheritedMap = buildInheritedMap(currentTool.id, measurements);
         const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
 
         if (newPoints.length === 1) {
@@ -367,9 +364,9 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      if (selectedTool.includes('c7-offset')) {
+      if (selectedTool === 'ts') {
         const { points: inheritedPoints, count: inheritedCount } =
-          getInheritedPoints('c7-offset', measurements);
+          getInheritedPoints('ts', measurements);
         const effectiveNeeded = 6 - inheritedCount;
         if (newPoints.length === effectiveNeeded) {
           onMeasurementAdd(currentTool.id, [...newPoints, ...inheritedPoints]);

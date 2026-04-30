@@ -63,7 +63,7 @@ fun DrawScope.drawAnnotationMeasurement(
         AnnotationRenderType.VERTICAL_GUIDE_LINES -> drawVerticalGuideLines(points, color)
         AnnotationRenderType.TTS -> drawTts(points, color)
         AnnotationRenderType.HORIZONTAL_GUIDE_LINES -> drawHorizontalGuideLines(points, color)
-        AnnotationRenderType.C7_OFFSET -> drawC7Offset(points, color)
+        AnnotationRenderType.TS -> drawC7Offset(points, color)
         AnnotationRenderType.TPA -> drawTpa(points, color)
         AnnotationRenderType.SVA -> drawSva(points, color)
         AnnotationRenderType.THREE_POINT_ANGLE -> drawThreePointAngle(points, color)

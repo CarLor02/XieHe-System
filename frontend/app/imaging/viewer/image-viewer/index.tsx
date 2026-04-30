@@ -238,7 +238,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       currentTool.id === 'pi' ||
       currentTool.id === 'pt' ||
       currentTool.id === 'tpa' ||
-      currentTool.id === 'c7-offset' ||  // C7 Offset(TS): 继承点在索引4-5，手动点在0-3
+      currentTool.id === 'ts' ||  // TS: 继承点在索引4-5，手动点在0-3
       currentTool.id === 'tts'           // TTS: 继承点在索引2-3，手动点在0-1
     ) {
       return;

@@ -3,16 +3,16 @@ package com.xiehe.spine.ui.components.analysis.viewer.domain
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AUX_LENGTH
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_C7_OFFSET
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CL
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_COBB
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_L4
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_S1
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L4_S1
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PELVIC
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PO
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PI
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PT
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CSS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SVA
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T10_L2
@@ -21,7 +21,7 @@ import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_SLOPE
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TK_T2_T5
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TK_T5_T12
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TPA
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TTS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_VERTEBRA_CENTER
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.getAnnotationTool
 import kotlin.test.Test
@@ -33,15 +33,15 @@ class AnnotationUniquenessTest {
     @Test
     fun pelvicAndSacralKeysBlockTheirTools() {
         val measurements = listOf(
-            measurement("pelvic", TOOL_PELVIC),
-            measurement("sacral", TOOL_SACRAL),
+            measurement("po", TOOL_PO),
+            measurement("css", TOOL_CSS),
         )
 
         assertTrue(
-            hasUniqueAnnotationForTool(measurements, requireNotNull(getAnnotationTool(TOOL_PELVIC))),
+            hasUniqueAnnotationForTool(measurements, requireNotNull(getAnnotationTool(TOOL_PO))),
         )
         assertTrue(
-            hasUniqueAnnotationForTool(measurements, requireNotNull(getAnnotationTool(TOOL_SACRAL))),
+            hasUniqueAnnotationForTool(measurements, requireNotNull(getAnnotationTool(TOOL_CSS))),
         )
     }
 
@@ -124,15 +124,15 @@ class AnnotationUniquenessTest {
 
     @Test
     fun tsAndTtsUsePointCountForCanonicalMatching() {
-        val trunkShift = measurement("tts-4", TOOL_TS, pointCount = 4)
-        val c7Offset = measurement("c7-offset-6", TOOL_C7_OFFSET, pointCount = 6)
+        val trunkShift = measurement("tts-4", TOOL_TTS, pointCount = 4)
+        val trunkShiftTs = measurement("ts-6", TOOL_TS, pointCount = 6)
 
-        assertTrue(measurementMatchesTool(trunkShift, requireNotNull(getAnnotationTool(TOOL_TS))))
+        assertTrue(measurementMatchesTool(trunkShift, requireNotNull(getAnnotationTool(TOOL_TTS))))
         assertFalse(
-            measurementMatchesTool(trunkShift, requireNotNull(getAnnotationTool(TOOL_C7_OFFSET))),
+            measurementMatchesTool(trunkShift, requireNotNull(getAnnotationTool(TOOL_TS))),
         )
         assertTrue(
-            measurementMatchesTool(c7Offset, requireNotNull(getAnnotationTool(TOOL_C7_OFFSET))),
+            measurementMatchesTool(trunkShiftTs, requireNotNull(getAnnotationTool(TOOL_TS))),
         )
     }
 

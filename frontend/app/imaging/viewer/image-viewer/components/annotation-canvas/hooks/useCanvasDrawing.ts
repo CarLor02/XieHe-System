@@ -5,8 +5,8 @@ import { DrawingState, ReferenceLines } from '../types';
 const EMPTY_REFERENCE_LINES: ReferenceLines = {
   t1Tilt: null,
   ca: null,
-  pelvic: null,
-  sacral: null,
+  po: null,
+  css: null,
   avt: null,
   ts: null,
   lld: null,
@@ -53,10 +53,10 @@ export function useCanvasDrawing() {
           ? previous.t1Tilt
           : null,
       ca: toolId.includes('ca') ? previous.ca : null,
-      pelvic: toolId.includes('pelvic') ? previous.pelvic : null,
-      sacral: toolId.includes('sacral') ? previous.sacral : null,
+      po: toolId === 'po' ? previous.po : null,
+      css: toolId === 'css' ? previous.css : null,
       avt: toolId.includes('avt') ? previous.avt : null,
-      ts: toolId.includes('ts') ? previous.ts : null,
+      ts: toolId === 'ts' ? previous.ts : null,
       lld: toolId.includes('lld') ? previous.lld : null,
       ss: toolId.includes('ss') ? previous.ss : null,
       sva: toolId.includes('sva') ? previous.sva : null,
@@ -78,4 +78,3 @@ export function useCanvasDrawing() {
     clearReferenceLinesForTool,
   };
 }
-

@@ -2,18 +2,18 @@ package com.xiehe.spine.ui.components.analysis.viewer.domain
 
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_C7_OFFSET
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CL
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_L4
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L1_S1
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_LL_L4_S1
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PI
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PT
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CSS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SVA
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TPA
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TTS
 
 internal data class PointInheritanceRule(
     val fromType: String,
@@ -37,28 +37,28 @@ data class InheritedPointsResult(
 )
 
 private val pointInheritanceRules = mapOf(
-    TOOL_C7_OFFSET to listOf(
+    TOOL_TS to listOf(
         PointInheritanceRule(
-            fromType = TOOL_SACRAL,
+            fromType = TOOL_CSS,
             sourcePointIndices = listOf(0, 1),
             destinationPointIndices = listOf(4, 5),
         ),
     ),
-    TOOL_TS to listOf(
+    TOOL_TTS to listOf(
         PointInheritanceRule(
-            fromType = TOOL_SACRAL,
+            fromType = TOOL_CSS,
             sourcePointIndices = listOf(0, 1),
             destinationPointIndices = listOf(2, 3),
         ),
     ),
-    TOOL_SACRAL to listOf(
+    TOOL_CSS to listOf(
         PointInheritanceRule(
-            fromType = TOOL_C7_OFFSET,
+            fromType = TOOL_TS,
             sourcePointIndices = listOf(4, 5),
             destinationPointIndices = listOf(0, 1),
         ),
         PointInheritanceRule(
-            fromType = TOOL_TS,
+            fromType = TOOL_TTS,
             sourcePointIndices = listOf(2, 3),
             destinationPointIndices = listOf(0, 1),
         ),

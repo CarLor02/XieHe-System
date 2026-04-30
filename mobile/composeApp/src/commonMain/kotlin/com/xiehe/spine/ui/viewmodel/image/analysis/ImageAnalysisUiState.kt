@@ -17,11 +17,12 @@ import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_AVT as VIEWER_
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CA as VIEWER_TOOL_CA
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_COBB as VIEWER_TOOL_COBB
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_MOVE as VIEWER_TOOL_MOVE
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PELVIC as VIEWER_TOOL_PELVIC
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL as VIEWER_TOOL_SACRAL
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PO as VIEWER_TOOL_PO
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CSS as VIEWER_TOOL_CSS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_STANDARD_DISTANCE as VIEWER_TOOL_STANDARD_DISTANCE
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_T1_TILT as VIEWER_TOOL_T1_TILT
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS as VIEWER_TOOL_TS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TTS as VIEWER_TOOL_TTS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_VERTEBRA_CENTER as VIEWER_TOOL_VERTEBRA_CENTER
 import com.xiehe.spine.ui.components.analysis.viewer.domain.DEFAULT_STANDARD_DISTANCE_MM
 import kotlin.math.roundToInt
@@ -34,8 +35,9 @@ val TOOL_MOVE = VIEWER_TOOL_MOVE
 val TOOL_T1_TILT = VIEWER_TOOL_T1_TILT
 val TOOL_COBB = VIEWER_TOOL_COBB
 val TOOL_CA = VIEWER_TOOL_CA
-val TOOL_PELVIC = VIEWER_TOOL_PELVIC
-val TOOL_SACRAL = VIEWER_TOOL_SACRAL
+val TOOL_PO = VIEWER_TOOL_PO
+val TOOL_CSS = VIEWER_TOOL_CSS
+val TOOL_TTS = VIEWER_TOOL_TTS
 val TOOL_TS = VIEWER_TOOL_TS
 val TOOL_AVT = VIEWER_TOOL_AVT
 val TOOL_STANDARD_DISTANCE = VIEWER_TOOL_STANDARD_DISTANCE

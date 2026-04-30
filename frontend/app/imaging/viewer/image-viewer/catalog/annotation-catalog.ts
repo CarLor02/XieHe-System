@@ -560,8 +560,8 @@ export const CA_CONFIG: AnnotationConfig = {
  * 2点测量：与水平线夹角
  * 正负规则：左边高为正，右边高为负
  */
-export const PELVIC_CONFIG: AnnotationConfig = {
-  id: 'pelvic',
+export const PO_CONFIG: AnnotationConfig = {
+  id: 'po',
   name: 'PO',
   icon: 'medical-po',
   description: '骨盆倾斜角(Pelvic obliquity, PO)',
@@ -619,7 +619,7 @@ export const PELVIC_CONFIG: AnnotationConfig = {
     points: Point[],
     tolerance: number = 15
   ) => {
-    return PELVIC_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+    return PO_CONFIG.isInHoverRange(mousePoint, points, tolerance);
   },
 
   renderSpecialElements: (
@@ -640,8 +640,8 @@ export const PELVIC_CONFIG: AnnotationConfig = {
  * 2点测量：与水平线夹角
  * 正负规则：左边高为正，右边高为负
  */
-export const SACRAL_CONFIG: AnnotationConfig = {
-  id: 'sacral',
+export const CSS_CONFIG: AnnotationConfig = {
+  id: 'css',
   name: 'CSS',
   icon: 'medical-css',
   description: '冠状面骶骨倾斜角CSS(Coronal Sacral Slope)',
@@ -699,7 +699,7 @@ export const SACRAL_CONFIG: AnnotationConfig = {
     points: Point[],
     tolerance: number = 15
   ) => {
-    return SACRAL_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+    return CSS_CONFIG.isInHoverRange(mousePoint, points, tolerance);
   },
 
   renderSpecialElements: (
@@ -788,7 +788,7 @@ export const AVT_CONFIG: AnnotationConfig = {
  *   点2-3：骶骨参考线两端点（继承自 Sacral）
  * 计算：躯干线中点 X 与骶骨中线 X 的水平距离
  */
-export const TS_CONFIG: AnnotationConfig = {
+export const TTS_CONFIG: AnnotationConfig = {
   id: 'tts',
   name: 'TTS',
   icon: 'medical-tts',
@@ -859,7 +859,7 @@ export const TS_CONFIG: AnnotationConfig = {
     points: Point[],
     tolerance: number = 15
   ) => {
-    return TS_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+    return TTS_CONFIG.isInHoverRange(mousePoint, points, tolerance);
   },
 
   renderSpecialElements: (
@@ -938,14 +938,14 @@ export const LLD_CONFIG: AnnotationConfig = {
 };
 
 /**
- * C7 Offset C7偏移距离（正面）
+ * TS 躯干偏移（正面）
  * 6点测量：
  *   点1-4：C7椎体四角，中心为椎体中心
  *   点5-6：参考线两端点，中点作为参考中心
  * 测量结果：椎体中心与参考中点之间的水平距离
  */
-export const C7_OFFSET_CONFIG: AnnotationConfig = {
-  id: 'c7-offset',
+export const TS_CONFIG: AnnotationConfig = {
+  id: 'ts',
   name: 'TS',
   icon: 'medical-ts',
   description: '躯干偏移TS(Trunk Shift)',
@@ -1026,7 +1026,7 @@ export const C7_OFFSET_CONFIG: AnnotationConfig = {
     points: Point[],
     tolerance: number = 15
   ) => {
-    return C7_OFFSET_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+    return TS_CONFIG.isInHoverRange(mousePoint, points, tolerance);
   },
 
   renderSpecialElements: (
@@ -2497,13 +2497,12 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   'cobb-lumbar': COBB_CONFIG, // 兼容旧数据
   'cobb-thoracolumbar': COBB_CONFIG, // 兼容AI返回
   ca: CA_CONFIG,
-  pelvic: PELVIC_CONFIG,
-  sacral: SACRAL_CONFIG,
+  po: PO_CONFIG,
+  css: CSS_CONFIG,
   avt: AVT_CONFIG,
-  tts: TS_CONFIG,
-  ts: C7_OFFSET_CONFIG,
+  tts: TTS_CONFIG,
+  ts: TS_CONFIG,
   lld: LLD_CONFIG,
-  'c7-offset': C7_OFFSET_CONFIG,
   't1-slope': T1_SLOPE_CONFIG,
   cl: CL_CONFIG,
   'c2-c7-cl': CL_CONFIG, // 'C2-C7 CL' 规范化后的别名

@@ -2,9 +2,9 @@ package com.xiehe.spine.ui.components.analysis.viewer.domain
 
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_C7_OFFSET
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SACRAL
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_CSS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TTS
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -13,10 +13,10 @@ class AnnotationInheritanceTest {
     @Test
     fun sacralInheritsReferencePointsFromNewTsMeasurement() {
         val inherited = buildInheritedPointMap(
-            toolId = TOOL_SACRAL,
+            toolId = TOOL_CSS,
             measurements = listOf(
                 measurement(
-                    type = TOOL_TS,
+                    type = TOOL_TTS,
                     points = listOf(
                         MeasurementPoint(10.0, 20.0),
                         MeasurementPoint(50.0, 20.0),
@@ -34,10 +34,10 @@ class AnnotationInheritanceTest {
     @Test
     fun sacralInheritsReferencePointsFromNewTtsMeasurement() {
         val inherited = buildInheritedPointMap(
-            toolId = TOOL_SACRAL,
+            toolId = TOOL_CSS,
             measurements = listOf(
                 measurement(
-                    type = TOOL_C7_OFFSET,
+                    type = TOOL_TS,
                     points = listOf(
                         MeasurementPoint(10.0, 20.0),
                         MeasurementPoint(40.0, 20.0),

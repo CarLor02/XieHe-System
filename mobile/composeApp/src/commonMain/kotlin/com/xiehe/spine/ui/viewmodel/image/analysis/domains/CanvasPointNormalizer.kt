@@ -10,7 +10,7 @@ object CanvasPointNormalizer {
     ): MeasurementPoint {
         if (pendingPoints.isEmpty()) return point
         return when (toolId) {
-            TOOL_TS,
+            TOOL_TTS,
             TOOL_AUX_HORIZONTAL_LINE -> MeasurementPoint(
                 x = point.x,
                 y = pendingPoints.first().y,

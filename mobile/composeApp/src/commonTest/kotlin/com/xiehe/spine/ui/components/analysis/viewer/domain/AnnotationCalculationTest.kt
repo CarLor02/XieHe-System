@@ -1,8 +1,8 @@
 package com.xiehe.spine.ui.components.analysis.viewer.domain
 
 import com.xiehe.spine.data.measurement.MeasurementPoint
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_C7_OFFSET
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TTS
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -11,7 +11,7 @@ class AnnotationCalculationTest {
     @Test
     fun manualTsMeasurement_usesWebAlignedTypeAndDescription() {
         val measurement = createManualAnnotationMeasurement(
-            toolId = TOOL_TS,
+            toolId = TOOL_TTS,
             points = listOf(
                 MeasurementPoint(10.0, 20.0),
                 MeasurementPoint(50.0, 20.0),
@@ -23,14 +23,14 @@ class AnnotationCalculationTest {
             standardDistanceMm = null,
         )
 
-        assertEquals(TOOL_TS, measurement?.type)
+        assertEquals(TOOL_TTS, measurement?.type)
         assertEquals("胸廓躯干偏移TTS(Thoracic Trunk Shift)", measurement?.description)
     }
 
     @Test
     fun manualC7OffsetMeasurement_usesWebAlignedTypeAndDescription() {
         val measurement = createManualAnnotationMeasurement(
-            toolId = TOOL_C7_OFFSET,
+            toolId = TOOL_TS,
             points = listOf(
                 MeasurementPoint(10.0, 20.0),
                 MeasurementPoint(40.0, 20.0),
@@ -39,12 +39,12 @@ class AnnotationCalculationTest {
                 MeasurementPoint(15.0, 90.0),
                 MeasurementPoint(55.0, 90.0),
             ),
-            measurementKey = "c7-offset",
+            measurementKey = "ts",
             calibration = emptyCalibration(),
             standardDistanceMm = null,
         )
 
-        assertEquals(TOOL_C7_OFFSET, measurement?.type)
+        assertEquals(TOOL_TS, measurement?.type)
         assertEquals("躯干偏移TS(Trunk Shift)", measurement?.description)
     }
 

@@ -38,8 +38,8 @@ export const HORIZONTAL_LINE_TOOLS = [
   't1-tilt',
   't1-slope',
   'ca',
-  'pelvic',
-  'sacral',
+  'po',
+  'css',
   'ss',
 ] as const;
 

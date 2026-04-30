@@ -3,12 +3,12 @@ package com.xiehe.spine.ui.components.analysis.viewer.domain
 import androidx.compose.ui.geometry.Offset
 import com.xiehe.spine.data.measurement.MeasurementPoint
 import com.xiehe.spine.ui.components.analysis.viewer.AnnotationMeasurement
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_C7_OFFSET
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PI
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_PT
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_SS
 import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TK_T2_T5
-import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TS
+import com.xiehe.spine.ui.components.analysis.viewer.catalog.TOOL_TTS
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -64,7 +64,7 @@ class AnnotationMetadataTest {
     fun tsTagAnchor_movesToRightOfGuideLines() {
         val anchor = resolveMeasurementTagAnchor(
             measurement = measurement(
-                type = TOOL_TS,
+                type = TOOL_TTS,
                 points = listOf(
                     MeasurementPoint(10.0, 30.0),
                     MeasurementPoint(50.0, 30.0),
@@ -85,7 +85,7 @@ class AnnotationMetadataTest {
     fun ttsTagAnchor_usesC7OffsetGuideLinePosition() {
         val anchor = resolveMeasurementTagAnchor(
             measurement = measurement(
-                type = TOOL_C7_OFFSET,
+                type = TOOL_TS,
                 points = listOf(
                     MeasurementPoint(10.0, 30.0),
                     MeasurementPoint(50.0, 30.0),
@@ -106,8 +106,8 @@ class AnnotationMetadataTest {
 
     @Test
     fun renderType_usesPointCountToDisambiguateTtsAndC7Offset() {
-        assertEquals(AnnotationRenderType.TTS, resolveAnnotationRenderType(type = TOOL_TS, pointsCount = 4))
-        assertEquals(AnnotationRenderType.C7_OFFSET, resolveAnnotationRenderType(type = TOOL_C7_OFFSET, pointsCount = 6))
+        assertEquals(AnnotationRenderType.TTS, resolveAnnotationRenderType(type = TOOL_TTS, pointsCount = 4))
+        assertEquals(AnnotationRenderType.TS, resolveAnnotationRenderType(type = TOOL_TS, pointsCount = 6))
     }
 
     @Test

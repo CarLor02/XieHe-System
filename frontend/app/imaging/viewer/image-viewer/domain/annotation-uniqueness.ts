@@ -5,11 +5,11 @@ const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
   // 正位标注：除 Cobb、椎体中心、辅助图形外唯一。
   't1-tilt',
   'ca',
-  'pelvic',
-  'sacral',
+  'po',
+  'css',
   'tts',
   'lld',
-  'c7-offset',
+  'ts',
   // 侧位标注：除椎体中心、辅助图形外唯一。
   't1-slope',
   'cl',

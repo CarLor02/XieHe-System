@@ -86,7 +86,7 @@ export function getToolDisplayName(toolId: string): string {
     ca: '肩部角度',
     avt: 'AVT',
     tts: 'TTS',
-    'c7-offset': 'TS',
+    ts: 'TS',
     sva: 'SVA',
     tk: 'TK',
     ll: 'LL',
@@ -95,8 +95,8 @@ export function getToolDisplayName(toolId: string): string {
     ss: 'SS',
     't1-tilt': 'T1倾斜',
     't1-slope': 'T1斜率',
-    pelvic: '骨盆倾斜',
-    sacral: '骶骨倾斜',
+    po: '骨盆倾斜',
+    css: '骶骨倾斜',
   };
 
   return toolNames[toolId] || toolId;
