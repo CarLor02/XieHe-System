@@ -45,6 +45,7 @@ interface SessionState {
   user: SessionUser | null;
   session: UserSession | null;
   isLoading: boolean;
+  isLoggingOut: boolean;
   error: string | null;
   login: (credentials: LoginCredentials) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<boolean>;
@@ -75,6 +76,7 @@ export const useSessionStore = create<SessionState>()(
       user: null,
       session: null,
       isLoading: false,
+      isLoggingOut: false,
       error: null,
 
       login: async credentials => {
@@ -167,6 +169,8 @@ export const useSessionStore = create<SessionState>()(
       },
 
       logout: async (options = {}) => {
+        // 立即标记登出中，让任何同步权限检查的页面可以提前停止渲染受限页
+        set({ isLoggingOut: true });
         const accessToken = get().session?.accessToken;
         sessionStoreLogging.logoutRequested(get().session);
 
@@ -210,12 +214,14 @@ export const useSessionStore = create<SessionState>()(
         } catch (error) {
           sessionStoreLogging.logoutRequestFailed(error);
         } finally {
+          // 维持 isLoggingOut=true 直到浏览器完成跳转，避免清空 user 后闪现"访问受限"
           set({
             isAuthenticated: false,
             user: null,
             session: null,
             error: null,
             isLoading: false,
+            isLoggingOut: true,
           });
 
           clearPersistedAuthState();
@@ -290,6 +296,7 @@ export const useSessionStore = create<SessionState>()(
           user: null,
           session: null,
           error: '认证已过期，请重新登录',
+          isLoggingOut: true,
         });
 
         clearPersistedAuthState();
@@ -423,6 +430,7 @@ export const useUser = () => {
     isAuthenticated,
     session,
     user,
+    isLoggingOut,
     fetchUserInfo,
     fetchUserInfoStatus,
     updateUserInfo,
@@ -434,6 +442,7 @@ export const useUser = () => {
   return {
     isAuthenticated: hasUsableSession(session) || isAuthenticated,
     user,
+    isLoggingOut,
     fetchUserInfo,
     fetchUserInfoStatus,
     updateUserInfo,

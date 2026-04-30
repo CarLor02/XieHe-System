@@ -23,33 +23,29 @@ export default function StatsCard({ title, value, icon, color, href }: StatsCard
   const formattedValue = (value ?? 0).toLocaleString();
 
   const cardContent = (
-    <>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-600 mb-1">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{formattedValue}</p>
-        </div>
-        <div className={`w-12 h-12 rounded-lg ${colorClasses[color]} flex items-center justify-center`}>
-          <i className={`${icon} w-6 h-6 flex items-center justify-center text-white`}></i>
-        </div>
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm text-gray-600 mb-1">{title}</p>
+        <p className="text-2xl font-bold text-gray-900">{formattedValue}</p>
       </div>
-    </>
+      <div className={`w-12 h-12 rounded-lg ${colorClasses[color]} flex items-center justify-center`}>
+        <i className={`${icon} w-6 h-6 flex items-center justify-center text-white`}></i>
+      </div>
+    </div>
   );
 
-  const cardClassName =
-    'block bg-white p-6 rounded-lg border border-gray-200 hover:shadow-md transition-shadow';
+  const baseClass = 'block bg-white p-6 rounded-lg border border-gray-200 transition-shadow';
 
   if (href) {
     return (
-      <Link href={href} className={`${cardClassName} cursor-pointer`}>
+      <Link
+        href={href}
+        className={`${baseClass} hover:shadow-md hover:border-blue-300 cursor-pointer`}
+      >
         {cardContent}
       </Link>
     );
   }
 
-  return (
-    <div className={cardClassName}>
-      {cardContent}
-    </div>
-  );
+  return <div className={`${baseClass} hover:shadow-md`}>{cardContent}</div>;
 }

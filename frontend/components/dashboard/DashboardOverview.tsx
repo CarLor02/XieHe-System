@@ -337,7 +337,10 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
       {/* 概览统计卡片 */}
       {overview && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <Link
+            href="/imaging"
+            className="block bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-blue-300 transition-shadow cursor-pointer"
+          >
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <i className="ri-image-line text-2xl text-blue-600"></i>
@@ -352,9 +355,9 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
                 </p>
               </div>
             </div>
-          </div>
+          </Link>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <i className="ri-time-line text-2xl text-orange-600"></i>
@@ -379,7 +382,10 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <Link
+            href="/patients"
+            className="block bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-green-300 transition-shadow cursor-pointer"
+          >
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <i className="ri-group-line text-2xl text-green-600"></i>
@@ -394,9 +400,12 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
                 </p>
               </div>
             </div>
-          </div>
+          </Link>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <Link
+            href="/upload"
+            className="block bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-purple-300 transition-shadow cursor-pointer"
+          >
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <i className="ri-upload-line text-2xl text-purple-600"></i>
@@ -411,7 +420,7 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
                 </p>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
       )}
 

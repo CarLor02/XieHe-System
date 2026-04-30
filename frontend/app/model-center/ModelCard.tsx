@@ -10,17 +10,14 @@ interface ModelCardProps {
     view_type: string;
     isActive?: boolean;
     is_system_default?: boolean;
-    can_delete?: boolean;
     accuracy: string;
     lastUpdated: string;
     category: string;
-    endpoint_url?: string;
   };
   onActivateClick: (model: any) => void;
-  onDeleteClick: (model: any) => void;
 }
 
-export default function ModelCard({ model, onActivateClick, onDeleteClick }: ModelCardProps) {
+export default function ModelCard({ model, onActivateClick }: ModelCardProps) {
 
   const getViewTypeLabel = (type: string) => {
     switch (type) {
@@ -42,11 +39,11 @@ export default function ModelCard({ model, onActivateClick, onDeleteClick }: Mod
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case 'ready':
-        return { label: '就绪', color: 'bg-green-500', textColor: 'text-green-700' };
+        return { label: '健康', color: 'bg-green-500', textColor: 'text-green-700' };
       case 'error':
-        return { label: '错误', color: 'bg-red-500', textColor: 'text-red-700' };
+        return { label: '异常', color: 'bg-red-500', textColor: 'text-red-700' };
       case 'stopped':
-        return { label: '离线', color: 'bg-gray-400', textColor: 'text-gray-700' };
+        return { label: '已停用', color: 'bg-gray-400', textColor: 'text-gray-700' };
       case 'training':
         return { label: '训练中', color: 'bg-yellow-500', textColor: 'text-yellow-700' };
       default:
@@ -92,7 +89,7 @@ export default function ModelCard({ model, onActivateClick, onDeleteClick }: Mod
 
       <div className="space-y-2 mb-4">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">状态</span>
+          <span className="text-gray-500">运行状态</span>
           <span className={`${statusInfo.textColor} flex items-center font-medium`}>
             <span className={`w-2 h-2 rounded-full ${statusInfo.color} mr-2`}></span>
             {statusInfo.label}
@@ -120,16 +117,6 @@ export default function ModelCard({ model, onActivateClick, onDeleteClick }: Mod
           <div className="flex-1 bg-green-50 text-green-700 py-2 rounded-md text-sm font-medium text-center">
             ✓ 当前使用中
           </div>
-        )}
-
-        {/* 删除按钮（仅用户自定义模型显示） */}
-        {model.can_delete && (
-          <button
-            onClick={() => onDeleteClick(model)}
-            className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-md text-sm font-medium transition-colors"
-          >
-            删除
-          </button>
         )}
       </div>
     </div>
