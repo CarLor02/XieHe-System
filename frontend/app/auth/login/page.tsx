@@ -10,12 +10,13 @@
  */
 
 import { useAuth, useUser } from '@/lib/api';
+import { withNavigationCacheBuster } from '@/lib/api/session/sessionEffects';
 import { Building2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 function redirectToDashboard() {
-  window.location.replace('/dashboard');
+  window.location.replace(withNavigationCacheBuster('/dashboard'));
 }
 
 export default function LoginPage() {

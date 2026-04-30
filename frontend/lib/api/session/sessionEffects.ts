@@ -2,6 +2,16 @@ const AUTH_STORAGE_KEY = 'auth-storage';
 const LOGIN_PATH = '/auth/login';
 type LoginRedirectMode = 'assign' | 'replace';
 
+export function withNavigationCacheBuster(path: string): string {
+  if (typeof window === 'undefined') {
+    return path;
+  }
+
+  const url = new URL(path, window.location.origin);
+  url.searchParams.set('_cb', Date.now().toString(36));
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 export function clearPersistedAuthState(): void {
   if (typeof window === 'undefined') {
     return;
@@ -19,12 +29,14 @@ export function redirectToLogin(
   }
 
   const redirect = () => {
+    const loginPath = withNavigationCacheBuster(LOGIN_PATH);
+
     if (mode === 'replace') {
-      window.location.replace(LOGIN_PATH);
+      window.location.replace(loginPath);
       return;
     }
 
-    window.location.href = LOGIN_PATH;
+    window.location.href = loginPath;
   };
 
   if (delayMs <= 0) {
