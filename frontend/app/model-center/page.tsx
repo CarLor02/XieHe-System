@@ -145,6 +145,12 @@ export default function ModelCenter() {
     }
   };
 
+  // 未登录态：不渲染受限页面，等待 useEffect 中的跳转完成
+  // 避免退出登录瞬间因为 user 被清空而闪现"访问受限"中间页
+  if (!isAuthenticated) {
+    return null;
+  }
+
   // 权限检查：只有超级管理员可以访问模型中心
   if (!isSuperuser) {
     return (
