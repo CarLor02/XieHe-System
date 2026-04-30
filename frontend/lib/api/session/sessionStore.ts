@@ -81,7 +81,7 @@ export const useSessionStore = create<SessionState>()(
 
       login: async credentials => {
         try {
-          set({ isLoading: true, error: null });
+          set({ isLoading: true, isLoggingOut: false, error: null });
           sessionStoreLogging.loginRequested({
             username: credentials.username.trim(),
             rememberMe: credentials.remember_me ?? false,
@@ -116,6 +116,7 @@ export const useSessionStore = create<SessionState>()(
               refreshToken: result.refresh_token,
             }),
             isLoading: false,
+            isLoggingOut: false,
             error: null,
           });
 
@@ -128,6 +129,7 @@ export const useSessionStore = create<SessionState>()(
             user: null,
             session: null,
             isLoading: false,
+            isLoggingOut: false,
             error:
               extractApiMessage(error?.response?.data) ||
               error.message ||

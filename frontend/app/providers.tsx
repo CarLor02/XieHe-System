@@ -45,6 +45,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     session,
     user,
+    isLoggingOut,
     fetchUserInfoStatus,
     forceLogout,
   } = useSessionStore();
@@ -250,6 +251,11 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     accessTokenExpiresAtEpochSeconds,
     forceLogout,
   ]);
+
+  // 退出登录时浏览器会立即跳转到登录页，这里不再渲染初始化占位页。
+  if (isLoggingOut) {
+    return null;
+  }
 
   // 等待初始化完成
   if (!isAuthPage && (!isHydrated || !isInitialized)) {
