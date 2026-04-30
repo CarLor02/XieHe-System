@@ -199,12 +199,9 @@ export default function AnnotationCanvas({
   });
 
   const {
-    contextMenu,
     editLabelDialog,
     setEditLabelDialog,
     handleContextMenu,
-    handleEditLabel,
-    handleDeleteShape,
     handleSaveLabel,
     handleCancelEdit,
   } = useCanvasContextMenu({
@@ -296,11 +293,9 @@ export default function AnnotationCanvas({
     removeMeasurementVisibility(measurementId);
   };
 
-  const handlePanelMeasurementVertebraUpdate = (
+  const handlePanelMeasurementUpdate = (
     measurementId: string,
-    updates: Partial<
-      Pick<MeasurementData, 'upperVertebra' | 'lowerVertebra'>
-    >
+    updates: Partial<MeasurementData>
   ) => {
     onMeasurementsUpdate(
       measurements.map(item =>
@@ -487,7 +482,7 @@ export default function AnnotationCanvas({
         onMeasurementHover={handlePanelMeasurementHover}
         onMeasurementSelect={handlePanelMeasurementSelect}
         onMeasurementDelete={handlePanelMeasurementDelete}
-        onMeasurementVertebraUpdate={handlePanelMeasurementVertebraUpdate}
+        onMeasurementUpdate={handlePanelMeasurementUpdate}
       />
 
       <CanvasControlsPanel
@@ -618,11 +613,8 @@ export default function AnnotationCanvas({
       />
 
       <OverlayLayer
-        contextMenu={contextMenu}
         editLabelDialog={editLabelDialog}
         setEditLabelDialog={setEditLabelDialog}
-        onEditLabel={handleEditLabel}
-        onDeleteShape={handleDeleteShape}
         onSaveLabel={handleSaveLabel}
         onCancelEdit={handleCancelEdit}
       />

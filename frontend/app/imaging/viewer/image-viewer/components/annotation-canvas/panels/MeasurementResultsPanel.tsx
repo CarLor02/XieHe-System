@@ -31,9 +31,9 @@ interface MeasurementResultsPanelProps {
   onMeasurementHover: (measurementId: string | null) => void;
   onMeasurementSelect: (measurementId: string) => void;
   onMeasurementDelete: (measurementId: string) => void;
-  onMeasurementVertebraUpdate?: (
+  onMeasurementUpdate?: (
     measurementId: string,
-    updates: Partial<Pick<MeasurementData, 'upperVertebra' | 'lowerVertebra'>>
+    updates: Partial<MeasurementData>
   ) => void;
 }
 
@@ -62,16 +62,20 @@ export default function MeasurementResultsPanel({
   onMeasurementHover,
   onMeasurementSelect,
   onMeasurementDelete,
-  onMeasurementVertebraUpdate,
+  onMeasurementUpdate,
 }: MeasurementResultsPanelProps) {
   const [editingVertebra, setEditingVertebra] = useState<{
     measurementId: string;
     field: VertebraField;
   } | null>(null);
+  const [editingAuxiliaryName, setEditingAuxiliaryName] = useState<
+    string | null
+  >(null);
   const [editingValue, setEditingValue] = useState('');
 
   useEffect(() => {
     setEditingVertebra(null);
+    setEditingAuxiliaryName(null);
   }, [measurements.length]);
 
   const startEditingVertebra = (
@@ -79,23 +83,46 @@ export default function MeasurementResultsPanel({
     field: VertebraField,
     currentValue: string
   ) => {
-    if (!onMeasurementVertebraUpdate) return;
+    if (!onMeasurementUpdate) return;
+    setEditingAuxiliaryName(null);
     setEditingVertebra({ measurementId, field });
     setEditingValue(currentValue);
   };
 
   const commitVertebraEdit = () => {
-    if (!editingVertebra || !onMeasurementVertebraUpdate) {
+    if (!editingVertebra || !onMeasurementUpdate) {
       setEditingVertebra(null);
       return;
     }
     const trimmed = editingValue.trim();
     if (trimmed.length > 0) {
-      onMeasurementVertebraUpdate(editingVertebra.measurementId, {
+      onMeasurementUpdate(editingVertebra.measurementId, {
         [editingVertebra.field]: trimmed,
       });
     }
     setEditingVertebra(null);
+  };
+
+  const startEditingAuxiliaryName = (
+    measurementId: string,
+    currentValue: string
+  ) => {
+    if (!onMeasurementUpdate) return;
+    setEditingVertebra(null);
+    setEditingAuxiliaryName(measurementId);
+    setEditingValue(currentValue);
+  };
+
+  const commitAuxiliaryNameEdit = () => {
+    if (!editingAuxiliaryName || !onMeasurementUpdate) {
+      setEditingAuxiliaryName(null);
+      return;
+    }
+    const trimmed = editingValue.trim();
+    if (trimmed.length > 0) {
+      onMeasurementUpdate(editingAuxiliaryName, { description: trimmed });
+    }
+    setEditingAuxiliaryName(null);
   };
 
   return (
@@ -199,11 +226,15 @@ export default function MeasurementResultsPanel({
                   const isAnnotationHidden = hiddenAnnotationIds.has(
                     measurement.id
                   );
+                  const isEditableAuxiliary = isEditableAuxiliaryAnnotationType(
+                    measurement.type
+                  );
                   const displayName =
-                    isEditableAuxiliaryAnnotationType(measurement.type) &&
-                    hasCustomAuxiliaryTagText(measurement)
+                    isEditableAuxiliary && hasCustomAuxiliaryTagText(measurement)
                       ? getAuxiliaryTagText(measurement)
                       : getDisplayName(measurement.type);
+                  const isEditingThisAuxName =
+                    editingAuxiliaryName === measurement.id;
 
                   return (
                     <div
@@ -263,17 +294,60 @@ export default function MeasurementResultsPanel({
                             : undefined
                         }
                       >
-                        <span
-                          className={`truncate mr-2 font-medium ${
-                            isSelected
-                              ? 'text-white'
-                              : isHovered
-                                ? 'text-yellow-300'
-                                : 'text-white/90'
-                          }`}
-                        >
-                          {displayName}
-                        </span>
+                        {isEditingThisAuxName ? (
+                          <input
+                            autoFocus
+                            value={editingValue}
+                            onChange={event =>
+                              setEditingValue(event.target.value)
+                            }
+                            onBlur={commitAuxiliaryNameEdit}
+                            onKeyDown={event => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault();
+                                commitAuxiliaryNameEdit();
+                              } else if (event.key === 'Escape') {
+                                event.preventDefault();
+                                setEditingAuxiliaryName(null);
+                              }
+                            }}
+                            onClick={event => event.stopPropagation()}
+                            className="flex-1 mr-2 min-w-0 bg-black/40 border border-white/40 rounded px-1 text-white outline-none focus:border-yellow-300"
+                          />
+                        ) : isEditableAuxiliary && onMeasurementUpdate ? (
+                          <button
+                            type="button"
+                            onClick={event => {
+                              event.stopPropagation();
+                              startEditingAuxiliaryName(
+                                measurement.id,
+                                displayName
+                              );
+                            }}
+                            title="点击编辑文字"
+                            className={`truncate mr-2 font-medium text-left hover:text-yellow-300 hover:underline underline-offset-2 ${
+                              isSelected
+                                ? 'text-white'
+                                : isHovered
+                                  ? 'text-yellow-300'
+                                  : 'text-white/90'
+                            }`}
+                          >
+                            {displayName}
+                          </button>
+                        ) : (
+                          <span
+                            className={`truncate mr-2 font-medium ${
+                              isSelected
+                                ? 'text-white'
+                                : isHovered
+                                  ? 'text-yellow-300'
+                                  : 'text-white/90'
+                            }`}
+                          >
+                            {displayName}
+                          </span>
+                        )}
                         <span
                           className={`font-mono whitespace-nowrap ${
                             isSelected

@@ -1,9 +1,4 @@
 interface OverlayLayerProps {
-  contextMenu: {
-    visible: boolean;
-    x: number;
-    y: number;
-  };
   editLabelDialog: {
     visible: boolean;
     currentLabel: string;
@@ -15,55 +10,21 @@ interface OverlayLayerProps {
       currentLabel: string;
     }>
   >;
-  onEditLabel: () => void;
-  onDeleteShape: () => void;
   onSaveLabel: () => void;
   onCancelEdit: () => void;
 }
 
 /**
- * 浮层 UI。
- * 负责右键菜单和文字编辑弹窗，不再由 AnnotationCanvas 直接渲染。
+ * 浮层 UI。仅承载文字编辑弹窗；删除走面板，重命名通过面板内联编辑或右键直接打开此弹窗。
  */
 export default function OverlayLayer({
-  contextMenu,
   editLabelDialog,
   setEditLabelDialog,
-  onEditLabel,
-  onDeleteShape,
   onSaveLabel,
   onCancelEdit,
 }: OverlayLayerProps) {
   return (
     <>
-      {contextMenu.visible && (
-        <div
-          style={{
-            position: 'fixed',
-            left: contextMenu.x,
-            top: contextMenu.y,
-            zIndex: 9999,
-          }}
-          className="bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[150px]"
-          onClick={event => event.stopPropagation()}
-        >
-          <button
-            onClick={onEditLabel}
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
-          >
-            <span>✏️</span>
-            <span>编辑文字</span>
-          </button>
-          <button
-            onClick={onDeleteShape}
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-red-600"
-          >
-            <span>🗑️</span>
-            <span>删除图形</span>
-          </button>
-        </div>
-      )}
-
       {editLabelDialog.visible && (
         <div
           className="fixed inset-0 flex items-center justify-center z-[10000]"
