@@ -48,6 +48,30 @@ class AnnotationCalculationTest {
         assertEquals("躯干偏移TS(Trunk Shift)", measurement?.description)
     }
 
+    @Test
+    fun twoPointAiTsMeasurement_calculatesDistance() {
+        val measurement = createManualAnnotationMeasurement(
+            toolId = TOOL_TS,
+            points = listOf(
+                MeasurementPoint(15.0, 90.0),
+                MeasurementPoint(55.0, 90.0),
+            ),
+            measurementKey = "ai_compute_ts",
+            calibration = AnnotationCalibrationContext(
+                standardDistanceMm = 100.0,
+                standardDistancePoints = listOf(
+                    MeasurementPoint(0.0, 0.0),
+                    MeasurementPoint(100.0, 0.0),
+                ),
+            ),
+            standardDistanceMm = 100.0,
+        )
+
+        assertEquals(TOOL_TS, measurement?.type)
+        assertEquals("40.00mm", measurement?.value)
+        assertEquals("躯干偏移TS(Trunk Shift)", measurement?.description)
+    }
+
     private fun emptyCalibration() = AnnotationCalibrationContext(
         standardDistanceMm = null,
         standardDistancePoints = emptyList(),

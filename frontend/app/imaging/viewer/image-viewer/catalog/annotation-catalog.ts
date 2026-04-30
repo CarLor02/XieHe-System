@@ -954,6 +954,19 @@ export const TS_CONFIG: AnnotationConfig = {
   color: '#06b6d4',
 
   calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length >= 2 && points.length < 6) {
+      const pixelDistance = Math.abs(points[1].x - points[0].x);
+      const actualDistance = calculateActualDistance(pixelDistance, context);
+
+      return [
+        {
+          name: 'TS',
+          value: actualDistance.toFixed(2),
+          unit: 'mm',
+        },
+      ];
+    }
+
     if (points.length < 6) return [];
 
     // 前4个点的椎体（C7）中心
@@ -977,6 +990,13 @@ export const TS_CONFIG: AnnotationConfig = {
   },
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    if (points.length >= 2 && points.length < 6) {
+      return {
+        x: Math.max(points[0].x, points[1].x) + LABEL_OFFSET.RIGHT / imageScale,
+        y: Math.min(points[0].y, points[1].y) - LABEL_OFFSET.TOP / imageScale,
+      };
+    }
+
     if (points.length < 6) return points[0] || { x: 0, y: 0 };
 
     const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
@@ -1000,6 +1020,14 @@ export const TS_CONFIG: AnnotationConfig = {
     points: Point[],
     tolerance: number = 10
   ) => {
+    if (points.length >= 2 && points.length < 6) {
+      return (
+        isPointNearPoint(mousePoint, points[0], tolerance) ||
+        isPointNearPoint(mousePoint, points[1], tolerance) ||
+        isPointNearLine(mousePoint, points[0], points[1], tolerance)
+      );
+    }
+
     if (points.length < 6) return false;
 
     // 检查原始6个点

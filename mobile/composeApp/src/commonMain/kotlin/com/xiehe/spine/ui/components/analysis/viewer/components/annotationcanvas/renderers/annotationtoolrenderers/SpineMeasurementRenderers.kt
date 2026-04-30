@@ -251,6 +251,37 @@ internal fun DrawScope.drawC7Offset(
 ) {
     if (points.isEmpty()) return
     val height = 150f
+    if (points.size in 2..5) {
+        val reference = points[0]
+        val center = points[1]
+        val topY = minOf(reference.y, center.y) - height / 2f
+        val bottomY = maxOf(reference.y, center.y) + height / 2f
+        val measurementY = (reference.y + center.y) / 2f
+        drawDashedSegment(
+            start = Offset(reference.x, topY),
+            end = Offset(reference.x, bottomY),
+            color = color,
+            strokeWidth = 2f,
+            dashed = true,
+        )
+        drawDashedSegment(
+            start = Offset(center.x, topY),
+            end = Offset(center.x, bottomY),
+            color = color,
+            strokeWidth = 2f,
+            dashed = true,
+        )
+        drawLine(
+            color = color,
+            start = Offset(reference.x, measurementY),
+            end = Offset(center.x, measurementY),
+            strokeWidth = 2f,
+        )
+        drawCircle(color = color, radius = 3f, center = Offset(reference.x, measurementY))
+        drawCircle(color = color, radius = 3f, center = Offset(center.x, measurementY))
+        return
+    }
+
     if (points.size >= 4) {
         drawQuadrilateral(points.take(4), color.copy(alpha = 0.45f))
         val center = average(points.take(4))

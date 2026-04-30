@@ -799,6 +799,47 @@ export function renderC7Offset(
   if (screenPoints.length < 1) return null;
 
   const height = 150 * imageScale;
+  if (screenPoints.length >= 2 && screenPoints.length < 6) {
+    const reference = screenPoints[0];
+    const center = screenPoints[1];
+    const topY = Math.min(reference.y, center.y) - height / 2;
+    const bottomY = Math.max(reference.y, center.y) + height / 2;
+    const measurementY = (reference.y + center.y) / 2;
+
+    return (
+      <>
+        <line
+          x1={reference.x}
+          y1={topY}
+          x2={reference.x}
+          y2={bottomY}
+          stroke={displayColor}
+          strokeWidth="2"
+          strokeDasharray="3,3"
+        />
+        <line
+          x1={center.x}
+          y1={topY}
+          x2={center.x}
+          y2={bottomY}
+          stroke={displayColor}
+          strokeWidth="2"
+          strokeDasharray="3,3"
+        />
+        <line
+          x1={reference.x}
+          y1={measurementY}
+          x2={center.x}
+          y2={measurementY}
+          stroke={displayColor}
+          strokeWidth="2"
+        />
+        <circle cx={reference.x} cy={measurementY} r="3" fill={displayColor} />
+        <circle cx={center.x} cy={measurementY} r="3" fill={displayColor} />
+      </>
+    );
+  }
+
   const has4 = screenPoints.length >= 4;
   const has6 = screenPoints.length >= 6;
 

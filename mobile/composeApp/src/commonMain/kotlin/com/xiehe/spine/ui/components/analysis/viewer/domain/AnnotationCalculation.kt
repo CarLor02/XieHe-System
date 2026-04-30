@@ -139,14 +139,20 @@ fun createManualAnnotationMeasurement(
         )
 
         TOOL_TS -> {
-            val center = average(points.take(4))
-            val reference = midpoint(points[4], points[5])
+            if (points.size < 2) return null
+            val distanceMm = if (points.size >= 6) {
+                val center = average(points.take(4))
+                val reference = midpoint(points[4], points[5])
+                calculateActualDistance(abs(center.x - reference.x), calibration)
+            } else {
+                calculateActualDistance(abs(points[1].x - points[0].x), calibration)
+            }
             distanceMeasurement(
                 key = measurementKey,
                 type = TOOL_TS,
                 description = "躯干偏移TS(Trunk Shift)",
                 points = points,
-                distanceMm = calculateActualDistance(abs(center.x - reference.x), calibration),
+                distanceMm = distanceMm,
             )
         }
 
