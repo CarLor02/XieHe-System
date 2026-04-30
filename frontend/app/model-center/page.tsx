@@ -5,7 +5,6 @@ import Sidebar from '@/components/Sidebar';
 import UserSettings from '@/components/UserSettings';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import AddModelDialog from './AddModelDialog';
 import DeleteModelDialog from './DeleteModelDialog';
 import ModelCard from './ModelCard';
 import { useUser } from '@/lib/api';
@@ -20,7 +19,6 @@ import {
 interface ModelData {
   id: string;
   title: string;
-  description: string;
   view_type: string;
   endpoint_url: string;
   status: string;
@@ -39,7 +37,6 @@ export default function ModelCenter() {
   const isSuperuser = user?.is_superuser || false;
   const isAdmin = user?.is_system_admin || user?.role === 'admin' || user?.role === 'system_admin' || user?.role === 'team_admin';
   const [showUserSettings, setShowUserSettings] = useState(false);
-  const [showAddDialog, setShowAddDialog] = useState(false);
   const [deleteModel, setDeleteModel] = useState<any>(null);
 
   const [activeTab, setActiveTab] = useState('all');
@@ -76,7 +73,6 @@ export default function ModelCenter() {
       const convertedModels: ModelData[] = apiModels.map((model: any) => ({
         id: model.id,
         title: model.name,
-        description: model.description || '',
         view_type: model.view_type,
         endpoint_url: model.endpoint_url,
         status: model.status || 'ready',
@@ -200,15 +196,6 @@ export default function ModelCenter() {
                   模型设置
                 </Link>
               )}
-              {isAdmin && (
-                <button
-                  onClick={() => setShowAddDialog(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-                >
-                  <i className="ri-add-line mr-1"></i>
-                  添加模型
-                </button>
-              )}
             </div>
           </div>
 
@@ -290,12 +277,6 @@ export default function ModelCenter() {
         isOpen={showUserSettings}
         onClose={() => setShowUserSettings(false)}
         type="profile"
-      />
-
-      <AddModelDialog
-        isOpen={showAddDialog}
-        onClose={() => setShowAddDialog(false)}
-        onSuccess={loadModels}
       />
 
       <DeleteModelDialog

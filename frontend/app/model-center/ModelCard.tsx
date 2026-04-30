@@ -5,7 +5,6 @@ interface ModelCardProps {
   model: {
     id: string;
     title: string;
-    description: string;
     icon: string;
     status: string;
     view_type: string;
@@ -90,10 +89,6 @@ export default function ModelCard({ model, onActivateClick, onDeleteClick }: Mod
           </h3>
         </div>
       </div>
-
-      <p className="text-gray-600 text-sm mb-4 line-clamp-2 h-10">
-        {model.description || "暂无描述"}
-      </p>
 
       <div className="space-y-2 mb-4">
         <div className="flex items-center justify-between text-sm">
