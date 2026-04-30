@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   getAuxiliaryTagText,
   getDisplayName,
@@ -6,6 +7,8 @@ import {
 } from '../../../domain/annotation-metadata';
 import { MeasurementData } from '../../../types';
 import { HoverState, SelectionState } from '../types';
+
+type VertebraField = 'upperVertebra' | 'lowerVertebra';
 
 interface MeasurementResultsPanelProps {
   showResults: boolean;
@@ -28,6 +31,10 @@ interface MeasurementResultsPanelProps {
   onMeasurementHover: (measurementId: string | null) => void;
   onMeasurementSelect: (measurementId: string) => void;
   onMeasurementDelete: (measurementId: string) => void;
+  onMeasurementVertebraUpdate?: (
+    measurementId: string,
+    updates: Partial<Pick<MeasurementData, 'upperVertebra' | 'lowerVertebra'>>
+  ) => void;
 }
 
 /**
@@ -55,7 +62,42 @@ export default function MeasurementResultsPanel({
   onMeasurementHover,
   onMeasurementSelect,
   onMeasurementDelete,
+  onMeasurementVertebraUpdate,
 }: MeasurementResultsPanelProps) {
+  const [editingVertebra, setEditingVertebra] = useState<{
+    measurementId: string;
+    field: VertebraField;
+  } | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+
+  useEffect(() => {
+    setEditingVertebra(null);
+  }, [measurements.length]);
+
+  const startEditingVertebra = (
+    measurementId: string,
+    field: VertebraField,
+    currentValue: string
+  ) => {
+    if (!onMeasurementVertebraUpdate) return;
+    setEditingVertebra({ measurementId, field });
+    setEditingValue(currentValue);
+  };
+
+  const commitVertebraEdit = () => {
+    if (!editingVertebra || !onMeasurementVertebraUpdate) {
+      setEditingVertebra(null);
+      return;
+    }
+    const trimmed = editingValue.trim();
+    if (trimmed.length > 0) {
+      onMeasurementVertebraUpdate(editingVertebra.measurementId, {
+        [editingVertebra.field]: trimmed,
+      });
+    }
+    setEditingVertebra(null);
+  };
+
   return (
     <div
       className="absolute top-4 left-48 z-50"
@@ -248,9 +290,91 @@ export default function MeasurementResultsPanel({
                           {measurement.value}
                           {measurement.upperVertebra &&
                             measurement.lowerVertebra && (
-                              <span className="text-white/60 text-xs ml-1">
-                                ({measurement.upperVertebra}-
-                                {measurement.lowerVertebra})
+                              <span
+                                className="text-white/60 text-xs ml-1 inline-flex items-center"
+                                onClick={event => event.stopPropagation()}
+                              >
+                                <span>(</span>
+                                {editingVertebra?.measurementId ===
+                                  measurement.id &&
+                                editingVertebra.field === 'upperVertebra' ? (
+                                  <input
+                                    autoFocus
+                                    value={editingValue}
+                                    onChange={event =>
+                                      setEditingValue(event.target.value)
+                                    }
+                                    onBlur={commitVertebraEdit}
+                                    onKeyDown={event => {
+                                      if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        commitVertebraEdit();
+                                      } else if (event.key === 'Escape') {
+                                        event.preventDefault();
+                                        setEditingVertebra(null);
+                                      }
+                                    }}
+                                    onClick={event => event.stopPropagation()}
+                                    className="bg-black/40 border border-white/40 rounded px-1 w-10 text-center text-white outline-none focus:border-yellow-300"
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={event => {
+                                      event.stopPropagation();
+                                      startEditingVertebra(
+                                        measurement.id,
+                                        'upperVertebra',
+                                        measurement.upperVertebra ?? ''
+                                      );
+                                    }}
+                                    className="hover:text-yellow-300 underline-offset-2 hover:underline"
+                                    title="点击编辑上端椎"
+                                  >
+                                    {measurement.upperVertebra}
+                                  </button>
+                                )}
+                                <span>-</span>
+                                {editingVertebra?.measurementId ===
+                                  measurement.id &&
+                                editingVertebra.field === 'lowerVertebra' ? (
+                                  <input
+                                    autoFocus
+                                    value={editingValue}
+                                    onChange={event =>
+                                      setEditingValue(event.target.value)
+                                    }
+                                    onBlur={commitVertebraEdit}
+                                    onKeyDown={event => {
+                                      if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        commitVertebraEdit();
+                                      } else if (event.key === 'Escape') {
+                                        event.preventDefault();
+                                        setEditingVertebra(null);
+                                      }
+                                    }}
+                                    onClick={event => event.stopPropagation()}
+                                    className="bg-black/40 border border-white/40 rounded px-1 w-10 text-center text-white outline-none focus:border-yellow-300"
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={event => {
+                                      event.stopPropagation();
+                                      startEditingVertebra(
+                                        measurement.id,
+                                        'lowerVertebra',
+                                        measurement.lowerVertebra ?? ''
+                                      );
+                                    }}
+                                    className="hover:text-yellow-300 underline-offset-2 hover:underline"
+                                    title="点击编辑下端椎"
+                                  >
+                                    {measurement.lowerVertebra}
+                                  </button>
+                                )}
+                                <span>)</span>
                               </span>
                             )}
                         </span>

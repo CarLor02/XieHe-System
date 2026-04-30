@@ -296,6 +296,19 @@ export default function AnnotationCanvas({
     removeMeasurementVisibility(measurementId);
   };
 
+  const handlePanelMeasurementVertebraUpdate = (
+    measurementId: string,
+    updates: Partial<
+      Pick<MeasurementData, 'upperVertebra' | 'lowerVertebra'>
+    >
+  ) => {
+    onMeasurementsUpdate(
+      measurements.map(item =>
+        item.id === measurementId ? { ...item, ...updates } : item
+      )
+    );
+  };
+
   // 创建坐标转换上下文
   const getTransformContext = (): TransformContext => ({
     imageNaturalSize,
@@ -474,6 +487,7 @@ export default function AnnotationCanvas({
         onMeasurementHover={handlePanelMeasurementHover}
         onMeasurementSelect={handlePanelMeasurementSelect}
         onMeasurementDelete={handlePanelMeasurementDelete}
+        onMeasurementVertebraUpdate={handlePanelMeasurementVertebraUpdate}
       />
 
       <CanvasControlsPanel
