@@ -3,26 +3,67 @@
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useUser } from '@/lib/api';
-import { getImageFiles, type ImageFile } from '@/services/imageServices/imageFileService';
+import {
+  downloadImageFile,
+  getAllImageFiles,
+  type ImageFile,
+} from '@/services/imageServices/imageFileService';
 import {
   getMeasurementRecord,
   MeasurementRecord,
 } from '@/services/imageServices/measurementService';
-import {MeasurementData} from "../imaging/viewer/image-viewer/types"
+import {
+  AnnotatedImageExportFormat,
+  buildAnnotationPointRows,
+  buildExportFilename,
+  buildMeasurementRows,
+  createAnnotatedImageBlob,
+  createTabularBlob,
+  downloadExportFiles,
+  ExportContentType,
+  ExportFile,
+  getMeasurementsForImage,
+  parseAnnotationData,
+  TabularExportFormat,
+} from './_utils/export-utils';
 import { Download, FileSpreadsheet, Search, CheckSquare, Square } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+const EXPORT_CONTENT_OPTIONS: Array<{
+  value: ExportContentType;
+  label: string;
+  adminOnly?: boolean;
+}> = [
+  { value: 'original-image', label: '原图影像' },
+  { value: 'annotated-image', label: '绘图影像' },
+  { value: 'annotation-points', label: '标注点检测', adminOnly: true },
+  { value: 'measurement-parameters', label: '参数测量' },
+];
 
 export default function DataExportPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useUser();
   const [mounted, setMounted] = useState(false);
+  const canExportAnnotationPoints = Boolean(
+    user?.is_superuser ||
+      user?.is_system_admin ||
+      user?.role === 'admin' ||
+      user?.role === 'system_admin' ||
+      user?.role === 'team_admin' ||
+      user?.role === 'ADMIN'
+  );
 
   // 筛选条件
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [examType, setExamType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'excel'>('csv');
+  const [exportContent, setExportContent] =
+    useState<ExportContentType>('original-image');
+  const [tabularExportFormat, setTabularExportFormat] =
+    useState<TabularExportFormat>('csv');
+  const [annotatedImageFormat, setAnnotatedImageFormat] =
+    useState<AnnotatedImageExportFormat>('png');
 
   // 影像列表和选择
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -37,39 +78,46 @@ export default function DataExportPage() {
   const [exportProgress, setExportProgress] = useState(0);
   const [message, setMessage] = useState('');
 
+  const exportContentOptions = useMemo(
+    () =>
+      EXPORT_CONTENT_OPTIONS.filter(
+        option => !option.adminOnly || canExportAnnotationPoints
+      ),
+    [canExportAnnotationPoints]
+  );
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 权限检查：只有管理员可以访问
+  // 权限检查：登录用户均可访问，具体导出项按角色限制
   useEffect(() => {
     if (!mounted) return;
     
     if (!isAuthenticated) {
       router.push('/auth/login');
-      return;
     }
-    
-    const isSuperuser = user?.is_superuser || false;
-    if (!isSuperuser) {
-      router.push('/dashboard');
-      return;
+  }, [mounted, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (
+      exportContent === 'annotation-points' &&
+      !canExportAnnotationPoints
+    ) {
+      setExportContent('original-image');
     }
-  }, [mounted, isAuthenticated, user, router]);
+  }, [canExportAnnotationPoints, exportContent]);
 
   // 获取影像列表
   const fetchImages = async () => {
     setIsLoadingList(true);
     try {
-      const response = await getImageFiles({
-        page: 1,
-        page_size: 20,
+      const allImages = await getAllImageFiles({
         start_date: dateRange.start || undefined,
         end_date: dateRange.end || undefined,
         description: examType !== 'all' ? examType : undefined,
         search: searchQuery || undefined,
-      });
-      const allImages = response.items || [];
+      }, 100);
       const records = await Promise.all(
         allImages.map(async image => ({
           image,
@@ -78,18 +126,21 @@ export default function DataExportPage() {
       );
 
       const nextMeasurementRecords: Record<number, MeasurementRecord> = {};
-      const annotatedImages = records
-        .filter(({ image, measurementRecord }) => {
-          if (!measurementRecord || !Array.isArray(measurementRecord.measurements)) {
-            return false;
-          }
+      records.forEach(({ image, measurementRecord }) => {
+        const annotationData = parseAnnotationData(image);
+        const measurements =
+          annotationData?.measurements ?? measurementRecord?.measurements ?? [];
+        if (measurements.length > 0 && measurementRecord) {
           nextMeasurementRecords[image.id] = measurementRecord;
-          return measurementRecord.measurements.length > 0;
-        })
-        .map(({ image }) => image);
+        }
+      });
 
       setMeasurementRecords(nextMeasurementRecords);
-      setImages(annotatedImages);
+      setImages(allImages);
+      setSelectedIds(prev => {
+        const visibleIds = new Set(allImages.map(image => image.id));
+        return new Set([...prev].filter(id => visibleIds.has(id)));
+      });
     } catch (error) {
       console.error('获取影像列表失败:', error);
       setMessage('获取影像列表失败，请重试');
@@ -104,7 +155,7 @@ export default function DataExportPage() {
     fetchImages();
   }, [mounted, isAuthenticated, dateRange, examType, searchQuery]);
 
-  if (!mounted || !isAuthenticated || !user?.is_superuser) {
+  if (!mounted || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -137,7 +188,13 @@ export default function DataExportPage() {
 
   const handleExport = async () => {
     if (selectedIds.size === 0) {
-      setMessage('请至少选择一条影像数据进行导出');
+      setMessage('请至少选择一个影像文件进行导出');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    if (exportContent === 'annotation-points' && !canExportAnnotationPoints) {
+      setMessage('当前账号无权导出标注点检测数据');
       setTimeout(() => setMessage(''), 3000);
       return;
     }
@@ -147,51 +204,60 @@ export default function DataExportPage() {
     setMessage('');
 
     try {
-      setExportProgress(20);
-
-      // 获取选中的影像数据
       const selectedImages = images.filter(img => selectedIds.has(img.id));
+      const exportFiles: ExportFile[] = [];
+      const total = Math.max(selectedImages.length, 1);
 
-      setExportProgress(50);
-
-      setExportProgress(70);
-
-      // 准备导出数据
-      const exportData = selectedImages.map(img => {
-        const measurements: Record<string, string | number> = {};
+      for (let index = 0; index < selectedImages.length; index += 1) {
+        const img = selectedImages[index];
+        const annotationData = parseAnnotationData(img);
         const measurementRecord = measurementRecords[img.id];
+        const fallbackMeasurements = measurementRecord?.measurements ?? [];
+        const measurements = getMeasurementsForImage(img, fallbackMeasurements);
 
-        if (measurementRecord) {
-          measurementRecord.measurements.forEach((m: MeasurementData) => {
-            const typeName = m.type || 'Unknown';
-            const value = m.value || '';
-            measurements[typeName] = value;
+        if (exportContent === 'original-image') {
+          const blob = await downloadImageFile(img.id);
+          exportFiles.push({
+            filename: buildExportFilename(img, exportContent, 'original'),
+            blob,
+          });
+        } else if (exportContent === 'annotated-image') {
+          const originalImageBlob = await downloadImageFile(img.id);
+          const blob = await createAnnotatedImageBlob({
+            imageBlob: originalImageBlob,
+            measurements,
+            annotationSize: {
+              width: annotationData?.imageWidth,
+              height: annotationData?.imageHeight,
+            },
+            format: annotatedImageFormat,
+          });
+          exportFiles.push({
+            filename: buildExportFilename(img, exportContent, annotatedImageFormat),
+            blob,
+          });
+        } else if (exportContent === 'annotation-points') {
+          const rows = buildAnnotationPointRows(img, measurements);
+          exportFiles.push({
+            filename: buildExportFilename(img, exportContent, tabularExportFormat),
+            blob: createTabularBlob(rows, tabularExportFormat, exportContent),
+          });
+        } else {
+          const rows = buildMeasurementRows(img, measurements);
+          exportFiles.push({
+            filename: buildExportFilename(img, exportContent, tabularExportFormat),
+            blob: createTabularBlob(rows, tabularExportFormat, exportContent),
           });
         }
 
-        return {
-          影像ID: img.id,
-          患者ID: img.patient_id || '',
-          检查类型: img.description || '',
-          上传日期: new Date(img.created_at).toLocaleDateString('zh-CN'),
-          文件名: img.original_filename || '',
-          ...measurements,
-        };
-      });
-      
-      setExportProgress(90);
-      
-      // 导出文件
-      if (exportFormat === 'csv') {
-        exportToCSV(exportData);
-      } else if (exportFormat === 'json') {
-        exportToJSON(exportData);
-      } else if (exportFormat === 'excel') {
-        exportToCSV(exportData); // 暂时使用CSV格式
+        setExportProgress(Math.round(((index + 1) / total) * 85));
       }
 
+      const zipFilename = `data_export_${new Date().toISOString().slice(0, 10)}.zip`;
+      await downloadExportFiles(exportFiles, zipFilename);
+
       setExportProgress(100);
-      setMessage(`成功导出 ${exportData.length} 条数据！`);
+      setMessage(`成功导出 ${exportFiles.length} 个文件！`);
 
       setTimeout(() => {
         setMessage('');
@@ -206,51 +272,6 @@ export default function DataExportPage() {
     }
   };
 
-  const exportToCSV = (data: any[]) => {
-    if (data.length === 0) {
-      setMessage('没有可导出的数据');
-      return;
-    }
-
-    // 获取所有列名
-    const headers = Object.keys(data[0]);
-
-    // 构建CSV内容
-    const csvContent = [
-      headers.join(','),
-      ...data.map(row =>
-        headers.map(header => {
-          const value = row[header] || '';
-          // 处理包含逗号的值
-          return typeof value === 'string' && value.includes(',')
-            ? `"${value}"`
-            : value;
-        }).join(',')
-      )
-    ].join('\n');
-
-    // 创建Blob并下载
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `annotations_export_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-  };
-
-  const exportToJSON = (data: any[]) => {
-    if (data.length === 0) {
-      setMessage('没有可导出的数据');
-      return;
-    }
-
-    const jsonContent = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonContent], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `annotations_export_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
@@ -261,7 +282,7 @@ export default function DataExportPage() {
           {/* 页面标题 */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">数据导出</h1>
-            <p className="text-gray-600 mt-1">批量导出影像标注和测量结果</p>
+            <p className="text-gray-600 mt-1">批量导出原图、绘图影像、标注点和测量参数</p>
           </div>
 
           {/* 筛选配置 */}
@@ -331,7 +352,7 @@ export default function DataExportPage() {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">
-                  已标注影像列表
+                  影像列表
                   <span className="ml-2 text-sm text-gray-500">
                     ({images.length} 条记录，已选 {selectedIds.size} 条)
                   </span>
@@ -363,7 +384,7 @@ export default function DataExportPage() {
             ) : images.length === 0 ? (
               <div className="p-12 text-center">
                 <FileSpreadsheet className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">暂无符合条件的已标注影像</p>
+                <p className="text-gray-500">暂无符合条件的影像</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -396,8 +417,11 @@ export default function DataExportPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {images.map((img) => {
                       const isSelected = selectedIds.has(img.id);
+                      const annotationData = parseAnnotationData(img);
                       const measurementCount =
-                        measurementRecords[img.id]?.measurements?.length || 0;
+                        annotationData?.measurements?.length ||
+                        measurementRecords[img.id]?.measurements?.length ||
+                        0;
 
                       return (
                         <tr
@@ -449,19 +473,66 @@ export default function DataExportPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">导出设置</h2>
 
-            <div className="max-w-xs">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                导出格式
-              </label>
-              <select
-                value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value as 'csv' | 'json' | 'excel')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="csv">CSV (Excel兼容)</option>
-                <option value="json">JSON</option>
-                <option value="excel">Excel (XLSX)</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  导出内容
+                </label>
+                <select
+                  value={exportContent}
+                  onChange={(e) => setExportContent(e.target.value as ExportContentType)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {exportContentOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {!canExportAnnotationPoints && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    非管理员账号不可导出标注点检测数据
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  导出格式
+                </label>
+                {exportContent === 'original-image' ? (
+                  <select
+                    value="original"
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  >
+                    <option value="original">原始格式</option>
+                  </select>
+                ) : exportContent === 'annotated-image' ? (
+                  <select
+                    value={annotatedImageFormat}
+                    onChange={(e) =>
+                      setAnnotatedImageFormat(e.target.value as AnnotatedImageExportFormat)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="png">PNG</option>
+                    <option value="jpeg">JPEG</option>
+                  </select>
+                ) : (
+                  <select
+                    value={tabularExportFormat}
+                    onChange={(e) =>
+                      setTabularExportFormat(e.target.value as TabularExportFormat)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="csv">CSV (Excel兼容)</option>
+                    <option value="json">JSON</option>
+                    <option value="excel">Excel (XLS)</option>
+                  </select>
+                )}
+              </div>
             </div>
           </div>
 
@@ -482,7 +553,7 @@ export default function DataExportPage() {
                   <Download className="w-5 h-5" />
                   <span>
                     {selectedIds.size > 0
-                      ? `导出选中的 ${selectedIds.size} 条数据`
+                      ? `导出选中的 ${selectedIds.size} 个文件`
                       : '请先选择要导出的影像'}
                   </span>
                 </>
@@ -517,12 +588,12 @@ export default function DataExportPage() {
           <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h3 className="text-sm font-semibold text-blue-900 mb-2">使用说明</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• 使用筛选条件过滤影像列表，系统只显示已标注的影像</li>
+              <li>• 使用筛选条件过滤影像列表，系统会显示当前账号可见的影像</li>
               <li>• 在列表中勾选需要导出的影像，支持全选和单选</li>
-              <li>• 选择导出格式后点击导出按钮，系统将自动下载数据文件</li>
-              <li>• CSV 格式使用 UTF-8 编码，可直接在 Excel 中打开</li>
-              <li>• JSON 格式包含完整的结构化数据，适合程序处理</li>
-              <li>• 导出数据包含：影像ID、患者ID、检查类型、上传日期、文件名及所有测量结果</li>
+              <li>• 管理员可导出原图影像、绘图影像、标注点检测和参数测量</li>
+              <li>• 非管理员可导出原图影像、绘图影像和参数测量</li>
+              <li>• 批量导出会下载 ZIP 包，包内文件使用原始文件名和所选格式后缀</li>
+              <li>• CSV 格式使用 UTF-8 编码，Excel 格式使用 XLS 兼容表格</li>
             </ul>
           </div>
         </div>
