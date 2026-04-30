@@ -2532,7 +2532,9 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   'cobb-thoracolumbar': COBB_CONFIG, // 兼容AI返回
   ca: CA_CONFIG,
   po: PO_CONFIG,
+  pelvic: PO_CONFIG, // AI 后端返回 'Pelvic'，复用 PO 配置
   css: CSS_CONFIG,
+  sacral: CSS_CONFIG, // AI 后端返回 'Sacral'，复用 CSS 配置
   avt: AVT_CONFIG,
   tts: TTS_CONFIG,
   ts: TS_CONFIG,
