@@ -12,11 +12,13 @@
 import { useAuth, useUser } from '@/lib/api';
 import { Building2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+function redirectToDashboard() {
+  window.location.replace('/dashboard');
+}
+
 export default function LoginPage() {
-  const router = useRouter();
   const { login, error, isLoading, clearError } = useAuth();
   const { isAuthenticated } = useUser();
 
@@ -36,13 +38,12 @@ export default function LoginPage() {
     // 使用 setTimeout 延迟检查，避免在状态更新过程中触发
     const timer = setTimeout(() => {
       if (isAuthenticated) {
-        router.replace('/dashboard');
-        router.refresh();
+        redirectToDashboard();
       }
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated]);
 
   // 清除错误信息
   useEffect(() => {
@@ -82,8 +83,7 @@ export default function LoginPage() {
 
     const success = await login(formData);
     if (success) {
-      router.replace('/dashboard');
-      router.refresh();
+      redirectToDashboard();
     }
   };
 
