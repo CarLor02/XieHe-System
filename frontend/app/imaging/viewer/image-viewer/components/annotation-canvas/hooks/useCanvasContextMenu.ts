@@ -1,8 +1,5 @@
-import { useEffect, useState } from 'react';
-import {
-  AnnotationBindings,
-  cleanupBindings,
-} from '../../../domain/annotation-binding';
+import { useState } from 'react';
+import { AnnotationBindings } from '../../../domain/annotation-binding';
 import {
   getEditableAuxiliaryAnnotationLabel,
   isEditableAuxiliaryAnnotationType,
@@ -24,8 +21,8 @@ interface UseCanvasContextMenuOptions {
 }
 
 /**
- * 右键菜单与文字编辑弹窗状态。
- * 负责辅助图形右键菜单、文字编辑和删除后的绑定清理。
+ * 文字编辑弹窗状态。右键辅助图形直接进入编辑文字弹窗（一步操作），
+ * 删除走面板上的删除按钮，避免重复入口。
  */
 export function useCanvasContextMenu({
   imageNaturalSize,
@@ -35,24 +32,12 @@ export function useCanvasContextMenu({
   onToolChange,
   setSelectionState,
   onMeasurementsUpdate,
-  pointBindings,
-  setPointBindings,
 }: UseCanvasContextMenuOptions) {
-  const [contextMenu, setContextMenu] = useState({
-    visible: false,
-    x: 0,
-    y: 0,
-    measurementId: null as string | null,
-  });
   const [editLabelDialog, setEditLabelDialog] = useState({
     visible: false,
     measurementId: null as string | null,
     currentLabel: '',
   });
-
-  const hideContextMenu = () => {
-    setContextMenu({ visible: false, x: 0, y: 0, measurementId: null });
-  };
 
   const handleContextMenu = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -72,11 +57,11 @@ export function useCanvasContextMenu({
         selectedMeasurement &&
         isEditableAuxiliaryAnnotationType(selectedMeasurement.type)
       ) {
-        setContextMenu({
+        setEditLabelDialog({
           visible: true,
-          x: event.clientX,
-          y: event.clientY,
           measurementId: selectedMeasurement.id,
+          currentLabel:
+            getEditableAuxiliaryAnnotationLabel(selectedMeasurement),
         });
         return;
       }
@@ -99,43 +84,6 @@ export function useCanvasContextMenu({
 
       onToolChange('hand');
     }
-  };
-
-  const handleEditLabel = () => {
-    const measurement = measurements.find(
-      item => item.id === contextMenu.measurementId
-    );
-    if (!measurement) return;
-
-    setEditLabelDialog({
-      visible: true,
-      measurementId: measurement.id,
-      currentLabel: getEditableAuxiliaryAnnotationLabel(measurement),
-    });
-    hideContextMenu();
-  };
-
-  const handleDeleteShape = () => {
-    if (!contextMenu.measurementId) {
-      hideContextMenu();
-      return;
-    }
-
-    const remainingMeasurements = measurements.filter(
-      measurement => measurement.id !== contextMenu.measurementId
-    );
-    onMeasurementsUpdate(remainingMeasurements);
-
-    const remainingIds = new Set(remainingMeasurements.map(item => item.id));
-    setPointBindings(cleanupBindings(pointBindings, remainingIds));
-    setSelectionState({
-      measurementId: null,
-      pointIndex: null,
-      type: null,
-      isDragging: false,
-      dragOffset: { x: 0, y: 0 },
-    });
-    hideContextMenu();
   };
 
   const handleSaveLabel = () => {
@@ -164,25 +112,10 @@ export function useCanvasContextMenu({
     });
   };
 
-  useEffect(() => {
-    const handleClickOutside = () => {
-      if (contextMenu.visible) {
-        hideContextMenu();
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [contextMenu.visible]);
-
   return {
-    contextMenu,
-    setContextMenu,
     editLabelDialog,
     setEditLabelDialog,
     handleContextMenu,
-    handleEditLabel,
-    handleDeleteShape,
     handleSaveLabel,
     handleCancelEdit,
   };

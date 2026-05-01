@@ -199,12 +199,9 @@ export default function AnnotationCanvas({
   });
 
   const {
-    contextMenu,
     editLabelDialog,
     setEditLabelDialog,
     handleContextMenu,
-    handleEditLabel,
-    handleDeleteShape,
     handleSaveLabel,
     handleCancelEdit,
   } = useCanvasContextMenu({
@@ -294,6 +291,17 @@ export default function AnnotationCanvas({
       });
     }
     removeMeasurementVisibility(measurementId);
+  };
+
+  const handlePanelMeasurementUpdate = (
+    measurementId: string,
+    updates: Partial<MeasurementData>
+  ) => {
+    onMeasurementsUpdate(
+      measurements.map(item =>
+        item.id === measurementId ? { ...item, ...updates } : item
+      )
+    );
   };
 
   // 创建坐标转换上下文
@@ -474,6 +482,7 @@ export default function AnnotationCanvas({
         onMeasurementHover={handlePanelMeasurementHover}
         onMeasurementSelect={handlePanelMeasurementSelect}
         onMeasurementDelete={handlePanelMeasurementDelete}
+        onMeasurementUpdate={handlePanelMeasurementUpdate}
       />
 
       <CanvasControlsPanel
@@ -604,11 +613,8 @@ export default function AnnotationCanvas({
       />
 
       <OverlayLayer
-        contextMenu={contextMenu}
         editLabelDialog={editLabelDialog}
         setEditLabelDialog={setEditLabelDialog}
-        onEditLabel={handleEditLabel}
-        onDeleteShape={handleDeleteShape}
         onSaveLabel={handleSaveLabel}
         onCancelEdit={handleCancelEdit}
       />

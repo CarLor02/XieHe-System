@@ -731,13 +731,16 @@ export const AVT_CONFIG: AnnotationConfig = {
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 2) return [];
 
-    const pixelDistance = Math.abs(points[1].x - points[0].x);
-    const actualDistance = calculateActualDistance(pixelDistance, context);
+    // 带符号的像素距离：顶椎中心在 CSVL 右侧为正，左侧为负
+    // 约定：points[0] 为顶椎中心，points[1] 为 CSVL 参考点
+    const pixelOffset = points[0].x - points[1].x;
+    const actualDistance = calculateActualDistance(Math.abs(pixelOffset), context);
+    const signedDistance = pixelOffset < 0 ? -actualDistance : actualDistance;
 
     return [
       {
         name: 'AVT',
-        value: actualDistance.toFixed(2),
+        value: signedDistance.toFixed(2),
         unit: 'mm',
       },
     ];
@@ -955,13 +958,16 @@ export const TS_CONFIG: AnnotationConfig = {
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length >= 2 && points.length < 6) {
-      const pixelDistance = Math.abs(points[1].x - points[0].x);
-      const actualDistance = calculateActualDistance(pixelDistance, context);
+      // 带符号的像素距离：C7 中心在 CSVL 右侧为正，左侧为负
+      // 约定：points[0] 为 C7 中心，points[1] 为 CSVL 参考点
+      const pixelOffset = points[0].x - points[1].x;
+      const actualDistance = calculateActualDistance(Math.abs(pixelOffset), context);
+      const signedDistance = pixelOffset < 0 ? -actualDistance : actualDistance;
 
       return [
         {
           name: 'TS',
-          value: actualDistance.toFixed(2),
+          value: signedDistance.toFixed(2),
           unit: 'mm',
         },
       ];
@@ -2526,7 +2532,9 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   'cobb-thoracolumbar': COBB_CONFIG, // 兼容AI返回
   ca: CA_CONFIG,
   po: PO_CONFIG,
+  pelvic: PO_CONFIG, // AI 后端返回 'Pelvic'，复用 PO 配置
   css: CSS_CONFIG,
+  sacral: CSS_CONFIG, // AI 后端返回 'Sacral'，复用 CSS 配置
   avt: AVT_CONFIG,
   tts: TTS_CONFIG,
   ts: TS_CONFIG,
