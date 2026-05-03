@@ -30,6 +30,7 @@ import { useStandardDistanceInteraction } from './annotation-canvas/hooks/useSta
 import { useCanvasDrag } from './annotation-canvas/hooks/useCanvasDrag';
 import { useCanvasDrawingTool } from './annotation-canvas/hooks/useCanvasDrawingTool';
 import { useCanvasPointer } from './annotation-canvas/hooks/useCanvasPointer';
+import { useVertebradDrag } from './annotation-canvas/hooks/useVertebradDrag';
 import { useCanvasDrawing } from './annotation-canvas/hooks/useCanvasDrawing';
 import { useCanvasOverlayState } from './annotation-canvas/hooks/useCanvasOverlayState';
 import { useCanvasDerivedState } from './annotation-canvas/hooks/useCanvasDerivedState';
@@ -350,6 +351,15 @@ export default function AnnotationCanvas({
     screenToImage,
   });
 
+  // 椎体角点拖拽 hook：命中检测和拖拽完全在 div 层处理，不依赖 SVG 事件
+  const vertebradDrag = useVertebradDrag({
+    vertebraeLayer,
+    imageToScreen,
+    screenToImage,
+    onVertebraeUpdate,
+    containerRef,
+  });
+
   // 检测层激活时，测量点只读（由检测角点推导驱动）
   const isVertebradModeActive = vertebraeLayer.length > 0;
 
@@ -413,6 +423,8 @@ export default function AnnotationCanvas({
   const handleMouseLeave = () => {
     setIsHovering(false);
     setIsDragging(false);
+    // 鼠标离开时结束角点拖拽（避免拖着角点飞出画布）
+    vertebradDrag.handleMouseUp();
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
   };
@@ -461,15 +473,28 @@ export default function AnnotationCanvas({
     <div
       ref={containerRef}
       data-image-canvas
-      className={`relative w-full h-full overflow-hidden ${getCursorStyle()} ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
+      className={`relative w-full h-full overflow-hidden ${
+        showVertebraeLayer && (vertebradDrag.hoveredCorner ?? vertebradDrag.activeCorner)
+          ? 'cursor-crosshair'
+          : getCursorStyle()
+      } ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
       onMouseDown={e => {
-        // 如果点击来自椎体层（角点圆圈），跳过画布事件处理，防止触发图像平移
-        // 这是双保险：即使 SVG pointer-events 冒泡路径不稳定，也能正确拦截
-        if (e.target instanceof Element && e.target.closest('.vertebrae-layer')) return;
+        // 先做椎体角点命中检测（不依赖 SVG 事件，使用屏幕坐标距离计算）
+        // 命中角点时返回 true，跳过 pointer.onMouseDown 防止触发绘图/平移
+        if (showVertebraeLayer && vertebradDrag.handleMouseDown(e.clientX, e.clientY)) return;
         pointer.onMouseDown(e);
       }}
-      onMouseMove={pointer.onMouseMove}
-      onMouseUp={pointer.onMouseUp}
+      onMouseMove={e => {
+        // 椎体角点拖拽优先；同时做悬停检测（影响光标样式）
+        const draggingCorner = showVertebraeLayer && vertebradDrag.handleMouseMove(e.clientX, e.clientY);
+        // 角点拖拽中不转发给 pointer（避免误触绘图/图像平移逻辑）
+        if (!draggingCorner) pointer.onMouseMove(e);
+      }}
+      onMouseUp={e => {
+        // 先结束角点拖拽（会触发 onVertebraeUpdate 回调），再交给 pointer
+        if (showVertebraeLayer) vertebradDrag.handleMouseUp();
+        pointer.onMouseUp(e);
+      }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onWheel={handleWheel}
@@ -586,14 +611,16 @@ export default function AnnotationCanvas({
             <polygon points="0 0, 10 3, 0 6" fill="#ef4444" />
           </marker>
         </defs>
-        {/* 椎体标注层（AI检测结果，admin专属，可隐藏） */}
+        {/* 椎体标注层（AI检测结果，admin专属，可隐藏）
+            renderLayer：拖拽中为实时图层（角点跟手），否则为 vertebraeLayer prop
+            交互完全在 div 层的 vertebradDrag 处理，VertebraeLayer 纯渲染 */}
         {showVertebraeLayer && (
           <VertebraeLayer
-            vertebraeLayer={vertebraeLayer}
+            vertebraeLayer={vertebradDrag.renderLayer}
             cfhAnnotation={cfhAnnotation}
             imageToScreen={imageToScreen}
-            screenToImage={(pt: Point) => screenToImage(pt.x, pt.y)}
-            onVertebraeUpdate={onVertebraeUpdate}
+            activeCorner={vertebradDrag.activeCorner}
+            hoveredCorner={vertebradDrag.hoveredCorner}
           />
         )}
 
