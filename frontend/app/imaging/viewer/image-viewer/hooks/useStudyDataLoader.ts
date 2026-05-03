@@ -1,5 +1,5 @@
 import {RefObject, useEffect} from "react";
-import {Point, MeasurementData, AnnotationData} from "../types";
+import {Point, MeasurementData, AnnotationData, VertebraAnnotation, CfhAnnotation} from "../types";
 import {getImageFile} from "@/services/imageServices/imageFileService"
 import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
 import {StudyData} from "@/app/imaging/viewer/image-viewer/types";
@@ -14,6 +14,8 @@ export function useStudyDataLoader(
     setStandardDistancePoints: (distancePoints: Point[]) => void,
     setPointBindings: (pointBindings: AnnotationBindings) => void,
     dbAnnotationLoadedRef: RefObject<boolean>,
+    setVertebraeLayer?: (layer: VertebraAnnotation[]) => void,
+    setCfhAnnotation?: (cfh: CfhAnnotation | null) => void,
 ) {
     // 从API获取真实的影像数据
     async function fetchStudyData() {
@@ -81,6 +83,14 @@ export function useStudyDataLoader(
                                 .filter((g: any) => g.members.length >= 2),
                         };
                         setPointBindings(validated);
+                    }
+                    // 恢复椎体角点层
+                    if (annotationData.vertebraeLayer && Array.isArray(annotationData.vertebraeLayer) && annotationData.vertebraeLayer.length > 0) {
+                        setVertebraeLayer?.(annotationData.vertebraeLayer);
+                        console.log(`从数据库恢复了 ${annotationData.vertebraeLayer.length} 节椎体角点`);
+                    }
+                    if (annotationData.cfhAnnotation) {
+                        setCfhAnnotation?.(annotationData.cfhAnnotation);
                     }
                 } catch (e) {
                     console.error('解析标注数据失败:', e);

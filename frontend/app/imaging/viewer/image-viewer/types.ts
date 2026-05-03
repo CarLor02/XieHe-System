@@ -94,7 +94,11 @@ export interface AnnotationData {
   pointBindings: AnnotationBindings;
   imageWidth: number;
   imageHeight: number;
-  savedAt: string
+  savedAt: string;
+  /** 椎体角点层（admin 拖拽调整后持久化，下次打开可恢复） */
+  vertebraeLayer?: VertebraAnnotation[];
+  /** 股骨头标注（侧位专用） */
+  cfhAnnotation?: CfhAnnotation | null;
 }
 
 /*

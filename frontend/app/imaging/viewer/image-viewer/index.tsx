@@ -177,6 +177,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       setStandardDistancePoints,
       setPointBindings,
       dbAnnotationLoadedRef,
+      (layer) => { setVertebraeLayer(layer); if (layer.length > 0) setShowVertebraeLayer(true); },
+      setCfhAnnotation,
   )
 
   // 当图像尺寸确定后，自动加载标注数据
@@ -192,6 +194,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       dbAnnotationLoadedRef,
       calcMeasurementValue,
       getDesc,
+      (layer) => { setVertebraeLayer(layer); if (layer.length > 0) setShowVertebraeLayer(true); },
+      setCfhAnnotation,
   )
 
   // 构建兼容的imageData对象
@@ -832,7 +836,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         measurements,
         reportText,
         setIsSaving,
-        setSaveMessage
+        setSaveMessage,
+        vertebraeLayer,
+        cfhAnnotation,
       );
     },
     [
@@ -844,6 +850,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       pointBindings,
       measurements,
       reportText,
+      vertebraeLayer,
+      cfhAnnotation,
     ]
   );
 

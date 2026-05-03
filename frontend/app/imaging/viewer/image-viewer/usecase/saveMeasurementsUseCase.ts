@@ -1,4 +1,4 @@
-import {MeasurementData, StudyData, Point, ImageSize} from "../types";
+import {MeasurementData, StudyData, Point, ImageSize, VertebraAnnotation, CfhAnnotation} from "../types";
 import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
 import {
     saveMeasurementRecord,
@@ -15,7 +15,9 @@ export async function saveMeasurements(
     measurements: MeasurementData[],
     reportText: string,
     setIsSaving: (state :boolean) => void,
-    setSaveMessage: (message :string) => void
+    setSaveMessage: (message :string) => void,
+    vertebraeLayer: VertebraAnnotation[] = [],
+    cfhAnnotation: CfhAnnotation | null = null,
 ){
     if (measurements.length === 0) {
         setSaveMessage('暂无测量数据需要保存');
@@ -79,6 +81,8 @@ export async function saveMeasurements(
             standardDistance: standardDistance,
             standardDistancePoints: standardDistancePoints,
             pointBindings: pointBindings,
+            vertebraeLayer: vertebraeLayer.length > 0 ? vertebraeLayer : undefined,
+            cfhAnnotation: cfhAnnotation ?? undefined,
         };
         localStorage.setItem(key, JSON.stringify(localData, null, 2));
         console.log(
@@ -114,6 +118,8 @@ export async function saveMeasurements(
                 imageWidth: imageNaturalSize?.width,
                 imageHeight: imageNaturalSize?.height,
                 savedAt: new Date().toISOString(),
+                vertebraeLayer: vertebraeLayer.length > 0 ? vertebraeLayer : undefined,
+                cfhAnnotation: cfhAnnotation ?? undefined,
             };
             await updateImageAnnotation(Number(numericId), JSON.stringify(annotationData));
             console.log('绑定数据已同步至 annotation 字段');

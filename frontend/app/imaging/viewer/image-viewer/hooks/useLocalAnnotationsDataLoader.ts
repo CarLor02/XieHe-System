@@ -1,4 +1,4 @@
-import {ImageSize, MeasurementData, Point, StudyData} from "../types";
+import {ImageSize, MeasurementData, Point, StudyData, VertebraAnnotation, CfhAnnotation} from "../types";
 import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
 import {RefObject, useEffect} from "react";
 import {
@@ -21,7 +21,9 @@ export function useLocalAnnotationsDataLoader(
         points: Point[],
         context: CalculationContext
     ) => string,
-    getDescriptionForType: (type: string) => string
+    getDescriptionForType: (type: string) => string,
+    setVertebraeLayer?: (layer: VertebraAnnotation[]) => void,
+    setCfhAnnotation?: (cfh: CfhAnnotation | null) => void,
 ) {
     // 从localStorage加载标注数据
     const loadAnnotationsFromLocalStorage = () => {
@@ -163,6 +165,14 @@ export function useLocalAnnotationsDataLoader(
                 } else {
                     // localStorage 无 measurements 数据，同样清空绑定
                     setPointBindings({ syncGroups: [] });
+                }
+                // 恢复椎体角点层（image 坐标，无需缩放）
+                if (data.vertebraeLayer && Array.isArray(data.vertebraeLayer) && data.vertebraeLayer.length > 0) {
+                    setVertebraeLayer?.(data.vertebraeLayer);
+                    console.log(`从 localStorage 恢复了 ${data.vertebraeLayer.length} 节椎体角点`);
+                }
+                if (data.cfhAnnotation) {
+                    setCfhAnnotation?.(data.cfhAnnotation);
                 }
             } else if (imageNaturalSize) {
                 // 如果完全没有保存的数据，设置默认标准距离
