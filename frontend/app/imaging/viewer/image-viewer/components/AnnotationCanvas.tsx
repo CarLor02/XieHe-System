@@ -350,6 +350,9 @@ export default function AnnotationCanvas({
     screenToImage,
   });
 
+  // 检测层激活时，测量点只读（由检测角点推导驱动）
+  const isVertebradModeActive = vertebraeLayer.length > 0;
+
   const canvasDrag = useCanvasDrag({
     selectedTool,
     selectionState,
@@ -366,6 +369,7 @@ export default function AnnotationCanvas({
     imageToScreen,
     screenToImage,
     referenceLines,
+    isVertebradModeActive,
     setReferenceLines,
   });
   const drawingTool = useCanvasDrawingTool({
@@ -636,6 +640,16 @@ export default function AnnotationCanvas({
         measurements={measurements}
         getInheritedPoints={getInheritedPoints}
       />
+
+      {/* 检测层激活时的只读提示 banner */}
+      {isVertebradModeActive && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-none z-20">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-950/80 border border-blue-400/40 text-blue-200 text-xs backdrop-blur-sm select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0" />
+            检测层已激活 · 测量点只读，请拖拽检测角点调整
+          </div>
+        </div>
+      )}
 
       <OverlayLayer
         editLabelDialog={editLabelDialog}

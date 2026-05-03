@@ -22,6 +22,8 @@ interface UseCanvasDragOptions {
   referenceLines: {
     t1Tilt: Point | null;
   };
+  /** 检测层激活时为 true，此时禁止拖拽测量点（测量点由检测角点推导） */
+  isVertebradModeActive?: boolean;
   setReferenceLines: React.Dispatch<
     React.SetStateAction<{
       t1Tilt: Point | null;
@@ -59,9 +61,13 @@ export function useCanvasDrag({
   imageToScreen,
   screenToImage,
   referenceLines,
+  isVertebradModeActive = false,
   setReferenceLines,
 }: UseCanvasDragOptions) {
   const handleMouseMove = (x: number, y: number, buttons: number) => {
+    // 检测层激活时，测量点只读，禁止拖拽（由检测角点推导）
+    if (isVertebradModeActive) return false;
+
     if (
       !(selectionState.measurementId || selectionState.pointIndex !== null) ||
       selectedTool !== 'hand' ||
