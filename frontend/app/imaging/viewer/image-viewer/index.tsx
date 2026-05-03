@@ -119,6 +119,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [vertebraeLayer, setVertebraeLayer] = useState<VertebraAnnotation[]>([]);
   const [cfhAnnotation, setCfhAnnotation] = useState<CfhAnnotation | null>(null);
   const [showVertebraeLayer, setShowVertebraeLayer] = useState(false);
+  /**
+   * 记录 AI 测量接口返回的测量 ID。
+   * 用于在用户拖拽角点重推导时，把这批 AI 测量一起替换掉，避免与推导测量重复。
+   */
+  const aiMeasurementIdsRef = useRef<Set<string>>(new Set());
   const {
     pointBindings,
     setPointBindings,
@@ -747,6 +752,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         );
 
         setMeasurements(aiMeasurements);
+        // 记录 AI 测量 ID，供 handleVertebraeUpdate 过滤使用
+        aiMeasurementIdsRef.current = new Set(aiMeasurements.map((m: MeasurementData) => m.id));
         // AI 返回后执行一次基于坐标重合的自动绑定
         const S1_RELATED_TYPES = new Set([
           'ss',
@@ -801,14 +808,18 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const handleVertebraeUpdate = useCallback(
     (updated: VertebraAnnotation[]) => {
       setVertebraeLayer(updated);
-      // 仅在用户拖拽后推导，替换旧的 derived 条目
+      // 仅在用户拖拽后推导，替换旧的 derived 条目 + AI 测量条目（两者均由椎体角点推导覆盖）
       const derived = deriveAllMeasurements(updated, cfhAnnotation, imageData.examType);
       const derivedWithValues = derived.map(m => ({
         ...m,
         value: calculateMeasurementValue(m.type, m.points),
       }));
       setMeasurements(prev => [
-        ...prev.filter(m => !m.id.startsWith(DERIVED_ID_PREFIX)),
+        ...prev.filter(
+          m =>
+            !m.id.startsWith(DERIVED_ID_PREFIX) &&
+            !aiMeasurementIdsRef.current.has(m.id)
+        ),
         ...derivedWithValues,
       ]);
     },

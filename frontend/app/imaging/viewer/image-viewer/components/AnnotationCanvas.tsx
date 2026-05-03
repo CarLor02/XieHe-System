@@ -458,7 +458,12 @@ export default function AnnotationCanvas({
       ref={containerRef}
       data-image-canvas
       className={`relative w-full h-full overflow-hidden ${getCursorStyle()} ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
-      onMouseDown={pointer.onMouseDown}
+      onMouseDown={e => {
+        // 如果点击来自椎体层（角点圆圈），跳过画布事件处理，防止触发图像平移
+        // 这是双保险：即使 SVG pointer-events 冒泡路径不稳定，也能正确拦截
+        if (e.target instanceof Element && e.target.closest('.vertebrae-layer')) return;
+        pointer.onMouseDown(e);
+      }}
       onMouseMove={pointer.onMouseMove}
       onMouseUp={pointer.onMouseUp}
       onMouseEnter={handleMouseEnter}
