@@ -97,7 +97,7 @@ const ReportAnalyticsPage: React.FC = () => {
 
           {/* 底部信息 */}
           <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-3 gap-6">
               <div className="text-center">
                 <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-3">
                   <i className="ri-bar-chart-line text-xl text-blue-600"></i>
@@ -141,7 +141,7 @@ const ReportAnalyticsPage: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               使用说明
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-6">
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">📊 统计功能</h4>
                 <ul className="text-sm text-gray-600 space-y-1">

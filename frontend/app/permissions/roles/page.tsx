@@ -95,7 +95,7 @@ export default function RolesPage() {
         </div>
 
         {/* 搜索和操作栏 */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-between">
+        <div className="mb-6 flex flex-row gap-4 justify-between">
           <div className="flex-1 max-w-md">
             <input
               type="text"
@@ -226,7 +226,7 @@ export default function RolesPage() {
         </div>
 
         {/* 统计信息 */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="mt-6 grid grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">总角色数</div>
             <div className="text-2xl font-bold text-gray-900">

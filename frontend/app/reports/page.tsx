@@ -270,7 +270,7 @@ export default function ReportsPage() {
   const renderReportList = () => (
     <div className="space-y-6">
       {/* 搜索和筛选 */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-row gap-4">
         <div className="flex-1">
           <input
             type="text"

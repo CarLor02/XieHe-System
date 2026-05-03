@@ -172,7 +172,7 @@ const ErrorMonitoringPage: React.FC = () => {
         {errorStats && (
           <div className="space-y-6">
             {/* 统计概览 */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-4 gap-6">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -256,7 +256,7 @@ const ErrorMonitoringPage: React.FC = () => {
             </div>
 
             {/* 错误分类统计 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-6">
               {/* 按类型分组 */}
               <div className="bg-white rounded-lg shadow">
                 <div className="px-6 py-4 border-b border-gray-200">

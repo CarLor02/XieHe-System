@@ -212,7 +212,7 @@ export default function ReportExportPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-3 gap-8">
           {/* 左侧：报告列表和筛选 */}
           <div className="lg:col-span-2 space-y-6">
             {/* 筛选条件 */}
@@ -233,7 +233,7 @@ export default function ReportExportPage() {
 
               {showFilters && (
                 <div className="p-4 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     {/* 搜索 */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">

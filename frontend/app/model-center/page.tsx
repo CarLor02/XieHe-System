@@ -174,7 +174,7 @@ export default function ModelCenter() {
 
           {/* Stats Overview */}
           {stats && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-4 gap-6 mb-8">
               <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
                 <p className="text-gray-500 text-sm">总模型数</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{stats.total_models}</p>
@@ -226,7 +226,7 @@ export default function ModelCenter() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : filteredModels.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-3 gap-6">
               {filteredModels.map(model => (
                 <ModelCard
                   key={model.id}

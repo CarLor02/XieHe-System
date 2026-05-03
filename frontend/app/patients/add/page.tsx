@@ -212,7 +212,7 @@ export default function AddPatientPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   基本信息
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-3 gap-6">
                   {/* 姓名 - 占1列 */}
                   <div>
                     <label
@@ -330,7 +330,7 @@ export default function AddPatientPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   联系信息
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-3 gap-6">
                   {/* 联系电话 - 占1列 */}
                   <div>
                     <label
@@ -415,7 +415,7 @@ export default function AddPatientPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   紧急联系人
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-6">
                   {/* 紧急联系人姓名 */}
                   <div>
                     <label

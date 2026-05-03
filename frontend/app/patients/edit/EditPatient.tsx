@@ -234,7 +234,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                   基本信息
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-3 gap-6">
                   {/* 姓名 - 占1列 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -334,7 +334,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                   联系信息
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-3 gap-6">
                   {/* 联系电话 - 占1列 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -402,7 +402,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                   紧急联系人
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-6">
                   {/* 紧急联系人姓名 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

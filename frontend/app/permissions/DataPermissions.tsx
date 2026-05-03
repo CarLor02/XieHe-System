@@ -108,7 +108,7 @@ export default function DataPermissions() {
       </div>
 
       {/* 数据访问概览 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-4 gap-6">
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -205,7 +205,7 @@ export default function DataPermissions() {
             {/* 用户访问列表 */}
             <div className="mt-4">
               <h4 className="font-medium text-gray-900 mb-3">有权限的用户</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 {users.filter(user => data.allowedRoles.includes(user.role)).map((user) => (
                   <div key={user.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
                     <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
