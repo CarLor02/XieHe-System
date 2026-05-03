@@ -34,11 +34,10 @@ export default function VertebraeLayer({
   const [hoveredCorner, setHoveredCorner] = useState<{ label: string; index: number } | null>(null);
   const [activeCorner, setActiveCorner] = useState<DragState | null>(null);
 
-  // 用 ref 存当前拖拽状态，避免 pointermove 闭包读到旧值
-  const dragRef = useRef<{
-    state: DragState;
-    layer: VertebraAnnotation[];
-  } | null>(null);
+  // liveLayer：拖拽过程中的实时图层（触发重渲染，让角点跟手）
+  // dragStateRef：只存拖拽元数据，不需要重渲染
+  const [liveLayer, setLiveLayer] = useState<VertebraAnnotation[] | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
 
   const handleCornerPointerDown = useCallback(
     (e: React.PointerEvent<SVGCircleElement>, label: string, cornerIndex: number) => {
@@ -47,54 +46,58 @@ export default function VertebraeLayer({
       e.currentTarget.setPointerCapture(e.pointerId);
 
       const drag: DragState = { vertebraLabel: label, cornerIndex };
+      dragStateRef.current = drag;
       setActiveCorner(drag);
-      dragRef.current = { state: drag, layer: vertebraeLayer };
+      setLiveLayer(vertebraeLayer); // 初始化 liveLayer 为当前图层
     },
     [vertebraeLayer, onVertebraeUpdate]
   );
 
   const handleCornerPointerMove = useCallback(
     (e: React.PointerEvent<SVGCircleElement>) => {
-      if (!dragRef.current) return;
+      if (!dragStateRef.current) return;
       e.stopPropagation();
 
       const svgEl = e.currentTarget.ownerSVGElement;
       if (!svgEl) return;
 
-      // 将客户端坐标转换为 SVG 坐标
       const svgRect = svgEl.getBoundingClientRect();
-      const screenPt: Point = {
-        x: e.clientX - svgRect.left,
-        y: e.clientY - svgRect.top,
-      };
+      const screenPt: Point = { x: e.clientX - svgRect.left, y: e.clientY - svgRect.top };
       const imagePt = screenToImage(screenPt);
 
-      const { state, layer } = dragRef.current;
-      const updated = layer.map(v => {
-        if (v.label !== state.vertebraLabel) return v;
-        const newCorners = [...v.corners] as [Point, Point, Point, Point];
-        newCorners[state.cornerIndex] = imagePt;
-        return { ...v, corners: newCorners };
+      const { vertebraLabel, cornerIndex } = dragStateRef.current;
+      // 更新 state → 触发重渲染 → 角点跟手
+      setLiveLayer(prev => {
+        if (!prev) return prev;
+        return prev.map(v => {
+          if (v.label !== vertebraLabel) return v;
+          const newCorners = [...v.corners] as [Point, Point, Point, Point];
+          newCorners[cornerIndex] = imagePt;
+          return { ...v, corners: newCorners };
+        });
       });
-      dragRef.current = { state, layer: updated };
     },
     [screenToImage]
   );
 
   const handleCornerPointerUp = useCallback(
     (e: React.PointerEvent<SVGCircleElement>) => {
-      if (!dragRef.current || !onVertebraeUpdate) return;
+      if (!dragStateRef.current || !onVertebraeUpdate) return;
       e.stopPropagation();
 
-      onVertebraeUpdate(dragRef.current.layer);
-      dragRef.current = null;
+      // 用 functional updater 拿到最新 liveLayer 再回调
+      setLiveLayer(prev => {
+        if (prev) onVertebraeUpdate(prev);
+        return null; // 清除 liveLayer，后续由 vertebraeLayer prop 驱动
+      });
+      dragStateRef.current = null;
       setActiveCorner(null);
     },
     [onVertebraeUpdate]
   );
 
-  // 拖拽时使用 ref 中实时图层渲染，避免 React 状态滞后
-  const renderLayer = dragRef.current?.layer ?? vertebraeLayer;
+  // 拖拽中用 liveLayer（实时跟手），否则用 props 传入的 vertebraeLayer
+  const renderLayer = liveLayer ?? vertebraeLayer;
 
   return (
     <g className="vertebrae-layer">
