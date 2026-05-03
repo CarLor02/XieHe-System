@@ -16,9 +16,6 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // 生产环境配置
-  swcMinify: true,
-  
   // 禁用遥测
   productionBrowserSourceMaps: false,
   

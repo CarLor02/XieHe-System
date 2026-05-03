@@ -4,8 +4,8 @@
   "description": "医疗影像诊断系统前端应用",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_ENV=development next dev -H 0.0.0.0 -p 3000",
-    "build": "next build",
+    "dev": "cross-env NODE_ENV=development NODE_OPTIONS=--max-old-space-size=4096 next dev -H 0.0.0.0 -p 3000",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
