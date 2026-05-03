@@ -275,7 +275,7 @@ export default function AddPatientPage() {
                   </div>
 
                   {/* 身份证号 - 占2列 */}
-                  <div className="md:col-span-2">
+                  <div className="col-span-2">
                     <label
                       htmlFor="id_card"
                       className="block text-sm font-medium text-gray-700 mb-2"
@@ -390,7 +390,7 @@ export default function AddPatientPage() {
                   </div>
 
                   {/* 家庭地址 - 占3列（全宽） */}
-                  <div className="md:col-span-3">
+                  <div className="col-span-3">
                     <label
                       htmlFor="address"
                       className="block text-sm font-medium text-gray-700 mb-2"

@@ -214,7 +214,7 @@ export default function ReportExportPage() {
 
         <div className="grid grid-cols-3 gap-8">
           {/* 左侧：报告列表和筛选 */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="col-span-2 space-y-6">
             {/* 筛选条件 */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="p-4 border-b border-gray-200">
@@ -446,7 +446,7 @@ export default function ReportExportPage() {
           </div>
 
           {/* 右侧：导出组件 */}
-          <div className="lg:col-span-1">
+          <div className="col-span-1">
             <div className="sticky top-8">
               <ReportExport
                 reportIds={selectedReports}

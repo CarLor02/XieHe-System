@@ -282,7 +282,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                   </div>
 
                   {/* 身份证号 - 占2列 */}
-                  <div className="md:col-span-2">
+                  <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       身份证号
                       <span className="text-xs text-gray-500 ml-2 font-normal">
@@ -381,7 +381,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                   </div>
 
                   {/* 家庭地址 - 占3列（全宽） */}
-                  <div className="md:col-span-3">
+                  <div className="col-span-3">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       家庭地址
                     </label>

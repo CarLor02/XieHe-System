@@ -799,7 +799,7 @@ function ImagingPageContent() {
                 />
               </div>
 
-              <div className="md:col-span-4 flex justify-end">
+              <div className="col-span-4 flex justify-end">
                 <button
                   onClick={clearFilters}
                   className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap"

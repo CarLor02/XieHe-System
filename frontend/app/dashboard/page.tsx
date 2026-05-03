@@ -210,7 +210,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+          <div className="col-span-2">
             <TaskList />
           </div>
 
