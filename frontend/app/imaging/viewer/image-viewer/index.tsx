@@ -795,33 +795,24 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   // handleAIDetection 已并入 handleAIMeasurement（admin 分支），此处不再需要独立函数
 
   /**
-   * 当 vertebraeLayer 发生变化时（AI检测完成 或 角点拖拽后），
-   * 自动重新推导 measurements 中的 vertebrae-derived-* 条目。
-   */
-  useEffect(() => {
-    if (vertebraeLayer.length === 0) return;
-    const derived = deriveAllMeasurements(vertebraeLayer, cfhAnnotation, imageData.examType);
-    // 补算每条推导测量的 value（类型名已规范化，可直接走 annotation catalog）
-    const derivedWithValues = derived.map(m => ({
-      ...m,
-      value: calculateMeasurementValue(m.type, m.points),
-    }));
-    setMeasurements(prev => [
-      ...prev.filter(m => !m.id.startsWith(DERIVED_ID_PREFIX)),
-      ...derivedWithValues,
-    ]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vertebraeLayer, cfhAnnotation]);
-
-  /**
    * 椎体角点拖拽结束时的回调（由 AnnotationCanvas → VertebraeLayer 触发）。
-   * 只需更新 vertebraeLayer，上面的 useEffect 会自动触发推导。
+   * 推导仅在用户主动拖拽后触发，AI检测填充 vertebraeLayer 时不触发，避免重复测量。
    */
   const handleVertebraeUpdate = useCallback(
     (updated: VertebraAnnotation[]) => {
       setVertebraeLayer(updated);
+      // 仅在用户拖拽后推导，替换旧的 derived 条目
+      const derived = deriveAllMeasurements(updated, cfhAnnotation, imageData.examType);
+      const derivedWithValues = derived.map(m => ({
+        ...m,
+        value: calculateMeasurementValue(m.type, m.points),
+      }));
+      setMeasurements(prev => [
+        ...prev.filter(m => !m.id.startsWith(DERIVED_ID_PREFIX)),
+        ...derivedWithValues,
+      ]);
     },
-    []
+    [cfhAnnotation, imageData.examType]
   );
 
   const handleSaveMeasurements = useCallback(

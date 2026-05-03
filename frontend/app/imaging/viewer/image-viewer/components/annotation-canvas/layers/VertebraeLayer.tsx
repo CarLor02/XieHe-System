@@ -100,7 +100,8 @@ export default function VertebraeLayer({
   const renderLayer = liveLayer ?? vertebraeLayer;
 
   return (
-    <g className="vertebrae-layer">
+    // pointer-events-none 是父 SVG 设置的，这里用 auto 覆盖，使角点圆圈可接收事件
+    <g className="vertebrae-layer" style={{ pointerEvents: onVertebraeUpdate ? 'auto' : 'none' }}>
       {renderLayer.map(vertebra => {
         const [tl, tr, bl, br] = vertebra.corners.map(imageToScreen);
 
@@ -139,12 +140,15 @@ export default function VertebraeLayer({
                   fill={isActive ? 'rgba(239, 68, 68, 0.95)' : isHovered ? 'rgba(96, 165, 250, 1)' : 'rgba(59, 130, 246, 0.9)'}
                   stroke="white"
                   strokeWidth={1}
-                  style={{ cursor: onVertebraeUpdate ? 'crosshair' : 'default' }}
+                  style={{ cursor: onVertebraeUpdate ? 'crosshair' : 'default', pointerEvents: 'auto' }}
                   onPointerEnter={() => setHoveredCorner({ label: vertebra.label, index: i })}
                   onPointerLeave={() => setHoveredCorner(null)}
                   onPointerDown={e => handleCornerPointerDown(e, vertebra.label, i)}
                   onPointerMove={handleCornerPointerMove}
                   onPointerUp={handleCornerPointerUp}
+                  onMouseDown={e => e.stopPropagation()}
+                  onMouseMove={e => { if (dragStateRef.current) e.stopPropagation(); }}
+                  onMouseUp={e => e.stopPropagation()}
                 />
               );
             })}
