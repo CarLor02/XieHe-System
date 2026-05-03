@@ -763,6 +763,18 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         setPointBindings(mergeBindings(s1Bindings, posBindings));
         setSaveMessage(`AI测量完成，已加载 ${aiMeasurements.length} 个标注`);
         setTimeout(() => setSaveMessage(''), 3000);
+
+        // admin：顺带运行 AI 检测，填充椎体角点层（用于可视化 + 角点拖拽微调）
+        if (isAdmin) {
+          void usecases.aiDetect(
+            isAdmin,
+            imageData,
+            setVertebraeLayer,
+            setCfhAnnotation,
+            () => {}, // 不再重复显示 saveMessage
+            setIsAIDetecting
+          );
+        }
       } else {
         setSaveMessage('AI测量完成，但未返回有效数据');
         setTimeout(() => setSaveMessage(''), 3000);
@@ -776,20 +788,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     }
   };
 
-  // AI检测函数（仅检测椎骨，结果写入 vertebraeLayer，不混入 measurements[]）- 仅管理员可用
-  const handleAIDetection = useCallback(
-    () => {
-      void usecases.aiDetect(
-          isAdmin,
-          imageData,
-          setVertebraeLayer,
-          setCfhAnnotation,
-          setSaveMessage,
-          setIsAIDetecting
-      )
-    },
-    [isAdmin, imageData]
-  )
+  // handleAIDetection 已并入 handleAIMeasurement（admin 分支），此处不再需要独立函数
 
   /**
    * 当 vertebraeLayer 发生变化时（AI检测完成 或 角点拖拽后），
@@ -798,9 +797,14 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   useEffect(() => {
     if (vertebraeLayer.length === 0) return;
     const derived = deriveAllMeasurements(vertebraeLayer, cfhAnnotation, imageData.examType);
+    // 补算每条推导测量的 value（类型名已规范化，可直接走 annotation catalog）
+    const derivedWithValues = derived.map(m => ({
+      ...m,
+      value: calculateMeasurementValue(m.type, m.points),
+    }));
     setMeasurements(prev => [
       ...prev.filter(m => !m.id.startsWith(DERIVED_ID_PREFIX)),
-      ...derived,
+      ...derivedWithValues,
     ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vertebraeLayer, cfhAnnotation]);
@@ -860,7 +864,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           onSave={handleSaveMeasurements}
           onExportJson={exportAnnotationsToJSON}
           onImportJson={importAnnotationsFromJSON}
-          onAIDetect={handleAIDetection}
           onAIMeasure={handleAIMeasurement}
           onGenerateReport={handleReportGenerate}
         />

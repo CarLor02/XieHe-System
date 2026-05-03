@@ -23,7 +23,6 @@ interface StudyHeaderProps {
   onSave: () => void;
   onExportJson: () => void;
   onImportJson: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onAIDetect: () => void;
   onAIMeasure: () => void;
   onGenerateReport: () => void;
 }
@@ -42,7 +41,6 @@ export default function StudyHeader({
   onSave,
   onExportJson,
   onImportJson,
-  onAIDetect,
   onAIMeasure,
   onGenerateReport,
 }: StudyHeaderProps) {
@@ -115,28 +113,6 @@ export default function StudyHeader({
             </label>
           </div>
 
-          {/* AI检测按钮 - 仅管理员可见 */}
-          {isAdmin && (
-            <button
-              onClick={onAIDetect}
-              disabled={isAIDetecting}
-              className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              title="使用AI检测椎骨位置（仅管理员）"
-            >
-              {isAIDetecting ? (
-                <>
-                  <i className="ri-loader-line w-4 h-4 flex items-center justify-center animate-spin"></i>
-                  <span>检测中...</span>
-                </>
-              ) : (
-                <>
-                  <i className="ri-scan-line w-4 h-4 flex items-center justify-center"></i>
-                  <span>AI检测</span>
-                </>
-              )}
-            </button>
-          )}
-
           {/* 检测层显隐切换 - 仅管理员且有检测数据时显示 */}
           {isAdmin && hasVertebraeLayer && (
             <button
@@ -153,16 +129,17 @@ export default function StudyHeader({
             </button>
           )}
 
+          {/* AI测量按钮：admin 时同时触发检测（填充检测层） */}
           <button
             onClick={onAIMeasure}
-            disabled={isAIMeasuring}
+            disabled={isAIMeasuring || isAIDetecting}
             className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-            title="使用AI自动测量Cobb角"
+            title="使用AI自动测量"
           >
-            {isAIMeasuring ? (
+            {(isAIMeasuring || isAIDetecting) ? (
               <>
                 <i className="ri-loader-line w-4 h-4 flex items-center justify-center animate-spin"></i>
-                <span>测量中...</span>
+                <span>{isAIMeasuring ? '测量中...' : '检测中...'}</span>
               </>
             ) : (
               <>
