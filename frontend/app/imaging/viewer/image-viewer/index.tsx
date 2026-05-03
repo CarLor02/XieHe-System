@@ -27,7 +27,7 @@ import { useAnnotationEngine } from './hooks/useAnnotationEngine';
 import * as hooks from "./hooks/index"
 import * as usecases from "./usecase/index"
 import { getAiMeasurementsResponse } from '@/services/imageServices';
-import {ImageSize, MeasurementData, Point} from './types';
+import {CfhAnnotation, ImageSize, MeasurementData, Point, VertebraAnnotation} from './types';
 // import ReactMarkdown from 'react-markdown';
 // import remarkGfm from 'remark-gfm';
 
@@ -113,6 +113,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   // AI检测和测量
   const [isAIDetecting, setIsAIDetecting] = useState(false);
   const [isAIMeasuring, setIsAIMeasuring] = useState(false);
+
+  // 椎体标注层（独立于 measurements[]，仅 AI 检测结果写入这里）
+  const [vertebraeLayer, setVertebraeLayer] = useState<VertebraAnnotation[]>([]);
+  const [cfhAnnotation, setCfhAnnotation] = useState<CfhAnnotation | null>(null);
+  const [showVertebraeLayer, setShowVertebraeLayer] = useState(false);
   const {
     pointBindings,
     setPointBindings,
@@ -770,21 +775,19 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     }
   };
 
-  // AI检测函数（仅检测椎骨，不包含测量）- 仅管理员可用
+  // AI检测函数（仅检测椎骨，结果写入 vertebraeLayer，不混入 measurements[]）- 仅管理员可用
   const handleAIDetection = useCallback(
     () => {
       void usecases.aiDetect(
           isAdmin,
           imageData,
-          setMeasurements,
+          setVertebraeLayer,
+          setCfhAnnotation,
           setSaveMessage,
           setIsAIDetecting
       )
     },
-    [
-      isAdmin,
-      imageData,
-    ]
+    [isAdmin, imageData]
   )
 
   const handleSaveMeasurements = useCallback(
@@ -825,6 +828,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           isAdmin={isAdmin}
           isAIDetecting={isAIDetecting}
           isAIMeasuring={isAIMeasuring}
+          hasVertebraeLayer={vertebraeLayer.length > 0}
+          showVertebraeLayer={showVertebraeLayer}
+          onToggleVertebraeLayer={() => setShowVertebraeLayer(v => !v)}
           onSave={handleSaveMeasurements}
           onExportJson={exportAnnotationsToJSON}
           onImportJson={importAnnotationsFromJSON}
@@ -876,6 +882,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 isManualBindingMode={isManualBindingMode}
                 manualBindingSelectedPoints={manualBindingSelectedPoints}
                 onManualBindingPointToggle={toggleManualBindingPoint}
+                vertebraeLayer={vertebraeLayer}
+                cfhAnnotation={cfhAnnotation}
+                showVertebraeLayer={showVertebraeLayer}
               />
             </div>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Point, MeasurementData, ImageData, Tool } from '../types';
+import { Point, MeasurementData, ImageData, Tool, VertebraAnnotation, CfhAnnotation } from '../types';
 import {
   AnnotationBindings,
   PointRef,
@@ -42,6 +42,7 @@ import MeasurementResultsPanel from './annotation-canvas/panels/MeasurementResul
 import CanvasControlsPanel from './annotation-canvas/panels/CanvasControlsPanel';
 import CanvasHintPanel from './annotation-canvas/panels/CanvasHintPanel';
 import renderMeasurement from './annotation-canvas/renderers/renderMeasurement';
+import VertebraeLayer from './annotation-canvas/layers/VertebraeLayer';
 
 export default function AnnotationCanvas({
   selectedImage,
@@ -77,6 +78,9 @@ export default function AnnotationCanvas({
   isManualBindingMode,
   manualBindingSelectedPoints,
   onManualBindingPointToggle,
+  vertebraeLayer = [],
+  cfhAnnotation = null,
+  showVertebraeLayer = false,
 }: {
   selectedImage: Pick<ImageData, 'examType'>;
   measurements: MeasurementData[];
@@ -114,6 +118,9 @@ export default function AnnotationCanvas({
     annotationId: string,
     pointIndex: number
   ) => void;
+  vertebraeLayer?: VertebraAnnotation[];
+  cfhAnnotation?: CfhAnnotation | null;
+  showVertebraeLayer?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const {
@@ -568,6 +575,15 @@ export default function AnnotationCanvas({
             <polygon points="0 0, 10 3, 0 6" fill="#ef4444" />
           </marker>
         </defs>
+        {/* 椎体标注层（AI检测结果，admin专属，可隐藏） */}
+        {showVertebraeLayer && (
+          <VertebraeLayer
+            vertebraeLayer={vertebraeLayer}
+            cfhAnnotation={cfhAnnotation}
+            imageToScreen={imageToScreen}
+          />
+        )}
+
         {/* 正式 measurement 渲染统一下沉到 MeasurementLayer + renderMeasurement */}
         <MeasurementLayer
           measurements={orderedVisibleMeasurements}

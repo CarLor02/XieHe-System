@@ -17,6 +17,9 @@ interface StudyHeaderProps {
   isAdmin: boolean;
   isAIDetecting: boolean;
   isAIMeasuring: boolean;
+  hasVertebraeLayer: boolean;
+  showVertebraeLayer: boolean;
+  onToggleVertebraeLayer: () => void;
   onSave: () => void;
   onExportJson: () => void;
   onImportJson: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -33,6 +36,9 @@ export default function StudyHeader({
   isAdmin,
   isAIDetecting,
   isAIMeasuring,
+  hasVertebraeLayer,
+  showVertebraeLayer,
+  onToggleVertebraeLayer,
   onSave,
   onExportJson,
   onImportJson,
@@ -128,6 +134,22 @@ export default function StudyHeader({
                   <span>AI检测</span>
                 </>
               )}
+            </button>
+          )}
+
+          {/* 检测层显隐切换 - 仅管理员且有检测数据时显示 */}
+          {isAdmin && hasVertebraeLayer && (
+            <button
+              onClick={onToggleVertebraeLayer}
+              className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap flex items-center space-x-2 transition-colors ${
+                showVertebraeLayer
+                  ? 'bg-blue-600/70 text-white hover:bg-blue-600'
+                  : 'text-white/60 hover:text-white hover:bg-white/10'
+              }`}
+              title={showVertebraeLayer ? '隐藏椎体检测层' : '显示椎体检测层'}
+            >
+              <i className={`${showVertebraeLayer ? 'ri-eye-line' : 'ri-eye-off-line'} w-4 h-4 flex items-center justify-center`}></i>
+              <span>检测层</span>
             </button>
           )}
 

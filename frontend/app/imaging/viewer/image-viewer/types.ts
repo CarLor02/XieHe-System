@@ -46,6 +46,32 @@ export interface MeasurementData {
   apexVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
 }
 
+/**
+ * 椎体标注层 —— AI 检测输出的结构化椎体角点。
+ * 用于独立于 measurements[] 之外的 vertebraeLayer 状态，不与测量标注混用。
+ *
+ * corners 的顺序与 aiDetectionUseCase 保持一致：
+ *   0 = topLeft（左上）
+ *   1 = topRight（右上）
+ *   2 = bottomLeft（左下）
+ *   3 = bottomRight（右下）
+ */
+export interface VertebraAnnotation {
+  label: string;       // 椎体名称，如 "T1"、"L5"
+  corners: [Point, Point, Point, Point]; // [TL, TR, BL, BR]
+  confidence: number;
+  source: 'ai' | 'manual';
+}
+
+/**
+ * 股骨头标注（侧位专用，单中心点）
+ */
+export interface CfhAnnotation {
+  center: Point;
+  confidence: number;
+  source: 'ai' | 'manual';
+}
+
 /*
 * AI 测量数据结构体
 * */
