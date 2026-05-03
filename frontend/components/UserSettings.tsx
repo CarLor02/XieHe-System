@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getCurrentUser, updateCurrentUser, UserInfo } from '@/services/userService';
+import {
+  getCurrentUser,
+  updateCurrentUser,
+  UserInfo,
+} from '@/services/userService';
 import { useSessionStore } from '@/lib/api';
 import { getMyTeams } from '@/services/teamService';
 import type { TeamSummary } from '@/services/teamService';
@@ -12,7 +16,11 @@ interface UserSettingsProps {
   type: 'profile' | 'organization' | 'password' | 'system' | null;
 }
 
-export default function UserSettings({ isOpen, onClose, type }: UserSettingsProps) {
+export default function UserSettings({
+  isOpen,
+  onClose,
+  type,
+}: UserSettingsProps) {
   const [activeTab, setActiveTab] = useState(type || 'profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,7 +39,7 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
     organization: '',
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
 
   // 获取 authStore 的 fetchUserInfo 方法
@@ -60,8 +68,15 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
       setMyTeams(response.items || []);
 
       // 如果用户有团队，设置第一个团队为默认选中
-      if (response.items && response.items.length > 0 && !formData.organization) {
-        setFormData(prev => ({ ...prev, organization: response.items[0].id.toString() }));
+      if (
+        response.items &&
+        response.items.length > 0 &&
+        !formData.organization
+      ) {
+        setFormData(prev => ({
+          ...prev,
+          organization: response.items[0].id.toString(),
+        }));
       }
     } catch (error) {
       console.error('加载团队列表失败:', error);
@@ -85,7 +100,7 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
         department: data.department,
         department_id: data.department_id,
         position: data.position,
-        title: data.title
+        title: data.title,
       });
 
       setUserInfo(data);
@@ -99,7 +114,7 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
         department: data.department || '',
         department_id: data.department_id || null,
         position: data.position || '',
-        title: data.title || ''
+        title: data.title || '',
       };
 
       console.log('设置表单数据:', newFormData);
@@ -129,7 +144,7 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
         real_name: formData.real_name || undefined,
         department_id: formData.department_id || undefined,
         position: formData.position || undefined,
-        title: formData.title || undefined
+        title: formData.title || undefined,
       };
       console.log('准备保存用户信息:', updateData);
 
@@ -157,18 +172,23 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
         return;
       }
 
-      const errorMsg = error.response?.data?.detail || error.message || '保存失败，请重试';
+      const errorMsg =
+        error.response?.data?.detail || error.message || '保存失败，请重试';
       alert(errorMsg);
     } finally {
       setSaving(false);
     }
   };
 
-  const tabs: Array<{ id: 'profile' | 'organization' | 'password' | 'system'; name: string; icon: string }> = [
+  const tabs: Array<{
+    id: 'profile' | 'organization' | 'password' | 'system';
+    name: string;
+    icon: string;
+  }> = [
     { id: 'profile', name: '个人信息', icon: 'ri-user-line' },
     { id: 'organization', name: '组织设置', icon: 'ri-building-line' },
     { id: 'password', name: '密码安全', icon: 'ri-lock-line' },
-    { id: 'system', name: '系统偏好', icon: 'ri-settings-line' }
+    { id: 'system', name: '系统偏好', icon: 'ri-settings-line' },
   ];
 
   const handleInputChange = (field: string, value: string | number | null) => {
@@ -178,18 +198,20 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-gray-900/20 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/20 p-4 backdrop-blur-sm sm:p-6">
+      <div className="h-[calc(100vh-2rem)] max-h-[56rem] w-full max-w-6xl overflow-hidden rounded-lg bg-white shadow-2xl sm:h-[calc(100vh-3rem)]">
+        <div className="flex h-full min-h-0">
           {/* 左侧导航 */}
-          <div className="w-64 bg-gray-50 border-r border-gray-200">
+          <div className="flex h-full w-64 flex-shrink-0 flex-col bg-gray-50 border-r border-gray-200">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">用户设置</h2>
-              <p className="text-sm text-gray-500 mt-1">管理您的账户和偏好设置</p>
+              <p className="text-sm text-gray-500 mt-1">
+                管理您的账户和偏好设置
+              </p>
             </div>
-            
-            <nav className="p-4">
-              {tabs.map((tab) => (
+
+            <nav className="flex-1 overflow-y-auto p-4">
+              {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
@@ -199,7 +221,9 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <i className={`${tab.icon} w-5 h-5 flex items-center justify-center`}></i>
+                  <i
+                    className={`${tab.icon} w-5 h-5 flex items-center justify-center`}
+                  ></i>
                   <span className="text-sm font-medium">{tab.name}</span>
                 </button>
               ))}
@@ -207,12 +231,14 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
           </div>
 
           {/* 右侧内容 */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-8">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 overflow-y-auto p-8">
               {/* 个人信息 */}
               {activeTab === 'profile' && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">个人信息</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                    个人信息
+                  </h3>
 
                   {loading ? (
                     <div className="text-center py-8">
@@ -223,8 +249,11 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
                       <div className="flex items-center space-x-6">
                         <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
                           <span className="text-2xl font-bold text-white">
-                            {formData.real_name ? formData.real_name.charAt(0).toUpperCase() :
-                             formData.username ? formData.username.charAt(0).toUpperCase() : 'U'}
+                            {formData.real_name
+                              ? formData.real_name.charAt(0).toUpperCase()
+                              : formData.username
+                                ? formData.username.charAt(0).toUpperCase()
+                                : 'U'}
                           </span>
                         </div>
                         <div>
@@ -235,72 +264,98 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
                           >
                             更换头像
                           </button>
-                          <p className="text-xs text-gray-500 mt-2">头像上传功能即将推出</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            头像上传功能即将推出
+                          </p>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-6">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">用户名</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            用户名
+                          </label>
                           <input
                             type="text"
                             value={formData.username}
                             disabled
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                           />
-                          <p className="text-xs text-gray-500 mt-1">用户名不可修改</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            用户名不可修改
+                          </p>
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">邮箱地址</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            邮箱地址
+                          </label>
                           <input
                             type="email"
                             value={formData.email}
                             disabled
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                           />
-                          <p className="text-xs text-gray-500 mt-1">邮箱不可修改</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            邮箱不可修改
+                          </p>
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">真实姓名</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            真实姓名
+                          </label>
                           <input
                             type="text"
                             value={formData.real_name}
-                            onChange={(e) => handleInputChange('real_name', e.target.value)}
+                            onChange={e =>
+                              handleInputChange('real_name', e.target.value)
+                            }
                             placeholder="请输入真实姓名"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">手机号码</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            手机号码
+                          </label>
                           <input
                             type="tel"
                             value={formData.phone}
-                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                            onChange={e =>
+                              handleInputChange('phone', e.target.value)
+                            }
                             placeholder="请输入手机号码"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">职位</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            职位
+                          </label>
                           <input
                             type="text"
                             value={formData.position}
-                            onChange={(e) => handleInputChange('position', e.target.value)}
+                            onChange={e =>
+                              handleInputChange('position', e.target.value)
+                            }
                             placeholder="如：主治医师"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">职称</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            职称
+                          </label>
                           <input
                             type="text"
                             value={formData.title}
-                            onChange={(e) => handleInputChange('title', e.target.value)}
+                            onChange={e =>
+                              handleInputChange('title', e.target.value)
+                            }
                             placeholder="如：副主任医师"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
@@ -309,9 +364,15 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
 
                       {formData.department && (
                         <div className="bg-blue-50 p-4 rounded-lg">
-                          <h4 className="font-medium text-blue-900 mb-2">当前部门</h4>
-                          <p className="text-sm text-blue-700">{formData.department}</p>
-                          <p className="text-xs text-blue-600 mt-1">如需更改部门，请联系系统管理员</p>
+                          <h4 className="font-medium text-blue-900 mb-2">
+                            当前部门
+                          </h4>
+                          <p className="text-sm text-blue-700">
+                            {formData.department}
+                          </p>
+                          <p className="text-xs text-blue-600 mt-1">
+                            如需更改部门，请联系系统管理员
+                          </p>
                         </div>
                       )}
                     </div>
@@ -322,7 +383,9 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
               {/* 组织设置 */}
               {activeTab === 'organization' && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">组织设置</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                    组织设置
+                  </h3>
 
                   {loadingTeams ? (
                     <div className="text-center py-8">
@@ -333,7 +396,9 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
                       <div className="flex items-start space-x-3">
                         <i className="ri-information-line text-yellow-600 text-xl mt-0.5"></i>
                         <div>
-                          <h4 className="font-medium text-yellow-900 mb-1">您还未加入任何团队</h4>
+                          <h4 className="font-medium text-yellow-900 mb-1">
+                            您还未加入任何团队
+                          </h4>
                           <p className="text-sm text-yellow-700 mb-3">
                             加入团队后，您可以与团队成员协作处理影像数据。
                           </p>
@@ -346,14 +411,18 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
                   ) : (
                     <div className="space-y-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">当前组织</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          当前组织
+                        </label>
                         <select
                           value={formData.organization}
-                          onChange={(e) => handleInputChange('organization', e.target.value)}
+                          onChange={e =>
+                            handleInputChange('organization', e.target.value)
+                          }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           disabled={myTeams.length === 0}
                         >
-                          {myTeams.map((team) => (
+                          {myTeams.map(team => (
                             <option key={team.id} value={team.id.toString()}>
                               {team.name}
                             </option>
@@ -364,27 +433,48 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
                         </p>
                       </div>
 
-                      {formData.organization && myTeams.find(t => t.id.toString() === formData.organization) && (
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          <h4 className="font-medium text-gray-900 mb-2">组织信息</h4>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <p>
-                              <span className="font-medium">组织名称:</span>{' '}
-                              {myTeams.find(t => t.id.toString() === formData.organization)?.name}
-                            </p>
-                            <p>
-                              <span className="font-medium">成员数量:</span>{' '}
-                              {myTeams.find(t => t.id.toString() === formData.organization)?.member_count || 0} 人
-                            </p>
-                            {myTeams.find(t => t.id.toString() === formData.organization)?.creator_name && (
+                      {formData.organization &&
+                        myTeams.find(
+                          t => t.id.toString() === formData.organization
+                        ) && (
+                          <div className="bg-gray-50 p-4 rounded-lg">
+                            <h4 className="font-medium text-gray-900 mb-2">
+                              组织信息
+                            </h4>
+                            <div className="text-sm text-gray-600 space-y-1">
                               <p>
-                                <span className="font-medium">创建者:</span>{' '}
-                                {myTeams.find(t => t.id.toString() === formData.organization)?.creator_name}
+                                <span className="font-medium">组织名称:</span>{' '}
+                                {
+                                  myTeams.find(
+                                    t =>
+                                      t.id.toString() === formData.organization
+                                  )?.name
+                                }
                               </p>
-                            )}
+                              <p>
+                                <span className="font-medium">成员数量:</span>{' '}
+                                {myTeams.find(
+                                  t => t.id.toString() === formData.organization
+                                )?.member_count || 0}{' '}
+                                人
+                              </p>
+                              {myTeams.find(
+                                t => t.id.toString() === formData.organization
+                              )?.creator_name && (
+                                <p>
+                                  <span className="font-medium">创建者:</span>{' '}
+                                  {
+                                    myTeams.find(
+                                      t =>
+                                        t.id.toString() ===
+                                        formData.organization
+                                    )?.creator_name
+                                  }
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   )}
                 </div>
@@ -393,44 +483,60 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
               {/* 密码安全 */}
               {activeTab === 'password' && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">密码安全</h3>
-                  
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                    密码安全
+                  </h3>
+
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">当前密码</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        当前密码
+                      </label>
                       <input
                         type="password"
                         value={formData.currentPassword}
-                        onChange={(e) => handleInputChange('currentPassword', e.target.value)}
+                        onChange={e =>
+                          handleInputChange('currentPassword', e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="请输入当前密码"
                       />
                     </div>
-                    
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">新密码</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        新密码
+                      </label>
                       <input
                         type="password"
                         value={formData.newPassword}
-                        onChange={(e) => handleInputChange('newPassword', e.target.value)}
+                        onChange={e =>
+                          handleInputChange('newPassword', e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="请输入新密码"
                       />
                     </div>
-                    
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">确认新密码</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        确认新密码
+                      </label>
                       <input
                         type="password"
                         value={formData.confirmPassword}
-                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                        onChange={e =>
+                          handleInputChange('confirmPassword', e.target.value)
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="请再次输入新密码"
                       />
                     </div>
 
                     <div className="bg-yellow-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-yellow-800 mb-2">密码安全提示</h4>
+                      <h4 className="font-medium text-yellow-800 mb-2">
+                        密码安全提示
+                      </h4>
                       <ul className="text-sm text-yellow-700 space-y-1">
                         <li>• 密码长度至少8位</li>
                         <li>• 包含大小写字母、数字和特殊字符</li>
@@ -445,42 +551,73 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
               {/* 系统偏好 */}
               {activeTab === 'system' && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">系统偏好</h3>
-                  
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                    系统偏好
+                  </h3>
+
                   <div className="space-y-6">
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-3">界面设置</h4>
+                      <h4 className="font-medium text-gray-900 mb-3">
+                        界面设置
+                      </h4>
                       <div className="space-y-3">
                         <label className="flex items-center">
-                          <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" defaultChecked />
-                          <span className="ml-2 text-sm text-gray-700">启用暗色主题</span>
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            defaultChecked
+                          />
+                          <span className="ml-2 text-sm text-gray-700">
+                            启用暗色主题
+                          </span>
                         </label>
                         <label className="flex items-center">
-                          <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" defaultChecked />
-                          <span className="ml-2 text-sm text-gray-700">显示系统通知</span>
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            defaultChecked
+                          />
+                          <span className="ml-2 text-sm text-gray-700">
+                            显示系统通知
+                          </span>
                         </label>
                         <label className="flex items-center">
-                          <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                          <span className="ml-2 text-sm text-gray-700">自动保存草稿</span>
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">
+                            自动保存草稿
+                          </span>
                         </label>
                       </div>
                     </div>
 
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-3">语言和地区</h4>
+                      <h4 className="font-medium text-gray-900 mb-3">
+                        语言和地区
+                      </h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">语言</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            语言
+                          </label>
                           <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="zh-CN">简体中文</option>
                             <option value="en-US">English</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">时区</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            时区
+                          </label>
                           <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="Asia/Shanghai">北京时间 (UTC+8)</option>
-                            <option value="America/New_York">纽约时间 (UTC-5)</option>
+                            <option value="Asia/Shanghai">
+                              北京时间 (UTC+8)
+                            </option>
+                            <option value="America/New_York">
+                              纽约时间 (UTC-5)
+                            </option>
                           </select>
                         </div>
                       </div>
@@ -488,33 +625,30 @@ export default function UserSettings({ isOpen, onClose, type }: UserSettingsProp
                   </div>
                 </div>
               )}
-
-              {/* 底部按钮 */}
-              <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
+            </div>
+            {/* 底部按钮 */}
+            <div className="flex flex-shrink-0 justify-end space-x-4 border-t border-gray-200 bg-white px-8 py-5">
+              <button
+                onClick={onClose}
+                disabled={saving}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                取消
+              </button>
+              {activeTab === 'profile' && (
                 <button
-                  onClick={onClose}
-                  disabled={saving}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleSave}
+                  disabled={saving || loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  取消
+                  {saving ? '保存中...' : '保存更改'}
                 </button>
-                {activeTab === 'profile' && (
-                  <button
-                    onClick={handleSave}
-                    disabled={saving || loading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {saving ? '保存中...' : '保存更改'}
-                  </button>
-                )}
-                {activeTab === 'password' && (
-                  <button
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    修改密码
-                  </button>
-                )}
-              </div>
+              )}
+              {activeTab === 'password' && (
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  修改密码
+                </button>
+              )}
             </div>
           </div>
         </div>

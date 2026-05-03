@@ -17,15 +17,30 @@ import {
 import { getErrorMessage } from '@/lib/api';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import {
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react';
 
 const PREVIEW_REQUEST_TIMEOUT_MS = 60000;
 const PREVIEW_RETRY_ATTEMPTS = 3;
 const PREVIEW_RETRY_DELAY_MS = 800;
 const MAX_CONCURRENT_PREVIEW_LOADS = 6;
+const ACTION_MENU_WIDTH = 160;
+const ACTION_MENU_ESTIMATED_HEIGHT = 144;
+const ACTION_MENU_VIEWPORT_MARGIN = 8;
+const ACTION_MENU_TRIGGER_GAP = 4;
 
 type PreviewLoadState = 'fallback';
 type ReviewStatusFilter = 'all' | 'reviewed' | 'unreviewed';
+type OpenDropdown = {
+  id: string;
+  top: number;
+  left: number;
+};
 
 function getReviewStatusFilterFromUrl(
   reviewStatus: string | null,
@@ -91,7 +106,7 @@ function ImagingPageContent() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<OpenDropdown | null>(null);
 
   // 修改检查类型弹窗
   const EXAM_TYPES = ['正位X光片', '侧位X光片', '左侧曲位', '右侧曲位', '体态照片'];
@@ -103,6 +118,46 @@ function ImagingPageContent() {
     setChangeTypeSelected(currentDesc || '');
     setChangeTypeModal({ fileId, currentDesc, status });
     setOpenDropdown(null);
+  };
+
+  const toggleImageActionMenu = (
+    fileId: number,
+    event: MouseEvent<HTMLButtonElement>
+  ) => {
+    const dropdownId = fileId.toString();
+    if (openDropdown?.id === dropdownId) {
+      setOpenDropdown(null);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const availableBelow = window.innerHeight - rect.bottom;
+    const shouldOpenUpward =
+      availableBelow <
+        ACTION_MENU_ESTIMATED_HEIGHT + ACTION_MENU_TRIGGER_GAP &&
+      rect.top > availableBelow;
+
+    const unclampedTop = shouldOpenUpward
+      ? rect.top - ACTION_MENU_ESTIMATED_HEIGHT - ACTION_MENU_TRIGGER_GAP
+      : rect.bottom + ACTION_MENU_TRIGGER_GAP;
+    const top = Math.max(
+      ACTION_MENU_VIEWPORT_MARGIN,
+      Math.min(
+        unclampedTop,
+        window.innerHeight -
+          ACTION_MENU_ESTIMATED_HEIGHT -
+          ACTION_MENU_VIEWPORT_MARGIN
+      )
+    );
+    const left = Math.max(
+      ACTION_MENU_VIEWPORT_MARGIN,
+      Math.min(
+        rect.right - ACTION_MENU_WIDTH,
+        window.innerWidth - ACTION_MENU_WIDTH - ACTION_MENU_VIEWPORT_MARGIN
+      )
+    );
+
+    setOpenDropdown({ id: dropdownId, top, left });
   };
 
   const handleChangeType = async () => {
@@ -346,6 +401,19 @@ function ImagingPageContent() {
     dateFrom,
     dateTo,
   ]);
+
+  useEffect(() => {
+    if (!openDropdown) return;
+
+    const closeDropdown = () => setOpenDropdown(null);
+    window.addEventListener('resize', closeDropdown);
+    window.addEventListener('scroll', closeDropdown, true);
+
+    return () => {
+      window.removeEventListener('resize', closeDropdown);
+      window.removeEventListener('scroll', closeDropdown, true);
+    };
+  }, [openDropdown]);
 
   useEffect(() => {
     return () => {
@@ -825,12 +893,8 @@ function ImagingPageContent() {
                         </Link>
                         <div className="relative">
                           <button
-                            onClick={() =>
-                              setOpenDropdown(
-                                openDropdown === imageFile.id.toString()
-                                  ? null
-                                  : imageFile.id.toString()
-                              )
+                            onClick={event =>
+                              toggleImageActionMenu(imageFile.id, event)
                             }
                             className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
                           >
@@ -838,8 +902,14 @@ function ImagingPageContent() {
                           </button>
 
                           {/* 下拉菜单 */}
-                          {openDropdown === imageFile.id.toString() && (
-                            <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                          {openDropdown?.id === imageFile.id.toString() && (
+                            <div
+                              className="fixed w-40 max-h-[calc(100vh-1rem)] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-30"
+                              style={{
+                                top: openDropdown.top,
+                                left: openDropdown.left,
+                              }}
+                            >
                               <div className="py-1">
                                 <button
                                   onClick={() =>
@@ -1056,7 +1126,7 @@ function ImagingPageContent() {
       {/* 点击其他地方关闭下拉菜单 */}
       {openDropdown && (
         <div
-          className="fixed inset-0 z-0"
+          className="fixed inset-0 z-20"
           onClick={() => setOpenDropdown(null)}
         ></div>
       )}
