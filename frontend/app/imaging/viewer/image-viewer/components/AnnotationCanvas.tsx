@@ -81,6 +81,7 @@ export default function AnnotationCanvas({
   vertebraeLayer = [],
   cfhAnnotation = null,
   showVertebraeLayer = false,
+  onVertebraeUpdate,
 }: {
   selectedImage: Pick<ImageData, 'examType'>;
   measurements: MeasurementData[];
@@ -121,6 +122,7 @@ export default function AnnotationCanvas({
   vertebraeLayer?: VertebraAnnotation[];
   cfhAnnotation?: CfhAnnotation | null;
   showVertebraeLayer?: boolean;
+  onVertebraeUpdate?: (updated: VertebraAnnotation[]) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const {
@@ -581,6 +583,8 @@ export default function AnnotationCanvas({
             vertebraeLayer={vertebraeLayer}
             cfhAnnotation={cfhAnnotation}
             imageToScreen={imageToScreen}
+            screenToImage={(pt: Point) => screenToImage(pt.x, pt.y)}
+            onVertebraeUpdate={onVertebraeUpdate}
           />
         )}
 

@@ -1,0 +1,334 @@
+/**
+ * 椎体角点 → 测量数据推导函数
+ *
+ * 移植自后端：
+ *   侧位：model/cemian/keypoints_service.py
+ *   正位：model/zhengmian/app.py
+ *
+ * corners 约定（与 aiDetectionUseCase 保持一致）：
+ *   [0]=TL(左上)  [1]=TR(右上)  [2]=BL(左下)  [3]=BR(右下)
+ * 坐标系：图像像素坐标（左上角为原点，y 向下）
+ */
+
+import { CfhAnnotation, MeasurementData, Point, VertebraAnnotation } from '../types';
+
+// ─── 工具函数 ────────────────────────────────────────────────────────────────
+
+function calcAngle(p1: Point, p2: Point): number {
+  return Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+}
+
+function midpoint(a: Point, b: Point): Point {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+function centroid(...pts: Point[]): Point {
+  return {
+    x: pts.reduce((s, p) => s + p.x, 0) / pts.length,
+    y: pts.reduce((s, p) => s + p.y, 0) / pts.length,
+  };
+}
+
+function makeMeasurement(type: string, points: Point[]): MeasurementData {
+  return {
+    id: `vertebrae-derived-${type.toLowerCase().replace(/[\s/]+/g, '-')}`,
+    type,
+    value: '',
+    points,
+    description: `[推导] ${type}`,
+  };
+}
+
+// ─── 侧位终板提取（移植自 _extract_endplate_points）────────────────────────
+
+interface Endplates {
+  upper: [Point, Point]; // [anterior, posterior]（anterior = 较大 x）
+  lower: [Point, Point]; // [anterior, posterior]
+  center: Point;
+}
+
+function extractEndplateLateral(corners: [Point, Point, Point, Point]): Endplates {
+  const sorted = [...corners].sort((a, b) => a.y - b.y);
+  const upperPair = sorted.slice(0, 2) as [Point, Point];
+  const lowerPair = sorted.slice(2) as [Point, Point];
+
+  const [upperAnt, upperPos] =
+    upperPair[0].x > upperPair[1].x ? upperPair : [upperPair[1], upperPair[0]];
+  const [lowerAnt, lowerPos] =
+    lowerPair[0].x > lowerPair[1].x ? lowerPair : [lowerPair[1], lowerPair[0]];
+
+  return {
+    upper: [upperAnt, upperPos],
+    lower: [lowerAnt, lowerPos],
+    center: centroid(...corners),
+  };
+}
+
+// ─── 侧位 S1 估算（移植自 _estimate_s1_point）──────────────────────────────
+
+function estimateS1(ep: Record<string, Endplates>): Point | null {
+  if (!ep['L5']) return null;
+  const { upper: l5Upper, lower: l5Lower } = ep['L5'];
+  const l5LowerCenterX = (l5Lower[0].x + l5Lower[1].x) / 2;
+  const l5LowerCenterY = (l5Lower[0].y + l5Lower[1].y) / 2;
+  const l5UpperCenterY = (l5Upper[0].y + l5Upper[1].y) / 2;
+  const l5Height = Math.abs(l5LowerCenterY - l5UpperCenterY);
+  return { x: l5LowerCenterX, y: l5LowerCenterY + l5Height * 1.2 };
+}
+
+// ─── 侧位推导（移植自 keypoints_service.compute_keypoints）─────────────────
+
+function deriveLateral(
+  vertebraeLayer: VertebraAnnotation[],
+  cfhAnnotation: CfhAnnotation | null,
+): MeasurementData[] {
+  const ep: Record<string, Endplates> = {};
+  vertebraeLayer.forEach(v => {
+    ep[v.label] = extractEndplateLateral(v.corners);
+  });
+
+  const out: MeasurementData[] = [];
+  const has = (...labels: string[]) => labels.every(l => ep[l]);
+
+  if (has('T1'))        out.push(makeMeasurement('T1 Slope', [...ep['T1'].upper]));
+  if (has('T2', 'T5'))  out.push(makeMeasurement('TK T2-T5',  [...ep['T2'].upper, ...ep['T5'].lower]));
+  if (has('T5', 'T12')) out.push(makeMeasurement('TK T5-T12', [...ep['T5'].upper, ...ep['T12'].lower]));
+  if (has('T10', 'L2')) out.push(makeMeasurement('T10-L2',    [...ep['T10'].upper, ...ep['L2'].lower]));
+  if (has('L1', 'L5'))  out.push(makeMeasurement('LL L1-S1',  [...ep['L1'].upper, ...ep['L5'].lower]));
+  if (has('L1', 'L4'))  out.push(makeMeasurement('LL L1-L4',  [...ep['L1'].upper, ...ep['L4'].lower]));
+  if (has('L4', 'L5'))  out.push(makeMeasurement('LL L4-S1',  [...ep['L4'].upper, ...ep['L5'].lower]));
+
+  const s1 = estimateS1(ep);
+  if (has('C7') && s1) {
+    out.push(makeMeasurement('SVA', [ep['C7'].upper[1], s1]));
+  }
+
+  if (has('T1', 'L5') && cfhAnnotation) {
+    out.push(makeMeasurement('TPA', [
+      ep['T1'].upper[0], ep['T1'].upper[1],
+      ep['T1'].lower[0], ep['T1'].lower[1],
+      cfhAnnotation.center,
+      ep['L5'].lower[0], ep['L5'].lower[1],
+    ]));
+  }
+
+  if (has('L5') && cfhAnnotation) {
+    const piPts = [cfhAnnotation.center, ep['L5'].lower[0], ep['L5'].lower[1]];
+    out.push(makeMeasurement('PI', piPts));
+    out.push(makeMeasurement('PT', [...piPts]));
+  }
+
+  if (has('L5')) {
+    out.push(makeMeasurement('SS', [...ep['L5'].lower]));
+  }
+
+  return out;
+}
+
+
+// ─── 正位工具（移植自 zhengmian/app.py）────────────────────────────────────
+
+interface FrontalCorners {
+  topLeft: Point; topRight: Point;
+  bottomLeft: Point; bottomRight: Point;
+  topMid: Point; bottomMid: Point;
+  center: Point;
+}
+
+function buildFrontalCorners(v: VertebraAnnotation): FrontalCorners {
+  const [tl, tr, bl, br] = v.corners;
+  return {
+    topLeft: tl, topRight: tr,
+    bottomLeft: bl, bottomRight: br,
+    topMid: midpoint(tl, tr),
+    bottomMid: midpoint(bl, br),
+    center: centroid(tl, tr, bl, br),
+  };
+}
+
+function cobbAngle(ul: Point, ur: Point, ll: Point, lr: Point): number {
+  const upperAngle = calcAngle(ul, ur);
+  const lowerAngle = calcAngle(ll, lr);
+  let magnitude = Math.abs(upperAngle - lowerAngle);
+  if (magnitude > 180) magnitude = 360 - magnitude;
+  const leftDist = Math.abs(ll.y - ul.y);
+  const rightDist = Math.abs(lr.y - ur.y);
+  return leftDist > rightDist ? magnitude : -magnitude;
+}
+
+const VERTEBRA_LABELS = new Set([
+  'C7', 'T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12',
+  'L1','L2','L3','L4','L5',
+]);
+const POSE_LABELS = new Set(['CR','CL','IR','IL','SR','SL']);
+
+function findCobbAngles(vertebraeFrontal: Map<string, FrontalCorners>): MeasurementData[] {
+  const results: MeasurementData[] = [];
+  const usedApex = new Set<string>();
+
+  const regions: { name: string; range: string[] }[] = [
+    { name: 'Thoracolumbar', range: ['T12', 'L1'] },
+    { name: 'Thoracic',      range: ['T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'] },
+    { name: 'Lumbar',        range: ['L2','L3','L4'] },
+  ];
+
+  for (const region of regions) {
+    const available = new Map<string, FrontalCorners>();
+    region.range.forEach(name => {
+      if (vertebraeFrontal.has(name)) available.set(name, vertebraeFrontal.get(name)!);
+    });
+    if (available.size < 2) continue;
+
+    const allCx = Array.from(available.values()).map(c => c.center.x);
+    const midlineX = allCx.reduce((a, b) => a + b, 0) / allCx.length;
+
+    let maxOffset = 0, apexName = '', apexC: FrontalCorners | null = null, apexY = 0;
+    available.forEach((c, name) => {
+      const offset = Math.abs(c.center.x - midlineX);
+      if (offset > maxOffset) { maxOffset = offset; apexName = name; apexC = c; apexY = c.center.y; }
+    });
+    if (!apexC || usedApex.has(apexName)) continue;
+
+    const apexTilt = calcAngle(apexC!.topLeft, apexC!.topRight);
+
+    let maxTilt = apexTilt, upperName = '', upperC: FrontalCorners | null = null;
+    let topmostName = '', topmostC: FrontalCorners | null = null, topmostY = Infinity;
+    available.forEach((c, name) => {
+      if (c.center.y < apexY - 10) {
+        const tilt = calcAngle(c.topLeft, c.topRight);
+        if (tilt > maxTilt) { maxTilt = tilt; upperName = name; upperC = c; }
+        if (c.center.y < topmostY) { topmostY = c.center.y; topmostName = name; topmostC = c; }
+      }
+    });
+    if (!upperC && topmostC) { upperC = topmostC; upperName = topmostName; }
+    if (!upperC) { upperC = apexC; upperName = apexName; }
+
+    let minTilt = apexTilt, lowerName = '', lowerC: FrontalCorners | null = null;
+    let bottomName = '', bottomC: FrontalCorners | null = null, bottomY = -Infinity;
+    available.forEach((c, name) => {
+      if (c.center.y > apexY + 10) {
+        const tilt = calcAngle(c.topLeft, c.topRight);
+        if (tilt < minTilt) { minTilt = tilt; lowerName = name; lowerC = c; }
+        if (c.center.y > bottomY) { bottomY = c.center.y; bottomName = name; bottomC = c; }
+      }
+    });
+    if (!lowerC && bottomC) { lowerC = bottomC; lowerName = bottomName; }
+    if (!lowerC) { lowerC = apexC; lowerName = apexName; }
+
+    if (!upperC || !lowerC || upperName === lowerName) continue;
+
+    const cobb = cobbAngle(upperC.topLeft, upperC.topRight, lowerC.bottomLeft, lowerC.bottomRight);
+    if (Math.abs(cobb) > 10) {
+      results.push({
+        id: `vertebrae-derived-cobb-${region.name.toLowerCase()}`,
+        type: `Cobb-${region.name}`,
+        value: '',
+        points: [upperC.topLeft, upperC.topRight, lowerC.bottomLeft, lowerC.bottomRight],
+        description: `[推导] Cobb ${region.name}（上=${upperName}, 下=${lowerName}, 顶=${apexName}）`,
+      });
+      usedApex.add(apexName);
+    }
+  }
+  return results;
+}
+
+function deriveAnterior(vertebraeLayer: VertebraAnnotation[]): MeasurementData[] {
+  const frontal = new Map<string, FrontalCorners>();
+  const pose = new Map<string, Point>();
+
+  vertebraeLayer.forEach(v => {
+    if (VERTEBRA_LABELS.has(v.label)) {
+      frontal.set(v.label, buildFrontalCorners(v));
+    } else if (POSE_LABELS.has(v.label)) {
+      pose.set(v.label, v.corners[0]);
+    }
+  });
+
+  if (!pose.has('SR') && frontal.has('L5')) {
+    const l5 = frontal.get('L5')!;
+    const h = l5.bottomMid.y - l5.topMid.y;
+    const sY = l5.bottomMid.y + h * 0.5;
+    pose.set('SR', { x: l5.bottomLeft.x, y: sY });
+    pose.set('SL', { x: l5.bottomRight.x, y: sY });
+  }
+  if (!pose.has('IR')) {
+    const ref = frontal.get('L3') ?? frontal.get('L4');
+    if (ref) {
+      const w = ref.topRight.x - ref.topLeft.x;
+      pose.set('IR', { x: ref.center.x - w * 2.5, y: ref.center.y });
+      pose.set('IL', { x: ref.center.x + w * 2.5, y: ref.center.y });
+    }
+  }
+  if (!pose.has('CR')) {
+    const ref = frontal.get('T1') ?? frontal.get('T2') ?? frontal.get('C7');
+    if (ref) {
+      const w = ref.topRight.x - ref.topLeft.x;
+      pose.set('CR', { x: ref.center.x - w * 4.5, y: ref.center.y });
+      pose.set('CL', { x: ref.center.x + w * 4.5, y: ref.center.y });
+    }
+  }
+
+  const out: MeasurementData[] = [];
+
+  if (frontal.has('T1')) {
+    const t1 = frontal.get('T1')!;
+    out.push(makeMeasurement('T1 Tilt', [t1.topLeft, t1.topRight]));
+  }
+
+  out.push(...findCobbAngles(frontal));
+
+  if (pose.has('CR') && pose.has('CL'))
+    out.push(makeMeasurement('CA', [pose.get('CR')!, pose.get('CL')!]));
+  if (pose.has('IR') && pose.has('IL'))
+    out.push(makeMeasurement('Pelvic', [pose.get('IR')!, pose.get('IL')!]));
+  if (pose.has('SR') && pose.has('SL'))
+    out.push(makeMeasurement('Sacral', [pose.get('SR')!, pose.get('SL')!]));
+
+  const csvlX = pose.has('SR') && pose.has('SL')
+    ? (pose.get('SR')!.x + pose.get('SL')!.x) / 2
+    : null;
+
+  if (csvlX !== null) {
+    let maxOff = 0, apexCenter: Point | null = null;
+    frontal.forEach(c => {
+      const off = Math.abs(c.center.x - csvlX);
+      if (off > maxOff) { maxOff = off; apexCenter = c.center; }
+    });
+    if (apexCenter) {
+      out.push(makeMeasurement('AVT', [apexCenter, { x: csvlX, y: (apexCenter as Point).y }]));
+    }
+    if (frontal.has('C7')) {
+      const c7c = frontal.get('C7')!.center;
+      out.push(makeMeasurement('TS', [c7c, { x: csvlX, y: c7c.y }]));
+    }
+  }
+
+  return out;
+}
+
+// ─── 统一入口 ────────────────────────────────────────────────────────────────
+
+/**
+ * 根据 vertebraeLayer 推导测量数据。
+ * 替换 measurements[] 中所有 id 以 "vertebrae-derived-" 开头的条目。
+ */
+export function deriveAllMeasurements(
+  vertebraeLayer: VertebraAnnotation[],
+  cfhAnnotation: CfhAnnotation | null,
+  examType: string,
+): MeasurementData[] {
+  if (vertebraeLayer.length === 0) return [];
+  try {
+    if (examType === '侧位X光片') {
+      return deriveLateral(vertebraeLayer, cfhAnnotation);
+    } else {
+      return deriveAnterior(vertebraeLayer);
+    }
+  } catch (e) {
+    console.error('[vertebrae-derive] 推导失败:', e);
+    return [];
+  }
+}
+
+export const DERIVED_ID_PREFIX = 'vertebrae-derived-';
+

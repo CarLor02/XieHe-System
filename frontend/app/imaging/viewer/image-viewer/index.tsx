@@ -28,6 +28,7 @@ import * as hooks from "./hooks/index"
 import * as usecases from "./usecase/index"
 import { getAiMeasurementsResponse } from '@/services/imageServices';
 import {CfhAnnotation, ImageSize, MeasurementData, Point, VertebraAnnotation} from './types';
+import { deriveAllMeasurements, DERIVED_ID_PREFIX } from './domain/vertebrae-derive';
 // import ReactMarkdown from 'react-markdown';
 // import remarkGfm from 'remark-gfm';
 
@@ -790,6 +791,31 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     [isAdmin, imageData]
   )
 
+  /**
+   * 当 vertebraeLayer 发生变化时（AI检测完成 或 角点拖拽后），
+   * 自动重新推导 measurements 中的 vertebrae-derived-* 条目。
+   */
+  useEffect(() => {
+    if (vertebraeLayer.length === 0) return;
+    const derived = deriveAllMeasurements(vertebraeLayer, cfhAnnotation, imageData.examType);
+    setMeasurements(prev => [
+      ...prev.filter(m => !m.id.startsWith(DERIVED_ID_PREFIX)),
+      ...derived,
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vertebraeLayer, cfhAnnotation]);
+
+  /**
+   * 椎体角点拖拽结束时的回调（由 AnnotationCanvas → VertebraeLayer 触发）。
+   * 只需更新 vertebraeLayer，上面的 useEffect 会自动触发推导。
+   */
+  const handleVertebraeUpdate = useCallback(
+    (updated: VertebraAnnotation[]) => {
+      setVertebraeLayer(updated);
+    },
+    []
+  );
+
   const handleSaveMeasurements = useCallback(
     () => {
       void usecases.saveMeasurements(
@@ -885,6 +911,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 vertebraeLayer={vertebraeLayer}
                 cfhAnnotation={cfhAnnotation}
                 showVertebraeLayer={showVertebraeLayer}
+                onVertebraeUpdate={isAdmin ? handleVertebraeUpdate : undefined}
               />
             </div>
           </div>
