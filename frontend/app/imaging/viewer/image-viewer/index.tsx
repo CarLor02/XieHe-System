@@ -124,6 +124,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
    * 用于在用户拖拽角点重推导时，把这批 AI 测量一起替换掉，避免与推导测量重复。
    */
   const aiMeasurementIdsRef = useRef<Set<string>>(new Set());
+  /**
+   * 用户是否在 AI 加载后手动修改过测量点。
+   * 为 true 时，拖拽检测角点前会弹确认提示，防止手动改动被推导覆盖。
+   */
+  const hasMeasurementManualEditsRef = useRef(false);
   const {
     pointBindings,
     setPointBindings,
@@ -754,6 +759,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         setMeasurements(aiMeasurements);
         // 记录 AI 测量 ID，供 handleVertebraeUpdate 过滤使用
         aiMeasurementIdsRef.current = new Set(aiMeasurements.map((m: MeasurementData) => m.id));
+        // AI 重新加载后，清除"用户已手动改动测量点"标记
+        hasMeasurementManualEditsRef.current = false;
         // AI 返回后执行一次基于坐标重合的自动绑定
         const S1_RELATED_TYPES = new Set([
           'ss',
@@ -807,8 +814,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
    */
   const handleVertebraeUpdate = useCallback(
     (updated: VertebraAnnotation[]) => {
+      // 如果用户手动改过测量点，拖动检测角点会覆盖那些改动，先确认
+      if (hasMeasurementManualEditsRef.current) {
+        const ok = window.confirm(
+          '你已手动调整过测量点。\n继续拖动检测角点将根据新角点位置重新推导，之前手动调整的测量点会被覆盖。\n\n确认继续？'
+        );
+        if (!ok) return; // 用户取消，检测角点不更新
+      }
+
       setVertebraeLayer(updated);
-      // 仅在用户拖拽后推导，替换旧的 derived 条目 + AI 测量条目（两者均由椎体角点推导覆盖）
+      // 推导替换旧的 derived 条目 + AI 测量条目
       const derived = deriveAllMeasurements(updated, cfhAnnotation, imageData.examType);
       const derivedWithValues = derived.map(m => ({
         ...m,
@@ -822,8 +837,22 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         ),
         ...derivedWithValues,
       ]);
+      // 推导完成后，手动改动标记清除（测量点已被新推导值统一）
+      hasMeasurementManualEditsRef.current = false;
     },
     [cfhAnnotation, imageData.examType]
+  );
+
+  /**
+   * 用户通过画布拖拽测量点时调用（onMeasurementsUpdate prop）。
+   * 标记"已手动修改"，下次拖动检测角点前会弹确认提示。
+   */
+  const handleMeasurementsUpdate = useCallback(
+    (updated: MeasurementData[]) => {
+      hasMeasurementManualEditsRef.current = true;
+      setMeasurements(updated);
+    },
+    []
   );
 
   const handleSaveMeasurements = useCallback(
@@ -889,7 +918,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 selectedTool={selectedTool}
                 setSelectedTool={setSelectedTool}
                 onMeasurementAdd={handleAddMeasurement}
-                onMeasurementsUpdate={setMeasurements}
+                onMeasurementsUpdate={handleMeasurementsUpdate}
                 onClearAll={clearAllMeasurements}
                 tools={tools}
                 clickedPoints={clickedPoints}
