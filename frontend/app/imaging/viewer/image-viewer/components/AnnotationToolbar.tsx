@@ -653,25 +653,33 @@ export default function AnnotationToolbar({
                     const existingCount = group.keypoints.filter(keypoint =>
                       keypointIds.has(keypoint.id)
                     ).length;
+                    const isCompleteVertebraGroup =
+                      group.id !== 'pose' &&
+                      existingCount === group.keypoints.length;
+                    const isGroupAvailable =
+                      canUseKeypointTools && !isCompleteVertebraGroup;
 
                     return (
                       <div key={group.id}>
                         <button
                           type="button"
                           onClick={() => {
+                            if (!isGroupAvailable) return;
                             setOpenKeypointGroup(isOpen ? null : group.id);
                             setOpenMeasurementTool(null);
                           }}
-                          disabled={!canUseKeypointTools}
+                          disabled={!isGroupAvailable}
                           className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col items-center justify-center ${
-                            !canUseKeypointTools
+                            !isGroupAvailable
                               ? 'bg-gray-700/60 text-gray-500 cursor-not-allowed opacity-55'
                               : isOpen
                                 ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                           title={
-                            group.id === 'pose'
+                            isCompleteVertebraGroup
+                              ? `${group.name}椎体关键点已完整`
+                              : group.id === 'pose'
                               ? '选择姿态关键点'
                               : `选择${group.name}椎体的关键点`
                           }
