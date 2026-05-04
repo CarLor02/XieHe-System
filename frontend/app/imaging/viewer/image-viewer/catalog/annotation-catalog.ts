@@ -2072,7 +2072,30 @@ export const RECTANGLE_CONFIG: AnnotationConfig = {
   category: 'auxiliary',
   color: '#06b6d4',
 
-  calculateResults: () => [],
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 2) return [];
+
+    const pixelW = Math.abs(points[1].x - points[0].x);
+    const pixelH = Math.abs(points[1].y - points[0].y);
+
+    // 根据标准距离换算
+    let scale: number;
+    if (
+      context.standardDistance &&
+      context.standardDistancePoints?.length === 2
+    ) {
+      const sdx = context.standardDistancePoints[1].x - context.standardDistancePoints[0].x;
+      const sdy = context.standardDistancePoints[1].y - context.standardDistancePoints[0].y;
+      const stdPx = Math.sqrt(sdx * sdx + sdy * sdy);
+      scale = stdPx > 0 ? context.standardDistance / stdPx : 0.1;
+    } else {
+      scale = 0.1;
+    }
+
+    const w = (pixelW * scale).toFixed(1);
+    const h = (pixelH * scale).toFixed(1);
+    return [{ name: '尺寸', value: `${w} × ${h}`, unit: 'mm' }];
+  },
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     // label 显示在矩形上方，避免遮挡角点
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
