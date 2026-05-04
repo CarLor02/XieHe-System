@@ -98,11 +98,15 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setImageNaturalSize,
   } = hooks.useImageStudy();
 
-  // 清空所有测量数据
+  // 清空所有测量数据（包括检测层）
   const clearAllMeasurements = () => {
     setMeasurements([]);
     setClickedPoints([]);
     setPointBindings(createEmptyBindings()); // 同时清除点绑定
+    setVertebraeLayer([]);
+    setCfhAnnotation(null);
+    setShowVertebraeLayer(false);
+    aiMeasurementIdsRef.current = new Set();
   };
   // 权限检查：判断当前用户是否为管理员
   const isAdmin = useMemo(() => {
@@ -182,7 +186,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       setStandardDistancePoints,
       setPointBindings,
       dbAnnotationLoadedRef,
-      (layer) => { setVertebraeLayer(layer); if (layer.length > 0) setShowVertebraeLayer(true); },
+      (layer) => { setVertebraeLayer(layer); },
       setCfhAnnotation,
   )
 
@@ -199,7 +203,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       dbAnnotationLoadedRef,
       calcMeasurementValue,
       getDesc,
-      (layer) => { setVertebraeLayer(layer); if (layer.length > 0) setShowVertebraeLayer(true); },
+      (layer) => { setVertebraeLayer(layer); },
       setCfhAnnotation,
   )
 
