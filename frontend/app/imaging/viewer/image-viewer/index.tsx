@@ -870,7 +870,28 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           isAIMeasuring={isAIMeasuring}
           hasVertebraeLayer={vertebraeLayer.length > 0}
           showVertebraeLayer={showVertebraeLayer}
-          onToggleVertebraeLayer={() => setShowVertebraeLayer(v => !v)}
+          onToggleVertebraeLayer={() => {
+            setShowVertebraeLayer(v => {
+              const next = !v;
+              // 从检测模式切回测量模式时，用当前角点重新推导一次，确保测量层是最新的
+              if (!next && vertebraeLayer.length > 0) {
+                const derived = deriveAllMeasurements(vertebraeLayer, cfhAnnotation, imageData.examType);
+                const derivedWithValues = derived.map((m: MeasurementData) => ({
+                  ...m,
+                  value: calculateMeasurementValue(m.type, m.points),
+                }));
+                setMeasurements(prev => [
+                  ...prev.filter(
+                    (m: MeasurementData) =>
+                      !m.id.startsWith(DERIVED_ID_PREFIX) &&
+                      !aiMeasurementIdsRef.current.has(m.id)
+                  ),
+                  ...derivedWithValues,
+                ]);
+              }
+              return next;
+            });
+          }}
           onSave={handleSaveMeasurements}
           onExportJson={exportAnnotationsToJSON}
           onImportJson={importAnnotationsFromJSON}
