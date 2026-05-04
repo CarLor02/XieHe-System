@@ -94,8 +94,9 @@ export default function VertebraeLayer({
         const polyPts = [tl, tr, br, bl].map(p => `${p.x},${p.y}`).join(' ');
         const cx = (tl.x + tr.x + bl.x + br.x) / 4;
         const cy = (tl.y + tr.y + bl.y + br.y) / 4;
-        const labelX = (tl.x + tr.x) / 2;
-        const labelY = Math.min(tl.y, tr.y) - 6;
+        // 标签放在右侧中点的右边
+        const labelX = Math.max(tr.x, br.x) + 6;
+        const labelY = (tr.y + br.y) / 2 + 4;
 
         return (
           <g key={vertebra.label} className="vertebra-annotation">
@@ -129,7 +130,7 @@ export default function VertebraeLayer({
             <text
               x={labelX}
               y={labelY}
-              textAnchor="middle"
+              textAnchor="start"
               fontSize={10}
               fontWeight="600"
               fill="rgba(147, 197, 253, 1)"
