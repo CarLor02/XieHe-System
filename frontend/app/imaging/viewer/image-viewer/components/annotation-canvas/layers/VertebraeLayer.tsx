@@ -20,11 +20,21 @@ interface VertebraeLayerProps {
 }
 
 /**
+ * IR/IL/SR/SL/CR/CL 是骨盆/肩膀解剖标志点，AI 检测时存为 corners:[pt,pt,pt,pt]（单点复制）。
+ * 渲染为单点（菱形）而非椎体四角框。
+ */
+const POSE_LABELS = new Set(['CR', 'CL', 'IR', 'IL', 'SR', 'SL']);
+
+/**
  * 椎体标注层 — 纯渲染组件（SVG 内使用）。
  * corners 顺序: [TL, TR, BL, BR]
  *
  * 所有交互（命中检测、拖拽）由父组件的 useVertebradDrag hook 处理，
  * 本组件不持有任何内部状态，也不注册任何事件监听器。
+ *
+ * 渲染策略：
+ *   - 椎体（T1~L5, C7 等）：4角框 + 4角点小圆
+ *   - pose 关键点（IR/IL 等）：单点菱形标记
  */
 export default function VertebraeLayer({
   vertebraeLayer,
@@ -38,16 +48,52 @@ export default function VertebraeLayer({
     // 纯渲染，不需要事件，保持 pointer-events: none 继承自父 SVG
     <g className="vertebrae-layer">
       {vertebraeLayer.map(vertebra => {
+        const isPose = POSE_LABELS.has(vertebra.label);
+
+        // pose 关键点：corners 四值相同，取 corners[0] 为坐标
+        if (isPose) {
+          const sc = imageToScreen(vertebra.corners[0]);
+          const isActive  = activeCorner?.label  === vertebra.label;
+          const isHovered = hoveredCorner?.label === vertebra.label;
+          const r = isActive || isHovered ? 7 : 5;
+          const fill = isActive
+            ? 'rgba(239, 68, 68, 0.95)'
+            : isHovered
+            ? 'rgba(96, 165, 250, 1)'
+            : 'rgba(59, 130, 246, 0.85)';
+          // 菱形（旋转 45° 的正方形）
+          const d = r * 1.2;
+          const diamond = `${sc.x},${sc.y - d} ${sc.x + d},${sc.y} ${sc.x},${sc.y + d} ${sc.x - d},${sc.y}`;
+
+          return (
+            <g key={vertebra.label} className="pose-annotation">
+              <polygon
+                points={diamond}
+                fill={fill}
+                stroke="white"
+                strokeWidth={1.2}
+              />
+              <text
+                x={sc.x + 10}
+                y={sc.y + 4}
+                fontSize={10}
+                fontWeight="600"
+                fill="rgba(147, 197, 253, 1)"
+                stroke="rgba(0,0,0,0.6)"
+                strokeWidth={2.5}
+                paintOrder="stroke"
+              >
+                {vertebra.label}
+              </text>
+            </g>
+          );
+        }
+
+        // 椎体：4角框 + 4角点小圆
         const [tl, tr, bl, br] = vertebra.corners.map(imageToScreen);
-
-        // 多边形顶点: TL → TR → BR → BL → 回到 TL
         const polyPts = [tl, tr, br, bl].map(p => `${p.x},${p.y}`).join(' ');
-
-        // 中心点
         const cx = (tl.x + tr.x + bl.x + br.x) / 4;
         const cy = (tl.y + tr.y + bl.y + br.y) / 4;
-
-        // 标签跟随顶边中点，偏上方
         const labelX = (tl.x + tr.x) / 2;
         const labelY = Math.min(tl.y, tr.y) - 6;
 
@@ -65,7 +111,7 @@ export default function VertebraeLayer({
             {/* 4个角点小圆（仅渲染，交互由父组件的 useVertebradDrag 处理） */}
             {[tl, tr, bl, br].map((p, i) => {
               const isHovered = hoveredCorner?.label === vertebra.label && hoveredCorner?.index === i;
-              const isActive = activeCorner?.label === vertebra.label && activeCorner?.index === i;
+              const isActive  = activeCorner?.label  === vertebra.label && activeCorner?.index === i;
               return (
                 <circle
                   key={i}
@@ -95,12 +141,7 @@ export default function VertebraeLayer({
             </text>
 
             {/* 中心点 */}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={1.5}
-              fill="rgba(59, 130, 246, 0.5)"
-            />
+            <circle cx={cx} cy={cy} r={1.5} fill="rgba(59, 130, 246, 0.5)" />
           </g>
         );
       })}

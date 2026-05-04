@@ -17,6 +17,12 @@ interface CornerRef {
 const HIT_RADIUS_PX = 10;
 
 /**
+ * 骨盆/肩膀解剖标志点：AI 检测时以单点形式存储（corners:[pt,pt,pt,pt]）。
+ * 拖拽时需要同时移动全部 4 个 corners，保持"单点"语义不变。
+ */
+const POSE_LABELS = new Set(['CR', 'CL', 'IR', 'IL', 'SR', 'SL']);
+
+/**
  * 在 canvas div 层实现椎体角点的命中检测与拖拽交互。
  *
  * 不依赖 SVG pointer-events，直接使用 clientX/clientY 与容器 getBoundingClientRect
@@ -117,6 +123,11 @@ export function useVertebradDrag({
           if (!prev) return prev;
           return prev.map(v => {
             if (v.label !== vertebraLabel) return v;
+            // pose 关键点（IR/IL/SR/SL/CR/CL）：4角完全相同，整体移动
+            if (POSE_LABELS.has(v.label)) {
+              return { ...v, corners: [imagePt, imagePt, imagePt, imagePt] };
+            }
+            // 椎体：只移动被拖拽的那个角
             const newCorners = [...v.corners] as [Point, Point, Point, Point];
             newCorners[cornerIndex] = imagePt;
             return { ...v, corners: newCorners };
