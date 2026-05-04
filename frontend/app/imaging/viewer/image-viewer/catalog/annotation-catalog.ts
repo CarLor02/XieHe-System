@@ -1511,19 +1511,26 @@ export const SVA_CONFIG: AnnotationConfig = {
   color: '#65a30d',
 
   calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 5) return [];
+    // 支持两种模式：
+    // - 2点（推导模式）：points[0]=C7后角, points[1]=S1估算点
+    // - 5点（手动模式）：points[0-3]=C7四角, points[4]=骶椎后缘参考点
+    let centerX: number;
+    let refX: number;
 
-    // 计算前4个点的C7椎体中心
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-
-    // 第5个点：骶椎后缘参考点
-    const point5 = points[4];
+    if (points.length === 2) {
+      centerX = points[0].x;
+      refX    = points[1].x;
+    } else if (points.length >= 5) {
+      centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+      refX    = points[4].x;
+    } else {
+      return [];
+    }
 
     // 计算水平距离（带正负）
-    // 正值：C7中点在骶椎后缘左侧（centerX < point5.x）
-    // 负值：C7中点在骶椎后缘右侧（centerX > point5.x）
-    const pixelDistance = point5.x - centerX;
+    // 正值：C7在骶椎后缘左侧（centerX < refX）
+    // 负值：C7在骶椎后缘右侧（centerX > refX）
+    const pixelDistance = refX - centerX;
     const actualDistance = calculateActualDistance(Math.abs(pixelDistance), context);
     const signedDistance = pixelDistance > 0 ? actualDistance : -actualDistance;
 
