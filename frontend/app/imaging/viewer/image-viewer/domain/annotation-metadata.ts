@@ -9,7 +9,7 @@ import {
   getAnnotationConfig,
   getAnnotationDisplayName,
   getAnnotationTypeId,
-} from '../catalog/annotation-catalog';
+} from '../catalog/shared/annotation-config';
 import { MeasurementData } from '../types';
 
 const EDITABLE_AUXILIARY_CONFIG_IDS = new Set([

@@ -5,7 +5,7 @@ import {
   getInheritedPoints,
 } from '../../../domain/annotation-inheritance';
 import { hasUniqueAnnotationForTool } from '../../../domain/annotation-uniqueness';
-import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 import { Point, Tool } from '../../../types';
 import { DrawingState, ReferenceLines } from '../types';
 

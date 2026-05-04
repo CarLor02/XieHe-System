@@ -9,7 +9,7 @@ import {
   VERTICAL_LINE_TOOLS,
   STANDARD_DISTANCE_DEPENDENT_TYPES,
 } from '../../shared/constants';
-import { getAnnotationTypeId } from '../../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../../catalog/shared/annotation-config';
 
 /**
  * 检查是否为辅助工具

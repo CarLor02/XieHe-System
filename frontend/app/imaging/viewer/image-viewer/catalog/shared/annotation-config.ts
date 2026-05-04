@@ -9,7 +9,7 @@
  */
 
 import type { JSX } from 'react';
-import * as Renderers from '../components/annotation-canvas/renderers/annotation-tool-renderers';
+import * as Renderers from '../../components/annotation-canvas/renderers/annotation-tool-renderers';
 
 // ==================== 标签位置常量 ====================
 

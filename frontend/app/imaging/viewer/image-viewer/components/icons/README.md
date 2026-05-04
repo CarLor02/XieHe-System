@@ -47,7 +47,7 @@ icons/
 
 ### 1. 在配置中使用
 
-在 `annotation-catalog.ts` 中配置图标：
+在 `catalog/shared/annotation-config.ts` 中配置图标：
 
 ```typescript
 export const COBB_CONFIG: AnnotationConfig = {

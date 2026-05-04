@@ -6,9 +6,10 @@ import {
   isEditableAuxiliaryAnnotationType,
 } from '../../../domain/annotation-metadata';
 import { MeasurementData } from '../../../types';
+import { KeypointAnnotation } from '../../../domain/keypoint-state';
 import { HoverState, SelectionState } from '../types';
 
-type VertebraField = 'upperVertebra' | 'lowerVertebra';
+type ResultsTab = 'measurements' | 'keypoints';
 
 interface MeasurementResultsPanelProps {
   showResults: boolean;
@@ -18,10 +19,12 @@ interface MeasurementResultsPanelProps {
   standardDistance: number | null;
   standardDistancePoints: { x: number; y: number }[];
   measurements: MeasurementData[];
+  keypoints: KeypointAnnotation[];
   selectionState: SelectionState;
   hoverState: HoverState;
   hiddenMeasurementIds: Set<string>;
   hiddenAnnotationIds: Set<string>;
+  hiddenKeypointIds: Set<string>;
   onToggleResults: () => void;
   onToggleAllAnnotations: () => void;
   onToggleAllLabels: () => void;
@@ -31,6 +34,8 @@ interface MeasurementResultsPanelProps {
   onMeasurementHover: (measurementId: string | null) => void;
   onMeasurementSelect: (measurementId: string) => void;
   onMeasurementDelete: (measurementId: string) => void;
+  onToggleKeypointVisibility: (keypointId: string) => void;
+  onKeypointDelete: (keypointId: string) => void;
   onMeasurementUpdate?: (
     measurementId: string,
     updates: Partial<MeasurementData>
@@ -49,10 +54,12 @@ export default function MeasurementResultsPanel({
   standardDistance,
   standardDistancePoints,
   measurements,
+  keypoints,
   selectionState,
   hoverState,
   hiddenMeasurementIds,
   hiddenAnnotationIds,
+  hiddenKeypointIds,
   onToggleResults,
   onToggleAllAnnotations,
   onToggleAllLabels,
@@ -62,53 +69,25 @@ export default function MeasurementResultsPanel({
   onMeasurementHover,
   onMeasurementSelect,
   onMeasurementDelete,
+  onToggleKeypointVisibility,
+  onKeypointDelete,
   onMeasurementUpdate,
 }: MeasurementResultsPanelProps) {
-  const [editingVertebra, setEditingVertebra] = useState<{
-    measurementId: string;
-    field: VertebraField;
-  } | null>(null);
+  const [activeTab, setActiveTab] = useState<ResultsTab>('measurements');
   const [editingAuxiliaryName, setEditingAuxiliaryName] = useState<
     string | null
   >(null);
   const [editingValue, setEditingValue] = useState('');
 
   useEffect(() => {
-    setEditingVertebra(null);
     setEditingAuxiliaryName(null);
   }, [measurements.length]);
-
-  const startEditingVertebra = (
-    measurementId: string,
-    field: VertebraField,
-    currentValue: string
-  ) => {
-    if (!onMeasurementUpdate) return;
-    setEditingAuxiliaryName(null);
-    setEditingVertebra({ measurementId, field });
-    setEditingValue(currentValue);
-  };
-
-  const commitVertebraEdit = () => {
-    if (!editingVertebra || !onMeasurementUpdate) {
-      setEditingVertebra(null);
-      return;
-    }
-    const trimmed = editingValue.trim();
-    if (trimmed.length > 0) {
-      onMeasurementUpdate(editingVertebra.measurementId, {
-        [editingVertebra.field]: trimmed,
-      });
-    }
-    setEditingVertebra(null);
-  };
 
   const startEditingAuxiliaryName = (
     measurementId: string,
     currentValue: string
   ) => {
     if (!onMeasurementUpdate) return;
-    setEditingVertebra(null);
     setEditingAuxiliaryName(measurementId);
     setEditingValue(currentValue);
   };
@@ -125,6 +104,48 @@ export default function MeasurementResultsPanel({
     setEditingAuxiliaryName(null);
   };
 
+  const getMeasurementDisplayName = (measurement: MeasurementData): string => {
+    const isEditableAuxiliary = isEditableAuxiliaryAnnotationType(
+      measurement.type
+    );
+    const baseDisplayName =
+      isEditableAuxiliary && hasCustomAuxiliaryTagText(measurement)
+        ? getAuxiliaryTagText(measurement)
+        : getDisplayName(measurement.type);
+
+    if (
+      /^cobb/i.test(measurement.type) &&
+      measurement.upperVertebra &&
+      measurement.lowerVertebra
+    ) {
+      return `Cobb(${measurement.upperVertebra}-${measurement.lowerVertebra})`;
+    }
+
+    if (
+      measurement.type.toLowerCase() === 'tts' &&
+      measurement.upperVertebra &&
+      measurement.lowerVertebra
+    ) {
+      return `TTS(${measurement.upperVertebra}-${measurement.lowerVertebra})`;
+    }
+
+    if (measurement.type.toLowerCase() === 'avt' && measurement.apexVertebra) {
+      return `AVT(${measurement.apexVertebra})`;
+    }
+
+    return baseDisplayName;
+  };
+
+  const sortedMeasurements = [...measurements].sort((left, right) => {
+    const byName = getMeasurementDisplayName(left).localeCompare(
+      getMeasurementDisplayName(right)
+    );
+    return byName || left.id.localeCompare(right.id);
+  });
+  const sortedKeypoints = [...keypoints].sort((left, right) =>
+    left.id.localeCompare(right.id)
+  );
+
   return (
     <div
       className="absolute top-4 left-48 z-50"
@@ -137,7 +158,7 @@ export default function MeasurementResultsPanel({
       onPointerMove={event => event.stopPropagation()}
       onPointerUp={event => event.stopPropagation()}
     >
-      <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden w-[240px]">
+      <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden w-[320px]">
         <div className="flex items-center justify-between px-3 py-2 bg-black/20 w-full">
           <div className="flex items-center min-w-0">
             <button
@@ -165,7 +186,7 @@ export default function MeasurementResultsPanel({
               ></i>
             </button>
             <span className="text-white text-xs font-medium whitespace-nowrap">
-              测量结果
+              标注列表
             </span>
           </div>
           <button
@@ -183,9 +204,41 @@ export default function MeasurementResultsPanel({
             className="max-h-[50vh] overflow-y-auto"
             onWheel={event => event.stopPropagation()}
           >
-            {(standardDistance !== null &&
-              standardDistancePoints.length === 2) ||
-            measurements.length > 0 ? (
+            <div className="grid grid-cols-2 gap-1 px-2 py-2 bg-black/10">
+              <button
+                type="button"
+                onClick={event => {
+                  event.stopPropagation();
+                  setActiveTab('measurements');
+                }}
+                className={`h-7 rounded text-xs ${
+                  activeTab === 'measurements'
+                    ? 'bg-white/20 text-white'
+                    : 'text-white/70 hover:bg-white/10'
+                }`}
+              >
+                测量项
+              </button>
+              <button
+                type="button"
+                onClick={event => {
+                  event.stopPropagation();
+                  setActiveTab('keypoints');
+                }}
+                className={`h-7 rounded text-xs ${
+                  activeTab === 'keypoints'
+                    ? 'bg-white/20 text-white'
+                    : 'text-white/70 hover:bg-white/10'
+                }`}
+              >
+                检测点
+              </button>
+            </div>
+
+            {activeTab === 'measurements' &&
+              (((standardDistance !== null &&
+                standardDistancePoints.length === 2) ||
+                measurements.length > 0) ? (
               <div className="px-3 py-2 space-y-1">
                 {standardDistance !== null &&
                   standardDistancePoints.length === 2 && (
@@ -217,7 +270,7 @@ export default function MeasurementResultsPanel({
                     </div>
                   )}
 
-                {measurements.map(measurement => {
+                {sortedMeasurements.map(measurement => {
                   const isSelected =
                     selectionState.measurementId === measurement.id;
                   const isHovered =
@@ -229,10 +282,7 @@ export default function MeasurementResultsPanel({
                   const isEditableAuxiliary = isEditableAuxiliaryAnnotationType(
                     measurement.type
                   );
-                  const displayName =
-                    isEditableAuxiliary && hasCustomAuxiliaryTagText(measurement)
-                      ? getAuxiliaryTagText(measurement)
-                      : getDisplayName(measurement.type);
+                  const displayName = getMeasurementDisplayName(measurement);
                   const isEditingThisAuxName =
                     editingAuxiliaryName === measurement.id;
 
@@ -362,95 +412,6 @@ export default function MeasurementResultsPanel({
                           }`}
                         >
                           {measurement.value}
-                          {measurement.upperVertebra &&
-                            measurement.lowerVertebra && (
-                              <span
-                                className="text-white/60 text-xs ml-1 inline-flex items-center"
-                                onClick={event => event.stopPropagation()}
-                              >
-                                <span>(</span>
-                                {editingVertebra?.measurementId ===
-                                  measurement.id &&
-                                editingVertebra.field === 'upperVertebra' ? (
-                                  <input
-                                    autoFocus
-                                    value={editingValue}
-                                    onChange={event =>
-                                      setEditingValue(event.target.value)
-                                    }
-                                    onBlur={commitVertebraEdit}
-                                    onKeyDown={event => {
-                                      if (event.key === 'Enter') {
-                                        event.preventDefault();
-                                        commitVertebraEdit();
-                                      } else if (event.key === 'Escape') {
-                                        event.preventDefault();
-                                        setEditingVertebra(null);
-                                      }
-                                    }}
-                                    onClick={event => event.stopPropagation()}
-                                    className="bg-black/40 border border-white/40 rounded px-1 w-10 text-center text-white outline-none focus:border-yellow-300"
-                                  />
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={event => {
-                                      event.stopPropagation();
-                                      startEditingVertebra(
-                                        measurement.id,
-                                        'upperVertebra',
-                                        measurement.upperVertebra ?? ''
-                                      );
-                                    }}
-                                    className="hover:text-yellow-300 underline-offset-2 hover:underline"
-                                    title="点击编辑上端椎"
-                                  >
-                                    {measurement.upperVertebra}
-                                  </button>
-                                )}
-                                <span>-</span>
-                                {editingVertebra?.measurementId ===
-                                  measurement.id &&
-                                editingVertebra.field === 'lowerVertebra' ? (
-                                  <input
-                                    autoFocus
-                                    value={editingValue}
-                                    onChange={event =>
-                                      setEditingValue(event.target.value)
-                                    }
-                                    onBlur={commitVertebraEdit}
-                                    onKeyDown={event => {
-                                      if (event.key === 'Enter') {
-                                        event.preventDefault();
-                                        commitVertebraEdit();
-                                      } else if (event.key === 'Escape') {
-                                        event.preventDefault();
-                                        setEditingVertebra(null);
-                                      }
-                                    }}
-                                    onClick={event => event.stopPropagation()}
-                                    className="bg-black/40 border border-white/40 rounded px-1 w-10 text-center text-white outline-none focus:border-yellow-300"
-                                  />
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={event => {
-                                      event.stopPropagation();
-                                      startEditingVertebra(
-                                        measurement.id,
-                                        'lowerVertebra',
-                                        measurement.lowerVertebra ?? ''
-                                      );
-                                    }}
-                                    className="hover:text-yellow-300 underline-offset-2 hover:underline"
-                                    title="点击编辑下端椎"
-                                  >
-                                    {measurement.lowerVertebra}
-                                  </button>
-                                )}
-                                <span>)</span>
-                              </span>
-                            )}
                         </span>
                       </div>
 
@@ -468,12 +429,71 @@ export default function MeasurementResultsPanel({
                   );
                 })}
               </div>
-            ) : (
-              <div className="px-3 py-4 text-center">
-                <i className="ri-ruler-line w-4 h-4 flex items-center justify-center mx-auto mb-1 text-white/60"></i>
-                <p className="text-xs text-white/60">暂无测量数据</p>
-              </div>
-            )}
+              ) : (
+                <div className="px-3 py-4 text-center">
+                  <i className="ri-ruler-line w-4 h-4 flex items-center justify-center mx-auto mb-1 text-white/60"></i>
+                  <p className="text-xs text-white/60">暂无测量数据</p>
+                </div>
+              ))}
+
+            {activeTab === 'keypoints' &&
+              (keypoints.length > 0 ? (
+                <div className="px-3 py-2 space-y-1">
+                  {sortedKeypoints.map(keypoint => {
+                    const isHidden = hiddenKeypointIds.has(keypoint.id);
+                    return (
+                      <div
+                        key={keypoint.id}
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-white/5 border border-transparent"
+                      >
+                        <button
+                          onClick={event => {
+                            event.stopPropagation();
+                            onToggleKeypointVisibility(keypoint.id);
+                          }}
+                          className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center flex-shrink-0"
+                          title={isHidden ? '显示检测点' : '隐藏检测点'}
+                        >
+                          <i
+                            className={`${isHidden ? 'ri-eye-off-line' : 'ri-eye-line'} text-xs`}
+                          ></i>
+                        </button>
+                        <div className="flex-1 flex items-center justify-between min-w-0">
+                          <span className="truncate mr-2 font-medium text-white/90">
+                            {keypoint.id}
+                          </span>
+                          <span
+                            className={`whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] ${
+                              keypoint.source === 'ai'
+                                ? 'bg-blue-500/20 text-blue-200'
+                                : 'bg-emerald-500/20 text-emerald-200'
+                            }`}
+                          >
+                            {keypoint.source === 'ai'
+                              ? 'AI自动检测'
+                              : '手动标注'}
+                          </span>
+                        </div>
+                        <button
+                          onClick={event => {
+                            event.stopPropagation();
+                            onKeypointDelete(keypoint.id);
+                          }}
+                          className="text-red-400/60 hover:text-red-400 w-4 h-4 flex items-center justify-center flex-shrink-0"
+                          title="删除检测点"
+                        >
+                          <i className="ri-delete-bin-line text-xs"></i>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-3 py-4 text-center">
+                  <i className="ri-focus-3-line w-4 h-4 flex items-center justify-center mx-auto mb-1 text-white/60"></i>
+                  <p className="text-xs text-white/60">暂无检测点</p>
+                </div>
+              ))}
           </div>
         )}
       </div>

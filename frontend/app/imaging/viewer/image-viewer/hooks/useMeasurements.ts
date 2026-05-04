@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MeasurementData, Point } from '../types';
-import { getAnnotationTypeId } from '../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../catalog/shared/annotation-config';
 
 /**
  * measurement 列表、报告文本、标准距离与辅助面板状态。

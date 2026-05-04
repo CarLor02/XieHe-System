@@ -11,6 +11,10 @@
  */
 
 import { CfhAnnotation, MeasurementData, Point, VertebraAnnotation } from '../types';
+import {
+  apKeypointsToDerivedLayer,
+  vertebraeLayerToApKeypoints,
+} from './keypoint-state';
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -183,37 +187,38 @@ function findCobbAngles(vertebraeFrontal: Map<string, FrontalCorners>): Measurem
     const midlineX = allCx.reduce((a, b) => a + b, 0) / allCx.length;
 
     let maxOffset = 0, apexName = '', apexC: FrontalCorners | null = null, apexY = 0;
-    available.forEach((c, name) => {
+    for (const [name, c] of available.entries()) {
       const offset = Math.abs(c.center.x - midlineX);
       if (offset > maxOffset) { maxOffset = offset; apexName = name; apexC = c; apexY = c.center.y; }
-    });
+    }
     if (!apexC || usedApex.has(apexName)) continue;
 
-    const apexTilt = calcAngle(apexC!.topLeft, apexC!.topRight);
+    const apex = apexC;
+    const apexTilt = calcAngle(apex.topLeft, apex.topRight);
 
     let maxTilt = apexTilt, upperName = '', upperC: FrontalCorners | null = null;
     let topmostName = '', topmostC: FrontalCorners | null = null, topmostY = Infinity;
-    available.forEach((c, name) => {
+    for (const [name, c] of available.entries()) {
       if (c.center.y < apexY - 10) {
         const tilt = calcAngle(c.topLeft, c.topRight);
         if (tilt > maxTilt) { maxTilt = tilt; upperName = name; upperC = c; }
         if (c.center.y < topmostY) { topmostY = c.center.y; topmostName = name; topmostC = c; }
       }
-    });
+    }
     if (!upperC && topmostC) { upperC = topmostC; upperName = topmostName; }
-    if (!upperC) { upperC = apexC; upperName = apexName; }
+    if (!upperC) { upperC = apex; upperName = apexName; }
 
     let minTilt = apexTilt, lowerName = '', lowerC: FrontalCorners | null = null;
     let bottomName = '', bottomC: FrontalCorners | null = null, bottomY = -Infinity;
-    available.forEach((c, name) => {
+    for (const [name, c] of available.entries()) {
       if (c.center.y > apexY + 10) {
         const tilt = calcAngle(c.topLeft, c.topRight);
         if (tilt < minTilt) { minTilt = tilt; lowerName = name; lowerC = c; }
         if (c.center.y > bottomY) { bottomY = c.center.y; bottomName = name; bottomC = c; }
       }
-    });
+    }
     if (!lowerC && bottomC) { lowerC = bottomC; lowerName = bottomName; }
-    if (!lowerC) { lowerC = apexC; lowerName = apexName; }
+    if (!lowerC) { lowerC = apex; lowerName = apexName; }
 
     if (!upperC || !lowerC || upperName === lowerName) continue;
 
@@ -225,6 +230,9 @@ function findCobbAngles(vertebraeFrontal: Map<string, FrontalCorners>): Measurem
         value: '',
         points: [upperC.topLeft, upperC.topRight, lowerC.bottomLeft, lowerC.bottomRight],
         description: `[推导] Cobb ${region.name}（上=${upperName}, 下=${lowerName}, 顶=${apexName}）`,
+        upperVertebra: upperName,
+        lowerVertebra: lowerName,
+        apexVertebra: apexName,
       });
       usedApex.add(apexName);
     }
@@ -243,30 +251,6 @@ function deriveAnterior(vertebraeLayer: VertebraAnnotation[]): MeasurementData[]
       pose.set(v.label, v.corners[0]);
     }
   });
-
-  if (!pose.has('SR') && frontal.has('L5')) {
-    const l5 = frontal.get('L5')!;
-    const h = l5.bottomMid.y - l5.topMid.y;
-    const sY = l5.bottomMid.y + h * 0.5;
-    pose.set('SR', { x: l5.bottomLeft.x, y: sY });
-    pose.set('SL', { x: l5.bottomRight.x, y: sY });
-  }
-  if (!pose.has('IR')) {
-    const ref = frontal.get('L3') ?? frontal.get('L4');
-    if (ref) {
-      const w = ref.topRight.x - ref.topLeft.x;
-      pose.set('IR', { x: ref.center.x - w * 2.5, y: ref.center.y });
-      pose.set('IL', { x: ref.center.x + w * 2.5, y: ref.center.y });
-    }
-  }
-  if (!pose.has('CR')) {
-    const ref = frontal.get('T1') ?? frontal.get('T2') ?? frontal.get('C7');
-    if (ref) {
-      const w = ref.topRight.x - ref.topLeft.x;
-      pose.set('CR', { x: ref.center.x - w * 4.5, y: ref.center.y });
-      pose.set('CL', { x: ref.center.x + w * 4.5, y: ref.center.y });
-    }
-  }
 
   const out: MeasurementData[] = [];
 
@@ -289,14 +273,6 @@ function deriveAnterior(vertebraeLayer: VertebraAnnotation[]): MeasurementData[]
     : null;
 
   if (csvlX !== null) {
-    let maxOff = 0, apexCenter: Point | null = null;
-    frontal.forEach(c => {
-      const off = Math.abs(c.center.x - csvlX);
-      if (off > maxOff) { maxOff = off; apexCenter = c.center; }
-    });
-    if (apexCenter) {
-      out.push(makeMeasurement('AVT', [apexCenter, { x: csvlX, y: (apexCenter as Point).y }]));
-    }
     if (frontal.has('C7')) {
       const c7c = frontal.get('C7')!.center;
       out.push(makeMeasurement('TS', [c7c, { x: csvlX, y: c7c.y }]));
@@ -322,7 +298,9 @@ export function deriveAllMeasurements(
     if (examType === '侧位X光片') {
       return deriveLateral(vertebraeLayer, cfhAnnotation);
     } else {
-      return deriveAnterior(vertebraeLayer);
+      return deriveAnterior(
+        apKeypointsToDerivedLayer(vertebraeLayerToApKeypoints(vertebraeLayer))
+      );
     }
   } catch (e) {
     console.error('[vertebrae-derive] 推导失败:', e);
@@ -331,4 +309,3 @@ export function deriveAllMeasurements(
 }
 
 export const DERIVED_ID_PREFIX = 'vertebrae-derived-';
-

@@ -8,7 +8,7 @@ import {
 import {
   getAnnotationDisplayName,
   getAnnotationTypeId,
-} from '../../../catalog/annotation-catalog';
+} from '../../../catalog/shared/annotation-config';
 import {
   getColorForType,
   getAuxiliaryMeasurementValueTagName,

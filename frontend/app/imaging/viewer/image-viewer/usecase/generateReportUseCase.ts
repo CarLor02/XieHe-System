@@ -1,6 +1,6 @@
 import {MeasurementData, ImageData} from "@/app/imaging/viewer/image-viewer/types";
 import { generateMeasurementReport } from '@/services/imageServices';
-import { getAnnotationDisplayName, getAnnotationTypeId } from "../catalog/annotation-catalog";
+import { getAnnotationDisplayName, getAnnotationTypeId } from "../catalog/shared/annotation-config";
 
 /*
 * 生成报告

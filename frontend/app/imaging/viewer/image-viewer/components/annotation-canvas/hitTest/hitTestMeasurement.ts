@@ -6,7 +6,7 @@ import {
   isRectangleClicked,
 } from '../../../canvas/hit-test/shape-hit-test';
 import { isAuxiliaryShape } from '../../../canvas/tools/tool-state';
-import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 import { isEditableAuxiliaryAnnotationType } from '../../../domain/annotation-metadata';
 import { calculateQuadrilateralCenter } from '../../../shared/geometry';
 import { MeasurementData, Point, TransformContext } from '../../../types';

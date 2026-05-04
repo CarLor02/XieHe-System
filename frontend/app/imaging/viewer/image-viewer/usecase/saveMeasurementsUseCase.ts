@@ -19,8 +19,16 @@ export async function saveMeasurements(
     vertebraeLayer: VertebraAnnotation[] = [],
     cfhAnnotation: CfhAnnotation | null = null,
 ){
-    if (measurements.length === 0) {
-        setSaveMessage('暂无测量数据需要保存');
+    const hasStandardDistance =
+        standardDistance !== null &&
+        Array.isArray(standardDistancePoints) &&
+        standardDistancePoints.length === 2;
+    if (
+        measurements.length === 0 &&
+        vertebraeLayer.length === 0 &&
+        !hasStandardDistance
+    ) {
+        setSaveMessage('暂无标注数据需要保存');
         setTimeout(() => setSaveMessage(''), 3000);
         return;
     }
@@ -101,12 +109,12 @@ export async function saveMeasurements(
             savedAt: new Date().toISOString(),
         };
 
-        await saveMeasurementRecord(
-            Number(numericId),
-            measurementData
-        );
-        setSaveMessage('标注已保存到本地和服务器');
-        setTimeout(() => setSaveMessage(''), 3000);
+        if (measurements.length > 0) {
+            await saveMeasurementRecord(
+                Number(numericId),
+                measurementData
+            );
+        }
 
         // 3. 同时更新 image-files 的 annotation 字段，持久化绑定数据
         try {
@@ -123,12 +131,24 @@ export async function saveMeasurements(
             };
             await updateImageAnnotation(Number(numericId), JSON.stringify(annotationData));
             console.log('绑定数据已同步至 annotation 字段');
+            setSaveMessage(
+                measurements.length > 0
+                    ? '标注已保存到本地和服务器'
+                    : '关键点已保存到本地和影像标注'
+            );
+            setTimeout(() => setSaveMessage(''), 3000);
         } catch (annotationErr) {
             // 不阻断主保存流程
             console.warn(
                 '更新 annotation 字段失败（不影响主保存）:',
                 annotationErr
             );
+            setSaveMessage(
+                measurements.length > 0
+                    ? '标注已保存到本地和服务器'
+                    : '关键点已保存到本地'
+            );
+            setTimeout(() => setSaveMessage(''), 3000);
         }
     } catch (error: any) {
         console.error('保存测量数据失败:', error);

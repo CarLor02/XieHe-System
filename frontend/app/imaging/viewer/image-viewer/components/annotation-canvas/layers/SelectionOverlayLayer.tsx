@@ -1,6 +1,6 @@
 import { MeasurementData, Point } from '../../../types';
 import { SelectionState } from '../types';
-import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 
 interface SelectionOverlayLayerProps {
   selectionState: SelectionState;

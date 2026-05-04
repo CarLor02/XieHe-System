@@ -7,7 +7,7 @@ import {
   ANNOTATION_CONFIGS,
   getAnnotationDisplayName,
   getAnnotationTypeId,
-} from '../catalog/annotation-catalog';
+} from '../catalog/shared/annotation-config';
 import { Point } from '../types';
 import {
   AnnotationBindings,

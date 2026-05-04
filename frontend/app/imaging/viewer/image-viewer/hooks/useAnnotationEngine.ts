@@ -10,7 +10,7 @@ import {
 } from '../domain/annotation-binding';
 import { autoCreateInheritanceBindings } from '../domain/annotation-inheritance';
 import { MeasurementData, Point } from '../types';
-import { getAnnotationTypeId } from '../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../catalog/shared/annotation-config';
 
 /**
  * 绑定、自动绑定、继承点与共享点位操作状态。

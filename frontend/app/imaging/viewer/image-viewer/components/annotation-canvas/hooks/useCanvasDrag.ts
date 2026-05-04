@@ -1,6 +1,6 @@
 import { applyPointBindings, AnnotationBindings } from '../../../domain/annotation-binding';
 import { calculateMeasurementValue } from '../../../domain/annotation-calculation';
-import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 import { MeasurementData, Point } from '../../../types';
 import { SelectionState } from '../types';
 
@@ -165,6 +165,16 @@ export function useCanvasDrag({
         canDrag = true;
       }
 
+      const selectedMeasurement = selectionState.measurementId
+        ? measurements.find(item => item.id === selectionState.measurementId)
+        : null;
+      const selectedTypeId = selectedMeasurement
+        ? getAnnotationTypeId(selectedMeasurement.type)
+        : null;
+      if (selectedTypeId === 'tts' || selectedTypeId === 'avt') {
+        return false;
+      }
+
       if (canDrag) {
         setSelectionState(previous => ({ ...previous, isDragging: true }));
       }
@@ -183,6 +193,10 @@ export function useCanvasDrag({
         item => item.id === selectionState.measurementId
       );
       if (!measurement || measurement.points.length === 0) {
+        return false;
+      }
+      const activeTypeId = getAnnotationTypeId(measurement.type);
+      if (activeTypeId === 'tts' || activeTypeId === 'avt') {
         return false;
       }
 

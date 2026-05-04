@@ -2,7 +2,7 @@ import type { MeasurementData, VertebraAnnotation } from '@/app/imaging/viewer/i
 import {
   getAnnotationConfig,
   getAnnotationTypeId,
-} from '@/app/imaging/viewer/image-viewer/catalog/annotation-catalog';
+} from '@/app/imaging/viewer/image-viewer/catalog/shared/annotation-config';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 
 import type { ParsedAnnotationData } from './export-types';

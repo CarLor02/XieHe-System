@@ -4,7 +4,7 @@ import {RefObject, useEffect} from "react";
 import {
     CalculationContext,
     getAnnotationTypeId,
-} from "@/app/imaging/viewer/image-viewer/catalog/annotation-catalog";
+} from "@/app/imaging/viewer/image-viewer/catalog/shared/annotation-config";
 
 export function useLocalAnnotationsDataLoader(
     imageId: string,

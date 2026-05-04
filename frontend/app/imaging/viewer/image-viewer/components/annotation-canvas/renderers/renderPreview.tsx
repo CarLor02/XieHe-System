@@ -5,7 +5,7 @@ import {
   SHARED_ANATOMICAL_POINT_GROUPS,
 } from '../../../domain/annotation-inheritance';
 import { renderSpecialSVGElements } from '../../../domain/annotation-metadata';
-import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 
 interface RenderPreviewProps {
   selectedTool: string;

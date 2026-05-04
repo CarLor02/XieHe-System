@@ -15,6 +15,7 @@ interface StudyHeaderProps {
   measurementsLength: number;
   isSaving: boolean;
   isAdmin: boolean;
+  canUseKeypointTools: boolean;
   isAIDetecting: boolean;
   isAIMeasuring: boolean;
   hasVertebraeLayer: boolean;
@@ -33,6 +34,7 @@ export default function StudyHeader({
   measurementsLength,
   isSaving,
   isAdmin,
+  canUseKeypointTools,
   isAIDetecting,
   isAIMeasuring,
   hasVertebraeLayer,
@@ -114,7 +116,7 @@ export default function StudyHeader({
           </div>
 
           {/* 检测层显隐切换 - 仅管理员且有检测数据时显示 */}
-          {isAdmin && hasVertebraeLayer && (
+          {canUseKeypointTools && hasVertebraeLayer && (
             <button
               onClick={onToggleVertebraeLayer}
               className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap flex items-center space-x-2 transition-colors ${
@@ -129,17 +131,17 @@ export default function StudyHeader({
             </button>
           )}
 
-          {/* AI测量按钮：admin 时同时触发检测（填充检测层） */}
+          {/* AI测量按钮：测量完成后继续展示后台 AI 检测状态 */}
           <button
             onClick={onAIMeasure}
             disabled={isAIMeasuring || isAIDetecting}
             className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             title="使用AI自动测量"
           >
-            {(isAIMeasuring || isAIDetecting) ? (
+            {isAIMeasuring || isAIDetecting ? (
               <>
                 <i className="ri-loader-line w-4 h-4 flex items-center justify-center animate-spin"></i>
-                <span>{isAIMeasuring ? '测量中...' : '检测中...'}</span>
+                <span>{isAIMeasuring ? '测量中...' : 'AI检测中'}</span>
               </>
             ) : (
               <>
@@ -160,4 +162,3 @@ export default function StudyHeader({
     </div>
   );
 }
-

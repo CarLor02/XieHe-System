@@ -1,4 +1,4 @@
-import { getAnnotationTypeId } from '../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../catalog/shared/annotation-config';
 import { MeasurementData, Tool } from '../types';
 
 const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
@@ -7,6 +7,7 @@ const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
   'ca',
   'po',
   'css',
+  'avt',
   'tts',
   'lld',
   'ts',

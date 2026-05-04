@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Point, MeasurementData, ImageData, Tool, VertebraAnnotation, CfhAnnotation } from '../types';
 import {
   AnnotationBindings,
   PointRef,
 } from '../domain/annotation-binding';
-import { CalculationContext } from '../catalog/annotation-catalog';
+import { CalculationContext } from '../catalog/shared/annotation-config';
 import {
   calculateMeasurementValue as calcMeasurementValue,
 } from '../domain/annotation-calculation';
@@ -44,6 +44,10 @@ import CanvasControlsPanel from './annotation-canvas/panels/CanvasControlsPanel'
 import CanvasHintPanel from './annotation-canvas/panels/CanvasHintPanel';
 import renderMeasurement from './annotation-canvas/renderers/renderMeasurement';
 import VertebraeLayer from './annotation-canvas/layers/VertebraeLayer';
+import {
+  apKeypointsToRenderLayer,
+  KeypointAnnotation,
+} from '../domain/keypoint-state';
 
 export default function AnnotationCanvas({
   selectedImage,
@@ -80,9 +84,12 @@ export default function AnnotationCanvas({
   manualBindingSelectedPoints,
   onManualBindingPointToggle,
   vertebraeLayer = [],
+  keypoints = [],
   cfhAnnotation = null,
   showVertebraeLayer = false,
   onVertebraeUpdate,
+  onKeypointAdd,
+  onKeypointDelete,
 }: {
   selectedImage: Pick<ImageData, 'examType'>;
   measurements: MeasurementData[];
@@ -121,9 +128,12 @@ export default function AnnotationCanvas({
     pointIndex: number
   ) => void;
   vertebraeLayer?: VertebraAnnotation[];
+  keypoints?: KeypointAnnotation[];
   cfhAnnotation?: CfhAnnotation | null;
   showVertebraeLayer?: boolean;
   onVertebraeUpdate?: (updated: VertebraAnnotation[]) => void;
+  onKeypointAdd?: (keypointId: string, point: Point) => void;
+  onKeypointDelete?: (keypointId: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const {
@@ -178,6 +188,9 @@ export default function AnnotationCanvas({
     hiddenAnnotationIds,
     setHiddenAnnotationIds,
   } = useCanvasSelection();
+  const [hiddenKeypointIds, setHiddenKeypointIds] = useState<Set<string>>(
+    new Set()
+  );
   const {
     drawingState,
     setDrawingState,
@@ -351,9 +364,14 @@ export default function AnnotationCanvas({
     screenToImage,
   });
 
+  const visibleKeypointLayer =
+    keypoints.length > 0
+      ? apKeypointsToRenderLayer(keypoints, hiddenKeypointIds)
+      : vertebraeLayer;
+
   // 椎体角点拖拽 hook：命中检测和拖拽完全在 div 层处理，不依赖 SVG 事件
   const vertebradDrag = useVertebradDrag({
-    vertebraeLayer,
+    vertebraeLayer: visibleKeypointLayer,
     imageToScreen,
     screenToImage,
     onVertebraeUpdate,
@@ -425,6 +443,27 @@ export default function AnnotationCanvas({
     document.documentElement.style.overflow = '';
   };
 
+  const handleToggleKeypointVisibility = (keypointId: string) => {
+    setHiddenKeypointIds(previous => {
+      const next = new Set(previous);
+      if (next.has(keypointId)) {
+        next.delete(keypointId);
+      } else {
+        next.add(keypointId);
+      }
+      return next;
+    });
+  };
+
+  const handleKeypointDelete = (keypointId: string) => {
+    setHiddenKeypointIds(previous => {
+      const next = new Set(previous);
+      next.delete(keypointId);
+      return next;
+    });
+    onKeypointDelete?.(keypointId);
+  };
+
   const pointer = useCanvasPointer({
     imageNaturalSize,
     selectedTool,
@@ -475,6 +514,16 @@ export default function AnnotationCanvas({
           : getCursorStyle()
       } ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
       onMouseDown={e => {
+        if (selectedTool.startsWith('keypoint:')) {
+          const rect = containerRef.current?.getBoundingClientRect();
+          const point = screenToImage(
+            e.clientX - (rect?.left ?? 0),
+            e.clientY - (rect?.top ?? 0)
+          );
+          onKeypointAdd?.(selectedTool.replace(/^keypoint:/, ''), point);
+          setSelectedTool('hand');
+          return;
+        }
         // 先做椎体角点命中检测（不依赖 SVG 事件，使用屏幕坐标距离计算）
         // 命中角点时返回 true，跳过 pointer.onMouseDown 防止触发绘图/平移
         if (showVertebraeLayer && vertebradDrag.handleMouseDown(e.clientX, e.clientY)) return;
@@ -489,7 +538,7 @@ export default function AnnotationCanvas({
       onMouseUp={e => {
         // 先结束角点拖拽（会触发 onVertebraeUpdate 回调），再交给 pointer
         if (showVertebraeLayer) vertebradDrag.handleMouseUp();
-        pointer.onMouseUp(e);
+        pointer.onMouseUp();
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -500,8 +549,7 @@ export default function AnnotationCanvas({
       onDrag={e => e.preventDefault()}
       onDragEnd={e => e.preventDefault()}
     >
-      {!showVertebraeLayer && (
-        <MeasurementResultsPanel
+      <MeasurementResultsPanel
           showResults={showResults}
           hideAllLabels={hideAllLabels}
           hideAllAnnotations={hideAllAnnotations}
@@ -509,10 +557,12 @@ export default function AnnotationCanvas({
           standardDistance={standardDistance}
           standardDistancePoints={standardDistancePoints}
           measurements={measurements}
+          keypoints={keypoints}
           selectionState={selectionState}
           hoverState={hoverState}
           hiddenMeasurementIds={hiddenMeasurementIds}
           hiddenAnnotationIds={hiddenAnnotationIds}
+          hiddenKeypointIds={hiddenKeypointIds}
           onToggleResults={toggleResults}
           onToggleAllAnnotations={toggleAllAnnotations}
           onToggleAllLabels={toggleAllLabels}
@@ -522,9 +572,10 @@ export default function AnnotationCanvas({
           onMeasurementHover={handlePanelMeasurementHover}
           onMeasurementSelect={handlePanelMeasurementSelect}
           onMeasurementDelete={handlePanelMeasurementDelete}
+          onToggleKeypointVisibility={handleToggleKeypointVisibility}
+          onKeypointDelete={handleKeypointDelete}
           onMeasurementUpdate={handlePanelMeasurementUpdate}
         />
-      )}
 
       <CanvasControlsPanel
         imageScale={imageScale}
@@ -612,7 +663,7 @@ export default function AnnotationCanvas({
         {/* 椎体标注层（AI检测结果，admin专属，可隐藏）
             renderLayer：拖拽中为实时图层（角点跟手），否则为 vertebraeLayer prop
             交互完全在 div 层的 vertebradDrag 处理，VertebraeLayer 纯渲染 */}
-        {showVertebraeLayer && (
+        {showVertebraeLayer && visibleKeypointLayer.length > 0 && (
           <VertebraeLayer
             vertebraeLayer={vertebradDrag.renderLayer}
             cfhAnnotation={cfhAnnotation}
@@ -622,14 +673,10 @@ export default function AnnotationCanvas({
           />
         )}
 
-        {/* 正式 measurement 渲染统一下沉到 MeasurementLayer + renderMeasurement
-            检测层激活时隐藏测量层，两个模式互斥 */}
-        {!showVertebraeLayer && (
-          <MeasurementLayer
-            measurements={orderedVisibleMeasurements}
-            renderMeasurement={renderVisibleMeasurement}
-          />
-        )}
+        <MeasurementLayer
+          measurements={orderedVisibleMeasurements}
+          renderMeasurement={renderVisibleMeasurement}
+        />
         <PreviewLayer
           selectedTool={selectedTool}
           currentTool={currentTool ?? null}

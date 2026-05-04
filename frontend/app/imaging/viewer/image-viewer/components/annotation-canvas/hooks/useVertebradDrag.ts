@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { Point, VertebraAnnotation } from '../../../types';
+import { isSinglePointKeypointLabel } from '../../../domain/keypoint-state';
 
 interface DragState {
   vertebraLabel: string;
@@ -15,12 +16,6 @@ interface CornerRef {
 
 /** 命中检测半径（屏幕像素） */
 const HIT_RADIUS_PX = 10;
-
-/**
- * 骨盆/肩膀解剖标志点：AI 检测时以单点形式存储（corners:[pt,pt,pt,pt]）。
- * 拖拽时需要同时移动全部 4 个 corners，保持"单点"语义不变。
- */
-const POSE_LABELS = new Set(['CR', 'CL', 'IR', 'IL', 'SR', 'SL']);
 
 /**
  * 在 canvas div 层实现椎体角点的命中检测与拖拽交互。
@@ -43,7 +38,7 @@ export function useVertebradDrag({
   /** 容器内屏幕坐标 → 图像坐标 */
   screenToImage: (screenX: number, screenY: number) => Point;
   onVertebraeUpdate?: (updated: VertebraAnnotation[]) => void;
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   // 拖拽期间实时渲染的图层（null = 不在拖拽，使用 vertebraeLayer prop）
   const [liveLayer, setLiveLayer] = useState<VertebraAnnotation[] | null>(null);
@@ -123,8 +118,8 @@ export function useVertebradDrag({
           if (!prev) return prev;
           return prev.map(v => {
             if (v.label !== vertebraLabel) return v;
-            // pose 关键点（IR/IL/SR/SL/CR/CL）：4角完全相同，整体移动
-            if (POSE_LABELS.has(v.label)) {
+            // 单点关键点：4角完全相同，整体移动
+            if (isSinglePointKeypointLabel(v.label)) {
               return { ...v, corners: [imagePt, imagePt, imagePt, imagePt] };
             }
             // 椎体：只移动被拖拽的那个角

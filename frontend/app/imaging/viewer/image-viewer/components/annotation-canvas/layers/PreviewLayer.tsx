@@ -1,4 +1,4 @@
-import { getAnnotationConfig } from '../../../catalog/annotation-catalog';
+import { getAnnotationConfig } from '../../../catalog/shared/annotation-config';
 import { calculateQuadrilateralCenter } from '../../../shared/geometry';
 import { MeasurementData, Point } from '../../../types';
 import renderPreview from '../renderers/renderPreview';

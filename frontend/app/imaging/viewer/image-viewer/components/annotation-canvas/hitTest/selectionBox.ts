@@ -1,6 +1,6 @@
 import { MeasurementData, Point } from '../../../types';
 import { getBoundingBox } from '../../../shared/geometry';
-import { getAnnotationTypeId } from '../../../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 
 /**
  * 计算标注的选择边界框，供选中态与 hover 态复用。

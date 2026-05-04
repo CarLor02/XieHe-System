@@ -9,7 +9,7 @@ import {
   getAnnotationConfig,
   getAnnotationDisplayName,
   getAnnotationTypeId,
-} from '../catalog/annotation-catalog';
+} from '../catalog/shared/annotation-config';
 
 /**
  * 根据标注类型和点位计算测量值

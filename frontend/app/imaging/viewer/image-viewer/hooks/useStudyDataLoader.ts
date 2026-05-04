@@ -3,7 +3,7 @@ import {Point, MeasurementData, AnnotationData, VertebraAnnotation, CfhAnnotatio
 import {getImageFile} from "@/services/imageServices/imageFileService"
 import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
 import {StudyData} from "@/app/imaging/viewer/image-viewer/types";
-import {getAnnotationTypeId} from "@/app/imaging/viewer/image-viewer/catalog/annotation-catalog";
+import {getAnnotationTypeId} from "@/app/imaging/viewer/image-viewer/catalog/shared/annotation-config";
 
 export function useStudyDataLoader(
     imageId: string,

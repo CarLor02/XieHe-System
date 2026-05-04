@@ -1,19 +1,29 @@
 'use client';
 
+import { useState } from 'react';
 import BindingPanel from './BindingPanel';
 import ReportPanel from './ReportPanel';
 import { AnnotationBindings } from '../domain/annotation-binding';
+import { isApAutomaticMeasurementTool } from '../catalog/ap/measurements';
+import { getApKeypointGroups } from '../catalog/ap/keypoints';
+import { isAuxiliaryTool } from '../catalog/auxiliary';
 import {
   hasUniqueAnnotationForTool,
   isUniqueAnnotationTool,
 } from '../domain/annotation-uniqueness';
+import { hasKeypoint, KeypointAnnotation } from '../domain/keypoint-state';
 import { MeasurementData, Tool } from '../types';
 import IconMapper from './icons/IconMapper';
+
+type ToolTab = 'measurement' | 'keypoint';
 
 interface AnnotationToolbarProps {
   examType: string;
   tools: Tool[];
   measurements: MeasurementData[];
+  keypoints: KeypointAnnotation[];
+  completeVertebraGroups: string[];
+  canUseKeypointTools: boolean;
   selectedTool: string;
   isSettingStandardDistance: boolean;
   standardDistance: number | null;
@@ -31,7 +41,12 @@ interface AnnotationToolbarProps {
   newTag: string;
   showAdvicePanel: boolean;
   treatmentAdvice: string;
+  automaticToolAvailability: Record<string, boolean>;
   onSelectTool: (toolId: string) => void;
+  onRestoreAutomaticMeasurement: (toolId: string) => void;
+  onCreateAvt: (apexVertebra: string) => void;
+  onCreateVertebraCenter: (vertebra: string) => void;
+  onCreateTts: (upperVertebra: string, lowerVertebra: string) => void;
   onActivateHandMode: () => void;
   onToggleImagePanLocked: () => void;
   isImagePanLocked: boolean;
@@ -64,6 +79,9 @@ export default function AnnotationToolbar({
   examType,
   tools,
   measurements,
+  keypoints,
+  completeVertebraGroups,
+  canUseKeypointTools,
   selectedTool,
   isSettingStandardDistance,
   standardDistance,
@@ -80,7 +98,12 @@ export default function AnnotationToolbar({
   newTag,
   showAdvicePanel,
   treatmentAdvice,
+  automaticToolAvailability,
   onSelectTool,
+  onRestoreAutomaticMeasurement,
+  onCreateAvt,
+  onCreateVertebraCenter,
+  onCreateTts,
   onActivateHandMode,
   onToggleImagePanLocked,
   isImagePanLocked,
@@ -104,18 +127,55 @@ export default function AnnotationToolbar({
   onChangeTreatmentAdvice,
   onCopyReport,
 }: AnnotationToolbarProps) {
-  const auxiliaryPointToolIds = new Set([
-    'aux-length',
-    'aux-angle',
-    'aux-horizontal-line',
-    'aux-vertical-line',
-  ]);
-  const measurementTools = tools.filter(
-    tool => tool.pointsNeeded > 0 && !auxiliaryPointToolIds.has(tool.id)
+  const [activeToolTab, setActiveToolTab] = useState<ToolTab>('measurement');
+  const [openKeypointGroup, setOpenKeypointGroup] = useState<string | null>(
+    null
   );
-  const auxiliaryTools = tools.filter(
-    tool => tool.pointsNeeded === 0 || auxiliaryPointToolIds.has(tool.id)
+  const [openMeasurementTool, setOpenMeasurementTool] = useState<string | null>(
+    null
   );
+  const [ttsUpperVertebra, setTtsUpperVertebra] = useState('');
+  const [ttsLowerVertebra, setTtsLowerVertebra] = useState('');
+
+  const measurementTools = tools.filter(tool => !isAuxiliaryTool(tool.id));
+  const auxiliaryTools = tools.filter(tool => isAuxiliaryTool(tool.id));
+  const keypointGroups = getApKeypointGroups();
+  const keypointIds = new Set(keypoints.map(keypoint => keypoint.id));
+  const hasAvt = measurements.some(item => item.type.toLowerCase() === 'avt');
+  const hasTts = measurements.some(item => item.type.toLowerCase() === 'tts');
+  const hasSacralLine = hasKeypoint(keypoints, 'SL') && hasKeypoint(keypoints, 'SR');
+  const canCreateAvt =
+    !hasAvt &&
+    hasSacralLine &&
+    completeVertebraGroups.length >= 1;
+  const canCreateTts =
+    !hasTts && hasSacralLine && completeVertebraGroups.length >= 2;
+  const hasAvailableVertebraCenter = completeVertebraGroups.some(
+    group =>
+      !measurements.some(
+        item => item.type === 'vertebra-center' && item.upperVertebra === group
+      )
+  );
+  const selectedKeypointGroup = keypointGroups.find(
+    group => group.id === openKeypointGroup
+  );
+
+  const renderAvailabilityBadge = (isAvailable: boolean) => (
+    <div
+      className={`absolute -bottom-1 -right-1 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center ${
+        isAvailable ? 'bg-emerald-500' : 'bg-gray-600'
+      }`}
+    >
+      <i
+        className={`${isAvailable ? 'ri-check-line' : 'ri-subtract-line'} text-[10px]`}
+      ></i>
+    </div>
+  );
+
+  const toolTabs: { id: ToolTab; label: string; icon: string }[] = [
+    { id: 'measurement', label: '测量工具', icon: 'ri-ruler-line' },
+    { id: 'keypoint', label: '关键点', icon: 'ri-focus-3-line' },
+  ];
 
   return (
     <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col flex-shrink-0 overflow-hidden">
@@ -125,9 +185,9 @@ export default function AnnotationToolbar({
         <div className="mb-4">
           {/* 基础移动模式 */}
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
-              <i className="ri-hand-line w-3 h-3 mr-1"></i>
-              基础模式
+            <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-1.5 leading-none">
+              <i className="ri-hand-line w-4 h-4 inline-flex items-center justify-center text-sm leading-none"></i>
+              <span className="leading-none">基础模式</span>
             </h4>
             <div className="flex gap-2">
               <button
@@ -217,149 +277,456 @@ export default function AnnotationToolbar({
             />
           </div>
 
-          {/* 专业测量工具 */}
-          {measurementTools.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
-                <i className="ri-ruler-line w-3 h-3 mr-1"></i>
-                测量标注
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {measurementTools.map(tool => {
-                  const isUniquenessBlocked = hasUniqueAnnotationForTool(
-                    measurements,
-                    tool
-                  );
-
-                  return (
-                    <button
-                      key={tool.id}
-                      onClick={() => {
-                        if (!isUniquenessBlocked) {
-                          onSelectTool(tool.id);
-                        }
-                      }}
-                      disabled={isUniquenessBlocked}
-                      className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
-                        isUniquenessBlocked
-                          ? 'bg-gray-700/60 text-gray-500 cursor-not-allowed opacity-55'
-                          : selectedTool === tool.id
-                            ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                      title={
-                        isUniquenessBlocked && isUniqueAnnotationTool(tool.id)
-                          ? `${tool.name} 已存在，不能重复添加`
-                          : tool.description
-                      }
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <div
-                        className="flex flex-col text-center"
-                        style={{
-                          transform: 'translateY(0)',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          height: '100%',
-                          display: 'flex',
-                        }}
-                      >
-                        <IconMapper
-                          iconId={tool.icon}
-                          className="text-lg mb-1"
-                          style={{
-                            lineHeight: '1',
-                            width: '1.25rem',
-                            height: '1.25rem',
-                          }}
-                        />
-                        <span
-                          className="text-xs text-center"
-                          style={{ lineHeight: '1' }}
-                        >
-                          {tool.name}
-                        </span>
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 bg-gray-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                        {tool.pointsNeeded}
-                      </div>
-                      {selectedTool === tool.id && !isUniquenessBlocked && (
-                        <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="mb-4">
+            <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-900/70 p-1 mb-3">
+              {toolTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveToolTab(tab.id);
+                    setOpenMeasurementTool(null);
+                    setOpenKeypointGroup(null);
+                  }}
+                  className={`h-9 rounded-md text-xs flex items-center justify-center gap-1 transition-colors ${
+                    activeToolTab === tab.id
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <i className={`${tab.icon} text-sm`}></i>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
             </div>
-          )}
 
-          {/* 辅助图形工具 */}
-          {auxiliaryTools.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center">
-                <i className="ri-shape-line w-3 h-3 mr-1"></i>
-                辅助图形
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {auxiliaryTools.map(tool => (
-                  <button
-                    key={tool.id}
-                    onClick={() => onSelectTool(tool.id)}
-                    className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
-                      selectedTool === tool.id
-                        ? 'bg-green-600 text-white ring-2 ring-green-400 shadow-lg'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                    title={`${tool.description} (拖拽绘制)`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <div
-                      className="flex flex-col text-center"
-                      style={{
-                        transform: 'translateY(0)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100%',
-                        display: 'flex',
-                      }}
-                    >
-                      <IconMapper
-                        iconId={tool.icon}
-                        className="text-lg mb-1"
-                        style={{
-                          lineHeight: '1',
-                          width: '1.25rem',
-                          height: '1.25rem',
-                        }}
-                      />
-                      <span
-                        className="text-xs text-center"
-                        style={{ lineHeight: '1' }}
-                      >
-                        {tool.name
-                          .replace('Auxiliary ', '')
-                          .replace('Polygons', '多边形')}
-                      </span>
+            {activeToolTab === 'measurement' && (
+              <div>
+                {measurementTools.length > 0 && (
+                  <div className="relative mb-4">
+                    <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-1.5 leading-none">
+                      <i className="ri-ruler-line w-4 h-4 inline-flex items-center justify-center text-sm leading-none"></i>
+                      <span className="leading-none">测量标注</span>
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {measurementTools.map(tool => {
+                        const isUniquenessBlocked = hasUniqueAnnotationForTool(
+                          measurements,
+                          tool
+                        );
+                        const isAutomaticTool = isApAutomaticMeasurementTool(
+                          tool.id
+                        );
+                        const isSelectionTool =
+                          tool.id === 'vertebra-center' ||
+                          tool.id === 'avt' ||
+                          tool.id === 'tts';
+                        const isOpen = openMeasurementTool === tool.id;
+                        const isToolAvailable = isAutomaticTool
+                          ? (automaticToolAvailability[tool.id] ?? false)
+                          : tool.id === 'vertebra-center'
+                            ? hasAvailableVertebraCenter
+                            : tool.id === 'avt'
+                              ? canCreateAvt
+                            : tool.id === 'tts'
+                              ? canCreateTts
+                              : !isUniquenessBlocked;
+                        const toolTitle = isAutomaticTool
+                          ? isToolAvailable
+                            ? `${tool.name} 可恢复，点击自动生成`
+                            : `${tool.name} 已存在或缺少关键点`
+                          : !isToolAvailable &&
+                              isUniqueAnnotationTool(tool.id)
+                            ? `${tool.name} 已存在或当前不可用`
+                            : isSelectionTool
+                              ? '点击选择可用对象'
+                              : tool.description;
+
+                        return (
+                          <button
+                            key={tool.id}
+                            onClick={() => {
+                              if (!isToolAvailable) return;
+                              if (isAutomaticTool) {
+                                setOpenMeasurementTool(null);
+                                onRestoreAutomaticMeasurement(tool.id);
+                                return;
+                              }
+                              if (isSelectionTool) {
+                                setOpenMeasurementTool(isOpen ? null : tool.id);
+                                setOpenKeypointGroup(null);
+                                return;
+                              }
+                              setOpenMeasurementTool(null);
+                              onSelectTool(tool.id);
+                            }}
+                            disabled={!isToolAvailable}
+                            className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
+                              !isToolAvailable
+                                ? 'bg-gray-700/60 text-gray-500 cursor-not-allowed opacity-55'
+                                : selectedTool === tool.id || isOpen
+                                  ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
+                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                            title={toolTitle}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <div
+                              className="flex flex-col text-center"
+                              style={{
+                                transform: 'translateY(0)',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                height: '100%',
+                                display: 'flex',
+                              }}
+                            >
+                              <IconMapper
+                                iconId={tool.icon}
+                                className="text-lg mb-1"
+                                style={{
+                                  lineHeight: '1',
+                                  width: '1.25rem',
+                                  height: '1.25rem',
+                                }}
+                              />
+                              <span
+                                className="text-xs text-center"
+                                style={{ lineHeight: '1' }}
+                              >
+                                {tool.name}
+                              </span>
+                            </div>
+                            {renderAvailabilityBadge(isToolAvailable)}
+                            {(selectedTool === tool.id || isOpen) &&
+                              isToolAvailable && (
+                                <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
+                              )}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div className="absolute -bottom-1 -right-1 bg-green-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                      <i className="ri-mouse-line w-2 h-2"></i>
-                    </div>
-                    {selectedTool === tool.id && (
-                      <i className="ri-check-line w-3 h-3 flex items-center justify-center text-green-200 absolute -top-1 -left-1 bg-green-500 rounded-full"></i>
+
+                    {openMeasurementTool === 'vertebra-center' && (
+                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                        <div className="text-xs text-gray-300 mb-2">
+                          椎体中心
+                        </div>
+                        {completeVertebraGroups.length > 0 ? (
+                          <div className="grid grid-cols-4 gap-2">
+                            {completeVertebraGroups.map(group => {
+                              const exists = measurements.some(
+                                item =>
+                                  item.type === 'vertebra-center' &&
+                                  item.upperVertebra === group
+                              );
+                              return (
+                                <button
+                                  key={group}
+                                  type="button"
+                                  onClick={() => {
+                                    if (!exists) {
+                                      onCreateVertebraCenter(group);
+                                      setOpenMeasurementTool(null);
+                                    }
+                                  }}
+                                  disabled={exists}
+                                  className={`h-8 rounded text-xs ${
+                                    exists
+                                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                      : 'bg-gray-800 text-white hover:bg-gray-700'
+                                  }`}
+                                >
+                                  {group}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500">
+                            暂无完整椎体关键点
+                          </span>
+                        )}
+                      </div>
                     )}
-                  </button>
-                ))}
+
+                    {openMeasurementTool === 'avt' && (
+                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                        <div className="text-xs text-gray-300 mb-2">
+                          选择顶椎
+                        </div>
+                        {completeVertebraGroups.length > 0 ? (
+                          <div className="grid grid-cols-4 gap-2">
+                            {completeVertebraGroups.map(group => (
+                              <button
+                                key={group}
+                                type="button"
+                                onClick={() => {
+                                  onCreateAvt(group);
+                                  setOpenMeasurementTool(null);
+                                }}
+                                disabled={!canCreateAvt}
+                                className={`h-8 rounded text-xs ${
+                                  !canCreateAvt
+                                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                    : 'bg-gray-800 text-white hover:bg-gray-700'
+                                }`}
+                              >
+                                {group}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500">
+                            暂无完整椎体关键点
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {openMeasurementTool === 'tts' && (
+                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                        <div className="text-xs text-gray-300 mb-2">TTS</div>
+                        <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
+                          <div>
+                            <div className="text-[11px] text-gray-500 mb-1">
+                              上端椎
+                            </div>
+                            {completeVertebraGroups.length > 0 ? (
+                              <div className="grid grid-cols-4 gap-2">
+                                {completeVertebraGroups.map(group => (
+                                  <button
+                                    key={group}
+                                    type="button"
+                                    onClick={() => setTtsUpperVertebra(group)}
+                                    disabled={!canCreateTts}
+                                    className={`h-8 rounded text-xs ${
+                                      !canCreateTts
+                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                        : ttsUpperVertebra === group
+                                          ? 'bg-blue-600 text-white'
+                                          : 'bg-gray-800 text-white hover:bg-gray-700'
+                                    }`}
+                                  >
+                                    {group}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">
+                                暂无完整椎体关键点
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-[11px] text-gray-500 mb-1">
+                              下端椎
+                            </div>
+                            {completeVertebraGroups.length > 0 ? (
+                              <div className="grid grid-cols-4 gap-2">
+                                {completeVertebraGroups.map(group => (
+                                  <button
+                                    key={group}
+                                    type="button"
+                                    onClick={() => setTtsLowerVertebra(group)}
+                                    disabled={!canCreateTts}
+                                    className={`h-8 rounded text-xs ${
+                                      !canCreateTts
+                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                        : ttsLowerVertebra === group
+                                          ? 'bg-blue-600 text-white'
+                                          : 'bg-gray-800 text-white hover:bg-gray-700'
+                                    }`}
+                                  >
+                                    {group}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">
+                                暂无完整椎体关键点
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onCreateTts(ttsUpperVertebra, ttsLowerVertebra);
+                              setOpenMeasurementTool(null);
+                            }}
+                            disabled={
+                              !canCreateTts ||
+                              !ttsUpperVertebra ||
+                              !ttsLowerVertebra ||
+                              ttsUpperVertebra === ttsLowerVertebra
+                            }
+                            className="w-full h-8 rounded bg-blue-600 text-white text-xs disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-blue-700"
+                          >
+                            创建 TTS
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {auxiliaryTools.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-1.5 leading-none">
+                      <i className="ri-shape-line w-4 h-4 inline-flex items-center justify-center text-sm leading-none"></i>
+                      <span className="leading-none">辅助图形</span>
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {auxiliaryTools.map(tool => (
+                        <button
+                          key={tool.id}
+                          onClick={() => {
+                            setOpenMeasurementTool(null);
+                            onSelectTool(tool.id);
+                          }}
+                          className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
+                            selectedTool === tool.id
+                              ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                          title={`${tool.description} (拖拽绘制)`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <div
+                            className="flex flex-col text-center"
+                            style={{
+                              transform: 'translateY(0)',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '100%',
+                              display: 'flex',
+                            }}
+                          >
+                            <IconMapper
+                              iconId={tool.icon}
+                              className="text-lg mb-1"
+                              style={{
+                                lineHeight: '1',
+                                width: '1.25rem',
+                                height: '1.25rem',
+                              }}
+                            />
+                            <span
+                              className="text-xs text-center"
+                              style={{ lineHeight: '1' }}
+                            >
+                              {tool.name
+                                .replace('Auxiliary ', '')
+                                .replace('Polygons', '多边形')}
+                            </span>
+                          </div>
+                          {renderAvailabilityBadge(true)}
+                          {selectedTool === tool.id && (
+                            <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
+
+            {activeToolTab === 'keypoint' && (
+              <div className="relative">
+                {!canUseKeypointTools && (
+                  <div className="mb-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 text-xs text-yellow-200">
+                    当前账号无关键点标注权限
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {keypointGroups.map(group => {
+                    const isOpen = openKeypointGroup === group.id;
+                    const existingCount = group.keypoints.filter(keypoint =>
+                      keypointIds.has(keypoint.id)
+                    ).length;
+
+                    return (
+                      <div key={group.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenKeypointGroup(isOpen ? null : group.id);
+                            setOpenMeasurementTool(null);
+                          }}
+                          disabled={!canUseKeypointTools}
+                          className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col items-center justify-center ${
+                            !canUseKeypointTools
+                              ? 'bg-gray-700/60 text-gray-500 cursor-not-allowed opacity-55'
+                              : isOpen
+                                ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                          title={
+                            group.id === 'pose'
+                              ? '选择姿态关键点'
+                              : `选择${group.name}椎体的关键点`
+                          }
+                        >
+                          <i className="ri-focus-3-line text-lg mb-1"></i>
+                          <span className="text-xs leading-none">
+                            {group.name}
+                          </span>
+                          <span className="absolute -bottom-1 -right-1 bg-gray-600 text-white text-xs rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+                            {existingCount}
+                          </span>
+                        </button>
+
+                      </div>
+                    );
+                  })}
+                </div>
+                {selectedKeypointGroup && canUseKeypointTools && (
+                  <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                    <div className="text-xs text-gray-300 mb-2">
+                      {selectedKeypointGroup.name}
+                    </div>
+                    <div className="max-h-64 overflow-y-auto pr-1 grid grid-cols-4 gap-2">
+                      {selectedKeypointGroup.keypoints.map(keypoint => {
+                        const exists = keypointIds.has(keypoint.id);
+                        return (
+                          <button
+                            key={keypoint.id}
+                            type="button"
+                            onClick={() => {
+                              if (!exists) {
+                                onSelectTool(`keypoint:${keypoint.id}`);
+                                setOpenKeypointGroup(null);
+                              }
+                            }}
+                            disabled={exists}
+                            className={`h-8 rounded text-xs ${
+                              exists
+                                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                : selectedTool === `keypoint:${keypoint.id}`
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-800 text-white hover:bg-gray-700'
+                            }`}
+                          >
+                            {keypoint.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
 
           {/* 标准距离设置按钮 */}
           <div className="mb-4">

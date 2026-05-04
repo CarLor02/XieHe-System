@@ -10,7 +10,7 @@
  *    S1右点  ->  {SS, 1}  {LL L1-S1, 3}  {LL L4-S1, 3}  {PI, 2}  {PT, 2}  {TPA, 6}
  */
 
-import { getAnnotationTypeId } from '../catalog/annotation-catalog';
+import { getAnnotationTypeId } from '../catalog/shared/annotation-config';
 
 // ==================== 类型定义 ====================
 

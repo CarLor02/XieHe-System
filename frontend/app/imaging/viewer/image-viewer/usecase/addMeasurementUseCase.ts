@@ -4,7 +4,7 @@ import {
 } from "@/app/imaging/viewer/image-viewer/domain/annotation-calculation";
 import {getDescriptionForType as getDesc} from "@/app/imaging/viewer/image-viewer/domain/annotation-metadata";
 import {getInheritedPoints} from "@/app/imaging/viewer/image-viewer/domain/annotation-inheritance";
-import {getAnnotationTypeId} from "@/app/imaging/viewer/image-viewer/catalog/annotation-catalog";
+import {getAnnotationTypeId} from "@/app/imaging/viewer/image-viewer/catalog/shared/annotation-config";
 import {
     hasAnnotationForTool,
     hasUniqueAnnotationForTool

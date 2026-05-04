@@ -4,7 +4,9 @@
  */
 
 import { Tool } from '../types';
-import { ANNOTATION_CONFIGS } from './annotation-catalog';
+import { getApMeasurementTools } from './ap/measurements';
+import { getAuxiliaryTools } from './auxiliary';
+import { ANNOTATION_CONFIGS } from './shared/annotation-config';
 
 function mapToolIdsToCatalog(toolIds: string[]): Tool[] {
   return toolIds
@@ -23,78 +25,46 @@ function mapToolIdsToCatalog(toolIds: string[]): Tool[] {
  * 获取正位 X 光片的工具列表
  */
 export function getAnteriorTools(): Tool[] {
-  return mapToolIdsToCatalog([
-    't1-tilt',
-    'cobb',
-    'ca',
-    'po',
-    'css',
-    'avt',
-    'tts',
-    'lld',
-    'ts',
-    'circle',
-    'ellipse',
-    'rectangle',
-    'arrow',
-    'polygon',
-    'vertebra-center',
-    'aux-length',
-    'aux-angle',
-    'aux-horizontal-line',
-    'aux-vertical-line',
-  ]);
+  return [...getApMeasurementTools(), ...getAuxiliaryTools()];
 }
 
 /**
  * 获取侧位 X 光片的工具列表
  */
 export function getLateralTools(): Tool[] {
-  return mapToolIdsToCatalog([
-    't1-slope',
-    'cl',
-    'tk-t2-t5',
-    'tk-t5-t12',
-    't10-l2',
-    'll-l1-s1',
-    'll-l1-l4',
-    'll-l4-s1',
-    'tpa',
-    'sva',
-    'pi',
-    'pt',
-    'ss',
-    'circle',
-    'ellipse',
-    'rectangle',
-    'arrow',
-    'polygon',
-    'vertebra-center',
-    'aux-length',
-    'aux-angle',
-    'aux-horizontal-line',
-    'aux-vertical-line',
-  ]);
+  return [
+    ...mapToolIdsToCatalog([
+      't1-slope',
+      'cl',
+      'tk-t2-t5',
+      'tk-t5-t12',
+      't10-l2',
+      'll-l1-s1',
+      'll-l1-l4',
+      'll-l4-s1',
+      'tpa',
+      'sva',
+      'pi',
+      'pt',
+      'ss',
+      'vertebra-center',
+    ]),
+    ...getAuxiliaryTools(),
+  ];
 }
 
 /**
  * 获取通用工具列表
  */
 export function getGenericTools(): Tool[] {
-  return mapToolIdsToCatalog([
-    'length',
-    'angle',
-    'circle',
-    'ellipse',
-    'rectangle',
-    'arrow',
-    'polygon',
-    'vertebra-center',
-    'aux-length',
-    'aux-angle',
-    'aux-horizontal-line',
-    'aux-vertical-line',
-  ]);
+  return [
+    ...mapToolIdsToCatalog([
+      'length',
+      'angle',
+      'vertebra-center',
+    ]),
+    ...getAuxiliaryTools(),
+  ];
 }
 
 /**
