@@ -70,5 +70,15 @@ export function buildExportFilename(
     return `${base}.${IMAGE_EXPORT_EXTENSIONS[format as AnnotatedImageExportFormat]}`;
   }
 
+  // training-data：图像文件名与原图相同，label 文件另行构建
+  if (exportContent === 'training-data') {
+    return getOriginalExportFilename(image);
+  }
+
   return `${base}.${TABULAR_EXPORT_EXTENSIONS[format as TabularExportFormat]}`;
+}
+
+/** 训练数据 label 文件名（归一化坐标 JSON） */
+export function buildTrainingLabelFilename(image: ImageFile): string {
+  return `${getFilenameBase(image)}_label.json`;
 }

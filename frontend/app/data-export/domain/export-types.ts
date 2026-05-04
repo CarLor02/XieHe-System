@@ -1,10 +1,11 @@
-import type { MeasurementData } from '@/app/imaging/viewer/image-viewer/types';
+import type { MeasurementData, VertebraAnnotation } from '@/app/imaging/viewer/image-viewer/types';
 
 export type ExportContentType =
   | 'original-image'
   | 'annotated-image'
   | 'annotation-points'
-  | 'measurement-parameters';
+  | 'measurement-parameters'
+  | 'training-data';
 
 export type TabularExportFormat = 'csv' | 'json' | 'excel';
 export type AnnotatedImageExportFormat = 'png' | 'jpeg';
@@ -19,4 +20,5 @@ export interface ParsedAnnotationData {
   measurements: MeasurementData[];
   imageWidth?: number;
   imageHeight?: number;
+  vertebraeLayer?: VertebraAnnotation[];
 }

@@ -17,6 +17,8 @@ import {
   buildAnnotationPointRows,
   buildExportFilename,
   buildMeasurementRows,
+  buildTrainingLabelBlob,
+  buildTrainingLabelFilename,
   createTabularBlob,
   ExportContentType,
   ExportFile,
@@ -178,7 +180,10 @@ export default function DataExportPage() {
       return;
     }
 
-    if (exportContent === 'annotation-points' && !canExportAnnotationPoints) {
+    if (
+      (exportContent === 'annotation-points' || exportContent === 'training-data') &&
+      !canExportAnnotationPoints
+    ) {
       setMessage('当前账号无权导出标注点检测数据');
       setTimeout(() => setMessage(''), 3000);
       return;
@@ -230,6 +235,36 @@ export default function DataExportPage() {
             filename: buildExportFilename(img, exportContent, tabularExportFormat),
             blob: createTabularBlob(rows, tabularExportFormat, exportContent),
           });
+        } else if (exportContent === 'training-data') {
+          // 训练数据：原始图像 + 归一化坐标 label JSON
+          const vertebraeLayer = annotationData?.vertebraeLayer;
+          if (!vertebraeLayer || vertebraeLayer.length === 0) {
+            // 没有检测点的影像跳过 label 文件，只导出原图
+            const blob = await downloadImageFile(img.id);
+            exportFiles.push({
+              filename: buildExportFilename(img, 'original-image', 'original'),
+              blob,
+            });
+          } else {
+            const imageWidth = annotationData?.imageWidth;
+            const imageHeight = annotationData?.imageHeight;
+            if (!imageWidth || !imageHeight) {
+              // 缺少尺寸信息，跳过该影像
+              console.warn(`影像 ${img.id} 缺少尺寸信息，跳过训练数据导出`);
+            } else {
+              // 原始图像
+              const imageBlob = await downloadImageFile(img.id);
+              exportFiles.push({
+                filename: buildExportFilename(img, 'training-data', 'original'),
+                blob: imageBlob,
+              });
+              // label JSON
+              exportFiles.push({
+                filename: buildTrainingLabelFilename(img),
+                blob: buildTrainingLabelBlob(img, vertebraeLayer, imageWidth, imageHeight),
+              });
+            }
+          }
         } else {
           const rows = buildMeasurementRows(
             img,
@@ -583,10 +618,11 @@ export default function DataExportPage() {
             <ul className="text-sm text-blue-800 space-y-1">
               <li>• 使用筛选条件过滤影像列表，系统会显示当前账号可见的影像</li>
               <li>• 在列表中勾选需要导出的影像，支持全选和单选</li>
-              <li>• 管理员可导出原图影像、绘图影像、标注点检测和参数测量</li>
+              <li>• 管理员可导出原图影像、绘图影像、标注点检测、参数测量和训练数据</li>
               <li>• 非管理员可导出原图影像、绘图影像和参数测量</li>
               <li>• 批量导出会下载 ZIP 包，包内文件使用原始文件名和所选格式后缀</li>
               <li>• CSV 格式使用 UTF-8 编码，Excel 格式使用 XLS 兼容表格</li>
+              <li>• 训练数据：每张影像导出原图 + 同名 _label.json（椎体角点归一化坐标，用于模型训练）</li>
             </ul>
           </div>
         </div>
