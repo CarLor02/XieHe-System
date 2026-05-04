@@ -201,18 +201,24 @@ async def save_measurements(
             measurement_value = None
             measurement_unit = None
             if measurement.value:
-                # 提取单位（mm 或 °）
+                # 提取单位（mm 或 °），对多值格式（如 "12.3 × 8.5mm"）容错处理
                 if 'mm' in measurement.value:
                     measurement_unit = 'mm'
-                    measurement_value = float(measurement.value.replace('mm', '').strip())
+                    try:
+                        measurement_value = float(measurement.value.replace('mm', '').strip())
+                    except (ValueError, TypeError):
+                        measurement_value = None
                 elif '°' in measurement.value:
                     measurement_unit = '°'
-                    measurement_value = float(measurement.value.replace('°', '').strip())
+                    try:
+                        measurement_value = float(measurement.value.replace('°', '').strip())
+                    except (ValueError, TypeError):
+                        measurement_value = None
                 else:
                     # 如果没有单位，尝试转换为float
                     try:
                         measurement_value = float(measurement.value)
-                    except:
+                    except (ValueError, TypeError):
                         measurement_value = None
 
             annotation = ImageAnnotation(
