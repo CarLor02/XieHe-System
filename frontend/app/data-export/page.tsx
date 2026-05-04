@@ -348,9 +348,11 @@ export default function DataExportPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="all">全部类型</option>
-                  <option value="正面片">正面片</option>
-                  <option value="侧面片">侧面片</option>
-                  <option value="其他">其他</option>
+                  <option value="正位X光片">正位X光片</option>
+                  <option value="侧位X光片">侧位X光片</option>
+                  <option value="左侧曲位">左侧曲位</option>
+                  <option value="右侧曲位">右侧曲位</option>
+                  <option value="体态照片">体态照片</option>
                 </select>
               </div>
 
