@@ -13,7 +13,6 @@ import {
   MeasurementRecord,
 } from '@/services/imageServices/measurementService';
 import {
-  AnnotatedImageExportFormat,
   buildAnnotationPointRows,
   buildExportFilename,
   buildMeasurementRows,
@@ -26,7 +25,6 @@ import {
   getMeasurementsForImage,
   getParameterMeasurements,
   parseAnnotationData,
-  TabularExportFormat,
 } from './domain';
 import { createAnnotatedImageBlob, downloadExportFiles } from './usecases';
 import { useExportContentOptions } from './hooks';
@@ -53,10 +51,8 @@ export default function DataExportPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [exportContent, setExportContent] =
     useState<ExportContentType>('original-image');
-  const [tabularExportFormat, setTabularExportFormat] =
-    useState<TabularExportFormat>('csv');
-  const [annotatedImageFormat, setAnnotatedImageFormat] =
-    useState<AnnotatedImageExportFormat>('png');
+  const tabularExportFormat = 'csv' as const;
+  const annotatedImageFormat = 'png' as const;
 
   // 影像列表和选择
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -526,43 +522,7 @@ export default function DataExportPage() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  导出格式
-                </label>
-                {exportContent === 'original-image' ? (
-                  <select
-                    value="original"
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                  >
-                    <option value="original">原始格式</option>
-                  </select>
-                ) : exportContent === 'annotated-image' ? (
-                  <select
-                    value={annotatedImageFormat}
-                    onChange={(e) =>
-                      setAnnotatedImageFormat(e.target.value as AnnotatedImageExportFormat)
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="png">PNG</option>
-                    <option value="jpeg">JPEG</option>
-                  </select>
-                ) : (
-                  <select
-                    value={tabularExportFormat}
-                    onChange={(e) =>
-                      setTabularExportFormat(e.target.value as TabularExportFormat)
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="csv">CSV (Excel兼容)</option>
-                    <option value="json">JSON</option>
-                    <option value="excel">Excel (XLS)</option>
-                  </select>
-                )}
-              </div>
+
             </div>
           </div>
 
