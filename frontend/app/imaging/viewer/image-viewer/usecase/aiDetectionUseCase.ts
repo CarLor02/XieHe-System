@@ -1,9 +1,20 @@
-import {CfhAnnotation, ImageData, VertebraAnnotation} from "../types"
+import {CfhAnnotation, ImageData, Point, VertebraAnnotation} from "../types"
 import {Dispatch, SetStateAction} from "react"
 import {
     aiDetectKeyPoints,
     aiDetectLateralKeyPoints,
 } from '@/services/imageServices';
+
+/**
+ * 按几何坐标将4个角点排序为 [TL, TR, BL, BR]。
+ * 不依赖 AI 返回的顺序，对脊柱椎体（倾角 < 45°）始终正确。
+ */
+function sortCornersGeometrically(pts: {x:number,y:number}[]): [Point,Point,Point,Point] {
+    const sorted = [...pts].sort((a, b) => a.y - b.y);
+    const top = sorted.slice(0, 2).sort((a, b) => a.x - b.x); // y 较小的两点：左=TL，右=TR
+    const bot = sorted.slice(2, 4).sort((a, b) => a.x - b.x); // y 较大的两点：左=BL，右=BR
+    return [top[0], top[1], bot[0], bot[1]];
+}
 
 // AI检测函数（仅检测椎骨，结果存入 vertebraeLayer，不混入 measurements[]）
 export async function aiDetect(
@@ -89,11 +100,12 @@ export async function aiDetect(
                         console.warn(`⚠️ 椎体 ${vertebra.label} 角点数量不是4:`, vertebra.keypoints?.length);
                         return;
                     }
-                    // keypoints 顺序: [TL, TR, BL, BR]（与旧代码 cornerNames 一致）
-                    const [tl, tr, bl, br] = vertebra.keypoints.map((kp: any) => ({
+                    const rawPts = vertebra.keypoints.map((kp: any) => ({
                         x: kp.x * imageWidth,
                         y: kp.y * imageHeight,
                     }));
+                    // 几何排序，不依赖 AI 返回顺序
+                    const [tl, tr, bl, br] = sortCornersGeometrically(rawPts);
                     newVertebrae.push({
                         label: vertebra.label,
                         corners: [tl, tr, bl, br],
@@ -146,14 +158,15 @@ export async function aiDetect(
                     const bl = c.bottom_left ?? c.bottomLeft;
                     const br = c.bottom_right ?? c.bottomRight;
                     if (!tl || !tr || !bl || !br) return;
+                    const [stl, str, sbl, sbr] = sortCornersGeometrically([
+                        { x: tl.x, y: tl.y },
+                        { x: tr.x, y: tr.y },
+                        { x: bl.x, y: bl.y },
+                        { x: br.x, y: br.y },
+                    ]);
                     newVertebrae.push({
                         label,
-                        corners: [
-                            { x: tl.x, y: tl.y },
-                            { x: tr.x, y: tr.y },
-                            { x: bl.x, y: bl.y },
-                            { x: br.x, y: br.y },
-                        ],
+                        corners: [stl, str, sbl, sbr],
                         confidence: vertebra.confidence ?? 1,
                         source: 'ai',
                     });
