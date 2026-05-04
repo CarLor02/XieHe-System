@@ -19,8 +19,9 @@ export interface SelectionState {
 
 export interface HoverState {
   measurementId: string | null;
+  keypointId: string | null;
   pointIndex: number | null;
-  elementType: 'point' | 'whole' | null;
+  elementType: 'point' | 'whole' | 'keypoint' | null;
 }
 
 export interface ReferenceLines {

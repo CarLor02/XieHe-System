@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Point, MeasurementData, ImageData, Tool, VertebraAnnotation, CfhAnnotation } from '../types';
 import {
   AnnotationBindings,
@@ -48,6 +48,7 @@ import {
   apKeypointsToRenderLayer,
   KeypointAnnotation,
 } from '../domain/keypoint-state';
+import { parseApVertebraKeypointId } from '../catalog/ap/keypoints';
 
 export default function AnnotationCanvas({
   selectedImage,
@@ -275,10 +276,20 @@ export default function AnnotationCanvas({
   const handlePanelMeasurementHover = (measurementId: string | null) => {
     setHoverState({
       measurementId,
+      keypointId: null,
       elementType: measurementId ? 'whole' : null,
       pointIndex: null,
     });
   };
+
+  const handleKeypointHover = useCallback((keypointId: string | null) => {
+    setHoverState({
+      measurementId: null,
+      keypointId,
+      elementType: keypointId ? 'keypoint' : null,
+      pointIndex: null,
+    });
+  }, [setHoverState]);
 
   const handlePanelMeasurementSelect = (measurementId: string) => {
     setSelectedTool('hand');
@@ -369,6 +380,23 @@ export default function AnnotationCanvas({
       ? apKeypointsToRenderLayer(keypoints, hiddenKeypointIds)
       : vertebraeLayer;
 
+  const keypointIdToCornerRef = (keypointId: string | null) => {
+    if (!keypointId) return null;
+    if (visibleKeypointLayer.some(item => item.label === keypointId)) {
+      return { label: keypointId, index: 0 };
+    }
+
+    const parsed = parseApVertebraKeypointId(keypointId);
+    if (
+      parsed &&
+      visibleKeypointLayer.some(item => item.label === parsed.group)
+    ) {
+      return { label: parsed.group, index: parsed.pointIndex };
+    }
+
+    return null;
+  };
+
   // 椎体角点拖拽 hook：命中检测和拖拽完全在 div 层处理，不依赖 SVG 事件
   const vertebradDrag = useVertebradDrag({
     vertebraeLayer: visibleKeypointLayer,
@@ -376,7 +404,17 @@ export default function AnnotationCanvas({
     screenToImage,
     onVertebraeUpdate,
     containerRef,
+    onHoverChange: handleKeypointHover,
   });
+  const hoveredKeypointCorner = keypointIdToCornerRef(hoverState.keypointId);
+  const effectiveHoveredCorner =
+    vertebradDrag.hoveredCorner ?? hoveredKeypointCorner;
+
+  useEffect(() => {
+    if (selectedTool !== 'hand') {
+      vertebradDrag.clearHover();
+    }
+  }, [selectedTool, vertebradDrag.clearHover]);
 
   const canvasDrag = useCanvasDrag({
     selectedTool,
@@ -439,6 +477,7 @@ export default function AnnotationCanvas({
     setIsDragging(false);
     // 鼠标离开时结束角点拖拽（避免拖着角点飞出画布）
     vertebradDrag.handleMouseUp();
+    vertebradDrag.clearHover();
     document.body.style.overflow = '';
     document.documentElement.style.overflow = '';
   };
@@ -509,7 +548,9 @@ export default function AnnotationCanvas({
       ref={containerRef}
       data-image-canvas
       className={`relative w-full h-full overflow-hidden ${
-        showVertebraeLayer && (vertebradDrag.hoveredCorner ?? vertebradDrag.activeCorner)
+        showVertebraeLayer &&
+        selectedTool === 'hand' &&
+        (effectiveHoveredCorner ?? vertebradDrag.activeCorner)
           ? 'cursor-crosshair'
           : getCursorStyle()
       } ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
@@ -526,14 +567,23 @@ export default function AnnotationCanvas({
         }
         // 先做椎体角点命中检测（不依赖 SVG 事件，使用屏幕坐标距离计算）
         // 命中角点时返回 true，跳过 pointer.onMouseDown 防止触发绘图/平移
-        if (showVertebraeLayer && vertebradDrag.handleMouseDown(e.clientX, e.clientY)) return;
+        if (
+          selectedTool === 'hand' &&
+          showVertebraeLayer &&
+          vertebradDrag.handleMouseDown(e.clientX, e.clientY)
+        ) {
+          return;
+        }
         pointer.onMouseDown(e);
       }}
       onMouseMove={e => {
         // 椎体角点拖拽优先；同时做悬停检测（影响光标样式）
-        const draggingCorner = showVertebraeLayer && vertebradDrag.handleMouseMove(e.clientX, e.clientY);
+        const handledKeypoint =
+          selectedTool === 'hand' &&
+          showVertebraeLayer &&
+          vertebradDrag.handleMouseMove(e.clientX, e.clientY);
         // 角点拖拽中不转发给 pointer（避免误触绘图/图像平移逻辑）
-        if (!draggingCorner) pointer.onMouseMove(e);
+        if (!handledKeypoint) pointer.onMouseMove(e);
       }}
       onMouseUp={e => {
         // 先结束角点拖拽（会触发 onVertebraeUpdate 回调），再交给 pointer
@@ -572,6 +622,7 @@ export default function AnnotationCanvas({
           onMeasurementHover={handlePanelMeasurementHover}
           onMeasurementSelect={handlePanelMeasurementSelect}
           onMeasurementDelete={handlePanelMeasurementDelete}
+          onKeypointHover={handleKeypointHover}
           onToggleKeypointVisibility={handleToggleKeypointVisibility}
           onKeypointDelete={handleKeypointDelete}
           onMeasurementUpdate={handlePanelMeasurementUpdate}
@@ -669,7 +720,7 @@ export default function AnnotationCanvas({
             cfhAnnotation={cfhAnnotation}
             imageToScreen={imageToScreen}
             activeCorner={vertebradDrag.activeCorner}
-            hoveredCorner={vertebradDrag.hoveredCorner}
+            hoveredCorner={effectiveHoveredCorner}
           />
         )}
 

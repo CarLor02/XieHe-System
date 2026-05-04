@@ -34,6 +34,7 @@ interface MeasurementResultsPanelProps {
   onMeasurementHover: (measurementId: string | null) => void;
   onMeasurementSelect: (measurementId: string) => void;
   onMeasurementDelete: (measurementId: string) => void;
+  onKeypointHover: (keypointId: string | null) => void;
   onToggleKeypointVisibility: (keypointId: string) => void;
   onKeypointDelete: (keypointId: string) => void;
   onMeasurementUpdate?: (
@@ -69,6 +70,7 @@ export default function MeasurementResultsPanel({
   onMeasurementHover,
   onMeasurementSelect,
   onMeasurementDelete,
+  onKeypointHover,
   onToggleKeypointVisibility,
   onKeypointDelete,
   onMeasurementUpdate,
@@ -441,10 +443,23 @@ export default function MeasurementResultsPanel({
                 <div className="px-3 py-2 space-y-1">
                   {sortedKeypoints.map(keypoint => {
                     const isHidden = hiddenKeypointIds.has(keypoint.id);
+                    const isHovered = hoverState.keypointId === keypoint.id;
                     return (
                       <div
                         key={keypoint.id}
-                        className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-white/5 border border-transparent"
+                        className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-all ${
+                          isHovered
+                            ? 'bg-yellow-500/20 border border-yellow-500/40'
+                            : 'hover:bg-white/5 border border-transparent'
+                        }`}
+                        onMouseEnter={event => {
+                          event.stopPropagation();
+                          onKeypointHover(keypoint.id);
+                        }}
+                        onMouseLeave={event => {
+                          event.stopPropagation();
+                          onKeypointHover(null);
+                        }}
                       >
                         <button
                           onClick={event => {
@@ -459,7 +474,11 @@ export default function MeasurementResultsPanel({
                           ></i>
                         </button>
                         <div className="flex-1 flex items-center justify-between min-w-0">
-                          <span className="truncate mr-2 font-medium text-white/90">
+                          <span
+                            className={`truncate mr-2 font-medium ${
+                              isHovered ? 'text-yellow-300' : 'text-white/90'
+                            }`}
+                          >
                             {keypoint.id}
                           </span>
                           <span

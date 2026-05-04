@@ -315,6 +315,7 @@ export function useCanvasPointer({
       ) {
         setHoverState({
           measurementId: null,
+          keypointId: null,
           pointIndex: null,
           elementType: null,
         });
@@ -336,6 +337,7 @@ export function useCanvasPointer({
       if (hoverHit.kind === 'point') {
         setHoverState({
           measurementId: hoverHit.measurementId,
+          keypointId: null,
           pointIndex: hoverHit.pointIndex,
           elementType: 'point',
         });
@@ -345,6 +347,7 @@ export function useCanvasPointer({
       if (hoverHit.kind === 'whole' || hoverHit.kind === 'label') {
         setHoverState({
           measurementId: hoverHit.measurementId,
+          keypointId: null,
           pointIndex: null,
           elementType: 'whole',
         });
@@ -359,6 +362,7 @@ export function useCanvasPointer({
       });
       setHoverState({
         measurementId: null,
+        keypointId: null,
         pointIndex: hoveredWorkingPointIndex,
         elementType: hoveredWorkingPointIndex !== null ? 'point' : null,
       });

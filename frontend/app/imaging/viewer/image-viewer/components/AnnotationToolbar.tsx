@@ -653,11 +653,10 @@ export default function AnnotationToolbar({
                     const existingCount = group.keypoints.filter(keypoint =>
                       keypointIds.has(keypoint.id)
                     ).length;
-                    const isCompleteVertebraGroup =
-                      group.id !== 'pose' &&
+                    const isCompleteKeypointGroup =
                       existingCount === group.keypoints.length;
                     const isGroupAvailable =
-                      canUseKeypointTools && !isCompleteVertebraGroup;
+                      canUseKeypointTools && !isCompleteKeypointGroup;
 
                     return (
                       <div key={group.id}>
@@ -677,8 +676,10 @@ export default function AnnotationToolbar({
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                           title={
-                            isCompleteVertebraGroup
-                              ? `${group.name}椎体关键点已完整`
+                            isCompleteKeypointGroup
+                              ? group.id === 'pose'
+                                ? `${group.name}已完整`
+                                : `${group.name}椎体关键点已完整`
                               : group.id === 'pose'
                               ? '选择姿态关键点'
                               : `选择${group.name}椎体的关键点`

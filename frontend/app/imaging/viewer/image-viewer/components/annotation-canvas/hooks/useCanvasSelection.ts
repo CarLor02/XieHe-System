@@ -15,6 +15,7 @@ export function useCanvasSelection() {
   });
   const [hoverState, setHoverState] = useState<HoverState>({
     measurementId: null,
+    keypointId: null,
     pointIndex: null,
     elementType: null,
   });
@@ -39,4 +40,3 @@ export function useCanvasSelection() {
     setSelectionAnchor,
   };
 }
-

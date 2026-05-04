@@ -31,6 +31,7 @@ export function useVertebradDrag({
   screenToImage,
   onVertebraeUpdate,
   containerRef,
+  onHoverChange,
 }: {
   vertebraeLayer: VertebraAnnotation[];
   /** 图像坐标 → 容器内屏幕坐标 */
@@ -39,6 +40,7 @@ export function useVertebradDrag({
   screenToImage: (screenX: number, screenY: number) => Point;
   onVertebraeUpdate?: (updated: VertebraAnnotation[]) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  onHoverChange?: (keypointId: string | null) => void;
 }) {
   // 拖拽期间实时渲染的图层（null = 不在拖拽，使用 vertebraeLayer prop）
   const [liveLayer, setLiveLayer] = useState<VertebraAnnotation[] | null>(null);
@@ -67,7 +69,6 @@ export function useVertebradDrag({
    */
   const findNearestCorner = useCallback(
     (screenX: number, screenY: number): DragState | null => {
-      if (!onVertebraeUpdate) return null;
       let best: DragState | null = null;
       let bestDist = HIT_RADIUS_PX;
       for (const vertebra of vertebraeLayer) {
@@ -82,8 +83,15 @@ export function useVertebradDrag({
       }
       return best;
     },
-    [vertebraeLayer, imageToScreen, onVertebraeUpdate]
+    [vertebraeLayer, imageToScreen]
   );
+
+  const hitToKeypointId = useCallback((hit: DragState): string => {
+    if (isSinglePointKeypointLabel(hit.vertebraLabel)) {
+      return hit.vertebraLabel;
+    }
+    return `${hit.vertebraLabel}-${hit.cornerIndex + 1}`;
+  }, []);
 
   /**
    * 在 div onMouseDown 中调用。
@@ -91,6 +99,7 @@ export function useVertebradDrag({
    */
   const handleMouseDown = useCallback(
     (clientX: number, clientY: number): boolean => {
+      if (!onVertebraeUpdate) return false;
       const { screenX, screenY } = clientToScreen(clientX, clientY);
       const hit = findNearestCorner(screenX, screenY);
       if (!hit) return false;
@@ -99,21 +108,22 @@ export function useVertebradDrag({
       setLiveLayer(vertebraeLayer);
       return true;
     },
-    [clientToScreen, findNearestCorner, vertebraeLayer]
+    [clientToScreen, findNearestCorner, onVertebraeUpdate, vertebraeLayer]
   );
 
   /**
    * 在 div onMouseMove 中调用。
    * 拖拽中：更新 liveLayer（角点跟手）。
    * 未拖拽：更新 hoveredCorner（高亮悬停）。
-   * @returns true 表示正在拖拽角点，调用方可选择跳过 pointer.onMouseMove
+   * @returns true 表示正在拖拽或悬停关键点，调用方可跳过 pointer.onMouseMove
    */
   const handleMouseMove = useCallback(
     (clientX: number, clientY: number): boolean => {
       const { screenX, screenY } = clientToScreen(clientX, clientY);
-      if (dragStateRef.current) {
+      const activeHit = dragStateRef.current;
+      if (activeHit) {
         const imagePt = screenToImage(screenX, screenY);
-        const { vertebraLabel, cornerIndex } = dragStateRef.current;
+        const { vertebraLabel, cornerIndex } = activeHit;
         setLiveLayer(prev => {
           if (!prev) return prev;
           return prev.map(v => {
@@ -128,14 +138,16 @@ export function useVertebradDrag({
             return { ...v, corners: newCorners };
           });
         });
+        onHoverChange?.(hitToKeypointId(activeHit));
         return true;
       }
       // 更新悬停状态
       const hit = findNearestCorner(screenX, screenY);
       setHoveredCorner(hit ? { label: hit.vertebraLabel, index: hit.cornerIndex } : null);
-      return false;
+      onHoverChange?.(hit ? hitToKeypointId(hit) : null);
+      return hit !== null;
     },
-    [clientToScreen, findNearestCorner, screenToImage]
+    [clientToScreen, findNearestCorner, hitToKeypointId, onHoverChange, screenToImage]
   );
 
   /**
@@ -152,6 +164,11 @@ export function useVertebradDrag({
     setActiveCorner(null);
   }, [onVertebraeUpdate]);
 
+  const clearHover = useCallback(() => {
+    setHoveredCorner(null);
+    onHoverChange?.(null);
+  }, [onHoverChange]);
+
   return {
     /** 渲染时使用的图层：拖拽中为实时图层，否则为 vertebraeLayer prop */
     renderLayer: liveLayer ?? vertebraeLayer,
@@ -160,5 +177,6 @@ export function useVertebradDrag({
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    clearHover,
   };
 }

@@ -61,6 +61,11 @@ export default function VertebraeLayer({
             : isHovered
             ? 'rgba(96, 165, 250, 1)'
             : 'rgba(59, 130, 246, 0.85)';
+          const textFill = isActive
+            ? 'rgba(255, 255, 255, 1)'
+            : isHovered
+            ? 'rgba(253, 224, 71, 1)'
+            : 'rgba(147, 197, 253, 1)';
           // 菱形（旋转 45° 的正方形）
           const d = r * 1.2;
           const diamond = `${sc.x},${sc.y - d} ${sc.x + d},${sc.y} ${sc.x},${sc.y + d} ${sc.x - d},${sc.y}`;
@@ -78,7 +83,7 @@ export default function VertebraeLayer({
                 y={sc.y + 4}
                 fontSize={10}
                 fontWeight="600"
-                fill="rgba(147, 197, 253, 1)"
+                fill={textFill}
                 stroke="rgba(0,0,0,0.6)"
                 strokeWidth={2.5}
                 paintOrder="stroke"
@@ -94,6 +99,11 @@ export default function VertebraeLayer({
           const sc = imageToScreen(vertebra.corners[0]);
           const isActive  = activeCorner?.label  === vertebra.label;
           const isHovered = hoveredCorner?.label === vertebra.label;
+          const textFill = isActive
+            ? 'rgba(255, 255, 255, 1)'
+            : isHovered
+            ? 'rgba(253, 224, 71, 1)'
+            : 'rgba(147, 197, 253, 1)';
 
           return (
             <g key={vertebra.label} className="vertebra-corner-keypoint">
@@ -110,7 +120,7 @@ export default function VertebraeLayer({
                 y={sc.y + 4}
                 fontSize={10}
                 fontWeight="600"
-                fill="rgba(147, 197, 253, 1)"
+                fill={textFill}
                 stroke="rgba(0,0,0,0.6)"
                 strokeWidth={2.5}
                 paintOrder="stroke"
@@ -129,15 +139,30 @@ export default function VertebraeLayer({
         // 标签放在右侧中点的右边
         const labelX = Math.max(tr.x, br.x) + 6;
         const labelY = (tr.y + br.y) / 2 + 4;
+        const isAnyCornerHovered = hoveredCorner?.label === vertebra.label;
+        const isAnyCornerActive = activeCorner?.label === vertebra.label;
+        const labelFill = isAnyCornerActive
+          ? 'rgba(255, 255, 255, 1)'
+          : isAnyCornerHovered
+          ? 'rgba(253, 224, 71, 1)'
+          : 'rgba(147, 197, 253, 1)';
 
         return (
           <g key={vertebra.label} className="vertebra-annotation">
             {/* 四边形边框 */}
             <polygon
               points={polyPts}
-              fill="rgba(59, 130, 246, 0.08)"
-              stroke="rgba(59, 130, 246, 0.85)"
-              strokeWidth={1.5}
+              fill={
+                isAnyCornerHovered || isAnyCornerActive
+                  ? 'rgba(250, 204, 21, 0.12)'
+                  : 'rgba(59, 130, 246, 0.08)'
+              }
+              stroke={
+                isAnyCornerHovered || isAnyCornerActive
+                  ? 'rgba(250, 204, 21, 0.95)'
+                  : 'rgba(59, 130, 246, 0.85)'
+              }
+              strokeWidth={isAnyCornerHovered || isAnyCornerActive ? 2 : 1.5}
               strokeLinejoin="round"
             />
 
@@ -165,7 +190,7 @@ export default function VertebraeLayer({
               textAnchor="start"
               fontSize={10}
               fontWeight="600"
-              fill="rgba(147, 197, 253, 1)"
+              fill={labelFill}
               stroke="rgba(0,0,0,0.6)"
               strokeWidth={2.5}
               paintOrder="stroke"
