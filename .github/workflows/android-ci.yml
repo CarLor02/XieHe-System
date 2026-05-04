@@ -5,6 +5,8 @@ on:
     branches: ["dev", "main"]
     tags:
       - "v*"
+    paths:
+      - "mobile/**"
   pull_request:
     branches: ["dev", "main"]
     paths:
