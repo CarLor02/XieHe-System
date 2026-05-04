@@ -202,9 +202,14 @@ export default function DataExportPage() {
         const measurements = getMeasurementsForImage(img, fallbackMeasurements);
 
         if (exportContent === 'original-image') {
-          const blob = await downloadImageFile(img.id);
+          const originalImageBlob = await downloadImageFile(img.id);
+          const blob = await createAnnotatedImageBlob({
+            imageBlob: originalImageBlob,
+            measurements: [],
+            format: 'png',
+          });
           exportFiles.push({
-            filename: buildExportFilename(img, exportContent, 'original'),
+            filename: buildExportFilename(img, exportContent, 'png'),
             blob,
           });
         } else if (exportContent === 'annotated-image') {
