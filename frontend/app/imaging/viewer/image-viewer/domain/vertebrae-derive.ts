@@ -104,7 +104,12 @@ function deriveLateral(
 
   const s1 = estimateS1(ep);
   if (has('C7') && s1) {
-    out.push(makeMeasurement('SVA', [ep['C7'].upper[1], s1]));
+    // 与手动交互格式一致：4个C7角点（上终板前/后、下终板前/后）+ S1参考点
+    out.push(makeMeasurement('SVA', [
+      ...ep['C7'].upper,  // upper[0]=前角, upper[1]=后角
+      ...ep['C7'].lower,  // lower[0]=前角, lower[1]=后角
+      s1,
+    ]));
   }
 
   if (has('T1', 'L5') && cfhAnnotation) {

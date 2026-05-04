@@ -1515,7 +1515,6 @@ export const SVA_CONFIG: AnnotationConfig = {
 
     // 计算前4个点的C7椎体中心
     const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
 
     // 第5个点：骶椎后缘参考点
     const point5 = points[4];
