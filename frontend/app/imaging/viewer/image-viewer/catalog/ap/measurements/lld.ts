@@ -41,11 +41,10 @@ export const LLD_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
-    // maxXRightLabel=true：渲染层用屏幕坐标计算 X，此处只需提供 Y 和碰撞避让用的估算 X。
     return {
-      x: Math.max(points[0].x, points[1].x) + LABEL_OFFSET.RIGHT / imageScale,
+      x: Math.max(points[0].x, points[1].x),
       y: (points[0].y + points[1].y) / 2,
     };
   },

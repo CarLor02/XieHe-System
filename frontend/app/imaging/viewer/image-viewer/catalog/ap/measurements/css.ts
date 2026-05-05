@@ -47,14 +47,10 @@ export const CSS_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
-    // maxXRightLabel=true：渲染层用屏幕坐标计算 X，此处只需提供 Y 和碰撞避让用的估算 X。
     const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
-    return {
-      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
-      y: rightPoint.y,
-    };
+    return { x: rightPoint.x, y: rightPoint.y };
   },
 
   isInHoverRange: (

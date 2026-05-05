@@ -518,11 +518,10 @@ export default function renderMeasurement({
   const isMaxXRightLabel = isMaxXRightLabelType(measurement.type);
   // rightSideLabel（侧面）：文字左缘从第1个点右侧 20px 开始，textAnchor="start"
   const firstPointScreenX = screenPoints.length > 0 ? screenPoints[0].x : labelPosition.x;
-  // maxXRightLabel（正面 AP）：锚点 = getLabelPosition 的 X 转换到屏幕空间（labelPosition.x）。
-  // 文字左缘从锚点右侧 gap=6px 开始：center = labelPosition.x + gap + textWidth/2。
-  // 这样各测量只需在 getLabelPosition 返回正确的图像坐标 X（如右侧中点、右端点等），
-  // 渲染层统一处理屏幕偏移，不受 fitScale 影响。
-  const AP_LABEL_GAP = 6; // 文字左缘距锚点右侧的间距（屏幕像素）
+  // maxXRightLabel（正面 AP）：锚点 = imageToScreen(getLabelPosition.x)（已在屏幕空间）。
+  // getLabelPosition 只返回测量右端点的图像坐标，不加任何偏移，由此处统一加固定屏幕间距。
+  // 效果：文字左缘始终在锚点右侧 AP_LABEL_GAP px，与缩放比例无关（类比侧面 rightSideLabel + 20px）。
+  const AP_LABEL_GAP = 8; // 文字左缘距锚点右侧的固定间距（屏幕像素，与缩放无关）
   const textLabelX = isRightSideLabel
     ? firstPointScreenX + 20
     : isMaxXRightLabel
