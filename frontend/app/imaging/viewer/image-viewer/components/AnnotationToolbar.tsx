@@ -167,17 +167,6 @@ export default function AnnotationToolbar({
     hasSacralLine &&
     completeVertebraGroups.length >= 2;
   const canCreateCobb = isAnteriorView && completeVertebraGroups.length >= 2;
-  const hasAvailableVertebraCenter = completeVertebraGroups.some(
-    group =>
-      !measurements.some(
-        item => item.type === 'vertebra-center' && item.upperVertebra === group
-      )
-  );
-  const vertebraCenterStatus: ToolStatus = hasAvailableVertebraCenter
-    ? 'available'
-    : completeVertebraGroups.length > 0
-      ? 'exists'
-      : 'missing-keypoints';
   const avtStatus: ToolStatus = canCreateAvt
     ? 'available'
     : hasAvt
@@ -492,7 +481,6 @@ export default function AnnotationToolbar({
                         // AVT / TTS：Admin 走选择面板（需要骶骨线关键点）；
                         // 普通用户退化为普通放点工具。
                         const isSelectionTool =
-                          tool.id === 'vertebra-center' ||
                           isCobbTool ||
                           (canUseKeypointTools &&
                             isAnteriorView &&
@@ -504,17 +492,15 @@ export default function AnnotationToolbar({
                           tool.id
                         );
                         const selectionStatus =
-                          tool.id === 'vertebra-center'
-                            ? vertebraCenterStatus
-                            : isCobbTool
-                              ? canCreateCobb
-                                ? 'available'
-                                : 'missing-keypoints'
-                              : tool.id === 'avt'
-                                ? avtStatus
-                                : tool.id === 'tts'
-                                  ? ttsStatus
-                                  : 'available';
+                          isCobbTool
+                            ? canCreateCobb
+                              ? 'available'
+                              : 'missing-keypoints'
+                            : tool.id === 'avt'
+                              ? avtStatus
+                              : tool.id === 'tts'
+                                ? ttsStatus
+                                : 'available';
                         const unavailableStatus = isSelectionTool
                           ? selectionStatus
                           : isUniquenessBlocked
@@ -524,15 +510,13 @@ export default function AnnotationToolbar({
                           ? automaticStatus === 'available'
                           : isCobbTool
                             ? canCreateCobb
-                            : tool.id === 'vertebra-center'
-                              ? hasAvailableVertebraCenter
-                              // AVT/TTS：Admin 须满足骶骨线条件；普通用户直接放点，始终可用
-                              : tool.id === 'avt'
-                                ? (canUseKeypointTools ? canCreateAvt : true)
-                                : tool.id === 'tts'
-                                  ? (canUseKeypointTools ? canCreateTts : true)
-                                  // 普通用户有替换模式，即使测量已存在也允许重新放点
-                                  : !isUniquenessBlocked || !canUseKeypointTools;
+                            // AVT/TTS：Admin 须满足骶骨线条件；普通用户直接放点，始终可用
+                            : tool.id === 'avt'
+                              ? (canUseKeypointTools ? canCreateAvt : true)
+                              : tool.id === 'tts'
+                                ? (canUseKeypointTools ? canCreateTts : true)
+                                // 普通用户有替换模式，即使测量已存在也允许重新放点
+                                : !isUniquenessBlocked || !canUseKeypointTools;
                         const toolTitle = isAutomaticTool
                           ? isToolAvailable
                             ? `${tool.name} 可恢复，点击自动生成`
