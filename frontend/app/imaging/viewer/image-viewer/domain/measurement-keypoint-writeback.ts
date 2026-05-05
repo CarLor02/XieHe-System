@@ -5,7 +5,8 @@
  * 保持 vertebraeLayer 与 measurements[] 的一致性。
  *
  * Cobb 和辅助图形不参与写回（不在映射表中即跳过）。
- * 侧位专用；正位暂不处理。
+ * 侧位：写回椎体角点（VertebraTarget）、S1（S1Target）、CFH（CfhTarget）。
+ * 正位：写回 AP 姿态关键点（ApPoseTarget），如 CL/CR（CA）、IL/IR（PO）、SL/SR（CSS）。
  */
 
 import { getAnnotationTypeId } from '../catalog/shared/annotation-config';
@@ -32,7 +33,13 @@ type S1PosteriorTarget = { kind: 's1-posterior' };
 
 type CfhTarget = { kind: 'cfh' };
 
-type WritebackTarget = VertebraTarget | S1Target | S1PosteriorTarget | CfhTarget;
+/**
+ * 正位姿态关键点（CL/CR/IL/IR/SL/SR）写回目标。
+ * vertebraeLayer 中这些点以 label=keypointId、corners[0]=point 的形式存储。
+ */
+type ApPoseTarget = { kind: 'ap-pose'; keypointId: string };
+
+type WritebackTarget = VertebraTarget | S1Target | S1PosteriorTarget | CfhTarget | ApPoseTarget;
 
 // ─── 映射表（measurement type → 每个 pointIndex 对应的 vertebraeLayer 目标）──
 
@@ -96,6 +103,14 @@ const WRITEBACK_MAP: Record<string, WritebackTarget[]> = {
   'pi':  [{ kind: 'cfh' }, { kind: 's1', s1UpperIndex: 0 }, { kind: 's1', s1UpperIndex: 1 }],
   'pt':  [{ kind: 'cfh' }, { kind: 's1', s1UpperIndex: 0 }, { kind: 's1', s1UpperIndex: 1 }],
   'ss':  [{ kind: 's1', s1UpperIndex: 0 }, { kind: 's1', s1UpperIndex: 1 }],
+
+  // ── 正位 AP 姿态关键点写回 ──────────────────────────────────────────────────
+  // CA（锁骨角）：points[0]=CR, points[1]=CL（与 deriveAnterior 顺序一致）
+  'ca':  [{ kind: 'ap-pose', keypointId: 'CR' }, { kind: 'ap-pose', keypointId: 'CL' }],
+  // PO（骨盆倾斜角）：points[0]=IR, points[1]=IL
+  'po':  [{ kind: 'ap-pose', keypointId: 'IR' }, { kind: 'ap-pose', keypointId: 'IL' }],
+  // CSS（冠状面骶骨倾斜角）：points[0]=SR, points[1]=SL
+  'css': [{ kind: 'ap-pose', keypointId: 'SR' }, { kind: 'ap-pose', keypointId: 'SL' }],
 };
 
 // ─── 辅助：更新椎体角点 ──────────────────────────────────────────────────────
@@ -235,6 +250,16 @@ export function applyMeasurementPointToVertebrae(
     // 同时更新 vertebraeLayer 中 CFH 记录（若存在）
     nextLayer = vertebraeLayer.map(v => {
       if (v.label !== 'CFH') return v;
+      const next = [...v.corners] as [Point, Point, Point, Point];
+      next[0] = newPoint;
+      return { ...v, corners: next, source: 'manual' as const };
+    });
+  } else if (target.kind === 'ap-pose') {
+    // 正位姿态关键点：以 label=keypointId 的单点记录形式存储于 vertebraeLayer。
+    // vertebraeLayerToAnteriorKeypoints 读取 corners[0]，因此只需更新 corners[0]。
+    const { keypointId } = target;
+    nextLayer = vertebraeLayer.map(v => {
+      if (v.label !== keypointId) return v;
       const next = [...v.corners] as [Point, Point, Point, Point];
       next[0] = newPoint;
       return { ...v, corners: next, source: 'manual' as const };
