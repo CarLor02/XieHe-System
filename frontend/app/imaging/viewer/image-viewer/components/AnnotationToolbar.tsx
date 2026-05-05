@@ -478,7 +478,10 @@ export default function AnnotationToolbar({
                           tool
                         );
                         const isCobbTool = isAnteriorView && tool.id === 'cobb';
+                        // 只有 Admin（canUseKeypointTools）才走自动恢复路径；
+                        // 普通用户始终走手动放点路径。
                         const isAutomaticTool =
+                          canUseKeypointTools &&
                           !isCobbTool &&
                           (isApAutomaticMeasurementTool(tool.id) ||
                             isLateralRestorableMeasurementTool(tool.id));
@@ -520,7 +523,8 @@ export default function AnnotationToolbar({
                                 ? canCreateAvt
                                 : tool.id === 'tts'
                                   ? canCreateTts
-                                  : !isUniquenessBlocked;
+                                  // 普通用户有替换模式，即使测量已存在也允许重新放点
+                                  : !isUniquenessBlocked || !canUseKeypointTools;
                         const toolTitle = isAutomaticTool
                           ? isToolAvailable
                             ? `${tool.name} 可恢复，点击自动生成`
