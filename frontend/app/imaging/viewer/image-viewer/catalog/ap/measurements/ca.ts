@@ -46,7 +46,7 @@ export const CA_CONFIG: AnnotationConfig = {
     const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
       x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
-      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
+      y: rightPoint.y,
     };
   },
 
