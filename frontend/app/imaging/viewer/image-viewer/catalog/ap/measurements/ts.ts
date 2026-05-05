@@ -79,10 +79,12 @@ export const TS_CONFIG: AnnotationConfig = {
 
     if (points.length < 6) return points[0] || { x: 0, y: 0 };
 
-    // 6点模式：锚点 = 所有点最右 X + C7中心Y，渲染层用 AP_LABEL_GAP 加固定间距
-    const maxX = Math.max(...points.map(p => p.x));
-    const rightPoint = points.reduce((a, b) => b.x > a.x ? b : a);
-    return { x: maxX, y: rightPoint.y };
+    // 6点模式：锚点 = T1锥体（前4点）最右 X，Y 取 T1 中心。
+    // 仅用前4点（角点），避免骶骨参考点（points[4..5]）导致锚点跳变。
+    const box = points.slice(0, 4);
+    const maxX = Math.max(...box.map(p => p.x));
+    const centerY = (box[0].y + box[1].y + box[2].y + box[3].y) / 4;
+    return { x: maxX, y: centerY };
   },
 
   isInHoverRange: (
