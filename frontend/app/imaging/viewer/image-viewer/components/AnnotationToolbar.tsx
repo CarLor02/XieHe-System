@@ -477,7 +477,11 @@ export default function AnnotationToolbar({
                           measurements,
                           tool
                         );
-                        const isCobbTool = isAnteriorView && tool.id === 'cobb';
+                        // 正位 Cobb：Admin 走椎体组选择面板；普通用户走手动 4 点放点。
+                        const isCobbTool =
+                          canUseKeypointTools &&
+                          isAnteriorView &&
+                          tool.id === 'cobb';
                         // 只有 Admin（canUseKeypointTools）才走自动恢复路径；
                         // 普通用户始终走手动放点路径。
                         const isAutomaticTool =
@@ -485,10 +489,13 @@ export default function AnnotationToolbar({
                           !isCobbTool &&
                           (isApAutomaticMeasurementTool(tool.id) ||
                             isLateralRestorableMeasurementTool(tool.id));
+                        // AVT / TTS：Admin 走选择面板（需要骶骨线关键点）；
+                        // 普通用户退化为普通放点工具。
                         const isSelectionTool =
                           tool.id === 'vertebra-center' ||
                           isCobbTool ||
-                          (isAnteriorView &&
+                          (canUseKeypointTools &&
+                            isAnteriorView &&
                             (tool.id === 'avt' || tool.id === 'tts'));
                         const isOpen = openMeasurementTool === tool.id;
                         const automaticStatus =
@@ -519,10 +526,11 @@ export default function AnnotationToolbar({
                             ? canCreateCobb
                             : tool.id === 'vertebra-center'
                               ? hasAvailableVertebraCenter
+                              // AVT/TTS：Admin 须满足骶骨线条件；普通用户直接放点，始终可用
                               : tool.id === 'avt'
-                                ? canCreateAvt
+                                ? (canUseKeypointTools ? canCreateAvt : true)
                                 : tool.id === 'tts'
-                                  ? canCreateTts
+                                  ? (canUseKeypointTools ? canCreateTts : true)
                                   // 普通用户有替换模式，即使测量已存在也允许重新放点
                                   : !isUniquenessBlocked || !canUseKeypointTools;
                         const toolTitle = isAutomaticTool
