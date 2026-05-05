@@ -491,12 +491,13 @@ export default function AnnotationToolbar({
                           tool.id
                         );
                         // 仅当 AI 推导数据确实可恢复时才走自动路径；
-                        // exists / missing-keypoints 时回退为手动放点（管理员也可像普通用户交互）。
+                        // missing-keypoints 时回退为手动放点（管理员可像普通用户补充标注）。
+                        // exists 状态（测量已存在）保持禁用，用户应直接拖拽现有端点调整。
                         const isEffectivelyAutomaticTool =
                           isAutomaticTool && automaticStatus === 'available';
-                        // 管理员的手动放点回退模式（AI 数据不可用或测量已存在）
+                        // 管理员手动放点回退模式：仅在无 AI 数据时生效
                         const isInManualFallbackMode =
-                          isAutomaticTool && !isEffectivelyAutomaticTool;
+                          isAutomaticTool && automaticStatus === 'missing-keypoints';
                         const selectionStatus =
                           isCobbTool
                             ? canCreateCobb
@@ -525,9 +526,7 @@ export default function AnnotationToolbar({
                         const toolTitle = isEffectivelyAutomaticTool
                           ? `${tool.name} 可恢复，点击自动生成`
                           : isInManualFallbackMode
-                            ? automaticStatus === 'exists'
-                              ? `重新手动标注 ${tool.name}`
-                              : tool.description
+                            ? tool.description
                           : !isToolAvailable &&
                               (isUniqueAnnotationTool(tool.id) ||
                                 isSelectionTool)
