@@ -144,8 +144,7 @@ export default function AnnotationToolbar({
   );
   const [cobbUpperVertebra, setCobbUpperVertebra] = useState('');
   const [cobbLowerVertebra, setCobbLowerVertebra] = useState('');
-  const [ttsUpperVertebra, setTtsUpperVertebra] = useState('');
-  const [ttsLowerVertebra, setTtsLowerVertebra] = useState('');
+
 
   const measurementTools = tools.filter(tool => !isAuxiliaryTool(tool.id));
   const auxiliaryTools = tools.filter(tool => isAuxiliaryTool(tool.id));
@@ -478,13 +477,13 @@ export default function AnnotationToolbar({
                           !isCobbTool &&
                           (isApAutomaticMeasurementTool(tool.id) ||
                             isLateralRestorableMeasurementTool(tool.id));
-                        // AVT / TTS：Admin 走选择面板（需要骶骨线关键点）；
-                        // 普通用户退化为普通放点工具。
+                        // AVT：Admin 走选择面板（需要骶骨线关键点）；普通用户退化为普通放点工具。
+                        // TTS：所有用户均走直接放点路径（画水平线，骶骨参考继承自 CSS/SL/SR），不走椎体选择面板。
                         const isSelectionTool =
                           isCobbTool ||
                           (canUseKeypointTools &&
                             isAnteriorView &&
-                            (tool.id === 'avt' || tool.id === 'tts'));
+                            tool.id === 'avt');
                         const isOpen = openMeasurementTool === tool.id;
                         const automaticStatus =
                           automaticToolStatus[tool.id] ?? 'missing-keypoints';
@@ -498,9 +497,7 @@ export default function AnnotationToolbar({
                               : 'missing-keypoints'
                             : tool.id === 'avt'
                               ? avtStatus
-                              : tool.id === 'tts'
-                                ? ttsStatus
-                                : 'available';
+                              : 'available';
                         const unavailableStatus = isSelectionTool
                           ? selectionStatus
                           : isUniquenessBlocked
@@ -510,13 +507,11 @@ export default function AnnotationToolbar({
                           ? automaticStatus === 'available'
                           : isCobbTool
                             ? canCreateCobb
-                            // AVT/TTS：Admin 须满足骶骨线条件；普通用户直接放点，但已存在时同样禁用
+                            // AVT：Admin 须满足骶骨线条件；普通用户直接放点，但已存在时同样禁用
                             : tool.id === 'avt'
                               ? (canUseKeypointTools ? canCreateAvt : !isUniquenessBlocked)
-                              : tool.id === 'tts'
-                                ? (canUseKeypointTools ? canCreateTts : !isUniquenessBlocked)
-                                // 测量已存在时禁用（无论 Admin 还是普通用户），需先删除再重新放点
-                                : !isUniquenessBlocked;
+                              // 所有其他工具（含 TTS）：已存在时禁用
+                              : !isUniquenessBlocked;
                         const toolTitle = isAutomaticTool
                           ? isToolAvailable
                             ? `${tool.name} 可恢复，点击自动生成`
@@ -778,89 +773,7 @@ export default function AnnotationToolbar({
                       </div>
                     )}
 
-                    {openMeasurementTool === 'tts' && (
-                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(28rem,calc(100vh-14rem))] overflow-y-auto">
-                        <div className="text-xs text-gray-300 mb-2">TTS</div>
-                        <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
-                          <div>
-                            <div className="text-[11px] text-gray-500 mb-1">
-                              上端椎
-                            </div>
-                            {completeVertebraGroups.length > 0 ? (
-                              <div className="grid grid-cols-4 gap-2">
-                                {completeVertebraGroups.map(group => (
-                                  <button
-                                    key={group}
-                                    type="button"
-                                    onClick={() => setTtsUpperVertebra(group)}
-                                    disabled={!canCreateTts}
-                                    className={`h-8 rounded text-xs ${
-                                      !canCreateTts
-                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                        : ttsUpperVertebra === group
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-gray-800 text-white hover:bg-gray-700'
-                                    }`}
-                                  >
-                                    {group}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-500">
-                                暂无完整椎体关键点
-                              </span>
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-[11px] text-gray-500 mb-1">
-                              下端椎
-                            </div>
-                            {completeVertebraGroups.length > 0 ? (
-                              <div className="grid grid-cols-4 gap-2">
-                                {completeVertebraGroups.map(group => (
-                                  <button
-                                    key={group}
-                                    type="button"
-                                    onClick={() => setTtsLowerVertebra(group)}
-                                    disabled={!canCreateTts}
-                                    className={`h-8 rounded text-xs ${
-                                      !canCreateTts
-                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                        : ttsLowerVertebra === group
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-gray-800 text-white hover:bg-gray-700'
-                                    }`}
-                                  >
-                                    {group}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-500">
-                                暂无完整椎体关键点
-                              </span>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onCreateTts(ttsUpperVertebra, ttsLowerVertebra);
-                              setOpenMeasurementTool(null);
-                            }}
-                            disabled={
-                              !canCreateTts ||
-                              !ttsUpperVertebra ||
-                              !ttsLowerVertebra ||
-                              ttsUpperVertebra === ttsLowerVertebra
-                            }
-                            className="w-full h-8 rounded bg-blue-600 text-white text-xs disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-blue-700"
-                          >
-                            创建 TTS
-                          </button>
-                        </div>
-                      </div>
-                    )}
+
                   </div>
                 )}
 
