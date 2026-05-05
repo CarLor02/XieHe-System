@@ -24,7 +24,7 @@ export const TK_T2_T5_CONFIG: AnnotationConfig = {
   description: '上胸椎后凸角(T2上终板与T5下终板)',
   pointsNeeded: 4,
   category: 'measurement',
-  color: '#7c3aed',
+  color: '#a78bfa',
   rightSideLabel: true,
 
   calculateResults: COBB_THORACIC_CONFIG.calculateResults,

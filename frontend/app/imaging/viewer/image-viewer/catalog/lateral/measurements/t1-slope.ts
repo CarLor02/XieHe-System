@@ -23,7 +23,7 @@ export const T1_SLOPE_CONFIG: AnnotationConfig = {
   description: 'T1倾斜角测量（侧位）',
   pointsNeeded: 2,
   category: 'measurement',
-  color: '#a855f7',
+  color: '#e879f9',
   rightSideLabel: true,
 
   calculateResults: (points: Point[], context: CalculationContext) => {

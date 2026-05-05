@@ -553,8 +553,8 @@ export default function renderMeasurement({
             fontSize={fontSize}
             fontWeight="bold"
             textAnchor={textLabelAnchor}
-            stroke="#000000"
-            strokeWidth="3"
+            stroke="rgba(0,0,0,0.6)"
+            strokeWidth="1.5"
             paintOrder="stroke"
           >
             {valueTagName}: {displayValue}
@@ -583,8 +583,8 @@ export default function renderMeasurement({
             fontSize={fontSize}
             fontWeight="bold"
             textAnchor="middle"
-            stroke="#000000"
-            strokeWidth="3"
+            stroke="rgba(0,0,0,0.6)"
+            strokeWidth="1.5"
             paintOrder="stroke"
             style={{ userSelect: 'none', pointerEvents: 'none' }}
           >

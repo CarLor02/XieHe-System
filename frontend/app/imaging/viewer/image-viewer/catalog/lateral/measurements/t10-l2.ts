@@ -24,7 +24,7 @@ export const T10_L2_CONFIG: AnnotationConfig = {
   description: '胸腰椎后凸角(T10上终板与L2下终板)',
   pointsNeeded: 4,
   category: 'measurement',
-  color: '#a855f7',
+  color: '#e879f9',
   rightSideLabel: true,
 
   calculateResults: COBB_THORACIC_CONFIG.calculateResults,
