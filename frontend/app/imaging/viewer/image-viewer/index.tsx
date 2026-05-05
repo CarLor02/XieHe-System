@@ -468,12 +468,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     const apex = findDerivedVertebra(layer, apexVertebra);
     if (!apex) return null;
 
-    const apexCenter = {
-      x: apex.corners.reduce((sum, point) => sum + point.x, 0) / 4,
-      y: apex.corners.reduce((sum, point) => sum + point.y, 0) / 4,
-    };
-    const midlineX = (sl.point.x + sr.point.x) / 2;
-    const points = [apexCenter, { x: midlineX, y: apexCenter.y }];
+    // 6点格式 [tl, tr, bl, br, SR, SL]：与 TS 格式一致，renderC7Offset 会绘制顶锥框
+    // 检测层隐藏时也能正常显示锥体框，不依赖 VertebraeLayer 可见性。
+    const [tl, tr, bl, br] = apex.corners;
+    const points = [tl, tr, bl, br, sr.point, sl.point];
 
     return {
       id: 'ap-keypoint-avt',

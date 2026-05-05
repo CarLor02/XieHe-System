@@ -292,15 +292,30 @@ export function applyMeasurementPointToVertebrae(
       return { ...v, corners: next, source: 'manual' as const };
     });
   } else if (target.kind === 'ap-vertebra') {
-    // 正位椎体角点：completeVertebraLayers 按 [T1-1, T1-2, T1-3, T1-4] 顺序填充 corners[0..3]。
-    // vertebraeLayerToAnteriorKeypoints 按 index+1 反向映射，因此更新对应 cornerIndex 即可。
+    // 正位椎体角点写回，支持两种 vertebraeLayer 存储格式：
+    // 1. 分组格式（keypointsToDerivedLayer 产生）：{label:'T1', corners:[tl,tr,bl,br]}
+    //    → 直接更新 corners[cornerIndex]
+    // 2. 独立关键点格式（keypointsToPersistedLayer 产生）：{label:'T1-1', corners:[pt,...]}, ...
+    //    → 找到 label='T1-${cornerIndex+1}' 的条目，更新其 corners[0]
     const { label, cornerIndex } = target;
-    nextLayer = vertebraeLayer.map(v => {
-      if (v.label !== label) return v;
-      const next = [...v.corners] as [Point, Point, Point, Point];
-      next[cornerIndex] = newPoint;
-      return { ...v, corners: next, source: 'manual' as const };
-    });
+    const hasGrouped = vertebraeLayer.some(v => v.label === label);
+    if (hasGrouped) {
+      nextLayer = vertebraeLayer.map(v => {
+        if (v.label !== label) return v;
+        const next = [...v.corners] as [Point, Point, Point, Point];
+        next[cornerIndex] = newPoint;
+        return { ...v, corners: next, source: 'manual' as const };
+      });
+    } else {
+      // 独立关键点格式：T1-1 = corners[0], T1-2 = corners[1], ...
+      const keypointLabel = `${label}-${cornerIndex + 1}`;
+      nextLayer = vertebraeLayer.map(v => {
+        if (v.label !== keypointLabel) return v;
+        const next = [...v.corners] as [Point, Point, Point, Point];
+        next[0] = newPoint;
+        return { ...v, corners: next, source: 'manual' as const };
+      });
+    }
   }
 
   return { vertebraeLayer: nextLayer, cfhAnnotation: nextCfh };

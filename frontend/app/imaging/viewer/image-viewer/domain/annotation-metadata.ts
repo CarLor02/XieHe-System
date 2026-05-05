@@ -103,6 +103,15 @@ export function isFixedLabelPositionType(type: string): boolean {
 }
 
 /**
+ * 返回该测量类型参与交互（显示圆圈、响应拖拽）的前 N 个点数。
+ * undefined 表示所有点均可交互；0 表示无交互圆圈（仅整体选中）。
+ */
+export function getInteractivePointsCount(type: string): number | undefined {
+  const config = getAnnotationConfig(type);
+  return config?.interactivePointsCount;
+}
+
+/**
  * 根据标注类型获取标签位置
  */
 export function getLabelPositionForType(

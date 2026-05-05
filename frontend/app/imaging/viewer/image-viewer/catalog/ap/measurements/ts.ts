@@ -3,7 +3,6 @@ import {
   type AnnotationConfig,
   type CalculationContext,
   type Point,
-  LABEL_OFFSET,
   calculateActualDistance,
   calculateAngleBetweenVectors,
   calculateAngleToHorizontal,
@@ -24,6 +23,7 @@ export const TS_CONFIG: AnnotationConfig = {
   pointsNeeded: 6,
   category: 'measurement',
   color: '#06b6d4',
+  maxXRightLabel: true,
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length >= 2 && points.length < 6) {
@@ -70,34 +70,19 @@ export const TS_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
     if (points.length >= 2 && points.length < 6) {
-      return {
-        x: Math.max(points[0].x, points[1].x) + LABEL_OFFSET.RIGHT / imageScale,
-        y: Math.min(points[0].y, points[1].y) - LABEL_OFFSET.TOP / imageScale,
-      };
+      // 2点模式：锚点在右侧端点，渲染层用 AP_LABEL_GAP 加固定间距
+      const rightPoint = points[0].x >= points[1].x ? points[0] : points[1];
+      return { x: rightPoint.x, y: rightPoint.y };
     }
 
     if (points.length < 6) return points[0] || { x: 0, y: 0 };
 
-    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-    const refY = (points[4].y + points[5].y) / 2;
-
-    // 标签放在所有点的右上方，避免遮挡椎体和线段
-    const maxX = Math.max(
-      points[0].x,
-      points[1].x,
-      points[2].x,
-      points[3].x,
-      points[4].x,
-      points[5].x
-    );
-    const topY = Math.min(centerY, refY);
-
-    return {
-      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
-      y: topY - LABEL_OFFSET.TOP / imageScale,
-    };
+    // 6点模式：锚点 = 所有点最右 X + C7中心Y，渲染层用 AP_LABEL_GAP 加固定间距
+    const maxX = Math.max(...points.map(p => p.x));
+    const rightPoint = points.reduce((a, b) => b.x > a.x ? b : a);
+    return { x: maxX, y: rightPoint.y };
   },
 
   isInHoverRange: (

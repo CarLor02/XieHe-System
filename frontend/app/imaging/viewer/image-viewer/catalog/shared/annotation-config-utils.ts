@@ -81,6 +81,14 @@ export interface AnnotationConfig {
    */
   fixedLabelPosition?: boolean;
 
+  /**
+   * 前 N 个点参与交互（显示圆圈、响应命中测试/拖拽）；超出的点仅用于 renderSpecialElements 渲染，
+   * 不显示交互圆圈，也不参与命中测试。
+   * 未设置时默认所有点均可交互。
+   * 设置为 0 时，所有点均不显示圆圈（测量整体仍可通过 isInHoverRange 选中）。
+   */
+  interactivePointsCount?: number;
+
   // 计算函数
   calculateResults: (
     points: Point[],

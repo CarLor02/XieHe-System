@@ -23,6 +23,7 @@ import {
   isRightSideLabelType,
   isMaxXRightLabelType,
   isFixedLabelPositionType,
+  getInteractivePointsCount,
 } from '../../../domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools/tool-state';
 import { imageToScreen } from '../../../canvas/transform/coordinate-transform';
@@ -529,12 +530,19 @@ export default function renderMeasurement({
       : labelPosition.x;
   const textLabelAnchor = isRightSideLabel ? 'start' : 'middle';
 
+  // interactivePointsCount: 前 N 个点显示交互圆圈；undefined = 全部；0 = 全不显示
+  const interactiveCount = getInteractivePointsCount(measurement.type);
+  const interactivePoints =
+    interactiveCount === undefined
+      ? screenPoints
+      : screenPoints.slice(0, interactiveCount);
+
   return (
     <g key={measurement.id}>
       {(!isAuxiliaryShape ||
         usesAuxiliaryValueTag ||
         specialShapeNode) &&
-        screenPoints.map((point, pointIndex) =>
+        interactivePoints.map((point, pointIndex) =>
           renderIndexedPoint({
             measurement,
             point,
