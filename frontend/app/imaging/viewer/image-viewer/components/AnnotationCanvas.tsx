@@ -493,6 +493,7 @@ export default function AnnotationCanvas({
     setClickedPoints,
     imageScale,
     onMeasurementAdd,
+    onMeasurementComplete: () => setSelectedTool('hand'),
     drawingState,
     setDrawingState,
     setReferenceLines,
