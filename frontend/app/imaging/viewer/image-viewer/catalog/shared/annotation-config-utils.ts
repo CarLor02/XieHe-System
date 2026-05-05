@@ -66,6 +66,15 @@ export interface AnnotationConfig {
    */
   rightSideLabel?: boolean;
   /**
+   * 正面图（AP）右侧标签模式：使用所有点的最大屏幕 X 坐标 + 实际文字半宽来定位。
+   * 为 true 时，渲染层在屏幕坐标系中计算：
+   *   textX = max(screenPoints.x) + textWidth/2 + gap
+   * 这样文字左缘恰好从最右侧点往右 gap 像素处开始，完全由渲染时的实际文字宽度决定，
+   * 不依赖 getLabelPosition 中任何固定偏移常量，也不受 fitScale 影响。
+   * getLabelPosition 的 X 值用于碰撞避让估算；Y 值用于实际渲染的 Y 坐标。
+   */
+  maxXRightLabel?: boolean;
+  /**
    * 标签是否固定在 getLabelPosition 返回的位置，不参与智能避让。
    * 为 true 时，渲染层会跳过 calculateSmartLabelPosition，把标签直接放在返回的坐标处。
    * 适用于需要精确定位的骨盆测量（PI、PT），避免标签被推离弧线位置。

@@ -24,6 +24,7 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
   pointsNeeded: 2,
   category: 'measurement',
   color: '#8b5cf6',
+  maxXRightLabel: true,
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 2) return [];
@@ -41,10 +42,10 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
-    // 标签放在线段右端点的右侧，考虑文字宽度，避免遮挡线段
+    // maxXRightLabel=true：渲染层用屏幕坐标计算 X，此处只需提供 Y 和碰撞避让用的估算 X。
     const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: rightPoint.x + LABEL_OFFSET.TEXT_HALF / imageScale,
+      x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
       y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },

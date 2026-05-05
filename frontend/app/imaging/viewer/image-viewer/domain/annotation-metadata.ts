@@ -84,6 +84,16 @@ export function isRightSideLabelType(type: string): boolean {
 }
 
 /**
+ * 判断该测量是否使用正面图右侧标签模式（maxXRightLabel）。
+ * 为 true 时，渲染层用屏幕坐标系的 max(screenPoints.x) + textWidth/2 + gap 定位文字，
+ * 而不是使用 getLabelPosition 的 X 值。Y 值仍来自 getLabelPosition。
+ */
+export function isMaxXRightLabelType(type: string): boolean {
+  const config = getAnnotationConfig(type);
+  return config?.maxXRightLabel ?? false;
+}
+
+/**
  * 判断该测量标签位置是否固定（不参与智能避让）。
  * 为 true 时，渲染层跳过 calculateSmartLabelPosition，直接使用 getLabelPosition 的返回值。
  */

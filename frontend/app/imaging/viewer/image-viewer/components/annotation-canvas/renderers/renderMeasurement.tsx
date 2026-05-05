@@ -21,6 +21,7 @@ import {
   usesInlineAuxiliaryTag,
   calculateSmartLabelPosition,
   isRightSideLabelType,
+  isMaxXRightLabelType,
   isFixedLabelPositionType,
 } from '../../../domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools/tool-state';
@@ -511,13 +512,23 @@ export default function renderMeasurement({
   const textWidth = estimateTextWidth(textContent, fontSize, 0);
   const textHeight = estimateTextHeight(fontSize, 0);
 
-  // 右侧标签：在屏幕坐标系中直接对齐第1个点，完全绕开图像坐标偏移的 fitScale 损耗。
-  // 原因：imageToScreen 公式中存在 displayWidth/naturalWidth 因子（fitScale），
-  //        导致图像坐标中的偏移转换到屏幕后远小于预期（如46px图像偏移→14屏幕px）。
+  // 右侧标签：在屏幕坐标系中直接定位，完全绕开图像坐标偏移的 fitScale 损耗。
+  // fitScale = displayWidth/naturalWidth，导致图像坐标偏移转换到屏幕后远小于预期。
   const isRightSideLabel = isRightSideLabelType(measurement.type);
-  // 右侧标签：文字左缘从第1个点（screenPoints[0]）右侧 5px 开始，使用 textAnchor="start"
+  const isMaxXRightLabel = isMaxXRightLabelType(measurement.type);
+  // rightSideLabel（侧面）：文字左缘从第1个点右侧 20px 开始，textAnchor="start"
   const firstPointScreenX = screenPoints.length > 0 ? screenPoints[0].x : labelPosition.x;
-  const textLabelX = isRightSideLabel ? firstPointScreenX + 20 : labelPosition.x;
+  // maxXRightLabel（正面 AP）：文字左缘从所有点最大 X 右侧 gap=6px 开始，textAnchor="middle"
+  // 用实际 textWidth 计算文字中心：center = maxScreenX + gap + textWidth/2
+  const maxScreenPointX = screenPoints.length > 0
+    ? Math.max(...screenPoints.map(p => p.x))
+    : labelPosition.x;
+  const AP_LABEL_GAP = 6; // 文字左缘距测量右侧的间距（屏幕像素）
+  const textLabelX = isRightSideLabel
+    ? firstPointScreenX + 20
+    : isMaxXRightLabel
+      ? maxScreenPointX + AP_LABEL_GAP + textWidth / 2
+      : labelPosition.x;
   const textLabelAnchor = isRightSideLabel ? 'start' : 'middle';
 
   return (
