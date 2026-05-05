@@ -694,8 +694,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
   const handleAddMeasurement = useCallback(
     (toolType: string, points: Point[]) => {
-      // 非Admin 用户：允许替换已有的同类型测量（Admin 由 AI 检测统一管理，不替换）
-      const allowReplace = !canUseKeypoints;
+      const typeId = getAnnotationTypeId(toolType);
+      // 侧位 SS 无论哪种用户都允许替换（重新定义骶骨线）；其余测量只有普通用户才替换。
+      const allowReplace = !canUseKeypoints || (isLateralView && typeId === 'ss');
       usecases.addMeasurement(
         toolType,
         points,
@@ -708,28 +709,40 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         allowReplace
       );
 
-      // 普通用户在侧位画完 SS（骶骨上缘连线）后：
-      // 将用户手画的 S1 两端点注入缓存的检测椎体数据，推导所有 S1 复合指标
-      // （PI、PT、LL L1-S1、LL L4-S1、TPA、SVA），并加入/替换到标注列表。
-      if (isLateralView && !canUseKeypoints && getAnnotationTypeId(toolType) === 'ss') {
-        const detection = lateralDetectionResultRef.current;
-        if (!detection || detection.vertebrae.length === 0) return;
-
-        // 用用户手画的 SS 两点替换检测数据里的 S1
-        const baseVertebrae = detection.vertebrae.filter(
-          v => v.label !== 'S1' && v.label !== 'S1-1' && v.label !== 'S1-2'
-        );
+      // 侧位画完 SS（骶骨上缘连线）后，立即推导所有 S1 复合指标：
+      //   普通用户 → 使用预检测缓存的椎体数据
+      //   管理员   → 使用 keypoints 状态（Admin 已有完整检测数据）
+      if (isLateralView && typeId === 'ss') {
         const s1P0 = points[0] ?? { x: 0, y: 0 };
         const s1P1 = points[1] ?? { x: 0, y: 0 };
+
+        let baseVertebrae: VertebraAnnotation[];
+        let cfh: CfhAnnotation | null;
+
+        if (canUseKeypoints) {
+          // 管理员：从 keypoints 状态转换为椎体层，过滤掉旧 S1
+          baseVertebrae = keypointsToDerivedLayer(keypoints, imageData.examType)
+            .filter(v => v.label !== 'S1' && v.label !== 'S1-1' && v.label !== 'S1-2');
+          cfh = cfhAnnotation;
+        } else {
+          // 普通用户：从预检测缓存取数据
+          const detection = lateralDetectionResultRef.current;
+          if (!detection || detection.vertebrae.length === 0) return;
+          baseVertebrae = detection.vertebrae.filter(
+            v => v.label !== 'S1' && v.label !== 'S1-1' && v.label !== 'S1-2'
+          );
+          cfh = detection.cfh;
+        }
+
         const vertebraeWithUserS1: VertebraAnnotation[] = [
           ...baseVertebrae,
-          { label: 'S1-1', corners: [s1P0, s1P0, s1P0, s1P0], confidence: 1, source: 'ai' },
-          { label: 'S1-2', corners: [s1P1, s1P1, s1P1, s1P1], confidence: 1, source: 'ai' },
+          { label: 'S1-1', corners: [s1P0, s1P0, s1P0, s1P0], confidence: 1, source: 'manual' },
+          { label: 'S1-2', corners: [s1P1, s1P1, s1P1, s1P1], confidence: 1, source: 'manual' },
         ];
 
         const allDerived = deriveAllMeasurements(
           vertebraeWithUserS1,
-          detection.cfh,
+          cfh,
           imageData.examType
         );
 
@@ -749,9 +762,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         setMeasurements(prev => {
           let updated = [...prev];
           for (const m of s1Measurements) {
-            const typeId = getAnnotationTypeId(m.type);
+            const mTypeId = getAnnotationTypeId(m.type);
             const existIdx = updated.findIndex(
-              e => getAnnotationTypeId(e.type) === typeId
+              e => getAnnotationTypeId(e.type) === mTypeId
             );
             if (existIdx >= 0) {
               updated[existIdx] = m;
@@ -765,9 +778,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     },
     [
       canUseKeypoints,
+      cfhAnnotation,
       imageData.examType,
       imageNaturalSize,
       isLateralView,
+      keypoints,
       measurements,
       standardDistance,
       standardDistancePoints,
