@@ -1753,22 +1753,67 @@ export const PT_CONFIG: AnnotationConfig = {
     if (!geometry || !geometry.femoralHeadCenter)
       return points[0] || { x: 0, y: 0 };
 
-    // 标签放在测量结构右下方（与PI错开），避免遮挡骨盆线
-    const maxX = Math.max(
-      geometry.femoralHeadCenter.x,
-      geometry.sacralMidpoint.x,
-      ...(points.map(p => p.x))
-    );
-    const bottomY = Math.max(geometry.femoralHeadCenter.y, geometry.sacralMidpoint.y);
-
+    // PT 的角度顶点在 CFH，标签跟随 CFH 右上方显示。
     return {
-      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
-      y: bottomY + LABEL_OFFSET.BOTTOM / imageScale,
+      x: geometry.femoralHeadCenter.x + LABEL_OFFSET.RIGHT / imageScale,
+      y: geometry.femoralHeadCenter.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 
-  isInHoverRange: PI_CONFIG.isInHoverRange,
-  isInSelectionRange: PI_CONFIG.isInSelectionRange,
+  isInHoverRange: (
+    mousePoint: Point,
+    points: Point[],
+    tolerance: number = 10
+  ) => {
+    const geometry = getPelvicMeasurementGeometry(points);
+    if (!geometry) return false;
+
+    for (const point of points) {
+      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
+    }
+
+    if (isPointNearPoint(mousePoint, geometry.sacralMidpoint, tolerance))
+      return true;
+
+    const isNearSacralLine = isPointNearLine(
+      mousePoint,
+      geometry.sacralLeft,
+      geometry.sacralRight,
+      tolerance
+    );
+    if (!geometry.femoralHeadCenter) return isNearSacralLine;
+
+    const verticalLength = 80;
+    const verticalTop = {
+      x: geometry.femoralHeadCenter.x,
+      y: geometry.femoralHeadCenter.y - verticalLength,
+    };
+    const verticalBottom = {
+      x: geometry.femoralHeadCenter.x,
+      y: geometry.femoralHeadCenter.y + verticalLength,
+    };
+    const isNearCfhVertical = isPointNearLine(
+      mousePoint,
+      verticalTop,
+      verticalBottom,
+      tolerance
+    );
+    const isNearFemoralLine = isPointNearLine(
+      mousePoint,
+      geometry.femoralHeadCenter,
+      geometry.sacralMidpoint,
+      tolerance
+    );
+
+    return isNearSacralLine || isNearCfhVertical || isNearFemoralLine;
+  },
+  isInSelectionRange: (
+    mousePoint: Point,
+    points: Point[],
+    tolerance: number = 15
+  ) => {
+    return PT_CONFIG.isInHoverRange(mousePoint, points, tolerance);
+  },
 
   renderSpecialElements: (
     points: Point[],

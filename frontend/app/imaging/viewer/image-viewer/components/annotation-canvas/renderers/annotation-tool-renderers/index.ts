@@ -11,6 +11,6 @@ export { renderSVA } from './renderSVA';
 export { renderT1Slope } from './renderT1Slope';
 export { renderT1Tilt } from './renderT1Tilt';
 export { renderTPA } from './renderTPA';
-export { renderTTS } from './AnnotationToolRenderer';
+export { renderTTS } from './renderTTS';
 export { renderTwoLines } from './renderTwoLines';
 export { renderVerticalLines } from './renderVerticalLines';
