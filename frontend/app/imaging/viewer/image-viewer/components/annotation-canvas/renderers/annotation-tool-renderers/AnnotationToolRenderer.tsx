@@ -14,6 +14,21 @@ type PelvicMeasurementGeometry = {
   sacralNormal: Point;
 };
 
+const RENDER_SCREEN_LENGTHS = {
+  t1TiltArcRadius: 30,
+  t1TiltReferenceHalfWidth: 100,
+  tpaArcRadius: 40,
+  pelvicNormalLength: 80,
+  pelvicVerticalHalfLength: 80,
+  pelvicReferenceHalfWidth: 100,
+  verticalGuideLength: 150,
+  sacralPerpendicularLength: 300,
+  horizontalGuideWidth: 150,
+  fallbackGuideLength: 80,
+  arrowHeadLength: 6,
+  arrowHeadHalfHeight: 4,
+} as const;
+
 function getPelvicMeasurementGeometry(
   screenPoints: Point[]
 ): PelvicMeasurementGeometry | null {
@@ -89,18 +104,18 @@ function buildAngleArc(
 }
 
 function getPelvicArcRadius(
-  imageScale: number,
   referenceLength: number,
   guideLength: number,
   layer: 'inner' | 'outer'
 ): number {
+  const maxArcRadius = 36;
   const baseRadius = Math.max(
-    12 * imageScale,
-    Math.min(36 * imageScale, referenceLength * 0.35, guideLength * 0.45)
+    12,
+    Math.min(maxArcRadius, referenceLength * 0.35, guideLength * 0.45)
   );
 
   if (layer === 'inner') {
-    return Math.max(9 * imageScale, baseRadius - 10 * imageScale);
+    return Math.max(9, baseRadius - 10);
   }
 
   return baseRadius;
@@ -112,27 +127,29 @@ function getPelvicArcRadius(
 export function renderT1Tilt(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
-  const dx = screenPoints[1].x - screenPoints[0].x;
-  const dy = screenPoints[1].y - screenPoints[0].y;
+  const [lineStart, lineEnd] =
+    screenPoints[0].x <= screenPoints[1].x
+      ? [screenPoints[0], screenPoints[1]]
+      : [screenPoints[1], screenPoints[0]];
+  const dx = lineEnd.x - lineStart.x;
+  const dy = lineEnd.y - lineStart.y;
   const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
   let displayAngle = angle;
   if (displayAngle > 90) displayAngle -= 180;
   else if (displayAngle < -90) displayAngle += 180;
 
-  const radius = 30 * imageScale;
+  const radius = RENDER_SCREEN_LENGTHS.t1TiltArcRadius;
   const endAngle = displayAngle;
 
-  const startX = screenPoints[0].x + radius;
-  const startY = screenPoints[0].y;
-  const endX =
-    screenPoints[0].x + radius * Math.cos((endAngle * Math.PI) / 180);
-  const endY =
-    screenPoints[0].y + radius * Math.sin((endAngle * Math.PI) / 180);
+  const startX = lineStart.x + radius;
+  const startY = lineStart.y;
+  const endX = lineStart.x + radius * Math.cos((endAngle * Math.PI) / 180);
+  const endY = lineStart.y + radius * Math.sin((endAngle * Math.PI) / 180);
 
   const largeArcFlag = Math.abs(endAngle) > 180 ? 1 : 0;
   const sweepFlag = endAngle > 0 ? 1 : 0;
@@ -141,19 +158,19 @@ export function renderT1Tilt(
     <>
       {/* 椎体上终板线 */}
       <line
-        x1={screenPoints[0].x}
-        y1={screenPoints[0].y}
-        x2={screenPoints[1].x}
-        y2={screenPoints[1].y}
+        x1={lineStart.x}
+        y1={lineStart.y}
+        x2={lineEnd.x}
+        y2={lineEnd.y}
         stroke={displayColor}
         strokeWidth="2"
       />
       {/* 水平参考线 */}
       <line
-        x1={screenPoints[0].x - 100 * imageScale}
-        y1={screenPoints[0].y}
-        x2={screenPoints[0].x + 100 * imageScale}
-        y2={screenPoints[0].y}
+        x1={lineStart.x - RENDER_SCREEN_LENGTHS.t1TiltReferenceHalfWidth}
+        y1={lineStart.y}
+        x2={lineStart.x + RENDER_SCREEN_LENGTHS.t1TiltReferenceHalfWidth}
+        y2={lineStart.y}
         stroke="#00ff00"
         strokeWidth="1"
         strokeDasharray="5,5"
@@ -210,7 +227,7 @@ export function renderTwoLines(
 export function renderTPA(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 7) return null;
 
@@ -238,7 +255,7 @@ export function renderTPA(
   const dy2 = midY - vertexY;
   const angle2 = Math.atan2(dy2, dx2) * (180 / Math.PI);
 
-  const radius = 40 * imageScale;
+  const radius = RENDER_SCREEN_LENGTHS.tpaArcRadius;
   const startX = vertexX + radius * Math.cos((angle1 * Math.PI) / 180);
   const startY = vertexY + radius * Math.sin((angle1 * Math.PI) / 180);
   const endX = vertexX + radius * Math.cos((angle2 * Math.PI) / 180);
@@ -337,12 +354,12 @@ export function renderTPA(
 export function renderPI(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   const geometry = getPelvicMeasurementGeometry(screenPoints);
   if (!geometry) return null;
 
-  const normalLength = 80 * imageScale;
+  const normalLength = RENDER_SCREEN_LENGTHS.pelvicNormalLength;
   const showArc = !!geometry.femoralHeadCenter;
   let path: string | null = null;
 
@@ -361,12 +378,7 @@ export function renderPI(
     const femoralDistance = Math.sqrt(
       femoralRayX * femoralRayX + femoralRayY * femoralRayY
     );
-    const radius = getPelvicArcRadius(
-      imageScale,
-      femoralDistance,
-      normalLength,
-      'outer'
-    );
+    const radius = getPelvicArcRadius(femoralDistance, normalLength, 'outer');
 
     path = buildAngleArc(
       geometry.sacralMidpoint,
@@ -432,12 +444,12 @@ export function renderPI(
 export function renderPT(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   const geometry = getPelvicMeasurementGeometry(screenPoints);
   if (!geometry) return null;
 
-  const verticalLength = 80 * imageScale;
+  const verticalLength = RENDER_SCREEN_LENGTHS.pelvicVerticalHalfLength;
   let path: string | null = null;
 
   if (geometry.femoralHeadCenter) {
@@ -450,12 +462,7 @@ export function renderPT(
     const femoralDistance = Math.sqrt(
       femoralRayX * femoralRayX + femoralRayY * femoralRayY
     );
-    const radius = getPelvicArcRadius(
-      imageScale,
-      femoralDistance,
-      verticalLength,
-      'inner'
-    );
+    const radius = getPelvicArcRadius(femoralDistance, verticalLength, 'inner');
 
     path = buildAngleArc(
       geometry.sacralMidpoint,
@@ -554,14 +561,14 @@ export function renderSingleLineWithHorizontal(
 export function renderSS(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
   const geometry = getPelvicMeasurementGeometry(screenPoints);
   if (!geometry) return null;
 
-  const normalLength = 80 * imageScale;
+  const normalLength = RENDER_SCREEN_LENGTHS.pelvicNormalLength;
 
   return (
     <>
@@ -574,9 +581,13 @@ export function renderSS(
         strokeWidth="2"
       />
       <line
-        x1={geometry.sacralLeft.x - 100 * imageScale}
+        x1={
+          geometry.sacralLeft.x - RENDER_SCREEN_LENGTHS.pelvicReferenceHalfWidth
+        }
         y1={geometry.sacralLeft.y}
-        x2={geometry.sacralLeft.x + 100 * imageScale}
+        x2={
+          geometry.sacralLeft.x + RENDER_SCREEN_LENGTHS.pelvicReferenceHalfWidth
+        }
         y2={geometry.sacralLeft.y}
         stroke="#00ff00"
         strokeWidth="1"
@@ -611,11 +622,11 @@ export function renderSS(
 export function renderSVA(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
-  const height = 150 * imageScale;
+  const height = RENDER_SCREEN_LENGTHS.verticalGuideLength;
 
   if (screenPoints.length === 5) {
     const centerX =
@@ -751,13 +762,13 @@ export function renderVerticalLines(
 export function renderSacralWithPerpendicular(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
   const midX = (screenPoints[0].x + screenPoints[1].x) / 2;
   const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
-  const perpLength = 300 * imageScale; // 缩短CSVL长度，从800改为300
+  const perpLength = RENDER_SCREEN_LENGTHS.sacralPerpendicularLength;
 
   return (
     <>
@@ -794,11 +805,11 @@ export function renderSacralWithPerpendicular(
 export function renderC7Offset(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 1) return null;
 
-  const height = 150 * imageScale;
+  const height = RENDER_SCREEN_LENGTHS.verticalGuideLength;
   if (screenPoints.length >= 2 && screenPoints.length < 6) {
     const reference = screenPoints[0];
     const center = screenPoints[1];
@@ -935,7 +946,13 @@ export function renderC7Offset(
             strokeDasharray="5,5"
             opacity="0.5"
           />
-          <circle cx={midX!} cy={midY!} r="3" fill={displayColor} opacity="0.8" />
+          <circle
+            cx={midX!}
+            cy={midY!}
+            r="3"
+            fill={displayColor}
+            opacity="0.8"
+          />
           <line
             x1={midX!}
             y1={midY! - height}
@@ -960,11 +977,11 @@ export function renderC7Offset(
 export function renderTTS(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 1) return null;
 
-  const height = 150 * imageScale;
+  const height = RENDER_SCREEN_LENGTHS.verticalGuideLength;
   const has2 = screenPoints.length >= 2;
   const has4 = screenPoints.length >= 4;
 
@@ -975,12 +992,8 @@ export function renderTTS(
     ? (screenPoints[0].y + screenPoints[1].y) / 2
     : (screenPoints[0]?.y ?? 0);
 
-  const sacralMidX = has4
-    ? (screenPoints[2].x + screenPoints[3].x) / 2
-    : null;
-  const sacralMidY = has4
-    ? (screenPoints[2].y + screenPoints[3].y) / 2
-    : null;
+  const sacralMidX = has4 ? (screenPoints[2].x + screenPoints[3].x) / 2 : null;
+  const sacralMidY = has4 ? (screenPoints[2].y + screenPoints[3].y) / 2 : null;
 
   const connectorY =
     has4 && sacralMidY !== null ? (trunkMidY + sacralMidY) / 2 : trunkMidY;
@@ -1038,11 +1051,11 @@ export function renderTTS(
             strokeWidth="1.5"
           />
           <polygon
-            points={`${Math.min(trunkMidX, sacralMidX)},${connectorY} ${Math.min(trunkMidX, sacralMidX) + 6 * imageScale},${connectorY - 4 * imageScale} ${Math.min(trunkMidX, sacralMidX) + 6 * imageScale},${connectorY + 4 * imageScale}`}
+            points={`${Math.min(trunkMidX, sacralMidX)},${connectorY} ${Math.min(trunkMidX, sacralMidX) + RENDER_SCREEN_LENGTHS.arrowHeadLength},${connectorY - RENDER_SCREEN_LENGTHS.arrowHeadHalfHeight} ${Math.min(trunkMidX, sacralMidX) + RENDER_SCREEN_LENGTHS.arrowHeadLength},${connectorY + RENDER_SCREEN_LENGTHS.arrowHeadHalfHeight}`}
             fill={displayColor}
           />
           <polygon
-            points={`${Math.max(trunkMidX, sacralMidX)},${connectorY} ${Math.max(trunkMidX, sacralMidX) - 6 * imageScale},${connectorY - 4 * imageScale} ${Math.max(trunkMidX, sacralMidX) - 6 * imageScale},${connectorY + 4 * imageScale}`}
+            points={`${Math.max(trunkMidX, sacralMidX)},${connectorY} ${Math.max(trunkMidX, sacralMidX) - RENDER_SCREEN_LENGTHS.arrowHeadLength},${connectorY - RENDER_SCREEN_LENGTHS.arrowHeadHalfHeight} ${Math.max(trunkMidX, sacralMidX) - RENDER_SCREEN_LENGTHS.arrowHeadLength},${connectorY + RENDER_SCREEN_LENGTHS.arrowHeadHalfHeight}`}
             fill={displayColor}
           />
         </>
@@ -1057,11 +1070,11 @@ export function renderTTS(
 export function renderHorizontalLines(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
-  const width = 150 * imageScale;
+  const width = RENDER_SCREEN_LENGTHS.horizontalGuideWidth;
 
   return (
     <>
@@ -1093,7 +1106,7 @@ export function renderHorizontalLines(
 export function renderSingleHorizontalLine(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 1) return null;
 
@@ -1113,7 +1126,7 @@ export function renderSingleHorizontalLine(
   }
 
   const point = screenPoints[0];
-  const lineLength = 80 * imageScale;
+  const lineLength = RENDER_SCREEN_LENGTHS.fallbackGuideLength;
 
   return (
     <line
@@ -1135,7 +1148,7 @@ export function renderSingleHorizontalLine(
 export function renderSingleVerticalLine(
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  _imageScale: number
 ): JSX.Element | null {
   if (screenPoints.length < 1) return null;
 
@@ -1155,7 +1168,7 @@ export function renderSingleVerticalLine(
   }
 
   const point = screenPoints[0];
-  const lineLength = 80 * imageScale;
+  const lineLength = RENDER_SCREEN_LENGTHS.fallbackGuideLength;
 
   return (
     <line
