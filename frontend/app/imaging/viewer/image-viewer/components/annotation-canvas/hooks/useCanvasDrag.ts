@@ -24,7 +24,8 @@ interface UseCanvasDragOptions {
   onMeasurementWriteback?: (
     measurementType: string,
     pointIndex: number,
-    newPoint: Point
+    newPoint: Point,
+    measurementId?: string
   ) => void;
   imageToScreen: (point: Point) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
@@ -309,7 +310,8 @@ export function useCanvasDrag({
           onMeasurementWriteback(
             measurement.type,
             selectionState.pointIndex,
-            { x: newPointX, y: newPointY }
+            { x: newPointX, y: newPointY },
+            measurement.id
           );
         }
 

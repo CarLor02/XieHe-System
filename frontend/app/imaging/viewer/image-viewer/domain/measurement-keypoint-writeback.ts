@@ -51,13 +51,23 @@ type ApVertebraCornerTarget = {
   cornerIndex: 0 | 1 | 2 | 3;
 };
 
+/**
+ * 正位动态椎体角点写回目标。
+ * 椎体标签由运行时传入（如 AVT 的顶锥名称），不在映射表中静态指定。
+ */
+type ApVertebraDynamicTarget = {
+  kind: 'ap-vertebra-dynamic';
+  cornerIndex: 0 | 1 | 2 | 3;
+};
+
 type WritebackTarget =
   | VertebraTarget
   | S1Target
   | S1PosteriorTarget
   | CfhTarget
   | ApPoseTarget
-  | ApVertebraCornerTarget;
+  | ApVertebraCornerTarget
+  | ApVertebraDynamicTarget;
 
 // ─── 映射表（measurement type → 每个 pointIndex 对应的 vertebraeLayer 目标）──
 
@@ -137,6 +147,26 @@ const WRITEBACK_MAP: Record<string, WritebackTarget[]> = {
   't1-tilt': [
     { kind: 'ap-vertebra', label: 'T1', cornerIndex: 0 },
     { kind: 'ap-vertebra', label: 'T1', cornerIndex: 1 },
+  ],
+  // TS：6点格式 [tl, tr, bl, br, SR, SL]
+  // points[0..3] → T1 四个角点；points[4..5] → 骶骨参考点 SR/SL
+  'ts': [
+    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 0 },
+    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 1 },
+    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 2 },
+    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 3 },
+    { kind: 'ap-pose', keypointId: 'SR' },
+    { kind: 'ap-pose', keypointId: 'SL' },
+  ],
+  // AVT：6点格式 [tl, tr, bl, br, SR, SL]
+  // points[0..3] → 顶锥四个角点（椎体标签由运行时动态传入）；points[4..5] → SR/SL
+  'avt': [
+    { kind: 'ap-vertebra-dynamic', cornerIndex: 0 },
+    { kind: 'ap-vertebra-dynamic', cornerIndex: 1 },
+    { kind: 'ap-vertebra-dynamic', cornerIndex: 2 },
+    { kind: 'ap-vertebra-dynamic', cornerIndex: 3 },
+    { kind: 'ap-pose', keypointId: 'SR' },
+    { kind: 'ap-pose', keypointId: 'SL' },
   ],
 };
 
@@ -231,11 +261,12 @@ export interface WritebackResult {
 /**
  * 将测量点的新坐标写回 vertebraeLayer / cfhAnnotation。
  *
- * @param vertebraeLayer  当前椎体角点层
- * @param cfhAnnotation   当前股骨头标注
- * @param measurementType 被拖拽的测量类型（如 'pi', 't1-slope'）
- * @param pointIndex      被拖拽的 points[] 索引
- * @param newPoint        新的图像坐标
+ * @param vertebraeLayer       当前椎体角点层
+ * @param cfhAnnotation        当前股骨头标注
+ * @param measurementType      被拖拽的测量类型（如 'pi', 't1-slope'）
+ * @param pointIndex           被拖拽的 points[] 索引
+ * @param newPoint             新的图像坐标
+ * @param dynamicVertebraLabel 动态椎体标签（用于 AVT 等顶锥可变的情况）
  * @returns 更新后的 vertebraeLayer 和 cfhAnnotation（未改变时返回原引用）
  */
 export function applyMeasurementPointToVertebrae(
@@ -243,7 +274,8 @@ export function applyMeasurementPointToVertebrae(
   cfhAnnotation: CfhAnnotation | null,
   measurementType: string,
   pointIndex: number,
-  newPoint: Point
+  newPoint: Point,
+  dynamicVertebraLabel?: string
 ): WritebackResult {
   const typeId = getAnnotationTypeId(measurementType);
   const targets = WRITEBACK_MAP[typeId];
@@ -291,13 +323,18 @@ export function applyMeasurementPointToVertebrae(
       next[0] = newPoint;
       return { ...v, corners: next, source: 'manual' as const };
     });
-  } else if (target.kind === 'ap-vertebra') {
+  } else if (target.kind === 'ap-vertebra' || target.kind === 'ap-vertebra-dynamic') {
     // 正位椎体角点写回，支持两种 vertebraeLayer 存储格式：
     // 1. 分组格式（keypointsToDerivedLayer 产生）：{label:'T1', corners:[tl,tr,bl,br]}
     //    → 直接更新 corners[cornerIndex]
     // 2. 独立关键点格式（keypointsToPersistedLayer 产生）：{label:'T1-1', corners:[pt,...]}, ...
     //    → 找到 label='T1-${cornerIndex+1}' 的条目，更新其 corners[0]
-    const { label, cornerIndex } = target;
+    const cornerIndex = target.cornerIndex;
+    const label =
+      target.kind === 'ap-vertebra'
+        ? target.label
+        : dynamicVertebraLabel ?? null;
+    if (!label) return { vertebraeLayer, cfhAnnotation }; // 动态标签未提供时跳过
     const hasGrouped = vertebraeLayer.some(v => v.label === label);
     if (hasGrouped) {
       nextLayer = vertebraeLayer.map(v => {

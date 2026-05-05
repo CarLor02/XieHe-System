@@ -16,8 +16,6 @@ export const AVT_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#059669',
   maxXRightLabel: true,
-  // 前4个角点仅用于渲染锥体框，不显示交互圆圈
-  interactivePointsCount: 0,
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 2) return [];

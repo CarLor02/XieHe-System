@@ -1521,14 +1521,21 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
    * Cobb 和辅助图形在映射表中无条目，自动跳过。
    */
   const handleMeasurementWriteback = useCallback(
-    (measurementType: string, pointIndex: number, newPoint: Point) => {
+    (measurementType: string, pointIndex: number, newPoint: Point, measurementId?: string) => {
+      // 对于动态椎体测量（如 AVT），需要从当前 measurement 中读取 apexVertebra
+      const sourceMeasurement = measurementId
+        ? measurements.find(m => m.id === measurementId)
+        : null;
+      const dynamicVertebraLabel = sourceMeasurement?.apexVertebra ?? undefined;
+
       const { vertebraeLayer: nextLayer, cfhAnnotation: nextCfh } =
         applyMeasurementPointToVertebrae(
           activeVertebraeLayer,
           cfhAnnotation,
           measurementType,
           pointIndex,
-          newPoint
+          newPoint,
+          dynamicVertebraLabel
         );
       // 仅在有实际变化时更新，避免不必要重渲染
       if (nextLayer !== activeVertebraeLayer) {
@@ -1541,7 +1548,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         setCfhAnnotation(nextCfh);
       }
     },
-    [activeVertebraeLayer, cfhAnnotation, imageData.examType, isKeypointExam]
+    [activeVertebraeLayer, cfhAnnotation, imageData.examType, isKeypointExam, measurements]
   );
 
   const handleSaveMeasurements = useCallback(() => {

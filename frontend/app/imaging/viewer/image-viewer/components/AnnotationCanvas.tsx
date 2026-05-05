@@ -147,7 +147,8 @@ export default function AnnotationCanvas({
   onMeasurementWriteback?: (
     measurementType: string,
     pointIndex: number,
-    newPoint: Point
+    newPoint: Point,
+    measurementId?: string
   ) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
