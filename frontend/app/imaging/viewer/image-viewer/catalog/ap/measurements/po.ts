@@ -24,6 +24,7 @@ export const PO_CONFIG: AnnotationConfig = {
   pointsNeeded: 2,
   category: 'measurement',
   color: '#ec4899',
+  maxXRightLabel: true,
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 2) return [];
@@ -48,11 +49,11 @@ export const PO_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
-    // 标签放在线段右端点的右上方，避免遮挡解剖结构和关键点
+    // maxXRightLabel=true：渲染层用屏幕坐标计算 X，此处只需提供 Y 和碰撞避让用的估算 X。
     const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
       x: rightPoint.x + LABEL_OFFSET.RIGHT / imageScale,
-      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
+      y: rightPoint.y,
     };
   },
 
