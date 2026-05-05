@@ -46,8 +46,9 @@ export function useAnnotationEngine({
 
   /**
    * 当标注列表的结构（增删）变化时自动重建 S1 上缘点绑定。
-   * 只要存在 ≥2 个 S1 相关标注（SS / LL L1-S1 / LL L4-S1 / PI / PT / TPA），即自动绑定，无需用户操作。
+   * 只要存在 ≥2 个 S1 相关标注（SS / LL L1-S1 / LL L4-S1 / PI / PT / TPA / SVA），即自动绑定，无需用户操作。
    * 绑定重建仅在 AI 返回数据、标注完成这两个时刻触发，手动拖动不会重置绑定状态。
+   * SVA[4] 骶椎后缘参考点与 S1上缘右端点同位，纳入绑定族后可与 SS/PI/PT 联动。
    */
   useEffect(() => {
     const S1_RELATED_TYPES = new Set([
@@ -57,6 +58,7 @@ export function useAnnotationEngine({
       'pi',
       'pt',
       'tpa',
+      'sva',
     ]);
     const s1Count = measurements.filter(measurement =>
       S1_RELATED_TYPES.has(getAnnotationTypeId(measurement.type))

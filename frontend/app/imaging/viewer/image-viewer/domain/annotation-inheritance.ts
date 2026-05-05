@@ -115,8 +115,11 @@ export interface SharedAnatomicalPoint {
  * - L1上缘左端点:  LL L1-L4[0] / LL L1-S1[0]
  * - L1上缘右端点:  LL L1-L4[1] / LL L1-S1[1]
  * - S1上缘左端点:  LL L1-S1[2] / LL L4-S1[2] / TPA[5] / PI[1] / PT[1] / SS[0]
- * - S1上缘右端点:  LL L1-S1[3] / LL L4-S1[3] / TPA[6] / PI[2] / PT[2] / SS[1]
+ * - S1上缘右端点:  LL L1-S1[3] / LL L4-S1[3] / TPA[6] / PI[2] / PT[2] / SS[1] / SVA[4]
  * - T1椎体中心:    TPA[4] / PI[0] / PT[0]
+ *
+ * 注：SVA[4] 是骶椎后缘参考点，与 S1上缘右端点（后缘/患者后方）重合，纳入同步组后
+ * 拖动 SS/PI/PT 的对应点时 SVA 的骶椎参考点会自动跟随。
  */
 export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
   {
@@ -157,6 +160,8 @@ export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
       { toolId: 'pi', typeName: 'pi', pointIndex: 2 },
       { toolId: 'pt', typeName: 'pt', pointIndex: 2 },
       { toolId: 'ss', typeName: 'ss', pointIndex: 1 },
+      // SVA[4] = 骶椎后缘参考点，与 S1上缘右端点（后缘）同位，纳入绑定组
+      { toolId: 'sva', typeName: 'sva', pointIndex: 4 },
     ],
   },
   {
