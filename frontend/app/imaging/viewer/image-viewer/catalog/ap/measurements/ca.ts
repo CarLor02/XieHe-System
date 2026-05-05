@@ -41,9 +41,11 @@ export const CA_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在线段右端点的右侧，考虑文字宽度，避免遮挡线段
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20,
+      x: rightPoint.x + LABEL_OFFSET.TEXT_HALF / imageScale,
+      y: rightPoint.y - LABEL_OFFSET.TOP / imageScale,
     };
   },
 

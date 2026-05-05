@@ -48,9 +48,11 @@ export const AVT_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在两点中最右侧点的右侧，考虑文字宽度
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return {
-      x: (points[0].x + points[1].x) / 2,
-      y: Math.min(points[0].y, points[1].y) - 20 / imageScale,
+      x: rightPoint.x + LABEL_OFFSET.TEXT_HALF / imageScale,
+      y: Math.min(points[0].y, points[1].y) - LABEL_OFFSET.TOP / imageScale,
     };
   },
 

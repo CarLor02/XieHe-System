@@ -42,8 +42,9 @@ export const LLD_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在两点中最右侧点的右侧，考虑文字宽度
     return {
-      x: Math.max(points[0].x, points[1].x) + 20 / imageScale,
+      x: Math.max(points[0].x, points[1].x) + LABEL_OFFSET.TEXT_HALF / imageScale,
       y: (points[0].y + points[1].y) / 2,
     };
   },
