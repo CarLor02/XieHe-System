@@ -177,9 +177,9 @@ export function useCanvasDrag({
       const selectedTypeId = selectedMeasurement
         ? getAnnotationTypeId(selectedMeasurement.type)
         : null;
-      // TTS / AVT 不允许整体拖拽，但允许逐点拖拽（selectionState.type === 'point'）
+      // AVT 不允许整体拖拽，但允许逐点拖拽（selectionState.type === 'point'）
       if (
-        (selectedTypeId === 'tts' || selectedTypeId === 'avt') &&
+        selectedTypeId === 'avt' &&
         selectionState.type !== 'point'
       ) {
         return false;
@@ -206,9 +206,9 @@ export function useCanvasDrag({
         return false;
       }
       const activeTypeId = getAnnotationTypeId(measurement.type);
-      // 整体拖拽仍然禁止；逐点拖拽继续向下执行（Y 约束在下方处理）
+      // AVT 整体拖拽禁止；TTS 允许整体拖拽（只移动躯干线，见下方）；逐点拖拽正常通过
       if (
-        (activeTypeId === 'tts' || activeTypeId === 'avt') &&
+        activeTypeId === 'avt' &&
         selectionState.type !== 'point'
       ) {
         return false;
@@ -320,18 +320,25 @@ export function useCanvasDrag({
         return false;
       }
 
-      const xs = measurement.points.map(point => point.x);
-      const ys = measurement.points.map(point => point.y);
+      // TTS 整体拖拽：只移动躯干线（点0-1），骶骨参考线（点2-3，继承自CSS）保持不动。
+      // 中心也只用躯干线两点，否则 dragOffset 与移动中心不一致会导致抖动。
+      const isTtsDrag = activeTypeId === 'tts';
+      const centerPoints = isTtsDrag
+        ? measurement.points.slice(0, 2)
+        : measurement.points;
+      const xs = centerPoints.map(point => point.x);
+      const ys = centerPoints.map(point => point.y);
       const currentCenterX = (Math.min(...xs) + Math.max(...xs)) / 2;
       const currentCenterY = (Math.min(...ys) + Math.max(...ys)) / 2;
       const newCenterX = imagePoint.x - selectionState.dragOffset.x;
       const newCenterY = imagePoint.y - selectionState.dragOffset.y;
       const deltaX = newCenterX - currentCenterX;
       const deltaY = newCenterY - currentCenterY;
-      const movedPoints = measurement.points.map(point => ({
-        x: point.x + deltaX,
-        y: point.y + deltaY,
-      }));
+      const movedPoints = measurement.points.map((point, idx) => {
+        // TTS: 只移动躯干线（索引0、1），骶骨线（索引2、3）固定
+        if (isTtsDrag && idx >= 2) return point;
+        return { x: point.x + deltaX, y: point.y + deltaY };
+      });
 
       let bindingPropagated = measurements;
       for (

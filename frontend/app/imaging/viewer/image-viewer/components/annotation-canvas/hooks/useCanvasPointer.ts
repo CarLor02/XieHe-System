@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { INTERACTION_CONSTANTS } from '../../../shared/constants';
+import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 import { calculateDistance } from '../../../shared/geometry';
 import { MeasurementData, Point } from '../../../types';
 import { hitTestMeasurement } from '../hitTest/hitTestMeasurement';
@@ -209,8 +210,14 @@ export function useCanvasPointer({
           } else {
             // 点击测量体（非点区域）：整体拖拽
             onDisplayMeasurementSelect(null);
-            const xs = selectedMeasurement.points.map(point => point.x);
-            const ys = selectedMeasurement.points.map(point => point.y);
+            // TTS: 只移动躯干线（点0-1），dragOffset 用躯干线中心（与移动时保持一致，避免跳变）
+            const selectedTypeId = getAnnotationTypeId(selectedMeasurement.type);
+            const pointsForCenter =
+              selectedTypeId === 'tts' && selectedMeasurement.points.length >= 2
+                ? selectedMeasurement.points.slice(0, 2)
+                : selectedMeasurement.points;
+            const xs = pointsForCenter.map(point => point.x);
+            const ys = pointsForCenter.map(point => point.y);
             const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
             const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
             setSelectionState({
@@ -283,8 +290,14 @@ export function useCanvasPointer({
               imageToScreen
             );
             if (isPointInSelectionBox(screenPoint, box)) {
-              const xs = measurement.points.map(point => point.x);
-              const ys = measurement.points.map(point => point.y);
+              // TTS: 只移动躯干线，dragOffset 用躯干线中心
+              const wholeTypeId = getAnnotationTypeId(measurement.type);
+              const pointsForCenter =
+                wholeTypeId === 'tts' && measurement.points.length >= 2
+                  ? measurement.points.slice(0, 2)
+                  : measurement.points;
+              const xs = pointsForCenter.map(point => point.x);
+              const ys = pointsForCenter.map(point => point.y);
               const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
               const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
               setSelectionState(previous => ({

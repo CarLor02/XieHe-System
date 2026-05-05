@@ -518,16 +518,15 @@ export default function renderMeasurement({
   const isMaxXRightLabel = isMaxXRightLabelType(measurement.type);
   // rightSideLabel（侧面）：文字左缘从第1个点右侧 20px 开始，textAnchor="start"
   const firstPointScreenX = screenPoints.length > 0 ? screenPoints[0].x : labelPosition.x;
-  // maxXRightLabel（正面 AP）：文字左缘从所有点最大 X 右侧 gap=6px 开始，textAnchor="middle"
-  // 用实际 textWidth 计算文字中心：center = maxScreenX + gap + textWidth/2
-  const maxScreenPointX = screenPoints.length > 0
-    ? Math.max(...screenPoints.map(p => p.x))
-    : labelPosition.x;
-  const AP_LABEL_GAP = 6; // 文字左缘距测量右侧的间距（屏幕像素）
+  // maxXRightLabel（正面 AP）：锚点 = getLabelPosition 的 X 转换到屏幕空间（labelPosition.x）。
+  // 文字左缘从锚点右侧 gap=6px 开始：center = labelPosition.x + gap + textWidth/2。
+  // 这样各测量只需在 getLabelPosition 返回正确的图像坐标 X（如右侧中点、右端点等），
+  // 渲染层统一处理屏幕偏移，不受 fitScale 影响。
+  const AP_LABEL_GAP = 6; // 文字左缘距锚点右侧的间距（屏幕像素）
   const textLabelX = isRightSideLabel
     ? firstPointScreenX + 20
     : isMaxXRightLabel
-      ? maxScreenPointX + AP_LABEL_GAP + textWidth / 2
+      ? labelPosition.x + AP_LABEL_GAP + textWidth / 2
       : labelPosition.x;
   const textLabelAnchor = isRightSideLabel ? 'start' : 'middle';
 
