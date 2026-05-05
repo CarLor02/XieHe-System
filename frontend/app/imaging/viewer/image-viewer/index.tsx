@@ -695,8 +695,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const handleAddMeasurement = useCallback(
     (toolType: string, points: Point[]) => {
       const typeId = getAnnotationTypeId(toolType);
-      // 侧位 SS 无论哪种用户都允许替换（重新定义骶骨线）；其余测量只有普通用户才替换。
-      const allowReplace = !canUseKeypoints || (isLateralView && typeId === 'ss');
+      // 侧位管理员也允许手动覆盖（像普通用户一样重新标注）；SS 所有用户始终允许替换。
+      const allowReplace = !canUseKeypoints || isLateralView;
       usecases.addMeasurement(
         toolType,
         points,
@@ -708,6 +708,33 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         imageNaturalSize,
         allowReplace
       );
+
+      // 侧位管理员手动放点后，将各端点坐标同步写回 vertebraeLayer / keypoints，
+      // 保持关键点状态与手动测量一致。SS 由下方专用逻辑处理，此处跳过。
+      if (canUseKeypoints && isLateralView && typeId !== 'ss') {
+        let currentLayer = activeVertebraeLayer;
+        let currentCfh = cfhAnnotation;
+        for (let i = 0; i < points.length; i++) {
+          const result = applyMeasurementPointToVertebrae(
+            currentLayer,
+            currentCfh,
+            toolType,
+            i,
+            points[i]
+          );
+          currentLayer = result.vertebraeLayer;
+          currentCfh = result.cfhAnnotation;
+        }
+        if (currentLayer !== activeVertebraeLayer) {
+          setVertebraeLayer(currentLayer);
+          if (isKeypointExam) {
+            setKeypoints(vertebraeLayerToKeypoints(currentLayer, imageData.examType));
+          }
+        }
+        if (currentCfh !== cfhAnnotation) {
+          setCfhAnnotation(currentCfh);
+        }
+      }
 
       // 侧位画完 SS（骶骨上缘连线）后，立即推导所有 S1 复合指标：
       //   普通用户 → 使用预检测缓存的椎体数据
@@ -777,10 +804,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       }
     },
     [
+      activeVertebraeLayer,
       canUseKeypoints,
       cfhAnnotation,
       imageData.examType,
       imageNaturalSize,
+      isKeypointExam,
       isLateralView,
       keypoints,
       measurements,

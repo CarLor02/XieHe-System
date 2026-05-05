@@ -490,6 +490,13 @@ export default function AnnotationToolbar({
                         const missingKeypoints = getMissingKeypointsForTool(
                           tool.id
                         );
+                        // 仅当 AI 推导数据确实可恢复时才走自动路径；
+                        // exists / missing-keypoints 时回退为手动放点（管理员也可像普通用户交互）。
+                        const isEffectivelyAutomaticTool =
+                          isAutomaticTool && automaticStatus === 'available';
+                        // 管理员的手动放点回退模式（AI 数据不可用或测量已存在）
+                        const isInManualFallbackMode =
+                          isAutomaticTool && !isEffectivelyAutomaticTool;
                         const selectionStatus =
                           isCobbTool
                             ? canCreateCobb
@@ -503,23 +510,24 @@ export default function AnnotationToolbar({
                           : isUniquenessBlocked
                             ? 'exists'
                             : 'missing-keypoints';
-                        const isToolAvailable = isAutomaticTool
-                          ? automaticStatus === 'available'
-                          : isCobbTool
-                            ? canCreateCobb
-                            // AVT：Admin 须满足骶骨线条件；普通用户直接放点，但已存在时同样禁用
-                            : tool.id === 'avt'
-                              ? (canUseKeypointTools ? canCreateAvt : !isUniquenessBlocked)
-                              // 所有其他工具（含 TTS）：已存在时禁用
-                              : !isUniquenessBlocked;
-                        const toolTitle = isAutomaticTool
-                          ? isToolAvailable
-                            ? `${tool.name} 可恢复，点击自动生成`
-                            : getUnavailableTitle(
-                                tool.name,
-                                automaticStatus,
-                                missingKeypoints
-                              )
+                        // 管理员手动回退模式：始终可用（允许重新放置或补充放置）
+                        const isToolAvailable = isEffectivelyAutomaticTool
+                          ? true
+                          : isInManualFallbackMode
+                            ? true
+                            : isCobbTool
+                              ? canCreateCobb
+                              // AVT：Admin 须满足骶骨线条件；普通用户直接放点，但已存在时同样禁用
+                              : tool.id === 'avt'
+                                ? (canUseKeypointTools ? canCreateAvt : !isUniquenessBlocked)
+                                // 所有其他工具（含 TTS）：已存在时禁用
+                                : !isUniquenessBlocked;
+                        const toolTitle = isEffectivelyAutomaticTool
+                          ? `${tool.name} 可恢复，点击自动生成`
+                          : isInManualFallbackMode
+                            ? automaticStatus === 'exists'
+                              ? `重新手动标注 ${tool.name}`
+                              : tool.description
                           : !isToolAvailable &&
                               (isUniqueAnnotationTool(tool.id) ||
                                 isSelectionTool)
@@ -539,7 +547,8 @@ export default function AnnotationToolbar({
                             key={tool.id}
                             onClick={() => {
                               if (!isToolAvailable) return;
-                              if (isAutomaticTool) {
+                              // 仅在 AI 数据真正可恢复时走自动路径；否则像普通用户一样手动放点
+                              if (isEffectivelyAutomaticTool) {
                                 setOpenMeasurementTool(null);
                                 onRestoreAutomaticMeasurement(tool.id);
                                 return;
