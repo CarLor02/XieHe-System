@@ -165,6 +165,9 @@ export default function AnnotationToolbar({
   const selectableVertebraGroups = keypointGroups
     .filter(group => !['pose', 'S1', 'CFH'].includes(group.id))
     .map(group => group.name);
+  const vertebraCenterSelectableGroups = selectableVertebraGroups.filter(
+    group => isAnteriorView || group !== 'C2'
+  );
   const cobbSelectableGroups = isAnteriorView
     ? selectableVertebraGroups
     : completeVertebraGroups;
@@ -179,7 +182,7 @@ export default function AnnotationToolbar({
     hasSacralLine &&
     completeVertebraGroups.length >= 2;
   const canCreateCobb = isAnteriorView && cobbSelectableGroups.length >= 2;
-  const hasAvailableVertebraCenter = completeVertebraGroups.some(
+  const hasAvailableVertebraCenter = vertebraCenterSelectableGroups.some(
     group =>
       !measurements.some(
         item => item.type === 'vertebra-center' && item.upperVertebra === group
@@ -187,7 +190,7 @@ export default function AnnotationToolbar({
   );
   const vertebraCenterStatus: ToolStatus = hasAvailableVertebraCenter
     ? 'available'
-    : completeVertebraGroups.length > 0
+    : vertebraCenterSelectableGroups.length > 0
       ? 'exists'
       : 'missing-keypoints';
   const avtStatus: ToolStatus = canCreateAvt
@@ -272,7 +275,7 @@ export default function AnnotationToolbar({
         ];
       }
       if (toolId === 'cobb') return getMissingAnyCompleteVertebra(2);
-      if (toolId === 'vertebra-center') return getMissingAnyCompleteVertebra(1);
+      if (toolId === 'vertebra-center') return [];
       if (toolId === 'avt') {
         return [
           ...getMissingPointIds(['SL', 'SR']),
@@ -347,7 +350,7 @@ export default function AnnotationToolbar({
       return getMissingPointIds(['CFH', 'S1-1', 'S1-2']);
     }
     if (toolId === 'ss') return getMissingPointIds(['S1-1', 'S1-2']);
-    if (toolId === 'vertebra-center') return getMissingAnyCompleteVertebra(1);
+    if (toolId === 'vertebra-center') return [];
 
     return [];
   };
@@ -644,14 +647,16 @@ export default function AnnotationToolbar({
                         <div className="text-xs text-gray-300 mb-2">
                           椎体中心
                         </div>
-                        {completeVertebraGroups.length > 0 ? (
+                        {vertebraCenterSelectableGroups.length > 0 ? (
                           <div className="grid grid-cols-4 gap-2">
-                            {completeVertebraGroups.map(group => {
+                            {vertebraCenterSelectableGroups.map(group => {
                               const exists = measurements.some(
                                 item =>
                                   item.type === 'vertebra-center' &&
                                   item.upperVertebra === group
                               );
+                              const hasCompleteCorners =
+                                completeVertebraGroups.includes(group);
                               return (
                                 <button
                                   key={group}
@@ -663,13 +668,27 @@ export default function AnnotationToolbar({
                                     }
                                   }}
                                   disabled={exists}
-                                  className={`h-8 rounded text-xs ${
+                                  title={
+                                    exists
+                                      ? `${group} 椎体中心已存在`
+                                      : hasCompleteCorners
+                                        ? `直接显示 ${group} 椎体中心`
+                                        : `标注 ${group} 的四个角点`
+                                  }
+                                  className={`h-10 rounded text-xs ${
                                     exists
                                       ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
                                       : 'bg-gray-800 text-white hover:bg-gray-700'
                                   }`}
                                 >
-                                  {group}
+                                  <span className="block leading-none">
+                                    {group}
+                                  </span>
+                                  {!exists && (
+                                    <span className="mt-1 block text-[10px] leading-none text-gray-400">
+                                      {hasCompleteCorners ? '直接显示' : '标四角'}
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}

@@ -59,6 +59,11 @@ function getPointColor(
   return fallbackColor;
 }
 
+function orderVertebraCenterOutlinePoints<T>(points: T[]): T[] {
+  if (points.length < 4) return points;
+  return [points[0], points[1], points[3], points[2]];
+}
+
 function renderIndexedPoint({
   measurement,
   point,
@@ -296,6 +301,7 @@ function renderAuxiliaryShape(
   }
 
   if (typeId === 'vertebra-center' && screenPoints.length === 4) {
+    const outlinePoints = orderVertebraCenterOutlinePoints(screenPoints);
     const centerScreen = {
       x: (screenPoints[0].x + screenPoints[1].x + screenPoints[2].x + screenPoints[3].x) / 4,
       y: (screenPoints[0].y + screenPoints[1].y + screenPoints[2].y + screenPoints[3].y) / 4,
@@ -304,7 +310,7 @@ function renderAuxiliaryShape(
     return (
       <g>
         <polygon
-          points={screenPoints.map(point => `${point.x},${point.y}`).join(' ')}
+          points={outlinePoints.map(point => `${point.x},${point.y}`).join(' ')}
           fill="none"
           stroke={displayColor}
           strokeWidth={isMeasurementSelected || isMeasurementHovered ? '3' : '2'}

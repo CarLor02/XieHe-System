@@ -162,6 +162,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setMeasurementBindings([]);
     setSuppressedMeasurementIds([]);
     setPendingManualCobbBinding(null);
+    setPendingManualVertebraCenter(null);
     setCfhAnnotation(null);
     setShowVertebraeLayer(false);
   };
@@ -192,6 +193,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     upperVertebra: string;
     lowerVertebra: string;
   } | null>(null);
+  const [pendingManualVertebraCenter, setPendingManualVertebraCenter] =
+    useState<string | null>(null);
   const [cfhAnnotation, setCfhAnnotation] = useState<CfhAnnotation | null>(
     null
   );
@@ -324,6 +327,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         : vertebraeLayer,
     [isKeypointExam, keypoints, vertebraeLayer]
   );
+
+  useEffect(() => {
+    if (selectedTool !== 'vertebra-center' && pendingManualVertebraCenter) {
+      setPendingManualVertebraCenter(null);
+    }
+  }, [pendingManualVertebraCenter, selectedTool]);
 
   useEffect(() => {
     if (!isKeypointExam) return;
@@ -714,6 +723,63 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           return;
         }
 
+        if (
+          typeId === 'vertebra-center' &&
+          pendingManualVertebraCenter &&
+          points.length >= 4
+        ) {
+          const nextKeypoints = [1, 2, 3, 4]
+            .map((pointNumber, index) => ({
+              id: `${pendingManualVertebraCenter}-${pointNumber}`,
+              point: points[index],
+              source: 'manual' as const,
+              confidence: 1,
+            }))
+            .reduce(
+              (current, keypoint) => upsertKeypoint(current, keypoint),
+              keypoints
+            );
+          const measurement = createVertebraCenterMeasurement(
+            pendingManualVertebraCenter,
+            nextKeypoints
+          );
+
+          if (measurement) {
+            const binding = buildMeasurementProjectionBinding(measurement);
+            if (binding) {
+              setMeasurementBindings(previous =>
+                upsertMeasurementProjectionBinding(previous, binding)
+              );
+              setSuppressedMeasurementIds(previous =>
+                previous.filter(id => id !== measurement.id)
+              );
+            }
+            setMeasurements(previous => {
+              if (
+                previous.some(
+                  item =>
+                    item.type === 'vertebra-center' &&
+                    item.upperVertebra === pendingManualVertebraCenter
+                )
+              ) {
+                return previous;
+              }
+              return [...previous, measurement];
+            });
+          }
+
+          setPendingManualVertebraCenter(null);
+          setKeypoints(nextKeypoints);
+          setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+          if (isLateralView) {
+            setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+          }
+          setSelectedTool('hand');
+          setSaveMessage(`${pendingManualVertebraCenter} 椎体中心关键点已更新`);
+          setTimeout(() => setSaveMessage(''), 2500);
+          return;
+        }
+
         const manualResult = applyManualMeasurementPointsToKeypoints(
           keypoints,
           toolType,
@@ -767,6 +833,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       deriveKeypointMeasurements,
       isLateralView,
       pendingManualCobbBinding,
+      pendingManualVertebraCenter,
       rebuildKeypointMeasurements,
       setSelectedTool,
       setSaveMessage,
@@ -908,10 +975,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     (vertebra: string) => {
       const measurement = createVertebraCenterMeasurement(vertebra, keypoints);
       if (!measurement) {
-        setSaveMessage(`缺少 ${vertebra} 的完整关键点，无法创建椎体中心`);
-        setTimeout(() => setSaveMessage(''), 3000);
+        setPendingManualVertebraCenter(vertebra);
+        setClickedPoints([]);
+        setSelectedTool('vertebra-center');
+        setSaveMessage(
+          `请依次标注 ${vertebra}-1、${vertebra}-2、${vertebra}-3、${vertebra}-4`
+        );
+        setTimeout(() => setSaveMessage(''), 4000);
         return;
       }
+      setPendingManualVertebraCenter(null);
       const binding = buildMeasurementProjectionBinding(measurement);
       if (binding) {
         setMeasurementBindings(previous =>
@@ -933,7 +1006,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         return [...previous, measurement];
       });
     },
-    [keypoints, setSaveMessage]
+    [keypoints, setClickedPoints, setSaveMessage, setSelectedTool]
   );
 
   const handleCreateTts = useCallback(
@@ -1557,6 +1630,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 cfhAnnotation={cfhAnnotation}
                 showVertebraeLayer={showVertebraeLayer}
                 canUseKeypointTools={canUseKeypoints}
+                pendingManualVertebraCenter={pendingManualVertebraCenter}
                 onVertebraeUpdate={handleVertebraeUpdate}
                 onVertebraePreviewUpdate={handleVertebraePreviewUpdate}
                 onKeypointAdd={handleKeypointAdd}

@@ -1,17 +1,19 @@
 import { MeasurementData, Tool } from '../../../types';
+import { buildInheritedPointMap } from '../../../domain/annotation-inheritance';
+import { getManualKeypointPointSlots } from '../../../domain/keypoint-measurement-binding';
+import { KeypointAnnotation } from '../../../domain/keypoint-state';
 
 interface CanvasHintPanelProps {
   selectedTool: string;
+  examType: string;
   isImagePanLocked: boolean;
   isHovering: boolean;
   clickedPointsCount: number;
   pointsNeeded: number;
   currentTool: Tool | null;
   measurements: MeasurementData[];
-  getInheritedPoints: (
-    toolId: string,
-    measurements: { type: string; points: { x: number; y: number }[] }[]
-  ) => { points: { x: number; y: number }[]; count: number };
+  keypoints: KeypointAnnotation[];
+  pendingManualVertebraCenter?: string | null;
 }
 
 /**
@@ -19,14 +21,56 @@ interface CanvasHintPanelProps {
  */
 export default function CanvasHintPanel({
   selectedTool,
+  examType,
   isImagePanLocked,
   isHovering,
   clickedPointsCount,
   pointsNeeded,
   currentTool,
   measurements,
-  getInheritedPoints,
+  keypoints,
+  pendingManualVertebraCenter = null,
 }: CanvasHintPanelProps) {
+  const slotCount = currentTool?.pointsNeeded ?? pointsNeeded;
+  const inheritedSlotMap = currentTool
+    ? buildInheritedPointMap(currentTool.id, measurements)
+    : new Map<number, { x: number; y: number }>();
+  const keypointSlotMap = currentTool
+    ? getManualKeypointPointSlots(keypoints, currentTool.id, examType)
+    : new Map<number, { x: number; y: number }>();
+  const reusedSlotIndices = Array.from(
+    new Set([...inheritedSlotMap.keys(), ...keypointSlotMap.keys()])
+  ).sort((left, right) => left - right);
+  const unfilledSlotIndices = Array.from({ length: slotCount }, (_, index) => index)
+    .filter(index => !reusedSlotIndices.includes(index));
+  const clickedSlotIndices = unfilledSlotIndices.slice(0, clickedPointsCount);
+  const pendingSlotIndices = unfilledSlotIndices.slice(clickedPointsCount);
+  const formatSlots = (indices: number[]) =>
+    indices.map(index => `${index + 1}`).join('、');
+  const inheritanceHint =
+    currentTool &&
+    selectedTool !== 'hand' &&
+    reusedSlotIndices.length > 0 ? (
+      <div className="mt-2 border-t border-white/10 pt-2 text-[11px] leading-relaxed">
+        <p className="text-cyan-300">
+          已复用第 {formatSlots(reusedSlotIndices)} 点
+        </p>
+        {clickedSlotIndices.length > 0 && (
+          <p className="text-gray-300">
+            已手动标注第 {formatSlots(clickedSlotIndices)} 点
+          </p>
+        )}
+        {pendingSlotIndices.length > 0 && (
+          <p className="text-yellow-300">
+            下一步标注第 {pendingSlotIndices[0] + 1} 点
+            {pendingSlotIndices.length > 1
+              ? `，剩余第 ${formatSlots(pendingSlotIndices)} 点`
+              : ''}
+          </p>
+        )}
+      </div>
+    ) : null;
+
   return (
     <div className="absolute bottom-4 left-4 flex flex-col gap-2 max-w-md">
       {selectedTool.toLowerCase() === 'cobb' && (
@@ -72,18 +116,34 @@ export default function CanvasHintPanel({
           <div>
             <p className="font-medium">椎体中心标注模式</p>
             <p>已标注 {clickedPointsCount}/4 个角点</p>
+            {pendingManualVertebraCenter && (
+              <p className="text-cyan-300 mt-1">
+                当前椎体：{pendingManualVertebraCenter}，按{' '}
+                {pendingManualVertebraCenter}-1、{pendingManualVertebraCenter}-2、
+                {pendingManualVertebraCenter}-3、{pendingManualVertebraCenter}-4
+                标注
+              </p>
+            )}
             {clickedPointsCount === 0 && (
-              <p className="text-yellow-400 mt-1">点击第1个角点</p>
+              <p className="text-yellow-400 mt-1">
+                点击{pendingManualVertebraCenter ? `${pendingManualVertebraCenter}-1` : '第1个角点'}
+              </p>
             )}
             {clickedPointsCount === 1 && (
-              <p className="text-yellow-400 mt-1">点击第2个角点</p>
+              <p className="text-yellow-400 mt-1">
+                点击{pendingManualVertebraCenter ? `${pendingManualVertebraCenter}-2` : '第2个角点'}
+              </p>
             )}
             {clickedPointsCount === 2 && (
-              <p className="text-yellow-400 mt-1">点击第3个角点</p>
+              <p className="text-yellow-400 mt-1">
+                点击{pendingManualVertebraCenter ? `${pendingManualVertebraCenter}-3` : '第3个角点'}
+              </p>
             )}
             {clickedPointsCount === 3 && (
               <div className="text-green-400 mt-1">
-                <p>点击第4个角点完成标注</p>
+                <p>
+                  点击{pendingManualVertebraCenter ? `${pendingManualVertebraCenter}-4` : '第4个角点'}完成标注
+                </p>
                 <p>中心点将自动计算</p>
               </div>
             )}
@@ -174,19 +234,18 @@ export default function CanvasHintPanel({
             <p className="font-medium">测量模式: {currentTool?.name}</p>
             <p>
               已标注 {clickedPointsCount}/{pointsNeeded} 个点
-              {currentTool &&
-                getInheritedPoints(currentTool.id, measurements).count > 0 && (
-                  <span className="text-cyan-400 ml-2 text-xs">
-                    (+{getInheritedPoints(currentTool.id, measurements).count}
-                    个点已自动继承)
-                  </span>
-                )}
+              {reusedSlotIndices.length > 0 && (
+                <span className="text-cyan-400 ml-2 text-xs">
+                  (+{reusedSlotIndices.length} 个点已复用)
+                </span>
+              )}
             </p>
             {clickedPointsCount < pointsNeeded && (
               <p className="text-yellow-400 mt-1">点击图像标注关键点</p>
             )}
           </div>
         )}
+        {inheritanceHint}
         {isHovering && <p className="text-blue-400 mt-1">滚轮缩放已激活</p>}
       </div>
     </div>

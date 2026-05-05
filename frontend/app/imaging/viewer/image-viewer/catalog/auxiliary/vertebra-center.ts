@@ -16,6 +16,11 @@ import {
   toAcuteAngle,
 } from '../shared/annotation-config-utils';
 
+function orderVertebraCenterOutlinePoints(points: Point[]): Point[] {
+  if (points.length < 4) return points;
+  return [points[0], points[1], points[3], points[2]];
+}
+
 export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
   id: 'vertebra-center',
   name: '椎体中心',
@@ -56,9 +61,10 @@ export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
     if (distToCenter <= tolerance) return true;
 
     // 检查是否靠近四边形的边
+    const outlinePoints = orderVertebraCenterOutlinePoints(points);
     for (let i = 0; i < 4; i++) {
-      const p1 = points[i];
-      const p2 = points[(i + 1) % 4];
+      const p1 = outlinePoints[i];
+      const p2 = outlinePoints[(i + 1) % 4];
       const dist = pointToLineDistance(mousePoint, p1, p2);
       if (dist <= tolerance) return true;
     }
@@ -84,9 +90,10 @@ export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
     if (distToCenter <= tolerance) return true;
 
     // 检查是否靠近四边形的边
+    const outlinePoints = orderVertebraCenterOutlinePoints(points);
     for (let i = 0; i < 4; i++) {
-      const p1 = points[i];
-      const p2 = points[(i + 1) % 4];
+      const p1 = outlinePoints[i];
+      const p2 = outlinePoints[(i + 1) % 4];
       const dist = pointToLineDistance(mousePoint, p1, p2);
       if (dist <= tolerance) return true;
     }

@@ -95,6 +95,7 @@ export default function AnnotationCanvas({
   cfhAnnotation = null,
   showVertebraeLayer = false,
   canUseKeypointTools = false,
+  pendingManualVertebraCenter = null,
   onVertebraeUpdate,
   onVertebraePreviewUpdate,
   onKeypointAdd,
@@ -142,6 +143,7 @@ export default function AnnotationCanvas({
   cfhAnnotation?: CfhAnnotation | null;
   showVertebraeLayer?: boolean;
   canUseKeypointTools?: boolean;
+  pendingManualVertebraCenter?: string | null;
   onVertebraeUpdate?: (updated: VertebraAnnotation[]) => void;
   onVertebraePreviewUpdate?: (updated: VertebraAnnotation[]) => void;
   onKeypointAdd?: (keypointId: string, point: Point) => void;
@@ -851,13 +853,15 @@ export default function AnnotationCanvas({
 
       <CanvasHintPanel
         selectedTool={selectedTool}
+        examType={selectedImage.examType}
         isImagePanLocked={isImagePanLocked}
         isHovering={isHovering}
         clickedPointsCount={clickedPoints.length}
         pointsNeeded={pointsNeeded}
         currentTool={currentTool}
         measurements={measurements}
-        getInheritedPoints={getInheritedPoints}
+        keypoints={keypoints}
+        pendingManualVertebraCenter={pendingManualVertebraCenter}
       />
 
       <OverlayLayer

@@ -29,6 +29,11 @@ interface HitTestMeasurementOptions {
   lineRadius?: number;
 }
 
+function orderVertebraCenterOutlinePoints<T>(points: T[]): T[] {
+  if (points.length < 4) return points;
+  return [points[0], points[1], points[3], points[2]];
+}
+
 function hitTestMeasurementShape(
   measurement: MeasurementData,
   screenPoint: Point,
@@ -98,7 +103,12 @@ function hitTestMeasurementShape(
     measurement.points.length === 4
   ) {
     if (
-      isPolygonClicked(screenPoint, measurement.points, context, lineRadius)
+      isPolygonClicked(
+        screenPoint,
+        orderVertebraCenterOutlinePoints(measurement.points),
+        context,
+        lineRadius
+      )
     ) {
       return true;
     }
