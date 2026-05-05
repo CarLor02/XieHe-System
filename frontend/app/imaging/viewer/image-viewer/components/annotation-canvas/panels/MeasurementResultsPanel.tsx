@@ -6,7 +6,10 @@ import {
   isEditableAuxiliaryAnnotationType,
 } from '../../../domain/annotation-metadata';
 import { MeasurementData } from '../../../types';
-import { KeypointAnnotation } from '../../../domain/keypoint-state';
+import {
+  compareAnatomicalKeypointIds,
+  KeypointAnnotation,
+} from '../../../domain/keypoint-state';
 import { HoverState, SelectionState } from '../types';
 
 type ResultsTab = 'measurements' | 'keypoints';
@@ -145,7 +148,7 @@ export default function MeasurementResultsPanel({
     return byName || left.id.localeCompare(right.id);
   });
   const sortedKeypoints = [...keypoints].sort((left, right) =>
-    left.id.localeCompare(right.id)
+    compareAnatomicalKeypointIds(left.id, right.id)
   );
 
   return (
@@ -238,199 +241,201 @@ export default function MeasurementResultsPanel({
             </div>
 
             {activeTab === 'measurements' &&
-              (((standardDistance !== null &&
+              ((standardDistance !== null &&
                 standardDistancePoints.length === 2) ||
-                measurements.length > 0) ? (
-              <div className="px-3 py-2 space-y-1">
-                {standardDistance !== null &&
-                  standardDistancePoints.length === 2 && (
-                    <div className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-purple-500/20 border border-purple-500/40">
-                      <button
-                        onClick={event => {
-                          event.stopPropagation();
-                          onToggleStandardDistanceVisibility();
-                        }}
-                        className="text-purple-400/60 hover:text-purple-400 w-4 h-4 flex items-center justify-center flex-shrink-0"
-                        title={
-                          isStandardDistanceHidden ? '显示标注' : '隐藏标注'
-                        }
-                      >
-                        <i
-                          className={`${isStandardDistanceHidden ? 'ri-eye-off-line' : 'ri-eye-line'} text-xs`}
-                        ></i>
-                      </button>
-                      <div className="w-4 h-4 flex-shrink-0"></div>
-                      <div className="flex-1 flex items-center justify-between min-w-0">
-                        <span className="truncate mr-2 font-medium text-purple-300">
-                          标准距离
-                        </span>
-                        <span className="font-mono whitespace-nowrap text-purple-200">
-                          {standardDistance}mm
-                        </span>
-                      </div>
-                      <div className="w-4 h-4 flex-shrink-0"></div>
-                    </div>
-                  )}
-
-                {sortedMeasurements.map(measurement => {
-                  const isSelected =
-                    selectionState.measurementId === measurement.id;
-                  const isHovered =
-                    !isSelected && hoverState.measurementId === measurement.id;
-                  const isLabelHidden = hiddenMeasurementIds.has(measurement.id);
-                  const isAnnotationHidden = hiddenAnnotationIds.has(
-                    measurement.id
-                  );
-                  const isEditableAuxiliary = isEditableAuxiliaryAnnotationType(
-                    measurement.type
-                  );
-                  const displayName = getMeasurementDisplayName(measurement);
-                  const isEditingThisAuxName =
-                    editingAuxiliaryName === measurement.id;
-
-                  return (
-                    <div
-                      key={measurement.id}
-                      className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-all ${
-                        isSelected
-                          ? 'bg-white/20 border border-white/50'
-                          : isHovered
-                            ? 'bg-yellow-500/20 border border-yellow-500/40'
-                            : 'hover:bg-white/5 border border-transparent'
-                      }`}
-                    >
-                      <button
-                        onClick={event => {
-                          event.stopPropagation();
-                          onToggleMeasurementAnnotation(measurement.id);
-                        }}
-                        className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center flex-shrink-0"
-                        title={isAnnotationHidden ? '显示标注' : '隐藏标注'}
-                      >
-                        <i
-                          className={`${isAnnotationHidden ? 'ri-eye-off-line' : 'ri-eye-line'} text-xs`}
-                        ></i>
-                      </button>
-                      <button
-                        onClick={event => {
-                          event.stopPropagation();
-                          onToggleMeasurementLabel(measurement.id);
-                        }}
-                        className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center flex-shrink-0"
-                        title={isLabelHidden ? '显示标识' : '隐藏标识'}
-                      >
-                        <i
-                          className={`${isLabelHidden ? 'ri-format-clear' : 'ri-text'} text-xs`}
-                        ></i>
-                      </button>
-
-                      <div
-                        className="flex-1 flex items-center justify-between cursor-pointer min-w-0"
-                        onMouseEnter={event => {
-                          event.stopPropagation();
-                          onMeasurementHover(measurement.id);
-                        }}
-                        onMouseLeave={event => {
-                          event.stopPropagation();
-                          onMeasurementHover(null);
-                        }}
-                        onClick={event => {
-                          event.stopPropagation();
-                          onMeasurementSelect(measurement.id);
-                        }}
-                        title={
-                          measurement.upperVertebra &&
-                          measurement.lowerVertebra &&
-                          measurement.apexVertebra
-                            ? `上端椎: ${measurement.upperVertebra} | 下端椎: ${measurement.lowerVertebra} | 顶椎: ${measurement.apexVertebra}`
-                            : undefined
-                        }
-                      >
-                        {isEditingThisAuxName ? (
-                          <input
-                            autoFocus
-                            value={editingValue}
-                            onChange={event =>
-                              setEditingValue(event.target.value)
-                            }
-                            onBlur={commitAuxiliaryNameEdit}
-                            onKeyDown={event => {
-                              if (event.key === 'Enter') {
-                                event.preventDefault();
-                                commitAuxiliaryNameEdit();
-                              } else if (event.key === 'Escape') {
-                                event.preventDefault();
-                                setEditingAuxiliaryName(null);
-                              }
-                            }}
-                            onClick={event => event.stopPropagation()}
-                            className="flex-1 mr-2 min-w-0 bg-black/40 border border-white/40 rounded px-1 text-white outline-none focus:border-yellow-300"
-                          />
-                        ) : isEditableAuxiliary && onMeasurementUpdate ? (
-                          <button
-                            type="button"
-                            onClick={event => {
-                              event.stopPropagation();
-                              startEditingAuxiliaryName(
-                                measurement.id,
-                                displayName
-                              );
-                            }}
-                            title="点击编辑文字"
-                            className={`truncate mr-2 font-medium text-left hover:text-yellow-300 hover:underline underline-offset-2 ${
-                              isSelected
-                                ? 'text-white'
-                                : isHovered
-                                  ? 'text-yellow-300'
-                                  : 'text-white/90'
-                            }`}
-                          >
-                            {displayName}
-                          </button>
-                        ) : (
-                          <span
-                            className={`truncate mr-2 font-medium ${
-                              isSelected
-                                ? 'text-white'
-                                : isHovered
-                                  ? 'text-yellow-300'
-                                  : 'text-white/90'
-                            }`}
-                          >
-                            {displayName}
-                          </span>
-                        )}
-                        <span
-                          className={`font-mono whitespace-nowrap ${
-                            isSelected
-                              ? 'text-white'
-                              : isHovered
-                                ? measurement.value.startsWith('-')
-                                  ? 'text-blue-300'
-                                  : 'text-yellow-200'
-                                : measurement.value.startsWith('-')
-                                  ? 'text-blue-400'
-                                  : 'text-yellow-400'
-                          }`}
+              measurements.length > 0 ? (
+                <div className="px-3 py-2 space-y-1">
+                  {standardDistance !== null &&
+                    standardDistancePoints.length === 2 && (
+                      <div className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-purple-500/20 border border-purple-500/40">
+                        <button
+                          onClick={event => {
+                            event.stopPropagation();
+                            onToggleStandardDistanceVisibility();
+                          }}
+                          className="text-purple-400/60 hover:text-purple-400 w-4 h-4 flex items-center justify-center flex-shrink-0"
+                          title={
+                            isStandardDistanceHidden ? '显示标注' : '隐藏标注'
+                          }
                         >
-                          {measurement.value}
-                        </span>
+                          <i
+                            className={`${isStandardDistanceHidden ? 'ri-eye-off-line' : 'ri-eye-line'} text-xs`}
+                          ></i>
+                        </button>
+                        <div className="w-4 h-4 flex-shrink-0"></div>
+                        <div className="flex-1 flex items-center justify-between min-w-0">
+                          <span className="truncate mr-2 font-medium text-purple-300">
+                            标准距离
+                          </span>
+                          <span className="font-mono whitespace-nowrap text-purple-200">
+                            {standardDistance}mm
+                          </span>
+                        </div>
+                        <div className="w-4 h-4 flex-shrink-0"></div>
                       </div>
+                    )}
 
-                      <button
-                        onClick={event => {
-                          event.stopPropagation();
-                          onMeasurementDelete(measurement.id);
-                        }}
-                        className="text-red-400/60 hover:text-red-400 w-4 h-4 flex items-center justify-center flex-shrink-0"
-                        title="删除标注"
+                  {sortedMeasurements.map(measurement => {
+                    const isSelected =
+                      selectionState.measurementId === measurement.id;
+                    const isHovered =
+                      !isSelected &&
+                      hoverState.measurementId === measurement.id;
+                    const isLabelHidden = hiddenMeasurementIds.has(
+                      measurement.id
+                    );
+                    const isAnnotationHidden = hiddenAnnotationIds.has(
+                      measurement.id
+                    );
+                    const isEditableAuxiliary =
+                      isEditableAuxiliaryAnnotationType(measurement.type);
+                    const displayName = getMeasurementDisplayName(measurement);
+                    const isEditingThisAuxName =
+                      editingAuxiliaryName === measurement.id;
+
+                    return (
+                      <div
+                        key={measurement.id}
+                        className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-all ${
+                          isSelected
+                            ? 'bg-white/20 border border-white/50'
+                            : isHovered
+                              ? 'bg-yellow-500/20 border border-yellow-500/40'
+                              : 'hover:bg-white/5 border border-transparent'
+                        }`}
                       >
-                        <i className="ri-delete-bin-line text-xs"></i>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+                        <button
+                          onClick={event => {
+                            event.stopPropagation();
+                            onToggleMeasurementAnnotation(measurement.id);
+                          }}
+                          className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center flex-shrink-0"
+                          title={isAnnotationHidden ? '显示标注' : '隐藏标注'}
+                        >
+                          <i
+                            className={`${isAnnotationHidden ? 'ri-eye-off-line' : 'ri-eye-line'} text-xs`}
+                          ></i>
+                        </button>
+                        <button
+                          onClick={event => {
+                            event.stopPropagation();
+                            onToggleMeasurementLabel(measurement.id);
+                          }}
+                          className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center flex-shrink-0"
+                          title={isLabelHidden ? '显示标识' : '隐藏标识'}
+                        >
+                          <i
+                            className={`${isLabelHidden ? 'ri-format-clear' : 'ri-text'} text-xs`}
+                          ></i>
+                        </button>
+
+                        <div
+                          className="flex-1 flex items-center justify-between cursor-pointer min-w-0"
+                          onMouseEnter={event => {
+                            event.stopPropagation();
+                            onMeasurementHover(measurement.id);
+                          }}
+                          onMouseLeave={event => {
+                            event.stopPropagation();
+                            onMeasurementHover(null);
+                          }}
+                          onClick={event => {
+                            event.stopPropagation();
+                            onMeasurementSelect(measurement.id);
+                          }}
+                          title={
+                            measurement.upperVertebra &&
+                            measurement.lowerVertebra &&
+                            measurement.apexVertebra
+                              ? `上端椎: ${measurement.upperVertebra} | 下端椎: ${measurement.lowerVertebra} | 顶椎: ${measurement.apexVertebra}`
+                              : undefined
+                          }
+                        >
+                          {isEditingThisAuxName ? (
+                            <input
+                              autoFocus
+                              value={editingValue}
+                              onChange={event =>
+                                setEditingValue(event.target.value)
+                              }
+                              onBlur={commitAuxiliaryNameEdit}
+                              onKeyDown={event => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  commitAuxiliaryNameEdit();
+                                } else if (event.key === 'Escape') {
+                                  event.preventDefault();
+                                  setEditingAuxiliaryName(null);
+                                }
+                              }}
+                              onClick={event => event.stopPropagation()}
+                              className="flex-1 mr-2 min-w-0 bg-black/40 border border-white/40 rounded px-1 text-white outline-none focus:border-yellow-300"
+                            />
+                          ) : isEditableAuxiliary && onMeasurementUpdate ? (
+                            <button
+                              type="button"
+                              onClick={event => {
+                                event.stopPropagation();
+                                startEditingAuxiliaryName(
+                                  measurement.id,
+                                  displayName
+                                );
+                              }}
+                              title="点击编辑文字"
+                              className={`truncate mr-2 font-medium text-left hover:text-yellow-300 hover:underline underline-offset-2 ${
+                                isSelected
+                                  ? 'text-white'
+                                  : isHovered
+                                    ? 'text-yellow-300'
+                                    : 'text-white/90'
+                              }`}
+                            >
+                              {displayName}
+                            </button>
+                          ) : (
+                            <span
+                              className={`truncate mr-2 font-medium ${
+                                isSelected
+                                  ? 'text-white'
+                                  : isHovered
+                                    ? 'text-yellow-300'
+                                    : 'text-white/90'
+                              }`}
+                            >
+                              {displayName}
+                            </span>
+                          )}
+                          <span
+                            className={`font-mono whitespace-nowrap ${
+                              isSelected
+                                ? 'text-white'
+                                : isHovered
+                                  ? measurement.value.startsWith('-')
+                                    ? 'text-blue-300'
+                                    : 'text-yellow-200'
+                                  : measurement.value.startsWith('-')
+                                    ? 'text-blue-400'
+                                    : 'text-yellow-400'
+                            }`}
+                          >
+                            {measurement.value}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={event => {
+                            event.stopPropagation();
+                            onMeasurementDelete(measurement.id);
+                          }}
+                          className="text-red-400/60 hover:text-red-400 w-4 h-4 flex items-center justify-center flex-shrink-0"
+                          title="删除标注"
+                        >
+                          <i className="ri-delete-bin-line text-xs"></i>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="px-3 py-4 text-center">
                   <i className="ri-ruler-line w-4 h-4 flex items-center justify-center mx-auto mb-1 text-white/60"></i>

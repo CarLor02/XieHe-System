@@ -118,22 +118,72 @@ function pointLayer(
 }
 
 function groupSource(keypoints: KeypointAnnotation[]): KeypointSource {
-  return keypoints.every(keypoint => keypoint.source === 'ai') ? 'ai' : 'manual';
+  return keypoints.every(keypoint => keypoint.source === 'ai')
+    ? 'ai'
+    : 'manual';
 }
 
 function groupConfidence(keypoints: KeypointAnnotation[]): number {
   return Math.min(...keypoints.map(keypoint => keypoint.confidence));
 }
 
+const regionOrder: Record<string, number> = {
+  C: 1,
+  T: 2,
+  L: 3,
+  S: 4,
+};
+
+interface AnatomicalKeypointSortKey {
+  region: number;
+  segment: number;
+  point: number;
+  fallback: string;
+}
+
+function getAnatomicalKeypointSortKey(
+  keypointId: string
+): AnatomicalKeypointSortKey {
+  const match = /^([CTLS])(\d+)?(?:-(\d+))?$/.exec(keypointId);
+  const regionLetter = match?.[1] ?? keypointId[0];
+  const region = regionOrder[regionLetter] ?? Number.MAX_SAFE_INTEGER;
+
+  return {
+    region,
+    segment: match?.[2] ? Number(match[2]) : Number.MAX_SAFE_INTEGER,
+    point: match?.[3] ? Number(match[3]) : Number.MAX_SAFE_INTEGER,
+    fallback: keypointId,
+  };
+}
+
+export function compareAnatomicalKeypointIds(
+  left: string,
+  right: string
+): number {
+  const leftKey = getAnatomicalKeypointSortKey(left);
+  const rightKey = getAnatomicalKeypointSortKey(right);
+
+  return (
+    leftKey.region - rightKey.region ||
+    leftKey.segment - rightKey.segment ||
+    leftKey.point - rightKey.point ||
+    leftKey.fallback.localeCompare(rightKey.fallback)
+  );
+}
+
 function sortKeypoints(keypoints: KeypointAnnotation[]): KeypointAnnotation[] {
-  return [...keypoints].sort((a, b) => a.id.localeCompare(b.id));
+  return [...keypoints].sort((a, b) =>
+    compareAnatomicalKeypointIds(a.id, b.id)
+  );
 }
 
 export function upsertKeypoint(
   keypoints: KeypointAnnotation[],
   nextKeypoint: KeypointAnnotation
 ): KeypointAnnotation[] {
-  const withoutDuplicate = keypoints.filter(item => item.id !== nextKeypoint.id);
+  const withoutDuplicate = keypoints.filter(
+    item => item.id !== nextKeypoint.id
+  );
   return sortKeypoints([...withoutDuplicate, nextKeypoint]);
 }
 
@@ -341,17 +391,15 @@ export function keypointsToRenderLayer(
   const visibleKeypoints = keypoints.filter(
     keypoint => !hiddenKeypointIds.has(keypoint.id)
   );
-  const byId = new Map(visibleKeypoints.map(keypoint => [keypoint.id, keypoint]));
+  const byId = new Map(
+    visibleKeypoints.map(keypoint => [keypoint.id, keypoint])
+  );
   const consumed = new Set<string>();
   const layer: VertebraAnnotation[] = [];
 
   if (isLateralExamType(examType)) {
     layer.push(
-      ...completeVertebraLayers(
-        LATERAL_VERTEBRA_GROUPS,
-        byId,
-        consumed
-      )
+      ...completeVertebraLayers(LATERAL_VERTEBRA_GROUPS, byId, consumed)
     );
 
     const s1Keypoints = LATERAL_SACRAL_KEYPOINTS.map(id => byId.get(id));
@@ -370,11 +418,7 @@ export function keypointsToRenderLayer(
     }
   } else if (isAnteriorExamType(examType)) {
     layer.push(
-      ...completeVertebraLayers(
-        [...AP_VERTEBRA_GROUPS, 'L5'],
-        byId,
-        consumed
-      )
+      ...completeVertebraLayers([...AP_VERTEBRA_GROUPS, 'L5'], byId, consumed)
     );
   }
 
@@ -397,7 +441,12 @@ export function keypointsToPersistedLayer(
   keypoints: KeypointAnnotation[]
 ): VertebraAnnotation[] {
   return sortKeypoints(keypoints).map(keypoint =>
-    pointLayer(keypoint.id, keypoint.point, keypoint.source, keypoint.confidence)
+    pointLayer(
+      keypoint.id,
+      keypoint.point,
+      keypoint.source,
+      keypoint.confidence
+    )
   );
 }
 
