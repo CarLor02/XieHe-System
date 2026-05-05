@@ -43,20 +43,6 @@ export function renderPT(
 
   return (
     <>
-      <line
-        x1={geometry.sacralLeft.x}
-        y1={geometry.sacralLeft.y}
-        x2={geometry.sacralRight.x}
-        y2={geometry.sacralRight.y}
-        stroke={displayColor}
-        strokeWidth="2"
-      />
-      <circle
-        cx={geometry.sacralMidpoint.x}
-        cy={geometry.sacralMidpoint.y}
-        r="3"
-        fill={displayColor}
-      />
       {geometry.femoralHeadCenter && (
         <>
           <line

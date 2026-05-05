@@ -50,11 +50,8 @@ export const PT_CONFIG: AnnotationConfig = {
     if (!geometry || !geometry.femoralHeadCenter)
       return points[0] || { x: 0, y: 0 };
 
-    // PT 的角度顶点在 CFH，标签跟随 CFH 右上方显示。
-    return {
-      x: geometry.femoralHeadCenter.x + LABEL_OFFSET.RIGHT / imageScale,
-      y: geometry.femoralHeadCenter.y - LABEL_OFFSET.TOP / imageScale,
-    };
+    // 标签锚点在股骨头中心（弧顶点），renderMeasurement 用 textAnchor="middle" 居中显示
+    return geometry.femoralHeadCenter;
   },
 
   isInHoverRange: (

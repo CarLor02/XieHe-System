@@ -23,7 +23,7 @@ export const PI_CONFIG: AnnotationConfig = {
   description: '骨盆入射角(Pelvic Incidence)',
   pointsNeeded: 3,
   category: 'measurement',
-  color: '#ef4444',
+  color: '#f59e0b',
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 3) return [];
@@ -54,21 +54,8 @@ export const PI_CONFIG: AnnotationConfig = {
     if (!geometry || !geometry.femoralHeadCenter)
       return points[0] || { x: 0, y: 0 };
 
-    // 标签放在测量结构右上方，避免遮挡骨盆线
-    const maxX = Math.max(
-      geometry.femoralHeadCenter.x,
-      geometry.sacralMidpoint.x,
-      ...points.map(p => p.x)
-    );
-    const topY = Math.min(
-      geometry.femoralHeadCenter.y,
-      geometry.sacralMidpoint.y
-    );
-
-    return {
-      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
-      y: topY - LABEL_OFFSET.TOP / imageScale,
-    };
+    // 标签锚点放在骶骨中点（弧所在位置），renderMeasurement 中以 textAnchor="middle" 居中
+    return geometry.sacralMidpoint;
   },
 
   isInHoverRange: (

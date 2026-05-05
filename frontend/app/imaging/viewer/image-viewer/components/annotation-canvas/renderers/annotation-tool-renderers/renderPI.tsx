@@ -73,7 +73,6 @@ export function renderPI(
         y2={normalEnd.y}
         stroke={displayColor}
         strokeWidth="2"
-        strokeDasharray="3,3"
       />
       <circle
         cx={geometry.sacralMidpoint.x}
@@ -89,7 +88,6 @@ export function renderPI(
           y2={geometry.sacralMidpoint.y}
           stroke={displayColor}
           strokeWidth="2"
-          strokeDasharray="3,3"
         />
       )}
       {showArc && path && (
