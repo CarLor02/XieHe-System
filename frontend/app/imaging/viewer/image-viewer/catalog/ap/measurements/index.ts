@@ -1,5 +1,31 @@
 import { Tool } from '../../../types';
-import { ANNOTATION_CONFIGS } from '../../shared/annotation-config';
+import { VERTEBRA_CENTER_CONFIG } from '../../auxiliary/vertebra-center';
+import { AVT_CONFIG } from './avt';
+import { CA_CONFIG } from './ca';
+import { COBB1_CONFIG, COBB2_CONFIG, COBB3_CONFIG, COBB_CONFIG } from './cobb';
+import { CSS_CONFIG } from './css';
+import { LLD_CONFIG } from './lld';
+import { PO_CONFIG } from './po';
+import { T1_TILT_CONFIG } from './t1-tilt';
+import { TS_CONFIG } from './ts';
+import { TTS_CONFIG } from './tts';
+
+export { AVT_CONFIG } from './avt';
+export {
+  COBB_CONFIG,
+  COBB_THORACIC_CONFIG,
+  COBB_LUMBAR_CONFIG,
+  COBB1_CONFIG,
+  COBB2_CONFIG,
+  COBB3_CONFIG,
+} from './cobb';
+export { CA_CONFIG } from './ca';
+export { CSS_CONFIG } from './css';
+export { LLD_CONFIG } from './lld';
+export { PO_CONFIG } from './po';
+export { T1_TILT_CONFIG } from './t1-tilt';
+export { TS_CONFIG } from './ts';
+export { TTS_CONFIG } from './tts';
 
 export const AP_AUTOMATIC_MEASUREMENT_TOOL_IDS = [
   't1-tilt',
@@ -29,8 +55,30 @@ const AP_MEASUREMENT_TOOL_IDS = [
   'vertebra-center',
 ] as const;
 
+export const AP_MEASUREMENT_CONFIGS = {
+  't1-tilt': T1_TILT_CONFIG,
+  cobb: COBB_CONFIG,
+  cobb1: COBB1_CONFIG,
+  cobb2: COBB2_CONFIG,
+  cobb3: COBB3_CONFIG,
+  'cobb-thoracic': COBB_CONFIG,
+  'cobb-lumbar': COBB_CONFIG,
+  'cobb-thoracolumbar': COBB_CONFIG,
+  ca: CA_CONFIG,
+  po: PO_CONFIG,
+  pelvic: PO_CONFIG,
+  css: CSS_CONFIG,
+  sacral: CSS_CONFIG,
+  avt: AVT_CONFIG,
+  tts: TTS_CONFIG,
+  lld: LLD_CONFIG,
+  ts: TS_CONFIG,
+  'vertebra-center': VERTEBRA_CENTER_CONFIG,
+} as const;
+
 function toTool(toolId: string): Tool | null {
-  const config = ANNOTATION_CONFIGS[toolId];
+  const config =
+    AP_MEASUREMENT_CONFIGS[toolId as keyof typeof AP_MEASUREMENT_CONFIGS];
   if (!config) return null;
 
   return {
@@ -43,9 +91,9 @@ function toTool(toolId: string): Tool | null {
 }
 
 export function getApMeasurementTools(): Tool[] {
-  return AP_MEASUREMENT_TOOL_IDS
-    .map(toTool)
-    .filter((tool): tool is Tool => tool !== null);
+  return AP_MEASUREMENT_TOOL_IDS.map(toTool).filter(
+    (tool): tool is Tool => tool !== null
+  );
 }
 
 export function isApMeasurementTool(toolId: string): boolean {

@@ -1,12 +1,13 @@
 import type { JSX } from 'react';
 import type { Point } from '../../../../types';
 import {
+  buildAngleArc,
   getPelvicMeasurementGeometry,
   RENDER_SCREEN_LENGTHS,
 } from './annotationToolRendererUtils';
 
 /**
- * SS渲染器：骶骨终板 + 水平参考线 + 中点 + 法线
+ * SS渲染器：骶骨终板 + 过端点水平参考线 + 角度弧
  */
 export function renderSS(
   screenPoints: Point[],
@@ -18,7 +19,37 @@ export function renderSS(
   const geometry = getPelvicMeasurementGeometry(screenPoints);
   if (!geometry) return null;
 
-  const normalLength = RENDER_SCREEN_LENGTHS.pelvicNormalLength;
+  const vertex =
+    geometry.sacralRight.x >= geometry.sacralLeft.x
+      ? geometry.sacralRight
+      : geometry.sacralLeft;
+  const opposite =
+    vertex === geometry.sacralRight
+      ? geometry.sacralLeft
+      : geometry.sacralRight;
+  const rayDx = opposite.x - vertex.x;
+  const rayDy = opposite.y - vertex.y;
+  const rayLength = Math.sqrt(rayDx * rayDx + rayDy * rayDy);
+
+  if (rayLength === 0) return null;
+
+  const rayUnit = {
+    x: rayDx / rayLength,
+    y: rayDy / rayLength,
+  };
+  const horizontalAngle = rayUnit.x < 0 ? 180 : 0;
+  const reverseEndplateAngle =
+    Math.atan2(rayUnit.y, rayUnit.x) * (180 / Math.PI);
+  const reverseGuideEnd = {
+    x: vertex.x + rayUnit.x * RENDER_SCREEN_LENGTHS.ssReverseGuideLength,
+    y: vertex.y + rayUnit.y * RENDER_SCREEN_LENGTHS.ssReverseGuideLength,
+  };
+  const arcPath = buildAngleArc(
+    vertex,
+    horizontalAngle,
+    reverseEndplateAngle,
+    RENDER_SCREEN_LENGTHS.ssArcRadius
+  );
 
   return (
     <>
@@ -31,35 +62,33 @@ export function renderSS(
         strokeWidth="2"
       />
       <line
-        x1={
-          geometry.sacralLeft.x - RENDER_SCREEN_LENGTHS.pelvicReferenceHalfWidth
-        }
-        y1={geometry.sacralLeft.y}
-        x2={
-          geometry.sacralLeft.x + RENDER_SCREEN_LENGTHS.pelvicReferenceHalfWidth
-        }
-        y2={geometry.sacralLeft.y}
+        x1={vertex.x - RENDER_SCREEN_LENGTHS.pelvicReferenceHalfWidth}
+        y1={vertex.y}
+        x2={vertex.x + RENDER_SCREEN_LENGTHS.pelvicReferenceHalfWidth}
+        y2={vertex.y}
         stroke="#00ff00"
         strokeWidth="1"
         strokeDasharray="5,5"
         opacity="0.7"
       />
       <line
-        x1={geometry.sacralMidpoint.x - geometry.sacralNormal.x * normalLength}
-        y1={geometry.sacralMidpoint.y - geometry.sacralNormal.y * normalLength}
-        x2={geometry.sacralMidpoint.x + geometry.sacralNormal.x * normalLength}
-        y2={geometry.sacralMidpoint.y + geometry.sacralNormal.y * normalLength}
+        x1={vertex.x}
+        y1={vertex.y}
+        x2={reverseGuideEnd.x}
+        y2={reverseGuideEnd.y}
         stroke={displayColor}
-        strokeWidth="1.5"
+        strokeWidth="1"
         strokeDasharray="3,3"
         opacity="0.8"
       />
-      <circle
-        cx={geometry.sacralMidpoint.x}
-        cy={geometry.sacralMidpoint.y}
-        r="3"
-        fill={displayColor}
+      <path
+        d={arcPath}
+        fill="none"
+        stroke={displayColor}
+        strokeWidth="1.5"
+        opacity="0.85"
       />
+      <circle cx={vertex.x} cy={vertex.y} r="3" fill={displayColor} />
     </>
   );
 }

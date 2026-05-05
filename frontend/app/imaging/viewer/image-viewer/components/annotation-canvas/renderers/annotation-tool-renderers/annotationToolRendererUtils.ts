@@ -17,6 +17,8 @@ export const RENDER_SCREEN_LENGTHS = {
   pelvicNormalLength: 80,
   pelvicVerticalHalfLength: 80,
   pelvicReferenceHalfWidth: 100,
+  ssArcRadius: 24,
+  ssReverseGuideLength: 80,
   verticalGuideLength: 150,
   sacralPerpendicularLength: 300,
   horizontalGuideWidth: 150,
