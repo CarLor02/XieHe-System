@@ -97,6 +97,7 @@ export default function AnnotationCanvas({
   onVertebraePreviewUpdate,
   onKeypointAdd,
   onKeypointDelete,
+  onMeasurementWriteback,
 }: {
   selectedImage: Pick<ImageData, 'examType'>;
   measurements: MeasurementData[];
@@ -142,6 +143,12 @@ export default function AnnotationCanvas({
   onVertebraePreviewUpdate?: (updated: VertebraAnnotation[]) => void;
   onKeypointAdd?: (keypointId: string, point: Point) => void;
   onKeypointDelete?: (keypointId: string) => void;
+  /** 测量点拖动后写回 vertebraeLayer（所有用户都可用） */
+  onMeasurementWriteback?: (
+    measurementType: string,
+    pointIndex: number,
+    newPoint: Point
+  ) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const {
@@ -472,6 +479,7 @@ export default function AnnotationCanvas({
     imageNaturalSize,
     imageScale,
     onMeasurementsUpdate,
+    onMeasurementWriteback,
     imageToScreen,
     screenToImage,
     referenceLines,

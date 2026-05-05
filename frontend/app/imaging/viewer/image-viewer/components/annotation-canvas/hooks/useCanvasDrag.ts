@@ -21,6 +21,12 @@ interface UseCanvasDragOptions {
   imageNaturalSize: { width: number; height: number } | null;
   imageScale: number;
   onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
+  /** 可选：测量点拖动后将新坐标写回 vertebraeLayer（Cobb/辅助图形自动跳过） */
+  onMeasurementWriteback?: (
+    measurementType: string,
+    pointIndex: number,
+    newPoint: Point
+  ) => void;
   imageToScreen: (point: Point) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
   referenceLines: {
@@ -60,6 +66,7 @@ export function useCanvasDrag({
   imageNaturalSize,
   imageScale,
   onMeasurementsUpdate,
+  onMeasurementWriteback,
   imageToScreen,
   screenToImage,
   referenceLines,
@@ -296,6 +303,16 @@ export function useCanvasDrag({
         });
 
         onMeasurementsUpdate(updatedMeasurements);
+
+        // 将被拖拽的测量点同步写回 vertebraeLayer（Cobb 及辅助图形无映射，自动跳过）
+        if (onMeasurementWriteback && selectionState.pointIndex !== null) {
+          onMeasurementWriteback(
+            measurement.type,
+            selectionState.pointIndex,
+            { x: newPointX, y: newPointY }
+          );
+        }
+
         return true;
       }
 

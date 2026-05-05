@@ -52,6 +52,7 @@ import {
   vertebraeLayerToKeypoints,
 } from './domain/keypoint-state';
 import { canUseKeypointTools } from './domain/viewer-permissions';
+import { applyMeasurementPointToVertebrae } from './domain/measurement-keypoint-writeback';
 import { AP_AUTOMATIC_MEASUREMENT_TOOL_IDS } from './catalog/ap/measurements';
 import { LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS } from './catalog/lateral/measurements';
 // import ReactMarkdown from 'react-markdown';
@@ -651,6 +652,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
   const handleAddMeasurement = useCallback(
     (toolType: string, points: Point[]) => {
+      // 非Admin 用户：允许替换已有的同类型测量（Admin 由 AI 检测统一管理，不替换）
+      const allowReplace = !canUseKeypoints;
       usecases.addMeasurement(
         toolType,
         points,
@@ -659,10 +662,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         tools,
         standardDistance,
         standardDistancePoints,
-        imageNaturalSize
+        imageNaturalSize,
+        allowReplace
       );
     },
     [
+      canUseKeypoints,
       imageNaturalSize,
       measurements,
       standardDistance,
@@ -1511,6 +1516,36 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     [imageData.examType, isKeypointExam, rebuildKeypointMeasurements]
   );
 
+  /**
+   * 测量点拖拽写回：将被移动的测量点同步到 vertebraeLayer 对应角点。
+   * 对所有用户（含非Admin）均生效；非Admin 看不见 VertebraeLayer，
+   * 但数据保持一致，Admin 后续打开时关键点层已反映用户的调整。
+   * Cobb 和辅助图形在映射表中无条目，自动跳过。
+   */
+  const handleMeasurementWriteback = useCallback(
+    (measurementType: string, pointIndex: number, newPoint: Point) => {
+      const { vertebraeLayer: nextLayer, cfhAnnotation: nextCfh } =
+        applyMeasurementPointToVertebrae(
+          activeVertebraeLayer,
+          cfhAnnotation,
+          measurementType,
+          pointIndex,
+          newPoint
+        );
+      // 仅在有实际变化时更新，避免不必要重渲染
+      if (nextLayer !== activeVertebraeLayer) {
+        setVertebraeLayer(nextLayer);
+        if (isKeypointExam) {
+          setKeypoints(vertebraeLayerToKeypoints(nextLayer, imageData.examType));
+        }
+      }
+      if (nextCfh !== cfhAnnotation) {
+        setCfhAnnotation(nextCfh);
+      }
+    },
+    [activeVertebraeLayer, cfhAnnotation, imageData.examType, isKeypointExam]
+  );
+
   const handleSaveMeasurements = useCallback(() => {
     void usecases.saveMeasurements(
       imageId,
@@ -1649,6 +1684,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 }
                 onKeypointAdd={handleKeypointAdd}
                 onKeypointDelete={handleKeypointDelete}
+                onMeasurementWriteback={handleMeasurementWriteback}
               />
             </div>
           </div>
