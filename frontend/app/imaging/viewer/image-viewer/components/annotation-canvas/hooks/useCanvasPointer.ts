@@ -67,6 +67,11 @@ interface UseCanvasPointerOptions {
     pointIndex: number
   ) => void;
   onDisplayMeasurementSelect: (measurementId: string | null) => void;
+  onMeasurementPointDragStart: (
+    measurementId: string,
+    pointIndex: number,
+    screenPoint: Point
+  ) => boolean;
   onCanvasClick: () => void;
   onContextMenu: (event: React.MouseEvent) => void;
   setImagePosition: React.Dispatch<React.SetStateAction<Point>>;
@@ -112,6 +117,7 @@ export function useCanvasPointer({
   drawingTool,
   onManualBindingPointToggle,
   onDisplayMeasurementSelect,
+  onMeasurementPointDragStart,
   onCanvasClick,
   onContextMenu,
   setImagePosition,
@@ -212,6 +218,25 @@ export function useCanvasPointer({
             });
           } else {
             if (!isDirectlyEditable) {
+              if (
+                selectionHit.kind === 'point' &&
+                onMeasurementPointDragStart(
+                  selectedMeasurement.id,
+                  selectionHit.pointIndex,
+                  screenPoint
+                )
+              ) {
+                onDisplayMeasurementSelect(selectedMeasurement.id);
+                setSelectionState({
+                  measurementId: selectedMeasurement.id,
+                  pointIndex: null,
+                  type: null,
+                  isDragging: false,
+                  dragOffset: { x: 0, y: 0 },
+                });
+                return true;
+              }
+
               onDisplayMeasurementSelect(selectedMeasurement.id);
               setSelectionState({
                 measurementId: selectedMeasurement.id,
@@ -328,6 +353,7 @@ export function useCanvasPointer({
       imageToScreen,
       measurements,
       onDisplayMeasurementSelect,
+      onMeasurementPointDragStart,
       screenToImage,
       selectionState.measurementId,
       selectionState.pointIndex,

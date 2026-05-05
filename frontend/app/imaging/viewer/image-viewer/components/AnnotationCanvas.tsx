@@ -50,7 +50,10 @@ import {
   KeypointAnnotation,
 } from '../domain/keypoint-state';
 import { isDirectlyEditableAnnotation } from '../domain/annotation-editability';
-import { resolveMeasurementKeypointIds } from '../domain/measurement-keypoint-selection';
+import {
+  resolveMeasurementKeypointIds,
+  resolveMeasurementPointDragTarget,
+} from '../domain/measurement-keypoint-selection';
 
 export default function AnnotationCanvas({
   selectedImage,
@@ -91,6 +94,7 @@ export default function AnnotationCanvas({
   cfhAnnotation = null,
   showVertebraeLayer = false,
   onVertebraeUpdate,
+  onVertebraePreviewUpdate,
   onKeypointAdd,
   onKeypointDelete,
 }: {
@@ -135,6 +139,7 @@ export default function AnnotationCanvas({
   cfhAnnotation?: CfhAnnotation | null;
   showVertebraeLayer?: boolean;
   onVertebraeUpdate?: (updated: VertebraAnnotation[]) => void;
+  onVertebraePreviewUpdate?: (updated: VertebraAnnotation[]) => void;
   onKeypointAdd?: (keypointId: string, point: Point) => void;
   onKeypointDelete?: (keypointId: string) => void;
 }) {
@@ -440,6 +445,7 @@ export default function AnnotationCanvas({
     imageToScreen,
     screenToImage,
     onVertebraeUpdate,
+    onLiveLayerChange: onVertebraePreviewUpdate,
     containerRef,
     onHoverChange: handleKeypointHover,
   });
@@ -544,6 +550,28 @@ export default function AnnotationCanvas({
     onKeypointDelete?.(keypointId);
   };
 
+  const handleMeasurementPointDragStart = useCallback(
+    (measurementId: string, pointIndex: number, screenPoint: Point) => {
+      const measurement = measurements.find(item => item.id === measurementId);
+      if (!measurement) return false;
+
+      const target = resolveMeasurementPointDragTarget(
+        measurement,
+        pointIndex,
+        keypoints
+      );
+      if (!target) return false;
+
+      setSelectedKeypointIds(new Set(target.keypointIds));
+      return vertebradDrag.handleKeypointsMouseDown(
+        target.keypointIds,
+        screenPoint.x,
+        screenPoint.y
+      );
+    },
+    [keypoints, measurements, vertebradDrag.handleKeypointsMouseDown]
+  );
+
   const pointer = useCanvasPointer({
     imageNaturalSize,
     selectedTool,
@@ -580,6 +608,7 @@ export default function AnnotationCanvas({
     drawingTool,
     onManualBindingPointToggle,
     onDisplayMeasurementSelect: selectMeasurementKeypoints,
+    onMeasurementPointDragStart: handleMeasurementPointDragStart,
     onCanvasClick,
     onContextMenu: handleContextMenu,
     setImagePosition,
@@ -590,7 +619,7 @@ export default function AnnotationCanvas({
       ref={containerRef}
       data-image-canvas
       className={`relative w-full h-full overflow-hidden ${
-        showVertebraeLayer &&
+        (showVertebraeLayer || vertebradDrag.isDragging) &&
         selectedTool === 'hand' &&
         (effectiveHoveredCorner ?? vertebradDrag.activeCorner)
           ? 'cursor-crosshair'
@@ -624,14 +653,16 @@ export default function AnnotationCanvas({
         // 椎体角点拖拽优先；同时做悬停检测（影响光标样式）
         const handledKeypoint =
           selectedTool === 'hand' &&
-          showVertebraeLayer &&
+          (showVertebraeLayer || vertebradDrag.isDragging) &&
           vertebradDrag.handleMouseMove(e.clientX, e.clientY);
         // 角点拖拽中不转发给 pointer（避免误触绘图/图像平移逻辑）
         if (!handledKeypoint) pointer.onMouseMove(e);
       }}
       onMouseUp={e => {
         // 先结束角点拖拽（会触发 onVertebraeUpdate 回调），再交给 pointer
-        if (showVertebraeLayer) vertebradDrag.handleMouseUp();
+        if (showVertebraeLayer || vertebradDrag.isDragging) {
+          vertebradDrag.handleMouseUp();
+        }
         pointer.onMouseUp();
       }}
       onMouseEnter={handleMouseEnter}

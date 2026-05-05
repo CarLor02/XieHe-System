@@ -4,13 +4,25 @@ import { useRef, useState, useCallback } from 'react';
 import { Point, VertebraAnnotation } from '../../../types';
 import {
   isSinglePointKeypointLabel,
+  keypointIdToRenderCornerRef,
   renderCornerToKeypointId,
 } from '../../../domain/keypoint-state';
 
-interface DragState {
+interface DragMember {
   vertebraLabel: string;
   cornerIndex: number; // 0=TL,1=TR,2=BL,3=BR
 }
+
+type DragState =
+  | ({
+      mode: 'corner';
+    } & DragMember)
+  | {
+      mode: 'group';
+      members: DragMember[];
+      startImagePoint: Point;
+      initialLayer: VertebraAnnotation[];
+    };
 
 interface CornerRef {
   label: string;
@@ -33,6 +45,7 @@ export function useVertebradDrag({
   imageToScreen,
   screenToImage,
   onVertebraeUpdate,
+  onLiveLayerChange,
   containerRef,
   onHoverChange,
 }: {
@@ -42,6 +55,7 @@ export function useVertebradDrag({
   /** 容器内屏幕坐标 → 图像坐标 */
   screenToImage: (screenX: number, screenY: number) => Point;
   onVertebraeUpdate?: (updated: VertebraAnnotation[]) => void;
+  onLiveLayerChange?: (updated: VertebraAnnotation[]) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onHoverChange?: (keypointId: string | null) => void;
 }) {
@@ -54,9 +68,46 @@ export function useVertebradDrag({
   // 拖拽元数据（不需要触发重渲染）
   const dragStateRef = useRef<DragState | null>(null);
 
+  const updateLayerCorner = useCallback(
+    (
+      layer: VertebraAnnotation[],
+      member: DragMember,
+      imagePoint: Point
+    ): VertebraAnnotation[] =>
+      layer.map(v => {
+        if (v.label !== member.vertebraLabel) return v;
+        const newCorners = [...v.corners] as [Point, Point, Point, Point];
+
+        if (v.label === 'S1') {
+          const indices =
+            member.cornerIndex === 1 || member.cornerIndex === 3
+              ? [1, 3]
+              : [0, 2];
+          indices.forEach(index => {
+            newCorners[index] = imagePoint;
+          });
+          return { ...v, corners: newCorners };
+        }
+
+        if (isSinglePointKeypointLabel(v.label)) {
+          return {
+            ...v,
+            corners: [imagePoint, imagePoint, imagePoint, imagePoint],
+          };
+        }
+
+        newCorners[member.cornerIndex] = imagePoint;
+        return { ...v, corners: newCorners };
+      }),
+    []
+  );
+
   /** 将 clientX/clientY 转换为容器相对坐标 */
   const clientToScreen = useCallback(
-    (clientX: number, clientY: number): { screenX: number; screenY: number } => {
+    (
+      clientX: number,
+      clientY: number
+    ): { screenX: number; screenY: number } => {
       const rect = containerRef.current?.getBoundingClientRect();
       return {
         screenX: clientX - (rect?.left ?? 0),
@@ -71,8 +122,8 @@ export function useVertebradDrag({
    * 使用 imageToScreen 将图像坐标转为屏幕坐标后比较。
    */
   const findNearestCorner = useCallback(
-    (screenX: number, screenY: number): DragState | null => {
-      let best: DragState | null = null;
+    (screenX: number, screenY: number): DragMember | null => {
+      let best: DragMember | null = null;
       let bestDist = HIT_RADIUS_PX;
       for (const vertebra of vertebraeLayer) {
         vertebra.corners.forEach((corner, i) => {
@@ -89,9 +140,31 @@ export function useVertebradDrag({
     [vertebraeLayer, imageToScreen]
   );
 
-  const hitToKeypointId = useCallback((hit: DragState): string => {
+  const hitToKeypointId = useCallback((hit: DragMember): string => {
     return renderCornerToKeypointId(hit.vertebraLabel, hit.cornerIndex);
   }, []);
+
+  const keypointIdsToDragMembers = useCallback(
+    (keypointIds: string[]): DragMember[] => {
+      const seen = new Set<string>();
+      return keypointIds
+        .map(keypointId =>
+          keypointIdToRenderCornerRef(keypointId, vertebraeLayer)
+        )
+        .filter((ref): ref is CornerRef => ref !== null)
+        .map(ref => ({
+          vertebraLabel: ref.label,
+          cornerIndex: ref.index,
+        }))
+        .filter(member => {
+          const key = `${member.vertebraLabel}:${member.cornerIndex}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    },
+    [vertebraeLayer]
+  );
 
   /**
    * 在 div onMouseDown 中调用。
@@ -103,12 +176,39 @@ export function useVertebradDrag({
       const { screenX, screenY } = clientToScreen(clientX, clientY);
       const hit = findNearestCorner(screenX, screenY);
       if (!hit) return false;
-      dragStateRef.current = hit;
+      dragStateRef.current = { mode: 'corner', ...hit };
       setActiveCorner({ label: hit.vertebraLabel, index: hit.cornerIndex });
       setLiveLayer(vertebraeLayer);
       return true;
     },
     [clientToScreen, findNearestCorner, onVertebraeUpdate, vertebraeLayer]
+  );
+
+  const handleKeypointsMouseDown = useCallback(
+    (keypointIds: string[], screenX: number, screenY: number): boolean => {
+      if (!onVertebraeUpdate) return false;
+      const members = keypointIdsToDragMembers(keypointIds);
+      if (members.length === 0) return false;
+
+      const [firstMember] = members;
+      if (members.length === 1) {
+        dragStateRef.current = { mode: 'corner', ...firstMember };
+      } else {
+        dragStateRef.current = {
+          mode: 'group',
+          members,
+          startImagePoint: screenToImage(screenX, screenY),
+          initialLayer: vertebraeLayer,
+        };
+      }
+      setActiveCorner({
+        label: firstMember.vertebraLabel,
+        index: firstMember.cornerIndex,
+      });
+      setLiveLayer(vertebraeLayer);
+      return true;
+    },
+    [keypointIdsToDragMembers, onVertebraeUpdate, screenToImage, vertebraeLayer]
   );
 
   /**
@@ -123,31 +223,53 @@ export function useVertebradDrag({
       const activeHit = dragStateRef.current;
       if (activeHit) {
         const imagePt = screenToImage(screenX, screenY);
-        const { vertebraLabel, cornerIndex } = activeHit;
         setLiveLayer(prev => {
           if (!prev) return prev;
-          return prev.map(v => {
-            if (v.label !== vertebraLabel) return v;
-            // 单点关键点：4角完全相同，整体移动
-            if (isSinglePointKeypointLabel(v.label)) {
-              return { ...v, corners: [imagePt, imagePt, imagePt, imagePt] };
-            }
-            // 椎体：只移动被拖拽的那个角
-            const newCorners = [...v.corners] as [Point, Point, Point, Point];
-            newCorners[cornerIndex] = imagePt;
-            return { ...v, corners: newCorners };
-          });
+          const next =
+            activeHit.mode === 'corner'
+              ? updateLayerCorner(prev, activeHit, imagePt)
+              : (() => {
+                  const delta = {
+                    x: imagePt.x - activeHit.startImagePoint.x,
+                    y: imagePt.y - activeHit.startImagePoint.y,
+                  };
+                  return activeHit.members.reduce((layer, member) => {
+                    const source = activeHit.initialLayer.find(
+                      item => item.label === member.vertebraLabel
+                    );
+                    const initialPoint = source?.corners[member.cornerIndex];
+                    if (!initialPoint) return layer;
+                    return updateLayerCorner(layer, member, {
+                      x: initialPoint.x + delta.x,
+                      y: initialPoint.y + delta.y,
+                    });
+                  }, activeHit.initialLayer);
+                })();
+          onLiveLayerChange?.(next);
+          return next;
         });
-        onHoverChange?.(hitToKeypointId(activeHit));
+        const activeMember =
+          activeHit.mode === 'corner' ? activeHit : activeHit.members[0];
+        onHoverChange?.(activeMember ? hitToKeypointId(activeMember) : null);
         return true;
       }
       // 更新悬停状态
       const hit = findNearestCorner(screenX, screenY);
-      setHoveredCorner(hit ? { label: hit.vertebraLabel, index: hit.cornerIndex } : null);
+      setHoveredCorner(
+        hit ? { label: hit.vertebraLabel, index: hit.cornerIndex } : null
+      );
       onHoverChange?.(hit ? hitToKeypointId(hit) : null);
       return hit !== null;
     },
-    [clientToScreen, findNearestCorner, hitToKeypointId, onHoverChange, screenToImage]
+    [
+      clientToScreen,
+      findNearestCorner,
+      hitToKeypointId,
+      onHoverChange,
+      onLiveLayerChange,
+      screenToImage,
+      updateLayerCorner,
+    ]
   );
 
   /**
@@ -173,8 +295,10 @@ export function useVertebradDrag({
     /** 渲染时使用的图层：拖拽中为实时图层，否则为 vertebraeLayer prop */
     renderLayer: liveLayer ?? vertebraeLayer,
     activeCorner,
+    isDragging: dragStateRef.current !== null || activeCorner !== null,
     hoveredCorner,
     handleMouseDown,
+    handleKeypointsMouseDown,
     handleMouseMove,
     handleMouseUp,
     clearHover,

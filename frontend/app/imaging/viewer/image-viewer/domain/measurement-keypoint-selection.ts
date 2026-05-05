@@ -78,6 +78,37 @@ function addSacralReferencePair(
   if (byId.has('SR')) selected.add('SR');
 }
 
+export interface MeasurementPointDragTarget {
+  keypointIds: string[];
+}
+
+function uniqueSorted(ids: Iterable<string>): string[] {
+  return Array.from(new Set(ids)).sort((left, right) =>
+    left.localeCompare(right)
+  );
+}
+
+function findExactKeypoint(
+  point: Point,
+  keypoints: KeypointAnnotation[]
+): KeypointAnnotation | null {
+  return keypoints.find(keypoint => isNearPoint(point, keypoint.point)) ?? null;
+}
+
+function findVertebraGroupAtCenter(
+  point: Point,
+  groups: Map<string, KeypointAnnotation[]>
+): KeypointAnnotation[] | null {
+  for (const groupKeypoints of groups.values()) {
+    const center = getCentroid(groupKeypoints.map(keypoint => keypoint.point));
+    if (isNearPoint(point, center)) {
+      return groupKeypoints;
+    }
+  }
+
+  return null;
+}
+
 export function resolveMeasurementKeypointIds(
   measurement: MeasurementData,
   keypoints: KeypointAnnotation[]
@@ -106,6 +137,10 @@ export function resolveMeasurementKeypointIds(
   }
 
   const typeId = getAnnotationTypeId(measurement.type);
+
+  if (typeId === 'sva' && measurement.points[4] && byId.has('S1-2')) {
+    selected.add('S1-2');
+  }
 
   if (measurement.upperVertebra) {
     addVertebraGroup(selected, completeGroups, measurement.upperVertebra);
@@ -159,5 +194,47 @@ export function resolveMeasurementKeypointIds(
     }
   }
 
-  return Array.from(selected).sort((left, right) => left.localeCompare(right));
+  return uniqueSorted(selected);
+}
+
+export function resolveMeasurementPointDragTarget(
+  measurement: MeasurementData,
+  pointIndex: number,
+  keypoints: KeypointAnnotation[]
+): MeasurementPointDragTarget | null {
+  const point = measurement.points[pointIndex];
+  if (!point || keypoints.length === 0) return null;
+
+  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
+  const typeId = getAnnotationTypeId(measurement.type);
+
+  if (typeId === 'sva' && pointIndex === 4 && byId.has('S1-2')) {
+    return { keypointIds: ['S1-2'] };
+  }
+
+  const exact = findExactKeypoint(point, keypoints);
+  if (exact) {
+    return { keypointIds: [exact.id] };
+  }
+
+  const completeGroups = buildCompleteVertebraGroups(keypoints);
+  const centerGroup = findVertebraGroupAtCenter(point, completeGroups);
+  if (centerGroup) {
+    return {
+      keypointIds: uniqueSorted(centerGroup.map(keypoint => keypoint.id)),
+    };
+  }
+
+  if (typeId === 'avt' || typeId === 'ts') {
+    const sl = byId.get('SL');
+    const sr = byId.get('SR');
+    if (sl && sr) {
+      const midlineX = (sl.point.x + sr.point.x) / 2;
+      if (isNearX(point.x, midlineX)) {
+        return { keypointIds: ['SL', 'SR'] };
+      }
+    }
+  }
+
+  return null;
 }

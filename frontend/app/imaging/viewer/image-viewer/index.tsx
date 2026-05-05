@@ -1,6 +1,6 @@
 'use client';
 
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@/lib/api';
 import AnnotationCanvas from './components/AnnotationCanvas';
 import AnnotationToolbar from './components/AnnotationToolbar';
@@ -17,19 +17,26 @@ import {
   getAnnotationConfig,
   getAnnotationTypeId,
 } from './catalog/shared/annotation-config';
-import {
-  calculateMeasurementValue as calcMeasurementValue,
-} from './domain/annotation-calculation';
+import { calculateMeasurementValue as calcMeasurementValue } from './domain/annotation-calculation';
 import { getInheritedPoints } from './domain/annotation-inheritance';
 import { filterUniqueAnnotationDuplicates } from './domain/annotation-uniqueness';
 import { getDescriptionForType as getDesc } from './domain/annotation-metadata';
 import { getToolsForExamType as getTools } from './catalog/exam-tool-catalog';
 import { useAnnotationEngine } from './hooks/useAnnotationEngine';
-import * as hooks from "./hooks/index"
-import * as usecases from "./usecase/index"
+import * as hooks from './hooks/index';
+import * as usecases from './usecase/index';
 import { getAiMeasurementsResponse } from '@/services/imageServices';
-import {CfhAnnotation, ImageSize, MeasurementData, Point, VertebraAnnotation} from './types';
-import { deriveAllMeasurements, DERIVED_ID_PREFIX } from './domain/vertebrae-derive';
+import {
+  CfhAnnotation,
+  ImageSize,
+  MeasurementData,
+  Point,
+  VertebraAnnotation,
+} from './types';
+import {
+  deriveAllMeasurements,
+  DERIVED_ID_PREFIX,
+} from './domain/vertebrae-derive';
 import {
   deleteKeypoint,
   getCompleteSelectableVertebraGroups,
@@ -161,9 +168,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const [isAIMeasuring, setIsAIMeasuring] = useState(false);
 
   // 椎体标注层（独立于 measurements[]，仅 AI 检测结果写入这里）
-  const [vertebraeLayer, setVertebraeLayer] = useState<VertebraAnnotation[]>([]);
+  const [vertebraeLayer, setVertebraeLayer] = useState<VertebraAnnotation[]>(
+    []
+  );
   const [keypoints, setKeypoints] = useState<KeypointAnnotation[]>([]);
-  const [cfhAnnotation, setCfhAnnotation] = useState<CfhAnnotation | null>(null);
+  const [cfhAnnotation, setCfhAnnotation] = useState<CfhAnnotation | null>(
+    null
+  );
   const [showVertebraeLayer, setShowVertebraeLayer] = useState(false);
   /**
    * 记录 AI 测量接口返回的测量 ID。
@@ -220,38 +231,38 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
   // 从API获取真实的影像数据
   hooks.useStudyDataLoader(
-      imageId,
-      setStudyData,
-      setStudyLoading,
-      setMeasurements,
-      setStandardDistance,
-      setStandardDistancePoints,
-      setPointBindings,
-      dbAnnotationLoadedRef,
-      (layer) => {
-        setVertebraeLayer(layer);
-      },
-      setCfhAnnotation,
-  )
+    imageId,
+    setStudyData,
+    setStudyLoading,
+    setMeasurements,
+    setStandardDistance,
+    setStandardDistancePoints,
+    setPointBindings,
+    dbAnnotationLoadedRef,
+    layer => {
+      setVertebraeLayer(layer);
+    },
+    setCfhAnnotation
+  );
 
   // 当图像尺寸确定后，自动加载标注数据
   hooks.useLocalAnnotationsDataLoader(
-      imageId,
-      imageNaturalSize,
-      setMeasurements,
-      standardDistance,
-      setStandardDistance,
-      standardDistancePoints,
-      setStandardDistancePoints,
-      setPointBindings,
-      dbAnnotationLoadedRef,
-      calcMeasurementValue,
-      getDesc,
-      (layer) => {
-        setVertebraeLayer(layer);
-      },
-      setCfhAnnotation,
-  )
+    imageId,
+    imageNaturalSize,
+    setMeasurements,
+    standardDistance,
+    setStandardDistance,
+    standardDistancePoints,
+    setStandardDistancePoints,
+    setPointBindings,
+    dbAnnotationLoadedRef,
+    calcMeasurementValue,
+    getDesc,
+    layer => {
+      setVertebraeLayer(layer);
+    },
+    setCfhAnnotation
+  );
 
   // 构建兼容的imageData对象
   const imageData = studyData
@@ -330,13 +341,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       currentTool.id === 'ss' ||
       currentTool.id === 'cl' ||
       currentTool.id === 'll-l1-s1' ||
-      currentTool.id === 'll-l1-l4' ||  // LL L1-L4: 继承点在索引0-1，手动点在2-3
+      currentTool.id === 'll-l1-l4' || // LL L1-L4: 继承点在索引0-1，手动点在2-3
       currentTool.id === 'll-l4-s1' ||
       currentTool.id === 'pi' ||
       currentTool.id === 'pt' ||
       currentTool.id === 'tpa' ||
-      currentTool.id === 'ts' ||  // TS: 继承点在索引4-5，手动点在0-3
-      currentTool.id === 'tts'           // TTS: 继承点在索引2-3，手动点在0-1
+      currentTool.id === 'ts' || // TS: 继承点在索引4-5，手动点在0-3
+      currentTool.id === 'tts' // TTS: 继承点在索引2-3，手动点在0-1
     ) {
       return;
     }
@@ -399,7 +410,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     lowerVertebra: string,
     nextKeypoints: KeypointAnnotation[]
   ): MeasurementData | null => {
-    const byId = new Map(nextKeypoints.map(keypoint => [keypoint.id, keypoint]));
+    const byId = new Map(
+      nextKeypoints.map(keypoint => [keypoint.id, keypoint])
+    );
     const sl = byId.get('SL');
     const sr = byId.get('SR');
     if (!sl || !sr) return null;
@@ -435,7 +448,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     apexVertebra: string,
     nextKeypoints: KeypointAnnotation[]
   ): MeasurementData | null => {
-    const byId = new Map(nextKeypoints.map(keypoint => [keypoint.id, keypoint]));
+    const byId = new Map(
+      nextKeypoints.map(keypoint => [keypoint.id, keypoint])
+    );
     const sl = byId.get('SL');
     const sr = byId.get('SR');
     if (!sl || !sr) return null;
@@ -498,8 +513,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       const centerMeasurements = previousMeasurements
         .filter(
           measurement =>
-            measurement.type === 'vertebra-center' &&
-            measurement.upperVertebra
+            measurement.type === 'vertebra-center' && measurement.upperVertebra
         )
         .map(measurement =>
           createVertebraCenterMeasurement(
@@ -508,8 +522,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           )
         )
         .filter(
-          (measurement): measurement is MeasurementData =>
-            measurement !== null
+          (measurement): measurement is MeasurementData => measurement !== null
         );
 
       const existingTts = previousMeasurements.find(
@@ -551,27 +564,34 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     [deriveKeypointMeasurements]
   );
 
+  useEffect(() => {
+    if (!isKeypointExam || keypoints.length === 0) return;
+    setMeasurements(previous =>
+      rebuildKeypointMeasurements(previous, keypoints)
+    );
+  }, [isKeypointExam, keypoints, rebuildKeypointMeasurements, setMeasurements]);
+
   const handleAddMeasurement = useCallback(
-      (toolType: string, points: Point[]) => {
-        usecases.addMeasurement(
-            toolType,
-            points,
-            measurements,
-            setMeasurements,
-            tools,
-            standardDistance,
-            standardDistancePoints,
-            imageNaturalSize
-        )
-      },
-      [
-        imageNaturalSize,
+    (toolType: string, points: Point[]) => {
+      usecases.addMeasurement(
+        toolType,
+        points,
         measurements,
+        setMeasurements,
+        tools,
         standardDistance,
         standardDistancePoints,
-        tools,
-      ]
-  )
+        imageNaturalSize
+      );
+    },
+    [
+      imageNaturalSize,
+      measurements,
+      standardDistance,
+      standardDistancePoints,
+      tools,
+    ]
+  );
 
   const applyKeypoints = useCallback(
     (nextKeypoints: KeypointAnnotation[]) => {
@@ -665,7 +685,8 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       setMeasurements(previous => {
         if (
           previous.some(
-            item => item.type === 'vertebra-center' && item.upperVertebra === vertebra
+            item =>
+              item.type === 'vertebra-center' && item.upperVertebra === vertebra
           )
         ) {
           return previous;
@@ -697,7 +718,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         measurement,
       ]);
     },
-    [keypoints, setSaveMessage, setShowStandardDistanceWarning, standardDistance]
+    [
+      keypoints,
+      setSaveMessage,
+      setShowStandardDistanceWarning,
+      standardDistance,
+    ]
   );
 
   const handleCreateAvt = useCallback(
@@ -727,25 +753,19 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   );
 
   // 获取影像列表
-  hooks.useImageListFetcher(setImageList)
+  hooks.useImageListFetcher(setImageList);
 
   const currentIndex = imageList.indexOf(imageId);
 
   // 报告生成回调
-  const handleReportGenerate = useCallback(
-    () => {
-      void usecases.generateReport(
-        imageData,
-        measurements,
-        setReportText,
-        setSaveMessage
-      )
-    },
-    [
+  const handleReportGenerate = useCallback(() => {
+    void usecases.generateReport(
       imageData,
       measurements,
-    ]
-  )
+      setReportText,
+      setSaveMessage
+    );
+  }, [imageData, measurements]);
 
   const measurementMatchesTool = useCallback(
     (measurement: MeasurementData, toolId: string): boolean =>
@@ -1132,7 +1152,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     setSaveMessage('');
 
     try {
-      const aiData = await getAiMeasurementsResponse(imageId, imageData.examType);
+      const aiData = await getAiMeasurementsResponse(
+        imageId,
+        imageData.examType
+      );
 
       // 解析AI返回的JSON数据并加载到标注界面
       if (aiData.measurements && Array.isArray(aiData.measurements)) {
@@ -1183,90 +1206,95 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         ]);
 
         const aiMeasurements = filterUniqueAnnotationDuplicates(
-          aiData.measurements.filter((m: any) => {
-            const incomingTypeId = getAnnotationTypeId(m.type);
-            // 检查标注类型是否存在于配置中
-            // 优先匹配 name（精确匹配），然后匹配 id（小写匹配），最后匹配 name（不区分大小写）
-            const tool =
-              getAnnotationConfig(m.type) ?? getAnnotationConfig(incomingTypeId);
+          aiData.measurements
+            .filter((m: any) => {
+              const incomingTypeId = getAnnotationTypeId(m.type);
+              // 检查标注类型是否存在于配置中
+              // 优先匹配 name（精确匹配），然后匹配 id（小写匹配），最后匹配 name（不区分大小写）
+              const tool =
+                getAnnotationConfig(m.type) ??
+                getAnnotationConfig(incomingTypeId);
 
-            if (!tool || tool.category !== 'measurement') return false;
-            if (isLateralView && S1_RELATED_TYPES.has(tool.id)) return false;
+              if (!tool || tool.category !== 'measurement') return false;
+              if (isLateralView && S1_RELATED_TYPES.has(tool.id)) return false;
 
-            // SVA 改为 5 点法：AI 返回的 SVA 非 5 点时直接过滤，不显示
-            if (tool.id === 'sva') {
-              return Array.isArray(m.points) && m.points.length === 5;
-            }
+              // SVA 改为 5 点法：AI 返回的 SVA 非 5 点时直接过滤，不显示
+              if (tool.id === 'sva') {
+                return Array.isArray(m.points) && m.points.length === 5;
+              }
 
-            return true;
-          })
-          .map((m: any) => {
-            const incomingTypeId = getAnnotationTypeId(m.type);
-            const tool =
-              getAnnotationConfig(m.type) ?? getAnnotationConfig(incomingTypeId);
-            const requiredPoints = tool?.pointsNeeded || m.points.length;
+              return true;
+            })
+            .map((m: any) => {
+              const incomingTypeId = getAnnotationTypeId(m.type);
+              const tool =
+                getAnnotationConfig(m.type) ??
+                getAnnotationConfig(incomingTypeId);
+              const requiredPoints = tool?.pointsNeeded || m.points.length;
 
-            // 如果返回的点数超过所需点数，只保留所需数量的点
-            let processedPoints = m.points;
-            if (requiredPoints > 0 && m.points.length > requiredPoints) {
-              processedPoints = m.points.slice(0, requiredPoints);
-            }
+              // 如果返回的点数超过所需点数，只保留所需数量的点
+              let processedPoints = m.points;
+              if (requiredPoints > 0 && m.points.length > requiredPoints) {
+                processedPoints = m.points.slice(0, requiredPoints);
+              }
 
-            // 转换坐标
-            const scaledPoints = processedPoints.map((p: any) => ({
-              x: p.x * scaleX,
-              y: p.y * scaleY,
-            }));
+              // 转换坐标
+              const scaledPoints = processedPoints.map((p: any) => ({
+                x: p.x * scaleX,
+                y: p.y * scaleY,
+              }));
 
-            // 将所有Cobb-*类型统一映射为Cobb1, Cobb2, Cobb3
-            let finalType = tool?.id || incomingTypeId;
-            let isCobb = false;
-            if (m.type.startsWith('Cobb-')) {
-              cobbCount++;
-              finalType = `cobb${cobbCount}`;
-              isCobb = true;
-            }
+              // 将所有Cobb-*类型统一映射为Cobb1, Cobb2, Cobb3
+              let finalType = tool?.id || incomingTypeId;
+              let isCobb = false;
+              if (m.type.startsWith('Cobb-')) {
+                cobbCount++;
+                finalType = `cobb${cobbCount}`;
+                isCobb = true;
+              }
 
-            // 根据type和points重新计算value
-            // 对于Cobb类型，使用'cobb'配置；其他类型使用原始类型
-            const typeForCalculation = isCobb ? 'cobb' : finalType;
-            const value = calculateMeasurementValue(
-              typeForCalculation,
-              scaledPoints
-            );
+              // 根据type和points重新计算value
+              // 对于Cobb类型，使用'cobb'配置；其他类型使用原始类型
+              const typeForCalculation = isCobb ? 'cobb' : finalType;
+              const value = calculateMeasurementValue(
+                typeForCalculation,
+                scaledPoints
+              );
 
-            // 调试：打印椎体信息
-            if (isCobb) {
-              console.log(`[DEBUG] ${finalType} 椎体信息:`, {
-                upper_vertebra: m.upper_vertebra,
-                lower_vertebra: m.lower_vertebra,
-                apex_vertebra: m.apex_vertebra,
-                原始数据: m,
-              });
-            }
+              // 调试：打印椎体信息
+              if (isCobb) {
+                console.log(`[DEBUG] ${finalType} 椎体信息:`, {
+                  upper_vertebra: m.upper_vertebra,
+                  lower_vertebra: m.lower_vertebra,
+                  apex_vertebra: m.apex_vertebra,
+                  原始数据: m,
+                });
+              }
 
-            return {
-              id:
-                Date.now().toString() +
-                Math.random().toString(36).substring(2, 11),
-              type: finalType, // 使用映射后的类型（Cobb1, Cobb2, Cobb3）
-              value: value,
-              points: scaledPoints,
-              description: isCobb
-                ? 'Cobb角测量'
-                : getDescriptionForType(finalType),
-              originalType: m.type, // 保留原始类型用于调试
-              // 保存椎体信息（仅Cobb角有）
-              upperVertebra: m.upper_vertebra,
-              lowerVertebra: m.lower_vertebra,
-              apexVertebra: m.apex_vertebra,
-            };
-          })
+              return {
+                id:
+                  Date.now().toString() +
+                  Math.random().toString(36).substring(2, 11),
+                type: finalType, // 使用映射后的类型（Cobb1, Cobb2, Cobb3）
+                value: value,
+                points: scaledPoints,
+                description: isCobb
+                  ? 'Cobb角测量'
+                  : getDescriptionForType(finalType),
+                originalType: m.type, // 保留原始类型用于调试
+                // 保存椎体信息（仅Cobb角有）
+                upperVertebra: m.upper_vertebra,
+                lowerVertebra: m.lower_vertebra,
+                apexVertebra: m.apex_vertebra,
+              };
+            })
         );
 
         setMeasurements(aiMeasurements);
         // 记录 AI 测量 ID，供 handleVertebraeUpdate 过滤使用
-        aiMeasurementIdsRef.current = new Set(aiMeasurements.map((m: MeasurementData) => m.id));
+        aiMeasurementIdsRef.current = new Set(
+          aiMeasurements.map((m: MeasurementData) => m.id)
+        );
         // AI 返回后执行一次基于坐标重合的自动绑定
         const s1Count = aiMeasurements.filter((m: any) =>
           S1_RELATED_TYPES.has(getAnnotationTypeId(m.type))
@@ -1340,7 +1368,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       }
       setVertebraeLayer(updated);
       // 推导替换旧的 derived 条目 + AI 测量条目
-      const derived = deriveAllMeasurements(updated, cfhAnnotation, imageData.examType);
+      const derived = deriveAllMeasurements(
+        updated,
+        cfhAnnotation,
+        imageData.examType
+      );
       const derivedWithValues = derived.map(m => ({
         ...m,
         value: calculateMeasurementValue(m.type, m.points),
@@ -1354,32 +1386,25 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         ...derivedWithValues,
       ]);
     },
-    [
-      applyKeypoints,
-      cfhAnnotation,
-      imageData.examType,
-      isKeypointExam,
-    ]
+    [applyKeypoints, cfhAnnotation, imageData.examType, isKeypointExam]
   );
 
-  const handleSaveMeasurements = useCallback(
-    () => {
-      void usecases.saveMeasurements(
-        imageId,
-        studyData,
-        imageNaturalSize,
-        standardDistance,
-        standardDistancePoints,
-        pointBindings,
-        measurements,
-        reportText,
-        setIsSaving,
-        setSaveMessage,
-        activeVertebraeLayer,
-        cfhAnnotation,
+  const handleVertebraePreviewUpdate = useCallback(
+    (updated: VertebraAnnotation[]) => {
+      if (!isKeypointExam) return;
+      const nextKeypoints = vertebraeLayerToKeypoints(
+        updated,
+        imageData.examType
+      );
+      setMeasurements(previous =>
+        rebuildKeypointMeasurements(previous, nextKeypoints)
       );
     },
-    [
+    [imageData.examType, isKeypointExam, rebuildKeypointMeasurements]
+  );
+
+  const handleSaveMeasurements = useCallback(() => {
+    void usecases.saveMeasurements(
       imageId,
       studyData,
       imageNaturalSize,
@@ -1388,10 +1413,23 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       pointBindings,
       measurements,
       reportText,
+      setIsSaving,
+      setSaveMessage,
       activeVertebraeLayer,
-      cfhAnnotation,
-    ]
-  );
+      cfhAnnotation
+    );
+  }, [
+    imageId,
+    studyData,
+    imageNaturalSize,
+    standardDistance,
+    standardDistancePoints,
+    pointBindings,
+    measurements,
+    reportText,
+    activeVertebraeLayer,
+    cfhAnnotation,
+  ]);
 
   return (
     <>
@@ -1417,11 +1455,17 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                     rebuildKeypointMeasurements(prev, keypoints)
                   );
                 } else {
-                  const derived = deriveAllMeasurements(activeVertebraeLayer, cfhAnnotation, imageData.examType);
-                  const derivedWithValues = derived.map((m: MeasurementData) => ({
-                    ...m,
-                    value: calculateMeasurementValue(m.type, m.points),
-                  }));
+                  const derived = deriveAllMeasurements(
+                    activeVertebraeLayer,
+                    cfhAnnotation,
+                    imageData.examType
+                  );
+                  const derivedWithValues = derived.map(
+                    (m: MeasurementData) => ({
+                      ...m,
+                      value: calculateMeasurementValue(m.type, m.points),
+                    })
+                  );
                   setMeasurements(prev => [
                     ...prev.filter(
                       (m: MeasurementData) =>
@@ -1489,7 +1533,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 keypoints={isKeypointExam ? keypoints : []}
                 cfhAnnotation={cfhAnnotation}
                 showVertebraeLayer={showVertebraeLayer}
-                onVertebraeUpdate={canUseKeypoints ? handleVertebraeUpdate : undefined}
+                onVertebraeUpdate={
+                  canUseKeypoints ? handleVertebraeUpdate : undefined
+                }
+                onVertebraePreviewUpdate={
+                  canUseKeypoints ? handleVertebraePreviewUpdate : undefined
+                }
                 onKeypointAdd={handleKeypointAdd}
                 onKeypointDelete={handleKeypointDelete}
               />
@@ -1514,7 +1563,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             selectedBindingGroupId={selectedBindingGroupId}
             isBindingPanelOpen={isBindingPanelOpen}
             isManualBindingMode={isManualBindingMode}
-            manualBindingSelectedPointsCount={manualBindingSelectedPoints.length}
+            manualBindingSelectedPointsCount={
+              manualBindingSelectedPoints.length
+            }
             showTagPanel={showTagPanel}
             tags={tags}
             newTag={newTag}
