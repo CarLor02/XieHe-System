@@ -221,47 +221,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     cfh: CfhAnnotation | null;
   } | null>(null);
 
-  /**
-   * 图像加载完成后，对普通用户（非 Admin）的侧位图像提前静默运行椎体检测，
-   * 缓存结果供用户画 SS 时立即推导 S1 复合指标（PI/PT/LL/TPA/SVA）。
-   * 用 imageId 作为依赖，切换图像时重新检测并覆盖旧缓存。
-   */
-  useEffect(() => {
-    if (!isLateralView || canUseKeypoints || !imageNaturalSize) return;
-    // 重置旧缓存，避免用新图像画 SS 时用到前一张图的检测结果
-    lateralDetectionResultRef.current = null;
-
-    void (async () => {
-      try {
-        // 等待 DOM 中图像元素就绪（imageNaturalSize 置位时图像已渲染）
-        const imgEl = document.querySelector(
-          '[data-image-canvas] img'
-        ) as HTMLImageElement | null;
-        if (!imgEl) return;
-
-        const blob = await new Promise<Blob | null>(resolve => {
-          const canvas = document.createElement('canvas');
-          canvas.width = imgEl.naturalWidth;
-          canvas.height = imgEl.naturalHeight;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) { resolve(null); return; }
-          ctx.drawImage(imgEl, 0, 0);
-          canvas.toBlob(b => resolve(b));
-        });
-        if (!blob) return;
-
-        const detectResult = await usecases.detectLateralVertebrae(blob);
-        if (!detectResult || detectResult.vertebrae.length === 0) return;
-
-        lateralDetectionResultRef.current = detectResult;
-        console.log('[lateralDetection] 预检测完成，椎体数量:', detectResult.vertebrae.length);
-      } catch (e) {
-        console.warn('[lateralDetection] 预检测失败，SS 绑定推导将不可用:', e);
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageId, isLateralView, canUseKeypoints, imageNaturalSize?.width, imageNaturalSize?.height]);
-
   useEffect(() => {
     if (!selectedBindingGroupId) return;
     const group = pointBindings.syncGroups.find(
@@ -358,6 +317,45 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         : vertebraeLayer,
     [isKeypointExam, keypoints, vertebraeLayer]
   );
+
+  /**
+   * 图像加载完成后，对普通用户的侧位图像提前静默运行椎体检测，
+   * 缓存结果供用户画 SS 时立即推导 S1 复合指标（PI/PT/LL/TPA/SVA）。
+   * 用 imageId + imageNaturalSize 触发，切换图像时重置旧缓存。
+   */
+  useEffect(() => {
+    if (!isLateralView || canUseKeypoints || !imageNaturalSize) return;
+    lateralDetectionResultRef.current = null;
+
+    void (async () => {
+      try {
+        const imgEl = document.querySelector(
+          '[data-image-canvas] img'
+        ) as HTMLImageElement | null;
+        if (!imgEl) return;
+
+        const blob = await new Promise<Blob | null>(resolve => {
+          const canvas = document.createElement('canvas');
+          canvas.width = imgEl.naturalWidth;
+          canvas.height = imgEl.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(null); return; }
+          ctx.drawImage(imgEl, 0, 0);
+          canvas.toBlob(b => resolve(b));
+        });
+        if (!blob) return;
+
+        const detectResult = await usecases.detectLateralVertebrae(blob);
+        if (!detectResult || detectResult.vertebrae.length === 0) return;
+
+        lateralDetectionResultRef.current = detectResult;
+        console.log('[lateralDetection] 预检测完成，椎体数量:', detectResult.vertebrae.length);
+      } catch (e) {
+        console.warn('[lateralDetection] 预检测失败，SS 绑定推导将不可用:', e);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageId, isLateralView, canUseKeypoints, imageNaturalSize?.width, imageNaturalSize?.height]);
 
   useEffect(() => {
     if (!isKeypointExam) return;
