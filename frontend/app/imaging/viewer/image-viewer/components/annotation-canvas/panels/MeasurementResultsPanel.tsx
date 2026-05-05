@@ -23,6 +23,7 @@ interface MeasurementResultsPanelProps {
   standardDistancePoints: { x: number; y: number }[];
   measurements: MeasurementData[];
   keypoints: KeypointAnnotation[];
+  canShowKeypoints: boolean;
   selectionState: SelectionState;
   hoverState: HoverState;
   hiddenMeasurementIds: Set<string>;
@@ -59,6 +60,7 @@ export default function MeasurementResultsPanel({
   standardDistancePoints,
   measurements,
   keypoints,
+  canShowKeypoints,
   selectionState,
   hoverState,
   hiddenMeasurementIds,
@@ -87,6 +89,12 @@ export default function MeasurementResultsPanel({
   useEffect(() => {
     setEditingAuxiliaryName(null);
   }, [measurements.length]);
+
+  useEffect(() => {
+    if (!canShowKeypoints && activeTab === 'keypoints') {
+      setActiveTab('measurements');
+    }
+  }, [activeTab, canShowKeypoints]);
 
   const startEditingAuxiliaryName = (
     measurementId: string,
@@ -209,7 +217,9 @@ export default function MeasurementResultsPanel({
             className="max-h-[50vh] overflow-y-auto"
             onWheel={event => event.stopPropagation()}
           >
-            <div className="grid grid-cols-2 gap-1 px-2 py-2 bg-black/10">
+            <div
+              className={`grid ${canShowKeypoints ? 'grid-cols-2' : 'grid-cols-1'} gap-1 px-2 py-2 bg-black/10`}
+            >
               <button
                 type="button"
                 onClick={event => {
@@ -224,20 +234,22 @@ export default function MeasurementResultsPanel({
               >
                 测量项
               </button>
-              <button
-                type="button"
-                onClick={event => {
-                  event.stopPropagation();
-                  setActiveTab('keypoints');
-                }}
-                className={`h-7 rounded text-xs ${
-                  activeTab === 'keypoints'
-                    ? 'bg-white/20 text-white'
-                    : 'text-white/70 hover:bg-white/10'
-                }`}
-              >
-                检测点
-              </button>
+              {canShowKeypoints && (
+                <button
+                  type="button"
+                  onClick={event => {
+                    event.stopPropagation();
+                    setActiveTab('keypoints');
+                  }}
+                  className={`h-7 rounded text-xs ${
+                    activeTab === 'keypoints'
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/70 hover:bg-white/10'
+                  }`}
+                >
+                  检测点
+                </button>
+              )}
             </div>
 
             {activeTab === 'measurements' &&
@@ -443,7 +455,8 @@ export default function MeasurementResultsPanel({
                 </div>
               ))}
 
-            {activeTab === 'keypoints' &&
+            {canShowKeypoints &&
+              activeTab === 'keypoints' &&
               (keypoints.length > 0 ? (
                 <div className="px-3 py-2 space-y-1">
                   {sortedKeypoints.map(keypoint => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import BindingPanel from './BindingPanel';
 import ReportPanel from './ReportPanel';
 import { AnnotationBindings } from '../domain/annotation-binding';
@@ -147,6 +147,12 @@ export default function AnnotationToolbar({
   const [ttsUpperVertebra, setTtsUpperVertebra] = useState('');
   const [ttsLowerVertebra, setTtsLowerVertebra] = useState('');
 
+  useEffect(() => {
+    if (!canUseKeypointTools && activeToolTab === 'keypoint') {
+      setActiveToolTab('measurement');
+    }
+  }, [activeToolTab, canUseKeypointTools]);
+
   const measurementTools = tools.filter(tool => !isAuxiliaryTool(tool.id));
   const auxiliaryTools = tools.filter(tool => isAuxiliaryTool(tool.id));
   const keypointGroups = getKeypointGroupsForExamType(examType);
@@ -198,15 +204,15 @@ export default function AnnotationToolbar({
     group => group.id === openKeypointGroup
   );
 
-  const renderAvailabilityBadge = (isAvailable: boolean) => (
-    <div
-      className={`absolute -bottom-1 -right-1 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center ${
-        isAvailable ? 'bg-emerald-500' : 'bg-gray-600'
-      }`}
-    >
-      <i
-        className={`${isAvailable ? 'ri-check-line' : 'ri-subtract-line'} text-[10px]`}
-      ></i>
+  const renderPointCountBadge = (pointsNeeded: number) => (
+    <div className="absolute -bottom-1 -right-1 bg-gray-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+      {pointsNeeded}
+    </div>
+  );
+
+  const renderAuxiliaryMouseBadge = () => (
+    <div className="absolute -bottom-1 -right-1 bg-green-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+      <i className="ri-mouse-line w-2 h-2"></i>
     </div>
   );
 
@@ -449,7 +455,9 @@ export default function AnnotationToolbar({
           </div>
 
           <div className="mb-4">
-            <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-900/70 p-1 mb-3">
+            <div
+              className={`grid ${toolTabs.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-1 rounded-lg bg-gray-900/70 p-1 mb-3`}
+            >
               {toolTabs.map(tab => (
                 <button
                   key={tab.id}
@@ -518,18 +526,22 @@ export default function AnnotationToolbar({
                           : isUniquenessBlocked
                             ? 'exists'
                             : 'missing-keypoints';
-                        const isToolAvailable = isAutomaticTool
-                          ? true
-                          : isCobbTool
-                            ? canCreateCobb
-                            : tool.id === 'vertebra-center'
-                              ? hasAvailableVertebraCenter
-                              : tool.id === 'avt'
-                                ? canCreateAvt
-                                : tool.id === 'tts'
-                                  ? canCreateTts
-                                  : !isUniquenessBlocked;
-                        const toolTitle = isAutomaticTool
+                        const isToolAvailable = isUniquenessBlocked
+                          ? false
+                          : isAutomaticTool
+                            ? true
+                            : isCobbTool
+                              ? canCreateCobb
+                              : tool.id === 'vertebra-center'
+                                ? hasAvailableVertebraCenter
+                                : tool.id === 'avt'
+                                  ? canCreateAvt
+                                  : tool.id === 'tts'
+                                    ? canCreateTts
+                                    : true;
+                        const toolTitle = isUniquenessBlocked
+                          ? `${tool.name} 已存在，不能重复添加`
+                          : isAutomaticTool
                           ? isToolAvailable
                             ? automaticStatus === 'available'
                               ? `${tool.name} 可恢复，点击自动生成`
@@ -617,7 +629,7 @@ export default function AnnotationToolbar({
                                 {tool.name}
                               </span>
                             </div>
-                            {renderAvailabilityBadge(isToolAvailable)}
+                            {renderPointCountBadge(tool.pointsNeeded)}
                             {(selectedTool === tool.id || isOpen) &&
                               isToolAvailable && (
                                 <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
@@ -930,7 +942,7 @@ export default function AnnotationToolbar({
                                 .replace('Polygons', '多边形')}
                             </span>
                           </div>
-                          {renderAvailabilityBadge(true)}
+                          {renderAuxiliaryMouseBadge()}
                           {selectedTool === tool.id && (
                             <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
                           )}

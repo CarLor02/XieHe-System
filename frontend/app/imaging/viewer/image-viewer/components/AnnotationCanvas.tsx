@@ -691,6 +691,7 @@ export default function AnnotationCanvas({
         standardDistancePoints={standardDistancePoints}
         measurements={measurements}
         keypoints={canUseKeypointTools ? keypoints : []}
+        canShowKeypoints={canUseKeypointTools}
         selectionState={selectionState}
         hoverState={hoverState}
         hiddenMeasurementIds={hiddenMeasurementIds}
