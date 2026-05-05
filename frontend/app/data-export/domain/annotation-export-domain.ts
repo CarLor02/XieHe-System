@@ -1,4 +1,7 @@
-import type { MeasurementData, VertebraAnnotation } from '@/app/imaging/viewer/image-viewer/types';
+import type {
+  MeasurementData,
+  PersistedKeypointAnnotation,
+} from '@/app/imaging/viewer/image-viewer/types';
 import {
   getAnnotationConfig,
   getAnnotationTypeId,
@@ -14,16 +17,21 @@ export function parseAnnotationData(image: ImageFile): ParsedAnnotationData | nu
 
   try {
     const parsed = JSON.parse(image.annotation);
-    if (!parsed || !Array.isArray(parsed.measurements)) {
+    if (!parsed || typeof parsed !== 'object') {
       return null;
     }
 
-    return {
-      measurements: parsed.measurements,
-      imageWidth: Number(parsed.imageWidth) || undefined,
-      imageHeight: Number(parsed.imageHeight) || undefined,
-      vertebraeLayer: Array.isArray(parsed.vertebraeLayer) ? parsed.vertebraeLayer : undefined,
-    };
+    if (parsed.version === 2 && parsed.schema === 'keypoints-only') {
+      return {
+        measurements: Array.isArray(parsed.auxiliaryAnnotations)
+          ? parsed.auxiliaryAnnotations
+          : [],
+        keypoints: Array.isArray(parsed.keypoints) ? parsed.keypoints : [],
+        imageWidth: Number(parsed.imageWidth) || undefined,
+        imageHeight: Number(parsed.imageHeight) || undefined,
+      };
+    }
+    return null;
   } catch (error) {
     console.warn('解析影像标注数据失败:', error);
     return null;
@@ -33,46 +41,63 @@ export function parseAnnotationData(image: ImageFile): ParsedAnnotationData | nu
 /**
  * 构建训练数据 label JSON Blob。
  * 坐标归一化到 [0, 1]（除以图像宽/高）。
- * POSE 标签（IR/IL/SR/SL/CR/CL）corners 四值相同，输出单点。
  */
-const POSE_LABELS = new Set(['CR', 'CL', 'IR', 'IL', 'SR', 'SL']);
-
 export function buildTrainingLabelBlob(
   image: ImageFile,
-  vertebraeLayer: VertebraAnnotation[],
+  keypoints: PersistedKeypointAnnotation[],
   imageWidth: number,
   imageHeight: number,
 ): Blob {
-  const vertebrae = vertebraeLayer.map(v => {
-    if (POSE_LABELS.has(v.label)) {
-      // 单点
-      const pt = v.corners[0];
-      return {
-        label: v.label,
-        type: 'point',
-        point: {
-          x: pt.x / imageWidth,
-          y: pt.y / imageHeight,
-        },
-      };
+  const vertebraGroups = new Map<string, PersistedKeypointAnnotation[]>();
+  const points: Array<{
+    label: string;
+    type: 'point';
+    point: { x: number; y: number };
+  }> = [];
+
+  keypoints.forEach(keypoint => {
+    const match = /^(C2|C7|T\d{1,2}|L\d)-([1-4])$/.exec(keypoint.id);
+    if (match) {
+      const group = match[1];
+      const list = vertebraGroups.get(group) ?? [];
+      list.push(keypoint);
+      vertebraGroups.set(group, list);
+      return;
     }
-    // 椎体四角
+
+    points.push({
+      label: keypoint.id,
+      type: 'point',
+      point: {
+        x: keypoint.point.x / imageWidth,
+        y: keypoint.point.y / imageHeight,
+      },
+    });
+  });
+
+  const vertebrae = Array.from(vertebraGroups.entries()).flatMap(
+    ([label, groupKeypoints]) => {
+      if (groupKeypoints.length !== 4) return [];
+      const ordered = [...groupKeypoints].sort((left, right) =>
+        left.id.localeCompare(right.id)
+      );
     return {
-      label: v.label,
+      label,
       type: 'vertebra',
-      corners: v.corners.map(pt => ({
-        x: pt.x / imageWidth,
-        y: pt.y / imageHeight,
+      corners: ordered.map(keypoint => ({
+        x: keypoint.point.x / imageWidth,
+        y: keypoint.point.y / imageHeight,
       })),
     };
-  });
+    }
+  );
 
   const payload = {
     imageId: image.id,
     originalFilename: image.original_filename || '',
     imageWidth,
     imageHeight,
-    vertebrae,
+    vertebrae: [...vertebrae, ...points],
   };
 
   return new Blob([JSON.stringify(payload, null, 2)], {

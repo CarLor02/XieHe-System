@@ -156,6 +156,12 @@ export default function AnnotationToolbar({
   const hasSacralLine =
     hasKeypoint(keypoints, 'SL') && hasKeypoint(keypoints, 'SR');
   const isAnteriorView = isAnteriorExamType(examType);
+  const selectableVertebraGroups = keypointGroups
+    .filter(group => !['pose', 'S1', 'CFH'].includes(group.id))
+    .map(group => group.name);
+  const cobbSelectableGroups = isAnteriorView
+    ? selectableVertebraGroups
+    : completeVertebraGroups;
   const canCreateAvt =
     isAnteriorView &&
     !hasAvt &&
@@ -166,7 +172,7 @@ export default function AnnotationToolbar({
     !hasTts &&
     hasSacralLine &&
     completeVertebraGroups.length >= 2;
-  const canCreateCobb = isAnteriorView && completeVertebraGroups.length >= 2;
+  const canCreateCobb = isAnteriorView && cobbSelectableGroups.length >= 2;
   const hasAvailableVertebraCenter = completeVertebraGroups.some(
     group =>
       !measurements.some(
@@ -206,7 +212,9 @@ export default function AnnotationToolbar({
 
   const toolTabs: { id: ToolTab; label: string; icon: string }[] = [
     { id: 'measurement', label: '测量工具', icon: 'ri-ruler-line' },
-    { id: 'keypoint', label: '关键点', icon: 'ri-focus-3-line' },
+    ...(canUseKeypointTools
+      ? [{ id: 'keypoint' as const, label: '关键点', icon: 'ri-focus-3-line' }]
+      : []),
   ];
 
   const getKeypointGroupTitle = (
@@ -511,7 +519,7 @@ export default function AnnotationToolbar({
                             ? 'exists'
                             : 'missing-keypoints';
                         const isToolAvailable = isAutomaticTool
-                          ? automaticStatus === 'available'
+                          ? true
                           : isCobbTool
                             ? canCreateCobb
                             : tool.id === 'vertebra-center'
@@ -523,7 +531,9 @@ export default function AnnotationToolbar({
                                   : !isUniquenessBlocked;
                         const toolTitle = isAutomaticTool
                           ? isToolAvailable
-                            ? `${tool.name} 可恢复，点击自动生成`
+                            ? automaticStatus === 'available'
+                              ? `${tool.name} 可恢复，点击自动生成`
+                              : `${tool.name} 可手动标注关键点`
                             : getUnavailableTitle(
                                 tool.name,
                                 automaticStatus,
@@ -549,8 +559,13 @@ export default function AnnotationToolbar({
                             onClick={() => {
                               if (!isToolAvailable) return;
                               if (isAutomaticTool) {
+                                if (automaticStatus === 'available') {
+                                  setOpenMeasurementTool(null);
+                                  onRestoreAutomaticMeasurement(tool.id);
+                                  return;
+                                }
                                 setOpenMeasurementTool(null);
-                                onRestoreAutomaticMeasurement(tool.id);
+                                onSelectTool(tool.id);
                                 return;
                               }
                               if (isSelectionTool) {
@@ -663,9 +678,9 @@ export default function AnnotationToolbar({
                             <div className="text-[11px] text-gray-500 mb-1">
                               上端椎
                             </div>
-                            {completeVertebraGroups.length > 0 ? (
+                            {cobbSelectableGroups.length > 0 ? (
                               <div className="grid grid-cols-4 gap-2">
-                                {completeVertebraGroups.map(group => (
+                                {cobbSelectableGroups.map(group => (
                                   <button
                                     key={group}
                                     type="button"
@@ -685,7 +700,7 @@ export default function AnnotationToolbar({
                               </div>
                             ) : (
                               <span className="text-xs text-gray-500">
-                                暂无完整椎体关键点
+                                暂无可选椎体
                               </span>
                             )}
                           </div>
@@ -693,9 +708,9 @@ export default function AnnotationToolbar({
                             <div className="text-[11px] text-gray-500 mb-1">
                               下端椎
                             </div>
-                            {completeVertebraGroups.length > 0 ? (
+                            {cobbSelectableGroups.length > 0 ? (
                               <div className="grid grid-cols-4 gap-2">
-                                {completeVertebraGroups.map(group => (
+                                {cobbSelectableGroups.map(group => (
                                   <button
                                     key={group}
                                     type="button"
@@ -715,7 +730,7 @@ export default function AnnotationToolbar({
                               </div>
                             ) : (
                               <span className="text-xs text-gray-500">
-                                暂无完整椎体关键点
+                                暂无可选椎体
                               </span>
                             )}
                           </div>
@@ -729,14 +744,13 @@ export default function AnnotationToolbar({
                               setOpenMeasurementTool(null);
                             }}
                             disabled={
-                              !canCreateCobb ||
                               !cobbUpperVertebra ||
                               !cobbLowerVertebra ||
                               cobbUpperVertebra === cobbLowerVertebra
                             }
                             className="w-full h-8 rounded bg-blue-600 text-white text-xs disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-blue-700"
                           >
-                            创建 Cobb
+                            创建 / 标注 Cobb
                           </button>
                         </div>
                       </div>

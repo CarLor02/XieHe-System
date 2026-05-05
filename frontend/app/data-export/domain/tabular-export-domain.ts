@@ -1,4 +1,7 @@
-import type { MeasurementData } from '@/app/imaging/viewer/image-viewer/types';
+import type {
+  MeasurementData,
+  PersistedKeypointAnnotation,
+} from '@/app/imaging/viewer/image-viewer/types';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 
 import type { ExportContentType, TabularExportFormat } from './export-types';
@@ -84,6 +87,25 @@ export function buildAnnotationPointRows(
       Y: point.y,
     }))
   );
+}
+
+export function buildKeypointRows(
+  image: ImageFile,
+  keypoints: PersistedKeypointAnnotation[]
+): Record<string, string | number>[] {
+  return keypoints.map(keypoint => ({
+    文件名: image.original_filename || '',
+    影像ID: image.id,
+    患者ID: image.patient_id || '',
+    检查类型: image.description || '',
+    上传日期: formatDate(image.created_at),
+    标注ID: keypoint.id,
+    标注类型: 'keypoint',
+    标注值: keypoint.source,
+    点位序号: 1,
+    X: keypoint.point.x,
+    Y: keypoint.point.y,
+  }));
 }
 
 function escapeCsvCell(value: unknown): string {

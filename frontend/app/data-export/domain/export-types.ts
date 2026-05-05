@@ -1,4 +1,7 @@
-import type { MeasurementData, VertebraAnnotation } from '@/app/imaging/viewer/image-viewer/types';
+import type {
+  MeasurementData,
+  PersistedKeypointAnnotation,
+} from '@/app/imaging/viewer/image-viewer/types';
 
 export type ExportContentType =
   | 'original-image'
@@ -18,7 +21,7 @@ export interface ExportFile {
 
 export interface ParsedAnnotationData {
   measurements: MeasurementData[];
+  keypoints: PersistedKeypointAnnotation[];
   imageWidth?: number;
   imageHeight?: number;
-  vertebraeLayer?: VertebraAnnotation[];
 }

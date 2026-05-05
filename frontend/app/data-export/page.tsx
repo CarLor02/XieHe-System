@@ -15,6 +15,7 @@ import {
 import {
   buildAnnotationPointRows,
   buildExportFilename,
+  buildKeypointRows,
   buildMeasurementRows,
   buildTrainingLabelBlob,
   buildTrainingLabelFilename,
@@ -228,18 +229,21 @@ export default function DataExportPage() {
             blob,
           });
         } else if (exportContent === 'annotation-points') {
-          const rows = buildAnnotationPointRows(
-            img,
-            getAiDetectionMeasurements(measurements)
-          );
+          const rows =
+            annotationData?.keypoints && annotationData.keypoints.length > 0
+              ? buildKeypointRows(img, annotationData.keypoints)
+              : buildAnnotationPointRows(
+                  img,
+                  getAiDetectionMeasurements(measurements)
+                );
           exportFiles.push({
             filename: buildExportFilename(img, exportContent, tabularExportFormat),
             blob: createTabularBlob(rows, tabularExportFormat, exportContent),
           });
         } else if (exportContent === 'training-data') {
           // 训练数据：原始图像 + 归一化坐标 label JSON
-          const vertebraeLayer = annotationData?.vertebraeLayer;
-          if (!vertebraeLayer || vertebraeLayer.length === 0) {
+          const keypoints = annotationData?.keypoints ?? [];
+          if (keypoints.length === 0) {
             // 没有检测点的影像跳过 label 文件，只导出原图
             const blob = await downloadImageFile(img.id);
             exportFiles.push({
@@ -262,7 +266,7 @@ export default function DataExportPage() {
               // label JSON
               exportFiles.push({
                 filename: buildTrainingLabelFilename(img),
-                blob: buildTrainingLabelBlob(img, vertebraeLayer, imageWidth, imageHeight),
+                blob: buildTrainingLabelBlob(img, keypoints, imageWidth, imageHeight),
               });
             }
           }

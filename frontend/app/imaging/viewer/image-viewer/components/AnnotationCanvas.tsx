@@ -62,6 +62,7 @@ export default function AnnotationCanvas({
   setSelectedTool,
   onMeasurementAdd,
   onMeasurementsUpdate,
+  onMeasurementDelete,
   onClearAll,
   tools,
   clickedPoints,
@@ -93,6 +94,7 @@ export default function AnnotationCanvas({
   keypoints = [],
   cfhAnnotation = null,
   showVertebraeLayer = false,
+  canUseKeypointTools = false,
   onVertebraeUpdate,
   onVertebraePreviewUpdate,
   onKeypointAdd,
@@ -104,6 +106,7 @@ export default function AnnotationCanvas({
   setSelectedTool: (tool: string) => void;
   onMeasurementAdd: (type: string, points: Point[]) => void;
   onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
+  onMeasurementDelete?: (measurementId: string) => void;
   onClearAll: () => void;
   tools: Tool[];
   clickedPoints: Point[];
@@ -138,6 +141,7 @@ export default function AnnotationCanvas({
   keypoints?: KeypointAnnotation[];
   cfhAnnotation?: CfhAnnotation | null;
   showVertebraeLayer?: boolean;
+  canUseKeypointTools?: boolean;
   onVertebraeUpdate?: (updated: VertebraAnnotation[]) => void;
   onVertebraePreviewUpdate?: (updated: VertebraAnnotation[]) => void;
   onKeypointAdd?: (keypointId: string, point: Point) => void;
@@ -362,9 +366,13 @@ export default function AnnotationCanvas({
   };
 
   const handlePanelMeasurementDelete = (measurementId: string) => {
-    onMeasurementsUpdate(
-      measurements.filter(item => item.id !== measurementId)
-    );
+    if (onMeasurementDelete) {
+      onMeasurementDelete(measurementId);
+    } else {
+      onMeasurementsUpdate(
+        measurements.filter(item => item.id !== measurementId)
+      );
+    }
     if (selectionState.measurementId === measurementId) {
       selectMeasurementKeypoints(null);
       setSelectionState({
@@ -682,7 +690,7 @@ export default function AnnotationCanvas({
         standardDistance={standardDistance}
         standardDistancePoints={standardDistancePoints}
         measurements={measurements}
-        keypoints={keypoints}
+        keypoints={canUseKeypointTools ? keypoints : []}
         selectionState={selectionState}
         hoverState={hoverState}
         hiddenMeasurementIds={hiddenMeasurementIds}

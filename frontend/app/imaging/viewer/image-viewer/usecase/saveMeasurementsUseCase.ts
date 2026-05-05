@@ -1,9 +1,13 @@
-import {MeasurementData, StudyData, Point, ImageSize, VertebraAnnotation, CfhAnnotation} from "../types";
-import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
 import {
-    saveMeasurementRecord,
-    updateImageAnnotation,
-} from '@/services/imageServices';
+    AnnotationDataV2,
+    MeasurementData,
+    MeasurementProjectionBinding,
+    StudyData,
+    Point,
+    ImageSize,
+} from "../types";
+import {updateImageAnnotation} from '@/services/imageServices';
+import type {KeypointAnnotation} from "../domain/keypoint-state";
 
 export async function saveMeasurements(
     imageId: string,
@@ -11,21 +15,21 @@ export async function saveMeasurements(
     imageNaturalSize: ImageSize | null,
     standardDistance: number | null,
     standardDistancePoints: Point[] | null,
-    pointBindings:AnnotationBindings,
-    measurements: MeasurementData[],
+    keypoints: KeypointAnnotation[],
+    auxiliaryAnnotations: MeasurementData[],
+    measurementBindings: MeasurementProjectionBinding[],
+    suppressedMeasurementIds: string[],
     reportText: string,
     setIsSaving: (state :boolean) => void,
     setSaveMessage: (message :string) => void,
-    vertebraeLayer: VertebraAnnotation[] = [],
-    cfhAnnotation: CfhAnnotation | null = null,
 ){
     const hasStandardDistance =
         standardDistance !== null &&
         Array.isArray(standardDistancePoints) &&
         standardDistancePoints.length === 2;
     if (
-        measurements.length === 0 &&
-        vertebraeLayer.length === 0 &&
+        keypoints.length === 0 &&
+        auxiliaryAnnotations.length === 0 &&
         !hasStandardDistance
     ) {
         setSaveMessage('暂无标注数据需要保存');
@@ -57,97 +61,45 @@ export async function saveMeasurements(
             status: 'pending' as const,
         };
     try {
-        // 1. 先保存到本地存储
-        const key = `annotations_${imageId}`;
-        // 对于AI检测标注，需要保存value和description；其他标注只保存type和points
-        // 同时保存id，确保加载时绑定数据中的annotationId引用仍然有效
-        const simplifiedMeasurements = measurements.map(m => {
-            const isAIDetection = m.type.startsWith('AI检测-');
-            if (isAIDetection) {
-                // AI检测标注：保存id, type, points, value, description
-                return {
-                    id: m.id,
-                    type: m.type,
-                    points: m.points,
-                    value: m.value,
-                    description: m.description,
-                };
-            } else {
-                // 其他标注：保存id, type和points（value和description可以重新计算）
-                return {
-                    id: m.id,
-                    type: m.type,
-                    points: m.points,
-                };
-            }
-        });
-        const localData = {
-            imageId: imageId,
+        const savedAt = new Date().toISOString();
+        const annotationData: AnnotationDataV2 = {
+            version: 2,
+            schema: 'keypoints-only',
+            imageId,
+            examType: imageData.examType,
+            keypoints,
+            auxiliaryAnnotations,
+            measurementBindings,
+            suppressedMeasurementIds,
+            standardDistance,
+            standardDistancePoints: standardDistancePoints ?? [],
             imageWidth: imageNaturalSize?.width,
             imageHeight: imageNaturalSize?.height,
-            measurements: simplifiedMeasurements,
-            standardDistance: standardDistance,
-            standardDistancePoints: standardDistancePoints,
-            pointBindings: pointBindings,
-            vertebraeLayer: vertebraeLayer.length > 0 ? vertebraeLayer : undefined,
-            cfhAnnotation: cfhAnnotation ?? undefined,
+            reportText,
+            savedAt,
         };
-        localStorage.setItem(key, JSON.stringify(localData, null, 2));
+
+        // 1. 先保存到本地存储
+        const key = `annotations_${imageId}`;
+        localStorage.setItem(key, JSON.stringify(annotationData, null, 2));
         console.log(
-            `已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`
+            `已保存 ${keypoints.length} 个关键点和 ${auxiliaryAnnotations.length} 个辅助标注到本地`
         );
 
-        // 2. 保存到服务器
+        // 2. 保存到服务器 image-files.annotation。医学测量项由关键点运行时推导，不再写 measurements 表。
         // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
         const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-        const measurementData = {
-            imageId: numericId,
-            patientId: Number(imageData.patientId) || 0,
-            examType: imageData.examType,
-            measurements: measurements,
-            reportText: reportText,
-            savedAt: new Date().toISOString(),
-        };
-
-        if (measurements.length > 0) {
-            await saveMeasurementRecord(
-                Number(numericId),
-                measurementData
-            );
-        }
-
-        // 3. 同时更新 image-files 的 annotation 字段，持久化绑定数据
         try {
-            const annotationData = {
-                measurements: measurements,
-                standardDistance: standardDistance,
-                standardDistancePoints: standardDistancePoints,
-                pointBindings: pointBindings,
-                imageWidth: imageNaturalSize?.width,
-                imageHeight: imageNaturalSize?.height,
-                savedAt: new Date().toISOString(),
-                vertebraeLayer: vertebraeLayer.length > 0 ? vertebraeLayer : undefined,
-                cfhAnnotation: cfhAnnotation ?? undefined,
-            };
             await updateImageAnnotation(Number(numericId), JSON.stringify(annotationData));
-            console.log('绑定数据已同步至 annotation 字段');
-            setSaveMessage(
-                measurements.length > 0
-                    ? '标注已保存到本地和服务器'
-                    : '关键点已保存到本地和影像标注'
-            );
+            console.log('关键点标注数据已同步至 annotation 字段');
+            setSaveMessage('标注已保存');
             setTimeout(() => setSaveMessage(''), 3000);
         } catch (annotationErr) {
-            // 不阻断主保存流程
             console.warn(
                 '更新 annotation 字段失败（不影响主保存）:',
                 annotationErr
             );
-            setSaveMessage(
-                measurements.length > 0
-                    ? '标注已保存到本地和服务器'
-                    : '关键点已保存到本地'
-            );
+            setSaveMessage('标注已保存到本地，服务器同步失败');
             setTimeout(() => setSaveMessage(''), 3000);
         }
     } catch (error: any) {

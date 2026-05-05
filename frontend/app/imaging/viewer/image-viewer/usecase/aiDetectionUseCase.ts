@@ -1,9 +1,12 @@
 import {CfhAnnotation, ImageData, Point, VertebraAnnotation} from "../types"
-import {Dispatch, SetStateAction} from "react"
 import {
     aiDetectKeyPoints,
     aiDetectLateralKeyPoints,
 } from '@/services/imageServices';
+import {
+    KeypointAnnotation,
+    vertebraeLayerToKeypoints,
+} from "../domain/keypoint-state";
 
 /**
  * 按几何坐标将4个角点排序为 [TL, TR, BL, BR]。
@@ -20,8 +23,7 @@ function sortCornersGeometrically(pts: {x:number,y:number}[]): [Point,Point,Poin
 export async function aiDetect(
     isAdmin: boolean,
     imageData: ImageData,
-    setVertebraeLayer: Dispatch<SetStateAction<VertebraAnnotation[]>>,
-    setCfhAnnotation: Dispatch<SetStateAction<CfhAnnotation | null>>,
+    onKeypointsDetected: (keypoints: KeypointAnnotation[]) => void,
     setSaveMessage: (message: string) => void,
     setIsAIDetecting: (aiDetectingState:boolean) => void,
 ){
@@ -203,8 +205,13 @@ export async function aiDetect(
 
         // 写入 vertebraeLayer（替换上一次的检测结果）
         if (newVertebrae.length > 0 || newCfh) {
-            setVertebraeLayer(newVertebrae);
-            setCfhAnnotation(newCfh);
+            onKeypointsDetected(
+                vertebraeLayerToKeypoints(
+                    newVertebrae,
+                    imageData.examType,
+                    newCfh
+                )
+            );
             setSaveMessage(`AI检测完成，检测到 ${vertebraCount} 个椎体（${pointCount} 个关键点）`);
         } else {
             setSaveMessage('AI检测完成，但未检测到椎体');

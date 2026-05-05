@@ -1,10 +1,24 @@
-import {ImageSize, MeasurementData, Point, StudyData, VertebraAnnotation, CfhAnnotation} from "../types";
+import {
+    AnnotationDataV2,
+    ImageSize,
+    MeasurementData,
+    MeasurementProjectionBinding,
+    Point,
+    VertebraAnnotation,
+    CfhAnnotation,
+} from "../types";
 import {AnnotationBindings} from "@/app/imaging/viewer/image-viewer/domain/annotation-binding";
 import {RefObject, useEffect} from "react";
 import {
-    CalculationContext,
-    getAnnotationTypeId,
-} from "@/app/imaging/viewer/image-viewer/catalog/shared/annotation-config";
+    KeypointAnnotation,
+    keypointsToCfhAnnotation,
+} from "@/app/imaging/viewer/image-viewer/domain/keypoint-state";
+
+function isAnnotationDataV2(value: unknown): value is AnnotationDataV2 {
+    if (!value || typeof value !== 'object') return false;
+    const data = value as Partial<AnnotationDataV2>;
+    return data.version === 2 && data.schema === 'keypoints-only' && Array.isArray(data.keypoints);
+}
 
 export function useLocalAnnotationsDataLoader(
     imageId: string,
@@ -16,14 +30,13 @@ export function useLocalAnnotationsDataLoader(
     setStandardDistancePoints: (distancePoints: Point[]) => void,
     setPointBindings: (pointBindings: AnnotationBindings) => void,
     dbAnnotationLoadedRef: RefObject<boolean>,
-    calcMeasurementValue:(
-        type: string,
-        points: Point[],
-        context: CalculationContext
-    ) => string,
-    getDescriptionForType: (type: string) => string,
+    _calcMeasurementValue: unknown,
+    _getDescriptionForType: unknown,
     setVertebraeLayer?: (layer: VertebraAnnotation[]) => void,
     setCfhAnnotation?: (cfh: CfhAnnotation | null) => void,
+    setKeypoints?: (keypoints: KeypointAnnotation[]) => void,
+    setMeasurementBindings?: (bindings: MeasurementProjectionBinding[]) => void,
+    setSuppressedMeasurementIds?: (ids: string[]) => void,
 ) {
     // 从localStorage加载标注数据
     const loadAnnotationsFromLocalStorage = () => {
@@ -37,11 +50,12 @@ export function useLocalAnnotationsDataLoader(
             const jsonStr = localStorage.getItem(key);
             if (jsonStr) {
                 const data = JSON.parse(jsonStr);
+                if (!isAnnotationDataV2(data)) {
+                    console.warn('忽略旧版 localStorage 标注：当前前端仅加载 V2 keypoints-only 结构');
+                    return;
+                }
 
                 // 先加载或设置标准距离（必须在加载measurements之前）
-                let loadedStandardDistance = standardDistance;
-                let loadedStandardDistancePoints = standardDistancePoints;
-
                 if (
                     data.standardDistance &&
                     data.standardDistancePoints &&
@@ -64,8 +78,6 @@ export function useLocalAnnotationsDataLoader(
                                     : 1),
                         })
                     );
-                    loadedStandardDistance = data.standardDistance;
-                    loadedStandardDistancePoints = scaledStandardPoints;
                     setStandardDistance(data.standardDistance);
                     setStandardDistancePoints(scaledStandardPoints);
                     console.log(`已加载标准距离: ${data.standardDistance}mm`);
@@ -75,8 +87,6 @@ export function useLocalAnnotationsDataLoader(
                         { x: 0, y: 0 },
                         { x: 200, y: 0 },
                     ];
-                    loadedStandardDistance = 100;
-                    loadedStandardDistancePoints = defaultPoints;
                     setStandardDistance(100);
                     setStandardDistancePoints(defaultPoints);
                     console.log(
@@ -84,96 +94,26 @@ export function useLocalAnnotationsDataLoader(
                     );
                 }
 
-                // 然后加载measurements（使用已加载的标准距离）
-                if (data.measurements && Array.isArray(data.measurements)) {
-                    // 检查是否需要坐标转换
-                    const storedImageWidth = data.imageWidth;
-                    const storedImageHeight = data.imageHeight;
-                    let scaleX = 1;
-                    let scaleY = 1;
-
-                    if (storedImageWidth && storedImageHeight && imageNaturalSize) {
-                        scaleX = imageNaturalSize.width / storedImageWidth;
-                        scaleY = imageNaturalSize.height / storedImageHeight;
-                        console.log('从本地加载标注，坐标缩放比例:', {
-                            storedSize: {
-                                width: storedImageWidth,
-                                height: storedImageHeight,
-                            },
-                            currentSize: imageNaturalSize,
-                            scale: { scaleX, scaleY },
-                        });
-                    }
-
-                    // 恢复measurements；优先使用保存的id（确保绑定引用有效），否则生成新id
-                    const restoredMeasurements = data.measurements.map((m: any) => {
-                        // 转换坐标（如果需要）
-                        const scaledPoints = m.points.map((p: any) => ({
-                            x: p.x * scaleX,
-                            y: p.y * scaleY,
-                        }));
-
-                        // 对于AI检测的标注，保留原来的value和description
-                        const isAIDetection = m.type.startsWith('AI检测-');
-                        const typeId = isAIDetection ? m.type : getAnnotationTypeId(m.type);
-
-                        return {
-                            id:
-                                m.id ||
-                                Date.now().toString() +
-                                Math.random().toString(36).substring(2, 11),
-                            type: typeId,
-                            value: isAIDetection
-                                ? m.value || ''
-                                : calcMeasurementValue(typeId, scaledPoints, {
-                                    standardDistance: loadedStandardDistance,
-                                    standardDistancePoints: loadedStandardDistancePoints,
-                                    imageNaturalSize,
-                                }),
-                            points: scaledPoints,
-                            description: isAIDetection
-                                ? m.description || m.type
-                                : getDescriptionForType(typeId),
-                        };
-                    });
-                    setMeasurements(restoredMeasurements);
-                    console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);
-                }
-                // 与已恢复的 measurements ids 同步校验绑定配置
-                // 无论曾设置过什么绑定（包括从 DB 加载的），都必须在此更新为与当前 measurements 匹配的版本
-                if (data.measurements && Array.isArray(data.measurements)) {
-                    const validIds = new Set<string>(
-                        data.measurements.map((m: any) => m.id).filter(Boolean)
-                    );
-                    if (validIds.size > 0 && data.pointBindings) {
-                        // localStorage 有 id 且有绑定数据：校验后设置
-                        const validated = {
-                            syncGroups: (data.pointBindings.syncGroups as any[])
-                                .map((g: any) => ({
-                                    ...g,
-                                    members: g.members.filter((mbr: any) =>
-                                        validIds.has(mbr.annotationId)
-                                    ),
-                                }))
-                                .filter((g: any) => g.members.length >= 2),
-                        };
-                        setPointBindings(validated);
-                    } else {
-                        // 旧格式无 id 或无绑定数据：清空绑定，避免 DB 界面的旧绑定残留；useEffect 将自动重建 S1 绑定
-                        setPointBindings({ syncGroups: [] });
-                    }
-                } else {
-                    // localStorage 无 measurements 数据，同样清空绑定
-                    setPointBindings({ syncGroups: [] });
-                }
-                // 恢复椎体角点层（image 坐标，无需缩放）
-                if (data.vertebraeLayer && Array.isArray(data.vertebraeLayer) && data.vertebraeLayer.length > 0) {
-                    setVertebraeLayer?.(data.vertebraeLayer);
-                    console.log(`从 localStorage 恢复了 ${data.vertebraeLayer.length} 节椎体角点`);
-                }
-                if (data.cfhAnnotation) {
-                    setCfhAnnotation?.(data.cfhAnnotation);
-                }
+                setMeasurements(
+                    Array.isArray(data.auxiliaryAnnotations)
+                        ? data.auxiliaryAnnotations as MeasurementData[]
+                        : []
+                );
+                setKeypoints?.(data.keypoints as KeypointAnnotation[]);
+                setMeasurementBindings?.(
+                    Array.isArray(data.measurementBindings)
+                        ? data.measurementBindings
+                        : []
+                );
+                setSuppressedMeasurementIds?.(
+                    Array.isArray(data.suppressedMeasurementIds)
+                        ? data.suppressedMeasurementIds
+                        : []
+                );
+                setPointBindings({ syncGroups: [] });
+                setVertebraeLayer?.([]);
+                setCfhAnnotation?.(keypointsToCfhAnnotation(data.keypoints as KeypointAnnotation[]));
+                console.log(`已从本地加载 ${data.keypoints.length} 个关键点`);
             } else if (imageNaturalSize) {
                 // 如果完全没有保存的数据，设置默认标准距离
                 const defaultPoints = [
