@@ -1447,6 +1447,64 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             setSaveMessage,
             setIsAIDetecting
           );
+        } else if (isLateralView) {
+          // 普通用户侧位：静默运行椎体检测，补全 deriveLateral 的非 S1 测量（如 T10-L2），
+          // 确保与管理员通过本地推导得到的结果保持一致。
+          void (async () => {
+            try {
+              const imgEl = document.querySelector(
+                '[data-image-canvas] img'
+              ) as HTMLImageElement | null;
+              if (!imgEl) return;
+
+              const blob = await new Promise<Blob | null>(resolve => {
+                const canvas = document.createElement('canvas');
+                canvas.width = imgEl.naturalWidth;
+                canvas.height = imgEl.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { resolve(null); return; }
+                ctx.drawImage(imgEl, 0, 0);
+                canvas.toBlob(b => resolve(b));
+              });
+              if (!blob) return;
+
+              const detectResult = await usecases.detectLateralVertebrae(blob);
+              if (!detectResult || detectResult.vertebrae.length === 0) return;
+
+              const derived = deriveAllMeasurements(
+                detectResult.vertebrae,
+                detectResult.cfh,
+                imageData.examType
+              );
+
+              // 仅补全非 S1 相关的推导测量；S1 相关测量由用户手动标注后通过绑定系统填充
+              const derivedNonS1WithValues = derived
+                .filter(m => !S1_RELATED_TYPES.has(getAnnotationTypeId(m.type)))
+                .map(m => ({
+                  ...m,
+                  value: calculateMeasurementValue(m.type, m.points),
+                }));
+
+              if (derivedNonS1WithValues.length === 0) return;
+
+              setMeasurements(prev => {
+                const existingTypeIds = new Set(
+                  prev.map(m => getAnnotationTypeId(m.type))
+                );
+                const missing = derivedNonS1WithValues.filter(
+                  d => !existingTypeIds.has(getAnnotationTypeId(d.type))
+                );
+                if (missing.length === 0) return prev;
+                console.log(
+                  `[handleAIMeasurement] 侧位推导补全 ${missing.length} 个测量:`,
+                  missing.map(m => m.type)
+                );
+                return [...prev, ...missing];
+              });
+            } catch (e) {
+              console.warn('[handleAIMeasurement] 侧位推导补全失败，跳过:', e);
+            }
+          })();
         }
       } else {
         setSaveMessage('AI测量完成，但未返回有效数据');

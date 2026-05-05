@@ -6,6 +6,80 @@ import {
 } from '@/services/imageServices';
 
 /**
+ * 侧位椎体检测（不设置任何状态，仅返回检测数据）。
+ * 用于普通用户的测量补全：静默调用检测接口，再由 deriveLateral 推导缺失的非 S1 测量（如 T10-L2），
+ * 使其与管理员通过本地推导得到的结果保持一致。
+ */
+export async function detectLateralVertebrae(imageBlob: Blob): Promise<{
+    vertebrae: VertebraAnnotation[];
+    cfh: CfhAnnotation | null;
+} | null> {
+    try {
+        const aiData = await aiDetectLateralKeyPoints(imageBlob, 'image.png');
+        const imageWidth: number = aiData.image_width ?? 1;
+        const imageHeight: number = aiData.image_height ?? 1;
+        const newVertebrae: VertebraAnnotation[] = [];
+        let newCfh: CfhAnnotation | null = null;
+
+        if (aiData.vertebrae && Array.isArray(aiData.vertebrae)) {
+            const vertebraeMap = new Map<string, any>();
+            (aiData.vertebrae as any[])
+                .filter((v: any) => v.confidence >= 0.1)
+                .forEach((v: any) => {
+                    const existing = vertebraeMap.get(v.label);
+                    if (!existing || v.confidence > existing.confidence) {
+                        vertebraeMap.set(v.label, v);
+                    }
+                });
+
+            vertebraeMap.forEach((vertebra: any) => {
+                if (vertebra.label === 'S1' && vertebra.keypoints?.length >= 2) {
+                    vertebra.keypoints.slice(0, 2).forEach((kp: any, index: number) => {
+                        const pt = { x: kp.x * imageWidth, y: kp.y * imageHeight };
+                        newVertebrae.push({
+                            label: `S1-${index + 1}`,
+                            corners: [pt, pt, pt, pt],
+                            confidence: vertebra.confidence,
+                            source: 'ai',
+                        });
+                    });
+                    return;
+                }
+                if (!vertebra.keypoints || vertebra.keypoints.length !== 4) return;
+                const rawPts = vertebra.keypoints.map((kp: any) => ({
+                    x: kp.x * imageWidth,
+                    y: kp.y * imageHeight,
+                }));
+                const [tl, tr, bl, br] = sortCornersGeometrically(rawPts);
+                newVertebrae.push({
+                    label: vertebra.label,
+                    corners: [tl, tr, bl, br],
+                    confidence: vertebra.confidence,
+                    source: 'ai',
+                });
+            });
+        }
+
+        if (aiData.cfh && aiData.cfh.center) {
+            const cfhPoint = {
+                x: aiData.cfh.center.x * imageWidth,
+                y: aiData.cfh.center.y * imageHeight,
+            };
+            newCfh = {
+                center: cfhPoint,
+                confidence: aiData.cfh.confidence ?? 1,
+                source: 'ai',
+            };
+        }
+
+        return { vertebrae: newVertebrae, cfh: newCfh };
+    } catch (e) {
+        console.warn('[detectLateralVertebrae] 检测失败，跳过推导补全:', e);
+        return null;
+    }
+}
+
+/**
  * 按几何坐标将4个角点排序为 [TL, TR, BL, BR]。
  * 不依赖 AI 返回的顺序，对脊柱椎体（倾角 < 45°）始终正确。
  */
