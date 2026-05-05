@@ -65,6 +65,12 @@ export interface AnnotationConfig {
    * 而不是用图像坐标偏移（图像坐标偏移在小显示比例下会因 fitScale 损耗而失效）。
    */
   rightSideLabel?: boolean;
+  /**
+   * 标签是否固定在 getLabelPosition 返回的位置，不参与智能避让。
+   * 为 true 时，渲染层会跳过 calculateSmartLabelPosition，把标签直接放在返回的坐标处。
+   * 适用于需要精确定位的骨盆测量（PI、PT），避免标签被推离弧线位置。
+   */
+  fixedLabelPosition?: boolean;
 
   // 计算函数
   calculateResults: (

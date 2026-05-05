@@ -24,6 +24,7 @@ export const PT_CONFIG: AnnotationConfig = {
   pointsNeeded: 3,
   category: 'measurement',
   color: '#f97316',
+  fixedLabelPosition: true,
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 3) return [];

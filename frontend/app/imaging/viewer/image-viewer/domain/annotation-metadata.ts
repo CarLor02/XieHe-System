@@ -84,6 +84,15 @@ export function isRightSideLabelType(type: string): boolean {
 }
 
 /**
+ * 判断该测量标签位置是否固定（不参与智能避让）。
+ * 为 true 时，渲染层跳过 calculateSmartLabelPosition，直接使用 getLabelPosition 的返回值。
+ */
+export function isFixedLabelPositionType(type: string): boolean {
+  const config = getAnnotationConfig(type);
+  return config?.fixedLabelPosition ?? false;
+}
+
+/**
  * 根据标注类型获取标签位置
  */
 export function getLabelPositionForType(

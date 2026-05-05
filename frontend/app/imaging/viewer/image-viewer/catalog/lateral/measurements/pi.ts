@@ -24,6 +24,7 @@ export const PI_CONFIG: AnnotationConfig = {
   pointsNeeded: 3,
   category: 'measurement',
   color: '#f59e0b',
+  fixedLabelPosition: true,
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 3) return [];

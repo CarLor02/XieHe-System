@@ -21,6 +21,7 @@ import {
   usesInlineAuxiliaryTag,
   calculateSmartLabelPosition,
   isRightSideLabelType,
+  isFixedLabelPositionType,
 } from '../../../domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools/tool-state';
 import { imageToScreen } from '../../../canvas/transform/coordinate-transform';
@@ -477,19 +478,24 @@ export default function renderMeasurement({
   // 获取基础标签位置
   const baseLabelPosition = getLabelPositionForType(measurement.type, measurement.points, imageScale);
 
+  // 固定标签位置的类型（PI、PT等骨盆测量）跳过智能避让，直接使用 getLabelPosition 结果
+  const isFixedLabel = isFixedLabelPositionType(measurement.type);
+
   // 计算已占用的标签位置（只考虑当前标注之前的标注）
   const occupiedPositions = allMeasurements
     .slice(0, measurementIndex)
     .filter(m => !hiddenMeasurementIds.has(m.id))
     .map(m => getLabelPositionForType(m.type, m.points, imageScale));
 
-  // 使用智能位置计算避免重叠
-  const smartLabelPosition = calculateSmartLabelPosition(
-    baseLabelPosition,
-    occupiedPositions,
-    imageScale,
-    'right' // 默认优先右侧
-  );
+  // 使用智能位置计算避免重叠（固定标签跳过）
+  const smartLabelPosition = isFixedLabel
+    ? baseLabelPosition
+    : calculateSmartLabelPosition(
+        baseLabelPosition,
+        occupiedPositions,
+        imageScale,
+        'right' // 默认优先右侧
+      );
 
   const labelPosition = imageToScreen(smartLabelPosition, context);
 
