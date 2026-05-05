@@ -25,6 +25,7 @@ export const TS_CONFIG: AnnotationConfig = {
   color: '#06b6d4',
   maxXRightLabel: true,
   apLabelGapX: 24, // T1锥体框比单点宽，额外推远标签（默认 8px）
+  fixedLabelPosition: true, // 固定在锥体右侧，不参与智能避让（避免被 T1 Tilt 标签推走）
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length >= 2 && points.length < 6) {
@@ -80,12 +81,15 @@ export const TS_CONFIG: AnnotationConfig = {
 
     if (points.length < 6) return points[0] || { x: 0, y: 0 };
 
-    // 6点模式：锚点 = T1锥体（前4点）最右 X，Y 取 T1 中心。
-    // 仅用前4点（角点），避免骶骨参考点（points[4..5]）导致锚点跳变。
-    const box = points.slice(0, 4);
-    const maxX = Math.max(...box.map(p => p.x));
-    const centerY = (box[0].y + box[1].y + box[2].y + box[3].y) / 4;
-    return { x: maxX, y: centerY };
+    // 6点模式：[tl(0), tr(1), bl(2), br(3), SR(4), SL(5)]
+    // 锚点 X = 右侧两点（tr=1, br=3）最大 X（T1锥体右边缘）
+    // 锚点 Y = points[1] 与 points[3] 的中点 Y（T1锥体右侧中心）
+    // fixedLabelPosition:true 保证不被智能避让推走
+    const tr = points[1];
+    const br = points[3];
+    const maxX = Math.max(tr.x, br.x);
+    const midY = (tr.y + br.y) / 2;
+    return { x: maxX, y: midY };
   },
 
   isInHoverRange: (
