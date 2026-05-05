@@ -510,11 +510,11 @@ export default function AnnotationToolbar({
                           ? automaticStatus === 'available'
                           : isCobbTool
                             ? canCreateCobb
-                            // AVT/TTS：Admin 须满足骶骨线条件；普通用户直接放点，始终可用
+                            // AVT/TTS：Admin 须满足骶骨线条件；普通用户直接放点，但已存在时同样禁用
                             : tool.id === 'avt'
-                              ? (canUseKeypointTools ? canCreateAvt : true)
+                              ? (canUseKeypointTools ? canCreateAvt : !isUniquenessBlocked)
                               : tool.id === 'tts'
-                                ? (canUseKeypointTools ? canCreateTts : true)
+                                ? (canUseKeypointTools ? canCreateTts : !isUniquenessBlocked)
                                 // 测量已存在时禁用（无论 Admin 还是普通用户），需先删除再重新放点
                                 : !isUniquenessBlocked;
                         const toolTitle = isAutomaticTool
