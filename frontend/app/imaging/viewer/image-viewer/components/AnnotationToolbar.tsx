@@ -607,6 +607,12 @@ export default function AnnotationToolbar({
                               </span>
                             </div>
                             {renderAvailabilityBadge(isToolAvailable)}
+                            {/* 放点数量下标 */}
+                            {tool.pointsNeeded != null && tool.pointsNeeded > 0 && (
+                              <div className="absolute -bottom-1 -left-1 bg-gray-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                                {tool.pointsNeeded}
+                              </div>
+                            )}
                             {(selectedTool === tool.id || isOpen) &&
                               isToolAvailable && (
                                 <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
