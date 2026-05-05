@@ -41,7 +41,7 @@ export function renderAuxiliaryTag({
       fontSize={fontSize}
       fontWeight="bold"
       textAnchor="middle"
-      stroke="rgba(0,0,0,0.6)"
+      stroke="#000000"
       strokeWidth="1.5"
       paintOrder="stroke"
       style={{ userSelect: 'none', pointerEvents: 'none' }}
