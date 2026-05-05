@@ -1,15 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Point, MeasurementData, ImageData, Tool, VertebraAnnotation, CfhAnnotation } from '../types';
 import {
-  AnnotationBindings,
-  PointRef,
-} from '../domain/annotation-binding';
+  Point,
+  MeasurementData,
+  ImageData,
+  Tool,
+  VertebraAnnotation,
+  CfhAnnotation,
+} from '../types';
+import { AnnotationBindings, PointRef } from '../domain/annotation-binding';
 import { CalculationContext } from '../catalog/shared/annotation-config';
-import {
-  calculateMeasurementValue as calcMeasurementValue,
-} from '../domain/annotation-calculation';
+import { calculateMeasurementValue as calcMeasurementValue } from '../domain/annotation-calculation';
 import {
   POINT_INHERITANCE_RULES,
   SHARED_ANATOMICAL_POINT_GROUPS,
@@ -19,9 +21,7 @@ import {
   imageToScreen as utilImageToScreen,
   screenToImage as utilScreenToImage,
 } from '../canvas/transform/coordinate-transform';
-import {
-  INTERACTION_CONSTANTS,
-} from '../shared/constants';
+import { INTERACTION_CONSTANTS } from '../shared/constants';
 import { TransformContext } from '../types';
 import { useCanvasViewport } from './annotation-canvas/hooks/useCanvasViewport';
 import { useCanvasSelection } from './annotation-canvas/hooks/useCanvasSelection';
@@ -49,6 +49,8 @@ import {
   keypointsToRenderLayer,
   KeypointAnnotation,
 } from '../domain/keypoint-state';
+import { isDirectlyEditableAnnotation } from '../domain/annotation-editability';
+import { resolveMeasurementKeypointIds } from '../domain/measurement-keypoint-selection';
 
 export default function AnnotationCanvas({
   selectedImage,
@@ -192,6 +194,9 @@ export default function AnnotationCanvas({
   const [hiddenKeypointIds, setHiddenKeypointIds] = useState<Set<string>>(
     new Set()
   );
+  const [selectedKeypointIds, setSelectedKeypointIds] = useState<Set<string>>(
+    new Set()
+  );
   const {
     drawingState,
     setDrawingState,
@@ -282,18 +287,43 @@ export default function AnnotationCanvas({
     });
   };
 
-  const handleKeypointHover = useCallback((keypointId: string | null) => {
-    setHoverState({
-      measurementId: null,
-      keypointId,
-      elementType: keypointId ? 'keypoint' : null,
-      pointIndex: null,
-    });
-  }, [setHoverState]);
+  const handleKeypointHover = useCallback(
+    (keypointId: string | null) => {
+      setHoverState({
+        measurementId: null,
+        keypointId,
+        elementType: keypointId ? 'keypoint' : null,
+        pointIndex: null,
+      });
+    },
+    [setHoverState]
+  );
+
+  const selectMeasurementKeypoints = useCallback(
+    (measurementId: string | null) => {
+      if (!measurementId) {
+        setSelectedKeypointIds(new Set());
+        return;
+      }
+
+      const measurement = measurements.find(item => item.id === measurementId);
+      const keypointIds = measurement
+        ? resolveMeasurementKeypointIds(measurement, keypoints)
+        : [];
+      setSelectedKeypointIds(new Set(keypointIds));
+    },
+    [keypoints, measurements]
+  );
 
   const handlePanelMeasurementSelect = (measurementId: string) => {
     setSelectedTool('hand');
+    const measurement = measurements.find(item => item.id === measurementId);
+    const isDirectlyEditable = measurement
+      ? isDirectlyEditableAnnotation(measurement.type)
+      : false;
+
     if (selectionState.measurementId === measurementId) {
+      selectMeasurementKeypoints(null);
       setSelectionState({
         measurementId: null,
         pointIndex: null,
@@ -304,6 +334,19 @@ export default function AnnotationCanvas({
       return;
     }
 
+    if (!isDirectlyEditable) {
+      selectMeasurementKeypoints(measurementId);
+      setSelectionState({
+        measurementId,
+        pointIndex: null,
+        type: null,
+        isDragging: false,
+        dragOffset: { x: 0, y: 0 },
+      });
+      return;
+    }
+
+    selectMeasurementKeypoints(null);
     setSelectionState({
       measurementId,
       pointIndex: null,
@@ -314,8 +357,11 @@ export default function AnnotationCanvas({
   };
 
   const handlePanelMeasurementDelete = (measurementId: string) => {
-    onMeasurementsUpdate(measurements.filter(item => item.id !== measurementId));
+    onMeasurementsUpdate(
+      measurements.filter(item => item.id !== measurementId)
+    );
     if (selectionState.measurementId === measurementId) {
+      selectMeasurementKeypoints(null);
       setSelectionState({
         measurementId: null,
         pointIndex: null,
@@ -439,7 +485,11 @@ export default function AnnotationCanvas({
     constrainAuxLinePoint,
     screenToImage,
   });
-  const renderVisibleMeasurement = (measurement: MeasurementData, index: number, allMeasurements: MeasurementData[]) =>
+  const renderVisibleMeasurement = (
+    measurement: MeasurementData,
+    index: number,
+    allMeasurements: MeasurementData[]
+  ) =>
     renderMeasurement({
       measurement,
       imageScale,
@@ -529,6 +579,7 @@ export default function AnnotationCanvas({
     canvasDrag,
     drawingTool,
     onManualBindingPointToggle,
+    onDisplayMeasurementSelect: selectMeasurementKeypoints,
     onCanvasClick,
     onContextMenu: handleContextMenu,
     setImagePosition,
@@ -547,6 +598,7 @@ export default function AnnotationCanvas({
       } ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
       onMouseDown={e => {
         if (selectedTool.startsWith('keypoint:')) {
+          selectMeasurementKeypoints(null);
           const rect = containerRef.current?.getBoundingClientRect();
           const point = screenToImage(
             e.clientX - (rect?.left ?? 0),
@@ -558,11 +610,12 @@ export default function AnnotationCanvas({
         }
         // 先做椎体角点命中检测（不依赖 SVG 事件，使用屏幕坐标距离计算）
         // 命中角点时返回 true，跳过 pointer.onMouseDown 防止触发绘图/平移
-        if (
+        const handledKeypoint =
           selectedTool === 'hand' &&
           showVertebraeLayer &&
-          vertebradDrag.handleMouseDown(e.clientX, e.clientY)
-        ) {
+          vertebradDrag.handleMouseDown(e.clientX, e.clientY);
+        if (handledKeypoint) {
+          selectMeasurementKeypoints(null);
           return;
         }
         pointer.onMouseDown(e);
@@ -591,33 +644,33 @@ export default function AnnotationCanvas({
       onDragEnd={e => e.preventDefault()}
     >
       <MeasurementResultsPanel
-          showResults={showResults}
-          hideAllLabels={hideAllLabels}
-          hideAllAnnotations={hideAllAnnotations}
-          isStandardDistanceHidden={isStandardDistanceHidden}
-          standardDistance={standardDistance}
-          standardDistancePoints={standardDistancePoints}
-          measurements={measurements}
-          keypoints={keypoints}
-          selectionState={selectionState}
-          hoverState={hoverState}
-          hiddenMeasurementIds={hiddenMeasurementIds}
-          hiddenAnnotationIds={hiddenAnnotationIds}
-          hiddenKeypointIds={hiddenKeypointIds}
-          onToggleResults={toggleResults}
-          onToggleAllAnnotations={toggleAllAnnotations}
-          onToggleAllLabels={toggleAllLabels}
-          onToggleStandardDistanceVisibility={toggleStandardDistanceVisibility}
-          onToggleMeasurementAnnotation={toggleMeasurementAnnotation}
-          onToggleMeasurementLabel={toggleMeasurementLabel}
-          onMeasurementHover={handlePanelMeasurementHover}
-          onMeasurementSelect={handlePanelMeasurementSelect}
-          onMeasurementDelete={handlePanelMeasurementDelete}
-          onKeypointHover={handleKeypointHover}
-          onToggleKeypointVisibility={handleToggleKeypointVisibility}
-          onKeypointDelete={handleKeypointDelete}
-          onMeasurementUpdate={handlePanelMeasurementUpdate}
-        />
+        showResults={showResults}
+        hideAllLabels={hideAllLabels}
+        hideAllAnnotations={hideAllAnnotations}
+        isStandardDistanceHidden={isStandardDistanceHidden}
+        standardDistance={standardDistance}
+        standardDistancePoints={standardDistancePoints}
+        measurements={measurements}
+        keypoints={keypoints}
+        selectionState={selectionState}
+        hoverState={hoverState}
+        hiddenMeasurementIds={hiddenMeasurementIds}
+        hiddenAnnotationIds={hiddenAnnotationIds}
+        hiddenKeypointIds={hiddenKeypointIds}
+        onToggleResults={toggleResults}
+        onToggleAllAnnotations={toggleAllAnnotations}
+        onToggleAllLabels={toggleAllLabels}
+        onToggleStandardDistanceVisibility={toggleStandardDistanceVisibility}
+        onToggleMeasurementAnnotation={toggleMeasurementAnnotation}
+        onToggleMeasurementLabel={toggleMeasurementLabel}
+        onMeasurementHover={handlePanelMeasurementHover}
+        onMeasurementSelect={handlePanelMeasurementSelect}
+        onMeasurementDelete={handlePanelMeasurementDelete}
+        onKeypointHover={handleKeypointHover}
+        onToggleKeypointVisibility={handleToggleKeypointVisibility}
+        onKeypointDelete={handleKeypointDelete}
+        onMeasurementUpdate={handlePanelMeasurementUpdate}
+      />
 
       <CanvasControlsPanel
         imageScale={imageScale}
@@ -716,6 +769,7 @@ export default function AnnotationCanvas({
             imageToScreen={imageToScreen}
             activeCorner={vertebradDrag.activeCorner}
             hoveredCorner={effectiveHoveredCorner}
+            selectedKeypointIds={selectedKeypointIds}
           />
         )}
 

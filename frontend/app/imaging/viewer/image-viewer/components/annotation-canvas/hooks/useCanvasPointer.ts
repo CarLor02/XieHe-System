@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { isDirectlyEditableAnnotation } from '../../../domain/annotation-editability';
 import { INTERACTION_CONSTANTS } from '../../../shared/constants';
 import { calculateDistance } from '../../../shared/geometry';
 import { MeasurementData, Point } from '../../../types';
@@ -28,7 +29,9 @@ interface UseCanvasPointerOptions {
   dragStart: Point;
   setDragStart: React.Dispatch<React.SetStateAction<Point>>;
   adjustMode: string;
-  setAdjustMode: React.Dispatch<React.SetStateAction<'none' | 'zoom' | 'brightness' | 'contrast'>>;
+  setAdjustMode: React.Dispatch<
+    React.SetStateAction<'none' | 'zoom' | 'brightness' | 'contrast'>
+  >;
   dragStartPos: Point;
   setDragStartPos: React.Dispatch<React.SetStateAction<Point>>;
   brightness: number;
@@ -59,7 +62,11 @@ interface UseCanvasPointerOptions {
     handleMouseMove: (x: number, y: number) => boolean;
     handleMouseUp: () => void;
   };
-  onManualBindingPointToggle: (annotationId: string, pointIndex: number) => void;
+  onManualBindingPointToggle: (
+    annotationId: string,
+    pointIndex: number
+  ) => void;
+  onDisplayMeasurementSelect: (measurementId: string | null) => void;
   onCanvasClick: () => void;
   onContextMenu: (event: React.MouseEvent) => void;
   setImagePosition: React.Dispatch<React.SetStateAction<Point>>;
@@ -104,11 +111,13 @@ export function useCanvasPointer({
   canvasDrag,
   drawingTool,
   onManualBindingPointToggle,
+  onDisplayMeasurementSelect,
   onCanvasClick,
   onContextMenu,
   setImagePosition,
 }: UseCanvasPointerOptions) {
   const clearSelection = useCallback(() => {
+    onDisplayMeasurementSelect(null);
     setSelectionState({
       measurementId: null,
       pointIndex: null,
@@ -116,7 +125,7 @@ export function useCanvasPointer({
       isDragging: false,
       dragOffset: { x: 0, y: 0 },
     });
-  }, [setSelectionState]);
+  }, [onDisplayMeasurementSelect, setSelectionState]);
 
   const handleManualBindingMouseDown = useCallback(
     (x: number, y: number) => {
@@ -154,7 +163,14 @@ export function useCanvasPointer({
       setIsDragging(true);
       setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
     },
-    [clearSelection, imagePosition.x, imagePosition.y, setAdjustMode, setDragStart, setIsDragging]
+    [
+      clearSelection,
+      imagePosition.x,
+      imagePosition.y,
+      setAdjustMode,
+      setDragStart,
+      setIsDragging,
+    ]
   );
 
   const handleHandModeMouseDown = useCallback(
@@ -177,7 +193,12 @@ export function useCanvasPointer({
           measurement => measurement.id === selectionHit.measurementId
         );
         if (selectedMeasurement) {
-          if (selectionHit.kind === 'point') {
+          const isDirectlyEditable = isDirectlyEditableAnnotation(
+            selectedMeasurement.type
+          );
+
+          if (selectionHit.kind === 'point' && isDirectlyEditable) {
+            onDisplayMeasurementSelect(null);
             const point = selectedMeasurement.points[selectionHit.pointIndex];
             setSelectionState({
               measurementId: selectedMeasurement.id,
@@ -190,6 +211,19 @@ export function useCanvasPointer({
               },
             });
           } else {
+            if (!isDirectlyEditable) {
+              onDisplayMeasurementSelect(selectedMeasurement.id);
+              setSelectionState({
+                measurementId: selectedMeasurement.id,
+                pointIndex: null,
+                type: null,
+                isDragging: false,
+                dragOffset: { x: 0, y: 0 },
+              });
+              return true;
+            }
+
+            onDisplayMeasurementSelect(null);
             const xs = selectedMeasurement.points.map(point => point.x);
             const ys = selectedMeasurement.points.map(point => point.y);
             const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
@@ -215,6 +249,7 @@ export function useCanvasPointer({
         imageToScreen,
       });
       if (workingPointIndex !== null) {
+        onDisplayMeasurementSelect(null);
         const point = clickedPoints[workingPointIndex];
         setSelectionState({
           measurementId: null,
@@ -292,6 +327,7 @@ export function useCanvasPointer({
       imageScale,
       imageToScreen,
       measurements,
+      onDisplayMeasurementSelect,
       screenToImage,
       selectionState.measurementId,
       selectionState.pointIndex,

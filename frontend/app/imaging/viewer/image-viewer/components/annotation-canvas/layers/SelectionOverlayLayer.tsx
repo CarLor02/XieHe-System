@@ -33,7 +33,7 @@ export default function SelectionOverlayLayer({
         selectionState.pointIndex !== null
       ) {
         selectedPoints = [measurement.points[selectionState.pointIndex]];
-      } else {
+      } else if (selectionState.type === 'whole') {
         selectedPoints = measurement.points;
       }
     }
@@ -53,10 +53,7 @@ export default function SelectionOverlayLayer({
 
   if (selectedMeasurement && selectionState.type === 'whole') {
     const typeId = getAnnotationTypeId(selectedMeasurement.type);
-    if (
-      typeId === 'circle' &&
-      selectedMeasurement.points.length >= 2
-    ) {
+    if (typeId === 'circle' && selectedMeasurement.points.length >= 2) {
       const center = selectedMeasurement.points[0];
       const edge = selectedMeasurement.points[1];
       const screenCenter = imageToScreen(center);
@@ -70,10 +67,7 @@ export default function SelectionOverlayLayer({
       maxX = screenCenter.x + screenRadius + 15;
       minY = screenCenter.y - screenRadius - 15;
       maxY = screenCenter.y + screenRadius + 15;
-    } else if (
-      typeId === 'ellipse' &&
-      selectedMeasurement.points.length >= 2
-    ) {
+    } else if (typeId === 'ellipse' && selectedMeasurement.points.length >= 2) {
       const center = selectedMeasurement.points[0];
       const edge = selectedMeasurement.points[1];
       const screenCenter = imageToScreen(center);
@@ -86,8 +80,7 @@ export default function SelectionOverlayLayer({
       minY = screenCenter.y - screenRadiusY - 15;
       maxY = screenCenter.y + screenRadiusY + 15;
     } else if (
-      (typeId === 'rectangle' ||
-        typeId === 'arrow') &&
+      (typeId === 'rectangle' || typeId === 'arrow') &&
       selectedMeasurement.points.length >= 2
     ) {
       const startScreen = imageToScreen(selectedMeasurement.points[0]);

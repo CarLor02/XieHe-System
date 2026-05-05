@@ -1,4 +1,8 @@
-import { applyPointBindings, AnnotationBindings } from '../../../domain/annotation-binding';
+import {
+  applyPointBindings,
+  AnnotationBindings,
+} from '../../../domain/annotation-binding';
+import { isDirectlyEditableAnnotation } from '../../../domain/annotation-editability';
 import { calculateMeasurementValue } from '../../../domain/annotation-calculation';
 import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 import { MeasurementData, Point } from '../../../types';
@@ -80,6 +84,10 @@ export function useCanvasDrag({
           item => item.id === selectionState.measurementId
         );
         if (measurement && measurement.points.length > 0) {
+          if (!isDirectlyEditableAnnotation(measurement.type)) {
+            return false;
+          }
+
           const typeId = getAnnotationTypeId(measurement.type);
           let minX: number;
           let maxX: number;
@@ -99,10 +107,7 @@ export function useCanvasDrag({
               maxX = screenCenter.x + screenRadius + 15;
               minY = screenCenter.y - screenRadius - 15;
               maxY = screenCenter.y + screenRadius + 15;
-            } else if (
-              typeId === 'ellipse' &&
-              measurement.points.length >= 2
-            ) {
+            } else if (typeId === 'ellipse' && measurement.points.length >= 2) {
               const center = measurement.points[0];
               const edge = measurement.points[1];
               const radiusX = Math.abs(edge.x - center.x);
@@ -115,8 +120,7 @@ export function useCanvasDrag({
               minY = screenCenter.y - screenRadiusY - 15;
               maxY = screenCenter.y + screenRadiusY + 15;
             } else if (
-              (typeId === 'rectangle' ||
-                typeId === 'arrow') &&
+              (typeId === 'rectangle' || typeId === 'arrow') &&
               measurement.points.length >= 2
             ) {
               const startScreen = imageToScreen(measurement.points[0]);
@@ -199,6 +203,9 @@ export function useCanvasDrag({
       if (activeTypeId === 'tts' || activeTypeId === 'avt') {
         return false;
       }
+      if (!isDirectlyEditableAnnotation(measurement.type)) {
+        return false;
+      }
 
       if (
         selectionState.type === 'point' &&
@@ -220,7 +227,10 @@ export function useCanvasDrag({
           // 仅躯干参考线（点 0-1）保持水平，拖动时锁定 y 坐标。
           // 骶骨参考线（点 2-3）继承自 CSS / Sacral，需保留其原始倾斜，
           // 否则会通过点绑定把 CSS 的 y 拉平、CSS 角度被强制为 0°。
-          if (selectionState.pointIndex === 0 || selectionState.pointIndex === 1) {
+          if (
+            selectionState.pointIndex === 0 ||
+            selectionState.pointIndex === 1
+          ) {
             const pairIndex = selectionState.pointIndex === 0 ? 1 : 0;
             if (pairIndex < measurement.points.length) {
               newPointY = measurement.points[pairIndex].y;
@@ -289,6 +299,10 @@ export function useCanvasDrag({
         return true;
       }
 
+      if (selectionState.type !== 'whole') {
+        return false;
+      }
+
       const xs = measurement.points.map(point => point.x);
       const ys = measurement.points.map(point => point.y);
       const currentCenterX = (Math.min(...xs) + Math.max(...xs)) / 2;
@@ -303,7 +317,11 @@ export function useCanvasDrag({
       }));
 
       let bindingPropagated = measurements;
-      for (let pointIndex = 0; pointIndex < movedPoints.length; pointIndex += 1) {
+      for (
+        let pointIndex = 0;
+        pointIndex < movedPoints.length;
+        pointIndex += 1
+      ) {
         const movedPoint = movedPoints[pointIndex];
         bindingPropagated = applyPointBindings(
           bindingPropagated,
