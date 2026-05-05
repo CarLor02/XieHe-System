@@ -20,6 +20,14 @@ export function renderPI(
   if (!geometry) return null;
 
   const normalLength = RENDER_SCREEN_LENGTHS.pelvicNormalLength;
+  const normalStart = {
+    x: geometry.sacralMidpoint.x - geometry.sacralNormal.x * normalLength,
+    y: geometry.sacralMidpoint.y - geometry.sacralNormal.y * normalLength,
+  };
+  const normalEnd = {
+    x: geometry.sacralMidpoint.x + geometry.sacralNormal.x * normalLength,
+    y: geometry.sacralMidpoint.y + geometry.sacralNormal.y * normalLength,
+  };
   const showArc = !!geometry.femoralHeadCenter;
   let path: string | null = null;
 
@@ -59,10 +67,10 @@ export function renderPI(
         strokeWidth="2"
       />
       <line
-        x1={geometry.sacralMidpoint.x}
-        y1={geometry.sacralMidpoint.y}
-        x2={geometry.sacralMidpoint.x + geometry.sacralNormal.x * normalLength}
-        y2={geometry.sacralMidpoint.y + geometry.sacralNormal.y * normalLength}
+        x1={normalStart.x}
+        y1={normalStart.y}
+        x2={normalEnd.x}
+        y2={normalEnd.y}
         stroke={displayColor}
         strokeWidth="2"
         strokeDasharray="3,3"

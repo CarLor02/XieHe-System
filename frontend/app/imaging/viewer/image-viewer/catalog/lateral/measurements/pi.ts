@@ -87,6 +87,10 @@ export const PI_CONFIG: AnnotationConfig = {
       return true;
 
     const normalLength = 80;
+    const normalStart = {
+      x: geometry.sacralMidpoint.x - geometry.sacralNormal.x * normalLength,
+      y: geometry.sacralMidpoint.y - geometry.sacralNormal.y * normalLength,
+    };
     const normalEnd = {
       x: geometry.sacralMidpoint.x + geometry.sacralNormal.x * normalLength,
       y: geometry.sacralMidpoint.y + geometry.sacralNormal.y * normalLength,
@@ -100,7 +104,7 @@ export const PI_CONFIG: AnnotationConfig = {
     );
     const isNearNormal = isPointNearLine(
       mousePoint,
-      geometry.sacralMidpoint,
+      normalStart,
       normalEnd,
       tolerance
     );

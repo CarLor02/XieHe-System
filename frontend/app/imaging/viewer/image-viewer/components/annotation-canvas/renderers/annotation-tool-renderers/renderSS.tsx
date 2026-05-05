@@ -27,8 +27,8 @@ export function renderSS(
     vertex === geometry.sacralRight
       ? geometry.sacralLeft
       : geometry.sacralRight;
-  const rayDx = opposite.x - vertex.x;
-  const rayDy = opposite.y - vertex.y;
+  const rayDx = vertex.x - opposite.x;
+  const rayDy = vertex.y - opposite.y;
   const rayLength = Math.sqrt(rayDx * rayDx + rayDy * rayDy);
 
   if (rayLength === 0) return null;
