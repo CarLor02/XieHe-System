@@ -515,8 +515,8 @@ export default function AnnotationToolbar({
                               ? (canUseKeypointTools ? canCreateAvt : true)
                               : tool.id === 'tts'
                                 ? (canUseKeypointTools ? canCreateTts : true)
-                                // 普通用户有替换模式，即使测量已存在也允许重新放点
-                                : !isUniquenessBlocked || !canUseKeypointTools;
+                                // 测量已存在时禁用（无论 Admin 还是普通用户），需先删除再重新放点
+                                : !isUniquenessBlocked;
                         const toolTitle = isAutomaticTool
                           ? isToolAvailable
                             ? `${tool.name} 可恢复，点击自动生成`
