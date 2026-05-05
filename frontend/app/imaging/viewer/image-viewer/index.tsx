@@ -695,6 +695,28 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   const handleAddMeasurement = useCallback(
     (toolType: string, points: Point[]) => {
       const typeId = getAnnotationTypeId(toolType);
+
+      // ── 管理员侧位画 SS：直接写入 S1-1/S1-2 关键点 ──────────────────────────
+      // deriveLateral 会从 S1-1/S1-2 自动派生 SS 及所有 S1 复合指标（PI/PT/LL/TPA/SVA）。
+      // 不走 addMeasurement，避免手动 id 的 SS 与派生 SS 共存造成重复。
+      if (canUseKeypoints && isLateralView && typeId === 'ss') {
+        const s1P0 = points[0] ?? { x: 0, y: 0 };
+        const s1P1 = points[1] ?? { x: 0, y: 0 };
+        let nextKeypoints = upsertKeypoint(keypoints, {
+          id: 'S1-1', point: s1P0, source: 'manual', confidence: 1,
+        });
+        nextKeypoints = upsertKeypoint(nextKeypoints, {
+          id: 'S1-2', point: s1P1, source: 'manual', confidence: 1,
+        });
+        setKeypoints(nextKeypoints);
+        setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+        setMeasurements(previous =>
+          rebuildKeypointMeasurements(previous, nextKeypoints)
+        );
+        return;
+      }
+
       // 侧位管理员也允许手动覆盖（像普通用户一样重新标注）；SS 所有用户始终允许替换。
       const allowReplace = !canUseKeypoints || isLateralView;
       usecases.addMeasurement(
@@ -736,30 +758,18 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         }
       }
 
-      // 侧位画完 SS（骶骨上缘连线）后，立即推导所有 S1 复合指标：
-      //   普通用户 → 使用预检测缓存的椎体数据
-      //   管理员   → 使用 keypoints 状态（Admin 已有完整检测数据）
+      // 侧位普通用户画完 SS 后，立即推导所有 S1 复合指标（管理员已在上方 early-return 处理）
       if (isLateralView && typeId === 'ss') {
         const s1P0 = points[0] ?? { x: 0, y: 0 };
         const s1P1 = points[1] ?? { x: 0, y: 0 };
 
-        let baseVertebrae: VertebraAnnotation[];
-        let cfh: CfhAnnotation | null;
-
-        if (canUseKeypoints) {
-          // 管理员：从 keypoints 状态转换为椎体层，过滤掉旧 S1
-          baseVertebrae = keypointsToDerivedLayer(keypoints, imageData.examType)
-            .filter(v => v.label !== 'S1' && v.label !== 'S1-1' && v.label !== 'S1-2');
-          cfh = cfhAnnotation;
-        } else {
-          // 普通用户：从预检测缓存取数据
-          const detection = lateralDetectionResultRef.current;
-          if (!detection || detection.vertebrae.length === 0) return;
-          baseVertebrae = detection.vertebrae.filter(
-            v => v.label !== 'S1' && v.label !== 'S1-1' && v.label !== 'S1-2'
-          );
-          cfh = detection.cfh;
-        }
+        // 普通用户：从预检测缓存取数据
+        const detection = lateralDetectionResultRef.current;
+        if (!detection || detection.vertebrae.length === 0) return;
+        const baseVertebrae = detection.vertebrae.filter(
+          v => v.label !== 'S1' && v.label !== 'S1-1' && v.label !== 'S1-2'
+        );
+        const cfh = detection.cfh;
 
         const vertebraeWithUserS1: VertebraAnnotation[] = [
           ...baseVertebrae,
@@ -813,6 +823,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       isLateralView,
       keypoints,
       measurements,
+      rebuildKeypointMeasurements,
       standardDistance,
       standardDistancePoints,
       tools,
