@@ -48,6 +48,7 @@ import {
 import {
   applyManualMeasurementPointsToKeypoints,
   buildMeasurementProjectionBinding,
+  deriveDirectMeasurementProjectionsFromKeypoints,
   getExclusiveKeypointsForMeasurementDelete,
   isAuxiliaryAnnotation,
   upsertMeasurementProjectionBinding,
@@ -539,11 +540,20 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         nextKeypoints,
         imageData.examType
       );
-      return deriveAllMeasurements(
+      const layerMeasurements = deriveAllMeasurements(
         derivedLayer,
         isLateralView ? null : cfhAnnotation,
         imageData.examType
-      ).map(m => ({
+      );
+      const directMeasurements = deriveDirectMeasurementProjectionsFromKeypoints(
+        nextKeypoints,
+        imageData.examType
+      );
+
+      return filterUniqueAnnotationDuplicates([
+        ...layerMeasurements,
+        ...directMeasurements,
+      ]).map(m => ({
         ...m,
         value: calcMeasurementValue(m.type, m.points, getCalculationContext()),
       }));

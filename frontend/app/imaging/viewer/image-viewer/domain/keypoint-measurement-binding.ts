@@ -94,6 +94,41 @@ export function applyManualMeasurementPointsToKeypoints(
   };
 }
 
+function makeDerivedMeasurement(toolId: string, points: Point[]): MeasurementData | null {
+  const config = getAnnotationConfig(toolId);
+  if (!config) return null;
+
+  const type = config.name;
+  return {
+    id: `vertebrae-derived-${type.toLowerCase().replace(/[\s/]+/g, '-')}`,
+    type,
+    value: '',
+    points,
+    description: `[关键点推导] ${type}`,
+  };
+}
+
+export function deriveDirectMeasurementProjectionsFromKeypoints(
+  keypoints: KeypointAnnotation[],
+  examType: string
+): MeasurementData[] {
+  const pointMap = isAnteriorExamType(examType)
+    ? AP_TOOL_POINT_MAP
+    : isLateralExamType(examType)
+      ? LATERAL_TOOL_POINT_MAP
+      : null;
+  if (!pointMap) return [];
+
+  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint.point]));
+  return Object.entries(pointMap)
+    .map(([toolId, keypointIds]) => {
+      const points = keypointIds.map(keypointId => byId.get(keypointId));
+      if (!points.every(Boolean)) return null;
+      return makeDerivedMeasurement(toolId, points as Point[]);
+    })
+    .filter((measurement): measurement is MeasurementData => measurement !== null);
+}
+
 export function buildMeasurementProjectionBinding(
   measurement: MeasurementData
 ): MeasurementProjectionBinding | null {
