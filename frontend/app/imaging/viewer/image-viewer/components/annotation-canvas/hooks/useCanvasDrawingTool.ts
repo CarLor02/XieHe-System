@@ -277,6 +277,10 @@ export function useCanvasDrawingTool({
       if (selectedTool === 'ts' && clickedPoints.length === 1) {
         finalPoint = { x: imagePoint.x, y: clickedPoints[0].y };
       }
+      // TTS：每对点（0-1 躯干线，2-3 骶骨线）强制水平（Y 与前一点相同）
+      if (selectedTool === 'tts' && clickedPoints.length % 2 === 1) {
+        finalPoint = { x: imagePoint.x, y: clickedPoints[clickedPoints.length - 1].y };
+      }
 
       const newPoints = [...clickedPoints, finalPoint];
       setClickedPoints(newPoints);

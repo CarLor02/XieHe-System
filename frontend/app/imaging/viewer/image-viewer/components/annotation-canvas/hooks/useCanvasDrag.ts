@@ -177,7 +177,11 @@ export function useCanvasDrag({
       const selectedTypeId = selectedMeasurement
         ? getAnnotationTypeId(selectedMeasurement.type)
         : null;
-      if (selectedTypeId === 'tts' || selectedTypeId === 'avt') {
+      // TTS / AVT 不允许整体拖拽，但允许逐点拖拽（selectionState.type === 'point'）
+      if (
+        (selectedTypeId === 'tts' || selectedTypeId === 'avt') &&
+        selectionState.type !== 'point'
+      ) {
         return false;
       }
 
@@ -202,7 +206,11 @@ export function useCanvasDrag({
         return false;
       }
       const activeTypeId = getAnnotationTypeId(measurement.type);
-      if (activeTypeId === 'tts' || activeTypeId === 'avt') {
+      // 整体拖拽仍然禁止；逐点拖拽继续向下执行（Y 约束在下方处理）
+      if (
+        (activeTypeId === 'tts' || activeTypeId === 'avt') &&
+        selectionState.type !== 'point'
+      ) {
         return false;
       }
 
