@@ -511,7 +511,7 @@ export default function renderMeasurement({
   const isRightSideLabel = isRightSideLabelType(measurement.type);
   // 右侧标签：文字左缘从第1个点（screenPoints[0]）右侧 5px 开始，使用 textAnchor="start"
   const firstPointScreenX = screenPoints.length > 0 ? screenPoints[0].x : labelPosition.x;
-  const textLabelX = isRightSideLabel ? firstPointScreenX + 5 : labelPosition.x;
+  const textLabelX = isRightSideLabel ? firstPointScreenX + 20 : labelPosition.x;
   const textLabelAnchor = isRightSideLabel ? 'start' : 'middle';
 
   return (

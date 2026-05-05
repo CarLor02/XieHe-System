@@ -25,9 +25,21 @@ export const ARROW_CONFIG: AnnotationConfig = {
   category: 'auxiliary',
   color: '#f59e0b',
 
-  calculateResults: () => [],
-  getLabelPosition: (points: Point[], imageScale: number = 1) =>
-    points[0] || { x: 0, y: 0 },
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 2) return [];
+    const pixelDistance = calculateDistance2D(points[0], points[1]);
+    const actualDistance = calculateActualDistance(pixelDistance, context);
+    return [{ name: '箭头', value: actualDistance.toFixed(1), unit: 'mm' }];
+  },
+
+  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+    if (points.length < 2) return points[0] || { x: 0, y: 0 };
+    // 标签放在箭头线中点上方
+    return {
+      x: (points[0].x + points[1].x) / 2,
+      y: (points[0].y + points[1].y) / 2 - 15 / imageScale,
+    };
+  },
   isInHoverRange: () => false,
   isInSelectionRange: () => false,
 };

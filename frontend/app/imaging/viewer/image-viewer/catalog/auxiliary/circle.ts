@@ -25,22 +25,19 @@ export const CIRCLE_CONFIG: AnnotationConfig = {
   category: 'auxiliary',
   color: '#10b981',
 
-  calculateResults: () => [],
+  calculateResults: (points: Point[], context: CalculationContext) => {
+    if (points.length < 2) return [];
+    const pixelRadius = calculateDistance2D(points[0], points[1]);
+    const actualRadius = calculateActualDistance(pixelRadius, context);
+    return [{ name: '半径', value: actualRadius.toFixed(1), unit: 'mm' }];
+  },
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
-    // label 放在圆心正下方，避免遮挡圆心点
-    if (points.length < 1) return { x: 0, y: 0 };
+    // label 放在圆的左侧，水平对齐圆心
+    if (points.length < 2) return points[0] || { x: 0, y: 0 };
     const center = points[0];
-    if (points.length >= 2) {
-      const radius = Math.sqrt(
-        Math.pow(points[1].x - center.x, 2) +
-          Math.pow(points[1].y - center.y, 2)
-      );
-      // label 放在圆心下方，距离为半径/2 或 30 像素，取大值
-      const labelDistance = Math.max(radius / 2, 30 / imageScale);
-      return { x: center.x, y: center.y + labelDistance };
-    }
-    return center;
+    const radius = calculateDistance2D(center, points[1]);
+    return { x: center.x - radius, y: center.y };
   },
 
   isInHoverRange: (
