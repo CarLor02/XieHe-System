@@ -39,7 +39,25 @@ type CfhTarget = { kind: 'cfh' };
  */
 type ApPoseTarget = { kind: 'ap-pose'; keypointId: string };
 
-type WritebackTarget = VertebraTarget | S1Target | S1PosteriorTarget | CfhTarget | ApPoseTarget;
+/**
+ * 正位椎体角点写回目标。
+ * completeVertebraLayers 将关键点 `${group}-1..4` 按顺序放入 corners[0..3]：
+ *   corners[0]=topLeft(T1-1), corners[1]=topRight(T1-2),
+ *   corners[2]=bottomLeft(T1-3), corners[3]=bottomRight(T1-4)
+ */
+type ApVertebraCornerTarget = {
+  kind: 'ap-vertebra';
+  label: string;
+  cornerIndex: 0 | 1 | 2 | 3;
+};
+
+type WritebackTarget =
+  | VertebraTarget
+  | S1Target
+  | S1PosteriorTarget
+  | CfhTarget
+  | ApPoseTarget
+  | ApVertebraCornerTarget;
 
 // ─── 映射表（measurement type → 每个 pointIndex 对应的 vertebraeLayer 目标）──
 
@@ -111,6 +129,15 @@ const WRITEBACK_MAP: Record<string, WritebackTarget[]> = {
   'po':  [{ kind: 'ap-pose', keypointId: 'IR' }, { kind: 'ap-pose', keypointId: 'IL' }],
   // CSS（冠状面骶骨倾斜角）：points[0]=SR, points[1]=SL
   'css': [{ kind: 'ap-pose', keypointId: 'SR' }, { kind: 'ap-pose', keypointId: 'SL' }],
+
+  // ── 正位 AP 椎体角点写回 ──────────────────────────────────────────────────
+  // T1 Tilt：points[0]=t1.topLeft=corners[0](T1-1), points[1]=t1.topRight=corners[1](T1-2)
+  // completeVertebraLayers 按 [1,2,3,4] 顺序填充 corners：
+  //   corners[0]=topLeft, corners[1]=topRight, corners[2]=bottomLeft, corners[3]=bottomRight
+  't1-tilt': [
+    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 0 },
+    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 1 },
+  ],
 };
 
 // ─── 辅助：更新椎体角点 ──────────────────────────────────────────────────────
@@ -262,6 +289,16 @@ export function applyMeasurementPointToVertebrae(
       if (v.label !== keypointId) return v;
       const next = [...v.corners] as [Point, Point, Point, Point];
       next[0] = newPoint;
+      return { ...v, corners: next, source: 'manual' as const };
+    });
+  } else if (target.kind === 'ap-vertebra') {
+    // 正位椎体角点：completeVertebraLayers 按 [T1-1, T1-2, T1-3, T1-4] 顺序填充 corners[0..3]。
+    // vertebraeLayerToAnteriorKeypoints 按 index+1 反向映射，因此更新对应 cornerIndex 即可。
+    const { label, cornerIndex } = target;
+    nextLayer = vertebraeLayer.map(v => {
+      if (v.label !== label) return v;
+      const next = [...v.corners] as [Point, Point, Point, Point];
+      next[cornerIndex] = newPoint;
       return { ...v, corners: next, source: 'manual' as const };
     });
   }
