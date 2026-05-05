@@ -1327,7 +1327,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 getAnnotationConfig(incomingTypeId);
 
               if (!tool || tool.category !== 'measurement') return false;
-              if (isLateralView && S1_RELATED_TYPES.has(tool.id)) return false;
 
               // SVA 改为 5 点法：AI 返回的 SVA 非 5 点时直接过滤，不显示
               if (tool.id === 'sva') {
