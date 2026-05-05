@@ -327,7 +327,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
   useEffect(() => {
     if (!isKeypointExam) return;
-    if (vertebraeLayer.length === 0 && !cfhAnnotation) return;
+    if (vertebraeLayer.length === 0) return;
 
     const restoredKeypoints = vertebraeLayerToKeypoints(
       vertebraeLayer,
