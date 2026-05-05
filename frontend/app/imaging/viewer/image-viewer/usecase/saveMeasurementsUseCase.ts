@@ -9,6 +9,33 @@ import {
 import {updateImageAnnotation} from '@/services/imageServices';
 import type {KeypointAnnotation} from "../domain/keypoint-state";
 
+function resolveImageFileId(
+    imageId: string,
+    studyData: StudyData | null
+): number | null {
+    if (
+        studyData &&
+        Number.isSafeInteger(studyData.id) &&
+        studyData.id > 0
+    ) {
+        return studyData.id;
+    }
+
+    const trimmed = imageId.trim();
+    if (/^\d+$/.test(trimmed)) {
+        const id = Number(trimmed);
+        return Number.isSafeInteger(id) && id > 0 ? id : null;
+    }
+
+    const prefixedMatch = /^IMG0*(\d+)$/i.exec(trimmed);
+    if (prefixedMatch) {
+        const id = Number(prefixedMatch[1]);
+        return Number.isSafeInteger(id) && id > 0 ? id : null;
+    }
+
+    return null;
+}
+
 export async function saveMeasurements(
     imageId: string,
     studyData: StudyData | null,
@@ -23,20 +50,6 @@ export async function saveMeasurements(
     setIsSaving: (state :boolean) => void,
     setSaveMessage: (message :string) => void,
 ){
-    const hasStandardDistance =
-        standardDistance !== null &&
-        Array.isArray(standardDistancePoints) &&
-        standardDistancePoints.length === 2;
-    if (
-        keypoints.length === 0 &&
-        auxiliaryAnnotations.length === 0 &&
-        !hasStandardDistance
-    ) {
-        setSaveMessage('暂无标注数据需要保存');
-        setTimeout(() => setSaveMessage(''), 3000);
-        return;
-    }
-
     setIsSaving(true);
     setSaveMessage('');
     const imageData = studyData
@@ -78,6 +91,7 @@ export async function saveMeasurements(
             reportText,
             savedAt,
         };
+        const serializedAnnotation = JSON.stringify(annotationData);
 
         // 1. 先保存到本地存储
         const key = `annotations_${imageId}`;
@@ -87,10 +101,12 @@ export async function saveMeasurements(
         );
 
         // 2. 保存到服务器 image-files.annotation。医学测量项由关键点运行时推导，不再写 measurements 表。
-        // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
-        const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
+        const imageFileId = resolveImageFileId(imageId, studyData);
         try {
-            await updateImageAnnotation(Number(numericId), JSON.stringify(annotationData));
+            if (imageFileId === null) {
+                throw new Error(`无法解析影像文件ID: ${imageId}`);
+            }
+            await updateImageAnnotation(imageFileId, serializedAnnotation);
             console.log('关键点标注数据已同步至 annotation 字段');
             setSaveMessage('标注已保存');
             setTimeout(() => setSaveMessage(''), 3000);

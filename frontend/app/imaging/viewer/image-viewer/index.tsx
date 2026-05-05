@@ -1462,6 +1462,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           saveMessage={saveMessage}
           measurementsLength={measurements.length + keypoints.length}
           isSaving={isSaving}
+          canSave={studyData !== null}
           isAdmin={isAdmin}
           canUseKeypointTools={canUseKeypoints}
           isAIDetecting={isAIDetecting}
