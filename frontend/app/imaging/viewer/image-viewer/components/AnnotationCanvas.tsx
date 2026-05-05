@@ -616,7 +616,6 @@ export default function AnnotationCanvas({
     drawingTool,
     onManualBindingPointToggle,
     onDisplayMeasurementSelect: selectMeasurementKeypoints,
-    onMeasurementPointDragStart: handleMeasurementPointDragStart,
     onCanvasClick,
     onContextMenu: handleContextMenu,
     setImagePosition,

@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { isDirectlyEditableAnnotation } from '../../../domain/annotation-editability';
 import { INTERACTION_CONSTANTS } from '../../../shared/constants';
 import { calculateDistance } from '../../../shared/geometry';
 import { MeasurementData, Point } from '../../../types';
@@ -67,11 +66,6 @@ interface UseCanvasPointerOptions {
     pointIndex: number
   ) => void;
   onDisplayMeasurementSelect: (measurementId: string | null) => void;
-  onMeasurementPointDragStart: (
-    measurementId: string,
-    pointIndex: number,
-    screenPoint: Point
-  ) => boolean;
   onCanvasClick: () => void;
   onContextMenu: (event: React.MouseEvent) => void;
   setImagePosition: React.Dispatch<React.SetStateAction<Point>>;
@@ -117,7 +111,6 @@ export function useCanvasPointer({
   drawingTool,
   onManualBindingPointToggle,
   onDisplayMeasurementSelect,
-  onMeasurementPointDragStart,
   onCanvasClick,
   onContextMenu,
   setImagePosition,
@@ -199,11 +192,8 @@ export function useCanvasPointer({
           measurement => measurement.id === selectionHit.measurementId
         );
         if (selectedMeasurement) {
-          const isDirectlyEditable = isDirectlyEditableAnnotation(
-            selectedMeasurement.type
-          );
-
-          if (selectionHit.kind === 'point' && isDirectlyEditable) {
+          if (selectionHit.kind === 'point') {
+            // 所有测量（包括医学测量）均支持直接点拖拽
             onDisplayMeasurementSelect(null);
             const point = selectedMeasurement.points[selectionHit.pointIndex];
             setSelectionState({
@@ -217,58 +207,7 @@ export function useCanvasPointer({
               },
             });
           } else {
-            if (!isDirectlyEditable) {
-              const keypointDragStarted =
-                selectionHit.kind === 'point' &&
-                onMeasurementPointDragStart(
-                  selectedMeasurement.id,
-                  selectionHit.pointIndex,
-                  screenPoint
-                );
-
-              if (keypointDragStarted) {
-                // 关键点拖拽模式（Admin + 有关键点）：通过 vertebradDrag 驱动
-                onDisplayMeasurementSelect(selectedMeasurement.id);
-                setSelectionState({
-                  measurementId: selectedMeasurement.id,
-                  pointIndex: null,
-                  type: null,
-                  isDragging: false,
-                  dragOffset: { x: 0, y: 0 },
-                });
-                return true;
-              }
-
-              if (selectionHit.kind === 'point') {
-                // 无关键点可绑定时（普通用户）：降级为直接点拖拽
-                onDisplayMeasurementSelect(null);
-                const point =
-                  selectedMeasurement.points[selectionHit.pointIndex];
-                setSelectionState({
-                  measurementId: selectedMeasurement.id,
-                  pointIndex: selectionHit.pointIndex,
-                  type: 'point',
-                  isDragging: false,
-                  dragOffset: {
-                    x: imagePoint.x - point.x,
-                    y: imagePoint.y - point.y,
-                  },
-                });
-                return true;
-              }
-
-              // 点击测量体（非点区域）：仅选中，不拖拽
-              onDisplayMeasurementSelect(selectedMeasurement.id);
-              setSelectionState({
-                measurementId: selectedMeasurement.id,
-                pointIndex: null,
-                type: null,
-                isDragging: false,
-                dragOffset: { x: 0, y: 0 },
-              });
-              return true;
-            }
-
+            // 点击测量体（非点区域）：整体拖拽
             onDisplayMeasurementSelect(null);
             const xs = selectedMeasurement.points.map(point => point.x);
             const ys = selectedMeasurement.points.map(point => point.y);
@@ -374,7 +313,6 @@ export function useCanvasPointer({
       imageToScreen,
       measurements,
       onDisplayMeasurementSelect,
-      onMeasurementPointDragStart,
       screenToImage,
       selectionState.measurementId,
       selectionState.pointIndex,
