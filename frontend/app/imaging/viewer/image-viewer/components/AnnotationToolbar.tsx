@@ -222,11 +222,120 @@ export default function AnnotationToolbar({
 
   const getUnavailableTitle = (
     toolName: string,
-    status: ToolStatus
+    status: ToolStatus,
+    missingKeypoints: string[] = []
   ): string => {
     if (status === 'exists') return `${toolName} 已存在`;
-    if (status === 'missing-keypoints') return `${toolName} 缺少关键点`;
+    if (status === 'missing-keypoints') {
+      return missingKeypoints.length > 0
+        ? `${toolName}缺少关键点:${missingKeypoints.join(', ')}`
+        : `${toolName}缺少关键点`;
+    }
     return `${toolName} 可用`;
+  };
+
+  const getMissingPointIds = (ids: string[]) =>
+    ids.filter(id => !keypointIds.has(id));
+
+  const getMissingVertebraPointIds = (vertebra: string) =>
+    getMissingPointIds([1, 2, 3, 4].map(index => `${vertebra}-${index}`));
+
+  const getMissingAnyCompleteVertebra = (minimumCount: number) =>
+    completeVertebraGroups.length >= minimumCount
+      ? []
+      : [`至少${minimumCount}个完整椎体`];
+
+  const getMissingKeypointsForTool = (toolId: string): string[] => {
+    if (isAnteriorView) {
+      if (toolId === 't1-tilt') return getMissingVertebraPointIds('T1');
+      if (toolId === 'ca') return getMissingPointIds(['CL', 'CR']);
+      if (toolId === 'po') return getMissingPointIds(['IL', 'IR']);
+      if (toolId === 'css') return getMissingPointIds(['SL', 'SR']);
+      if (toolId === 'ts') {
+        return [
+          ...getMissingVertebraPointIds('C7'),
+          ...getMissingPointIds(['SL', 'SR']),
+        ];
+      }
+      if (toolId === 'cobb') return getMissingAnyCompleteVertebra(2);
+      if (toolId === 'vertebra-center') return getMissingAnyCompleteVertebra(1);
+      if (toolId === 'avt') {
+        return [
+          ...getMissingPointIds(['SL', 'SR']),
+          ...getMissingAnyCompleteVertebra(1),
+        ];
+      }
+      if (toolId === 'tts') {
+        return [
+          ...getMissingPointIds(['SL', 'SR']),
+          ...getMissingAnyCompleteVertebra(2),
+        ];
+      }
+      return [];
+    }
+
+    if (toolId === 't1-slope') return getMissingVertebraPointIds('T1');
+    if (toolId === 'cl') {
+      return [
+        ...getMissingVertebraPointIds('C2'),
+        ...getMissingVertebraPointIds('C7'),
+      ];
+    }
+    if (toolId === 'tk-t2-t5') {
+      return [
+        ...getMissingVertebraPointIds('T2'),
+        ...getMissingVertebraPointIds('T5'),
+      ];
+    }
+    if (toolId === 'tk-t5-t12') {
+      return [
+        ...getMissingVertebraPointIds('T5'),
+        ...getMissingVertebraPointIds('T12'),
+      ];
+    }
+    if (toolId === 't10-l2') {
+      return [
+        ...getMissingVertebraPointIds('T10'),
+        ...getMissingVertebraPointIds('L2'),
+      ];
+    }
+    if (toolId === 'll-l1-s1') {
+      return [
+        ...getMissingVertebraPointIds('L1'),
+        ...getMissingPointIds(['S1-1', 'S1-2']),
+      ];
+    }
+    if (toolId === 'll-l1-l4') {
+      return [
+        ...getMissingVertebraPointIds('L1'),
+        ...getMissingVertebraPointIds('L4'),
+      ];
+    }
+    if (toolId === 'll-l4-s1') {
+      return [
+        ...getMissingVertebraPointIds('L4'),
+        ...getMissingPointIds(['S1-1', 'S1-2']),
+      ];
+    }
+    if (toolId === 'sva') {
+      return [
+        ...getMissingVertebraPointIds('C7'),
+        ...getMissingPointIds(['S1-2']),
+      ];
+    }
+    if (toolId === 'tpa') {
+      return [
+        ...getMissingVertebraPointIds('T1'),
+        ...getMissingPointIds(['CFH', 'S1-1', 'S1-2']),
+      ];
+    }
+    if (toolId === 'pi' || toolId === 'pt') {
+      return getMissingPointIds(['CFH', 'S1-1', 'S1-2']);
+    }
+    if (toolId === 'ss') return getMissingPointIds(['S1-1', 'S1-2']);
+    if (toolId === 'vertebra-center') return getMissingAnyCompleteVertebra(1);
+
+    return [];
   };
 
   return (
@@ -381,6 +490,9 @@ export default function AnnotationToolbar({
                         const isOpen = openMeasurementTool === tool.id;
                         const automaticStatus =
                           automaticToolStatus[tool.id] ?? 'missing-keypoints';
+                        const missingKeypoints = getMissingKeypointsForTool(
+                          tool.id
+                        );
                         const selectionStatus =
                           tool.id === 'vertebra-center'
                             ? vertebraCenterStatus
@@ -412,11 +524,19 @@ export default function AnnotationToolbar({
                         const toolTitle = isAutomaticTool
                           ? isToolAvailable
                             ? `${tool.name} 可恢复，点击自动生成`
-                            : getUnavailableTitle(tool.name, automaticStatus)
+                            : getUnavailableTitle(
+                                tool.name,
+                                automaticStatus,
+                                missingKeypoints
+                              )
                           : !isToolAvailable &&
                               (isUniqueAnnotationTool(tool.id) ||
                                 isSelectionTool)
-                            ? getUnavailableTitle(tool.name, unavailableStatus)
+                            ? getUnavailableTitle(
+                                tool.name,
+                                unavailableStatus,
+                                missingKeypoints
+                              )
                             : isSelectionTool
                               ? isCobbTool
                                 ? '点击选择 Cobb 上端椎和下端椎'
