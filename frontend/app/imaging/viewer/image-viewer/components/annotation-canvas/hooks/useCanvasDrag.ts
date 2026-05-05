@@ -91,7 +91,12 @@ export function useCanvasDrag({
           item => item.id === selectionState.measurementId
         );
         if (measurement && measurement.points.length > 0) {
-          if (!isDirectlyEditableAnnotation(measurement.type)) {
+          // 辅助图形直接可编辑；医学测量在有明确点选（type==='point'）时也允许直接拖拽
+          // （普通用户无关键点，点击点后由 useCanvasPointer 降级为 type==='point'）
+          if (
+            !isDirectlyEditableAnnotation(measurement.type) &&
+            selectionState.type !== 'point'
+          ) {
             return false;
           }
 
@@ -210,7 +215,10 @@ export function useCanvasDrag({
       if (activeTypeId === 'tts' || activeTypeId === 'avt') {
         return false;
       }
-      if (!isDirectlyEditableAnnotation(measurement.type)) {
+      if (
+        !isDirectlyEditableAnnotation(measurement.type) &&
+        selectionState.type !== 'point'
+      ) {
         return false;
       }
 

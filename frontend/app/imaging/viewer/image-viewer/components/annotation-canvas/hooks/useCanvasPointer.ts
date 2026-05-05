@@ -218,14 +218,16 @@ export function useCanvasPointer({
             });
           } else {
             if (!isDirectlyEditable) {
-              if (
+              const keypointDragStarted =
                 selectionHit.kind === 'point' &&
                 onMeasurementPointDragStart(
                   selectedMeasurement.id,
                   selectionHit.pointIndex,
                   screenPoint
-                )
-              ) {
+                );
+
+              if (keypointDragStarted) {
+                // 关键点拖拽模式（Admin + 有关键点）：通过 vertebradDrag 驱动
                 onDisplayMeasurementSelect(selectedMeasurement.id);
                 setSelectionState({
                   measurementId: selectedMeasurement.id,
@@ -237,6 +239,25 @@ export function useCanvasPointer({
                 return true;
               }
 
+              if (selectionHit.kind === 'point') {
+                // 无关键点可绑定时（普通用户）：降级为直接点拖拽
+                onDisplayMeasurementSelect(null);
+                const point =
+                  selectedMeasurement.points[selectionHit.pointIndex];
+                setSelectionState({
+                  measurementId: selectedMeasurement.id,
+                  pointIndex: selectionHit.pointIndex,
+                  type: 'point',
+                  isDragging: false,
+                  dragOffset: {
+                    x: imagePoint.x - point.x,
+                    y: imagePoint.y - point.y,
+                  },
+                });
+                return true;
+              }
+
+              // 点击测量体（非点区域）：仅选中，不拖拽
               onDisplayMeasurementSelect(selectedMeasurement.id);
               setSelectionState({
                 measurementId: selectedMeasurement.id,
