@@ -21,19 +21,11 @@ function sortCornersGeometrically(pts: {x:number,y:number}[]): [Point,Point,Poin
 
 // AI检测函数（仅检测椎骨，结果存入 vertebraeLayer，不混入 measurements[]）
 export async function aiDetect(
-    isAdmin: boolean,
     imageData: ImageData,
     onKeypointsDetected: (keypoints: KeypointAnnotation[]) => void,
     setSaveMessage: (message: string) => void,
     setIsAIDetecting: (aiDetectingState:boolean) => void,
 ){
-    // 权限检查
-    if (!isAdmin) {
-        setSaveMessage('无权限：仅管理员可以使用AI检测功能');
-        setTimeout(() => setSaveMessage(''), 3000);
-        return;
-    }
-
     setIsAIDetecting(true);
     setSaveMessage('');
 

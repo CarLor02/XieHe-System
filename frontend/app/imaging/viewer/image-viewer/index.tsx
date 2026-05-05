@@ -1355,7 +1355,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
     try {
       await usecases.aiDetect(
-        canUseKeypoints,
         imageData,
         detectedKeypoints => {
           applyKeypoints(detectedKeypoints);
