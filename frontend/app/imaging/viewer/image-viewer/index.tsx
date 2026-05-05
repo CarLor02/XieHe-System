@@ -215,6 +215,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   });
   /** DB annotation 已成功加载时置 true，防止 localStorage 后续覆盖 */
   const dbAnnotationLoadedRef = useRef(false);
+  /** 侧位静默检测缓存：AI 测量后异步填充，用户画 SS 时取出推导 S1 复合指标 */
+  const lateralDetectionResultRef = useRef<{
+    vertebrae: VertebraAnnotation[];
+    cfh: CfhAnnotation | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!selectedBindingGroupId) return;
@@ -663,10 +668,67 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         imageNaturalSize,
         allowReplace
       );
+
+      // 普通用户在侧位画完 SS（骶骨上缘连线）后：
+      // 将用户手画的 S1 两端点注入缓存的检测椎体数据，推导所有 S1 复合指标
+      // （PI、PT、LL L1-S1、LL L4-S1、TPA、SVA），并加入/替换到标注列表。
+      if (isLateralView && !canUseKeypoints && getAnnotationTypeId(toolType) === 'ss') {
+        const detection = lateralDetectionResultRef.current;
+        if (!detection || detection.vertebrae.length === 0) return;
+
+        // 用用户手画的 SS 两点替换检测数据里的 S1
+        const baseVertebrae = detection.vertebrae.filter(
+          v => v.label !== 'S1' && v.label !== 'S1-1' && v.label !== 'S1-2'
+        );
+        const s1P0 = points[0] ?? { x: 0, y: 0 };
+        const s1P1 = points[1] ?? { x: 0, y: 0 };
+        const vertebraeWithUserS1: VertebraAnnotation[] = [
+          ...baseVertebrae,
+          { label: 'S1-1', corners: [s1P0, s1P0, s1P0, s1P0], confidence: 1, source: 'ai' },
+          { label: 'S1-2', corners: [s1P1, s1P1, s1P1, s1P1], confidence: 1, source: 'ai' },
+        ];
+
+        const allDerived = deriveAllMeasurements(
+          vertebraeWithUserS1,
+          detection.cfh,
+          imageData.examType
+        );
+
+        // 仅保留 S1 复合指标（排除 SS，已由 addMeasurement 写入）
+        const S1_COMPOUND_TYPES = new Set(['ll-l1-s1', 'll-l4-s1', 'tpa', 'pi', 'pt', 'sva']);
+        const ctx = { standardDistance, standardDistancePoints, imageNaturalSize };
+        const s1Measurements = allDerived
+          .filter(m => S1_COMPOUND_TYPES.has(getAnnotationTypeId(m.type)))
+          .map(m => ({
+            ...m,
+            id: `${Date.now()}-s1-derived-${m.type.toLowerCase().replace(/\s+/g, '-')}`,
+            value: calcMeasurementValue(m.type, m.points, ctx) || '',
+          }));
+
+        if (s1Measurements.length === 0) return;
+
+        setMeasurements(prev => {
+          let updated = [...prev];
+          for (const m of s1Measurements) {
+            const typeId = getAnnotationTypeId(m.type);
+            const existIdx = updated.findIndex(
+              e => getAnnotationTypeId(e.type) === typeId
+            );
+            if (existIdx >= 0) {
+              updated[existIdx] = m;
+            } else {
+              updated = [...updated, m];
+            }
+          }
+          return updated;
+        });
+      }
     },
     [
       canUseKeypoints,
+      imageData.examType,
       imageNaturalSize,
+      isLateralView,
       measurements,
       standardDistance,
       standardDistancePoints,
@@ -1327,8 +1389,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 getAnnotationConfig(incomingTypeId);
 
               if (!tool || tool.category !== 'measurement') return false;
+              // S1 相关指标（SS/PI/PT/SVA/TPA/LL L1-S1/LL L4-S1）由后端用 L5 近似计算，
+              // 并非真实 S1 骶骨数据，不直接加载；用户手动画 SS 后由绑定系统精确推导。
+              if (isLateralView && S1_RELATED_TYPES.has(tool.id)) return false;
 
-              // SVA 改为 5 点法：AI 返回的 SVA 非 5 点时直接过滤，不显示
+              // SVA 改为 5 点法：AI 返回的 SVA 非 5 点时直接过滤，不显示（兜底）
               if (tool.id === 'sva') {
                 return Array.isArray(m.points) && m.points.length === 5;
               }
@@ -1469,6 +1534,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
               const detectResult = await usecases.detectLateralVertebrae(blob);
               if (!detectResult || detectResult.vertebrae.length === 0) return;
+
+              // 缓存检测结果，供用户画 SS 时推导 S1 复合指标使用
+              lateralDetectionResultRef.current = detectResult;
 
               const derived = deriveAllMeasurements(
                 detectResult.vertebrae,
