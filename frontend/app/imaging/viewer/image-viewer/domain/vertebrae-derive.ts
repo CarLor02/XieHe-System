@@ -11,9 +11,10 @@
  */
 
 import { CfhAnnotation, MeasurementData, Point, VertebraAnnotation } from '../types';
+import { isLateralVertebraLabel } from '../catalog/lateral/keypoints';
 import {
-  apKeypointsToDerivedLayer,
-  vertebraeLayerToApKeypoints,
+  keypointsToDerivedLayer,
+  vertebraeLayerToKeypoints,
 } from './keypoint-state';
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
@@ -68,67 +69,82 @@ function extractEndplateLateral(corners: [Point, Point, Point, Point]): Endplate
   };
 }
 
-// ─── 侧位 S1 估算（移植自 _estimate_s1_point）──────────────────────────────
-
-function estimateS1(ep: Record<string, Endplates>): Point | null {
-  if (!ep['L5']) return null;
-  const { upper: l5Upper, lower: l5Lower } = ep['L5'];
-  const l5LowerCenterX = (l5Lower[0].x + l5Lower[1].x) / 2;
-  const l5LowerCenterY = (l5Lower[0].y + l5Lower[1].y) / 2;
-  const l5UpperCenterY = (l5Upper[0].y + l5Upper[1].y) / 2;
-  const l5Height = Math.abs(l5LowerCenterY - l5UpperCenterY);
-  return { x: l5LowerCenterX, y: l5LowerCenterY + l5Height * 1.2 };
-}
-
 // ─── 侧位推导（移植自 keypoints_service.compute_keypoints）─────────────────
+
+function sortSacralEndplate(points: [Point, Point]): [Point, Point] {
+  const [p1, p2] = points;
+  return p1.x >= p2.x ? [p1, p2] : [p2, p1];
+}
 
 function deriveLateral(
   vertebraeLayer: VertebraAnnotation[],
   cfhAnnotation: CfhAnnotation | null,
 ): MeasurementData[] {
   const ep: Record<string, Endplates> = {};
+  const sacralPoints = new Map<string, Point>();
+  let cfh = cfhAnnotation?.center ?? null;
+
   vertebraeLayer.forEach(v => {
-    ep[v.label] = extractEndplateLateral(v.corners);
+    if (v.label === 'CFH') {
+      cfh = v.corners[0];
+      return;
+    }
+    if (v.label === 'S1') {
+      sacralPoints.set('S1-1', v.corners[0]);
+      sacralPoints.set('S1-2', v.corners[1]);
+      return;
+    }
+    if (v.label === 'S1-1' || v.label === 'S1-2') {
+      sacralPoints.set(v.label, v.corners[0]);
+      return;
+    }
+    if (isLateralVertebraLabel(v.label)) {
+      ep[v.label] = extractEndplateLateral(v.corners);
+    }
   });
 
   const out: MeasurementData[] = [];
   const has = (...labels: string[]) => labels.every(l => ep[l]);
+  const s1p1 = sacralPoints.get('S1-1');
+  const s1p2 = sacralPoints.get('S1-2');
+  const s1Upper = s1p1 && s1p2 ? sortSacralEndplate([s1p1, s1p2]) : null;
+  const s1Posterior = s1Upper ? s1Upper[1] : null;
 
   if (has('T1'))        out.push(makeMeasurement('T1 Slope', [...ep['T1'].upper]));
+  if (has('C2', 'C7'))  out.push(makeMeasurement('C2-C7 CL', [...ep['C2'].lower, ...ep['C7'].lower]));
   if (has('T2', 'T5'))  out.push(makeMeasurement('TK T2-T5',  [...ep['T2'].upper, ...ep['T5'].lower]));
   if (has('T5', 'T12')) out.push(makeMeasurement('TK T5-T12', [...ep['T5'].upper, ...ep['T12'].lower]));
   if (has('T10', 'L2')) out.push(makeMeasurement('T10-L2',    [...ep['T10'].upper, ...ep['L2'].lower]));
-  if (has('L1', 'L5'))  out.push(makeMeasurement('LL L1-S1',  [...ep['L1'].upper, ...ep['L5'].lower]));
+  if (has('L1') && s1Upper) out.push(makeMeasurement('LL L1-S1',  [...ep['L1'].upper, ...s1Upper]));
   if (has('L1', 'L4'))  out.push(makeMeasurement('LL L1-L4',  [...ep['L1'].upper, ...ep['L4'].lower]));
-  if (has('L4', 'L5'))  out.push(makeMeasurement('LL L4-S1',  [...ep['L4'].upper, ...ep['L5'].lower]));
+  if (has('L4') && s1Upper) out.push(makeMeasurement('LL L4-S1',  [...ep['L4'].upper, ...s1Upper]));
 
-  const s1 = estimateS1(ep);
-  if (has('C7') && s1) {
+  if (has('C7') && s1Posterior) {
     // 与手动交互格式一致：4个C7角点（上终板前/后、下终板前/后）+ S1参考点
     out.push(makeMeasurement('SVA', [
       ...ep['C7'].upper,  // upper[0]=前角, upper[1]=后角
       ...ep['C7'].lower,  // lower[0]=前角, lower[1]=后角
-      s1,
+      s1Posterior,
     ]));
   }
 
-  if (has('T1', 'L5') && cfhAnnotation) {
+  if (has('T1') && s1Upper && cfh) {
     out.push(makeMeasurement('TPA', [
       ep['T1'].upper[0], ep['T1'].upper[1],
       ep['T1'].lower[0], ep['T1'].lower[1],
-      cfhAnnotation.center,
-      ep['L5'].lower[0], ep['L5'].lower[1],
+      cfh,
+      s1Upper[0], s1Upper[1],
     ]));
   }
 
-  if (has('L5') && cfhAnnotation) {
-    const piPts = [cfhAnnotation.center, ep['L5'].lower[0], ep['L5'].lower[1]];
+  if (s1Upper && cfh) {
+    const piPts = [cfh, s1Upper[0], s1Upper[1]];
     out.push(makeMeasurement('PI', piPts));
     out.push(makeMeasurement('PT', [...piPts]));
   }
 
-  if (has('L5')) {
-    out.push(makeMeasurement('SS', [...ep['L5'].lower]));
+  if (s1Upper) {
+    out.push(makeMeasurement('SS', [...s1Upper]));
   }
 
   return out;
@@ -304,7 +320,10 @@ export function deriveAllMeasurements(
       return deriveLateral(vertebraeLayer, cfhAnnotation);
     } else {
       return deriveAnterior(
-        apKeypointsToDerivedLayer(vertebraeLayerToApKeypoints(vertebraeLayer))
+        keypointsToDerivedLayer(
+          vertebraeLayerToKeypoints(vertebraeLayer, '正位X光片'),
+          '正位X光片'
+        )
       );
     }
   } catch (e) {

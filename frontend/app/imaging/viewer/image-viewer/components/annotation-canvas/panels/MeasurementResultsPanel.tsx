@@ -160,7 +160,7 @@ export default function MeasurementResultsPanel({
       onPointerMove={event => event.stopPropagation()}
       onPointerUp={event => event.stopPropagation()}
     >
-      <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden w-[320px]">
+      <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden w-[380px]">
         <div className="flex items-center justify-between px-3 py-2 bg-black/20 w-full">
           <div className="flex items-center min-w-0">
             <button

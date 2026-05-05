@@ -31,23 +31,48 @@ import { getAiMeasurementsResponse } from '@/services/imageServices';
 import {CfhAnnotation, ImageSize, MeasurementData, Point, VertebraAnnotation} from './types';
 import { deriveAllMeasurements, DERIVED_ID_PREFIX } from './domain/vertebrae-derive';
 import {
-  apKeypointsToDerivedLayer,
-  apKeypointsToPersistedLayer,
   deleteKeypoint,
-  getCompleteApVertebraGroups,
+  getCompleteSelectableVertebraGroups,
   hasKeypoint,
   isAnteriorExamType,
+  isKeypointSupportedExamType,
+  isLateralExamType,
   KeypointAnnotation,
+  keypointsToCfhAnnotation,
+  keypointsToDerivedLayer,
+  keypointsToPersistedLayer,
   upsertKeypoint,
-  vertebraeLayerToApKeypoints,
+  vertebraeLayerToKeypoints,
 } from './domain/keypoint-state';
 import { canUseKeypointTools } from './domain/viewer-permissions';
 import { AP_AUTOMATIC_MEASUREMENT_TOOL_IDS } from './catalog/ap/measurements';
+import { LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS } from './catalog/lateral/measurements';
 // import ReactMarkdown from 'react-markdown';
 // import remarkGfm from 'remark-gfm';
 
 interface ImageViewerProps {
   imageId: string;
+}
+
+function areKeypointsEqual(
+  left: KeypointAnnotation[],
+  right: KeypointAnnotation[]
+): boolean {
+  if (left.length !== right.length) return false;
+
+  const sortedLeft = [...left].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedRight = [...right].sort((a, b) => a.id.localeCompare(b.id));
+
+  return sortedLeft.every((item, index) => {
+    const other = sortedRight[index];
+    return (
+      item.id === other.id &&
+      item.source === other.source &&
+      item.confidence === other.confidence &&
+      item.point.x === other.point.x &&
+      item.point.y === other.point.y
+    );
+  });
 }
 
 export default function ImageViewer({ imageId }: ImageViewerProps) {
@@ -205,7 +230,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       dbAnnotationLoadedRef,
       (layer) => {
         setVertebraeLayer(layer);
-        setKeypoints(vertebraeLayerToApKeypoints(layer));
       },
       setCfhAnnotation,
   )
@@ -225,7 +249,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       getDesc,
       (layer) => {
         setVertebraeLayer(layer);
-        setKeypoints(vertebraeLayerToApKeypoints(layer));
       },
       setCfhAnnotation,
   )
@@ -256,15 +279,37 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   // 使用配置文件获取工具列表
   const tools = getTools(imageData.examType);
   const isAnteriorView = isAnteriorExamType(imageData.examType);
+  const isLateralView = isLateralExamType(imageData.examType);
+  const isKeypointExam = isKeypointSupportedExamType(imageData.examType);
   const completeVertebraGroups = useMemo(
-    () => getCompleteApVertebraGroups(keypoints),
-    [keypoints]
+    () => getCompleteSelectableVertebraGroups(keypoints, imageData.examType),
+    [imageData.examType, keypoints]
   );
   const activeVertebraeLayer = useMemo(
     () =>
-      isAnteriorView ? apKeypointsToPersistedLayer(keypoints) : vertebraeLayer,
-    [isAnteriorView, keypoints, vertebraeLayer]
+      isKeypointExam && keypoints.length > 0
+        ? keypointsToPersistedLayer(keypoints)
+        : vertebraeLayer,
+    [isKeypointExam, keypoints, vertebraeLayer]
   );
+
+  useEffect(() => {
+    if (!isKeypointExam) return;
+    if (vertebraeLayer.length === 0 && !cfhAnnotation) return;
+
+    const restoredKeypoints = vertebraeLayerToKeypoints(
+      vertebraeLayer,
+      imageData.examType,
+      cfhAnnotation
+    );
+    if (restoredKeypoints.length === 0) return;
+
+    setKeypoints(previous =>
+      areKeypointsEqual(previous, restoredKeypoints)
+        ? previous
+        : restoredKeypoints
+    );
+  }, [cfhAnnotation, imageData.examType, isKeypointExam, vertebraeLayer]);
 
   /** 当选择新工具时，如果有继承的点且用户未开始标注，则自动加载继承点 */
   useEffect(() => {
@@ -332,12 +377,13 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     vertebra: string,
     nextKeypoints: KeypointAnnotation[]
   ): MeasurementData | null => {
-    const layer = apKeypointsToDerivedLayer(nextKeypoints);
+    const layer = keypointsToDerivedLayer(nextKeypoints, imageData.examType);
     const annotation = findDerivedVertebra(layer, vertebra);
     if (!annotation) return null;
+    const prefix = isLateralView ? 'lateral' : 'ap';
 
     return {
-      id: `ap-keypoint-vertebra-center-${vertebra.toLowerCase()}`,
+      id: `${prefix}-keypoint-vertebra-center-${vertebra.toLowerCase()}`,
       type: 'vertebra-center',
       value: calculateMeasurementValue('vertebra-center', annotation.corners),
       points: annotation.corners,
@@ -358,7 +404,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     const sr = byId.get('SR');
     if (!sl || !sr) return null;
 
-    const layer = apKeypointsToDerivedLayer(nextKeypoints);
+    const layer = keypointsToDerivedLayer(nextKeypoints, '正位X光片');
     const upper = findDerivedVertebra(layer, upperVertebra);
     const lower = findDerivedVertebra(layer, lowerVertebra);
     if (!upper || !lower) return null;
@@ -394,7 +440,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     const sr = byId.get('SR');
     if (!sl || !sr) return null;
 
-    const layer = apKeypointsToDerivedLayer(nextKeypoints);
+    const layer = keypointsToDerivedLayer(nextKeypoints, '正位X光片');
     const apex = findDerivedVertebra(layer, apexVertebra);
     if (!apex) return null;
 
@@ -417,12 +463,15 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     };
   };
 
-  const deriveApKeypointMeasurements = useCallback(
+  const deriveKeypointMeasurements = useCallback(
     (nextKeypoints: KeypointAnnotation[]): MeasurementData[] => {
-      const derivedLayer = apKeypointsToDerivedLayer(nextKeypoints);
+      const derivedLayer = keypointsToDerivedLayer(
+        nextKeypoints,
+        imageData.examType
+      );
       return deriveAllMeasurements(
         derivedLayer,
-        cfhAnnotation,
+        isLateralView ? null : cfhAnnotation,
         imageData.examType
       ).map(m => ({
         ...m,
@@ -433,22 +482,23 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       cfhAnnotation,
       imageData.examType,
       imageNaturalSize,
+      isLateralView,
       standardDistance,
       standardDistancePoints,
     ]
   );
 
-  const rebuildApKeypointMeasurements = useCallback(
+  const rebuildKeypointMeasurements = useCallback(
     (
       previousMeasurements: MeasurementData[],
       nextKeypoints: KeypointAnnotation[]
     ): MeasurementData[] => {
-      const derivedWithValues = deriveApKeypointMeasurements(nextKeypoints);
+      const derivedWithValues = deriveKeypointMeasurements(nextKeypoints);
 
       const centerMeasurements = previousMeasurements
         .filter(
           measurement =>
-            measurement.id.startsWith('ap-keypoint-vertebra-center-') &&
+            measurement.type === 'vertebra-center' &&
             measurement.upperVertebra
         )
         .map(measurement =>
@@ -485,7 +535,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           measurement =>
             !measurement.id.startsWith(DERIVED_ID_PREFIX) &&
             !aiMeasurementIdsRef.current.has(measurement.id) &&
-            !measurement.id.startsWith('ap-keypoint-vertebra-center-') &&
+            !(
+              measurement.type === 'vertebra-center' &&
+              measurement.upperVertebra
+            ) &&
             measurement.id !== 'ap-keypoint-avt' &&
             measurement.id !== 'ap-keypoint-tts'
         ),
@@ -495,7 +548,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         ...(ttsMeasurement ? [ttsMeasurement] : []),
       ];
     },
-    [deriveApKeypointMeasurements]
+    [deriveKeypointMeasurements]
   );
 
   const handleAddMeasurement = useCallback(
@@ -520,16 +573,18 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       ]
   )
 
-  const applyApKeypoints = useCallback(
+  const applyKeypoints = useCallback(
     (nextKeypoints: KeypointAnnotation[]) => {
       setKeypoints(nextKeypoints);
-      const persistedLayer = apKeypointsToPersistedLayer(nextKeypoints);
-      setVertebraeLayer(persistedLayer);
+      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+      if (isLateralView) {
+        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+      }
       setMeasurements(previous =>
-        rebuildApKeypointMeasurements(previous, nextKeypoints)
+        rebuildKeypointMeasurements(previous, nextKeypoints)
       );
     },
-    [rebuildApKeypointMeasurements]
+    [isLateralView, rebuildKeypointMeasurements]
   );
 
   const handleKeypointAdd = useCallback(
@@ -539,7 +594,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         setTimeout(() => setSaveMessage(''), 3000);
         return;
       }
-      if (!isAnteriorView) return;
+      if (!isKeypointExam) return;
       if (hasKeypoint(keypoints, keypointId)) {
         setSaveMessage(`${keypointId} 已存在，不能重复添加`);
         setTimeout(() => setSaveMessage(''), 3000);
@@ -552,17 +607,17 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         source: 'manual',
         confidence: 1,
       });
-      applyApKeypoints(nextKeypoints);
+      applyKeypoints(nextKeypoints);
       setShowVertebraeLayer(true);
     },
-    [applyApKeypoints, canUseKeypoints, isAnteriorView, keypoints, setSaveMessage]
+    [applyKeypoints, canUseKeypoints, isKeypointExam, keypoints, setSaveMessage]
   );
 
   const handleKeypointDelete = useCallback(
     (keypointId: string) => {
-      if (!isAnteriorView) return;
+      if (!isKeypointExam) return;
       const nextKeypoints = deleteKeypoint(keypoints, keypointId);
-      const nextMeasurements = rebuildApKeypointMeasurements(
+      const nextMeasurements = rebuildKeypointMeasurements(
         measurements,
         nextKeypoints
       );
@@ -574,7 +629,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       );
 
       setKeypoints(nextKeypoints);
-      setVertebraeLayer(apKeypointsToPersistedLayer(nextKeypoints));
+      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+      if (isLateralView) {
+        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+      }
       setMeasurements(nextMeasurements);
 
       if (removedMeasurements.length > 0) {
@@ -587,10 +645,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       setTimeout(() => setSaveMessage(''), 3000);
     },
     [
-      isAnteriorView,
+      isKeypointExam,
+      isLateralView,
       keypoints,
       measurements,
-      rebuildApKeypointMeasurements,
+      rebuildKeypointMeasurements,
       setSaveMessage,
     ]
   );
@@ -712,32 +771,48 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
   const getDerivedMeasurementsForTool = useCallback(
     (toolId: string): MeasurementData[] => {
-      if (!isAnteriorView) return [];
-      return deriveApKeypointMeasurements(keypoints).filter(measurement =>
+      if (!isKeypointExam) return [];
+      return deriveKeypointMeasurements(keypoints).filter(measurement =>
         measurementMatchesTool(measurement, toolId)
       );
     },
     [
-      deriveApKeypointMeasurements,
-      isAnteriorView,
+      deriveKeypointMeasurements,
+      isKeypointExam,
       keypoints,
       measurementMatchesTool,
     ]
   );
 
-  const automaticMeasurementAvailability = useMemo(() => {
-    const availability: Record<string, boolean> = {};
-    AP_AUTOMATIC_MEASUREMENT_TOOL_IDS.forEach(toolId => {
+  const automaticToolStatus = useMemo(() => {
+    const status: Record<string, 'available' | 'exists' | 'missing-keypoints'> =
+      {};
+    const restorableToolIds = isLateralView
+      ? LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS
+      : isAnteriorView
+        ? AP_AUTOMATIC_MEASUREMENT_TOOL_IDS
+        : [];
+    restorableToolIds.forEach(toolId => {
       const candidates = getDerivedMeasurementsForTool(toolId);
-      availability[toolId] =
-        candidates.length > 0 &&
-        candidates.some(
-          candidate =>
-            !derivedMeasurementExists(measurements, candidate, toolId)
-        );
+      const hasRestorableCandidate = candidates.some(
+        candidate => !derivedMeasurementExists(measurements, candidate, toolId)
+      );
+      if (hasRestorableCandidate) {
+        status[toolId] = 'available';
+      } else if (candidates.length > 0) {
+        status[toolId] = 'exists';
+      } else {
+        status[toolId] = 'missing-keypoints';
+      }
     });
-    return availability;
-  }, [derivedMeasurementExists, getDerivedMeasurementsForTool, measurements]);
+    return status;
+  }, [
+    derivedMeasurementExists,
+    getDerivedMeasurementsForTool,
+    isAnteriorView,
+    isLateralView,
+    measurements,
+  ]);
 
   const handleRestoreAutomaticMeasurement = useCallback(
     (toolId: string) => {
@@ -1097,6 +1172,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
           /^cobb\d+$/i.test(m.type)
         ).length;
 
+        const S1_RELATED_TYPES = new Set([
+          'ss',
+          'll-l1-s1',
+          'll-l4-s1',
+          'pi',
+          'pt',
+          'tpa',
+          'sva',
+        ]);
+
         const aiMeasurements = filterUniqueAnnotationDuplicates(
           aiData.measurements.filter((m: any) => {
             const incomingTypeId = getAnnotationTypeId(m.type);
@@ -1106,6 +1191,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               getAnnotationConfig(m.type) ?? getAnnotationConfig(incomingTypeId);
 
             if (!tool || tool.category !== 'measurement') return false;
+            if (isLateralView && S1_RELATED_TYPES.has(tool.id)) return false;
 
             // SVA 改为 5 点法：AI 返回的 SVA 非 5 点时直接过滤，不显示
             if (tool.id === 'sva') {
@@ -1182,14 +1268,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         // 记录 AI 测量 ID，供 handleVertebraeUpdate 过滤使用
         aiMeasurementIdsRef.current = new Set(aiMeasurements.map((m: MeasurementData) => m.id));
         // AI 返回后执行一次基于坐标重合的自动绑定
-        const S1_RELATED_TYPES = new Set([
-          'ss',
-          'll-l1-s1',
-          'll-l4-s1',
-          'pi',
-          'pt',
-          'tpa',
-        ]);
         const s1Count = aiMeasurements.filter((m: any) =>
           S1_RELATED_TYPES.has(getAnnotationTypeId(m.type))
         ).length;
@@ -1204,6 +1282,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
         // 具备关键点权限时顺带运行 AI 检测，填充关键点状态机。
         if (canUseKeypoints) {
+          setSaveMessage('AI检测中...');
           void usecases.aiDetect(
             canUseKeypoints,
             imageData,
@@ -1213,17 +1292,20 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                   typeof layerOrUpdater === 'function'
                     ? layerOrUpdater(previous)
                     : layerOrUpdater;
-                const nextKeypoints = vertebraeLayerToApKeypoints(nextLayer);
+                const nextKeypoints = vertebraeLayerToKeypoints(
+                  nextLayer,
+                  imageData.examType
+                );
                 setKeypoints(nextKeypoints);
                 setShowVertebraeLayer(true);
                 setMeasurements(prev =>
-                  rebuildApKeypointMeasurements(prev, nextKeypoints)
+                  rebuildKeypointMeasurements(prev, nextKeypoints)
                 );
                 return nextLayer;
               });
             },
             setCfhAnnotation,
-            () => {},
+            setSaveMessage,
             setIsAIDetecting
           );
         }
@@ -1248,9 +1330,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
    */
   const handleVertebraeUpdate = useCallback(
     (updated: VertebraAnnotation[]) => {
-      if (isAnteriorView) {
-        const nextKeypoints = vertebraeLayerToApKeypoints(updated);
-        applyApKeypoints(nextKeypoints);
+      if (isKeypointExam) {
+        const nextKeypoints = vertebraeLayerToKeypoints(
+          updated,
+          imageData.examType
+        );
+        applyKeypoints(nextKeypoints);
         return;
       }
       setVertebraeLayer(updated);
@@ -1269,7 +1354,12 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         ...derivedWithValues,
       ]);
     },
-    [applyApKeypoints, cfhAnnotation, imageData.examType, isAnteriorView]
+    [
+      applyKeypoints,
+      cfhAnnotation,
+      imageData.examType,
+      isKeypointExam,
+    ]
   );
 
   const handleSaveMeasurements = useCallback(
@@ -1322,9 +1412,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
               const next = !v;
               // 从检测模式切回测量模式时，用当前角点重新推导一次，确保测量层是最新的
               if (!next && activeVertebraeLayer.length > 0) {
-                if (isAnteriorView) {
+                if (isKeypointExam) {
                   setMeasurements(prev =>
-                    rebuildApKeypointMeasurements(prev, keypoints)
+                    rebuildKeypointMeasurements(prev, keypoints)
                   );
                 } else {
                   const derived = deriveAllMeasurements(activeVertebraeLayer, cfhAnnotation, imageData.examType);
@@ -1396,7 +1486,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 manualBindingSelectedPoints={manualBindingSelectedPoints}
                 onManualBindingPointToggle={toggleManualBindingPoint}
                 vertebraeLayer={activeVertebraeLayer}
-                keypoints={isAnteriorView ? keypoints : []}
+                keypoints={isKeypointExam ? keypoints : []}
                 cfhAnnotation={cfhAnnotation}
                 showVertebraeLayer={showVertebraeLayer}
                 onVertebraeUpdate={canUseKeypoints ? handleVertebraeUpdate : undefined}
@@ -1430,7 +1520,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             newTag={newTag}
             showAdvicePanel={showAdvicePanel}
             treatmentAdvice={treatmentAdvice}
-            automaticToolAvailability={automaticMeasurementAvailability}
+            automaticToolStatus={automaticToolStatus}
             onSelectTool={toolId => {
               if ((toolId === 'avt' || toolId === 'tts') && !standardDistance) {
                 setShowStandardDistanceWarning(true);

@@ -6,6 +6,7 @@
 import { Tool } from '../types';
 import { getApMeasurementTools } from './ap/measurements';
 import { getAuxiliaryTools } from './auxiliary';
+import { getLateralMeasurementTools } from './lateral/measurements';
 import { ANNOTATION_CONFIGS } from './shared/annotation-config';
 
 function mapToolIdsToCatalog(toolIds: string[]): Tool[] {
@@ -32,25 +33,7 @@ export function getAnteriorTools(): Tool[] {
  * 获取侧位 X 光片的工具列表
  */
 export function getLateralTools(): Tool[] {
-  return [
-    ...mapToolIdsToCatalog([
-      't1-slope',
-      'cl',
-      'tk-t2-t5',
-      'tk-t5-t12',
-      't10-l2',
-      'll-l1-s1',
-      'll-l1-l4',
-      'll-l4-s1',
-      'tpa',
-      'sva',
-      'pi',
-      'pt',
-      'ss',
-      'vertebra-center',
-    ]),
-    ...getAuxiliaryTools(),
-  ];
+  return [...getLateralMeasurementTools(), ...getAuxiliaryTools()];
 }
 
 /**

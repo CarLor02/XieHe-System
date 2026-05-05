@@ -75,6 +75,7 @@ export async function aiDetect(
         const newVertebrae: VertebraAnnotation[] = [];
         let newCfh: CfhAnnotation | null = null;
         let pointCount = 0;
+        let vertebraCount = 0;
 
         // ── 侧位：{ vertebrae: [{label, keypoints:[TL,TR,BL,BR], confidence}], cfh, image_width, image_height }
         if (imageData.examType === '侧位X光片') {
@@ -93,9 +94,25 @@ export async function aiDetect(
                         if (!existing || v.confidence > existing.confidence) {
                             vertebraeMap.set(v.label, v);
                         }
-                    });
+                });
 
                 vertebraeMap.forEach((vertebra: any) => {
+                    if (vertebra.label === 'S1' && vertebra.keypoints?.length >= 2) {
+                        vertebra.keypoints.slice(0, 2).forEach((kp: any, index: number) => {
+                            const pt = {
+                                x: kp.x * imageWidth,
+                                y: kp.y * imageHeight,
+                            };
+                            newVertebrae.push({
+                                label: `S1-${index + 1}`,
+                                corners: [pt, pt, pt, pt],
+                                confidence: vertebra.confidence,
+                                source: 'ai',
+                            });
+                            pointCount++;
+                        });
+                        return;
+                    }
                     if (!vertebra.keypoints || vertebra.keypoints.length !== 4) {
                         console.warn(`⚠️ 椎体 ${vertebra.label} 角点数量不是4:`, vertebra.keypoints?.length);
                         return;
@@ -112,6 +129,7 @@ export async function aiDetect(
                         confidence: vertebra.confidence,
                         source: 'ai',
                     });
+                    vertebraCount++;
                     pointCount += 4;
                 });
 
@@ -120,14 +138,21 @@ export async function aiDetect(
 
             // 股骨头（侧位专用）
             if (aiData.cfh && aiData.cfh.center) {
+                const cfhPoint = {
+                    x: aiData.cfh.center.x * imageWidth,
+                    y: aiData.cfh.center.y * imageHeight,
+                };
                 newCfh = {
-                    center: {
-                        x: aiData.cfh.center.x * imageWidth,
-                        y: aiData.cfh.center.y * imageHeight,
-                    },
+                    center: cfhPoint,
                     confidence: aiData.cfh.confidence ?? 1,
                     source: 'ai',
                 };
+                newVertebrae.push({
+                    label: 'CFH',
+                    corners: [cfhPoint, cfhPoint, cfhPoint, cfhPoint],
+                    confidence: aiData.cfh.confidence ?? 1,
+                    source: 'ai',
+                });
                 pointCount++;
             }
 
@@ -170,6 +195,7 @@ export async function aiDetect(
                         confidence: vertebra.confidence ?? 1,
                         source: 'ai',
                     });
+                    vertebraCount++;
                     pointCount += 4;
                 });
             }
@@ -179,7 +205,7 @@ export async function aiDetect(
         if (newVertebrae.length > 0 || newCfh) {
             setVertebraeLayer(newVertebrae);
             setCfhAnnotation(newCfh);
-            setSaveMessage(`AI检测完成，检测到 ${newVertebrae.length} 个椎体（${pointCount} 个角点）`);
+            setSaveMessage(`AI检测完成，检测到 ${vertebraCount} 个椎体（${pointCount} 个关键点）`);
         } else {
             setSaveMessage('AI检测完成，但未检测到椎体');
         }

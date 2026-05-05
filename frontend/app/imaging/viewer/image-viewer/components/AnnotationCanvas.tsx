@@ -45,10 +45,10 @@ import CanvasHintPanel from './annotation-canvas/panels/CanvasHintPanel';
 import renderMeasurement from './annotation-canvas/renderers/renderMeasurement';
 import VertebraeLayer from './annotation-canvas/layers/VertebraeLayer';
 import {
-  apKeypointsToRenderLayer,
+  keypointIdToRenderCornerRef,
+  keypointsToRenderLayer,
   KeypointAnnotation,
 } from '../domain/keypoint-state';
-import { parseApVertebraKeypointId } from '../catalog/ap/keypoints';
 
 export default function AnnotationCanvas({
   selectedImage,
@@ -377,24 +377,15 @@ export default function AnnotationCanvas({
 
   const visibleKeypointLayer =
     keypoints.length > 0
-      ? apKeypointsToRenderLayer(keypoints, hiddenKeypointIds)
+      ? keypointsToRenderLayer(
+          keypoints,
+          selectedImage.examType,
+          hiddenKeypointIds
+        )
       : vertebraeLayer;
 
   const keypointIdToCornerRef = (keypointId: string | null) => {
-    if (!keypointId) return null;
-    if (visibleKeypointLayer.some(item => item.label === keypointId)) {
-      return { label: keypointId, index: 0 };
-    }
-
-    const parsed = parseApVertebraKeypointId(keypointId);
-    if (
-      parsed &&
-      visibleKeypointLayer.some(item => item.label === parsed.group)
-    ) {
-      return { label: parsed.group, index: parsed.pointIndex };
-    }
-
-    return null;
+    return keypointIdToRenderCornerRef(keypointId, visibleKeypointLayer);
   };
 
   // 椎体角点拖拽 hook：命中检测和拖拽完全在 div 层处理，不依赖 SVG 事件
@@ -717,7 +708,11 @@ export default function AnnotationCanvas({
         {showVertebraeLayer && visibleKeypointLayer.length > 0 && (
           <VertebraeLayer
             vertebraeLayer={vertebradDrag.renderLayer}
-            cfhAnnotation={cfhAnnotation}
+            cfhAnnotation={
+              keypoints.some(keypoint => keypoint.id === 'CFH')
+                ? null
+                : cfhAnnotation
+            }
             imageToScreen={imageToScreen}
             activeCorner={vertebradDrag.activeCorner}
             hoveredCorner={effectiveHoveredCorner}

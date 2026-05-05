@@ -2,7 +2,10 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { Point, VertebraAnnotation } from '../../../types';
-import { isSinglePointKeypointLabel } from '../../../domain/keypoint-state';
+import {
+  isSinglePointKeypointLabel,
+  renderCornerToKeypointId,
+} from '../../../domain/keypoint-state';
 
 interface DragState {
   vertebraLabel: string;
@@ -87,10 +90,7 @@ export function useVertebradDrag({
   );
 
   const hitToKeypointId = useCallback((hit: DragState): string => {
-    if (isSinglePointKeypointLabel(hit.vertebraLabel)) {
-      return hit.vertebraLabel;
-    }
-    return `${hit.vertebraLabel}-${hit.cornerIndex + 1}`;
+    return renderCornerToKeypointId(hit.vertebraLabel, hit.cornerIndex);
   }, []);
 
   /**

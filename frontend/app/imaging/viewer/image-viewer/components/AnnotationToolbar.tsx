@@ -5,17 +5,23 @@ import BindingPanel from './BindingPanel';
 import ReportPanel from './ReportPanel';
 import { AnnotationBindings } from '../domain/annotation-binding';
 import { isApAutomaticMeasurementTool } from '../catalog/ap/measurements';
-import { getApKeypointGroups } from '../catalog/ap/keypoints';
 import { isAuxiliaryTool } from '../catalog/auxiliary';
+import { isLateralRestorableMeasurementTool } from '../catalog/lateral/measurements';
 import {
   hasUniqueAnnotationForTool,
   isUniqueAnnotationTool,
 } from '../domain/annotation-uniqueness';
-import { hasKeypoint, KeypointAnnotation } from '../domain/keypoint-state';
+import {
+  getKeypointGroupsForExamType,
+  hasKeypoint,
+  isAnteriorExamType,
+  KeypointAnnotation,
+} from '../domain/keypoint-state';
 import { MeasurementData, Tool } from '../types';
 import IconMapper from './icons/IconMapper';
 
 type ToolTab = 'measurement' | 'keypoint';
+type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
 interface AnnotationToolbarProps {
   examType: string;
@@ -41,7 +47,7 @@ interface AnnotationToolbarProps {
   newTag: string;
   showAdvicePanel: boolean;
   treatmentAdvice: string;
-  automaticToolAvailability: Record<string, boolean>;
+  automaticToolStatus: Record<string, ToolStatus>;
   onSelectTool: (toolId: string) => void;
   onRestoreAutomaticMeasurement: (toolId: string) => void;
   onCreateAvt: (apexVertebra: string) => void;
@@ -98,7 +104,7 @@ export default function AnnotationToolbar({
   newTag,
   showAdvicePanel,
   treatmentAdvice,
-  automaticToolAvailability,
+  automaticToolStatus,
   onSelectTool,
   onRestoreAutomaticMeasurement,
   onCreateAvt,
@@ -139,23 +145,43 @@ export default function AnnotationToolbar({
 
   const measurementTools = tools.filter(tool => !isAuxiliaryTool(tool.id));
   const auxiliaryTools = tools.filter(tool => isAuxiliaryTool(tool.id));
-  const keypointGroups = getApKeypointGroups();
+  const keypointGroups = getKeypointGroupsForExamType(examType);
   const keypointIds = new Set(keypoints.map(keypoint => keypoint.id));
   const hasAvt = measurements.some(item => item.type.toLowerCase() === 'avt');
   const hasTts = measurements.some(item => item.type.toLowerCase() === 'tts');
   const hasSacralLine = hasKeypoint(keypoints, 'SL') && hasKeypoint(keypoints, 'SR');
+  const isAnteriorView = isAnteriorExamType(examType);
   const canCreateAvt =
+    isAnteriorView &&
     !hasAvt &&
     hasSacralLine &&
     completeVertebraGroups.length >= 1;
   const canCreateTts =
-    !hasTts && hasSacralLine && completeVertebraGroups.length >= 2;
+    isAnteriorView &&
+    !hasTts &&
+    hasSacralLine &&
+    completeVertebraGroups.length >= 2;
   const hasAvailableVertebraCenter = completeVertebraGroups.some(
     group =>
       !measurements.some(
         item => item.type === 'vertebra-center' && item.upperVertebra === group
       )
   );
+  const vertebraCenterStatus: ToolStatus = hasAvailableVertebraCenter
+    ? 'available'
+    : completeVertebraGroups.length > 0
+      ? 'exists'
+      : 'missing-keypoints';
+  const avtStatus: ToolStatus = canCreateAvt
+    ? 'available'
+    : hasAvt
+      ? 'exists'
+      : 'missing-keypoints';
+  const ttsStatus: ToolStatus = canCreateTts
+    ? 'available'
+    : hasTts
+      ? 'exists'
+      : 'missing-keypoints';
   const selectedKeypointGroup = keypointGroups.find(
     group => group.id === openKeypointGroup
   );
@@ -176,6 +202,23 @@ export default function AnnotationToolbar({
     { id: 'measurement', label: '测量工具', icon: 'ri-ruler-line' },
     { id: 'keypoint', label: '关键点', icon: 'ri-focus-3-line' },
   ];
+
+  const getKeypointGroupTitle = (
+    group: { id: string; name: string },
+    isComplete: boolean
+  ): string => {
+    if (isComplete) return `${group.name}关键点已完整`;
+    if (group.id === 'pose') return '选择姿态关键点';
+    if (group.id === 'S1') return '选择S1上终板关键点';
+    if (group.id === 'CFH') return '选择股骨头中心关键点';
+    return `选择${group.name}椎体的关键点`;
+  };
+
+  const getUnavailableTitle = (toolName: string, status: ToolStatus): string => {
+    if (status === 'exists') return `${toolName} 已存在`;
+    if (status === 'missing-keypoints') return `${toolName} 缺少关键点`;
+    return `${toolName} 可用`;
+  };
 
   return (
     <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col flex-shrink-0 overflow-hidden">
@@ -314,16 +357,31 @@ export default function AnnotationToolbar({
                           measurements,
                           tool
                         );
-                        const isAutomaticTool = isApAutomaticMeasurementTool(
-                          tool.id
-                        );
+                        const isAutomaticTool =
+                          isApAutomaticMeasurementTool(tool.id) ||
+                          isLateralRestorableMeasurementTool(tool.id);
                         const isSelectionTool =
                           tool.id === 'vertebra-center' ||
-                          tool.id === 'avt' ||
-                          tool.id === 'tts';
+                          (isAnteriorView &&
+                            (tool.id === 'avt' || tool.id === 'tts'));
                         const isOpen = openMeasurementTool === tool.id;
+                        const automaticStatus =
+                          automaticToolStatus[tool.id] ?? 'missing-keypoints';
+                        const selectionStatus =
+                          tool.id === 'vertebra-center'
+                            ? vertebraCenterStatus
+                            : tool.id === 'avt'
+                              ? avtStatus
+                              : tool.id === 'tts'
+                                ? ttsStatus
+                                : 'available';
+                        const unavailableStatus = isSelectionTool
+                          ? selectionStatus
+                          : isUniquenessBlocked
+                            ? 'exists'
+                            : 'missing-keypoints';
                         const isToolAvailable = isAutomaticTool
-                          ? (automaticToolAvailability[tool.id] ?? false)
+                          ? automaticStatus === 'available'
                           : tool.id === 'vertebra-center'
                             ? hasAvailableVertebraCenter
                             : tool.id === 'avt'
@@ -334,10 +392,11 @@ export default function AnnotationToolbar({
                         const toolTitle = isAutomaticTool
                           ? isToolAvailable
                             ? `${tool.name} 可恢复，点击自动生成`
-                            : `${tool.name} 已存在或缺少关键点`
+                            : getUnavailableTitle(tool.name, automaticStatus)
                           : !isToolAvailable &&
-                              isUniqueAnnotationTool(tool.id)
-                            ? `${tool.name} 已存在或当前不可用`
+                              (isUniqueAnnotationTool(tool.id) ||
+                                isSelectionTool)
+                            ? getUnavailableTitle(tool.name, unavailableStatus)
                             : isSelectionTool
                               ? '点击选择可用对象'
                               : tool.description;
@@ -412,7 +471,7 @@ export default function AnnotationToolbar({
                     </div>
 
                     {openMeasurementTool === 'vertebra-center' && (
-                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(22rem,calc(100vh-14rem))] overflow-y-auto">
                         <div className="text-xs text-gray-300 mb-2">
                           椎体中心
                         </div>
@@ -455,7 +514,7 @@ export default function AnnotationToolbar({
                     )}
 
                     {openMeasurementTool === 'avt' && (
-                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(22rem,calc(100vh-14rem))] overflow-y-auto">
                         <div className="text-xs text-gray-300 mb-2">
                           选择顶椎
                         </div>
@@ -489,7 +548,7 @@ export default function AnnotationToolbar({
                     )}
 
                     {openMeasurementTool === 'tts' && (
-                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(28rem,calc(100vh-14rem))] overflow-y-auto">
                         <div className="text-xs text-gray-300 mb-2">TTS</div>
                         <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
                           <div>
@@ -675,15 +734,10 @@ export default function AnnotationToolbar({
                                 ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
-                          title={
+                          title={getKeypointGroupTitle(
+                            group,
                             isCompleteKeypointGroup
-                              ? group.id === 'pose'
-                                ? `${group.name}已完整`
-                                : `${group.name}椎体关键点已完整`
-                              : group.id === 'pose'
-                              ? '选择姿态关键点'
-                              : `选择${group.name}椎体的关键点`
-                          }
+                          )}
                         >
                           <i className="ri-focus-3-line text-lg mb-1"></i>
                           <span className="text-xs leading-none">
@@ -699,7 +753,7 @@ export default function AnnotationToolbar({
                   })}
                 </div>
                 {selectedKeypointGroup && canUseKeypointTools && (
-                  <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                  <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(22rem,calc(100vh-14rem))] overflow-y-auto">
                     <div className="text-xs text-gray-300 mb-2">
                       {selectedKeypointGroup.name}
                     </div>

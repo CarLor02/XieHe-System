@@ -2,7 +2,9 @@
 
 import { CfhAnnotation, Point, VertebraAnnotation } from '../../../types';
 import {
+  isAnatomicalPointKeypointLabel,
   isPoseKeypointLabel,
+  isSacralEndplateKeypointLabel,
   isVertebraCornerKeypointLabel,
 } from '../../../domain/keypoint-state';
 
@@ -33,6 +35,7 @@ interface VertebraeLayerProps {
  * 渲染策略：
  *   - 椎体（T1~L5, C7 等）：4角框 + 4角点小圆
  *   - pose 关键点（IR/IL 等）：单点菱形标记
+ *   - S1：两点上终板线
  */
 export default function VertebraeLayer({
   vertebraeLayer,
@@ -47,6 +50,8 @@ export default function VertebraeLayer({
     <g className="vertebrae-layer">
       {vertebraeLayer.map(vertebra => {
         const isPoseKeypoint = isPoseKeypointLabel(vertebra.label);
+        const isAnatomicalPoint = isAnatomicalPointKeypointLabel(vertebra.label);
+        const isSacralEndplate = isSacralEndplateKeypointLabel(vertebra.label);
         const isVertebraCornerKeypoint =
           isVertebraCornerKeypointLabel(vertebra.label);
 
@@ -94,8 +99,62 @@ export default function VertebraeLayer({
           );
         }
 
+        if (isAnatomicalPoint) {
+          const sc = imageToScreen(vertebra.corners[0]);
+          const isActive = activeCorner?.label === vertebra.label;
+          const isHovered = hoveredCorner?.label === vertebra.label;
+          const textFill = isActive
+            ? 'rgba(255, 255, 255, 1)'
+            : isHovered
+            ? 'rgba(253, 224, 71, 1)'
+            : 'rgba(251, 191, 36, 1)';
+
+          return (
+            <g key={vertebra.label} className="anatomical-point-keypoint">
+              <circle
+                cx={sc.x}
+                cy={sc.y}
+                r={isActive || isHovered ? 7 : 5}
+                fill="none"
+                stroke={
+                  isActive
+                    ? 'rgba(239, 68, 68, 0.95)'
+                    : isHovered
+                    ? 'rgba(250, 204, 21, 0.95)'
+                    : 'rgba(251, 191, 36, 0.9)'
+                }
+                strokeWidth={1.5}
+              />
+              <circle
+                cx={sc.x}
+                cy={sc.y}
+                r={isActive || isHovered ? 3 : 2}
+                fill={
+                  isActive
+                    ? 'rgba(239, 68, 68, 0.95)'
+                    : isHovered
+                    ? 'rgba(96, 165, 250, 1)'
+                    : 'rgba(251, 191, 36, 0.9)'
+                }
+              />
+              <text
+                x={sc.x + 9}
+                y={sc.y + 4}
+                fontSize={10}
+                fontWeight="600"
+                fill={textFill}
+                stroke="rgba(0,0,0,0.6)"
+                strokeWidth={2.5}
+                paintOrder="stroke"
+              >
+                {vertebra.label}
+              </text>
+            </g>
+          );
+        }
+
         // 不完整椎体组的单个角点：作为普通圆点显示，不使用姿态点菱形。
-        if (isVertebraCornerKeypoint) {
+        if (isVertebraCornerKeypoint || isSacralEndplate) {
           const sc = imageToScreen(vertebra.corners[0]);
           const isActive  = activeCorner?.label  === vertebra.label;
           const isHovered = hoveredCorner?.label === vertebra.label;
@@ -126,6 +185,75 @@ export default function VertebraeLayer({
                 paintOrder="stroke"
               >
                 {vertebra.label}
+              </text>
+            </g>
+          );
+        }
+
+        if (vertebra.label === 'S1') {
+          const s1p1 = imageToScreen(vertebra.corners[0]);
+          const s1p2 = imageToScreen(vertebra.corners[1]);
+          const isAnyCornerHovered = hoveredCorner?.label === vertebra.label;
+          const isAnyCornerActive = activeCorner?.label === vertebra.label;
+          const labelFill = isAnyCornerActive
+            ? 'rgba(255, 255, 255, 1)'
+            : isAnyCornerHovered
+            ? 'rgba(253, 224, 71, 1)'
+            : 'rgba(147, 197, 253, 1)';
+          const labelX = Math.max(s1p1.x, s1p2.x) + 6;
+          const labelY = (s1p1.y + s1p2.y) / 2 + 4;
+
+          return (
+            <g key={vertebra.label} className="sacral-endplate-annotation">
+              <line
+                x1={s1p1.x}
+                y1={s1p1.y}
+                x2={s1p2.x}
+                y2={s1p2.y}
+                stroke={
+                  isAnyCornerHovered || isAnyCornerActive
+                    ? 'rgba(250, 204, 21, 0.95)'
+                    : 'rgba(59, 130, 246, 0.85)'
+                }
+                strokeWidth={isAnyCornerHovered || isAnyCornerActive ? 2 : 1.5}
+              />
+              {[s1p1, s1p2].map((p, i) => {
+                const isHovered =
+                  hoveredCorner?.label === vertebra.label &&
+                  hoveredCorner?.index === i;
+                const isActive =
+                  activeCorner?.label === vertebra.label &&
+                  activeCorner?.index === i;
+                return (
+                  <circle
+                    key={i}
+                    cx={p.x}
+                    cy={p.y}
+                    r={isHovered || isActive ? 5.5 : 3.5}
+                    fill={
+                      isActive
+                        ? 'rgba(239, 68, 68, 0.95)'
+                        : isHovered
+                        ? 'rgba(96, 165, 250, 1)'
+                        : 'rgba(59, 130, 246, 0.9)'
+                    }
+                    stroke="white"
+                    strokeWidth={1}
+                  />
+                );
+              })}
+              <text
+                x={labelX}
+                y={labelY}
+                textAnchor="start"
+                fontSize={10}
+                fontWeight="600"
+                fill={labelFill}
+                stroke="rgba(0,0,0,0.6)"
+                strokeWidth={2.5}
+                paintOrder="stroke"
+              >
+                S1
               </text>
             </g>
           );
