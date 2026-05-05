@@ -1,20 +1,22 @@
 import { useCallback } from 'react';
 import {
-  POINT_INHERITANCE_RULES,
-  SHARED_ANATOMICAL_POINT_GROUPS,
+  buildInheritedPointMap,
   getInheritedPoints,
 } from '../../../domain/annotation-inheritance';
 import { hasUniqueAnnotationForTool } from '../../../domain/annotation-uniqueness';
-import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 import { Point, Tool } from '../../../types';
+import { KeypointAnnotation } from '../../../domain/keypoint-state';
+import { getManualKeypointPointSlots } from '../../../domain/keypoint-measurement-binding';
 import { DrawingState, ReferenceLines } from '../types';
 
 const POLYGON_CLOSE_TOLERANCE_PX = 18;
 
 interface UseCanvasDrawingToolOptions {
   selectedTool: string;
+  examType: string;
   tools: Tool[];
   measurements: { type: string; points: Point[] }[];
+  keypoints: KeypointAnnotation[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
   imageScale: number;
@@ -24,56 +26,6 @@ interface UseCanvasDrawingToolOptions {
   setReferenceLines: React.Dispatch<React.SetStateAction<ReferenceLines>>;
   constrainAuxLinePoint: (toolId: string, anchor: Point, rawPoint: Point) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
-}
-
-function buildInheritedMap(
-  toolId: string,
-  measurements: { type: string; points: Point[] }[]
-) {
-  const inheritedMap = new Map<number, Point>();
-  const asymRules = POINT_INHERITANCE_RULES[toolId] || [];
-
-  for (const rule of asymRules) {
-    const source = measurements.find(
-      measurement => getAnnotationTypeId(measurement.type) === rule.fromType
-    );
-    if (!source) continue;
-
-    for (let index = 0; index < rule.sourcePointIndices.length; index += 1) {
-      const sourceIndex = rule.sourcePointIndices[index];
-      const destinationIndex = rule.destinationPointIndices[index];
-      if (sourceIndex < source.points.length) {
-        inheritedMap.set(destinationIndex, source.points[sourceIndex]);
-      }
-    }
-  }
-
-  for (const group of SHARED_ANATOMICAL_POINT_GROUPS) {
-    const ownParticipant = group.participants.find(
-      participant => participant.toolId === toolId
-    );
-    if (!ownParticipant || inheritedMap.has(ownParticipant.pointIndex)) {
-      continue;
-    }
-
-    for (const participant of group.participants) {
-      if (participant.toolId === toolId) {
-        continue;
-      }
-      const source = measurements.find(
-        measurement => getAnnotationTypeId(measurement.type) === participant.typeName
-      );
-      if (source && participant.pointIndex < source.points.length) {
-        inheritedMap.set(
-          ownParticipant.pointIndex,
-          source.points[participant.pointIndex]
-        );
-        break;
-      }
-    }
-  }
-
-  return inheritedMap;
 }
 
 function assembleInheritedPoints(
@@ -101,8 +53,10 @@ function assembleInheritedPoints(
  */
 export function useCanvasDrawingTool({
   selectedTool,
+  examType,
   tools,
   measurements,
+  keypoints,
   clickedPoints,
   setClickedPoints,
   imageScale,
@@ -233,6 +187,19 @@ export function useCanvasDrawingTool({
     ]
   );
 
+  const buildResolvedSlotMap = useCallback(
+    (toolId: string) => {
+      const inheritedMap = buildInheritedPointMap(toolId, measurements);
+      getManualKeypointPointSlots(keypoints, toolId, examType).forEach(
+        (point, index) => {
+          inheritedMap.set(index, point);
+        }
+      );
+      return inheritedMap;
+    },
+    [examType, keypoints, measurements]
+  );
+
   const handleMeasurementToolMouseDown = useCallback(
     (x: number, y: number) => {
       const imagePoint = screenToImage(x, y);
@@ -270,10 +237,18 @@ export function useCanvasDrawingTool({
       setClickedPoints(newPoints);
 
       if (selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) {
-        if (newPoints.length === 1) {
+        const inheritedMap = buildResolvedSlotMap(currentTool.id);
+        const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
+        if (newPoints.length === 1 && newPoints.length < effectiveNeeded) {
           setReferenceLines(previous => ({ ...previous, t1Tilt: imagePoint }));
-        } else if (newPoints.length === 2) {
-          onMeasurementAdd(currentTool.id, newPoints);
+        }
+        if (newPoints.length === effectiveNeeded) {
+          const allPoints = assembleInheritedPoints(
+            currentTool.pointsNeeded,
+            inheritedMap,
+            newPoints
+          );
+          onMeasurementAdd(currentTool.id, allPoints);
           setClickedPoints([]);
           setReferenceLines(previous => ({ ...previous, t1Tilt: null }));
         }
@@ -291,13 +266,22 @@ export function useCanvasDrawingTool({
             ? 'po'
             : 'css';
 
-        if (newPoints.length === 1) {
+        const inheritedMap = buildResolvedSlotMap(currentTool.id);
+        const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
+
+        if (newPoints.length === 1 && newPoints.length < effectiveNeeded) {
           setReferenceLines(previous => ({
             ...previous,
             [referenceKey]: imagePoint,
           }));
-        } else if (newPoints.length === 2) {
-          onMeasurementAdd(currentTool.id, newPoints);
+        }
+        if (newPoints.length === effectiveNeeded) {
+          const allPoints = assembleInheritedPoints(
+            currentTool.pointsNeeded,
+            inheritedMap,
+            newPoints
+          );
+          onMeasurementAdd(currentTool.id, allPoints);
           setClickedPoints([]);
           setReferenceLines(previous => ({
             ...previous,
@@ -312,7 +296,7 @@ export function useCanvasDrawingTool({
         selectedTool.includes('sva') ||
         selectedTool === 'ts'
       ) {
-        const inheritedMap = buildInheritedMap(currentTool.id, measurements);
+        const inheritedMap = buildResolvedSlotMap(currentTool.id);
         const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
 
         if (newPoints.length === 1) {
@@ -375,10 +359,7 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      const inheritedMap = buildInheritedMap(
-        currentTool.id,
-        measurements
-      );
+      const inheritedMap = buildResolvedSlotMap(currentTool.id);
       const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
       if (newPoints.length === effectiveNeeded) {
         const allPoints = assembleInheritedPoints(
@@ -393,6 +374,7 @@ export function useCanvasDrawingTool({
     },
     [
       clickedPoints,
+      buildResolvedSlotMap,
       getCurrentTool,
       imageScale,
       measurements,

@@ -261,8 +261,10 @@ export default function AnnotationCanvas({
     workingPointHoverIndex,
   } = useCanvasDerivedState({
     selectedTool,
+    examType: selectedImage.examType,
     tools,
     measurements,
+    keypoints,
     hideAllAnnotations,
     hiddenAnnotationIds,
     hoverState,
@@ -487,8 +489,10 @@ export default function AnnotationCanvas({
   });
   const drawingTool = useCanvasDrawingTool({
     selectedTool,
+    examType: selectedImage.examType,
     tools,
     measurements,
+    keypoints,
     clickedPoints,
     setClickedPoints,
     imageScale,

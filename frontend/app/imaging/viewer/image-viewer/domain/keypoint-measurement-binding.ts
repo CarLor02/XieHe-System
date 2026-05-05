@@ -47,6 +47,7 @@ const MANUAL_AUXILIARY_MEASUREMENT_TYPES = new Set(['lld']);
 
 export function isAuxiliaryAnnotation(measurement: MeasurementData): boolean {
   const typeId = getAnnotationTypeId(measurement.type);
+  if (typeId === 'vertebra-center') return false;
   if (MANUAL_AUXILIARY_MEASUREMENT_TYPES.has(typeId)) return true;
   if (isAuxiliaryTool(typeId)) return true;
   return getAnnotationConfig(typeId)?.category === 'auxiliary';
@@ -64,6 +65,25 @@ export function getManualKeypointIdsForTool(
   if (isAnteriorExamType(examType)) return AP_TOOL_POINT_MAP[toolId] ?? [];
   if (isLateralExamType(examType)) return LATERAL_TOOL_POINT_MAP[toolId] ?? [];
   return [];
+}
+
+export function getManualKeypointPointSlots(
+  keypoints: KeypointAnnotation[],
+  toolType: string,
+  examType: string
+): Map<number, Point> {
+  const keypointIds = getManualKeypointIdsForTool(toolType, examType);
+  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint.point]));
+  const slots = new Map<number, Point>();
+
+  keypointIds.forEach((keypointId, index) => {
+    const point = byId.get(keypointId);
+    if (point) {
+      slots.set(index, point);
+    }
+  });
+
+  return slots;
 }
 
 export function applyManualMeasurementPointsToKeypoints(
@@ -192,6 +212,10 @@ export function getExclusiveKeypointsForMeasurementDelete(
   allMeasurements: MeasurementData[],
   keypoints: KeypointAnnotation[]
 ): string[] {
+  if (getAnnotationTypeId(measurement.type) === 'vertebra-center') {
+    return [];
+  }
+
   const targetIds = resolveMeasurementKeypointIds(measurement, keypoints);
   if (targetIds.length === 0) return [];
 

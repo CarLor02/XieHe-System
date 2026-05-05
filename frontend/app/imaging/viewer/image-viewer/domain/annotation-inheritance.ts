@@ -182,6 +182,15 @@ export function getInheritedPoints(
   toolId: string,
   measurements: { type: string; points: Point[] }[]
 ): { points: Point[]; count: number } {
+  const inherited = buildInheritedPointMap(toolId, measurements);
+  const sorted = Array.from(inherited.entries()).sort((left, right) => left[0] - right[0]);
+  return { points: sorted.map(([, point]) => point), count: sorted.length };
+}
+
+export function buildInheritedPointMap(
+  toolId: string,
+  measurements: { type: string; points: Point[] }[]
+): Map<number, Point> {
   const inherited = new Map<number, Point>();
 
   const asymRules = POINT_INHERITANCE_RULES[toolId] || [];
@@ -216,8 +225,7 @@ export function getInheritedPoints(
     }
   }
 
-  const sorted = Array.from(inherited.entries()).sort((left, right) => left[0] - right[0]);
-  return { points: sorted.map(([, point]) => point), count: sorted.length };
+  return inherited;
 }
 
 /**

@@ -155,17 +155,17 @@ export default function CanvasHintPanel({
         ) : selectedTool.includes('t1-tilt') ? (
           <div>
             <p className="font-medium">T1 Tilt 测量模式</p>
-            <p>已标注 {clickedPointsCount}/2 个点</p>
+            <p>已标注 {clickedPointsCount}/{pointsNeeded} 个点</p>
             {clickedPointsCount === 0 && (
               <p className="text-yellow-400 mt-1">点击T1椎体上终板起点</p>
             )}
-            {clickedPointsCount === 1 && (
+            {clickedPointsCount === 1 && clickedPointsCount < pointsNeeded && (
               <>
                 <p className="text-green-400 mt-1">水平参考线已显示</p>
                 <p className="text-yellow-400 mt-1">点击上终板终点完成测量</p>
               </>
             )}
-            {clickedPointsCount === 2 && (
+            {pointsNeeded > 0 && clickedPointsCount === pointsNeeded && (
               <p className="text-green-400 mt-1">T1 Tilt角度已计算</p>
             )}
           </div>

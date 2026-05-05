@@ -1,11 +1,15 @@
-import { getEffectivePointsNeeded } from '../../../domain/annotation-inheritance';
+import { buildInheritedPointMap } from '../../../domain/annotation-inheritance';
+import { getManualKeypointPointSlots } from '../../../domain/keypoint-measurement-binding';
+import { KeypointAnnotation } from '../../../domain/keypoint-state';
 import { MeasurementData, Tool } from '../../../types';
 import { HoverState } from '../types';
 
 interface UseCanvasDerivedStateOptions {
   selectedTool: string;
+  examType: string;
   tools: Tool[];
   measurements: MeasurementData[];
+  keypoints: KeypointAnnotation[];
   hideAllAnnotations: boolean;
   hiddenAnnotationIds: Set<string>;
   hoverState: HoverState;
@@ -17,19 +21,30 @@ interface UseCanvasDerivedStateOptions {
  */
 export function useCanvasDerivedState({
   selectedTool,
+  examType,
   tools,
   measurements,
+  keypoints,
   hideAllAnnotations,
   hiddenAnnotationIds,
   hoverState,
 }: UseCanvasDerivedStateOptions) {
   const currentTool = tools.find(tool => tool.id === selectedTool) ?? null;
   const pointsNeeded = currentTool
-    ? getEffectivePointsNeeded(
-        currentTool.id,
-        currentTool.pointsNeeded,
-        measurements
-      )
+    ? (() => {
+        const inheritedMap = buildInheritedPointMap(
+          currentTool.id,
+          measurements
+        );
+        getManualKeypointPointSlots(
+          keypoints,
+          currentTool.id,
+          examType
+        ).forEach((point, index) => {
+          inheritedMap.set(index, point);
+        });
+        return Math.max(0, currentTool.pointsNeeded - inheritedMap.size);
+      })()
     : 2;
   const visibleMeasurements = measurements.filter(
     measurement =>
