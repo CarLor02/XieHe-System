@@ -24,6 +24,7 @@ export const TS_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#06b6d4',
   maxXRightLabel: true,
+  apLabelGapX: 24, // T1锥体框比单点宽，额外推远标签（默认 8px）
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length >= 2 && points.length < 6) {

@@ -24,6 +24,7 @@ import {
   isMaxXRightLabelType,
   isFixedLabelPositionType,
   getInteractivePointsCount,
+  getApLabelGapX,
 } from '../../../domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools/tool-state';
 import { imageToScreen } from '../../../canvas/transform/coordinate-transform';
@@ -522,7 +523,8 @@ export default function renderMeasurement({
   // maxXRightLabel（正面 AP）：锚点 = imageToScreen(getLabelPosition.x)（已在屏幕空间）。
   // getLabelPosition 只返回测量右端点的图像坐标，不加任何偏移，由此处统一加固定屏幕间距。
   // 效果：文字左缘始终在锚点右侧 AP_LABEL_GAP px，与缩放比例无关（类比侧面 rightSideLabel + 20px）。
-  const AP_LABEL_GAP = 8; // 文字左缘距锚点右侧的固定间距（屏幕像素，与缩放无关）
+  // 默认间距 8px；各测量可通过 AnnotationConfig.apLabelGapX 覆盖
+  const AP_LABEL_GAP = isMaxXRightLabel ? getApLabelGapX(measurement.type) : 8;
   const textLabelX = isRightSideLabel
     ? firstPointScreenX + 20
     : isMaxXRightLabel

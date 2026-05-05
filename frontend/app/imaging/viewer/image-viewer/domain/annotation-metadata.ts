@@ -112,6 +112,15 @@ export function getInteractivePointsCount(type: string): number | undefined {
 }
 
 /**
+ * 返回 maxXRightLabel 模式下的标签间距（屏幕像素）。
+ * 优先使用 AnnotationConfig.apLabelGapX；未设置时返回默认值 8。
+ */
+export function getApLabelGapX(type: string, defaultGap = 8): number {
+  const config = getAnnotationConfig(type);
+  return config?.apLabelGapX ?? defaultGap;
+}
+
+/**
  * 根据标注类型获取标签位置
  */
 export function getLabelPositionForType(

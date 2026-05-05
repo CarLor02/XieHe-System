@@ -75,6 +75,11 @@ export interface AnnotationConfig {
    */
   maxXRightLabel?: boolean;
   /**
+   * maxXRightLabel 模式下，文字左缘距锚点右侧的额外屏幕像素间距（覆盖默认的 8px）。
+   * 适用于需要将标签推离较宽图形（如 TS 的 T1 锥体框）的情况。
+   */
+  apLabelGapX?: number;
+  /**
    * 标签是否固定在 getLabelPosition 返回的位置，不参与智能避让。
    * 为 true 时，渲染层会跳过 calculateSmartLabelPosition，把标签直接放在返回的坐标处。
    * 适用于需要精确定位的骨盆测量（PI、PT），避免标签被推离弧线位置。
