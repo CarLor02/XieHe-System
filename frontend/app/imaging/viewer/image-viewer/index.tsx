@@ -82,6 +82,14 @@ function areKeypointsEqual(
   });
 }
 
+function isDerivedCobbMeasurement(measurement: MeasurementData): boolean {
+  return (
+    measurement.id.startsWith(`${DERIVED_ID_PREFIX}cobb-`) &&
+    getAnnotationTypeId(measurement.type) === 'cobb' &&
+    Boolean(measurement.upperVertebra && measurement.lowerVertebra)
+  );
+}
+
 export default function ImageViewer({ imageId }: ImageViewerProps) {
   const { user } = useUser(); // 获取当前用户信息
   const {
@@ -478,6 +486,54 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     };
   };
 
+  const createCobbMeasurement = (
+    upperVertebra: string,
+    lowerVertebra: string,
+    nextKeypoints: KeypointAnnotation[],
+    existingMeasurement?: MeasurementData
+  ): MeasurementData | null => {
+    if (upperVertebra === lowerVertebra) return null;
+
+    const layer = keypointsToDerivedLayer(nextKeypoints, imageData.examType);
+    const upper = findDerivedVertebra(layer, upperVertebra);
+    const lower = findDerivedVertebra(layer, lowerVertebra);
+    if (!upper || !lower) return null;
+
+    const points = [
+      upper.corners[0],
+      upper.corners[1],
+      lower.corners[2],
+      lower.corners[3],
+    ];
+    const idSuffix = `${upperVertebra}-${lowerVertebra}`.toLowerCase();
+    const type = existingMeasurement?.type ?? 'Cobb';
+
+    return {
+      id:
+        existingMeasurement?.id ?? `${DERIVED_ID_PREFIX}cobb-bound-${idSuffix}`,
+      type,
+      value: calculateMeasurementValue(type, points),
+      points,
+      description: `[推导] Cobb（上=${upperVertebra}, 下=${lowerVertebra}）`,
+      upperVertebra,
+      lowerVertebra,
+      apexVertebra: existingMeasurement?.apexVertebra ?? null,
+    };
+  };
+
+  const createBoundCobbMeasurement = (
+    measurement: MeasurementData,
+    nextKeypoints: KeypointAnnotation[]
+  ): MeasurementData | null => {
+    if (!measurement.upperVertebra || !measurement.lowerVertebra) return null;
+    return createCobbMeasurement(
+      measurement.upperVertebra,
+      measurement.lowerVertebra,
+      nextKeypoints,
+      measurement
+    );
+  };
+
   const deriveKeypointMeasurements = useCallback(
     (nextKeypoints: KeypointAnnotation[]): MeasurementData[] => {
       const derivedLayer = keypointsToDerivedLayer(
@@ -508,7 +564,28 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       previousMeasurements: MeasurementData[],
       nextKeypoints: KeypointAnnotation[]
     ): MeasurementData[] => {
-      const derivedWithValues = deriveKeypointMeasurements(nextKeypoints);
+      const boundCobbIds = new Set(
+        previousMeasurements
+          .filter(isDerivedCobbMeasurement)
+          .map(measurement => measurement.id)
+      );
+      const hasExistingDerivedCobb = boundCobbIds.size > 0;
+      const derivedWithValues = deriveKeypointMeasurements(
+        nextKeypoints
+      ).filter(
+        measurement =>
+          !isDerivedCobbMeasurement(measurement) ||
+          (!hasExistingDerivedCobb && !boundCobbIds.has(measurement.id))
+      );
+
+      const boundCobbMeasurements = previousMeasurements
+        .filter(isDerivedCobbMeasurement)
+        .map(measurement =>
+          createBoundCobbMeasurement(measurement, nextKeypoints)
+        )
+        .filter(
+          (measurement): measurement is MeasurementData => measurement !== null
+        );
 
       const centerMeasurements = previousMeasurements
         .filter(
@@ -556,6 +633,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             measurement.id !== 'ap-keypoint-tts'
         ),
         ...derivedWithValues,
+        ...boundCobbMeasurements,
         ...centerMeasurements,
         ...(avtMeasurement ? [avtMeasurement] : []),
         ...(ttsMeasurement ? [ttsMeasurement] : []),
@@ -724,6 +802,36 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       setShowStandardDistanceWarning,
       standardDistance,
     ]
+  );
+
+  const handleCreateCobb = useCallback(
+    (upperVertebra: string, lowerVertebra: string) => {
+      const existing = measurements.find(
+        measurement =>
+          isDerivedCobbMeasurement(measurement) &&
+          measurement.upperVertebra === upperVertebra &&
+          measurement.lowerVertebra === lowerVertebra
+      );
+      const measurement = createCobbMeasurement(
+        upperVertebra,
+        lowerVertebra,
+        keypoints,
+        existing
+      );
+      if (!measurement) {
+        setSaveMessage('缺少 Cobb 所需端椎关键点，无法创建');
+        setTimeout(() => setSaveMessage(''), 3000);
+        return;
+      }
+
+      setMeasurements(previous => [
+        ...previous.filter(item => item.id !== measurement.id),
+        measurement,
+      ]);
+      setSaveMessage(`已创建 Cobb(${upperVertebra}-${lowerVertebra})`);
+      setTimeout(() => setSaveMessage(''), 3000);
+    },
+    [keypoints, measurements, setSaveMessage]
   );
 
   const handleCreateAvt = useCallback(
@@ -1587,6 +1695,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             }}
             onRestoreAutomaticMeasurement={handleRestoreAutomaticMeasurement}
             onCreateAvt={handleCreateAvt}
+            onCreateCobb={handleCreateCobb}
             onCreateVertebraCenter={handleCreateVertebraCenter}
             onCreateTts={handleCreateTts}
             onActivateHandMode={activateHandMode}

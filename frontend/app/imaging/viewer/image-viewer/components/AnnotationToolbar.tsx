@@ -51,6 +51,7 @@ interface AnnotationToolbarProps {
   onSelectTool: (toolId: string) => void;
   onRestoreAutomaticMeasurement: (toolId: string) => void;
   onCreateAvt: (apexVertebra: string) => void;
+  onCreateCobb: (upperVertebra: string, lowerVertebra: string) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
   onCreateTts: (upperVertebra: string, lowerVertebra: string) => void;
   onActivateHandMode: () => void;
@@ -108,6 +109,7 @@ export default function AnnotationToolbar({
   onSelectTool,
   onRestoreAutomaticMeasurement,
   onCreateAvt,
+  onCreateCobb,
   onCreateVertebraCenter,
   onCreateTts,
   onActivateHandMode,
@@ -140,6 +142,8 @@ export default function AnnotationToolbar({
   const [openMeasurementTool, setOpenMeasurementTool] = useState<string | null>(
     null
   );
+  const [cobbUpperVertebra, setCobbUpperVertebra] = useState('');
+  const [cobbLowerVertebra, setCobbLowerVertebra] = useState('');
   const [ttsUpperVertebra, setTtsUpperVertebra] = useState('');
   const [ttsLowerVertebra, setTtsLowerVertebra] = useState('');
 
@@ -149,7 +153,8 @@ export default function AnnotationToolbar({
   const keypointIds = new Set(keypoints.map(keypoint => keypoint.id));
   const hasAvt = measurements.some(item => item.type.toLowerCase() === 'avt');
   const hasTts = measurements.some(item => item.type.toLowerCase() === 'tts');
-  const hasSacralLine = hasKeypoint(keypoints, 'SL') && hasKeypoint(keypoints, 'SR');
+  const hasSacralLine =
+    hasKeypoint(keypoints, 'SL') && hasKeypoint(keypoints, 'SR');
   const isAnteriorView = isAnteriorExamType(examType);
   const canCreateAvt =
     isAnteriorView &&
@@ -161,6 +166,7 @@ export default function AnnotationToolbar({
     !hasTts &&
     hasSacralLine &&
     completeVertebraGroups.length >= 2;
+  const canCreateCobb = isAnteriorView && completeVertebraGroups.length >= 2;
   const hasAvailableVertebraCenter = completeVertebraGroups.some(
     group =>
       !measurements.some(
@@ -214,7 +220,10 @@ export default function AnnotationToolbar({
     return `选择${group.name}椎体的关键点`;
   };
 
-  const getUnavailableTitle = (toolName: string, status: ToolStatus): string => {
+  const getUnavailableTitle = (
+    toolName: string,
+    status: ToolStatus
+  ): string => {
     if (status === 'exists') return `${toolName} 已存在`;
     if (status === 'missing-keypoints') return `${toolName} 缺少关键点`;
     return `${toolName} 可用`;
@@ -308,7 +317,9 @@ export default function AnnotationToolbar({
               measurements={measurements}
               isBindingPanelOpen={isBindingPanelOpen}
               isManualBindingMode={isManualBindingMode}
-              manualBindingSelectedPointsCount={manualBindingSelectedPointsCount}
+              manualBindingSelectedPointsCount={
+                manualBindingSelectedPointsCount
+              }
               onToggleOpen={onToggleBindingPanel}
               onClearBindings={onClearBindings}
               onStartManualBinding={onStartManualBinding}
@@ -357,11 +368,14 @@ export default function AnnotationToolbar({
                           measurements,
                           tool
                         );
+                        const isCobbTool = isAnteriorView && tool.id === 'cobb';
                         const isAutomaticTool =
-                          isApAutomaticMeasurementTool(tool.id) ||
-                          isLateralRestorableMeasurementTool(tool.id);
+                          !isCobbTool &&
+                          (isApAutomaticMeasurementTool(tool.id) ||
+                            isLateralRestorableMeasurementTool(tool.id));
                         const isSelectionTool =
                           tool.id === 'vertebra-center' ||
+                          isCobbTool ||
                           (isAnteriorView &&
                             (tool.id === 'avt' || tool.id === 'tts'));
                         const isOpen = openMeasurementTool === tool.id;
@@ -370,11 +384,15 @@ export default function AnnotationToolbar({
                         const selectionStatus =
                           tool.id === 'vertebra-center'
                             ? vertebraCenterStatus
-                            : tool.id === 'avt'
-                              ? avtStatus
-                              : tool.id === 'tts'
-                                ? ttsStatus
-                                : 'available';
+                            : isCobbTool
+                              ? canCreateCobb
+                                ? 'available'
+                                : 'missing-keypoints'
+                              : tool.id === 'avt'
+                                ? avtStatus
+                                : tool.id === 'tts'
+                                  ? ttsStatus
+                                  : 'available';
                         const unavailableStatus = isSelectionTool
                           ? selectionStatus
                           : isUniquenessBlocked
@@ -382,13 +400,15 @@ export default function AnnotationToolbar({
                             : 'missing-keypoints';
                         const isToolAvailable = isAutomaticTool
                           ? automaticStatus === 'available'
-                          : tool.id === 'vertebra-center'
-                            ? hasAvailableVertebraCenter
-                            : tool.id === 'avt'
-                              ? canCreateAvt
-                            : tool.id === 'tts'
-                              ? canCreateTts
-                              : !isUniquenessBlocked;
+                          : isCobbTool
+                            ? canCreateCobb
+                            : tool.id === 'vertebra-center'
+                              ? hasAvailableVertebraCenter
+                              : tool.id === 'avt'
+                                ? canCreateAvt
+                                : tool.id === 'tts'
+                                  ? canCreateTts
+                                  : !isUniquenessBlocked;
                         const toolTitle = isAutomaticTool
                           ? isToolAvailable
                             ? `${tool.name} 可恢复，点击自动生成`
@@ -398,7 +418,9 @@ export default function AnnotationToolbar({
                                 isSelectionTool)
                             ? getUnavailableTitle(tool.name, unavailableStatus)
                             : isSelectionTool
-                              ? '点击选择可用对象'
+                              ? isCobbTool
+                                ? '点击选择 Cobb 上端椎和下端椎'
+                                : '点击选择可用对象'
                               : tool.description;
 
                         return (
@@ -510,6 +532,93 @@ export default function AnnotationToolbar({
                             暂无完整椎体关键点
                           </span>
                         )}
+                      </div>
+                    )}
+
+                    {openMeasurementTool === 'cobb' && (
+                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(28rem,calc(100vh-14rem))] overflow-y-auto">
+                        <div className="text-xs text-gray-300 mb-2">Cobb</div>
+                        <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
+                          <div>
+                            <div className="text-[11px] text-gray-500 mb-1">
+                              上端椎
+                            </div>
+                            {completeVertebraGroups.length > 0 ? (
+                              <div className="grid grid-cols-4 gap-2">
+                                {completeVertebraGroups.map(group => (
+                                  <button
+                                    key={group}
+                                    type="button"
+                                    onClick={() => setCobbUpperVertebra(group)}
+                                    disabled={!canCreateCobb}
+                                    className={`h-8 rounded text-xs ${
+                                      !canCreateCobb
+                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                        : cobbUpperVertebra === group
+                                          ? 'bg-blue-600 text-white'
+                                          : 'bg-gray-800 text-white hover:bg-gray-700'
+                                    }`}
+                                  >
+                                    {group}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">
+                                暂无完整椎体关键点
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-[11px] text-gray-500 mb-1">
+                              下端椎
+                            </div>
+                            {completeVertebraGroups.length > 0 ? (
+                              <div className="grid grid-cols-4 gap-2">
+                                {completeVertebraGroups.map(group => (
+                                  <button
+                                    key={group}
+                                    type="button"
+                                    onClick={() => setCobbLowerVertebra(group)}
+                                    disabled={!canCreateCobb}
+                                    className={`h-8 rounded text-xs ${
+                                      !canCreateCobb
+                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                        : cobbLowerVertebra === group
+                                          ? 'bg-blue-600 text-white'
+                                          : 'bg-gray-800 text-white hover:bg-gray-700'
+                                    }`}
+                                  >
+                                    {group}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">
+                                暂无完整椎体关键点
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onCreateCobb(
+                                cobbUpperVertebra,
+                                cobbLowerVertebra
+                              );
+                              setOpenMeasurementTool(null);
+                            }}
+                            disabled={
+                              !canCreateCobb ||
+                              !cobbUpperVertebra ||
+                              !cobbLowerVertebra ||
+                              cobbUpperVertebra === cobbLowerVertebra
+                            }
+                            className="w-full h-8 rounded bg-blue-600 text-white text-xs disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-blue-700"
+                          >
+                            创建 Cobb
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -747,7 +856,6 @@ export default function AnnotationToolbar({
                             {existingCount}
                           </span>
                         </button>
-
                       </div>
                     );
                   })}
@@ -788,7 +896,6 @@ export default function AnnotationToolbar({
                 )}
               </div>
             )}
-
           </div>
 
           {/* 标准距离设置按钮 */}
@@ -817,7 +924,9 @@ export default function AnnotationToolbar({
               <input
                 type="number"
                 value={standardDistanceValue}
-                onChange={event => onChangeStandardDistanceValue(event.target.value)}
+                onChange={event =>
+                  onChangeStandardDistanceValue(event.target.value)
+                }
                 onBlur={onStandardDistanceInputBlur}
                 onKeyDown={event => {
                   if (event.key === 'Enter') {
@@ -827,11 +936,12 @@ export default function AnnotationToolbar({
                 placeholder="例如: 100"
                 className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 text-white text-sm rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               />
-              {standardDistance !== null && standardDistancePointsLength === 2 && (
-                <div className="mt-1.5 text-xs text-green-400">
-                  ✓ 已设置: {standardDistance}mm
-                </div>
-              )}
+              {standardDistance !== null &&
+                standardDistancePointsLength === 2 && (
+                  <div className="mt-1.5 text-xs text-green-400">
+                    ✓ 已设置: {standardDistance}mm
+                  </div>
+                )}
             </div>
           </div>
 
@@ -905,7 +1015,9 @@ export default function AnnotationToolbar({
               <div className="mt-2 bg-gray-700/50 rounded-lg p-3">
                 <textarea
                   value={treatmentAdvice}
-                  onChange={event => onChangeTreatmentAdvice(event.target.value)}
+                  onChange={event =>
+                    onChangeTreatmentAdvice(event.target.value)
+                  }
                   placeholder="输入医生的治疗建议..."
                   className="w-full px-2 py-1 bg-gray-600 text-white text-sm rounded border border-gray-500 focus:border-orange-400 focus:outline-none resize-none"
                   rows={3}
