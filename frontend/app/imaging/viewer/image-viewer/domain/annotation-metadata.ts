@@ -74,6 +74,16 @@ export function getColorForType(type: string): string {
 }
 
 /**
+ * 判断该测量标签是否需要在测量右侧渲染（rightSideLabel）。
+ * 为 true 时，渲染层会在屏幕坐标系中将文字左缘对齐到最右端测量点右侧，
+ * 而不是依赖图像坐标偏移（图像坐标偏移在 fitScale 较小时会因损耗失效）。
+ */
+export function isRightSideLabelType(type: string): boolean {
+  const config = getAnnotationConfig(type);
+  return config?.rightSideLabel ?? false;
+}
+
+/**
  * 根据标注类型获取标签位置
  */
 export function getLabelPositionForType(

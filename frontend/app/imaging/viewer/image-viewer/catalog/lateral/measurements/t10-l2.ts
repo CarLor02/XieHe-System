@@ -25,13 +25,13 @@ export const T10_L2_CONFIG: AnnotationConfig = {
   pointsNeeded: 4,
   category: 'measurement',
   color: '#a855f7',
+  rightSideLabel: true,
 
   calculateResults: COBB_THORACIC_CONFIG.calculateResults,
-  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-    const minY = Math.min(points[0].y, points[1].y, points[2].y, points[3].y);
-    return { x: centerX, y: minY - 40 / imageScale };
+    // 侧面影像：锚点在第1个点旁，渲染层负责实际屏幕偏移（rightSideLabel）。
+    return { x: points[0].x, y: points[0].y };
   },
   isInHoverRange: COBB_THORACIC_CONFIG.isInHoverRange,
   isInSelectionRange: COBB_THORACIC_CONFIG.isInSelectionRange,

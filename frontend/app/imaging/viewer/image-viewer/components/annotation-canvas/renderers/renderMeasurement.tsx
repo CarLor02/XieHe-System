@@ -20,10 +20,11 @@ import {
   usesAuxiliaryMeasurementValueTag,
   usesInlineAuxiliaryTag,
   calculateSmartLabelPosition,
+  isRightSideLabelType,
 } from '../../../domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools/tool-state';
 import { imageToScreen } from '../../../canvas/transform/coordinate-transform';
-import { TEXT_LABEL_CONSTANTS } from '../../../shared/constants';
+import { TEXT_LABEL_CONSTANTS, getAdaptiveFontSize } from '../../../shared/constants';
 import { estimateTextHeight, estimateTextWidth } from '../../../shared/labels';
 import { MeasurementData, Point } from '../../../types';
 import { HoverState, SelectionState } from '../types';
@@ -498,12 +499,20 @@ export default function renderMeasurement({
     ? getAuxiliaryMeasurementValueTagName(measurement)
     : displayName;
   const textContent = `${valueTagName}: ${displayValue}`;
-  const fontSize = isMeasurementHovered
-    ? TEXT_LABEL_CONSTANTS.HOVER_FONT_SIZE
-    : TEXT_LABEL_CONSTANTS.DEFAULT_FONT_SIZE;
+  // 自适应字体大小：随缩放级别动态调整，有上下限
+  const fontSize = getAdaptiveFontSize(imageScale, isMeasurementHovered);
   const padding = TEXT_LABEL_CONSTANTS.PADDING;
   const textWidth = estimateTextWidth(textContent, fontSize, 0);
   const textHeight = estimateTextHeight(fontSize, 0);
+
+  // 右侧标签：在屏幕坐标系中直接对齐第1个点，完全绕开图像坐标偏移的 fitScale 损耗。
+  // 原因：imageToScreen 公式中存在 displayWidth/naturalWidth 因子（fitScale），
+  //        导致图像坐标中的偏移转换到屏幕后远小于预期（如46px图像偏移→14屏幕px）。
+  const isRightSideLabel = isRightSideLabelType(measurement.type);
+  // 右侧标签：文字左缘从第1个点（screenPoints[0]）右侧 5px 开始，使用 textAnchor="start"
+  const firstPointScreenX = screenPoints.length > 0 ? screenPoints[0].x : labelPosition.x;
+  const textLabelX = isRightSideLabel ? firstPointScreenX + 5 : labelPosition.x;
+  const textLabelAnchor = isRightSideLabel ? 'start' : 'middle';
 
   return (
     <g key={measurement.id}>
@@ -538,12 +547,12 @@ export default function renderMeasurement({
         !hideAllLabels &&
         !hiddenMeasurementIds.has(measurement.id) && (
           <text
-            x={labelPosition.x}
+            x={textLabelX}
             y={labelPosition.y + fontSize * 0.35}
             fill={displayColor}
-            fontSize={isMeasurementHovered ? 13 : 11}
+            fontSize={fontSize}
             fontWeight="bold"
-            textAnchor="middle"
+            textAnchor={textLabelAnchor}
             stroke="#000000"
             strokeWidth="3"
             paintOrder="stroke"
@@ -571,7 +580,7 @@ export default function renderMeasurement({
             x={labelPosition.x}
             y={labelPosition.y + 5}
             fill={displayColor}
-            fontSize="11"
+            fontSize={fontSize}
             fontWeight="bold"
             textAnchor="middle"
             stroke="#000000"

@@ -28,6 +28,14 @@ export const LABEL_OFFSET = {
   BOTTOM: 40,
   /** Cobb角等复杂测量的右侧偏移（屏幕像素） */
   COMPLEX_RIGHT: 60,
+  /**
+   * 侧面标签文字半宽估算值（屏幕像素）。
+   * 侧面测量标签格式约为 "NAME: 20°"，约 14 个 ASCII 字符，
+   * fontSize=11，charRatio=0.6 → textWidth ≈ 92px，半宽 ≈ 46px。
+   * 用法：labelX = maxX + TEXT_HALF / imageScale
+   * 效果：文字左缘恰好对齐 maxX，向右延伸，不与测量形状重叠。
+   */
+  TEXT_HALF: 46,
 } as const;
 
 // ==================== 类型定义 ====================
@@ -51,6 +59,12 @@ export interface AnnotationConfig {
   pointsNeeded: number; // 需要的点数（0表示动态绘制，如圆形、矩形等）
   category: 'measurement' | 'auxiliary'; // 分类：测量类或辅助标注类
   color: string; // 标注颜色（十六进制色值）
+  /**
+   * 标签是否显示在测量右侧。
+   * 为 true 时，渲染层会直接用屏幕坐标把文字左缘对齐到最右端测量点，
+   * 而不是用图像坐标偏移（图像坐标偏移在小显示比例下会因 fitScale 损耗而失效）。
+   */
+  rightSideLabel?: boolean;
 
   // 计算函数
   calculateResults: (
