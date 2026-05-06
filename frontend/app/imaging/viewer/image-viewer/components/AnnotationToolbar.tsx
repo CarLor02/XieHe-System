@@ -482,30 +482,38 @@ export default function AnnotationToolbar({
                         // 仅当 AI 推导数据确实可恢复时才走自动路径；
                         // missing-keypoints 时回退为手动放点（管理员可像普通用户补充标注）。
                         // exists 状态（测量已存在）保持禁用，用户应直接拖拽现有端点调整。
+                        const isLockedByExistingMeasurement =
+                          isUniquenessBlocked ||
+                          (isAutomaticTool && automaticStatus === 'exists');
                         const isEffectivelyAutomaticTool =
-                          isAutomaticTool && automaticStatus === 'available';
+                          isAutomaticTool &&
+                          automaticStatus === 'available' &&
+                          !isLockedByExistingMeasurement;
                         // 管理员手动放点回退模式：仅在无 AI 数据时生效
                         const isInManualFallbackMode =
                           isAutomaticTool &&
-                          automaticStatus === 'missing-keypoints';
+                          automaticStatus === 'missing-keypoints' &&
+                          !isLockedByExistingMeasurement;
                         const selectionStatus =
                           tool.id === 'avt' ? avtStatus : 'available';
                         const unavailableStatus = isSelectionTool
                           ? selectionStatus
-                          : isUniquenessBlocked
+                          : isLockedByExistingMeasurement
                             ? 'exists'
                             : 'missing-keypoints';
                         // 管理员手动回退模式：始终可用（允许重新放置或补充放置）。
                         // 其他工具（含 Cobb、TTS）按唯一性规则判断。
-                        const isToolAvailable = isEffectivelyAutomaticTool
-                          ? true
-                          : isInManualFallbackMode
+                        const isToolAvailable = isLockedByExistingMeasurement
+                          ? false
+                          : isEffectivelyAutomaticTool
                             ? true
-                            : tool.id === 'avt'
-                              ? canUseKeypointTools
-                                ? canCreateAvt
-                                : !isUniquenessBlocked
-                              : !isUniquenessBlocked;
+                            : isInManualFallbackMode
+                              ? true
+                              : tool.id === 'avt'
+                                ? canUseKeypointTools
+                                  ? canCreateAvt
+                                  : !isUniquenessBlocked
+                                : !isUniquenessBlocked;
                         const toolTitle = isEffectivelyAutomaticTool
                           ? `${tool.name} 可恢复，点击自动生成`
                           : isInManualFallbackMode
