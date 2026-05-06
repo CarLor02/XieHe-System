@@ -166,6 +166,11 @@ export interface TransformContext {
   imageNaturalSize: ImageSize | null;
   imagePosition: Point;
   imageScale: number;
+  /**
+   * 可选：容器尺寸。提供时 imageToScreen 直接使用此尺寸，绕开 DOM 查询。
+   * 用于导出场景（无真实 DOM 容器）或需要固定视口大小的场景。
+   */
+  containerSize?: { width: number; height: number };
 }
 
 // /**

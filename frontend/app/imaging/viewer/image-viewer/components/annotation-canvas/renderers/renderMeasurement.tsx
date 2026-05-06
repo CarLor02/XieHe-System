@@ -40,6 +40,8 @@ interface RenderMeasurementProps {
   imageScale: number;
   imagePosition: { x: number; y: number };
   imageNaturalSize: { width: number; height: number } | null;
+  /** 可选：覆盖容器尺寸，绕开 DOM 查询（用于导出场景） */
+  containerSize?: { width: number; height: number };
   selectionState: SelectionState;
   hoverState: HoverState;
   hideAllLabels: boolean;
@@ -431,6 +433,7 @@ export default function renderMeasurement({
   imageScale,
   imagePosition,
   imageNaturalSize,
+  containerSize,
   selectionState,
   hoverState,
   hideAllLabels,
@@ -446,6 +449,7 @@ export default function renderMeasurement({
     imageNaturalSize,
     imagePosition,
     imageScale,
+    containerSize,
   };
   const screenPoints = measurement.points.map(point => imageToScreen(point, context));
   const displayName = getAnnotationDisplayName(measurement.type);

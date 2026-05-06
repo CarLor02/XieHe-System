@@ -66,21 +66,30 @@ function renderMeasurementsToSVG(
   const pointBindings = { groups: [], syncGroups: [] };
 
   // ── 核心思路 ──────────────────────────────────────────────────────────────
-  // renderMeasurement 内部有两个依赖 imageScale 的逻辑：
-  //   1. imageToScreen(p) = p * imageScale  ← 坐标映射
-  //   2. getAdaptiveFontSize(imageScale)    ← 字体大小，硬限 9-20px
+  // renderMeasurement 内部调用 imageToScreen，后者依赖：
+  //   1. containerSize → 确定 displayWidth/displayHeight 和 center 点
+  //   2. imageScale    → 坐标缩放 + getAdaptiveFontSize（硬限 9-20px）
   //
-  // 如果直接用 imageScale=1（坐标正确），字体被限制在 ≤20px，
-  // 在 2000px 宽的导出图像上几乎看不见。
+  // 导出策略：使用固定"虚拟视口"（800px 宽），与典型查看器尺寸相近，
+  //   - containerSize = { width: VIRTUAL_W, height: VIRTUAL_H }（等比例）
+  //   - imageScale    = VIRTUAL_W / naturalWidth
+  //   → imageToScreen 把图像坐标映射到 0~VIRTUAL_W 范围（坐标正确）
+  //   → getAdaptiveFontSize 产生的字体在 800px 视口下自然合适
+  //   → SVG <g scale(factor)> 等比放大到实际导出分辨率
+  //   → 字体、线宽、圆圈、标签间距全部随 scale 等比放大
   //
-  // 解决：在一个固定"虚拟视口"下渲染（imageScale = refW/W），
-  // 让坐标落到 0~refW 范围，字体在这个小尺寸下自然合适；
-  // 然后用 SVG <g transform="scale(factor)"> 把整组等比放大到实际尺寸。
-  // 字体、线宽、圆圈全部随 scale 等比放大，与查看器视觉效果一致。
+  // 相比之前的错误实现，关键修正：
+  //   ✗ 旧版：传 imageScale 但 imageToScreen 仍用 DOM 真实容器（700px），
+  //           导致坐标完全错误，再乘 2.5 更错。
+  //   ✓ 新版：传 containerSize 给 imageToScreen，让它用虚拟视口而非 DOM。
   // ─────────────────────────────────────────────────────────────────────────
   const VIRTUAL_VIEWPORT_WIDTH = 800; // 与典型查看器显示宽度接近
-  const svgScaleFactor = width / VIRTUAL_VIEWPORT_WIDTH;         // e.g. 2000/800 = 2.5
-  const renderImageScale = VIRTUAL_VIEWPORT_WIDTH / width;       // e.g. 800/2000 = 0.4
+  const VIRTUAL_VIEWPORT_HEIGHT = Math.round(VIRTUAL_VIEWPORT_WIDTH * (height / width));
+  const svgScaleFactor = width / VIRTUAL_VIEWPORT_WIDTH;   // e.g. 2000/800 = 2.5
+  const renderImageScale = VIRTUAL_VIEWPORT_WIDTH / width; // e.g. 800/2000 = 0.4
+
+  // 虚拟视口的容器尺寸——imageToScreen 用此绕开 DOM 查询
+  const virtualContainerSize = { width: VIRTUAL_VIEWPORT_WIDTH, height: VIRTUAL_VIEWPORT_HEIGHT };
 
   // 渲染所有测量项 - 使用实际的 React 渲染器（在虚拟视口坐标系下）
   const measurementElements = measurements.map((measurement, index) => {
@@ -89,6 +98,7 @@ function renderMeasurementsToSVG(
       imageScale: renderImageScale,
       imagePosition: { x: 0, y: 0 },
       imageNaturalSize: { width, height },
+      containerSize: virtualContainerSize,
       selectionState,
       hoverState,
       hideAllLabels: false,

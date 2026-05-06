@@ -72,27 +72,43 @@ function calculateDisplaySize(
  * @returns 屏幕坐标点
  */
 export function imageToScreen(point: Point, context: TransformContext): Point {
-  const { imageNaturalSize, imagePosition, imageScale } = context;
+  const { imageNaturalSize, imagePosition, imageScale, containerSize } = context;
 
   if (!imageNaturalSize) {
     throttledWarn('Image natural size not available, returning original coordinates');
     return { x: point.x, y: point.y };
   }
 
-  const containerRect = getContainerRect();
-  if (!containerRect) {
-    return { x: point.x, y: point.y };
+  // 优先使用 context.containerSize（导出场景传入虚拟视口，绕开 DOM 查询）
+  let displayWidth: number;
+  let displayHeight: number;
+  let centerX: number;
+  let centerY: number;
+
+  if (containerSize) {
+    // 提供了容器尺寸：用它计算 object-contain 显示大小
+    const dummyRect = {
+      width: containerSize.width,
+      height: containerSize.height,
+    } as DOMRect;
+    const display = calculateDisplaySize(dummyRect, imageNaturalSize);
+    displayWidth = display.displayWidth;
+    displayHeight = display.displayHeight;
+    centerX = containerSize.width / 2;
+    centerY = containerSize.height / 2;
+  } else {
+    const containerRect = getContainerRect();
+    if (!containerRect) {
+      return { x: point.x, y: point.y };
+    }
+    // 计算图像在object-contain模式下的实际显示尺寸
+    const display = calculateDisplaySize(containerRect, imageNaturalSize);
+    displayWidth = display.displayWidth;
+    displayHeight = display.displayHeight;
+    // 容器中心点（也是图像transform的原点）
+    centerX = containerRect.width / 2;
+    centerY = containerRect.height / 2;
   }
-
-  // 计算图像在object-contain模式下的实际显示尺寸
-  const { displayWidth, displayHeight } = calculateDisplaySize(
-    containerRect,
-    imageNaturalSize
-  );
-
-  // 容器中心点（也是图像transform的原点）
-  const centerX = containerRect.width / 2;
-  const centerY = containerRect.height / 2;
 
   // 图像中心点坐标
   const imageCenterX = imageNaturalSize.width / 2;
