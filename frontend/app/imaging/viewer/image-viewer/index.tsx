@@ -92,7 +92,15 @@ function isDerivedCobbMeasurement(measurement: MeasurementData): boolean {
 }
 
 const LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES = new Set(['pi', 'pt', 'tpa']);
-const LATERAL_SS_MEASUREMENT_TYPES = new Set(['ss']);
+const LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES = new Set([
+  'ss',
+  'll-l1-s1',
+  'll-l4-s1',
+  'pi',
+  'pt',
+  'tpa',
+  'sva',
+]);
 
 function removeKeypointsById(
   currentKeypoints: KeypointAnnotation[],
@@ -109,6 +117,62 @@ function measurementTypeInSet(
   typeIds: Set<string>
 ): boolean {
   return typeIds.has(getAnnotationTypeId(measurement.type));
+}
+
+function extractCfhAnnotationFromMeasurements(
+  measurements: MeasurementData[]
+): CfhAnnotation | null {
+  for (const measurement of measurements) {
+    const typeId = getAnnotationTypeId(measurement.type);
+    const point =
+      typeId === 'pi' || typeId === 'pt'
+        ? measurement.points[0]
+        : typeId === 'tpa'
+          ? measurement.points[4]
+          : null;
+    if (point) {
+      return { center: point, confidence: 1, source: 'manual' };
+    }
+  }
+  return null;
+}
+
+function restorePiPtFromSsAndCfh(
+  measurements: MeasurementData[],
+  cfh: CfhAnnotation,
+  calculateValue: (typeId: string, points: Point[]) => string
+): MeasurementData[] {
+  const ss = [...measurements]
+    .reverse()
+    .find(
+      measurement =>
+        getAnnotationTypeId(measurement.type) === 'ss' &&
+        measurement.points.length >= 2
+    );
+  if (!ss) return measurements;
+
+  let next = measurements;
+  for (const typeId of ['pi', 'pt']) {
+    if (
+      next.some(
+        measurement => getAnnotationTypeId(measurement.type) === typeId
+      )
+    ) {
+      continue;
+    }
+    const points = [cfh.center, ss.points[0], ss.points[1]];
+    next = [
+      ...next,
+      {
+        id: `${Date.now()}-restored-${typeId}-${next.length}`,
+        type: typeId,
+        value: calculateValue(typeId, points),
+        points,
+        description: getDesc(typeId),
+      },
+    ];
+  }
+  return next;
 }
 
 export default function ImageViewer({ imageId }: ImageViewerProps) {
@@ -730,7 +794,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         });
         setKeypoints(nextKeypoints);
         setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
-        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+        setCfhAnnotation(
+          keypointsToCfhAnnotation(nextKeypoints) ?? cfhAnnotation
+        );
         setMeasurements(previous =>
           rebuildKeypointMeasurements(previous, nextKeypoints)
         );
@@ -750,6 +816,21 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         imageNaturalSize,
         allowReplace
       );
+
+      if (isLateralView && typeId === 'ss' && cfhAnnotation) {
+        setMeasurements(previous =>
+          restorePiPtFromSsAndCfh(
+            previous,
+            cfhAnnotation,
+            (nextType, nextPoints) =>
+              calcMeasurementValue(nextType, nextPoints, {
+                standardDistance,
+                standardDistancePoints,
+                imageNaturalSize,
+              })
+          )
+        );
+      }
 
       // 侧位管理员手动放点后，将各端点坐标同步写回 vertebraeLayer / keypoints，
       // 保持关键点状态与手动测量一致。SS 由下方专用逻辑处理，此处跳过。
@@ -911,14 +992,16 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         }
 
         if (typeId === 'ss') {
+          const preservedCfh =
+            cfhAnnotation ??
+            keypointsToCfhAnnotation(keypoints) ??
+            extractCfhAnnotationFromMeasurements(measurements);
           const nextKeypoints = removeKeypointsById(keypoints, [
             'S1-1',
             'S1-2',
           ]);
           setKeypoints(nextKeypoints);
-          setCfhAnnotation(
-            keypointsToCfhAnnotation(nextKeypoints) ?? cfhAnnotation
-          );
+          if (preservedCfh) setCfhAnnotation(preservedCfh);
           setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
           setMeasurements(previous =>
             rebuildKeypointMeasurements(
@@ -926,7 +1009,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 measurement =>
                   !measurementTypeInSet(
                     measurement,
-                    LATERAL_SS_MEASUREMENT_TYPES
+                    LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES
                   )
               ),
               nextKeypoints
@@ -951,12 +1034,15 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       }
 
       if (isLateralView && typeId === 'ss') {
+        const preservedCfh =
+          cfhAnnotation ?? extractCfhAnnotationFromMeasurements(measurements);
+        if (preservedCfh) setCfhAnnotation(preservedCfh);
         setMeasurements(previous =>
           previous.filter(
             measurement =>
               !measurementTypeInSet(
                 measurement,
-                LATERAL_SS_MEASUREMENT_TYPES
+                LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES
               )
           )
         );
