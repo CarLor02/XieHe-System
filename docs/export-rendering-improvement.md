@@ -103,9 +103,35 @@ const scaledMeasurements = measurements.map(m => ({
 导出时使用中性状态（无选择、无悬停）：
 
 ```typescript
-const selectionState = { type: 'none' as const };
-const hoverState = { measurementId: null, elementType: null };
+const selectionState = {
+  measurementId: null,
+  pointIndex: null,
+  type: null,
+  isDragging: false,
+  dragOffset: { x: 0, y: 0 },
+};
+const hoverState = {
+  measurementId: null,
+  keypointId: null,
+  pointIndex: null,
+  elementType: null,
+};
 ```
+
+### 字体大小计算
+
+为确保导出图像中的文字清晰可读，系统会根据图像分辨率计算合适的 `imageScale`：
+
+```typescript
+// 假设标准查看器宽度约 1000px
+const REFERENCE_SCREEN_WIDTH = 1000;
+const effectiveImageScale = Math.max(0.5, Math.min(2.0, REFERENCE_SCREEN_WIDTH / width));
+```
+
+这确保了：
+- 低分辨率图像（如 800px 宽）：使用较大的 scale (1.25)，字体相应增大
+- 标准分辨率图像（如 1000px 宽）：使用 1.0 scale，字体正常大小
+- 高分辨率图像（如 2000px 宽）：使用较小的 scale (0.5)，但由于图像更大，字体绝对大小仍然清晰
 
 ## 未来改进
 

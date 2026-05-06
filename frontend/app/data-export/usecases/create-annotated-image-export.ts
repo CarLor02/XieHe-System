@@ -65,11 +65,18 @@ function renderMeasurementsToSVG(
   const hiddenMeasurementIds = new Set<string>();
   const pointBindings = { groups: [], syncGroups: [] };
 
+  // 计算合适的 imageScale 用于字体大小
+  // 在查看器中，imageScale = 屏幕像素 / 图像像素
+  // 对于导出，我们希望字体在高分辨率图像上仍然可读
+  // 假设标准查看器宽度约 1000px，计算等效的 imageScale
+  const REFERENCE_SCREEN_WIDTH = 1000;
+  const effectiveImageScale = Math.max(0.5, Math.min(2.0, REFERENCE_SCREEN_WIDTH / width));
+
   // 渲染所有测量项 - 使用实际的 React 渲染器
   const measurementElements = measurements.map((measurement, index) => {
     return renderMeasurement({
       measurement,
-      imageScale: 1, // 导出时使用 1:1 缩放（已在坐标中处理）
+      imageScale: effectiveImageScale, // 使用计算的有效缩放比例，确保字体大小适中
       imagePosition: { x: 0, y: 0 },
       imageNaturalSize: { width, height },
       selectionState,
