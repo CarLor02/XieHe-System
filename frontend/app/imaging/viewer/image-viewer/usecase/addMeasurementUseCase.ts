@@ -124,8 +124,17 @@ export function addMeasurement(
             });
         }
 
-        // 将本次新增标注加入列表
-        const accumulated: MeasurementData[] = [...prev, newMeasurement];
+        // 将本次新增标注加入列表，并同步共享 S1 点到现有 S1 相关测量。
+        // 删除 SS 后重新绘制 SS 时，PI/PT 保留 CFH，同时 S1 端点应跟随新的 SS。
+        const accumulated: MeasurementData[] = syncS1PointsAfterReplace(
+            [...prev, newMeasurement],
+            newMeasurement,
+            {
+                standardDistance,
+                standardDistancePoints,
+                imageNaturalSize,
+            }
+        );
 
         // 如果新增点位已经满足其他测量工具的全部需求，则自动补出对应测量项。
         // 例如先画 SS，再用 PI/PT 工具补 CFH 后，PI 与 PT 应同时成立。

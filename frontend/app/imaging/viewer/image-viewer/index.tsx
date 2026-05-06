@@ -92,15 +92,7 @@ function isDerivedCobbMeasurement(measurement: MeasurementData): boolean {
 }
 
 const LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES = new Set(['pi', 'pt', 'tpa']);
-const LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES = new Set([
-  'ss',
-  'll-l1-s1',
-  'll-l4-s1',
-  'pi',
-  'pt',
-  'tpa',
-  'sva',
-]);
+const LATERAL_SS_MEASUREMENT_TYPES = new Set(['ss']);
 
 function removeKeypointsById(
   currentKeypoints: KeypointAnnotation[],
@@ -613,7 +605,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       );
       return deriveAllMeasurements(
         derivedLayer,
-        isLateralView ? null : cfhAnnotation,
+        cfhAnnotation,
         imageData.examType
       ).map(m => ({
         ...m,
@@ -924,7 +916,9 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             'S1-2',
           ]);
           setKeypoints(nextKeypoints);
-          setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+          setCfhAnnotation(
+            keypointsToCfhAnnotation(nextKeypoints) ?? cfhAnnotation
+          );
           setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
           setMeasurements(previous =>
             rebuildKeypointMeasurements(
@@ -932,7 +926,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 measurement =>
                   !measurementTypeInSet(
                     measurement,
-                    LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES
+                    LATERAL_SS_MEASUREMENT_TYPES
                   )
               ),
               nextKeypoints
@@ -962,7 +956,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             measurement =>
               !measurementTypeInSet(
                 measurement,
-                LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES
+                LATERAL_SS_MEASUREMENT_TYPES
               )
           )
         );
