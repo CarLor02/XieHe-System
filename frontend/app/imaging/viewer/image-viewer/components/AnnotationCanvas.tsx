@@ -62,6 +62,7 @@ export default function AnnotationCanvas({
   setSelectedTool,
   onMeasurementAdd,
   onMeasurementsUpdate,
+  onMeasurementDelete,
   onClearAll,
   tools,
   clickedPoints,
@@ -105,6 +106,7 @@ export default function AnnotationCanvas({
   setSelectedTool: (tool: string) => void;
   onMeasurementAdd: (type: string, points: Point[]) => void;
   onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
+  onMeasurementDelete?: (measurementId: string) => void;
   onClearAll: () => void;
   tools: Tool[];
   clickedPoints: Point[];
@@ -370,9 +372,13 @@ export default function AnnotationCanvas({
   };
 
   const handlePanelMeasurementDelete = (measurementId: string) => {
-    onMeasurementsUpdate(
-      measurements.filter(item => item.id !== measurementId)
-    );
+    if (onMeasurementDelete) {
+      onMeasurementDelete(measurementId);
+    } else {
+      onMeasurementsUpdate(
+        measurements.filter(item => item.id !== measurementId)
+      );
+    }
     if (selectionState.measurementId === measurementId) {
       selectMeasurementKeypoints(null);
       setSelectionState({

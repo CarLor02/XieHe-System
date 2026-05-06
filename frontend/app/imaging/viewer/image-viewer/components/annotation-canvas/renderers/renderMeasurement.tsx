@@ -64,6 +64,27 @@ function getPointColor(
   return fallbackColor;
 }
 
+function getPointDisplayLabel(
+  measurement: MeasurementData,
+  pointIndex: number
+): string | number {
+  if (
+    measurement.type.startsWith('AI检测-') &&
+    measurement.points.length === 1
+  ) {
+    return measurement.value;
+  }
+
+  const typeId = getAnnotationTypeId(measurement.type);
+  if ((typeId === 'pi' || typeId === 'pt') && measurement.points.length >= 3) {
+    if (pointIndex === 0) return 3;
+    if (pointIndex === 1) return 1;
+    if (pointIndex === 2) return 2;
+  }
+
+  return pointIndex + 1;
+}
+
 function renderIndexedPoint({
   measurement,
   point,
@@ -197,9 +218,7 @@ function renderIndexedPoint({
         strokeWidth="0.5"
         paintOrder="stroke"
       >
-        {measurement.type.startsWith('AI检测-') && measurement.points.length === 1
-          ? measurement.value
-          : pointIndex + 1}
+        {getPointDisplayLabel(measurement, pointIndex)}
       </text>
     </g>
   );

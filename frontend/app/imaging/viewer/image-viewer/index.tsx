@@ -91,6 +91,34 @@ function isDerivedCobbMeasurement(measurement: MeasurementData): boolean {
   );
 }
 
+const LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES = new Set(['pi', 'pt', 'tpa']);
+const LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES = new Set([
+  'ss',
+  'll-l1-s1',
+  'll-l4-s1',
+  'pi',
+  'pt',
+  'tpa',
+  'sva',
+]);
+
+function removeKeypointsById(
+  currentKeypoints: KeypointAnnotation[],
+  keypointIds: string[]
+): KeypointAnnotation[] {
+  return keypointIds.reduce(
+    (nextKeypoints, keypointId) => deleteKeypoint(nextKeypoints, keypointId),
+    currentKeypoints
+  );
+}
+
+function measurementTypeInSet(
+  measurement: MeasurementData,
+  typeIds: Set<string>
+): boolean {
+  return typeIds.has(getAnnotationTypeId(measurement.type));
+}
+
 export default function ImageViewer({ imageId }: ImageViewerProps) {
   const { user } = useUser(); // 获取当前用户信息
   const {
@@ -663,7 +691,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         ? createAvtMeasurement(existingAvt.apexVertebra, nextKeypoints)
         : null;
 
-      return [
+      return filterUniqueAnnotationDuplicates([
         ...previousMeasurements.filter(
           measurement =>
             !measurement.id.startsWith(DERIVED_ID_PREFIX) &&
@@ -680,7 +708,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         ...centerMeasurements,
         ...(avtMeasurement ? [avtMeasurement] : []),
         ...(ttsMeasurement ? [ttsMeasurement] : []),
-      ];
+      ]);
     },
     [deriveKeypointMeasurements]
   );
@@ -908,6 +936,104 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       measurements,
       rebuildKeypointMeasurements,
       setSaveMessage,
+    ]
+  );
+
+  const handleMeasurementDelete = useCallback(
+    (measurementId: string) => {
+      const target = measurements.find(item => item.id === measurementId);
+      if (!target) {
+        setMeasurements(previous =>
+          previous.filter(item => item.id !== measurementId)
+        );
+        return;
+      }
+
+      const typeId = getAnnotationTypeId(target.type);
+
+      if (isLateralView && isKeypointExam && keypoints.length > 0) {
+        if (typeId === 'pi' || typeId === 'pt') {
+          const nextKeypoints = removeKeypointsById(keypoints, ['CFH']);
+          setKeypoints(nextKeypoints);
+          setCfhAnnotation(null);
+          setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+          setMeasurements(previous =>
+            rebuildKeypointMeasurements(
+              previous.filter(
+                measurement =>
+                  !measurementTypeInSet(
+                    measurement,
+                    LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES
+                  )
+              ),
+              nextKeypoints
+            )
+          );
+          return;
+        }
+
+        if (typeId === 'ss') {
+          const nextKeypoints = removeKeypointsById(keypoints, [
+            'S1-1',
+            'S1-2',
+          ]);
+          setKeypoints(nextKeypoints);
+          setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+          setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+          setMeasurements(previous =>
+            rebuildKeypointMeasurements(
+              previous.filter(
+                measurement =>
+                  !measurementTypeInSet(
+                    measurement,
+                    LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES
+                  )
+              ),
+              nextKeypoints
+            )
+          );
+          return;
+        }
+      }
+
+      if (isLateralView && (typeId === 'pi' || typeId === 'pt')) {
+        setCfhAnnotation(null);
+        setMeasurements(previous =>
+          previous.filter(
+            measurement =>
+              !measurementTypeInSet(
+                measurement,
+                LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES
+              )
+          )
+        );
+        return;
+      }
+
+      if (isLateralView && typeId === 'ss') {
+        setMeasurements(previous =>
+          previous.filter(
+            measurement =>
+              !measurementTypeInSet(
+                measurement,
+                LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES
+              )
+          )
+        );
+        return;
+      }
+
+      setMeasurements(previous =>
+        previous.filter(item => item.id !== measurementId)
+      );
+    },
+    [
+      isKeypointExam,
+      isLateralView,
+      keypoints,
+      measurements,
+      rebuildKeypointMeasurements,
+      setMeasurements,
     ]
   );
 
@@ -1838,6 +1964,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 setSelectedTool={setSelectedTool}
                 onMeasurementAdd={handleAddMeasurement}
                 onMeasurementsUpdate={setMeasurements}
+                onMeasurementDelete={handleMeasurementDelete}
                 onClearAll={clearAllMeasurements}
                 tools={tools}
                 clickedPoints={clickedPoints}
