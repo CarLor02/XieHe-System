@@ -3,8 +3,10 @@ import {
     calculateMeasurementValue as calcMeasurementValue
 } from "@/app/imaging/viewer/image-viewer/domain/annotation-calculation";
 import {getDescriptionForType as getDesc} from "@/app/imaging/viewer/image-viewer/domain/annotation-metadata";
+import {getInheritedPoints} from "@/app/imaging/viewer/image-viewer/domain/annotation-inheritance";
 import {getAnnotationTypeId} from "@/app/imaging/viewer/image-viewer/catalog/shared/annotation-config";
 import {
+    hasAnnotationForTool,
     hasUniqueAnnotationForTool,
     measurementMatchesTool,
 } from "@/app/imaging/viewer/image-viewer/domain/annotation-uniqueness";
@@ -122,6 +124,38 @@ export function addMeasurement(
             });
         }
 
-        return [...prev, newMeasurement];
+        // 将本次新增标注加入列表
+        const accumulated: MeasurementData[] = [...prev, newMeasurement];
+
+        // 如果新增点位已经满足其他测量工具的全部需求，则自动补出对应测量项。
+        // 例如先画 SS，再用 PI/PT 工具补 CFH 后，PI 与 PT 应同时成立。
+        for (const tool of tools) {
+            if (!tool.pointsNeeded || tool.pointsNeeded <= 0) continue;
+            if (hasAnnotationForTool(accumulated, tool)) continue;
+
+            const { points: inheritedPts, count } = getInheritedPoints(
+                tool.id,
+                accumulated
+            );
+            if (count >= tool.pointsNeeded) {
+                const autoPoints = inheritedPts.slice(0, tool.pointsNeeded);
+                const autoValue =
+                    calcMeasurementValue(tool.id, autoPoints, {
+                        standardDistance,
+                        standardDistancePoints,
+                        imageNaturalSize,
+                    }) || '0.0°';
+                const autoMeasurement: MeasurementData = {
+                    id: `${Date.now()}-auto-${tool.id}-${accumulated.length}`,
+                    type: tool.id,
+                    value: autoValue,
+                    points: autoPoints,
+                    description: getDesc(tool.id),
+                };
+                accumulated.push(autoMeasurement);
+            }
+        }
+
+        return accumulated;
     });
 }
