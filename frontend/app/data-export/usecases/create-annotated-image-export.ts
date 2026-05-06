@@ -83,19 +83,23 @@ function renderMeasurementsToSVG(
   //           导致坐标完全错误，再乘 2.5 更错。
   //   ✓ 新版：传 containerSize 给 imageToScreen，让它用虚拟视口而非 DOM。
   // ─────────────────────────────────────────────────────────────────────────
+  // ── imageScale 说明 ──────────────────────────────────────────────────────
+  // imageScale 是"用户缩放倍率"（viewer 默认 1.0 = 未缩放）。
+  // imageToScreen 已通过 displayWidth/displayHeight 处理了 fit 缩放，
+  // 所以 imageScale=1 即可让坐标在 0..VIRTUAL_VIEWPORT_WIDTH 范围内正确分布。
+  // 如果传 800/W（错误做法），坐标会被双重压缩，所有点向中心聚集。
   const VIRTUAL_VIEWPORT_WIDTH = 800; // 与典型查看器显示宽度接近
   const VIRTUAL_VIEWPORT_HEIGHT = Math.round(VIRTUAL_VIEWPORT_WIDTH * (height / width));
-  const svgScaleFactor = width / VIRTUAL_VIEWPORT_WIDTH;   // e.g. 2000/800 = 2.5
-  const renderImageScale = VIRTUAL_VIEWPORT_WIDTH / width; // e.g. 800/2000 = 0.4
+  const svgScaleFactor = width / VIRTUAL_VIEWPORT_WIDTH; // e.g. 2000/800 = 2.5
 
-  // 虚拟视口的容器尺寸——imageToScreen 用此绕开 DOM 查询
+  // 虚拟视口的容器尺寸——imageToScreen 用此绕开 DOM 查询，确保坐标正确
   const virtualContainerSize = { width: VIRTUAL_VIEWPORT_WIDTH, height: VIRTUAL_VIEWPORT_HEIGHT };
 
   // 渲染所有测量项 - 使用实际的 React 渲染器（在虚拟视口坐标系下）
   const measurementElements = measurements.map((measurement, index) => {
     return renderMeasurement({
       measurement,
-      imageScale: renderImageScale,
+      imageScale: 1, // 用户缩放倍率，1 = 默认未缩放；坐标 fit 由 containerSize 负责
       imagePosition: { x: 0, y: 0 },
       imageNaturalSize: { width, height },
       containerSize: virtualContainerSize,
