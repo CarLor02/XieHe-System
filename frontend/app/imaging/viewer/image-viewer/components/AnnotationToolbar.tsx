@@ -4,13 +4,11 @@ import { useState } from 'react';
 import BindingPanel from './BindingPanel';
 import ReportPanel from './ReportPanel';
 import { AnnotationBindings } from '../domain/annotation-binding';
+import { getAnnotationTypeId } from '../catalog/shared/annotation-config';
 import { isApAutomaticMeasurementTool } from '../catalog/ap/measurements';
 import { isAuxiliaryTool } from '../catalog/auxiliary';
 import { isLateralRestorableMeasurementTool } from '../catalog/lateral/measurements';
-import {
-  hasUniqueAnnotationForTool,
-  isUniqueAnnotationTool,
-} from '../domain/annotation-uniqueness';
+import { isUniqueAnnotationTool } from '../domain/annotation-uniqueness';
 import {
   getKeypointGroupsForExamType,
   hasKeypoint,
@@ -145,6 +143,9 @@ export default function AnnotationToolbar({
   const auxiliaryTools = tools.filter(tool => isAuxiliaryTool(tool.id));
   const keypointGroups = getKeypointGroupsForExamType(examType);
   const keypointIds = new Set(keypoints.map(keypoint => keypoint.id));
+  const measurementTypeIds = new Set(
+    measurements.map(measurement => getAnnotationTypeId(measurement.type))
+  );
   const hasAvt = measurements.some(item => item.type.toLowerCase() === 'avt');
   const hasTts = measurements.some(item => item.type.toLowerCase() === 'tts');
   const hasSacralLine =
@@ -455,10 +456,11 @@ export default function AnnotationToolbar({
                     </h4>
                     <div className="flex flex-wrap gap-2">
                       {measurementTools.map(tool => {
-                        const isUniquenessBlocked = hasUniqueAnnotationForTool(
-                          measurements,
-                          tool
-                        );
+                        const isUniquenessBlocked =
+                          isUniqueAnnotationTool(tool.id) &&
+                          measurementTypeIds.has(
+                            getAnnotationTypeId(tool.id)
+                          );
                         const isCobbTool = isAnteriorView && tool.id === 'cobb';
                         // 只有 Admin（canUseKeypointTools）才走自动恢复路径；
                         // Cobb 始终走手动放点路径，端椎在结果列表中后置填写。
@@ -552,7 +554,7 @@ export default function AnnotationToolbar({
                             disabled={!isToolAvailable}
                             className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
                               !isToolAvailable
-                                ? 'bg-gray-700/60 text-gray-500 cursor-not-allowed opacity-55'
+                                ? 'bg-gray-700/60 text-gray-500 cursor-not-allowed opacity-60'
                                 : selectedTool === tool.id || isOpen
                                   ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
                                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -576,7 +578,11 @@ export default function AnnotationToolbar({
                             >
                               <IconMapper
                                 iconId={tool.icon}
-                                className="text-lg mb-1"
+                                className={`text-lg mb-1 ${
+                                  !isToolAvailable
+                                    ? 'opacity-40 grayscale'
+                                    : ''
+                                }`}
                                 style={{
                                   lineHeight: '1',
                                   width: '1.25rem',
