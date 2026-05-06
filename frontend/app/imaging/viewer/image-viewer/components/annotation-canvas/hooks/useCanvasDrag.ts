@@ -20,6 +20,11 @@ interface UseCanvasDragOptions {
   imageNaturalSize: { width: number; height: number } | null;
   imageScale: number;
   onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
+  /**
+   * 禁止整体拖拽（type === 'whole'），只允许逐点拖拽。
+   * 侧位关键点模式下启用，防止测量层与关键点层拖分离。
+   */
+  disableWholeDrag?: boolean;
   /** 可选：测量点拖动后将新坐标写回 vertebraeLayer（Cobb/辅助图形自动跳过） */
   onMeasurementWriteback?: (
     measurementType: string,
@@ -66,6 +71,7 @@ export function useCanvasDrag({
   imageNaturalSize,
   imageScale,
   onMeasurementsUpdate,
+  disableWholeDrag,
   onMeasurementWriteback,
   imageToScreen,
   screenToImage,
@@ -185,6 +191,11 @@ export function useCanvasDrag({
       ) {
         return false;
       }
+      // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
+      // 仍允许逐点拖拽（会通过 onMeasurementWriteback 同步回关键点层）。
+      if (disableWholeDrag && selectionState.type !== 'point') {
+        return false;
+      }
 
       if (canDrag) {
         setSelectionState(previous => ({ ...previous, isDragging: true }));
@@ -212,6 +223,10 @@ export function useCanvasDrag({
         activeTypeId === 'avt' &&
         selectionState.type !== 'point'
       ) {
+        return false;
+      }
+      // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
+      if (disableWholeDrag && selectionState.type !== 'point') {
         return false;
       }
 

@@ -480,6 +480,9 @@ export default function AnnotationCanvas({
     imageNaturalSize,
     imageScale,
     onMeasurementsUpdate,
+    // 侧位关键点模式下禁止整体拖拽，防止测量层与关键点层拖分离。
+    // 用户仍可逐点拖拽，且拖拽后通过 onMeasurementWriteback 同步回关键点层。
+    disableWholeDrag: showVertebraeLayer,
     onMeasurementWriteback,
     imageToScreen,
     screenToImage,
