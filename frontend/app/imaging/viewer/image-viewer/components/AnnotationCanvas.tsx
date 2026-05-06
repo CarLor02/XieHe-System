@@ -481,8 +481,10 @@ export default function AnnotationCanvas({
     imageScale,
     onMeasurementsUpdate,
     // 侧位关键点模式下禁止整体拖拽，防止测量层与关键点层拖分离。
+    // 用 keypoints.length > 0 而非 showVertebraeLayer：检测层隐藏时关键点仍然存在，
+    // 测量数据仍由关键点派生，整体拖拽仍需禁止。
     // 用户仍可逐点拖拽，且拖拽后通过 onMeasurementWriteback 同步回关键点层。
-    disableWholeDrag: showVertebraeLayer,
+    disableWholeDrag: keypoints.length > 0,
     onMeasurementWriteback,
     imageToScreen,
     screenToImage,
