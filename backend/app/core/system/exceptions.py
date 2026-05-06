@@ -107,14 +107,23 @@ class BusinessLogicException(CustomHTTPException):
 
 
 # 异常处理器
+def _log_http(status_code: int, message: str) -> None:
+    """根据状态码选择合适的日志级别：5xx → error，4xx → warning。"""
+    if status_code >= 500:
+        logger.error(message)
+    else:
+        logger.warning(message)
+
+
 async def custom_http_exception_handler(
     request: Request, exc: CustomHTTPException
 ) -> JSONResponse:
     """自定义HTTP异常处理器"""
 
-    logger.error(
+    _log_http(
+        exc.status_code,
         f"Custom HTTP Exception: {exc.status_code} - {exc.detail} "
-        f"- Path: {request.url.path} - Method: {request.method}"
+        f"- Path: {request.url.path} - Method: {request.method}",
     )
 
     return JSONResponse(
@@ -134,9 +143,10 @@ async def http_exception_handler(
 ) -> JSONResponse:
     """标准HTTP异常处理器"""
 
-    logger.error(
+    _log_http(
+        exc.status_code,
         f"HTTP Exception: {exc.status_code} - {exc.detail} "
-        f"- Path: {request.url.path} - Method: {request.method}"
+        f"- Path: {request.url.path} - Method: {request.method}",
     )
 
     return JSONResponse(
@@ -155,7 +165,7 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     """请求验证异常处理器"""
 
-    logger.error(
+    logger.warning(
         f"Validation Exception: {exc.errors()} "
         f"- Path: {request.url.path} - Method: {request.method}"
     )
