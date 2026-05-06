@@ -19,6 +19,8 @@ interface UseCanvasDrawingToolOptions {
   setClickedPoints: (points: Point[]) => void;
   imageScale: number;
   onMeasurementAdd: (type: string, points: Point[]) => void;
+  /** 测量放置完成后回调，用于自动切换工具（如切回 hand 模式） */
+  onMeasurementComplete?: () => void;
   drawingState: DrawingState;
   setDrawingState: React.Dispatch<React.SetStateAction<DrawingState>>;
   setReferenceLines: React.Dispatch<React.SetStateAction<ReferenceLines>>;
@@ -107,6 +109,7 @@ export function useCanvasDrawingTool({
   setClickedPoints,
   imageScale,
   onMeasurementAdd,
+  onMeasurementComplete,
   drawingState,
   setDrawingState,
   setReferenceLines,
@@ -118,12 +121,21 @@ export function useCanvasDrawingTool({
     [selectedTool, tools]
   );
 
+  /** 放置测量 + 切回 hand 模式 */
+  const addMeasurement = useCallback(
+    (type: string, points: Point[]) => {
+      onMeasurementAdd(type, points);
+      onMeasurementComplete?.();
+    },
+    [onMeasurementAdd, onMeasurementComplete]
+  );
+
   const completePolygon = useCallback(() => {
     if (clickedPoints.length >= 3) {
-      onMeasurementAdd('polygon', clickedPoints);
+      addMeasurement('polygon', clickedPoints);
       setClickedPoints([]);
     }
-  }, [clickedPoints, onMeasurementAdd, setClickedPoints]);
+  }, [clickedPoints, addMeasurement, setClickedPoints]);
 
   const handleDynamicShapeMouseDown = useCallback(
     (x: number, y: number) => {
@@ -172,7 +184,7 @@ export function useCanvasDrawingTool({
         const newPoints = [...clickedPoints, imagePoint];
         setClickedPoints(newPoints);
         if (newPoints.length === 4) {
-          onMeasurementAdd('vertebra-center', newPoints);
+          addMeasurement('vertebra-center', newPoints);
           setClickedPoints([]);
         }
         return true;
@@ -182,7 +194,7 @@ export function useCanvasDrawingTool({
         const newPoints = [...clickedPoints, imagePoint];
         setClickedPoints(newPoints);
         if (newPoints.length === 2) {
-          onMeasurementAdd('aux-length', newPoints);
+          addMeasurement('aux-length', newPoints);
           setClickedPoints([]);
         }
         return true;
@@ -192,7 +204,7 @@ export function useCanvasDrawingTool({
         const newPoints = [...clickedPoints, imagePoint];
         setClickedPoints(newPoints);
         if (newPoints.length === 4) {
-          onMeasurementAdd('aux-angle', newPoints);
+          addMeasurement('aux-angle', newPoints);
           setClickedPoints([]);
         }
         return true;
@@ -211,7 +223,7 @@ export function useCanvasDrawingTool({
         if (newPoints.length === 2) {
           const currentTool = getCurrentTool();
           if (currentTool) {
-            onMeasurementAdd(currentTool.id, newPoints);
+            addMeasurement(currentTool.id, newPoints);
             setClickedPoints([]);
           }
         }
@@ -221,12 +233,12 @@ export function useCanvasDrawingTool({
       return false;
     },
     [
+      addMeasurement,
       clickedPoints,
       completePolygon,
       constrainAuxLinePoint,
       getCurrentTool,
       imageScale,
-      onMeasurementAdd,
       screenToImage,
       selectedTool,
       setClickedPoints,
@@ -265,6 +277,10 @@ export function useCanvasDrawingTool({
       if (selectedTool === 'ts' && clickedPoints.length === 1) {
         finalPoint = { x: imagePoint.x, y: clickedPoints[0].y };
       }
+      // TTS：每对点（0-1 躯干线，2-3 骶骨线）强制水平（Y 与前一点相同）
+      if (selectedTool === 'tts' && clickedPoints.length % 2 === 1) {
+        finalPoint = { x: imagePoint.x, y: clickedPoints[clickedPoints.length - 1].y };
+      }
 
       const newPoints = [...clickedPoints, finalPoint];
       setClickedPoints(newPoints);
@@ -273,7 +289,7 @@ export function useCanvasDrawingTool({
         if (newPoints.length === 1) {
           setReferenceLines(previous => ({ ...previous, t1Tilt: imagePoint }));
         } else if (newPoints.length === 2) {
-          onMeasurementAdd(currentTool.id, newPoints);
+          addMeasurement(currentTool.id, newPoints);
           setClickedPoints([]);
           setReferenceLines(previous => ({ ...previous, t1Tilt: null }));
         }
@@ -297,7 +313,7 @@ export function useCanvasDrawingTool({
             [referenceKey]: imagePoint,
           }));
         } else if (newPoints.length === 2) {
-          onMeasurementAdd(currentTool.id, newPoints);
+          addMeasurement(currentTool.id, newPoints);
           setClickedPoints([]);
           setReferenceLines(previous => ({
             ...previous,
@@ -333,7 +349,7 @@ export function useCanvasDrawingTool({
             inheritedMap,
             newPoints
           );
-          onMeasurementAdd(currentTool.id, allPoints);
+          addMeasurement(currentTool.id, allPoints);
           setClickedPoints([]);
           if (selectedTool.includes('ss')) {
             setReferenceLines(previous => ({ ...previous, ss: null }));
@@ -354,7 +370,7 @@ export function useCanvasDrawingTool({
             [referenceKey]: imagePoint,
           }));
         } else if (newPoints.length === 2) {
-          onMeasurementAdd(currentTool.id, newPoints);
+          addMeasurement(currentTool.id, newPoints);
           setClickedPoints([]);
           setReferenceLines(previous => ({
             ...previous,
@@ -369,7 +385,7 @@ export function useCanvasDrawingTool({
           getInheritedPoints('ts', measurements);
         const effectiveNeeded = 6 - inheritedCount;
         if (newPoints.length === effectiveNeeded) {
-          onMeasurementAdd(currentTool.id, [...newPoints, ...inheritedPoints]);
+          addMeasurement(currentTool.id, [...newPoints, ...inheritedPoints]);
           setClickedPoints([]);
         }
         return true;
@@ -386,17 +402,17 @@ export function useCanvasDrawingTool({
           inheritedMap,
           newPoints
         );
-        onMeasurementAdd(currentTool.id, allPoints);
+        addMeasurement(currentTool.id, allPoints);
         setClickedPoints([]);
       }
       return true;
     },
     [
+      addMeasurement,
       clickedPoints,
       getCurrentTool,
       imageScale,
       measurements,
-      onMeasurementAdd,
       screenToImage,
       selectedTool,
       setClickedPoints,
@@ -443,11 +459,11 @@ export function useCanvasDrawingTool({
     ) {
       const { startPoint, currentPoint } = drawingState;
       if (selectedTool === 'circle') {
-        onMeasurementAdd('circle', [startPoint, currentPoint]);
+        addMeasurement('circle', [startPoint, currentPoint]);
       } else if (selectedTool === 'ellipse') {
-        onMeasurementAdd('ellipse', [startPoint, currentPoint]);
+        addMeasurement('ellipse', [startPoint, currentPoint]);
       } else if (selectedTool === 'rectangle') {
-        onMeasurementAdd('rectangle', [
+        addMeasurement('rectangle', [
           {
             x: Math.min(startPoint.x, currentPoint.x),
             y: Math.min(startPoint.y, currentPoint.y),
@@ -458,7 +474,7 @@ export function useCanvasDrawingTool({
           },
         ]);
       } else if (selectedTool === 'arrow') {
-        onMeasurementAdd('arrow', [startPoint, currentPoint]);
+        addMeasurement('arrow', [startPoint, currentPoint]);
       }
     }
 
@@ -467,7 +483,7 @@ export function useCanvasDrawingTool({
       startPoint: null,
       currentPoint: null,
     });
-  }, [drawingState, onMeasurementAdd, selectedTool, setDrawingState]);
+  }, [addMeasurement, drawingState, selectedTool, setDrawingState]);
 
   return {
     handleMouseDown,

@@ -1,154 +1,201 @@
-import type { MeasurementData, Point } from '@/app/imaging/viewer/image-viewer/types';
-
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import type { MeasurementData } from '@/app/imaging/viewer/image-viewer/types';
+import renderMeasurement from '@/app/imaging/viewer/image-viewer/components/annotation-canvas/renderers/renderMeasurement';
 import type { AnnotatedImageExportFormat } from '../domain';
+
+// ── 内部工具函数 ────────────────────────────────────────────────────────────
 
 function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const image = new Image();
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('影像文件无法作为图片加载')); };
+    image.src = url;
+  });
+}
+
+/**
+ * 将 SVG 字符串转换为图片
+ */
+function loadSVGAsImage(svgString: string, width: number, height: number): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.width = width;
+    image.height = height;
     image.onload = () => {
       URL.revokeObjectURL(url);
       resolve(image);
     };
-    image.onerror = () => {
+    image.onerror = (error) => {
       URL.revokeObjectURL(url);
-      reject(new Error('影像文件无法作为图片加载'));
+      console.error('SVG 加载失败:', error);
+      reject(new Error('SVG 无法作为图片加载'));
     };
     image.src = url;
   });
 }
 
-function scalePoint(
-  point: Point,
-  scaleX: number,
-  scaleY: number
-): Point {
-  return {
-    x: point.x * scaleX,
-    y: point.y * scaleY,
+/**
+ * 使用实际的 React SVG 渲染器生成测量标注的 SVG
+ * 这个方法重用了交互式查看器中的实际渲染逻辑，确保导出图像与查看器显示完全一致
+ */
+function renderMeasurementsToSVG(
+  measurements: MeasurementData[],
+  width: number,
+  height: number
+): string {
+  // 创建一个空的选择和悬停状态（导出时不需要交互状态）
+  const selectionState = {
+    measurementId: null,
+    pointIndex: null,
+    type: null,
+    isDragging: false,
+    dragOffset: { x: 0, y: 0 },
   };
-}
+  const hoverState = {
+    measurementId: null,
+    keypointId: null,
+    pointIndex: null,
+    elementType: null,
+  };
+  const hiddenMeasurementIds = new Set<string>();
+  const pointBindings = { groups: [], syncGroups: [] };
 
-function drawArrowHead(ctx: CanvasRenderingContext2D, start: Point, end: Point) {
-  const angle = Math.atan2(end.y - start.y, end.x - start.x);
-  const size = Math.max(12, Math.min(28, ctx.canvas.width / 40));
-  ctx.beginPath();
-  ctx.moveTo(end.x, end.y);
-  ctx.lineTo(
-    end.x - size * Math.cos(angle - Math.PI / 6),
-    end.y - size * Math.sin(angle - Math.PI / 6)
-  );
-  ctx.moveTo(end.x, end.y);
-  ctx.lineTo(
-    end.x - size * Math.cos(angle + Math.PI / 6),
-    end.y - size * Math.sin(angle + Math.PI / 6)
-  );
-  ctx.stroke();
-}
+  // ── 核心思路 ──────────────────────────────────────────────────────────────
+  // renderMeasurement 内部调用 imageToScreen，后者依赖：
+  //   1. containerSize → 确定 displayWidth/displayHeight 和 center 点
+  //   2. imageScale    → 坐标缩放 + getAdaptiveFontSize（硬限 9-20px）
+  //
+  // 导出策略：使用固定"虚拟视口"（800px 宽），与典型查看器尺寸相近，
+  //   - containerSize = { width: VIRTUAL_W, height: VIRTUAL_H }（等比例）
+  //   - imageScale    = VIRTUAL_W / naturalWidth
+  //   → imageToScreen 把图像坐标映射到 0~VIRTUAL_W 范围（坐标正确）
+  //   → getAdaptiveFontSize 产生的字体在 800px 视口下自然合适
+  //   → SVG <g scale(factor)> 等比放大到实际导出分辨率
+  //   → 字体、线宽、圆圈、标签间距全部随 scale 等比放大
+  //
+  // 相比之前的错误实现，关键修正：
+  //   ✗ 旧版：传 imageScale 但 imageToScreen 仍用 DOM 真实容器（700px），
+  //           导致坐标完全错误，再乘 2.5 更错。
+  //   ✓ 新版：传 containerSize 给 imageToScreen，让它用虚拟视口而非 DOM。
+  // ─────────────────────────────────────────────────────────────────────────
+  // ── imageScale 说明 ──────────────────────────────────────────────────────
+  // imageScale 是"用户缩放倍率"（viewer 默认 1.0 = 未缩放）。
+  // imageToScreen 已通过 displayWidth/displayHeight 处理了 fit 缩放，
+  // 所以 imageScale=1 即可让坐标在 0..VIRTUAL_VIEWPORT_WIDTH 范围内正确分布。
+  // 如果传 800/W（错误做法），坐标会被双重压缩，所有点向中心聚集。
+  const VIRTUAL_VIEWPORT_WIDTH = 800; // 与典型查看器显示宽度接近
+  const VIRTUAL_VIEWPORT_HEIGHT = Math.round(VIRTUAL_VIEWPORT_WIDTH * (height / width));
+  const svgScaleFactor = width / VIRTUAL_VIEWPORT_WIDTH; // e.g. 2000/800 = 2.5
 
-function drawMeasurementShape(
-  ctx: CanvasRenderingContext2D,
-  measurement: MeasurementData,
-  points: Point[]
-) {
-  if (points.length === 0) return;
+  // 虚拟视口的容器尺寸——imageToScreen 用此绕开 DOM 查询，确保坐标正确
+  const virtualContainerSize = { width: VIRTUAL_VIEWPORT_WIDTH, height: VIRTUAL_VIEWPORT_HEIGHT };
 
-  const typeText = `${measurement.type || ''} ${measurement.originalType || ''}`.toLowerCase();
-  const isCircle = typeText.includes('circle') || typeText.includes('圆');
-  const isEllipse = typeText.includes('ellipse') || typeText.includes('椭圆');
-  const isRectangle =
-    typeText.includes('rectangle') ||
-    typeText.includes('box') ||
-    typeText.includes('矩形') ||
-    typeText.includes('框');
-  const isPolygon = typeText.includes('polygon') || typeText.includes('多边形');
-  const isArrow = typeText.includes('arrow') || typeText.includes('箭头');
-
-  ctx.beginPath();
-
-  if (isCircle && points.length >= 2) {
-    const radius = Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
-    ctx.arc(points[0].x, points[0].y, radius, 0, Math.PI * 2);
-    ctx.stroke();
-    return;
-  }
-
-  if (isEllipse && points.length >= 2) {
-    const radiusX = Math.abs(points[1].x - points[0].x);
-    const radiusY = Math.abs(points[1].y - points[0].y);
-    ctx.ellipse(points[0].x, points[0].y, radiusX, radiusY, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    return;
-  }
-
-  if (isRectangle && points.length >= 2) {
-    const x = Math.min(points[0].x, points[1].x);
-    const y = Math.min(points[0].y, points[1].y);
-    const width = Math.abs(points[1].x - points[0].x);
-    const height = Math.abs(points[1].y - points[0].y);
-    ctx.strokeRect(x, y, width, height);
-    return;
-  }
-
-  if (points.length === 1) {
-    const size = Math.max(8, Math.min(18, ctx.canvas.width / 70));
-    ctx.moveTo(points[0].x - size, points[0].y);
-    ctx.lineTo(points[0].x + size, points[0].y);
-    ctx.moveTo(points[0].x, points[0].y - size);
-    ctx.lineTo(points[0].x, points[0].y + size);
-    ctx.stroke();
-    return;
-  }
-
-  ctx.moveTo(points[0].x, points[0].y);
-  points.slice(1).forEach(point => {
-    ctx.lineTo(point.x, point.y);
+  // 渲染所有测量项 - 使用实际的 React 渲染器（在虚拟视口坐标系下）
+  const measurementElements = measurements.map((measurement, index) => {
+    return renderMeasurement({
+      measurement,
+      imageScale: 1, // 用户缩放倍率，1 = 默认未缩放；坐标 fit 由 containerSize 负责
+      imagePosition: { x: 0, y: 0 },
+      imageNaturalSize: { width, height },
+      containerSize: virtualContainerSize,
+      selectionState,
+      hoverState,
+      hideAllLabels: false,
+      hiddenMeasurementIds,
+      pointBindings,
+      selectedBindingGroupId: null,
+      isManualBindingMode: false,
+      manualBindingSelectedPoints: [],
+      allMeasurements: measurements,
+      measurementIndex: index,
+    });
   });
 
-  if (isPolygon && points.length >= 3) {
-    ctx.closePath();
-  }
-
-  ctx.stroke();
-
-  if (isArrow && points.length >= 2) {
-    drawArrowHead(ctx, points[points.length - 2], points[points.length - 1]);
-  }
-}
-
-function drawMeasurementLabel(
-  ctx: CanvasRenderingContext2D,
-  measurement: MeasurementData,
-  points: Point[],
-  color: string
-) {
-  const lastPoint = points[points.length - 1];
-  if (!lastPoint) return;
-
-  const label = measurement.value
-    ? `${measurement.type}: ${measurement.value}`
-    : measurement.type;
-  if (!label) return;
-
-  const fontSize = Math.max(14, Math.min(28, ctx.canvas.width / 55));
-  ctx.font = `${fontSize}px sans-serif`;
-  const paddingX = 8;
-  const paddingY = 5;
-  const textWidth = ctx.measureText(label).width;
-  const x = Math.min(lastPoint.x + 10, ctx.canvas.width - textWidth - paddingX * 2);
-  const y = Math.max(fontSize + paddingY, lastPoint.y - 10);
-
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.68)';
-  ctx.fillRect(
-    x - paddingX,
-    y - fontSize - paddingY,
-    textWidth + paddingX * 2,
-    fontSize + paddingY * 2
+  // 用 scale 变换把虚拟视口坐标等比放大到实际导出尺寸
+  const scaledGroup = React.createElement(
+    'g',
+    { transform: `scale(${svgScaleFactor})` },
+    measurementElements
   );
-  ctx.fillStyle = color;
-  ctx.fillText(label, x, y);
+
+  // 创建 SVG 定义（箭头标记等）
+  // 这些定义与交互式查看器中的定义相同，确保箭头等形状正确显示
+  const defs = React.createElement(
+    'defs',
+    null,
+    React.createElement(
+      'marker',
+      {
+        id: 'arrowhead-normal',
+        markerWidth: '10',
+        markerHeight: '10',
+        refX: '9',
+        refY: '3',
+        orient: 'auto',
+      },
+      React.createElement('polygon', { points: '0 0, 10 3, 0 6', fill: '#f59e0b' })
+    ),
+    React.createElement(
+      'marker',
+      {
+        id: 'arrowhead-hovered',
+        markerWidth: '10',
+        markerHeight: '10',
+        refX: '9',
+        refY: '3',
+        orient: 'auto',
+      },
+      React.createElement('polygon', { points: '0 0, 10 3, 0 6', fill: '#fbbf24' })
+    ),
+    React.createElement(
+      'marker',
+      {
+        id: 'arrowhead-selected',
+        markerWidth: '10',
+        markerHeight: '10',
+        refX: '9',
+        refY: '3',
+        orient: 'auto',
+      },
+      React.createElement('polygon', { points: '0 0, 10 3, 0 6', fill: '#ef4444' })
+    )
+  );
+
+  // 将 React 元素转换为 SVG 字符串
+  // 使用 React.createElement 而不是 JSX 以确保在 .ts 文件中工作
+  const svgElement = React.createElement(
+    'svg',
+    {
+      width,
+      height,
+      viewBox: `0 0 ${width} ${height}`,
+      xmlns: 'http://www.w3.org/2000/svg',
+    },
+    // scaledGroup 把虚拟视口坐标系下的标注等比放大到实际导出尺寸
+    [defs, scaledGroup]
+  );
+
+  return renderToStaticMarkup(svgElement);
 }
 
+/**
+ * 创建带有标注的导出图像
+ *
+ * 该函数使用与交互式查看器相同的 React SVG 渲染逻辑来绘制测量标注，
+ * 确保导出的图像与用户在查看器中看到的完全一致。
+ *
+ * 工作流程：
+ * 1. 加载 DICOM 图像到 canvas
+ * 2. 使用实际的 React 渲染器将测量标注渲染为 SVG
+ * 3. 将 SVG 转换为图像
+ * 4. 将 SVG 图像叠加到 DICOM 图像之上
+ * 5. 导出最终的复合图像
+ */
 export async function createAnnotatedImageBlob({
   imageBlob,
   measurements,
@@ -160,6 +207,7 @@ export async function createAnnotatedImageBlob({
   annotationSize?: { width?: number; height?: number };
   format: AnnotatedImageExportFormat;
 }): Promise<Blob> {
+  // 加载 DICOM 图像
   const image = await loadImageFromBlob(imageBlob);
   const canvas = document.createElement('canvas');
   canvas.width = image.naturalWidth || image.width;
@@ -170,45 +218,43 @@ export async function createAnnotatedImageBlob({
     throw new Error('无法创建绘图上下文');
   }
 
+  // 绘制基础图像
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
+  // 计算坐标缩放（如果标注是在不同分辨率下创建的）
   const sourceWidth = annotationSize?.width || canvas.width;
   const sourceHeight = annotationSize?.height || canvas.height;
   const scaleX = canvas.width / sourceWidth;
   const scaleY = canvas.height / sourceHeight;
-  const colors = ['#facc15', '#38bdf8', '#fb7185', '#34d399', '#a78bfa', '#f97316'];
 
-  measurements.forEach((measurement, index) => {
-    const color = colors[index % colors.length];
-    const points = (measurement.points || []).map(point => scalePoint(point, scaleX, scaleY));
+  // 如果需要缩放，调整测量点坐标
+  const scaledMeasurements: MeasurementData[] = measurements.map(measurement => ({
+    ...measurement,
+    points: (measurement.points || []).map(point => ({
+      x: point.x * scaleX,
+      y: point.y * scaleY,
+    })),
+  }));
 
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = Math.max(2, Math.min(6, canvas.width / 420));
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+  // 使用实际的 React SVG 渲染器生成标注 SVG
+  // 这确保了导出的图像使用与交互式查看器相同的渲染逻辑和颜色
+  const svgString = renderMeasurementsToSVG(
+    scaledMeasurements,
+    canvas.width,
+    canvas.height
+  );
 
-    drawMeasurementShape(ctx, measurement, points);
+  // 将 SVG 转换为图像并叠加到画布上
+  try {
+    const svgImage = await loadSVGAsImage(svgString, canvas.width, canvas.height);
+    ctx.drawImage(svgImage, 0, 0);
+  } catch (error) {
+    console.error('SVG 渲染失败:', error);
+    console.log('SVG 内容:', svgString.substring(0, 500)); // 输出前500字符用于调试
+    throw error;
+  }
 
-    const pointRadius = Math.max(4, Math.min(10, canvas.width / 160));
-    points.forEach((point, pointIndex) => {
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, pointRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      ctx.fillStyle = color;
-      ctx.font = `${Math.max(12, Math.min(22, canvas.width / 70))}px sans-serif`;
-      ctx.fillText(String(pointIndex + 1), point.x + pointRadius + 3, point.y - pointRadius - 3);
-    });
-
-    drawMeasurementLabel(ctx, measurement, points, color);
-    ctx.restore();
-  });
-
+  // 导出最终图像
   const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
   return new Promise((resolve, reject) => {
     canvas.toBlob(

@@ -421,9 +421,15 @@ function deriveAnterior(
       : null;
 
   if (csvlX !== null) {
-    if (frontal.has('C7')) {
-      const c7c = frontal.get('C7')!.center;
-      out.push(makeMeasurement('TS', [c7c, { x: csvlX, y: c7c.y }]));
+    if (frontal.has('T1') && pose.has('SR') && pose.has('SL')) {
+      // 6点格式与手动 TS 一致：[tl, tr, bl, br, sacralR, sacralL]
+      // renderC7Offset 会绘制 T1 锥体框（4角连线）+ 骶骨参考线，检测层隐藏时也能正常渲染。
+      const t1 = frontal.get('T1')!;
+      const sr = pose.get('SR')!;
+      const sl = pose.get('SL')!;
+      out.push(makeMeasurement('TS', [
+        t1.topLeft, t1.topRight, t1.bottomLeft, t1.bottomRight, sr, sl,
+      ]));
     }
   }
 

@@ -24,6 +24,7 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
   pointsNeeded: 2,
   category: 'measurement',
   color: '#8b5cf6',
+  maxXRightLabel: true,
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 2) return [];
@@ -39,12 +40,10 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
-    return {
-      x: (points[0].x + points[1].x) / 2,
-      y: (points[0].y + points[1].y) / 2 - 20,
-    };
+    const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
+    return { x: rightPoint.x, y: rightPoint.y };
   },
 
   isInHoverRange: (

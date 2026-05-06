@@ -84,12 +84,40 @@ export function isRightSideLabelType(type: string): boolean {
 }
 
 /**
+ * 判断该测量是否使用正面图右侧标签模式（maxXRightLabel）。
+ * 为 true 时，渲染层用屏幕坐标系的 max(screenPoints.x) + textWidth/2 + gap 定位文字，
+ * 而不是使用 getLabelPosition 的 X 值。Y 值仍来自 getLabelPosition。
+ */
+export function isMaxXRightLabelType(type: string): boolean {
+  const config = getAnnotationConfig(type);
+  return config?.maxXRightLabel ?? false;
+}
+
+/**
  * 判断该测量标签位置是否固定（不参与智能避让）。
  * 为 true 时，渲染层跳过 calculateSmartLabelPosition，直接使用 getLabelPosition 的返回值。
  */
 export function isFixedLabelPositionType(type: string): boolean {
   const config = getAnnotationConfig(type);
   return config?.fixedLabelPosition ?? false;
+}
+
+/**
+ * 返回该测量类型参与交互（显示圆圈、响应拖拽）的前 N 个点数。
+ * undefined 表示所有点均可交互；0 表示无交互圆圈（仅整体选中）。
+ */
+export function getInteractivePointsCount(type: string): number | undefined {
+  const config = getAnnotationConfig(type);
+  return config?.interactivePointsCount;
+}
+
+/**
+ * 返回 maxXRightLabel 模式下的标签间距（屏幕像素）。
+ * 优先使用 AnnotationConfig.apLabelGapX；未设置时返回默认值 8。
+ */
+export function getApLabelGapX(type: string, defaultGap = 8): number {
+  const config = getAnnotationConfig(type);
+  return config?.apLabelGapX ?? defaultGap;
 }
 
 /**

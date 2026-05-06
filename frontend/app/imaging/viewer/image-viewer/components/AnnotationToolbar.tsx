@@ -144,8 +144,7 @@ export default function AnnotationToolbar({
   );
   const [cobbUpperVertebra, setCobbUpperVertebra] = useState('');
   const [cobbLowerVertebra, setCobbLowerVertebra] = useState('');
-  const [ttsUpperVertebra, setTtsUpperVertebra] = useState('');
-  const [ttsLowerVertebra, setTtsLowerVertebra] = useState('');
+
 
   const measurementTools = tools.filter(tool => !isAuxiliaryTool(tool.id));
   const auxiliaryTools = tools.filter(tool => isAuxiliaryTool(tool.id));
@@ -167,17 +166,6 @@ export default function AnnotationToolbar({
     hasSacralLine &&
     completeVertebraGroups.length >= 2;
   const canCreateCobb = isAnteriorView && completeVertebraGroups.length >= 2;
-  const hasAvailableVertebraCenter = completeVertebraGroups.some(
-    group =>
-      !measurements.some(
-        item => item.type === 'vertebra-center' && item.upperVertebra === group
-      )
-  );
-  const vertebraCenterStatus: ToolStatus = hasAvailableVertebraCenter
-    ? 'available'
-    : completeVertebraGroups.length > 0
-      ? 'exists'
-      : 'missing-keypoints';
   const avtStatus: ToolStatus = canCreateAvt
     ? 'available'
     : hasAvt
@@ -477,58 +465,68 @@ export default function AnnotationToolbar({
                           measurements,
                           tool
                         );
-                        const isCobbTool = isAnteriorView && tool.id === 'cobb';
+                        // 正位 Cobb：Admin 走椎体组选择面板；普通用户走手动 4 点放点。
+                        const isCobbTool =
+                          canUseKeypointTools &&
+                          isAnteriorView &&
+                          tool.id === 'cobb';
+                        // 只有 Admin（canUseKeypointTools）才走自动恢复路径；
+                        // 普通用户始终走手动放点路径。
                         const isAutomaticTool =
+                          canUseKeypointTools &&
                           !isCobbTool &&
                           (isApAutomaticMeasurementTool(tool.id) ||
                             isLateralRestorableMeasurementTool(tool.id));
+                        // AVT：Admin 走选择面板（需要骶骨线关键点）；普通用户退化为普通放点工具。
+                        // TTS：所有用户均走直接放点路径（画水平线，骶骨参考继承自 CSS/SL/SR），不走椎体选择面板。
                         const isSelectionTool =
-                          tool.id === 'vertebra-center' ||
                           isCobbTool ||
-                          (isAnteriorView &&
-                            (tool.id === 'avt' || tool.id === 'tts'));
+                          (canUseKeypointTools &&
+                            isAnteriorView &&
+                            tool.id === 'avt');
                         const isOpen = openMeasurementTool === tool.id;
                         const automaticStatus =
                           automaticToolStatus[tool.id] ?? 'missing-keypoints';
                         const missingKeypoints = getMissingKeypointsForTool(
                           tool.id
                         );
+                        // 仅当 AI 推导数据确实可恢复时才走自动路径；
+                        // missing-keypoints 时回退为手动放点（管理员可像普通用户补充标注）。
+                        // exists 状态（测量已存在）保持禁用，用户应直接拖拽现有端点调整。
+                        const isEffectivelyAutomaticTool =
+                          isAutomaticTool && automaticStatus === 'available';
+                        // 管理员手动放点回退模式：仅在无 AI 数据时生效
+                        const isInManualFallbackMode =
+                          isAutomaticTool && automaticStatus === 'missing-keypoints';
                         const selectionStatus =
-                          tool.id === 'vertebra-center'
-                            ? vertebraCenterStatus
-                            : isCobbTool
-                              ? canCreateCobb
-                                ? 'available'
-                                : 'missing-keypoints'
-                              : tool.id === 'avt'
-                                ? avtStatus
-                                : tool.id === 'tts'
-                                  ? ttsStatus
-                                  : 'available';
+                          isCobbTool
+                            ? canCreateCobb
+                              ? 'available'
+                              : 'missing-keypoints'
+                            : tool.id === 'avt'
+                              ? avtStatus
+                              : 'available';
                         const unavailableStatus = isSelectionTool
                           ? selectionStatus
                           : isUniquenessBlocked
                             ? 'exists'
                             : 'missing-keypoints';
-                        const isToolAvailable = isAutomaticTool
-                          ? automaticStatus === 'available'
-                          : isCobbTool
-                            ? canCreateCobb
-                            : tool.id === 'vertebra-center'
-                              ? hasAvailableVertebraCenter
+                        // 管理员手动回退模式：始终可用（允许重新放置或补充放置）
+                        const isToolAvailable = isEffectivelyAutomaticTool
+                          ? true
+                          : isInManualFallbackMode
+                            ? true
+                            : isCobbTool
+                              ? canCreateCobb
+                              // AVT：Admin 须满足骶骨线条件；普通用户直接放点，但已存在时同样禁用
                               : tool.id === 'avt'
-                                ? canCreateAvt
-                                : tool.id === 'tts'
-                                  ? canCreateTts
-                                  : !isUniquenessBlocked;
-                        const toolTitle = isAutomaticTool
-                          ? isToolAvailable
-                            ? `${tool.name} 可恢复，点击自动生成`
-                            : getUnavailableTitle(
-                                tool.name,
-                                automaticStatus,
-                                missingKeypoints
-                              )
+                                ? (canUseKeypointTools ? canCreateAvt : !isUniquenessBlocked)
+                                // 所有其他工具（含 TTS）：已存在时禁用
+                                : !isUniquenessBlocked;
+                        const toolTitle = isEffectivelyAutomaticTool
+                          ? `${tool.name} 可恢复，点击自动生成`
+                          : isInManualFallbackMode
+                            ? tool.description
                           : !isToolAvailable &&
                               (isUniqueAnnotationTool(tool.id) ||
                                 isSelectionTool)
@@ -548,7 +546,8 @@ export default function AnnotationToolbar({
                             key={tool.id}
                             onClick={() => {
                               if (!isToolAvailable) return;
-                              if (isAutomaticTool) {
+                              // 仅在 AI 数据真正可恢复时走自动路径；否则像普通用户一样手动放点
+                              if (isEffectivelyAutomaticTool) {
                                 setOpenMeasurementTool(null);
                                 onRestoreAutomaticMeasurement(tool.id);
                                 return;
@@ -603,6 +602,12 @@ export default function AnnotationToolbar({
                               </span>
                             </div>
                             {renderAvailabilityBadge(isToolAvailable)}
+                            {/* 放点数量下标 */}
+                            {tool.pointsNeeded != null && tool.pointsNeeded > 0 && (
+                              <div className="absolute -bottom-1 -left-1 bg-gray-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                                {tool.pointsNeeded}
+                              </div>
+                            )}
                             {(selectedTool === tool.id || isOpen) &&
                               isToolAvailable && (
                                 <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
@@ -776,89 +781,7 @@ export default function AnnotationToolbar({
                       </div>
                     )}
 
-                    {openMeasurementTool === 'tts' && (
-                      <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(28rem,calc(100vh-14rem))] overflow-y-auto">
-                        <div className="text-xs text-gray-300 mb-2">TTS</div>
-                        <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
-                          <div>
-                            <div className="text-[11px] text-gray-500 mb-1">
-                              上端椎
-                            </div>
-                            {completeVertebraGroups.length > 0 ? (
-                              <div className="grid grid-cols-4 gap-2">
-                                {completeVertebraGroups.map(group => (
-                                  <button
-                                    key={group}
-                                    type="button"
-                                    onClick={() => setTtsUpperVertebra(group)}
-                                    disabled={!canCreateTts}
-                                    className={`h-8 rounded text-xs ${
-                                      !canCreateTts
-                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                        : ttsUpperVertebra === group
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-gray-800 text-white hover:bg-gray-700'
-                                    }`}
-                                  >
-                                    {group}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-500">
-                                暂无完整椎体关键点
-                              </span>
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-[11px] text-gray-500 mb-1">
-                              下端椎
-                            </div>
-                            {completeVertebraGroups.length > 0 ? (
-                              <div className="grid grid-cols-4 gap-2">
-                                {completeVertebraGroups.map(group => (
-                                  <button
-                                    key={group}
-                                    type="button"
-                                    onClick={() => setTtsLowerVertebra(group)}
-                                    disabled={!canCreateTts}
-                                    className={`h-8 rounded text-xs ${
-                                      !canCreateTts
-                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                        : ttsLowerVertebra === group
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-gray-800 text-white hover:bg-gray-700'
-                                    }`}
-                                  >
-                                    {group}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-500">
-                                暂无完整椎体关键点
-                              </span>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onCreateTts(ttsUpperVertebra, ttsLowerVertebra);
-                              setOpenMeasurementTool(null);
-                            }}
-                            disabled={
-                              !canCreateTts ||
-                              !ttsUpperVertebra ||
-                              !ttsLowerVertebra ||
-                              ttsUpperVertebra === ttsLowerVertebra
-                            }
-                            className="w-full h-8 rounded bg-blue-600 text-white text-xs disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed hover:bg-blue-700"
-                          >
-                            创建 TTS
-                          </button>
-                        </div>
-                      </div>
-                    )}
+
                   </div>
                 )}
 

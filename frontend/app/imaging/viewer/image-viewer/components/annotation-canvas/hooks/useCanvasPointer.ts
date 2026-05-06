@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { isDirectlyEditableAnnotation } from '../../../domain/annotation-editability';
 import { INTERACTION_CONSTANTS } from '../../../shared/constants';
+import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 import { calculateDistance } from '../../../shared/geometry';
 import { MeasurementData, Point } from '../../../types';
 import { hitTestMeasurement } from '../hitTest/hitTestMeasurement';
@@ -67,11 +67,6 @@ interface UseCanvasPointerOptions {
     pointIndex: number
   ) => void;
   onDisplayMeasurementSelect: (measurementId: string | null) => void;
-  onMeasurementPointDragStart: (
-    measurementId: string,
-    pointIndex: number,
-    screenPoint: Point
-  ) => boolean;
   onCanvasClick: () => void;
   onContextMenu: (event: React.MouseEvent) => void;
   setImagePosition: React.Dispatch<React.SetStateAction<Point>>;
@@ -117,7 +112,6 @@ export function useCanvasPointer({
   drawingTool,
   onManualBindingPointToggle,
   onDisplayMeasurementSelect,
-  onMeasurementPointDragStart,
   onCanvasClick,
   onContextMenu,
   setImagePosition,
@@ -199,11 +193,8 @@ export function useCanvasPointer({
           measurement => measurement.id === selectionHit.measurementId
         );
         if (selectedMeasurement) {
-          const isDirectlyEditable = isDirectlyEditableAnnotation(
-            selectedMeasurement.type
-          );
-
-          if (selectionHit.kind === 'point' && isDirectlyEditable) {
+          if (selectionHit.kind === 'point') {
+            // 所有测量（包括医学测量）均支持直接点拖拽
             onDisplayMeasurementSelect(null);
             const point = selectedMeasurement.points[selectionHit.pointIndex];
             setSelectionState({
@@ -217,40 +208,16 @@ export function useCanvasPointer({
               },
             });
           } else {
-            if (!isDirectlyEditable) {
-              if (
-                selectionHit.kind === 'point' &&
-                onMeasurementPointDragStart(
-                  selectedMeasurement.id,
-                  selectionHit.pointIndex,
-                  screenPoint
-                )
-              ) {
-                onDisplayMeasurementSelect(selectedMeasurement.id);
-                setSelectionState({
-                  measurementId: selectedMeasurement.id,
-                  pointIndex: null,
-                  type: null,
-                  isDragging: false,
-                  dragOffset: { x: 0, y: 0 },
-                });
-                return true;
-              }
-
-              onDisplayMeasurementSelect(selectedMeasurement.id);
-              setSelectionState({
-                measurementId: selectedMeasurement.id,
-                pointIndex: null,
-                type: null,
-                isDragging: false,
-                dragOffset: { x: 0, y: 0 },
-              });
-              return true;
-            }
-
+            // 点击测量体（非点区域）：整体拖拽
             onDisplayMeasurementSelect(null);
-            const xs = selectedMeasurement.points.map(point => point.x);
-            const ys = selectedMeasurement.points.map(point => point.y);
+            // TTS: 只移动躯干线（点0-1），dragOffset 用躯干线中心（与移动时保持一致，避免跳变）
+            const selectedTypeId = getAnnotationTypeId(selectedMeasurement.type);
+            const pointsForCenter =
+              selectedTypeId === 'tts' && selectedMeasurement.points.length >= 2
+                ? selectedMeasurement.points.slice(0, 2)
+                : selectedMeasurement.points;
+            const xs = pointsForCenter.map(point => point.x);
+            const ys = pointsForCenter.map(point => point.y);
             const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
             const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
             setSelectionState({
@@ -323,8 +290,14 @@ export function useCanvasPointer({
               imageToScreen
             );
             if (isPointInSelectionBox(screenPoint, box)) {
-              const xs = measurement.points.map(point => point.x);
-              const ys = measurement.points.map(point => point.y);
+              // TTS: 只移动躯干线，dragOffset 用躯干线中心
+              const wholeTypeId = getAnnotationTypeId(measurement.type);
+              const pointsForCenter =
+                wholeTypeId === 'tts' && measurement.points.length >= 2
+                  ? measurement.points.slice(0, 2)
+                  : measurement.points;
+              const xs = pointsForCenter.map(point => point.x);
+              const ys = pointsForCenter.map(point => point.y);
               const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
               const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
               setSelectionState(previous => ({
@@ -353,7 +326,6 @@ export function useCanvasPointer({
       imageToScreen,
       measurements,
       onDisplayMeasurementSelect,
-      onMeasurementPointDragStart,
       screenToImage,
       selectionState.measurementId,
       selectionState.pointIndex,

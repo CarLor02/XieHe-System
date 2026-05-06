@@ -37,7 +37,6 @@ export const AP_AUTOMATIC_MEASUREMENT_TOOL_IDS = [
 ] as const;
 
 export const AP_SELECTION_MEASUREMENT_TOOL_IDS = [
-  'vertebra-center',
   'avt',
   'tts',
 ] as const;
@@ -52,7 +51,6 @@ const AP_MEASUREMENT_TOOL_IDS = [
   'tts',
   'lld',
   'ts',
-  'vertebra-center',
 ] as const;
 
 export const AP_MEASUREMENT_CONFIGS = {

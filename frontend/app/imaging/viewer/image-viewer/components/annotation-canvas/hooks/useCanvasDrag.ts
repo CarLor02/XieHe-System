@@ -2,7 +2,6 @@ import {
   applyPointBindings,
   AnnotationBindings,
 } from '../../../domain/annotation-binding';
-import { isDirectlyEditableAnnotation } from '../../../domain/annotation-editability';
 import { calculateMeasurementValue } from '../../../domain/annotation-calculation';
 import { getAnnotationTypeId } from '../../../catalog/shared/annotation-config';
 import { MeasurementData, Point } from '../../../types';
@@ -21,6 +20,18 @@ interface UseCanvasDragOptions {
   imageNaturalSize: { width: number; height: number } | null;
   imageScale: number;
   onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
+  /**
+   * 禁止整体拖拽（type === 'whole'），只允许逐点拖拽。
+   * 侧位关键点模式下启用，防止测量层与关键点层拖分离。
+   */
+  disableWholeDrag?: boolean;
+  /** 可选：测量点拖动后将新坐标写回 vertebraeLayer（Cobb/辅助图形自动跳过） */
+  onMeasurementWriteback?: (
+    measurementType: string,
+    pointIndex: number,
+    newPoint: Point,
+    measurementId?: string
+  ) => void;
   imageToScreen: (point: Point) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
   referenceLines: {
@@ -60,6 +71,8 @@ export function useCanvasDrag({
   imageNaturalSize,
   imageScale,
   onMeasurementsUpdate,
+  disableWholeDrag,
+  onMeasurementWriteback,
   imageToScreen,
   screenToImage,
   referenceLines,
@@ -84,10 +97,6 @@ export function useCanvasDrag({
           item => item.id === selectionState.measurementId
         );
         if (measurement && measurement.points.length > 0) {
-          if (!isDirectlyEditableAnnotation(measurement.type)) {
-            return false;
-          }
-
           const typeId = getAnnotationTypeId(measurement.type);
           let minX: number;
           let maxX: number;
@@ -175,7 +184,16 @@ export function useCanvasDrag({
       const selectedTypeId = selectedMeasurement
         ? getAnnotationTypeId(selectedMeasurement.type)
         : null;
-      if (selectedTypeId === 'tts' || selectedTypeId === 'avt') {
+      // AVT 不允许整体拖拽，但允许逐点拖拽（selectionState.type === 'point'）
+      if (
+        selectedTypeId === 'avt' &&
+        selectionState.type !== 'point'
+      ) {
+        return false;
+      }
+      // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
+      // 仍允许逐点拖拽（会通过 onMeasurementWriteback 同步回关键点层）。
+      if (disableWholeDrag && selectionState.type !== 'point') {
         return false;
       }
 
@@ -200,10 +218,15 @@ export function useCanvasDrag({
         return false;
       }
       const activeTypeId = getAnnotationTypeId(measurement.type);
-      if (activeTypeId === 'tts' || activeTypeId === 'avt') {
+      // AVT 整体拖拽禁止；TTS 允许整体拖拽（只移动躯干线，见下方）；逐点拖拽正常通过
+      if (
+        activeTypeId === 'avt' &&
+        selectionState.type !== 'point'
+      ) {
         return false;
       }
-      if (!isDirectlyEditableAnnotation(measurement.type)) {
+      // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
+      if (disableWholeDrag && selectionState.type !== 'point') {
         return false;
       }
 
@@ -296,6 +319,17 @@ export function useCanvasDrag({
         });
 
         onMeasurementsUpdate(updatedMeasurements);
+
+        // 将被拖拽的测量点同步写回 vertebraeLayer（Cobb 及辅助图形无映射，自动跳过）
+        if (onMeasurementWriteback && selectionState.pointIndex !== null) {
+          onMeasurementWriteback(
+            measurement.type,
+            selectionState.pointIndex,
+            { x: newPointX, y: newPointY },
+            measurement.id
+          );
+        }
+
         return true;
       }
 
@@ -303,18 +337,25 @@ export function useCanvasDrag({
         return false;
       }
 
-      const xs = measurement.points.map(point => point.x);
-      const ys = measurement.points.map(point => point.y);
+      // TTS 整体拖拽：只移动躯干线（点0-1），骶骨参考线（点2-3，继承自CSS）保持不动。
+      // 中心也只用躯干线两点，否则 dragOffset 与移动中心不一致会导致抖动。
+      const isTtsDrag = activeTypeId === 'tts';
+      const centerPoints = isTtsDrag
+        ? measurement.points.slice(0, 2)
+        : measurement.points;
+      const xs = centerPoints.map(point => point.x);
+      const ys = centerPoints.map(point => point.y);
       const currentCenterX = (Math.min(...xs) + Math.max(...xs)) / 2;
       const currentCenterY = (Math.min(...ys) + Math.max(...ys)) / 2;
       const newCenterX = imagePoint.x - selectionState.dragOffset.x;
       const newCenterY = imagePoint.y - selectionState.dragOffset.y;
       const deltaX = newCenterX - currentCenterX;
       const deltaY = newCenterY - currentCenterY;
-      const movedPoints = measurement.points.map(point => ({
-        x: point.x + deltaX,
-        y: point.y + deltaY,
-      }));
+      const movedPoints = measurement.points.map((point, idx) => {
+        // TTS: 只移动躯干线（索引0、1），骶骨线（索引2、3）固定
+        if (isTtsDrag && idx >= 2) return point;
+        return { x: point.x + deltaX, y: point.y + deltaY };
+      });
 
       let bindingPropagated = measurements;
       for (

@@ -24,6 +24,7 @@ export const TTS_CONFIG: AnnotationConfig = {
   pointsNeeded: 4,
   category: 'measurement',
   color: '#84cc16',
+  maxXRightLabel: true,
 
   calculateResults: (points: Point[], context: CalculationContext) => {
     if (points.length < 4) return [];
@@ -50,18 +51,19 @@ export const TTS_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     const trunkMidX = (points[0].x + points[1].x) / 2;
     const trunkMidY = (points[0].y + points[1].y) / 2;
     const sacralMidX = (points[2].x + points[3].x) / 2;
     const sacralMidY = (points[2].y + points[3].y) / 2;
-    // 标签放在测量区域右上方，避免遮挡线段
-    const maxX = Math.max(points[0].x, points[1].x, points[2].x, points[3].x);
-    const topY = Math.min(trunkMidY, sacralMidY);
+    // maxXRightLabel=true：渲染层用 labelPosition.x（屏幕坐标）做锚点，
+    // 文字左缘 = screen(X) + gap + textWidth/2。
+    // 此处 X 只需返回连接箭头右端（两条线中点的较大 X），
+    // 而不是躯干线最右端点（会让标签跑到图像最右边）。
     return {
-      x: maxX + LABEL_OFFSET.RIGHT / imageScale,
-      y: topY - LABEL_OFFSET.TOP / imageScale,
+      x: Math.max(trunkMidX, sacralMidX),
+      y: (trunkMidY + sacralMidY) / 2,
     };
   },
 

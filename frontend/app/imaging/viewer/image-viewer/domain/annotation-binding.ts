@@ -54,6 +54,7 @@ export const S1_BINDING_POINT_MAP: Record<
   pi: { left: 1, right: 2 },  // PI：points[1],points[2] = S1上缘左右端点
   pt: { left: 1, right: 2 },  // PT：points[1],points[2] = S1上缘左右端点
   tpa: { left: 5, right: 6 },  // TPA：points[5],points[6] = S1上缘左右端点
+  sva: { left: null, right: 4 },  // SVA：points[4] = 骶椎后缘参考点 = S1上缘右端点（后缘）
 };
 
 // ==================== 工厂函数 ====================

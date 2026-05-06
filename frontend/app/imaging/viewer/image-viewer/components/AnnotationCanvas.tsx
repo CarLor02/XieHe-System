@@ -97,6 +97,7 @@ export default function AnnotationCanvas({
   onVertebraePreviewUpdate,
   onKeypointAdd,
   onKeypointDelete,
+  onMeasurementWriteback,
 }: {
   selectedImage: Pick<ImageData, 'examType'>;
   measurements: MeasurementData[];
@@ -142,6 +143,13 @@ export default function AnnotationCanvas({
   onVertebraePreviewUpdate?: (updated: VertebraAnnotation[]) => void;
   onKeypointAdd?: (keypointId: string, point: Point) => void;
   onKeypointDelete?: (keypointId: string) => void;
+  /** 测量点拖动后写回 vertebraeLayer（所有用户都可用） */
+  onMeasurementWriteback?: (
+    measurementType: string,
+    pointIndex: number,
+    newPoint: Point,
+    measurementId?: string
+  ) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const {
@@ -472,6 +480,12 @@ export default function AnnotationCanvas({
     imageNaturalSize,
     imageScale,
     onMeasurementsUpdate,
+    // 侧位关键点模式下禁止整体拖拽，防止测量层与关键点层拖分离。
+    // 用 keypoints.length > 0 而非 showVertebraeLayer：检测层隐藏时关键点仍然存在，
+    // 测量数据仍由关键点派生，整体拖拽仍需禁止。
+    // 用户仍可逐点拖拽，且拖拽后通过 onMeasurementWriteback 同步回关键点层。
+    disableWholeDrag: keypoints.length > 0,
+    onMeasurementWriteback,
     imageToScreen,
     screenToImage,
     referenceLines,
@@ -485,6 +499,7 @@ export default function AnnotationCanvas({
     setClickedPoints,
     imageScale,
     onMeasurementAdd,
+    onMeasurementComplete: () => setSelectedTool('hand'),
     drawingState,
     setDrawingState,
     setReferenceLines,
@@ -608,7 +623,6 @@ export default function AnnotationCanvas({
     drawingTool,
     onManualBindingPointToggle,
     onDisplayMeasurementSelect: selectMeasurementKeypoints,
-    onMeasurementPointDragStart: handleMeasurementPointDragStart,
     onCanvasClick,
     onContextMenu: handleContextMenu,
     setImagePosition,

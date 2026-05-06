@@ -21,7 +21,10 @@ import {
   usesInlineAuxiliaryTag,
   calculateSmartLabelPosition,
   isRightSideLabelType,
+  isMaxXRightLabelType,
   isFixedLabelPositionType,
+  getInteractivePointsCount,
+  getApLabelGapX,
 } from '../../../domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '../../../canvas/tools/tool-state';
 import { imageToScreen } from '../../../canvas/transform/coordinate-transform';
@@ -37,6 +40,8 @@ interface RenderMeasurementProps {
   imageScale: number;
   imagePosition: { x: number; y: number };
   imageNaturalSize: { width: number; height: number } | null;
+  /** 可选：覆盖容器尺寸，绕开 DOM 查询（用于导出场景） */
+  containerSize?: { width: number; height: number };
   selectionState: SelectionState;
   hoverState: HoverState;
   hideAllLabels: boolean;
@@ -428,6 +433,7 @@ export default function renderMeasurement({
   imageScale,
   imagePosition,
   imageNaturalSize,
+  containerSize,
   selectionState,
   hoverState,
   hideAllLabels,
@@ -443,6 +449,7 @@ export default function renderMeasurement({
     imageNaturalSize,
     imagePosition,
     imageScale,
+    containerSize,
   };
   const screenPoints = measurement.points.map(point => imageToScreen(point, context));
   const displayName = getAnnotationDisplayName(measurement.type);
@@ -511,21 +518,37 @@ export default function renderMeasurement({
   const textWidth = estimateTextWidth(textContent, fontSize, 0);
   const textHeight = estimateTextHeight(fontSize, 0);
 
-  // 右侧标签：在屏幕坐标系中直接对齐第1个点，完全绕开图像坐标偏移的 fitScale 损耗。
-  // 原因：imageToScreen 公式中存在 displayWidth/naturalWidth 因子（fitScale），
-  //        导致图像坐标中的偏移转换到屏幕后远小于预期（如46px图像偏移→14屏幕px）。
+  // 右侧标签：在屏幕坐标系中直接定位，完全绕开图像坐标偏移的 fitScale 损耗。
+  // fitScale = displayWidth/naturalWidth，导致图像坐标偏移转换到屏幕后远小于预期。
   const isRightSideLabel = isRightSideLabelType(measurement.type);
-  // 右侧标签：文字左缘从第1个点（screenPoints[0]）右侧 5px 开始，使用 textAnchor="start"
+  const isMaxXRightLabel = isMaxXRightLabelType(measurement.type);
+  // rightSideLabel（侧面）：文字左缘从第1个点右侧 20px 开始，textAnchor="start"
   const firstPointScreenX = screenPoints.length > 0 ? screenPoints[0].x : labelPosition.x;
-  const textLabelX = isRightSideLabel ? firstPointScreenX + 20 : labelPosition.x;
+  // maxXRightLabel（正面 AP）：锚点 = imageToScreen(getLabelPosition.x)（已在屏幕空间）。
+  // getLabelPosition 只返回测量右端点的图像坐标，不加任何偏移，由此处统一加固定屏幕间距。
+  // 效果：文字左缘始终在锚点右侧 AP_LABEL_GAP px，与缩放比例无关（类比侧面 rightSideLabel + 20px）。
+  // 默认间距 8px；各测量可通过 AnnotationConfig.apLabelGapX 覆盖
+  const AP_LABEL_GAP = isMaxXRightLabel ? getApLabelGapX(measurement.type) : 8;
+  const textLabelX = isRightSideLabel
+    ? firstPointScreenX + 20
+    : isMaxXRightLabel
+      ? labelPosition.x + AP_LABEL_GAP + textWidth / 2
+      : labelPosition.x;
   const textLabelAnchor = isRightSideLabel ? 'start' : 'middle';
+
+  // interactivePointsCount: 前 N 个点显示交互圆圈；undefined = 全部；0 = 全不显示
+  const interactiveCount = getInteractivePointsCount(measurement.type);
+  const interactivePoints =
+    interactiveCount === undefined
+      ? screenPoints
+      : screenPoints.slice(0, interactiveCount);
 
   return (
     <g key={measurement.id}>
       {(!isAuxiliaryShape ||
         usesAuxiliaryValueTag ||
         specialShapeNode) &&
-        screenPoints.map((point, pointIndex) =>
+        interactivePoints.map((point, pointIndex) =>
           renderIndexedPoint({
             measurement,
             point,

@@ -52,6 +52,7 @@ import {
   vertebraeLayerToKeypoints,
 } from './domain/keypoint-state';
 import { canUseKeypointTools } from './domain/viewer-permissions';
+import { applyMeasurementPointToVertebrae } from './domain/measurement-keypoint-writeback';
 import { AP_AUTOMATIC_MEASUREMENT_TOOL_IDS } from './catalog/ap/measurements';
 import { LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS } from './catalog/lateral/measurements';
 // import ReactMarkdown from 'react-markdown';
@@ -214,6 +215,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   });
   /** DB annotation 已成功加载时置 true，防止 localStorage 后续覆盖 */
   const dbAnnotationLoadedRef = useRef(false);
+  /** 侧位静默检测缓存：图像加载后提前异步填充，用户画 SS 时取出推导 S1 复合指标 */
+  const lateralDetectionResultRef = useRef<{
+    vertebrae: VertebraAnnotation[];
+    cfh: CfhAnnotation | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!selectedBindingGroupId) return;
@@ -311,6 +317,45 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         : vertebraeLayer,
     [isKeypointExam, keypoints, vertebraeLayer]
   );
+
+  /**
+   * 图像加载完成后，对普通用户的侧位图像提前静默运行椎体检测，
+   * 缓存结果供用户画 SS 时立即推导 S1 复合指标（PI/PT/LL/TPA/SVA）。
+   * 用 imageId + imageNaturalSize 触发，切换图像时重置旧缓存。
+   */
+  useEffect(() => {
+    if (!isLateralView || canUseKeypoints || !imageNaturalSize) return;
+    lateralDetectionResultRef.current = null;
+
+    void (async () => {
+      try {
+        const imgEl = document.querySelector(
+          '[data-image-canvas] img'
+        ) as HTMLImageElement | null;
+        if (!imgEl) return;
+
+        const blob = await new Promise<Blob | null>(resolve => {
+          const canvas = document.createElement('canvas');
+          canvas.width = imgEl.naturalWidth;
+          canvas.height = imgEl.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(null); return; }
+          ctx.drawImage(imgEl, 0, 0);
+          canvas.toBlob(b => resolve(b));
+        });
+        if (!blob) return;
+
+        const detectResult = await usecases.detectLateralVertebrae(blob);
+        if (!detectResult || detectResult.vertebrae.length === 0) return;
+
+        lateralDetectionResultRef.current = detectResult;
+        console.log('[lateralDetection] 预检测完成，椎体数量:', detectResult.vertebrae.length);
+      } catch (e) {
+        console.warn('[lateralDetection] 预检测失败，SS 绑定推导将不可用:', e);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageId, isLateralView, canUseKeypoints, imageNaturalSize?.width, imageNaturalSize?.height]);
 
   useEffect(() => {
     if (!isKeypointExam) return;
@@ -467,12 +512,10 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     const apex = findDerivedVertebra(layer, apexVertebra);
     if (!apex) return null;
 
-    const apexCenter = {
-      x: apex.corners.reduce((sum, point) => sum + point.x, 0) / 4,
-      y: apex.corners.reduce((sum, point) => sum + point.y, 0) / 4,
-    };
-    const midlineX = (sl.point.x + sr.point.x) / 2;
-    const points = [apexCenter, { x: midlineX, y: apexCenter.y }];
+    // 6点格式 [tl, tr, bl, br, SR, SL]：与 TS 格式一致，renderC7Offset 会绘制顶锥框
+    // 检测层隐藏时也能正常显示锥体框，不依赖 VertebraeLayer 可见性。
+    const [tl, tr, bl, br] = apex.corners;
+    const points = [tl, tr, bl, br, sr.point, sl.point];
 
     return {
       id: 'ap-keypoint-avt',
@@ -651,6 +694,31 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
   const handleAddMeasurement = useCallback(
     (toolType: string, points: Point[]) => {
+      const typeId = getAnnotationTypeId(toolType);
+
+      // ── 管理员侧位画 SS：直接写入 S1-1/S1-2 关键点 ──────────────────────────
+      // deriveLateral 会从 S1-1/S1-2 自动派生 SS 及所有 S1 复合指标（PI/PT/LL/TPA/SVA）。
+      // 不走 addMeasurement，避免手动 id 的 SS 与派生 SS 共存造成重复。
+      if (canUseKeypoints && isLateralView && typeId === 'ss') {
+        const s1P0 = points[0] ?? { x: 0, y: 0 };
+        const s1P1 = points[1] ?? { x: 0, y: 0 };
+        let nextKeypoints = upsertKeypoint(keypoints, {
+          id: 'S1-1', point: s1P0, source: 'manual', confidence: 1,
+        });
+        nextKeypoints = upsertKeypoint(nextKeypoints, {
+          id: 'S1-2', point: s1P1, source: 'manual', confidence: 1,
+        });
+        setKeypoints(nextKeypoints);
+        setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+        setMeasurements(previous =>
+          rebuildKeypointMeasurements(previous, nextKeypoints)
+        );
+        return;
+      }
+
+      // 侧位管理员也允许手动覆盖（像普通用户一样重新标注）；SS 所有用户始终允许替换。
+      const allowReplace = !canUseKeypoints || isLateralView;
       usecases.addMeasurement(
         toolType,
         points,
@@ -659,12 +727,103 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         tools,
         standardDistance,
         standardDistancePoints,
-        imageNaturalSize
+        imageNaturalSize,
+        allowReplace
       );
+
+      // 侧位管理员手动放点后，将各端点坐标同步写回 vertebraeLayer / keypoints，
+      // 保持关键点状态与手动测量一致。SS 由下方专用逻辑处理，此处跳过。
+      if (canUseKeypoints && isLateralView && typeId !== 'ss') {
+        let currentLayer = activeVertebraeLayer;
+        let currentCfh = cfhAnnotation;
+        for (let i = 0; i < points.length; i++) {
+          const result = applyMeasurementPointToVertebrae(
+            currentLayer,
+            currentCfh,
+            toolType,
+            i,
+            points[i]
+          );
+          currentLayer = result.vertebraeLayer;
+          currentCfh = result.cfhAnnotation;
+        }
+        if (currentLayer !== activeVertebraeLayer) {
+          setVertebraeLayer(currentLayer);
+          if (isKeypointExam) {
+            setKeypoints(vertebraeLayerToKeypoints(currentLayer, imageData.examType));
+          }
+        }
+        if (currentCfh !== cfhAnnotation) {
+          setCfhAnnotation(currentCfh);
+        }
+      }
+
+      // 侧位普通用户画完 SS 后，立即推导所有 S1 复合指标（管理员已在上方 early-return 处理）
+      if (isLateralView && typeId === 'ss') {
+        const s1P0 = points[0] ?? { x: 0, y: 0 };
+        const s1P1 = points[1] ?? { x: 0, y: 0 };
+
+        // 普通用户：从预检测缓存取数据
+        const detection = lateralDetectionResultRef.current;
+        if (!detection || detection.vertebrae.length === 0) return;
+        const baseVertebrae = detection.vertebrae.filter(
+          v => v.label !== 'S1' && v.label !== 'S1-1' && v.label !== 'S1-2'
+        );
+        const cfh = detection.cfh;
+
+        const vertebraeWithUserS1: VertebraAnnotation[] = [
+          ...baseVertebrae,
+          { label: 'S1-1', corners: [s1P0, s1P0, s1P0, s1P0], confidence: 1, source: 'manual' },
+          { label: 'S1-2', corners: [s1P1, s1P1, s1P1, s1P1], confidence: 1, source: 'manual' },
+        ];
+
+        const allDerived = deriveAllMeasurements(
+          vertebraeWithUserS1,
+          cfh,
+          imageData.examType
+        );
+
+        // 仅保留 S1 复合指标（排除 SS，已由 addMeasurement 写入）
+        const S1_COMPOUND_TYPES = new Set(['ll-l1-s1', 'll-l4-s1', 'tpa', 'pi', 'pt', 'sva']);
+        const ctx = { standardDistance, standardDistancePoints, imageNaturalSize };
+        const s1Measurements = allDerived
+          .filter(m => S1_COMPOUND_TYPES.has(getAnnotationTypeId(m.type)))
+          .map(m => ({
+            ...m,
+            id: `${Date.now()}-s1-derived-${m.type.toLowerCase().replace(/\s+/g, '-')}`,
+            value: calcMeasurementValue(m.type, m.points, ctx) || '',
+          }));
+
+        if (s1Measurements.length === 0) return;
+
+        setMeasurements(prev => {
+          let updated = [...prev];
+          for (const m of s1Measurements) {
+            const mTypeId = getAnnotationTypeId(m.type);
+            const existIdx = updated.findIndex(
+              e => getAnnotationTypeId(e.type) === mTypeId
+            );
+            if (existIdx >= 0) {
+              updated[existIdx] = m;
+            } else {
+              updated = [...updated, m];
+            }
+          }
+          return updated;
+        });
+      }
     },
     [
+      activeVertebraeLayer,
+      canUseKeypoints,
+      cfhAnnotation,
+      imageData.examType,
       imageNaturalSize,
+      isKeypointExam,
+      isLateralView,
+      keypoints,
       measurements,
+      rebuildKeypointMeasurements,
       standardDistance,
       standardDistancePoints,
       tools,
@@ -1324,9 +1483,11 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 getAnnotationConfig(incomingTypeId);
 
               if (!tool || tool.category !== 'measurement') return false;
+              // S1 相关指标（SS/PI/PT/SVA/TPA/LL L1-S1/LL L4-S1）由后端用 L5 近似计算，
+              // 并非真实 S1 骶骨数据，不直接加载；用户手动画 SS 后由绑定系统精确推导。
               if (isLateralView && S1_RELATED_TYPES.has(tool.id)) return false;
 
-              // SVA 改为 5 点法：AI 返回的 SVA 非 5 点时直接过滤，不显示
+              // SVA 改为 5 点法：AI 返回的 SVA 非 5 点时直接过滤，不显示（兜底）
               if (tool.id === 'sva') {
                 return Array.isArray(m.points) && m.points.length === 5;
               }
@@ -1444,6 +1605,70 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             setSaveMessage,
             setIsAIDetecting
           );
+        } else if (isLateralView) {
+          // 普通用户侧位：补全 deriveLateral 的非 S1 测量（如 T10-L2），确保与管理员一致。
+          // 优先复用图像加载时已预检测的缓存结果，避免重复发起网络请求。
+          void (async () => {
+            try {
+              // 优先使用预检测缓存；若尚未完成（极端竞态），则重新发起一次检测
+              let detectResult = lateralDetectionResultRef.current;
+              if (!detectResult) {
+                const imgEl = document.querySelector(
+                  '[data-image-canvas] img'
+                ) as HTMLImageElement | null;
+                if (!imgEl) return;
+
+                const blob = await new Promise<Blob | null>(resolve => {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = imgEl.naturalWidth;
+                  canvas.height = imgEl.naturalHeight;
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx) { resolve(null); return; }
+                  ctx.drawImage(imgEl, 0, 0);
+                  canvas.toBlob(b => resolve(b));
+                });
+                if (!blob) return;
+
+                detectResult = await usecases.detectLateralVertebrae(blob);
+                if (!detectResult || detectResult.vertebrae.length === 0) return;
+                // 同时更新缓存，供用户画 SS 时使用
+                lateralDetectionResultRef.current = detectResult;
+              }
+
+              const derived = deriveAllMeasurements(
+                detectResult.vertebrae,
+                detectResult.cfh,
+                imageData.examType
+              );
+
+              // 仅补全非 S1 相关的推导测量；S1 相关测量由用户手动画 SS 后通过绑定系统填充
+              const derivedNonS1WithValues = derived
+                .filter(m => !S1_RELATED_TYPES.has(getAnnotationTypeId(m.type)))
+                .map(m => ({
+                  ...m,
+                  value: calculateMeasurementValue(m.type, m.points),
+                }));
+
+              if (derivedNonS1WithValues.length === 0) return;
+
+              setMeasurements(prev => {
+                const existingTypeIds = new Set(
+                  prev.map(m => getAnnotationTypeId(m.type))
+                );
+                const missing = derivedNonS1WithValues.filter(
+                  d => !existingTypeIds.has(getAnnotationTypeId(d.type))
+                );
+                if (missing.length === 0) return prev;
+                console.log(
+                  `[handleAIMeasurement] 侧位推导补全 ${missing.length} 个测量:`,
+                  missing.map(m => m.type)
+                );
+                return [...prev, ...missing];
+              });
+            } catch (e) {
+              console.warn('[handleAIMeasurement] 侧位推导补全失败，跳过:', e);
+            }
+          })();
         }
       } else {
         setSaveMessage('AI测量完成，但未返回有效数据');
@@ -1509,6 +1734,43 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
       );
     },
     [imageData.examType, isKeypointExam, rebuildKeypointMeasurements]
+  );
+
+  /**
+   * 测量点拖拽写回：将被移动的测量点同步到 vertebraeLayer 对应角点。
+   * 对所有用户（含非Admin）均生效；非Admin 看不见 VertebraeLayer，
+   * 但数据保持一致，Admin 后续打开时关键点层已反映用户的调整。
+   * Cobb 和辅助图形在映射表中无条目，自动跳过。
+   */
+  const handleMeasurementWriteback = useCallback(
+    (measurementType: string, pointIndex: number, newPoint: Point, measurementId?: string) => {
+      // 对于动态椎体测量（如 AVT），需要从当前 measurement 中读取 apexVertebra
+      const sourceMeasurement = measurementId
+        ? measurements.find(m => m.id === measurementId)
+        : null;
+      const dynamicVertebraLabel = sourceMeasurement?.apexVertebra ?? undefined;
+
+      const { vertebraeLayer: nextLayer, cfhAnnotation: nextCfh } =
+        applyMeasurementPointToVertebrae(
+          activeVertebraeLayer,
+          cfhAnnotation,
+          measurementType,
+          pointIndex,
+          newPoint,
+          dynamicVertebraLabel
+        );
+      // 仅在有实际变化时更新，避免不必要重渲染
+      if (nextLayer !== activeVertebraeLayer) {
+        setVertebraeLayer(nextLayer);
+        if (isKeypointExam) {
+          setKeypoints(vertebraeLayerToKeypoints(nextLayer, imageData.examType));
+        }
+      }
+      if (nextCfh !== cfhAnnotation) {
+        setCfhAnnotation(nextCfh);
+      }
+    },
+    [activeVertebraeLayer, cfhAnnotation, imageData.examType, isKeypointExam, measurements]
   );
 
   const handleSaveMeasurements = useCallback(() => {
@@ -1649,6 +1911,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 }
                 onKeypointAdd={handleKeypointAdd}
                 onKeypointDelete={handleKeypointDelete}
+                onMeasurementWriteback={handleMeasurementWriteback}
               />
             </div>
           </div>

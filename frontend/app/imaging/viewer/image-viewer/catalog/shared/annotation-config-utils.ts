@@ -66,11 +66,33 @@ export interface AnnotationConfig {
    */
   rightSideLabel?: boolean;
   /**
+   * 正面图（AP）右侧标签模式：使用所有点的最大屏幕 X 坐标 + 实际文字半宽来定位。
+   * 为 true 时，渲染层在屏幕坐标系中计算：
+   *   textX = max(screenPoints.x) + textWidth/2 + gap
+   * 这样文字左缘恰好从最右侧点往右 gap 像素处开始，完全由渲染时的实际文字宽度决定，
+   * 不依赖 getLabelPosition 中任何固定偏移常量，也不受 fitScale 影响。
+   * getLabelPosition 的 X 值用于碰撞避让估算；Y 值用于实际渲染的 Y 坐标。
+   */
+  maxXRightLabel?: boolean;
+  /**
+   * maxXRightLabel 模式下，文字左缘距锚点右侧的额外屏幕像素间距（覆盖默认的 8px）。
+   * 适用于需要将标签推离较宽图形（如 TS 的 T1 锥体框）的情况。
+   */
+  apLabelGapX?: number;
+  /**
    * 标签是否固定在 getLabelPosition 返回的位置，不参与智能避让。
    * 为 true 时，渲染层会跳过 calculateSmartLabelPosition，把标签直接放在返回的坐标处。
    * 适用于需要精确定位的骨盆测量（PI、PT），避免标签被推离弧线位置。
    */
   fixedLabelPosition?: boolean;
+
+  /**
+   * 前 N 个点参与交互（显示圆圈、响应命中测试/拖拽）；超出的点仅用于 renderSpecialElements 渲染，
+   * 不显示交互圆圈，也不参与命中测试。
+   * 未设置时默认所有点均可交互。
+   * 设置为 0 时，所有点均不显示圆圈（测量整体仍可通过 isInHoverRange 选中）。
+   */
+  interactivePointsCount?: number;
 
   // 计算函数
   calculateResults: (
