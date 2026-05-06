@@ -83,9 +83,15 @@ export default function MeasurementResultsPanel({
     string | null
   >(null);
   const [editingValue, setEditingValue] = useState('');
+  const [editingCobbEndpoint, setEditingCobbEndpoint] = useState<{
+    measurementId: string;
+    field: 'upperVertebra' | 'lowerVertebra';
+  } | null>(null);
+  const [editingCobbEndpointValue, setEditingCobbEndpointValue] = useState('');
 
   useEffect(() => {
     setEditingAuxiliaryName(null);
+    setEditingCobbEndpoint(null);
   }, [measurements.length]);
 
   const startEditingAuxiliaryName = (
@@ -93,6 +99,7 @@ export default function MeasurementResultsPanel({
     currentValue: string
   ) => {
     if (!onMeasurementUpdate) return;
+    setEditingCobbEndpoint(null);
     setEditingAuxiliaryName(measurementId);
     setEditingValue(currentValue);
   };
@@ -107,6 +114,32 @@ export default function MeasurementResultsPanel({
       onMeasurementUpdate(editingAuxiliaryName, { description: trimmed });
     }
     setEditingAuxiliaryName(null);
+  };
+
+  const startEditingCobbEndpoint = (
+    measurementId: string,
+    field: 'upperVertebra' | 'lowerVertebra',
+    currentValue: string
+  ) => {
+    if (!onMeasurementUpdate) return;
+    setEditingAuxiliaryName(null);
+    setEditingCobbEndpoint({ measurementId, field });
+    setEditingCobbEndpointValue(currentValue);
+  };
+
+  const commitCobbEndpointEdit = () => {
+    if (!editingCobbEndpoint || !onMeasurementUpdate) {
+      setEditingCobbEndpoint(null);
+      return;
+    }
+
+    const trimmed = editingCobbEndpointValue.trim();
+    if (trimmed.length > 0) {
+      onMeasurementUpdate(editingCobbEndpoint.measurementId, {
+        [editingCobbEndpoint.field]: trimmed,
+      });
+    }
+    setEditingCobbEndpoint(null);
   };
 
   const getMeasurementDisplayName = (measurement: MeasurementData): string => {
@@ -139,6 +172,139 @@ export default function MeasurementResultsPanel({
     }
 
     return baseDisplayName;
+  };
+
+  const renderCobbEndpointEditor = (
+    measurement: MeasurementData,
+    field: 'upperVertebra' | 'lowerVertebra',
+    value: string
+  ) => {
+    const isEditing =
+      editingCobbEndpoint?.measurementId === measurement.id &&
+      editingCobbEndpoint.field === field;
+
+    if (isEditing) {
+      return (
+        <input
+          autoFocus
+          value={editingCobbEndpointValue}
+          onChange={event => setEditingCobbEndpointValue(event.target.value)}
+          onBlur={commitCobbEndpointEdit}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commitCobbEndpointEdit();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              setEditingCobbEndpoint(null);
+            }
+          }}
+          onClick={event => event.stopPropagation()}
+          className="mx-0.5 w-10 rounded border border-blue-300/60 bg-black/60 px-1 text-center font-mono text-blue-100 outline-none focus:border-blue-200"
+        />
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={event => {
+          event.stopPropagation();
+          startEditingCobbEndpoint(measurement.id, field, value);
+        }}
+        className="mx-0.5 font-mono text-blue-300 underline decoration-blue-300 underline-offset-2 hover:text-blue-100 hover:decoration-blue-100"
+        title={`点击修改${field === 'upperVertebra' ? '上端椎' : '下端椎'}`}
+      >
+        {value}
+      </button>
+    );
+  };
+
+  const renderMeasurementName = (
+    measurement: MeasurementData,
+    displayName: string,
+    isSelected: boolean,
+    isHovered: boolean,
+    isEditableAuxiliary: boolean,
+    isEditingThisAuxName: boolean
+  ) => {
+    if (
+      /^cobb/i.test(measurement.type) &&
+      measurement.upperVertebra &&
+      measurement.lowerVertebra
+    ) {
+      return (
+        <span
+          className={`mr-2 flex min-w-0 items-center whitespace-nowrap font-medium ${
+            isSelected ? 'text-white' : isHovered ? 'text-yellow-300' : 'text-white/90'
+          }`}
+        >
+          Cobb(
+          {renderCobbEndpointEditor(
+            measurement,
+            'upperVertebra',
+            measurement.upperVertebra
+          )}
+          -
+          {renderCobbEndpointEditor(
+            measurement,
+            'lowerVertebra',
+            measurement.lowerVertebra
+          )}
+          )
+        </span>
+      );
+    }
+
+    if (isEditingThisAuxName) {
+      return (
+        <input
+          autoFocus
+          value={editingValue}
+          onChange={event => setEditingValue(event.target.value)}
+          onBlur={commitAuxiliaryNameEdit}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commitAuxiliaryNameEdit();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              setEditingAuxiliaryName(null);
+            }
+          }}
+          onClick={event => event.stopPropagation()}
+          className="flex-1 mr-2 min-w-0 bg-black/40 border border-white/40 rounded px-1 text-white outline-none focus:border-yellow-300"
+        />
+      );
+    }
+
+    if (isEditableAuxiliary && onMeasurementUpdate) {
+      return (
+        <button
+          type="button"
+          onClick={event => {
+            event.stopPropagation();
+            startEditingAuxiliaryName(measurement.id, displayName);
+          }}
+          title="点击编辑文字"
+          className={`truncate mr-2 font-medium text-left hover:text-yellow-300 hover:underline underline-offset-2 ${
+            isSelected ? 'text-white' : isHovered ? 'text-yellow-300' : 'text-white/90'
+          }`}
+        >
+          {displayName}
+        </button>
+      );
+    }
+
+    return (
+      <span
+        className={`truncate mr-2 font-medium ${
+          isSelected ? 'text-white' : isHovered ? 'text-yellow-300' : 'text-white/90'
+        }`}
+      >
+        {displayName}
+      </span>
+    );
   };
 
   const sortedMeasurements = [...measurements].sort((left, right) => {
@@ -351,59 +517,13 @@ export default function MeasurementResultsPanel({
                               : undefined
                           }
                         >
-                          {isEditingThisAuxName ? (
-                            <input
-                              autoFocus
-                              value={editingValue}
-                              onChange={event =>
-                                setEditingValue(event.target.value)
-                              }
-                              onBlur={commitAuxiliaryNameEdit}
-                              onKeyDown={event => {
-                                if (event.key === 'Enter') {
-                                  event.preventDefault();
-                                  commitAuxiliaryNameEdit();
-                                } else if (event.key === 'Escape') {
-                                  event.preventDefault();
-                                  setEditingAuxiliaryName(null);
-                                }
-                              }}
-                              onClick={event => event.stopPropagation()}
-                              className="flex-1 mr-2 min-w-0 bg-black/40 border border-white/40 rounded px-1 text-white outline-none focus:border-yellow-300"
-                            />
-                          ) : isEditableAuxiliary && onMeasurementUpdate ? (
-                            <button
-                              type="button"
-                              onClick={event => {
-                                event.stopPropagation();
-                                startEditingAuxiliaryName(
-                                  measurement.id,
-                                  displayName
-                                );
-                              }}
-                              title="点击编辑文字"
-                              className={`truncate mr-2 font-medium text-left hover:text-yellow-300 hover:underline underline-offset-2 ${
-                                isSelected
-                                  ? 'text-white'
-                                  : isHovered
-                                    ? 'text-yellow-300'
-                                    : 'text-white/90'
-                              }`}
-                            >
-                              {displayName}
-                            </button>
-                          ) : (
-                            <span
-                              className={`truncate mr-2 font-medium ${
-                                isSelected
-                                  ? 'text-white'
-                                  : isHovered
-                                    ? 'text-yellow-300'
-                                    : 'text-white/90'
-                              }`}
-                            >
-                              {displayName}
-                            </span>
+                          {renderMeasurementName(
+                            measurement,
+                            displayName,
+                            isSelected,
+                            isHovered,
+                            isEditableAuxiliary,
+                            isEditingThisAuxName
                           )}
                           <span
                             className={`font-mono whitespace-nowrap ${
