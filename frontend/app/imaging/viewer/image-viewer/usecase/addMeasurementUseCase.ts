@@ -3,10 +3,8 @@ import {
     calculateMeasurementValue as calcMeasurementValue
 } from "@/app/imaging/viewer/image-viewer/domain/annotation-calculation";
 import {getDescriptionForType as getDesc} from "@/app/imaging/viewer/image-viewer/domain/annotation-metadata";
-import {getInheritedPoints} from "@/app/imaging/viewer/image-viewer/domain/annotation-inheritance";
 import {getAnnotationTypeId} from "@/app/imaging/viewer/image-viewer/catalog/shared/annotation-config";
 import {
-    hasAnnotationForTool,
     hasUniqueAnnotationForTool,
     measurementMatchesTool,
 } from "@/app/imaging/viewer/image-viewer/domain/annotation-uniqueness";
@@ -124,40 +122,6 @@ export function addMeasurement(
             });
         }
 
-        // 将本次新增标注加入列表
-        const accumulated: MeasurementData[] = [...prev, newMeasurement];
-
-        // 检查是否有其他工具的全部点位均可由继承/共享获得，若是则自动创建对应标注
-        for (const tool of tools) {
-            if (!tool.pointsNeeded || tool.pointsNeeded <= 0) continue;
-            // 已存在该类型的标注则跳过；唯一性工具同时兼容显示名与历史别名。
-            if (hasAnnotationForTool(accumulated, tool)) continue;
-
-            const { points: inheritedPts, count } = getInheritedPoints(
-                tool.id,
-                accumulated
-            );
-            if (count >= tool.pointsNeeded) {
-                // 所有点位均可由已有标注推导出，自动创建
-                const autoPoints = inheritedPts.slice(0, tool.pointsNeeded);
-                const autoValue =
-                    calcMeasurementValue(tool.id, autoPoints, {
-                        standardDistance,
-                        standardDistancePoints,
-                        imageNaturalSize,
-                    }) || '0.0°';
-                const autoMeasurement: MeasurementData = {
-                    id: `${Date.now()}-auto-${tool.id}-${accumulated.length}`,
-                    type: tool.id,
-                    value: autoValue,
-                    points: autoPoints,
-                    description: getDesc(tool.id),
-                };
-                // 立即追加到 accumulated，以便后续工具可以从本次自动创建的标注中继续推导
-                accumulated.push(autoMeasurement);
-            }
-        }
-
-        return accumulated;
+        return [...prev, newMeasurement];
     });
 }

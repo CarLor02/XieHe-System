@@ -243,7 +243,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
   });
   /** DB annotation 已成功加载时置 true，防止 localStorage 后续覆盖 */
   const dbAnnotationLoadedRef = useRef(false);
-  /** 侧位静默检测缓存：图像加载后提前异步填充，用户画 SS 时取出推导 S1 复合指标 */
+  /** 侧位静默检测缓存：普通用户 AI 测量时用于补全非 S1 推导测量 */
   const lateralDetectionResultRef = useRef<{
     vertebrae: VertebraAnnotation[];
     cfh: CfhAnnotation | null;
@@ -348,7 +348,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
   /**
    * 图像加载完成后，对普通用户的侧位图像提前静默运行椎体检测，
-   * 缓存结果供用户画 SS 时立即推导 S1 复合指标（PI/PT/LL/TPA/SVA）。
+   * 缓存结果供普通用户 AI 测量补全非 S1 推导测量。
    * 用 imageId + imageNaturalSize 触发，切换图像时重置旧缓存。
    */
   useEffect(() => {
@@ -786,60 +786,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
         }
       }
 
-      // 侧位普通用户画完 SS 后，立即推导所有 S1 复合指标（管理员已在上方 early-return 处理）
-      if (isLateralView && typeId === 'ss') {
-        const s1P0 = points[0] ?? { x: 0, y: 0 };
-        const s1P1 = points[1] ?? { x: 0, y: 0 };
-
-        // 普通用户：从预检测缓存取数据
-        const detection = lateralDetectionResultRef.current;
-        if (!detection || detection.vertebrae.length === 0) return;
-        const baseVertebrae = detection.vertebrae.filter(
-          v => v.label !== 'S1' && v.label !== 'S1-1' && v.label !== 'S1-2'
-        );
-        const cfh = detection.cfh;
-
-        const vertebraeWithUserS1: VertebraAnnotation[] = [
-          ...baseVertebrae,
-          { label: 'S1-1', corners: [s1P0, s1P0, s1P0, s1P0], confidence: 1, source: 'manual' },
-          { label: 'S1-2', corners: [s1P1, s1P1, s1P1, s1P1], confidence: 1, source: 'manual' },
-        ];
-
-        const allDerived = deriveAllMeasurements(
-          vertebraeWithUserS1,
-          cfh,
-          imageData.examType
-        );
-
-        // 仅保留 S1 复合指标（排除 SS，已由 addMeasurement 写入）
-        const S1_COMPOUND_TYPES = new Set(['ll-l1-s1', 'll-l4-s1', 'tpa', 'pi', 'pt', 'sva']);
-        const ctx = { standardDistance, standardDistancePoints, imageNaturalSize };
-        const s1Measurements = allDerived
-          .filter(m => S1_COMPOUND_TYPES.has(getAnnotationTypeId(m.type)))
-          .map(m => ({
-            ...m,
-            id: `${Date.now()}-s1-derived-${m.type.toLowerCase().replace(/\s+/g, '-')}`,
-            value: calcMeasurementValue(m.type, m.points, ctx) || '',
-          }));
-
-        if (s1Measurements.length === 0) return;
-
-        setMeasurements(prev => {
-          let updated = [...prev];
-          for (const m of s1Measurements) {
-            const mTypeId = getAnnotationTypeId(m.type);
-            const existIdx = updated.findIndex(
-              e => getAnnotationTypeId(e.type) === mTypeId
-            );
-            if (existIdx >= 0) {
-              updated[existIdx] = m;
-            } else {
-              updated = [...updated, m];
-            }
-          }
-          return updated;
-        });
-      }
     },
     [
       activeVertebraeLayer,
@@ -1727,7 +1673,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
 
                 detectResult = await usecases.detectLateralVertebrae(blob);
                 if (!detectResult || detectResult.vertebrae.length === 0) return;
-                // 同时更新缓存，供用户画 SS 时使用
+                // 同时更新缓存，供后续普通用户 AI 测量复用
                 lateralDetectionResultRef.current = detectResult;
               }
 
@@ -1737,7 +1683,7 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
                 imageData.examType
               );
 
-              // 仅补全非 S1 相关的推导测量；S1 相关测量由用户手动画 SS 后通过绑定系统填充
+              // 仅补全非 S1 相关的推导测量；S1 相关测量保持由用户逐项手动创建
               const derivedNonS1WithValues = derived
                 .filter(m => !S1_RELATED_TYPES.has(getAnnotationTypeId(m.type)))
                 .map(m => ({
