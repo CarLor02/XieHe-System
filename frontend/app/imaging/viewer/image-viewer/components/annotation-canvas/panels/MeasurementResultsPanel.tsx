@@ -134,11 +134,9 @@ export default function MeasurementResultsPanel({
     }
 
     const trimmed = editingCobbEndpointValue.trim();
-    if (trimmed.length > 0) {
-      onMeasurementUpdate(editingCobbEndpoint.measurementId, {
-        [editingCobbEndpoint.field]: trimmed,
-      });
-    }
+    onMeasurementUpdate(editingCobbEndpoint.measurementId, {
+      [editingCobbEndpoint.field]: trimmed.length > 0 ? trimmed : null,
+    });
     setEditingCobbEndpoint(null);
   };
 
@@ -151,12 +149,10 @@ export default function MeasurementResultsPanel({
         ? getAuxiliaryTagText(measurement)
         : getDisplayName(measurement.type);
 
-    if (
-      /^cobb/i.test(measurement.type) &&
-      measurement.upperVertebra &&
-      measurement.lowerVertebra
-    ) {
-      return `Cobb(${measurement.upperVertebra}-${measurement.lowerVertebra})`;
+    if (/^cobb/i.test(measurement.type)) {
+      const upper = measurement.upperVertebra?.trim() || '上端椎待定';
+      const lower = measurement.lowerVertebra?.trim() || '下端椎待定';
+      return `Cobb(${upper}-${lower})`;
     }
 
     if (
@@ -177,17 +173,21 @@ export default function MeasurementResultsPanel({
   const renderCobbEndpointEditor = (
     measurement: MeasurementData,
     field: 'upperVertebra' | 'lowerVertebra',
-    value: string
+    value: string | null | undefined,
+    placeholder: string
   ) => {
     const isEditing =
       editingCobbEndpoint?.measurementId === measurement.id &&
       editingCobbEndpoint.field === field;
+    const actualValue = value?.trim() ?? '';
+    const displayValue = actualValue || placeholder;
 
     if (isEditing) {
       return (
         <input
           autoFocus
           value={editingCobbEndpointValue}
+          placeholder={placeholder}
           onChange={event => setEditingCobbEndpointValue(event.target.value)}
           onBlur={commitCobbEndpointEdit}
           onKeyDown={event => {
@@ -200,7 +200,7 @@ export default function MeasurementResultsPanel({
             }
           }}
           onClick={event => event.stopPropagation()}
-          className="mx-0.5 w-10 rounded border border-blue-300/60 bg-black/60 px-1 text-center font-mono text-blue-100 outline-none focus:border-blue-200"
+          className="mx-0.5 w-20 rounded border border-blue-300/60 bg-black/60 px-1 text-center font-mono text-blue-100 outline-none focus:border-blue-200"
         />
       );
     }
@@ -210,12 +210,12 @@ export default function MeasurementResultsPanel({
         type="button"
         onClick={event => {
           event.stopPropagation();
-          startEditingCobbEndpoint(measurement.id, field, value);
+          startEditingCobbEndpoint(measurement.id, field, actualValue);
         }}
         className="mx-0.5 font-mono text-blue-300 underline decoration-blue-300 underline-offset-2 hover:text-blue-100 hover:decoration-blue-100"
         title={`点击修改${field === 'upperVertebra' ? '上端椎' : '下端椎'}`}
       >
-        {value}
+        {displayValue}
       </button>
     );
   };
@@ -228,28 +228,30 @@ export default function MeasurementResultsPanel({
     isEditableAuxiliary: boolean,
     isEditingThisAuxName: boolean
   ) => {
-    if (
-      /^cobb/i.test(measurement.type) &&
-      measurement.upperVertebra &&
-      measurement.lowerVertebra
-    ) {
+    if (/^cobb/i.test(measurement.type)) {
       return (
         <span
           className={`mr-2 flex min-w-0 items-center whitespace-nowrap font-medium ${
-            isSelected ? 'text-white' : isHovered ? 'text-yellow-300' : 'text-white/90'
+            isSelected
+              ? 'text-white'
+              : isHovered
+                ? 'text-yellow-300'
+                : 'text-white/90'
           }`}
         >
           Cobb(
           {renderCobbEndpointEditor(
             measurement,
             'upperVertebra',
-            measurement.upperVertebra
+            measurement.upperVertebra,
+            '上端椎待定'
           )}
           -
           {renderCobbEndpointEditor(
             measurement,
             'lowerVertebra',
-            measurement.lowerVertebra
+            measurement.lowerVertebra,
+            '下端椎待定'
           )}
           )
         </span>
@@ -288,7 +290,11 @@ export default function MeasurementResultsPanel({
           }}
           title="点击编辑文字"
           className={`truncate mr-2 font-medium text-left hover:text-yellow-300 hover:underline underline-offset-2 ${
-            isSelected ? 'text-white' : isHovered ? 'text-yellow-300' : 'text-white/90'
+            isSelected
+              ? 'text-white'
+              : isHovered
+                ? 'text-yellow-300'
+                : 'text-white/90'
           }`}
         >
           {displayName}
@@ -299,7 +305,11 @@ export default function MeasurementResultsPanel({
     return (
       <span
         className={`truncate mr-2 font-medium ${
-          isSelected ? 'text-white' : isHovered ? 'text-yellow-300' : 'text-white/90'
+          isSelected
+            ? 'text-white'
+            : isHovered
+              ? 'text-yellow-300'
+              : 'text-white/90'
         }`}
       >
         {displayName}

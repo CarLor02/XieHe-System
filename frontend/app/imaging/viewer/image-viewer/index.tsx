@@ -963,36 +963,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
     ]
   );
 
-  const handleCreateCobb = useCallback(
-    (upperVertebra: string, lowerVertebra: string) => {
-      const existing = measurements.find(
-        measurement =>
-          isDerivedCobbMeasurement(measurement) &&
-          measurement.upperVertebra === upperVertebra &&
-          measurement.lowerVertebra === lowerVertebra
-      );
-      const measurement = createCobbMeasurement(
-        upperVertebra,
-        lowerVertebra,
-        keypoints,
-        existing
-      );
-      if (!measurement) {
-        setSaveMessage('缺少 Cobb 所需端椎关键点，无法创建');
-        setTimeout(() => setSaveMessage(''), 3000);
-        return;
-      }
-
-      setMeasurements(previous => [
-        ...previous.filter(item => item.id !== measurement.id),
-        measurement,
-      ]);
-      setSaveMessage(`已创建 Cobb(${upperVertebra}-${lowerVertebra})`);
-      setTimeout(() => setSaveMessage(''), 3000);
-    },
-    [keypoints, measurements, setSaveMessage]
-  );
-
   const handleCreateAvt = useCallback(
     (apexVertebra: string) => {
       if (!standardDistance) {
@@ -1958,7 +1928,6 @@ export default function ImageViewer({ imageId }: ImageViewerProps) {
             }}
             onRestoreAutomaticMeasurement={handleRestoreAutomaticMeasurement}
             onCreateAvt={handleCreateAvt}
-            onCreateCobb={handleCreateCobb}
             onCreateVertebraCenter={handleCreateVertebraCenter}
             onCreateTts={handleCreateTts}
             onActivateHandMode={activateHandMode}
