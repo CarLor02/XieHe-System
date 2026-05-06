@@ -65,18 +65,28 @@ function renderMeasurementsToSVG(
   const hiddenMeasurementIds = new Set<string>();
   const pointBindings = { groups: [], syncGroups: [] };
 
-  // 计算合适的 imageScale 用于字体大小
-  // 在查看器中，imageScale = 屏幕像素 / 图像像素
-  // 对于导出，我们希望字体在高分辨率图像上仍然可读
-  // 假设标准查看器宽度约 1000px，计算等效的 imageScale
-  const REFERENCE_SCREEN_WIDTH = 1000;
-  const effectiveImageScale = Math.max(0.5, Math.min(2.0, REFERENCE_SCREEN_WIDTH / width));
+  // ── 核心思路 ──────────────────────────────────────────────────────────────
+  // renderMeasurement 内部有两个依赖 imageScale 的逻辑：
+  //   1. imageToScreen(p) = p * imageScale  ← 坐标映射
+  //   2. getAdaptiveFontSize(imageScale)    ← 字体大小，硬限 9-20px
+  //
+  // 如果直接用 imageScale=1（坐标正确），字体被限制在 ≤20px，
+  // 在 2000px 宽的导出图像上几乎看不见。
+  //
+  // 解决：在一个固定"虚拟视口"下渲染（imageScale = refW/W），
+  // 让坐标落到 0~refW 范围，字体在这个小尺寸下自然合适；
+  // 然后用 SVG <g transform="scale(factor)"> 把整组等比放大到实际尺寸。
+  // 字体、线宽、圆圈全部随 scale 等比放大，与查看器视觉效果一致。
+  // ─────────────────────────────────────────────────────────────────────────
+  const VIRTUAL_VIEWPORT_WIDTH = 800; // 与典型查看器显示宽度接近
+  const svgScaleFactor = width / VIRTUAL_VIEWPORT_WIDTH;         // e.g. 2000/800 = 2.5
+  const renderImageScale = VIRTUAL_VIEWPORT_WIDTH / width;       // e.g. 800/2000 = 0.4
 
-  // 渲染所有测量项 - 使用实际的 React 渲染器
+  // 渲染所有测量项 - 使用实际的 React 渲染器（在虚拟视口坐标系下）
   const measurementElements = measurements.map((measurement, index) => {
     return renderMeasurement({
       measurement,
-      imageScale: effectiveImageScale, // 使用计算的有效缩放比例，确保字体大小适中
+      imageScale: renderImageScale,
       imagePosition: { x: 0, y: 0 },
       imageNaturalSize: { width, height },
       selectionState,
@@ -91,6 +101,13 @@ function renderMeasurementsToSVG(
       measurementIndex: index,
     });
   });
+
+  // 用 scale 变换把虚拟视口坐标等比放大到实际导出尺寸
+  const scaledGroup = React.createElement(
+    'g',
+    { transform: `scale(${svgScaleFactor})` },
+    measurementElements
+  );
 
   // 创建 SVG 定义（箭头标记等）
   // 这些定义与交互式查看器中的定义相同，确保箭头等形状正确显示
@@ -145,7 +162,8 @@ function renderMeasurementsToSVG(
       viewBox: `0 0 ${width} ${height}`,
       xmlns: 'http://www.w3.org/2000/svg',
     },
-    [defs, ...measurementElements]
+    // scaledGroup 把虚拟视口坐标系下的标注等比放大到实际导出尺寸
+    [defs, scaledGroup]
   );
 
   return renderToStaticMarkup(svgElement);
