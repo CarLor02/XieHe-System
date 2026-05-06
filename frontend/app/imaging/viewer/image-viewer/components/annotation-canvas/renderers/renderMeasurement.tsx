@@ -85,11 +85,48 @@ function getPointDisplayLabel(
   return pointIndex + 1;
 }
 
+function getPelvicSharedPointLabelKey(
+  measurement: MeasurementData,
+  pointIndex: number
+): string | null {
+  const typeId = getAnnotationTypeId(measurement.type);
+
+  if (typeId === 'ss') {
+    if (pointIndex === 0) return 'pelvic-s1-1';
+    if (pointIndex === 1) return 'pelvic-s1-2';
+  }
+
+  if (typeId === 'pi' || typeId === 'pt') {
+    if (pointIndex === 0) return 'pelvic-cfh';
+    if (pointIndex === 1) return 'pelvic-s1-1';
+    if (pointIndex === 2) return 'pelvic-s1-2';
+  }
+
+  return null;
+}
+
+function ownsSharedPointLabel(
+  measurement: MeasurementData,
+  pointIndex: number,
+  allMeasurements: MeasurementData[],
+  measurementIndex: number
+): boolean {
+  const labelKey = getPelvicSharedPointLabelKey(measurement, pointIndex);
+  if (!labelKey) return true;
+
+  return !allMeasurements.slice(0, measurementIndex).some(previous =>
+    previous.points.some((_, previousPointIndex) =>
+      getPelvicSharedPointLabelKey(previous, previousPointIndex) === labelKey
+    )
+  );
+}
+
 function renderIndexedPoint({
   measurement,
   point,
   pointIndex,
   pointColor,
+  showPointLabel,
   selectionState,
   hoverState,
   pointBindings,
@@ -101,6 +138,7 @@ function renderIndexedPoint({
   point: Point;
   pointIndex: number;
   pointColor: string;
+  showPointLabel: boolean;
   selectionState: SelectionState;
   hoverState: HoverState;
   pointBindings: AnnotationBindings;
@@ -208,18 +246,20 @@ function renderIndexedPoint({
           opacity="0.6"
         />
       )}
-      <text
-        x={point.x + 8}
-        y={point.y - 8}
-        fill={displayColor}
-        fontSize={isSelected || isHovered ? '14' : '12'}
-        fontWeight="bold"
-        stroke="#000000"
-        strokeWidth="0.5"
-        paintOrder="stroke"
-      >
-        {getPointDisplayLabel(measurement, pointIndex)}
-      </text>
+      {showPointLabel && (
+        <text
+          x={point.x + 8}
+          y={point.y - 8}
+          fill={displayColor}
+          fontSize={isSelected || isHovered ? '14' : '12'}
+          fontWeight="bold"
+          stroke="#000000"
+          strokeWidth="0.5"
+          paintOrder="stroke"
+        >
+          {getPointDisplayLabel(measurement, pointIndex)}
+        </text>
+      )}
     </g>
   );
 }
@@ -573,6 +613,12 @@ export default function renderMeasurement({
             point,
             pointIndex,
             pointColor: displayColor,
+            showPointLabel: ownsSharedPointLabel(
+              measurement,
+              pointIndex,
+              allMeasurements,
+              measurementIndex
+            ),
             selectionState,
             hoverState,
             pointBindings,
