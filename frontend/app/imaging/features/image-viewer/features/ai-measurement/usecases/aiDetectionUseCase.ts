@@ -13,8 +13,7 @@ import {
 
 /**
  * 侧位椎体检测（不设置任何状态，仅返回检测数据）。
- * 用于普通用户的测量补全：静默调用检测接口，再由 deriveLateral 推导缺失的非 S1 测量（如 T10-L2），
- * 使其与管理员通过本地推导得到的结果保持一致。
+ * 用于测量补全：静默调用检测接口，再由 deriveLateral 推导缺失的非 S1 测量（如 T10-L2）。
  */
 export async function detectLateralVertebrae(imageBlob: Blob): Promise<{
     vertebrae: VertebraAnnotation[];
@@ -98,20 +97,12 @@ function sortCornersGeometrically(pts: {x:number,y:number}[]): [Point,Point,Poin
 
 // AI检测函数（仅检测椎骨，结果存入 vertebraeLayer，不混入 measurements[]）
 export async function aiDetect(
-    isAdmin: boolean,
     imageData: ImageData,
     setVertebraeLayer: Dispatch<SetStateAction<VertebraAnnotation[]>>,
     setCfhAnnotation: Dispatch<SetStateAction<CfhAnnotation | null>>,
     setSaveMessage: (message: string) => void,
     setIsAIDetecting: (aiDetectingState:boolean) => void,
 ){
-    // 权限检查
-    if (!isAdmin) {
-        setSaveMessage('无权限：仅管理员可以使用AI检测功能');
-        setTimeout(() => setSaveMessage(''), 3000);
-        return;
-    }
-
     setIsAIDetecting(true);
     setSaveMessage('');
 

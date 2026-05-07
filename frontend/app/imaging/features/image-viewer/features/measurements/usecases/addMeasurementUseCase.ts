@@ -70,7 +70,7 @@ export function addMeasurement(
     standardDistance: number | null,
     standardDistancePoints: Point[],
     imageNaturalSize: ImageSize,
-    /** 替换模式：当同类型测量已存在时，用新测量替换旧测量（而非拦截）。非Admin 用户应传 true。 */
+    /** 替换模式：当同类型测量已存在时，用新测量替换旧测量（而非拦截）。 */
     allowReplace = false
 ){
     // 如果是Cobb工具，自动编号（统一处理 'cobb' 和 'Cobb'）
@@ -107,7 +107,7 @@ export function addMeasurement(
         const currentTool = tools.find(t => t.id === configLookupType);
         if (currentTool && hasUniqueAnnotationForTool(prev, currentTool)) {
             if (!allowReplace) {
-                // Admin 模式：同类型已存在则拦截（由 AI 检测统一管理）
+                // 保持现有测量不变，由调用方决定是否允许替换。
                 return prev;
             }
             // 替换模式：过滤掉旧的同类型测量，加入新测量

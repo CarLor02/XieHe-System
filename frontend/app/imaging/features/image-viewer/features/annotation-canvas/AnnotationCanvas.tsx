@@ -806,7 +806,7 @@ export default function AnnotationCanvas({
             <polygon points="0 0, 10 3, 0 6" fill="#ef4444" />
           </marker>
         </defs>
-        {/* 椎体标注层（AI检测结果，admin专属，可隐藏）
+        {/* 椎体标注层（AI检测结果，可隐藏）
             renderLayer：拖拽中为实时图层（角点跟手），否则为 vertebraeLayer prop
             交互完全在 div 层的 vertebradDrag 处理，VertebraeLayer 纯渲染 */}
         {showVertebraeLayer && visibleKeypointLayer.length > 0 && (

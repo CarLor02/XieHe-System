@@ -14,7 +14,7 @@ interface StudyHeaderProps {
   saveMessage: string;
   measurementsLength: number;
   isSaving: boolean;
-  isAdmin: boolean;
+  canExportJson: boolean;
   canUseKeypointTools: boolean;
   isAIDetecting: boolean;
   isAIMeasuring: boolean;
@@ -33,7 +33,7 @@ export default function StudyHeader({
   saveMessage,
   measurementsLength,
   isSaving,
-  isAdmin,
+  canExportJson,
   canUseKeypointTools,
   isAIDetecting,
   isAIMeasuring,
@@ -87,8 +87,8 @@ export default function StudyHeader({
               <span>{isSaving ? '保存中...' : '保存'}</span>
             </button>
 
-            {/* 导出JSON按钮 - 仅管理员可见 */}
-            {isAdmin && (
+            {/* 导出JSON按钮保留管理员限制 */}
+            {canExportJson && (
               <button
                 onClick={onExportJson}
                 disabled={measurementsLength === 0}
@@ -115,7 +115,7 @@ export default function StudyHeader({
             </label>
           </div>
 
-          {/* 检测层显隐切换 - 仅管理员且有检测数据时显示 */}
+          {/* 检测层显隐切换 */}
           {canUseKeypointTools && hasVertebraeLayer && (
             <button
               onClick={onToggleVertebraeLayer}

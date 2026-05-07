@@ -274,7 +274,6 @@ export async function runAiMeasurementWorkflow({
       if (canUseKeypoints) {
         setSaveMessage('AI检测中...');
         void aiDetect(
-          canUseKeypoints,
           imageData,
           layerOrUpdater => {
             setVertebraeLayer(previous => {

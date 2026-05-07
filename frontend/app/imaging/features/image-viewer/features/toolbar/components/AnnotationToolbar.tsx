@@ -462,15 +462,15 @@ export default function AnnotationToolbar({
                             getAnnotationTypeId(tool.id)
                           );
                         const isCobbTool = isAnteriorView && tool.id === 'cobb';
-                        // 只有 Admin（canUseKeypointTools）才走自动恢复路径；
-                        // Cobb 始终走手动放点路径，端椎在结果列表中后置填写。
+                        // 可推导工具走自动恢复路径；Cobb 始终走手动放点路径，
+                        // 端椎在结果列表中后置填写。
                         const isAutomaticTool =
                           canUseKeypointTools &&
                           !isCobbTool &&
                           (isApAutomaticMeasurementTool(tool.id) ||
                             isLateralRestorableMeasurementTool(tool.id));
-                        // AVT：Admin 走选择面板（需要骶骨线关键点）；普通用户退化为普通放点工具。
-                        // TTS：所有用户均走直接放点路径（画水平线，骶骨参考继承自 CSS/SL/SR），不走椎体选择面板。
+                        // AVT 走选择面板（需要骶骨线关键点）。
+                        // TTS 走直接放点路径（画水平线，骶骨参考继承自 CSS/SL/SR），不走椎体选择面板。
                         const isSelectionTool =
                           canUseKeypointTools &&
                           isAnteriorView &&
@@ -482,7 +482,7 @@ export default function AnnotationToolbar({
                           tool.id
                         );
                         // 仅当 AI 推导数据确实可恢复时才走自动路径；
-                        // missing-keypoints 时回退为手动放点（管理员可像普通用户补充标注）。
+                        // missing-keypoints 时回退为手动放点，允许补充标注。
                         // exists 状态（测量已存在）保持禁用，用户应直接拖拽现有端点调整。
                         const isLockedByExistingMeasurement =
                           isUniquenessBlocked ||
@@ -491,7 +491,7 @@ export default function AnnotationToolbar({
                           isAutomaticTool &&
                           automaticStatus === 'available' &&
                           !isLockedByExistingMeasurement;
-                        // 管理员手动放点回退模式：仅在无 AI 数据时生效
+                        // 手动放点回退模式：仅在无 AI 数据时生效
                         const isInManualFallbackMode =
                           isAutomaticTool &&
                           automaticStatus === 'missing-keypoints' &&
@@ -503,7 +503,7 @@ export default function AnnotationToolbar({
                           : isLockedByExistingMeasurement
                             ? 'exists'
                             : 'missing-keypoints';
-                        // 管理员手动回退模式：始终可用（允许重新放置或补充放置）。
+                        // 手动回退模式：始终可用（允许重新放置或补充放置）。
                         // 其他工具（含 Cobb、TTS）按唯一性规则判断。
                         const isToolAvailable = isLockedByExistingMeasurement
                           ? false
@@ -537,7 +537,7 @@ export default function AnnotationToolbar({
                             key={tool.id}
                             onClick={() => {
                               if (!isToolAvailable) return;
-                              // 仅在 AI 数据真正可恢复时走自动路径；否则像普通用户一样手动放点
+                              // 仅在 AI 数据真正可恢复时走自动路径；否则手动放点。
                               if (isEffectivelyAutomaticTool) {
                                 setOpenMeasurementTool(null);
                                 onRestoreAutomaticMeasurement(tool.id);
@@ -760,11 +760,6 @@ export default function AnnotationToolbar({
 
             {activeToolTab === 'keypoint' && (
               <div className="relative">
-                {!canUseKeypointTools && (
-                  <div className="mb-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 text-xs text-yellow-200">
-                    当前账号无关键点标注权限
-                  </div>
-                )}
                 <div className="flex flex-wrap gap-2">
                   {keypointGroups.map(group => {
                     const isOpen = openKeypointGroup === group.id;
@@ -773,8 +768,7 @@ export default function AnnotationToolbar({
                     ).length;
                     const isCompleteKeypointGroup =
                       existingCount === group.keypoints.length;
-                    const isGroupAvailable =
-                      canUseKeypointTools && !isCompleteKeypointGroup;
+                    const isGroupAvailable = !isCompleteKeypointGroup;
 
                     return (
                       <div key={group.id}>
@@ -810,7 +804,7 @@ export default function AnnotationToolbar({
                     );
                   })}
                 </div>
-                {selectedKeypointGroup && canUseKeypointTools && (
+                {selectedKeypointGroup && (
                   <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(22rem,calc(100vh-14rem))] overflow-y-auto">
                     <div className="text-xs text-gray-300 mb-2">
                       {selectedKeypointGroup.name}

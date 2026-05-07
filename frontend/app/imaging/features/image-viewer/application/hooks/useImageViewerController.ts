@@ -13,6 +13,7 @@ import {
   useStandardDistanceActions,
 } from '@/app/imaging/features/image-viewer/features/measurements';
 import {
+  canExportAnnotationsJson,
   canUseKeypointTools,
   useImageListFetcher,
   useImageStudy,
@@ -123,11 +124,11 @@ export function useImageViewerController({
   );
 
   const tools = useMemo(() => getTools(imageData.examType), [imageData.examType]);
-  const isAdmin = useMemo(() => {
-    if (!user) return false;
-    return user.is_superuser === true || user.is_system_admin === true;
-  }, [user]);
-  const canUseKeypoints = useMemo(() => canUseKeypointTools(user), [user]);
+  const canExportJson = useMemo(
+    () => canExportAnnotationsJson(user),
+    [user]
+  );
+  const canUseKeypoints = canUseKeypointTools();
   const isAnteriorView = isAnteriorExamType(imageData.examType);
   const isLateralView = isLateralExamType(imageData.examType);
   const isKeypointExam = isKeypointSupportedExamType(imageData.examType);
@@ -217,7 +218,7 @@ export function useImageViewerController({
   const measurementWorkflow = useMeasurementWorkflow({
     imageId,
     examType: imageData.examType,
-    isAdmin,
+    canExportJson,
     tools,
     measurements,
     setMeasurements,
@@ -368,7 +369,7 @@ export function useImageViewerController({
       measurementsLength:
         measurements.length + keypointWorkflow.keypoints.length,
       isSaving: studyHeaderActions.isSaving,
-      isAdmin,
+      canExportJson,
       canUseKeypointTools: canUseKeypoints,
       isAIDetecting: studyHeaderActions.isAIDetecting,
       isAIMeasuring: studyHeaderActions.isAIMeasuring,
@@ -421,12 +422,9 @@ export function useImageViewerController({
       keypoints: isKeypointExam ? keypointWorkflow.keypoints : [],
       cfhAnnotation: keypointWorkflow.cfhAnnotation,
       showVertebraeLayer: keypointWorkflow.showVertebraeLayer,
-      onVertebraeUpdate: canUseKeypoints
-        ? keypointWorkflow.handleVertebraeUpdate
-        : undefined,
-      onVertebraePreviewUpdate: canUseKeypoints
-        ? keypointWorkflow.handleVertebraePreviewUpdate
-        : undefined,
+      onVertebraeUpdate: keypointWorkflow.handleVertebraeUpdate,
+      onVertebraePreviewUpdate:
+        keypointWorkflow.handleVertebraePreviewUpdate,
       onKeypointAdd: keypointWorkflow.handleKeypointAdd,
       onKeypointDelete: keypointWorkflow.handleKeypointDelete,
       onMeasurementWriteback: keypointWorkflow.handleMeasurementWriteback,

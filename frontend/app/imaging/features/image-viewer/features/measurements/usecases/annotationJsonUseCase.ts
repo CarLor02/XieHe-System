@@ -7,7 +7,7 @@ import {
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 
 export function exportAnnotationsToJSON({
-  isAdmin,
+  canExportJson,
   imageId,
   imageNaturalSize,
   measurements,
@@ -15,7 +15,7 @@ export function exportAnnotationsToJSON({
   standardDistancePoints,
   setSaveMessage,
 }: {
-  isAdmin: boolean;
+  canExportJson: boolean;
   imageId: string;
   imageNaturalSize: ImageSize | null;
   measurements: MeasurementData[];
@@ -23,7 +23,7 @@ export function exportAnnotationsToJSON({
   standardDistancePoints: Point[];
   setSaveMessage: (message: string) => void;
 }): void {
-  if (!isAdmin) {
+  if (!canExportJson) {
     setSaveMessage('无权限：仅管理员可以导出JSON文件');
     setTimeout(() => setSaveMessage(''), 3000);
     return;

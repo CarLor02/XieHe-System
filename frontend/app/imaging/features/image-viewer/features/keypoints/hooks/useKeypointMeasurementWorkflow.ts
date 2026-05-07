@@ -199,10 +199,6 @@ export function useKeypointMeasurementWorkflow({
 
   const handleKeypointAdd = useCallback(
     (keypointId: string, point: Point) => {
-      if (!canUseKeypoints) {
-        flashMessage(setSaveMessage, '无权限：仅主任医师及以上可添加关键点');
-        return;
-      }
       if (!isKeypointExam) return;
       if (hasKeypoint(keypoints, keypointId)) {
         flashMessage(setSaveMessage, `${keypointId} 已存在，不能重复添加`);
@@ -218,7 +214,7 @@ export function useKeypointMeasurementWorkflow({
       applyKeypoints(nextKeypoints);
       setShowVertebraeLayer(true);
     },
-    [applyKeypoints, canUseKeypoints, isKeypointExam, keypoints, setSaveMessage]
+    [applyKeypoints, isKeypointExam, keypoints, setSaveMessage]
   );
 
   const handleKeypointDelete = useCallback(

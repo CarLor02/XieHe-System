@@ -52,7 +52,7 @@ type AutomaticToolStatus = 'available' | 'exists' | 'missing-keypoints';
 interface UseMeasurementWorkflowOptions {
   imageId: string;
   examType: string;
-  isAdmin: boolean;
+  canExportJson: boolean;
   tools: Tool[];
   measurements: MeasurementData[];
   setMeasurements: Dispatch<SetStateAction<MeasurementData[]>>;
@@ -99,7 +99,7 @@ function flashMessage(
 export function useMeasurementWorkflow({
   imageId,
   examType,
-  isAdmin,
+  canExportJson,
   tools,
   measurements,
   setMeasurements,
@@ -479,7 +479,7 @@ export function useMeasurementWorkflow({
 
   const exportAnnotationsToJSON = useCallback(() => {
     exportAnnotationsToJSONUseCase({
-      isAdmin,
+      canExportJson,
       imageId,
       imageNaturalSize,
       measurements,
@@ -488,9 +488,9 @@ export function useMeasurementWorkflow({
       setSaveMessage,
     });
   }, [
+    canExportJson,
     imageId,
     imageNaturalSize,
-    isAdmin,
     measurements,
     setSaveMessage,
     standardDistance,
