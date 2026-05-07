@@ -191,12 +191,14 @@ const ButtonGroup = React.forwardRef<HTMLDivElement, ButtonGroupProps>(
         {...props}
       >
         {React.Children.map(children, (child, index) => {
-          if (React.isValidElement(child) && child.type === Button) {
-            return React.cloneElement(child, {
-              size: child.props.size || size,
-              variant: child.props.variant || variant,
+          if (React.isValidElement<ButtonProps>(child) && child.type === Button) {
+            const buttonChild = child as React.ReactElement<ButtonProps>;
+            const buttonProps = buttonChild.props;
+            return React.cloneElement(buttonChild, {
+              size: buttonProps.size || size,
+              variant: buttonProps.variant || variant,
               className: cn(
-                child.props.className,
+                buttonProps.className,
                 attached && orientation === 'horizontal' && [
                   index === 0 && 'rounded-r-none',
                   index > 0 && index < React.Children.count(children) - 1 && 'rounded-none',

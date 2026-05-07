@@ -53,6 +53,12 @@ interface ReportEditorProps {
   className?: string
 }
 
+const toReportFieldText = (value: ReportData[keyof ReportData]) => {
+  if (Array.isArray(value)) return value.join(', ')
+  if (value && typeof value === 'object') return JSON.stringify(value, null, 2)
+  return value?.toString() ?? ''
+}
+
 export default function ReportEditor({
   initialData,
   template,
@@ -220,7 +226,7 @@ export default function ReportEditor({
           </Button>
           {!readOnly && (
             <Button
-              variant="primary"
+              variant="default"
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
@@ -263,18 +269,20 @@ export default function ReportEditor({
           {label}
         </label>
         <div className="text-xs text-gray-500">
-          {reportData[sectionKey as keyof ReportData]?.toString().length || 0} 字符
+          {toReportFieldText(reportData[sectionKey as keyof ReportData]).length} 字符
         </div>
       </div>
       
       {isPreviewMode ? (
         <div className="min-h-[120px] p-3 border border-gray-300 rounded-md bg-gray-50 whitespace-pre-wrap">
-          {reportData[sectionKey as keyof ReportData] || placeholder}
+          {toReportFieldText(reportData[sectionKey as keyof ReportData]) || placeholder}
         </div>
       ) : (
         <textarea
-          ref={el => editorRefs.current[sectionKey] = el}
-          value={reportData[sectionKey as keyof ReportData]?.toString() || ''}
+          ref={el => {
+            editorRefs.current[sectionKey] = el
+          }}
+          value={toReportFieldText(reportData[sectionKey as keyof ReportData])}
           onChange={(e) => updateReportData(sectionKey as keyof ReportData, e.target.value)}
           onFocus={() => setActiveSection(sectionKey)}
           placeholder={placeholder}
@@ -393,7 +401,7 @@ export default function ReportEditor({
                 取消
               </Button>
               <Button
-                variant="primary"
+                variant="default"
                 onClick={handleInsertImage}
                 disabled={!selectedImageUrl}
               >

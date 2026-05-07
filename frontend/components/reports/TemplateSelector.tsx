@@ -386,7 +386,7 @@ export default function TemplateSelector({
                 关闭
               </Button>
               <Button
-                variant="primary"
+                variant="default"
                 onClick={() => {
                   handleSelectTemplate(selectedTemplate)
                   setShowPreview(false)
@@ -527,7 +527,7 @@ export default function TemplateSelector({
                   👁️ 预览
                 </Button>
                 <Button
-                  variant="primary"
+                  variant="default"
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation()

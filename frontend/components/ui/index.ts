@@ -6,6 +6,5 @@
  */
 
 export { Button, ButtonGroup, IconButton } from './Button';
-export { default as SimpleButton } from './SimpleButton';
+export { Button as SimpleButton } from './SimpleButton';
 export { default as Tooltip } from './Tooltip';
-

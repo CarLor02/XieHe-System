@@ -72,7 +72,7 @@ export default function MemberManagement() {
   }, [members, searchKeyword]);
 
   const currentMember = useMemo(
-    () => members.find(member => (user?.id ? member.id === user.id : false)) ?? null,
+    () => members.find(member => (user?.id ? member.user_id === user.id : false)) ?? null,
     [members, user?.id]
   );
 
@@ -498,7 +498,7 @@ export default function MemberManagement() {
               ) : (
                 filteredMembers.map((member, index) => {
                   const uniqueKey =
-                    member.id ??
+                    member.user_id ??
                     (member.email ? `email-${member.email}` : null) ??
                     (member.username ? `user-${member.username}` : null) ??
                     `member-${index}`;

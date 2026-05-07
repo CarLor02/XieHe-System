@@ -1,24 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getPermissionRoles } from '@/services/permissionServices';
-
-interface Role {
-  role_id: string;
-  name: string;
-  code: string;
-  description: string;
-  permissions: any[];
-  user_count: number;
-  is_system: boolean;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  created_by: string;
-}
+import {
+  getPermissionRoles,
+  type PermissionRole,
+} from '@/services/permissionServices';
 
 export default function RolesPage() {
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [roles, setRoles] = useState<PermissionRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

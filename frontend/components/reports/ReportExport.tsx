@@ -301,7 +301,7 @@ export default function ReportExport({
             <Button
               onClick={() => handleSingleExport(reportIds[0])}
               disabled={isExporting}
-              variant="primary"
+              variant="default"
             >
               {isExporting ? '导出中...' : `📤 导出报告`}
             </Button>
@@ -309,7 +309,7 @@ export default function ReportExport({
             <Button
               onClick={handleBatchExport}
               disabled={isExporting || reportIds.length === 0}
-              variant="primary"
+              variant="default"
             >
               {isExporting ? '导出中...' : `📤 批量导出 (${reportIds.length}个)`}
             </Button>

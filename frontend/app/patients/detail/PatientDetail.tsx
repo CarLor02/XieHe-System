@@ -9,33 +9,16 @@ import {
   getPatientImages,
   type ImageFile,
 } from '@/services/imageServices/imageFileService';
-import { deletePatient, getPatientDetail } from '@/services/patientServices';
-
-// 患者详情数据接口
-interface PatientDetail {
-  id: number;
-  patient_id: string;
-  name: string;
-  gender: string;
-  birth_date: string;
-  age: number;
-  phone: string;
-  email: string;
-  id_card: string;
-  address: string;
-  emergency_contact_name: string;
-  emergency_contact_phone: string;
-  insurance_number: string;
-  medical_history: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
+import {
+  deletePatient,
+  getPatientDetail,
+  type Patient,
+} from '@/services/patientServices';
 
 export default function PatientDetail({ patientId }: { patientId: string }) {
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [patient, setPatient] = useState<PatientDetail | null>(null);
+  const [patient, setPatient] = useState<Patient | null>(null);
   const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [imagesLoading, setImagesLoading] = useState(true);
@@ -202,13 +185,15 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                   <label className="block text-sm font-medium text-gray-500 mb-1">
                     出生日期
                   </label>
-                  <p className="text-gray-900">{patient.birth_date}</p>
+                  <p className="text-gray-900">{patient.birth_date || '未填写'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">
                     年龄
                   </label>
-                  <p className="text-gray-900">{patient.age} 岁</p>
+                  <p className="text-gray-900">
+                    {patient.age != null ? `${patient.age} 岁` : '未填写'}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">
