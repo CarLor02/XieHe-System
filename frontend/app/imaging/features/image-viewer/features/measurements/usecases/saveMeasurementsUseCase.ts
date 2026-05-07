@@ -23,15 +23,9 @@ export async function saveMeasurements(
         standardDistance !== null &&
         Array.isArray(standardDistancePoints) &&
         standardDistancePoints.length === 2;
-    if (
-        measurements.length === 0 &&
-        vertebraeLayer.length === 0 &&
-        !hasStandardDistance
-    ) {
-        setSaveMessage('暂无标注数据需要保存');
-        setTimeout(() => setSaveMessage(''), 3000);
-        return;
-    }
+    const hasKeypointLayer = vertebraeLayer.length > 0 || cfhAnnotation !== null;
+    const hasSavedAnnotationContent =
+        measurements.length > 0 || hasKeypointLayer || hasStandardDistance;
 
     setIsSaving(true);
     setSaveMessage('');
@@ -134,7 +128,9 @@ export async function saveMeasurements(
             setSaveMessage(
                 measurements.length > 0
                     ? '标注已保存到本地和服务器'
-                    : '关键点已保存到本地和影像标注'
+                    : hasSavedAnnotationContent
+                        ? '关键点已保存到本地和影像标注'
+                        : '空标注已保存到本地和影像标注'
             );
             setTimeout(() => setSaveMessage(''), 3000);
         } catch (annotationErr) {
@@ -146,7 +142,9 @@ export async function saveMeasurements(
             setSaveMessage(
                 measurements.length > 0
                     ? '标注已保存到本地和服务器'
-                    : '关键点已保存到本地'
+                    : hasSavedAnnotationContent
+                        ? '关键点已保存到本地'
+                        : '空标注已保存到本地'
             );
             setTimeout(() => setSaveMessage(''), 3000);
         }

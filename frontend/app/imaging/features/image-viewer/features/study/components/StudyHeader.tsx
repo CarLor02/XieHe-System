@@ -80,7 +80,7 @@ export default function StudyHeader({
           <div className="flex items-center space-x-2 border-r border-gray-600 pr-3">
             <button
               onClick={onSave}
-              disabled={measurementsLength === 0 || isSaving}
+              disabled={isSaving}
               className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               title="保存标注到数据库"
             >
