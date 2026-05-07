@@ -1,8 +1,8 @@
-import type { MeasurementData, VertebraAnnotation } from '@/app/imaging/viewer/image-viewer/types';
+import type { MeasurementData, VertebraAnnotation } from '@/app/imaging/viewer/image-viewer/public';
 import {
   getAnnotationConfig,
   getAnnotationTypeId,
-} from '@/app/imaging/viewer/image-viewer/catalog/shared/annotation-config';
+} from '@/app/imaging/viewer/image-viewer/public';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 
 import type { ParsedAnnotationData } from './export-types';

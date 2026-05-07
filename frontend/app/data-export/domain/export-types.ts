@@ -1,4 +1,4 @@
-import type { MeasurementData, VertebraAnnotation } from '@/app/imaging/viewer/image-viewer/types';
+import type { MeasurementData, VertebraAnnotation } from '@/app/imaging/viewer/image-viewer/public';
 
 export type ExportContentType =
   | 'original-image'
