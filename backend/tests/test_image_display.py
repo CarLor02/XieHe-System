@@ -295,7 +295,7 @@ class TestImageViewer:
     def test_viewer_config(self, auth_headers):
         """测试查看器配置"""
         response = client.get(
-            "/api/v1/images/viewer/config",
+            "/api/v1/images/image-viewer/config",
             headers=auth_headers
         )
         
@@ -307,7 +307,7 @@ class TestImageViewer:
     def test_viewer_tools(self, auth_headers):
         """测试查看器工具"""
         tools_response = client.get(
-            "/api/v1/images/viewer/tools",
+            "/api/v1/images/image-viewer/tools",
             headers=auth_headers
         )
         

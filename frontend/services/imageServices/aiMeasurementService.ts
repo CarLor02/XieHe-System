@@ -1,6 +1,6 @@
 import { authenticatedBlobFetch } from '@/lib/api';
 import { requestJsonFromUrl } from '@/lib/api/client/externalJsonClient';
-import type { AiMeasurementData } from '@/app/imaging/viewer/public';
+import type { AiMeasurementData } from '@/app/imaging/features/image-viewer/public';
 import { imageIdToNumericId } from './imageFileService';
 
 export interface PredictMeasurementsResponse {

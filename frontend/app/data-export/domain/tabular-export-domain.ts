@@ -1,4 +1,4 @@
-import type { MeasurementData } from '@/app/imaging/viewer/public';
+import type { MeasurementData } from '@/app/imaging/features/image-viewer/public';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 
 import type { ExportContentType, TabularExportFormat } from './export-types';

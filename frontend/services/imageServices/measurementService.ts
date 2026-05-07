@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api';
 import { extractData } from '@/lib/api/types';
-import type { MeasurementData } from '@/app/imaging/viewer/public';
+import type { MeasurementData } from '@/app/imaging/features/image-viewer/public';
 
 /*
 * 这个只给 api/v1/measurements/{image_id} 这个接口用

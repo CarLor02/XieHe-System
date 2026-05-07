@@ -531,7 +531,7 @@ def init_roles(session):
             "permissions": ["patient.read", "image.read", "report.read"]
         },
         {
-            "code": "viewer",
+            "code": "image-viewer",
             "name": "查看者",
             "description": "只读权限，可以查看基本信息",
             "level": 10,

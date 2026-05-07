@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { MeasurementData } from '@/app/imaging/viewer/public';
-import { renderMeasurement } from '@/app/imaging/viewer/public';
+import type { MeasurementData } from '@/app/imaging/features/image-viewer/public';
+import { renderMeasurement } from '@/app/imaging/features/image-viewer/public';
 import type { AnnotatedImageExportFormat } from '../domain';
 
 // ── 内部工具函数 ────────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ function renderMeasurementsToSVG(
   //   ✓ 新版：传 containerSize 给 imageToScreen，让它用虚拟视口而非 DOM。
   // ─────────────────────────────────────────────────────────────────────────
   // ── imageScale 说明 ──────────────────────────────────────────────────────
-  // imageScale 是"用户缩放倍率"（viewer 默认 1.0 = 未缩放）。
+  // imageScale 是"用户缩放倍率"（image-viewer 默认 1.0 = 未缩放）。
   // imageToScreen 已通过 displayWidth/displayHeight 处理了 fit 缩放，
   // 所以 imageScale=1 即可让坐标在 0..VIRTUAL_VIEWPORT_WIDTH 范围内正确分布。
   // 如果传 800/W（错误做法），坐标会被双重压缩，所有点向中心聚集。

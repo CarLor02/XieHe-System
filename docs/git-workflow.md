@@ -57,7 +57,7 @@ main (生产分支)
 # 功能分支
 feature/user-authentication
 feature/patient-management
-feature/dicom-viewer
+feature/dicom-image-viewer
 
 # 发布分支
 release/v1.0.0
