@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { MeasurementData } from '@/app/imaging/viewer/image-viewer/public';
-import { renderMeasurement } from '@/app/imaging/viewer/image-viewer/public';
+import type { MeasurementData } from '@/app/imaging/viewer/public';
+import { renderMeasurement } from '@/app/imaging/viewer/public';
 import type { AnnotatedImageExportFormat } from '../domain';
 
 // ── 内部工具函数 ────────────────────────────────────────────────────────────

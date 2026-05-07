@@ -1,12 +1,13 @@
 # Image Viewer Feature Architecture
 
 `frontend/app/imaging/viewer/page.tsx` only owns the Next.js route boundary. The
-viewer implementation is isolated in `frontend/app/imaging/viewer/image-viewer/`
-and is now organized by feature instead of by a single horizontal component tree.
+viewer implementation is isolated in `frontend/app/imaging/viewer/` and is now
+organized by feature instead of by a single horizontal component tree.
 
 ## Principles
 
-- `index.tsx` is a thin render shell: it calls the application controller and
+- `page.tsx` is a thin render shell: it reads the route query, calls the
+  application controller, and
   renders the page layout.
 - `application/hooks/useImageViewerController.ts` is the root application layer:
   it composes feature hooks and maps them into header, canvas, toolbar, and
@@ -14,17 +15,17 @@ and is now organized by feature instead of by a single horizontal component tree
 - Business rules live in feature `domain/` and `usecases/`; UI components do not
   own measurement, keypoint, AI, persistence, or import/export rules.
 - Feature internals are not imported from outside the viewer. External modules
-  use `image-viewer/public.ts`.
+  use `viewer/public.ts`.
 - `shared/` is only for cross-feature types, constants, geometry helpers, and
   text/label helpers.
 
 ## Directory Layout
 
 ```text
-image-viewer/
+viewer/
 ├── application/
 │   └── hooks/
-├── index.tsx
+├── page.tsx
 ├── public.ts
 ├── shared/
 │   ├── constants/
@@ -141,7 +142,7 @@ Owns report display and report generation.
 
 ## Import Rules
 
-- `index.tsx` imports only the application controller and feature components
+- `page.tsx` imports only the application controller and feature components
   needed for page layout.
 - The application controller may compose feature barrels such as
   `./features/measurements`, but feature business rules should stay in their own
@@ -149,15 +150,15 @@ Owns report display and report generation.
 - Cross-feature imports should target another feature's public `index.ts` or a
   clearly owned domain/usecase file.
 - External modules, such as `frontend/app/data-export`, must import viewer
-  types/render helpers from `@/app/imaging/viewer/image-viewer/public`.
+  types/render helpers from `@/app/imaging/viewer/public`.
 - Do not reintroduce root-level `components/`, `domain/`, `hooks/`, `usecase/`,
-  `catalog/`, or `canvas/` directories under `image-viewer/`.
+  `catalog/`, or `canvas/` directories under `viewer/`.
 
 ## Validation Checklist
 
-- `rg "image-viewer/(components|domain|hooks|usecase|canvas|types|catalog)" frontend`
+- `rg "@/app/imaging/viewer/image-viewer|./image-viewer|image-viewer/public" frontend`
   should not show active imports.
 - `npm --prefix frontend run type-check` should not introduce new
-  `image-viewer` errors.
+  viewer errors.
 - `npm --prefix frontend run build` should render the viewer route with the new
   feature paths.
