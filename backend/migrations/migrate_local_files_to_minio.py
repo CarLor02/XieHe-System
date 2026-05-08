@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--backup-dir", required=True)
     parser.add_argument("--storage-service-url", default=os.getenv("STORAGE_SERVICE_URL", "http://storage-service:8090"))
     parser.add_argument("--storage-service-token", default=os.getenv("STORAGE_SERVICE_TOKEN", "dev-storage-service-token"))
-    parser.add_argument("--bucket", default=os.getenv("IMAGE_FILE_BUCKET", "medical_image_files"))
+    parser.add_argument("--bucket", default=os.getenv("IMAGE_FILE_BUCKET", "medical-image-files"))
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 

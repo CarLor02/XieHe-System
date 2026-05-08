@@ -77,7 +77,7 @@ def upgrade() -> None:
                 """
                 UPDATE image_files
                 SET
-                    storage_bucket = COALESCE(storage_bucket, 'medical_image_files'),
+                    storage_bucket = COALESCE(storage_bucket, 'medical-image-files'),
                     object_key = COALESCE(
                         object_key,
                         CASE
@@ -94,7 +94,7 @@ def upgrade() -> None:
                 """
                 UPDATE image_files
                 SET
-                    storage_bucket = COALESCE(storage_bucket, 'medical_image_files'),
+                    storage_bucket = COALESCE(storage_bucket, 'medical-image-files'),
                     object_key = COALESCE(object_key, file_uuid)
                 WHERE object_key IS NULL OR storage_bucket IS NULL
                 """

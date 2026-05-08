@@ -81,10 +81,10 @@ services:
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio_test:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
-      mc mb --ignore-existing local/medical_image_files &&
-      mc mb --ignore-existing local/medical_user_avatars &&
-      mc anonymous set none local/medical_image_files &&
-      mc anonymous set none local/medical_user_avatars
+      mc mb --ignore-existing local/medical-image-files &&
+      mc mb --ignore-existing local/medical-user-avatars &&
+      mc anonymous set none local/medical-image-files &&
+      mc anonymous set download local/medical-user-avatars
       "
 
   storage_service_test:
@@ -131,8 +131,8 @@ services:
       - JWT_SECRET_KEY=test_jwt_secret_key
       - STORAGE_SERVICE_URL=http://storage_service_test:8090
       - STORAGE_SERVICE_TOKEN=test-storage-service-token
-      - IMAGE_FILE_BUCKET=medical_image_files
-      - USER_AVATAR_BUCKET=medical_user_avatars
+      - IMAGE_FILE_BUCKET=medical-image-files
+      - USER_AVATAR_BUCKET=medical-user-avatars
     volumes:
       - ../backend:/app
     depends_on:

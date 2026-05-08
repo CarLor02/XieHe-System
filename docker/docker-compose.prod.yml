@@ -53,8 +53,8 @@ services:
       - SENTRY_DSN=${SENTRY_DSN}
       - STORAGE_SERVICE_URL=http://storage-service:8090
       - STORAGE_SERVICE_TOKEN=${STORAGE_SERVICE_TOKEN}
-      - IMAGE_FILE_BUCKET=medical_image_files
-      - USER_AVATAR_BUCKET=medical_user_avatars
+      - IMAGE_FILE_BUCKET=medical-image-files
+      - USER_AVATAR_BUCKET=medical-user-avatars
     expose:
       - "8000"
     volumes:
@@ -180,10 +180,10 @@ services:
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
-      mc mb --ignore-existing local/medical_image_files &&
-      mc mb --ignore-existing local/medical_user_avatars &&
-      mc anonymous set none local/medical_image_files &&
-      mc anonymous set none local/medical_user_avatars
+      mc mb --ignore-existing local/medical-image-files &&
+      mc mb --ignore-existing local/medical-user-avatars &&
+      mc anonymous set none local/medical-image-files &&
+      mc anonymous set download local/medical-user-avatars
       "
     networks:
       - medical_network

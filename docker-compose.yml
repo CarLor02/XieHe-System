@@ -25,8 +25,8 @@ services:
     restart: unless-stopped
     command: server /data --console-address ':9001'
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-xiehe_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-xiehe_minio_password}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?error}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?error}
     ports:
       - '${MINIO_API_PORT_BIND:-127.0.0.1:9000:9000}'
       - '${MINIO_CONSOLE_PORT_BIND:-127.0.0.1:9001:9001}'
@@ -47,15 +47,15 @@ services:
       minio:
         condition: service_healthy
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-xiehe_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-xiehe_minio_password}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?error}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?error}
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
-      mc mb --ignore-existing local/medical_image_files &&
-      mc mb --ignore-existing local/medical_user_avatars &&
-      mc anonymous set none local/medical_image_files &&
-      mc anonymous set none local/medical_user_avatars
+      mc mb --ignore-existing local/medical-image-files &&
+      mc mb --ignore-existing local/medical-user-avatars &&
+      mc anonymous set none local/medical-image-files &&
+      mc anonymous set download local/medical-user-avatars
       "
     networks:
       - medical_network
@@ -70,8 +70,8 @@ services:
       STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
       MINIO_INTERNAL_ENDPOINT: http://minio:9000
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:3030}
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-xiehe_minio}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-xiehe_minio_password}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?error}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?error}
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
     expose:
       - '8090'
@@ -134,8 +134,8 @@ services:
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS}
       STORAGE_SERVICE_URL: http://storage-service:8090
       STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
-      IMAGE_FILE_BUCKET: medical_image_files
-      USER_AVATAR_BUCKET: medical_user_avatars
+      IMAGE_FILE_BUCKET: medical-image-files
+      USER_AVATAR_BUCKET: medical-user-avatars
     ports:
       - '${BACKEND_PORT_BIND}'
     volumes:

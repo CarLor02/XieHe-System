@@ -106,7 +106,7 @@ def make_image(
         original_filename=filename,
         file_type=ImageFileTypeEnum.PNG,
         mime_type="image/png",
-        storage_bucket="medical_image_files",
+        storage_bucket="medical-image-files",
         object_key=filename,
         file_size=1024,
         uploaded_by=uploader_id,

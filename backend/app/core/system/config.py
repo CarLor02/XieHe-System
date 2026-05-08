@@ -175,8 +175,8 @@ class Settings(BaseSettings):
     STORAGE_SERVICE_TIMEOUT: float = 30.0
     STORAGE_PRESIGN_EXPIRES_SECONDS: int = 900
     STORAGE_MULTIPART_PART_SIZE: int = 8 * 1024 * 1024
-    IMAGE_FILE_BUCKET: str = "medical_image_files"
-    USER_AVATAR_BUCKET: str = "medical_user_avatars"
+    IMAGE_FILE_BUCKET: str = "medical-image-files"
+    USER_AVATAR_BUCKET: str = "medical-user-avatars"
     
     # 文件大小限制 (字节)
     MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB
