@@ -15,16 +15,16 @@ alembic upgrade head
 ## 已有数据库
 
 已有服务器数据库在接入 Alembic 前必须先备份，并确认表结构等同于
-`0001_initial_schema`。确认无误后先写入基线版本标记，再执行后续迁移：
+`0001_initial_schema`。确认无误后直接执行升级：
 
 ```bash
 cd backend
-alembic stamp 0001_initial_schema
 alembic upgrade head
 ```
 
-不要在未 stamp 的已有业务库上直接执行 `alembic upgrade head`，否则初始迁移会
-尝试重新创建已经存在的表。
+`0001_initial_schema` 只包含 `CREATE TABLE IF NOT EXISTS` 建表语句；已有表不会
+被重建，Alembic 会记录基线版本，然后继续执行 `0002_minio_storage.py` 完成 MinIO
+字段迁移。
 
 已经在本地手动/历史 Alembic 迁移到 MinIO schema 的数据库，只需要重建版本标记：
 
