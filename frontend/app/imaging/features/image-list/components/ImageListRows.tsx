@@ -52,7 +52,7 @@ export default function ImageListRows({
                     {imageFile.original_filename}
                   </span>
                   <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                    {imageFile.description || imageFile.modality || imageFile.file_type}
+                    {imageFile.description || imageFile.file_type}
                   </span>
                 </div>
                 <ImageStatusBadge status={imageFile.status} variant="inline" />

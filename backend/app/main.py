@@ -34,6 +34,7 @@ from app.core.system.exceptions import (
 )
 from app.core.system.logging import setup_logging
 from app.services.realtime_service import start_realtime_service, stop_realtime_service
+from app.tasks.object_cleanup import start_object_cleanup_scheduler
 
 
 @asynccontextmanager
@@ -62,6 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         import asyncio
         asyncio.create_task(start_realtime_service())
+        asyncio.create_task(start_object_cleanup_scheduler())
         logger.info("✅ 实时数据推送服务启动成功")
     except Exception as e:
         logger.error(f"❌ 实时数据推送服务启动失败: {e}")

@@ -45,46 +45,11 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     exit 1
 fi
 
-# 检查数据库是否需要初始化
-echo "🔍 检查数据库状态..."
-TABLE_COUNT=$(python -c "
-import pymysql
-import os
-
-conn = pymysql.connect(
-    host=os.getenv('DB_HOST', 'mysql'),
-    port=int(os.getenv('DB_PORT', '3306')),
-    user=os.getenv('DB_USER', 'root'),
-    password=os.getenv('DB_PASSWORD', 'qweasd2025'),
-    database=os.getenv('DB_NAME', 'medical_imaging_system')
-)
-cursor = conn.cursor()
-cursor.execute(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='%s'\" % os.getenv('DB_NAME', 'medical_imaging_system'))
-count = cursor.fetchone()[0]
-print(count)
-conn.close()
-" 2>/dev/null || echo "0")
-
-echo "   现有表数量: $TABLE_COUNT"
-
-if [ "$TABLE_COUNT" -lt "5" ]; then
-    echo "📊 数据库未初始化或不完整，开始初始化..."
-    
-    # 运行 Python 初始化脚本
-    cd /app/scripts
-    python init_database.py
-    
-    if [ $? -eq 0 ]; then
-        echo "✅ 数据库初始化成功!"
-    else
-        echo "⚠️  数据库初始化失败，但继续启动服务..."
-    fi
-else
-    echo "✅ 数据库已初始化，跳过初始化过程"
-fi
-
-# 返回应用目录
 cd /app
+
+echo "🔁 应用 Alembic 数据库迁移..."
+alembic upgrade head
+echo "✅ Alembic 数据库迁移完成"
 
 echo "================================================"
 echo "  启动 FastAPI 应用..."

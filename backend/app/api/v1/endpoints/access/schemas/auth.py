@@ -52,6 +52,46 @@ class UserUpdate(BaseModel):
     title: str | None = Field(None, max_length=50, description="职称")
 
 
+class AvatarUploadSessionRequest(BaseModel):
+    """头像上传会话请求."""
+
+    filename: str = Field(..., min_length=1, max_length=255, description="原始文件名")
+    size: int = Field(..., gt=0, description="文件大小")
+    mime_type: str = Field(..., min_length=1, max_length=100, description="MIME类型")
+
+
+class AvatarUploadPart(BaseModel):
+    """头像上传分片地址."""
+
+    part_number: int
+    url: str
+
+
+class AvatarUploadSessionResponse(BaseModel):
+    """头像上传会话响应."""
+
+    storage_bucket: str
+    object_key: str
+    upload_id: str
+    part_size: int
+    expires_in: int
+    parts: list[AvatarUploadPart]
+
+
+class CompletedAvatarUploadPart(BaseModel):
+    """已上传头像分片."""
+
+    part_number: int
+    etag: str
+
+
+class AvatarUploadCompleteRequest(BaseModel):
+    """头像上传完成请求."""
+
+    upload_id: str
+    parts: list[CompletedAvatarUploadPart] = Field(..., min_length=1)
+
+
 class TokenResponse(BaseModel):
     """令牌响应模型"""
     access_token: str = Field(..., description="访问令牌")
@@ -80,5 +120,8 @@ class UserResponse(BaseModel):
     is_superuser: bool = Field(default=False, description="是否超级管理员")
     is_system_admin: bool = Field(default=False, description="是否系统管理员")
     system_admin_level: int = Field(default=0, description="系统管理员级别：0-非，1-超级，2-二级")
+    avatar_url: str | None = Field(None, description="头像临时访问地址")
+    avatar_storage_bucket: str | None = Field(None, description="头像对象存储桶")
+    avatar_object_key: str | None = Field(None, description="头像对象Key")
     created_at: str | None = Field(None, description="创建时间")
     updated_at: str | None = Field(None, description="更新时间")

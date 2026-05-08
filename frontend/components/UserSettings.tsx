@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import {
+  deleteCurrentUserAvatar,
   getCurrentUser,
+  uploadCurrentUserAvatar,
   updateCurrentUser,
   UserInfo,
 } from '@/services/userService';
@@ -24,7 +26,9 @@ export default function UserSettings({
   const [activeTab, setActiveTab] = useState(type || 'profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [formData, setFormData] = useState({
@@ -180,6 +184,38 @@ export default function UserSettings({
     }
   };
 
+  const handleAvatarSelected = async (file?: File) => {
+    if (!file) return;
+    try {
+      setAvatarUploading(true);
+      const nextUser = await uploadCurrentUserAvatar(file);
+      setUserInfo(nextUser);
+      await fetchUserInfo();
+    } catch (error: any) {
+      console.error('头像上传失败:', error);
+      alert(error.message || '头像上传失败，请重试');
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    try {
+      setAvatarUploading(true);
+      const nextUser = await deleteCurrentUserAvatar();
+      setUserInfo(nextUser);
+      await fetchUserInfo();
+    } catch (error: any) {
+      console.error('头像删除失败:', error);
+      alert(error.message || '头像删除失败，请重试');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const tabs: Array<{
     id: 'profile' | 'organization' | 'password' | 'system';
     name: string;
@@ -246,29 +282,55 @@ export default function UserSettings({
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      <div className="flex items-center space-x-6">
-                        <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                          <span className="text-2xl font-bold text-white">
-                            {formData.real_name
-                              ? formData.real_name.charAt(0).toUpperCase()
-                              : formData.username
-                                ? formData.username.charAt(0).toUpperCase()
-                                : 'U'}
-                          </span>
-                        </div>
-                        <div>
-                          <button
-                            disabled
-                            className="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg text-sm cursor-not-allowed"
-                            title="头像上传功能即将推出"
-                          >
-                            更换头像
-                          </button>
-                          <p className="text-xs text-gray-500 mt-2">
-                            头像上传功能即将推出
-                          </p>
-                        </div>
-                      </div>
+	                      <div className="flex items-center space-x-6">
+	                        <div className="w-20 h-20 overflow-hidden rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg">
+	                          {userInfo?.avatar_url ? (
+	                            <img
+	                              src={userInfo.avatar_url}
+	                              alt="用户头像"
+	                              className="h-full w-full object-cover"
+	                            />
+	                          ) : (
+	                            <span className="text-2xl font-bold text-white">
+	                              {formData.real_name
+	                                ? formData.real_name.charAt(0).toUpperCase()
+	                                : formData.username
+	                                  ? formData.username.charAt(0).toUpperCase()
+	                                  : 'U'}
+	                            </span>
+	                          )}
+	                        </div>
+	                        <div>
+	                          <input
+	                            ref={avatarInputRef}
+	                            type="file"
+	                            accept="image/png,image/jpeg,image/webp"
+	                            className="hidden"
+	                            onChange={event =>
+	                              void handleAvatarSelected(event.target.files?.[0])
+	                            }
+	                          />
+	                          <button
+	                            type="button"
+	                            disabled={avatarUploading}
+	                            onClick={() => avatarInputRef.current?.click()}
+	                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+	                          >
+	                            {avatarUploading ? '处理中...' : '更换头像'}
+	                          </button>
+	                          {userInfo?.avatar_url && (
+	                            <button
+	                              type="button"
+	                              disabled={avatarUploading}
+	                              onClick={() => void handleDeleteAvatar()}
+	                              className="ml-2 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+	                            >
+	                              删除头像
+	                            </button>
+	                          )}
+	                          <p className="text-xs text-gray-500 mt-2">支持 PNG、JPEG、WebP</p>
+	                        </div>
+	                      </div>
 
                       <div className="grid grid-cols-2 gap-6">
                         <div>

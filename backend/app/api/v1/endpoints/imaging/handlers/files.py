@@ -9,11 +9,10 @@
 """
 
 from typing import Optional
-from datetime import datetime, date
-from pathlib import Path
+from datetime import datetime, date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 
@@ -25,6 +24,7 @@ from app.core.system.response import success_response, paginated_response
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 from app.models.user import User
 from app.models.image import ImageAnnotation
+from app.services.storage_gateway import StorageServiceError, storage_gateway
 from app.services.image_file_visibility import (
     apply_image_visibility_filter,
     get_visible_image_file,
@@ -38,6 +38,31 @@ from ..schemas.files import (
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+
+def _image_file_response(image: ImageFile, uploader_name: Optional[str] = None) -> ImageFileResponse:
+    return ImageFileResponse(
+        id=image.id,
+        file_uuid=image.file_uuid,
+        original_filename=image.original_filename,
+        file_type=image.file_type.value,
+        mime_type=image.mime_type,
+        file_size=image.file_size,
+        storage_bucket=image.storage_bucket,
+        object_key=image.object_key,
+        storage_etag=image.storage_etag,
+        thumbnail_path=image.thumbnail_path,
+        uploaded_by=image.uploaded_by,
+        uploader_name=uploader_name,
+        patient_id=image.patient_id,
+        study_date=image.study_date,
+        description=image.description,
+        annotation=image.annotation,
+        status=image.status.value,
+        upload_progress=image.upload_progress,
+        created_at=image.created_at,
+        uploaded_at=image.uploaded_at,
+    )
 
 
 # API 端点
@@ -144,31 +169,7 @@ async def get_image_files_list(
         total = query.count()
         images = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-        # 转换为响应格式
-        items = []
-        for img in images:
-            items.append(ImageFileResponse(
-                id=img.id,
-                file_uuid=img.file_uuid,
-                original_filename=img.original_filename,
-                file_type=img.file_type.value,
-                mime_type=img.mime_type,
-                file_size=img.file_size,
-                storage_path=img.storage_path,
-                thumbnail_path=img.thumbnail_path,
-                uploaded_by=img.uploaded_by,
-                uploader_name=None,  # 可以后续优化
-                patient_id=img.patient_id,
-                modality=img.modality,
-                body_part=img.body_part,
-                study_date=img.study_date,
-                description=img.description,
-                annotation=img.annotation,  # 添加标注数据
-                status=img.status.value,
-                upload_progress=img.upload_progress,
-                created_at=img.created_at,
-                uploaded_at=img.uploaded_at
-            ).dict())
+        items = [_image_file_response(img).dict() for img in images]
 
         return paginated_response(
             items=items,
@@ -208,29 +209,7 @@ async def get_patient_images(
         total = query.count()
         images = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
         
-        items = []
-        for img in images:
-            img_dict = {
-                "id": img.id,
-                "file_uuid": img.file_uuid,
-                "original_filename": img.original_filename,
-                "file_type": img.file_type.value,
-                "mime_type": img.mime_type,
-                "file_size": img.file_size,
-                "storage_path": img.storage_path,
-                "thumbnail_path": img.thumbnail_path,
-                "uploaded_by": img.uploaded_by,
-                "patient_id": img.patient_id,
-                "modality": img.modality,
-                "body_part": img.body_part,
-                "study_date": img.study_date,
-                "description": img.description,
-                "status": img.status.value,
-                "upload_progress": img.upload_progress,
-                "created_at": img.created_at,
-                "uploaded_at": img.uploaded_at
-            }
-            items.append(ImageFileResponse(**img_dict).dict())
+        items = [_image_file_response(img).dict() for img in images]
 
         return paginated_response(
             items=items,
@@ -266,37 +245,15 @@ async def get_image_file(
                 detail="影像文件不存在"
             )
         
-        # 构建响应
-        img_dict = {
-            "id": image.id,
-            "file_uuid": image.file_uuid,
-            "original_filename": image.original_filename,
-            "file_type": image.file_type.value,
-            "mime_type": image.mime_type,
-            "file_size": image.file_size,
-            "storage_path": image.storage_path,
-            "thumbnail_path": image.thumbnail_path,
-            "uploaded_by": image.uploaded_by,
-            "patient_id": image.patient_id,
-            "modality": image.modality,
-            "body_part": image.body_part,
-            "study_date": image.study_date,
-            "description": image.description,
-            "annotation": image.annotation,
-            "status": image.status.value,
-            "upload_progress": image.upload_progress,
-            "created_at": image.created_at,
-            "uploaded_at": image.uploaded_at
-        }
-
         # 获取上传者信息
+        uploader_name = None
         if image.uploaded_by:
             uploader = db.query(User).filter(User.id == image.uploaded_by).first()
             if uploader:
-                img_dict["uploader_name"] = uploader.username
+                uploader_name = uploader.username
 
         return success_response(
-            data=ImageFileResponse(**img_dict).dict(),
+            data=_image_file_response(image, uploader_name).dict(),
             message="影像文件详情查询成功"
         )
 
@@ -310,14 +267,14 @@ async def get_image_file(
         )
 
 
-@router.get("/{file_id}/download", summary="下载影像文件")
-async def download_image_file(
+@router.get("/{file_id}/download-url", summary="获取影像文件临时访问地址")
+async def get_image_file_download_url(
     file_id: int,
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
-    下载指定的影像文件
+    获取经 Nginx 代理的 MinIO presigned URL。
     """
     try:
         image = get_visible_image_file(db, file_id, current_user)
@@ -328,30 +285,56 @@ async def download_image_file(
                 detail="影像文件不存在"
             )
 
-        # 构建文件路径
-        file_path = Path(settings.UPLOAD_DIR) / image.storage_path
-
-        if not file_path.exists():
-            logger.error(f"文件不存在: {file_path}")
+        if image.status not in {ImageFileStatusEnum.UPLOADED, ImageFileStatusEnum.PROCESSED}:
             raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="文件不存在"
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail="影像文件尚未完成上传",
             )
-        
-        return FileResponse(
-            path=str(file_path),
-            filename=image.original_filename,
-            media_type=image.mime_type or "application/octet-stream"
+
+        expires_in = settings.STORAGE_PRESIGN_EXPIRES_SECONDS
+        url = await storage_gateway.presign_get(
+            bucket=image.storage_bucket,
+            object_key=image.object_key,
+            expires_in=expires_in,
         )
-        
+
+        return success_response(
+            data={
+                "url": url,
+                "expires_in": expires_in,
+                "expires_at": (datetime.now() + timedelta(seconds=expires_in)).isoformat(),
+                "filename": image.original_filename,
+                "mime_type": image.mime_type,
+            },
+            message="获取影像访问地址成功",
+        )
+
+    except StorageServiceError as e:
+        logger.error(f"获取影像访问地址失败: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_502_BAD_GATEWAY,
+            detail="对象存储服务不可用",
+        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"下载影像文件失败: {e}")
+        logger.error(f"获取影像访问地址失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="下载影像文件失败"
+            detail="获取影像访问地址失败"
         )
+
+
+@router.get("/{file_id}/download", summary="下载影像文件")
+async def download_image_file(
+    file_id: int,
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Compatibility endpoint: authorize in FastAPI, then redirect to MinIO via Nginx."""
+
+    response = await get_image_file_download_url(file_id, current_user, db)
+    return RedirectResponse(url=response["data"]["url"], status_code=307)
 
 
 @router.delete("/{file_id}", summary="删除影像文件")
@@ -435,19 +418,12 @@ async def get_image_stats(
             img_status = img.status.value
             by_status[img_status] = by_status.get(img_status, 0) + 1
         
-        # 按模态统计
-        by_modality = {}
-        for img in images:
-            if img.modality:
-                by_modality[img.modality] = by_modality.get(img.modality, 0) + 1
-
         return success_response(
             data=ImageFileStatsResponse(
                 total_files=total_files,
                 total_size=total_size,
                 by_type=by_type,
                 by_status=by_status,
-                by_modality=by_modality
             ).dict(),
             message="影像统计查询成功"
         )
@@ -538,37 +514,15 @@ async def update_annotation(
         
         logger.info(f"用户 {current_user.get('username')} 更新了影像文件 {file_id} 的标注数据")
         
-        # 构建响应
-        img_dict = {
-            "id": image.id,
-            "file_uuid": image.file_uuid,
-            "original_filename": image.original_filename,
-            "file_type": image.file_type.value,
-            "mime_type": image.mime_type,
-            "file_size": image.file_size,
-            "storage_path": image.storage_path,
-            "thumbnail_path": image.thumbnail_path,
-            "uploaded_by": image.uploaded_by,
-            "patient_id": image.patient_id,
-            "modality": image.modality,
-            "body_part": image.body_part,
-            "study_date": image.study_date,
-            "description": image.description,
-            "annotation": image.annotation,
-            "status": image.status.value,
-            "upload_progress": image.upload_progress,
-            "created_at": image.created_at,
-            "uploaded_at": image.uploaded_at
-        }
-        
         # 获取上传者信息
+        uploader_name = None
         if image.uploaded_by:
             uploader = db.query(User).filter(User.id == image.uploaded_by).first()
             if uploader:
-                img_dict["uploader_name"] = uploader.username
+                uploader_name = uploader.username
 
         return success_response(
-            data=ImageFileResponse(**img_dict).dict(),
+            data=_image_file_response(image, uploader_name).dict(),
             message="标注数据更新成功"
         )
         

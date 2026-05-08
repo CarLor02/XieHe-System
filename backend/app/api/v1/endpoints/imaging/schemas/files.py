@@ -12,13 +12,13 @@ class ImageFileResponse(BaseModel):
     file_type: str
     mime_type: Optional[str]
     file_size: int
-    storage_path: str
+    storage_bucket: str
+    object_key: str
+    storage_etag: Optional[str]
     thumbnail_path: Optional[str]
     uploaded_by: int
     uploader_name: Optional[str] = None
     patient_id: Optional[int]
-    modality: Optional[str]
-    body_part: Optional[str]
     study_date: Optional[datetime]
     description: Optional[str]
     annotation: Optional[str] = None
@@ -45,7 +45,6 @@ class ImageFileStatsResponse(BaseModel):
     total_size: int
     by_type: dict
     by_status: dict
-    by_modality: dict
 
 
 class UpdateExamTypeRequest(BaseModel):

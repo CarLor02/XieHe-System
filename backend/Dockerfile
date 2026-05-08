@@ -39,7 +39,7 @@ RUN pip install --upgrade pip && \
 COPY . .
 
 # 创建必要的目录
-RUN mkdir -p /app/logs /app/uploads /app/models && \
+RUN mkdir -p /app/logs /app/models && \
     chown -R appuser:appuser /app
 
 # 切换到非root用户

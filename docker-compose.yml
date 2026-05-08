@@ -18,6 +18,76 @@ services:
       timeout: 10s
       retries: 5
 
+  # MinIO 对象存储
+  minio:
+    image: minio/minio:latest
+    container_name: medical_minio
+    restart: unless-stopped
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-xiehe_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-xiehe_minio_password}
+    ports:
+      - '${MINIO_API_PORT_BIND:-127.0.0.1:9000:9000}'
+      - '${MINIO_CONSOLE_PORT_BIND:-127.0.0.1:9001:9001}'
+    volumes:
+      - minio_data:/data
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: medical_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-xiehe_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-xiehe_minio_password}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+      mc mb --ignore-existing local/medical_image_files &&
+      mc mb --ignore-existing local/medical_user_avatars &&
+      mc anonymous set none local/medical_image_files &&
+      mc anonymous set none local/medical_user_avatars
+      "
+    networks:
+      - medical_network
+
+  storage-service:
+    build:
+      context: ./backend/app/services/internal/storage_service
+      dockerfile: Dockerfile
+    container_name: medical_storage_service
+    restart: unless-stopped
+    environment:
+      STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
+      MINIO_INTERNAL_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:3030}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-xiehe_minio}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-xiehe_minio_password}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+    expose:
+      - '8090'
+    depends_on:
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8090/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   # MySQL 数据库
   mysql:
     image: mysql:8.0
@@ -33,7 +103,6 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - mysql_logs:/var/log/mysql
-      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     command: --default-authentication-plugin=mysql_native_password --max_connections=1000
     networks:
       - medical_network
@@ -63,15 +132,20 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       CORS_ORIGINS: ${CORS_ORIGINS}
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS}
+      STORAGE_SERVICE_URL: http://storage-service:8090
+      STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
+      IMAGE_FILE_BUCKET: medical_image_files
+      USER_AVATAR_BUCKET: medical_user_avatars
     ports:
       - '${BACKEND_PORT_BIND}'
     volumes:
-      - uploads_data:/app/uploads
       - models_data:/app/models
     depends_on:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      storage-service:
         condition: service_healthy
     networks:
       - medical_network
@@ -100,6 +174,7 @@ services:
       - '${FRONTEND_PORT_BIND}'
     depends_on:
       - backend
+      - minio
     networks:
       - medical_network
     deploy:
@@ -125,7 +200,7 @@ volumes:
     driver: local
   redis_logs:
     driver: local
-  uploads_data:
+  minio_data:
     driver: local
   models_data:
     driver: local

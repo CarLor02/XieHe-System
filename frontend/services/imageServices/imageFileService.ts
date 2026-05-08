@@ -15,14 +15,14 @@ export interface ImageFile {
   file_type: 'DICOM' | 'JPEG' | 'PNG' | 'TIFF' | 'OTHER';
   mime_type?: string;
   file_size: number;
-  storage_path: string;
+  storage_bucket: string;
+  object_key: string;
+  storage_etag?: string;
   thumbnail_path?: string;
   uploaded_by: number;
   uploader_name?: string;
   patient_id?: number;
   study_id?: number; // TODO 这个字段后端的接口没返回, 以后看一下
-  modality?: string;
-  body_part?: string;
   study_date?: string;
   description?: string;
   annotation?: string; // api/v1/image-files/{image_id} 会以string的形式反回来 measurements 结构体
@@ -51,7 +51,14 @@ export interface ImageFileStats {
   total_size: number;
   by_type: Record<string, number>;
   by_status: Record<string, number>;
-  by_modality: Record<string, number>;
+}
+
+export interface ImageFileDownloadUrl {
+  url: string;
+  expires_in: number;
+  expires_at?: string;
+  filename?: string;
+  mime_type?: string;
 }
 
 export interface ImageFileFilters {
@@ -174,12 +181,20 @@ export async function downloadImageFile(
   fileId: number,
   options: { signal?: AbortSignal } = {}
 ): Promise<Blob> {
-  const response = await apiClient.get(`/api/v1/image-files/${fileId}/download`, {
+  const download = await getImageFileDownloadUrl(fileId);
+  const response = await apiClient.get(download.url, {
     responseType: 'blob',
     signal: options.signal,
-  });
-  // Blob 响应不需要使用 extractData
+    _skipAuthRefresh: true,
+  } as any);
   return response.data;
+}
+
+export async function getImageFileDownloadUrl(
+  fileId: number
+): Promise<ImageFileDownloadUrl> {
+  const response = await apiClient.get(`/api/v1/image-files/${fileId}/download-url`);
+  return extractData<ImageFileDownloadUrl>(response);
 }
 
 /**
@@ -230,13 +245,11 @@ export async function getImageStats(): Promise<ImageFileStats> {
 export async function getImagePreviewUrl(fileId: number): Promise<string> {
   // 30 秒超时：超时后抛出错误，由 catch 降级为占位图，避免 spinner 永久悬挂
   const PREVIEW_TIMEOUT_MS = 30_000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PREVIEW_TIMEOUT_MS);
 
   try {
-    const response = await apiClient.get(`/api/v1/image-files/${fileId}/download`, {
-      responseType: 'blob',
-      timeout: PREVIEW_TIMEOUT_MS,
-    });
-    const blob: Blob = response.data;
+    const blob = await downloadImageFile(fileId, { signal: controller.signal });
     // 如果服务端返回非图片（如 JSON 错误体），blob type 不是 image/*，直接降级
     if (!blob.type.startsWith('image/') && blob.type !== 'application/octet-stream' && blob.type !== '') {
       throw new Error(`Unexpected content-type: ${blob.type}`);
@@ -246,6 +259,8 @@ export async function getImagePreviewUrl(fileId: number): Promise<string> {
     console.warn(`[Preview] file ${fileId} 加载失败，使用占位图:`, error);
     // 返回一个占位图片（灰色背景 + "暂无图片"文字）
     return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7ml6Dlh7rliqDovb08L3RleHQ+PC9zdmc+';
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

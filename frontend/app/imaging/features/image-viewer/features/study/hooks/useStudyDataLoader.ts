@@ -33,7 +33,7 @@ export function useStudyDataLoader(
                 patient_name: imageFile.uploader_name || '未知用户',
                 study_date: imageFile.study_date || imageFile.created_at,
                 study_description: imageFile.description || imageFile.file_type,
-                modality: imageFile.modality || 'OTHER',
+                modality: imageFile.file_type || 'OTHER',
                 status: imageFile.status,
                 created_at: imageFile.created_at,
             }

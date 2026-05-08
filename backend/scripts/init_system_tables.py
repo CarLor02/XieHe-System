@@ -418,13 +418,13 @@ def main():
             },
             # DICOM配置
             {
-                'config_key': 'dicom.storage_path',
-                'config_name': 'DICOM存储路径',
+                'config_key': 'dicom.storage_bucket',
+                'config_name': 'DICOM存储桶',
                 'config_type': ConfigTypeEnum.DICOM,
                 'data_type': ConfigDataTypeEnum.STRING,
-                'config_value': '/data/dicom',
-                'default_value': '/data/dicom',
-                'description': 'DICOM文件存储根路径',
+                'config_value': 'medical_image_files',
+                'default_value': 'medical_image_files',
+                'description': 'DICOM文件对象存储桶',
                 'is_required': True,
                 'config_group': '存储配置',
                 'sort_order': 50,
