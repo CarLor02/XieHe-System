@@ -99,11 +99,13 @@ def check_environment():
     print_section("环境配置检查")
     
     # 检查环境变量文件
-    env_file = Path(".env")
-    if env_file.exists():
-        print_result(".env文件", "OK", f"文件大小: {env_file.stat().st_size} bytes")
+    dotenv_dir = Path(__file__).resolve().parents[2] / "dotenv"
+    env_files = sorted(dotenv_dir.glob(".env.*"))
+    env_files = [path for path in env_files if not path.name.endswith(".example")]
+    if env_files:
+        print_result("dotenv环境文件", "OK", f"已加载候选文件: {len(env_files)} 个")
     else:
-        print_result(".env文件", "WARNING", "未找到.env文件，使用默认配置")
+        print_result("dotenv环境文件", "WARNING", "未找到dotenv/.env.*文件，使用默认配置")
     
     # 检查环境类型
     print_result("环境类型", "INFO", settings.ENVIRONMENT)
@@ -291,7 +293,7 @@ def main():
     generate_config_report()
     
     print_header("配置检查完成")
-    print("💡 如有配置问题，请参考 .env.example 文件进行修正")
+    print("💡 如有配置问题，请参考 dotenv/.env.*.example 文件进行修正")
     print("📚 详细配置说明请查看项目文档")
 
 

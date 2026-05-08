@@ -28,7 +28,7 @@ docs/deployment/
 │   └── health-check.sh         # 健康检查脚本
 └── configs/                     # 配置文件模板
     ├── nginx/                  # Nginx配置
-    ├── docker/                 # Docker配置
+    ├── infrastructure/         # Docker/Compose配置
     ├── k8s/                    # Kubernetes配置
     └── monitoring/             # 监控配置
 ```
@@ -45,13 +45,14 @@ docs/deployment/
 
 2. **配置环境变量**
    ```bash
-   cp .env.example .env
-   # 编辑 .env 文件，配置数据库密码等
+   cp dotenv/.env.database.example dotenv/.env.database
+   cp dotenv/.env.backend.example dotenv/.env.backend
+   # 编辑 dotenv/.env.* 文件，配置数据库密码等
    ```
 
 3. **启动服务**
    ```bash
-   docker-compose up -d
+   ./scripts/compose.sh up -d
    ```
 
 4. **验证部署**

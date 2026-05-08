@@ -1,0 +1,36 @@
+services:
+  frontend:
+    build:
+      context: ../../..
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+        NEXT_PUBLIC_API_VERSION: ${NEXT_PUBLIC_API_VERSION}
+        NEXT_PUBLIC_WEBSOCKET_URL: ${NEXT_PUBLIC_WEBSOCKET_URL}
+        NEXT_PUBLIC_AI_DETECT_URL: ${NEXT_PUBLIC_AI_DETECT_URL}
+        NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL: ${NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL}
+        NEXT_PUBLIC_AI_DETECT_LATERAL_URL: ${NEXT_PUBLIC_AI_DETECT_LATERAL_URL}
+        NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL: ${NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL}
+    container_name: medical_frontend
+    restart: unless-stopped
+    ports:
+      - '${FRONTEND_PORT_BIND}'
+    depends_on:
+      - backend
+      - minio
+    networks:
+      - medical_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 3

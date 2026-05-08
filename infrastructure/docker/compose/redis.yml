@@ -1,0 +1,18 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: medical_redis
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT_BIND}'
+    volumes:
+      - redis_data:/data
+      - redis_logs:/var/log/redis
+      - ../../redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      timeout: 10s
+      retries: 5

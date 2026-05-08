@@ -274,7 +274,21 @@ class Settings(BaseSettings):
     
     class Config:
         """Pydantic 配置"""
-        env_file = ".env"
+        env_file = (
+            ".env",
+            "dotenv/.env.runtime",
+            "dotenv/.env.database",
+            "dotenv/.env.redis",
+            "dotenv/.env.minio",
+            "dotenv/.env.storage",
+            "dotenv/.env.backend",
+            "../dotenv/.env.runtime",
+            "../dotenv/.env.database",
+            "../dotenv/.env.redis",
+            "../dotenv/.env.minio",
+            "../dotenv/.env.storage",
+            "../dotenv/.env.backend",
+        )
         env_file_encoding = "utf-8"
         case_sensitive = True
         extra = "ignore"

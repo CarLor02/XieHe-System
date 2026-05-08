@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: ../../..
+      dockerfile: backend/Dockerfile
+    container_name: medical_backend
+    restart: unless-stopped
+    environment:
+      PYTHONPATH: ${PYTHONPATH}
+      ENVIRONMENT: ${ENVIRONMENT}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS}
+      STORAGE_SERVICE_URL: ${STORAGE_SERVICE_URL:-http://storage-service:8090}
+      STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
+      IMAGE_FILE_BUCKET: ${IMAGE_FILE_BUCKET:-medical-image-files}
+      USER_AVATAR_BUCKET: ${USER_AVATAR_BUCKET:-medical-user-avatars}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,minio,storage-service,backend,frontend,medical_mysql,medical_redis,medical_minio,medical_storage_service,medical_backend,medical_frontend
+      no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,redis,minio,storage-service,backend,frontend,medical_mysql,medical_redis,medical_minio,medical_storage_service,medical_backend,medical_frontend
+    ports:
+      - '${BACKEND_PORT_BIND}'
+    volumes:
+      - models_data:/app/models
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage-service:
+        condition: service_healthy
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/health']
+      timeout: 10s
+      retries: 5

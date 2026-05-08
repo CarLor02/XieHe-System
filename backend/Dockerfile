@@ -1,56 +1,56 @@
-# 医疗影像诊断系统 - 后端服务 Docker 镜像
-# 生产部署环境
+# 后端Docker镜像构建文件
+#
+# 基于Python 3.11构建FastAPI应用
+#
+# 作者: XieHe Medical System
+# 创建时间: 2025-09-25
+# 更新时间: 2025-12-15
 
 FROM python:3.11-slim
-
-# 设置环境变量
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    NODE_ENV=production
-
-# 安装系统依赖
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libffi-dev \
-    libssl-dev \
-    libmariadb-dev \
-    libmariadb-dev-compat \
-    pkg-config \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# 创建非root用户
-RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # 设置工作目录
 WORKDIR /app
 
-# 复制依赖文件
-COPY requirements.txt ./
+# 设置环境变量
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# 安装生产依赖
+# 安装系统依赖（编译和运行时都需要）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    default-libmysqlclient-dev \
+    pkg-config \
+    libffi-dev \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 复制依赖文件并安装（先安装依赖以利用Docker缓存）
+COPY backend/requirements.txt .
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
-COPY . .
+COPY backend/ .
+
+# 复制启动脚本
+COPY infrastructure/docker/backend-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # 创建必要的目录
-RUN mkdir -p /app/logs /app/models && \
-    chown -R appuser:appuser /app
-
-# 切换到非root用户
-USER appuser
-
-# 暴露端口
-EXPOSE 8000
+RUN mkdir -p logs storage/images storage/reports storage/temp && \
+    chmod -R 755 logs storage
 
 # 健康检查
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
 
-# 生产环境启动命令
-CMD ["gunicorn", "app.main:app", "-c", "gunicorn.conf.py"]
+# 暴露端口
+EXPOSE 8080
+
+# 使用启动脚本（会自动初始化数据库）
+ENTRYPOINT ["/entrypoint.sh"]

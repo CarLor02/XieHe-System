@@ -430,16 +430,16 @@
 **服务管理:**
 ```bash
 # 启动服务
-docker-compose up -d
+./scripts/compose.sh up -d
 
 # 停止服务
-docker-compose down
+./scripts/compose.sh down
 
 # 重启服务
-docker-compose restart
+./scripts/compose.sh restart
 
 # 查看日志
-docker-compose logs -f
+./scripts/compose.sh logs -f
 ```
 
 **数据库操作:**

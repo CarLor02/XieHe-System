@@ -20,16 +20,14 @@ if sys.platform == 'win32':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 import subprocess
 from datetime import datetime
-from dotenv import load_dotenv
+from env_loader import load_project_env
 
 # 添加项目根目录到Python路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 加载backend目录下的.env文件（如果存在）
-env_path = os.path.join(project_root, '.env')
-if os.path.exists(env_path):
-    load_dotenv(env_path)
+# 加载项目拆分后的 dotenv 文件
+load_project_env()
 
 # 从环境变量读取数据库配置（支持 Docker 环境变量）
 MYSQL_HOST = os.getenv("DB_HOST", os.getenv("MYSQL_HOST", "127.0.0.1"))

@@ -1,0 +1,30 @@
+services:
+  storage-service:
+    build:
+      context: ../../../backend/app/services/internal/storage_service
+      dockerfile: Dockerfile
+    container_name: medical_storage_service
+    restart: unless-stopped
+    environment:
+      STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
+      MINIO_INTERNAL_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:3030}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?error}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?error}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,minio,storage-service,backend,frontend,medical_mysql,medical_redis,medical_minio,medical_storage_service,medical_backend,medical_frontend
+      no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,redis,minio,storage-service,backend,frontend,medical_mysql,medical_redis,medical_minio,medical_storage_service,medical_backend,medical_frontend
+    expose:
+      - '8090'
+    depends_on:
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'wget', '-Y', 'off', '-qO-', 'http://127.0.0.1:8090/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5

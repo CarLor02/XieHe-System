@@ -48,14 +48,21 @@
 
 ```bash
 # 复制配置模板
-cp .env.example .env
+cp dotenv/.env.runtime.example dotenv/.env.runtime
+cp dotenv/.env.ports.example dotenv/.env.ports
+cp dotenv/.env.database.example dotenv/.env.database
+cp dotenv/.env.redis.example dotenv/.env.redis
+cp dotenv/.env.minio.example dotenv/.env.minio
+cp dotenv/.env.storage.example dotenv/.env.storage
+cp dotenv/.env.backend.example dotenv/.env.backend
+cp dotenv/.env.frontend.example dotenv/.env.frontend
 
 # 编辑配置(修改密码等)
-vim .env
+vim dotenv/.env.database dotenv/.env.backend dotenv/.env.minio dotenv/.env.storage
 ```
 
 **默认配置:**
-- MySQL 端口: 3307 (宿主机)
+- MySQL 端口: 3306 (宿主机)
 - 后端 API 端口: 8080
 - 前端端口: 3030
 - Redis 端口: 6380
@@ -185,16 +192,16 @@ docker exec -i medical_mysql mysql -u root -pqweasd2025 medical_imaging_system <
 # 检查端口占用
 lsof -i :3030  # 前端
 lsof -i :8080  # 后端
-lsof -i :3307  # MySQL
+lsof -i :3306  # MySQL
 
-# 修改端口: 编辑 docker-compose.yml
+# 修改端口: 编辑 dotenv/.env.ports
 ```
 
 ### 问题 2: 数据库初始化失败
 
 ```bash
 # 查看后端日志
-docker compose logs backend
+./scripts/compose.sh logs backend
 
 # 手动初始化
 docker exec -it medical_backend bash
@@ -217,7 +224,7 @@ sudo ./scripts/security_cleanup.sh
 ## 📚 详细文档
 
 - [MySQL 部署文档](docs/deployment/mysql-deployment.md)
-- [安全配置指南](docker-compose.security.yml)
+- [安全配置指南](infrastructure/docker/compose/security.yml)
 - [项目完整文档](docs/README.md)
 
 ---

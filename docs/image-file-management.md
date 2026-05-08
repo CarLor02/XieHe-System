@@ -177,7 +177,7 @@ python scripts/init_image_file_table.py
 ### 2. 重启后端服务
 
 ```bash
-docker-compose restart backend
+./scripts/compose.sh restart backend
 ```
 
 ### 3. 验证API

@@ -1,0 +1,19 @@
+name: xiehe-system
+
+networks:
+  medical_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  mysql_logs:
+    driver: local
+  redis_data:
+    driver: local
+  redis_logs:
+    driver: local
+  minio_data:
+    driver: local
+  models_data:
+    driver: local

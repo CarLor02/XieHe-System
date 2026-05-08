@@ -183,10 +183,11 @@ ls -la
 
 ```bash
 # 复制环境变量模板
-cp .env.example .env
+cp dotenv/.env.runtime.example dotenv/.env.runtime
+cp dotenv/.env.database.example dotenv/.env.database
 
 # 编辑环境变量
-nano .env
+nano dotenv/.env.database
 ```
 
 **关键配置项**:
@@ -272,7 +273,7 @@ docker compose ps
 
 ### 5.1 Docker Compose 配置
 
-系统使用 `docker-compose.yml` 管理所有服务：
+系统使用 `./scripts/compose.sh` 封装 Compose 管理所有服务：
 
 **服务列表**:
 1. **redis**: Redis缓存服务
@@ -283,24 +284,24 @@ docker compose ps
 **常用命令**:
 ```bash
 # 启动所有服务
-docker compose up -d
+./scripts/compose.sh up -d
 
 # 停止所有服务
-docker compose down
+./scripts/compose.sh down
 
 # 重启特定服务
-docker compose restart backend
+./scripts/compose.sh restart backend
 
 # 查看服务日志
-docker compose logs -f backend
+./scripts/compose.sh logs -f backend
 
 # 进入容器
-docker compose exec backend bash
+./scripts/compose.sh exec backend bash
 ```
 
 ### 5.2 数据库配置
 
-**MySQL配置** (docker-compose.yml):
+**MySQL配置** (`infrastructure/docker/compose/mysql.yml`):
 ```yaml
 mysql:
   image: mysql:8.0
@@ -821,7 +822,7 @@ find backups/ -name "*.sql" -mtime +30 -delete
 
 **Q: 如何修改服务端口？**
 
-A: 编辑 `docker-compose.yml` 文件，修改对应服务的端口映射：
+A: 编辑 `dotenv/.env.ports` 文件，修改对应服务的端口映射：
 ```yaml
 frontend:
   ports:

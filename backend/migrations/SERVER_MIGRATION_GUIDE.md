@@ -124,7 +124,7 @@ DESCRIBE ai_tasks;             -- 不应该有 study_id
 
 ```bash
 # 如果使用 Docker
-docker-compose restart backend
+./scripts/compose.sh restart backend
 
 # 如果使用 systemd
 systemctl restart xiehe-backend
@@ -152,13 +152,13 @@ curl http://localhost:8080/api/v1/image-files/patient/1
 
 ```bash
 # 停止应用
-docker-compose stop backend
+./scripts/compose.sh stop backend
 
 # 恢复数据库
 mysql -h 127.0.0.1 -u root -p medical_imaging_system < backup_before_cleanup_YYYYMMDD_HHMMSS.sql
 
 # 重启应用
-docker-compose start backend
+./scripts/compose.sh start backend
 ```
 
 ## ✅ 检查清单

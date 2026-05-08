@@ -204,7 +204,7 @@ server {
 
 ### 总体原则
 
-`CPU2` 继续使用根目录 `docker-compose.yml` 部署，但要收紧对外暴露方式：
+`CPU2` 继续使用 `./scripts/compose.sh` 封装入口部署，但要收紧对外暴露方式：
 
 - 保留 `frontend` 服务
 - 保留 `backend` 服务
@@ -331,13 +331,14 @@ redis:
 
 因此：
 
-- 推荐通过根目录 `.env` 配合 `docker-compose.yml` 的 `build.args` 注入前端构建变量
+- 推荐通过 `dotenv/.env.frontend` 配合 `infrastructure/docker/compose/frontend.yml` 的 `build.args` 注入前端构建变量
 - `frontend/.env.production` 作为前端仓库内的默认生产配置，可作为手动构建时的兜底值
 - 如果修改了前端对外地址，必须重新构建前端镜像
 
 ### 需要修改的文件
 
-- 根目录 `.env`
+- `dotenv/.env.frontend`
+- `dotenv/.env.ports`
 - `frontend/.env.production`
 
 ### 推荐配置
@@ -373,7 +374,7 @@ NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL=https://xiehe.stellarmesh.net/ai/latera
   - 页面使用 HTTPS 时，不能继续保留 `http://IP:8001` 或 `http://IP:8002`
   - 否则浏览器会出现混合内容拦截
 
-## docker-compose.yml 中 frontend 环境变量的处理建议
+## Compose 中 frontend 环境变量的处理建议
 
 推荐做法：
 
@@ -388,27 +389,27 @@ frontend:
 建议后续实施时按下面原则处理：
 
 - 不再在 `frontend.environment` 中直接写 `NEXT_PUBLIC_*` 变量
-- 使用根目录 `.env` 作为 Compose 和前端构建的统一变量来源
+- 使用 `dotenv/.env.frontend` 作为 Compose 和前端构建的统一变量来源
 - 当前代码实际读取的是 `NEXT_PUBLIC_WEBSOCKET_URL`，不是 `NEXT_PUBLIC_WS_URL`
 - `frontend/.env.production` 保留为默认生产配置，但实际 Docker 构建以 Compose 传入的 build args 为准
 
 可选做法：
 
-1. 统一只维护根目录 `.env`
+1. 统一只维护 `dotenv/.env.frontend`
 2. 同步维护 `frontend/.env.production` 作为手动构建的默认值
 
 ## 实施顺序
 
 推荐按以下顺序执行。
 
-### 1. 修改根目录 `.env` 和前端生产变量
+### 1. 修改 dotenv 前端配置和前端生产变量
 
 先更新：
 
-- 根目录 `.env`
+- `dotenv/.env.frontend`
 - `frontend/.env.production`
 
-### 2. 修改 CPU2 的 docker-compose.yml
+### 2. 修改 CPU2 的 Compose 配置
 
 重点修改：
 
