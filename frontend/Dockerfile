@@ -12,6 +12,14 @@ FROM node:20-alpine AS builder
 # 设置工作目录
 WORKDIR /app
 
+# 构建阶段代理配置。通过 compose build.args 注入，不写入最终运行镜像。
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
 # 安装系统依赖（包括 sharp 所需的构建工具）
 RUN apk add --no-cache \
     libc6-compat \
@@ -91,6 +99,14 @@ RUN rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
 # 阶段2: 生产运行时 - Nginx 静态服务器 (无Node.js，更安全)
 # ============================================
 FROM nginx:alpine AS production
+
+# 运行时镜像构建阶段同样需要 apk 下载 curl。
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
 
 # 安全加固: 移除所有可能被利用的工具
 RUN rm -f /usr/bin/wget /bin/wget \

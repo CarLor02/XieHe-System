@@ -3,17 +3,19 @@ services:
     build:
       context: ../../..
       dockerfile: backend/Dockerfile
+      extra_hosts:
+        - 'host.docker.internal:host-gateway'
       args:
-        HTTP_PROXY: ${HTTP_PROXY:-}
-        HTTPS_PROXY: ${HTTPS_PROXY:-}
-        NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,localaddress,.localdomain}
-        http_proxy: ${http_proxy:-}
-        https_proxy: ${https_proxy:-}
-        no_proxy: ${no_proxy:-localhost,127.0.0.1,::1,localaddress,.localdomain}
-        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
-        PIP_EXTRA_INDEX_URL: ${PIP_EXTRA_INDEX_URL:-}
-        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
-        PIP_TIMEOUT: ${PIP_TIMEOUT:-120}
+        HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+        NO_PROXY: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1,localaddress,.localdomain}
+        http_proxy: ${BUILD_HTTP_PROXY:-}
+        https_proxy: ${BUILD_HTTPS_PROXY:-}
+        no_proxy: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1,localaddress,.localdomain}
+        PIP_INDEX_URL: ${BUILD_PIP_INDEX_URL:-}
+        PIP_EXTRA_INDEX_URL: ${BUILD_PIP_EXTRA_INDEX_URL:-}
+        PIP_TRUSTED_HOST: ${BUILD_PIP_TRUSTED_HOST:-}
+        PIP_TIMEOUT: ${BUILD_PIP_TIMEOUT:-120}
     container_name: medical_backend
     restart: unless-stopped
     environment:
