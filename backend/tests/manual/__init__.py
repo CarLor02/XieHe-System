@@ -6,6 +6,5 @@
 
 使用方法:
     cd backend
-    python tests/manual/test_auth_manual.py
+    python tests/manual/auth_manual.py
 """
-

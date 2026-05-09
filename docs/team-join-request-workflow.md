@@ -108,10 +108,10 @@ Body: { "decision": "approve" | "reject" }
 
 ## 测试覆盖
 
-### 后端测试（backend/tests/test_team_management.py）
+### 后端测试（backend/tests/integration/test_team_management.py）
 
 1. `test_apply_to_team`: 测试申请加入团队
-2. `test_apply_to_team_requires_message`: 测试申请理由必填
+2. `test_apply_to_team_without_message`: 测试无申请理由也可以申请
 3. `test_join_requests_listing_and_approval`: 测试管理员查看和审批
 4. `test_cancel_join_request`: 测试用户撤销申请
 

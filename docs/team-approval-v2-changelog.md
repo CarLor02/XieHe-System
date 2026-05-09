@@ -96,7 +96,7 @@ setSearchResults(prev =>
 | `app/schemas/team.py` | `TeamJoinRequestCreate.message` 改为 Optional |
 | `app/services/team_service.py` | 移除申请理由必填验证，支持空字符串 |
 | `app/services/team_service.py` | `_build_team_summary` 返回 `join_request_id` |
-| `tests/test_team_management.py` | 更新测试用例为 `test_apply_to_team_without_message` |
+| `tests/integration/test_team_management.py` | 更新测试用例为 `test_apply_to_team_without_message` |
 
 ### 前端修改文件
 
@@ -113,8 +113,8 @@ setSearchResults(prev =>
 
 ### 测试结果
 ```bash
-pytest tests/test_team_management.py -v
-# 9 passed, 14 warnings in 2.18s
+PYTHONPATH=. .venv/bin/python -m pytest tests/integration/test_team_management.py --no-cov -v
+# 9 passed
 ```
 
 ### 测试覆盖

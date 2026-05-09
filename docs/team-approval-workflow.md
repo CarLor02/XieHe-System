@@ -422,7 +422,7 @@ class TeamMembershipRole(str, enum.Enum):
 运行测试:
 ```bash
 cd backend
-../.venv/bin/pytest tests/test_team_management.py -v
+PYTHONPATH=. .venv/bin/python -m pytest tests/integration/test_team_management.py --no-cov -v
 ```
 
 **测试覆盖**:

@@ -101,21 +101,17 @@ backend/
 │   └── versions/               # 迁移版本文件
 ├── tests/                      # 测试代码
 │   ├── __init__.py
-│   ├── conftest.py             # pytest配置
 │   ├── unit/                   # 单元测试
 │   │   ├── __init__.py
-│   │   ├── test_auth.py        # 认证测试
-│   │   ├── test_users.py       # 用户测试
-│   │   ├── test_patients.py    # 患者测试
-│   │   └── test_services.py    # 服务测试
+│   │   ├── test_auth_security.py
+│   │   └── test_image_file_visibility.py
 │   ├── integration/            # 集成测试
 │   │   ├── __init__.py
-│   │   ├── test_api.py         # API集成测试
-│   │   └── test_database.py    # 数据库集成测试
-│   └── fixtures/               # 测试数据
-│       ├── __init__.py
-│       ├── users.py            # 用户测试数据
-│       └── patients.py         # 患者测试数据
+│   │   └── test_team_management.py
+│   ├── fixtures/               # 测试数据
+│   ├── manual/                 # 手工验证脚本
+│   ├── db_tools/               # 数据库检查工具
+│   └── legacy/                 # 历史脚本，默认不收集
 └── scripts/                    # 脚本工具
     ├── init_db.py              # 数据库初始化脚本
     ├── create_superuser.py     # 创建超级用户
