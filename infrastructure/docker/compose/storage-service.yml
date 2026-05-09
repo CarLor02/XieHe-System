@@ -1,7 +1,7 @@
 services:
   storage-service:
     build:
-      context: ../../../backend/app/services/internal/storage_service
+      context: ../../../backend/app/services/storage-service
       dockerfile: Dockerfile
     container_name: medical_storage_service
     restart: unless-stopped
