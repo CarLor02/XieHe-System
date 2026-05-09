@@ -9,6 +9,7 @@
 
 import pytest
 import json
+import jwt
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,8 @@ from app.main import app
 from app.core.database.session import get_db
 from app.core.access.security import security_manager, hash_password, verify_password
 from app.core.system.cache import get_cache_manager
+from app.api.v1.endpoints.access.handlers import auth as auth_handlers
+from app.api.v1.endpoints.access.schemas.auth import TokenRefresh
 
 # 创建测试客户端
 client = TestClient(app)
@@ -34,6 +37,76 @@ ADMIN_USER_DATA = {
     "username": "admin",
     "password": "admin123"
 }
+
+
+class FakeRefreshResult:
+    def fetchone(self):
+        return (
+            94,
+            "admin",
+            "admin@xiehe.com",
+            "系统管理员",
+            "unused-password-hash",
+            "active",
+            1,
+            1,
+            1,
+        )
+
+
+class FakeRefreshDb:
+    def __init__(self):
+        self.executed_params = None
+
+    def execute(self, sql, params):
+        self.executed_params = params
+        return FakeRefreshResult()
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_reloads_active_user_and_preserves_admin_claims(monkeypatch):
+    refresh_payload = {
+        "sub": "admin",
+        "username": "admin",
+        "user_id": 94,
+        "roles": ["admin"],
+        "type": "refresh",
+    }
+    db = FakeRefreshDb()
+
+    monkeypatch.setattr(
+        auth_handlers.security_manager,
+        "verify_token",
+        lambda token, token_type="access": refresh_payload if token_type == "refresh" else None,
+    )
+    monkeypatch.setattr(
+        auth_handlers.security_manager,
+        "create_refresh_token",
+        lambda data, expires_delta=None: "new-refresh-token",
+    )
+
+    response = await auth_handlers.refresh_token(
+        TokenRefresh(refresh_token="old-refresh-token"),
+        db=db,
+    )
+
+    assert db.executed_params == {"user_id": 94}
+    tokens = response["data"]["tokens"]
+    access_payload = jwt.decode(
+        tokens["access_token"],
+        security_manager.secret_key,
+        algorithms=[security_manager.algorithm],
+    )
+
+    assert access_payload["user_id"] == 94
+    assert access_payload["is_superuser"] is True
+    assert access_payload["is_system_admin"] is True
+    assert access_payload["system_admin_level"] == 1
+    assert access_payload["permissions"] == [
+        "user_manage",
+        "patient_manage",
+        "system_manage",
+    ]
 
 class TestPasswordSecurity:
     """密码安全测试"""

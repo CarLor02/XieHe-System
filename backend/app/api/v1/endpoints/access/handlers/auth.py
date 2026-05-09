@@ -38,6 +38,29 @@ router = APIRouter()
 # 辅助函数
 # ==========================================
 
+def _user_auth_dict(user_row) -> Dict[str, Any]:
+    is_superuser = bool(user_row[6])
+    return {
+        "id": user_row[0],
+        "username": user_row[1],
+        "email": user_row[2],
+        "full_name": user_row[3] or user_row[1],
+        "password_hash": user_row[4],
+        "status": user_row[5],
+        "is_active": user_row[5] == 'active',
+        "is_superuser": is_superuser,
+        "role": "admin" if is_superuser else "doctor",
+        "roles": ["admin"] if is_superuser else ["doctor"],
+        "permissions": (
+            ["user_manage", "patient_manage", "system_manage"]
+            if is_superuser
+            else ["patient_manage", "image_manage"]
+        ),
+        "is_system_admin": bool(user_row[7]) if len(user_row) > 7 else False,
+        "system_admin_level": int(user_row[8]) if len(user_row) > 8 and user_row[8] is not None else 0,
+    }
+
+
 def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
     """
     根据用户名或邮箱获取用户信息
@@ -52,11 +75,10 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
     try:
         from sqlalchemy import text
 
-        # 查询用户信息
-        # 注意：数据库表使用 real_name 而不是 full_name，使用 status 而不是 is_active
-        # bcrypt 不需要 salt 字段，但为了兼容保留查询
         sql = """
-        SELECT id, username, email, real_name, password_hash, status, is_superuser, is_system_admin, system_admin_level
+        SELECT
+            id, username, email, real_name, password_hash, status,
+            is_superuser, is_system_admin, system_admin_level
         FROM users
         WHERE (username = :username OR email = :username)
         AND status = 'active'
@@ -69,28 +91,39 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
         if not user_row:
             return None
 
-        # 转换为字典格式
-        # 字段顺序: id, username, email, real_name, password_hash, status, is_superuser, is_system_admin, system_admin_level
-        user = {
-            "id": user_row[0],
-            "username": user_row[1],
-            "email": user_row[2],
-            "full_name": user_row[3] or user_row[1],  # 使用real_name作为full_name
-            "password_hash": user_row[4],
-            "status": user_row[5],
-            "is_active": user_row[5] == 'active',  # 根据status判断是否激活
-            "is_superuser": bool(user_row[6]),  # is_superuser字段
-            "role": "admin" if user_row[6] else "doctor",  # 根据is_superuser判断角色
-            "roles": ["admin"] if user_row[6] else ["doctor"],  # 角色列表
-            "permissions": ["user_manage", "patient_manage", "system_manage"] if user_row[6] else ["patient_manage", "image_manage"],
-            "is_system_admin": bool(user_row[7]) if len(user_row) > 7 else False,
-            "system_admin_level": int(user_row[8]) if len(user_row) > 8 and user_row[8] is not None else 0,
-        }
-
-        return user
+        return _user_auth_dict(user_row)
 
     except Exception as e:
         logger.error(f"查询用户失败: {e}")
+        return None
+
+
+def get_user_by_id(db: Session, user_id: int) -> Dict[str, Any]:
+    """根据用户ID获取当前有效用户信息，用于刷新令牌时重建完整 claims。"""
+
+    try:
+        from sqlalchemy import text
+
+        sql = """
+        SELECT
+            id, username, email, real_name, password_hash, status,
+            is_superuser, is_system_admin, system_admin_level
+        FROM users
+        WHERE id = :user_id
+        AND status = 'active'
+        AND is_deleted = 0
+        """
+
+        result = db.execute(text(sql), {"user_id": user_id})
+        user_row = result.fetchone()
+
+        if not user_row:
+            return None
+
+        return _user_auth_dict(user_row)
+
+    except Exception as e:
+        logger.error(f"按ID查询用户失败: {e}")
         return None
 
 
@@ -393,10 +426,28 @@ async def refresh_token(
     - **refresh_token**: 刷新令牌
     """
     try:
-        # 使用刷新令牌获取新的访问令牌
-        new_tokens = security_manager.refresh_access_token(refresh_data.refresh_token)
-        if not new_tokens:
+        payload = security_manager.verify_token(refresh_data.refresh_token, "refresh")
+        if not payload:
             raise AuthenticationException("刷新令牌无效或已过期")
+
+        user = None
+        user_id = payload.get("user_id")
+        if user_id is not None:
+            try:
+                user = get_user_by_id(db, int(user_id))
+            except (TypeError, ValueError):
+                user = None
+
+        if not user:
+            username = payload.get("username") or payload.get("sub")
+            if username:
+                user = get_user_by_username_or_email(db, username)
+
+        if not user:
+            raise AuthenticationException("刷新令牌对应用户不存在或已禁用")
+
+        token_response = create_user_tokens(user)
+        new_tokens = token_response.model_dump()
 
         logger.info("令牌刷新成功")
 
