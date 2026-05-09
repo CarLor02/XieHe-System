@@ -333,12 +333,23 @@ func (a *app) handlePutObject(w http.ResponseWriter, r *http.Request) {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+	body, contentLength, err := seekableBody(r.Body)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer func() {
+		name := body.Name()
+		_ = body.Close()
+		_ = os.Remove(name)
+	}()
+
 	out, err := a.client.PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket:        aws.String(bucket),
 		Key:           aws.String(objectKey),
-		Body:          r.Body,
+		Body:          body,
 		ContentType:   aws.String(contentType),
-		ContentLength: aws.Int64(r.ContentLength),
+		ContentLength: aws.Int64(contentLength),
 	})
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
@@ -349,6 +360,34 @@ func (a *app) handlePutObject(w http.ResponseWriter, r *http.Request) {
 		"object_key": objectKey,
 		"etag":       strings.Trim(aws.ToString(out.ETag), "\""),
 	})
+}
+
+func seekableBody(body io.ReadCloser) (*os.File, int64, error) {
+	defer body.Close()
+
+	file, err := os.CreateTemp("", "storage-service-put-*")
+	if err != nil {
+		return nil, 0, fmt.Errorf("create temporary upload body: %w", err)
+	}
+
+	cleanup := func() {
+		name := file.Name()
+		_ = file.Close()
+		_ = os.Remove(name)
+	}
+
+	contentLength, err := io.Copy(file, body)
+	if err != nil {
+		cleanup()
+		return nil, 0, fmt.Errorf("spool upload body: %w", err)
+	}
+
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		cleanup()
+		return nil, 0, fmt.Errorf("rewind upload body: %w", err)
+	}
+
+	return file, contentLength, nil
 }
 
 func parseObjectPath(path string) (string, string, bool) {
