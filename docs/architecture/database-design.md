@@ -32,14 +32,14 @@
 
 - **数据库**: MySQL 8.0+
 - **字符集**: utf8mb4
-- **排序规则**: utf8mb4_unicode_ci
+- **排序规则**: utf8mb4_0900_ai_ci
 - **存储引擎**: InnoDB
 - **事务隔离级别**: READ-COMMITTED
 
 ### 数据库结构
 
 ```
-medical_system (主数据库)
+medical_imaging_system (主数据库)
 ├── 用户管理模块 (5张表)
 ├── 患者管理模块 (4张表)
 ├── 影像管理模块 (6张表)
@@ -86,7 +86,7 @@ CREATE TABLE `users` (
     INDEX `idx_employee_id` (`employee_id`),
     INDEX `idx_is_active` (`is_active`),
     INDEX `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户表';
 ```
 
 #### 1.2 角色表 (roles)
@@ -106,7 +106,7 @@ CREATE TABLE `roles` (
     INDEX `idx_name` (`name`),
     INDEX `idx_level` (`level`),
     INDEX `idx_is_active` (`is_active`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='角色表';
 ```
 
 #### 1.3 权限表 (permissions)
@@ -128,7 +128,7 @@ CREATE TABLE `permissions` (
     INDEX `idx_resource` (`resource`),
     INDEX `idx_action` (`action`),
     UNIQUE KEY `uk_resource_action` (`resource`, `action`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='权限表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='权限表';
 ```
 
 #### 1.4 用户角色关联表 (user_roles)
@@ -150,7 +150,7 @@ CREATE TABLE `user_roles` (
     INDEX `idx_user_id` (`user_id`),
     INDEX `idx_role_id` (`role_id`),
     INDEX `idx_granted_at` (`granted_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户角色关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户角色关联表';
 ```
 
 #### 1.5 角色权限关联表 (role_permissions)
@@ -169,7 +169,7 @@ CREATE TABLE `role_permissions` (
     UNIQUE KEY `uk_role_permission` (`role_id`, `permission_id`),
     INDEX `idx_role_id` (`role_id`),
     INDEX `idx_permission_id` (`permission_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色权限关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='角色权限关联表';
 ```
 
 ### 2. 患者管理模块
@@ -218,7 +218,7 @@ CREATE TABLE `patients` (
     INDEX `idx_birth_date` (`birth_date`),
     INDEX `idx_created_at` (`created_at`),
     INDEX `idx_is_deleted` (`is_deleted`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='患者表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='患者表';
 ```
 
 ### 3. 影像管理模块
@@ -259,7 +259,7 @@ CREATE TABLE `studies` (
     INDEX `idx_study_status` (`study_status`),
     INDEX `idx_priority` (`priority`),
     INDEX `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='影像研究表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='影像研究表';
 ```
 
 #### 3.2 影像序列表 (series)
@@ -288,7 +288,7 @@ CREATE TABLE `series` (
     INDEX `idx_series_number` (`series_number`),
     INDEX `idx_modality` (`modality`),
     INDEX `idx_series_date` (`series_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='影像序列表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='影像序列表';
 ```
 
 #### 3.3 影像实例表 (instances)
@@ -329,7 +329,7 @@ CREATE TABLE `instances` (
     INDEX `idx_upload_status` (`upload_status`),
     INDEX `idx_process_status` (`process_status`),
     INDEX `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='影像实例表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='影像实例表';
 ```
 
 ### 4. 诊断报告模块
@@ -379,7 +379,7 @@ CREATE TABLE `diagnosis_reports` (
     INDEX `idx_priority` (`priority`),
     INDEX `idx_report_date` (`report_date`),
     INDEX `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='诊断报告表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='诊断报告表';
 ```
 
 ### 5. 系统管理模块
@@ -408,7 +408,7 @@ CREATE TABLE `system_configs` (
     INDEX `idx_config_key` (`config_key`),
     INDEX `idx_category` (`category`),
     INDEX `idx_is_public` (`is_public`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统配置表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='系统配置表';
 ```
 
 #### 5.2 操作日志表 (audit_logs)
@@ -445,7 +445,7 @@ CREATE TABLE `audit_logs` (
     INDEX `idx_status_code` (`status_code`),
     INDEX `idx_created_at` (`created_at`),
     INDEX `idx_trace_id` (`trace_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='操作日志表';
 ```
 
 ## 🔗 数据库关系图
@@ -606,7 +606,7 @@ PARTITION BY HASH(CRC32(LEFT(series_id, 8))) PARTITIONS 16;
 ```bash
 # 全量备份 (每日凌晨2点)
 mysqldump --single-transaction --routines --triggers \
-  --master-data=2 medical_system > backup_full_$(date +%Y%m%d).sql
+  --master-data=2 medical_imaging_system > backup_full_$(date +%Y%m%d).sql
 
 # 增量备份 (每小时)
 mysqlbinlog --start-datetime="$(date -d '1 hour ago' '+%Y-%m-%d %H:00:00')" \
@@ -614,17 +614,17 @@ mysqlbinlog --start-datetime="$(date -d '1 hour ago' '+%Y-%m-%d %H:00:00')" \
   mysql-bin.* > backup_inc_$(date +%Y%m%d_%H).sql
 
 # 数据验证
-mysql -e "CHECKSUM TABLE medical_system.*;"
+mysql -e "CHECKSUM TABLE medical_imaging_system.*;"
 ```
 
 ### 恢复策略
 
 ```bash
 # 全量恢复
-mysql medical_system < backup_full_20241201.sql
+mysql medical_imaging_system < backup_full_20241201.sql
 
 # 增量恢复
-mysql medical_system < backup_inc_20241201_14.sql
+mysql medical_imaging_system < backup_inc_20241201_14.sql
 
 # 点对点恢复
 mysqlbinlog --start-position=1234 --stop-position=5678 mysql-bin.000001 | mysql

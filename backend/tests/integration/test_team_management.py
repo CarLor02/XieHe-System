@@ -1,49 +1,10 @@
 """团队管理服务集成测试"""
 
-import os
-from pathlib import Path
 from typing import Dict, Generator
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-# 清理可能影响配置加载的环境变量
-_settings_env_keys = {
-    "MAX_FILE_SIZE",
-    "API_HOST",
-    "API_PORT",
-    "API_DEBUG",
-    "API_RELOAD",
-    "JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
-    "JWT_REFRESH_TOKEN_EXPIRE_DAYS",
-    "PASSWORD_HASH_ALGORITHM",
-    "NEXT_PUBLIC_API_URL",
-    "NEXT_PUBLIC_APP_NAME",
-    "NEXT_PUBLIC_APP_VERSION",
-    "ALLOWED_FILE_TYPES",
-    "CORS_ORIGINS",
-    "CORS_ALLOW_CREDENTIALS",
-    "SECURITY_SECRET_KEY",
-    "ENCRYPTION_KEY",
-    "SESSION_TIMEOUT_MINUTES",
-    "MAX_LOGIN_ATTEMPTS",
-    "LOCKOUT_DURATION_MINUTES",
-    "SSL_ENABLED",
-    "SSL_CERT_PATH",
-    "SSL_KEY_PATH",
-    "BACKUP_ENABLED",
-    "BACKUP_SCHEDULE",
-    "BACKUP_RETENTION_DAYS",
-}
-for key in _settings_env_keys:
-    os.environ.pop(key, None)
-
-# 确保设置模块按 backend 工作目录加载本地配置
-backend_root = Path(__file__).resolve().parents[2]
-os.chdir(backend_root)
-
-from app.models.base import Base as ModelBase
 from app.models.team import (
     Team,
     TeamInvitation,
@@ -55,18 +16,15 @@ from app.models.team import (
 from app.models.user import User
 from app.services.team_service import team_service
 
-# 测试数据库
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test_team_management.db"
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-)
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-    expire_on_commit=False,
-)
+pytestmark = pytest.mark.database
+
+TestingSessionLocal: sessionmaker | None = None
+
+
+def _open_session() -> Session:
+    if TestingSessionLocal is None:
+        raise RuntimeError("Test database session factory has not been initialized.")
+    return TestingSessionLocal()
 
 
 def _create_user(
@@ -95,71 +53,69 @@ def _create_user(
 
 
 @pytest.fixture(autouse=True)
-def setup_database() -> Generator[Dict[str, int], None, None]:
+def setup_database(
+    db_session: Session,
+    test_session_factory: sessionmaker,
+) -> Generator[Dict[str, int], None, None]:
     """重置数据库并插入基础数据"""
 
-    # 清理旧数据库文件
-    if os.path.exists("test_team_management.db"):
-        os.remove("test_team_management.db")
+    global TestingSessionLocal
+    TestingSessionLocal = test_session_factory
 
-    engine.dispose()
-    ModelBase.metadata.create_all(bind=engine)
+    leader = _create_user(
+        db_session,
+        "leader",
+        "leader@example.com",
+        is_superuser=True,
+        is_system_admin=True,
+        system_admin_level=1,
+    )
+    admin = _create_user(db_session, "admin", "admin@example.com")
+    applicant = _create_user(db_session, "applicant", "applicant@example.com")
 
-    with TestingSessionLocal() as db:
-        leader = _create_user(
-            db,
-            "leader",
-            "leader@example.com",
-            is_superuser=True,
-            is_system_admin=True,
-            system_admin_level=1,
-        )
-        admin = _create_user(db, "admin", "admin@example.com")
-        applicant = _create_user(db, "applicant", "applicant@example.com")
+    team_primary = Team(
+        name="测试团队一",
+        description="这是第一个测试团队",
+        hospital="协和医院",
+        department="骨科",
+        creator_id=leader.id,
+        max_members=10,
+    )
+    db_session.add(team_primary)
+    db_session.flush()
 
-        team_primary = Team(
-            name="测试团队一",
-            description="这是第一个测试团队",
-            hospital="协和医院",
-            department="骨科",
-            creator_id=leader.id,
-            max_members=10,
-        )
-        db.add(team_primary)
-        db.flush()
+    leader_id = leader.id
+    admin_id = admin.id
+    applicant_id = applicant.id
+    team_primary_id = team_primary.id
 
-        leader_id = leader.id
-        admin_id = admin.id
-        applicant_id = applicant.id
-        team_primary_id = team_primary.id
+    membership_leader = TeamMembership(
+        team_id=team_primary.id,
+        user_id=leader.id,
+        role=TeamMembershipRole.ADMIN,
+        status=TeamMembershipStatus.ACTIVE,
+    )
+    membership_admin = TeamMembership(
+        team_id=team_primary.id,
+        user_id=admin.id,
+        role=TeamMembershipRole.ADMIN,
+        status=TeamMembershipStatus.ACTIVE,
+    )
+    db_session.add_all([membership_leader, membership_admin])
 
-        membership_leader = TeamMembership(
-            team_id=team_primary.id,
-            user_id=leader.id,
-            role=TeamMembershipRole.ADMIN,
-            status=TeamMembershipStatus.ACTIVE,
-        )
-        membership_admin = TeamMembership(
-            team_id=team_primary.id,
-            user_id=admin.id,
-            role=TeamMembershipRole.ADMIN,
-            status=TeamMembershipStatus.ACTIVE,
-        )
-        db.add_all([membership_leader, membership_admin])
+    team_secondary = Team(
+        name="测试团队二",
+        description="第二个测试团队",
+        hospital="协和医院",
+        department="影像科",
+        creator_id=admin.id,
+        max_members=8,
+    )
+    db_session.add(team_secondary)
 
-        team_secondary = Team(
-            name="测试团队二",
-            description="第二个测试团队",
-            hospital="协和医院",
-            department="影像科",
-            creator_id=admin.id,
-            max_members=8,
-        )
-        db.add(team_secondary)
+    db_session.commit()
 
-        db.commit()
-
-        team_secondary_id = team_secondary.id
+    team_secondary_id = team_secondary.id
 
     payload = {
         "leader_id": leader_id,
@@ -170,30 +126,26 @@ def setup_database() -> Generator[Dict[str, int], None, None]:
     }
 
     yield payload
-
-    ModelBase.metadata.drop_all(bind=engine)
-    engine.dispose()
-    if os.path.exists("test_team_management.db"):
-        os.remove("test_team_management.db")
+    TestingSessionLocal = None
 
 
 class TestTeamManagementService:
     def test_list_my_teams(self, setup_database):
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             items = team_service.list_user_teams(db, setup_database["admin_id"])
 
         assert len(items) == 1
         assert items[0]["name"] == "测试团队一"
 
     def test_search_teams(self, setup_database):
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             results = team_service.search_teams(db, "测试", setup_database["applicant_id"], 20)
 
         assert len(results) >= 2
         assert any(team["name"] == "测试团队二" for team in results)
 
     def test_apply_to_team(self, setup_database):
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             join_request = team_service.apply_to_join(
                 db,
                 setup_database["applicant_id"],
@@ -204,7 +156,7 @@ class TestTeamManagementService:
         assert isinstance(join_request.id, int)
         assert join_request.status == TeamJoinRequestStatus.PENDING
 
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             membership = (
                 db.query(TeamMembership)
                 .filter(
@@ -217,7 +169,7 @@ class TestTeamManagementService:
 
     def test_apply_to_team_without_message(self, setup_database):
         """测试无申请理由也可以成功申请"""
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             request_without_message = team_service.apply_to_join(
                 db,
                 setup_database["applicant_id"],
@@ -237,7 +189,7 @@ class TestTeamManagementService:
 
     def test_join_requests_listing_and_approval(self, setup_database):
         # 申请加入团队
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             join_request = team_service.apply_to_join(
                 db,
                 setup_database["applicant_id"],
@@ -266,7 +218,7 @@ class TestTeamManagementService:
         assert reviewed_request.status == TeamJoinRequestStatus.APPROVED
         assert reviewed_request.reviewer_id == setup_database["leader_id"]
 
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             membership = (
                 db.query(TeamMembership)
                 .filter(
@@ -282,7 +234,7 @@ class TestTeamManagementService:
     def test_cancel_join_request(self, setup_database):
         """测试用户撤销自己的加入申请"""
         # 用户申请加入团队
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             join_request = team_service.apply_to_join(
                 db,
                 setup_database["applicant_id"],
@@ -301,7 +253,7 @@ class TestTeamManagementService:
         assert cancelled_request.status == TeamJoinRequestStatus.CANCELLED
 
         # 验证数据库中的状态
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             from app.models.team import TeamJoinRequest
 
             join_request = db.query(TeamJoinRequest).filter(TeamJoinRequest.id == request_id).first()
@@ -310,7 +262,7 @@ class TestTeamManagementService:
             assert join_request.reviewer_id == setup_database["applicant_id"]  # 自己撤销的
 
         # 验证不能重复撤销
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             with pytest.raises(ValueError):
                 team_service.cancel_join_request(
                     db,
@@ -320,7 +272,7 @@ class TestTeamManagementService:
                 )
 
     def test_list_team_members(self, setup_database):
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             data = team_service.get_team_members(
                 db,
                 setup_database["team_primary_id"],
@@ -340,7 +292,7 @@ class TestTeamManagementService:
             "max_members": 12,
         }
 
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             data = team_service.create_team(
                 db,
                 setup_database["leader_id"],
@@ -351,7 +303,7 @@ class TestTeamManagementService:
         assert data["member_count"] == 1
         assert data["creator_name"] == "leader"
 
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             team = db.query(Team).filter(Team.name == payload["name"]).first()
             assert team is not None
             assert team.creator_id == setup_database["leader_id"]
@@ -368,7 +320,7 @@ class TestTeamManagementService:
             assert membership.role == TeamMembershipRole.ADMIN
 
     def test_invite_member(self, setup_database):
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             invitation = team_service.invite_member(
                 db,
                 setup_database["leader_id"],
@@ -379,7 +331,7 @@ class TestTeamManagementService:
 
         assert invitation.status.value == "PENDING"
 
-        with TestingSessionLocal() as db:
+        with _open_session() as db:
             invitation_exists = (
                 db.query(TeamInvitation)
                 .filter(TeamInvitation.id == invitation.id)

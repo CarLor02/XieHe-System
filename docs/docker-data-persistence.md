@@ -99,7 +99,7 @@ docker compose up -d
 backups/
 ├── mysql/
 │   ├── full_backup_20240926_143000.sql      # 完整数据库备份
-│   └── medical_system_20240926_143000.sql   # 系统数据库备份
+│   └── medical_imaging_system_20240926_143000.sql   # 系统数据库备份
 ├── redis/
 │   └── dump_20240926_143000.rdb             # Redis数据快照
 ├── volumes/
@@ -141,7 +141,7 @@ docker compose up -d    # 重新创建
 ### 3. 部分恢复
 ```bash
 # 仅恢复MySQL
-docker exec -i medical_mysql mysql -u root -p < backups/mysql/medical_system_20240926_143000.sql
+docker exec -i medical_mysql mysql -u root -p < backups/mysql/medical_imaging_system_20240926_143000.sql
 
 # 仅恢复Redis
 docker cp backups/redis/dump_20240926_143000.rdb medical_redis:/data/dump.rdb
@@ -252,7 +252,7 @@ docker exec medical_mysql mysqldump -u root -p --all-databases > manual_backup.s
 ### 3. 恢复失败
 ```bash
 # 检查备份文件完整性
-head -10 backups/mysql/medical_system_20240926_143000.sql
+head -10 backups/mysql/medical_imaging_system_20240926_143000.sql
 
 # 检查数据库连接
 docker exec medical_mysql mysql -u root -p -e "SHOW DATABASES;"

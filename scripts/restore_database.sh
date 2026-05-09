@@ -22,11 +22,11 @@ MYSQL_CONTAINER="medical_mysql"
 REDIS_CONTAINER="medical_redis"
 
 # 数据库连接信息
-DB_NAME="medical_system"
+DB_NAME="medical_imaging_system"
 DB_ROOT_PASSWORD="root_password_2024"
 
 # 检查备份文件是否存在
-MYSQL_BACKUP="$BACKUP_DIR/mysql/medical_system_$BACKUP_TIMESTAMP.sql"
+MYSQL_BACKUP="$BACKUP_DIR/mysql/medical_imaging_system_$BACKUP_TIMESTAMP.sql"
 REDIS_BACKUP="$BACKUP_DIR/redis/dump_$BACKUP_TIMESTAMP.rdb"
 
 if [ ! -f "$MYSQL_BACKUP" ]; then

@@ -12,7 +12,7 @@ MYSQL_CONTAINER="medical_mysql"
 REDIS_CONTAINER="medical_redis"
 
 # 数据库连接信息
-DB_NAME="medical_system"
+DB_NAME="medical_imaging_system"
 DB_USER="medical_user"
 DB_PASSWORD="medical_password_2024"
 DB_ROOT_PASSWORD="root_password_2024"
@@ -37,7 +37,7 @@ docker exec $MYSQL_CONTAINER mysqldump \
     --single-transaction \
     --routines \
     --triggers \
-    $DB_NAME > "$BACKUP_DIR/mysql/medical_system_$DATE.sql"
+    $DB_NAME > "$BACKUP_DIR/mysql/medical_imaging_system_$DATE.sql"
 
 echo "✅ MySQL备份完成: $BACKUP_DIR/mysql/"
 
@@ -75,14 +75,14 @@ XieHe医疗影像诊断系统 - 备份信息
 
 文件列表:
 - MySQL完整备份: mysql/full_backup_$DATE.sql
-- MySQL系统备份: mysql/medical_system_$DATE.sql  
+- MySQL系统备份: mysql/medical_imaging_system_$DATE.sql  
 - Redis数据备份: redis/dump_$DATE.rdb
 - MySQL Volume: volumes/mysql_volume_$DATE.tar.gz
 - Redis Volume: volumes/redis_volume_$DATE.tar.gz
 
 恢复命令:
 - MySQL: ./scripts/restore_database.sh $DATE
-- 手动恢复: docker exec -i medical_mysql mysql -u root -p < backups/mysql/medical_system_$DATE.sql
+- 手动恢复: docker exec -i medical_mysql mysql -u root -p < backups/mysql/medical_imaging_system_$DATE.sql
 
 系统状态:
 $(docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}")

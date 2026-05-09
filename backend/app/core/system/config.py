@@ -113,7 +113,7 @@ class Settings(BaseSettings):
     DB_PORT: int = 3307  # 本地开发环境使用 3307 端口
     DB_USER: str = "medical_user"
     DB_PASSWORD: str = "medical_password_2024"
-    DB_NAME: str = "medical_system"
+    DB_NAME: str = "medical_imaging_system"
 
     # 数据库连接池配置
     DB_POOL_SIZE: int = 10

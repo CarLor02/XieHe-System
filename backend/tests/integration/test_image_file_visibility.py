@@ -1,11 +1,8 @@
 from datetime import datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
 
-from app.models.base import Base
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 from app.models.patient import GenderEnum, Patient, PatientStatusEnum
 from app.models.team import Team, TeamMembership, TeamMembershipRole, TeamMembershipStatus
@@ -17,25 +14,15 @@ from app.services.image_file_visibility import (
 )
 
 
-@pytest.fixture()
-def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-    try:
-        seed_visibility_data(session)
-        yield session
-    finally:
-        session.close()
-        Base.metadata.drop_all(bind=engine)
+pytestmark = pytest.mark.database
 
 
-def seed_visibility_data(session):
+@pytest.fixture(autouse=True)
+def seed_visibility_fixture(db_session: Session) -> None:
+    seed_visibility_data(db_session)
+
+
+def seed_visibility_data(session: Session) -> None:
     users = [
         User(
             id=user_id,

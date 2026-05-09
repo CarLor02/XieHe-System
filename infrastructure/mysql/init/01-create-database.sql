@@ -2,18 +2,18 @@
 -- 创建数据库和基础配置
 
 -- 创建主数据库
-CREATE DATABASE IF NOT EXISTS `medical_system` 
+CREATE DATABASE IF NOT EXISTS `medical_imaging_system` 
     CHARACTER SET utf8mb4 
-    COLLATE utf8mb4_unicode_ci;
+    COLLATE utf8mb4_0900_ai_ci;
 
 -- 创建测试数据库
-CREATE DATABASE IF NOT EXISTS `medical_system_test` 
+CREATE DATABASE IF NOT EXISTS `medical_imaging_system_test` 
     CHARACTER SET utf8mb4 
-    COLLATE utf8mb4_unicode_ci;
+    COLLATE utf8mb4_0900_ai_ci;
 
 -- 设置默认字符集
 SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
 
 -- 显示创建的数据库
-SHOW DATABASES LIKE 'medical_system%';
+SHOW DATABASES LIKE 'medical_imaging_system%';
