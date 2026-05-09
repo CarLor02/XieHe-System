@@ -43,7 +43,7 @@ setup:
 
 start:
 	@echo "🚀 启动所有服务..."
-	@docker-compose up -d
+	@./scripts/compose.sh up -d
 	@echo "✅ 服务启动完成"
 	@echo "🌐 前端: http://localhost:3000"
 	@echo "🔌 后端: http://localhost:8080"
@@ -51,16 +51,16 @@ start:
 
 stop:
 	@echo "🛑 停止所有服务..."
-	@docker-compose down
+	@./scripts/compose.sh down
 	@echo "✅ 服务已停止"
 
 status:
 	@echo "📊 服务状态:"
-	@docker-compose ps
+	@./scripts/compose.sh ps
 
 logs:
 	@echo "📋 查看服务日志:"
-	@docker-compose logs -f
+	@./scripts/compose.sh logs -f
 
 # 🧪 测试相关
 test:

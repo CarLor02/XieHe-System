@@ -15,9 +15,10 @@ import tempfile
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from starlette.background import BackgroundTask
 from pydantic import BaseModel, Field
 
 from app.core.database.session import get_db
@@ -207,10 +208,12 @@ async def download_exported_file(
         
         logger.info(f"下载导出文件: {filename}")
         
-        return FileResponse(
-            path=file_path,
+        file_handle = open(file_path, "rb")
+        return StreamingResponse(
+            file_handle,
             media_type=media_type,
-            filename=filename
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            background=BackgroundTask(file_handle.close),
         )
         
     except HTTPException:

@@ -388,13 +388,14 @@ cd project-directory
 
 ### 2. 环境配置
 ```bash
-cp .env.example .env
-# 编辑 .env 文件，配置必要的环境变量
+cp dotenv/.env.runtime.example dotenv/.env.runtime
+cp dotenv/.env.database.example dotenv/.env.database
+# 编辑 dotenv/.env.* 文件，配置必要的环境变量
 ```
 
 ### 3. 启动服务
 ```bash
-docker-compose up -d
+./scripts/compose.sh up -d
 ```
 
 ## 配置说明

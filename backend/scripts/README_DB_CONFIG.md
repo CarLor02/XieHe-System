@@ -2,7 +2,7 @@
 
 ## 修改内容
 
-所有数据库初始化脚本已修改为从backend项目目录的 `.env` 文件读取数据库配置。
+所有数据库初始化脚本已修改为从项目根目录的 `dotenv/.env.*` 文件读取数据库配置。
 
 ### 修改的文件列表
 
@@ -17,14 +17,10 @@
 所有脚本现在使用以下方式读取数据库配置：
 
 ```python
-from dotenv import load_dotenv
+from env_loader import load_project_env
 
-# 添加项目根目录到Python路径
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# 加载.env文件
-env_path = os.path.join(project_root, '.env')
-load_dotenv(env_path)
+# 加载项目拆分后的 dotenv 文件
+load_project_env()
 
 # 从环境变量读取数据库配置
 MYSQL_HOST = os.getenv("DB_HOST", "127.0.0.1")
@@ -34,9 +30,9 @@ MYSQL_PASSWORD = os.getenv("DB_PASSWORD", "123456")
 MYSQL_DATABASE = os.getenv("DB_NAME", "medical_imaging_system")
 ```
 
-### .env 文件配置
+### dotenv 文件配置
 
-在backend项目目录的 `.env` 文件中配置以下数据库参数：
+在项目根目录的 `dotenv/.env.database` 文件中配置以下数据库参数：
 
 ```env
 DB_HOST=115.190.121.59
@@ -48,15 +44,15 @@ DB_NAME=medical_imaging_system
 
 ### 优势
 
-1. **统一配置管理**：所有数据库配置集中在 `.env` 文件中
-2. **环境隔离**：不同环境可以使用不同的 `.env` 文件
+1. **统一配置管理**：配置按服务域拆分到 `dotenv/.env.*`
+2. **环境隔离**：不同环境可以使用自己的本地 `dotenv/.env.*` 文件
 3. **安全性**：敏感信息不会硬编码在代码中
-4. **易于维护**：修改配置只需修改 `.env` 文件，无需修改代码
+4. **易于维护**：修改配置只需修改对应域的 dotenv 文件，无需修改代码
 
 ### 使用方法
 
-1. 确保项目根目录存在 `.env` 文件
-2. 在 `.env` 文件中配置正确的数据库连接信息
+1. 确保项目根目录存在 `dotenv/.env.database` 文件
+2. 在 `dotenv/.env.database` 文件中配置正确的数据库连接信息
 3. 运行初始化脚本：
 
 ```bash
@@ -89,16 +85,16 @@ pip install python-dotenv
 
 ### 注意事项
 
-1. `.env` 文件不应提交到版本控制系统（已在 `.gitignore` 中配置）
-2. 每个环境应该有自己的 `.env` 文件
-3. 如果 `.env` 文件不存在或配置项缺失，脚本会使用默认值
+1. `dotenv/.env.*` 文件不应提交到版本控制系统（已在 `.gitignore` 中配置）
+2. 每个环境应该有自己的一组 `dotenv/.env.*` 文件
+3. 如果 dotenv 文件不存在或配置项缺失，脚本会使用默认值
 4. 默认值为本地开发环境配置（127.0.0.1）
 
 ## 修改总结
 
 ### 已完成的修改
 
-1. ✅ 所有初始化脚本从 `.env` 文件读取数据库配置
+1. ✅ 所有初始化脚本从 `dotenv/.env.*` 文件读取数据库配置
 2. ✅ 添加 UTF-8 编码支持，解决 Windows 下 emoji 显示问题
 3. ✅ 数据库连接测试成功（115.190.121.59）
 
@@ -112,7 +108,7 @@ pip install python-dotenv
 - `backend/scripts/init_database.py`
 
 每个文件都添加了：
-- 从 `.env` 读取数据库配置
+- 从 `dotenv/.env.*` 读取数据库配置
 - UTF-8 编码设置（Windows 兼容）
 
 ## 当前问题
@@ -193,4 +189,3 @@ alembic upgrade head
 对于开发环境，建议使用**方案1**（删除现有表）快速重建数据库。
 
 对于生产环境，必须使用**方案3**（数据库迁移工具）来保证数据安全和版本控制。
-

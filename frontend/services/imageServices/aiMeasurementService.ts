@@ -1,7 +1,6 @@
-import { authenticatedBlobFetch } from '@/lib/api';
 import { requestJsonFromUrl } from '@/lib/api/client/externalJsonClient';
 import type { AiMeasurementData } from '@/app/imaging/features/image-viewer/public';
-import { imageIdToNumericId } from './imageFileService';
+import { downloadImageFile, imageIdToNumericId } from './imageFileService';
 
 export interface PredictMeasurementsResponse {
   imageId: string;
@@ -44,10 +43,7 @@ export async function getAiMeasurementsResponse(
   examType?: string | null
 ): Promise<PredictMeasurementsResponse> {
   const numericId = imageIdToNumericId(imageId);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  const imageBlob = await authenticatedBlobFetch(
-    `${apiUrl}/api/v1/image-files/${numericId}/download`
-  );
+  const imageBlob = await downloadImageFile(Number(numericId));
 
   const formData = new FormData();
   formData.append('file', imageBlob, 'image.png');

@@ -27,8 +27,8 @@ backend/
 ├── requirements.txt             # Python依赖包
 ├── requirements-dev.txt         # 开发环境依赖
 ├── Dockerfile                   # Docker镜像构建文件
-├── docker-compose.yml           # 本地开发环境
-├── .env.example                 # 环境变量示例
+├── ../infrastructure/docker/compose/ # Docker Compose 拆分配置
+├── ../dotenv/.env.*.example     # 环境变量示例
 ├── main.py                      # FastAPI应用入口
 ├── gunicorn.conf.py            # Gunicorn配置
 ├── alembic.ini                 # 数据库迁移配置
@@ -146,8 +146,8 @@ conda activate xiehe
 pip install -r requirements.txt
 
 # 4. 配置环境变量
-cp .env.example .env
-# 编辑 .env 文件，配置数据库连接信息
+cp ../dotenv/.env.database.example ../dotenv/.env.database
+# 编辑 ../dotenv/.env.database 文件，配置数据库连接信息
 
 # 5. 启动数据库（使用 Docker）
 cd ..
@@ -186,7 +186,7 @@ cd backend
 
 ### 环境变量配置
 
-在 `backend/.env` 文件中配置以下参数：
+在 `dotenv/.env.database` 文件中配置以下参数：
 
 ```bash
 # 数据库配置
@@ -389,8 +389,8 @@ docker build -t medical-backend .
 # 运行容器
 docker run -p 8000:8000 medical-backend
 
-# 使用 docker-compose
-docker-compose up -d
+# 使用封装后的 Compose 入口
+../scripts/compose.sh up -d
 ```
 
 ### 生产环境

@@ -45,8 +45,10 @@ class ImageFile(Base):
     file_type = Column(Enum(ImageFileTypeEnum), nullable=False, comment="文件类型")
     mime_type = Column(String(100), comment="MIME类型")
     
-    # 文件存储信息
-    storage_path = Column(String(500), nullable=False, comment="文件存储路径(相对路径)")
+    # 对象存储信息
+    storage_bucket = Column(String(128), nullable=False, comment="对象存储桶")
+    object_key = Column(String(500), nullable=False, comment="对象存储Key")
+    storage_etag = Column(String(128), comment="对象存储ETag")
     file_size = Column(BigInteger, nullable=False, comment="文件大小(字节)")
     file_hash = Column(String(64), comment="文件MD5哈希值")
     
@@ -58,8 +60,6 @@ class ImageFile(Base):
     patient_id = Column(Integer, ForeignKey('patients.id'), comment="关联患者ID")
 
     # 影像元数据
-    modality = Column(String(16), comment="影像模态(CT/MR/XR等)")
-    body_part = Column(String(64), comment="身体部位")
     study_date = Column(DateTime, comment="检查日期")
     description = Column(Text, comment="文件描述")
     
@@ -69,11 +69,6 @@ class ImageFile(Base):
     # 状态信息
     status = Column(Enum(ImageFileStatusEnum), nullable=False, default=ImageFileStatusEnum.UPLOADING, comment="文件状态")
     upload_progress = Column(Integer, default=0, comment="上传进度(0-100)")
-    
-    # 分片上传信息(用于大文件)
-    is_chunked = Column(Boolean, default=False, comment="是否分片上传")
-    total_chunks = Column(Integer, comment="总分片数")
-    uploaded_chunks = Column(Text, comment="已上传分片列表(JSON)")
     
     # 时间戳
     created_at = Column(DateTime, default=func.now(), nullable=False, comment="创建时间")

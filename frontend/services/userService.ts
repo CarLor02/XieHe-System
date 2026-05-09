@@ -22,6 +22,9 @@ export interface UserInfo {
   roles: string[];
   is_system_admin: boolean;
   system_admin_level: number;
+  avatar_url?: string | null;
+  avatar_storage_bucket?: string | null;
+  avatar_object_key?: string | null;
 }
 
 export interface UserUpdateData {
@@ -30,6 +33,20 @@ export interface UserUpdateData {
   department_id?: number;
   position?: string;
   title?: string;
+}
+
+export interface AvatarUploadPartUrl {
+  part_number: number;
+  url: string;
+}
+
+export interface AvatarUploadSession {
+  storage_bucket: string;
+  object_key: string;
+  upload_id: string;
+  part_size: number;
+  expires_in: number;
+  parts: AvatarUploadPartUrl[];
 }
 
 /**
@@ -57,5 +74,47 @@ export async function updateCurrentUser(data: UserUpdateData): Promise<UserInfo>
     throw new Error(response.data?.message || '更新用户信息失败');
   }
 
+  return extractData<UserInfo>(response);
+}
+
+export async function createAvatarUploadSession(file: File): Promise<AvatarUploadSession> {
+  const response = await apiClient.post('/api/v1/auth/me/avatar/upload-session', {
+    filename: file.name,
+    size: file.size,
+    mime_type: file.type || 'application/octet-stream',
+  });
+  return extractData<AvatarUploadSession>(response);
+}
+
+export async function uploadCurrentUserAvatar(file: File): Promise<UserInfo> {
+  const session = await createAvatarUploadSession(file);
+  const parts = [];
+  for (const part of session.parts) {
+    const start = (part.part_number - 1) * session.part_size;
+    const end = Math.min(start + session.part_size, file.size);
+    const uploadResponse = await apiClient.put(part.url, file.slice(start, end), {
+      headers: { 'Content-Type': 'application/octet-stream' },
+      transformRequest: [(data: Blob) => data],
+      _skipAuthRefresh: true,
+    } as any);
+    const etag = uploadResponse.headers?.etag || uploadResponse.headers?.ETag;
+    if (!etag) {
+      throw new Error('对象存储未返回头像分片 ETag');
+    }
+    parts.push({
+      part_number: part.part_number,
+      etag: etag.replace(/^"|"$/g, ''),
+    });
+  }
+
+  const response = await apiClient.post('/api/v1/auth/me/avatar/complete', {
+    upload_id: session.upload_id,
+    parts,
+  });
+  return extractData<UserInfo>(response);
+}
+
+export async function deleteCurrentUserAvatar(): Promise<UserInfo> {
+  const response = await apiClient.delete('/api/v1/auth/me/avatar');
   return extractData<UserInfo>(response);
 }

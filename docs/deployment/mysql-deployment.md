@@ -8,7 +8,7 @@
 
 ### 1. 环境变量配置
 
-MySQL 容器使用以下环境变量（在 `docker-compose.yml` 中配置）:
+MySQL 容器使用以下环境变量（在 `dotenv/.env.database` 中配置，并由 `infrastructure/docker/compose/mysql.yml` 引用）:
 
 ```yaml
 environment:
@@ -63,8 +63,8 @@ python init_database.py
 
 ```bash
 # 1. 确保有正确的配置
-cp .env.example .env
-# 编辑 .env 文件,设置数据库密码等
+cp dotenv/.env.database.example dotenv/.env.database
+# 编辑 dotenv/.env.database 文件,设置数据库密码等
 
 # 2. 运行部署脚本
 ./deploy.sh
@@ -191,10 +191,10 @@ python init_database.py
 
 ```bash
 # 检查 MySQL 是否完全启动
-docker compose ps
+./scripts/compose.sh ps
 
 # 增加等待时间
-# 在 docker-compose.yml 中调整 healthcheck 参数
+# 在 infrastructure/docker/compose/mysql.yml 中调整 healthcheck 参数
 ```
 
 ## 安全建议
@@ -228,6 +228,6 @@ ports:
 ## 参考资料
 
 - MySQL 初始化脚本: `backend/scripts/init_database.py`
-- Docker SQL 初始化: `docker/mysql/init/*.sql`
-- 环境变量配置: `.env.example`
-- 后端启动脚本: `docker/backend-entrypoint.sh`
+- Docker SQL 初始化归档: `infrastructure/mysql/init/*.sql`
+- 环境变量配置: `dotenv/.env.database.example`
+- 后端启动脚本: `infrastructure/docker/backend-entrypoint.sh`

@@ -348,7 +348,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                           {imageFile.original_filename || '-'}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-900">
-                          {imageFile.modality || imageFile.file_type || '-'}
+                          {imageFile.file_type || '-'}
                         </td>
                         <td className="px-4 py-4">
                           <span

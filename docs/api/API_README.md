@@ -49,7 +49,7 @@ gunicorn app.main:app -c gunicorn.conf.py
 **Docker部署**:
 ```bash
 cd XieHe-System
-docker-compose up -d
+./scripts/compose.sh up -d
 ```
 
 ---
@@ -1701,5 +1701,4 @@ curl -X POST http://localhost:8000/api/v1/upload/image \
 - ✅ 工作台统计数据
 - ✅ 健康检查接口
 - ✅ 详细的调用示例和注意事项
-
 

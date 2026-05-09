@@ -31,8 +31,12 @@ NC='\033[0m' # No Color
 # ==================== 配置参数 ====================
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GIT_BRANCH="main"
-COMPOSE_FILE="docker-compose.yml"
+COMPOSE_WRAPPER="${PROJECT_DIR}/scripts/compose.sh"
 BACKUP_DIR="${PROJECT_DIR}/backups/deploy_$(date +%Y%m%d_%H%M%S)"
+
+compose() {
+    "$COMPOSE_WRAPPER" "$@"
+}
 
 # ==================== 辅助函数 ====================
 print_header() {
@@ -75,11 +79,17 @@ check_environment() {
     print_success "Docker已安装: $(docker --version)"
     
     # 检查Docker Compose
-    if ! command -v docker compose &> /dev/null && ! command -v docker-compose &> /dev/null; then
+    if ! docker compose version &> /dev/null; then
         print_error "Docker Compose未安装"
         exit 1
     fi
     print_success "Docker Compose已安装"
+
+    if [ ! -x "$COMPOSE_WRAPPER" ]; then
+        print_error "Compose封装脚本不可执行: $COMPOSE_WRAPPER"
+        exit 1
+    fi
+    print_success "Compose封装脚本可用"
     
     # 检查Git
     if ! command -v git &> /dev/null; then
@@ -102,9 +112,19 @@ backup_current_deployment() {
         mkdir -p "$BACKUP_DIR"
         
         # 备份环境文件
-        if [ -f "$PROJECT_DIR/.env" ]; then
-            cp "$PROJECT_DIR/.env" "$BACKUP_DIR/.env.backup"
-            print_success "已备份 .env 文件"
+        mkdir -p "$BACKUP_DIR/dotenv"
+        found_env=false
+        for env_file in "$PROJECT_DIR"/dotenv/.env.*; do
+            if [ ! -f "$env_file" ] || [[ "$env_file" == *.example ]]; then
+                continue
+            fi
+            cp "$env_file" "$BACKUP_DIR/dotenv/$(basename "$env_file").backup"
+            found_env=true
+        done
+        if [ "$found_env" = true ]; then
+            print_success "已备份 dotenv 环境文件"
+        else
+            print_warning "未找到本地 dotenv 环境文件"
         fi
         
         if [ -f "$PROJECT_DIR/frontend/.env.local" ]; then
@@ -184,9 +204,9 @@ stop_old_services() {
     
     cd "$PROJECT_DIR"
     
-    if [ -f "$COMPOSE_FILE" ]; then
+    if [ -x "$COMPOSE_WRAPPER" ]; then
         print_step "停止Docker容器..."
-        docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
+        compose down 2>/dev/null || true
         print_success "旧服务已停止"
         
         # 清理未使用的镜像
@@ -194,7 +214,7 @@ stop_old_services() {
         docker image prune -f > /dev/null 2>&1 || true
         print_success "清理完成"
     else
-        print_warning "未找到 docker-compose.yml 文件"
+        print_warning "未找到 Compose 封装脚本"
     fi
 }
 
@@ -208,7 +228,7 @@ build_docker_images() {
     
     # 使用docker compose构建所有镜像（利用缓存加速构建）
     print_info "使用Docker Compose构建所有镜像..."
-    docker compose -f "$COMPOSE_FILE" build || {
+    compose build || {
         print_error "镜像构建失败"
         exit 1
     }
@@ -226,7 +246,7 @@ start_services() {
     cd "$PROJECT_DIR"
     
     print_step "启动Docker Compose服务..."
-    docker compose -f "$COMPOSE_FILE" up -d || {
+    compose up -d || {
         print_error "服务启动失败"
         exit 1
     }
@@ -245,12 +265,12 @@ health_check() {
     
     # 检查容器状态
     print_step "检查容器状态..."
-    docker compose -f "$COMPOSE_FILE" ps
+    compose ps
     echo ""
     
     # 检查MySQL
     print_step "检查MySQL数据库..."
-    if docker compose -f "$COMPOSE_FILE" exec -T mysql mysqladmin ping -h localhost -u root -pqweasd2025 &> /dev/null; then
+    if compose exec -T mysql sh -c 'mysqladmin ping -h localhost -u root -p"$MYSQL_ROOT_PASSWORD"' &> /dev/null; then
         print_success "MySQL服务正常"
     else
         print_warning "MySQL服务异常"
@@ -258,7 +278,7 @@ health_check() {
     
     # 检查Redis
     print_step "检查Redis服务..."
-    if docker compose -f "$COMPOSE_FILE" exec -T redis redis-cli ping &> /dev/null; then
+    if compose exec -T redis redis-cli ping &> /dev/null; then
         print_success "Redis服务正常"
     else
         print_warning "Redis服务异常"
@@ -267,7 +287,7 @@ health_check() {
     # 检查后端API
     print_step "检查后端API服务..."
     for i in {1..30}; do
-        if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+        if curl --noproxy '*' -s http://localhost:8080/health > /dev/null 2>&1; then
             print_success "后端API服务正常"
             break
         fi
@@ -280,7 +300,7 @@ health_check() {
     # 检查前端服务...
     print_step "检查前端服务..."
     for i in {1..30}; do
-        if curl -s http://localhost:3030 > /dev/null 2>&1; then
+        if curl --noproxy '*' -s http://localhost:3030 > /dev/null 2>&1; then
             print_success "前端服务正常"
             break
         fi
@@ -334,7 +354,7 @@ show_logs() {
     print_info "显示最近的服务日志（按Ctrl+C退出）..."
     echo ""
     sleep 2
-    docker compose -f "$COMPOSE_FILE" logs --tail=50 -f
+    compose logs --tail=50 -f
 }
 
 # ==================== 部署摘要 ====================
@@ -356,10 +376,10 @@ print_summary() {
     echo -e "  ${GREEN}✅ 已移除危险工具${NC}"
     echo ""
     echo -e "${CYAN}常用命令:${NC}"
-    echo -e "  ${YELLOW}查看日志:${NC}   docker compose -f $COMPOSE_FILE logs -f"
-    echo -e "  ${YELLOW}停止服务:${NC}   docker compose -f $COMPOSE_FILE down"
-    echo -e "  ${YELLOW}重启服务:${NC}   docker compose -f $COMPOSE_FILE restart"
-    echo -e "  ${YELLOW}查看状态:${NC}   docker compose -f $COMPOSE_FILE ps"
+    echo -e "  ${YELLOW}查看日志:${NC}   ./scripts/compose.sh logs -f"
+    echo -e "  ${YELLOW}停止服务:${NC}   ./scripts/compose.sh down"
+    echo -e "  ${YELLOW}重启服务:${NC}   ./scripts/compose.sh restart"
+    echo -e "  ${YELLOW}查看状态:${NC}   ./scripts/compose.sh ps"
     echo -e "  ${YELLOW}安全检查:${NC}   docker exec medical_frontend ps aux"
     echo ""
     

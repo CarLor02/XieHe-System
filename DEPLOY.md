@@ -145,7 +145,7 @@ docker compose exec -T mysql mysql -u root -proot_password_2024 medical_system <
 ## 🔒 安全建议
 
 1. **生产环境修改默认密码**
-   - 编辑 `docker-compose.yml` 修改数据库密码
+   - 编辑 `dotenv/.env.database` 修改数据库密码
    - 修改 `JWT_SECRET_KEY`
 
 2. **配置防火墙**

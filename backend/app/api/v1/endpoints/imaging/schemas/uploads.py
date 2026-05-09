@@ -1,48 +1,59 @@
-"""Schemas for the uploads API endpoints."""
+"""Schemas for object-storage upload sessions."""
 
-from typing import List, Optional, Dict, Any
-from datetime import datetime, date
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
-class FileUploadResponse(BaseModel):
-    """文件上传响应"""
-    file_id: str
-    filename: str
-    size: int
-    mime_type: str
-    upload_url: str
-    status: str = "uploaded"
-    created_at: datetime
+
+class CreateUploadSessionRequest(BaseModel):
+    """Create a MinIO multipart upload session for an image file."""
+
+    filename: str = Field(..., min_length=1, max_length=255, description="原始文件名")
+    size: int = Field(..., gt=0, description="文件大小")
+    mime_type: str = Field(..., min_length=1, max_length=100, description="MIME类型")
+    patient_id: Optional[int] = Field(None, description="患者ID")
+    description: Optional[str] = Field(None, description="检查类型/描述")
+    file_hash: Optional[str] = Field(None, max_length=64, description="文件MD5，可选")
 
 
-class ChunkUploadRequest(BaseModel):
-    """分片上传请求"""
-    file_id: str = Field(..., description="文件唯一标识")
-    chunk_index: int = Field(..., ge=0, description="分片索引")
-    total_chunks: int = Field(..., gt=0, description="总分片数")
-    chunk_hash: str = Field(..., description="分片MD5哈希")
-    file_hash: Optional[str] = Field(None, description="完整文件MD5哈希")
+class PresignedUploadPart(BaseModel):
+    """A presigned URL for one multipart upload part."""
+
+    part_number: int
+    url: str
 
 
-class ChunkUploadResponse(BaseModel):
-    """分片上传响应"""
-    file_id: str
-    chunk_index: int
+class CreateUploadSessionResponse(BaseModel):
+    """Upload session returned to the frontend."""
+
+    image_file_id: int
+    file_uuid: str
+    storage_bucket: str
+    object_key: str
+    upload_id: str
+    part_size: int
+    expires_in: int
+    parts: List[PresignedUploadPart]
+
+
+class CompleteUploadPart(BaseModel):
+    """Completed multipart part information reported by the browser."""
+
+    part_number: int
+    etag: str
+
+
+class CompleteUploadSessionRequest(BaseModel):
+    """Complete a MinIO multipart upload session."""
+
+    upload_id: str
+    parts: List[CompleteUploadPart] = Field(..., min_length=1)
+    file_hash: Optional[str] = Field(None, max_length=64)
+
+
+class UploadSessionStatus(BaseModel):
+    """Upload status response."""
+
+    image_file_id: int
+    file_uuid: str
     status: str
-    uploaded_chunks: List[int]
-    missing_chunks: List[int]
-    is_complete: bool
-
-
-class FileUploadStatus(BaseModel):
-    """文件上传状态"""
-    file_id: str
-    filename: str
-    total_size: int
-    uploaded_size: int
-    total_chunks: int
-    uploaded_chunks: List[int]
-    missing_chunks: List[int]
-    status: str
-    progress: float
+    upload_progress: int

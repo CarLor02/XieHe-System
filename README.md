@@ -94,18 +94,17 @@ XieHe-System/
 │   ├── architecture/   # 系统架构文档
 │   ├── deployment/     # 部署运维文档
 │   └── user-guide/     # 用户使用手册
-├── 📁 docker/            # Docker容器配置
+├── 📁 infrastructure/    # 部署基础设施配置
+│   ├── docker/         # Compose 文件和容器启动脚本
 │   ├── mysql/          # MySQL配置
-│   ├── nginx/          # Nginx配置
-│   ├── redis/          # Redis配置
-│   └── monitoring/     # 监控配置
-├── 📁 nginx/             # Nginx反向代理配置
+│   ├── nginx/          # Nginx配置归档
+│   └── redis/          # Redis配置
+├── 📁 dotenv/            # 按服务域拆分的环境变量模板
 ├── 📁 scripts/           # 项目管理脚本
 │   ├── backup_database.sh    # 数据库备份
 │   ├── deploy.sh            # 部署脚本
 │   └── docker_start_all.sh  # Docker启动脚本
 ├── 📁 backups/           # 数据备份目录
-├── 📄 docker-compose.yml # Docker编排配置
 ├── 📄 Makefile          # 项目管理命令
 └── 📄 README.md          # 项目说明文档
 ```
@@ -307,8 +306,8 @@ uvicorn app.main:app --reload --port 8001
 
 **解决**:
 ```bash
-# 检查 .env 文件配置
-cat backend/.env
+# 检查 dotenv 文件配置
+ls dotenv/.env.*
 
 # 测试数据库连接
 cd backend

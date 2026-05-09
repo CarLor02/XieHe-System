@@ -40,7 +40,7 @@ _settings_env_keys = {
 for key in _settings_env_keys:
     os.environ.pop(key, None)
 
-# 确保加载 backend/.env（避免根目录示例配置影响）
+# 确保设置模块按 backend 工作目录加载本地配置
 backend_root = Path(__file__).resolve().parents[1]
 os.chdir(backend_root)
 

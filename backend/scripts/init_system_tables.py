@@ -24,15 +24,14 @@ from datetime import datetime, date, timedelta
 from decimal import Decimal
 import uuid
 import json
-from dotenv import load_dotenv
+from env_loader import load_project_env
 
 # 添加项目根目录到Python路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 加载backend目录下的.env文件
-env_path = os.path.join(project_root, '.env')
-load_dotenv(env_path)
+# 加载项目拆分后的 dotenv 文件
+load_project_env()
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -418,13 +417,13 @@ def main():
             },
             # DICOM配置
             {
-                'config_key': 'dicom.storage_path',
-                'config_name': 'DICOM存储路径',
+                'config_key': 'dicom.storage_bucket',
+                'config_name': 'DICOM存储桶',
                 'config_type': ConfigTypeEnum.DICOM,
                 'data_type': ConfigDataTypeEnum.STRING,
-                'config_value': '/data/dicom',
-                'default_value': '/data/dicom',
-                'description': 'DICOM文件存储根路径',
+                'config_value': 'medical-image-files',
+                'default_value': 'medical-image-files',
+                'description': 'DICOM文件对象存储桶',
                 'is_required': True,
                 'config_group': '存储配置',
                 'sort_order': 50,

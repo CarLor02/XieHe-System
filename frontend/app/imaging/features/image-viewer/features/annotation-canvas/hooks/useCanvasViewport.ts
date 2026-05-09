@@ -1,6 +1,6 @@
 import { RefObject, useCallback, useEffect, useState } from 'react';
 import { AdjustMode, Point } from '@/app/imaging/features/image-viewer/shared/types';
-import { authenticatedBlobFetch } from '@/lib/api';
+import { downloadImageFile } from '@/services/imageServices';
 
 interface UseCanvasViewportOptions {
   imageId: string;
@@ -86,11 +86,7 @@ export function useCanvasViewport({
       try {
         setImageLoading(true);
         const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const imageBlob = await authenticatedBlobFetch(
-          `${apiUrl}/api/v1/image-files/${numericId}/download`
-        );
+        const imageBlob = await downloadImageFile(Number(numericId));
         const imageObjectUrl = URL.createObjectURL(imageBlob);
         currentImageUrl = imageObjectUrl;
         setImageUrl(imageObjectUrl);

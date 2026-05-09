@@ -6,102 +6,147 @@ import {
 } from '@/lib/api/types';
 
 export interface UploadSingleRequest {
-  file: File | Blob;
+  file: File;
   patient_id?: string | null;
   description?: string | null;
 }
 
-export interface ChunkUploadRequest {
-  file_id: string;
-  chunk_index: number;
-  total_chunks: number;
-  chunk_hash: string;
-  file_hash?: string | null;
+export interface UploadPartUrl {
+  part_number: number;
+  url: string;
+}
+
+export interface UploadSession {
+  image_file_id: number;
+  file_uuid: string;
+  storage_bucket: string;
+  object_key: string;
+  upload_id: string;
+  part_size: number;
+  expires_in: number;
+  parts: UploadPartUrl[];
+}
+
+export interface CompletedUploadPart {
+  part_number: number;
+  etag: string;
 }
 
 export interface UploadSingleResponse {
+  image_file_id: number;
   file_id: string;
+  file_uuid: string;
   filename: string;
   size?: number;
   mime_type?: string;
-  upload_url?: string;
+  status?: string;
 }
 
 export interface UploadStatusRecord {
-  file_id?: string;
+  image_file_id?: number;
+  file_uuid?: string;
   status?: string;
+  upload_progress?: number;
   progress?: number;
   message?: string;
 }
 
 export interface UploadRecord {
   id: number | string;
-  file_id?: string;
+  file_id?: string | number;
   filename?: string;
   status?: string;
   created_at?: string;
 }
 
+export async function createImageUploadSession(payload: {
+  filename: string;
+  size: number;
+  mime_type: string;
+  patient_id?: number | null;
+  description?: string | null;
+}): Promise<UploadSession> {
+  const response = await apiClient.post('/api/v1/upload/sessions', payload);
+  return extractData<UploadSession>(response);
+}
+
+export async function completeImageUploadSession(
+  imageFileId: number,
+  payload: { upload_id: string; parts: CompletedUploadPart[]; file_hash?: string | null }
+): Promise<UploadStatusRecord> {
+  const response = await apiClient.post(
+    `/api/v1/upload/sessions/${imageFileId}/complete`,
+    payload
+  );
+  return extractData<UploadStatusRecord>(response);
+}
+
+async function uploadPart(url: string, blob: Blob): Promise<string> {
+  const response = await apiClient.put(url, blob, {
+    headers: { 'Content-Type': 'application/octet-stream' },
+    transformRequest: [(data: Blob) => data],
+    _skipAuthRefresh: true,
+  } as any);
+  const etag = response.headers?.etag || response.headers?.ETag;
+  if (!etag) {
+    throw new Error('对象存储未返回 ETag');
+  }
+  return etag.replace(/^"|"$/g, '');
+}
+
 export async function uploadSingleFile(
   payload: UploadSingleRequest
 ): Promise<UploadSingleResponse> {
-  const formData = new FormData();
-  formData.append('file', payload.file);
-  if (payload.patient_id) formData.append('patient_id', payload.patient_id);
-  if (payload.description) formData.append('description', payload.description);
-
-  const response = await apiClient.post('/api/v1/upload/single', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+  const file = payload.file;
+  const session = await createImageUploadSession({
+    filename: file.name,
+    size: file.size,
+    mime_type: file.type || 'application/octet-stream',
+    patient_id: payload.patient_id ? Number(payload.patient_id) : null,
+    description: payload.description || null,
   });
-  return extractData<UploadSingleResponse>(response);
-}
 
-export async function uploadFileChunk(
-  file: File | Blob,
-  payload: ChunkUploadRequest
-): Promise<Record<string, unknown>> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('file_id', payload.file_id);
-  formData.append('chunk_index', String(payload.chunk_index));
-  formData.append('total_chunks', String(payload.total_chunks));
-  formData.append('chunk_hash', payload.chunk_hash);
-  if (payload.file_hash) {
-    formData.append('file_hash', payload.file_hash);
+  const completedParts: CompletedUploadPart[] = [];
+  for (const part of session.parts) {
+    const start = (part.part_number - 1) * session.part_size;
+    const end = Math.min(start + session.part_size, file.size);
+    const etag = await uploadPart(part.url, file.slice(start, end));
+    completedParts.push({ part_number: part.part_number, etag });
   }
 
-  const response = await apiClient.post('/api/v1/upload/chunk', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+  const status = await completeImageUploadSession(session.image_file_id, {
+    upload_id: session.upload_id,
+    parts: completedParts,
   });
-  return extractData<Record<string, unknown>>(response);
+
+  return {
+    image_file_id: session.image_file_id,
+    file_id: String(session.image_file_id),
+    file_uuid: session.file_uuid,
+    filename: file.name,
+    size: file.size,
+    mime_type: file.type,
+    status: status.status,
+  };
 }
 
-export async function completeChunkUpload(
-  fileId: string,
-  payload: { filename: string; file_hash?: string | null }
-): Promise<UploadSingleResponse> {
-  const response = await apiClient.post(
-    `/api/v1/upload/complete/${fileId}`,
-    new URLSearchParams(
-      Object.entries(payload)
-        .filter(([, value]) => value !== undefined && value !== null)
-        .reduce<Record<string, string>>((acc, [key, value]) => {
-          acc[key] = String(value);
-          return acc;
-        }, {})
-    ),
-    {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    }
-  );
-  return extractData<UploadSingleResponse>(response);
+export async function uploadFileChunk(): Promise<Record<string, unknown>> {
+  throw new Error('分片上传接口已废弃，请使用对象存储上传会话');
+}
+
+export async function completeChunkUpload(): Promise<UploadSingleResponse> {
+  throw new Error('分片上传接口已废弃，请使用对象存储上传会话');
 }
 
 export async function getUploadStatus(
-  fileId: string
+  imageFileId: string | number
 ): Promise<UploadStatusRecord> {
-  const response = await apiClient.get(`/api/v1/upload/status/${fileId}`);
-  return extractData<UploadStatusRecord>(response);
+  const response = await apiClient.get(`/api/v1/upload/status/${imageFileId}`);
+  const data = extractData<UploadStatusRecord>(response);
+  return {
+    ...data,
+    progress: data.upload_progress,
+  };
 }
 
 export async function getUploadRecords(params?: {

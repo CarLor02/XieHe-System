@@ -9,16 +9,15 @@
 
 import os
 import sys
-from dotenv import load_dotenv
+from env_loader import load_project_env
 import pymysql
 
 # 添加项目根目录到Python路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-# 加载.env文件
-env_path = os.path.join(project_root, '.env')
-load_dotenv(env_path)
+# 加载项目拆分后的 dotenv 文件
+load_project_env()
 
 
 def get_database_connection(host, port, user, password, database):
@@ -227,4 +226,3 @@ def compare_databases():
 
 if __name__ == '__main__':
     compare_databases()
-

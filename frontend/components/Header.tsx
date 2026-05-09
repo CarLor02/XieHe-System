@@ -115,9 +115,13 @@ export default function Header() {
             </div>
 
             <div className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg">
-              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                <i className="ri-user-line w-4 h-4 flex items-center justify-center text-gray-600"></i>
-              </div>
+	                  <div className="w-8 h-8 overflow-hidden bg-gray-300 rounded-full flex items-center justify-center">
+	                    {user?.avatar_url ? (
+	                      <img src={user.avatar_url} alt="用户头像" className="h-full w-full object-cover" />
+	                    ) : (
+	                      <i className="ri-user-line w-4 h-4 flex items-center justify-center text-gray-600"></i>
+	                    )}
+	                  </div>
               <div>
                 <p className="text-sm font-medium text-gray-800">
                   {user?.full_name || user?.username || '用户'}
@@ -346,9 +350,13 @@ export default function Header() {
                   {/* 用户信息头部 */}
                   <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                        <i className="ri-user-line w-6 h-6 flex items-center justify-center text-gray-600"></i>
-                      </div>
+	                      <div className="w-12 h-12 overflow-hidden bg-gray-300 rounded-full flex items-center justify-center">
+	                        {user?.avatar_url ? (
+	                          <img src={user.avatar_url} alt="用户头像" className="h-full w-full object-cover" />
+	                        ) : (
+	                          <i className="ri-user-line w-6 h-6 flex items-center justify-center text-gray-600"></i>
+	                        )}
+	                      </div>
                       <div>
                         <p className="font-semibold text-gray-900">
                           {user?.full_name || user?.username || '用户'}

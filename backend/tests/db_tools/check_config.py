@@ -54,9 +54,12 @@ def validate_runtime_config() -> Dict[str, Any]:
     else:
         result["checks"]["redis"] = "OK"
 
-    upload_dir = Path(setting_value("UPLOAD_DIR", default="./uploads"))
-    if not upload_dir.exists():
-        result["warnings"].append(f"上传目录不存在: {upload_dir}")
+    if not settings.STORAGE_SERVICE_URL:
+        result["valid"] = False
+        result["errors"].append("Storage Service URL 未配置")
+    elif not settings.IMAGE_FILE_BUCKET or not settings.USER_AVATAR_BUCKET:
+        result["valid"] = False
+        result["errors"].append("MinIO Bucket 配置不完整")
     else:
         result["checks"]["storage"] = "OK"
 
@@ -102,11 +105,13 @@ def check_environment():
     print_section("环境配置检查")
     
     # 检查环境变量文件
-    env_file = Path(".env")
-    if env_file.exists():
-        print_result(".env文件", "OK", f"文件大小: {env_file.stat().st_size} bytes")
+    dotenv_dir = Path(__file__).resolve().parents[3] / "dotenv"
+    env_files = sorted(dotenv_dir.glob(".env.*"))
+    env_files = [path for path in env_files if not path.name.endswith(".example")]
+    if env_files:
+        print_result("dotenv环境文件", "OK", f"已加载候选文件: {len(env_files)} 个")
     else:
-        print_result(".env文件", "WARNING", "未找到.env文件，使用默认配置")
+        print_result("dotenv环境文件", "WARNING", "未找到dotenv/.env.*文件，使用默认配置")
     
     # 检查环境类型
     print_result("环境类型", "INFO", settings.ENVIRONMENT)
@@ -193,30 +198,11 @@ def check_security():
 def check_storage():
     """检查存储配置"""
     print_section("存储配置检查")
-    
-    # 检查上传目录
-    upload_dir = Path(settings.UPLOAD_DIR)
-    if upload_dir.exists():
-        print_result("上传目录", "OK", f"路径: {upload_dir.absolute()}")
-    else:
-        print_result("上传目录", "WARNING", f"目录不存在: {upload_dir}")
-        try:
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            print_result("创建上传目录", "OK", "目录创建成功")
-        except Exception as e:
-            print_result("创建上传目录", "FAILED", str(e))
-    
-    # 检查DICOM目录
-    dicom_dir = Path(setting_value("DICOM_STORAGE_DIR", default="dicom"))
-    if dicom_dir.exists():
-        print_result("DICOM目录", "OK", f"路径: {dicom_dir.absolute()}")
-    else:
-        print_result("DICOM目录", "WARNING", f"目录不存在: {dicom_dir}")
-        try:
-            dicom_dir.mkdir(parents=True, exist_ok=True)
-            print_result("创建DICOM目录", "OK", "目录创建成功")
-        except Exception as e:
-            print_result("创建DICOM目录", "FAILED", str(e))
+
+    print_result("Storage Service", "INFO", settings.STORAGE_SERVICE_URL)
+    print_result("影像Bucket", "INFO", settings.IMAGE_FILE_BUCKET)
+    print_result("头像Bucket", "INFO", settings.USER_AVATAR_BUCKET)
+    print_result("Presign过期时间", "INFO", f"{settings.STORAGE_PRESIGN_EXPIRES_SECONDS}秒")
     
     # 检查文件配置
     print_result("最大文件大小", "INFO", f"{settings.MAX_FILE_SIZE / 1024 / 1024:.1f}MB")
@@ -243,7 +229,7 @@ def check_logging():
     # 检查日志配置
     print_result("日志级别", "INFO", settings.LOG_LEVEL)
     print_result("日志文件", "INFO", settings.LOG_FILE)
-    print_result("日志文件大小", "INFO", f"{settings.LOG_MAX_SIZE / 1024 / 1024:.1f}MB")
+    print_result("日志文件大小", "INFO", str(settings.LOG_MAX_SIZE))
     print_result("备份文件数量", "INFO", str(settings.LOG_BACKUP_COUNT))
 
 
@@ -313,7 +299,7 @@ def main():
     generate_config_report()
     
     print_header("配置检查完成")
-    print("💡 如有配置问题，请参考 .env.example 文件进行修正")
+    print("💡 如有配置问题，请参考 dotenv/.env.*.example 文件进行修正")
     print("📚 详细配置说明请查看项目文档")
 
 

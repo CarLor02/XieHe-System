@@ -16,6 +16,9 @@ export interface SessionUser {
   is_superuser?: boolean;
   is_system_admin?: boolean;
   system_admin_level?: number;
+  avatar_url?: string | null;
+  avatar_storage_bucket?: string | null;
+  avatar_object_key?: string | null;
   created_at: string;
   updated_at: string;
 }

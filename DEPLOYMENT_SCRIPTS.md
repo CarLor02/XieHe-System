@@ -29,7 +29,7 @@
    - 数据库连接测试
    - 表数量统计
 
-5. **`./docker/backend-entrypoint.sh`** - 后端容器启动脚本
+5. **`./infrastructure/docker/backend-entrypoint.sh`** - 后端容器启动脚本
    - 等待 MySQL 就绪
    - 自动数据库初始化
    - 启动 FastAPI 应用
@@ -39,7 +39,7 @@
 - `deploy_docker.sh` - 功能已合并到 `deploy.sh`
 - `scripts/deploy.sh` - 与主部署脚本重复
 - `scripts/start_hybrid.sh` - 开发模式，不推荐使用
-- `docker/mysql/init-db.sh` - 功能已由 `backend-entrypoint.sh` 实现
+- `infrastructure/mysql/init-db.sh` - 功能已由 `backend-entrypoint.sh` 实现
 
 ---
 
@@ -149,7 +149,7 @@ sudo ./scripts/security_cleanup.sh
    ```
 
 3. **修改默认密码**
-   - 编辑 `docker-compose.yml`
+   - 编辑 `dotenv/.env.database` 和 `dotenv/.env.backend`
    - 更改 MySQL root 密码
    - 更改应用用户密码
 
@@ -163,7 +163,7 @@ sudo ./scripts/security_cleanup.sh
 
 - [快速部署指南](./DEPLOYMENT.md) - 详细部署步骤
 - [MySQL 部署文档](./docs/deployment/mysql-deployment.md) - 数据库配置
-- [安全配置](./docker-compose.security.yml) - Docker 安全配置
+- [安全配置](./infrastructure/docker/compose/security.yml) - Docker 安全配置
 - [项目文档](./docs/README.md) - 完整项目文档
 
 ---

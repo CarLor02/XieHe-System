@@ -7,7 +7,8 @@
 """
 
 from typing import Dict, Any
-from datetime import timedelta
+from datetime import datetime, timedelta
+import math
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials
@@ -94,7 +95,12 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
 
 
 from app.core.system.config import settings as config_settings
+from app.services.storage_gateway import StorageServiceError, storage_gateway
 from ..schemas.auth import (
+    AvatarUploadCompleteRequest,
+    AvatarUploadPart,
+    AvatarUploadSessionRequest,
+    AvatarUploadSessionResponse,
     UserLogin,
     UserRegister,
     TokenRefresh,
@@ -144,6 +150,59 @@ def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> Token
         refresh_token=refresh_token,
         token_type="bearer",
         expires_in=int(access_expires.total_seconds())
+    )
+
+
+async def get_active_avatar_url(user) -> str | None:
+    """Return a short-lived avatar URL if the user has an active avatar."""
+
+    if not user.avatar_storage_bucket or not user.avatar_object_key or user.avatar_deleted_at:
+        return None
+    try:
+        return await storage_gateway.presign_get(
+            bucket=user.avatar_storage_bucket,
+            object_key=user.avatar_object_key,
+            expires_in=config_settings.STORAGE_PRESIGN_EXPIRES_SECONDS,
+        )
+    except Exception as exc:
+        logger.warning(f"获取用户头像临时地址失败: {exc}")
+        return None
+
+
+async def build_user_response(user, current_user: Dict[str, Any], db: Session) -> UserResponse:
+    from app.models.user import Department
+
+    department_name = None
+    if user.department_id:
+        department = db.query(Department).filter(Department.id == user.department_id).first()
+        if department:
+            department_name = department.name
+
+    avatar_url = await get_active_avatar_url(user)
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        full_name=user.real_name or user.username,
+        phone=user.phone,
+        real_name=user.real_name,
+        employee_id=user.employee_id,
+        department=department_name,
+        department_id=user.department_id,
+        position=user.position,
+        title=user.title,
+        is_active=user.status == "active",
+        role="admin" if user.is_superuser else "doctor",
+        roles=current_user.get("roles", ["doctor"]),
+        permissions=current_user.get("permissions", ["patient_manage", "image_view"]),
+        is_superuser=user.is_superuser or False,
+        is_system_admin=user.is_system_admin or False,
+        system_admin_level=user.system_admin_level or 0,
+        avatar_url=avatar_url,
+        avatar_storage_bucket=user.avatar_storage_bucket if not user.avatar_deleted_at else None,
+        avatar_object_key=user.avatar_object_key if not user.avatar_deleted_at else None,
+        created_at=user.created_at.isoformat() if user.created_at else None,
+        updated_at=user.updated_at.isoformat() if user.updated_at else None,
     )
 
 
@@ -545,41 +604,8 @@ async def get_current_user_info(
                 detail="用户不存在"
             )
 
-        # 获取部门名称
-        department_name = None
-        if user.department_id:
-            department = db.query(Department).filter(Department.id == user.department_id).first()
-            if department:
-                department_name = department.name
-
-        # 确定用户角色和权限
-        role = "admin" if user.is_superuser else "doctor"
-        roles = current_user.get("roles", ["doctor"])
-        permissions = current_user.get("permissions", ["patient_manage", "image_view"])
-
         return success_response(
-            data=UserResponse(
-                id=user.id,
-                username=user.username,
-                email=user.email,
-                full_name=user.real_name or user.username,
-                phone=user.phone,
-                real_name=user.real_name,
-                employee_id=user.employee_id,
-                department=department_name,
-                department_id=user.department_id,
-                position=user.position,
-                title=user.title,
-                is_active=user.status == 'active',
-                role=role,
-                roles=roles,
-                permissions=permissions,
-                is_superuser=user.is_superuser or False,
-                is_system_admin=user.is_system_admin or False,
-                system_admin_level=user.system_admin_level or 0,
-                created_at=user.created_at.isoformat() if user.created_at else None,
-                updated_at=user.updated_at.isoformat() if user.updated_at else None
-            ).dict(),
+            data=(await build_user_response(user, current_user, db)).dict(),
             message="获取用户信息成功"
         )
     except HTTPException:
@@ -646,43 +672,10 @@ async def update_current_user_info(
         db.refresh(user)
         logger.info(f"刷新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
 
-        # 获取部门名称
-        department_name = None
-        if user.department_id:
-            department = db.query(Department).filter(Department.id == user.department_id).first()
-            if department:
-                department_name = department.name
-
         logger.info(f"用户信息更新成功: {user.username}")
 
-        # 确定用户角色和权限
-        role = "admin" if user.is_superuser else "doctor"
-        roles = current_user.get("roles", ["doctor"])
-        permissions = current_user.get("permissions", ["patient_manage", "image_view"])
-
         return success_response(
-            data=UserResponse(
-                id=user.id,
-                username=user.username,
-                email=user.email,
-                full_name=user.real_name or user.username,
-                phone=user.phone,
-                real_name=user.real_name,
-                employee_id=user.employee_id,
-                department=department_name,
-                department_id=user.department_id,
-                position=user.position,
-                title=user.title,
-                is_active=user.status == 'active',
-                role=role,
-                roles=roles,
-                permissions=permissions,
-                is_superuser=user.is_superuser or False,
-                is_system_admin=user.is_system_admin or False,
-                system_admin_level=user.system_admin_level or 0,
-                created_at=user.created_at.isoformat() if user.created_at else None,
-                updated_at=user.updated_at.isoformat() if user.updated_at else None
-            ).dict(),
+            data=(await build_user_response(user, current_user, db)).dict(),
             message="用户信息更新成功"
         )
     except HTTPException:
@@ -694,3 +687,120 @@ async def update_current_user_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="更新用户信息失败"
         )
+
+
+@router.post("/me/avatar/upload-session", response_model=Dict[str, Any], summary="创建头像上传会话")
+async def create_avatar_upload_session(
+    request: AvatarUploadSessionRequest,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    if request.mime_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(status_code=400, detail="不支持的头像文件类型")
+
+    bucket = config_settings.USER_AVATAR_BUCKET
+    object_key = f"users/{current_user['id']}/avatar"
+    part_size = config_settings.STORAGE_MULTIPART_PART_SIZE
+    part_count = max(1, math.ceil(request.size / part_size))
+
+    try:
+        await storage_gateway.ensure_bucket(bucket)
+        upload_session = await storage_gateway.create_multipart_upload(
+            bucket=bucket,
+            object_key=object_key,
+            content_type=request.mime_type,
+            metadata={
+                "user-id": str(current_user["id"]),
+                "original-filename": request.filename,
+            },
+            part_count=part_count,
+            expires_in=config_settings.STORAGE_PRESIGN_EXPIRES_SECONDS,
+        )
+        response = AvatarUploadSessionResponse(
+            storage_bucket=bucket,
+            object_key=object_key,
+            upload_id=upload_session["upload_id"],
+            part_size=part_size,
+            expires_in=config_settings.STORAGE_PRESIGN_EXPIRES_SECONDS,
+            parts=[
+                AvatarUploadPart(
+                    part_number=part["part_number"],
+                    url=part["url"],
+                )
+                for part in upload_session["parts"]
+            ],
+        )
+        return success_response(data=response.dict(), message="头像上传会话创建成功")
+    except StorageServiceError as exc:
+        logger.error(f"创建头像上传会话失败: {exc}")
+        raise HTTPException(status_code=502, detail="对象存储服务不可用")
+
+
+@router.post("/me/avatar/complete", response_model=Dict[str, Any], summary="完成头像上传")
+async def complete_avatar_upload(
+    request: AvatarUploadCompleteRequest,
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    from app.models.user import User
+
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    bucket = config_settings.USER_AVATAR_BUCKET
+    object_key = f"users/{current_user['id']}/avatar"
+    try:
+        result = await storage_gateway.complete_multipart_upload(
+            bucket=bucket,
+            object_key=object_key,
+            upload_id=request.upload_id,
+            parts=[
+                {"part_number": part.part_number, "etag": part.etag}
+                for part in request.parts
+            ],
+        )
+        stat_result = await storage_gateway.stat_object(bucket=bucket, object_key=object_key)
+        user.avatar_storage_bucket = bucket
+        user.avatar_object_key = object_key
+        user.avatar_storage_etag = result.get("etag") or stat_result.etag
+        user.avatar_deleted_at = None
+        db.commit()
+        db.refresh(user)
+
+        return success_response(
+            data=(await build_user_response(user, current_user, db)).dict(),
+            message="头像上传成功",
+        )
+    except StorageServiceError as exc:
+        db.rollback()
+        logger.error(f"完成头像上传失败: {exc}")
+        raise HTTPException(status_code=502, detail="对象存储服务不可用")
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"完成头像上传失败: {exc}")
+        raise HTTPException(status_code=500, detail="完成头像上传失败")
+
+
+@router.delete("/me/avatar", response_model=Dict[str, Any], summary="删除当前用户头像")
+async def delete_current_user_avatar(
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    from app.models.user import User
+
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if not user.avatar_storage_bucket or not user.avatar_object_key:
+        return success_response(
+            data=(await build_user_response(user, current_user, db)).dict(),
+            message="当前用户没有头像",
+        )
+
+    user.avatar_deleted_at = datetime.now()
+    db.commit()
+    db.refresh(user)
+    return success_response(
+        data=(await build_user_response(user, current_user, db)).dict(),
+        message="头像已标记删除",
+    )

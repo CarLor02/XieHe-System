@@ -169,9 +169,14 @@ class Settings(BaseSettings):
     # 文件上传配置
     # ==========================================
     
-    # 上传目录
-    UPLOAD_DIR: str = "./uploads"
     TEMP_DIR: str = "./temp"
+    STORAGE_SERVICE_URL: str = "http://storage-service:8090"
+    STORAGE_SERVICE_TOKEN: str = "dev-storage-service-token"
+    STORAGE_SERVICE_TIMEOUT: float = 30.0
+    STORAGE_PRESIGN_EXPIRES_SECONDS: int = 900
+    STORAGE_MULTIPART_PART_SIZE: int = 8 * 1024 * 1024
+    IMAGE_FILE_BUCKET: str = "medical-image-files"
+    USER_AVATAR_BUCKET: str = "medical-user-avatars"
     
     # 文件大小限制 (字节)
     MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB
@@ -269,7 +274,21 @@ class Settings(BaseSettings):
     
     class Config:
         """Pydantic 配置"""
-        env_file = ".env"
+        env_file = (
+            ".env",
+            "dotenv/.env.runtime",
+            "dotenv/.env.database",
+            "dotenv/.env.redis",
+            "dotenv/.env.minio",
+            "dotenv/.env.storage",
+            "dotenv/.env.backend",
+            "../dotenv/.env.runtime",
+            "../dotenv/.env.database",
+            "../dotenv/.env.redis",
+            "../dotenv/.env.minio",
+            "../dotenv/.env.storage",
+            "../dotenv/.env.backend",
+        )
         env_file_encoding = "utf-8"
         case_sensitive = True
         extra = "ignore"
