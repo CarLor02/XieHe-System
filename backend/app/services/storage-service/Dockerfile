@@ -1,6 +1,24 @@
 FROM golang:1.22-alpine AS builder
 
 WORKDIR /src
+
+# 构建阶段代理和 Go module proxy 配置。仅 builder 阶段可见，不进入最终运行镜像。
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+ARG GOPROXY=https://proxy.golang.org,direct
+ARG GOSUMDB=sum.golang.org
+ARG GONOPROXY
+ARG GONOSUMDB
+
+ENV GOPROXY=${GOPROXY} \
+    GOSUMDB=${GOSUMDB} \
+    GONOPROXY=${GONOPROXY} \
+    GONOSUMDB=${GONOSUMDB}
+
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
