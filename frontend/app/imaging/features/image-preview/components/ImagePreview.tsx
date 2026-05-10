@@ -33,10 +33,13 @@ export default function ImagePreview({
 
   if (previewUrl) {
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={previewUrl}
         alt={imageFile.original_filename}
         className={imgClassName}
+        loading="lazy"
+        decoding="async"
         onError={() => onPreviewError(imageFile.id)}
       />
     );

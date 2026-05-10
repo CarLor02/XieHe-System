@@ -1,4 +1,5 @@
 export * from './imageFileService';
+export * from './imageFileAccessUrlService';
 export * from './measurementService';
 export * from './aiAnnotationService';
 export * from './aiMeasurementService';

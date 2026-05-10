@@ -1,6 +1,6 @@
 """Schemas for the files API endpoints."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from datetime import datetime, date
 from pydantic import BaseModel, Field
 
@@ -55,3 +55,9 @@ class UpdateExamTypeRequest(BaseModel):
 class UpdateAnnotationRequest(BaseModel):
     """更新标注数据请求模型"""
     annotation: Dict[str, Any] = Field(..., description="标注数据(JSON对象)")
+
+
+class BatchDownloadUrlsRequest(BaseModel):
+    """批量获取影像访问地址请求"""
+    ids: List[int] = Field(..., min_length=1, max_length=100, description="影像文件ID列表")
+    variant: Literal["original"] = Field(default="original", description="访问对象类型")

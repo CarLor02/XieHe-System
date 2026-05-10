@@ -1,6 +1,9 @@
 import { RefObject, useCallback, useEffect, useState } from 'react';
 import { AdjustMode, Point } from '@/app/imaging/features/image-viewer/shared/types';
-import { downloadImageFile } from '@/services/imageServices';
+import {
+  getImageFile,
+  getImageFileAccessUrl,
+} from '@/services/imageServices';
 
 interface UseCanvasViewportOptions {
   imageId: string;
@@ -80,32 +83,35 @@ export function useCanvasViewport({
   ]);
 
   useEffect(() => {
-    let currentImageUrl: string | null = null;
+    let cancelled = false;
 
     const fetchImage = async () => {
       try {
         setImageLoading(true);
         const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-        const imageBlob = await downloadImageFile(Number(numericId));
-        const imageObjectUrl = URL.createObjectURL(imageBlob);
-        currentImageUrl = imageObjectUrl;
-        setImageUrl(imageObjectUrl);
+        const imageFile = await getImageFile(Number(numericId));
+        const imageAccessUrl = await getImageFileAccessUrl(imageFile);
+        if (!cancelled) {
+          setImageUrl(imageAccessUrl);
+        }
       } catch (error) {
         console.error('获取图像失败:', error);
-        setImageUrl(null);
+        if (!cancelled) {
+          setImageUrl(null);
+        }
       } finally {
-        setImageLoading(false);
+        if (!cancelled) {
+          setImageLoading(false);
+        }
       }
     };
 
     fetchImage();
 
     return () => {
+      cancelled = true;
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
-      if (currentImageUrl) {
-        URL.revokeObjectURL(currentImageUrl);
-      }
     };
   }, [imageId]);
 

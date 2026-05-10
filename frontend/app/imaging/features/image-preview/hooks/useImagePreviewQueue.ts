@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  downloadImageFile,
-  type ImageFile,
-} from '@/services/imageServices/imageFileService';
+  clearCachedImageFileAccessUrl,
+  getImageFileAccessUrls,
+} from '@/services/imageServices/imageFileAccessUrlService';
+import type { ImageFile } from '@/services/imageServices/imageFileService';
 
-const PREVIEW_REQUEST_TIMEOUT_MS = 60000;
+const PREVIEW_REQUEST_TIMEOUT_MS = 60_000;
 const PREVIEW_RETRY_ATTEMPTS = 3;
 const PREVIEW_RETRY_DELAY_MS = 800;
-const MAX_CONCURRENT_PREVIEW_LOADS = 6;
 
 export type PreviewLoadState = 'fallback';
 
@@ -17,103 +17,62 @@ function delay(ms: number) {
   });
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
 export function useImagePreviewQueue(imageFiles: ImageFile[]) {
   const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
   const [previewStates, setPreviewStates] = useState<
     Record<number, PreviewLoadState>
   >({});
+  const [previewRetryVersion, setPreviewRetryVersion] = useState(0);
   const imageUrlsRef = useRef<Record<number, string>>({});
   const previewStatesRef = useRef<Record<number, PreviewLoadState>>({});
-  const previewLoadingIdsRef = useRef<Set<number>>(new Set());
-  const previewControllersRef = useRef<Map<number, AbortController>>(new Map());
+  const previewControllerRef = useRef<AbortController | null>(null);
   const previewQueueVersionRef = useRef(0);
+  const previewForceRefreshIdsRef = useRef<Set<number>>(new Set());
+  const previewErrorCountsRef = useRef<Record<number, number>>({});
 
   const abortAllPreviewRequests = useCallback(() => {
-    previewControllersRef.current.forEach(controller => {
-      controller.abort();
-    });
-    previewControllersRef.current.clear();
-    previewLoadingIdsRef.current.clear();
+    previewControllerRef.current?.abort();
+    previewControllerRef.current = null;
   }, []);
 
   const resetPreviewQueue = useCallback(() => {
     previewQueueVersionRef.current += 1;
+    previewForceRefreshIdsRef.current.clear();
+    previewErrorCountsRef.current = {};
     abortAllPreviewRequests();
+    imageUrlsRef.current = {};
+    previewStatesRef.current = {};
+    setImageUrls({});
+    setPreviewStates({});
   }, [abortAllPreviewRequests]);
 
-  const createPreviewUrlWithTimeout = useCallback(
-    async (fileId: number): Promise<string> => {
-      const controller = new AbortController();
-      previewControllersRef.current.set(fileId, controller);
-      const timeoutId = window.setTimeout(() => {
-        controller.abort();
-      }, PREVIEW_REQUEST_TIMEOUT_MS);
-      let timeoutRejectId = 0;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutRejectId = window.setTimeout(() => {
-          reject(
-            new Error(
-              `Preview request timed out after ${PREVIEW_REQUEST_TIMEOUT_MS}ms`
-            )
-          );
-        }, PREVIEW_REQUEST_TIMEOUT_MS);
-      });
-
-      try {
-        const blob = (await Promise.race([
-          downloadImageFile(fileId, { signal: controller.signal }),
-          timeoutPromise,
-        ])) as Blob;
-        return URL.createObjectURL(blob);
-      } finally {
-        window.clearTimeout(timeoutId);
-        window.clearTimeout(timeoutRejectId);
-        if (previewControllersRef.current.get(fileId) === controller) {
-          previewControllersRef.current.delete(fileId);
-        }
-      }
-    },
-    []
-  );
-
-  const loadPreviewWithRetry = useCallback(
-    async (fileId: number, queueVersion: number): Promise<string | null> => {
-      for (let attempt = 1; attempt <= PREVIEW_RETRY_ATTEMPTS; attempt += 1) {
-        if (previewQueueVersionRef.current !== queueVersion) return null;
-
-        try {
-          return await createPreviewUrlWithTimeout(fileId);
-        } catch (error) {
-          if (previewQueueVersionRef.current !== queueVersion) return null;
-
-          const isLastAttempt = attempt === PREVIEW_RETRY_ATTEMPTS;
-          console.warn(
-            `Preview load attempt ${attempt}/${PREVIEW_RETRY_ATTEMPTS} failed for file ${fileId}:`,
-            error
-          );
-
-          if (isLastAttempt) return null;
-
-          await delay(PREVIEW_RETRY_DELAY_MS);
-        }
-      }
-
-      return null;
-    },
-    [createPreviewUrlWithTimeout]
-  );
-
   const handlePreviewError = useCallback((fileId: number) => {
-    setImageUrls(previousUrls => {
-      const existingUrl = previousUrls[fileId];
-      if (existingUrl?.startsWith('blob:')) {
-        URL.revokeObjectURL(existingUrl);
-      }
+    clearCachedImageFileAccessUrl(fileId);
 
+    const nextAttempts = (previewErrorCountsRef.current[fileId] ?? 0) + 1;
+    previewErrorCountsRef.current[fileId] = nextAttempts;
+
+    setImageUrls(previousUrls => {
       const nextUrls = { ...previousUrls };
       delete nextUrls[fileId];
       return nextUrls;
     });
+
+    if (nextAttempts <= 1) {
+      previewForceRefreshIdsRef.current.add(fileId);
+      setPreviewStates(previousStates => {
+        const nextStates = { ...previousStates };
+        delete nextStates[fileId];
+        return nextStates;
+      });
+      setPreviewRetryVersion(version => version + 1);
+      return;
+    }
+
     setPreviewStates(previousStates => ({
       ...previousStates,
       [fileId]: 'fallback',
@@ -131,11 +90,6 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
   useEffect(() => {
     return () => {
       abortAllPreviewRequests();
-      Object.values(imageUrlsRef.current).forEach(url => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
-        }
-      });
     };
   }, [abortAllPreviewRequests]);
 
@@ -150,10 +104,9 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
         const id = Number(idString);
         if (currentFileIds.has(id)) {
           nextUrls[id] = url;
-        } else if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
         }
       }
+      imageUrlsRef.current = nextUrls;
       return nextUrls;
     });
 
@@ -165,8 +118,20 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
           nextStates[id] = state;
         }
       }
+      previewStatesRef.current = nextStates;
       return nextStates;
     });
+
+    previewForceRefreshIdsRef.current.forEach(fileId => {
+      if (!currentFileIds.has(fileId)) {
+        previewForceRefreshIdsRef.current.delete(fileId);
+      }
+    });
+    for (const idString of Object.keys(previewErrorCountsRef.current)) {
+      if (!currentFileIds.has(Number(idString))) {
+        delete previewErrorCountsRef.current[Number(idString)];
+      }
+    }
 
     if (imageFiles.length === 0) {
       previewQueueVersionRef.current += 1;
@@ -177,80 +142,108 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
     const pendingFiles = imageFiles.filter(
       file =>
         !imageUrlsRef.current[file.id] &&
-        !previewLoadingIdsRef.current.has(file.id) &&
         previewStatesRef.current[file.id] !== 'fallback'
     );
 
     if (pendingFiles.length === 0) return;
 
-    let nextIndex = 0;
+    const controller = new AbortController();
+    previewControllerRef.current = controller;
+    const timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, PREVIEW_REQUEST_TIMEOUT_MS);
 
-    const loadNextPreview = async () => {
-      while (nextIndex < pendingFiles.length) {
-        const file = pendingFiles[nextIndex++];
-        previewLoadingIdsRef.current.add(file.id);
+    const loadPreviews = async () => {
+      for (let attempt = 1; attempt <= PREVIEW_RETRY_ATTEMPTS; attempt += 1) {
+        if (previewQueueVersionRef.current !== queueVersion) return;
 
         try {
-          const previewUrl = await loadPreviewWithRetry(
-            file.id,
-            queueVersion
-          );
-
-          if (!previewUrl) {
-            if (previewQueueVersionRef.current === queueVersion) {
-              setPreviewStates(previousStates => ({
-                ...previousStates,
-                [file.id]: 'fallback',
-              }));
-            }
-            continue;
-          }
-
-          if (previewQueueVersionRef.current !== queueVersion) {
-            if (previewUrl.startsWith('blob:')) {
-              URL.revokeObjectURL(previewUrl);
-            }
-            continue;
-          }
-
-          setImageUrls(previousUrls => {
-            if (previousUrls[file.id]) {
-              if (previewUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(previewUrl);
-              }
-              return previousUrls;
-            }
-
-            return {
-              ...previousUrls,
-              [file.id]: previewUrl,
-            };
+          const forceRefreshIds = new Set(previewForceRefreshIdsRef.current);
+          const result = await getImageFileAccessUrls(pendingFiles, {
+            forceRefreshIds,
+            signal: controller.signal,
           });
+
+          if (previewQueueVersionRef.current !== queueVersion) return;
+
+          const loadedEntries = Object.entries(result.items).map(
+            ([idString, download]) => ({
+              fileId: Number(idString),
+              url: download.url,
+            })
+          );
+          const loadedIds = new Set(loadedEntries.map(entry => entry.fileId));
+          setImageUrls(previousUrls => {
+            const nextUrls = { ...previousUrls };
+            for (const entry of loadedEntries) {
+              nextUrls[entry.fileId] = entry.url;
+            }
+            imageUrlsRef.current = nextUrls;
+            return nextUrls;
+          });
+
           setPreviewStates(previousStates => {
-            if (!previousStates[file.id]) return previousStates;
             const nextStates = { ...previousStates };
-            delete nextStates[file.id];
+            for (const fileId of loadedIds) {
+              delete nextStates[fileId];
+              delete previewErrorCountsRef.current[fileId];
+              previewForceRefreshIdsRef.current.delete(fileId);
+            }
+            for (const idString of Object.keys(result.errors)) {
+              nextStates[Number(idString)] = 'fallback';
+            }
+            previewStatesRef.current = nextStates;
             return nextStates;
           });
-        } catch (previewError) {
-          console.error(`Failed to load preview for file ${file.id}:`, previewError);
-          if (previewQueueVersionRef.current === queueVersion) {
-            setPreviewStates(previousStates => ({
-              ...previousStates,
-              [file.id]: 'fallback',
-            }));
+          return;
+        } catch (error) {
+          if (
+            controller.signal.aborted ||
+            isAbortError(error) ||
+            previewQueueVersionRef.current !== queueVersion
+          ) {
+            return;
           }
-        } finally {
-          previewLoadingIdsRef.current.delete(file.id);
+
+          const isLastAttempt = attempt === PREVIEW_RETRY_ATTEMPTS;
+          console.warn(
+            `Preview URL batch load attempt ${attempt}/${PREVIEW_RETRY_ATTEMPTS} failed:`,
+            error
+          );
+
+          if (isLastAttempt) {
+            setPreviewStates(previousStates => {
+              const nextStates = { ...previousStates };
+              for (const file of pendingFiles) {
+                nextStates[file.id] = 'fallback';
+              }
+              previewStatesRef.current = nextStates;
+              return nextStates;
+            });
+            return;
+          }
+
+          await delay(PREVIEW_RETRY_DELAY_MS);
         }
       }
     };
 
-    Array.from(
-      { length: Math.min(MAX_CONCURRENT_PREVIEW_LOADS, pendingFiles.length) },
-      () => loadNextPreview()
-    );
-  }, [abortAllPreviewRequests, imageFiles, loadPreviewWithRetry]);
+    void loadPreviews().finally(() => {
+      window.clearTimeout(timeoutId);
+      if (previewControllerRef.current === controller) {
+        previewControllerRef.current = null;
+      }
+    });
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    abortAllPreviewRequests,
+    imageFiles,
+    previewRetryVersion,
+  ]);
 
   return {
     imageUrls,

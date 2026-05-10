@@ -9,9 +9,9 @@
 """
 
 from typing import Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status as http_status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
@@ -30,6 +30,7 @@ from app.services.image_file_visibility import (
     get_visible_image_file,
 )
 from ..schemas.files import (
+    BatchDownloadUrlsRequest,
     ImageFileResponse,
     ImageFileStatsResponse,
     UpdateExamTypeRequest,
@@ -63,6 +64,27 @@ def _image_file_response(image: ImageFile, uploader_name: Optional[str] = None) 
         created_at=image.created_at,
         uploaded_at=image.uploaded_at,
     )
+
+
+def _set_presign_cache_headers(response: Response, expires_in: int) -> None:
+    max_age = max(expires_in - 60, 0)
+    response.headers["Cache-Control"] = f"private, max-age={max_age}"
+    response.headers["Vary"] = "Authorization"
+
+
+def _download_url_payload(
+    image: ImageFile,
+    url: str,
+    expires_in: int,
+) -> dict:
+    return {
+        "url": url,
+        "expires_in": expires_in,
+        "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).isoformat(),
+        "filename": image.original_filename,
+        "mime_type": image.mime_type,
+        "etag": image.storage_etag,
+    }
 
 
 # API 端点
@@ -270,6 +292,7 @@ async def get_image_file(
 @router.get("/{file_id}/download-url", summary="获取影像文件临时访问地址")
 async def get_image_file_download_url(
     file_id: int,
+    response: Response,
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -297,15 +320,10 @@ async def get_image_file_download_url(
             object_key=image.object_key,
             expires_in=expires_in,
         )
+        _set_presign_cache_headers(response, expires_in)
 
         return success_response(
-            data={
-                "url": url,
-                "expires_in": expires_in,
-                "expires_at": (datetime.now() + timedelta(seconds=expires_in)).isoformat(),
-                "filename": image.original_filename,
-                "mime_type": image.mime_type,
-            },
+            data=_download_url_payload(image, url, expires_in),
             message="获取影像访问地址成功",
         )
 
@@ -325,6 +343,71 @@ async def get_image_file_download_url(
         )
 
 
+@router.post("/download-urls", summary="批量获取影像文件临时访问地址")
+async def get_image_file_download_urls(
+    request: BatchDownloadUrlsRequest,
+    response: Response,
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    批量获取经 Nginx 代理的 MinIO presigned URL。
+    """
+    expires_in = settings.STORAGE_PRESIGN_EXPIRES_SECONDS
+    _set_presign_cache_headers(response, expires_in)
+
+    items: dict[int, dict] = {}
+    errors: dict[int, dict[str, str]] = {}
+    seen_ids: set[int] = set()
+    ordered_ids: list[int] = []
+
+    for file_id in request.ids:
+        if file_id in seen_ids:
+            continue
+        seen_ids.add(file_id)
+        ordered_ids.append(file_id)
+
+    for file_id in ordered_ids:
+        image = get_visible_image_file(db, file_id, current_user)
+        if not image:
+            errors[file_id] = {
+                "code": "not_found",
+                "message": "影像文件不存在",
+            }
+            continue
+
+        if image.status not in {ImageFileStatusEnum.UPLOADED, ImageFileStatusEnum.PROCESSED}:
+            errors[file_id] = {
+                "code": "not_ready",
+                "message": "影像文件尚未完成上传",
+            }
+            continue
+
+        try:
+            url = await storage_gateway.presign_get(
+                bucket=image.storage_bucket,
+                object_key=image.object_key,
+                expires_in=expires_in,
+            )
+        except StorageServiceError as exc:
+            logger.error(f"批量获取影像访问地址失败: {exc}")
+            errors[file_id] = {
+                "code": "storage_error",
+                "message": "对象存储服务不可用",
+            }
+            continue
+
+        items[file_id] = _download_url_payload(image, url, expires_in)
+
+    return success_response(
+        data={
+            "items": items,
+            "errors": errors,
+        },
+        message="批量获取影像访问地址成功",
+    )
+
+
 @router.get("/{file_id}/download", summary="下载影像文件")
 async def download_image_file(
     file_id: int,
@@ -333,8 +416,13 @@ async def download_image_file(
 ):
     """Compatibility endpoint: authorize in FastAPI, then redirect to MinIO via Nginx."""
 
-    response = await get_image_file_download_url(file_id, current_user, db)
-    return RedirectResponse(url=response["data"]["url"], status_code=307)
+    envelope = await get_image_file_download_url(
+        file_id,
+        response=Response(),
+        current_user=current_user,
+        db=db,
+    )
+    return RedirectResponse(url=envelope["data"]["url"], status_code=307)
 
 
 @router.delete("/{file_id}", summary="删除影像文件")

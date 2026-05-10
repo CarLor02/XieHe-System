@@ -61,6 +61,17 @@ export interface ImageFileDownloadUrl {
   expires_at?: string;
   filename?: string;
   mime_type?: string;
+  etag?: string;
+}
+
+export interface ImageFileDownloadUrlError {
+  code: string;
+  message: string;
+}
+
+export interface ImageFileDownloadUrlsResponse {
+  items: Record<number, ImageFileDownloadUrl>;
+  errors: Record<number, ImageFileDownloadUrlError>;
 }
 
 export interface ImageFileFilters {
@@ -197,6 +208,30 @@ export async function getImageFileDownloadUrl(
 ): Promise<ImageFileDownloadUrl> {
   const response = await apiClient.get(`/api/v1/image-files/${fileId}/download-url`);
   return extractData<ImageFileDownloadUrl>(response);
+}
+
+export async function getImageFileDownloadUrls(
+  ids: number[],
+  options: {
+    signal?: AbortSignal;
+    variant?: 'original';
+  } = {}
+): Promise<ImageFileDownloadUrlsResponse> {
+  if (ids.length === 0) {
+    return { items: {}, errors: {} };
+  }
+
+  const response = await apiClient.post(
+    '/api/v1/image-files/download-urls',
+    {
+      ids,
+      variant: options.variant ?? 'original',
+    },
+    {
+      signal: options.signal,
+    }
+  );
+  return extractData<ImageFileDownloadUrlsResponse>(response);
 }
 
 /**

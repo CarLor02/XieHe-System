@@ -22,10 +22,12 @@ export default function ImageLayer({
   onDragStart,
 }: ImageLayerProps) {
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={imageUrl}
       alt={examType ?? '影像'}
       className="max-w-full max-h-full object-contain pointer-events-none select-none"
+      crossOrigin="anonymous"
       onLoad={onLoad}
       onDragStart={onDragStart}
       style={{
