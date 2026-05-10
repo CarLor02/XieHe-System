@@ -361,3 +361,7 @@ docker-compose.yml
 # AI工具
 .codex
 \n# Local environment overrides (not for commit)\nfrontend/.env.local\n.env.local
+
+# 权重文件
+*.pt
+*.pth
