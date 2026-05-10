@@ -491,7 +491,7 @@ async def update_annotation(
     """
     更新指定影像文件的标注数据
     
-    标注数据以JSON字符串格式存储
+    标注数据以 JSON 对象格式存储
     """
     try:
         # 查询影像文件

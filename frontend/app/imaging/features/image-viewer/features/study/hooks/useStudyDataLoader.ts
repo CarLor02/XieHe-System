@@ -42,7 +42,7 @@ export function useStudyDataLoader(
             // 加载标注数据
             if (imageFile.annotation) {
                 try {
-                    const annotationData = JSON.parse(imageFile.annotation) as AnnotationData; // TODO 以后看一下这里能不能兼容 AnnotationData 定义到 service里面
+                    const annotationData = imageFile.annotation as unknown as AnnotationData; // TODO 以后看一下这里的校验能不能精准一些
                     if (
                         annotationData.measurements &&
                         Array.isArray(annotationData.measurements) // TODO 以后看下这里的校验能不能精准一些

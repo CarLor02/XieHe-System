@@ -8,7 +8,7 @@
 """
 
 import enum
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, ForeignKey, BigInteger, Text
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, ForeignKey, BigInteger, Text, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .base import Base
@@ -64,7 +64,7 @@ class ImageFile(Base):
     description = Column(Text, comment="文件描述")
     
     # 标注数据
-    annotation = Column(Text, comment="标注数据(JSON格式)")
+    annotation = Column(JSON, comment="标注数据(JSON格式)")
     
     # 状态信息
     status = Column(Enum(ImageFileStatusEnum), nullable=False, default=ImageFileStatusEnum.UPLOADING, comment="文件状态")

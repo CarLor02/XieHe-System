@@ -8,6 +8,8 @@
 import {apiClient} from '@/lib/api';
 import {extractData, extractPaginatedData} from '@/lib/api/types';
 
+export type ImageAnnotationJson = Record<string, unknown>;
+
 export interface ImageFile {
   id: number;
   file_uuid: string;
@@ -25,7 +27,7 @@ export interface ImageFile {
   study_id?: number; // TODO 这个字段后端的接口没返回, 以后看一下
   study_date?: string;
   description?: string;
-  annotation?: string; // api/v1/image-files/{image_id} 会以string的形式反回来 measurements 结构体
+  annotation?: ImageAnnotationJson | null;
   status:
     | 'UPLOADING'
     | 'UPLOADED'
@@ -222,7 +224,7 @@ export async function updateImageExamType(
 
 export async function updateImageAnnotation(
   fileId: number,
-  annotation: string
+  annotation: ImageAnnotationJson
 ): Promise<{ message?: string }> {
   const response = await apiClient.patch(`/api/v1/image-files/${fileId}/annotation`, {
     annotation,

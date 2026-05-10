@@ -46,13 +46,14 @@ tar -C "$UPLOADS_MOUNTPOINT" -czf "$BACKUP_ROOT/uploads_data.full.tgz" .
 0001_initial_schema
 ```
 
-然后执行 schema 迁移到 head。当前 head 应为 `0002_minio_storage`：
+然后执行 schema 迁移到 `0002_minio_storage`。这里不要使用 `upgrade head`，避免在后续
+新增 revision 后跳过 MinIO 文件迁移的阶段边界：
 
 ```shell
 ./scripts/compose.sh run --rm --no-deps \
     --entrypoint alembic \
     backend \
-    upgrade head
+    upgrade 0002_minio_storage
 
 ./scripts/compose.sh run --rm --no-deps \
     --entrypoint alembic \
@@ -73,6 +74,9 @@ tar -C "$UPLOADS_MOUNTPOINT" -czf "$BACKUP_ROOT/uploads_data.full.tgz" .
 ./scripts/compose.sh ps
 ./scripts/compose.sh logs --tail=100 backend storage-service minio-init
 ```
+
+`0003_image_file_annotation_json` 应在完成本文件的数据/文件迁移并验证影像访问正常后，
+再按 `0003-image-file-annotation-json.md` 单独执行。
 
 ## 5. 先 dry-run 文件迁移
 ```shell

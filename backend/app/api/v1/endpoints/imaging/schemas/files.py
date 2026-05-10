@@ -1,6 +1,6 @@
 """Schemas for the files API endpoints."""
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime, date
 from pydantic import BaseModel, Field
 
@@ -21,7 +21,7 @@ class ImageFileResponse(BaseModel):
     patient_id: Optional[int]
     study_date: Optional[datetime]
     description: Optional[str]
-    annotation: Optional[str] = None
+    annotation: Optional[Dict[str, Any]] = None
     status: str
     upload_progress: int
     created_at: datetime
@@ -54,4 +54,4 @@ class UpdateExamTypeRequest(BaseModel):
 
 class UpdateAnnotationRequest(BaseModel):
     """更新标注数据请求模型"""
-    annotation: str = Field(..., description="标注数据(JSON字符串)")
+    annotation: Dict[str, Any] = Field(..., description="标注数据(JSON对象)")

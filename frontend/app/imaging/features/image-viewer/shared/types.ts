@@ -15,7 +15,7 @@ export interface ImageSize {
 
 /*
 * Measurement 部分的数据，现在存在一个和老版本兼容的问题
-* 在 api/v1/image-files/{id} 这个接口中, annotation 字段是直接写在 ImageFile 这个结构体上的(string类型, 需要反序列化为json),
+* 在 api/v1/image-files/{id} 这个接口中, annotation 字段是直接写在 ImageFile 这个结构体上的 JSON 对象,
 * 能直接拿到 measurements 数据, 且字段更多更详细
 * 对于测量数据(比如 T1 Tilt, CA), 比关键点数据多三个字段 upperVertebra, lowerVertebra, apexVertebra, 均为 string 类型
 * 这三个字段只给 Cobb 类的数据用, 其他测量数据的这三个字段都是 null
@@ -90,7 +90,7 @@ export interface AiMeasurementData {
 }
 
 /*
-* 标注数据结构体, 用 api/v1/image-files/{image_id} 得到的 annotation 字段做 JSON.Unmarshal 得到
+* 标注数据结构体, 对应 api/v1/image-files/{image_id} 返回的 annotation JSON 对象
 * */
 export interface AnnotationData {
   measurements: MeasurementData[];

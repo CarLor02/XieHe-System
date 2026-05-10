@@ -12,22 +12,19 @@ export function parseAnnotationData(image: ImageFile): ParsedAnnotationData | nu
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(image.annotation);
-    if (!parsed || !Array.isArray(parsed.measurements)) {
-      return null;
-    }
-
-    return {
-      measurements: parsed.measurements,
-      imageWidth: Number(parsed.imageWidth) || undefined,
-      imageHeight: Number(parsed.imageHeight) || undefined,
-      vertebraeLayer: Array.isArray(parsed.vertebraeLayer) ? parsed.vertebraeLayer : undefined,
-    };
-  } catch (error) {
-    console.warn('解析影像标注数据失败:', error);
+  const parsed = image.annotation;
+  if (!Array.isArray(parsed.measurements)) {
     return null;
   }
+
+  return {
+    measurements: parsed.measurements as MeasurementData[],
+    imageWidth: Number(parsed.imageWidth) || undefined,
+    imageHeight: Number(parsed.imageHeight) || undefined,
+    vertebraeLayer: Array.isArray(parsed.vertebraeLayer)
+      ? parsed.vertebraeLayer as VertebraAnnotation[]
+      : undefined,
+  };
 }
 
 /**

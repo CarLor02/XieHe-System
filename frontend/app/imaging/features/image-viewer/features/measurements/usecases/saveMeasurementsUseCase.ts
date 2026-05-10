@@ -123,7 +123,7 @@ export async function saveMeasurements(
                 vertebraeLayer: vertebraeLayer.length > 0 ? vertebraeLayer : undefined,
                 cfhAnnotation: cfhAnnotation ?? undefined,
             };
-            await updateImageAnnotation(Number(numericId), JSON.stringify(annotationData));
+            await updateImageAnnotation(Number(numericId), annotationData);
             console.log('绑定数据已同步至 annotation 字段');
             setSaveMessage(
                 measurements.length > 0
