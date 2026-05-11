@@ -266,8 +266,6 @@ main() {
     resolve_python
     check_model_files
 
-    confirm "确认启动 AI 服务？" || { print_error "已取消"; exit 1; }
-
     # 先停掉旧服务
     stop_ai_services
     # 清空 PID 文件
