@@ -169,12 +169,17 @@ MAX_UPLOAD_SIZE=104857600
 LOG_LEVEL=INFO
 LOG_DIR=/app/logs
 
-# 如果构建时网络慢，可启用代理:
+# Go 模块代理（国内网络必须，proxy.golang.org 被拦截）
+BUILD_GOPROXY=https://goproxy.cn,direct
+BUILD_GOSUMDB=off
+
+# Python pip 镜像（国内网络可选）
+BUILD_PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+BUILD_PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+
+# 如需 HTTP 代理（科学上网）可在此配置：
 # BUILD_HTTP_PROXY=http://${LAN_IP}:7890
 # BUILD_HTTPS_PROXY=http://${LAN_IP}:7890
-# BUILD_PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
-# BUILD_PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
-# BUILD_GOPROXY=https://goproxy.cn,direct
 EOF
 
     # --- .env.ports ---
