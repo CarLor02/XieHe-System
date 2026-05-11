@@ -1,0 +1,62 @@
+# AI inference services (optional, included by deploy_pc.sh --with-ai)
+# zhengmian = 正面/front-view analysis  (port 8001)
+# cemian    = 侧面/lateral-view analysis (port 8002)
+
+services:
+  ai-zhengmian:
+    build:
+      context: ../../..
+      dockerfile: model/zhengmian/Dockerfile
+      extra_hosts:
+        - 'host.docker.internal:host-gateway'
+      args:
+        HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+        NO_PROXY: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1,localaddress,.localdomain}
+        http_proxy: ${BUILD_HTTP_PROXY:-}
+        https_proxy: ${BUILD_HTTPS_PROXY:-}
+        no_proxy: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1,localaddress,.localdomain}
+        PIP_INDEX_URL: ${BUILD_PIP_INDEX_URL:-}
+        PIP_TRUSTED_HOST: ${BUILD_PIP_TRUSTED_HOST:-}
+    image: xiehe-ai-zhengmian
+    container_name: medical_ai_zhengmian
+    restart: unless-stopped
+    ports:
+      - '${AI_ZHENGMIAN_PORT_BIND:-0.0.0.0:8001:8001}'
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 60s
+      timeout: 15s
+      start_period: 60s
+      retries: 3
+
+  ai-cemian:
+    build:
+      context: ../../..
+      dockerfile: model/cemian/Dockerfile
+      extra_hosts:
+        - 'host.docker.internal:host-gateway'
+      args:
+        HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+        HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+        NO_PROXY: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1,localaddress,.localdomain}
+        http_proxy: ${BUILD_HTTP_PROXY:-}
+        https_proxy: ${BUILD_HTTPS_PROXY:-}
+        no_proxy: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1,localaddress,.localdomain}
+        PIP_INDEX_URL: ${BUILD_PIP_INDEX_URL:-}
+        PIP_TRUSTED_HOST: ${BUILD_PIP_TRUSTED_HOST:-}
+    image: xiehe-ai-cemian
+    container_name: medical_ai_cemian
+    restart: unless-stopped
+    ports:
+      - '${AI_CEMIAN_PORT_BIND:-0.0.0.0:8002:8002}'
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 60s
+      timeout: 15s
+      start_period: 60s
+      retries: 3
