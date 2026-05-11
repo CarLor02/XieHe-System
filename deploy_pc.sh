@@ -13,6 +13,7 @@
 #   --with-ai          同时部署 AI 推理服务（zhengmian + cemian）
 #   --gpu              AI 服务使用 NVIDIA GPU（需 nvidia-container-toolkit）
 #   --ip <IP>          手动指定局域网 IP（默认自动检测）
+#   --update-ip        仅更新 IP（不重新部署），IP 变化时使用
 #   --branch <branch>  Git 分支（默认 main）
 #   --skip-pull        跳过 git pull
 #   --rebuild          强制重新构建所有镜像（不使用缓存）
@@ -25,6 +26,7 @@
 #   ./deploy_pc.sh --with-ai              # 含 AI 推理（CPU 模式）
 #   ./deploy_pc.sh --with-ai --gpu        # 含 AI 推理（GPU 模式）
 #   ./deploy_pc.sh --with-ai --ip 192.168.1.100
+#   ./deploy_pc.sh --update-ip            # 服务器 IP 变更后只更新配置
 ################################################################################
 
 set -euo pipefail
@@ -43,6 +45,7 @@ SKIP_PULL=0
 REBUILD=0
 RESET_ENV=0
 AUTO_YES=0
+UPDATE_IP=0
 
 # ==================== 解析参数 ====================
 while [[ $# -gt 0 ]]; do
@@ -50,13 +53,14 @@ while [[ $# -gt 0 ]]; do
         --with-ai)   WITH_AI=1; shift ;;
         --gpu)       USE_GPU=1; shift ;;
         --ip)        MANUAL_IP="$2"; shift 2 ;;
+        --update-ip) UPDATE_IP=1; shift ;;
         --branch)    GIT_BRANCH="$2"; shift 2 ;;
         --skip-pull) SKIP_PULL=1; shift ;;
         --rebuild)   REBUILD=1; shift ;;
         --reset-env) RESET_ENV=1; shift ;;
         -y|--yes)    AUTO_YES=1; shift ;;
         -h|--help)
-            sed -n '/#/p' "$0" | head -35
+            sed -n '/#/p' "$0" | head -38
             exit 0 ;;
         *) echo -e "${RED}未知参数: $1${NC}"; exit 1 ;;
     esac
@@ -234,14 +238,21 @@ USER_AVATAR_BUCKET=medical-user-avatars
 EOF
 
     # --- .env.backend ---
+    # host.docker.internal 指向宿主机（backend.yml 已配置 extra_hosts），
+    # 无论 AI 服务是手动启动还是通过 Docker 运行，backend 容器都能访问到。
     write_if_missing ".env.backend" <<EOF
 JWT_SECRET_KEY=${JWT_SECRET}
 FORWARDED_ALLOW_IPS=*
 CORS_ORIGINS=http://${LAN_IP}:3030,http://localhost:3030
+AI_FRONT_PREDICT_OBJECT_URL=http://host.docker.internal:8001/predict_object
+AI_FRONT_KEYPOINTS_OBJECT_URL=http://host.docker.internal:8001/detect_keypoints_object
+AI_LATERAL_PREDICT_OBJECT_URL=http://host.docker.internal:8002/api/detect_and_keypoints_object
+AI_LATERAL_DETECT_OBJECT_URL=http://host.docker.internal:8002/api/detect_object
 EOF
 
     # 前端 AI 端点根据是否部署 AI 决定
     local ai_base_url="http://${LAN_IP}"
+    # MODEL_STORAGE_ALLOWED_CIDR 放行宿主机 IP，让宿主机上的 AI 服务能拉取图片
     write_if_missing ".env.frontend" <<EOF
 NEXT_PUBLIC_API_URL=http://${LAN_IP}:8080
 NEXT_PUBLIC_API_BASE_URL=http://${LAN_IP}:8080
@@ -251,6 +262,7 @@ NEXT_PUBLIC_AI_DETECT_URL=${ai_base_url}:8001/predict
 NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL=${ai_base_url}:8001/detect_keypoints
 NEXT_PUBLIC_AI_DETECT_LATERAL_URL=${ai_base_url}:8002/detect_and_keypoints
 NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL=${ai_base_url}:8002/detect
+MODEL_STORAGE_ALLOWED_CIDR=${LAN_IP}/32
 EOF
 }
 
@@ -261,9 +273,16 @@ generate_ai_dotenv() {
     if [ -f "$file" ] && [ "$RESET_ENV" = "0" ]; then
         print_info "已存在，跳过: dotenv/.env.ai"; return
     fi
+    # 读取 storage token 供 Docker AI 容器使用（和 backend 同网络，直接访问 storage-service）
+    local storage_token=""
+    [ -f "$DOTENV_DIR/.env.storage" ] && \
+        storage_token=$(grep "^STORAGE_SERVICE_TOKEN=" "$DOTENV_DIR/.env.storage" | cut -d= -f2)
     cat > "$file" <<EOF
 AI_ZHENGMIAN_PORT_BIND=0.0.0.0:8001:8001
 AI_CEMIAN_PORT_BIND=0.0.0.0:8002:8002
+# Docker AI 容器与 storage-service 同在 medical_network，直接访问内部地址
+STORAGE_SERVICE_URL=http://storage-service:8090
+STORAGE_SERVICE_TOKEN=${storage_token}
 EOF
     print_success "已生成: dotenv/.env.ai"
 }
@@ -370,6 +389,104 @@ health_check() {
     fi
 }
 
+# ==================== 初始化数据库用户 ====================
+initialize_database() {
+    print_header "初始化数据库用户"
+
+    # 检查 admin 用户是否已存在（通过 backend 容器执行，避免直接暴露 MySQL 端口）
+    print_step "检查 admin 用户是否已存在..."
+    local admin_count
+    admin_count=$(docker exec medical_backend python3 -c "
+import os, sys
+try:
+    import pymysql
+    conn = pymysql.connect(
+        host=os.getenv('DB_HOST', 'mysql'),
+        port=int(os.getenv('DB_PORT', '3306')),
+        user=os.getenv('DB_USER', 'root'),
+        password=os.getenv('DB_PASSWORD', ''),
+        database=os.getenv('DB_NAME', 'medical_imaging_system'),
+        charset='utf8mb4'
+    )
+    with conn.cursor() as cur:
+        cur.execute(\"SELECT COUNT(*) FROM users WHERE username='admin'\")
+        print(cur.fetchone()[0])
+    conn.close()
+except Exception as e:
+    print('0', file=sys.stderr)
+    print('0')
+" 2>/dev/null || echo "0")
+
+    if [ "${admin_count:-0}" -gt 0 ] 2>/dev/null; then
+        print_info "admin 用户已存在，跳过初始化"
+        return 0
+    fi
+
+    print_step "运行数据库初始化脚本..."
+    if docker exec medical_backend python3 /app/scripts/init_user_tables.py; then
+        print_success "数据库初始化完成"
+        echo ""
+        echo -e "${CYAN}默认账号：${NC}"
+        echo -e "  ${GREEN}管理员：${NC} admin / admin123"
+        echo -e "  ${GREEN}医生：  ${NC} doctor01 / doctor123"
+    else
+        print_warning "初始化脚本报错，可能已有数据（通常无需处理）"
+        print_warning "手动运行: docker exec medical_backend python3 /app/scripts/init_user_tables.py"
+    fi
+}
+
+# ==================== 更新局域网 IP ====================
+update_ip_config() {
+    print_header "更新局域网 IP 配置"
+    DOTENV_DIR="$PROJECT_DIR/dotenv"
+
+    if [ ! -f "$DOTENV_DIR/.env.frontend" ]; then
+        print_error "dotenv/.env.frontend 不存在，请先完整部署: ./deploy_pc.sh"
+        exit 1
+    fi
+
+    # 从前端配置读取旧 IP
+    local old_ip
+    old_ip=$(grep "NEXT_PUBLIC_API_URL" "$DOTENV_DIR/.env.frontend" 2>/dev/null \
+        | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+
+    if [ -z "$old_ip" ]; then
+        print_error "无法从 dotenv/.env.frontend 读取旧 IP"
+        exit 1
+    fi
+
+    if [ "$old_ip" = "$LAN_IP" ]; then
+        print_success "IP 未变化 (${LAN_IP})，无需更新"
+        return 0
+    fi
+
+    print_info "旧 IP: ${YELLOW}${old_ip}${NC}  →  新 IP: ${CYAN}${LAN_IP}${NC}"
+    confirm "确认更新 IP？" || { print_error "已取消"; exit 1; }
+
+    # 替换各 dotenv 文件中的 IP（只改 IP，不动密码）
+    for f in "$DOTENV_DIR/.env.frontend" "$DOTENV_DIR/.env.backend" "$DOTENV_DIR/.env.minio"; do
+        [ -f "$f" ] && sed -i "s/${old_ip}/${LAN_IP}/g" "$f" \
+            && print_success "已更新: $(basename "$f")"
+    done
+    # .env.ai 里可能也有 LAN IP（手动 AI 提示用）
+    [ -f "$DOTENV_DIR/.env.ai" ] && sed -i "s/${old_ip}/${LAN_IP}/g" "$DOTENV_DIR/.env.ai"
+
+    # 前端 IP 编译进了静态文件，必须重建
+    print_step "重建前端镜像（IP 已编译进静态文件）..."
+    main_compose build frontend || { print_error "前端重建失败"; exit 1; }
+
+    # 重启 backend（CORS_ORIGINS 变了）和 frontend
+    print_step "重启 backend 和 frontend..."
+    main_compose up -d --force-recreate backend frontend || { print_error "服务重启失败"; exit 1; }
+
+    print_success "IP 更新完成！"
+    echo ""
+    echo -e "  ${GREEN}前端：${NC} http://${LAN_IP}:3030"
+    echo -e "  ${GREEN}后端：${NC} http://${LAN_IP}:8080"
+    echo ""
+    echo -e "${YELLOW}提示：如有手动启动的 AI 服务，请用新 IP 重新启动。${NC}"
+}
+
 # ==================== 部署摘要 ====================
 print_summary() {
     print_header "🎉 部署完成"
@@ -397,6 +514,22 @@ print_summary() {
     echo -e "${CYAN}配置文件位于：${NC} ${PROJECT_DIR}/dotenv/"
     echo -e "${YELLOW}提示：首次生成的密码保存在 dotenv/ 目录，请妥善保管。${NC}"
     echo ""
+    # 如没有 Docker AI，显示手动启动 AI 的命令
+    if [ "$WITH_AI" != "1" ]; then
+        local storage_token=""
+        [ -f "$PROJECT_DIR/dotenv/.env.storage" ] && \
+            storage_token=$(grep "^STORAGE_SERVICE_TOKEN=" "$PROJECT_DIR/dotenv/.env.storage" | cut -d= -f2)
+        echo -e "${CYAN}手动启动 AI 服务（如有模型权重）：${NC}"
+        echo -e "  ${YELLOW}cd ${PROJECT_DIR}${NC}"
+        echo -e "  ${YELLOW}export STORAGE_SERVICE_URL=http://${LAN_IP}:3030/internal/model-storage${NC}"
+        echo -e "  ${YELLOW}export STORAGE_SERVICE_TOKEN=${storage_token}${NC}"
+        echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8001 --app-dir model/zhengmian &${NC}"
+        echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8002 --app-dir model/cemian &${NC}"
+        echo ""
+        echo -e "${CYAN}IP 变更后更新配置：${NC}"
+        echo -e "  ${YELLOW}./deploy_pc.sh --update-ip${NC}"
+        echo ""
+    fi
 }
 
 # ==================== 主流程 ====================
@@ -407,6 +540,16 @@ main() {
     echo "║     XieHe Medical System - 单机局域网部署 (PC模式)        ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
+
+    # --update-ip 模式：只更新 IP 和重建前端，不重部署
+    if [ "$UPDATE_IP" = "1" ]; then
+        echo -e "  模式:    ${YELLOW}仅更新局域网 IP${NC}"
+        echo -e "  新 IP:   ${CYAN}${LAN_IP}${NC}"
+        echo ""
+        update_ip_config
+        return 0
+    fi
+
     echo -e "  局域网 IP:  ${CYAN}${LAN_IP}${NC}"
     echo -e "  AI 服务:    $([ "$WITH_AI" = "1" ] && echo "${GREEN}启用$([ "$USE_GPU" = "1" ] && echo " (GPU)")${NC}" || echo "${YELLOW}跳过${NC}")"
     echo -e "  Git 分支:   ${GIT_BRANCH}"
@@ -423,6 +566,7 @@ main() {
     build_docker_images
     start_services
     health_check
+    initialize_database
     print_summary
 
     echo ""
