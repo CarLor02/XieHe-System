@@ -14,6 +14,23 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   ...AUXILIARY_CONFIGS,
 };
 
+function getNumberedCobbConfig(
+  normalizedId: string
+): AnnotationConfig | undefined {
+  const match = normalizedId.match(/^cobb(\d+)$/i);
+  if (!match) return undefined;
+
+  const cobbConfig = ANNOTATION_CONFIGS.cobb;
+  if (!cobbConfig) return undefined;
+
+  return {
+    ...cobbConfig,
+    id: normalizedId,
+    name: `Cobb${match[1]}`,
+    description: `Cobb角${match[1]}测量`,
+  };
+}
+
 /**
  * 根据标注类型ID获取配置
  */
@@ -22,7 +39,7 @@ export function getAnnotationConfig(
 ): AnnotationConfig | undefined {
   // 内部只接受英文工具 key；中文只作为 UI 展示文案，不作为查找别名。
   const normalizedId = normalizeAnnotationLookupKey(typeId);
-  return ANNOTATION_CONFIGS[normalizedId];
+  return ANNOTATION_CONFIGS[normalizedId] ?? getNumberedCobbConfig(normalizedId);
 }
 
 export function getAnnotationTypeId(typeId: string): string {

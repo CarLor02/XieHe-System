@@ -98,6 +98,40 @@ function projectImagePoint(
   return imageToScreen(point, transformContext(containerSize));
 }
 
+it('renders endplate lines for Cobb sequence numbers beyond Cobb3', () => {
+  const measurement: MeasurementData = {
+    id: 'cobb-4',
+    type: 'cobb4',
+    value: '12.34°',
+    points: [
+      { x: 100, y: 120 },
+      { x: 280, y: 100 },
+      { x: 140, y: 360 },
+      { x: 320, y: 390 },
+    ],
+  };
+
+  const lines = renderMeasurementLines(measurement, desktopContainer);
+
+  expect(lines).toHaveLength(2);
+  expect(lines[0]).toEqual(
+    expect.objectContaining({
+      x1: projectImagePoint(measurement.points[0], desktopContainer).x,
+      y1: projectImagePoint(measurement.points[0], desktopContainer).y,
+      x2: projectImagePoint(measurement.points[1], desktopContainer).x,
+      y2: projectImagePoint(measurement.points[1], desktopContainer).y,
+    })
+  );
+  expect(lines[1]).toEqual(
+    expect.objectContaining({
+      x1: projectImagePoint(measurement.points[2], desktopContainer).x,
+      y1: projectImagePoint(measurement.points[2], desktopContainer).y,
+      x2: projectImagePoint(measurement.points[3], desktopContainer).x,
+      y2: projectImagePoint(measurement.points[3], desktopContainer).y,
+    })
+  );
+});
+
 function lineEndToImagePoint(
   line: LineProps,
   containerSize: { width: number; height: number },
