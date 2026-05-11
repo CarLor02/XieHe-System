@@ -10,6 +10,7 @@ const changeCurrentUserPasswordMock = jest.fn<
 const getCurrentUserMock = jest.fn<() => Promise<UserInfo>>();
 const getMyTeamsMock = jest.fn<() => Promise<{ items: TeamSummary[] }>>();
 const fetchUserInfoMock = jest.fn<() => Promise<void>>();
+const forceLogoutMock = jest.fn<(context?: Record<string, unknown>) => void>();
 
 jest.mock('@/services/userService', () => ({
   changeCurrentUserPassword: changeCurrentUserPasswordMock,
@@ -26,6 +27,7 @@ jest.mock('@/services/teamService', () => ({
 jest.mock('@/lib/api', () => ({
   useSessionStore: () => ({
     fetchUserInfo: fetchUserInfoMock,
+    forceLogout: forceLogoutMock,
   }),
 }));
 
@@ -48,6 +50,7 @@ describe('UserSettings password tab', () => {
     });
     getMyTeamsMock.mockResolvedValue({ items: [] });
     fetchUserInfoMock.mockReset();
+    forceLogoutMock.mockReset();
     jest.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
@@ -83,6 +86,9 @@ describe('UserSettings password tab', () => {
         current_password: 'old-password',
         new_password: 'new-password',
         confirm_password: 'new-password',
+      });
+      expect(forceLogoutMock).toHaveBeenCalledWith({
+        source: 'UserSettings.passwordChanged',
       });
     });
   });

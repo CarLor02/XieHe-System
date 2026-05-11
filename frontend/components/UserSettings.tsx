@@ -48,7 +48,7 @@ export default function UserSettings({
   });
 
   // 获取 authStore 的 fetchUserInfo 方法
-  const { fetchUserInfo } = useSessionStore();
+  const { fetchUserInfo, forceLogout } = useSessionStore();
 
   // 当 type 改变时，更新 activeTab
   useEffect(() => {
@@ -248,7 +248,8 @@ export default function UserSettings({
         newPassword: '',
         confirmPassword: '',
       }));
-      alert('密码修改成功');
+      alert('密码修改成功，请重新登录');
+      forceLogout({ source: 'UserSettings.passwordChanged' });
     } catch (error: unknown) {
       const responseError = error as {
         message?: string;
