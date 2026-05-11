@@ -22,6 +22,7 @@ type Repository interface {
 	AbortMultipartUpload(ctx context.Context, request domain.AbortMultipartRequest) error
 	PresignGetObject(ctx context.Context, ref domain.ObjectRef, expiresIn int) (string, error)
 	StatObject(ctx context.Context, ref domain.ObjectRef) (domain.ObjectStat, error)
+	GetObject(ctx context.Context, ref domain.ObjectRef) (domain.ObjectStream, error)
 	DeleteObject(ctx context.Context, ref domain.ObjectRef) error
 	PutObject(ctx context.Context, input PutObjectInput) (domain.PutObjectResult, error)
 }

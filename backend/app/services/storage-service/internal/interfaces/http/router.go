@@ -12,6 +12,6 @@ func NewRouter(handler *Handler) http.Handler {
 	mux.HandleFunc("/presign/get", withAuth(handler.serviceToken, handler.HandlePresignGet))
 	mux.HandleFunc("/objects/stat", withAuth(handler.serviceToken, handler.HandleStatObject))
 	mux.HandleFunc("/objects/delete", withAuth(handler.serviceToken, handler.HandleDeleteObject))
-	mux.HandleFunc("/objects/", withAuth(handler.serviceToken, handler.HandlePutObject))
+	mux.HandleFunc("/objects/", withAuth(handler.serviceToken, handler.HandleObject))
 	return mux
 }

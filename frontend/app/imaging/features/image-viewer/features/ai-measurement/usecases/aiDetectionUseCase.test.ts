@@ -5,17 +5,15 @@ import { DetectKeypointsResponse } from '@/services/imageServices/aiAnnotationSe
 
 jest.mock('@/services/imageServices', () => ({
   __esModule: true,
-  aiDetectKeyPoints: jest.fn(),
-  aiDetectLateralKeyPoints: jest.fn(),
+  getAiKeypointDetectionResponse: jest.fn(),
 }));
 
-const { aiDetectKeyPoints: mockedAiDetectKeyPoints } = jest.requireMock(
-  '@/services/imageServices'
-) as {
-  aiDetectKeyPoints: jest.MockedFunction<
-    () => Promise<DetectKeypointsResponse>
-  >;
-};
+const { getAiKeypointDetectionResponse: mockedGetAiKeypointDetectionResponse } =
+  jest.requireMock('@/services/imageServices') as {
+    getAiKeypointDetectionResponse: jest.MockedFunction<
+      (imageId: string) => Promise<DetectKeypointsResponse>
+    >;
+  };
 
 const { aiDetect } = jest.requireActual<
   typeof import('@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase')
@@ -23,36 +21,8 @@ const { aiDetect } = jest.requireActual<
   '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase'
 );
 
-function stubCanvasImage() {
-  const originalQuerySelector = document.querySelector;
-  const originalCreateElement = document.createElement;
-
-  jest.spyOn(document, 'querySelector').mockImplementation(selector => {
-    if (selector === '[data-image-canvas] img') {
-      return {
-        naturalWidth: 1000,
-        naturalHeight: 1000,
-      } as HTMLImageElement;
-    }
-    return originalQuerySelector.call(document, selector);
-  });
-
-  jest.spyOn(document, 'createElement').mockImplementation(tagName => {
-    if (tagName === 'canvas') {
-      return {
-        width: 0,
-        height: 0,
-        getContext: () => ({ drawImage: jest.fn() }),
-        toBlob: (callback: BlobCallback) => callback(new Blob()),
-      } as unknown as HTMLCanvasElement;
-    }
-    return originalCreateElement.call(document, tagName);
-  });
-}
-
-it('maps frontal AI pose labels so patient left stays on screen left', async () => {
-  stubCanvasImage();
-  mockedAiDetectKeyPoints.mockResolvedValue({
+it('requests detection by image id and maps frontal AI pose labels so patient left stays on screen left', async () => {
+  mockedGetAiKeypointDetectionResponse.mockResolvedValue({
     imageId: 'image-1',
     imageWidth: 1000,
     imageHeight: 1000,
@@ -71,6 +41,7 @@ it('maps frontal AI pose labels so patient left stays on screen left', async () 
 
   try {
     await aiDetect(
+      'image-1',
       {
         id: 'image-1',
         patientName: 'test',
@@ -93,6 +64,8 @@ it('maps frontal AI pose labels so patient left stays on screen left', async () 
     logSpy.mockRestore();
     jest.restoreAllMocks();
   }
+
+  expect(mockedGetAiKeypointDetectionResponse).toHaveBeenCalledWith('image-1');
 
   const byLabel = new Map(
     capturedLayer.map(annotation => [annotation.label, annotation.corners[0]])

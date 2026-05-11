@@ -22,12 +22,16 @@ API 接口:
 
 import sys
 import math
+import os
 import numpy as np
 from pathlib import Path
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
+from urllib.parse import quote
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 import cv2
 from ultralytics import YOLO
 
@@ -56,6 +60,12 @@ class AnnotationsResponse(BaseModel):
     imageHeight: int
     measurements: List[Measurement]
 
+
+class ObjectImageRequest(BaseModel):
+    bucket: str
+    object_key: str
+    image_id: Optional[str] = None
+
 # ==================== 初始化 ====================
 app = FastAPI(
     title="Spine Analysis API",
@@ -75,6 +85,73 @@ app.add_middleware(
 # 全局模型变量
 pose_model = None
 pose_corner_model = None
+
+
+def fetch_object_image_bytes(bucket: str, object_key: str) -> bytes:
+    storage_service_url = os.getenv("STORAGE_SERVICE_URL", "").rstrip("/")
+    storage_service_token = os.getenv("STORAGE_SERVICE_TOKEN", "")
+    timeout = float(os.getenv("STORAGE_SERVICE_TIMEOUT", "30"))
+
+    if not storage_service_url or not storage_service_token:
+        raise HTTPException(status_code=503, detail="Storage service is not configured")
+
+    object_url = (
+        f"{storage_service_url}/"
+        f"{quote(bucket, safe='')}/"
+        f"{quote(object_key, safe='/')}"
+    )
+    request = Request(
+        object_url,
+        headers={"X-Storage-Service-Token": storage_service_token},
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return response.read()
+    except HTTPError as exc:
+        raise HTTPException(status_code=exc.code, detail=f"Storage service error: {exc.reason}")
+    except URLError as exc:
+        raise HTTPException(status_code=502, detail=f"Storage service unavailable: {exc.reason}")
+
+
+def decode_image(contents: bytes):
+    nparr = np.frombuffer(contents, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise HTTPException(status_code=400, detail="Cannot decode image")
+    return img
+
+
+def predict_image(img, image_id: str):
+    image_height, image_width = img.shape[:2]
+
+    pose_data = infer_pose(img)
+    vertebrae_data = infer_pose_corner(img)
+
+    if not pose_data and vertebrae_data:
+        print("[INFO] Pose detection failed, falling back to anatomical estimation from vertebrae.")
+        pose_data = estimate_pose_from_vertebrae(vertebrae_data)
+
+    return convert_to_annotations(pose_data, vertebrae_data, image_id, image_width, image_height)
+
+
+def detect_keypoints_image(img, image_id: str):
+    image_height, image_width = img.shape[:2]
+
+    pose_data = infer_pose(img)
+    vertebrae_data = infer_pose_corner(img)
+
+    if not pose_data and vertebrae_data:
+        print("[INFO] Pose detection failed, falling back to anatomical estimation from vertebrae.")
+        pose_data = estimate_pose_from_vertebrae(vertebrae_data)
+
+    return {
+        "imageId": image_id,
+        "imageWidth": image_width,
+        "imageHeight": image_height,
+        "pose_keypoints": pose_data,
+        "vertebrae": vertebrae_data
+    }
 
 # ==================== 模型加载 ====================
 def load_models():
@@ -738,35 +815,22 @@ async def predict(
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
-    # 读取图片
     contents = await file.read()
-    nparr = np.frombuffer(contents, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-    if img is None:
-        raise HTTPException(status_code=400, detail="Cannot decode image")
+    img = decode_image(contents)
 
     # 生成 image_id
     if image_id is None:
         # 从文件名生成，去掉扩展名
         image_id = Path(file.filename).stem if file.filename else "IMG001"
 
-    # 获取图片尺寸
-    image_height, image_width = img.shape[:2]
+    return predict_image(img, image_id)
 
-    # 推理
-    pose_data = infer_pose(img)
-    vertebrae_data = infer_pose_corner(img)
 
-    # Fallback：pose 检测失败时根据椎骨位置解剖估算
-    if not pose_data and vertebrae_data:
-        print("[INFO] Pose detection failed, falling back to anatomical estimation from vertebrae.")
-        pose_data = estimate_pose_from_vertebrae(vertebrae_data)
-
-    # 转换为前端格式
-    result = convert_to_annotations(pose_data, vertebrae_data, image_id, image_width, image_height)
-
-    return result
+@app.post("/predict_object", response_model=AnnotationsResponse, response_model_exclude_none=True)
+async def predict_object(request: ObjectImageRequest):
+    contents = fetch_object_image_bytes(request.bucket, request.object_key)
+    img = decode_image(contents)
+    return predict_image(img, request.image_id or "IMG001")
 
 
 @app.post("/detect_keypoints")
@@ -790,42 +854,24 @@ async def detect_keypoints(
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
-    # 读取图片
     contents = await file.read()
-    nparr = np.frombuffer(contents, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-    if img is None:
-        raise HTTPException(status_code=400, detail="Cannot decode image")
+    img = decode_image(contents)
 
     # 生成 image_id
     if image_id is None:
         image_id = Path(file.filename).stem if file.filename else "IMG001"
 
-    # 获取图片尺寸
-    image_height, image_width = img.shape[:2]
+    return detect_keypoints_image(img, image_id)
 
-    # 推理
-    pose_data = infer_pose(img)
-    vertebrae_data = infer_pose_corner(img)
 
-    # Fallback：pose 检测失败时根据椎骨位置解剖估算
-    if not pose_data and vertebrae_data:
-        print("[INFO] Pose detection failed, falling back to anatomical estimation from vertebrae.")
-        pose_data = estimate_pose_from_vertebrae(vertebrae_data)
-
-    # 返回原始检测数据
-    return {
-        "imageId": image_id,
-        "imageWidth": image_width,
-        "imageHeight": image_height,
-        "pose_keypoints": pose_data,
-        "vertebrae": vertebrae_data
-    }
+@app.post("/detect_keypoints_object")
+async def detect_keypoints_object(request: ObjectImageRequest):
+    contents = fetch_object_image_bytes(request.bucket, request.object_key)
+    img = decode_image(contents)
+    return detect_keypoints_image(img, request.image_id or "IMG001")
 
 
 # ==================== 主入口 ====================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-

@@ -1,5 +1,7 @@
 package storage
 
+import "io"
+
 type ObjectRef struct {
 	Bucket    string
 	ObjectKey string
@@ -12,6 +14,15 @@ type ObjectStat struct {
 	ETag        string
 	ContentType string
 	Metadata    map[string]string
+}
+
+type ObjectStream struct {
+	Bucket      string
+	ObjectKey   string
+	Body        io.ReadCloser
+	Size        int64
+	ETag        string
+	ContentType string
 }
 
 type PutObjectResult struct {

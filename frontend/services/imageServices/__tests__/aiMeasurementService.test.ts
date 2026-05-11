@@ -1,24 +1,57 @@
-import { describe, expect, it } from '@jest/globals';
-import { createAiImageUploadFile } from '../aiMeasurementService';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
+import { apiClient } from '@/lib/api';
+import {
+  getAiKeypointDetectionResponse,
+  getAiMeasurementsResponse,
+} from '../aiMeasurementService';
 
 describe('aiMeasurementService', () => {
-  it('wraps non-image blobs as image/png before model upload', () => {
-    const source = new Blob(['not inspected here'], {
-      type: 'application/octet-stream',
-    });
+  const postSpy = jest.spyOn(apiClient, 'post');
 
-    const uploadFile = createAiImageUploadFile(source);
-
-    expect(uploadFile.type).toBe('image/png');
-    expect(uploadFile.name).toBe('image.png');
+  beforeEach(() => {
+    postSpy.mockReset();
   });
 
-  it('keeps jpeg blobs as image/jpeg before model upload', () => {
-    const source = new Blob(['jpeg bytes'], { type: 'image/jpeg' });
+  it('requests AI measurements through the authenticated backend object proxy', async () => {
+    postSpy.mockResolvedValue({
+      data: {
+        imageId: 'IMG42',
+        imageWidth: 100,
+        imageHeight: 200,
+        measurements: [],
+      },
+    });
 
-    const uploadFile = createAiImageUploadFile(source);
+    await expect(
+      getAiMeasurementsResponse('IMG00042', '正位X光片')
+    ).resolves.toEqual({
+      imageId: 'IMG42',
+      imageWidth: 100,
+      imageHeight: 200,
+      measurements: [],
+    });
 
-    expect(uploadFile.type).toBe('image/jpeg');
-    expect(uploadFile.name).toBe('image.jpg');
+    expect(postSpy).toHaveBeenCalledWith('/api/v1/image-files/42/ai/predict');
+  });
+
+  it('requests keypoint detection through the authenticated backend object proxy', async () => {
+    postSpy.mockResolvedValue({
+      data: {
+        imageId: 'IMG42',
+        pose_keypoints: {},
+        vertebrae: {},
+      },
+    });
+
+    await expect(getAiKeypointDetectionResponse('IMG00042')).resolves.toEqual({
+      imageId: 'IMG42',
+      pose_keypoints: {},
+      vertebrae: {},
+    });
+
+    expect(postSpy).toHaveBeenCalledWith(
+      '/api/v1/image-files/42/ai/detect-keypoints'
+    );
   });
 });

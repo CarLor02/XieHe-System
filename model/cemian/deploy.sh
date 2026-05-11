@@ -82,11 +82,34 @@ docker build "${BUILD_ARGS[@]}" -t "$IMAGE_NAME" .
 
 # 运行容器
 echo "🚀 正在启动容器..."
-docker run -d \
-    --name $CONTAINER_NAME \
-    -p $PORT:8002 \
-    --restart unless-stopped \
-    $IMAGE_NAME
+RUN_ARGS=(
+    -d
+    --name "$CONTAINER_NAME"
+    -p "$PORT:8002"
+    --restart unless-stopped
+)
+
+if [ -n "${STORAGE_SERVICE_URL:-}" ]; then
+    RUN_ARGS+=(-e "STORAGE_SERVICE_URL=${STORAGE_SERVICE_URL}")
+fi
+
+if [ -n "${STORAGE_SERVICE_TOKEN:-}" ]; then
+    RUN_ARGS+=(-e "STORAGE_SERVICE_TOKEN=${STORAGE_SERVICE_TOKEN}")
+fi
+
+if [ -n "${STORAGE_SERVICE_TIMEOUT:-}" ]; then
+    RUN_ARGS+=(-e "STORAGE_SERVICE_TIMEOUT=${STORAGE_SERVICE_TIMEOUT}")
+fi
+
+if [ -n "${NO_PROXY:-}" ]; then
+    RUN_ARGS+=(-e "NO_PROXY=${NO_PROXY}")
+fi
+
+if [ -n "${no_proxy:-}" ]; then
+    RUN_ARGS+=(-e "no_proxy=${no_proxy}")
+fi
+
+docker run "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
 # 等待服务启动
 echo "⏳ 等待服务启动..."

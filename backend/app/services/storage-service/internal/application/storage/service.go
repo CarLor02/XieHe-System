@@ -62,6 +62,13 @@ func (service *Service) StatObject(ctx context.Context, ref domain.ObjectRef) (d
 	return service.repository.StatObject(ctx, ref)
 }
 
+func (service *Service) GetObject(ctx context.Context, ref domain.ObjectRef) (domain.ObjectStream, error) {
+	if err := ref.Validate(); err != nil {
+		return domain.ObjectStream{}, err
+	}
+	return service.repository.GetObject(ctx, ref)
+}
+
 func (service *Service) DeleteObject(ctx context.Context, ref domain.ObjectRef) error {
 	if err := ref.Validate(); err != nil {
 		return err

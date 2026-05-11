@@ -4,13 +4,77 @@ FastAPI应用主文件
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import os
 import numpy as np
 import cv2
+from pydantic import BaseModel
+from typing import Optional
+from urllib.parse import quote
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 from config import HOST, PORT
 from models import DetectionResponse, KeypointsRequest, KeypointsResponse, Point
 from inference_service import get_inference_service
 from keypoints_service import compute_keypoints
+
+
+class ObjectImageRequest(BaseModel):
+    bucket: str
+    object_key: str
+    image_id: Optional[str] = None
+
+
+def fetch_object_image_bytes(bucket: str, object_key: str) -> bytes:
+    storage_service_url = os.getenv("STORAGE_SERVICE_URL", "").rstrip("/")
+    storage_service_token = os.getenv("STORAGE_SERVICE_TOKEN", "")
+    timeout = float(os.getenv("STORAGE_SERVICE_TIMEOUT", "30"))
+
+    if not storage_service_url or not storage_service_token:
+        raise HTTPException(status_code=503, detail="Storage service is not configured")
+
+    object_url = (
+        f"{storage_service_url}/"
+        f"{quote(bucket, safe='')}/"
+        f"{quote(object_key, safe='/')}"
+    )
+    request = Request(
+        object_url,
+        headers={"X-Storage-Service-Token": storage_service_token},
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return response.read()
+    except HTTPError as exc:
+        raise HTTPException(status_code=exc.code, detail=f"Storage service error: {exc.reason}")
+    except URLError as exc:
+        raise HTTPException(status_code=502, detail=f"Storage service unavailable: {exc.reason}")
+
+
+def decode_image(contents: bytes):
+    nparr = np.frombuffer(contents, np.uint8)
+    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(status_code=400, detail="无法解析图像文件")
+    return image
+
+
+def detect_image(image):
+    service = get_inference_service()
+    return service.detect(image)
+
+
+def detect_and_calculate_image(image, image_id: str = "lateral_spine"):
+    h, w = image.shape[:2]
+    detection_result = detect_image(image)
+    return compute_keypoints(
+        detection_result.vertebrae,
+        detection_result.cfh,
+        image_width=w,
+        image_height=h,
+        image_id=image_id,
+    )
 
 
 @asynccontextmanager
@@ -75,22 +139,21 @@ async def detect_vertebrae(file: UploadFile = File(...)):
     上传图像，返回检测结果（椎体角点和股骨头位置）
     """
     try:
-        # 读取图像
         contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        image = decode_image(contents)
+        return detect_image(image)
         
-        if image is None:
-            raise HTTPException(status_code=400, detail="无法解析图像文件")
-        
-        # 获取推理服务
-        service = get_inference_service()
-        
-        # 执行检测
-        result = service.detect(image)
-        
-        return result
-        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"检测失败: {str(e)}")
+
+
+@app.post("/api/detect_object", response_model=DetectionResponse)
+async def detect_vertebrae_object(request: ObjectImageRequest):
+    try:
+        image = decode_image(fetch_object_image_bytes(request.bucket, request.object_key))
+        return detect_image(image)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"检测失败: {str(e)}")
 
@@ -129,33 +192,21 @@ async def detect_and_calculate_keypoints(file: UploadFile = File(...)):
     一次性完成检测和关键点计算，返回关键点JSON（像素坐标）
     """
     try:
-        # 读取图像
         contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        image = decode_image(contents)
+        return detect_and_calculate_image(image)
 
-        if image is None:
-            raise HTTPException(status_code=400, detail="无法解析图像文件")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"处理失败: {str(e)}")
 
-        # 获取图像尺寸
-        h, w = image.shape[:2]
 
-        # 获取推理服务
-        service = get_inference_service()
-
-        # 执行检测
-        detection_result = service.detect(image)
-
-        # 计算关键点（传入图像尺寸）
-        keypoints_result = compute_keypoints(
-            detection_result.vertebrae,
-            detection_result.cfh,
-            image_width=w,
-            image_height=h
-        )
-
-        return keypoints_result
-
+@app.post("/api/detect_and_keypoints_object", response_model=KeypointsResponse)
+async def detect_and_calculate_keypoints_object(request: ObjectImageRequest):
+    try:
+        image = decode_image(fetch_object_image_bytes(request.bucket, request.object_key))
+        return detect_and_calculate_image(image, request.image_id or "lateral_spine")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"处理失败: {str(e)}")
 
@@ -348,4 +399,3 @@ def _calculate_three_point_angle(p1: Point, p2: Point, p3: Point) -> float:
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=HOST, port=PORT)
-

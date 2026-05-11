@@ -6,7 +6,10 @@ import {
   createEmptyBindings,
   mergeBindings,
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
-import { getAnnotationConfig, getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import {
+  getAnnotationConfig,
+  getAnnotationTypeId,
+} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
 import { getDescriptionForType } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
@@ -22,7 +25,10 @@ import {
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { deriveAllMeasurements } from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebrae-derive';
-import { aiDetect, detectLateralVertebrae } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
+import {
+  aiDetect,
+  detectLateralVertebrae,
+} from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
 
 const S1_RELATED_TYPES = new Set([
   'ss',
@@ -34,29 +40,11 @@ const S1_RELATED_TYPES = new Set([
   'sva',
 ]);
 
-export async function getImageBlobFromCanvasImage(): Promise<Blob | null> {
-  const imgEl = document.querySelector(
-    '[data-image-canvas] img'
-  ) as HTMLImageElement | null;
-  if (!imgEl) return null;
-
-  return new Promise<Blob | null>(resolve => {
-    const canvas = document.createElement('canvas');
-    canvas.width = imgEl.naturalWidth;
-    canvas.height = imgEl.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      resolve(null);
-      return;
-    }
-    ctx.drawImage(imgEl, 0, 0);
-    canvas.toBlob(blob => resolve(blob));
-  });
-}
-
 export async function runLateralDetectionCache({
+  imageId,
   lateralDetectionResultRef,
 }: {
+  imageId: string;
   lateralDetectionResultRef: MutableRefObject<{
     vertebrae: VertebraAnnotation[];
     cfh: CfhAnnotation | null;
@@ -65,10 +53,7 @@ export async function runLateralDetectionCache({
   lateralDetectionResultRef.current = null;
 
   try {
-    const blob = await getImageBlobFromCanvasImage();
-    if (!blob) return;
-
-    const detectResult = await detectLateralVertebrae(blob);
+    const detectResult = await detectLateralVertebrae(imageId);
     if (!detectResult || detectResult.vertebrae.length === 0) return;
 
     lateralDetectionResultRef.current = detectResult;
@@ -130,10 +115,7 @@ export async function runAiMeasurementWorkflow({
   setSaveMessage('');
 
   try {
-    const aiData = await getAiMeasurementsResponse(
-      imageId,
-      imageData.examType
-    );
+    const aiData = await getAiMeasurementsResponse(imageId, imageData.examType);
 
     if (aiData.measurements && Array.isArray(aiData.measurements)) {
       const aiImageWidth = aiData.imageWidth || aiData.image_width;
@@ -192,7 +174,8 @@ export async function runAiMeasurementWorkflow({
             const tool =
               getAnnotationConfig(measurement.type) ??
               getAnnotationConfig(incomingTypeId);
-            const requiredPoints = tool?.pointsNeeded || measurement.points.length;
+            const requiredPoints =
+              tool?.pointsNeeded || measurement.points.length;
 
             let processedPoints = measurement.points;
             if (
@@ -269,6 +252,7 @@ export async function runAiMeasurementWorkflow({
       if (canUseKeypoints) {
         setSaveMessage('AI检测中...');
         void aiDetect(
+          imageId,
           imageData,
           layerOrUpdater => {
             setVertebraeLayer(previous => {
@@ -297,10 +281,7 @@ export async function runAiMeasurementWorkflow({
           try {
             let detectResult = lateralDetectionResultRef.current;
             if (!detectResult) {
-              const blob = await getImageBlobFromCanvasImage();
-              if (!blob) return;
-
-              detectResult = await detectLateralVertebrae(blob);
+              detectResult = await detectLateralVertebrae(imageId);
               if (!detectResult || detectResult.vertebrae.length === 0) return;
               lateralDetectionResultRef.current = detectResult;
             }
@@ -345,7 +326,10 @@ export async function runAiMeasurementWorkflow({
               return [...previous, ...missing];
             });
           } catch (error) {
-            console.warn('[handleAIMeasurement] 侧位推导补全失败，跳过:', error);
+            console.warn(
+              '[handleAIMeasurement] 侧位推导补全失败，跳过:',
+              error
+            );
           }
         })();
       }
