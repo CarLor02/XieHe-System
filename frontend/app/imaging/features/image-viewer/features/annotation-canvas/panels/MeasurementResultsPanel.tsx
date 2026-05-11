@@ -155,7 +155,7 @@ export default function MeasurementResultsPanel({
     if (/^cobb/i.test(measurement.type)) {
       const upper = measurement.upperVertebra?.trim() || '上端椎待定';
       const lower = measurement.lowerVertebra?.trim() || '下端椎待定';
-      return `Cobb(${upper}-${lower})`;
+      return `${baseDisplayName}(${upper}-${lower})`;
     }
 
     if (
@@ -232,6 +232,7 @@ export default function MeasurementResultsPanel({
     isEditingThisAuxName: boolean
   ) => {
     if (/^cobb/i.test(measurement.type)) {
+      const cobbDisplayName = getDisplayName(measurement.type);
       return (
         <span
           className={`mr-2 flex min-w-0 items-center whitespace-nowrap font-medium ${
@@ -242,7 +243,7 @@ export default function MeasurementResultsPanel({
                 : 'text-white/90'
           }`}
         >
-          Cobb(
+          {cobbDisplayName}(
           {renderCobbEndpointEditor(
             measurement,
             'upperVertebra',
