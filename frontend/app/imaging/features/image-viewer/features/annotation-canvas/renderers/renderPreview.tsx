@@ -190,7 +190,12 @@ export default function renderPreview({
       currentTool?.name || selectedTool,
       screenPoints,
       '#ef4444',
-      imageScale
+      imageScale,
+      {
+        imagePoints: previewPoints,
+        screenPoints,
+        imageToScreen,
+      }
     );
   }
 

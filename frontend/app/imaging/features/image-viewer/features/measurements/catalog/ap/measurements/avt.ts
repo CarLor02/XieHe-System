@@ -3,6 +3,7 @@ import {
   type AnnotationConfig,
   type CalculationContext,
   type Point,
+  type SpecialElementRenderContext,
   calculateActualDistance,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
@@ -40,7 +41,7 @@ export const AVT_CONFIG: AnnotationConfig = {
     return [{ name: 'AVT', value: signedDistance.toFixed(2), unit: 'mm' }];
   },
 
-  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
+  getLabelPosition: (points: Point[]) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
     // maxXRightLabel: 锚点 = 所有点最大 X，Y 取最右点 Y（渲染层加固定间距）
     const rightPoint = points.reduce((a, b) => (b.x > a.x ? b : a));
@@ -69,7 +70,12 @@ export const AVT_CONFIG: AnnotationConfig = {
     return AVT_CONFIG.isInHoverRange(mousePoint, points, tolerance);
   },
 
-  renderSpecialElements: (points: Point[], displayColor: string, imageScale = 1) => {
-    return Renderers.renderC7Offset(points, displayColor, imageScale);
+  renderSpecialElements: (
+    points: Point[],
+    displayColor: string,
+    imageScale = 1,
+    context?: SpecialElementRenderContext
+  ) => {
+    return Renderers.renderC7Offset(points, displayColor, imageScale, context);
   },
 };

@@ -1,19 +1,11 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import {
   type AnnotationConfig,
-  type CalculationContext,
   type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
+  type SpecialElementRenderContext,
   calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
   isPointNearLine,
   isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const T1_SLOPE_CONFIG: AnnotationConfig = {
@@ -26,7 +18,7 @@ export const T1_SLOPE_CONFIG: AnnotationConfig = {
   color: '#e879f9',
   rightSideLabel: true,
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
+  calculateResults: (points: Point[]) => {
     if (points.length < 2) return [];
 
     const angle = calculateAngleToHorizontal(points[0], points[1]);
@@ -40,7 +32,7 @@ export const T1_SLOPE_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
+  getLabelPosition: (points: Point[]) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
     // 侧面影像：锚点在第1个点旁，渲染层负责实际屏幕偏移（rightSideLabel）。
     return { x: points[0].x, y: points[0].y };
@@ -71,8 +63,9 @@ export const T1_SLOPE_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
-    return Renderers.renderT1Slope(points, displayColor, imageScale);
+    return Renderers.renderT1Slope(points, displayColor, imageScale, context);
   },
 };

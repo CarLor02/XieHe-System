@@ -1,19 +1,12 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import {
   type AnnotationConfig,
-  type CalculationContext,
   type Point,
+  type SpecialElementRenderContext,
   LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
   calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
   isPointNearLine,
   isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const SS_CONFIG: AnnotationConfig = {
@@ -25,7 +18,7 @@ export const SS_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#f59e0b',
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
+  calculateResults: (points: Point[]) => {
     if (points.length < 2) return [];
 
     const angle = Math.abs(calculateAngleToHorizontal(points[0], points[1]));
@@ -75,8 +68,9 @@ export const SS_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
-    return Renderers.renderSS(points, displayColor, imageScale);
+    return Renderers.renderSS(points, displayColor, imageScale, context);
   },
 };

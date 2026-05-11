@@ -1,19 +1,11 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import {
   type AnnotationConfig,
-  type CalculationContext,
   type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
+  type SpecialElementRenderContext,
   calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
   isPointNearLine,
   isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const CSS_CONFIG: AnnotationConfig = {
@@ -26,7 +18,7 @@ export const CSS_CONFIG: AnnotationConfig = {
   color: '#f43f5e',
   maxXRightLabel: true,
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
+  calculateResults: (points: Point[]) => {
     if (points.length < 2) return [];
 
     // 计算角度（图像左边高为正）
@@ -47,7 +39,7 @@ export const CSS_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
+  getLabelPosition: (points: Point[]) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
     const rightPoint = points[0].x > points[1].x ? points[0] : points[1];
     return { x: rightPoint.x, y: rightPoint.y };
@@ -78,12 +70,14 @@ export const CSS_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
     return Renderers.renderSacralWithPerpendicular(
       points,
       displayColor,
-      imageScale
+      imageScale,
+      context
     );
   },
 };

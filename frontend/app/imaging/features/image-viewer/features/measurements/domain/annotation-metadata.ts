@@ -6,6 +6,7 @@
 import type { JSX } from 'react';
 import {
   Point,
+  SpecialElementRenderContext,
   getAnnotationConfig,
   getAnnotationDisplayName,
   getAnnotationTypeId,
@@ -152,14 +153,12 @@ export type LabelDirection = 'right' | 'left' | 'top' | 'bottom';
  * @param basePosition 基础位置（已经是偏移后的初始位置）
  * @param occupiedPositions 已占用的标签位置列表
  * @param imageScale 图像缩放比例
- * @param preferredDirection 优先方向（默认右侧）
  * @returns 调整后的标签位置
  */
 export function calculateSmartLabelPosition(
   basePosition: Point,
   occupiedPositions: Point[],
-  imageScale: number,
-  preferredDirection: LabelDirection = 'right'
+  imageScale: number
 ): Point {
   // 如果没有已占用的位置，直接返回基础位置
   if (occupiedPositions.length === 0) {
@@ -324,13 +323,14 @@ export function renderSpecialSVGElements(
   type: string,
   screenPoints: Point[],
   displayColor: string,
-  imageScale: number
+  imageScale: number,
+  context?: SpecialElementRenderContext
 ): JSX.Element | null {
   const config = getAnnotationConfig(type);
   if (!config || !config.renderSpecialElements) {
     return null;
   }
-  return config.renderSpecialElements(screenPoints, displayColor, imageScale);
+  return config.renderSpecialElements(screenPoints, displayColor, imageScale, context);
 }
 
 /**

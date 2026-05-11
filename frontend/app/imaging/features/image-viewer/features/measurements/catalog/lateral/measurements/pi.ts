@@ -1,18 +1,12 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import {
   type AnnotationConfig,
-  type CalculationContext,
   type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
+  type SpecialElementRenderContext,
   calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
   getPelvicMeasurementGeometry,
   isPointNearLine,
   isPointNearPoint,
-  pointToLineDistance,
   toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
@@ -26,7 +20,7 @@ export const PI_CONFIG: AnnotationConfig = {
   color: '#f59e0b',
   fixedLabelPosition: true,
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
+  calculateResults: (points: Point[]) => {
     if (points.length < 3) return [];
 
     const geometry = getPelvicMeasurementGeometry(points);
@@ -50,7 +44,7 @@ export const PI_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+  getLabelPosition: (points: Point[]) => {
     const geometry = getPelvicMeasurementGeometry(points);
     if (!geometry || !geometry.femoralHeadCenter)
       return points[0] || { x: 0, y: 0 };
@@ -119,8 +113,9 @@ export const PI_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
-    return Renderers.renderPI(points, displayColor, imageScale);
+    return Renderers.renderPI(points, displayColor, imageScale, context);
   },
 };

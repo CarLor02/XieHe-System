@@ -1,19 +1,12 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import {
   type AnnotationConfig,
-  type CalculationContext,
   type Point,
+  type SpecialElementRenderContext,
   LABEL_OFFSET,
-  calculateActualDistance,
   calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
   isPointNearLine,
   isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const TPA_CONFIG: AnnotationConfig = {
@@ -25,7 +18,7 @@ export const TPA_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#ec4899',
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
+  calculateResults: (points: Point[]) => {
     if (points.length < 7) return [];
 
     // 计算前4个点的中心作为实际的第1个点
@@ -146,8 +139,9 @@ export const TPA_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
-    return Renderers.renderTPA(points, displayColor, imageScale);
+    return Renderers.renderTPA(points, displayColor, imageScale, context);
   },
 };

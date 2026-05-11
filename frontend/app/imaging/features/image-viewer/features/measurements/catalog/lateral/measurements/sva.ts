@@ -3,17 +3,11 @@ import {
   type AnnotationConfig,
   type CalculationContext,
   type Point,
+  type SpecialElementRenderContext,
   LABEL_OFFSET,
   calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
   isPointNearLine,
   isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const SVA_CONFIG: AnnotationConfig = {
@@ -55,9 +49,6 @@ export const SVA_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 5) return points[0] || { x: 0, y: 0 };
-
-    // 计算椎体中心Y坐标
-    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
 
     // 标签显示在所有点的右上方，避免遮挡椎体
     const maxX = Math.max(
@@ -113,8 +104,9 @@ export const SVA_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
-    return Renderers.renderSVA(points, displayColor, imageScale);
+    return Renderers.renderSVA(points, displayColor, imageScale, context);
   },
 };

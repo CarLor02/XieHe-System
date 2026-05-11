@@ -3,17 +3,9 @@ import {
   type AnnotationConfig,
   type CalculationContext,
   type Point,
-  LABEL_OFFSET,
+  type SpecialElementRenderContext,
   calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
   isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const TTS_CONFIG: AnnotationConfig = {
@@ -51,7 +43,7 @@ export const TTS_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
+  getLabelPosition: (points: Point[]) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     const trunkMidX = (points[0].x + points[1].x) / 2;
     const trunkMidY = (points[0].y + points[1].y) / 2;
@@ -98,8 +90,9 @@ export const TTS_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
-    return Renderers.renderTTS(points, displayColor, imageScale);
+    return Renderers.renderTTS(points, displayColor, imageScale, context);
   },
 };

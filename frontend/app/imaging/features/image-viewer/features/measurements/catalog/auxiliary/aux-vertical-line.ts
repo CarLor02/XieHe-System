@@ -3,17 +3,10 @@ import {
   type AnnotationConfig,
   type CalculationContext,
   type Point,
-  LABEL_OFFSET,
+  type SpecialElementRenderContext,
   calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
   isPointNearLine,
   isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const AUX_VERTICAL_LINE_CONFIG: AnnotationConfig = {
@@ -76,9 +69,15 @@ export const AUX_VERTICAL_LINE_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
-    return Renderers.renderSingleVerticalLine(points, displayColor, imageScale);
+    return Renderers.renderSingleVerticalLine(
+      points,
+      displayColor,
+      imageScale,
+      context
+    );
   },
 };
 

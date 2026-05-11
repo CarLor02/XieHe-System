@@ -3,17 +3,8 @@ import {
   type AnnotationConfig,
   type CalculationContext,
   type Point,
-  LABEL_OFFSET,
+  type SpecialElementRenderContext,
   calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const LLD_CONFIG: AnnotationConfig = {
@@ -41,7 +32,7 @@ export const LLD_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
+  getLabelPosition: (points: Point[]) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
     return {
       x: Math.max(points[0].x, points[1].x),
@@ -73,8 +64,14 @@ export const LLD_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
-    return Renderers.renderHorizontalLines(points, displayColor, imageScale);
+    return Renderers.renderHorizontalLines(
+      points,
+      displayColor,
+      imageScale,
+      context
+    );
   },
 };

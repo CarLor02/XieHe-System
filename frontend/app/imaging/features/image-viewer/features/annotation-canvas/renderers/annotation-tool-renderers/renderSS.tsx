@@ -1,9 +1,13 @@
 import type { JSX } from 'react';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   buildAngleArc,
+  getSpecialRenderImagePoints,
   getPelvicMeasurementGeometry,
+  projectSpecialRenderPoint,
   RENDER_SCREEN_LENGTHS,
+  RENDER_IMAGE_LENGTHS,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers/annotationToolRendererUtils';
 
 /**
@@ -12,11 +16,13 @@ import {
 export function renderSS(
   screenPoints: Point[],
   displayColor: string,
-  _imageScale: number
+  _imageScale: number,
+  context?: SpecialElementRenderContext
 ): JSX.Element | null {
   if (screenPoints.length < 2) return null;
 
-  const geometry = getPelvicMeasurementGeometry(screenPoints);
+  const imagePoints = getSpecialRenderImagePoints(screenPoints, context);
+  const geometry = getPelvicMeasurementGeometry(imagePoints);
   if (!geometry) return null;
 
   const vertex =
@@ -38,44 +44,67 @@ export function renderSS(
     y: rayDy / rayLength,
   };
   const horizontalAngle = rayUnit.x < 0 ? 180 : 0;
-  const reverseEndplateAngle =
-    Math.atan2(rayUnit.y, rayUnit.x) * (180 / Math.PI);
   const reverseGuideEnd = {
-    x: vertex.x + rayUnit.x * RENDER_SCREEN_LENGTHS.ssReverseGuideLength,
-    y: vertex.y + rayUnit.y * RENDER_SCREEN_LENGTHS.ssReverseGuideLength,
+    x: vertex.x + rayUnit.x * RENDER_IMAGE_LENGTHS.ssReverseGuideLength,
+    y: vertex.y + rayUnit.y * RENDER_IMAGE_LENGTHS.ssReverseGuideLength,
   };
+  const sacralLeft = projectSpecialRenderPoint(geometry.sacralLeft, context);
+  const sacralRight = projectSpecialRenderPoint(geometry.sacralRight, context);
+  const vertexScreen = projectSpecialRenderPoint(vertex, context);
+  const oppositeScreen = projectSpecialRenderPoint(opposite, context);
+  const reverseGuideEndScreen = projectSpecialRenderPoint(reverseGuideEnd, context);
+  const horizontalStart = projectSpecialRenderPoint(
+    {
+      x: vertex.x - RENDER_IMAGE_LENGTHS.pelvicReferenceHalfWidth,
+      y: vertex.y,
+    },
+    context
+  );
+  const horizontalEnd = projectSpecialRenderPoint(
+    {
+      x: vertex.x + RENDER_IMAGE_LENGTHS.pelvicReferenceHalfWidth,
+      y: vertex.y,
+    },
+    context
+  );
+  const screenRayAngle =
+    Math.atan2(
+      vertexScreen.y - oppositeScreen.y,
+      vertexScreen.x - oppositeScreen.x
+    ) *
+    (180 / Math.PI);
   const arcPath = buildAngleArc(
-    vertex,
+    vertexScreen,
     horizontalAngle,
-    reverseEndplateAngle,
+    screenRayAngle,
     RENDER_SCREEN_LENGTHS.ssArcRadius
   );
 
   return (
     <>
       <line
-        x1={geometry.sacralLeft.x}
-        y1={geometry.sacralLeft.y}
-        x2={geometry.sacralRight.x}
-        y2={geometry.sacralRight.y}
+        x1={sacralLeft.x}
+        y1={sacralLeft.y}
+        x2={sacralRight.x}
+        y2={sacralRight.y}
         stroke={displayColor}
         strokeWidth="2"
       />
       <line
-        x1={vertex.x - RENDER_SCREEN_LENGTHS.pelvicReferenceHalfWidth}
-        y1={vertex.y}
-        x2={vertex.x + RENDER_SCREEN_LENGTHS.pelvicReferenceHalfWidth}
-        y2={vertex.y}
+        x1={horizontalStart.x}
+        y1={horizontalStart.y}
+        x2={horizontalEnd.x}
+        y2={horizontalEnd.y}
         stroke="#00ff00"
         strokeWidth="1"
         strokeDasharray="5,5"
         opacity="0.7"
       />
       <line
-        x1={vertex.x}
-        y1={vertex.y}
-        x2={reverseGuideEnd.x}
-        y2={reverseGuideEnd.y}
+        x1={vertexScreen.x}
+        y1={vertexScreen.y}
+        x2={reverseGuideEndScreen.x}
+        y2={reverseGuideEndScreen.y}
         stroke={displayColor}
         strokeWidth="1"
         strokeDasharray="3,3"
@@ -88,7 +117,7 @@ export function renderSS(
         strokeWidth="1.5"
         opacity="0.85"
       />
-      <circle cx={vertex.x} cy={vertex.y} r="3" fill={displayColor} />
+      <circle cx={vertexScreen.x} cy={vertexScreen.y} r="3" fill={displayColor} />
     </>
   );
 }

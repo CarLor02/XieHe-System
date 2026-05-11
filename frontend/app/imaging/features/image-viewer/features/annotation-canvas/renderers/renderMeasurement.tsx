@@ -28,8 +28,8 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-state';
 import { imageToScreen } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
-import { TEXT_LABEL_CONSTANTS, getAdaptiveFontSize } from '@/app/imaging/features/image-viewer/shared/constants';
-import { estimateTextHeight, estimateTextWidth } from '@/app/imaging/features/image-viewer/shared/labels';
+import { getAdaptiveFontSize } from '@/app/imaging/features/image-viewer/shared/constants';
+import { estimateTextWidth } from '@/app/imaging/features/image-viewer/shared/labels';
 import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
 import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { renderAuxiliaryTag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/support-shape-renderers/auxiliaryTagRenderer';
@@ -510,7 +510,13 @@ export default function renderMeasurement({
     imageScale,
     containerSize,
   };
+  const projectImagePoint = (point: Point) => imageToScreen(point, context);
   const screenPoints = measurement.points.map(point => imageToScreen(point, context));
+  const specialElementContext = {
+    imagePoints: measurement.points,
+    screenPoints,
+    imageToScreen: projectImagePoint,
+  };
   const displayName = getAnnotationDisplayName(measurement.type);
   const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
   const usesAuxiliaryValueTag = usesAuxiliaryMeasurementValueTag(
@@ -559,8 +565,7 @@ export default function renderMeasurement({
     : calculateSmartLabelPosition(
         baseLabelPosition,
         occupiedPositions,
-        imageScale,
-        'right' // 默认优先右侧
+        imageScale
       );
 
   const labelPosition = imageToScreen(smartLabelPosition, context);
@@ -573,9 +578,7 @@ export default function renderMeasurement({
   const textContent = `${valueTagName}: ${displayValue}`;
   // 自适应字体大小：随缩放级别动态调整，有上下限
   const fontSize = getAdaptiveFontSize(imageScale, isMeasurementHovered);
-  const padding = TEXT_LABEL_CONSTANTS.PADDING;
   const textWidth = estimateTextWidth(textContent, fontSize, 0);
-  const textHeight = estimateTextHeight(fontSize, 0);
 
   // 右侧标签：在屏幕坐标系中直接定位，完全绕开图像坐标偏移的 fitScale 损耗。
   // fitScale = displayWidth/naturalWidth，导致图像坐标偏移转换到屏幕后远小于预期。
@@ -633,7 +636,8 @@ export default function renderMeasurement({
           measurement.type,
           screenPoints,
           displayColor,
-          imageScale
+          imageScale,
+          specialElementContext
         )}
 
       {(!isAuxiliaryShape || usesAuxiliaryValueTag) &&

@@ -3,16 +3,10 @@ import {
   type AnnotationConfig,
   type CalculationContext,
   type Point,
+  type SpecialElementRenderContext,
   calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
   isPointNearLine,
   isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const TS_CONFIG: AnnotationConfig = {
@@ -72,7 +66,7 @@ export const TS_CONFIG: AnnotationConfig = {
     ];
   },
 
-  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
+  getLabelPosition: (points: Point[]) => {
     if (points.length >= 2 && points.length < 6) {
       // 2点模式：锚点在右侧端点，渲染层用 AP_LABEL_GAP 加固定间距
       const rightPoint = points[0].x >= points[1].x ? points[0] : points[1];
@@ -137,8 +131,9 @@ export const TS_CONFIG: AnnotationConfig = {
   renderSpecialElements: (
     points: Point[],
     displayColor: string,
-    imageScale: number = 1
+    imageScale: number = 1,
+    context?: SpecialElementRenderContext
   ) => {
-    return Renderers.renderC7Offset(points, displayColor, imageScale);
+    return Renderers.renderC7Offset(points, displayColor, imageScale, context);
   },
 };

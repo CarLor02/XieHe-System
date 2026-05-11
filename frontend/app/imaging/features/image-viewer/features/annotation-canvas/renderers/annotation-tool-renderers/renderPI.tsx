@@ -1,11 +1,14 @@
 import type { JSX } from 'react';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   buildAngleArc,
+  getSpecialRenderImagePoints,
   getPelvicArcRadius,
   getPelvicMeasurementGeometry,
   pickClosestRayAngle,
-  RENDER_SCREEN_LENGTHS,
+  projectSpecialRenderPoint,
+  RENDER_IMAGE_LENGTHS,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers/annotationToolRendererUtils';
 
 /**
@@ -14,55 +17,72 @@ import {
 export function renderPI(
   screenPoints: Point[],
   displayColor: string,
-  _imageScale: number
+  _imageScale: number,
+  context?: SpecialElementRenderContext
 ): JSX.Element | null {
-  const geometry = getPelvicMeasurementGeometry(screenPoints);
+  const imagePoints = getSpecialRenderImagePoints(screenPoints, context);
+  const geometry = getPelvicMeasurementGeometry(imagePoints);
   if (!geometry) return null;
 
-  const normalLength = RENDER_SCREEN_LENGTHS.pelvicNormalLength;
-  const normalStart = {
+  const normalLength = RENDER_IMAGE_LENGTHS.pelvicNormalLength;
+  const normalStartImage = {
     x: geometry.sacralMidpoint.x - geometry.sacralNormal.x * normalLength,
     y: geometry.sacralMidpoint.y - geometry.sacralNormal.y * normalLength,
   };
-  const normalEnd = {
+  const normalEndImage = {
     x: geometry.sacralMidpoint.x + geometry.sacralNormal.x * normalLength,
     y: geometry.sacralMidpoint.y + geometry.sacralNormal.y * normalLength,
   };
+  const sacralLeft = projectSpecialRenderPoint(geometry.sacralLeft, context);
+  const sacralRight = projectSpecialRenderPoint(geometry.sacralRight, context);
+  const sacralMidpoint = projectSpecialRenderPoint(
+    geometry.sacralMidpoint,
+    context
+  );
+  const normalStart = projectSpecialRenderPoint(normalStartImage, context);
+  const normalEnd = projectSpecialRenderPoint(normalEndImage, context);
+  const femoralHeadCenter = geometry.femoralHeadCenter
+    ? projectSpecialRenderPoint(geometry.femoralHeadCenter, context)
+    : null;
   const showArc = !!geometry.femoralHeadCenter;
   let path: string | null = null;
 
-  if (geometry.femoralHeadCenter) {
-    const femoralRayX =
-      geometry.femoralHeadCenter.x - geometry.sacralMidpoint.x;
-    const femoralRayY =
-      geometry.femoralHeadCenter.y - geometry.sacralMidpoint.y;
+  if (femoralHeadCenter) {
+    const femoralRayX = femoralHeadCenter.x - sacralMidpoint.x;
+    const femoralRayY = femoralHeadCenter.y - sacralMidpoint.y;
     const femoralAngle = Math.atan2(femoralRayY, femoralRayX) * (180 / Math.PI);
     const normalAngle = pickClosestRayAngle(femoralAngle, [
-      Math.atan2(geometry.sacralNormal.y, geometry.sacralNormal.x) *
+      Math.atan2(normalEnd.y - sacralMidpoint.y, normalEnd.x - sacralMidpoint.x) *
         (180 / Math.PI),
-      Math.atan2(-geometry.sacralNormal.y, -geometry.sacralNormal.x) *
+      Math.atan2(
+        normalStart.y - sacralMidpoint.y,
+        normalStart.x - sacralMidpoint.x
+      ) *
         (180 / Math.PI),
     ]);
     const femoralDistance = Math.sqrt(
       femoralRayX * femoralRayX + femoralRayY * femoralRayY
     );
-    const radius = getPelvicArcRadius(femoralDistance, normalLength, 'outer');
-
-    path = buildAngleArc(
-      geometry.sacralMidpoint,
-      normalAngle,
-      femoralAngle,
-      radius
+    const normalDistance = Math.sqrt(
+      Math.pow(normalEnd.x - sacralMidpoint.x, 2) +
+        Math.pow(normalEnd.y - sacralMidpoint.y, 2)
     );
+    const radius = getPelvicArcRadius(
+      femoralDistance,
+      normalDistance,
+      'outer'
+    );
+
+    path = buildAngleArc(sacralMidpoint, normalAngle, femoralAngle, radius);
   }
 
   return (
     <>
       <line
-        x1={geometry.sacralLeft.x}
-        y1={geometry.sacralLeft.y}
-        x2={geometry.sacralRight.x}
-        y2={geometry.sacralRight.y}
+        x1={sacralLeft.x}
+        y1={sacralLeft.y}
+        x2={sacralRight.x}
+        y2={sacralRight.y}
         stroke={displayColor}
         strokeWidth="2"
       />
@@ -75,17 +95,17 @@ export function renderPI(
         strokeWidth="2"
       />
       <circle
-        cx={geometry.sacralMidpoint.x}
-        cy={geometry.sacralMidpoint.y}
+        cx={sacralMidpoint.x}
+        cy={sacralMidpoint.y}
         r="3"
         fill={displayColor}
       />
-      {geometry.femoralHeadCenter && (
+      {femoralHeadCenter && (
         <line
-          x1={geometry.femoralHeadCenter.x}
-          y1={geometry.femoralHeadCenter.y}
-          x2={geometry.sacralMidpoint.x}
-          y2={geometry.sacralMidpoint.y}
+          x1={femoralHeadCenter.x}
+          y1={femoralHeadCenter.y}
+          x2={sacralMidpoint.x}
+          y2={sacralMidpoint.y}
           stroke={displayColor}
           strokeWidth="2"
         />

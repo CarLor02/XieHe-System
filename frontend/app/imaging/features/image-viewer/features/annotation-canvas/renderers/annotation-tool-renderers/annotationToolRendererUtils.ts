@@ -1,4 +1,5 @@
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 
 export * from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/shared/rendererUtils';
 
@@ -12,20 +13,44 @@ export type PelvicMeasurementGeometry = {
 
 export const RENDER_SCREEN_LENGTHS = {
   t1TiltArcRadius: 30,
-  t1TiltReferenceHalfWidth: 100,
   tpaArcRadius: 40,
+  ssArcRadius: 24,
+  arrowHeadLength: 6,
+  arrowHeadHalfHeight: 4,
+} as const;
+
+export const RENDER_IMAGE_LENGTHS = {
+  t1TiltReferenceHalfWidth: 100,
   pelvicNormalLength: 80,
   pelvicVerticalHalfLength: 80,
   pelvicReferenceHalfWidth: 100,
-  ssArcRadius: 24,
   ssReverseGuideLength: 80,
   verticalGuideLength: 150,
   sacralPerpendicularLength: 300,
   horizontalGuideWidth: 150,
   fallbackGuideLength: 80,
-  arrowHeadLength: 6,
-  arrowHeadHalfHeight: 4,
 } as const;
+
+export function getSpecialRenderImagePoints(
+  screenPoints: Point[],
+  context?: SpecialElementRenderContext
+): Point[] {
+  return context?.imagePoints ?? screenPoints;
+}
+
+export function projectSpecialRenderPoint(
+  point: Point,
+  context?: SpecialElementRenderContext
+): Point {
+  return context?.imageToScreen(point) ?? point;
+}
+
+export function projectSpecialRenderPoints(
+  points: Point[],
+  context?: SpecialElementRenderContext
+): Point[] {
+  return points.map(point => projectSpecialRenderPoint(point, context));
+}
 
 export function getPelvicMeasurementGeometry(
   screenPoints: Point[]

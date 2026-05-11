@@ -51,6 +51,12 @@ export interface MeasurementResult {
   unit: string; // 单位，如 "°" 或 "mm"
 }
 
+export interface SpecialElementRenderContext {
+  imagePoints: Point[];
+  screenPoints: Point[];
+  imageToScreen: (point: Point) => Point;
+}
+
 export interface AnnotationConfig {
   id: string; // 标注类型ID
   name: string; // 标注名称
@@ -121,7 +127,8 @@ export interface AnnotationConfig {
   renderSpecialElements?: (
     points: Point[], // 屏幕坐标系中的点
     displayColor: string, // 当前显示颜色（根据选中/悬浮状态变化）
-    imageScale: number // 图像缩放比例
+    imageScale: number, // 图像缩放比例
+    context?: SpecialElementRenderContext
   ) => JSX.Element | null;
 }
 
