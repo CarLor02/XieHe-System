@@ -1,6 +1,7 @@
 # AI inference services (optional, included by deploy_pc.sh --with-ai)
 # zhengmian = 正面/front-view analysis  (port 8001)
 # cemian    = 侧面/lateral-view analysis (port 8002)
+# NOTE: When running AI models on host (not in Docker), see model/AI_HOST_DEPLOYMENT.md
 
 services:
   ai-zhengmian:
@@ -21,8 +22,15 @@ services:
     image: xiehe-ai-zhengmian
     container_name: medical_ai_zhengmian
     restart: unless-stopped
+    environment:
+      STORAGE_SERVICE_URL: ${STORAGE_SERVICE_URL:-http://storage-service:8090}
+      STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
+      STORAGE_SERVICE_TIMEOUT: ${STORAGE_SERVICE_TIMEOUT:-30}
     ports:
       - '${AI_ZHENGMIAN_PORT_BIND:-0.0.0.0:8001:8001}'
+    depends_on:
+      storage-service:
+        condition: service_healthy
     networks:
       - medical_network
     healthcheck:
@@ -50,8 +58,15 @@ services:
     image: xiehe-ai-cemian
     container_name: medical_ai_cemian
     restart: unless-stopped
+    environment:
+      STORAGE_SERVICE_URL: ${STORAGE_SERVICE_URL:-http://storage-service:8090}
+      STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
+      STORAGE_SERVICE_TIMEOUT: ${STORAGE_SERVICE_TIMEOUT:-30}
     ports:
       - '${AI_CEMIAN_PORT_BIND:-0.0.0.0:8002:8002}'
+    depends_on:
+      storage-service:
+        condition: service_healthy
     networks:
       - medical_network
     healthcheck:

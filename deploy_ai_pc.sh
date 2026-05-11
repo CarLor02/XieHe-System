@@ -144,10 +144,10 @@ load_config() {
         LAN_IP="$(detect_lan_ip)"
     fi
 
-    # 使用 localhost 而非 LAN IP：宿主机进程经 Docker NAT 进入容器时，
-    # nginx 看到的源 IP 是 Docker bridge 网关而非 LAN IP，两种写法均可。
-    # 用 localhost 可避免 hairpin NAT 的不一致行为，更可靠。
-    STORAGE_URL="http://localhost:3030/internal/model-storage"
+    # storage-service 运行在 Docker 内，通过端口映射暴露到 localhost:8090
+    # 参考：infrastructure/docker/compose/storage-service.yml
+    # 端口：8090 = storage-service, 3030 = frontend (不要混淆)
+    STORAGE_URL="http://localhost:8090"
 }
 
 # ==================== 检查模型文件 ====================
