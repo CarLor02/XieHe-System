@@ -730,7 +730,7 @@ def init_teams(session):
 
         for member_cfg in config.get("members", []):
             member = users.get(member_cfg.get("username"))
-            if not member or member.id == leader.id:
+            if not member or member.id == creator.id:
                 continue
 
             membership = TeamMembership(

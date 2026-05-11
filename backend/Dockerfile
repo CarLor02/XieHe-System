@@ -22,6 +22,8 @@ ARG PIP_INDEX_URL
 ARG PIP_EXTRA_INDEX_URL
 ARG PIP_TRUSTED_HOST
 ARG PIP_TIMEOUT=120
+# 可选：替换 apt 源（如 mirrors.tuna.tsinghua.edu.cn）
+ARG APT_MIRROR=
 
 # 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -31,7 +33,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # 安装系统依赖（编译和运行时都需要）
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+        sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list 2>/dev/null || true; \
+    fi && \
+    apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     default-libmysqlclient-dev \
@@ -43,8 +49,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 复制依赖文件并安装（先安装依赖以利用Docker缓存）
 COPY backend/requirements.txt .
-RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --upgrade pip \
+        ${PIP_INDEX_URL:+--index-url "$PIP_INDEX_URL"} \
+        ${PIP_TRUSTED_HOST:+--trusted-host "$PIP_TRUSTED_HOST"} && \
+    python -m pip install --no-cache-dir -r requirements.txt \
+        ${PIP_INDEX_URL:+--index-url "$PIP_INDEX_URL"} \
+        ${PIP_TRUSTED_HOST:+--trusted-host "$PIP_TRUSTED_HOST"} \
+        ${PIP_TIMEOUT:+--timeout "$PIP_TIMEOUT"}
 
 # 复制应用代码
 COPY backend/ .

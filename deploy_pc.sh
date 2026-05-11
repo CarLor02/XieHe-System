@@ -154,7 +154,7 @@ generate_dotenv_files() {
 
     # --- 生成各类密钥 ---
     DB_PASSWORD="$(generate_secret | head -c 24)"
-    MYSQL_ROOT_PASSWORD="$(generate_secret | head -c 24)"
+    MYSQL_ROOT_PASSWORD="${DB_PASSWORD}"   # root 用户密码必须与 DB_PASSWORD 一致
     JWT_SECRET="$(generate_secret)"
     MINIO_USER="minioadmin"
     MINIO_PASSWORD="$(generate_secret | head -c 20)"
@@ -169,12 +169,22 @@ MAX_UPLOAD_SIZE=104857600
 LOG_LEVEL=INFO
 LOG_DIR=/app/logs
 
-# 如果构建时网络慢，可启用代理:
+# Go 模块代理（国内网络必须，proxy.golang.org 被拦截）
+BUILD_GOPROXY=https://goproxy.cn,direct
+BUILD_GOSUMDB=off
+
+# Python pip 镜像（国内网络必须）
+BUILD_PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+BUILD_PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+
+# apt-get 镜像（加速 Debian/Ubuntu 系统依赖安装，用于 backend）
+BUILD_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
+# apk 镜像（加速 Alpine 系统依赖安装，用于 frontend/nginx）
+BUILD_APK_MIRROR=mirrors.tuna.tsinghua.edu.cn
+
+# 如需 HTTP 代理（科学上网）可在此配置：
 # BUILD_HTTP_PROXY=http://${LAN_IP}:7890
 # BUILD_HTTPS_PROXY=http://${LAN_IP}:7890
-# BUILD_PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
-# BUILD_PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
-# BUILD_GOPROXY=https://goproxy.cn,direct
 EOF
 
     # --- .env.ports ---
