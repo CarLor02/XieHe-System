@@ -96,7 +96,7 @@ def fetch_object_image_bytes(bucket: str, object_key: str) -> bytes:
         raise HTTPException(status_code=503, detail="Storage service is not configured")
 
     object_url = (
-        f"{storage_service_url}/"
+        f"{storage_service_url}/objects/"
         f"{quote(bucket, safe='')}/"
         f"{quote(object_key, safe='/')}"
     )
