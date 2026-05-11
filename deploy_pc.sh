@@ -115,23 +115,23 @@ check_environment() {
 }
 
 # ==================== 拉取代码 ====================
+# 策略：强制对齐远端，不保留任何本地改动。
+# 用 fetch + reset --hard 而不是 pull，避免 index 损坏或本地文件不一致导致卡死。
+# 注意：untracked 文件（如模型权重 .pt）不会被删除。
 pull_latest_code() {
     print_header "拉取最新代码"
     cd "$PROJECT_DIR"
     [ ! -d ".git" ] && { print_warning "非 Git 仓库，跳过拉取"; return; }
-    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-        print_warning "检测到未提交的本地改动"
-        if confirm "是否暂存并继续？"; then
-            git stash save "Auto-stash before deploy_pc $(date +%Y%m%d_%H%M%S)"
-            print_success "已暂存本地改动"
-        else
-            print_error "部署已取消"; exit 1
-        fi
-    fi
-    print_step "切换到分支 $GIT_BRANCH 并拉取..."
+
+    print_step "fetch 远端..."
     git fetch origin
-    git checkout "$GIT_BRANCH"
-    git pull origin "$GIT_BRANCH"
+
+    print_step "切换到分支 $GIT_BRANCH..."
+    git checkout "$GIT_BRANCH" 2>/dev/null || git checkout -b "$GIT_BRANCH" "origin/$GIT_BRANCH"
+
+    print_step "强制对齐远端（丢弃所有本地改动）..."
+    git reset --hard "origin/$GIT_BRANCH"
+
     print_success "代码已更新: $(git log -1 --pretty='%h - %s')"
 }
 
