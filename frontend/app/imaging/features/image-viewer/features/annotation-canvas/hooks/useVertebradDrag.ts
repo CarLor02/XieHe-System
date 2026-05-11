@@ -107,6 +107,9 @@ export function useVertebradDrag({
   const [isDragging, setIsDragging] = useState(false);
   // 拖拽元数据（不需要触发重渲染）
   const dragStateRef = useRef<DragState | null>(null);
+  // 当前拖拽中的图层快照。用于在事件处理阶段同步计算和通知父层，
+  // 避免在 React state updater 内触发 measurements 等父层状态更新。
+  const liveLayerRef = useRef<VertebraAnnotation[] | null>(null);
 
   const updateLayerCorner = useCallback(
     (
@@ -240,6 +243,7 @@ export function useVertebradDrag({
         dragStateRef.current = { mode: 'corner', ...hit };
         setActiveCorner({ label: hit.vertebraLabel, index: hit.cornerIndex });
         setIsDragging(true);
+        liveLayerRef.current = vertebraeLayer;
         setLiveLayer(vertebraeLayer);
         return true;
       }
@@ -259,6 +263,7 @@ export function useVertebradDrag({
         index: firstMember.cornerIndex,
       });
       setIsDragging(true);
+      liveLayerRef.current = vertebraeLayer;
       setLiveLayer(vertebraeLayer);
       return true;
     },
@@ -294,6 +299,7 @@ export function useVertebradDrag({
         index: firstMember.cornerIndex,
       });
       setIsDragging(true);
+      liveLayerRef.current = vertebraeLayer;
       setLiveLayer(vertebraeLayer);
       return true;
     },
@@ -312,31 +318,30 @@ export function useVertebradDrag({
       const activeHit = dragStateRef.current;
       if (activeHit) {
         const imagePt = screenToImage(screenX, screenY);
-        setLiveLayer(prev => {
-          if (!prev) return prev;
-          const next =
-            activeHit.mode === 'corner'
-              ? updateLayerCorner(prev, activeHit, imagePt)
-              : (() => {
-                  const delta = {
-                    x: imagePt.x - activeHit.startImagePoint.x,
-                    y: imagePt.y - activeHit.startImagePoint.y,
-                  };
-                  return activeHit.members.reduce((layer, member) => {
-                    const source = activeHit.initialLayer.find(
-                      item => item.label === member.vertebraLabel
-                    );
-                    const initialPoint = source?.corners[member.cornerIndex];
-                    if (!initialPoint) return layer;
-                    return updateLayerCorner(layer, member, {
-                      x: initialPoint.x + delta.x,
-                      y: initialPoint.y + delta.y,
-                    });
-                  }, activeHit.initialLayer);
-                })();
-          onLiveLayerChange?.(next);
-          return next;
-        });
+        const currentLayer = liveLayerRef.current ?? vertebraeLayer;
+        const next =
+          activeHit.mode === 'corner'
+            ? updateLayerCorner(currentLayer, activeHit, imagePt)
+            : (() => {
+                const delta = {
+                  x: imagePt.x - activeHit.startImagePoint.x,
+                  y: imagePt.y - activeHit.startImagePoint.y,
+                };
+                return activeHit.members.reduce((layer, member) => {
+                  const source = activeHit.initialLayer.find(
+                    item => item.label === member.vertebraLabel
+                  );
+                  const initialPoint = source?.corners[member.cornerIndex];
+                  if (!initialPoint) return layer;
+                  return updateLayerCorner(layer, member, {
+                    x: initialPoint.x + delta.x,
+                    y: initialPoint.y + delta.y,
+                  });
+                }, activeHit.initialLayer);
+              })();
+        liveLayerRef.current = next;
+        setLiveLayer(next);
+        onLiveLayerChange?.(next);
         const activeMember =
           activeHit.mode === 'corner' ? activeHit : activeHit.members[0];
         onHoverChange?.(activeMember ? hitToKeypointId(activeMember) : null);
@@ -358,6 +363,7 @@ export function useVertebradDrag({
       onLiveLayerChange,
       screenToImage,
       updateLayerCorner,
+      vertebraeLayer,
     ]
   );
 
@@ -367,11 +373,11 @@ export function useVertebradDrag({
    */
   const handleMouseUp = useCallback(() => {
     if (!dragStateRef.current) return;
+    const finalLayer = liveLayerRef.current;
     dragStateRef.current = null;
-    setLiveLayer(prev => {
-      if (prev && onVertebraeUpdate) onVertebraeUpdate(prev);
-      return null;
-    });
+    liveLayerRef.current = null;
+    setLiveLayer(null);
+    if (finalLayer && onVertebraeUpdate) onVertebraeUpdate(finalLayer);
     setActiveCorner(null);
     setIsDragging(false);
   }, [onVertebraeUpdate]);

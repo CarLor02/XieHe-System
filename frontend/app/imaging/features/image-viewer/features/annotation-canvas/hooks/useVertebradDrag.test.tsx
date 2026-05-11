@@ -1,5 +1,5 @@
-import { act, render, waitFor } from '@testing-library/react';
-import { useEffect, useRef } from 'react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { useEffect, useRef, useState } from 'react';
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { AnnotationSource, VertebraAnnotation } from '@/app/imaging/features/image-viewer/shared/types';
@@ -37,6 +37,67 @@ function DragHarness({
     screenToImage: (screenX, screenY) => ({ x: screenX, y: screenY }),
     onVertebraeUpdate,
     onLiveLayerChange: jest.fn(),
+    containerRef,
+    onHoverChange: jest.fn(),
+  });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    containerRef.current.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 400,
+        bottom: 400,
+        width: 400,
+        height: 400,
+      }) as DOMRect;
+  }, []);
+
+  useEffect(() => {
+    onValue(value);
+  }, [onValue, value]);
+
+  return <div ref={containerRef} />;
+}
+
+function NestedPreviewHarness({
+  onValue,
+  onVertebraeUpdate,
+}: {
+  onValue: (value: DragHook) => void;
+  onVertebraeUpdate: (updated: VertebraAnnotation[]) => void;
+}) {
+  const [previewUpdates, setPreviewUpdates] = useState(0);
+
+  return (
+    <>
+      <div data-testid="preview-updates">{previewUpdates}</div>
+      <DragChildHarness
+        onValue={onValue}
+        onVertebraeUpdate={onVertebraeUpdate}
+        onLiveLayerChange={() => setPreviewUpdates(value => value + 1)}
+      />
+    </>
+  );
+}
+
+function DragChildHarness({
+  onValue,
+  onVertebraeUpdate,
+  onLiveLayerChange,
+}: {
+  onValue: (value: DragHook) => void;
+  onVertebraeUpdate: (updated: VertebraAnnotation[]) => void;
+  onLiveLayerChange: (updated: VertebraAnnotation[]) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const value = useVertebradDrag({
+    vertebraeLayer: createT1Layer(),
+    imageToScreen: point => point,
+    screenToImage: (screenX, screenY) => ({ x: screenX, y: screenY }),
+    onVertebraeUpdate,
+    onLiveLayerChange,
     containerRef,
     onHoverChange: jest.fn(),
   });
@@ -107,5 +168,42 @@ describe('useVertebradDrag', () => {
       { x: 130, y: 240 },
       { x: 230, y: 240 },
     ]);
+  });
+
+  it('notifies whole-vertebra preview updates outside child state updaters', async () => {
+    let latest: DragHook | null = null;
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    try {
+      render(
+        <NestedPreviewHarness
+          onValue={value => {
+            latest = value;
+          }}
+          onVertebraeUpdate={jest.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(latest).not.toBeNull();
+      });
+
+      act(() => {
+        expect(latest!.handleMouseDown(150, 150)).toBe(true);
+      });
+      act(() => {
+        latest!.handleMouseMove(180, 190);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('preview-updates').textContent).toBe('1');
+      });
+
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });
