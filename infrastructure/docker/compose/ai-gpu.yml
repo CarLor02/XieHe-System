@@ -1,0 +1,22 @@
+# GPU override for AI services — layer on top of ai.yml
+# Requires: nvidia-container-toolkit installed on the host
+# Usage: docker compose -f ai.yml -f ai-gpu.yml ...
+
+services:
+  ai-zhengmian:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  ai-cemian:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
