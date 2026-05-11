@@ -29,8 +29,47 @@ interface CornerRef {
   index: number;
 }
 
+interface ScreenPoint {
+  x: number;
+  y: number;
+}
+
 /** 命中检测半径（屏幕像素） */
 const HIT_RADIUS_PX = 10;
+
+function isCompleteVertebraFrame(vertebra: VertebraAnnotation): boolean {
+  if (vertebra.label === 'S1') return false;
+  if (isSinglePointKeypointLabel(vertebra.label)) return false;
+
+  const uniqueCorners = new Set(
+    vertebra.corners.map(point => `${point.x}:${point.y}`)
+  );
+  return uniqueCorners.size === 4;
+}
+
+function isPointInsidePolygon(
+  point: ScreenPoint,
+  polygon: ScreenPoint[]
+): boolean {
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const current = polygon[i];
+    const previous = polygon[j];
+    const intersects =
+      current.y > point.y !== previous.y > point.y &&
+      point.x <
+        ((previous.x - current.x) * (point.y - current.y)) /
+          (previous.y - current.y) +
+          current.x;
+
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
 
 /**
  * 在 canvas div 层实现椎体角点的命中检测与拖拽交互。
@@ -65,6 +104,7 @@ export function useVertebradDrag({
   const [activeCorner, setActiveCorner] = useState<CornerRef | null>(null);
   // 当前鼠标悬停的角点
   const [hoveredCorner, setHoveredCorner] = useState<CornerRef | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   // 拖拽元数据（不需要触发重渲染）
   const dragStateRef = useRef<DragState | null>(null);
 
@@ -140,6 +180,27 @@ export function useVertebradDrag({
     [vertebraeLayer, imageToScreen]
   );
 
+  const findFrameInterior = useCallback(
+    (screenX: number, screenY: number): DragMember[] | null => {
+      const hitPoint = { x: screenX, y: screenY };
+
+      for (const vertebra of vertebraeLayer) {
+        if (!isCompleteVertebraFrame(vertebra)) continue;
+
+        const [tl, tr, bl, br] = vertebra.corners.map(imageToScreen);
+        if (!isPointInsidePolygon(hitPoint, [tl, tr, br, bl])) continue;
+
+        return [0, 1, 2, 3].map(cornerIndex => ({
+          vertebraLabel: vertebra.label,
+          cornerIndex,
+        }));
+      }
+
+      return null;
+    },
+    [imageToScreen, vertebraeLayer]
+  );
+
   const hitToKeypointId = useCallback((hit: DragMember): string => {
     return renderCornerToKeypointId(hit.vertebraLabel, hit.cornerIndex);
   }, []);
@@ -175,13 +236,40 @@ export function useVertebradDrag({
       if (!onVertebraeUpdate) return false;
       const { screenX, screenY } = clientToScreen(clientX, clientY);
       const hit = findNearestCorner(screenX, screenY);
-      if (!hit) return false;
-      dragStateRef.current = { mode: 'corner', ...hit };
-      setActiveCorner({ label: hit.vertebraLabel, index: hit.cornerIndex });
+      if (hit) {
+        dragStateRef.current = { mode: 'corner', ...hit };
+        setActiveCorner({ label: hit.vertebraLabel, index: hit.cornerIndex });
+        setIsDragging(true);
+        setLiveLayer(vertebraeLayer);
+        return true;
+      }
+
+      const members = findFrameInterior(screenX, screenY);
+      if (!members) return false;
+
+      const [firstMember] = members;
+      dragStateRef.current = {
+        mode: 'group',
+        members,
+        startImagePoint: screenToImage(screenX, screenY),
+        initialLayer: vertebraeLayer,
+      };
+      setActiveCorner({
+        label: firstMember.vertebraLabel,
+        index: firstMember.cornerIndex,
+      });
+      setIsDragging(true);
       setLiveLayer(vertebraeLayer);
       return true;
     },
-    [clientToScreen, findNearestCorner, onVertebraeUpdate, vertebraeLayer]
+    [
+      clientToScreen,
+      findFrameInterior,
+      findNearestCorner,
+      onVertebraeUpdate,
+      screenToImage,
+      vertebraeLayer,
+    ]
   );
 
   const handleKeypointsMouseDown = useCallback(
@@ -205,6 +293,7 @@ export function useVertebradDrag({
         label: firstMember.vertebraLabel,
         index: firstMember.cornerIndex,
       });
+      setIsDragging(true);
       setLiveLayer(vertebraeLayer);
       return true;
     },
@@ -284,6 +373,7 @@ export function useVertebradDrag({
       return null;
     });
     setActiveCorner(null);
+    setIsDragging(false);
   }, [onVertebraeUpdate]);
 
   const clearHover = useCallback(() => {
@@ -295,7 +385,7 @@ export function useVertebradDrag({
     /** 渲染时使用的图层：拖拽中为实时图层，否则为 vertebraeLayer prop */
     renderLayer: liveLayer ?? vertebraeLayer,
     activeCorner,
-    isDragging: dragStateRef.current !== null || activeCorner !== null,
+    isDragging,
     hoveredCorner,
     handleMouseDown,
     handleKeypointsMouseDown,
