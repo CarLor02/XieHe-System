@@ -212,14 +212,13 @@ start_service() {
 
     print_step "启动 ${name} (端口 ${port})..."
 
-    STORAGE_SERVICE_URL="$STORAGE_URL" \
-    STORAGE_SERVICE_TOKEN="$STORAGE_TOKEN" \
-    NO_PROXY="localhost,127.0.0.1,${LAN_IP}" \
-    no_proxy="localhost,127.0.0.1,${LAN_IP}" \
-        nohup "$UVICORN_BIN" app:app \
-            --host 0.0.0.0 --port "$port" \
-            --app-dir "$dir" \
-            > "$log_file" 2>&1 &
+    nohup env \
+        STORAGE_SERVICE_URL="$STORAGE_URL" \
+        STORAGE_SERVICE_TOKEN="$STORAGE_TOKEN" \
+        NO_PROXY="localhost,127.0.0.1,${LAN_IP}" \
+        no_proxy="localhost,127.0.0.1,${LAN_IP}" \
+        bash -c "cd '$dir' && '$UVICORN_BIN' app:app --host 0.0.0.0 --port '$port'" \
+        > "$log_file" 2>&1 &
 
     local pid=$!
     echo "$pid" >> "$PID_FILE"
