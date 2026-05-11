@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	appstorage "xiehe-storage-service/internal/application/storage"
@@ -160,6 +161,49 @@ func (handler *Handler) HandleDeleteObject(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+}
+
+func (handler *Handler) HandleObject(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		handler.HandleGetObject(w, r)
+	case http.MethodPut:
+		handler.HandlePutObject(w, r)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+func (handler *Handler) HandleGetObject(w http.ResponseWriter, r *http.Request) {
+	bucket, objectKey, ok := parseObjectPath(r.URL.Path)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "path must be /objects/{bucket}/{object_key}")
+		return
+	}
+
+	stream, err := handler.storageService.GetObject(
+		r.Context(),
+		domain.ObjectRef{Bucket: bucket, ObjectKey: objectKey},
+	)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	defer stream.Body.Close()
+
+	if stream.ContentType != "" {
+		w.Header().Set("Content-Type", stream.ContentType)
+	}
+	if stream.Size >= 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(stream.Size, 10))
+	}
+	if stream.ETag != "" {
+		w.Header().Set("ETag", `"`+strings.Trim(stream.ETag, `"`)+`"`)
+	}
+	w.WriteHeader(http.StatusOK)
+	if _, err := io.Copy(w, stream.Body); err != nil {
+		return
+	}
 }
 
 func (handler *Handler) HandlePutObject(w http.ResponseWriter, r *http.Request) {

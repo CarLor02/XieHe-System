@@ -164,6 +164,28 @@ func (repository *Repository) StatObject(ctx context.Context, ref domain.ObjectR
 	}, nil
 }
 
+func (repository *Repository) GetObject(ctx context.Context, ref domain.ObjectRef) (domain.ObjectStream, error) {
+	out, err := repository.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(ref.Bucket),
+		Key:    aws.String(ref.ObjectKey),
+	})
+	if err != nil {
+		if isNotFound(err) {
+			return domain.ObjectStream{}, domain.ErrObjectNotFound
+		}
+		return domain.ObjectStream{}, err
+	}
+
+	return domain.ObjectStream{
+		Bucket:      ref.Bucket,
+		ObjectKey:   ref.ObjectKey,
+		Body:        out.Body,
+		Size:        aws.ToInt64(out.ContentLength),
+		ETag:        trimETag(aws.ToString(out.ETag)),
+		ContentType: aws.ToString(out.ContentType),
+	}, nil
+}
+
 func (repository *Repository) DeleteObject(ctx context.Context, ref domain.ObjectRef) error {
 	_, err := repository.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(ref.Bucket),

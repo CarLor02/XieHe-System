@@ -22,11 +22,17 @@ services:
         NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL: ${NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL}
     container_name: medical_frontend
     restart: unless-stopped
+    environment:
+      MODEL_STORAGE_ALLOWED_CIDR: ${MODEL_STORAGE_ALLOWED_CIDR:-127.0.0.1/32}
     ports:
       - '${FRONTEND_PORT_BIND}'
     depends_on:
-      - backend
-      - minio
+      backend:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      storage-service:
+        condition: service_healthy
     networks:
       - medical_network
     deploy:

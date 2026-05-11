@@ -33,6 +33,10 @@ services:
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS}
       STORAGE_SERVICE_URL: ${STORAGE_SERVICE_URL:-http://storage-service:8090}
       STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
+      AI_FRONT_PREDICT_OBJECT_URL: ${AI_FRONT_PREDICT_OBJECT_URL:-}
+      AI_FRONT_KEYPOINTS_OBJECT_URL: ${AI_FRONT_KEYPOINTS_OBJECT_URL:-}
+      AI_LATERAL_PREDICT_OBJECT_URL: ${AI_LATERAL_PREDICT_OBJECT_URL:-}
+      AI_LATERAL_DETECT_OBJECT_URL: ${AI_LATERAL_DETECT_OBJECT_URL:-}
       IMAGE_FILE_BUCKET: ${IMAGE_FILE_BUCKET:-medical-image-files}
       USER_AVATAR_BUCKET: ${USER_AVATAR_BUCKET:-medical-user-avatars}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,minio,storage-service,backend,frontend,medical_mysql,medical_redis,medical_minio,medical_storage_service,medical_backend,medical_frontend

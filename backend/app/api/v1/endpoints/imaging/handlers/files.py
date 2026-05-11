@@ -8,11 +8,12 @@
 创建时间: 2026-01-05
 """
 
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime, date, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status as http_status
 from fastapi.responses import RedirectResponse
+import httpx
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 
@@ -39,6 +40,11 @@ from ..schemas.files import (
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+READY_FOR_MODEL_STATUSES = {
+    ImageFileStatusEnum.UPLOADED,
+    ImageFileStatusEnum.PROCESSED,
+}
 
 
 def _image_file_response(image: ImageFile, uploader_name: Optional[str] = None) -> ImageFileResponse:
@@ -85,6 +91,98 @@ def _download_url_payload(
         "mime_type": image.mime_type,
         "etag": image.storage_etag,
     }
+
+
+def _is_lateral_image(image: ImageFile) -> bool:
+    return image.description == "侧位X光片"
+
+
+def _model_object_payload(image: ImageFile) -> dict[str, str]:
+    return {
+        "bucket": image.storage_bucket,
+        "object_key": image.object_key,
+        "image_id": f"IMG{image.id}",
+    }
+
+
+def _get_ai_object_url(image: ImageFile, operation: str) -> str:
+    if operation == "predict":
+        url = (
+            settings.AI_LATERAL_PREDICT_OBJECT_URL
+            if _is_lateral_image(image)
+            else settings.AI_FRONT_PREDICT_OBJECT_URL
+        )
+    elif operation == "detect-keypoints":
+        url = (
+            settings.AI_LATERAL_DETECT_OBJECT_URL
+            if _is_lateral_image(image)
+            else settings.AI_FRONT_KEYPOINTS_OBJECT_URL
+        )
+    else:
+        raise ValueError(f"unsupported AI operation: {operation}")
+
+    if not url:
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI模型 object 接口未配置",
+        )
+    return url
+
+
+def _get_ai_ready_visible_image(
+    db: Session,
+    file_id: int,
+    current_user: dict[str, Any],
+) -> ImageFile:
+    image = get_visible_image_file(db, file_id, current_user)
+    if not image:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="影像文件不存在",
+        )
+
+    if image.status not in READY_FOR_MODEL_STATUSES:
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="影像文件尚未完成上传",
+        )
+
+    return image
+
+
+async def _post_ai_object_request(url: str, payload: dict[str, str]) -> dict[str, Any]:
+    try:
+        async with httpx.AsyncClient(timeout=settings.AI_MODEL_TIMEOUT) as client:
+            response = await client.post(url, json=payload)
+    except httpx.HTTPError as exc:
+        logger.error(f"AI模型 object 请求失败: {exc}")
+        raise HTTPException(
+            status_code=http_status.HTTP_502_BAD_GATEWAY,
+            detail="AI模型服务不可用",
+        )
+
+    if response.status_code >= 400:
+        detail: Any
+        try:
+            detail = response.json()
+        except ValueError:
+            detail = response.text
+        raise HTTPException(status_code=response.status_code, detail=detail)
+
+    try:
+        payload_data = response.json()
+    except ValueError as exc:
+        logger.error(f"AI模型 object 响应不是 JSON: {exc}")
+        raise HTTPException(
+            status_code=http_status.HTTP_502_BAD_GATEWAY,
+            detail="AI模型响应格式错误",
+        )
+    if not isinstance(payload_data, dict):
+        raise HTTPException(
+            status_code=http_status.HTTP_502_BAD_GATEWAY,
+            detail="AI模型响应格式错误",
+        )
+    return payload_data
 
 
 # API 端点
@@ -247,6 +345,32 @@ async def get_patient_images(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取患者影像文件失败"
         )
+
+
+@router.post("/{file_id}/ai/predict", summary="使用对象存储影像执行AI测量")
+async def run_image_file_ai_predict(
+    file_id: int,
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    image = _get_ai_ready_visible_image(db, file_id, current_user)
+    return await _post_ai_object_request(
+        _get_ai_object_url(image, "predict"),
+        _model_object_payload(image),
+    )
+
+
+@router.post("/{file_id}/ai/detect-keypoints", summary="使用对象存储影像执行AI关键点检测")
+async def run_image_file_ai_detect_keypoints(
+    file_id: int,
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    image = _get_ai_ready_visible_image(db, file_id, current_user)
+    return await _post_ai_object_request(
+        _get_ai_object_url(image, "detect-keypoints"),
+        _model_object_payload(image),
+    )
 
 
 @router.get("/{file_id}", response_model=dict, summary="获取影像文件详情")

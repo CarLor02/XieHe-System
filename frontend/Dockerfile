@@ -119,8 +119,8 @@ RUN rm -f /usr/bin/wget /bin/wget \
           /usr/sbin/cron /usr/sbin/crond \
           2>/dev/null || true
 
-# 安装 curl 用于健康检查
-RUN apk add --no-cache curl
+# 安装 curl 用于健康检查，gettext 提供 envsubst 生成运行时 Nginx 配置
+RUN apk add --no-cache curl gettext
 
 # 安全加固: 清理恶意文件目录
 RUN rm -rf /tmp/.XIN-unix /tmp/.X11-unix /tmp/.* \
@@ -131,8 +131,8 @@ RUN rm -rf /tmp/.XIN-unix /tmp/.X11-unix /tmp/.* \
 # 复制静态构建产物到Nginx目录
 COPY --from=builder /app/frontend/out /usr/share/nginx/html
 
-# 复制Nginx配置
-COPY frontend/nginx.conf /etc/nginx/nginx.conf
+# 复制Nginx配置模板。启动时注入模型服务器 allowlist，避免把真实 IP 写进镜像。
+COPY frontend/nginx.conf /etc/nginx/nginx.conf.template
 
 # 暴露端口
 EXPOSE 3000
@@ -142,4 +142,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 
 # 启动Nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/bin/sh", "-c", "export MODEL_STORAGE_ALLOWED_CIDR=\"${MODEL_STORAGE_ALLOWED_CIDR:-127.0.0.1/32}\" && envsubst '$$MODEL_STORAGE_ALLOWED_CIDR' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"]

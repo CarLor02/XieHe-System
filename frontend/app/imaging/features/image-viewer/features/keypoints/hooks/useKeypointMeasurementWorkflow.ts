@@ -17,9 +17,7 @@ import {
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import {
-  getAnnotationTypeId,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   areKeypointsEqual,
   buildDerivedMeasurementsFromLayer,
@@ -162,7 +160,7 @@ export function useKeypointMeasurementWorkflow({
 
   useEffect(() => {
     if (!isLateralView || canUseKeypoints || !imageNaturalSize) return;
-    void runLateralDetectionCache({ lateralDetectionResultRef });
+    void runLateralDetectionCache({ imageId, lateralDetectionResultRef });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     imageId,
@@ -410,8 +408,7 @@ export function useKeypointMeasurementWorkflow({
       const sourceMeasurement = measurementId
         ? measurements.find(measurement => measurement.id === measurementId)
         : null;
-      const dynamicVertebraLabel =
-        sourceMeasurement?.apexVertebra ?? undefined;
+      const dynamicVertebraLabel = sourceMeasurement?.apexVertebra ?? undefined;
 
       const { vertebraeLayer: nextLayer, cfhAnnotation: nextCfh } =
         applyMeasurementPointToVertebrae(
@@ -490,8 +487,7 @@ export function useKeypointMeasurementWorkflow({
     setShowVertebraeLayer,
     activeVertebraeLayer,
     completeVertebraGroups,
-    aiMeasurementIdsRef:
-      aiMeasurementIdsRef as MutableRefObject<Set<string>>,
+    aiMeasurementIdsRef: aiMeasurementIdsRef as MutableRefObject<Set<string>>,
     lateralDetectionResultRef:
       lateralDetectionResultRef as MutableRefObject<LateralDetectionCache | null>,
     deriveKeypointMeasurements,
