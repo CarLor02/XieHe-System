@@ -69,7 +69,6 @@ it('numbers AI Cobb measurements and uses the configured Cobb colors', async () 
       },
       imageNaturalSize: { width: 1000, height: 1000 },
       setImageNaturalSize: jest.fn(),
-      measurements: [],
       setMeasurements: next => {
         capturedMeasurements =
           typeof next === 'function' ? next(capturedMeasurements) : next;

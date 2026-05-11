@@ -7,7 +7,6 @@ import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-v
 import {
   CfhAnnotation,
   MeasurementData,
-  Point,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
@@ -42,11 +41,46 @@ export function areKeypointsEqual(
 }
 
 export function isDerivedCobbMeasurement(measurement: MeasurementData): boolean {
+  const typeId = getAnnotationTypeId(measurement.type);
   return (
     measurement.id.startsWith(`${DERIVED_ID_PREFIX}cobb-`) &&
-    getAnnotationTypeId(measurement.type) === 'cobb' &&
+    (typeId === 'cobb' || /^cobb\d+$/i.test(typeId)) &&
     Boolean(measurement.upperVertebra && measurement.lowerVertebra)
   );
+}
+
+function countNumberedCobbMeasurements(
+  measurements: MeasurementData[]
+): number {
+  return measurements.filter(measurement =>
+    /^cobb\d+$/i.test(getAnnotationTypeId(measurement.type))
+  ).length;
+}
+
+function applyCobbSequenceTypes(
+  measurements: MeasurementData[],
+  startingCobbCount: number,
+  calculationContext: CalculationContext
+): MeasurementData[] {
+  let cobbCount = startingCobbCount;
+
+  return measurements.map(measurement => {
+    if (!isDerivedCobbMeasurement(measurement)) {
+      return measurement;
+    }
+
+    cobbCount += 1;
+    const type = `cobb${cobbCount}`;
+    return {
+      ...measurement,
+      type,
+      value: calculateMeasurementValue(
+        type,
+        measurement.points,
+        calculationContext
+      ),
+    };
+  });
 }
 
 export function removeKeypointsById(
@@ -300,6 +334,18 @@ export function rebuildKeypointMeasurements({
       (!hasExistingDerivedCobb && !boundCobbIds.has(measurement.id))
   );
 
+  const retainedPreviousMeasurements = previousMeasurements.filter(
+    measurement =>
+      !measurement.id.startsWith(DERIVED_ID_PREFIX) &&
+      !aiMeasurementIds.has(measurement.id) &&
+      !(
+        measurement.type === 'vertebra-center' &&
+        measurement.upperVertebra
+      ) &&
+      measurement.id !== 'ap-keypoint-avt' &&
+      measurement.id !== 'ap-keypoint-tts'
+  );
+
   const boundCobbMeasurements = previousMeasurements
     .filter(isDerivedCobbMeasurement)
     .map(measurement =>
@@ -355,20 +401,15 @@ export function rebuildKeypointMeasurements({
       })
     : null;
 
+  const rebuiltDerivedMeasurements = applyCobbSequenceTypes(
+    [...derivedWithValues, ...boundCobbMeasurements],
+    countNumberedCobbMeasurements(retainedPreviousMeasurements),
+    calculationContext
+  );
+
   return filterUniqueAnnotationDuplicates([
-    ...previousMeasurements.filter(
-      measurement =>
-        !measurement.id.startsWith(DERIVED_ID_PREFIX) &&
-        !aiMeasurementIds.has(measurement.id) &&
-        !(
-          measurement.type === 'vertebra-center' &&
-          measurement.upperVertebra
-        ) &&
-        measurement.id !== 'ap-keypoint-avt' &&
-        measurement.id !== 'ap-keypoint-tts'
-    ),
-    ...derivedWithValues,
-    ...boundCobbMeasurements,
+    ...retainedPreviousMeasurements,
+    ...rebuiltDerivedMeasurements,
     ...centerMeasurements,
     ...(avtMeasurement ? [avtMeasurement] : []),
     ...(ttsMeasurement ? [ttsMeasurement] : []),

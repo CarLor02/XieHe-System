@@ -18,7 +18,6 @@ import {
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
-  keypointsToPersistedLayer,
   KeypointAnnotation,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
@@ -87,7 +86,6 @@ export async function runAiMeasurementWorkflow({
   imageData,
   imageNaturalSize,
   setImageNaturalSize,
-  measurements,
   setMeasurements,
   setPointBindings,
   setSaveMessage,
@@ -107,7 +105,6 @@ export async function runAiMeasurementWorkflow({
   imageData: ImageData;
   imageNaturalSize: ImageSize | null;
   setImageNaturalSize: (imageSize: ImageSize) => void;
-  measurements: MeasurementData[];
   setMeasurements: Dispatch<SetStateAction<MeasurementData[]>>;
   setPointBindings: (bindings: ReturnType<typeof createEmptyBindings>) => void;
   setSaveMessage: (message: string) => void;
@@ -169,9 +166,7 @@ export async function runAiMeasurementWorkflow({
         imageNaturalSize: actualImageSize,
       };
 
-      let cobbCount = measurements.filter(measurement =>
-        /^cobb\d+$/i.test(measurement.type)
-      ).length;
+      let cobbCount = 0;
 
       const aiMeasurements = filterUniqueAnnotationDuplicates(
         aiData.measurements
