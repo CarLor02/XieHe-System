@@ -38,15 +38,30 @@ function resolveAiMeasurementUrl(examType?: string | null): string {
   return getDefaultAiMeasurementUrl();
 }
 
+function resolveAiUploadMimeType(blob: Blob): 'image/png' | 'image/jpeg' {
+  const mimeType = blob.type.toLowerCase().split(';')[0].trim();
+  if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
+    return 'image/jpeg';
+  }
+  return 'image/png';
+}
+
+export function createAiImageUploadFile(blob: Blob): File {
+  const mimeType = resolveAiUploadMimeType(blob);
+  const filename = mimeType === 'image/jpeg' ? 'image.jpg' : 'image.png';
+  return new File([blob], filename, { type: mimeType });
+}
+
 export async function getAiMeasurementsResponse(
   imageId: string,
   examType?: string | null
 ): Promise<PredictMeasurementsResponse> {
   const numericId = imageIdToNumericId(imageId);
   const imageBlob = await downloadImageFile(Number(numericId));
+  const imageFile = createAiImageUploadFile(imageBlob);
 
   const formData = new FormData();
-  formData.append('file', imageBlob, 'image.png');
+  formData.append('file', imageFile, imageFile.name);
   formData.append('image_id', imageId);
 
   return requestJsonFromUrl<PredictMeasurementsResponse>(
