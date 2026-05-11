@@ -154,7 +154,7 @@ generate_dotenv_files() {
 
     # --- 生成各类密钥 ---
     DB_PASSWORD="$(generate_secret | head -c 24)"
-    MYSQL_ROOT_PASSWORD="$(generate_secret | head -c 24)"
+    MYSQL_ROOT_PASSWORD="${DB_PASSWORD}"   # root 用户密码必须与 DB_PASSWORD 一致
     JWT_SECRET="$(generate_secret)"
     MINIO_USER="minioadmin"
     MINIO_PASSWORD="$(generate_secret | head -c 20)"
