@@ -523,7 +523,7 @@ print_summary() {
             storage_token=$(grep "^STORAGE_SERVICE_TOKEN=" "$PROJECT_DIR/dotenv/.env.storage" | cut -d= -f2)
         echo -e "${CYAN}手动启动 AI 服务（如有模型权重）：${NC}"
         echo -e "  ${YELLOW}cd ${PROJECT_DIR}${NC}"
-        echo -e "  ${YELLOW}export STORAGE_SERVICE_URL=http://localhost:3030/internal/model-storage${NC}"
+        echo -e "  ${YELLOW}export STORAGE_SERVICE_URL=http://localhost:8090${NC}"
         echo -e "  ${YELLOW}export STORAGE_SERVICE_TOKEN=${storage_token}${NC}"
         echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8001 --app-dir model/zhengmian &${NC}"
         echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8002 --app-dir model/cemian &${NC}"
