@@ -5,10 +5,17 @@
 
 set -e
 
+if [ -f .env.build ]; then
+    set -a
+    source .env.build
+    set +a
+fi
+
+: "${IMAGE_NAME:?IMAGE_NAME is required}"
+
 # 配置
-IMAGE_NAME="spine-scoliosis-api"
-CONTAINER_NAME="spine-scoliosis-api"
-PORT=8002
+CONTAINER_NAME="${CONTAINER_NAME:-spine-scoliosis-api}"
+PORT="${PORT:-8002}"
 
 echo "🚀 开始部署脊柱侧弯分析 API 服务..."
 echo ""
@@ -54,7 +61,24 @@ fi
 
 # 构建 Docker 镜像
 echo "🔨 正在构建 Docker 镜像..."
-docker build -t $IMAGE_NAME .
+BUILD_ARGS=(
+    --add-host=host.docker.internal:host-gateway
+    --build-arg "WEIGHTS_CACHE_BUST=$(date +%s)"
+)
+
+# 只有配置了 PROXY_PORT 才启用代理
+if [ -n "${PROXY_PORT:-}" ]; then
+    PROXY_HOST="${PROXY_HOST:-host.docker.internal}"
+
+    BUILD_ARGS+=(
+        --build-arg "HTTP_PROXY=http://${PROXY_HOST}:${PROXY_PORT}"
+        --build-arg "HTTPS_PROXY=http://${PROXY_HOST}:${PROXY_PORT}"
+        --build-arg "ALL_PROXY=socks5://${PROXY_HOST}:${PROXY_PORT}"
+        --build-arg "NO_PROXY=localhost,127.0.0.1,.local"
+    )
+fi
+
+docker build "${BUILD_ARGS[@]}" -t "$IMAGE_NAME" .
 
 # 运行容器
 echo "🚀 正在启动容器..."

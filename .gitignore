@@ -141,6 +141,7 @@ celerybeat.pid
 .envrc
 dotenv/.env.*
 !dotenv/.env.*.example
+model/*/.env.build
 .venv
 env/
 venv/

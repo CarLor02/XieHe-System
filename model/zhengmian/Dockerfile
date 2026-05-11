@@ -23,6 +23,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app.py .
 
+# Prevent cached model file layers from reusing stale weights.
+ARG WEIGHTS_CACHE_BUST=0
+RUN echo "$WEIGHTS_CACHE_BUST" > /dev/null
+
 # Copy model weights
 COPY weights/ ./weights/
 

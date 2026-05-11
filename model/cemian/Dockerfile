@@ -28,6 +28,10 @@ COPY keypoints_service.py .
 COPY metrics_calculator.py .
 COPY models.py .
 
+# Prevent cached model file layers from reusing stale weights.
+ARG WEIGHTS_CACHE_BUST=0
+RUN echo "$WEIGHTS_CACHE_BUST" > /dev/null
+
 # Copy model files
 COPY models/ ./models/
 
