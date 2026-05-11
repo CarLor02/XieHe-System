@@ -16,6 +16,7 @@ services:
         PIP_EXTRA_INDEX_URL: ${BUILD_PIP_EXTRA_INDEX_URL:-}
         PIP_TRUSTED_HOST: ${BUILD_PIP_TRUSTED_HOST:-}
         PIP_TIMEOUT: ${BUILD_PIP_TIMEOUT:-120}
+        APT_MIRROR: ${BUILD_APT_MIRROR:-}
     container_name: medical_backend
     restart: unless-stopped
     environment:
