@@ -10,18 +10,13 @@ import {
   CfhAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { AnnotationBindings, PointRef } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
-import { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { calculateMeasurementValue as calcMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
 import {
-  POINT_INHERITANCE_RULES,
-  SHARED_ANATOMICAL_POINT_GROUPS,
   getInheritedPoints,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
 import {
   imageToScreen as utilImageToScreen,
   screenToImage as utilScreenToImage,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
-import { INTERACTION_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 import { TransformContext } from '@/app/imaging/features/image-viewer/shared/types';
 import { useCanvasViewport } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useCanvasViewport';
 import { useCanvasSelection } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useCanvasSelection';
@@ -52,7 +47,6 @@ import {
 import { isDirectlyEditableAnnotation } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
 import {
   resolveMeasurementKeypointIds,
-  resolveMeasurementPointDragTarget,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-selection';
 
 export default function AnnotationCanvas({
@@ -175,6 +169,7 @@ export default function AnnotationCanvas({
     imageUrl,
     imageLoading,
     imageNaturalSize,
+    containerSize,
     handleImageLoad,
     handleWheel,
     handleDoubleClick,
@@ -408,6 +403,7 @@ export default function AnnotationCanvas({
     imageNaturalSize,
     imagePosition,
     imageScale,
+    containerSize: containerSize ?? undefined,
   });
 
   // 坐标转换函数：将图像坐标系转换为屏幕坐标系
@@ -522,6 +518,7 @@ export default function AnnotationCanvas({
       imageScale,
       imagePosition,
       imageNaturalSize,
+      containerSize: containerSize ?? undefined,
       selectionState,
       hoverState,
       hideAllLabels,
@@ -570,28 +567,6 @@ export default function AnnotationCanvas({
     });
     onKeypointDelete?.(keypointId);
   };
-
-  const handleMeasurementPointDragStart = useCallback(
-    (measurementId: string, pointIndex: number, screenPoint: Point) => {
-      const measurement = measurements.find(item => item.id === measurementId);
-      if (!measurement) return false;
-
-      const target = resolveMeasurementPointDragTarget(
-        measurement,
-        pointIndex,
-        keypoints
-      );
-      if (!target) return false;
-
-      setSelectedKeypointIds(new Set(target.keypointIds));
-      return vertebradDrag.handleKeypointsMouseDown(
-        target.keypointIds,
-        screenPoint.x,
-        screenPoint.y
-      );
-    },
-    [keypoints, measurements, vertebradDrag.handleKeypointsMouseDown]
-  );
 
   const pointer = useCanvasPointer({
     imageNaturalSize,
@@ -678,7 +653,7 @@ export default function AnnotationCanvas({
         // 角点拖拽中不转发给 pointer（避免误触绘图/图像平移逻辑）
         if (!handledKeypoint) pointer.onMouseMove(e);
       }}
-      onMouseUp={e => {
+      onMouseUp={() => {
         // 先结束角点拖拽（会触发 onVertebraeUpdate 回调），再交给 pointer
         if (showVertebraeLayer || vertebradDrag.isDragging) {
           vertebradDrag.handleMouseUp();

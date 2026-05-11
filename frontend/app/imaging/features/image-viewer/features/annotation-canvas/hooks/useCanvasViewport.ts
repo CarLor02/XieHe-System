@@ -44,6 +44,47 @@ export function useCanvasViewport({
     width: number;
     height: number;
   } | null>(null);
+  const [containerSize, setContainerSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const updateContainerSize = useCallback((width: number, height: number) => {
+    if (width <= 0 || height <= 0) return;
+
+    setContainerSize(previous => {
+      if (previous?.width === width && previous.height === height) {
+        return previous;
+      }
+      return { width, height };
+    });
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const measureContainer = () => {
+      const rect = container.getBoundingClientRect();
+      updateContainerSize(rect.width, rect.height);
+    };
+
+    measureContainer();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(entries => {
+        const entry = entries[0];
+        if (!entry) return;
+        updateContainerSize(entry.contentRect.width, entry.contentRect.height);
+      });
+
+      observer.observe(container);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', measureContainer);
+    return () => window.removeEventListener('resize', measureContainer);
+  }, [containerRef, updateContainerSize]);
 
   useEffect(() => {
     if (!centerOnPoint || !imageNaturalSize) return;
@@ -236,6 +277,7 @@ export function useCanvasViewport({
     imageUrl,
     imageLoading,
     imageNaturalSize,
+    containerSize,
     handleImageLoad,
     handleWheel,
     handleDoubleClick,
