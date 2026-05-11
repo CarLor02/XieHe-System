@@ -252,7 +252,9 @@ EOF
 
     # 前端 AI 端点根据是否部署 AI 决定
     local ai_base_url="http://${LAN_IP}"
-    # MODEL_STORAGE_ALLOWED_CIDR 放行宿主机 IP，让宿主机上的 AI 服务能拉取图片
+    # MODEL_STORAGE_ALLOWED_CIDR=0.0.0.0/0：单机部署时宿主机进程经 Docker NAT 进入容器，
+    # nginx 看到的源 IP 是 Docker bridge 网关（172.x.x.1），而非宿主机 LAN IP。
+    # CIDR 放全段，由 X-Storage-Service-Token 提供实际认证。
     write_if_missing ".env.frontend" <<EOF
 NEXT_PUBLIC_API_URL=http://${LAN_IP}:8080
 NEXT_PUBLIC_API_BASE_URL=http://${LAN_IP}:8080
@@ -262,7 +264,7 @@ NEXT_PUBLIC_AI_DETECT_URL=${ai_base_url}:8001/predict
 NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL=${ai_base_url}:8001/detect_keypoints
 NEXT_PUBLIC_AI_DETECT_LATERAL_URL=${ai_base_url}:8002/detect_and_keypoints
 NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL=${ai_base_url}:8002/detect
-MODEL_STORAGE_ALLOWED_CIDR=${LAN_IP}/32
+MODEL_STORAGE_ALLOWED_CIDR=0.0.0.0/0
 EOF
 }
 
@@ -521,7 +523,7 @@ print_summary() {
             storage_token=$(grep "^STORAGE_SERVICE_TOKEN=" "$PROJECT_DIR/dotenv/.env.storage" | cut -d= -f2)
         echo -e "${CYAN}手动启动 AI 服务（如有模型权重）：${NC}"
         echo -e "  ${YELLOW}cd ${PROJECT_DIR}${NC}"
-        echo -e "  ${YELLOW}export STORAGE_SERVICE_URL=http://${LAN_IP}:3030/internal/model-storage${NC}"
+        echo -e "  ${YELLOW}export STORAGE_SERVICE_URL=http://localhost:3030/internal/model-storage${NC}"
         echo -e "  ${YELLOW}export STORAGE_SERVICE_TOKEN=${storage_token}${NC}"
         echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8001 --app-dir model/zhengmian &${NC}"
         echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8002 --app-dir model/cemian &${NC}"
