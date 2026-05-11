@@ -261,12 +261,13 @@ export default function AddPatientPage() {
                       htmlFor="patient_id"
                       className="block text-sm font-medium text-gray-700 mb-2"
                     >
-                      患者编号
+                      患者编号 <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       id="patient_id"
                       name="patient_id"
+                      required
                       value={formData.patient_id}
                       readOnly
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
@@ -314,12 +315,11 @@ export default function AddPatientPage() {
                   {/* 出生日期 - 占1列 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      出生日期 <span className="text-red-500">*</span>
+                      出生日期
                     </label>
                     <BirthDatePicker
                       value={formData.birth_date}
                       onChange={handleBirthDateChange}
-                      required={true}
                     />
                   </div>
                 </div>
@@ -337,13 +337,12 @@ export default function AddPatientPage() {
                       htmlFor="phone"
                       className="block text-sm font-medium text-gray-700 mb-2"
                     >
-                      联系电话 <span className="text-red-500">*</span>
+                      联系电话
                     </label>
                     <input
                       type="tel"
                       id="phone"
                       name="phone"
-                      required
                       value={formData.phone}
                       onChange={handleInputChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"

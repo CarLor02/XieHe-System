@@ -2,7 +2,26 @@
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, date
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
+
+
+def _blank_string_to_none(value):
+    if isinstance(value, str):
+        value = value.strip()
+        return value or None
+    return value
+
+
+OPTIONAL_PATIENT_FIELDS = (
+    "birth_date",
+    "phone",
+    "email",
+    "address",
+    "emergency_contact_name",
+    "emergency_contact_phone",
+    "id_card",
+    "insurance_number",
+)
 
 class PatientBase(BaseModel):
     """患者基础信息模型"""
@@ -17,6 +36,11 @@ class PatientBase(BaseModel):
     emergency_contact_phone: Optional[str] = Field(None, description="紧急联系电话", max_length=20)
     id_card: Optional[str] = Field(None, description="身份证号", max_length=18)
     insurance_number: Optional[str] = Field(None, description="医保号", max_length=50)
+
+    @field_validator(*OPTIONAL_PATIENT_FIELDS, mode="before")
+    @classmethod
+    def normalize_blank_optional_values(cls, value):
+        return _blank_string_to_none(value)
 
 
 class PatientCreate(PatientBase):
@@ -36,6 +60,11 @@ class PatientUpdate(BaseModel):
     emergency_contact_phone: Optional[str] = Field(None, description="紧急联系电话", max_length=20)
     id_card: Optional[str] = Field(None, description="身份证号", max_length=18)
     insurance_number: Optional[str] = Field(None, description="医保号", max_length=50)
+
+    @field_validator(*OPTIONAL_PATIENT_FIELDS, mode="before")
+    @classmethod
+    def normalize_blank_optional_values(cls, value):
+        return _blank_string_to_none(value)
 
 
 class PatientResponse(BaseModel):
