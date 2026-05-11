@@ -95,6 +95,19 @@ function sortCornersGeometrically(pts: {x:number,y:number}[]): [Point,Point,Poin
     return [top[0], top[1], bot[0], bot[1]];
 }
 
+const FRONTAL_POSE_LABEL_TO_PATIENT_LEFT_SCREEN_LEFT: Record<string, string> = {
+    CR: 'CL',
+    CL: 'CR',
+    IR: 'IL',
+    IL: 'IR',
+    SR: 'SL',
+    SL: 'SR',
+};
+
+function normalizeFrontalPoseLabel(label: string): string {
+    return FRONTAL_POSE_LABEL_TO_PATIENT_LEFT_SCREEN_LEFT[label] ?? label;
+}
+
 // AI检测函数（仅检测椎骨，结果存入 vertebraeLayer，不混入 measurements[]）
 export async function aiDetect(
     imageData: ImageData,
@@ -234,8 +247,9 @@ export async function aiDetect(
                 Object.entries(aiData.pose_keypoints).forEach(([label, kp]: [string, any]) => {
                     if (kp && kp.x !== undefined && kp.y !== undefined) {
                         const pt = { x: kp.x, y: kp.y };
+                        const normalizedLabel = normalizeFrontalPoseLabel(label);
                         newVertebrae.push({
-                            label,
+                            label: normalizedLabel,
                             corners: [pt, pt, pt, pt], // pose 关键点只有中心，4角相同
                             confidence: kp.confidence ?? 1,
                             source: AnnotationSource.AI,
