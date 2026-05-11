@@ -177,8 +177,10 @@ BUILD_GOSUMDB=off
 BUILD_PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 BUILD_PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
 
-# apt-get 镜像（加速 Debian/Ubuntu 系统依赖安装）
+# apt-get 镜像（加速 Debian/Ubuntu 系统依赖安装，用于 backend）
 BUILD_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
+# apk 镜像（加速 Alpine 系统依赖安装，用于 frontend/nginx）
+BUILD_APK_MIRROR=mirrors.tuna.tsinghua.edu.cn
 
 # 如需 HTTP 代理（科学上网）可在此配置：
 # BUILD_HTTP_PROXY=http://${LAN_IP}:7890

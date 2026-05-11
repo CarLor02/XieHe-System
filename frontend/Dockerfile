@@ -19,9 +19,13 @@ ARG NO_PROXY
 ARG http_proxy
 ARG https_proxy
 ARG no_proxy
+ARG APK_MIRROR
 
 # 安装系统依赖（包括 sharp 所需的构建工具）
-RUN apk add --no-cache \
+RUN if [ -n "$APK_MIRROR" ]; then \
+        sed -i "s/dl-cdn.alpinelinux.org/${APK_MIRROR}/g" /etc/apk/repositories; \
+    fi && \
+    apk add --no-cache \
     libc6-compat \
     python3 \
     make \
@@ -107,6 +111,7 @@ ARG NO_PROXY
 ARG http_proxy
 ARG https_proxy
 ARG no_proxy
+ARG APK_MIRROR
 
 # 安全加固: 移除所有可能被利用的工具
 RUN rm -f /usr/bin/wget /bin/wget \
@@ -120,7 +125,10 @@ RUN rm -f /usr/bin/wget /bin/wget \
           2>/dev/null || true
 
 # 安装 curl 用于健康检查，gettext 提供 envsubst 生成运行时 Nginx 配置
-RUN apk add --no-cache curl gettext
+RUN if [ -n "$APK_MIRROR" ]; then \
+        sed -i "s/dl-cdn.alpinelinux.org/${APK_MIRROR}/g" /etc/apk/repositories; \
+    fi && \
+    apk add --no-cache curl gettext
 
 # 安全加固: 清理恶意文件目录
 RUN rm -rf /tmp/.XIN-unix /tmp/.X11-unix /tmp/.* \
