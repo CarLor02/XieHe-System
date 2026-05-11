@@ -35,6 +35,12 @@ export interface UserUpdateData {
   title?: string;
 }
 
+export interface PasswordChangeData {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
+}
+
 export interface AvatarUploadPartUrl {
   part_number: number;
   url: string;
@@ -48,6 +54,12 @@ export interface AvatarUploadSession {
   expires_in: number;
   parts: AvatarUploadPartUrl[];
 }
+
+type ApiRequestConfigWithAuthBypass = NonNullable<
+  Parameters<typeof apiClient.put>[2]
+> & {
+  _skipAuthRefresh?: boolean;
+};
 
 /**
  * 获取当前用户信息
@@ -77,6 +89,16 @@ export async function updateCurrentUser(data: UserUpdateData): Promise<UserInfo>
   return extractData<UserInfo>(response);
 }
 
+export async function changeCurrentUserPassword(
+  data: PasswordChangeData
+): Promise<void> {
+  const response = await apiClient.post('/api/v1/auth/password/change', data);
+
+  if (!isSuccessResponse(response)) {
+    throw new Error(response.data?.message || '修改密码失败');
+  }
+}
+
 export async function createAvatarUploadSession(file: File): Promise<AvatarUploadSession> {
   const response = await apiClient.post('/api/v1/auth/me/avatar/upload-session', {
     filename: file.name,
@@ -92,11 +114,16 @@ export async function uploadCurrentUserAvatar(file: File): Promise<UserInfo> {
   for (const part of session.parts) {
     const start = (part.part_number - 1) * session.part_size;
     const end = Math.min(start + session.part_size, file.size);
-    const uploadResponse = await apiClient.put(part.url, file.slice(start, end), {
+    const uploadConfig: ApiRequestConfigWithAuthBypass = {
       headers: { 'Content-Type': 'application/octet-stream' },
       transformRequest: [(data: Blob) => data],
       _skipAuthRefresh: true,
-    } as any);
+    };
+    const uploadResponse = await apiClient.put(
+      part.url,
+      file.slice(start, end),
+      uploadConfig
+    );
     const etag = uploadResponse.headers?.etag || uploadResponse.headers?.ETag;
     if (!etag) {
       throw new Error('对象存储未返回头像分片 ETag');

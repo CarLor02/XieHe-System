@@ -4,7 +4,7 @@ import jwt
 import pytest
 
 from app.api.v1.endpoints.access.handlers import auth as auth_handlers
-from app.api.v1.endpoints.access.schemas.auth import TokenRefresh
+from app.api.v1.endpoints.access.schemas.auth import PasswordChange, TokenRefresh
 from app.core.access.security import hash_password, security_manager, verify_password
 
 
@@ -62,6 +62,18 @@ class FakeRefreshDb:
         return FakeRefreshResult()
 
 
+class FakePasswordChangeDb:
+    def __init__(self):
+        self.executed = []
+        self.committed = False
+
+    def execute(self, sql, params):
+        self.executed.append((str(sql), params))
+
+    def commit(self):
+        self.committed = True
+
+
 @pytest.mark.asyncio
 async def test_refresh_token_reloads_active_user_and_preserves_admin_claims(monkeypatch):
     refresh_payload = {
@@ -106,6 +118,51 @@ async def test_refresh_token_reloads_active_user_and_preserves_admin_claims(monk
         "patient_manage",
         "system_manage",
     ]
+
+
+@pytest.mark.asyncio
+async def test_change_password_updates_current_user_password_hash(monkeypatch):
+    db = FakePasswordChangeDb()
+
+    monkeypatch.setattr(
+        auth_handlers,
+        "get_user_by_username_or_email",
+        lambda db, username: {
+            "id": 7,
+            "username": username,
+            "password_hash": "old-hash",
+        },
+    )
+    monkeypatch.setattr(
+        auth_handlers,
+        "verify_password",
+        lambda plain_password, hashed_password: (
+            plain_password == "old-password" and hashed_password == "old-hash"
+        ),
+    )
+    monkeypatch.setattr(
+        auth_handlers,
+        "hash_password",
+        lambda plain_password: "new-hash",
+    )
+
+    response = await auth_handlers.change_password(
+        PasswordChange(
+            current_password="old-password",
+            new_password="new-password",
+            confirm_password="new-password",
+        ),
+        current_user={"id": 7, "username": "doctor"},
+        db=db,
+    )
+
+    assert db.committed is True
+    assert len(db.executed) == 1
+    sql, params = db.executed[0]
+    assert "UPDATE users" in sql
+    assert "password_hash" in sql
+    assert params == {"password_hash": "new-hash", "user_id": 7}
+    assert response["message"] == "密码修改成功"
 
 
 class TestPasswordSecurity:

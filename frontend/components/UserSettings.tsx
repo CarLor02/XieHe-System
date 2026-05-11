@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import {
+  changeCurrentUserPassword,
   deleteCurrentUserAvatar,
   getCurrentUser,
   uploadCurrentUserAvatar,
@@ -216,6 +217,54 @@ export default function UserSettings({
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!formData.currentPassword) {
+      alert('请输入当前密码');
+      return;
+    }
+    if (!formData.newPassword) {
+      alert('请输入新密码');
+      return;
+    }
+    if (formData.newPassword.length < 6) {
+      alert('新密码至少6位');
+      return;
+    }
+    if (formData.newPassword !== formData.confirmPassword) {
+      alert('两次输入的新密码不一致');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await changeCurrentUserPassword({
+        current_password: formData.currentPassword,
+        new_password: formData.newPassword,
+        confirm_password: formData.confirmPassword,
+      });
+      setFormData(prev => ({
+        ...prev,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      }));
+      alert('密码修改成功');
+    } catch (error: unknown) {
+      const responseError = error as {
+        message?: string;
+        response?: { data?: { detail?: string; message?: string } };
+      };
+      const errorMsg =
+        responseError.response?.data?.detail ||
+        responseError.response?.data?.message ||
+        responseError.message ||
+        '修改密码失败，请重试';
+      alert(errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const tabs: Array<{
     id: 'profile' | 'organization' | 'password' | 'system';
     name: string;
@@ -282,55 +331,60 @@ export default function UserSettings({
                     </div>
                   ) : (
                     <div className="space-y-6">
-	                      <div className="flex items-center space-x-6">
-	                        <div className="w-20 h-20 overflow-hidden rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg">
-	                          {userInfo?.avatar_url ? (
-	                            <img
-	                              src={userInfo.avatar_url}
-	                              alt="用户头像"
-	                              className="h-full w-full object-cover"
-	                            />
-	                          ) : (
-	                            <span className="text-2xl font-bold text-white">
-	                              {formData.real_name
-	                                ? formData.real_name.charAt(0).toUpperCase()
-	                                : formData.username
-	                                  ? formData.username.charAt(0).toUpperCase()
-	                                  : 'U'}
-	                            </span>
-	                          )}
-	                        </div>
-	                        <div>
-	                          <input
-	                            ref={avatarInputRef}
-	                            type="file"
-	                            accept="image/png,image/jpeg,image/webp"
-	                            className="hidden"
-	                            onChange={event =>
-	                              void handleAvatarSelected(event.target.files?.[0])
-	                            }
-	                          />
-	                          <button
-	                            type="button"
-	                            disabled={avatarUploading}
-	                            onClick={() => avatarInputRef.current?.click()}
-	                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-	                          >
-	                            {avatarUploading ? '处理中...' : '更换头像'}
-	                          </button>
-	                          {userInfo?.avatar_url && (
-	                            <button
-	                              type="button"
-	                              disabled={avatarUploading}
-	                              onClick={() => void handleDeleteAvatar()}
-	                              className="ml-2 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-	                            >
-	                              删除头像
-	                            </button>
-	                          )}
-	                          <p className="text-xs text-gray-500 mt-2">支持 PNG、JPEG、WebP</p>
-	                        </div>
-	                      </div>
+                      <div className="flex items-center space-x-6">
+                        <div className="w-20 h-20 overflow-hidden rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg">
+                          {userInfo?.avatar_url ? (
+                            <div
+                              aria-label="用户头像"
+                              className="h-full w-full bg-cover bg-center"
+                              role="img"
+                              style={{
+                                backgroundImage: `url(${userInfo.avatar_url})`,
+                              }}
+                            />
+                          ) : (
+                            <span className="text-2xl font-bold text-white">
+                              {formData.real_name
+                                ? formData.real_name.charAt(0).toUpperCase()
+                                : formData.username
+                                  ? formData.username.charAt(0).toUpperCase()
+                                  : 'U'}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <input
+                            ref={avatarInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            className="hidden"
+                            onChange={event =>
+                              void handleAvatarSelected(event.target.files?.[0])
+                            }
+                          />
+                          <button
+                            type="button"
+                            disabled={avatarUploading}
+                            onClick={() => avatarInputRef.current?.click()}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {avatarUploading ? '处理中...' : '更换头像'}
+                          </button>
+                          {userInfo?.avatar_url && (
+                            <button
+                              type="button"
+                              disabled={avatarUploading}
+                              onClick={() => void handleDeleteAvatar()}
+                              className="ml-2 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              删除头像
+                            </button>
+                          )}
+                          <p className="text-xs text-gray-500 mt-2">
+                            支持 PNG、JPEG、WebP
+                          </p>
+                        </div>
+                      </div>
 
                       <div className="grid grid-cols-2 gap-6">
                         <div>
@@ -707,8 +761,12 @@ export default function UserSettings({
                 </button>
               )}
               {activeTab === 'password' && (
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  修改密码
+                <button
+                  onClick={handleChangePassword}
+                  disabled={saving || loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? '修改中...' : '修改密码'}
                 </button>
               )}
             </div>

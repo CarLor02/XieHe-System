@@ -615,8 +615,23 @@ async def change_password(
         if not verify_password(password_change.current_password, user["password_hash"]):
             raise AuthenticationException("当前密码错误")
 
-        # 这里应该更新数据库中的密码
+        from sqlalchemy import text
+
         new_password_hash = hash_password(password_change.new_password)
+        db.execute(
+            text("""
+            UPDATE users
+            SET password_hash = :password_hash,
+                updated_at = NOW()
+            WHERE id = :user_id
+              AND is_deleted = 0
+            """),
+            {
+                "password_hash": new_password_hash,
+                "user_id": current_user["id"],
+            },
+        )
+        db.commit()
 
         logger.info(f"密码修改成功: {current_user['username']}")
 
