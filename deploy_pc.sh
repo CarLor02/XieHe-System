@@ -238,16 +238,16 @@ USER_AVATAR_BUCKET=medical-user-avatars
 EOF
 
     # --- .env.backend ---
-    # host.docker.internal 指向宿主机（backend.yml 已配置 extra_hosts），
-    # 无论 AI 服务是手动启动还是通过 Docker 运行，backend 容器都能访问到。
+    # AI 服务运行在宿主机时，backend 容器通过宿主机 LAN IP 访问
+    # （host.docker.internal 在某些 Linux 环境不可用，用实际 IP 更可靠）
     write_if_missing ".env.backend" <<EOF
 JWT_SECRET_KEY=${JWT_SECRET}
 FORWARDED_ALLOW_IPS=*
 CORS_ORIGINS=http://${LAN_IP}:3030,http://localhost:3030
-AI_FRONT_PREDICT_OBJECT_URL=http://host.docker.internal:8001/predict_object
-AI_FRONT_KEYPOINTS_OBJECT_URL=http://host.docker.internal:8001/detect_keypoints_object
-AI_LATERAL_PREDICT_OBJECT_URL=http://host.docker.internal:8002/api/detect_and_keypoints_object
-AI_LATERAL_DETECT_OBJECT_URL=http://host.docker.internal:8002/api/detect_object
+AI_FRONT_PREDICT_OBJECT_URL=http://${LAN_IP}:8001/predict_object
+AI_FRONT_KEYPOINTS_OBJECT_URL=http://${LAN_IP}:8001/detect_keypoints_object
+AI_LATERAL_PREDICT_OBJECT_URL=http://${LAN_IP}:8002/api/detect_and_keypoints_object
+AI_LATERAL_DETECT_OBJECT_URL=http://${LAN_IP}:8002/api/detect_object
 EOF
 
     # 前端 AI 端点根据是否部署 AI 决定
