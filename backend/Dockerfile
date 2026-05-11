@@ -43,8 +43,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 复制依赖文件并安装（先安装依赖以利用Docker缓存）
 COPY backend/requirements.txt .
-RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --upgrade pip \
+        ${PIP_INDEX_URL:+--index-url "$PIP_INDEX_URL"} \
+        ${PIP_TRUSTED_HOST:+--trusted-host "$PIP_TRUSTED_HOST"} && \
+    python -m pip install --no-cache-dir -r requirements.txt \
+        ${PIP_INDEX_URL:+--index-url "$PIP_INDEX_URL"} \
+        ${PIP_TRUSTED_HOST:+--trusted-host "$PIP_TRUSTED_HOST"} \
+        ${PIP_TIMEOUT:+--timeout "$PIP_TIMEOUT"}
 
 # 复制应用代码
 COPY backend/ .
