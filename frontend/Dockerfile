@@ -51,7 +51,9 @@ ARG NPM_FOREGROUND_SCRIPTS=false
 ARG NPM_TIMING=false
 
 # 安装前端 workspace 依赖（使用 --legacy-peer-deps 解决 React 19 兼容性问题）
-RUN if [ "$NPM_FOREGROUND_SCRIPTS" = "true" ]; then \
+# --mount=type=cache 把 npm 缓存留在宿主机，重建时跳过已下载的包
+RUN --mount=type=cache,target=/root/.npm \
+    if [ "$NPM_FOREGROUND_SCRIPTS" = "true" ]; then \
       npm ci --workspace frontend --legacy-peer-deps --no-audit --no-fund \
         --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING" --foreground-scripts; \
     else \
