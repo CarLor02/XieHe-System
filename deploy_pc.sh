@@ -29,9 +29,27 @@
 #   ./deploy_pc.sh --update-ip            # 服务器 IP 变更后只更新配置
 #常见命令
 #git fetch origin && git reset --hard origin/main 拉取
+#./deploy_pc.sh --skip-pull --reset-env 重建参数，修改后不会覆盖数据库愿密码
+#./model/zhengmian/start_host.sh --stop
+#./model/zhengmian/start_host.sh --stop
+# 停止所有 uvicorn 进程（小心，会停掉所有 uvicorn） pkill -f "uvicorn app:app"
+# 启动所有 AI 服务（zhengmian + cemian）./manage_ai.sh start
+# 停止所有 AI 服务 ./manage_ai.sh stop
+# 重启所有 AI 服务 ./manage_ai.sh restart
+# 查看所有服务状态 ./manage_ai.sh status
+# 实时查看所有服务日志（同时显示两个日志） ./manage_ai.sh logs
+# 查看帮助 ./manage_ai.sh help
+#修改IP
+# 运行脚本，会提示输入新 IP./change_ip.sh
 ################################################################################
 
 set -euo pipefail
+
+# ==================== 固定密码配置 ====================
+# 如果设置为固定值，则使用固定密码；留空则生成随机密码
+FIXED_MYSQL_PASSWORD="xiehe_mysql_2024"
+FIXED_MINIO_PASSWORD="xiehe_minio_2024"
+# ====================================================
 
 # ==================== 颜色 ====================
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -159,8 +177,12 @@ generate_dotenv_files() {
     }
 
     # --- 生成各类密钥 ---
-    # 检测 MySQL 容器是否正在运行，如果是则保留旧密码（避免 --reset-env 导致密码不匹配）
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^medical_mysql$"; then
+    # MySQL 密码：优先使用固定密码，否则检测容器或生成随机密码
+    if [ -n "$FIXED_MYSQL_PASSWORD" ]; then
+        DB_PASSWORD="$FIXED_MYSQL_PASSWORD"
+        MYSQL_ROOT_PASSWORD="$FIXED_MYSQL_PASSWORD"
+        print_info "使用固定 MySQL 密码: ${FIXED_MYSQL_PASSWORD:0:8}***"
+    elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^medical_mysql$"; then
         OLD_DB_PASSWORD=$(docker exec medical_mysql printenv MYSQL_ROOT_PASSWORD 2>/dev/null || echo "")
         if [ -n "$OLD_DB_PASSWORD" ]; then
             DB_PASSWORD="$OLD_DB_PASSWORD"
@@ -177,8 +199,12 @@ generate_dotenv_files() {
         print_info "未检测到运行中的 MySQL 容器，生成新密码"
     fi
 
-    # 检测 MinIO 容器是否正在运行，如果是则保留旧密码
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^medical_minio$"; then
+    # MinIO 密码：优先使用固定密码，否则检测容器或生成随机密码
+    if [ -n "$FIXED_MINIO_PASSWORD" ]; then
+        MINIO_USER="minioadmin"
+        MINIO_PASSWORD="$FIXED_MINIO_PASSWORD"
+        print_info "使用固定 MinIO 密码: ${FIXED_MINIO_PASSWORD:0:8}***"
+    elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^medical_minio$"; then
         OLD_MINIO_USER=$(docker exec medical_minio printenv MINIO_ROOT_USER 2>/dev/null || echo "")
         OLD_MINIO_PASSWORD=$(docker exec medical_minio printenv MINIO_ROOT_PASSWORD 2>/dev/null || echo "")
         if [ -n "$OLD_MINIO_USER" ] && [ -n "$OLD_MINIO_PASSWORD" ]; then
