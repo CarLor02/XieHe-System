@@ -27,6 +27,8 @@
 #   ./deploy_pc.sh --with-ai --gpu        # 含 AI 推理（GPU 模式）
 #   ./deploy_pc.sh --with-ai --ip 192.168.1.100
 #   ./deploy_pc.sh --update-ip            # 服务器 IP 变更后只更新配置
+#常见命令
+#git fetch origin && git reset --hard origin/main 拉取
 ################################################################################
 
 set -euo pipefail
@@ -157,11 +159,45 @@ generate_dotenv_files() {
     }
 
     # --- 生成各类密钥 ---
-    DB_PASSWORD="$(generate_secret | head -c 24)"
-    MYSQL_ROOT_PASSWORD="${DB_PASSWORD}"   # root 用户密码必须与 DB_PASSWORD 一致
+    # 检测 MySQL 容器是否正在运行，如果是则保留旧密码（避免 --reset-env 导致密码不匹配）
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^medical_mysql$"; then
+        OLD_DB_PASSWORD=$(docker exec medical_mysql printenv MYSQL_ROOT_PASSWORD 2>/dev/null || echo "")
+        if [ -n "$OLD_DB_PASSWORD" ]; then
+            DB_PASSWORD="$OLD_DB_PASSWORD"
+            MYSQL_ROOT_PASSWORD="$OLD_DB_PASSWORD"
+            print_info "检测到运行中的 MySQL 容器，保留现有密码（避免数据丢失）"
+        else
+            DB_PASSWORD="$(generate_secret | head -c 24)"
+            MYSQL_ROOT_PASSWORD="${DB_PASSWORD}"
+            print_warning "MySQL 容器运行中但无法读取密码，生成新密码"
+        fi
+    else
+        DB_PASSWORD="$(generate_secret | head -c 24)"
+        MYSQL_ROOT_PASSWORD="${DB_PASSWORD}"
+        print_info "未检测到运行中的 MySQL 容器，生成新密码"
+    fi
+
+    # 检测 MinIO 容器是否正在运行，如果是则保留旧密码
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^medical_minio$"; then
+        OLD_MINIO_USER=$(docker exec medical_minio printenv MINIO_ROOT_USER 2>/dev/null || echo "")
+        OLD_MINIO_PASSWORD=$(docker exec medical_minio printenv MINIO_ROOT_PASSWORD 2>/dev/null || echo "")
+        if [ -n "$OLD_MINIO_USER" ] && [ -n "$OLD_MINIO_PASSWORD" ]; then
+            MINIO_USER="$OLD_MINIO_USER"
+            MINIO_PASSWORD="$OLD_MINIO_PASSWORD"
+            print_info "检测到运行中的 MinIO 容器，保留现有凭据"
+        else
+            MINIO_USER="minioadmin"
+            MINIO_PASSWORD="$(generate_secret | head -c 20)"
+            print_warning "MinIO 容器运行中但无法读取凭据，生成新凭据"
+        fi
+    else
+        MINIO_USER="minioadmin"
+        MINIO_PASSWORD="$(generate_secret | head -c 20)"
+        print_info "未检测到运行中的 MinIO 容器，生成新凭据"
+    fi
+
+    # 其他密钥（JWT、Storage Token）总是重新生成
     JWT_SECRET="$(generate_secret)"
-    MINIO_USER="minioadmin"
-    MINIO_PASSWORD="$(generate_secret | head -c 20)"
     STORAGE_TOKEN="$(generate_secret | head -c 32)"
 
     # --- .env.runtime ---
