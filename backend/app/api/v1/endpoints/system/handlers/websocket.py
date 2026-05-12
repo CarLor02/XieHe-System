@@ -15,7 +15,6 @@ import json
 import asyncio
 from typing import Dict, List, Set, Optional, Any
 from datetime import datetime, timedelta
-import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from fastapi.websockets import WebSocketState
@@ -24,10 +23,9 @@ from sqlalchemy.orm import Session
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.core.system.cache import get_cache_manager
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
 
-logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -58,7 +56,7 @@ class ConnectionManager:
             "subscriptions": set()
         }
         
-        logger.info(f"WebSocket连接建立: user_id={user_id}, connection_id={connection_id}")
+        logger.emit_event(LogLevel.INFO, message=f"WebSocket连接建立: user_id={user_id}, connection_id={connection_id}")
         
         # 发送连接确认消息
         await self.send_personal_message({
@@ -88,10 +86,10 @@ class ConnectionManager:
                 
                 del self.connection_metadata[connection_id]
             
-            logger.info(f"WebSocket连接断开: user_id={user_id}, connection_id={connection_id}")
+            logger.emit_event(LogLevel.INFO, message=f"WebSocket连接断开: user_id={user_id}, connection_id={connection_id}")
             
         except Exception as e:
-            logger.error(f"断开连接时发生错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"断开连接时发生错误: {e}")
     
     async def send_personal_message(self, message: dict, user_id: str, connection_id: str = None):
         """发送个人消息"""
@@ -109,7 +107,7 @@ class ConnectionManager:
                         await websocket.send_text(message_str)
                         return True
                 except Exception as e:
-                    logger.error(f"发送个人消息失败: {e}")
+                    logger.emit_event(LogLevel.ERROR, message=f"发送个人消息失败: {e}")
                     self.disconnect(user_id, connection_id)
         else:
             # 发送到用户的所有连接
@@ -124,7 +122,7 @@ class ConnectionManager:
                     else:
                         connections_to_remove.append(conn_id)
                 except Exception as e:
-                    logger.error(f"发送消息到连接 {conn_id} 失败: {e}")
+                    logger.emit_event(LogLevel.ERROR, message=f"发送消息到连接 {conn_id} 失败: {e}")
                     connections_to_remove.append(conn_id)
             
             # 清理失效连接
@@ -160,7 +158,7 @@ class ConnectionManager:
                     else:
                         self.disconnect(user_id, connection_id)
                 except Exception as e:
-                    logger.error(f"广播消息失败: {e}")
+                    logger.emit_event(LogLevel.ERROR, message=f"广播消息失败: {e}")
                     self.disconnect(user_id, connection_id)
         
         return success_count
@@ -179,7 +177,7 @@ class ConnectionManager:
         if connection_id in self.connection_metadata:
             self.connection_metadata[connection_id]["subscriptions"].add(channel)
         
-        logger.info(f"用户订阅频道: user_id={user_id}, connection_id={connection_id}, channel={channel}")
+        logger.emit_event(LogLevel.INFO, message=f"用户订阅频道: user_id={user_id}, connection_id={connection_id}, channel={channel}")
     
     def unsubscribe(self, user_id: str, connection_id: str, channel: str):
         """取消订阅频道"""
@@ -198,7 +196,7 @@ class ConnectionManager:
         if connection_id in self.connection_metadata:
             self.connection_metadata[connection_id]["subscriptions"].discard(channel)
         
-        logger.info(f"用户取消订阅频道: user_id={user_id}, connection_id={connection_id}, channel={channel}")
+        logger.emit_event(LogLevel.INFO, message=f"用户取消订阅频道: user_id={user_id}, connection_id={connection_id}, channel={channel}")
     
     def get_connection_stats(self) -> dict:
         """获取连接统计信息"""
@@ -266,7 +264,7 @@ async def websocket_endpoint(
                     "timestamp": datetime.now().isoformat()
                 }, user_id, connection_id)
             except Exception as e:
-                logger.error(f"处理WebSocket消息时发生错误: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"处理WebSocket消息时发生错误: {e}")
                 await manager.send_personal_message({
                     "type": "error",
                     "message": "消息处理失败",
@@ -274,7 +272,7 @@ async def websocket_endpoint(
                 }, user_id, connection_id)
     
     except Exception as e:
-        logger.error(f"WebSocket连接错误: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"WebSocket连接错误: {e}")
     finally:
         manager.disconnect(user_id, connection_id)
 
@@ -366,7 +364,7 @@ async def send_dashboard_data(user_id: str, connection_id: str, db: Session):
         await manager.send_personal_message(dashboard_data, user_id, connection_id)
         
     except Exception as e:
-        logger.error(f"发送仪表板数据失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"发送仪表板数据失败: {e}")
 
 # WebSocket管理API端点
 @router.get("/ws/stats", response_model=Dict[str, Any])

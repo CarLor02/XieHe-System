@@ -16,7 +16,7 @@ from sqlalchemy import text
 
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from app.models.image import ImageAnnotation
 from app.models.image_file import ImageFile
@@ -27,7 +27,6 @@ from ..schemas.annotations import (
     MeasurementsResponse,
 )
 
-logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -112,7 +111,7 @@ async def get_measurements(
                 )
                 measurements.append(measurement)
             except Exception as e:
-                logger.warning(f"转换标注数据失败: {e}, 跳过此标注")
+                logger.emit_event(LogLevel.WARNING, message=f"转换标注数据失败: {e}, 跳过此标注")
                 continue
 
         return success_response(
@@ -127,7 +126,7 @@ async def get_measurements(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取测量数据失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取测量数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取测量数据失败"
@@ -249,13 +248,13 @@ async def save_measurements(
                     {"now": datetime.now(), "image_file_id": image_file_id}
                 )
                 db.commit()
-                logger.info(f"影像文件 {image_file_id} 状态已更新为 PROCESSED")
+                logger.emit_event(LogLevel.INFO, message=f"影像文件 {image_file_id} 状态已更新为 PROCESSED")
             except Exception as e:
-                logger.warning(f"更新影像文件状态失败: {e}")
+                logger.emit_event(LogLevel.WARNING, message=f"更新影像文件状态失败: {e}")
                 # 不影响主流程，继续执行
 
         log_msg = f"保存测量数据成功: ImageFile ID {image_file_id}, 共 {len(request.measurements)} 条标注"
-        logger.info(log_msg)
+        logger.emit_event(LogLevel.INFO, message=log_msg)
 
         return success_response(
             data={
@@ -269,7 +268,7 @@ async def save_measurements(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"保存测量数据失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"保存测量数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="保存测量数据失败"

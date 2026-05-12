@@ -23,8 +23,7 @@ from app.core.system.cache import get_cache_manager
 from app.core.system.response import success_response
 from app.core.system.errors import ErrorCode
 
-import logging
-logger = logging.getLogger(__name__)
+from app.core.system.logger import LogLevel, logger
 
 router = APIRouter()
 
@@ -94,7 +93,7 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
         return _user_auth_dict(user_row)
 
     except Exception as e:
-        logger.error(f"查询用户失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"查询用户失败: {e}")
         return None
 
 
@@ -123,7 +122,7 @@ def get_user_by_id(db: Session, user_id: int) -> Dict[str, Any]:
         return _user_auth_dict(user_row)
 
     except Exception as e:
-        logger.error(f"按ID查询用户失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"按ID查询用户失败: {e}")
         return None
 
 
@@ -198,7 +197,7 @@ async def get_active_avatar_url(user) -> str | None:
             expires_in=config_settings.STORAGE_PRESIGN_EXPIRES_SECONDS,
         )
     except Exception as exc:
-        logger.warning(f"获取用户头像临时地址失败: {exc}")
+        logger.emit_event(LogLevel.WARNING, message=f"获取用户头像临时地址失败: {exc}")
         return None
 
 
@@ -273,7 +272,7 @@ async def login(
         tokens = create_user_tokens(user, login_data.remember_me)
 
         # 记录登录日志
-        logger.info(f"用户登录成功: {user['username']} ({user['email']})")
+        logger.emit_event(LogLevel.INFO, message=f"用户登录成功: {user['username']} ({user['email']})")
 
         # 返回前端期望的格式
         tokens_dict = tokens.dict()
@@ -303,7 +302,7 @@ async def login(
     except AuthenticationException:
         raise
     except Exception as e:
-        logger.error(f"登录失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"登录失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="登录过程中发生错误"
@@ -389,7 +388,7 @@ async def register(
         }
 
         # 记录注册日志
-        logger.info(f"用户注册成功: {new_user['username']} ({new_user['email']})")
+        logger.emit_event(LogLevel.INFO, message=f"用户注册成功: {new_user['username']} ({new_user['email']})")
 
         return success_response(
             data={
@@ -408,7 +407,7 @@ async def register(
     except (AuthenticationException, BusinessLogicException):
         raise
     except Exception as e:
-        logger.error(f"注册失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"注册失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="注册过程中发生错误"
@@ -449,7 +448,7 @@ async def refresh_token(
         token_response = create_user_tokens(user)
         new_tokens = token_response.model_dump()
 
-        logger.info("令牌刷新成功")
+        logger.emit_event(LogLevel.INFO, message="令牌刷新成功")
 
         return success_response(
             data={"tokens": new_tokens},
@@ -459,7 +458,7 @@ async def refresh_token(
     except AuthenticationException:
         raise
     except Exception as e:
-        logger.error(f"令牌刷新失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"令牌刷新失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="令牌刷新过程中发生错误"
@@ -482,7 +481,7 @@ async def logout(
         if credentials:
             security_manager.blacklist_token(credentials.credentials)
 
-        logger.info(f"用户登出成功: {current_user['username']}")
+        logger.emit_event(LogLevel.INFO, message=f"用户登出成功: {current_user['username']}")
 
         return success_response(
             data=None,
@@ -490,7 +489,7 @@ async def logout(
         )
 
     except Exception as e:
-        logger.error(f"登出失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"登出失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="登出过程中发生错误"
@@ -522,7 +521,7 @@ async def request_password_reset(
         # 这里应该发送重置邮件
         # send_password_reset_email(user["email"], reset_token)
 
-        logger.info(f"密码重置请求: {user['email']}")
+        logger.emit_event(LogLevel.INFO, message=f"密码重置请求: {user['email']}")
 
         return success_response(
             data={"reset_token": reset_token},  # 仅用于测试，生产环境不应返回
@@ -530,7 +529,7 @@ async def request_password_reset(
         )
 
     except Exception as e:
-        logger.error(f"密码重置请求失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"密码重置请求失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="密码重置请求过程中发生错误"
@@ -571,7 +570,7 @@ async def confirm_password_reset(
         cache_manager = get_cache_manager()
         cache_manager.delete(cache_key)
 
-        logger.info(f"密码重置成功: 用户ID {user_id}")
+        logger.emit_event(LogLevel.INFO, message=f"密码重置成功: 用户ID {user_id}")
 
         return success_response(
             data=None,
@@ -581,7 +580,7 @@ async def confirm_password_reset(
     except (AuthenticationException, BusinessLogicException):
         raise
     except Exception as e:
-        logger.error(f"密码重置确认失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"密码重置确认失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="密码重置确认过程中发生错误"
@@ -633,7 +632,7 @@ async def change_password(
         )
         db.commit()
 
-        logger.info(f"密码修改成功: {current_user['username']}")
+        logger.emit_event(LogLevel.INFO, message=f"密码修改成功: {current_user['username']}")
 
         return success_response(
             data=None,
@@ -643,7 +642,7 @@ async def change_password(
     except (AuthenticationException, BusinessLogicException):
         raise
     except Exception as e:
-        logger.error(f"密码修改失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"密码修改失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="密码修改过程中发生错误"
@@ -677,7 +676,7 @@ async def get_current_user_info(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取用户信息失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取用户信息失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户信息失败"
@@ -707,7 +706,7 @@ async def update_current_user_info(
 
         # 更新用户信息
         update_data = user_data.dict(exclude_unset=True)
-        logger.info(f"收到更新请求，用户ID: {current_user['id']}, 更新数据: {update_data}")
+        logger.emit_event(LogLevel.INFO, message=f"收到更新请求，用户ID: {current_user['id']}, 更新数据: {update_data}")
 
         # 如果更新手机号，检查是否已存在
         if 'phone' in update_data and update_data['phone']:
@@ -722,23 +721,23 @@ async def update_current_user_info(
                 )
 
         # 记录更新前的值
-        logger.info(f"更新前的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
+        logger.emit_event(LogLevel.INFO, message=f"更新前的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
 
         # 更新字段
         for field, value in update_data.items():
-            logger.info(f"设置字段 {field} = {value}")
+            logger.emit_event(LogLevel.INFO, message=f"设置字段 {field} = {value}")
             setattr(user, field, value)
 
         # 记录更新后的值
-        logger.info(f"更新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
+        logger.emit_event(LogLevel.INFO, message=f"更新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
 
         db.commit()
-        logger.info("数据库提交成功")
+        logger.emit_event(LogLevel.INFO, message="数据库提交成功")
 
         db.refresh(user)
-        logger.info(f"刷新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
+        logger.emit_event(LogLevel.INFO, message=f"刷新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
 
-        logger.info(f"用户信息更新成功: {user.username}")
+        logger.emit_event(LogLevel.INFO, message=f"用户信息更新成功: {user.username}")
 
         return success_response(
             data=(await build_user_response(user, current_user, db)).dict(),
@@ -747,7 +746,7 @@ async def update_current_user_info(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"更新用户信息失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"更新用户信息失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -797,7 +796,7 @@ async def create_avatar_upload_session(
         )
         return success_response(data=response.dict(), message="头像上传会话创建成功")
     except StorageServiceError as exc:
-        logger.error(f"创建头像上传会话失败: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"创建头像上传会话失败: {exc}")
         raise HTTPException(status_code=502, detail="对象存储服务不可用")
 
 
@@ -839,11 +838,11 @@ async def complete_avatar_upload(
         )
     except StorageServiceError as exc:
         db.rollback()
-        logger.error(f"完成头像上传失败: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"完成头像上传失败: {exc}")
         raise HTTPException(status_code=502, detail="对象存储服务不可用")
     except Exception as exc:
         db.rollback()
-        logger.error(f"完成头像上传失败: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"完成头像上传失败: {exc}")
         raise HTTPException(status_code=500, detail="完成头像上传失败")
 
 

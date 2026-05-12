@@ -10,7 +10,7 @@
 import asyncio
 import time
 import psutil
-import logging
+from app.core.system.logger import LogLevel, logger
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
@@ -20,7 +20,6 @@ import statistics
 from app.core.database.session import get_db
 from sqlalchemy import text
 
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -120,7 +119,7 @@ class MonitoringService:
         if not self.is_running:
             self.is_running = True
             self.collection_task = asyncio.create_task(self._collect_system_metrics())
-            logger.info("性能监控服务已启动")
+            logger.emit_event(LogLevel.INFO, message="性能监控服务已启动")
     
     async def stop(self):
         """停止监控服务"""
@@ -132,7 +131,7 @@ class MonitoringService:
                     await self.collection_task
                 except asyncio.CancelledError:
                     pass
-            logger.info("性能监控服务已停止")
+            logger.emit_event(LogLevel.INFO, message="性能监控服务已停止")
     
     async def record_api_response_time(
         self, 
@@ -158,7 +157,7 @@ class MonitoringService:
         
         # 检查是否超过阈值
         if response_time > self.thresholds["api_response_time"]:
-            logger.warning(f"API响应时间过长: {endpoint} {method} - {response_time:.2f}s")
+            logger.emit_event(LogLevel.WARNING, message=f"API响应时间过长: {endpoint} {method} - {response_time:.2f}s")
     
     async def record_db_query_time(
         self, 
@@ -182,7 +181,7 @@ class MonitoringService:
         
         # 检查是否超过阈值
         if query_time > self.thresholds["db_query_time"]:
-            logger.warning(f"数据库查询时间过长: {table_name} {query_type} - {query_time:.2f}s")
+            logger.emit_event(LogLevel.WARNING, message=f"数据库查询时间过长: {table_name} {query_type} - {query_time:.2f}s")
     
     async def _collect_system_metrics(self):
         """收集系统指标"""
@@ -242,7 +241,7 @@ class MonitoringService:
                 await asyncio.sleep(self.collection_interval)
                 
             except Exception as e:
-                logger.error(f"收集系统指标失败: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"收集系统指标失败: {e}")
                 await asyncio.sleep(5)
     
     async def _collect_db_metrics(self):
@@ -277,7 +276,7 @@ class MonitoringService:
             self.collector.add_metric(size_metric)
             
         except Exception as e:
-            logger.error(f"收集数据库指标失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"收集数据库指标失败: {e}")
         finally:
             if db:
                 db.close()
@@ -296,7 +295,7 @@ class MonitoringService:
             alerts.append(f"磁盘使用率过高: {disk_percent:.1f}%")
         
         for alert in alerts:
-            logger.warning(alert)
+            logger.emit_event(LogLevel.WARNING, message=alert)
     
     def get_current_status(self) -> Dict[str, Any]:
         """获取当前系统状态"""
@@ -328,7 +327,7 @@ class MonitoringService:
             }
             
         except Exception as e:
-            logger.error(f"获取系统状态失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"获取系统状态失败: {e}")
             return {"error": str(e)}
     
     def _get_current_alerts(self) -> List[str]:
@@ -366,7 +365,7 @@ class MonitoringService:
     def update_thresholds(self, new_thresholds: Dict[str, float]):
         """更新性能阈值"""
         self.thresholds.update(new_thresholds)
-        logger.info(f"性能阈值已更新: {new_thresholds}")
+        logger.emit_event(LogLevel.INFO, message=f"性能阈值已更新: {new_thresholds}")
 
 
 # 创建全局监控服务实例
@@ -425,7 +424,7 @@ def monitor_performance(endpoint: str = None, query_type: str = None):
                 return result
             except Exception as e:
                 response_time = time.time() - start_time
-                logger.error(f"监控的函数执行失败: {func.__name__} - {response_time:.2f}s - {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"监控的函数执行失败: {func.__name__} - {response_time:.2f}s - {e}")
                 raise e
         
         if asyncio.iscoroutinefunction(func):

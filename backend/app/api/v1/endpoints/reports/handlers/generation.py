@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from app.models.image import ImageAnnotation
 from app.models.patient import Patient
@@ -26,7 +26,6 @@ from ..schemas.generation import (
     GenerateReportResponse,
 )
 
-logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -149,7 +148,7 @@ async def generate_report(
         # 渲染报告
         report = TemplateService.render_template(template, data)
 
-        logger.info(f"成功生成报告: {request.imageId}, 类型: {request.examType}")
+        logger.emit_event(LogLevel.INFO, message=f"成功生成报告: {request.imageId}, 类型: {request.examType}")
 
         return success_response(
             data={
@@ -162,7 +161,7 @@ async def generate_report(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"生成报告失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"生成报告失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"生成报告失败: {str(e)}"

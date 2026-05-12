@@ -24,14 +24,13 @@ from pydantic import BaseModel, Field
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.models.report import DiagnosticReport
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from ..schemas.export import (
     ExportRequest,
     BatchExportRequest,
     ExportResponse,
 )
 
-logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -85,7 +84,7 @@ async def export_single_report(
         # 获取文件大小
         file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
         
-        logger.info(f"报告导出成功: {report.report_number} -> {format}")
+        logger.emit_event(LogLevel.INFO, message=f"报告导出成功: {report.report_number} -> {format}")
         
         return ExportResponse(
             task_id=task_id,
@@ -99,7 +98,7 @@ async def export_single_report(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"报告导出失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"报告导出失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="报告导出失败"
@@ -152,7 +151,7 @@ async def export_batch_reports(
             request.watermark
         )
         
-        logger.info(f"批量导出任务创建: {task_id}, 报告数量: {len(reports)}")
+        logger.emit_event(LogLevel.INFO, message=f"批量导出任务创建: {task_id}, 报告数量: {len(reports)}")
         
         return ExportResponse(
             task_id=task_id,
@@ -164,7 +163,7 @@ async def export_batch_reports(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"批量导出失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"批量导出失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="批量导出失败"
@@ -206,7 +205,7 @@ async def download_exported_file(
             media_type = "application/octet-stream"
             filename = f"report_{task_id}"
         
-        logger.info(f"下载导出文件: {filename}")
+        logger.emit_event(LogLevel.INFO, message=f"下载导出文件: {filename}")
         
         file_handle = open(file_path, "rb")
         return StreamingResponse(
@@ -219,7 +218,7 @@ async def download_exported_file(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"文件下载失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"文件下载失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="文件下载失败"
@@ -256,7 +255,7 @@ async def get_export_status(
             }
         
     except Exception as e:
-        logger.error(f"获取导出状态失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取导出状态失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取导出状态失败"
@@ -337,7 +336,7 @@ async def export_to_pdf(report, template=None, include_images=True, watermark=No
         return temp_file.name
         
     except Exception as e:
-        logger.error(f"PDF导出失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"PDF导出失败: {e}")
         raise Exception(f"PDF导出失败: {e}")
 
 async def export_to_word(report, template=None, include_images=True, watermark=None):
@@ -388,7 +387,7 @@ async def export_to_word(report, template=None, include_images=True, watermark=N
         return temp_file.name
         
     except Exception as e:
-        logger.error(f"Word导出失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"Word导出失败: {e}")
         raise Exception(f"Word导出失败: {e}")
 
 async def export_to_image(report, template=None, include_images=True, watermark=None):
@@ -455,7 +454,7 @@ async def export_to_image(report, template=None, include_images=True, watermark=
         return temp_file.name
         
     except Exception as e:
-        logger.error(f"图片导出失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"图片导出失败: {e}")
         raise Exception(f"图片导出失败: {e}")
 
 async def export_to_html(report, template=None, include_images=True, watermark=None):
@@ -528,14 +527,14 @@ async def export_to_html(report, template=None, include_images=True, watermark=N
         return temp_file.name
         
     except Exception as e:
-        logger.error(f"HTML导出失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"HTML导出失败: {e}")
         raise Exception(f"HTML导出失败: {e}")
 
 # 后台任务处理函数
 async def process_batch_export(task_id, reports, format, template, include_images, watermark):
     """处理批量导出任务"""
     try:
-        logger.info(f"开始批量导出任务: {task_id}")
+        logger.emit_event(LogLevel.INFO, message=f"开始批量导出任务: {task_id}")
         
         # 创建导出目录
         export_dir = "/tmp/exports"
@@ -558,7 +557,7 @@ async def process_batch_export(task_id, reports, format, template, include_image
                 exported_files.append(file_path)
                 
             except Exception as e:
-                logger.error(f"报告 {report.id} 导出失败: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"报告 {report.id} 导出失败: {e}")
                 continue
         
         # 如果有多个文件，打包成ZIP
@@ -580,8 +579,8 @@ async def process_batch_export(task_id, reports, format, template, include_image
         else:
             raise Exception("没有成功导出任何报告")
         
-        logger.info(f"批量导出任务完成: {task_id}, 文件: {final_path}")
+        logger.emit_event(LogLevel.INFO, message=f"批量导出任务完成: {task_id}, 文件: {final_path}")
         
     except Exception as e:
-        logger.error(f"批量导出任务失败: {task_id}, 错误: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"批量导出任务失败: {task_id}, 错误: {e}")
         raise

@@ -16,14 +16,13 @@ from email.mime.base import MIMEBase
 from email import encoders
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-import logging
+from app.core.system.logger import LogLevel, logger
 from jinja2 import Template, Environment, FileSystemLoader
 import aiofiles
 import aiosmtplib
 
 from app.core.system.config import settings
 
-logger = logging.getLogger(__name__)
 
 
 class EmailTemplate:
@@ -255,11 +254,11 @@ class EmailService:
                 use_tls=self.smtp_use_tls
             )
             
-            logger.info(f"邮件发送成功: {to_email} - {subject}")
+            logger.emit_event(LogLevel.INFO, message=f"邮件发送成功: {to_email} - {subject}")
             return True
             
         except Exception as e:
-            logger.error(f"邮件发送失败: {to_email} - {subject} - {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"邮件发送失败: {to_email} - {subject} - {e}")
             return False
     
     async def send_template_email(
@@ -272,7 +271,7 @@ class EmailService:
     ) -> bool:
         """使用模板发送邮件"""
         if template_name not in self.templates:
-            logger.error(f"邮件模板不存在: {template_name}")
+            logger.emit_event(LogLevel.ERROR, message=f"邮件模板不存在: {template_name}")
             return False
         
         template = self.templates[template_name]
@@ -318,7 +317,7 @@ class EmailService:
         tasks = [send_single_email(email_data) for email_data in emails]
         await asyncio.gather(*tasks, return_exceptions=True)
         
-        logger.info(f"批量邮件发送完成: 成功 {results['success']}, 失败 {results['failed']}")
+        logger.emit_event(LogLevel.INFO, message=f"批量邮件发送完成: 成功 {results['success']}, 失败 {results['failed']}")
         return results
     
     async def _add_attachment(self, message: MIMEMultipart, file_path: str):
@@ -326,7 +325,7 @@ class EmailService:
         try:
             file_path = Path(file_path)
             if not file_path.exists():
-                logger.warning(f"附件文件不存在: {file_path}")
+                logger.emit_event(LogLevel.WARNING, message=f"附件文件不存在: {file_path}")
                 return
             
             async with aiofiles.open(file_path, 'rb') as f:
@@ -342,12 +341,12 @@ class EmailService:
             message.attach(part)
             
         except Exception as e:
-            logger.error(f"添加附件失败: {file_path} - {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"添加附件失败: {file_path} - {e}")
     
     def add_template(self, template: EmailTemplate):
         """添加邮件模板"""
         self.templates[template.name] = template
-        logger.info(f"邮件模板已添加: {template.name}")
+        logger.emit_event(LogLevel.INFO, message=f"邮件模板已添加: {template.name}")
     
     def get_template(self, name: str) -> Optional[EmailTemplate]:
         """获取邮件模板"""
@@ -368,11 +367,11 @@ class EmailService:
                 if self.smtp_username and self.smtp_password:
                     await smtp.login(self.smtp_username, self.smtp_password)
                 
-                logger.info("SMTP连接测试成功")
+                logger.emit_event(LogLevel.INFO, message="SMTP连接测试成功")
                 return True
                 
         except Exception as e:
-            logger.error(f"SMTP连接测试失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"SMTP连接测试失败: {e}")
             return False
 
 

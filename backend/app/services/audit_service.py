@@ -14,12 +14,11 @@ from typing import Dict, Any, Optional, List
 from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-import logging
+from app.core.system.logger import LogLevel, logger
 
 from app.core.database.session import get_db
 from app.models.user import User
 
-logger = logging.getLogger(__name__)
 
 
 class AuditAction(str, Enum):
@@ -129,7 +128,7 @@ class AuditService:
         if not self._running:
             self._running = True
             self._task = asyncio.create_task(self._process_logs())
-            logger.info("审计服务已启动")
+            logger.emit_event(LogLevel.INFO, message="审计服务已启动")
     
     async def stop(self):
         """停止审计服务"""
@@ -141,14 +140,14 @@ class AuditService:
                     await self._task
                 except asyncio.CancelledError:
                     pass
-            logger.info("审计服务已停止")
+            logger.emit_event(LogLevel.INFO, message="审计服务已停止")
     
     async def log(self, audit_log: AuditLog):
         """记录审计日志"""
         try:
             await self.log_queue.put(audit_log)
         except Exception as e:
-            logger.error(f"添加审计日志到队列失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"添加审计日志到队列失败: {e}")
     
     async def log_action(
         self,
@@ -212,7 +211,7 @@ class AuditService:
                     last_flush = now
                     
             except Exception as e:
-                logger.error(f"处理审计日志失败: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"处理审计日志失败: {e}")
                 await asyncio.sleep(1)
     
     async def _flush_batch(self, batch: List[AuditLog]):
@@ -261,10 +260,10 @@ class AuditService:
                 db.execute(text(insert_sql), audit_log.to_dict())
             
             db.commit()
-            logger.info(f"成功写入 {len(batch)} 条审计日志")
+            logger.emit_event(LogLevel.INFO, message=f"成功写入 {len(batch)} 条审计日志")
             
         except Exception as e:
-            logger.error(f"批量写入审计日志失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"批量写入审计日志失败: {e}")
             if db:
                 db.rollback()
         finally:
@@ -336,7 +335,7 @@ class AuditService:
             return logs
             
         except Exception as e:
-            logger.error(f"查询审计日志失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"查询审计日志失败: {e}")
             return []
         finally:
             if db:
@@ -429,7 +428,7 @@ class AuditService:
             }
             
         except Exception as e:
-            logger.error(f"获取审计统计失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"获取审计统计失败: {e}")
             return {}
         finally:
             if db:

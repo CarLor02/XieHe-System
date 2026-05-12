@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-import logging
+from app.core.system.logger import LogLevel, logger
 import json
 
 from app.core.access.auth import get_current_active_user
@@ -26,7 +26,6 @@ from ..schemas.errors import (
     ErrorStats,
 )
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -87,12 +86,10 @@ async def report_error(
             error_storage.pop(0)
         
         # 记录到日志
-        logger.error(
-            f"Frontend Error Report - ID: {error_report.errorId}, "
+        logger.emit_event(LogLevel.ERROR, message=f"Frontend Error Report - ID: {error_report.errorId}, "
             f"Type: {error_report.type}, Severity: {error_report.severity}, "
             f"Message: {error_report.message}, URL: {error_report.url}, "
-            f"User: {error_report.userId}, IP: {client_ip}"
-        )
+            f"User: {error_report.userId}, IP: {client_ip}")
         
         # 后台处理错误
         background_tasks.add_task(
@@ -108,7 +105,7 @@ async def report_error(
         )
         
     except Exception as e:
-        logger.error(f"处理错误报告失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"处理错误报告失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="处理错误报告失败"
@@ -195,7 +192,7 @@ async def get_error_stats(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取错误统计失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取错误统计失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取错误统计失败"
@@ -224,7 +221,7 @@ async def clear_error_logs(
             )
         
         # 记录操作
-        logger.info(f"用户 {current_user.username} 清空了错误日志")
+        logger.emit_event(LogLevel.INFO, message=f"用户 {current_user.username} 清空了错误日志")
 
         # 清空错误存储
         error_count = len(error_storage)
@@ -240,7 +237,7 @@ async def clear_error_logs(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"清空错误日志失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"清空错误日志失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="清空错误日志失败"
@@ -273,16 +270,14 @@ async def process_error_report(error_record: Dict[str, Any]):
         await detect_error_patterns(error_record)
         
     except Exception as e:
-        logger.error(f"后台处理错误报告失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"后台处理错误报告失败: {e}")
 
 
 async def handle_critical_error(error_record: Dict[str, Any]):
     """处理严重错误"""
-    logger.critical(
-        f"严重错误检测 - ID: {error_record.get('id')}, "
+    logger.emit_event(LogLevel.ERROR, message=f"严重错误检测 - ID: {error_record.get('id')}, "
         f"消息: {error_record.get('message')}, "
-        f"用户: {error_record.get('userId')}"
-    )
+        f"用户: {error_record.get('userId')}")
     
     # 这里可以添加告警通知逻辑
     # 例如：发送邮件、短信、Slack通知等
@@ -290,14 +285,14 @@ async def handle_critical_error(error_record: Dict[str, Any]):
 
 async def handle_network_error(error_record: Dict[str, Any]):
     """处理网络错误"""
-    logger.warning(f"网络错误检测 - {error_record.get('message')}")
+    logger.emit_event(LogLevel.WARNING, message=f"网络错误检测 - {error_record.get('message')}")
     
     # 这里可以添加网络监控逻辑
 
 
 async def handle_auth_error(error_record: Dict[str, Any]):
     """处理认证错误"""
-    logger.warning(f"认证错误检测 - 用户: {error_record.get('userId')}")
+    logger.emit_event(LogLevel.WARNING, message=f"认证错误检测 - 用户: {error_record.get('userId')}")
     
     # 这里可以添加安全监控逻辑
 

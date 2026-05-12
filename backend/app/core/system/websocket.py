@@ -11,12 +11,11 @@ import json
 import asyncio
 from typing import Dict, List, Set, Optional, Any
 from datetime import datetime
-import logging
+from app.core.system.logger import LogLevel, logger
 
 from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketState
 
-logger = logging.getLogger(__name__)
 
 
 class WebSocketManager:
@@ -55,7 +54,7 @@ class WebSocketManager:
                 self.user_subscriptions[user_id] = {}
             self.user_subscriptions[user_id][connection_id] = set()
             
-            logger.info(f"WebSocket连接建立: user_id={user_id}, connection_id={connection_id}")
+            logger.emit_event(LogLevel.INFO, message=f"WebSocket连接建立: user_id={user_id}, connection_id={connection_id}")
             
             # 发送连接确认消息
             await self.send_personal_message({
@@ -66,7 +65,7 @@ class WebSocketManager:
             }, user_id, connection_id)
             
         except Exception as e:
-            logger.error(f"WebSocket连接失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"WebSocket连接失败: {e}")
             raise
     
     def disconnect(self, user_id: str, connection_id: str):
@@ -97,10 +96,10 @@ class WebSocketManager:
             if connection_id in self.connection_metadata:
                 del self.connection_metadata[connection_id]
             
-            logger.info(f"WebSocket连接断开: user_id={user_id}, connection_id={connection_id}")
+            logger.emit_event(LogLevel.INFO, message=f"WebSocket连接断开: user_id={user_id}, connection_id={connection_id}")
             
         except Exception as e:
-            logger.error(f"WebSocket断开连接失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"WebSocket断开连接失败: {e}")
     
     def subscribe(self, user_id: str, connection_id: str, channel: str):
         """订阅频道"""
@@ -123,10 +122,10 @@ class WebSocketManager:
             if connection_id in self.connection_metadata:
                 self.connection_metadata[connection_id]["subscriptions"].add(channel)
             
-            logger.debug(f"用户订阅频道: user_id={user_id}, connection_id={connection_id}, channel={channel}")
+            logger.emit_event(LogLevel.DEBUG, message=f"用户订阅频道: user_id={user_id}, connection_id={connection_id}, channel={channel}")
             
         except Exception as e:
-            logger.error(f"订阅频道失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"订阅频道失败: {e}")
     
     def unsubscribe(self, user_id: str, connection_id: str, channel: str):
         """取消订阅频道"""
@@ -151,10 +150,10 @@ class WebSocketManager:
             if connection_id in self.connection_metadata:
                 self.connection_metadata[connection_id]["subscriptions"].discard(channel)
             
-            logger.debug(f"用户取消订阅频道: user_id={user_id}, connection_id={connection_id}, channel={channel}")
+            logger.emit_event(LogLevel.DEBUG, message=f"用户取消订阅频道: user_id={user_id}, connection_id={connection_id}, channel={channel}")
             
         except Exception as e:
-            logger.error(f"取消订阅频道失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"取消订阅频道失败: {e}")
     
     async def send_personal_message(self, message: dict, user_id: str, connection_id: str = None):
         """发送个人消息"""
@@ -178,14 +177,14 @@ class WebSocketManager:
                             await websocket.send_text(json.dumps(message, ensure_ascii=False))
                             success_count += 1
                         except Exception as e:
-                            logger.warning(f"发送消息失败: connection_id={conn_id}, error={e}")
+                            logger.emit_event(LogLevel.WARNING, message=f"发送消息失败: connection_id={conn_id}, error={e}")
                 
                 return success_count > 0
             
             return False
             
         except Exception as e:
-            logger.error(f"发送个人消息失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"发送个人消息失败: {e}")
             return False
     
     async def broadcast_to_channel(self, message: dict, channel: str):
@@ -200,11 +199,11 @@ class WebSocketManager:
                     if await self.send_personal_message(message, user_id, connection_id):
                         success_count += 1
             
-            logger.debug(f"频道广播完成: channel={channel}, success_count={success_count}")
+            logger.emit_event(LogLevel.DEBUG, message=f"频道广播完成: channel={channel}, success_count={success_count}")
             return success_count
             
         except Exception as e:
-            logger.error(f"频道广播失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"频道广播失败: {e}")
             return 0
     
     async def broadcast_to_all(self, message: dict):
@@ -215,11 +214,11 @@ class WebSocketManager:
                 if await self.send_personal_message(message, user_id):
                     success_count += 1
             
-            logger.debug(f"全局广播完成: success_count={success_count}")
+            logger.emit_event(LogLevel.DEBUG, message=f"全局广播完成: success_count={success_count}")
             return success_count
             
         except Exception as e:
-            logger.error(f"全局广播失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"全局广播失败: {e}")
             return 0
     
     def get_connection_count(self) -> int:

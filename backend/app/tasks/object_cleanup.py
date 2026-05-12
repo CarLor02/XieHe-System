@@ -6,12 +6,11 @@ import asyncio
 from datetime import datetime, timedelta
 
 from app.core.database.session import SessionLocal
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.models.image_file import ImageFile
 from app.models.user import User
 from app.services.storage_gateway import StorageServiceError, storage_gateway
 
-logger = get_logger(__name__)
 
 
 def _seconds_until_next_midnight() -> float:
@@ -40,9 +39,9 @@ async def cleanup_soft_deleted_objects() -> None:
                     bucket=image.storage_bucket,
                     object_key=image.object_key,
                 )
-                logger.info(f"已物理删除影像对象: {image.storage_bucket}/{image.object_key}")
+                logger.emit_event(LogLevel.INFO, message=f"已物理删除影像对象: {image.storage_bucket}/{image.object_key}")
             except StorageServiceError as exc:
-                logger.warning(f"物理删除影像对象失败，将下次重试: {exc}")
+                logger.emit_event(LogLevel.WARNING, message=f"物理删除影像对象失败，将下次重试: {exc}")
 
         users = db.query(User).filter(
             User.avatar_deleted_at.isnot(None),
@@ -60,14 +59,14 @@ async def cleanup_soft_deleted_objects() -> None:
                 user.avatar_object_key = None
                 user.avatar_storage_etag = None
                 user.avatar_deleted_at = None
-                logger.info(f"已物理删除用户头像对象: user={user.id}")
+                logger.emit_event(LogLevel.INFO, message=f"已物理删除用户头像对象: user={user.id}")
             except StorageServiceError as exc:
-                logger.warning(f"物理删除用户头像失败，将下次重试: {exc}")
+                logger.emit_event(LogLevel.WARNING, message=f"物理删除用户头像失败，将下次重试: {exc}")
 
         db.commit()
     except Exception as exc:
         db.rollback()
-        logger.error(f"对象存储清理任务失败: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"对象存储清理任务失败: {exc}")
     finally:
         db.close()
 

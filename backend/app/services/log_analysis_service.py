@@ -8,7 +8,7 @@
 """
 
 import asyncio
-import logging
+from app.core.system.logger import LogLevel, logger
 import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
@@ -18,7 +18,6 @@ import json
 import os
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -150,16 +149,16 @@ class LogAnalysisService:
                 if log_file.exists():
                     loaded = await self._parse_log_file(log_file, start_time, end_time)
                     total_loaded += loaded
-                    logger.info(f"从 {log_file} 加载了 {loaded} 条日志")
+                    logger.emit_event(LogLevel.INFO, message=f"从 {log_file} 加载了 {loaded} 条日志")
             
             # 按时间排序
             self.log_entries.sort(key=lambda x: x.timestamp)
             
-            logger.info(f"总共加载了 {total_loaded} 条日志")
+            logger.emit_event(LogLevel.INFO, message=f"总共加载了 {total_loaded} 条日志")
             return total_loaded
             
         except Exception as e:
-            logger.error(f"加载日志失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"加载日志失败: {e}")
             return 0
     
     async def _parse_log_file(
@@ -184,7 +183,7 @@ class LogAnalysisService:
                         loaded_count += 1
                         
         except Exception as e:
-            logger.error(f"解析日志文件 {log_file} 失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"解析日志文件 {log_file} 失败: {e}")
         
         return loaded_count
     
@@ -231,7 +230,7 @@ class LogAnalysisService:
             return None
             
         except Exception as e:
-            logger.debug(f"解析日志行失败 (行 {line_num}): {e}")
+            logger.emit_event(LogLevel.DEBUG, message=f"解析日志行失败 (行 {line_num}): {e}")
             return None
     
     async def analyze_logs(
@@ -310,7 +309,7 @@ class LogAnalysisService:
             return result
             
         except Exception as e:
-            logger.error(f"日志分析失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"日志分析失败: {e}")
             raise
     
     async def _analyze_error_patterns(self, entries: List[LogEntry]) -> List[Dict[str, Any]]:
@@ -460,7 +459,7 @@ class LogAnalysisService:
             return [entry.to_dict() for entry in filtered_entries]
             
         except Exception as e:
-            logger.error(f"搜索日志失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"搜索日志失败: {e}")
             return []
     
     async def get_log_statistics(
@@ -506,13 +505,13 @@ class LogAnalysisService:
             }
             
         except Exception as e:
-            logger.error(f"获取日志统计失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"获取日志统计失败: {e}")
             return {}
     
     def clear_cache(self):
         """清理缓存"""
         self.analysis_cache.clear()
-        logger.info("日志分析缓存已清理")
+        logger.emit_event(LogLevel.INFO, message="日志分析缓存已清理")
 
 
 # 创建全局日志分析服务实例

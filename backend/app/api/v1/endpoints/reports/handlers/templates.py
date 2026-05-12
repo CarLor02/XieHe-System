@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.models.report import ReportTemplate, TemplateTypeEnum, ReportTypeEnum
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from ..schemas.templates import (
     TemplateContentSection,
     TemplateContent,
@@ -29,7 +29,6 @@ from ..schemas.templates import (
     TemplateVersionCreate,
 )
 
-logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -94,7 +93,7 @@ async def get_templates(
         
         total_pages = (total + page_size - 1) // page_size
         
-        logger.info(f"获取报告模板列表: {len(templates)} 个模板")
+        logger.emit_event(LogLevel.INFO, message=f"获取报告模板列表: {len(templates)} 个模板")
         
         return TemplateListResponse(
             templates=templates,
@@ -105,7 +104,7 @@ async def get_templates(
         )
         
     except Exception as e:
-        logger.error(f"获取报告模板列表失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取报告模板列表失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取报告模板列表失败"
@@ -134,13 +133,13 @@ async def get_template(
                 detail="报告模板不存在"
             )
         
-        logger.info(f"获取报告模板详情: {template.template_name}")
+        logger.emit_event(LogLevel.INFO, message=f"获取报告模板详情: {template.template_name}")
         return template
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取报告模板详情失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取报告模板详情失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取报告模板详情失败"
@@ -203,13 +202,13 @@ async def create_template(
         db.commit()
         db.refresh(template)
         
-        logger.info(f"创建报告模板成功: {template.template_name} ({template.template_code})")
+        logger.emit_event(LogLevel.INFO, message=f"创建报告模板成功: {template.template_name} ({template.template_code})")
         return template
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"创建报告模板失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"创建报告模板失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -269,13 +268,13 @@ async def update_template(
         db.commit()
         db.refresh(template)
         
-        logger.info(f"更新报告模板成功: {template.template_name}")
+        logger.emit_event(LogLevel.INFO, message=f"更新报告模板成功: {template.template_name}")
         return template
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"更新报告模板失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"更新报告模板失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -327,13 +326,13 @@ async def delete_template(
 
         db.commit()
 
-        logger.info(f"删除报告模板成功: {template.template_name}")
+        logger.emit_event(LogLevel.INFO, message=f"删除报告模板成功: {template.template_name}")
         return {"message": "报告模板删除成功"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"删除报告模板失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"删除报告模板失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -402,13 +401,13 @@ async def duplicate_template(
         db.commit()
         db.refresh(new_template)
 
-        logger.info(f"复制报告模板成功: {new_template.template_name}")
+        logger.emit_event(LogLevel.INFO, message=f"复制报告模板成功: {new_template.template_name}")
         return new_template
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"复制报告模板失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"复制报告模板失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -461,13 +460,13 @@ async def create_template_version(
         db.commit()
         db.refresh(template)
 
-        logger.info(f"创建模板版本成功: {template.template_name} v{new_version}")
+        logger.emit_event(LogLevel.INFO, message=f"创建模板版本成功: {template.template_name} v{new_version}")
         return template
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"创建模板版本失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"创建模板版本失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -538,11 +537,11 @@ async def get_template_categories(
             "template_types": [{"type": item.template_type.value, "count": item.count} for item in template_type_stats]
         }
 
-        logger.info("获取模板分类统计成功")
+        logger.emit_event(LogLevel.INFO, message="获取模板分类统计成功")
         return result
 
     except Exception as e:
-        logger.error(f"获取模板分类统计失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取模板分类统计失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取模板分类统计失败"
@@ -577,11 +576,11 @@ async def get_default_templates(
 
         templates = query.all()
 
-        logger.info(f"获取默认模板: {len(templates)} 个")
+        logger.emit_event(LogLevel.INFO, message=f"获取默认模板: {len(templates)} 个")
         return {"templates": templates}
 
     except Exception as e:
-        logger.error(f"获取默认模板失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取默认模板失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取默认模板失败"
@@ -627,13 +626,13 @@ async def set_default_template(
 
         db.commit()
 
-        logger.info(f"设置默认模板成功: {template.template_name}")
+        logger.emit_event(LogLevel.INFO, message=f"设置默认模板成功: {template.template_name}")
         return {"message": "设置默认模板成功"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"设置默认模板失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"设置默认模板失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -668,13 +667,13 @@ async def activate_template(
 
         db.commit()
 
-        logger.info(f"激活模板成功: {template.template_name}")
+        logger.emit_event(LogLevel.INFO, message=f"激活模板成功: {template.template_name}")
         return {"message": "激活模板成功"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"激活模板失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"激活模板失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -710,13 +709,13 @@ async def deactivate_template(
 
         db.commit()
 
-        logger.info(f"停用模板成功: {template.template_name}")
+        logger.emit_event(LogLevel.INFO, message=f"停用模板成功: {template.template_name}")
         return {"message": "停用模板成功"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"停用模板失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"停用模板失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -814,13 +813,13 @@ async def get_template_usage_stats(
             ]
         }
 
-        logger.info(f"获取模板使用统计成功: {template.template_name}")
+        logger.emit_event(LogLevel.INFO, message=f"获取模板使用统计成功: {template.template_name}")
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取模板使用统计失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取模板使用统计失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取模板使用统计失败"

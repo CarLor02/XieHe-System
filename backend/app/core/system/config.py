@@ -212,6 +212,11 @@ class Settings(BaseSettings):
     LOG_FILE: str = "./logs/app.log"
     LOG_MAX_SIZE: str = "10MB"
     LOG_BACKUP_COUNT: int = 5
+
+    # Internal logging service
+    LOGGING_SERVICE_URL: str = "http://logging-service:8091"
+    LOGGING_SERVICE_TOKEN: str = "dev-logging-service-token"
+    LOGGING_SERVICE_TIMEOUT: float = 2.0
     
     # ==========================================
     # AI 模型配置
@@ -285,12 +290,14 @@ class Settings(BaseSettings):
             "dotenv/.env.redis",
             "dotenv/.env.minio",
             "dotenv/.env.storage",
+            "dotenv/.env.logging",
             "dotenv/.env.backend",
             "../dotenv/.env.runtime",
             "../dotenv/.env.database",
             "../dotenv/.env.redis",
             "../dotenv/.env.minio",
             "../dotenv/.env.storage",
+            "../dotenv/.env.logging",
             "../dotenv/.env.backend",
         )
         env_file_encoding = "utf-8"

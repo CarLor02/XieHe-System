@@ -3,7 +3,7 @@
 支持MySQL主数据库和Redis缓存的连接管理
 """
 
-import logging
+from app.core.system.logger import LogLevel, logger
 from typing import Optional, Generator
 
 from sqlalchemy import create_engine, event, text
@@ -16,7 +16,6 @@ from app.core.system.config import settings
 from app.models.base import Base
 
 # 配置日志
-logger = logging.getLogger(__name__)
 
 # 数据库引擎配置
 SYNC_DATABASE_URL = settings.DATABASE_URL
@@ -96,19 +95,19 @@ class DatabaseManager:
             # 测试MySQL连接
             with self.sync_engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            logger.info("✅ MySQL数据库连接成功")
+            logger.emit_event(LogLevel.INFO, message="✅ MySQL数据库连接成功")
 
             # 连接Redis
             self.redis_client = redis.Redis(connection_pool=redis_pool)
             self.redis_client.ping()
-            logger.info("✅ Redis缓存连接成功")
+            logger.emit_event(LogLevel.INFO, message="✅ Redis缓存连接成功")
 
             # 设置全局Redis客户端
             global redis_client
             redis_client = self.redis_client
 
         except Exception as e:
-            logger.error(f"❌ 数据库连接失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"❌ 数据库连接失败: {e}")
             raise
 
     def disconnect(self):
@@ -116,15 +115,15 @@ class DatabaseManager:
         try:
             # 关闭同步引擎
             self.sync_engine.dispose()
-            logger.info("✅ MySQL连接已关闭")
+            logger.emit_event(LogLevel.INFO, message="✅ MySQL连接已关闭")
 
             # 关闭Redis连接
             if self.redis_client:
                 self.redis_client.close()
-                logger.info("✅ Redis连接已关闭")
+                logger.emit_event(LogLevel.INFO, message="✅ Redis连接已关闭")
 
         except Exception as e:
-            logger.error(f"❌ 关闭数据库连接失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"❌ 关闭数据库连接失败: {e}")
 
     def health_check(self) -> dict:
         """健康检查"""
@@ -210,13 +209,13 @@ def set_mysql_pragma(dbapi_connection, connection_record):
 @event.listens_for(sync_engine, "checkout")
 def receive_checkout(dbapi_connection, connection_record, connection_proxy):
     """连接检出时的处理"""
-    logger.debug("数据库连接已检出")
+    logger.emit_event(LogLevel.DEBUG, message="数据库连接已检出")
 
 
 @event.listens_for(sync_engine, "checkin")
 def receive_checkin(dbapi_connection, connection_record):
     """连接检入时的处理"""
-    logger.debug("数据库连接已检入")
+    logger.emit_event(LogLevel.DEBUG, message="数据库连接已检入")
 
 
 # 导出主要组件

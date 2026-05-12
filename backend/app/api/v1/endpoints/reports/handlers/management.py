@@ -18,7 +18,7 @@ import uuid
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.core.system.exceptions import BusinessLogicException, ResourceNotFoundException
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, PriorityEnum, ReportTypeEnum
 from app.models.patient import Patient
@@ -29,7 +29,6 @@ from ..schemas.management import (
     ReportListResponse,
 )
 
-logger = get_logger(__name__)
 router = APIRouter()
 
 
@@ -107,7 +106,7 @@ async def create_report(
         db.commit()
         db.refresh(new_report)
 
-        logger.info(f"报告创建成功: {new_report.report_number} - {report_data.report_title}")
+        logger.emit_event(LogLevel.INFO, message=f"报告创建成功: {new_report.report_number} - {report_data.report_title}")
 
         # 转换为响应模型
         response_data = {
@@ -146,7 +145,7 @@ async def create_report(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"报告创建失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"报告创建失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="报告创建过程中发生错误"
@@ -258,7 +257,7 @@ async def get_reports(
         )
 
     except Exception as e:
-        logger.error(f"获取报告列表失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取报告列表失败: {e}")
         return paginated_response(
             items=[],
             total=0,
@@ -324,7 +323,7 @@ async def get_report(
     except ResourceNotFoundException:
         raise
     except Exception as e:
-        logger.error(f"获取报告详情失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取报告详情失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取报告详情过程中发生错误"
@@ -371,7 +370,7 @@ async def update_report(
         db.commit()
         db.refresh(report)
 
-        logger.info(f"报告更新成功: {report.report_number} - {report.report_title}")
+        logger.emit_event(LogLevel.INFO, message=f"报告更新成功: {report.report_number} - {report.report_title}")
 
         # 转换为响应格式
         response_data = {
@@ -409,7 +408,7 @@ async def update_report(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"报告更新失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"报告更新失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="报告更新过程中发生错误"
@@ -441,7 +440,7 @@ async def delete_report(
 
         db.commit()
 
-        logger.info(f"报告删除成功: {report.report_number}")
+        logger.emit_event(LogLevel.INFO, message=f"报告删除成功: {report.report_number}")
 
         return success_response(
             data=None,
@@ -452,7 +451,7 @@ async def delete_report(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"报告删除失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"报告删除失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="报告删除过程中发生错误"
