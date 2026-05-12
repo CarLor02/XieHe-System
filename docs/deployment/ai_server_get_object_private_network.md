@@ -121,10 +121,33 @@ MODEL_STORAGE_ALLOWED_CIDR=10.0.1.0/24
 确认 frontend Nginx 已生成内部入口：
 
 ```shell
-docker exec medical_frontend nginx -T | grep -A12 '/internal/model-storage/'
+docker exec medical_frontend nginx -T | grep -A35 '/internal/model-storage/objects/'
 ```
 
 期望看到：
+
+```text
+location ^~ /internal/model-storage/objects/ {
+    allow <MODEL_STORAGE_ALLOWED_CIDR>;
+    deny all;
+    proxy_pass http://storage-service:8090/objects/;
+}
+
+location ^~ /internal/model-storage/ {
+    allow <MODEL_STORAGE_ALLOWED_CIDR>;
+    deny all;
+    proxy_pass http://storage-service:8090/objects/;
+}
+```
+
+说明：
+
+- 新版模型服务会在 `STORAGE_SERVICE_URL` 后自动拼 `/objects/{bucket}/{object_key}`。
+- 因此 `.env.build` 继续写 `http://<COMPOSE_PRIVATE_IP>:3030/internal/model-storage`。
+- Nginx 的 `/internal/model-storage/objects/` location 会把新版模型请求转成 storage-service 的 `/objects/{bucket}/{object_key}`。
+- `/internal/model-storage/` 保留给旧版模型或手工排查命令兼容。
+
+旧版手工检查也可能只看到下面这段：
 
 ```text
 allow <MODEL_STORAGE_ALLOWED_CIDR>;
@@ -213,7 +236,7 @@ docker logs --tail=100 spine-scoliosis-api
 ```shell
 curl -i \
     -H "X-Storage-Service-Token: <STORAGE_SERVICE_TOKEN>" \
-    "http://<COMPOSE_PRIVATE_IP>:3030/internal/model-storage/medical-image-files/<object_key>" \
+    "http://<COMPOSE_PRIVATE_IP>:3030/internal/model-storage/objects/medical-image-files/<object_key>" \
     -o /tmp/model-storage-test.img
 ```
 
