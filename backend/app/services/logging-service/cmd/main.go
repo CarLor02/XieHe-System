@@ -59,11 +59,11 @@ func main() {
 	service.Start(ctx)
 
 	handler := httpapi.NewHandler(service, cfg.ServiceToken)
-	server := &http.Server{Addr: cfg.Addr, Handler: httpapi.NewRouter(handler)}
+	server := newHTTPServer(cfg, httpapi.NewRouter(handler))
 
 	go func() {
 		<-ctx.Done()
-		shutdownCtx, cancel := context.WithCancel(context.Background())
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Printf("logging-service shutdown failed: %v", err)

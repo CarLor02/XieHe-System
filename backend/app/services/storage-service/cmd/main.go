@@ -16,9 +16,16 @@ func main() {
 	clients := s3storage.NewClients(cfg)
 	repository := s3storage.NewRepository(clients.Internal, clients.Presign)
 	service := appstorage.NewService(repository)
-	handler := httpapi.NewHandler(service, cfg.ServiceToken)
+	handler := httpapi.NewHandler(
+		service,
+		cfg.ServiceToken,
+		httpapi.WithMaxUploadBodyBytes(cfg.MaxUploadBodyBytes),
+	)
 	router := httpapi.NewRouter(handler)
+	server := newHTTPServer(cfg, router)
 
 	log.Printf("storage-service listening on %s", cfg.Addr)
-	log.Fatal(http.ListenAndServe(cfg.Addr, router))
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
 }

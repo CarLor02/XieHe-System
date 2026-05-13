@@ -14,12 +14,35 @@ import (
 )
 
 type Handler struct {
-	storageService *appstorage.Service
-	serviceToken   string
+	storageService     *appstorage.Service
+	serviceToken       string
+	maxUploadBodyBytes int64
 }
 
-func NewHandler(storageService *appstorage.Service, serviceToken string) *Handler {
-	return &Handler{storageService: storageService, serviceToken: serviceToken}
+const defaultMaxUploadBodyBytes int64 = 512 << 20
+
+type HandlerOption func(*Handler)
+
+// WithMaxUploadBodyBytes sets the maximum accepted PUT object body size.
+func WithMaxUploadBodyBytes(limit int64) HandlerOption {
+	return func(handler *Handler) {
+		if limit > 0 {
+			handler.maxUploadBodyBytes = limit
+		}
+	}
+}
+
+// NewHandler binds the storage application service, service token, and HTTP limits.
+func NewHandler(storageService *appstorage.Service, serviceToken string, options ...HandlerOption) *Handler {
+	handler := &Handler{
+		storageService:     storageService,
+		serviceToken:       serviceToken,
+		maxUploadBodyBytes: defaultMaxUploadBodyBytes,
+	}
+	for _, option := range options {
+		option(handler)
+	}
+	return handler
 }
 
 func (handler *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
@@ -218,8 +241,13 @@ func (handler *Handler) HandlePutObject(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	body, contentLength, err := seekableBody(r.Body)
+	body, contentLength, err := seekableBody(http.MaxBytesReader(w, r.Body, handler.maxUploadBodyBytes))
 	if err != nil {
+		var maxBytesError *http.MaxBytesError
+		if errors.As(err, &maxBytesError) {
+			writeError(w, http.StatusRequestEntityTooLarge, "upload body exceeds storage-service limit")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

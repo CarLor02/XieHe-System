@@ -3,6 +3,7 @@ package config
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestLoadDoesNotExposeKafkaOptionalSwitch(t *testing.T) {
@@ -23,5 +24,51 @@ func TestLoadReadsKafkaBrokersAndTopic(t *testing.T) {
 	}
 	if cfg.KafkaTopic != "logging.events.v1" {
 		t.Fatalf("unexpected topic: %q", cfg.KafkaTopic)
+	}
+}
+
+func TestLoadReadsHTTPTimeouts(t *testing.T) {
+	t.Setenv("LOGGING_SERVICE_READ_HEADER_TIMEOUT", "2s")
+	t.Setenv("LOGGING_SERVICE_READ_TIMEOUT", "7s")
+	t.Setenv("LOGGING_SERVICE_WRITE_TIMEOUT", "8s")
+	t.Setenv("LOGGING_SERVICE_IDLE_TIMEOUT", "9s")
+	t.Setenv("LOGGING_SERVICE_SHUTDOWN_TIMEOUT", "10s")
+
+	cfg := Load()
+
+	if cfg.ReadHeaderTimeout != 2*time.Second {
+		t.Fatalf("unexpected read header timeout: %s", cfg.ReadHeaderTimeout)
+	}
+	if cfg.ReadTimeout != 7*time.Second {
+		t.Fatalf("unexpected read timeout: %s", cfg.ReadTimeout)
+	}
+	if cfg.WriteTimeout != 8*time.Second {
+		t.Fatalf("unexpected write timeout: %s", cfg.WriteTimeout)
+	}
+	if cfg.IdleTimeout != 9*time.Second {
+		t.Fatalf("unexpected idle timeout: %s", cfg.IdleTimeout)
+	}
+	if cfg.ShutdownTimeout != 10*time.Second {
+		t.Fatalf("unexpected shutdown timeout: %s", cfg.ShutdownTimeout)
+	}
+}
+
+func TestLoadUsesSafeHTTPTimeoutDefaults(t *testing.T) {
+	cfg := Load()
+
+	if cfg.ReadHeaderTimeout <= 0 {
+		t.Fatal("read header timeout must be enabled")
+	}
+	if cfg.ReadTimeout <= 0 {
+		t.Fatal("read timeout must be enabled")
+	}
+	if cfg.WriteTimeout <= 0 {
+		t.Fatal("write timeout must be enabled")
+	}
+	if cfg.IdleTimeout <= 0 {
+		t.Fatal("idle timeout must be enabled")
+	}
+	if cfg.ShutdownTimeout <= 0 {
+		t.Fatal("shutdown timeout must be enabled")
 	}
 }

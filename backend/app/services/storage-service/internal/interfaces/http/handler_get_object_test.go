@@ -84,3 +84,22 @@ func TestHandleGetObjectRequiresStorageToken(t *testing.T) {
 		t.Fatalf("expected 401, got %d", response.Code)
 	}
 }
+
+func TestHandlePutObjectRejectsBodiesOverLimit(t *testing.T) {
+	service := appstorage.NewService(fakeObjectRepository{body: []byte("image-bytes")})
+	router := NewRouter(NewHandler(service, "secret-token", WithMaxUploadBodyBytes(4)))
+
+	request := httptest.NewRequest(
+		http.MethodPut,
+		"/objects/medical-image-files/path/to/image.png",
+		strings.NewReader("image-bytes"),
+	)
+	request.Header.Set(storageServiceTokenHeader, "secret-token")
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected 413, got %d: %s", response.Code, response.Body.String())
+	}
+}
