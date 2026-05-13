@@ -10,6 +10,7 @@ export interface SyncScanFile {
   filename: string;
   file_path: string;
   file_size: number;
+  file_mtime: string | null;
   is_primary: boolean;
   is_valid: boolean;
   is_synced: boolean;
