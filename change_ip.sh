@@ -179,7 +179,9 @@ main() {
     # 5. 重新生成配置并部署
     print_step "重新生成配置并部署服务..."
     echo ""
-    ./deploy_pc.sh --reset-env -y
+    # 必须显式传 --ip，否则 deploy_pc.sh 会用 detect_lan_ip() 自动检测
+    # 在联网状态下 detect_lan_ip 会返回互联网出口 IP，而非用户指定的局域网 IP
+    ./deploy_pc.sh --reset-env --ip "$NEW_IP" -y
     echo ""
     print_success "配置已重新生成，Docker 服务已启动"
     echo ""
