@@ -22,12 +22,16 @@ ENV GOPROXY=${GOPROXY} \
 COPY lib-go/go.mod lib-go/go.sum ./lib-go/
 COPY storage-service/go.mod storage-service/go.sum ./storage-service/
 WORKDIR /src/storage-service
-RUN go mod download
+# BuildKit cache mounts keep module downloads reusable across source-only rebuilds.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 WORKDIR /src
 COPY lib-go ./lib-go
 COPY storage-service ./storage-service
 WORKDIR /src/storage-service
-RUN CGO_ENABLED=0 GOOS=linux go build -o /out/storage-service ./cmd
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build -o /out/storage-service ./cmd
 
 FROM alpine:3.20
 RUN adduser -D -H -u 10001 appuser
