@@ -393,11 +393,11 @@ stop_old_services() {
 build_docker_images() {
     print_header "构建 Docker 镜像"
     cd "$PROJECT_DIR"
-    local build_args=(--pull=never)
+    local build_args=()
     [ "$REBUILD" = "1" ] && build_args+=(--no-cache)
 
     print_step "构建主系统镜像（backend / frontend / storage-service）..."
-    main_compose build "${build_args[@]}" || { print_error "主系统镜像构建失败"; exit 1; }
+    DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 main_compose build "${build_args[@]}" --build-arg BUILDKIT_INLINE_CACHE=1 || { print_error "主系统镜像构建失败"; exit 1; }
     print_success "主系统镜像构建完成"
 
     if [ "$WITH_AI" = "1" ]; then
