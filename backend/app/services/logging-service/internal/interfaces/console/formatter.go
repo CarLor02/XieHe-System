@@ -15,6 +15,12 @@ const Separator = "   |   "
 
 const reset = "\x1b[0m"
 
+const (
+	levelWidth   = 7
+	serviceWidth = 30
+	ellipsis     = "..."
+)
+
 var levelColors = map[domain.LogLevel]string{
 	domain.LogLevelDebug:   "\x1b[32m",
 	domain.LogLevelInfo:    "\x1b[37m",
@@ -23,36 +29,46 @@ var levelColors = map[domain.LogLevel]string{
 	domain.LogLevelAudit:   "\x1b[38;5;208m",
 }
 
-type messagePayload struct {
-	Message  string         `json:"message"`
-	TraceID  string         `json:"trace_id"`
-	Metadata map[string]any `json:"metadata"`
-}
-
 // FormatLine renders one event as timestamp, level, service, and JSON message fields.
 func FormatLine(event domain.LogEvent, color bool) (string, error) {
-	message, err := json.Marshal(messagePayload{
-		Message:  event.Message,
-		TraceID:  event.TraceID,
-		Metadata: event.Metadata,
-	})
+	message, err := json.Marshal(event)
 	if err != nil {
 		return "", err
 	}
 
-	level := string(event.Level)
+	level := padRight(string(event.Level), levelWidth)
 	if color {
 		if colorCode, ok := levelColors[event.Level]; ok {
 			level = colorCode + level + reset
 		}
 	}
+	service := formatService(event.Service)
 
 	return strings.Join([]string{
 		event.Timestamp.UTC().Format("2006-01-02T15:04:05.000Z07:00"),
 		level,
-		event.Service,
+		service,
 		string(message),
 	}, Separator), nil
+}
+
+// padRight left-aligns value to width using spaces.
+func padRight(value string, width int) string {
+	length := len([]rune(value))
+	if length >= width {
+		return value
+	}
+	return value + strings.Repeat(" ", width-length)
+}
+
+// formatService left-aligns service names and truncates long values with ellipsis.
+func formatService(service string) string {
+	runes := []rune(service)
+	if len(runes) > serviceWidth {
+		prefixWidth := serviceWidth - len([]rune(ellipsis))
+		return string(runes[:prefixWidth]) + ellipsis
+	}
+	return padRight(service, serviceWidth)
 }
 
 // Sink writes formatted events to a console writer.
