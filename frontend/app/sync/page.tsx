@@ -74,7 +74,9 @@ function mapGender(sex: string | null | undefined): string {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function SyncPage() {
-  const [serviceUrl, setServiceUrl] = useState('http://localhost:9000');
+  const [serviceUrl, setServiceUrl] = useState(
+    process.env.NEXT_PUBLIC_SYNC_SERVICE_URL || 'http://localhost:9000'
+  );
   const [apiKey, setApiKey] = useState('');
   const [showConfig, setShowConfig] = useState(false);
 
@@ -319,7 +321,7 @@ export default function SyncPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={serviceUrl}
                   onChange={e => setServiceUrl(e.target.value)}
-                  placeholder="http://localhost:9000"
+                  placeholder={process.env.NEXT_PUBLIC_SYNC_SERVICE_URL || 'http://192.168.x.x:9000'}
                 />
               </div>
               <div className="flex-1 min-w-40">

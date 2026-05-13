@@ -45,6 +45,8 @@
 
 set -euo pipefail
 
+
+
 # ==================== 固定密码配置 ====================
 # 如果设置为固定值，则使用固定密码；留空则生成随机密码
 FIXED_MYSQL_PASSWORD="xiehe_mysql_2024"
@@ -326,6 +328,8 @@ NEXT_PUBLIC_AI_DETECT_URL=${ai_base_url}:8001/predict
 NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL=${ai_base_url}:8001/detect_keypoints
 NEXT_PUBLIC_AI_DETECT_LATERAL_URL=${ai_base_url}:8002/detect_and_keypoints
 NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL=${ai_base_url}:8002/detect
+# 同步数据模块：文件索引服务地址（运行在扫描机器上，IP 与本机不同时需手动修改）
+NEXT_PUBLIC_SYNC_SERVICE_URL=http://${LAN_IP}:9000
 MODEL_STORAGE_ALLOWED_CIDR=0.0.0.0/0
 EOF
 }
