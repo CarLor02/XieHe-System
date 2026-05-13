@@ -48,9 +48,13 @@ class StorageGateway:
         async with self._client_lock:
             if self._client is not None and not self._client.is_closed:
                 return
+            # Use retries=0 to avoid connection-pool reuse of stale / failed
+            # connections (e.g. when localhost resolves to IPv6 ::1 first on
+            # macOS and the port is only bound on 127.0.0.1).
+            transport = self.async_transport or httpx.AsyncHTTPTransport(retries=0)
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
-                transport=self.async_transport,
+                transport=transport,
             )
 
     async def stop(self) -> None:
