@@ -4,12 +4,15 @@
 """
 
 from app.core.system.logger import LogLevel, logger
-from typing import Optional, Generator
+from collections.abc import AsyncGenerator, Generator
+from typing import Optional
 
 from sqlalchemy import create_engine, event, text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 import redis
+import redis.asyncio as async_redis
 from redis import ConnectionPool
 
 from app.core.config import settings
@@ -19,6 +22,7 @@ from app.models.base import Base
 
 # 数据库引擎配置
 SYNC_DATABASE_URL = settings.DATABASE_URL
+ASYNC_DATABASE_URL = settings.ASYNC_DATABASE_URL
 
 # 同步数据库引擎
 sync_engine = create_engine(
@@ -39,11 +43,31 @@ sync_engine = create_engine(
     }
 )
 
+async_engine = create_async_engine(
+    ASYNC_DATABASE_URL,
+    echo=settings.DEBUG,
+    pool_size=settings.DB_POOL_SIZE,
+    max_overflow=settings.DB_MAX_OVERFLOW,
+    pool_timeout=settings.DB_POOL_TIMEOUT,
+    pool_recycle=settings.DB_POOL_RECYCLE,
+    pool_pre_ping=True,
+    connect_args={
+        "charset": "utf8mb4",
+        "connect_timeout": 60,
+    },
+)
+
 # 会话工厂
 SessionLocal = sessionmaker(
     bind=sync_engine,
     autocommit=False,
     autoflush=True
+)
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=async_engine,
+    autoflush=True,
+    expire_on_commit=False,
 )
 
 # Redis连接池配置
@@ -53,6 +77,16 @@ redis_url = os.getenv("REDIS_URL")
 if redis_url:
     # 使用 REDIS_URL 创建连接池
     redis_pool = ConnectionPool.from_url(
+        redis_url,
+        encoding="utf-8",
+        decode_responses=True,
+        max_connections=10,
+        retry_on_timeout=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+        health_check_interval=30,
+    )
+    async_redis_pool = async_redis.ConnectionPool.from_url(
         redis_url,
         encoding="utf-8",
         decode_responses=True,
@@ -77,9 +111,23 @@ else:
         socket_connect_timeout=5,
         health_check_interval=30,
     )
+    async_redis_pool = async_redis.ConnectionPool(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
+        db=settings.REDIS_DB,
+        encoding="utf-8",
+        decode_responses=True,
+        max_connections=10,
+        retry_on_timeout=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+        health_check_interval=30,
+    )
 
 # Redis客户端
 redis_client: Optional[redis.Redis] = None
+async_redis_client: Optional[async_redis.Redis] = None
 
 
 class DatabaseManager:
@@ -185,12 +233,30 @@ def get_db() -> Generator:
         db.close()
 
 
+async def get_async_db() -> AsyncGenerator:
+    """获取异步数据库会话"""
+    async with AsyncSessionLocal() as db:
+        try:
+            yield db
+        except Exception:
+            await db.rollback()
+            raise
+
+
 # 依赖注入：获取Redis客户端
 def get_redis() -> redis.Redis:
     """获取Redis客户端"""
     if redis_client is None:
         raise RuntimeError("Redis客户端未初始化")
     return redis_client
+
+
+def get_async_redis() -> async_redis.Redis:
+    """获取异步Redis客户端"""
+    global async_redis_client
+    if async_redis_client is None:
+        async_redis_client = async_redis.Redis(connection_pool=async_redis_pool)
+    return async_redis_client
 
 
 # 数据库事件监听器
@@ -222,9 +288,14 @@ def receive_checkin(dbapi_connection, connection_record):
 __all__ = [
     "Base",
     "sync_engine",
+    "async_engine",
     "SessionLocal",
+    "AsyncSessionLocal",
     "redis_client",
+    "async_redis_client",
     "db_manager",
     "get_db",
+    "get_async_db",
     "get_redis",
+    "get_async_redis",
 ]

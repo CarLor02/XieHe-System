@@ -39,9 +39,12 @@ def test_database_url_uses_environment_override(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("DATABASE_URL", "mysql://user:pass@db:3306/app")
 
     assert DatabaseSettings().DATABASE_URL == "mysql+pymysql://user:pass@db:3306/app?charset=utf8mb4"
+    assert DatabaseSettings().ASYNC_DATABASE_URL == "mysql+asyncmy://user:pass@db:3306/app?charset=utf8mb4"
 
 
-def test_database_settings_keep_mysql_aliases() -> None:
+def test_database_settings_keep_mysql_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("ASYNC_DATABASE_URL", raising=False)
     database_settings = DatabaseSettings(
         DB_HOST="db",
         DB_PORT=3306,
@@ -55,6 +58,7 @@ def test_database_settings_keep_mysql_aliases() -> None:
     assert database_settings.MYSQL_USER == "user"
     assert database_settings.MYSQL_PASSWORD == "pass"
     assert database_settings.MYSQL_DATABASE == "medical"
+    assert database_settings.ASYNC_DATABASE_URL == "mysql+asyncmy://user:pass@db:3306/medical?charset=utf8mb4"
 
 
 def test_redis_url_uses_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:

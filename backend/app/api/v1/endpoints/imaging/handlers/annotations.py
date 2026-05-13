@@ -10,9 +10,10 @@
 from typing import Dict, Any
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database.session import get_db
+from app.core.database.session import get_async_db
 from app.core.access.auth import get_current_active_user
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
@@ -36,7 +37,7 @@ router = APIRouter()
 async def get_measurements(
     image_id: str,
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     获取指定影像的所有测量数据
@@ -52,23 +53,26 @@ async def get_measurements(
         if image_id.isdigit():
             # 纯数字，可能是ImageFile的ID
             image_file_id = int(image_id)
-            annotations = db.query(ImageAnnotation).filter(
+            result = await db.execute(select(ImageAnnotation).where(
                 ImageAnnotation.image_file_id == image_file_id,
                 ImageAnnotation.is_deleted == False
-            ).all()
+            ))
+            annotations = result.scalars().all()
 
         else:
             # 可能是UUID
-            image_file = db.query(ImageFile).filter(
+            image_result = await db.execute(select(ImageFile).where(
                 ImageFile.file_uuid == image_id,
                 ImageFile.is_deleted == False
-            ).first()
+            ))
+            image_file = image_result.scalar_one_or_none()
 
             if image_file:
-                annotations = db.query(ImageAnnotation).filter(
+                annotation_result = await db.execute(select(ImageAnnotation).where(
                     ImageAnnotation.image_file_id == image_file.id,
                     ImageAnnotation.is_deleted == False
-                ).all()
+                ))
+                annotations = annotation_result.scalars().all()
 
         if not annotations:
             return success_response(
@@ -136,7 +140,7 @@ async def save_measurements(
     image_id: str,
     request: SaveMeasurementsRequest,
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     保存影像的测量数据
@@ -146,18 +150,19 @@ async def save_measurements(
     2. ImageFile 的 UUID
     """
     try:
-        with db.begin():
+        async with db.begin():
             # 解析 image_id 并锁定目标 ImageFile 行，串行化同一影像的保存请求。
             if image_id.isdigit():
-                image_file = db.query(ImageFile).filter(
+                result = await db.execute(select(ImageFile).where(
                     ImageFile.id == int(image_id),
                     ImageFile.is_deleted == False
-                ).with_for_update().first()
+                ).with_for_update())
             else:
-                image_file = db.query(ImageFile).filter(
+                result = await db.execute(select(ImageFile).where(
                     ImageFile.file_uuid == image_id,
                     ImageFile.is_deleted == False
-                ).with_for_update().first()
+                ).with_for_update())
+            image_file = result.scalar_one_or_none()
 
             if not image_file:
                 raise HTTPException(
@@ -167,9 +172,9 @@ async def save_measurements(
             image_file_id = image_file.id
 
             # 删除旧的标注数据
-            db.query(ImageAnnotation).filter(
+            await db.execute(delete(ImageAnnotation).where(
                 ImageAnnotation.image_file_id == image_file_id
-            ).delete(synchronize_session=False)
+            ))
 
             # 保存新的标注数据
             from app.models.image import AnnotationTypeEnum
@@ -245,7 +250,7 @@ async def save_measurements(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.emit_event(LogLevel.ERROR, message=f"保存测量数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

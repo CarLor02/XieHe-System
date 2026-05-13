@@ -5,7 +5,14 @@ import pytest
 
 from app.api.v1.endpoints.access.handlers import auth as auth_handlers
 from app.api.v1.endpoints.access.schemas.auth import PasswordChange, TokenRefresh
-from app.core.access.security import hash_password, security_manager, verify_password
+from app.core.access import security as security_module
+from app.core.access.security import (
+    hash_password,
+    hash_password_async,
+    security_manager,
+    verify_password,
+    verify_password_async,
+)
 
 
 class InMemoryCache:
@@ -133,18 +140,14 @@ async def test_change_password_updates_current_user_password_hash(monkeypatch):
             "password_hash": "old-hash",
         },
     )
-    monkeypatch.setattr(
-        auth_handlers,
-        "verify_password",
-        lambda plain_password, hashed_password: (
-            plain_password == "old-password" and hashed_password == "old-hash"
-        ),
-    )
-    monkeypatch.setattr(
-        auth_handlers,
-        "hash_password",
-        lambda plain_password: "new-hash",
-    )
+    async def fake_verify_password(plain_password, hashed_password):
+        return plain_password == "old-password" and hashed_password == "old-hash"
+
+    async def fake_hash_password(plain_password):
+        return "new-hash"
+
+    monkeypatch.setattr(auth_handlers, "verify_password_async", fake_verify_password)
+    monkeypatch.setattr(auth_handlers, "hash_password_async", fake_hash_password)
 
     response = await auth_handlers.change_password(
         PasswordChange(
@@ -189,6 +192,28 @@ class TestPasswordSecurity:
         assert hash1 != hash2
         assert verify_password(password, hash1) is True
         assert verify_password(password, hash2) is True
+
+    @pytest.mark.asyncio
+    async def test_async_password_helpers_delegate_to_threadpool(self, monkeypatch):
+        password = "AsyncPassword123!"
+        calls = []
+
+        async def fake_to_thread(func, *args):
+            calls.append((func, args))
+            return func(*args)
+
+        monkeypatch.setattr(security_module.asyncio, "to_thread", fake_to_thread)
+
+        hashed = await hash_password_async(password)
+
+        assert verify_password(password, hashed) is True
+        assert await verify_password_async(password, hashed) is True
+        assert await verify_password_async("wrongpassword", hashed) is False
+        assert [call[0] for call in calls] == [
+            security_module.hash_password,
+            security_module.verify_password,
+            security_module.verify_password,
+        ]
 
 
 class TestJWTTokens:

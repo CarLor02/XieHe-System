@@ -66,5 +66,22 @@ class DatabaseSettings(BaseAppSettings):
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
         )
 
+    @property
+    def ASYNC_DATABASE_URL(self) -> str:
+        """Build the SQLAlchemy async database URL."""
+        env_url = os.getenv("ASYNC_DATABASE_URL")
+        if env_url:
+            url = env_url
+        else:
+            url = self.DATABASE_URL
+
+        if url.startswith("mysql+pymysql://"):
+            url = url.replace("mysql+pymysql://", "mysql+asyncmy://", 1)
+        elif url.startswith("mysql://"):
+            url = url.replace("mysql://", "mysql+asyncmy://", 1)
+        if "?" not in url:
+            url += "?charset=utf8mb4"
+        return url
+
 
 database_settings = DatabaseSettings()

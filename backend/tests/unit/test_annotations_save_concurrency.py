@@ -14,15 +14,15 @@ from app.models.image import ImageAnnotation
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 
 
-class _FakeTransaction:
-    def __init__(self, session: "_FakeSession") -> None:
+class _FakeAsyncTransaction:
+    def __init__(self, session: "_FakeAsyncSession") -> None:
         self.session = session
 
-    def __enter__(self) -> "_FakeTransaction":
+    async def __aenter__(self) -> "_FakeAsyncTransaction":
         self.session.begin_count += 1
         return self
 
-    def __exit__(self, exc_type, exc, traceback) -> bool:
+    async def __aexit__(self, exc_type, exc, traceback) -> bool:
         if exc_type is None:
             self.session.commit_count += 1
         else:
@@ -30,28 +30,15 @@ class _FakeTransaction:
         return False
 
 
-class _FakeQuery:
+class _FakeScalarResult:
     def __init__(self, result=None) -> None:
         self.result = result
-        self.with_for_update_called = False
-        self.delete_count = 0
 
-    def filter(self, *args, **kwargs) -> "_FakeQuery":
-        return self
-
-    def with_for_update(self) -> "_FakeQuery":
-        self.with_for_update_called = True
-        return self
-
-    def first(self):
+    def scalar_one_or_none(self):
         return self.result
 
-    def delete(self, *args, **kwargs) -> int:
-        self.delete_count += 1
-        return 3
 
-
-class _FakeSession:
+class _FakeAsyncSession:
     def __init__(self) -> None:
         self.image = ImageFile(
             id=501,
@@ -66,35 +53,27 @@ class _FakeSession:
             patient_id=70,
             status=ImageFileStatusEnum.UPLOADED,
         )
-        self.image_query = _FakeQuery(self.image)
-        self.annotation_query = _FakeQuery()
         self.begin_count = 0
         self.commit_count = 0
         self.rollback_count = 0
         self.execute_count = 0
+        self.image_select_for_update = False
+        self.delete_count = 0
         self.added: list[ImageAnnotation] = []
 
-    def begin(self) -> _FakeTransaction:
-        return _FakeTransaction(self)
+    def begin(self) -> _FakeAsyncTransaction:
+        return _FakeAsyncTransaction(self)
 
-    def query(self, model):
-        if model is ImageFile:
-            return self.image_query
-        if model is ImageAnnotation:
-            return self.annotation_query
-        raise AssertionError(f"unexpected query model: {model}")
+    async def execute(self, statement):
+        self.execute_count += 1
+        if self.execute_count == 1:
+            self.image_select_for_update = getattr(statement, "_for_update_arg", None) is not None
+            return _FakeScalarResult(self.image)
+        self.delete_count += 1
+        return _FakeScalarResult()
 
     def add(self, value: ImageAnnotation) -> None:
         self.added.append(value)
-
-    def commit(self) -> None:
-        self.commit_count += 1
-
-    def rollback(self) -> None:
-        self.rollback_count += 1
-
-    def execute(self, *args, **kwargs) -> None:
-        self.execute_count += 1
 
 
 def _save_request() -> SaveMeasurementsRequest:
@@ -125,7 +104,7 @@ async def test_save_measurements_locks_image_and_commits_one_transaction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(annotation_handlers.logger, "emit_event", lambda *args, **kwargs: True)
-    db = _FakeSession()
+    db = _FakeAsyncSession()
 
     result = await annotation_handlers.save_measurements(
         "501",
@@ -135,11 +114,10 @@ async def test_save_measurements_locks_image_and_commits_one_transaction(
     )
 
     assert result["data"]["count"] == 2
-    assert db.image_query.with_for_update_called is True
+    assert db.image_select_for_update is True
     assert db.begin_count == 1
     assert db.commit_count == 1
     assert db.rollback_count == 0
-    assert db.execute_count == 0
-    assert db.annotation_query.delete_count == 1
+    assert db.delete_count == 1
     assert len(db.added) == 2
     assert db.image.status == ImageFileStatusEnum.PROCESSED

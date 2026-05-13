@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, Field
 
 from app.core.database.session import get_db
-from app.core.access.security import security_manager, hash_password, verify_password
+from app.core.access.security import security_manager, hash_password_async, verify_password_async
 from app.core.access.auth import get_current_active_user, get_current_user, security
 from app.core.system.exceptions import AuthenticationException, BusinessLogicException
 from app.core.system.cache import get_cache_manager
@@ -261,7 +261,7 @@ async def login(
             raise AuthenticationException("用户名或密码错误")
 
         # 验证密码
-        if not verify_password(login_data.password, user["password_hash"]):
+        if not await verify_password_async(login_data.password, user["password_hash"]):
             raise AuthenticationException("用户名或密码错误")
 
         # 检查用户状态
@@ -346,7 +346,7 @@ async def register(
         import secrets
 
         # 使用 bcrypt 加密密码（自动包含盐值）
-        password_hash = hash_password(register_data.password)
+        password_hash = await hash_password_async(register_data.password)
 
         # 插入新用户到数据库
         # 注意：数据库表使用 real_name, status 而不是 full_name, is_active
@@ -563,7 +563,7 @@ async def confirm_password_reset(
             raise AuthenticationException("重置令牌无效")
 
         # 这里应该更新数据库中的密码
-        new_password_hash = hash_password(reset_confirm.new_password)
+        new_password_hash = await hash_password_async(reset_confirm.new_password)
 
         # 撤销重置令牌
         cache_key = f"api_key:{reset_confirm.token}"
@@ -611,12 +611,12 @@ async def change_password(
             raise AuthenticationException("用户不存在")
 
         # 验证当前密码
-        if not verify_password(password_change.current_password, user["password_hash"]):
+        if not await verify_password_async(password_change.current_password, user["password_hash"]):
             raise AuthenticationException("当前密码错误")
 
         from sqlalchemy import text
 
-        new_password_hash = hash_password(password_change.new_password)
+        new_password_hash = await hash_password_async(password_change.new_password)
         db.execute(
             text("""
             UPDATE users

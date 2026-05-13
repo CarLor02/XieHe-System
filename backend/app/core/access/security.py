@@ -8,6 +8,7 @@
 创建时间: 2025-09-24
 """
 
+import asyncio
 import jwt
 from jwt import PyJWTError as JWTError
 import bcrypt
@@ -418,6 +419,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return security_manager.verify_password(plain_password, hashed_password)
 
 
+async def hash_password_async(password: str) -> str:
+    """在线程池中加密密码，避免阻塞事件循环。"""
+    return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(plain_password: str, hashed_password: str) -> bool:
+    """在线程池中验证密码，避免阻塞事件循环。"""
+    return await asyncio.to_thread(verify_password, plain_password, hashed_password)
+
+
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """创建访问令牌"""
     return security_manager.create_access_token(data, expires_delta)
@@ -436,6 +447,6 @@ def verify_token(token: str, token_type: str = "access") -> Optional[Dict[str, A
 # 导出
 __all__ = [
     "SecurityManager", "security_manager", 
-    "hash_password", "verify_password",
+    "hash_password", "hash_password_async", "verify_password", "verify_password_async",
     "create_access_token", "create_refresh_token", "verify_token"
 ]
