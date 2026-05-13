@@ -37,10 +37,10 @@ export default function RootLayout({
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />
-        {/* Remix Icon CSS - must be loaded via link tag, not @import in CSS */}
+        {/* Remix Icon CSS - 本地字体，不依赖外网 CDN */}
         <link
           rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css"
+          href="/fonts/remixicon/remixicon.min.css"
         />
       </head>
       <body
