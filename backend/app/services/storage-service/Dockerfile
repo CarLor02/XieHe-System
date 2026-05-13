@@ -19,9 +19,14 @@ ENV GOPROXY=${GOPROXY} \
     GONOPROXY=${GONOPROXY} \
     GONOSUMDB=${GONOSUMDB}
 
-COPY go.mod go.sum ./
+COPY lib-go/go.mod lib-go/go.sum ./lib-go/
+COPY storage-service/go.mod storage-service/go.sum ./storage-service/
+WORKDIR /src/storage-service
 RUN go mod download
-COPY . .
+WORKDIR /src
+COPY lib-go ./lib-go
+COPY storage-service ./storage-service
+WORKDIR /src/storage-service
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/storage-service ./cmd
 
 FROM alpine:3.20

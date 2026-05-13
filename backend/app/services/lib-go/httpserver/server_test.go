@@ -1,15 +1,14 @@
-package main
+package httpserver
 
 import (
 	"net/http"
 	"testing"
 	"time"
-
-	"xiehe-storage-service/internal/config"
 )
 
-func TestNewHTTPServerUsesConfiguredTimeouts(t *testing.T) {
-	cfg := config.Config{
+func TestNewUsesConfiguredAddressHandlerAndTimeouts(t *testing.T) {
+	handler := http.NewServeMux()
+	cfg := Config{
 		Addr:              ":9090",
 		ReadHeaderTimeout: 2 * time.Second,
 		ReadTimeout:       3 * time.Second,
@@ -17,10 +16,13 @@ func TestNewHTTPServerUsesConfiguredTimeouts(t *testing.T) {
 		IdleTimeout:       5 * time.Second,
 	}
 
-	server := newHTTPServer(cfg, http.NewServeMux())
+	server := New(cfg, handler)
 
 	if server.Addr != cfg.Addr {
 		t.Fatalf("unexpected addr: %s", server.Addr)
+	}
+	if server.Handler != handler {
+		t.Fatal("server should use the provided handler")
 	}
 	if server.ReadHeaderTimeout != cfg.ReadHeaderTimeout {
 		t.Fatalf("unexpected read header timeout: %s", server.ReadHeaderTimeout)

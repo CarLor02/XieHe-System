@@ -1,8 +1,8 @@
 services:
   storage-service:
     build:
-      context: ../../../backend/app/services/storage-service
-      dockerfile: Dockerfile
+      context: ../../../backend/app/services
+      dockerfile: storage-service/Dockerfile
       extra_hosts:
         - 'host.docker.internal:host-gateway'
       args:

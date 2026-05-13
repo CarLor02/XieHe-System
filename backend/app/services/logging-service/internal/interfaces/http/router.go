@@ -1,12 +1,19 @@
 package httpapi
 
-import "net/http"
+import sharedhttp "xiehe-services-lib-go/httpapi"
 
 // NewRouter wires health and authenticated v1 ingestion routes.
-func NewRouter(handler *Handler) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", handler.HandleHealth)
-	mux.HandleFunc("/v1/log-events", withAuth(handler.serviceToken, handler.HandleLogEvent))
-	mux.HandleFunc("/v1/log-events/batch", withAuth(handler.serviceToken, handler.HandleLogEventBatch))
-	return mux
+func NewRouter(handler *Handler) *sharedhttp.Router {
+	router := sharedhttp.NewRouter()
+	auth := sharedhttp.TokenAuth(sharedhttp.TokenAuthConfig{
+		Header:          serviceTokenHeader,
+		Token:           handler.serviceToken,
+		Message:         "invalid logging service token",
+		AllowEmptyToken: true,
+	})
+
+	router.GET("/health", handler.HandleHealth)
+	router.POST("/v1/log-events", auth, handler.HandleLogEvent)
+	router.POST("/v1/log-events/batch", auth, handler.HandleLogEventBatch)
+	return router
 }

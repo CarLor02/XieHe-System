@@ -18,9 +18,14 @@ ENV GOPROXY=${GOPROXY} \
     GONOPROXY=${GONOPROXY} \
     GONOSUMDB=${GONOSUMDB}
 
-COPY go.mod go.sum* ./
+COPY lib-go/go.mod lib-go/go.sum ./lib-go/
+COPY logging-service/go.mod logging-service/go.sum ./logging-service/
+WORKDIR /src/logging-service
 RUN go mod download
-COPY . .
+WORKDIR /src
+COPY lib-go ./lib-go
+COPY logging-service ./logging-service
+WORKDIR /src/logging-service
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/logging-service ./cmd
 
 FROM alpine:3.20
@@ -35,7 +40,7 @@ RUN apk add --no-cache su-exec \
     && adduser -D -H -u 10001 appuser \
     && mkdir -p /var/lib/logging-service/spool /var/lib/logging-service/archive \
     && chown -R appuser:appuser /var/lib/logging-service
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY logging-service/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY --from=builder /out/logging-service /usr/local/bin/logging-service
 EXPOSE 8091
 ENTRYPOINT ["docker-entrypoint.sh"]

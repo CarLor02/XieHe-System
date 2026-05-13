@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -9,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	sharedhttp "xiehe-services-lib-go/httpapi"
 	appstorage "xiehe-storage-service/internal/application/storage"
 	domain "xiehe-storage-service/internal/domain/storage"
 )
@@ -45,41 +45,41 @@ func NewHandler(storageService *appstorage.Service, serviceToken string, options
 	return handler
 }
 
-func (handler *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+func (handler *Handler) HandleHealth(ctx *sharedhttp.Context) {
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func (handler *Handler) HandleEnsureBucket(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) HandleEnsureBucket(ctx *sharedhttp.Context) {
 	var request ensureBucketRequest
-	if !decodeJSON(w, r, &request) {
+	if !sharedhttp.DecodeJSON(ctx, &request, sharedhttp.DefaultJSONBodyLimit) {
 		return
 	}
 
-	err := handler.storageService.EnsureBucket(r.Context(), request.Bucket)
+	err := handler.storageService.EnsureBucket(ctx.Request.Context(), request.Bucket)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(ctx, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"bucket": request.Bucket})
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]string{"bucket": request.Bucket})
 }
 
-func (handler *Handler) HandleCreateMultipart(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) HandleCreateMultipart(ctx *sharedhttp.Context) {
 	var request createMultipartRequest
-	if !decodeJSON(w, r, &request) {
+	if !sharedhttp.DecodeJSON(ctx, &request, sharedhttp.DefaultJSONBodyLimit) {
 		return
 	}
 
 	upload, err := handler.storageService.CreateMultipartUpload(
-		r.Context(),
+		ctx.Request.Context(),
 		toCreateMultipartDomain(request),
 	)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(ctx, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]any{
 		"bucket":     upload.Bucket,
 		"object_key": upload.ObjectKey,
 		"upload_id":  upload.UploadID,
@@ -87,78 +87,78 @@ func (handler *Handler) HandleCreateMultipart(w http.ResponseWriter, r *http.Req
 	})
 }
 
-func (handler *Handler) HandleCompleteMultipart(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) HandleCompleteMultipart(ctx *sharedhttp.Context) {
 	var request completeMultipartRequest
-	if !decodeJSON(w, r, &request) {
+	if !sharedhttp.DecodeJSON(ctx, &request, sharedhttp.DefaultJSONBodyLimit) {
 		return
 	}
 
 	result, err := handler.storageService.CompleteMultipartUpload(
-		r.Context(),
+		ctx.Request.Context(),
 		toCompleteMultipartDomain(request),
 	)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(ctx, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]any{
 		"bucket":     result.Bucket,
 		"object_key": result.ObjectKey,
 		"etag":       result.ETag,
 	})
 }
 
-func (handler *Handler) HandleAbortMultipart(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) HandleAbortMultipart(ctx *sharedhttp.Context) {
 	var request completeMultipartRequest
-	if !decodeJSON(w, r, &request) {
+	if !sharedhttp.DecodeJSON(ctx, &request, sharedhttp.DefaultJSONBodyLimit) {
 		return
 	}
 
-	err := handler.storageService.AbortMultipartUpload(r.Context(), toAbortMultipartDomain(request))
+	err := handler.storageService.AbortMultipartUpload(ctx.Request.Context(), toAbortMultipartDomain(request))
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(ctx, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "aborted"})
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]string{"status": "aborted"})
 }
 
-func (handler *Handler) HandlePresignGet(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) HandlePresignGet(ctx *sharedhttp.Context) {
 	var request objectRequest
-	if !decodeJSON(w, r, &request) {
+	if !sharedhttp.DecodeJSON(ctx, &request, sharedhttp.DefaultJSONBodyLimit) {
 		return
 	}
 
 	url, err := handler.storageService.PresignGetObject(
-		r.Context(),
+		ctx.Request.Context(),
 		domain.ObjectRef{Bucket: request.Bucket, ObjectKey: request.ObjectKey},
 		request.ExpiresIn,
 	)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(ctx, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"url": url})
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]string{"url": url})
 }
 
-func (handler *Handler) HandleStatObject(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) HandleStatObject(ctx *sharedhttp.Context) {
 	var request objectRequest
-	if !decodeJSON(w, r, &request) {
+	if !sharedhttp.DecodeJSON(ctx, &request, sharedhttp.DefaultJSONBodyLimit) {
 		return
 	}
 
 	stat, err := handler.storageService.StatObject(
-		r.Context(),
+		ctx.Request.Context(),
 		domain.ObjectRef{Bucket: request.Bucket, ObjectKey: request.ObjectKey},
 	)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(ctx, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]any{
 		"bucket":       stat.Bucket,
 		"object_key":   stat.ObjectKey,
 		"size":         stat.Size,
@@ -168,87 +168,71 @@ func (handler *Handler) HandleStatObject(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-func (handler *Handler) HandleDeleteObject(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) HandleDeleteObject(ctx *sharedhttp.Context) {
 	var request objectRequest
-	if !decodeJSON(w, r, &request) {
+	if !sharedhttp.DecodeJSON(ctx, &request, sharedhttp.DefaultJSONBodyLimit) {
 		return
 	}
 
 	err := handler.storageService.DeleteObject(
-		r.Context(),
+		ctx.Request.Context(),
 		domain.ObjectRef{Bucket: request.Bucket, ObjectKey: request.ObjectKey},
 	)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(ctx, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
-func (handler *Handler) HandleObject(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		handler.HandleGetObject(w, r)
-	case http.MethodPut:
-		handler.HandlePutObject(w, r)
-	default:
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-	}
-}
-
-func (handler *Handler) HandleGetObject(w http.ResponseWriter, r *http.Request) {
-	bucket, objectKey, ok := parseObjectPath(r.URL.Path)
+func (handler *Handler) HandleGetObject(ctx *sharedhttp.Context) {
+	bucket, objectKey, ok := parseObjectPath(ctx.Request.URL.Path)
 	if !ok {
-		writeError(w, http.StatusBadRequest, "path must be /objects/{bucket}/{object_key}")
+		sharedhttp.WriteError(ctx, http.StatusBadRequest, "path must be /objects/{bucket}/{object_key}")
 		return
 	}
 
 	stream, err := handler.storageService.GetObject(
-		r.Context(),
+		ctx.Request.Context(),
 		domain.ObjectRef{Bucket: bucket, ObjectKey: objectKey},
 	)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(ctx, err)
 		return
 	}
 	defer stream.Body.Close()
 
 	if stream.ContentType != "" {
-		w.Header().Set("Content-Type", stream.ContentType)
+		ctx.Writer.Header().Set("Content-Type", stream.ContentType)
 	}
 	if stream.Size >= 0 {
-		w.Header().Set("Content-Length", strconv.FormatInt(stream.Size, 10))
+		ctx.Writer.Header().Set("Content-Length", strconv.FormatInt(stream.Size, 10))
 	}
 	if stream.ETag != "" {
-		w.Header().Set("ETag", `"`+strings.Trim(stream.ETag, `"`)+`"`)
+		ctx.Writer.Header().Set("ETag", `"`+strings.Trim(stream.ETag, `"`)+`"`)
 	}
-	w.WriteHeader(http.StatusOK)
-	if _, err := io.Copy(w, stream.Body); err != nil {
+	ctx.Writer.WriteHeader(http.StatusOK)
+	if _, err := io.Copy(ctx.Writer, stream.Body); err != nil {
 		return
 	}
 }
 
-func (handler *Handler) HandlePutObject(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
-	bucket, objectKey, ok := parseObjectPath(r.URL.Path)
+func (handler *Handler) HandlePutObject(ctx *sharedhttp.Context) {
+	bucket, objectKey, ok := parseObjectPath(ctx.Request.URL.Path)
 	if !ok {
-		writeError(w, http.StatusBadRequest, "path must be /objects/{bucket}/{object_key}")
+		sharedhttp.WriteError(ctx, http.StatusBadRequest, "path must be /objects/{bucket}/{object_key}")
 		return
 	}
 
-	body, contentLength, err := seekableBody(http.MaxBytesReader(w, r.Body, handler.maxUploadBodyBytes))
+	body, contentLength, err := seekableBody(http.MaxBytesReader(ctx.Writer, ctx.Request.Body, handler.maxUploadBodyBytes))
 	if err != nil {
 		var maxBytesError *http.MaxBytesError
 		if errors.As(err, &maxBytesError) {
-			writeError(w, http.StatusRequestEntityTooLarge, "upload body exceeds storage-service limit")
+			sharedhttp.WriteError(ctx, http.StatusRequestEntityTooLarge, "upload body exceeds storage-service limit")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		sharedhttp.WriteError(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 	defer func() {
@@ -258,35 +242,25 @@ func (handler *Handler) HandlePutObject(w http.ResponseWriter, r *http.Request) 
 	}()
 
 	result, err := handler.storageService.PutObject(
-		r.Context(),
+		ctx.Request.Context(),
 		appstorage.PutObjectInput{
 			Bucket:        bucket,
 			ObjectKey:     objectKey,
 			Body:          body,
 			ContentLength: contentLength,
-			ContentType:   r.Header.Get("Content-Type"),
+			ContentType:   ctx.Request.Header.Get("Content-Type"),
 		},
 	)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(ctx, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]any{
 		"bucket":     result.Bucket,
 		"object_key": result.ObjectKey,
 		"etag":       result.ETag,
 	})
-}
-
-func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	defer r.Body.Close()
-	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
-	if err := decoder.Decode(target); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return false
-	}
-	return true
 }
 
 func parseObjectPath(path string) (string, string, bool) {
@@ -298,17 +272,17 @@ func parseObjectPath(path string) (string, string, bool) {
 	return parts[0], parts[1], true
 }
 
-func writeServiceError(w http.ResponseWriter, err error) {
+func writeServiceError(ctx *sharedhttp.Context, err error) {
 	switch {
 	case errors.Is(err, domain.ErrBucketRequired),
 		errors.Is(err, domain.ErrObjectKeyRequired),
 		errors.Is(err, domain.ErrInvalidPartCount),
 		errors.Is(err, domain.ErrMultipartPartsRequired),
 		errors.Is(err, domain.ErrUploadIDRequired):
-		writeError(w, http.StatusBadRequest, err.Error())
+		sharedhttp.WriteError(ctx, http.StatusBadRequest, err.Error())
 	case errors.Is(err, domain.ErrObjectNotFound):
-		writeError(w, http.StatusNotFound, err.Error())
+		sharedhttp.WriteError(ctx, http.StatusNotFound, err.Error())
 	default:
-		writeError(w, http.StatusBadGateway, err.Error())
+		sharedhttp.WriteError(ctx, http.StatusBadGateway, err.Error())
 	}
 }

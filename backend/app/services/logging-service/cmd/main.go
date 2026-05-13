@@ -15,6 +15,7 @@ import (
 	kafkapub "xiehe-logging-service/internal/infrastructure/kafka"
 	"xiehe-logging-service/internal/interfaces/console"
 	httpapi "xiehe-logging-service/internal/interfaces/http"
+	"xiehe-services-lib-go/httpserver"
 )
 
 const kafkaStartupCheckTimeout = 10 * time.Second
@@ -59,7 +60,7 @@ func main() {
 	service.Start(ctx)
 
 	handler := httpapi.NewHandler(service, cfg.ServiceToken)
-	server := newHTTPServer(cfg, httpapi.NewRouter(handler))
+	server := httpserver.New(cfg.HTTPServerConfig(), httpapi.NewRouter(handler))
 
 	go func() {
 		<-ctx.Done()

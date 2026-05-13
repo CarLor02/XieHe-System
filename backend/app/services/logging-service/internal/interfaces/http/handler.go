@@ -1,12 +1,11 @@
 package httpapi
 
 import (
-	"encoding/json"
-	"io"
 	"net/http"
 
 	applogging "xiehe-logging-service/internal/application/logging"
 	domain "xiehe-logging-service/internal/domain/logging"
+	sharedhttp "xiehe-services-lib-go/httpapi"
 )
 
 // Handler exposes the HTTP API used by backend services to emit log events.
@@ -21,47 +20,36 @@ func NewHandler(service *applogging.Service, serviceToken string) *Handler {
 }
 
 // HandleHealth reports process liveness.
-func (handler *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+func (handler *Handler) HandleHealth(ctx *sharedhttp.Context) {
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // HandleLogEvent accepts one LogEvent and enqueues it for batched processing.
-func (handler *Handler) HandleLogEvent(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) HandleLogEvent(ctx *sharedhttp.Context) {
 	var request logEventIngestRequest
-	if !decodeJSON(w, r, &request) {
+	if !sharedhttp.DecodeJSON(ctx, &request, sharedhttp.DefaultJSONBodyLimit) {
 		return
 	}
 
-	if err := handler.service.Ingest(r.Context(), []domain.LogEvent{request.Event}); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if err := handler.service.Ingest(ctx.Request.Context(), []domain.LogEvent{request.Event}); err != nil {
+		sharedhttp.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]int{"accepted": 1})
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]int{"accepted": 1})
 }
 
 // HandleLogEventBatch accepts multiple LogEvent records in one request.
-func (handler *Handler) HandleLogEventBatch(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) HandleLogEventBatch(ctx *sharedhttp.Context) {
 	var request logEventBatchIngestRequest
-	if !decodeJSON(w, r, &request) {
+	if !sharedhttp.DecodeJSON(ctx, &request, sharedhttp.DefaultJSONBodyLimit) {
 		return
 	}
 
-	if err := handler.service.Ingest(r.Context(), request.Events); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if err := handler.service.Ingest(ctx.Request.Context(), request.Events); err != nil {
+		sharedhttp.WriteError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]int{"accepted": len(request.Events)})
-}
-
-// decodeJSON reads a bounded JSON request body into the target DTO.
-func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	defer r.Body.Close()
-	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
-	if err := decoder.Decode(target); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return false
-	}
-	return true
+	sharedhttp.WriteJSON(ctx, http.StatusOK, map[string]int{"accepted": len(request.Events)})
 }
