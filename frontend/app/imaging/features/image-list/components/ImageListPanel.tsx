@@ -26,6 +26,7 @@ interface ImageListPanelProps {
     currentDesc: string,
     status: string
   ) => void;
+  onCropEdit: (imageFile: ImageFile) => void;
   onClearResultFilters: () => void;
   onChangePage: (updater: (page: number) => number) => void;
 }
@@ -44,6 +45,7 @@ export default function ImageListPanel({
   onToggleActionMenu,
   onMoreAction,
   onOpenChangeTypeModal,
+  onCropEdit,
   onClearResultFilters,
   onChangePage,
 }: ImageListPanelProps) {
@@ -60,6 +62,7 @@ export default function ImageListPanel({
             onToggleActionMenu={onToggleActionMenu}
             onMoreAction={onMoreAction}
             onOpenChangeTypeModal={onOpenChangeTypeModal}
+            onCropEdit={onCropEdit}
           />
         ) : (
           <ImageListRows
@@ -68,6 +71,7 @@ export default function ImageListPanel({
             previewStates={previewStates}
             onPreviewError={onPreviewError}
             onMoreAction={onMoreAction}
+            onCropEdit={onCropEdit}
           />
         )
       ) : (

@@ -11,6 +11,7 @@ interface ImageActionMenuProps {
     currentDesc: string,
     status: string
   ) => void;
+  onCropEdit: () => void;
 }
 
 export default function ImageActionMenu({
@@ -20,6 +21,7 @@ export default function ImageActionMenu({
   openDropdown,
   onMoreAction,
   onOpenChangeTypeModal,
+  onCropEdit,
 }: ImageActionMenuProps) {
   if (openDropdown?.id !== imageFileId.toString()) return null;
 
@@ -43,6 +45,14 @@ export default function ImageActionMenu({
         >
           <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
           <span>修改类型</span>
+        </button>
+        <div className="border-t border-gray-100"></div>
+        <button
+          onClick={onCropEdit}
+          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+        >
+          <i className="ri-crop-line w-4 h-4 flex items-center justify-center"></i>
+          <span>裁剪编辑</span>
         </button>
         <div className="border-t border-gray-100"></div>
         <button
