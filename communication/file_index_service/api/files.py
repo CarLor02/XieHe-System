@@ -206,6 +206,43 @@ def inspect_file(file_id: int, db: Session = Depends(get_db)):
 
 # ── 图像预览 ──────────────────────────────────────────────────────────────────
 
+def _auto_crop_black_borders(img, threshold=10):
+    """
+    自动裁剪图像四周的黑边。
+
+    Args:
+        img: PIL Image 对象（灰度或 RGB）
+        threshold: 黑色阈值，像素值小于此值认为是黑边（0-255）
+
+    Returns:
+        裁剪后的 PIL Image 对象
+    """
+    import numpy as np
+
+    arr = np.array(img)
+
+    # 多通道取平均
+    if arr.ndim == 3:
+        gray = arr.mean(axis=2)
+    else:
+        gray = arr
+
+    # 找到非黑色区域的边界
+    mask = gray > threshold
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+
+    if not rows.any() or not cols.any():
+        # 全黑图像，不裁剪
+        return img
+
+    y_min, y_max = np.where(rows)[0][[0, -1]]
+    x_min, x_max = np.where(cols)[0][[0, -1]]
+
+    # 裁剪（左、上、右、下）
+    return img.crop((x_min, y_min, x_max + 1, y_max + 1))
+
+
 @router.get("/files/{file_id}/preview-image")
 def preview_image(file_id: int, db: Session = Depends(get_db)):
     """
@@ -228,6 +265,9 @@ def preview_image(file_id: int, db: Session = Depends(get_db)):
             import io
 
             with Image.open(path) as img:
+                # 自动裁剪黑边
+                img = _auto_crop_black_borders(img, threshold=10)
+
                 # 限制最长边 1024px
                 img.thumbnail((1024, 1024), Image.LANCZOS)
                 buf = io.BytesIO()
@@ -277,6 +317,9 @@ def preview_image(file_id: int, db: Session = Depends(get_db)):
             img = Image.fromarray(arr, mode="RGB")
         else:
             img = Image.fromarray(arr, mode="L")
+
+        # 自动裁剪黑边
+        img = _auto_crop_black_borders(img, threshold=10)
 
         # 限制最长边 1024px，缩小大图
         img.thumbnail((1024, 1024), Image.LANCZOS)
