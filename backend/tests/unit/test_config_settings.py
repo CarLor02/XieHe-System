@@ -75,3 +75,13 @@ def test_app_settings_parse_comma_separated_lists() -> None:
 
     assert app_settings.BACKEND_CORS_ORIGINS == ["http://a.example", "http://b.example"]
     assert app_settings.ALLOWED_HOSTS == ["a.example", "b.example"]
+
+
+def test_app_settings_parse_comma_separated_lists_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BACKEND_CORS_ORIGINS", "http://a.example,http://b.example")
+    monkeypatch.setenv("ALLOWED_HOSTS", "a.example,b.example")
+
+    app_settings = AppSettings()
+
+    assert app_settings.BACKEND_CORS_ORIGINS == ["http://a.example", "http://b.example"]
+    assert app_settings.ALLOWED_HOSTS == ["a.example", "b.example"]

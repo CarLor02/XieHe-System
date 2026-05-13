@@ -23,7 +23,7 @@ class AppSettings(BaseAppSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: Union[str, List[str]] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://localhost:3000",
@@ -34,7 +34,7 @@ class AppSettings(BaseAppSettings):
         "http://38.60.251.79",
         "*",
     ]
-    ALLOWED_HOSTS: List[str] = ["*"]
+    ALLOWED_HOSTS: Union[str, List[str]] = ["*"]
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, value: Union[str, List[str]]) -> List[str]:
