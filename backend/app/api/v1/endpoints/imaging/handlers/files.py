@@ -93,6 +93,26 @@ def _download_url_payload(
     }
 
 
+def _get_visible_image_files_by_ids(
+    db: Session,
+    file_ids: list[int],
+    current_user: dict[str, Any],
+) -> dict[int, ImageFile]:
+    if not file_ids:
+        return {}
+
+    query = db.query(ImageFile).filter(
+        ImageFile.id.in_(file_ids),
+        ImageFile.is_deleted == False,
+    )
+    visible_query = apply_image_visibility_filter(query, db, current_user)
+    return {image.id: image for image in visible_query.all()}
+
+
+def _enum_value(value: Any) -> str:
+    return value.value if hasattr(value, "value") else str(value)
+
+
 def _is_lateral_image(image: ImageFile) -> bool:
     return image.description == "侧位X光片"
 
@@ -494,8 +514,10 @@ async def get_image_file_download_urls(
         seen_ids.add(file_id)
         ordered_ids.append(file_id)
 
+    visible_images = _get_visible_image_files_by_ids(db, ordered_ids, current_user)
+
     for file_id in ordered_ids:
-        image = get_visible_image_file(db, file_id, current_user)
+        image = visible_images.get(file_id)
         if not image:
             errors[file_id] = {
                 "code": "not_found",
@@ -616,22 +638,28 @@ async def get_image_stats(
         query = db.query(ImageFile).filter(
             ImageFile.is_deleted == False
         )
-        images = apply_image_visibility_filter(query, db, current_user).all()
-        
-        total_files = len(images)
-        total_size = sum(img.file_size for img in images)
-        
-        # 按类型统计
-        by_type = {}
-        for img in images:
-            file_type = img.file_type.value
-            by_type[file_type] = by_type.get(file_type, 0) + 1
-        
-        # 按状态统计
-        by_status = {}
-        for img in images:
-            img_status = img.status.value
-            by_status[img_status] = by_status.get(img_status, 0) + 1
+        visible_query = apply_image_visibility_filter(query, db, current_user)
+
+        total_files, total_size = visible_query.with_entities(
+            func.count(ImageFile.id),
+            func.coalesce(func.sum(ImageFile.file_size), 0),
+        ).one()
+
+        by_type = {
+            _enum_value(file_type): count
+            for file_type, count in visible_query.with_entities(
+                ImageFile.file_type,
+                func.count(ImageFile.id),
+            ).group_by(ImageFile.file_type).all()
+        }
+
+        by_status = {
+            _enum_value(file_status): count
+            for file_status, count in visible_query.with_entities(
+                ImageFile.status,
+                func.count(ImageFile.id),
+            ).group_by(ImageFile.status).all()
+        }
         
         return success_response(
             data=ImageFileStatsResponse(

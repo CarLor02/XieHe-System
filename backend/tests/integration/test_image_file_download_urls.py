@@ -95,6 +95,11 @@ async def test_batch_download_urls_presigns_visible_ready_files_and_sets_cache_h
         return f"/{bucket}/{object_key}?signature={len(presigned_calls)}"
 
     monkeypatch.setattr(file_handlers.storage_gateway, "presign_get", fake_presign_get)
+    monkeypatch.setattr(
+        file_handlers,
+        "get_visible_image_file",
+        lambda *args, **kwargs: pytest.fail("batch endpoint must not query files one by one"),
+    )
 
     response = Response()
     result = await file_handlers.get_image_file_download_urls(
@@ -143,3 +148,24 @@ async def test_single_download_url_sets_private_cache_headers(
     assert result["data"]["etag"] == "etag-101"
     assert response.headers["Cache-Control"] == "private, max-age=840"
     assert response.headers["Vary"] == "Authorization"
+
+
+@pytest.mark.asyncio
+async def test_image_stats_aggregates_visible_files(
+    db_session: Session,
+    image_file_download_url_data: None,
+) -> None:
+    result = await file_handlers.get_image_stats(
+        current_user={"id": 21},
+        db=db_session,
+    )
+
+    data = result["data"]
+    assert data["total_files"] == 3
+    assert data["total_size"] == 6144
+    assert data["by_type"] == {"PNG": 3}
+    assert data["by_status"] == {
+        "UPLOADED": 1,
+        "PROCESSED": 1,
+        "UPLOADING": 1,
+    }
