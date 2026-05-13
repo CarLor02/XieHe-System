@@ -18,7 +18,6 @@ from app.core.database.session import get_db
 from app.core.system.response import success_response, paginated_response
 from app.models.user import User
 from app.services.email_service import email_service, send_system_notification
-from app.core.system.websocket import websocket_manager
 from ..schemas.notifications import (
     MessageCreate,
     EmailSendRequest,
@@ -78,16 +77,6 @@ async def send_message(
             "action_text": message.action_text,
             "is_read": False
         }
-        
-        # 发送WebSocket实时通知
-        for recipient in recipients:
-            await websocket_manager.send_personal_message(
-                message={
-                    "type": "notification",
-                    "data": message_data
-                },
-                user_id=recipient.id
-            )
         
         # 如果需要，发送邮件通知
         if message.message_type in ["urgent", "error"]:
@@ -400,40 +389,3 @@ async def send_email_notifications(
             )
         except Exception as e:
             print(f"发送邮件通知失败: {recipient.email} - {e}")
-
-
-# WebSocket推送消息
-@router.post("/push/{user_id}", response_model=Dict[str, Any])
-async def push_message_to_user(
-    user_id: int,
-    message: Dict[str, Any],
-    current_user: dict = Depends(get_current_active_user)
-):
-    """向指定用户推送消息"""
-    try:
-        await websocket_manager.send_personal_message(
-            message=message,
-            user_id=user_id
-        )
-        return success_response(
-            data={"user_id": user_id},
-            message="消息推送成功"
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"消息推送失败: {str(e)}")
-
-
-@router.post("/broadcast", response_model=Dict[str, Any])
-async def broadcast_message(
-    message: Dict[str, Any],
-    current_user: dict = Depends(get_current_active_user)
-):
-    """广播消息给所有在线用户"""
-    try:
-        await websocket_manager.broadcast(message)
-        return success_response(
-            data=None,
-            message="消息广播成功"
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"消息广播失败: {str(e)}")

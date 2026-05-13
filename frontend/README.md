@@ -119,7 +119,6 @@ frontend/
 │   ├── useDebounce.ts         # 防抖处理
 │   ├── useInfiniteScroll.ts   # 无限滚动
 │   ├── usePagination.ts       # 分页管理
-│   ├── useWebSocket.ts        # WebSocket 连接
 │   └── useDicomViewer.ts      # DICOM 查看器状态
 ├── types/                      # TypeScript 类型定义
 │   ├── index.ts               # 导出所有类型

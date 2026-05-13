@@ -1,11 +1,11 @@
 """
-实时数据推送服务
+实时数据缓存刷新服务
 
 提供实时数据推送功能，包括：
-- 仪表板数据定时推送
-- 系统状态监控推送
-- 任务进度通知推送
-- 用户消息推送
+- 仪表板数据定时刷新
+- 系统状态监控刷新
+- 任务进度通知刷新
+- 用户消息刷新
 
 作者: XieHe Medical System
 创建时间: 2025-09-25
@@ -44,7 +44,7 @@ class RealtimeData:
     priority: str = "normal"  # low, normal, high, urgent
 
 class RealtimeDataService:
-    """实时数据推送服务"""
+    """实时数据缓存刷新服务"""
     
     def __init__(self):
         self.cache_manager = get_cache_manager()
@@ -293,12 +293,10 @@ class RealtimeDataService:
         return []
     
     async def _broadcast_data(self, data: RealtimeData):
-        """广播数据到WebSocket连接"""
-        # 这里需要与WebSocket管理器集成
-        # 现在先记录日志
+        """写入最新实时数据缓存"""
         logger.emit_event(LogLevel.INFO, message=f"广播数据到频道 {data.channel}: {data.type}")
         
-        # 将数据存储到缓存中，供WebSocket端点使用
+        # 将最新数据存储到缓存中，供 HTTP 查询接口或后台任务复用
         cache_key = f"realtime_data:{data.channel}:latest"
         cache_data = {
             "type": data.type,

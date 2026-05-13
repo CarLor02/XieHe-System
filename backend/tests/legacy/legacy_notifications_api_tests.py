@@ -331,44 +331,6 @@ class TestEmailService:
             assert "html_content" in template
 
 
-class TestWebSocketNotifications:
-    """WebSocket通知测试类"""
-    
-    def test_websocket_connection(self):
-        """测试WebSocket连接"""
-        # 这里需要使用WebSocket测试客户端
-        # 由于TestClient不直接支持WebSocket，这里只做基本测试
-        try:
-            with client.websocket_connect("/ws/notifications") as websocket:
-                # 发送测试消息
-                websocket.send_json({"type": "ping"})
-                
-                # 接收响应
-                data = websocket.receive_json()
-                assert data["type"] == "pong"
-        except Exception:
-            # WebSocket连接可能需要认证或其他配置
-            pass
-    
-    def test_websocket_notification_push(self, auth_headers):
-        """测试WebSocket通知推送"""
-        # 发送通知，应该通过WebSocket推送
-        notification_data = {
-            "recipient_id": "user_001",
-            "title": "实时通知测试",
-            "message": "这是实时推送的通知",
-            "type": "info",
-            "channels": ["websocket"]
-        }
-        
-        response = client.post(
-            "/api/v1/notifications/send",
-            json=notification_data,
-            headers=auth_headers
-        )
-        
-        assert response.status_code in [200, 201]
-
 
 class TestNotificationIntegration:
     """通知集成测试类"""
