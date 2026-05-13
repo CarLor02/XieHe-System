@@ -1,4 +1,4 @@
-@import url('https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css');
+/* remixicon 已通过 layout.tsx 的 <link> 标签本地加载，无需重复 @import */
 @import "../tailwind.css";
 
 /* 导入响应式样式 */

@@ -16,6 +16,13 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_PORTS_FILE="$SCRIPT_DIR/dotenv/.env.ports"
 
+# ==================== 固定密码配置 ====================
+# 修改这里可以设置自定义的固定密码
+FIXED_MYSQL_PASSWORD="xiehe_mysql_2024"
+FIXED_MINIO_USER="minioadmin"
+FIXED_MINIO_PASSWORD="xiehe_minio_2024"
+# ====================================================
+
 print_header() {
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}$1${NC}"
@@ -127,31 +134,37 @@ main() {
     
     echo ""
     print_header "开始更换 IP"
-    
+
+    print_info "使用固定密码配置:"
+    echo -e "  MySQL 密码: ${BLUE}$FIXED_MYSQL_PASSWORD${NC}"
+    echo -e "  MinIO 用户: ${BLUE}$FIXED_MINIO_USER${NC}"
+    echo -e "  MinIO 密码: ${BLUE}$FIXED_MINIO_PASSWORD${NC}"
+    echo ""
+
     # 1. 停止所有服务
     print_step "停止所有服务..."
     echo ""
-    
+
     print_info "停止 AI 服务..."
     ./manage_ai.sh stop || true
     echo ""
-    
+
     print_info "停止 Docker 服务..."
     ./scripts/compose.sh down || true
     echo ""
-    
+
     print_success "所有服务已停止"
     echo ""
     
-    # 2. 备份配置文件
+    # 3. 备份配置文件
     print_step "备份当前配置..."
     if [ -f "$ENV_PORTS_FILE" ]; then
         cp "$ENV_PORTS_FILE" "$ENV_PORTS_FILE.backup.$(date +%Y%m%d_%H%M%S)"
         print_success "配置已备份"
     fi
     echo ""
-    
-    # 3. 修改 IP
+
+    # 4. 修改 IP
     print_step "修改 LAN_IP 为: $NEW_IP"
     if [ -f "$ENV_PORTS_FILE" ]; then
         sed -i.tmp "s/^LAN_IP=.*/LAN_IP=$NEW_IP/" "$ENV_PORTS_FILE"
@@ -163,26 +176,70 @@ main() {
     fi
     echo ""
 
-    # 4. 重新生成配置并部署
+    # 5. 重新生成配置并部署
     print_step "重新生成配置并部署服务..."
     echo ""
-    ./deploy_pc.sh --reset-env -y
+
+    # 检测网络：能否在 3 秒内连上 GitHub（或任意外网）
+    # 有网络 → 正常拉取最新代码；无网络 → --skip-pull 直接用本地代码 + Docker 层缓存
+    DEPLOY_EXTRA_FLAGS=""
+    if curl -sf --connect-timeout 3 --max-time 5 https://github.com -o /dev/null 2>/dev/null; then
+        print_success "网络可用，将拉取最新代码"
+    else
+        print_info "网络不可用，跳过 git pull，使用本地代码和 Docker 层缓存"
+        DEPLOY_EXTRA_FLAGS="--skip-pull"
+    fi
+
+    # 必须显式传 --ip，否则 deploy_pc.sh 会用 detect_lan_ip() 自动检测
+    # 在联网状态下 detect_lan_ip 会返回互联网出口 IP，而非用户指定的局域网 IP
+    # 不传 --rebuild：让 Docker 复用层缓存，避免无网时重新下载 npm/pip 包
+    # shellcheck disable=SC2086
+    ./deploy_pc.sh --reset-env --ip "$NEW_IP" $DEPLOY_EXTRA_FLAGS -y
     echo ""
     print_success "配置已重新生成，Docker 服务已启动"
     echo ""
 
-    # 5. 启动 AI 服务
+    # 6. 设置固定密码（重要！）
+    print_step "设置固定密码..."
+
+    # 设置 MySQL 固定密码
+    if [ -f "dotenv/.env.database" ]; then
+        sed -i.tmp "s/^DB_PASSWORD=.*/DB_PASSWORD=$FIXED_MYSQL_PASSWORD/" dotenv/.env.database
+        sed -i.tmp "s/^MYSQL_ROOT_PASSWORD=.*/MYSQL_ROOT_PASSWORD=$FIXED_MYSQL_PASSWORD/" dotenv/.env.database
+        sed -i.tmp "s|^DATABASE_URL=.*|DATABASE_URL=mysql+pymysql://root:$FIXED_MYSQL_PASSWORD@mysql:3306/medical_imaging_system|" dotenv/.env.database
+        sed -i.tmp "s|^TEST_DATABASE_URL=.*|TEST_DATABASE_URL=mysql+pymysql://root:$FIXED_MYSQL_PASSWORD@mysql:3306/medical_imaging_system_test|" dotenv/.env.database
+        rm -f dotenv/.env.database.tmp
+        print_success "MySQL 固定密码已设置"
+    fi
+
+    # 设置 MinIO 固定凭据
+    if [ -f "dotenv/.env.minio" ]; then
+        sed -i.tmp "s/^MINIO_ROOT_USER=.*/MINIO_ROOT_USER=$FIXED_MINIO_USER/" dotenv/.env.minio
+        sed -i.tmp "s/^MINIO_ROOT_PASSWORD=.*/MINIO_ROOT_PASSWORD=$FIXED_MINIO_PASSWORD/" dotenv/.env.minio
+        rm -f dotenv/.env.minio.tmp
+        print_success "MinIO 固定凭据已设置"
+    fi
+    echo ""
+
+    # 7. 重启 Docker 服务以应用固定密码
+    print_step "重启 Docker 服务以应用密码..."
+    ./scripts/compose.sh restart backend mysql minio 2>/dev/null || true
+    sleep 3
+    print_success "Docker 服务已重启"
+    echo ""
+
+    # 8. 启动 AI 服务
     print_step "启动 AI 服务..."
     echo ""
     ./manage_ai.sh start
     echo ""
 
-    # 6. 等待服务启动
+    # 9. 等待服务启动
     print_step "等待服务完全启动..."
     sleep 5
     echo ""
 
-    # 7. 验证服务
+    # 10. 验证服务
     print_header "验证服务状态"
 
     echo -e "${CYAN}Docker 服务状态:${NC}"

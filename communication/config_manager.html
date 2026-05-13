@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件索引服务 - 配置管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        .status {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .status-card {
+            flex: 1;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .status-card.online { background: #d4edda; color: #155724; }
+        .status-card.offline { background: #f8d7da; color: #721c24; }
+        .status-card .label { font-size: 12px; opacity: 0.8; margin-bottom: 5px; }
+        .status-card .value { font-size: 24px; font-weight: bold; }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .form-group .hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3); }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn-secondary:hover { background: #e0e0e0; }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover { background: #c82333; }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1000;
+        }
+        .toast.success { background: #28a745; }
+        .toast.error { background: #dc3545; }
+        .toast.show { display: block; animation: slideIn 0.3s; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-box {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-box .number { font-size: 28px; font-weight: bold; color: #667eea; }
+        .stat-box .label { font-size: 12px; color: #666; margin-top: 5px; }
+        .quick-path {
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quick-path:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>文件索引服务</h1>
+            <p>DICOM 文件扫描与同步配置</p>
+        </div>
+        <div class="content">
+            <div class="status">
+                <div class="status-card" id="statusCard">
+                    <div class="label">服务状态</div>
+                    <div class="value" id="statusText">检测中...</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="serviceUrl">服务地址</label>
+                <input type="text" id="serviceUrl" value="http://192.168.189.20:9000" placeholder="http://192.168.189.20:9000">
+                <div class="hint">文件索引服务的 URL</div>
+            </div>
+
+            <div class="form-group">
+                <label for="watchPath">扫描目录</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="watchPath" placeholder="/path/to/dicom/files" style="flex: 1;">
+                    <button class="btn btn-secondary" onclick="selectDirectory()" style="flex: 0 0 auto; padding: 12px 20px;">
+                        📁 浏览
+                    </button>
+                </div>
+                <div class="hint">DICOM 文件存放的目录（绝对路径）</div>
+                <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="quick-path" onclick="setPath('~/Documents/dicom_data')">📂 Documents/dicom_data</button>
+                    <button class="quick-path" onclick="setPath('~/Desktop/dicom_files')">📂 Desktop/dicom_files</button>
+                    <button class="quick-path" onclick="setPath('/Volumes/USB/dicom')">💾 USB/dicom</button>
+                    <button class="quick-path" onclick="setPath('~/Documents/code/spine/MeshAlign/XieHe-System/communication/data')">📂 默认测试目录</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="scanInterval">扫描间隔（秒）</label>
+                <input type="number" id="scanInterval" min="0" placeholder="300">
+                <div class="hint">自动扫描间隔，0 表示禁用自动扫描</div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="loadConfig()">刷新配置</button>
+                <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                <button class="btn btn-secondary" onclick="triggerScan()">立即扫描</button>
+            </div>
+
+            <div class="stats" id="statsContainer"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = () => document.getElementById('serviceUrl').value;
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        async function checkHealth() {
+            try {
+                const res = await fetch(`${API_BASE()}/health`);
+                if (res.ok) {
+                    document.getElementById('statusCard').className = 'status-card online';
+                    document.getElementById('statusText').textContent = '在线';
+                    return true;
+                }
+            } catch (e) {
+                document.getElementById('statusCard').className = 'status-card offline';
+                document.getElementById('statusText').textContent = '离线';
+                return false;
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch(`${API_BASE()}/api/v1/config`);
+                const data = await res.json();
+                document.getElementById('watchPath').value = data.watch_path || '';
+                document.getElementById('scanInterval').value = data.scan_interval_seconds || 300;
+                showToast('配置已加载', 'success');
+                loadStats();
+            } catch (e) {
+                showToast('加载配置失败: ' + e.message, 'error');
+            }
+        }
+
+        async function saveConfig() {
+            const watchPath = document.getElementById('watchPath').value;
+            const scanInterval = parseInt(document.getElementById('scanInterval').value);
+
+            if (!watchPath) {
+                showToast('请输入扫描目录', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE()}/api/v1/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        watch_path: watchPath,
+                        scan_interval: scanInterval
+                    })
+                });
+                const data = await res.json();
+                showToast('配置已保存，请重启服务生效', 'success');
+            } catch (e) {
+                showToast('保存失败: ' + e.message, 'error');
+            }
+        }
+
+        async function triggerScan() {
+            try {
+                showToast('扫描中...', 'success');
+                const res = await fetch(`${API_BASE()}/api/v1/scan`, { method: 'POST' });
+                const data = await res.json();
+                showToast(`扫描完成 - 新增: ${data.new_files}, 更新: ${data.updated_files}`, 'success');
+                setTimeout(loadStats, 500);
+            } catch (e) {
+                showToast('扫描失败: ' + e.message, 'error');
+            }
+        }
+
+        function setPath(path) {
+            document.getElementById('watchPath').value = path;
+            showToast('路径已设置: ' + path, 'success');
+        }
+
+        async function selectDirectory() {
+            // 检查浏览器是否支持 File System Access API
+            if (!('showDirectoryPicker' in window)) {
+                showToast('浏览器不支持目录选择，请使用快捷路径或手动输入', 'error');
+                return;
+            }
+
+            try {
+                const dirHandle = await window.showDirectoryPicker();
+                const dirName = dirHandle.name;
+                showToast(`已选择目录: ${dirName}，请在输入框中补全完整路径`, 'success');
+
+                // 尝试智能补全
+                const currentPath = document.getElementById('watchPath').value;
+                if (currentPath && !currentPath.endsWith(dirName)) {
+                    document.getElementById('watchPath').value = currentPath.replace(/\/$/, '') + '/' + dirName;
+                } else if (!currentPath) {
+                    document.getElementById('watchPath').placeholder = `请输入完整路径，包含: ${dirName}`;
+                }
+            } catch (e) {
+                if (e.name !== 'AbortError') {
+                    showToast('选择目录失败: ' + e.message, 'error');
+                }
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API_BASE()}/api/v1/stats`);
+                const data = await res.json();
+                const container = document.getElementById('statsContainer');
+                container.innerHTML = `
+                    <div class="stat-box">
+                        <div class="number">${data.valid_files || 0}</div>
+                        <div class="label">有效文件</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">${data.primary_files || 0}</div>
+                        <div class="label">主影像</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">${data.synced_files || 0}</div>
+                        <div class="label">已同步</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">${data.unsynced_primary_files || 0}</div>
+                        <div class="label">待同步</div>
+                    </div>
+                `;
+            } catch (e) {
+                console.error('加载统计失败', e);
+            }
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('load', async () => {
+            const healthy = await checkHealth();
+            if (healthy) {
+                await loadConfig();
+            }
+        });
+    </script>
+</body>
+</html>

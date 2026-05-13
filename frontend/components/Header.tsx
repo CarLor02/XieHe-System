@@ -34,6 +34,10 @@ export default function Header() {
   >(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [mounted, setMounted] = useState(false);
+  // 熔断器：连续失败次数，超过阈值后暂停轮询避免刷屏
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  const CIRCUIT_BREAKER_THRESHOLD = 3; // 连续失败3次后暂停
+  const CIRCUIT_BREAKER_INTERVAL = 5 * 60 * 1000; // 暂停后每5分钟重试一次
 
   // 从认证系统获取用户角色
   const userRole = user?.role || 'staff';
@@ -42,10 +46,15 @@ export default function Header() {
     setMounted(true);
   }, []);
 
-  // 获取消息数据
+  // 获取消息数据（含熔断：连续失败超过阈值后暂停轮询）
   useEffect(() => {
+    let failureCount = consecutiveFailures;
+
     const fetchMessages = async () => {
       if (!user) return;
+
+      let anySuccess = false;
+      let anyFailure = false;
 
       try {
         // 获取系统通知
@@ -62,7 +71,9 @@ export default function Header() {
               : '刚刚',
             isRead: item.is_read || false,
           }));
+          anySuccess = true;
         } catch (error) {
+          anyFailure = true;
           logger.warn('获取系统消息失败', error);
         }
 
@@ -78,25 +89,45 @@ export default function Header() {
             time: new Date(inv.created_at).toLocaleString(),
             isRead: false,
           }));
+          anySuccess = true;
         } catch (error) {
+          anyFailure = true;
           logger.warn('获取团队邀请失败', error);
         }
 
         // 合并所有消息
         setMessages([...invitationMessages, ...systemMessages]);
       } catch (error) {
+        anyFailure = true;
         logger.warn('获取消息失败', error);
         setMessages([]);
+      }
+
+      // 更新熔断计数
+      if (anyFailure && !anySuccess) {
+        failureCount += 1;
+        setConsecutiveFailures(failureCount);
+      } else if (anySuccess) {
+        failureCount = 0;
+        setConsecutiveFailures(0);
       }
     };
 
     if (mounted && user) {
+      // 熔断：连续失败超过阈值时，改用长间隔轮询（5分钟一次）
+      const isCircuitOpen = consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD;
+      const pollInterval = isCircuitOpen ? CIRCUIT_BREAKER_INTERVAL : 30000;
+
+      if (isCircuitOpen) {
+        logger.warn(`后端连接失败 ${consecutiveFailures} 次，降级为 ${pollInterval / 60000} 分钟轮询`);
+      }
+
       fetchMessages();
-      // 每30秒刷新一次消息
-      const interval = setInterval(fetchMessages, 30000);
+      const interval = setInterval(fetchMessages, pollInterval);
       return () => clearInterval(interval);
     }
-  }, [mounted, user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, user, consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD]);
 
   if (!mounted) {
     return (

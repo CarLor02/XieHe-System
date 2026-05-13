@@ -26,6 +26,7 @@ interface ScanFile {
   filename: string;
   file_path: string;
   file_size: number;
+  file_mtime: string | null;
   is_primary: boolean;
   is_valid: boolean;
   is_synced: boolean;
@@ -35,9 +36,8 @@ interface ScanFile {
 interface Stats {
   total: number;
   valid: number;
-  primary: number;
   synced: number;
-  unsynced_primary: number;
+  unsynced: number;
 }
 
 type ImportStatus = 'idle' | 'inspecting' | 'patient' | 'downloading' | 'uploading' | 'marking' | 'done' | 'error';
@@ -74,7 +74,9 @@ function mapGender(sex: string | null | undefined): string {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function SyncPage() {
-  const [serviceUrl, setServiceUrl] = useState('http://localhost:9000');
+  const [serviceUrl, setServiceUrl] = useState(
+    process.env.NEXT_PUBLIC_SYNC_SERVICE_URL || 'http://localhost:9000'
+  );
   const [apiKey, setApiKey] = useState('');
   const [showConfig, setShowConfig] = useState(false);
 
@@ -120,23 +122,22 @@ export default function SyncPage() {
     setError('');
     try {
       const statsData = await getSyncStats(syncConfig());
+      const valid = statsData.valid_files ?? 0;
+      const synced = statsData.synced_files ?? 0;
       setStats({
         total: statsData.total_files ?? 0,
-        valid: statsData.valid_files ?? 0,
-        primary: statsData.primary_files ?? 0,
-        synced: statsData.synced_files ?? 0,
-        unsynced_primary: statsData.unsynced_primary ?? 0,
+        valid,
+        synced,
+        unsynced: Math.max(0, valid - synced),
       });
 
       // months list
       const monthsSet = new Set<string>();
       const patientsSet = new Set<string>();
 
-      // files
-      const params = new URLSearchParams({ page: '1', page_size: '200', is_primary: 'true' });
-      if (filterMonth) params.set('month', filterMonth);
+      // files — 扁平化后不再强制过滤 is_primary，显示所有有效文件
+      const params = new URLSearchParams({ page: '1', page_size: '200' });
       if (filterSynced !== 'all') params.set('is_synced', filterSynced);
-      if (filterPatient) params.set('patient_folder', filterPatient);
 
       const items = await getSyncFiles(syncConfig(), params);
       setFiles(items);
@@ -319,7 +320,7 @@ export default function SyncPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={serviceUrl}
                   onChange={e => setServiceUrl(e.target.value)}
-                  placeholder="http://localhost:9000"
+                  placeholder={process.env.NEXT_PUBLIC_SYNC_SERVICE_URL || 'http://192.168.x.x:9000'}
                 />
               </div>
               <div className="flex-1 min-w-40">
@@ -351,13 +352,12 @@ export default function SyncPage() {
 
           {/* Stats */}
           {stats && (
-            <div className="grid grid-cols-5 gap-3 mb-4">
+            <div className="grid grid-cols-4 gap-3 mb-4">
               {[
                 { label: '总文件', value: stats.total, color: 'text-gray-700' },
                 { label: '有效文件', value: stats.valid, color: 'text-blue-600' },
-                { label: '主影像', value: stats.primary, color: 'text-indigo-600' },
                 { label: '已同步', value: stats.synced, color: 'text-green-600' },
-                { label: '待导入', value: stats.unsynced_primary, color: 'text-amber-600' },
+                { label: '待导入', value: stats.unsynced, color: 'text-amber-600' },
               ].map(s => (
                 <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-3 text-center">
                   <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
@@ -480,10 +480,9 @@ export default function SyncPage() {
                           className="rounded"
                         />
                       </th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium">月份</th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium">患者</th>
                       <th className="px-3 py-2 text-left text-gray-500 font-medium">文件名</th>
                       <th className="px-3 py-2 text-left text-gray-500 font-medium">大小</th>
+                      <th className="px-3 py-2 text-left text-gray-500 font-medium">文件时间</th>
                       <th className="px-3 py-2 text-left text-gray-500 font-medium">同步时间</th>
                       <th className="px-3 py-2 text-left text-gray-500 font-medium">状态</th>
                       <th className="px-3 py-2 text-left text-gray-500 font-medium">操作</th>
@@ -504,10 +503,13 @@ export default function SyncPage() {
                               className="rounded"
                             />
                           </td>
-                          <td className="px-3 py-2 text-gray-600 font-mono text-xs">{f.month_folder}</td>
-                          <td className="px-3 py-2 text-gray-700">{f.patient_folder}</td>
-                          <td className="px-3 py-2 font-mono text-xs text-gray-600">{f.filename}</td>
+                          <td className="px-3 py-2 font-mono text-xs text-gray-700 max-w-xs">
+                            <span title={f.filename} className="block truncate">{f.filename}</span>
+                          </td>
                           <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{fmtSize(f.file_size)}</td>
+                          <td className="px-3 py-2 text-gray-400 text-xs whitespace-nowrap">
+                            {f.file_mtime ? new Date(f.file_mtime).toLocaleString('zh-CN') : '—'}
+                          </td>
                           <td className="px-3 py-2 text-gray-400 text-xs whitespace-nowrap">
                             {f.synced_at ? new Date(f.synced_at).toLocaleString('zh-CN') : '—'}
                           </td>

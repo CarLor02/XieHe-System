@@ -82,11 +82,13 @@ interface ErrorHandlerConfig {
 
 class ErrorService {
   private config: ErrorHandlerConfig = {
-    enableReporting: true,
+    // 单机离线部署：禁用错误上报，避免后端不可用时产生级联报错风暴
+    // 若需启用，须确保后端正常运行，且路径须加上后端 URL 前缀
+    enableReporting: false,
     enableToast: true,
     enableConsoleLog: true,
-    reportEndpoint: '/api/v1/errors/report',
-    maxRetries: 3,
+    reportEndpoint: `${typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL ?? '') : ''}/api/v1/errors/report`,
+    maxRetries: 1,
     retryDelay: 1000,
   };
 

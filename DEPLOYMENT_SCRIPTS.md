@@ -199,3 +199,105 @@ sudo ./scripts/security_cleanup.sh
 2. 检查状态: `./scripts/check_mysql.sh`
 3. 查看文档: `./docs/`
 4. 联系技术支持
+
+
+
+关机重启后启动服务
+##########################
+cd ~/Documents/XieHe-System
+
+# 1. 启动 Docker 服务（如果没自动启动）
+sudo systemctl start docker
+
+# 2. 启动所有 Docker 服务
+./scripts/compose.sh up -d
+
+# 3. 启动 AI 服务（宿主机运行）
+./manage_ai.sh start
+
+# 4. 查看状态
+./scripts/compose.sh ps
+./manage_ai.sh status
+
+########################
+操作	是否需要联网
+./scripts/compose.sh up -d	❌ 不需要
+./scripts/compose.sh down	❌ 不需要
+./scripts/compose.sh ps	❌ 不需要
+./scripts/compose.sh logs	❌ 不需要
+./deploy_pc.sh (重新构建)	✅ 需要
+git pull (拉取更新)	✅ 需要
+
+# 创建 systemd 服务
+sudo tee /etc/systemd/system/xiehe.service > /dev/null << 'EOF'
+[Unit]
+Description=XieHe Medical Imaging System
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+WorkingDirectory=/home/root/Documents/XieHe-System
+ExecStart=/home/root/Documents/XieHe-System/start_xiehe.sh
+ExecStop=/home/root/Documents/XieHe-System/stop_xiehe.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 替换用户名
+sudo sed -i "s/root/$USER/g" /etc/systemd/system/xiehe.service
+
+# 启用开机自启
+sudo systemctl daemon-reload
+sudo systemctl enable xiehe.service
+
+
+
+####################检查IP
+cd ~/Documents/XieHe-System
+
+echo "=========================================="
+echo "🔍 查看所有服务的 IP 配置"
+echo "=========================================="
+
+echo -e "\n📁 1️⃣ 配置文件中的 IP:"
+echo "----------------------------------------"
+echo "LAN_IP:"
+grep "^LAN_IP=" dotenv/.env.ports 2>/dev/null || echo "  ❌ 文件不存在"
+
+echo -e "\n前端 API 地址:"
+grep "NEXT_PUBLIC_API_URL" dotenv/.env.frontend 2>/dev/null || echo "  ❌ 文件不存在"
+
+echo -e "\nAI 服务地址:"
+grep -E "ZHENGMIAN_URL|CEMIAN_URL" dotenv/.env.ai 2>/dev/null || echo "  ❌ 文件不存在"
+
+echo -e "\n后端配置:"
+grep -E "FRONTEND_URL|CORS_ORIGINS" dotenv/.env.backend 2>/dev/null || echo "  ❌ 文件不存在"
+
+echo -e "\n🐳 2️⃣ Docker 容器中的环境变量:"
+echo "----------------------------------------"
+
+echo "Frontend 容器:"
+docker exec medical_frontend printenv 2>/dev/null | grep -E "NEXT_PUBLIC_API|API_URL" || echo "  ❌ 容器未运行或无环境变量"
+
+echo -e "\nBackend 容器:"
+docker exec medical_backend printenv 2>/dev/null | grep -E "FRONTEND_URL|CORS|ZHENGMIAN|CEMIAN" || echo "  ❌ 容器未运行"
+
+echo -e "\n🔎 3️⃣ 搜索所有配置文件中的 IP 地址:"
+echo "----------------------------------------"
+grep -rh "192\.168\.[0-9]\+\.[0-9]\+" dotenv/ 2>/dev/null | sort -u
+
+echo -e "\n🌐 4️⃣ 容器网络信息:"
+echo "----------------------------------------"
+docker network inspect xiehe-system_medical_network 2>/dev/null | grep -A 3 "IPv4Address" | head -20
+
+echo -e "\n📊 5️⃣ 容器端口映射:"
+echo "----------------------------------------"
+docker ps --format "table {{.Names}}\t{{.Ports}}" | grep medical
+
+echo -e "\n=========================================="
+echo "✅ 诊断完成"
+echo "=========================================="
