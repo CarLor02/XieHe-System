@@ -393,7 +393,7 @@ stop_old_services() {
 build_docker_images() {
     print_header "构建 Docker 镜像"
     cd "$PROJECT_DIR"
-    local build_args=()
+    local build_args=(--no-pull)
     [ "$REBUILD" = "1" ] && build_args+=(--no-cache)
 
     print_step "构建主系统镜像（backend / frontend / storage-service）..."
