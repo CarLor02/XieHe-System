@@ -209,7 +209,7 @@ def inspect_file(file_id: int, db: Session = Depends(get_db)):
 @router.get("/files/{file_id}/preview-image")
 def preview_image(file_id: int, db: Session = Depends(get_db)):
     """
-    读取 DICOM 像素数据，转换为 PNG 图像流返回，供测试页内联展示。
+    返回图像预览：PNG/JPG 等图片文件直接返回，DICOM 文件转换为 PNG。
     自动应用窗宽窗位（若有），归一化到 8-bit 灰度。
     """
     sf = db.query(ScanFile).filter(ScanFile.id == file_id).first()
@@ -219,6 +219,30 @@ def preview_image(file_id: int, db: Session = Depends(get_db)):
     if not path.exists():
         raise HTTPException(status_code=410, detail="文件已从磁盘消失")
 
+    # 判断文件类型：PNG/JPG/JPEG 等图片直接返回，DICOM 才转换
+    ext = path.suffix.lower()
+    if ext in {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif", ".gif", ".webp"}:
+        # 图片文件直接返回
+        try:
+            from PIL import Image
+            import io
+
+            with Image.open(path) as img:
+                # 限制最长边 1024px
+                img.thumbnail((1024, 1024), Image.LANCZOS)
+                buf = io.BytesIO()
+                # 统一转 PNG 输出
+                if img.mode not in {"RGB", "L", "LA", "RGBA"}:
+                    img = img.convert("RGB")
+                img.save(buf, format="PNG")
+                buf.seek(0)
+                return StreamingResponse(buf, media_type="image/png")
+        except ImportError as e:
+            raise HTTPException(status_code=501, detail=f"PIL 未安装: {e}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"图片读取失败: {e}")
+
+    # DICOM 文件：读取像素数据，转换为 PNG
     try:
         import io
         import numpy as np
