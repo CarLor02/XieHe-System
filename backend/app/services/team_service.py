@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.models.team import (
     Team,
     TeamInvitation,
@@ -22,7 +22,6 @@ from app.models.team import (
 )
 from app.models.user import User
 
-logger = get_logger(__name__)
 
 
 def _normalize_user_id(user_id: Optional[int | str]) -> Optional[int]:
@@ -821,9 +820,7 @@ class TeamService:
         target_membership.updated_at = datetime.utcnow()
 
         db.commit()
-        logger.info(
-            f"团队 {team_id} 成员 {target_user_id} 已被 {operator_user_id} 删除"
-        )
+        logger.emit_event(LogLevel.INFO, message=f"团队 {team_id} 成员 {target_user_id} 已被 {operator_user_id} 删除")
 
     def get_user_invitations(self, db: Session, user_id: int) -> List[Dict]:
         """

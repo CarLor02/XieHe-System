@@ -16,10 +16,9 @@ from datetime import datetime, timedelta
 import hashlib
 import mimetypes
 
-from app.core.system.config import settings
-from app.core.system.logging import get_logger
+from app.core.config import settings
+from app.core.system.logger import LogLevel, logger
 
-logger = get_logger(__name__)
 
 class StorageBackend(ABC):
     """存储后端抽象基类"""
@@ -98,11 +97,11 @@ class LocalStorageBackend(StorageBackend):
                 with open(metadata_path, 'w', encoding='utf-8') as f:
                     json.dump(metadata, f, ensure_ascii=False, indent=2)
             
-            logger.info(f"文件保存成功: {file_path}")
+            logger.emit_event(LogLevel.INFO, message=f"文件保存成功: {file_path}")
             return True
             
         except Exception as e:
-            logger.error(f"文件保存失败 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"文件保存失败 {file_path}: {e}")
             return False
     
     def load(self, file_path: str) -> Optional[bytes]:
@@ -116,7 +115,7 @@ class LocalStorageBackend(StorageBackend):
                 return f.read()
                 
         except Exception as e:
-            logger.error(f"文件加载失败 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"文件加载失败 {file_path}: {e}")
             return None
     
     def delete(self, file_path: str) -> bool:
@@ -131,12 +130,12 @@ class LocalStorageBackend(StorageBackend):
                 if metadata_path.exists():
                     metadata_path.unlink()
                 
-                logger.info(f"文件删除成功: {file_path}")
+                logger.emit_event(LogLevel.INFO, message=f"文件删除成功: {file_path}")
                 return True
             return False
             
         except Exception as e:
-            logger.error(f"文件删除失败 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"文件删除失败 {file_path}: {e}")
             return False
     
     def exists(self, file_path: str) -> bool:
@@ -174,7 +173,7 @@ class LocalStorageBackend(StorageBackend):
             return files
             
         except Exception as e:
-            logger.error(f"列出文件失败 {prefix}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"列出文件失败 {prefix}: {e}")
             return []
 
 class CloudStorageBackend(StorageBackend):
@@ -183,22 +182,22 @@ class CloudStorageBackend(StorageBackend):
     def __init__(self, config: Dict):
         self.config = config
         # 这里可以初始化云存储客户端（如AWS S3, 阿里云OSS等）
-        logger.info("云存储后端初始化（示例实现）")
+        logger.emit_event(LogLevel.INFO, message="云存储后端初始化（示例实现）")
     
     def save(self, file_path: str, content: Union[bytes, BinaryIO], metadata: Optional[Dict] = None) -> bool:
         """保存文件到云存储"""
         # 云存储实现示例
-        logger.info(f"云存储保存文件: {file_path}")
+        logger.emit_event(LogLevel.INFO, message=f"云存储保存文件: {file_path}")
         return True
     
     def load(self, file_path: str) -> Optional[bytes]:
         """从云存储加载文件"""
-        logger.info(f"云存储加载文件: {file_path}")
+        logger.emit_event(LogLevel.INFO, message=f"云存储加载文件: {file_path}")
         return None
     
     def delete(self, file_path: str) -> bool:
         """删除云存储文件"""
-        logger.info(f"云存储删除文件: {file_path}")
+        logger.emit_event(LogLevel.INFO, message=f"云存储删除文件: {file_path}")
         return True
     
     def exists(self, file_path: str) -> bool:
@@ -283,14 +282,14 @@ class StorageManager:
             })
             
             if storage_backend.save(file_path, content, metadata):
-                logger.info(f"文件保存成功: {file_path}")
+                logger.emit_event(LogLevel.INFO, message=f"文件保存成功: {file_path}")
                 return file_path
             else:
-                logger.error(f"文件保存失败: {filename}")
+                logger.emit_event(LogLevel.ERROR, message=f"文件保存失败: {filename}")
                 return None
                 
         except Exception as e:
-            logger.error(f"保存文件异常 {filename}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"保存文件异常 {filename}: {e}")
             return None
     
     def load_file(self, file_path: str, backend: Optional[str] = None) -> Optional[bytes]:
@@ -299,7 +298,7 @@ class StorageManager:
             storage_backend = self.get_backend(backend)
             return storage_backend.load(file_path)
         except Exception as e:
-            logger.error(f"加载文件异常 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"加载文件异常 {file_path}: {e}")
             return None
     
     def delete_file(self, file_path: str, backend: Optional[str] = None) -> bool:
@@ -308,7 +307,7 @@ class StorageManager:
             storage_backend = self.get_backend(backend)
             return storage_backend.delete(file_path)
         except Exception as e:
-            logger.error(f"删除文件异常 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"删除文件异常 {file_path}: {e}")
             return False
     
     def file_exists(self, file_path: str, backend: Optional[str] = None) -> bool:
@@ -317,7 +316,7 @@ class StorageManager:
             storage_backend = self.get_backend(backend)
             return storage_backend.exists(file_path)
         except Exception as e:
-            logger.error(f"检查文件存在异常 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"检查文件存在异常 {file_path}: {e}")
             return False
     
     def get_file_url(self, file_path: str, expires_in: Optional[int] = None,
@@ -327,7 +326,7 @@ class StorageManager:
             storage_backend = self.get_backend(backend)
             return storage_backend.get_url(file_path, expires_in)
         except Exception as e:
-            logger.error(f"获取文件URL异常 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"获取文件URL异常 {file_path}: {e}")
             return ""
     
     def list_files(self, prefix: str = "", limit: int = 100, 
@@ -337,7 +336,7 @@ class StorageManager:
             storage_backend = self.get_backend(backend)
             return storage_backend.list_files(prefix, limit)
         except Exception as e:
-            logger.error(f"列出文件异常 {prefix}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"列出文件异常 {prefix}: {e}")
             return []
     
     def cleanup_temp_files(self, older_than_hours: int = 24) -> int:
@@ -353,11 +352,11 @@ class StorageManager:
                     if self.delete_file(file_info['path']):
                         cleaned_count += 1
             
-            logger.info(f"清理临时文件完成: {cleaned_count} 个文件")
+            logger.emit_event(LogLevel.INFO, message=f"清理临时文件完成: {cleaned_count} 个文件")
             return cleaned_count
             
         except Exception as e:
-            logger.error(f"清理临时文件异常: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"清理临时文件异常: {e}")
             return 0
 
 # 全局存储管理器实例

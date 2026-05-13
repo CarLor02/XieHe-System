@@ -15,7 +15,7 @@ from sqlalchemy import and_, or_, desc, func
 
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
 from app.models.patient import Patient, PatientStatusEnum
 from app.models.image_file import ImageFile, ImageFileStatusEnum
@@ -30,7 +30,6 @@ from ..schemas.dashboard import (
     SystemMetric,
 )
 
-logger = get_logger(__name__)
 router = APIRouter()
 
 
@@ -154,7 +153,7 @@ async def get_dashboard_overview(
         return success_response(data=overview.model_dump(), message="获取仪表板概览成功")
 
     except Exception as e:
-        logger.error(f"获取仪表板概览失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取仪表板概览失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取仪表板概览过程中发生错误"
@@ -232,7 +231,7 @@ async def get_recent_activities(
         )
 
     except Exception as e:
-        logger.error(f"获取最近活动失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取最近活动失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取最近活动过程中发生错误"
@@ -291,7 +290,7 @@ async def get_system_metrics(
         )
 
     except Exception as e:
-        logger.error(f"获取系统指标失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取系统指标失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取系统指标过程中发生错误"
@@ -417,7 +416,7 @@ async def get_dashboard_stats(
         return success_response(data=overview.model_dump(), message="获取仪表板统计数据成功")
 
     except Exception as e:
-        logger.error(f"获取仪表板统计数据失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取仪表板统计数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取仪表板统计数据过程中发生错误"
@@ -480,5 +479,5 @@ async def get_dashboard_tasks(
         return success_response(data={"tasks": tasks}, message="获取任务列表成功")
 
     except Exception as e:
-        logger.error(f"获取任务列表失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取任务列表失败: {e}")
         raise HTTPException(status_code=500, detail="获取任务列表失败")

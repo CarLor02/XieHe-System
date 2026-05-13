@@ -1,3 +1,4 @@
+import traceback
 
 # 标准库
 from datetime import datetime, timedelta
@@ -15,7 +16,7 @@ from sqlalchemy import text
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.core.database.session import get_db as get_core_db
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from app.models.team import TeamJoinRequestStatus
 from app.schemas.team import (
@@ -57,7 +58,6 @@ from ..schemas.permissions import (
     MemberRoleUpdateRequest,
 )
 
-logger = get_logger(__name__)
 router = APIRouter()
 
 
@@ -643,7 +643,7 @@ async def create_team_endpoint(
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except Exception as exc:
-        logger.exception("创建团队失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("创建团队失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="创建团队失败，请稍后重试")
 
 
@@ -667,7 +667,7 @@ async def search_teams_endpoint(
             message="搜索团队成功"
         )
     except Exception as exc:
-        logger.exception("团队搜索失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("团队搜索失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="搜索团队失败，请稍后重试")
 
 
@@ -689,7 +689,7 @@ async def list_my_teams(
             message="获取我的团队成功"
         )
     except Exception as exc:
-        logger.exception("获取我的团队失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("获取我的团队失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="获取团队信息失败，请稍后重试")
 
 
@@ -722,7 +722,7 @@ async def apply_to_team(
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except Exception as exc:
-        logger.exception("申请加入团队失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("申请加入团队失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="申请失败，请稍后重试")
 
 
@@ -767,7 +767,7 @@ async def list_team_join_requests(
         status_code = 404 if "不存在" in detail else 400
         raise HTTPException(status_code=status_code, detail=detail)
     except Exception as exc:
-        logger.exception("获取团队加入申请失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("获取团队加入申请失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="获取加入申请失败，请稍后重试")
 
 
@@ -827,7 +827,7 @@ async def review_team_join_request(
             raise HTTPException(status_code=404, detail=detail)
         raise HTTPException(status_code=400, detail=detail)
     except Exception as exc:
-        logger.exception("审核团队加入申请失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("审核团队加入申请失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="审核失败，请稍后重试")
 
 
@@ -883,7 +883,7 @@ async def cancel_team_join_request(
             raise HTTPException(status_code=404, detail=detail)
         raise HTTPException(status_code=400, detail=detail)
     except Exception as exc:
-        logger.exception("撤销团队加入申请失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("撤销团队加入申请失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="撤销失败，请稍后重试")
 
 
@@ -914,7 +914,7 @@ async def list_team_members(
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except Exception as exc:
-        logger.exception("获取团队成员失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("获取团队成员失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="获取团队成员失败，请稍后重试")
 
 
@@ -957,7 +957,7 @@ async def update_team_member_role(
             raise HTTPException(status_code=404, detail=detail)
         raise HTTPException(status_code=400, detail=detail)
     except Exception as exc:
-        logger.exception("变更团队成员角色失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("变更团队成员角色失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="角色变更失败，请稍后重试")
 
 
@@ -999,7 +999,7 @@ async def remove_team_member(
             raise HTTPException(status_code=404, detail=detail)
         raise HTTPException(status_code=400, detail=detail)
     except Exception as exc:
-        logger.exception("删除团队成员失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("删除团队成员失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="删除成员失败，请稍后重试")
 
 
@@ -1040,7 +1040,7 @@ async def invite_team_member(
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except Exception as exc:
-        logger.exception("邀请团队成员失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("邀请团队成员失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="发送邀请失败，请稍后重试")
 
 
@@ -1114,7 +1114,7 @@ async def get_my_invitations(
             message="获取邀请列表成功"
         )
     except Exception as exc:
-        logger.exception("获取邀请列表失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("获取邀请列表失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="获取邀请列表失败，请稍后重试")
 
 
@@ -1151,5 +1151,5 @@ async def respond_to_invitation(
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except Exception as exc:
-        logger.exception("响应邀请失败: %s", exc)
+        logger.emit_event(LogLevel.ERROR, message=("响应邀请失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="处理邀请失败，请稍后重试")

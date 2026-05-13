@@ -215,7 +215,6 @@ DEBUG=false
 
 # 前端配置
 NEXT_PUBLIC_API_URL=http://your-server-ip:8080
-NEXT_PUBLIC_WS_URL=ws://your-server-ip:8080
 ```
 
 ### 4.3 一键部署
@@ -342,7 +341,6 @@ redis:
 
 ```bash
 NEXT_PUBLIC_API_URL=http://your-server-ip:8080
-NEXT_PUBLIC_WS_URL=ws://your-server-ip:8080
 ```
 
 **Next.js配置**: `frontend/next.config.js`

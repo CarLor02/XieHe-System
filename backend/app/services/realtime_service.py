@@ -1,11 +1,11 @@
 """
-实时数据推送服务
+实时数据缓存刷新服务
 
 提供实时数据推送功能，包括：
-- 仪表板数据定时推送
-- 系统状态监控推送
-- 任务进度通知推送
-- 用户消息推送
+- 仪表板数据定时刷新
+- 系统状态监控刷新
+- 任务进度通知刷新
+- 用户消息刷新
 
 作者: XieHe Medical System
 创建时间: 2025-09-25
@@ -13,19 +13,26 @@
 
 import asyncio
 import json
+import os
+import socket
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
-import logging
 from dataclasses import dataclass
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database.session import get_db
 from app.core.system.cache import get_cache_manager
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 
-logger = get_logger(__name__)
+
+REALTIME_LEADER_LOCK_KEY = "locks:medical_backend:realtime_service"
+REALTIME_LEADER_LOCK_TTL_SECONDS = 45
+REALTIME_LEADER_REFRESH_INTERVAL_SECONDS = 15
+REALTIME_LEADER_TOKEN = f"{socket.gethostname()}:{os.getpid()}:{uuid4().hex}"
+
 
 @dataclass
 class RealtimeData:
@@ -37,7 +44,7 @@ class RealtimeData:
     priority: str = "normal"  # low, normal, high, urgent
 
 class RealtimeDataService:
-    """实时数据推送服务"""
+    """实时数据缓存刷新服务"""
     
     def __init__(self):
         self.cache_manager = get_cache_manager()
@@ -47,11 +54,11 @@ class RealtimeDataService:
     async def start_service(self):
         """启动实时数据推送服务"""
         if self.is_running:
-            logger.warning("实时数据推送服务已在运行")
+            logger.emit_event(LogLevel.WARNING, message="实时数据推送服务已在运行")
             return
         
         self.is_running = True
-        logger.info("启动实时数据推送服务")
+        logger.emit_event(LogLevel.INFO, message="启动实时数据推送服务")
         
         # 启动各种数据推送任务
         self.push_tasks = {
@@ -65,7 +72,7 @@ class RealtimeDataService:
         try:
             await asyncio.gather(*self.push_tasks.values())
         except asyncio.CancelledError:
-            logger.info("实时数据推送任务已取消")
+            logger.emit_event(LogLevel.INFO, message="实时数据推送任务已取消")
     
     async def stop_service(self):
         """停止实时数据推送服务"""
@@ -73,13 +80,13 @@ class RealtimeDataService:
             return
         
         self.is_running = False
-        logger.info("停止实时数据推送服务")
+        logger.emit_event(LogLevel.INFO, message="停止实时数据推送服务")
         
         # 取消所有推送任务
         for task_name, task in self.push_tasks.items():
             if not task.done():
                 task.cancel()
-                logger.info(f"取消推送任务: {task_name}")
+                logger.emit_event(LogLevel.INFO, message=f"取消推送任务: {task_name}")
         
         # 等待任务完成取消
         await asyncio.gather(*self.push_tasks.values(), return_exceptions=True)
@@ -107,7 +114,7 @@ class RealtimeDataService:
                 await asyncio.sleep(30)
                 
             except Exception as e:
-                logger.error(f"推送仪表板数据失败: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"推送仪表板数据失败: {e}")
                 await asyncio.sleep(10)  # 错误时等待较短时间
     
     async def _push_system_metrics(self):
@@ -130,7 +137,7 @@ class RealtimeDataService:
                 await asyncio.sleep(15)
                 
             except Exception as e:
-                logger.error(f"推送系统指标失败: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"推送系统指标失败: {e}")
                 await asyncio.sleep(10)
     
     async def _push_notifications(self):
@@ -156,7 +163,7 @@ class RealtimeDataService:
                 await asyncio.sleep(5)
                 
             except Exception as e:
-                logger.error(f"推送通知失败: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"推送通知失败: {e}")
                 await asyncio.sleep(10)
     
     async def _push_task_progress(self):
@@ -181,7 +188,7 @@ class RealtimeDataService:
                 await asyncio.sleep(10)
                 
             except Exception as e:
-                logger.error(f"推送任务进度失败: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"推送任务进度失败: {e}")
                 await asyncio.sleep(10)
     
     async def _get_dashboard_data(self) -> Dict[str, Any]:
@@ -234,7 +241,7 @@ class RealtimeDataService:
                 "uptime": str(datetime.now() - datetime(2025, 9, 24))
             }
         except Exception as e:
-            logger.error(f"获取系统指标失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"获取系统指标失败: {e}")
             # 返回模拟数据
             return {
                 "cpu_usage": random.uniform(20, 80),
@@ -286,12 +293,10 @@ class RealtimeDataService:
         return []
     
     async def _broadcast_data(self, data: RealtimeData):
-        """广播数据到WebSocket连接"""
-        # 这里需要与WebSocket管理器集成
-        # 现在先记录日志
-        logger.info(f"广播数据到频道 {data.channel}: {data.type}")
+        """写入最新实时数据缓存"""
+        logger.emit_event(LogLevel.INFO, message=f"广播数据到频道 {data.channel}: {data.type}")
         
-        # 将数据存储到缓存中，供WebSocket端点使用
+        # 将最新数据存储到缓存中，供 HTTP 查询接口或后台任务复用
         cache_key = f"realtime_data:{data.channel}:latest"
         cache_data = {
             "type": data.type,
@@ -318,7 +323,7 @@ class RealtimeDataService:
         )
         
         await self._broadcast_data(realtime_data)
-        logger.info(f"发送用户通知: {user_id}")
+        logger.emit_event(LogLevel.INFO, message=f"发送用户通知: {user_id}")
     
     async def send_system_alert(self, alert: Dict[str, Any]):
         """发送系统警报"""
@@ -331,17 +336,98 @@ class RealtimeDataService:
         )
         
         await self._broadcast_data(realtime_data)
-        logger.warning(f"发送系统警报: {alert.get('message', 'Unknown alert')}")
+        logger.emit_event(LogLevel.WARNING, message=f"发送系统警报: {alert.get('message', 'Unknown alert')}")
 
 # 全局实时数据服务实例（延迟初始化）
 realtime_service = None
+_realtime_leader_refresh_task: Optional[asyncio.Task] = None
+
+
+def _normalize_lock_value(value: Any) -> str:
+    """Normalize Redis lock values returned as bytes or strings."""
+    if isinstance(value, bytes):
+        return value.decode()
+    return str(value) if value is not None else ""
+
+
+def _try_acquire_realtime_leader() -> bool:
+    """Acquire the cross-worker realtime leader lock in Redis."""
+    try:
+        redis_client = get_cache_manager().redis_client
+        return bool(
+            redis_client.set(
+                REALTIME_LEADER_LOCK_KEY,
+                REALTIME_LEADER_TOKEN,
+                nx=True,
+                ex=REALTIME_LEADER_LOCK_TTL_SECONDS,
+            )
+        )
+    except Exception as exc:
+        logger.emit_event(LogLevel.ERROR, message=f"获取实时推送 leader 锁失败: {exc}")
+        return False
+
+
+def _release_realtime_leader() -> None:
+    """Release the realtime leader lock only when this process still owns it."""
+    try:
+        redis_client = get_cache_manager().redis_client
+        if _normalize_lock_value(redis_client.get(REALTIME_LEADER_LOCK_KEY)) == REALTIME_LEADER_TOKEN:
+            redis_client.delete(REALTIME_LEADER_LOCK_KEY)
+    except Exception as exc:
+        logger.emit_event(LogLevel.ERROR, message=f"释放实时推送 leader 锁失败: {exc}")
+
+
+async def _refresh_realtime_leader() -> None:
+    """Keep the realtime leader lock alive while this worker owns background loops."""
+    while True:
+        await asyncio.sleep(REALTIME_LEADER_REFRESH_INTERVAL_SECONDS)
+        try:
+            redis_client = get_cache_manager().redis_client
+            if _normalize_lock_value(redis_client.get(REALTIME_LEADER_LOCK_KEY)) != REALTIME_LEADER_TOKEN:
+                logger.emit_event(LogLevel.WARNING, message="实时推送 leader 锁已丢失，停止当前 worker 的推送任务")
+                if realtime_service is not None:
+                    await realtime_service.stop_service()
+                return
+            redis_client.expire(REALTIME_LEADER_LOCK_KEY, REALTIME_LEADER_LOCK_TTL_SECONDS)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.emit_event(LogLevel.ERROR, message=f"刷新实时推送 leader 锁失败: {exc}")
+
+
+def _start_realtime_leader_refresh() -> None:
+    """Start a local task that refreshes the Redis leader lock."""
+    global _realtime_leader_refresh_task
+    if _realtime_leader_refresh_task is None or _realtime_leader_refresh_task.done():
+        _realtime_leader_refresh_task = asyncio.create_task(_refresh_realtime_leader())
+
+
+async def _stop_realtime_leader_refresh() -> None:
+    """Stop the local leader-lock refresh task."""
+    global _realtime_leader_refresh_task
+    if _realtime_leader_refresh_task is None:
+        return
+    task = _realtime_leader_refresh_task
+    _realtime_leader_refresh_task = None
+    if not task.done():
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 async def start_realtime_service():
     """启动实时数据推送服务"""
     global realtime_service
+    if not _try_acquire_realtime_leader():
+        logger.emit_event(LogLevel.INFO, message="实时数据推送服务已由其他 worker 运行，当前 worker 跳过启动")
+        return
+
+    _start_realtime_leader_refresh()
     if realtime_service is None:
         realtime_service = RealtimeDataService()
-    await realtime_service.start_service()
+    try:
+        await realtime_service.start_service()
+    finally:
+        await _stop_realtime_leader_refresh()
+        _release_realtime_leader()
 
 async def stop_realtime_service():
     """停止实时数据推送服务"""

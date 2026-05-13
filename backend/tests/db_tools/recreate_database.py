@@ -24,7 +24,7 @@ from sqlalchemy import text
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from app.core.database.session import get_db, sync_engine, Base
-from app.core.system.config import settings
+from app.core.config import settings
 
 
 def import_all_models():

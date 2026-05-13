@@ -24,10 +24,9 @@ try:
 except ImportError:
     PYDICOM_AVAILABLE = False
 
-from app.core.system.logging import get_logger
-from app.core.system.config import settings
+from app.core.system.logger import LogLevel, logger
+from app.core.config import settings
 
-logger = get_logger(__name__)
 
 class DICOMProcessor:
     """DICOM文件处理器"""
@@ -60,7 +59,7 @@ class DICOMProcessor:
             dcmread(file_path, stop_before_pixels=True)
             return True
         except (InvalidDicomError, Exception) as e:
-            logger.warning(f"DICOM文件验证失败 {file_path}: {e}")
+            logger.emit_event(LogLevel.WARNING, message=f"DICOM文件验证失败 {file_path}: {e}")
             return False
     
     def extract_metadata(self, file_path: Path) -> Dict[str, Any]:
@@ -143,11 +142,11 @@ class DICOMProcessor:
                 else:
                     metadata['window_width'] = float(ds.WindowWidth)
             
-            logger.info(f"DICOM元数据提取成功: {file_path}")
+            logger.emit_event(LogLevel.INFO, message=f"DICOM元数据提取成功: {file_path}")
             return metadata
             
         except Exception as e:
-            logger.error(f"DICOM元数据提取失败 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"DICOM元数据提取失败 {file_path}: {e}")
             return {}
     
     def extract_pixel_data(self, file_path: Path) -> Optional[np.ndarray]:
@@ -164,7 +163,7 @@ class DICOMProcessor:
             ds = dcmread(file_path)
             
             if not hasattr(ds, 'pixel_array'):
-                logger.warning(f"DICOM文件无像素数据: {file_path}")
+                logger.emit_event(LogLevel.WARNING, message=f"DICOM文件无像素数据: {file_path}")
                 return None
             
             pixel_array = ds.pixel_array
@@ -186,11 +185,11 @@ class DICOMProcessor:
                 pixel_array = np.clip(pixel_array, window_min, window_max)
                 pixel_array = ((pixel_array - window_min) / (window_max - window_min) * 255).astype(np.uint8)
             
-            logger.info(f"DICOM像素数据提取成功: {file_path}, shape: {pixel_array.shape}")
+            logger.emit_event(LogLevel.INFO, message=f"DICOM像素数据提取成功: {file_path}, shape: {pixel_array.shape}")
             return pixel_array
             
         except Exception as e:
-            logger.error(f"DICOM像素数据提取失败 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"DICOM像素数据提取失败 {file_path}: {e}")
             return None
     
     def convert_to_image(self, file_path: Path, output_format: str = 'PNG') -> Optional[bytes]:
@@ -229,11 +228,11 @@ class DICOMProcessor:
             output_buffer = io.BytesIO()
             image.save(output_buffer, format=output_format.upper())
             
-            logger.info(f"DICOM转换为{output_format}成功: {file_path}")
+            logger.emit_event(LogLevel.INFO, message=f"DICOM转换为{output_format}成功: {file_path}")
             return output_buffer.getvalue()
             
         except Exception as e:
-            logger.error(f"DICOM转换失败 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"DICOM转换失败 {file_path}: {e}")
             return None
     
     def generate_thumbnail(self, file_path: Path, size: Tuple[int, int] = (256, 256)) -> Optional[bytes]:
@@ -272,11 +271,11 @@ class DICOMProcessor:
             output_buffer = io.BytesIO()
             image.save(output_buffer, format='JPEG', quality=85)
             
-            logger.info(f"DICOM缩略图生成成功: {file_path}, size: {size}")
+            logger.emit_event(LogLevel.INFO, message=f"DICOM缩略图生成成功: {file_path}, size: {size}")
             return output_buffer.getvalue()
             
         except Exception as e:
-            logger.error(f"DICOM缩略图生成失败 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"DICOM缩略图生成失败 {file_path}: {e}")
             return None
     
     def get_dicom_info(self, file_path: Path) -> Dict[str, Any]:
@@ -330,12 +329,12 @@ class DICOMProcessor:
                         'pixel_mean': float(pixel_array.mean()),
                     })
                 except Exception as e:
-                    logger.warning(f"获取像素数组信息失败: {e}")
+                    logger.emit_event(LogLevel.WARNING, message=f"获取像素数组信息失败: {e}")
             
             return info
             
         except Exception as e:
-            logger.error(f"获取DICOM信息失败 {file_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"获取DICOM信息失败 {file_path}: {e}")
             return {'error': str(e)}
     
     def batch_process(self, file_paths: List[Path], extract_thumbnails: bool = True) -> List[Dict[str, Any]]:
@@ -378,7 +377,7 @@ class DICOMProcessor:
                 results.append(result)
                 
             except Exception as e:
-                logger.error(f"批量处理DICOM文件失败 {file_path}: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"批量处理DICOM文件失败 {file_path}: {e}")
                 results.append({
                     'file_path': str(file_path),
                     'success': False,
@@ -387,7 +386,7 @@ class DICOMProcessor:
                     'error': str(e)
                 })
         
-        logger.info(f"批量处理完成: {len(results)} 个文件")
+        logger.emit_event(LogLevel.INFO, message=f"批量处理完成: {len(results)} 个文件")
         return results
 
 # 全局DICOM处理器实例

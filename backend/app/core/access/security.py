@@ -8,6 +8,7 @@
 创建时间: 2025-09-24
 """
 
+import asyncio
 import jwt
 from jwt import PyJWTError as JWTError
 import bcrypt
@@ -17,11 +18,10 @@ from typing import Optional, Dict, Any, Union
 from passlib.context import CryptContext
 from passlib.hash import bcrypt as passlib_bcrypt
 
-from app.core.system.config import settings
+from app.core.config import settings
 from app.core.system.cache import get_cache_manager
 
-import logging
-logger = logging.getLogger(__name__)
+from app.core.system.logger import LogLevel, logger
 
 # 密码加密上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -82,7 +82,7 @@ class SecurityManager:
         try:
             return pwd_context.verify(plain_password, hashed_password)
         except Exception as e:
-            logger.debug(f"密码验证失败: {e}")
+            logger.emit_event(LogLevel.DEBUG, message=f"密码验证失败: {e}")
             return False
     
     def generate_random_password(self, length: int = 12) -> str:
@@ -132,7 +132,7 @@ class SecurityManager:
         # 生成JWT令牌
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         
-        logger.debug(f"创建访问令牌成功，用户: {data.get('sub')}, 过期时间: {expire}")
+        logger.emit_event(LogLevel.DEBUG, message=f"创建访问令牌成功，用户: {data.get('sub')}, 过期时间: {expire}")
         return encoded_jwt
     
     def create_refresh_token(self, data: Dict[str, Any],
@@ -175,7 +175,7 @@ class SecurityManager:
             "expires_at": expire.isoformat()
         }, ttl=int(expires_delta.total_seconds()) if expires_delta else REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600)
         
-        logger.debug(f"创建刷新令牌成功，用户: {data.get('sub')}, 过期时间: {expire}")
+        logger.emit_event(LogLevel.DEBUG, message=f"创建刷新令牌成功，用户: {data.get('sub')}, 过期时间: {expire}")
         return encoded_jwt
     
     def verify_token(self, token: str, token_type: str = "access") -> Optional[Dict[str, Any]]:
@@ -195,12 +195,12 @@ class SecurityManager:
             
             # 检查令牌类型
             if payload.get("type") != token_type:
-                logger.warning(f"令牌类型不匹配，期望: {token_type}, 实际: {payload.get('type')}")
+                logger.emit_event(LogLevel.WARNING, message=f"令牌类型不匹配，期望: {token_type}, 实际: {payload.get('type')}")
                 return None
             
             # 检查是否在黑名单中
             if self.is_token_blacklisted(token):
-                logger.warning("令牌已被加入黑名单")
+                logger.emit_event(LogLevel.WARNING, message="令牌已被加入黑名单")
                 return None
             
             # 如果是刷新令牌，检查是否在缓存中
@@ -211,17 +211,17 @@ class SecurityManager:
                     cache_manager = self.get_cache_manager()
                     cached_token = cache_manager.get(cache_key)
                     if not cached_token:
-                        logger.warning("刷新令牌不在有效缓存中")
+                        logger.emit_event(LogLevel.WARNING, message="刷新令牌不在有效缓存中")
                         return None
             
-            logger.debug(f"令牌验证成功，用户: {payload.get('sub')}, 类型: {token_type}")
+            logger.emit_event(LogLevel.DEBUG, message=f"令牌验证成功，用户: {payload.get('sub')}, 类型: {token_type}")
             return payload
             
         except jwt.ExpiredSignatureError:
-            logger.warning("令牌已过期")
+            logger.emit_event(LogLevel.WARNING, message="令牌已过期")
             return None
         except JWTError as e:
-            logger.warning(f"令牌验证失败: {e}")
+            logger.emit_event(LogLevel.WARNING, message=f"令牌验证失败: {e}")
             return None
     
     def refresh_access_token(self, refresh_token: str) -> Optional[Dict[str, str]]:
@@ -251,7 +251,7 @@ class SecurityManager:
         # 同时创建新的刷新令牌
         new_refresh_token = self.create_refresh_token(user_data)
 
-        logger.info(f"刷新访问令牌成功，用户: {payload.get('sub')}")
+        logger.emit_event(LogLevel.INFO, message=f"刷新访问令牌成功，用户: {payload.get('sub')}")
         return {
             "access_token": new_access_token,
             "refresh_token": new_refresh_token,
@@ -279,13 +279,13 @@ class SecurityManager:
                 cache_manager = self.get_cache_manager()
                 result = cache_manager.delete(cache_key)
                 
-                logger.info(f"撤销刷新令牌成功，JTI: {jti}")
+                logger.emit_event(LogLevel.INFO, message=f"撤销刷新令牌成功，JTI: {jti}")
                 return result > 0
             
             return False
             
         except jwt.JWTError as e:
-            logger.error(f"撤销刷新令牌失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"撤销刷新令牌失败: {e}")
             return False
     
     def blacklist_token(self, token: str, ttl: Optional[int] = None) -> bool:
@@ -320,13 +320,13 @@ class SecurityManager:
                         "user_id": payload.get("sub")
                     }, ttl=cache_ttl)
                     
-                    logger.info(f"令牌已加入黑名单，用户: {payload.get('sub')}")
+                    logger.emit_event(LogLevel.INFO, message=f"令牌已加入黑名单，用户: {payload.get('sub')}")
                     return result
             
             return False
             
         except jwt.JWTError as e:
-            logger.error(f"加入黑名单失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"加入黑名单失败: {e}")
             return False
     
     def is_token_blacklisted(self, token: str) -> bool:
@@ -344,7 +344,7 @@ class SecurityManager:
             cache_manager = self.get_cache_manager()
             return cache_manager.exists(cache_key)
         except Exception as e:
-            logger.error(f"检查黑名单失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"检查黑名单失败: {e}")
             return False
     
     def generate_api_key(self, user_id: str, name: str = "default") -> str:
@@ -371,7 +371,7 @@ class SecurityManager:
             "last_used": None
         }, ttl=365 * 24 * 3600)  # 1年过期
         
-        logger.info(f"生成API密钥成功，用户: {user_id}, 名称: {name}")
+        logger.emit_event(LogLevel.INFO, message=f"生成API密钥成功，用户: {user_id}, 名称: {name}")
         return api_key
     
     def verify_api_key(self, api_key: str) -> Optional[Dict[str, Any]]:
@@ -394,13 +394,13 @@ class SecurityManager:
                 api_info["last_used"] = datetime.now(timezone.utc).isoformat()
                 cache_manager.set(cache_key, api_info, ttl=365 * 24 * 3600)
                 
-                logger.debug(f"API密钥验证成功，用户: {api_info.get('user_id')}")
+                logger.emit_event(LogLevel.DEBUG, message=f"API密钥验证成功，用户: {api_info.get('user_id')}")
                 return api_info
             
             return None
             
         except Exception as e:
-            logger.error(f"API密钥验证失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"API密钥验证失败: {e}")
             return None
 
 
@@ -417,6 +417,16 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
     return security_manager.verify_password(plain_password, hashed_password)
+
+
+async def hash_password_async(password: str) -> str:
+    """在线程池中加密密码，避免阻塞事件循环。"""
+    return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(plain_password: str, hashed_password: str) -> bool:
+    """在线程池中验证密码，避免阻塞事件循环。"""
+    return await asyncio.to_thread(verify_password, plain_password, hashed_password)
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -437,6 +447,6 @@ def verify_token(token: str, token_type: str = "access") -> Optional[Dict[str, A
 # 导出
 __all__ = [
     "SecurityManager", "security_manager", 
-    "hash_password", "verify_password",
+    "hash_password", "hash_password_async", "verify_password", "verify_password_async",
     "create_access_token", "create_refresh_token", "verify_token"
 ]

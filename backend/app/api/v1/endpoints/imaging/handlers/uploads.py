@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 
 from app.core.access.auth import get_current_active_user
 from app.core.database.session import get_db
-from app.core.system.config import settings
-from app.core.system.logging import get_logger
+from app.core.config import settings
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import paginated_response, success_response
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 from app.services.storage_gateway import StorageServiceError, storage_gateway
@@ -27,7 +27,6 @@ from ..schemas.uploads import (
     UploadSessionStatus,
 )
 
-logger = get_logger(__name__)
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".dcm", ".dicom", ".jpg", ".jpeg", ".png", ".tiff", ".tif"}
@@ -148,11 +147,11 @@ async def create_upload_session(
         return success_response(data=response.dict(), message="上传会话创建成功")
     except StorageServiceError as exc:
         db.rollback()
-        logger.error(f"创建对象存储上传会话失败: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"创建对象存储上传会话失败: {exc}")
         raise HTTPException(status_code=502, detail="对象存储服务不可用")
     except Exception as exc:
         db.rollback()
-        logger.error(f"创建上传会话失败: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"创建上传会话失败: {exc}")
         raise HTTPException(status_code=500, detail="创建上传会话失败")
 
 
@@ -224,11 +223,11 @@ async def complete_upload_session(
         raise
     except StorageServiceError as exc:
         db.rollback()
-        logger.error(f"完成对象存储上传失败: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"完成对象存储上传失败: {exc}")
         raise HTTPException(status_code=502, detail="对象存储服务不可用")
     except Exception as exc:
         db.rollback()
-        logger.error(f"完成上传失败: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"完成上传失败: {exc}")
         raise HTTPException(status_code=500, detail="完成上传失败")
 
 

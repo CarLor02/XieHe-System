@@ -91,11 +91,6 @@ if (imageData.examType === '侧位X光片') {
 - `NEXT_PUBLIC_API_BASE_URL` - 后端API基础URL（备用）
 - `NEXT_PUBLIC_API_VERSION` - API版本号
 
-### WebSocket配置
-
-- `NEXT_PUBLIC_WEBSOCKET_URL` - WebSocket服务地址
-- `NEXT_PUBLIC_ENABLE_WEBSOCKET` - 是否启用WebSocket
-
 ### 功能开关
 
 - `NEXT_PUBLIC_ENABLE_AI_DIAGNOSIS` - 是否启用AI诊断功能
@@ -143,4 +138,3 @@ if (imageData.examType === '侧位X光片') {
 
 - [Next.js 环境变量文档](https://nextjs.org/docs/basic-features/environment-variables)
 - [XieHe系统部署文档](../DEPLOYMENT.md)
-

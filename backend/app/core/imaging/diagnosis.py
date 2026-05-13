@@ -22,11 +22,10 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
-from app.core.system.logging import get_logger
-from app.core.system.config import settings
+from app.core.system.logger import LogLevel, logger
+from app.core.config import settings
 from app.core.imaging.dicom import dicom_processor
 
-logger = get_logger(__name__)
 
 class AIModel:
     """AI模型基类"""
@@ -64,11 +63,11 @@ class ChestXRayModel(AIModel):
         try:
             # 这里应该加载实际的AI模型
             # 例如: self.model = torch.load(self.model_path)
-            logger.info(f"模拟加载胸部X光模型: {self.model_name}")
+            logger.emit_event(LogLevel.INFO, message=f"模拟加载胸部X光模型: {self.model_name}")
             self.is_loaded = True
             return True
         except Exception as e:
-            logger.error(f"加载胸部X光模型失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"加载胸部X光模型失败: {e}")
             return False
     
     def predict(self, image_data: np.ndarray) -> Dict[str, Any]:
@@ -125,7 +124,7 @@ class ChestXRayModel(AIModel):
             }
             
         except Exception as e:
-            logger.error(f"胸部X光预测失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"胸部X光预测失败: {e}")
             return {"error": str(e)}
 
 class SpineXRayModel(AIModel):
@@ -141,11 +140,11 @@ class SpineXRayModel(AIModel):
     def load_model(self):
         """加载脊柱X光模型"""
         try:
-            logger.info(f"模拟加载脊柱X光模型: {self.model_name}")
+            logger.emit_event(LogLevel.INFO, message=f"模拟加载脊柱X光模型: {self.model_name}")
             self.is_loaded = True
             return True
         except Exception as e:
-            logger.error(f"加载脊柱X光模型失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"加载脊柱X光模型失败: {e}")
             return False
     
     def predict(self, image_data: np.ndarray) -> Dict[str, Any]:
@@ -200,7 +199,7 @@ class SpineXRayModel(AIModel):
             }
             
         except Exception as e:
-            logger.error(f"脊柱X光预测失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"脊柱X光预测失败: {e}")
             return {"error": str(e)}
 
 class AIDiagnosisEngine:
@@ -282,11 +281,11 @@ class AIDiagnosisEngine:
                 "metadata": metadata or {}
             })
             
-            logger.info(f"AI分析完成: {image_path} -> {model_name}")
+            logger.emit_event(LogLevel.INFO, message=f"AI分析完成: {image_path} -> {model_name}")
             return result
             
         except Exception as e:
-            logger.error(f"AI图像分析失败 {image_path}: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"AI图像分析失败 {image_path}: {e}")
             return {"error": str(e)}
     
     def batch_analyze(self, image_paths: List[Path], model_name: str) -> List[Dict[str, Any]]:

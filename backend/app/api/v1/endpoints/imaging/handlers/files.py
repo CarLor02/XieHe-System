@@ -8,6 +8,7 @@
 创建时间: 2026-01-05
 """
 
+import asyncio
 from typing import Any, Optional
 from datetime import datetime, date, timedelta, timezone
 
@@ -19,8 +20,9 @@ from sqlalchemy import or_, func
 
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
-from app.core.system.config import settings
-from app.core.system.logging import get_logger
+from app.core.config import settings
+from app.core.system.concurrency import require_ai_object_slot, require_batch_presign_slot
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 from app.models.user import User
@@ -38,13 +40,42 @@ from ..schemas.files import (
     UpdateAnnotationRequest,
 )
 
-logger = get_logger(__name__)
 router = APIRouter()
+_ai_object_client: Optional[httpx.AsyncClient] = None
+_ai_object_client_lock = asyncio.Lock()
 
 READY_FOR_MODEL_STATUSES = {
     ImageFileStatusEnum.UPLOADED,
     ImageFileStatusEnum.PROCESSED,
 }
+
+
+async def start_ai_object_client(
+    async_transport: Optional[httpx.AsyncBaseTransport] = None,
+) -> None:
+    async with _ai_object_client_lock:
+        global _ai_object_client
+        if _ai_object_client is not None and not _ai_object_client.is_closed:
+            return
+        _ai_object_client = httpx.AsyncClient(
+            timeout=settings.AI_MODEL_TIMEOUT,
+            transport=async_transport,
+        )
+
+
+async def stop_ai_object_client() -> None:
+    async with _ai_object_client_lock:
+        global _ai_object_client
+        client = _ai_object_client
+        _ai_object_client = None
+        if client is not None and not client.is_closed:
+            await client.aclose()
+
+
+async def _get_ai_object_client() -> httpx.AsyncClient:
+    await start_ai_object_client()
+    assert _ai_object_client is not None
+    return _ai_object_client
 
 
 def _image_file_response(image: ImageFile, uploader_name: Optional[str] = None) -> ImageFileResponse:
@@ -91,6 +122,26 @@ def _download_url_payload(
         "mime_type": image.mime_type,
         "etag": image.storage_etag,
     }
+
+
+def _get_visible_image_files_by_ids(
+    db: Session,
+    file_ids: list[int],
+    current_user: dict[str, Any],
+) -> dict[int, ImageFile]:
+    if not file_ids:
+        return {}
+
+    query = db.query(ImageFile).filter(
+        ImageFile.id.in_(file_ids),
+        ImageFile.is_deleted == False,
+    )
+    visible_query = apply_image_visibility_filter(query, db, current_user)
+    return {image.id: image for image in visible_query.all()}
+
+
+def _enum_value(value: Any) -> str:
+    return value.value if hasattr(value, "value") else str(value)
 
 
 def _is_lateral_image(image: ImageFile) -> bool:
@@ -152,10 +203,10 @@ def _get_ai_ready_visible_image(
 
 async def _post_ai_object_request(url: str, payload: dict[str, str]) -> dict[str, Any]:
     try:
-        async with httpx.AsyncClient(timeout=settings.AI_MODEL_TIMEOUT) as client:
-            response = await client.post(url, json=payload)
+        client = await _get_ai_object_client()
+        response = await client.post(url, json=payload)
     except httpx.HTTPError as exc:
-        logger.error(f"AI模型 object 请求失败: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"AI模型 object 请求失败: {exc}")
         raise HTTPException(
             status_code=http_status.HTTP_502_BAD_GATEWAY,
             detail="AI模型服务不可用",
@@ -172,7 +223,7 @@ async def _post_ai_object_request(url: str, payload: dict[str, str]) -> dict[str
     try:
         payload_data = response.json()
     except ValueError as exc:
-        logger.error(f"AI模型 object 响应不是 JSON: {exc}")
+        logger.emit_event(LogLevel.ERROR, message=f"AI模型 object 响应不是 JSON: {exc}")
         raise HTTPException(
             status_code=http_status.HTTP_502_BAD_GATEWAY,
             detail="AI模型响应格式错误",
@@ -300,7 +351,7 @@ async def get_image_files_list(
         )
 
     except Exception as e:
-        logger.error(f"获取影像列表失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取影像列表失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取影像列表失败: {str(e)}"
@@ -340,7 +391,7 @@ async def get_patient_images(
         )
         
     except Exception as e:
-        logger.error(f"获取患者影像文件失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取患者影像文件失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取患者影像文件失败"
@@ -352,6 +403,7 @@ async def run_image_file_ai_predict(
     file_id: int,
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db),
+    _slot: None = Depends(require_ai_object_slot),
 ):
     image = _get_ai_ready_visible_image(db, file_id, current_user)
     return await _post_ai_object_request(
@@ -365,6 +417,7 @@ async def run_image_file_ai_detect_keypoints(
     file_id: int,
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db),
+    _slot: None = Depends(require_ai_object_slot),
 ):
     image = _get_ai_ready_visible_image(db, file_id, current_user)
     return await _post_ai_object_request(
@@ -406,7 +459,7 @@ async def get_image_file(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取影像文件详情失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取影像文件详情失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取影像文件详情失败"
@@ -452,7 +505,7 @@ async def get_image_file_download_url(
         )
 
     except StorageServiceError as e:
-        logger.error(f"获取影像访问地址失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取影像访问地址失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_502_BAD_GATEWAY,
             detail="对象存储服务不可用",
@@ -460,7 +513,7 @@ async def get_image_file_download_url(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取影像访问地址失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取影像访问地址失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取影像访问地址失败"
@@ -473,6 +526,7 @@ async def get_image_file_download_urls(
     response: Response,
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db),
+    _slot: None = Depends(require_batch_presign_slot),
 ):
     """
     批量获取经 Nginx 代理的 MinIO presigned URL。
@@ -491,8 +545,10 @@ async def get_image_file_download_urls(
         seen_ids.add(file_id)
         ordered_ids.append(file_id)
 
+    visible_images = _get_visible_image_files_by_ids(db, ordered_ids, current_user)
+
     for file_id in ordered_ids:
-        image = get_visible_image_file(db, file_id, current_user)
+        image = visible_images.get(file_id)
         if not image:
             errors[file_id] = {
                 "code": "not_found",
@@ -514,7 +570,7 @@ async def get_image_file_download_urls(
                 expires_in=expires_in,
             )
         except StorageServiceError as exc:
-            logger.error(f"批量获取影像访问地址失败: {exc}")
+            logger.emit_event(LogLevel.ERROR, message=f"批量获取影像访问地址失败: {exc}")
             errors[file_id] = {
                 "code": "storage_error",
                 "message": "对象存储服务不可用",
@@ -592,7 +648,7 @@ async def delete_image_file(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"删除影像文件失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"删除影像文件失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -613,22 +669,28 @@ async def get_image_stats(
         query = db.query(ImageFile).filter(
             ImageFile.is_deleted == False
         )
-        images = apply_image_visibility_filter(query, db, current_user).all()
-        
-        total_files = len(images)
-        total_size = sum(img.file_size for img in images)
-        
-        # 按类型统计
-        by_type = {}
-        for img in images:
-            file_type = img.file_type.value
-            by_type[file_type] = by_type.get(file_type, 0) + 1
-        
-        # 按状态统计
-        by_status = {}
-        for img in images:
-            img_status = img.status.value
-            by_status[img_status] = by_status.get(img_status, 0) + 1
+        visible_query = apply_image_visibility_filter(query, db, current_user)
+
+        total_files, total_size = visible_query.with_entities(
+            func.count(ImageFile.id),
+            func.coalesce(func.sum(ImageFile.file_size), 0),
+        ).one()
+
+        by_type = {
+            _enum_value(file_type): count
+            for file_type, count in visible_query.with_entities(
+                ImageFile.file_type,
+                func.count(ImageFile.id),
+            ).group_by(ImageFile.file_type).all()
+        }
+
+        by_status = {
+            _enum_value(file_status): count
+            for file_status, count in visible_query.with_entities(
+                ImageFile.status,
+                func.count(ImageFile.id),
+            ).group_by(ImageFile.status).all()
+        }
         
         return success_response(
             data=ImageFileStatsResponse(
@@ -641,7 +703,7 @@ async def get_image_stats(
         )
         
     except Exception as e:
-        logger.error(f"获取影像统计失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取影像统计失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取影像统计失败"
@@ -679,7 +741,7 @@ async def update_exam_type(
         db.commit()
         db.refresh(image)
 
-        logger.info(f"用户 {current_user.get('username')} 将影像 {file_id} 检查类型修改为 {request.description}")
+        logger.emit_event(LogLevel.INFO, message=f"用户 {current_user.get('username')} 将影像 {file_id} 检查类型修改为 {request.description}")
         return success_response(
             data={"id": image.id, "description": image.description, "warning": warning},
             message="检查类型修改成功"
@@ -688,7 +750,7 @@ async def update_exam_type(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"修改检查类型失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"修改检查类型失败: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="修改检查类型失败")
 
@@ -724,7 +786,7 @@ async def update_annotation(
         db.commit()
         db.refresh(image)
         
-        logger.info(f"用户 {current_user.get('username')} 更新了影像文件 {file_id} 的标注数据")
+        logger.emit_event(LogLevel.INFO, message=f"用户 {current_user.get('username')} 更新了影像文件 {file_id} 的标注数据")
         
         # 获取上传者信息
         uploader_name = None
@@ -741,7 +803,7 @@ async def update_annotation(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"更新标注数据失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"更新标注数据失败: {e}")
         db.rollback()
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,

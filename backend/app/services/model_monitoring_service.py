@@ -9,14 +9,13 @@ AI模型性能监控服务
 
 import asyncio
 import time
-import logging
+from app.core.system.logger import LogLevel, logger
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from collections import defaultdict, deque
 import statistics
 
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -87,7 +86,7 @@ class ModelMonitoringService:
         if not self.is_running:
             self.is_running = True
             self.monitoring_task = asyncio.create_task(self._monitor_models())
-            logger.info("模型监控服务已启动")
+            logger.emit_event(LogLevel.INFO, message="模型监控服务已启动")
     
     async def stop(self):
         """停止模型监控服务"""
@@ -99,7 +98,7 @@ class ModelMonitoringService:
                     await self.monitoring_task
                 except asyncio.CancelledError:
                     pass
-            logger.info("模型监控服务已停止")
+            logger.emit_event(LogLevel.INFO, message="模型监控服务已停止")
     
     async def record_inference_time(
         self, 
@@ -126,7 +125,7 @@ class ModelMonitoringService:
         
         # 检查是否超过阈值
         if inference_time > self.thresholds["inference_time"]:
-            logger.warning(f"模型 {model_name} 推理时间过长: {inference_time:.2f}s")
+            logger.emit_event(LogLevel.WARNING, message=f"模型 {model_name} 推理时间过长: {inference_time:.2f}s")
     
     async def record_model_accuracy(
         self, 
@@ -168,7 +167,7 @@ class ModelMonitoringService:
         )
         
         self.errors[model_id].append(error)
-        logger.error(f"模型 {model_name} 发生错误: {error_type} - {error_message}")
+        logger.emit_event(LogLevel.ERROR, message=f"模型 {model_name} 发生错误: {error_type} - {error_message}")
     
     async def record_throughput(
         self,
@@ -201,7 +200,7 @@ class ModelMonitoringService:
                 await asyncio.sleep(self.check_interval)
                 
             except Exception as e:
-                logger.error(f"模型监控失败: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"模型监控失败: {e}")
                 await asyncio.sleep(10)
     
     async def _update_model_status(self, model_id: str):
@@ -258,7 +257,7 @@ class ModelMonitoringService:
             self.model_status[model_id] = status
             
         except Exception as e:
-            logger.error(f"更新模型 {model_id} 状态失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"更新模型 {model_id} 状态失败: {e}")
     
     async def _check_model_alerts(self):
         """检查模型告警"""
@@ -275,7 +274,7 @@ class ModelMonitoringService:
             
             # 记录告警
             for alert in alerts:
-                logger.warning(f"模型 {model_id} 告警: {alert}")
+                logger.emit_event(LogLevel.WARNING, message=f"模型 {model_id} 告警: {alert}")
     
     def get_model_status(self, model_id: str) -> Dict[str, Any]:
         """获取模型状态"""
@@ -367,7 +366,7 @@ class ModelMonitoringService:
     def update_thresholds(self, new_thresholds: Dict[str, float]):
         """更新性能阈值"""
         self.thresholds.update(new_thresholds)
-        logger.info(f"模型监控阈值已更新: {new_thresholds}")
+        logger.emit_event(LogLevel.INFO, message=f"模型监控阈值已更新: {new_thresholds}")
     
     def get_healthy_models(self) -> List[str]:
         """获取健康的模型列表"""

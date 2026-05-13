@@ -16,7 +16,9 @@ COMPOSE_FILES=(
   "infrastructure/docker/compose/redis.yml"
   "infrastructure/docker/compose/mysql.yml"
   "infrastructure/docker/compose/minio.yml"
+  "infrastructure/docker/compose/kafka.yml"
   "infrastructure/docker/compose/storage-service.yml"
+  "infrastructure/docker/compose/logging-service.yml"
   "infrastructure/docker/compose/backend.yml"
   "infrastructure/docker/compose/frontend.yml"
 )
@@ -31,7 +33,10 @@ ENV_FILES=(
   "dotenv/.env.database"
   "dotenv/.env.redis"
   "dotenv/.env.minio"
+  "dotenv/.env.kafka"
   "dotenv/.env.storage"
+  "dotenv/.env.logging"
+  "dotenv/.env.concurrency"
   "dotenv/.env.backend"
   "dotenv/.env.frontend"
 )

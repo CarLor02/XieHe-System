@@ -18,7 +18,8 @@ from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.core.imaging.storage import storage_manager
 from app.core.imaging.diagnosis import ai_diagnosis_engine
-from app.core.system.logging import get_logger
+from app.core.system.concurrency import require_legacy_diagnosis_slot
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from ..schemas.diagnosis import (
     AIModelInfo,
@@ -29,7 +30,6 @@ from ..schemas.diagnosis import (
     BatchAnalysisResult,
 )
 
-logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -43,14 +43,14 @@ async def get_available_models(
     """
     try:
         models = ai_diagnosis_engine.get_available_models()
-        logger.info(f"获取AI模型列表: {len(models)} 个模型")
+        logger.emit_event(LogLevel.INFO, message=f"获取AI模型列表: {len(models)} 个模型")
         return success_response(
             data=models,
             message=f"成功获取 {len(models)} 个AI模型"
         )
 
     except Exception as e:
-        logger.error(f"获取AI模型列表失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取AI模型列表失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取AI模型列表失败"
@@ -81,7 +81,7 @@ async def get_model_info(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取模型信息失败 {model_name}: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取模型信息失败 {model_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取模型信息失败"
@@ -108,7 +108,7 @@ async def suggest_models_for_modality(
         )
 
     except Exception as e:
-        logger.error(f"推荐AI模型失败 {modality}: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"推荐AI模型失败 {modality}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="推荐AI模型失败"
@@ -119,7 +119,8 @@ async def analyze_image(
     request: AIAnalysisRequest,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _slot: None = Depends(require_legacy_diagnosis_slot),
 ):
     """
     使用AI模型分析单张图像
@@ -184,7 +185,7 @@ async def analyze_image(
                 current_user.get("user_id")
             )
 
-            logger.info(f"AI分析完成: {request.image_id} -> {request.model_name}")
+            logger.emit_event(LogLevel.INFO, message=f"AI分析完成: {request.image_id} -> {request.model_name}")
             return success_response(
                 data=analysis_result,
                 message="AI图像分析完成"
@@ -198,7 +199,7 @@ async def analyze_image(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"AI图像分析失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"AI图像分析失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="AI图像分析失败"
@@ -209,7 +210,8 @@ async def batch_analyze_images(
     request: BatchAnalysisRequest,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _slot: None = Depends(require_legacy_diagnosis_slot),
 ):
     """
     批量AI图像分析
@@ -226,7 +228,7 @@ async def batch_analyze_images(
         for image_id in request.image_ids:
             image_path = f"images/{image_id}"
             if not storage_manager.file_exists(image_path):
-                logger.warning(f"图像文件不存在: {image_id}")
+                logger.emit_event(LogLevel.WARNING, message=f"图像文件不存在: {image_id}")
                 continue
 
             # 获取图像内容并保存到临时文件
@@ -271,7 +273,7 @@ async def batch_analyze_images(
                 current_user.get("user_id")
             )
 
-            logger.info(f"批量AI分析完成: {len(request.image_ids)} 张图像")
+            logger.emit_event(LogLevel.INFO, message=f"批量AI分析完成: {len(request.image_ids)} 张图像")
             return success_response(
                 data=result,
                 message=f"批量AI分析完成，成功 {result['success_count']} 张，失败 {result['error_count']} 张"
@@ -286,7 +288,7 @@ async def batch_analyze_images(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"批量AI分析失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"批量AI分析失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="批量AI分析失败"
@@ -296,7 +298,8 @@ async def batch_analyze_images(
 async def compare_models(
     request: ModelComparisonRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user),
+    _slot: None = Depends(require_legacy_diagnosis_slot),
 ):
     """
     使用多个AI模型分析同一图像并比较结果
@@ -340,7 +343,7 @@ async def compare_models(
                 current_user.get("user_id")
             )
 
-            logger.info(f"AI模型比较完成: {request.image_id} -> {request.model_names}")
+            logger.emit_event(LogLevel.INFO, message=f"AI模型比较完成: {request.image_id} -> {request.model_names}")
             return success_response(
                 data=comparison_result,
                 message=f"成功比较 {len(request.model_names)} 个AI模型"
@@ -354,7 +357,7 @@ async def compare_models(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"AI模型比较失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"AI模型比较失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="AI模型比较失败"
@@ -381,7 +384,7 @@ async def get_analysis_result(
         )
 
     except Exception as e:
-        logger.error(f"获取分析结果失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取分析结果失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取分析结果失败"
@@ -392,22 +395,22 @@ async def save_analysis_result(result_data: dict, patient_id: Optional[str], use
     """保存AI分析结果到数据库"""
     try:
         # 这里应该保存到数据库
-        logger.info(f"保存AI分析结果: {result_data['analysis_id']}")
+        logger.emit_event(LogLevel.INFO, message=f"保存AI分析结果: {result_data['analysis_id']}")
     except Exception as e:
-        logger.error(f"保存AI分析结果失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"保存AI分析结果失败: {e}")
 
 async def save_batch_analysis_result(result_data: dict, patient_id: Optional[str], user_id: int):
     """保存批量AI分析结果到数据库"""
     try:
         # 这里应该保存到数据库
-        logger.info(f"保存批量AI分析结果: {result_data['batch_id']}")
+        logger.emit_event(LogLevel.INFO, message=f"保存批量AI分析结果: {result_data['batch_id']}")
     except Exception as e:
-        logger.error(f"保存批量AI分析结果失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"保存批量AI分析结果失败: {e}")
 
 async def save_comparison_result(result_data: dict, user_id: int):
     """保存AI模型比较结果到数据库"""
     try:
         # 这里应该保存到数据库
-        logger.info(f"保存AI模型比较结果: {result_data['comparison_id']}")
+        logger.emit_event(LogLevel.INFO, message=f"保存AI模型比较结果: {result_data['comparison_id']}")
     except Exception as e:
-        logger.error(f"保存AI模型比较结果失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"保存AI模型比较结果失败: {e}")

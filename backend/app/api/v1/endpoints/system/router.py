@@ -2,11 +2,10 @@
 
 from fastapi import APIRouter
 
-from .handlers import errors, health, management, monitoring, notifications, websocket
+from .handlers import errors, health, management, monitoring, notifications
 
 router = APIRouter()
 router.include_router(management.router, prefix="/system", tags=["系统管理"])
-router.include_router(websocket.router, prefix="/ws", tags=["WebSocket实时通信"])
 
 try:
     from .handlers import dashboard

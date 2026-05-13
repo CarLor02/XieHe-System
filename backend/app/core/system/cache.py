@@ -11,7 +11,7 @@ Redis缓存工具模块
 import json
 import pickle
 import hashlib
-import logging
+from app.core.system.logger import LogLevel, logger
 from typing import Any, Optional, Union, Dict, List, Callable
 from functools import wraps
 from datetime import datetime, timedelta
@@ -21,7 +21,6 @@ from redis import Redis
 
 from app.core.database.session import get_redis
 
-logger = logging.getLogger(__name__)
 
 
 class CacheManager:
@@ -68,11 +67,11 @@ class CacheManager:
             else:
                 result = self.redis_client.set(key, serialized_value)
             
-            logger.debug(f"缓存设置成功: {key}, TTL: {ttl}")
+            logger.emit_event(LogLevel.DEBUG, message=f"缓存设置成功: {key}, TTL: {ttl}")
             return bool(result)
             
         except Exception as e:
-            logger.error(f"设置缓存失败: {key}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"设置缓存失败: {key}, 错误: {e}")
             return False
     
     def get(self, key: str, serialize: str = "json") -> Any:
@@ -93,11 +92,11 @@ class CacheManager:
             
             # 反序列化数据
             deserialized_value = self._deserialize(value, serialize)
-            logger.debug(f"缓存获取成功: {key}")
+            logger.emit_event(LogLevel.DEBUG, message=f"缓存获取成功: {key}")
             return deserialized_value
             
         except Exception as e:
-            logger.error(f"获取缓存失败: {key}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"获取缓存失败: {key}, 错误: {e}")
             return None
     
     def delete(self, *keys: str) -> int:
@@ -112,10 +111,10 @@ class CacheManager:
         """
         try:
             result = self.redis_client.delete(*keys)
-            logger.debug(f"缓存删除成功: {keys}, 删除数量: {result}")
+            logger.emit_event(LogLevel.DEBUG, message=f"缓存删除成功: {keys}, 删除数量: {result}")
             return result
         except Exception as e:
-            logger.error(f"删除缓存失败: {keys}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"删除缓存失败: {keys}, 错误: {e}")
             return 0
     
     def exists(self, key: str) -> bool:
@@ -131,7 +130,7 @@ class CacheManager:
         try:
             return bool(self.redis_client.exists(key))
         except Exception as e:
-            logger.error(f"检查缓存存在性失败: {key}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"检查缓存存在性失败: {key}, 错误: {e}")
             return False
     
     def expire(self, key: str, ttl: int) -> bool:
@@ -147,10 +146,10 @@ class CacheManager:
         """
         try:
             result = self.redis_client.expire(key, ttl)
-            logger.debug(f"设置缓存过期时间: {key}, TTL: {ttl}")
+            logger.emit_event(LogLevel.DEBUG, message=f"设置缓存过期时间: {key}, TTL: {ttl}")
             return bool(result)
         except Exception as e:
-            logger.error(f"设置缓存过期时间失败: {key}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"设置缓存过期时间失败: {key}, 错误: {e}")
             return False
     
     def ttl(self, key: str) -> int:
@@ -166,7 +165,7 @@ class CacheManager:
         try:
             return self.redis_client.ttl(key)
         except Exception as e:
-            logger.error(f"获取缓存TTL失败: {key}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"获取缓存TTL失败: {key}, 错误: {e}")
             return -2
     
     def clear_pattern(self, pattern: str) -> int:
@@ -183,11 +182,11 @@ class CacheManager:
             keys = self.redis_client.keys(pattern)
             if keys:
                 result = self.redis_client.delete(*keys)
-                logger.info(f"批量删除缓存: {pattern}, 删除数量: {result}")
+                logger.emit_event(LogLevel.INFO, message=f"批量删除缓存: {pattern}, 删除数量: {result}")
                 return result
             return 0
         except Exception as e:
-            logger.error(f"批量删除缓存失败: {pattern}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"批量删除缓存失败: {pattern}, 错误: {e}")
             return 0
     
     def mget(self, keys: List[str], serialize: str = "json") -> Dict[str, Any]:
@@ -211,11 +210,11 @@ class CacheManager:
                 else:
                     result[key] = None
             
-            logger.debug(f"批量获取缓存成功: {len(keys)}个键")
+            logger.emit_event(LogLevel.DEBUG, message=f"批量获取缓存成功: {len(keys)}个键")
             return result
             
         except Exception as e:
-            logger.error(f"批量获取缓存失败: {keys}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"批量获取缓存失败: {keys}, 错误: {e}")
             return {key: None for key in keys}
     
     def mset(self, mapping: Dict[str, Any], ttl: Optional[int] = None,
@@ -246,11 +245,11 @@ class CacheManager:
                 for key in mapping.keys():
                     self.redis_client.expire(key, ttl)
             
-            logger.debug(f"批量设置缓存成功: {len(mapping)}个键")
+            logger.emit_event(LogLevel.DEBUG, message=f"批量设置缓存成功: {len(mapping)}个键")
             return bool(result)
             
         except Exception as e:
-            logger.error(f"批量设置缓存失败: {mapping.keys()}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"批量设置缓存失败: {mapping.keys()}, 错误: {e}")
             return False
     
     def increment(self, key: str, amount: int = 1) -> Optional[int]:
@@ -266,10 +265,10 @@ class CacheManager:
         """
         try:
             result = self.redis_client.incrby(key, amount)
-            logger.debug(f"计数器递增: {key}, 增量: {amount}, 结果: {result}")
+            logger.emit_event(LogLevel.DEBUG, message=f"计数器递增: {key}, 增量: {amount}, 结果: {result}")
             return result
         except Exception as e:
-            logger.error(f"计数器递增失败: {key}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"计数器递增失败: {key}, 错误: {e}")
             return None
     
     def decrement(self, key: str, amount: int = 1) -> Optional[int]:
@@ -285,10 +284,10 @@ class CacheManager:
         """
         try:
             result = self.redis_client.decrby(key, amount)
-            logger.debug(f"计数器递减: {key}, 减量: {amount}, 结果: {result}")
+            logger.emit_event(LogLevel.DEBUG, message=f"计数器递减: {key}, 减量: {amount}, 结果: {result}")
             return result
         except Exception as e:
-            logger.error(f"计数器递减失败: {key}, 错误: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"计数器递减失败: {key}, 错误: {e}")
             return None
     
     def _serialize(self, value: Any, method: str) -> Union[str, bytes]:
@@ -381,13 +380,13 @@ def cached(ttl: int = 3600, key_prefix: str = "", serialize: str = "json"):
             cache_mgr = get_cache_manager()
             cached_result = cache_mgr.get(cache_key_hash, serialize)
             if cached_result is not None:
-                logger.debug(f"缓存命中: {func_name}")
+                logger.emit_event(LogLevel.DEBUG, message=f"缓存命中: {func_name}")
                 return cached_result
 
             # 执行函数并缓存结果
             result = func(*args, **kwargs)
             cache_mgr.set(cache_key_hash, result, ttl, serialize)
-            logger.debug(f"缓存设置: {func_name}")
+            logger.emit_event(LogLevel.DEBUG, message=f"缓存设置: {func_name}")
 
             return result
         

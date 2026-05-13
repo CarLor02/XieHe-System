@@ -3,23 +3,26 @@
 支持MySQL主数据库和Redis缓存的连接管理
 """
 
-import logging
-from typing import Optional, Generator
+from app.core.system.logger import LogLevel, logger
+from collections.abc import AsyncGenerator, Generator
+from typing import Optional
 
 from sqlalchemy import create_engine, event, text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 import redis
+import redis.asyncio as async_redis
 from redis import ConnectionPool
 
-from app.core.system.config import settings
+from app.core.config import settings
 from app.models.base import Base
 
 # 配置日志
-logger = logging.getLogger(__name__)
 
 # 数据库引擎配置
 SYNC_DATABASE_URL = settings.DATABASE_URL
+ASYNC_DATABASE_URL = settings.ASYNC_DATABASE_URL
 
 # 同步数据库引擎
 sync_engine = create_engine(
@@ -40,11 +43,31 @@ sync_engine = create_engine(
     }
 )
 
+async_engine = create_async_engine(
+    ASYNC_DATABASE_URL,
+    echo=settings.DEBUG,
+    pool_size=settings.DB_POOL_SIZE,
+    max_overflow=settings.DB_MAX_OVERFLOW,
+    pool_timeout=settings.DB_POOL_TIMEOUT,
+    pool_recycle=settings.DB_POOL_RECYCLE,
+    pool_pre_ping=True,
+    connect_args={
+        "charset": "utf8mb4",
+        "connect_timeout": 60,
+    },
+)
+
 # 会话工厂
 SessionLocal = sessionmaker(
     bind=sync_engine,
     autocommit=False,
     autoflush=True
+)
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=async_engine,
+    autoflush=True,
+    expire_on_commit=False,
 )
 
 # Redis连接池配置
@@ -54,6 +77,16 @@ redis_url = os.getenv("REDIS_URL")
 if redis_url:
     # 使用 REDIS_URL 创建连接池
     redis_pool = ConnectionPool.from_url(
+        redis_url,
+        encoding="utf-8",
+        decode_responses=True,
+        max_connections=10,
+        retry_on_timeout=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+        health_check_interval=30,
+    )
+    async_redis_pool = async_redis.ConnectionPool.from_url(
         redis_url,
         encoding="utf-8",
         decode_responses=True,
@@ -78,9 +111,23 @@ else:
         socket_connect_timeout=5,
         health_check_interval=30,
     )
+    async_redis_pool = async_redis.ConnectionPool(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
+        db=settings.REDIS_DB,
+        encoding="utf-8",
+        decode_responses=True,
+        max_connections=10,
+        retry_on_timeout=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+        health_check_interval=30,
+    )
 
 # Redis客户端
 redis_client: Optional[redis.Redis] = None
+async_redis_client: Optional[async_redis.Redis] = None
 
 
 class DatabaseManager:
@@ -96,19 +143,19 @@ class DatabaseManager:
             # 测试MySQL连接
             with self.sync_engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            logger.info("✅ MySQL数据库连接成功")
+            logger.emit_event(LogLevel.INFO, message="✅ MySQL数据库连接成功")
 
             # 连接Redis
             self.redis_client = redis.Redis(connection_pool=redis_pool)
             self.redis_client.ping()
-            logger.info("✅ Redis缓存连接成功")
+            logger.emit_event(LogLevel.INFO, message="✅ Redis缓存连接成功")
 
             # 设置全局Redis客户端
             global redis_client
             redis_client = self.redis_client
 
         except Exception as e:
-            logger.error(f"❌ 数据库连接失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"❌ 数据库连接失败: {e}")
             raise
 
     def disconnect(self):
@@ -116,15 +163,15 @@ class DatabaseManager:
         try:
             # 关闭同步引擎
             self.sync_engine.dispose()
-            logger.info("✅ MySQL连接已关闭")
+            logger.emit_event(LogLevel.INFO, message="✅ MySQL连接已关闭")
 
             # 关闭Redis连接
             if self.redis_client:
                 self.redis_client.close()
-                logger.info("✅ Redis连接已关闭")
+                logger.emit_event(LogLevel.INFO, message="✅ Redis连接已关闭")
 
         except Exception as e:
-            logger.error(f"❌ 关闭数据库连接失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"❌ 关闭数据库连接失败: {e}")
 
     def health_check(self) -> dict:
         """健康检查"""
@@ -186,12 +233,30 @@ def get_db() -> Generator:
         db.close()
 
 
+async def get_async_db() -> AsyncGenerator:
+    """获取异步数据库会话"""
+    async with AsyncSessionLocal() as db:
+        try:
+            yield db
+        except Exception:
+            await db.rollback()
+            raise
+
+
 # 依赖注入：获取Redis客户端
 def get_redis() -> redis.Redis:
     """获取Redis客户端"""
     if redis_client is None:
         raise RuntimeError("Redis客户端未初始化")
     return redis_client
+
+
+def get_async_redis() -> async_redis.Redis:
+    """获取异步Redis客户端"""
+    global async_redis_client
+    if async_redis_client is None:
+        async_redis_client = async_redis.Redis(connection_pool=async_redis_pool)
+    return async_redis_client
 
 
 # 数据库事件监听器
@@ -210,22 +275,27 @@ def set_mysql_pragma(dbapi_connection, connection_record):
 @event.listens_for(sync_engine, "checkout")
 def receive_checkout(dbapi_connection, connection_record, connection_proxy):
     """连接检出时的处理"""
-    logger.debug("数据库连接已检出")
+    logger.emit_event(LogLevel.DEBUG, message="数据库连接已检出")
 
 
 @event.listens_for(sync_engine, "checkin")
 def receive_checkin(dbapi_connection, connection_record):
     """连接检入时的处理"""
-    logger.debug("数据库连接已检入")
+    logger.emit_event(LogLevel.DEBUG, message="数据库连接已检入")
 
 
 # 导出主要组件
 __all__ = [
     "Base",
     "sync_engine",
+    "async_engine",
     "SessionLocal",
+    "AsyncSessionLocal",
     "redis_client",
+    "async_redis_client",
     "db_manager",
     "get_db",
+    "get_async_db",
     "get_redis",
+    "get_async_redis",
 ]

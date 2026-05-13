@@ -1,17 +1,24 @@
 package httpapi
 
-import "net/http"
+import sharedhttp "xiehe-services-lib-go/httpapi"
 
-func NewRouter(handler *Handler) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", handler.HandleHealth)
-	mux.HandleFunc("/buckets/ensure", withAuth(handler.serviceToken, handler.HandleEnsureBucket))
-	mux.HandleFunc("/multipart/create", withAuth(handler.serviceToken, handler.HandleCreateMultipart))
-	mux.HandleFunc("/multipart/complete", withAuth(handler.serviceToken, handler.HandleCompleteMultipart))
-	mux.HandleFunc("/multipart/abort", withAuth(handler.serviceToken, handler.HandleAbortMultipart))
-	mux.HandleFunc("/presign/get", withAuth(handler.serviceToken, handler.HandlePresignGet))
-	mux.HandleFunc("/objects/stat", withAuth(handler.serviceToken, handler.HandleStatObject))
-	mux.HandleFunc("/objects/delete", withAuth(handler.serviceToken, handler.HandleDeleteObject))
-	mux.HandleFunc("/objects/", withAuth(handler.serviceToken, handler.HandleObject))
-	return mux
+func NewRouter(handler *Handler) *sharedhttp.Router {
+	router := sharedhttp.NewRouter()
+	auth := sharedhttp.TokenAuth(sharedhttp.TokenAuthConfig{
+		Header:  storageServiceTokenHeader,
+		Token:   handler.serviceToken,
+		Message: "unauthorized",
+	})
+
+	router.GET("/health", handler.HandleHealth)
+	router.POST("/buckets/ensure", auth, handler.HandleEnsureBucket)
+	router.POST("/multipart/create", auth, handler.HandleCreateMultipart)
+	router.POST("/multipart/complete", auth, handler.HandleCompleteMultipart)
+	router.POST("/multipart/abort", auth, handler.HandleAbortMultipart)
+	router.POST("/presign/get", auth, handler.HandlePresignGet)
+	router.POST("/objects/stat", auth, handler.HandleStatObject)
+	router.POST("/objects/delete", auth, handler.HandleDeleteObject)
+	router.GET("/objects/*object_path", auth, handler.HandleGetObject)
+	router.PUT("/objects/*object_path", auth, handler.HandlePutObject)
+	return router
 }

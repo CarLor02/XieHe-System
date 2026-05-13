@@ -18,7 +18,7 @@ from redis import asyncio as aioredis
 from sqlalchemy import text
 
 from app.core.database.session import get_db
-from app.core.system.config import settings
+from app.core.config import settings
 from app.core.system.response import success_response
 from ..schemas.health import (
     HealthStatus,
@@ -175,8 +175,8 @@ async def check_cpu_health() -> ComponentHealth:
     """检查CPU健康状态"""
     start_time = time.time()
     try:
-        # 获取CPU使用率（1秒采样）
-        cpu_percent = psutil.cpu_percent(interval=1)
+        # 使用非阻塞采样，避免详细健康检查在高频探测时卡住事件循环。
+        cpu_percent = psutil.cpu_percent(interval=None)
         cpu_count = psutil.cpu_count()
         
         response_time = time.time() - start_time

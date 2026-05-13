@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.core.system.config import settings  # noqa: E402
+from app.core.config import settings  # noqa: E402
 from app.models.base import Base  # noqa: E402
 from app import models  # noqa: F401,E402
 

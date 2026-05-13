@@ -316,7 +316,6 @@ Content-Type: application/json
 | AI辅助诊断 | `/ai-diagnosis` | AI模型分析 | ✓ |
 | 模型管理 | `/models` | AI模型配置 | ✓ |
 | 系统管理 | `/system` | 系统配置、日志 | ✓ |
-| WebSocket | `/ws` | 实时通信 | ✓ |
 | 工作台 | `/dashboard` | 统计数据 | ✓ |
 | 错误监控 | `/errors` | 错误报告 | ✓ |
 | 消息通知 | `/notifications` | 系统通知 | ✓ |
@@ -1170,29 +1169,6 @@ GET /api/v1/health/
 }
 ```
 
----
-
-### 11. WebSocket实时通信 (`/ws`)
-
-#### 11.1 建立WebSocket连接
-```
-ws://localhost:8000/api/v1/ws/connect?token=<access_token>
-```
-
-**消息格式**:
-```json
-{
-  "type": "notification",
-  "data": {
-    "title": "新报告",
-    "message": "患者张三的报告已完成",
-    "timestamp": "2025-01-30T10:00:00Z"
-  }
-}
-```
-
----
-
 ## 数据模型
 
 ### 患者 (Patient)
@@ -1622,19 +1598,13 @@ curl -X POST http://localhost:8000/api/v1/upload/image \
 - **存储路径**: `/storage/images/YYYY/MM/DD/`
 - **缩略图**: 自动生成缩略图（可选）
 
-### 6. WebSocket
-- **连接认证**: 通过query参数传递token
-- **心跳机制**: 每30秒发送ping消息
-- **断线重连**: 客户端应实现自动重连机制
-- **消息格式**: JSON格式
-
-### 7. 性能优化
+### 6. 性能优化
 - **缓存策略**: 使用Redis缓存热点数据
 - **数据库连接池**: 最大连接数100
 - **异步处理**: AI分析等耗时操作使用后台任务
 - **CDN加速**: 静态资源使用CDN
 
-### 8. 错误处理建议
+### 7. 错误处理建议
 - **网络错误**: 实现重试机制（最多3次）
 - **超时设置**: 请求超时时间30秒
 - **错误日志**: 记录所有错误请求
@@ -1697,8 +1667,6 @@ curl -X POST http://localhost:8000/api/v1/upload/image \
 - ✅ 完整的后端API文档
 - ✅ 认证、用户、患者、影像、报告等模块
 - ✅ AI辅助诊断接口
-- ✅ WebSocket实时通信
 - ✅ 工作台统计数据
 - ✅ 健康检查接口
 - ✅ 详细的调用示例和注意事项
-

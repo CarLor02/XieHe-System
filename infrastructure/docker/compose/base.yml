@@ -17,3 +17,7 @@ volumes:
     driver: local
   models_data:
     driver: local
+  kafka_data:
+    driver: local
+  logging_service_data:
+    driver: local

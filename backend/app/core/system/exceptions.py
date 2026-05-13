@@ -7,17 +7,17 @@
 创建时间: 2025-09-24
 """
 
+import traceback
 from typing import Any, Dict, Optional
 from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-import logging
+from app.core.system.logger import LogLevel, logger
 
 from app.core.system.response import error_response
 from app.core.system.errors import ErrorCode
 
-logger = logging.getLogger(__name__)
 
 
 class CustomHTTPException(HTTPException):
@@ -110,9 +110,9 @@ class BusinessLogicException(CustomHTTPException):
 def _log_http(status_code: int, message: str) -> None:
     """根据状态码选择合适的日志级别：5xx → error，4xx → warning。"""
     if status_code >= 500:
-        logger.error(message)
+        logger.emit_event(LogLevel.ERROR, message=message)
     else:
-        logger.warning(message)
+        logger.emit_event(LogLevel.WARNING, message=message)
 
 
 async def custom_http_exception_handler(
@@ -165,10 +165,8 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     """请求验证异常处理器"""
 
-    logger.warning(
-        f"Validation Exception: {exc.errors()} "
-        f"- Path: {request.url.path} - Method: {request.method}"
-    )
+    logger.emit_event(LogLevel.WARNING, message=f"Validation Exception: {exc.errors()} "
+        f"- Path: {request.url.path} - Method: {request.method}")
 
     # 格式化验证错误信息
     errors = []
@@ -195,11 +193,8 @@ async def validation_exception_handler(
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """通用异常处理器"""
 
-    logger.error(
-        f"Unhandled Exception: {type(exc).__name__}: {str(exc)} "
-        f"- Path: {request.url.path} - Method: {request.method}",
-        exc_info=True
-    )
+    logger.emit_event(LogLevel.ERROR, message=f"Unhandled Exception: {type(exc).__name__}: {str(exc)} "
+        f"- Path: {request.url.path} - Method: {request.method}", metadata={"stack_trace": traceback.format_exc()})
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

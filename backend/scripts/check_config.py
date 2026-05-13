@@ -18,7 +18,7 @@ from typing import Dict, Any, List
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.database.session import DatabaseManager
-from app.core.system.config import settings
+from app.core.config import settings
 
 
 def setting_value(*names: str, default=None):

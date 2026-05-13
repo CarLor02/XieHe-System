@@ -1,8 +1,8 @@
 services:
   storage-service:
     build:
-      context: ../../../backend/app/services/storage-service
-      dockerfile: Dockerfile
+      context: ../../../backend/app/services
+      dockerfile: storage-service/Dockerfile
       extra_hosts:
         - 'host.docker.internal:host-gateway'
       args:
@@ -25,6 +25,11 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?error}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?error}
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      STORAGE_SERVICE_READ_HEADER_TIMEOUT: ${STORAGE_SERVICE_READ_HEADER_TIMEOUT:-5s}
+      STORAGE_SERVICE_READ_TIMEOUT: ${STORAGE_SERVICE_READ_TIMEOUT:-30s}
+      STORAGE_SERVICE_WRITE_TIMEOUT: ${STORAGE_SERVICE_WRITE_TIMEOUT:-120s}
+      STORAGE_SERVICE_IDLE_TIMEOUT: ${STORAGE_SERVICE_IDLE_TIMEOUT:-60s}
+      STORAGE_SERVICE_MAX_UPLOAD_BYTES: ${STORAGE_SERVICE_MAX_UPLOAD_BYTES:-536870912}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,minio,storage-service,backend,frontend,medical_mysql,medical_redis,medical_minio,medical_storage_service,medical_backend,medical_frontend
       no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,redis,minio,storage-service,backend,frontend,medical_mysql,medical_redis,medical_minio,medical_storage_service,medical_backend,medical_frontend
     ports:

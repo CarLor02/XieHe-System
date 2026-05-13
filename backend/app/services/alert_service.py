@@ -8,7 +8,7 @@
 """
 
 import asyncio
-import logging
+from app.core.system.logger import LogLevel, logger
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Callable
 from enum import Enum
@@ -18,7 +18,6 @@ from collections import defaultdict
 from app.services.email_service import send_system_notification
 from app.services.monitoring_service import monitoring_service
 
-logger = logging.getLogger(__name__)
 
 
 class AlertLevel(str, Enum):
@@ -201,7 +200,7 @@ class AlertService:
         if not self.is_running:
             self.is_running = True
             self.check_task = asyncio.create_task(self._check_alerts())
-            logger.info("告警服务已启动")
+            logger.emit_event(LogLevel.INFO, message="告警服务已启动")
     
     async def stop(self):
         """停止告警服务"""
@@ -213,7 +212,7 @@ class AlertService:
                     await self.check_task
                 except asyncio.CancelledError:
                     pass
-            logger.info("告警服务已停止")
+            logger.emit_event(LogLevel.INFO, message="告警服务已停止")
     
     async def _check_alerts(self):
         """检查告警条件"""
@@ -246,7 +245,7 @@ class AlertService:
                 await asyncio.sleep(self.check_interval)
                 
             except Exception as e:
-                logger.error(f"检查告警失败: {e}")
+                logger.emit_event(LogLevel.ERROR, message=f"检查告警失败: {e}")
                 await asyncio.sleep(10)
     
     async def _handle_alert(self, alert: Alert):
@@ -255,7 +254,7 @@ class AlertService:
             # 存储告警
             self.alerts[alert.id] = alert
             
-            logger.warning(f"触发告警: {alert.title} - {alert.message}")
+            logger.emit_event(LogLevel.WARNING, message=f"触发告警: {alert.title} - {alert.message}")
             
             # 发送通知
             await self._send_alert_notifications(alert)
@@ -264,7 +263,7 @@ class AlertService:
             await self._cleanup_old_alerts()
             
         except Exception as e:
-            logger.error(f"处理告警失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"处理告警失败: {e}")
     
     async def _send_alert_notifications(self, alert: Alert):
         """发送告警通知"""
@@ -283,7 +282,7 @@ class AlertService:
                         action_text="查看监控"
                     )
                 except Exception as e:
-                    logger.error(f"发送告警邮件失败: {email} - {e}")
+                    logger.emit_event(LogLevel.ERROR, message=f"发送告警邮件失败: {email} - {e}")
             
             # 如果是严重告警且没有订阅者，发送给管理员
             if alert.level in [AlertLevel.ERROR, AlertLevel.CRITICAL] and not subscribers:
@@ -298,10 +297,10 @@ class AlertService:
                             action_text="立即查看"
                         )
                     except Exception as e:
-                        logger.error(f"发送管理员告警邮件失败: {email} - {e}")
+                        logger.emit_event(LogLevel.ERROR, message=f"发送管理员告警邮件失败: {email} - {e}")
                         
         except Exception as e:
-            logger.error(f"发送告警通知失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"发送告警通知失败: {e}")
     
     async def _cleanup_old_alerts(self):
         """清理过期告警"""
@@ -316,22 +315,22 @@ class AlertService:
                 del self.alerts[alert_id]
             
             if expired_alerts:
-                logger.info(f"清理了 {len(expired_alerts)} 个过期告警")
+                logger.emit_event(LogLevel.INFO, message=f"清理了 {len(expired_alerts)} 个过期告警")
                 
         except Exception as e:
-            logger.error(f"清理过期告警失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"清理过期告警失败: {e}")
     
     def add_rule(self, rule: AlertRule):
         """添加告警规则"""
         self.rules.append(rule)
-        logger.info(f"添加告警规则: {rule.name}")
+        logger.emit_event(LogLevel.INFO, message=f"添加告警规则: {rule.name}")
     
     def remove_rule(self, rule_name: str) -> bool:
         """移除告警规则"""
         for i, rule in enumerate(self.rules):
             if rule.name == rule_name:
                 del self.rules[i]
-                logger.info(f"移除告警规则: {rule_name}")
+                logger.emit_event(LogLevel.INFO, message=f"移除告警规则: {rule_name}")
                 return True
         return False
     
@@ -340,7 +339,7 @@ class AlertService:
         for level in levels:
             if email not in self.subscribers[level]:
                 self.subscribers[level].append(email)
-        logger.info(f"用户 {email} 订阅了告警级别: {[l.value for l in levels]}")
+        logger.emit_event(LogLevel.INFO, message=f"用户 {email} 订阅了告警级别: {[l.value for l in levels]}")
     
     def unsubscribe(self, email: str, levels: List[AlertLevel] = None):
         """取消订阅告警通知"""
@@ -353,7 +352,7 @@ class AlertService:
             for level in levels:
                 if email in self.subscribers[level]:
                     self.subscribers[level].remove(email)
-        logger.info(f"用户 {email} 取消了告警订阅")
+        logger.emit_event(LogLevel.INFO, message=f"用户 {email} 取消了告警订阅")
     
     def get_active_alerts(self) -> List[Alert]:
         """获取活跃告警"""
@@ -372,7 +371,7 @@ class AlertService:
         if alert_id in self.alerts:
             self.alerts[alert_id].status = AlertStatus.RESOLVED
             self.alerts[alert_id].resolved_at = datetime.now()
-            logger.info(f"告警已解决: {alert_id}")
+            logger.emit_event(LogLevel.INFO, message=f"告警已解决: {alert_id}")
             return True
         return False
     
@@ -381,7 +380,7 @@ class AlertService:
         if alert_id in self.alerts:
             self.alerts[alert_id].status = AlertStatus.SUPPRESSED
             self.alerts[alert_id].suppressed_until = datetime.now() + timedelta(minutes=minutes)
-            logger.info(f"告警已抑制 {minutes} 分钟: {alert_id}")
+            logger.emit_event(LogLevel.INFO, message=f"告警已抑制 {minutes} 分钟: {alert_id}")
             return True
         return False
     

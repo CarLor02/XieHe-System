@@ -14,6 +14,7 @@
 """
 
 from contextlib import asynccontextmanager
+from uuid import uuid4
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
@@ -24,7 +25,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
-from app.core.system.config import settings
+from app.api.v1.endpoints.imaging.handlers.files import start_ai_object_client, stop_ai_object_client
+from app.core.config import settings
 from app.core.system.exceptions import (
     CustomHTTPException,
     ValidationException,
@@ -32,8 +34,10 @@ from app.core.system.exceptions import (
     http_exception_handler,
     validation_exception_handler,
 )
-from app.core.system.logging import setup_logging
+from app.core.system.logger import LogLevel, logger
+from app.core.system.request_context import request_id_var
 from app.services.realtime_service import start_realtime_service, stop_realtime_service
+from app.services.storage_gateway import storage_gateway
 from app.tasks.object_cleanup import start_object_cleanup_scheduler
 
 
@@ -44,29 +48,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     在应用启动和关闭时执行必要的初始化和清理工作。
     """
-    # 启动时执行
-    setup_logging()
-
-    # 获取logger
-    import logging
-    logger = logging.getLogger(__name__)
-
     # 初始化数据库连接
     from app.core.database.session import db_manager
     try:
         db_manager.connect()
-        logger.info("✅ 数据库连接初始化成功")
+        logger.emit_event(LogLevel.INFO, message="✅ 数据库连接初始化成功")
     except Exception as e:
-        logger.error(f"❌ 数据库连接初始化失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"❌ 数据库连接初始化失败: {e}")
 
     # 启动实时数据推送服务
     try:
         import asyncio
+        await storage_gateway.start()
+        await start_ai_object_client()
         asyncio.create_task(start_realtime_service())
         asyncio.create_task(start_object_cleanup_scheduler())
-        logger.info("✅ 实时数据推送服务启动成功")
     except Exception as e:
-        logger.error(f"❌ 实时数据推送服务启动失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"❌ 实时数据推送服务启动失败: {e}")
 
     # 这里可以添加其他启动时的初始化工作
     # 例如：缓存预热、AI模型加载等
@@ -77,16 +75,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 停止实时数据推送服务
     try:
         await stop_realtime_service()
-        logger.info("✅ 实时数据推送服务停止成功")
+        logger.emit_event(LogLevel.INFO, message="✅ 实时数据推送服务停止成功")
     except Exception as e:
-        logger.error(f"❌ 实时数据推送服务停止失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"❌ 实时数据推送服务停止失败: {e}")
+
+    # 清理数据库连接
+    try:
+        await stop_ai_object_client()
+        await storage_gateway.stop()
+        logger.emit_event(LogLevel.INFO, message="✅ 内部HTTP客户端已关闭")
+    except Exception as e:
+        logger.emit_event(LogLevel.ERROR, message=f"❌ 内部HTTP客户端关闭失败: {e}")
 
     # 清理数据库连接
     try:
         db_manager.disconnect()
-        logger.info("✅ 数据库连接清理完成")
+        logger.emit_event(LogLevel.INFO, message="✅ 数据库连接清理完成")
     except Exception as e:
-        logger.error(f"❌ 数据库连接清理失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"❌ 数据库连接清理失败: {e}")
 
 
 # 创建 FastAPI 应用实例
@@ -123,6 +129,18 @@ app.add_exception_handler(CustomHTTPException, custom_http_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(ValidationException, validation_exception_handler)
+
+
+@app.middleware("http")
+async def add_request_id_header(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or uuid4().hex
+    token = request_id_var.set(request_id)
+    try:
+        response = await call_next(request)
+    finally:
+        request_id_var.reset(token)
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 
 @app.middleware("http")

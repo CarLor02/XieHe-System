@@ -93,7 +93,7 @@ async def get_system_stats(
         active_users = db.execute(text("SELECT COUNT(*) FROM users WHERE is_deleted = 0")).scalar() or 0
 
         # 获取系统资源使用情况
-        cpu_usage = psutil.cpu_percent(interval=1)
+        cpu_usage = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
 
@@ -172,7 +172,7 @@ async def system_health(
             components["memory"] = "healthy"
 
         # 检查CPU使用
-        cpu_usage = psutil.cpu_percent(interval=1)
+        cpu_usage = psutil.cpu_percent(interval=None)
         if cpu_usage > 80:
             components["cpu"] = "warning"
             if overall_status == "healthy":

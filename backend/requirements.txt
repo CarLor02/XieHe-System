@@ -7,6 +7,7 @@ gunicorn==21.2.0
 sqlalchemy==2.0.23
 alembic==1.13.1
 pymysql==1.1.0
+asyncmy==0.2.9
 cryptography==41.0.7
 
 # Redis 缓存 (包含异步支持)

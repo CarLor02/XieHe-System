@@ -7,19 +7,18 @@
 @created 2025-10-17
 """
 
-from typing import List, Optional, Dict, Any
+from typing import Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database.session import get_db
+from app.core.database.session import get_async_db
 from app.core.access.auth import get_current_active_user
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from app.models.image import ImageAnnotation
-from app.models.image_file import ImageFile
+from app.models.image_file import ImageFile, ImageFileStatusEnum
 from ..schemas.annotations import (
     Point,
     MeasurementData,
@@ -27,7 +26,6 @@ from ..schemas.annotations import (
     MeasurementsResponse,
 )
 
-logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -39,7 +37,7 @@ router = APIRouter()
 async def get_measurements(
     image_id: str,
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     获取指定影像的所有测量数据
@@ -55,23 +53,26 @@ async def get_measurements(
         if image_id.isdigit():
             # 纯数字，可能是ImageFile的ID
             image_file_id = int(image_id)
-            annotations = db.query(ImageAnnotation).filter(
+            result = await db.execute(select(ImageAnnotation).where(
                 ImageAnnotation.image_file_id == image_file_id,
                 ImageAnnotation.is_deleted == False
-            ).all()
+            ))
+            annotations = result.scalars().all()
 
         else:
             # 可能是UUID
-            image_file = db.query(ImageFile).filter(
+            image_result = await db.execute(select(ImageFile).where(
                 ImageFile.file_uuid == image_id,
                 ImageFile.is_deleted == False
-            ).first()
+            ))
+            image_file = image_result.scalar_one_or_none()
 
             if image_file:
-                annotations = db.query(ImageAnnotation).filter(
+                annotation_result = await db.execute(select(ImageAnnotation).where(
                     ImageAnnotation.image_file_id == image_file.id,
                     ImageAnnotation.is_deleted == False
-                ).all()
+                ))
+                annotations = annotation_result.scalars().all()
 
         if not annotations:
             return success_response(
@@ -112,7 +113,7 @@ async def get_measurements(
                 )
                 measurements.append(measurement)
             except Exception as e:
-                logger.warning(f"转换标注数据失败: {e}, 跳过此标注")
+                logger.emit_event(LogLevel.WARNING, message=f"转换标注数据失败: {e}, 跳过此标注")
                 continue
 
         return success_response(
@@ -127,7 +128,7 @@ async def get_measurements(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取测量数据失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取测量数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取测量数据失败"
@@ -139,7 +140,7 @@ async def save_measurements(
     image_id: str,
     request: SaveMeasurementsRequest,
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     保存影像的测量数据
@@ -149,24 +150,19 @@ async def save_measurements(
     2. ImageFile 的 UUID
     """
     try:
-        image_file_id = None
-
-        # 解析image_id
-        if image_id.isdigit():
-            # 纯数字，ImageFile的ID
-            image_file_id = int(image_id)
-            image_file = db.query(ImageFile).filter(ImageFile.id == image_file_id).first()
-            if not image_file:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="影像文件不存在"
-                )
-        else:
-            # UUID格式
-            image_file = db.query(ImageFile).filter(
-                ImageFile.file_uuid == image_id,
-                ImageFile.is_deleted == False
-            ).first()
+        async with db.begin():
+            # 解析 image_id 并锁定目标 ImageFile 行，串行化同一影像的保存请求。
+            if image_id.isdigit():
+                result = await db.execute(select(ImageFile).where(
+                    ImageFile.id == int(image_id),
+                    ImageFile.is_deleted == False
+                ).with_for_update())
+            else:
+                result = await db.execute(select(ImageFile).where(
+                    ImageFile.file_uuid == image_id,
+                    ImageFile.is_deleted == False
+                ).with_for_update())
+            image_file = result.scalar_one_or_none()
 
             if not image_file:
                 raise HTTPException(
@@ -175,87 +171,73 @@ async def save_measurements(
                 )
             image_file_id = image_file.id
 
-        # 删除旧的标注数据
-        db.query(ImageAnnotation).filter(
-            ImageAnnotation.image_file_id == image_file_id
-        ).delete()
-        
-        # 保存新的标注数据
-        from app.models.image import AnnotationTypeEnum
+            # 删除旧的标注数据
+            await db.execute(delete(ImageAnnotation).where(
+                ImageAnnotation.image_file_id == image_file_id
+            ))
 
-        for measurement in request.measurements:
-            # 确定标注类型，映射前端类型到后端枚举
-            type_mapping = {
-                '长度测量': AnnotationTypeEnum.MEASUREMENT,
-                '角度测量': AnnotationTypeEnum.MEASUREMENT,
-                'Cobb角': AnnotationTypeEnum.MEASUREMENT,
-                '距离测量': AnnotationTypeEnum.MEASUREMENT,
-                '通用角度测量': AnnotationTypeEnum.MEASUREMENT,
-            }
-            annotation_type = type_mapping.get(measurement.type, AnnotationTypeEnum.MEASUREMENT)
+            # 保存新的标注数据
+            from app.models.image import AnnotationTypeEnum
 
-            # 转换坐标格式
-            coordinates = [[p.x, p.y] for p in measurement.points]
+            for measurement in request.measurements:
+                # 确定标注类型，映射前端类型到后端枚举
+                type_mapping = {
+                    '长度测量': AnnotationTypeEnum.MEASUREMENT,
+                    '角度测量': AnnotationTypeEnum.MEASUREMENT,
+                    'Cobb角': AnnotationTypeEnum.MEASUREMENT,
+                    '距离测量': AnnotationTypeEnum.MEASUREMENT,
+                    '通用角度测量': AnnotationTypeEnum.MEASUREMENT,
+                }
+                annotation_type = type_mapping.get(measurement.type, AnnotationTypeEnum.MEASUREMENT)
 
-            # 提取测量值和单位
-            measurement_value = None
-            measurement_unit = None
-            if measurement.value:
-                # 提取单位（mm 或 °），对多值格式（如 "12.3 × 8.5mm"）容错处理
-                if 'mm' in measurement.value:
-                    measurement_unit = 'mm'
-                    try:
-                        measurement_value = float(measurement.value.replace('mm', '').strip())
-                    except (ValueError, TypeError):
-                        measurement_value = None
-                elif '°' in measurement.value:
-                    measurement_unit = '°'
-                    try:
-                        measurement_value = float(measurement.value.replace('°', '').strip())
-                    except (ValueError, TypeError):
-                        measurement_value = None
-                else:
-                    # 如果没有单位，尝试转换为float
-                    try:
-                        measurement_value = float(measurement.value)
-                    except (ValueError, TypeError):
-                        measurement_value = None
+                # 转换坐标格式
+                coordinates = [[p.x, p.y] for p in measurement.points]
 
-            annotation = ImageAnnotation(
-                image_file_id=image_file_id,
-                annotation_type=annotation_type,
-                coordinates=coordinates,
-                label=measurement.type,
-                description=measurement.description or measurement.type,
-                measurement_value=measurement_value,
-                measurement_unit=measurement_unit,
-                created_by=current_user.get('id')
-            )
-            db.add(annotation)
+                # 提取测量值和单位
+                measurement_value = None
+                measurement_unit = None
+                if measurement.value:
+                    # 提取单位（mm 或 °），对多值格式（如 "12.3 × 8.5mm"）容错处理
+                    if 'mm' in measurement.value:
+                        measurement_unit = 'mm'
+                        try:
+                            measurement_value = float(measurement.value.replace('mm', '').strip())
+                        except (ValueError, TypeError):
+                            measurement_value = None
+                    elif '°' in measurement.value:
+                        measurement_unit = '°'
+                        try:
+                            measurement_value = float(measurement.value.replace('°', '').strip())
+                        except (ValueError, TypeError):
+                            measurement_value = None
+                    else:
+                        # 如果没有单位，尝试转换为float
+                        try:
+                            measurement_value = float(measurement.value)
+                        except (ValueError, TypeError):
+                            measurement_value = None
 
-        db.commit()
-
-        # 更新图像状态为 PROCESSED（已处理）- 使用原生SQL避免外键检查问题
-        if image_file_id:
-            try:
-                db.execute(
-                    text("""
-                        UPDATE image_files
-                        SET status = 'PROCESSED',
-                            uploaded_at = :now,
-                            updated_at = :now
-                        WHERE id = :image_file_id
-                    """),
-                    {"now": datetime.now(), "image_file_id": image_file_id}
+                annotation = ImageAnnotation(
+                    image_file_id=image_file_id,
+                    annotation_type=annotation_type,
+                    coordinates=coordinates,
+                    label=measurement.type,
+                    description=measurement.description or measurement.type,
+                    measurement_value=measurement_value,
+                    measurement_unit=measurement_unit,
+                    created_by=current_user.get('id')
                 )
-                db.commit()
-                logger.info(f"影像文件 {image_file_id} 状态已更新为 PROCESSED")
-            except Exception as e:
-                logger.warning(f"更新影像文件状态失败: {e}")
-                # 不影响主流程，继续执行
+                db.add(annotation)
+
+            now = datetime.now()
+            image_file.status = ImageFileStatusEnum.PROCESSED
+            image_file.uploaded_at = now
+            image_file.updated_at = now
+
+        logger.emit_event(LogLevel.INFO, message=f"影像文件 {image_file_id} 状态已更新为 PROCESSED")
 
         log_msg = f"保存测量数据成功: ImageFile ID {image_file_id}, 共 {len(request.measurements)} 条标注"
-        logger.info(log_msg)
+        logger.emit_event(LogLevel.INFO, message=log_msg)
 
         return success_response(
             data={
@@ -268,10 +250,9 @@ async def save_measurements(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
-        logger.error(f"保存测量数据失败: {e}")
+        await db.rollback()
+        logger.emit_event(LogLevel.ERROR, message=f"保存测量数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="保存测量数据失败"
         )
-

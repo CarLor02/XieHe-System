@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 
 from app.main import app
 from app.core.database.session import get_db, Base
-from app.core.system.config import settings
+from app.core.config import settings
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.image import Image

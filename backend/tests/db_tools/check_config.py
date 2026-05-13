@@ -17,7 +17,7 @@ from typing import Dict, Any, List
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.core.system.config import settings
+from app.core.config import settings
 from app.core.database.session import DatabaseManager
 
 

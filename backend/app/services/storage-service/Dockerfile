@@ -19,12 +19,19 @@ ENV GOPROXY=${GOPROXY} \
     GONOPROXY=${GONOPROXY} \
     GONOSUMDB=${GONOSUMDB}
 
-COPY go.mod go.sum ./
-# --mount=type=cache 把 Go module 缓存留在宿主机，重建时跳过已下载的依赖
+COPY lib-go/go.mod lib-go/go.sum ./lib-go/
+COPY storage-service/go.mod storage-service/go.sum ./storage-service/
+WORKDIR /src/storage-service
+# BuildKit cache mounts keep module downloads reusable across source-only rebuilds.
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /out/storage-service ./cmd
+WORKDIR /src
+COPY lib-go ./lib-go
+COPY storage-service ./storage-service
+WORKDIR /src/storage-service
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build -o /out/storage-service ./cmd
 
 FROM alpine:3.20
 RUN adduser -D -H -u 10001 appuser

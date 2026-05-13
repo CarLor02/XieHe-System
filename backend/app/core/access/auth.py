@@ -20,8 +20,7 @@ from .security import security_manager, verify_token
 from app.core.database.session import get_db
 from app.core.system.exceptions import AuthenticationException, AuthorizationException
 
-import logging
-logger = logging.getLogger(__name__)
+from app.core.system.logger import LogLevel, logger
 
 # HTTP Bearer认证方案
 security = HTTPBearer(auto_error=False)
@@ -78,11 +77,11 @@ class AuthManager:
                 "system_admin_level": payload.get("system_admin_level", 0)  # 添加系统管理员级别
             }
             
-            logger.debug(f"从令牌获取用户成功: {user_info['username']}")
+            logger.emit_event(LogLevel.DEBUG, message=f"从令牌获取用户成功: {user_info['username']}")
             return user_info
             
         except Exception as e:
-            logger.error(f"获取用户信息失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"获取用户信息失败: {e}")
             return None
     
     async def get_current_user_from_api_key(
@@ -129,11 +128,11 @@ class AuthManager:
                 "api_key_name": api_info.get("name")
             }
             
-            logger.debug(f"从API密钥获取用户成功: {user_info['username']}")
+            logger.emit_event(LogLevel.DEBUG, message=f"从API密钥获取用户成功: {user_info['username']}")
             return user_info
             
         except Exception as e:
-            logger.error(f"通过API密钥获取用户信息失败: {e}")
+            logger.emit_event(LogLevel.ERROR, message=f"通过API密钥获取用户信息失败: {e}")
             return None
     
     async def get_current_user(

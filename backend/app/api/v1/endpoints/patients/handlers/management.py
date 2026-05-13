@@ -19,7 +19,7 @@ import uuid
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.core.system.exceptions import BusinessLogicException, ResourceNotFoundException
-from app.core.system.logging import get_logger
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from app.models.patient import Patient, GenderEnum, PatientStatusEnum
 from ..schemas.management import (
@@ -30,7 +30,6 @@ from ..schemas.management import (
     PatientListResponse,
 )
 
-logger = get_logger(__name__)
 router = APIRouter()
 
 
@@ -111,7 +110,7 @@ async def create_patient(
         db.commit()
         db.refresh(new_patient)
 
-        logger.info(f"患者创建成功: {patient_data.patient_id} - {patient_data.name}")
+        logger.emit_event(LogLevel.INFO, message=f"患者创建成功: {patient_data.patient_id} - {patient_data.name}")
 
         # 转换为响应模型
         response_data = {
@@ -143,7 +142,7 @@ async def create_patient(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"患者创建失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"患者创建失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="患者创建过程中发生错误"
@@ -226,7 +225,7 @@ async def get_patients(
         )
 
     except Exception as e:
-        logger.error(f"获取患者列表失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取患者列表失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取患者列表过程中发生错误"
@@ -277,7 +276,7 @@ async def get_patient(
     except ResourceNotFoundException:
         raise
     except Exception as e:
-        logger.error(f"获取患者详情失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"获取患者详情失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取患者详情过程中发生错误"
@@ -318,7 +317,7 @@ async def update_patient(
         db.commit()
         db.refresh(patient)
 
-        logger.info(f"患者信息更新成功: {patient.patient_id} - {patient.name}")
+        logger.emit_event(LogLevel.INFO, message=f"患者信息更新成功: {patient.patient_id} - {patient.name}")
 
         # 转换为响应格式
         response_data = {
@@ -349,7 +348,7 @@ async def update_patient(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"患者信息更新失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"患者信息更新失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="患者信息更新过程中发生错误"
@@ -379,7 +378,7 @@ async def delete_patient(
 
         db.commit()
 
-        logger.info(f"患者删除成功: {patient.patient_id} - {patient.name}")
+        logger.emit_event(LogLevel.INFO, message=f"患者删除成功: {patient.patient_id} - {patient.name}")
 
         return success_response(
             data=None,
@@ -390,7 +389,7 @@ async def delete_patient(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"患者删除失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"患者删除失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="患者删除过程中发生错误"

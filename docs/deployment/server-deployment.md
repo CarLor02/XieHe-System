@@ -28,7 +28,6 @@ Browser
   -> GPU1 Nginx
      -> /                  -> CPU2:3030  -> medical_frontend (Nginx, 静态页)
      -> /api/              -> CPU2:8080  -> medical_backend
-     -> /api/v1/ws/        -> CPU2:8080  -> medical_backend (WebSocket)
      -> /ai/front/*        -> AI 服务 8001
      -> /ai/lateral/*      -> AI 服务 8002
 ```
@@ -38,7 +37,7 @@ Browser
 - `GPU1` 可以继续统一管理多项目、多域名和 SSL 证书。
 - `CPU2` 只负责运行本项目容器。
 - 前端静态页仍由 `medical_frontend` 提供，改动最小，回滚最简单。
-- API、WebSocket、AI 接口直接由 `GPU1` 分流，避免前端容器再代理后端。
+- API 和 AI 接口直接由 `GPU1` 分流，避免前端容器再代理后端。
 
 ## GPU1 侧部署要求
 
@@ -53,7 +52,7 @@ Browser
 需要保证 `GPU1` 能通过内网访问 `CPU2`：
 
 - `CPU2:3030` 用于前端静态页
-- `CPU2:8080` 用于后端 API 和 WebSocket
+- `CPU2:8080` 用于后端 API
 
 如果 AI 服务也不直接暴露公网，需要保证 `GPU1` 能访问：
 
@@ -73,7 +72,7 @@ Browser
 
 - `GPU1` 负责 SSL 终止
 - `/` 转发到 `CPU2` 的 `medical_frontend`
-- `/api/` 和 `/api/v1/ws/` 直接转发到 `CPU2` 的后端
+- `/api/` 直接转发到 `CPU2` 的后端
 - AI 接口统一走同域名 HTTPS，避免浏览器混合内容错误
 
 请将下面占位符替换为实际值：
@@ -87,11 +86,6 @@ Browser
 ### 推荐站点配置
 
 ```nginx
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    ''      close;
-}
-
 upstream xiehe_frontend_cpu2 {
     server <CPU2_PRIVATE_IP>:3030;
     keepalive 32;
@@ -146,15 +140,6 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection $connection_upgrade;
-
-    location /api/v1/ws/ {
-        proxy_pass http://xiehe_backend_cpu2;
-        proxy_read_timeout 86400;
-        proxy_send_timeout 86400;
-    }
-
     location /api/ {
         proxy_pass http://xiehe_backend_cpu2;
         proxy_read_timeout 300s;
@@ -197,7 +182,6 @@ server {
 
 - `location /` 只负责前端静态资源和页面路由。
 - `location /api/` 直接代理到 `CPU2` 后端，不经过 `medical_frontend`。
-- `location /api/v1/ws/` 单独列出来，便于明确启用 WebSocket 升级和长连接超时。
 - AI 接口全部挂到同域名 HTTPS 下，避免浏览器从 HTTPS 页面访问 HTTP AI 接口时被拦截。
 
 ## CPU2 上的 Compose 调整
@@ -350,8 +334,6 @@ NEXT_PUBLIC_API_URL=https://xiehe.stellarmesh.net
 NEXT_PUBLIC_API_BASE_URL=https://xiehe.stellarmesh.net
 NEXT_PUBLIC_API_VERSION=v1
 
-NEXT_PUBLIC_WEBSOCKET_URL=wss://xiehe.stellarmesh.net/api/v1/ws/ws
-
 NEXT_PUBLIC_AI_DETECT_URL=https://xiehe.stellarmesh.net/ai/front/predict
 NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL=https://xiehe.stellarmesh.net/ai/front/detect_keypoints
 
@@ -364,11 +346,6 @@ NEXT_PUBLIC_AI_DETECT_LATERAL_DETECT_URL=https://xiehe.stellarmesh.net/ai/latera
 - `NEXT_PUBLIC_API_URL`
   - 前端 Axios 基础地址
   - 应设置为站点根域名，不要再写旧公网 IP
-
-- `NEXT_PUBLIC_WEBSOCKET_URL`
-  - 当前主 WebSocket Hook 会在这个值后面自动拼接 `/{user_id}`
-  - 因此这里应配置为 WebSocket **基础前缀**
-  - 不要手动把用户 ID 写进去
 
 - `NEXT_PUBLIC_AI_DETECT_*`
   - 页面使用 HTTPS 时，不能继续保留 `http://IP:8001` 或 `http://IP:8002`
@@ -383,14 +360,12 @@ frontend:
   build:
     args:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      NEXT_PUBLIC_WEBSOCKET_URL: ${NEXT_PUBLIC_WEBSOCKET_URL}
 ```
 
 建议后续实施时按下面原则处理：
 
 - 不再在 `frontend.environment` 中直接写 `NEXT_PUBLIC_*` 变量
 - 使用 `dotenv/.env.frontend` 作为 Compose 和前端构建的统一变量来源
-- 当前代码实际读取的是 `NEXT_PUBLIC_WEBSOCKET_URL`，不是 `NEXT_PUBLIC_WS_URL`
 - `frontend/.env.production` 保留为默认生产配置，但实际 Docker 构建以 Compose 传入的 build args 为准
 
 可选做法：
@@ -449,7 +424,6 @@ docker compose up -d --build
 - `https://xiehe.stellarmesh.net` 页面可访问
 - 前端静态资源可正常加载
 - 登录、列表、上传等 `/api/` 请求正常
-- WebSocket 功能正常
 - AI 相关功能不出现浏览器 mixed content 错误
 
 ## 验证清单
@@ -479,7 +453,6 @@ curl http://<CPU2_PRIVATE_IP>:8080/health
 - 首页和登录页能打开
 - 登录后基础页面能正常加载数据
 - 文件上传能成功
-- 实时数据和通知相关 WebSocket 能建立连接
 - AI 测量和 AI 检测接口能正常返回
 
 ## 风险与注意事项
@@ -502,23 +475,7 @@ curl http://<CPU2_PRIVATE_IP>:8080/health
 
 浏览器会直接拦截请求。
 
-### 3. WebSocket 路径需要联调确认
-
-当前代码里 WebSocket 相关路径存在多处写法，部署时应重点验证：
-
-- 仪表板实时数据
-- 通知中心
-- 通知铃铛
-
-本方案默认主 WebSocket 基础地址按当前 Hook 行为配置为：
-
-```text
-wss://xiehe.stellarmesh.net/api/v1/ws/ws
-```
-
-如果后续代码侧统一了 WebSocket 路径，文档也需要同步更新。
-
-### 4. 建议用防火墙限制 CPU2 暴露面
+### 3. 建议用防火墙限制 CPU2 暴露面
 
 即使 Compose 绑定在内网 IP 上，也建议在 `CPU2` 防火墙中限制：
 
