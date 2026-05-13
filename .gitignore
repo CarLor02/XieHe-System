@@ -338,6 +338,7 @@ backend/build/
 # 日志文件
 *.log
 logs/
+*.pid
 log/
 
 # 测试覆盖率报告
@@ -366,3 +367,4 @@ docker-compose.yml
 # 权重文件
 *.pt
 *.pth
+communication/data

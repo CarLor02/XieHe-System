@@ -35,9 +35,8 @@ interface ScanFile {
 interface Stats {
   total: number;
   valid: number;
-  primary: number;
   synced: number;
-  unsynced_primary: number;
+  unsynced: number;
 }
 
 type ImportStatus = 'idle' | 'inspecting' | 'patient' | 'downloading' | 'uploading' | 'marking' | 'done' | 'error';
@@ -122,23 +121,22 @@ export default function SyncPage() {
     setError('');
     try {
       const statsData = await getSyncStats(syncConfig());
+      const valid = statsData.valid_files ?? 0;
+      const synced = statsData.synced_files ?? 0;
       setStats({
         total: statsData.total_files ?? 0,
-        valid: statsData.valid_files ?? 0,
-        primary: statsData.primary_files ?? 0,
-        synced: statsData.synced_files ?? 0,
-        unsynced_primary: statsData.unsynced_primary ?? 0,
+        valid,
+        synced,
+        unsynced: Math.max(0, valid - synced),
       });
 
       // months list
       const monthsSet = new Set<string>();
       const patientsSet = new Set<string>();
 
-      // files
-      const params = new URLSearchParams({ page: '1', page_size: '200', is_primary: 'true' });
-      if (filterMonth) params.set('month', filterMonth);
+      // files — 扁平化后不再强制过滤 is_primary，显示所有有效文件
+      const params = new URLSearchParams({ page: '1', page_size: '200' });
       if (filterSynced !== 'all') params.set('is_synced', filterSynced);
-      if (filterPatient) params.set('patient_folder', filterPatient);
 
       const items = await getSyncFiles(syncConfig(), params);
       setFiles(items);
@@ -353,13 +351,12 @@ export default function SyncPage() {
 
           {/* Stats */}
           {stats && (
-            <div className="grid grid-cols-5 gap-3 mb-4">
+            <div className="grid grid-cols-4 gap-3 mb-4">
               {[
                 { label: '总文件', value: stats.total, color: 'text-gray-700' },
                 { label: '有效文件', value: stats.valid, color: 'text-blue-600' },
-                { label: '主影像', value: stats.primary, color: 'text-indigo-600' },
                 { label: '已同步', value: stats.synced, color: 'text-green-600' },
-                { label: '待导入', value: stats.unsynced_primary, color: 'text-amber-600' },
+                { label: '待导入', value: stats.unsynced, color: 'text-amber-600' },
               ].map(s => (
                 <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-3 text-center">
                   <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
