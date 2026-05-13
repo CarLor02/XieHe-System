@@ -18,7 +18,7 @@ from app.contracts.logging_service.v1 import (
     LogLevel,
     model_to_json_dict,
 )
-from app.core.system.config import settings
+from app.core.config import settings
 from app.core.system.request_context import get_request_id
 
 

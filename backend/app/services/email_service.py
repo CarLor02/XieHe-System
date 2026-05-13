@@ -21,7 +21,7 @@ from jinja2 import Template, Environment, FileSystemLoader
 import aiofiles
 import aiosmtplib
 
-from app.core.system.config import settings
+from app.core.config import settings
 
 
 

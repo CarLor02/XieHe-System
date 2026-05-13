@@ -43,7 +43,7 @@ def _base_database_url() -> URL:
     raw_url = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
 
     if raw_url is None:
-        from app.core.system.config import settings
+        from app.core.config import settings
 
         raw_url = settings.DATABASE_URL
 

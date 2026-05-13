@@ -14,7 +14,7 @@ from typing import Dict, Any
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from app.core.database.session import db_manager, SessionLocal, redis_pool
-from app.core.system.config import settings
+from app.core.config import settings
 import redis
 from sqlalchemy import text
 

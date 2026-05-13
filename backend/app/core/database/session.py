@@ -12,7 +12,7 @@ from sqlalchemy.pool import QueuePool
 import redis
 from redis import ConnectionPool
 
-from app.core.system.config import settings
+from app.core.config import settings
 from app.models.base import Base
 
 # 配置日志

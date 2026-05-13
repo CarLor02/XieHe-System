@@ -25,7 +25,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
-from app.core.system.config import settings
+from app.core.config import settings
 from app.core.system.exceptions import (
     CustomHTTPException,
     ValidationException,

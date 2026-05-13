@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.access.auth import get_current_active_user
 from app.core.database.session import get_db
-from app.core.system.config import settings
+from app.core.config import settings
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import paginated_response, success_response
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum

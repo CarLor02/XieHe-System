@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 import hashlib
 import mimetypes
 
-from app.core.system.config import settings
+from app.core.config import settings
 from app.core.system.logger import LogLevel, logger
 
 

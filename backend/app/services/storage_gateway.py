@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import httpx
 
-from app.core.system.config import settings
+from app.core.config import settings
 
 
 @dataclass(frozen=True)

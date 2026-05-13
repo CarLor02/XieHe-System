@@ -25,7 +25,7 @@ except ImportError:
     PYDICOM_AVAILABLE = False
 
 from app.core.system.logger import LogLevel, logger
-from app.core.system.config import settings
+from app.core.config import settings
 
 
 class DICOMProcessor:

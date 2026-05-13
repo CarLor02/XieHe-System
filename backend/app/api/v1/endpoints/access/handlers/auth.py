@@ -126,7 +126,7 @@ def get_user_by_id(db: Session, user_id: int) -> Dict[str, Any]:
         return None
 
 
-from app.core.system.config import settings as config_settings
+from app.core.config import settings as config_settings
 from app.services.storage_gateway import StorageServiceError, storage_gateway
 from ..schemas.auth import (
     AvatarUploadCompleteRequest,
