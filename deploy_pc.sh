@@ -196,9 +196,10 @@ generate_dotenv_files() {
         print_info "未检测到运行中的 MinIO 容器，生成新凭据"
     fi
 
-    # 其他密钥（JWT、Storage Token）总是重新生成
+    # 其他密钥（JWT、内部服务 Token）总是重新生成
     JWT_SECRET="$(generate_secret)"
     STORAGE_TOKEN="$(generate_secret | head -c 32)"
+    LOGGING_TOKEN="$(generate_secret | head -c 32)"
 
     # --- .env.runtime ---
     write_if_missing ".env.runtime" <<EOF
@@ -235,6 +236,7 @@ MYSQL_PORT_BIND=127.0.0.1:3306:3306
 REDIS_PORT_BIND=127.0.0.1:6380:6379
 MINIO_API_PORT_BIND=0.0.0.0:9000:9000
 MINIO_CONSOLE_PORT_BIND=127.0.0.1:9001:9001
+STORAGE_SERVICE_PORT_BIND=127.0.0.1:8090:8090
 EOF
 
     # --- .env.database ---
@@ -265,12 +267,57 @@ MINIO_REGION=us-east-1
 MINIO_PUBLIC_ENDPOINT=http://${LAN_IP}:9000
 EOF
 
+    # --- .env.kafka ---
+    write_if_missing ".env.kafka" <<EOF
+KAFKA_IMAGE_TAG=4.2.0
+KAFKA_NODE_ID=1
+KAFKA_NUM_PARTITIONS=4
+EOF
+
     # --- .env.storage ---
     write_if_missing ".env.storage" <<EOF
 STORAGE_SERVICE_TOKEN=${STORAGE_TOKEN}
 STORAGE_SERVICE_URL=http://storage-service:8090
+STORAGE_SERVICE_TIMEOUT=30
+STORAGE_SERVICE_READ_HEADER_TIMEOUT=5s
+STORAGE_SERVICE_READ_TIMEOUT=30s
+STORAGE_SERVICE_WRITE_TIMEOUT=120s
+STORAGE_SERVICE_IDLE_TIMEOUT=60s
+STORAGE_SERVICE_MAX_UPLOAD_BYTES=536870912
 IMAGE_FILE_BUCKET=medical-image-files
 USER_AVATAR_BUCKET=medical-user-avatars
+EOF
+
+    # --- .env.logging ---
+    write_if_missing ".env.logging" <<EOF
+LOGGING_SERVICE_TOKEN=${LOGGING_TOKEN}
+LOGGING_SERVICE_URL=http://logging-service:8091
+LOGGING_SERVICE_TIMEOUT=2.0
+
+LOGGING_CONSOLE_COLOR=true
+LOGGING_BATCH_FLUSH_MS=500
+LOGGING_QUEUE_SIZE=4096
+LOGGING_MAX_BATCH_SIZE=512
+
+LOGGING_KAFKA_BROKERS=kafka:9092
+LOGGING_KAFKA_TOPIC=medical.events.logging.v1
+LOGGING_KAFKA_PARTITIONS=4
+
+LOGGING_SERVICE_READ_HEADER_TIMEOUT=5s
+LOGGING_SERVICE_READ_TIMEOUT=10s
+LOGGING_SERVICE_WRITE_TIMEOUT=10s
+LOGGING_SERVICE_IDLE_TIMEOUT=60s
+LOGGING_SERVICE_SHUTDOWN_TIMEOUT=10s
+LOGGING_SPOOL_FILE=/var/lib/logging-service/spool/events.jsonl
+LOGGING_ERROR_AUDIT_FILE=/var/lib/logging-service/archive/error_audit.jsonl
+EOF
+
+    # --- .env.concurrency ---
+    write_if_missing ".env.concurrency" <<EOF
+AI_OBJECT_CONCURRENCY_LIMIT=50
+BATCH_PRESIGN_CONCURRENCY_LIMIT=100
+LEGACY_DIAGNOSIS_CONCURRENCY_LIMIT=100
+REPORT_EXPORT_CONCURRENCY_LIMIT=100
 EOF
 
     # --- .env.backend ---
@@ -279,7 +326,7 @@ EOF
     write_if_missing ".env.backend" <<EOF
 JWT_SECRET_KEY=${JWT_SECRET}
 FORWARDED_ALLOW_IPS=*
-CORS_ORIGINS=http://${LAN_IP}:3030,http://localhost:3030
+BACKEND_CORS_ORIGINS=http://${LAN_IP}:3030,http://localhost:3030
 AI_FRONT_PREDICT_OBJECT_URL=http://${LAN_IP}:8001/predict_object
 AI_FRONT_KEYPOINTS_OBJECT_URL=http://${LAN_IP}:8001/detect_keypoints_object
 AI_LATERAL_PREDICT_OBJECT_URL=http://${LAN_IP}:8002/api/detect_and_keypoints_object
@@ -512,7 +559,7 @@ update_ip_config() {
     print_step "重建前端镜像（IP 已编译进静态文件）..."
     main_compose build frontend || { print_error "前端重建失败"; exit 1; }
 
-    # 重启 backend（CORS_ORIGINS 变了）和 frontend
+    # 重启 backend（BACKEND_CORS_ORIGINS 变了）和 frontend
     print_step "重启 backend 和 frontend..."
     main_compose up -d --force-recreate backend frontend || { print_error "服务重启失败"; exit 1; }
 

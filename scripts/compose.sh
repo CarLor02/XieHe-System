@@ -36,6 +36,7 @@ ENV_FILES=(
   "dotenv/.env.kafka"
   "dotenv/.env.storage"
   "dotenv/.env.logging"
+  "dotenv/.env.concurrency"
   "dotenv/.env.backend"
   "dotenv/.env.frontend"
 )

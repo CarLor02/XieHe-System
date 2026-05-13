@@ -13,6 +13,7 @@ ENV_FILE_PATHS = (
     "dotenv/.env.minio",
     "dotenv/.env.storage",
     "dotenv/.env.logging",
+    "dotenv/.env.concurrency",
     "dotenv/.env.backend",
     "../dotenv/.env.runtime",
     "../dotenv/.env.database",
@@ -20,6 +21,7 @@ ENV_FILE_PATHS = (
     "../dotenv/.env.minio",
     "../dotenv/.env.storage",
     "../dotenv/.env.logging",
+    "../dotenv/.env.concurrency",
     "../dotenv/.env.backend",
 )
 
