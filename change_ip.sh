@@ -179,9 +179,22 @@ main() {
     # 5. 重新生成配置并部署
     print_step "重新生成配置并部署服务..."
     echo ""
+
+    # 检测网络：能否在 3 秒内连上 GitHub（或任意外网）
+    # 有网络 → 正常拉取最新代码；无网络 → --skip-pull 直接用本地代码 + Docker 层缓存
+    DEPLOY_EXTRA_FLAGS=""
+    if curl -sf --connect-timeout 3 --max-time 5 https://github.com -o /dev/null 2>/dev/null; then
+        print_success "网络可用，将拉取最新代码"
+    else
+        print_info "网络不可用，跳过 git pull，使用本地代码和 Docker 层缓存"
+        DEPLOY_EXTRA_FLAGS="--skip-pull"
+    fi
+
     # 必须显式传 --ip，否则 deploy_pc.sh 会用 detect_lan_ip() 自动检测
     # 在联网状态下 detect_lan_ip 会返回互联网出口 IP，而非用户指定的局域网 IP
-    ./deploy_pc.sh --reset-env --ip "$NEW_IP" -y
+    # 不传 --rebuild：让 Docker 复用层缓存，避免无网时重新下载 npm/pip 包
+    # shellcheck disable=SC2086
+    ./deploy_pc.sh --reset-env --ip "$NEW_IP" $DEPLOY_EXTRA_FLAGS -y
     echo ""
     print_success "配置已重新生成，Docker 服务已启动"
     echo ""
