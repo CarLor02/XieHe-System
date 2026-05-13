@@ -69,7 +69,7 @@ export default function ImageGrid({
                 {imageFile.original_filename}
               </h3>
               <p className="text-blue-600 font-medium text-sm">
-                {imageFile.description || imageFile.file_type}
+                {imageFile.description || '请修改检查类型'}
               </p>
             </div>
 
