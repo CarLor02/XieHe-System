@@ -186,7 +186,10 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
             const nextStates = { ...previousStates };
             for (const fileId of loadedIds) {
               delete nextStates[fileId];
-              delete previewErrorCountsRef.current[fileId];
+              // Do NOT reset previewErrorCountsRef here: error counts track
+              // image *load* failures (img onError), not URL-fetch successes.
+              // Resetting here would cause an infinite retry loop when the
+              // presigned URL is valid but the object is missing in MinIO.
               previewForceRefreshIdsRef.current.delete(fileId);
             }
             for (const idString of Object.keys(result.errors)) {
