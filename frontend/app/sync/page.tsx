@@ -171,7 +171,7 @@ export default function SyncPage() {
   };
 
   const importFile = async (file: ScanFile) => {
-    setFileImportState(file.id, 'inspecting', '读取DICOM元数据…');
+    setFileImportState(file.id, 'inspecting', '读取影像元数据…');
 
     // 1. Inspect
     const inspectData = await inspectSyncFile(syncConfig(), file.id);
@@ -220,7 +220,7 @@ export default function SyncPage() {
     await uploadSingleFile({
       file: new File([dicomBlob], uploadFilename, { type: 'image/png' }),
       patient_id: String(mainPatientId),
-      description: `DICOM导入 ${file.month_folder}/${file.patient_folder}`,
+      description: `同步导入 ${file.filename}`,
     });
 
     // 5. Mark synced
@@ -301,7 +301,7 @@ export default function SyncPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-xl font-semibold text-gray-800">同步数据</h1>
-              <p className="text-sm text-gray-500 mt-0.5">从本地文件索引服务导入DICOM影像到系统</p>
+              <p className="text-sm text-gray-500 mt-0.5">从扫描机同步影像文件到系统</p>
             </div>
             <button
               onClick={() => setShowConfig(v => !v)}
