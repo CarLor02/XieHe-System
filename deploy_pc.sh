@@ -396,6 +396,11 @@ build_docker_images() {
     local build_args=()
     [ "$REBUILD" = "1" ] && build_args+=(--no-cache)
 
+    # 启用 BuildKit 获得更好的缓存支持（npm/go module cache mount）
+    # 不指定 --pull 时默认行为是 missing（本地有就用本地，没有才拉取）
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_DOCKER_CLI_BUILD=1
+
     print_step "构建主系统镜像（backend / frontend / storage-service）..."
     main_compose build "${build_args[@]}" || { print_error "主系统镜像构建失败"; exit 1; }
     print_success "主系统镜像构建完成"

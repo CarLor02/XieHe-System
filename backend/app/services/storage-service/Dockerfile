@@ -20,7 +20,9 @@ ENV GOPROXY=${GOPROXY} \
     GONOSUMDB=${GONOSUMDB}
 
 COPY go.mod go.sum ./
-RUN go mod download
+# --mount=type=cache 把 Go module 缓存留在宿主机，重建时跳过已下载的依赖
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/storage-service ./cmd
 
