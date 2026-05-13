@@ -1,23 +1,26 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Pacifico } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import Providers from './providers';
 
-const pacifico = Pacifico({
+// 使用本地字体文件，避免构建时访问 Google Fonts（支持完全离线构建）
+const pacifico = localFont({
+  src: '../public/fonts/pacifico/pacifico.woff2',
   weight: '400',
-  subsets: ['latin'],
   display: 'swap',
   variable: '--font-pacifico',
 });
 
-const geistSans = Geist({
+const geistSans = localFont({
+  src: '../public/fonts/geist/geist.woff2',
   variable: '--font-geist-sans',
-  subsets: ['latin'],
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: '../public/fonts/geist-mono/geist-mono.woff2',
   variable: '--font-geist-mono',
-  subsets: ['latin'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
