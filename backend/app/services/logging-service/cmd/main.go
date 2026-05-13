@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	applogging "xiehe-logging-service/internal/application/logging"
 	"xiehe-logging-service/internal/config"
@@ -16,23 +17,31 @@ import (
 	httpapi "xiehe-logging-service/internal/interfaces/http"
 )
 
+const kafkaStartupCheckTimeout = 10 * time.Second
+
 // main wires configuration, sinks, Kafka publishing, and the HTTP server lifecycle.
 func main() {
 	cfg := config.Load()
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	var publisher applogging.Publisher = kafkapub.NoopPublisher{}
-	if cfg.KafkaEnabled {
-		publisher = kafkapub.NewPublisher(cfg.KafkaBrokers, cfg.KafkaTopic)
-		if closer, ok := publisher.(interface{ Close() error }); ok {
-			defer func() {
-				if err := closer.Close(); err != nil {
-					log.Printf("kafka publisher close failed: %v", err)
-				}
-			}()
-		}
+	publisher := kafkapub.NewPublisher(cfg.KafkaBrokers, cfg.KafkaTopic)
+	checkCtx, cancelCheck := context.WithTimeout(ctx, kafkaStartupCheckTimeout)
+	if err := publisher.Check(checkCtx); err != nil {
+		cancelCheck()
+		log.Panicf(
+			"kafka startup check failed for brokers=%v topic=%q: %v",
+			cfg.KafkaBrokers,
+			cfg.KafkaTopic,
+			err,
+		)
 	}
+	cancelCheck()
+	defer func() {
+		if err := publisher.Close(); err != nil {
+			log.Printf("kafka publisher close failed: %v", err)
+		}
+	}()
 
 	service := applogging.NewService(
 		applogging.Config{

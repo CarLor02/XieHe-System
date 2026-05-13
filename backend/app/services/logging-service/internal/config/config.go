@@ -16,7 +16,6 @@ type Config struct {
 	FlushInterval  time.Duration
 	QueueSize      int
 	MaxBatchSize   int
-	KafkaEnabled   bool
 	KafkaBrokers   []string
 	KafkaTopic     string
 	SpoolFile      string
@@ -34,7 +33,6 @@ func Load() Config {
 		FlushInterval:  time.Duration(envInt("LOGGING_BATCH_FLUSH_MS", 500)) * time.Millisecond,
 		QueueSize:      envInt("LOGGING_QUEUE_SIZE", 4096),
 		MaxBatchSize:   envInt("LOGGING_MAX_BATCH_SIZE", 512),
-		KafkaEnabled:   envBool("LOGGING_KAFKA_ENABLED", true),
 		KafkaBrokers:   envCSV("LOGGING_KAFKA_BROKERS", "kafka:9092"),
 		KafkaTopic:     env("LOGGING_KAFKA_TOPIC", "logging.events.v1"),
 		SpoolFile:      env("LOGGING_SPOOL_FILE", dataDir+"/spool/events.jsonl"),
