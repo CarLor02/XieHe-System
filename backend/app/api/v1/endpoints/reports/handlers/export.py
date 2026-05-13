@@ -24,6 +24,11 @@ from pydantic import BaseModel, Field
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.models.report import DiagnosticReport
+from app.core.system.concurrency import (
+    ConcurrencyLimitExceeded,
+    report_export_gate,
+    require_report_export_slot,
+)
 from app.core.system.logger import LogLevel, logger
 from ..schemas.export import (
     ExportRequest,
@@ -43,7 +48,8 @@ async def export_single_report(
     include_images: bool = Query(True),
     watermark: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _slot: None = Depends(require_report_export_slot),
 ):
     """
     导出单个报告
@@ -109,7 +115,8 @@ async def export_batch_reports(
     request: BatchExportRequest,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _slot: None = Depends(require_report_export_slot),
 ):
     """
     批量导出报告
@@ -533,6 +540,15 @@ async def export_to_html(report, template=None, include_images=True, watermark=N
 # 后台任务处理函数
 async def process_batch_export(task_id, reports, format, template, include_images, watermark):
     """处理批量导出任务"""
+    try:
+        async with report_export_gate.acquire():
+            await _process_batch_export(task_id, reports, format, template, include_images, watermark)
+    except ConcurrencyLimitExceeded:
+        logger.emit_event(LogLevel.WARNING, message=f"批量导出并发已满，跳过任务: {task_id}")
+
+
+async def _process_batch_export(task_id, reports, format, template, include_images, watermark):
+    """Run the actual batch export work after the caller has acquired a slot."""
     try:
         logger.emit_event(LogLevel.INFO, message=f"开始批量导出任务: {task_id}")
         

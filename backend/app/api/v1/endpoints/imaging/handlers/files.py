@@ -20,6 +20,7 @@ from sqlalchemy import or_, func
 from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.core.config import settings
+from app.core.system.concurrency import require_ai_object_slot, require_batch_presign_slot
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
@@ -351,6 +352,7 @@ async def run_image_file_ai_predict(
     file_id: int,
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db),
+    _slot: None = Depends(require_ai_object_slot),
 ):
     image = _get_ai_ready_visible_image(db, file_id, current_user)
     return await _post_ai_object_request(
@@ -364,6 +366,7 @@ async def run_image_file_ai_detect_keypoints(
     file_id: int,
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db),
+    _slot: None = Depends(require_ai_object_slot),
 ):
     image = _get_ai_ready_visible_image(db, file_id, current_user)
     return await _post_ai_object_request(
@@ -472,6 +475,7 @@ async def get_image_file_download_urls(
     response: Response,
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db),
+    _slot: None = Depends(require_batch_presign_slot),
 ):
     """
     批量获取经 Nginx 代理的 MinIO presigned URL。

@@ -28,6 +28,7 @@ def test_config_registry_contains_expected_domains() -> None:
         "logging",
         "ai",
         "cache",
+        "concurrency",
         "monitoring",
         "external",
         "development",

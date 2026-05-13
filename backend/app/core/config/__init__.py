@@ -8,6 +8,7 @@ from typing import Any, Iterator
 from .ai_settings import AiSettings, ai_settings
 from .app_settings import AppSettings, app_settings
 from .cache_settings import CacheSettings, cache_settings
+from .concurrency_settings import ConcurrencySettings, concurrency_settings
 from .database_settings import DatabaseSettings, database_settings
 from .development_settings import DevelopmentSettings, development_settings
 from .email_settings import EmailSettings, email_settings
@@ -30,6 +31,7 @@ CONFIG_REGISTRY = OrderedDict(
         ("logging", logging_settings),
         ("ai", ai_settings),
         ("cache", cache_settings),
+        ("concurrency", concurrency_settings),
         ("monitoring", monitoring_settings),
         ("external", external_settings),
         ("development", development_settings),
@@ -63,6 +65,7 @@ __all__ = [
     "AppSettings",
     "CacheSettings",
     "CONFIG_REGISTRY",
+    "ConcurrencySettings",
     "DatabaseSettings",
     "DevelopmentSettings",
     "EmailSettings",
@@ -76,6 +79,7 @@ __all__ = [
     "ai_settings",
     "app_settings",
     "cache_settings",
+    "concurrency_settings",
     "database_settings",
     "development_settings",
     "email_settings",

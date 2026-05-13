@@ -18,6 +18,7 @@ from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.core.imaging.storage import storage_manager
 from app.core.imaging.diagnosis import ai_diagnosis_engine
+from app.core.system.concurrency import require_legacy_diagnosis_slot
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from ..schemas.diagnosis import (
@@ -118,7 +119,8 @@ async def analyze_image(
     request: AIAnalysisRequest,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _slot: None = Depends(require_legacy_diagnosis_slot),
 ):
     """
     使用AI模型分析单张图像
@@ -208,7 +210,8 @@ async def batch_analyze_images(
     request: BatchAnalysisRequest,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _slot: None = Depends(require_legacy_diagnosis_slot),
 ):
     """
     批量AI图像分析
@@ -295,7 +298,8 @@ async def batch_analyze_images(
 async def compare_models(
     request: ModelComparisonRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user),
+    _slot: None = Depends(require_legacy_diagnosis_slot),
 ):
     """
     使用多个AI模型分析同一图像并比较结果
