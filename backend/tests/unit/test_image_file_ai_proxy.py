@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from fastapi import HTTPException
 
@@ -21,6 +22,31 @@ def make_image(
         status=status,
         description=description,
     )
+
+
+@pytest.mark.asyncio
+async def test_ai_object_request_reuses_lifecycle_client() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"ok": True})
+
+    await file_handlers.stop_ai_object_client()
+    await file_handlers.start_ai_object_client(httpx.MockTransport(handler))
+    first_client = file_handlers._ai_object_client
+
+    try:
+        first = await file_handlers._post_ai_object_request("http://ai/predict", {"image_id": "IMG1"})
+        second = await file_handlers._post_ai_object_request("http://ai/predict", {"image_id": "IMG2"})
+        assert file_handlers._ai_object_client is first_client
+    finally:
+        await file_handlers.stop_ai_object_client()
+
+    assert first == {"ok": True}
+    assert second == {"ok": True}
+    assert len(requests) == 2
+    assert first_client is not None
 
 
 @pytest.mark.asyncio

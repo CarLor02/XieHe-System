@@ -46,6 +46,7 @@ class Logger:
         self._worker_started = False
         self._worker_lock = threading.Lock()
         self._last_fallback_warning = 0.0
+        self._client: Optional[httpx.Client] = None
 
     def emit_event(
         self,
@@ -103,12 +104,11 @@ class Logger:
             headers["X-Request-ID"] = event.trace_id
 
         try:
-            with httpx.Client(timeout=self.timeout, transport=self.sync_transport) as client:
-                response = client.post(
-                    f"{self.base_url}/v1/log-events",
-                    json=model_to_json_dict(request),
-                    headers=headers,
-                )
+            response = self._get_client().post(
+                f"{self.base_url}/v1/log-events",
+                json=model_to_json_dict(request),
+                headers=headers,
+            )
             response.raise_for_status()
             payload = response.json() if response.content else {}
         except Exception as exc:  # noqa: BLE001 - logging must never block business flow.
@@ -119,6 +119,18 @@ class Logger:
             self._fallback_warning(f"logging-service rejected event: {payload}")
             return False
         return True
+
+    def close(self) -> None:
+        """Close the reusable HTTP client if it has been created."""
+        if self._client is not None:
+            self._client.close()
+            self._client = None
+
+    def _get_client(self) -> httpx.Client:
+        """Return the reusable sync HTTP client for the logging worker."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.Client(timeout=self.timeout, transport=self.sync_transport)
+        return self._client
 
     def _ensure_worker(self) -> None:
         """Start the daemon worker that drains queued events."""

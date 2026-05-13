@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -27,19 +28,48 @@ class StorageServiceError(RuntimeError):
 class StorageGateway:
     """Small async wrapper around the internal object-storage service."""
 
-    def __init__(self) -> None:
-        self.base_url = settings.STORAGE_SERVICE_URL.rstrip("/")
-        self.timeout = settings.STORAGE_SERVICE_TIMEOUT
-        self.headers = {"X-Storage-Service-Token": settings.STORAGE_SERVICE_TOKEN}
+    def __init__(
+        self,
+        *,
+        base_url: Optional[str] = None,
+        token: Optional[str] = None,
+        timeout: Optional[float] = None,
+        async_transport: Optional[httpx.AsyncBaseTransport] = None,
+    ) -> None:
+        self.base_url = (base_url or settings.STORAGE_SERVICE_URL).rstrip("/")
+        self.timeout = timeout if timeout is not None else settings.STORAGE_SERVICE_TIMEOUT
+        self.headers = {"X-Storage-Service-Token": token if token is not None else settings.STORAGE_SERVICE_TOKEN}
+        self.async_transport = async_transport
+        self._client: Optional[httpx.AsyncClient] = None
+        self._client_lock = asyncio.Lock()
+
+    async def start(self) -> None:
+        """Create the shared AsyncClient used for storage-service calls."""
+        async with self._client_lock:
+            if self._client is not None and not self._client.is_closed:
+                return
+            self._client = httpx.AsyncClient(
+                timeout=self.timeout,
+                transport=self.async_transport,
+            )
+
+    async def stop(self) -> None:
+        """Close the shared AsyncClient and clear it for future lazy startup."""
+        async with self._client_lock:
+            client = self._client
+            self._client = None
+            if client is not None and not client.is_closed:
+                await client.aclose()
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> Dict[str, Any]:
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.request(
-                method,
-                f"{self.base_url}{path}",
-                headers={**self.headers, **kwargs.pop("headers", {})},
-                **kwargs,
-            )
+        await self.start()
+        assert self._client is not None
+        response = await self._client.request(
+            method,
+            f"{self.base_url}{path}",
+            headers={**self.headers, **kwargs.pop("headers", {})},
+            **kwargs,
+        )
 
         if response.status_code >= 400:
             raise StorageServiceError(

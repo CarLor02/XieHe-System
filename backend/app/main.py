@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
+from app.api.v1.endpoints.imaging.handlers.files import start_ai_object_client, stop_ai_object_client
 from app.core.config import settings
 from app.core.system.exceptions import (
     CustomHTTPException,
@@ -36,6 +37,7 @@ from app.core.system.exceptions import (
 from app.core.system.logger import LogLevel, logger
 from app.core.system.request_context import request_id_var
 from app.services.realtime_service import start_realtime_service, stop_realtime_service
+from app.services.storage_gateway import storage_gateway
 from app.tasks.object_cleanup import start_object_cleanup_scheduler
 
 
@@ -57,6 +59,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 启动实时数据推送服务
     try:
         import asyncio
+        await storage_gateway.start()
+        await start_ai_object_client()
         asyncio.create_task(start_realtime_service())
         asyncio.create_task(start_object_cleanup_scheduler())
     except Exception as e:
@@ -74,6 +78,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.emit_event(LogLevel.INFO, message="✅ 实时数据推送服务停止成功")
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"❌ 实时数据推送服务停止失败: {e}")
+
+    # 清理数据库连接
+    try:
+        await stop_ai_object_client()
+        await storage_gateway.stop()
+        logger.emit_event(LogLevel.INFO, message="✅ 内部HTTP客户端已关闭")
+    except Exception as e:
+        logger.emit_event(LogLevel.ERROR, message=f"❌ 内部HTTP客户端关闭失败: {e}")
 
     # 清理数据库连接
     try:

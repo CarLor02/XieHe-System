@@ -8,6 +8,7 @@
 创建时间: 2026-01-05
 """
 
+import asyncio
 from typing import Any, Optional
 from datetime import datetime, date, timedelta, timezone
 
@@ -40,11 +41,41 @@ from ..schemas.files import (
 )
 
 router = APIRouter()
+_ai_object_client: Optional[httpx.AsyncClient] = None
+_ai_object_client_lock = asyncio.Lock()
 
 READY_FOR_MODEL_STATUSES = {
     ImageFileStatusEnum.UPLOADED,
     ImageFileStatusEnum.PROCESSED,
 }
+
+
+async def start_ai_object_client(
+    async_transport: Optional[httpx.AsyncBaseTransport] = None,
+) -> None:
+    async with _ai_object_client_lock:
+        global _ai_object_client
+        if _ai_object_client is not None and not _ai_object_client.is_closed:
+            return
+        _ai_object_client = httpx.AsyncClient(
+            timeout=settings.AI_MODEL_TIMEOUT,
+            transport=async_transport,
+        )
+
+
+async def stop_ai_object_client() -> None:
+    async with _ai_object_client_lock:
+        global _ai_object_client
+        client = _ai_object_client
+        _ai_object_client = None
+        if client is not None and not client.is_closed:
+            await client.aclose()
+
+
+async def _get_ai_object_client() -> httpx.AsyncClient:
+    await start_ai_object_client()
+    assert _ai_object_client is not None
+    return _ai_object_client
 
 
 def _image_file_response(image: ImageFile, uploader_name: Optional[str] = None) -> ImageFileResponse:
@@ -172,8 +203,8 @@ def _get_ai_ready_visible_image(
 
 async def _post_ai_object_request(url: str, payload: dict[str, str]) -> dict[str, Any]:
     try:
-        async with httpx.AsyncClient(timeout=settings.AI_MODEL_TIMEOUT) as client:
-            response = await client.post(url, json=payload)
+        client = await _get_ai_object_client()
+        response = await client.post(url, json=payload)
     except httpx.HTTPError as exc:
         logger.emit_event(LogLevel.ERROR, message=f"AI模型 object 请求失败: {exc}")
         raise HTTPException(
