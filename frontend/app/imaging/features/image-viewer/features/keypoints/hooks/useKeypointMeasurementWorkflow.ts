@@ -39,6 +39,7 @@ import {
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-writeback';
+import { syncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
 import { runLateralDetectionCache } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
 
 interface UseKeypointMeasurementWorkflowOptions {
@@ -438,6 +439,34 @@ export function useKeypointMeasurementWorkflow({
     ]
   );
 
+  const handleCobbKeypointsSync = useCallback(
+    (measurementId: string) => {
+      if (!isKeypointExam) return;
+      const measurement = measurements.find(item => item.id === measurementId);
+      if (!measurement) return;
+
+      const nextKeypoints = syncCobbMeasurementToKeypoints(
+        keypoints,
+        measurement
+      );
+      if (!nextKeypoints) {
+        flashMessage(setSaveMessage, '请先填写 Cobb 上下端椎');
+        return;
+      }
+
+      applyKeypoints(nextKeypoints);
+      setShowVertebraeLayer(true);
+      flashMessage(setSaveMessage, '已同步 Cobb 端椎到检测层');
+    },
+    [
+      applyKeypoints,
+      isKeypointExam,
+      keypoints,
+      measurements,
+      setSaveMessage,
+    ]
+  );
+
   const handleToggleVertebraeLayer = useCallback(() => {
     setShowVertebraeLayer(current => {
       const next = !current;
@@ -501,6 +530,7 @@ export function useKeypointMeasurementWorkflow({
     handleVertebraeUpdate,
     handleVertebraePreviewUpdate,
     handleMeasurementWriteback,
+    handleCobbKeypointsSync,
     handleToggleVertebraeLayer,
   };
 }

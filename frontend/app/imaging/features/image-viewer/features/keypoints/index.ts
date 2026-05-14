@@ -3,4 +3,5 @@ export * from '@/app/imaging/features/image-viewer/features/keypoints/domain/mea
 export * from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-writeback';
 export * from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebrae-derive';
 export * from '@/app/imaging/features/image-viewer/features/keypoints/hooks/useKeypointMeasurementWorkflow';
+export * from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
 export * from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';

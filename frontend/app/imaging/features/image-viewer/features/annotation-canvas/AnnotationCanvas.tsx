@@ -93,6 +93,7 @@ export default function AnnotationCanvas({
   onKeypointAdd,
   onKeypointDelete,
   onMeasurementWriteback,
+  onCobbKeypointsSync,
 }: {
   selectedImage: Pick<ImageData, 'examType'>;
   measurements: MeasurementData[];
@@ -146,6 +147,7 @@ export default function AnnotationCanvas({
     newPoint: Point,
     measurementId?: string
   ) => void;
+  onCobbKeypointsSync?: (measurementId: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const {
@@ -696,6 +698,7 @@ export default function AnnotationCanvas({
         onToggleKeypointVisibility={handleToggleKeypointVisibility}
         onKeypointDelete={handleKeypointDelete}
         onMeasurementUpdate={handlePanelMeasurementUpdate}
+        onCobbKeypointsSync={onCobbKeypointsSync}
       />
 
       <CanvasControlsPanel

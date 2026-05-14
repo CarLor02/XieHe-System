@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   getAuxiliaryTagText,
   getDisplayName,
@@ -13,6 +13,7 @@ import {
   compareAnatomicalKeypointIds,
   KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import { canSyncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
 import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 
 type ResultsTab = 'measurements' | 'keypoints';
@@ -47,6 +48,7 @@ interface MeasurementResultsPanelProps {
     measurementId: string,
     updates: Partial<MeasurementData>
   ) => void;
+  onCobbKeypointsSync?: (measurementId: string) => void;
 }
 
 /**
@@ -80,6 +82,7 @@ export default function MeasurementResultsPanel({
   onToggleKeypointVisibility,
   onKeypointDelete,
   onMeasurementUpdate,
+  onCobbKeypointsSync,
 }: MeasurementResultsPanelProps) {
   const [activeTab, setActiveTab] = useState<ResultsTab>('measurements');
   const [editingAuxiliaryName, setEditingAuxiliaryName] = useState<
@@ -91,11 +94,6 @@ export default function MeasurementResultsPanel({
     field: 'upperVertebra' | 'lowerVertebra';
   } | null>(null);
   const [editingCobbEndpointValue, setEditingCobbEndpointValue] = useState('');
-
-  useEffect(() => {
-    setEditingAuxiliaryName(null);
-    setEditingCobbEndpoint(null);
-  }, [measurements.length]);
 
   const startEditingAuxiliaryName = (
     measurementId: string,
@@ -321,6 +319,46 @@ export default function MeasurementResultsPanel({
     );
   };
 
+  const renderCobbSyncButton = (measurement: MeasurementData) => {
+    if (!/^cobb/i.test(measurement.type)) return null;
+
+    const canSync =
+      Boolean(onCobbKeypointsSync) &&
+      canSyncCobbMeasurementToKeypoints(measurement);
+    return (
+      <button
+        type="button"
+        disabled={!canSync}
+        aria-label="同步检测层"
+        onClick={event => {
+          event.stopPropagation();
+          if (!canSync) return;
+          onCobbKeypointsSync?.(measurement.id);
+        }}
+        className={`mr-2 inline-flex h-5 flex-shrink-0 items-center gap-1 rounded border px-1.5 text-[10px] transition-colors ${
+          canSync
+            ? 'border-blue-300/50 bg-blue-500/20 text-blue-100 hover:border-blue-200 hover:bg-blue-500/30'
+            : 'cursor-not-allowed border-white/10 bg-white/5 text-white/35'
+        }`}
+        title={
+          canSync
+            ? '同步检测层'
+            : '填写 Cobb 上下端椎后可同步检测层'
+        }
+      >
+        <span
+          aria-hidden="true"
+          className="h-3 w-3 bg-current"
+          style={{
+            WebkitMask: "url('/icons/icon_sync.svg') center / contain no-repeat",
+            mask: "url('/icons/icon_sync.svg') center / contain no-repeat",
+          }}
+        />
+        <span className="whitespace-nowrap">同步检测层</span>
+      </button>
+    );
+  };
+
   const sortedMeasurements = [...measurements].sort((left, right) => {
     const byName = getMeasurementDisplayName(left).localeCompare(
       getMeasurementDisplayName(right)
@@ -539,6 +577,7 @@ export default function MeasurementResultsPanel({
                             isEditableAuxiliary,
                             isEditingThisAuxName
                           )}
+                          {renderCobbSyncButton(measurement)}
                           <span
                             className={`font-mono whitespace-nowrap ${
                               isSelected

@@ -1,10 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, jest } from '@jest/globals';
 
 import MeasurementResultsPanel from './MeasurementResultsPanel';
 import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 
-function renderPanel(measurements: MeasurementData[]) {
+function renderPanel(
+  measurements: MeasurementData[],
+  onCobbKeypointsSync = jest.fn()
+) {
   return render(
     <MeasurementResultsPanel
       showResults={true}
@@ -44,6 +47,7 @@ function renderPanel(measurements: MeasurementData[]) {
       onToggleKeypointVisibility={jest.fn()}
       onKeypointDelete={jest.fn()}
       onMeasurementUpdate={jest.fn()}
+      onCobbKeypointsSync={onCobbKeypointsSync}
     />
   );
 }
@@ -72,4 +76,57 @@ it('shows the Cobb sequence number together with endpoint vertebrae in the measu
         element.textContent === 'Cobb1(T5-T12)'
     )
   ).toBeTruthy();
+});
+
+it('shows a disabled Cobb sync button until both endpoint vertebrae are filled', () => {
+  renderPanel([
+    {
+      id: 'cobb-1',
+      type: 'cobb1',
+      value: '18.20°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+      upperVertebra: 'T5',
+      lowerVertebra: null,
+    },
+  ]);
+
+  expect(
+    (screen.getByRole('button', {
+      name: '同步检测层',
+    }) as HTMLButtonElement).disabled
+  ).toBe(true);
+});
+
+it('syncs a completed Cobb measurement to the detection layer from the measurement list', () => {
+  const onCobbKeypointsSync = jest.fn();
+  renderPanel(
+    [
+      {
+        id: 'cobb-1',
+        type: 'cobb1',
+        value: '18.20°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'T5',
+        lowerVertebra: 'T12',
+      },
+    ],
+    onCobbKeypointsSync
+  );
+
+  const syncButton = screen.getByRole('button', { name: '同步检测层' });
+  expect((syncButton as HTMLButtonElement).disabled).toBe(false);
+
+  fireEvent.click(syncButton);
+
+  expect(onCobbKeypointsSync).toHaveBeenCalledWith('cobb-1');
 });

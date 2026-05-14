@@ -313,9 +313,6 @@ export default function VertebraeLayer({
         const polyPts = [tl, tr, br, bl].map(p => `${p.x},${p.y}`).join(' ');
         const cx = (tl.x + tr.x + bl.x + br.x) / 4;
         const cy = (tl.y + tr.y + bl.y + br.y) / 4;
-        // 标签放在右侧中点的右边
-        const labelX = Math.max(tr.x, br.x) + 6;
-        const labelY = (tr.y + br.y) / 2 + 4;
         const isAnyCornerHovered = hoveredCorner?.label === vertebra.label;
         const isAnyCornerActive = activeCorner?.label === vertebra.label;
         const isAnyCornerSelected = [0, 1, 2, 3].some(index =>
@@ -366,44 +363,42 @@ export default function VertebraeLayer({
               const isActive =
                 activeCorner?.label === vertebra.label &&
                 activeCorner?.index === i;
-              const isSelected = selectedKeypointIds.has(
-                renderCornerToKeypointId(vertebra.label, i)
-              );
+              const keypointId = renderCornerToKeypointId(vertebra.label, i);
+              const isSelected = selectedKeypointIds.has(keypointId);
               return (
-                <circle
-                  key={i}
-                  cx={p.x}
-                  cy={p.y}
-                  r={isHovered || isActive || isSelected ? 5.5 : 3.5}
-                  fill={
-                    isActive
-                      ? 'rgba(239, 68, 68, 0.95)'
-                      : isHovered
-                        ? 'rgba(96, 165, 250, 1)'
-                        : isSelected
-                          ? 'rgba(250, 204, 21, 0.95)'
-                          : 'rgba(59, 130, 246, 0.9)'
-                  }
-                  stroke="white"
-                  strokeWidth={1}
-                />
+                <g key={keypointId}>
+                  <circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={isHovered || isActive || isSelected ? 5.5 : 3.5}
+                    fill={
+                      isActive
+                        ? 'rgba(239, 68, 68, 0.95)'
+                        : isHovered
+                          ? 'rgba(96, 165, 250, 1)'
+                          : isSelected
+                            ? 'rgba(250, 204, 21, 0.95)'
+                            : 'rgba(59, 130, 246, 0.9)'
+                    }
+                    stroke="white"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={p.x + 8}
+                    y={p.y + 4}
+                    textAnchor="start"
+                    fontSize={10}
+                    fontWeight="600"
+                    fill={labelFill}
+                    stroke="rgba(0,0,0,0.6)"
+                    strokeWidth={2.5}
+                    paintOrder="stroke"
+                  >
+                    {keypointId}
+                  </text>
+                </g>
               );
             })}
-
-            {/* 椎体名称标签 */}
-            <text
-              x={labelX}
-              y={labelY}
-              textAnchor="start"
-              fontSize={10}
-              fontWeight="600"
-              fill={labelFill}
-              stroke="rgba(0,0,0,0.6)"
-              strokeWidth={2.5}
-              paintOrder="stroke"
-            >
-              {vertebra.label}
-            </text>
 
             {/* 中心点 */}
             <circle cx={cx} cy={cy} r={1.5} fill="rgba(59, 130, 246, 0.5)" />

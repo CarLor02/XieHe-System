@@ -428,6 +428,7 @@ export function useImageViewerController({
       onKeypointAdd: keypointWorkflow.handleKeypointAdd,
       onKeypointDelete: keypointWorkflow.handleKeypointDelete,
       onMeasurementWriteback: keypointWorkflow.handleMeasurementWriteback,
+      onCobbKeypointsSync: keypointWorkflow.handleCobbKeypointsSync,
     },
     toolbarProps: {
       examType: imageData.examType,
