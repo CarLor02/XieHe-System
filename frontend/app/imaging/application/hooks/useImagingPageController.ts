@@ -14,6 +14,7 @@ import {
 } from '@/app/imaging/domain/imagingFilters';
 import { useImagePreviewQueue } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import { useImageFileActions } from '@/app/imaging/features/image-actions/hooks/useImageFileActions';
+import { useImageEditOverlay } from '@/app/imaging/features/image-actions/hooks/useImageEditOverlay';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -108,6 +109,8 @@ export function useImagingPageController() {
     reloadImages: loadImages,
   });
 
+  const editOverlay = useImageEditOverlay({ reloadImages: loadImages });
+
   const handleSearch = useCallback(() => {
     setCurrentPage(1);
     setDebouncedSearchTerm(searchTerm);
@@ -182,6 +185,7 @@ export function useImagingPageController() {
     hasActiveFilters,
     preview,
     actions,
+    editOverlay,
     loadImages,
     handleSearch,
     clearFilters,

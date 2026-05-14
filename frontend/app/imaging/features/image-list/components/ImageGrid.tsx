@@ -24,6 +24,7 @@ interface ImageGridProps {
     currentDesc: string,
     status: string
   ) => void;
+  onCropEdit: (imageFile: ImageFile) => void;
 }
 
 export default function ImageGrid({
@@ -35,6 +36,7 @@ export default function ImageGrid({
   onToggleActionMenu,
   onMoreAction,
   onOpenChangeTypeModal,
+  onCropEdit,
 }: ImageGridProps) {
   return (
     <div className="grid grid-cols-4 gap-6 p-6">
@@ -69,7 +71,7 @@ export default function ImageGrid({
                 {imageFile.original_filename}
               </h3>
               <p className="text-blue-600 font-medium text-sm">
-                {imageFile.description || imageFile.file_type}
+                {imageFile.description || '请修改检查类型'}
               </p>
             </div>
 
@@ -110,6 +112,7 @@ export default function ImageGrid({
                   openDropdown={openDropdown}
                   onMoreAction={onMoreAction}
                   onOpenChangeTypeModal={onOpenChangeTypeModal}
+                  onCropEdit={() => onCropEdit(imageFile)}
                 />
               </div>
             </div>

@@ -14,6 +14,7 @@ interface ImageListRowsProps {
   previewStates: Record<number, PreviewLoadState>;
   onPreviewError: (fileId: number) => void;
   onMoreAction: (fileId: number, action: string) => void;
+  onCropEdit: (imageFile: ImageFile) => void;
 }
 
 export default function ImageListRows({
@@ -22,6 +23,7 @@ export default function ImageListRows({
   previewStates,
   onPreviewError,
   onMoreAction,
+  onCropEdit,
 }: ImageListRowsProps) {
   return (
     <div className="divide-y divide-gray-200">
@@ -52,7 +54,7 @@ export default function ImageListRows({
                     {imageFile.original_filename}
                   </span>
                   <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                    {imageFile.description || imageFile.file_type}
+                    {imageFile.description || '请修改检查类型'}
                   </span>
                 </div>
                 <ImageStatusBadge status={imageFile.status} variant="inline" />
@@ -87,6 +89,13 @@ export default function ImageListRows({
                 >
                   <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
                   <span>下载</span>
+                </button>
+                <button
+                  onClick={() => onCropEdit(imageFile)}
+                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm flex items-center space-x-2 whitespace-nowrap"
+                >
+                  <i className="ri-crop-line w-4 h-4 flex items-center justify-center"></i>
+                  <span>裁剪编辑</span>
                 </button>
                 <button
                   onClick={() => onMoreAction(imageFile.id, 'delete')}
