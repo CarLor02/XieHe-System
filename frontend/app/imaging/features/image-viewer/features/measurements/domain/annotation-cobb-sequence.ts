@@ -1,0 +1,57 @@
+import {
+  getAnnotationTypeId,
+  type CalculationContext,
+} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+
+export function getCobbSequenceNumber(type: string): number | null {
+  const match = /^cobb(\d+)$/i.exec(getAnnotationTypeId(type));
+  if (!match) return null;
+
+  const sequenceNumber = Number(match[1]);
+  return Number.isInteger(sequenceNumber) && sequenceNumber > 0
+    ? sequenceNumber
+    : null;
+}
+
+export function getMaxCobbSequenceNumber(
+  measurements: MeasurementData[]
+): number {
+  return measurements.reduce((maxSequence, measurement) => {
+    const sequenceNumber = getCobbSequenceNumber(measurement.type);
+    return sequenceNumber === null
+      ? maxSequence
+      : Math.max(maxSequence, sequenceNumber);
+  }, 0);
+}
+
+export function getNextCobbType(measurements: MeasurementData[]): string {
+  return `cobb${getMaxCobbSequenceNumber(measurements) + 1}`;
+}
+
+export function renumberCobbMeasurementsAfterDelete(
+  measurements: MeasurementData[],
+  calculationContext: CalculationContext
+): MeasurementData[] {
+  let nextSequenceNumber = 1;
+
+  return measurements.map(measurement => {
+    const currentSequenceNumber = getCobbSequenceNumber(measurement.type);
+    if (currentSequenceNumber === null) return measurement;
+
+    const type = `cobb${nextSequenceNumber}`;
+    nextSequenceNumber += 1;
+    if (getAnnotationTypeId(measurement.type) === type) {
+      return measurement;
+    }
+
+    return {
+      ...measurement,
+      type,
+      value:
+        calculateMeasurementValue(type, measurement.points, calculationContext) ||
+        measurement.value,
+    };
+  });
+}

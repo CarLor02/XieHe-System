@@ -22,6 +22,10 @@ import {
 import { AP_AUTOMATIC_MEASUREMENT_TOOL_IDS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements';
 import { LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements';
 import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
+import {
+  getCobbSequenceNumber,
+  renumberCobbMeasurementsAfterDelete,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/usecases/addMeasurementUseCase';
 import {
@@ -362,11 +366,22 @@ export function useMeasurementWorkflow({
         return;
       }
 
+      if (getCobbSequenceNumber(typeId) !== null) {
+        setMeasurements(previous =>
+          renumberCobbMeasurementsAfterDelete(
+            previous.filter(item => item.id !== measurementId),
+            calculationContext
+          )
+        );
+        return;
+      }
+
       setMeasurements(previous =>
         previous.filter(item => item.id !== measurementId)
       );
     },
     [
+      calculationContext,
       cfhAnnotation,
       isKeypointExam,
       isLateralView,

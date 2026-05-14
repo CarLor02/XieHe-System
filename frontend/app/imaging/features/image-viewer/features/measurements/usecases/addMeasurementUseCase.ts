@@ -10,6 +10,7 @@ import {
     hasUniqueAnnotationForTool,
     measurementMatchesTool,
 } from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness";
+import {getNextCobbType} from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence";
 import {S1_BINDING_POINT_MAP} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
 import {Dispatch, SetStateAction} from "react";
 
@@ -78,10 +79,7 @@ export function addMeasurement(
     let finalType = requestedToolId;
     const isCobb = requestedToolId === 'cobb';
     if (isCobb) {
-        const cobbCount = measurements.filter(m =>
-            /^cobb\d+$/i.test(m.type)
-        ).length;
-        finalType = `cobb${cobbCount + 1}`;
+        finalType = getNextCobbType(measurements);
     }
 
     const configLookupType = isCobb ? 'cobb' : finalType;

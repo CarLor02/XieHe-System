@@ -3,6 +3,7 @@ import {
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+import { getMaxCobbSequenceNumber } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
   CfhAnnotation,
@@ -49,28 +50,20 @@ export function isDerivedCobbMeasurement(measurement: MeasurementData): boolean 
   );
 }
 
-function countNumberedCobbMeasurements(
-  measurements: MeasurementData[]
-): number {
-  return measurements.filter(measurement =>
-    /^cobb\d+$/i.test(getAnnotationTypeId(measurement.type))
-  ).length;
-}
-
 function applyCobbSequenceTypes(
   measurements: MeasurementData[],
-  startingCobbCount: number,
+  startingCobbSequenceNumber: number,
   calculationContext: CalculationContext
 ): MeasurementData[] {
-  let cobbCount = startingCobbCount;
+  let cobbSequenceNumber = startingCobbSequenceNumber;
 
   return measurements.map(measurement => {
     if (!isDerivedCobbMeasurement(measurement)) {
       return measurement;
     }
 
-    cobbCount += 1;
-    const type = `cobb${cobbCount}`;
+    cobbSequenceNumber += 1;
+    const type = `cobb${cobbSequenceNumber}`;
     return {
       ...measurement,
       type,
@@ -403,7 +396,7 @@ export function rebuildKeypointMeasurements({
 
   const rebuiltDerivedMeasurements = applyCobbSequenceTypes(
     [...derivedWithValues, ...boundCobbMeasurements],
-    countNumberedCobbMeasurements(retainedPreviousMeasurements),
+    getMaxCobbSequenceNumber(retainedPreviousMeasurements),
     calculationContext
   );
 

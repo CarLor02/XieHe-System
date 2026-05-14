@@ -263,7 +263,7 @@ function findCobbAngles(
         'T12',
       ],
     },
-    { name: 'Lumbar', range: ['L2', 'L3', 'L4'] },
+    { name: 'Lumbar', range: ['L2', 'L3', 'L4', 'L5'] },
   ];
 
   for (const region of regions) {

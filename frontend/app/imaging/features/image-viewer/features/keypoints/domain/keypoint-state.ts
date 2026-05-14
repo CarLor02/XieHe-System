@@ -100,7 +100,7 @@ export function isAnatomicalPointKeypointLabel(label: string): boolean {
 }
 
 function isFullApVertebraLabel(label: string): boolean {
-  return AP_VERTEBRA_GROUP_SET.has(label) || /^L5$/.test(label);
+  return AP_VERTEBRA_GROUP_SET.has(label);
 }
 
 function isFullLateralVertebraLabel(label: string): boolean {
@@ -218,7 +218,7 @@ function getCompleteGroups(
 export function getCompleteApVertebraGroups(
   keypoints: KeypointAnnotation[]
 ): string[] {
-  return getCompleteGroups(keypoints, [...AP_VERTEBRA_GROUPS, 'L5']);
+  return getCompleteGroups(keypoints, AP_VERTEBRA_GROUPS);
 }
 
 export function getCompleteSelectableVertebraGroups(
@@ -421,9 +421,7 @@ export function keypointsToRenderLayer(
       });
     }
   } else if (isAnteriorExamType(examType)) {
-    layer.push(
-      ...completeVertebraLayers([...AP_VERTEBRA_GROUPS, 'L5'], byId, consumed)
-    );
+    layer.push(...completeVertebraLayers(AP_VERTEBRA_GROUPS, byId, consumed));
   }
 
   visibleKeypoints.forEach(keypoint => {
@@ -464,11 +462,7 @@ export function keypointsToDerivedLayer(
 
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
   const consumed = new Set<string>();
-  const layer = completeVertebraLayers(
-    [...AP_VERTEBRA_GROUPS, 'L5'],
-    byId,
-    consumed
-  );
+  const layer = completeVertebraLayers(AP_VERTEBRA_GROUPS, byId, consumed);
 
   keypoints.forEach(keypoint => {
     if (consumed.has(keypoint.id)) return;

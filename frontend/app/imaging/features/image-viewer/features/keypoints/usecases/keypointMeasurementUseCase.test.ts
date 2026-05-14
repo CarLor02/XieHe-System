@@ -1,8 +1,13 @@
 import { expect, it } from '@jest/globals';
 
+import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/keypoints';
 import { rebuildKeypointMeasurements } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
 import { AnnotationSource, MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
-import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import {
+  getCompleteApVertebraGroups,
+  keypointsToRenderLayer,
+  KeypointAnnotation,
+} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 
 function apCorner(id: string, x: number, y: number): KeypointAnnotation {
   return {
@@ -12,6 +17,98 @@ function apCorner(id: string, x: number, y: number): KeypointAnnotation {
     confidence: 1,
   };
 }
+
+function l4L5LumbarCobbKeypoints(): KeypointAnnotation[] {
+  return [
+    apCorner('L4-1', 60, 90),
+    apCorner('L4-2', 160, 90),
+    apCorner('L4-3', 60, 130),
+    apCorner('L4-4', 160, 130),
+    apCorner('L5-1', 160, 180),
+    apCorner('L5-2', 260, 200),
+    apCorner('L5-3', 160, 220),
+    apCorner('L5-4', 260, 260),
+  ];
+}
+
+const calculationContext = {
+  standardDistance: null,
+  standardDistancePoints: [],
+  imageNaturalSize: { width: 1000, height: 1000 },
+};
+
+it('includes L5 in AP keypoint groups and complete AP render layers', () => {
+  const groups = getApKeypointGroups();
+  const l5Group = groups.find(group => group.id === 'L5');
+  const keypoints = l4L5LumbarCobbKeypoints().filter(keypoint =>
+    keypoint.id.startsWith('L5-')
+  );
+
+  expect(l5Group?.keypoints.map(keypoint => keypoint.id)).toEqual([
+    'L5-1',
+    'L5-2',
+    'L5-3',
+    'L5-4',
+  ]);
+  expect(getCompleteApVertebraGroups(keypoints)).toContain('L5');
+  expect(
+    keypointsToRenderLayer(keypoints, '正位X光片').map(item => item.label)
+  ).toContain('L5');
+});
+
+it('derives AP Lumbar Cobb measurements with L5 as an endpoint', () => {
+  const rebuilt = rebuildKeypointMeasurements({
+    previousMeasurements: [],
+    keypoints: l4L5LumbarCobbKeypoints(),
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(rebuilt).toEqual([
+    expect.objectContaining({
+      type: 'cobb1',
+      upperVertebra: 'L4',
+      lowerVertebra: 'L5',
+      apexVertebra: 'L4',
+    }),
+  ]);
+});
+
+it('starts keypoint-derived Cobb numbering after the current maximum Cobb number', () => {
+  const previousMeasurements: MeasurementData[] = [
+    {
+      id: 'manual-cobb-1',
+      type: 'cobb1',
+      value: '10.00°',
+      points: [],
+    },
+    {
+      id: 'manual-cobb-3',
+      type: 'cobb3',
+      value: '20.00°',
+      points: [],
+    },
+  ];
+
+  const rebuilt = rebuildKeypointMeasurements({
+    previousMeasurements,
+    keypoints: l4L5LumbarCobbKeypoints(),
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(rebuilt.map(measurement => measurement.type)).toEqual([
+    'cobb1',
+    'cobb3',
+    'cobb4',
+  ]);
+});
 
 it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb measurements', () => {
   const firstPassCobb: MeasurementData[] = [
@@ -41,11 +138,7 @@ it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb
     cfhAnnotation: null,
     examType: '正位X光片',
     isLateralView: false,
-    calculationContext: {
-      standardDistance: null,
-      standardDistancePoints: [],
-      imageNaturalSize: { width: 1000, height: 1000 },
-    },
+    calculationContext,
     aiMeasurementIds: new Set(['ai-cobb-1']),
   });
 

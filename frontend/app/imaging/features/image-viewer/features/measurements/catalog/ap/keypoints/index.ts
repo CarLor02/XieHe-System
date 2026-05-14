@@ -30,6 +30,7 @@ export const AP_VERTEBRA_GROUPS = [
   'L2',
   'L3',
   'L4',
+  'L5',
 ] as const;
 
 export const AP_POSE_KEYPOINTS = ['IL', 'IR', 'SL', 'SR', 'CL', 'CR'] as const;
