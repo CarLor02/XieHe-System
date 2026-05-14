@@ -8,6 +8,7 @@ import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-v
 import {
   CfhAnnotation,
   MeasurementData,
+  Point,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
@@ -43,8 +44,11 @@ export function areKeypointsEqual(
 
 export function isDerivedCobbMeasurement(measurement: MeasurementData): boolean {
   const typeId = getAnnotationTypeId(measurement.type);
+  const isKeypointBoundCobb =
+    measurement.id.startsWith(`${DERIVED_ID_PREFIX}cobb-`) ||
+    measurement.keypointSynced === true;
   return (
-    measurement.id.startsWith(`${DERIVED_ID_PREFIX}cobb-`) &&
+    isKeypointBoundCobb &&
     (typeId === 'cobb' || /^cobb\d+$/i.test(typeId)) &&
     Boolean(measurement.upperVertebra && measurement.lowerVertebra)
   );
@@ -91,6 +95,26 @@ export function findDerivedVertebra(
   label: string
 ): VertebraAnnotation | undefined {
   return layer.find(annotation => annotation.label === label);
+}
+
+function findCobbEndpointPoints(
+  keypoints: KeypointAnnotation[],
+  upperVertebra: string,
+  lowerVertebra: string
+): [Point, Point, Point, Point] | null {
+  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
+  const upperLeft = byId.get(`${upperVertebra}-1`);
+  const upperRight = byId.get(`${upperVertebra}-2`);
+  const lowerLeft = byId.get(`${lowerVertebra}-3`);
+  const lowerRight = byId.get(`${lowerVertebra}-4`);
+
+  if (!upperLeft || !upperRight || !lowerLeft || !lowerRight) return null;
+  return [
+    upperLeft.point,
+    upperRight.point,
+    lowerLeft.point,
+    lowerRight.point,
+  ];
 }
 
 export function createVertebraCenterMeasurement({
@@ -220,17 +244,24 @@ export function createCobbMeasurement({
 }): MeasurementData | null {
   if (upperVertebra === lowerVertebra) return null;
 
-  const layer = keypointsToDerivedLayer(keypoints, examType);
-  const upper = findDerivedVertebra(layer, upperVertebra);
-  const lower = findDerivedVertebra(layer, lowerVertebra);
-  if (!upper || !lower) return null;
+  const endpointPoints = findCobbEndpointPoints(
+    keypoints,
+    upperVertebra,
+    lowerVertebra
+  );
+  const layer = endpointPoints ? [] : keypointsToDerivedLayer(keypoints, examType);
+  const upper = endpointPoints ? null : findDerivedVertebra(layer, upperVertebra);
+  const lower = endpointPoints ? null : findDerivedVertebra(layer, lowerVertebra);
+  if (!endpointPoints && (!upper || !lower)) return null;
 
-  const points = [
-    upper.corners[0],
-    upper.corners[1],
-    lower.corners[2],
-    lower.corners[3],
-  ];
+  const points =
+    endpointPoints ??
+    ([
+      upper!.corners[0],
+      upper!.corners[1],
+      lower!.corners[2],
+      lower!.corners[3],
+    ] as [Point, Point, Point, Point]);
   const idSuffix = `${upperVertebra}-${lowerVertebra}`.toLowerCase();
   const type = existingMeasurement?.type ?? 'Cobb';
 
@@ -244,6 +275,7 @@ export function createCobbMeasurement({
     upperVertebra,
     lowerVertebra,
     apexVertebra: existingMeasurement?.apexVertebra ?? null,
+    keypointSynced: existingMeasurement?.keypointSynced,
   };
 }
 
@@ -330,6 +362,7 @@ export function rebuildKeypointMeasurements({
   const retainedPreviousMeasurements = previousMeasurements.filter(
     measurement =>
       !measurement.id.startsWith(DERIVED_ID_PREFIX) &&
+      !isDerivedCobbMeasurement(measurement) &&
       !aiMeasurementIds.has(measurement.id) &&
       !(
         measurement.type === 'vertebra-center' &&

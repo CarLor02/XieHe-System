@@ -24,7 +24,7 @@ it('renders corner labels instead of the vertebra label for a complete vertebra'
   ];
   const imageToScreen = (point: Point) => point;
 
-  render(
+  const rendered = render(
     <svg>
       <VertebraeLayer
         vertebraeLayer={vertebraeLayer}
@@ -39,4 +39,7 @@ it('renders corner labels instead of the vertebra label for a complete vertebra'
   expect(screen.getByText('T1-3')).toBeTruthy();
   expect(screen.getByText('T1-4')).toBeTruthy();
   expect(screen.queryByText('T1')).toBeNull();
+  expect(rendered.container.querySelector('polygon')?.getAttribute('points')).toBe(
+    '10,10 20,10 20,30 10,30'
+  );
 });

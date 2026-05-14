@@ -454,16 +454,35 @@ export function useKeypointMeasurementWorkflow({
         return;
       }
 
-      applyKeypoints(nextKeypoints);
+      const upperVertebra = measurement.upperVertebra!.trim().toUpperCase();
+      const lowerVertebra = measurement.lowerVertebra!.trim().toUpperCase();
+      setKeypoints(nextKeypoints);
+      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+      setMeasurements(previous =>
+        rebuildKeypointMeasurements(
+          previous.map(item =>
+            item.id === measurementId
+              ? {
+                  ...item,
+                  upperVertebra,
+                  lowerVertebra,
+                  keypointSynced: true,
+                }
+              : item
+          ),
+          nextKeypoints
+        )
+      );
       setShowVertebraeLayer(true);
       flashMessage(setSaveMessage, '已同步 Cobb 端椎到检测层');
     },
     [
-      applyKeypoints,
       isKeypointExam,
       keypoints,
       measurements,
+      rebuildKeypointMeasurements,
       setSaveMessage,
+      setMeasurements,
     ]
   );
 

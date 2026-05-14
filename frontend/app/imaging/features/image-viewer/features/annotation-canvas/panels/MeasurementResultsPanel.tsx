@@ -233,7 +233,7 @@ export default function MeasurementResultsPanel({
       const cobbDisplayName = getDisplayName(measurement.type);
       return (
         <span
-          className={`mr-2 flex min-w-0 items-center whitespace-nowrap font-medium ${
+          className={`mr-2 flex min-w-0 flex-shrink items-center overflow-hidden whitespace-nowrap font-medium ${
             isSelected
               ? 'text-white'
               : isHovered
@@ -371,7 +371,7 @@ export default function MeasurementResultsPanel({
 
   return (
     <div
-      className="absolute top-4 left-48 z-50"
+      className="absolute top-4 left-4 z-50"
       onMouseDown={event => event.stopPropagation()}
       onClick={event => event.stopPropagation()}
       onMouseUp={event => event.stopPropagation()}
@@ -381,7 +381,7 @@ export default function MeasurementResultsPanel({
       onPointerMove={event => event.stopPropagation()}
       onPointerUp={event => event.stopPropagation()}
     >
-      <div className="bg-black/70 backdrop-blur-sm rounded-lg overflow-hidden w-[380px]">
+      <div className="w-[560px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg bg-black/70 backdrop-blur-sm">
         <div className="flex items-center justify-between px-3 py-2 bg-black/20 w-full">
           <div className="flex items-center min-w-0">
             <button
@@ -548,7 +548,7 @@ export default function MeasurementResultsPanel({
                         </button>
 
                         <div
-                          className="flex-1 flex items-center justify-between cursor-pointer min-w-0"
+                          className="flex-1 flex items-center justify-between gap-2 cursor-pointer min-w-0"
                           onMouseEnter={event => {
                             event.stopPropagation();
                             onMeasurementHover(measurement.id);

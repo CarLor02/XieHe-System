@@ -110,6 +110,56 @@ it('starts keypoint-derived Cobb numbering after the current maximum Cobb number
   ]);
 });
 
+it('rebuilds a keypoint-synced manual Cobb measurement when endpoint keypoints move', () => {
+  const previousMeasurements: MeasurementData[] = [
+    {
+      id: 'manual-cobb-1',
+      type: 'cobb1',
+      value: '10.00°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+      upperVertebra: 'T1',
+      lowerVertebra: 'T3',
+      keypointSynced: true,
+    },
+  ];
+  const movedKeypoints = [
+    apCorner('T1-1', 100, 100),
+    apCorner('T1-2', 200, 100),
+    apCorner('T3-3', 100, 260),
+    apCorner('T3-4', 200, 280),
+  ];
+
+  const rebuilt = rebuildKeypointMeasurements({
+    previousMeasurements,
+    keypoints: movedKeypoints,
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(rebuilt).toEqual([
+    expect.objectContaining({
+      id: 'manual-cobb-1',
+      type: 'cobb1',
+      upperVertebra: 'T1',
+      lowerVertebra: 'T3',
+      points: [
+        { x: 100, y: 100 },
+        { x: 200, y: 100 },
+        { x: 100, y: 260 },
+        { x: 200, y: 280 },
+      ],
+    }),
+  ]);
+});
+
 it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb measurements', () => {
   const firstPassCobb: MeasurementData[] = [
     {
