@@ -233,7 +233,7 @@ export default function MeasurementResultsPanel({
       const cobbDisplayName = getDisplayName(measurement.type);
       return (
         <span
-          className={`mr-2 flex min-w-0 flex-shrink items-center overflow-hidden whitespace-nowrap font-medium ${
+          className={`mr-2 flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap font-medium ${
             isSelected
               ? 'text-white'
               : isHovered
@@ -291,7 +291,7 @@ export default function MeasurementResultsPanel({
             startEditingAuxiliaryName(measurement.id, displayName);
           }}
           title="点击编辑文字"
-          className={`truncate mr-2 font-medium text-left hover:text-yellow-300 hover:underline underline-offset-2 ${
+          className={`min-w-0 flex-1 truncate mr-2 font-medium text-left hover:text-yellow-300 hover:underline underline-offset-2 ${
             isSelected
               ? 'text-white'
               : isHovered
@@ -306,7 +306,7 @@ export default function MeasurementResultsPanel({
 
     return (
       <span
-        className={`truncate mr-2 font-medium ${
+        className={`min-w-0 flex-1 truncate mr-2 font-medium ${
           isSelected
             ? 'text-white'
             : isHovered
@@ -335,7 +335,7 @@ export default function MeasurementResultsPanel({
           if (!canSync) return;
           onCobbKeypointsSync?.(measurement.id);
         }}
-        className={`mr-2 inline-flex h-5 flex-shrink-0 items-center gap-1 rounded border px-1.5 text-[10px] transition-colors ${
+        className={`inline-flex h-5 flex-shrink-0 items-center gap-1 rounded border px-1.5 text-[10px] transition-colors ${
           canSync
             ? 'border-blue-300/50 bg-blue-500/20 text-blue-100 hover:border-blue-200 hover:bg-blue-500/30'
             : 'cursor-not-allowed border-white/10 bg-white/5 text-white/35'
@@ -381,7 +381,7 @@ export default function MeasurementResultsPanel({
       onPointerMove={event => event.stopPropagation()}
       onPointerUp={event => event.stopPropagation()}
     >
-      <div className="w-[560px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg bg-black/70 backdrop-blur-sm">
+      <div className="w-[500px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg bg-black/70 backdrop-blur-sm">
         <div className="flex items-center justify-between px-3 py-2 bg-black/20 w-full">
           <div className="flex items-center min-w-0">
             <button
@@ -548,7 +548,7 @@ export default function MeasurementResultsPanel({
                         </button>
 
                         <div
-                          className="flex-1 flex items-center justify-between gap-2 cursor-pointer min-w-0"
+                          className="flex min-w-0 flex-1 cursor-pointer items-center"
                           onMouseEnter={event => {
                             event.stopPropagation();
                             onMeasurementHover(measurement.id);
@@ -577,22 +577,24 @@ export default function MeasurementResultsPanel({
                             isEditableAuxiliary,
                             isEditingThisAuxName
                           )}
-                          {renderCobbSyncButton(measurement)}
-                          <span
-                            className={`font-mono whitespace-nowrap ${
-                              isSelected
-                                ? 'text-white'
-                                : isHovered
-                                  ? measurement.value.startsWith('-')
-                                    ? 'text-blue-300'
-                                    : 'text-yellow-200'
-                                  : measurement.value.startsWith('-')
-                                    ? 'text-blue-400'
-                                    : 'text-yellow-400'
-                            }`}
-                          >
-                            {measurement.value}
-                          </span>
+                          <div className="ml-2 flex flex-shrink-0 items-center gap-2">
+                            {renderCobbSyncButton(measurement)}
+                            <span
+                              className={`font-mono whitespace-nowrap ${
+                                isSelected
+                                  ? 'text-white'
+                                  : isHovered
+                                    ? measurement.value.startsWith('-')
+                                      ? 'text-blue-300'
+                                      : 'text-yellow-200'
+                                    : measurement.value.startsWith('-')
+                                      ? 'text-blue-400'
+                                      : 'text-yellow-400'
+                              }`}
+                            >
+                              {measurement.value}
+                            </span>
+                          </div>
                         </div>
 
                         <button
