@@ -3,7 +3,10 @@ import {
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
-import { getMaxCobbSequenceNumber } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence';
+import {
+  getCobbSequenceNumber,
+  getMaxCobbSequenceNumber,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
   CfhAnnotation,
@@ -59,11 +62,27 @@ function applyCobbSequenceTypes(
   startingCobbSequenceNumber: number,
   calculationContext: CalculationContext
 ): MeasurementData[] {
-  let cobbSequenceNumber = startingCobbSequenceNumber;
+  let cobbSequenceNumber = Math.max(
+    startingCobbSequenceNumber,
+    getMaxCobbSequenceNumber(measurements)
+  );
 
   return measurements.map(measurement => {
     if (!isDerivedCobbMeasurement(measurement)) {
       return measurement;
+    }
+
+    const existingSequenceNumber = getCobbSequenceNumber(measurement.type);
+    if (existingSequenceNumber !== null) {
+      return {
+        ...measurement,
+        value:
+          calculateMeasurementValue(
+            measurement.type,
+            measurement.points,
+            calculationContext
+          ) || measurement.value,
+      };
     }
 
     cobbSequenceNumber += 1;

@@ -160,6 +160,67 @@ it('rebuilds a keypoint-synced manual Cobb measurement when endpoint keypoints m
   ]);
 });
 
+it('preserves an existing keypoint-derived Cobb number when manual Cobb measurements exist', () => {
+  const previousMeasurements: MeasurementData[] = [
+    {
+      id: 'vertebrae-derived-cobb-lumbar',
+      type: 'cobb1',
+      value: '12.00°',
+      points: [
+        { x: 50, y: 80 },
+        { x: 150, y: 80 },
+        { x: 150, y: 220 },
+        { x: 250, y: 260 },
+      ],
+      upperVertebra: 'L4',
+      lowerVertebra: 'L5',
+      apexVertebra: 'L4',
+    },
+    {
+      id: 'manual-cobb-2',
+      type: 'cobb2',
+      value: '8.00°',
+      points: [
+        { x: 300, y: 100 },
+        { x: 400, y: 100 },
+        { x: 300, y: 200 },
+        { x: 400, y: 210 },
+      ],
+      upperVertebra: 'T1',
+      lowerVertebra: 'T3',
+    },
+  ];
+
+  const rebuilt = rebuildKeypointMeasurements({
+    previousMeasurements,
+    keypoints: l4L5LumbarCobbKeypoints(),
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(rebuilt.find(measurement => measurement.id === 'manual-cobb-2')).toEqual(
+    expect.objectContaining({
+      type: 'cobb2',
+      upperVertebra: 'T1',
+      lowerVertebra: 'T3',
+    })
+  );
+  expect(
+    rebuilt.find(
+      measurement => measurement.id === 'vertebrae-derived-cobb-lumbar'
+    )
+  ).toEqual(
+    expect.objectContaining({
+      type: 'cobb1',
+      upperVertebra: 'L4',
+      lowerVertebra: 'L5',
+    })
+  );
+});
+
 it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb measurements', () => {
   const firstPassCobb: MeasurementData[] = [
     {
