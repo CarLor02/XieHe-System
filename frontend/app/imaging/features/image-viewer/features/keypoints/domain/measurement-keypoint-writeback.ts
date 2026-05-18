@@ -154,12 +154,12 @@ const WRITEBACK_MAP: Record<string, WritebackTarget[]> = {
     { kind: 'ap-vertebra', label: 'T1', cornerIndex: 1 },
   ],
   // TS：6点格式 [tl, tr, bl, br, SR, SL]
-  // points[0..3] → T1 四个角点；points[4..5] → 骶骨参考点 SR/SL
+  // points[0..3] → C7 四个角点；points[4..5] → 骶骨参考点 SR/SL
   'ts': [
-    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 0 },
-    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 1 },
-    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 2 },
-    { kind: 'ap-vertebra', label: 'T1', cornerIndex: 3 },
+    { kind: 'ap-vertebra', label: 'C7', cornerIndex: 0 },
+    { kind: 'ap-vertebra', label: 'C7', cornerIndex: 1 },
+    { kind: 'ap-vertebra', label: 'C7', cornerIndex: 2 },
+    { kind: 'ap-vertebra', label: 'C7', cornerIndex: 3 },
     { kind: 'ap-pose', keypointId: 'SR' },
     { kind: 'ap-pose', keypointId: 'SL' },
   ],
@@ -218,11 +218,12 @@ function updateS1(
     });
   }
   // 分离的 S1-1 / S1-2 记录（每条 corners[0] 为实际坐标）
-  const s1_1 = vertebraeLayer.find(v => v.label === 'S1-1');
-  const s1_2 = vertebraeLayer.find(v => v.label === 'S1-2');
-  if (!s1_1 || !s1_2) return vertebraeLayer;
-  const s1_1IsLargerX = s1_1.corners[0].x >= s1_2.corners[0].x;
-  const targetLabel = (s1UpperIndex === 0) === s1_1IsLargerX ? 'S1-1' : 'S1-2';
+  const s1Point1 = vertebraeLayer.find(v => v.label === 'S1-1');
+  const s1Point2 = vertebraeLayer.find(v => v.label === 'S1-2');
+  if (!s1Point1 || !s1Point2) return vertebraeLayer;
+  const s1Point1IsLargerX = s1Point1.corners[0].x >= s1Point2.corners[0].x;
+  const targetLabel =
+    (s1UpperIndex === 0) === s1Point1IsLargerX ? 'S1-1' : 'S1-2';
   return vertebraeLayer.map(v => {
     if (v.label !== targetLabel) return v;
     const next = [...v.corners] as [Point, Point, Point, Point];

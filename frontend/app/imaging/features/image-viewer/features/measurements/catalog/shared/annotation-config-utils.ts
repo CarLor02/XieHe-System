@@ -82,7 +82,7 @@ export interface AnnotationConfig {
   maxXRightLabel?: boolean;
   /**
    * maxXRightLabel 模式下，文字左缘距锚点右侧的额外屏幕像素间距（覆盖默认的 8px）。
-   * 适用于需要将标签推离较宽图形（如 TS 的 T1 锥体框）的情况。
+   * 适用于需要将标签推离较宽图形（如 TS 的 C7 锥体框）的情况。
    */
   apLabelGapX?: number;
   /**

@@ -1,7 +1,10 @@
 import { expect, it } from '@jest/globals';
 
 import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/keypoints';
-import { rebuildKeypointMeasurements } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
+import {
+  deriveKeypointMeasurements,
+  rebuildKeypointMeasurements,
+} from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
 import { AnnotationSource, MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 import {
   getCompleteApVertebraGroups,
@@ -219,6 +222,35 @@ it('preserves an existing keypoint-derived Cobb number when manual Cobb measurem
       lowerVertebra: 'L5',
     })
   );
+});
+
+it('derives AP TS measurements from C7 corners', () => {
+  const measurements = deriveKeypointMeasurements({
+    keypoints: [
+      apCorner('C7-1', 10, 10),
+      apCorner('C7-2', 20, 10),
+      apCorner('C7-3', 10, 30),
+      apCorner('C7-4', 20, 30),
+      apCorner('T1-1', 100, 100),
+      apCorner('T1-2', 120, 100),
+      apCorner('T1-3', 100, 140),
+      apCorner('T1-4', 120, 140),
+      apCorner('SR', 40, 200),
+      apCorner('SL', 20, 200),
+    ],
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    calculationContext,
+  });
+
+  const ts = measurements.find(measurement => measurement.type === 'TS');
+
+  expect(ts?.points.slice(0, 4)).toEqual([
+    { x: 10, y: 10 },
+    { x: 20, y: 10 },
+    { x: 10, y: 30 },
+    { x: 20, y: 30 },
+  ]);
 });
 
 it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb measurements', () => {

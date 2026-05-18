@@ -18,7 +18,7 @@ export const TS_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#06b6d4',
   maxXRightLabel: true,
-  apLabelGapX: 24, // T1锥体框比单点宽，额外推远标签（默认 8px）
+  apLabelGapX: 24, // C7锥体框比单点宽，额外推远标签（默认 8px）
   fixedLabelPosition: true, // 固定在锥体右侧，不参与智能避让（避免被 T1 Tilt 标签推走）
 
   calculateResults: (points: Point[], context: CalculationContext) => {
@@ -76,8 +76,8 @@ export const TS_CONFIG: AnnotationConfig = {
     if (points.length < 6) return points[0] || { x: 0, y: 0 };
 
     // 6点模式：[tl(0), tr(1), bl(2), br(3), SR(4), SL(5)]
-    // 锚点 X = 4个T1角点中最大的 X（T1锥体右边缘）
-    // 锚点 Y = 4个T1角点 Y 的均值（T1锥体垂直中心）
+    // 锚点 X = 4个C7角点中最大的 X（C7锥体右边缘）
+    // 锚点 Y = 4个C7角点 Y 的均值（C7锥体垂直中心）
     // 使用4个角点均值而非仅右侧两点，使锚点对角点顺序不敏感，避免跳动
     // fixedLabelPosition:true 保证不被智能避让推走
     const boxPoints = [points[0], points[1], points[2], points[3]];
