@@ -206,48 +206,15 @@ def inspect_file(file_id: int, db: Session = Depends(get_db)):
 
 # ── 图像预览 ──────────────────────────────────────────────────────────────────
 
-def _auto_crop_black_borders(img, threshold=10):
-    """
-    自动裁剪图像四周的黑边。
-
-    Args:
-        img: PIL Image 对象（灰度或 RGB）
-        threshold: 黑色阈值，像素值小于此值认为是黑边（0-255）
-
-    Returns:
-        裁剪后的 PIL Image 对象
-    """
-    import numpy as np
-
-    arr = np.array(img)
-
-    # 多通道取平均
-    if arr.ndim == 3:
-        gray = arr.mean(axis=2)
-    else:
-        gray = arr
-
-    # 找到非黑色区域的边界
-    mask = gray > threshold
-    rows = np.any(mask, axis=1)
-    cols = np.any(mask, axis=0)
-
-    if not rows.any() or not cols.any():
-        # 全黑图像，不裁剪
-        return img
-
-    y_min, y_max = np.where(rows)[0][[0, -1]]
-    x_min, x_max = np.where(cols)[0][[0, -1]]
-
-    # 裁剪（左、上、右、下）
-    return img.crop((x_min, y_min, x_max + 1, y_max + 1))
-
 
 @router.get("/files/{file_id}/preview-image")
 def preview_image(file_id: int, db: Session = Depends(get_db)):
     """
-    返回图像预览：PNG/JPG 等图片文件直接返回，DICOM 文件转换为 PNG。
-    自动应用窗宽窗位（若有），归一化到 8-bit 灰度。
+    返回图像预览：PNG/JPG 等图片文件直接返回，DICOM 文件转换为 JPEG。
+    - 保留原始分辨率、原始方向，不做裁剪
+    - 支持 16-bit 灰度图（I;16）自动归一化到 8-bit
+    - 使用 JPEG quality=85 适度压缩
+    - DICOM 文件：自动应用窗宽窗位，归一化到 8-bit 灰度
     """
     sf = db.query(ScanFile).filter(ScanFile.id == file_id).first()
     if not sf:
@@ -256,33 +223,48 @@ def preview_image(file_id: int, db: Session = Depends(get_db)):
     if not path.exists():
         raise HTTPException(status_code=410, detail="文件已从磁盘消失")
 
-    # 判断文件类型：PNG/JPG/JPEG 等图片直接返回，DICOM 才转换
+    # 判断文件类型：PNG/JPG/JPEG 等图片直接处理，DICOM 才解码
     ext = path.suffix.lower()
     if ext in {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif", ".gif", ".webp"}:
-        # 图片文件直接返回
         try:
             from PIL import Image
             import io
 
-            with Image.open(path) as img:
-                # 自动裁剪黑边
-                img = _auto_crop_black_borders(img, threshold=10)
+            with Image.open(path) as raw:
+                raw.load()  # 在文件句柄关闭前完全读入内存
 
-                # 限制最长边 1024px
-                img.thumbnail((1024, 1024), Image.LANCZOS)
-                buf = io.BytesIO()
-                # 统一转 PNG 输出
-                if img.mode not in {"RGB", "L", "LA", "RGBA"}:
-                    img = img.convert("RGB")
-                img.save(buf, format="PNG")
-                buf.seek(0)
-                return StreamingResponse(buf, media_type="image/png")
+                # 处理特殊模式（16位灰度等）：先归一化到 8-bit
+                if raw.mode in {"I", "I;16", "I;16B", "I;16L", "F"}:
+                    import numpy as np
+                    arr = np.array(raw, dtype=np.float32)
+                    # 归一化到 0-255
+                    arr_min, arr_max = arr.min(), arr.max()
+                    if arr_max > arr_min:
+                        arr = (arr - arr_min) / (arr_max - arr_min) * 255.0
+                    arr = arr.astype(np.uint8)
+                    raw = Image.fromarray(arr, "L")
+
+                # 转换为 JPEG 兼容模式（去掉透明通道）
+                if raw.mode in {"RGBA", "LA"}:
+                    bg = Image.new("RGB", raw.size, (255, 255, 255))
+                    bg.paste(raw, mask=raw.split()[-1])
+                    img = bg
+                elif raw.mode in {"L", "RGB"}:
+                    img = raw.copy()
+                else:
+                    img = raw.convert("RGB")
+
+            # 直接输出，不裁剪、不旋转
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=85, optimize=True)
+            buf.seek(0)
+            return StreamingResponse(buf, media_type="image/jpeg")
         except ImportError as e:
             raise HTTPException(status_code=501, detail=f"PIL 未安装: {e}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"图片读取失败: {e}")
 
-    # DICOM 文件：读取像素数据，转换为 PNG
+    # DICOM 文件：读取像素数据，转换为 JPEG
     try:
         import io
         import numpy as np
@@ -318,16 +300,11 @@ def preview_image(file_id: int, db: Session = Depends(get_db)):
         else:
             img = Image.fromarray(arr, mode="L")
 
-        # 自动裁剪黑边
-        img = _auto_crop_black_borders(img, threshold=10)
-
-        # 限制最长边 1024px，缩小大图
-        img.thumbnail((1024, 1024), Image.LANCZOS)
-
+        # 直接输出，不裁剪、不旋转
         buf = io.BytesIO()
-        img.save(buf, format="PNG")
+        img.save(buf, format="JPEG", quality=85, optimize=True)
         buf.seek(0)
-        return StreamingResponse(buf, media_type="image/png")
+        return StreamingResponse(buf, media_type="image/jpeg")
 
     except ImportError as e:
         raise HTTPException(status_code=501, detail=f"依赖未安装: {e}")
