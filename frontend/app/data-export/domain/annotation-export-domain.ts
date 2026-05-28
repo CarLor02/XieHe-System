@@ -47,6 +47,7 @@ export function buildTrainingLabelBlob(
       return {
         label: v.label,
         type: 'point',
+        source: v.source,
         point: {
           x: pt.x / imageWidth,
           y: pt.y / imageHeight,
@@ -57,6 +58,7 @@ export function buildTrainingLabelBlob(
     return {
       label: v.label,
       type: 'vertebra',
+      source: v.source,
       corners: v.corners.map(pt => ({
         x: pt.x / imageWidth,
         y: pt.y / imageHeight,
