@@ -198,6 +198,42 @@ export function deleteKeypoint(
   return keypoints.filter(item => item.id !== keypointId);
 }
 
+function isSamePoint(left: Point, right: Point): boolean {
+  return left.x === right.x && left.y === right.y;
+}
+
+export function markMovedKeypointsManual(
+  previousKeypoints: KeypointAnnotation[],
+  nextKeypoints: KeypointAnnotation[]
+): KeypointAnnotation[] {
+  const previousById = new Map(
+    previousKeypoints.map(keypoint => [keypoint.id, keypoint])
+  );
+
+  return sortKeypoints(
+    nextKeypoints.map(nextKeypoint => {
+      const previousKeypoint = previousById.get(nextKeypoint.id);
+      if (
+        !previousKeypoint ||
+        isSamePoint(previousKeypoint.point, nextKeypoint.point)
+      ) {
+        return previousKeypoint
+          ? {
+              ...nextKeypoint,
+              source: previousKeypoint.source,
+              confidence: previousKeypoint.confidence,
+            }
+          : nextKeypoint;
+      }
+
+      return {
+        ...nextKeypoint,
+        source: AnnotationSource.MANUAL,
+      };
+    })
+  );
+}
+
 export function hasKeypoint(
   keypoints: KeypointAnnotation[],
   keypointId: string

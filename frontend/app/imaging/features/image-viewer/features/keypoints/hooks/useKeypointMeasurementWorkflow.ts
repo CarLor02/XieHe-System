@@ -35,6 +35,7 @@ import {
   KeypointAnnotation,
   keypointsToCfhAnnotation,
   keypointsToPersistedLayer,
+  markMovedKeypointsManual,
   upsertKeypoint,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
@@ -358,7 +359,10 @@ export function useKeypointMeasurementWorkflow({
   const handleVertebraeUpdate = useCallback(
     (updated: VertebraAnnotation[]) => {
       if (isKeypointExam) {
-        const nextKeypoints = vertebraeLayerToKeypoints(updated, examType);
+        const nextKeypoints = markMovedKeypointsManual(
+          keypoints,
+          vertebraeLayerToKeypoints(updated, examType)
+        );
         applyKeypoints(nextKeypoints);
         return;
       }
@@ -384,6 +388,7 @@ export function useKeypointMeasurementWorkflow({
       cfhAnnotation,
       examType,
       isKeypointExam,
+      keypoints,
       setMeasurements,
     ]
   );
