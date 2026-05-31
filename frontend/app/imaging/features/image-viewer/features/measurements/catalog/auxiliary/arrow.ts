@@ -1,19 +1,6 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import {
   type AnnotationConfig,
-  type CalculationContext,
   type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
 
 export const ARROW_CONFIG: AnnotationConfig = {
@@ -25,12 +12,7 @@ export const ARROW_CONFIG: AnnotationConfig = {
   category: 'auxiliary',
   color: '#f59e0b',
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 2) return [];
-    const pixelDistance = calculateDistance2D(points[0], points[1]);
-    const actualDistance = calculateActualDistance(pixelDistance, context);
-    return [{ name: '箭头', value: actualDistance.toFixed(1), unit: 'mm' }];
-  },
+  calculateResults: () => [],
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };

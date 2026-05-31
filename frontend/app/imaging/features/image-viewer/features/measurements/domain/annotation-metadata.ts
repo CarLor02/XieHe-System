@@ -27,6 +27,7 @@ const EDITABLE_AUXILIARY_CONFIG_IDS = new Set([
 ]);
 
 const INLINE_TEXT_AUXILIARY_TYPES = new Set([
+  'arrow',
   'ellipse',
   'rectangle',
   'polygon',
@@ -38,7 +39,6 @@ const AUXILIARY_MEASUREMENT_VALUE_TAG_TYPES = new Set([
   'aux-horizontal-line',
   'aux-vertical-line',
   'circle',  // 显示半径
-  'arrow',   // 显示箭头线长度
 ]);
 
 /**

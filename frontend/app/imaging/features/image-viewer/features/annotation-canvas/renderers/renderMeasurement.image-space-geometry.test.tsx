@@ -14,6 +14,10 @@ type LineProps = {
   strokeDasharray?: string;
 };
 
+type TextProps = {
+  children?: ReactNode;
+};
+
 const imageNaturalSize = { width: 1000, height: 1000 };
 const imagePosition = { x: 0, y: 0 };
 
@@ -32,6 +36,39 @@ function collectLineProps(node: ReactNode): LineProps[] {
   if (isValidElement<LineProps & { children?: ReactNode }>(node)) {
     const ownLine = node.type === 'line' ? [node.props] : [];
     return [...ownLine, ...collectLineProps(node.props.children)];
+  }
+
+  return [];
+}
+
+function textContent(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') {
+    return '';
+  }
+
+  if (Array.isArray(node)) {
+    return node.map(textContent).join('');
+  }
+
+  if (isValidElement<TextProps>(node)) {
+    return textContent(node.props.children);
+  }
+
+  return String(node);
+}
+
+function collectTextContents(node: ReactNode): string[] {
+  if (node === null || node === undefined || typeof node === 'boolean') {
+    return [];
+  }
+
+  if (Array.isArray(node)) {
+    return node.flatMap(collectTextContents);
+  }
+
+  if (isValidElement<TextProps>(node)) {
+    const ownText = node.type === 'text' ? [textContent(node.props.children)] : [];
+    return [...ownText, ...collectTextContents(node.props.children)];
   }
 
   return [];
@@ -91,6 +128,40 @@ function renderMeasurementLines(
   );
 }
 
+function renderMeasurementTexts(
+  measurement: MeasurementData,
+  containerSize: { width: number; height: number }
+): string[] {
+  return collectTextContents(
+    renderMeasurement({
+      measurement,
+      imageScale: 1,
+      imagePosition,
+      imageNaturalSize,
+      containerSize,
+      selectionState: {
+        measurementId: null,
+        pointIndex: null,
+        type: null,
+        isDragging: false,
+        dragOffset: { x: 0, y: 0 },
+      },
+      hoverState: {
+        measurementId: null,
+        keypointId: null,
+        pointIndex: null,
+        elementType: null,
+      },
+      hideAllLabels: false,
+      hiddenMeasurementIds: new Set<string>(),
+      pointBindings: createEmptyBindings(),
+      selectedBindingGroupId: null,
+      isManualBindingMode: false,
+      manualBindingSelectedPoints: [],
+    })
+  );
+}
+
 function projectImagePoint(
   point: Point,
   containerSize: { width: number; height: number }
@@ -130,6 +201,24 @@ it('renders endplate lines for Cobb sequence numbers beyond Cobb3', () => {
       y2: projectImagePoint(measurement.points[3], desktopContainer).y,
     })
   );
+});
+
+it('renders Arrow auxiliary annotations with the name but without distance text', () => {
+  const measurement: MeasurementData = {
+    id: 'arrow-1',
+    type: 'arrow',
+    value: '10.0mm',
+    points: [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ],
+    description: '箭头',
+  };
+
+  const texts = renderMeasurementTexts(measurement, desktopContainer);
+
+  expect(texts).toContain('箭头');
+  expect(texts.some(text => text.includes('mm'))).toBe(false);
 });
 
 function lineEndToImagePoint(
