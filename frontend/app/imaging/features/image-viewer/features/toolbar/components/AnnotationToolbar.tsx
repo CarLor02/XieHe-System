@@ -17,8 +17,17 @@ import {
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { MeasurementData, Tool } from '@/app/imaging/features/image-viewer/shared/types';
 import IconMapper from '@/app/imaging/features/image-viewer/features/toolbar/components/icons/IconMapper';
+import BasicModePanel from '@/app/imaging/features/image-viewer/features/toolbar/components/BasicModePanel';
+import {
+  BasicMode,
+  DEFAULT_BASIC_MODES,
+} from '@/app/imaging/features/image-viewer/features/toolbar/components/basic-mode';
+import ToolbarToolPanel, {
+  getEffectiveToolTab,
+  shouldShowAuxiliaryTools,
+  ToolTab,
+} from '@/app/imaging/features/image-viewer/features/toolbar/components/ToolbarToolPanel';
 
-type ToolTab = 'measurement' | 'keypoint';
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
 interface AnnotationToolbarProps {
@@ -50,7 +59,6 @@ interface AnnotationToolbarProps {
   onRestoreAutomaticMeasurement: (toolId: string) => void;
   onCreateAvt: (apexVertebra: string) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
-  onCreateTts: (upperVertebra: string, lowerVertebra: string) => void;
   onActivateHandMode: () => void;
   onToggleImagePanLocked: () => void;
   isImagePanLocked: boolean;
@@ -107,7 +115,6 @@ export default function AnnotationToolbar({
   onRestoreAutomaticMeasurement,
   onCreateAvt,
   onCreateVertebraCenter,
-  onCreateTts,
   onActivateHandMode,
   onToggleImagePanLocked,
   isImagePanLocked,
@@ -131,6 +138,9 @@ export default function AnnotationToolbar({
   onChangeTreatmentAdvice,
   onCopyReport,
 }: AnnotationToolbarProps) {
+  const [currentBasicMode, setCurrentBasicMode] = useState<BasicMode>(
+    BasicMode.Move
+  );
   const [activeToolTab, setActiveToolTab] = useState<ToolTab>('measurement');
   const [openKeypointGroup, setOpenKeypointGroup] = useState<string | null>(
     null
@@ -147,7 +157,6 @@ export default function AnnotationToolbar({
     measurements.map(measurement => getAnnotationTypeId(measurement.type))
   );
   const hasAvt = measurements.some(item => item.type.toLowerCase() === 'avt');
-  const hasTts = measurements.some(item => item.type.toLowerCase() === 'tts');
   const hasSacralLine =
     hasKeypoint(keypoints, 'SL') && hasKeypoint(keypoints, 'SR');
   const isAnteriorView = isAnteriorExamType(examType);
@@ -156,24 +165,32 @@ export default function AnnotationToolbar({
     !hasAvt &&
     hasSacralLine &&
     completeVertebraGroups.length >= 1;
-  const canCreateTts =
-    isAnteriorView &&
-    !hasTts &&
-    hasSacralLine &&
-    completeVertebraGroups.length >= 2;
   const avtStatus: ToolStatus = canCreateAvt
     ? 'available'
     : hasAvt
       ? 'exists'
       : 'missing-keypoints';
-  const ttsStatus: ToolStatus = canCreateTts
-    ? 'available'
-    : hasTts
-      ? 'exists'
-      : 'missing-keypoints';
   const selectedKeypointGroup = keypointGroups.find(
     group => group.id === openKeypointGroup
   );
+  const effectiveToolTab = getEffectiveToolTab(currentBasicMode, activeToolTab);
+  const canShowAuxiliaryTools = shouldShowAuxiliaryTools(currentBasicMode);
+
+  const closeToolPopovers = () => {
+    setOpenMeasurementTool(null);
+    setOpenKeypointGroup(null);
+  };
+
+  const handleBasicModeSelect = (mode: BasicMode) => {
+    setCurrentBasicMode(mode);
+    closeToolPopovers();
+    onActivateHandMode();
+  };
+
+  const handleToolTabChange = (tab: ToolTab) => {
+    setActiveToolTab(tab);
+    closeToolPopovers();
+  };
 
   const renderAvailabilityBadge = (isAvailable: boolean) => (
     <div
@@ -186,11 +203,6 @@ export default function AnnotationToolbar({
       ></i>
     </div>
   );
-
-  const toolTabs: { id: ToolTab; label: string; icon: string }[] = [
-    { id: 'measurement', label: '测量工具', icon: 'ri-ruler-line' },
-    { id: 'keypoint', label: '关键点', icon: 'ri-focus-3-line' },
-  ];
 
   const getKeypointGroupTitle = (
     group: { id: string; name: string },
@@ -327,81 +339,14 @@ export default function AnnotationToolbar({
         <h3 className="font-semibold text-white mb-3">测量工具 - {examType}</h3>
 
         <div className="mb-4">
-          {/* 基础移动模式 */}
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-1.5 leading-none">
-              <i className="ri-hand-line w-4 h-4 inline-flex items-center justify-center text-sm leading-none"></i>
-              <span className="leading-none">基础模式</span>
-            </h4>
-            <div className="flex gap-2">
-              <button
-                onClick={onActivateHandMode}
-                className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
-                  selectedTool === 'hand'
-                    ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-                title="移动、选择、删除工具"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <div
-                  className="flex flex-col text-center"
-                  style={{
-                    transform: 'translateY(0)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    display: 'flex',
-                  }}
-                >
-                  <i
-                    className="ri-hand-line text-lg mb-1"
-                    style={{ lineHeight: '1' }}
-                  ></i>
-                  <span className="text-xs" style={{ lineHeight: '1' }}>
-                    移动
-                  </span>
-                </div>
-                {selectedTool === 'hand' && (
-                  <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -right-1 bg-blue-500 rounded-full"></i>
-                )}
-              </button>
-            </div>
-
-            {/* 锁定图像平移按钮 */}
-            <div className="mt-2">
-              <button
-                onClick={onToggleImagePanLocked}
-                className={`rounded-lg w-full h-10 transition-all relative flex items-center justify-center gap-2 ${
-                  isImagePanLocked
-                    ? 'bg-yellow-600 text-white ring-2 ring-yellow-400 shadow-lg'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-                title={
-                  isImagePanLocked
-                    ? '图像已锁定，点击解锁'
-                    : '锁定图像平移，防止拖拽时移动图像'
-                }
-              >
-                <i
-                  className={
-                    isImagePanLocked
-                      ? 'ri-lock-line text-base'
-                      : 'ri-lock-unlock-line text-base'
-                  }
-                ></i>
-                <span className="text-xs">
-                  {isImagePanLocked ? '已锁定' : '锁定图像'}
-                </span>
-                {isImagePanLocked && (
-                  <i className="ri-check-line w-3 h-3 flex items-center justify-center text-yellow-200 absolute -top-1 -right-1 bg-yellow-500 rounded-full"></i>
-                )}
-              </button>
-            </div>
+            <BasicModePanel
+              modes={DEFAULT_BASIC_MODES}
+              currentMode={currentBasicMode}
+              isImagePanLocked={isImagePanLocked}
+              onSelectMode={handleBasicModeSelect}
+              onToggleImagePanLocked={onToggleImagePanLocked}
+            />
 
             <BindingPanel
               pointBindings={pointBindings}
@@ -423,30 +368,12 @@ export default function AnnotationToolbar({
             />
           </div>
 
-          <div className="mb-4">
-            <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-900/70 p-1 mb-3">
-              {toolTabs.map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveToolTab(tab.id);
-                    setOpenMeasurementTool(null);
-                    setOpenKeypointGroup(null);
-                  }}
-                  className={`h-9 rounded-md text-xs flex items-center justify-center gap-1 transition-colors ${
-                    activeToolTab === tab.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700'
-                  }`}
-                >
-                  <i className={`${tab.icon} text-sm`}></i>
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {activeToolTab === 'measurement' && (
+          <ToolbarToolPanel
+            currentBasicMode={currentBasicMode}
+            activeToolTab={activeToolTab}
+            onToolTabChange={handleToolTabChange}
+          >
+            {effectiveToolTab === 'measurement' && (
               <div>
                 {measurementTools.length > 0 && (
                   <div className="relative mb-4">
@@ -692,7 +619,7 @@ export default function AnnotationToolbar({
                   </div>
                 )}
 
-                {auxiliaryTools.length > 0 && (
+                {canShowAuxiliaryTools && auxiliaryTools.length > 0 && (
                   <div className="mb-4">
                     <h4 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-1.5 leading-none">
                       <i className="ri-shape-line w-4 h-4 inline-flex items-center justify-center text-sm leading-none"></i>
@@ -758,7 +685,7 @@ export default function AnnotationToolbar({
               </div>
             )}
 
-            {activeToolTab === 'keypoint' && (
+            {effectiveToolTab === 'keypoint' && (
               <div className="relative">
                 <div className="flex flex-wrap gap-2">
                   {keypointGroups.map(group => {
@@ -840,7 +767,7 @@ export default function AnnotationToolbar({
                 )}
               </div>
             )}
-          </div>
+          </ToolbarToolPanel>
 
           {/* 标准距离设置按钮 */}
           <div className="mb-4">
