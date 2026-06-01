@@ -165,6 +165,25 @@ it('opens a corner order rectification panel only for complete vertebra groups',
   ).toEqual(['1', '2', '3', '4']);
 });
 
+it('hides anterior pose points in vertebra corner rectify mode', () => {
+  renderToolbar();
+
+  fireEvent.click(screen.getByRole('button', { name: '椎体点位纠正' }));
+
+  expect(screen.getByRole('button', { name: /^C7 0$/ })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^姿态点/ })).toBeNull();
+});
+
+it('hides lateral sacral and anatomical points in vertebra corner rectify mode', () => {
+  renderToolbar({ examType: '侧位X光片' });
+
+  fireEvent.click(screen.getByRole('button', { name: '椎体点位纠正' }));
+
+  expect(screen.getByRole('button', { name: /^C2 0$/ })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^S1/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^CFH/ })).toBeNull();
+});
+
 it('validates and applies vertebra corner label-only rectification', () => {
   const onRectifyVertebraCornerOrder = jest.fn();
   const alertSpy = jest

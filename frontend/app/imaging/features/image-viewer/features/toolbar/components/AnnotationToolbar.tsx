@@ -49,6 +49,12 @@ function isVertebraCornerSequenceNumber(
   return VERTEBRA_CORNER_SEQUENCE_NUMBERS.some(index => index === value);
 }
 
+function isRectifiableKeypointGroup(group: {
+  keypoints: { id: string }[];
+}): boolean {
+  return group.keypoints.length === VERTEBRA_CORNER_SEQUENCE_NUMBERS.length;
+}
+
 interface AnnotationToolbarProps {
   examType: string;
   tools: Tool[];
@@ -197,12 +203,15 @@ export default function AnnotationToolbar({
     : hasAvt
       ? 'exists'
       : 'missing-keypoints';
-  const selectedKeypointGroup = keypointGroups.find(
-    group => group.id === openKeypointGroup
-  );
   const effectiveToolTab = getEffectiveToolTab(currentBasicMode, activeToolTab);
   const canShowAuxiliaryTools = shouldShowAuxiliaryTools(currentBasicMode);
   const isRectifyMode = currentBasicMode === BasicMode.VertebraCornerRectify;
+  const visibleKeypointGroups = isRectifyMode
+    ? keypointGroups.filter(isRectifiableKeypointGroup)
+    : keypointGroups;
+  const selectedKeypointGroup = visibleKeypointGroups.find(
+    group => group.id === openKeypointGroup
+  );
 
   const closeToolPopovers = () => {
     setOpenMeasurementTool(null);
@@ -771,14 +780,15 @@ export default function AnnotationToolbar({
             {effectiveToolTab === 'keypoint' && (
               <div className="relative">
                 <div className="flex flex-wrap gap-2">
-                  {keypointGroups.map(group => {
+                  {visibleKeypointGroups.map(group => {
                     const isOpen = openKeypointGroup === group.id;
                     const existingCount = group.keypoints.filter(keypoint =>
                       keypointIds.has(keypoint.id)
                     ).length;
                     const isCompleteKeypointGroup =
                       existingCount === group.keypoints.length;
-                    const isRectifiableGroup = group.keypoints.length === 4;
+                    const isRectifiableGroup =
+                      isRectifiableKeypointGroup(group);
                     const isGroupAvailable = isRectifyMode
                       ? isRectifiableGroup && isCompleteKeypointGroup
                       : !isCompleteKeypointGroup;
