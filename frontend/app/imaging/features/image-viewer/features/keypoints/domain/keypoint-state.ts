@@ -29,6 +29,20 @@ export interface KeypointAnnotation {
   confidence: number;
 }
 
+export type VertebraCornerSequenceNumber = 1 | 2 | 3 | 4;
+
+export interface VertebraCornerOrderMapping {
+  from: VertebraCornerSequenceNumber;
+  to: VertebraCornerSequenceNumber;
+}
+
+export type RectifyVertebraCornerOrderResult =
+  | { ok: true; keypoints: KeypointAnnotation[] }
+  | {
+      ok: false;
+      missingSequenceNumbers: VertebraCornerSequenceNumber[];
+    };
+
 interface KeypointGroupLike {
   id: string;
   name: string;
@@ -49,6 +63,7 @@ const LATERAL_CENTER_VERTEBRA_GROUP_SET = new Set<string>(
 const LATERAL_ANATOMICAL_KEYPOINT_SET = new Set<string>(
   LATERAL_ANATOMICAL_KEYPOINTS
 );
+const VERTEBRA_CORNER_SEQUENCE_NUMBERS = [1, 2, 3, 4] as const;
 
 export function isAnteriorExamType(examType: string): boolean {
   return examType === '正位X光片';
@@ -196,6 +211,66 @@ export function deleteKeypoint(
   keypointId: string
 ): KeypointAnnotation[] {
   return keypoints.filter(item => item.id !== keypointId);
+}
+
+function getMissingVertebraCornerSequenceNumbers(
+  mapping: VertebraCornerOrderMapping[]
+): VertebraCornerSequenceNumber[] {
+  const targets = new Set(mapping.map(item => item.to));
+  return VERTEBRA_CORNER_SEQUENCE_NUMBERS.filter(index => !targets.has(index));
+}
+
+export function rectifyVertebraCornerOrder(
+  keypoints: KeypointAnnotation[],
+  vertebra: string,
+  mapping: VertebraCornerOrderMapping[]
+): RectifyVertebraCornerOrderResult {
+  const missingSequenceNumbers =
+    getMissingVertebraCornerSequenceNumbers(mapping);
+  const sources = new Set(mapping.map(item => item.from));
+  const hasCompleteSources = VERTEBRA_CORNER_SEQUENCE_NUMBERS.every(index =>
+    sources.has(index)
+  );
+
+  if (missingSequenceNumbers.length > 0 || !hasCompleteSources) {
+    return {
+      ok: false,
+      missingSequenceNumbers,
+    };
+  }
+
+  const targetBySource = new Map(
+    mapping.map(item => [item.from, item.to] as const)
+  );
+  const vertebraPrefix = `${vertebra}-`;
+
+  return {
+    ok: true,
+    keypoints: sortKeypoints(
+      keypoints.map(keypoint => {
+        if (!keypoint.id.startsWith(vertebraPrefix)) return keypoint;
+
+        const sequenceNumber = Number(
+          keypoint.id.slice(vertebraPrefix.length)
+        ) as VertebraCornerSequenceNumber;
+        if (!VERTEBRA_CORNER_SEQUENCE_NUMBERS.includes(sequenceNumber)) {
+          return keypoint;
+        }
+
+        const nextSequenceNumber = targetBySource.get(sequenceNumber);
+        if (!nextSequenceNumber) return keypoint;
+
+        return {
+          ...keypoint,
+          id: `${vertebra}-${nextSequenceNumber}`,
+          source:
+            nextSequenceNumber === sequenceNumber
+              ? keypoint.source
+              : AnnotationSource.MANUAL,
+        };
+      })
+    ),
+  };
 }
 
 function isSamePoint(left: Point, right: Point): boolean {

@@ -13,7 +13,9 @@ import {
   getKeypointGroupsForExamType,
   hasKeypoint,
   isAnteriorExamType,
-  KeypointAnnotation,
+  type KeypointAnnotation,
+  type VertebraCornerOrderMapping,
+  type VertebraCornerSequenceNumber,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { MeasurementData, Tool } from '@/app/imaging/features/image-viewer/shared/types';
 import IconMapper from '@/app/imaging/features/image-viewer/features/toolbar/components/icons/IconMapper';
@@ -29,6 +31,23 @@ import ToolbarToolPanel, {
 } from '@/app/imaging/features/image-viewer/features/toolbar/components/ToolbarToolPanel';
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
+
+const VERTEBRA_CORNER_SEQUENCE_NUMBERS = [1, 2, 3, 4] as const;
+const DEFAULT_RECTIFY_SEQUENCE_BY_FROM: Record<
+  VertebraCornerSequenceNumber,
+  VertebraCornerSequenceNumber
+> = {
+  1: 1,
+  2: 2,
+  3: 3,
+  4: 4,
+};
+
+function isVertebraCornerSequenceNumber(
+  value: number
+): value is VertebraCornerSequenceNumber {
+  return VERTEBRA_CORNER_SEQUENCE_NUMBERS.some(index => index === value);
+}
 
 interface AnnotationToolbarProps {
   examType: string;
@@ -59,6 +78,10 @@ interface AnnotationToolbarProps {
   onRestoreAutomaticMeasurement: (toolId: string) => void;
   onCreateAvt: (apexVertebra: string) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
+  onRectifyVertebraCornerOrder: (
+    vertebra: string,
+    mapping: VertebraCornerOrderMapping[]
+  ) => void;
   onActivateHandMode: () => void;
   onToggleImagePanLocked: () => void;
   isImagePanLocked: boolean;
@@ -115,6 +138,7 @@ export default function AnnotationToolbar({
   onRestoreAutomaticMeasurement,
   onCreateAvt,
   onCreateVertebraCenter,
+  onRectifyVertebraCornerOrder,
   onActivateHandMode,
   onToggleImagePanLocked,
   isImagePanLocked,
@@ -148,6 +172,9 @@ export default function AnnotationToolbar({
   const [openMeasurementTool, setOpenMeasurementTool] = useState<string | null>(
     null
   );
+  const [rectifySequenceByFrom, setRectifySequenceByFrom] = useState<
+    Record<VertebraCornerSequenceNumber, VertebraCornerSequenceNumber>
+  >(DEFAULT_RECTIFY_SEQUENCE_BY_FROM);
 
   const measurementTools = tools.filter(tool => !isAuxiliaryTool(tool.id));
   const auxiliaryTools = tools.filter(tool => isAuxiliaryTool(tool.id));
@@ -175,10 +202,12 @@ export default function AnnotationToolbar({
   );
   const effectiveToolTab = getEffectiveToolTab(currentBasicMode, activeToolTab);
   const canShowAuxiliaryTools = shouldShowAuxiliaryTools(currentBasicMode);
+  const isRectifyMode = currentBasicMode === BasicMode.VertebraCornerRectify;
 
   const closeToolPopovers = () => {
     setOpenMeasurementTool(null);
     setOpenKeypointGroup(null);
+    setRectifySequenceByFrom({ ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM });
   };
 
   const handleBasicModeSelect = (mode: BasicMode) => {
@@ -213,6 +242,60 @@ export default function AnnotationToolbar({
     if (group.id === 'S1') return '选择S1上终板关键点';
     if (group.id === 'CFH') return '选择股骨头中心关键点';
     return `选择${group.name}椎体的关键点`;
+  };
+
+  const getRectifyKeypointGroupTitle = (
+    group: { name: string; keypoints: { id: string }[] },
+    isComplete: boolean
+  ): string => {
+    if (group.keypoints.length !== 4 || !isComplete) {
+      return `${group.name}的四个关键点尚不完整!`;
+    }
+    return `纠正${group.name}的序号`;
+  };
+
+  const handleRectifySequenceChange = (
+    from: VertebraCornerSequenceNumber,
+    value: string
+  ) => {
+    const parsed = Number(value);
+    if (!isVertebraCornerSequenceNumber(parsed)) return;
+    setRectifySequenceByFrom(current => ({
+      ...current,
+      [from]: parsed,
+    }));
+  };
+
+  const buildRectifyMapping = (): VertebraCornerOrderMapping[] =>
+    VERTEBRA_CORNER_SEQUENCE_NUMBERS.map(from => ({
+      from,
+      to: rectifySequenceByFrom[from],
+    }));
+
+  const getMissingRectifyTargets = (
+    mapping: VertebraCornerOrderMapping[]
+  ): VertebraCornerSequenceNumber[] => {
+    const targets = new Set(mapping.map(item => item.to));
+    return VERTEBRA_CORNER_SEQUENCE_NUMBERS.filter(
+      index => !targets.has(index)
+    );
+  };
+
+  const handleApplyRectifySequence = () => {
+    if (!selectedKeypointGroup) return;
+
+    const mapping = buildRectifyMapping();
+    const missingTargets = getMissingRectifyTargets(mapping);
+    if (missingTargets.length > 0) {
+      window.alert(
+        `椎体缺少序号${missingTargets.join(',')}, 请检查您输入的序号!`
+      );
+      return;
+    }
+
+    onRectifyVertebraCornerOrder(selectedKeypointGroup.name, mapping);
+    setOpenKeypointGroup(null);
+    setRectifySequenceByFrom({ ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM });
   };
 
   const getUnavailableTitle = (
@@ -695,7 +778,10 @@ export default function AnnotationToolbar({
                     ).length;
                     const isCompleteKeypointGroup =
                       existingCount === group.keypoints.length;
-                    const isGroupAvailable = !isCompleteKeypointGroup;
+                    const isRectifiableGroup = group.keypoints.length === 4;
+                    const isGroupAvailable = isRectifyMode
+                      ? isRectifiableGroup && isCompleteKeypointGroup
+                      : !isCompleteKeypointGroup;
 
                     return (
                       <div key={group.id}>
@@ -704,6 +790,9 @@ export default function AnnotationToolbar({
                           onClick={() => {
                             if (!isGroupAvailable) return;
                             setOpenKeypointGroup(isOpen ? null : group.id);
+                            setRectifySequenceByFrom({
+                              ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM,
+                            });
                             setOpenMeasurementTool(null);
                           }}
                           disabled={!isGroupAvailable}
@@ -714,10 +803,17 @@ export default function AnnotationToolbar({
                                 ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
-                          title={getKeypointGroupTitle(
-                            group,
-                            isCompleteKeypointGroup
-                          )}
+                          title={
+                            isRectifyMode
+                              ? getRectifyKeypointGroupTitle(
+                                  group,
+                                  isCompleteKeypointGroup
+                                )
+                              : getKeypointGroupTitle(
+                                  group,
+                                  isCompleteKeypointGroup
+                                )
+                          }
                         >
                           <i className="ri-focus-3-line text-lg mb-1"></i>
                           <span className="text-xs leading-none">
@@ -733,36 +829,102 @@ export default function AnnotationToolbar({
                 </div>
                 {selectedKeypointGroup && (
                   <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(22rem,calc(100vh-14rem))] overflow-y-auto">
-                    <div className="text-xs text-gray-300 mb-2">
-                      {selectedKeypointGroup.name}
-                    </div>
-                    <div className="max-h-64 overflow-y-auto pr-1 grid grid-cols-4 gap-2">
-                      {selectedKeypointGroup.keypoints.map(keypoint => {
-                        const exists = keypointIds.has(keypoint.id);
-                        return (
+                    {isRectifyMode ? (
+                      <>
+                        <div className="text-xs text-gray-300 mb-2">
+                          纠正{selectedKeypointGroup.name}的序号
+                        </div>
+                        <div className="space-y-2">
+                          {VERTEBRA_CORNER_SEQUENCE_NUMBERS.map(index => (
+                            <div
+                              key={index}
+                              className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs text-gray-300"
+                            >
+                              <span>
+                                {selectedKeypointGroup.name}-{index}
+                              </span>
+                              <span className="text-gray-500">-&gt;</span>
+                              <label className="flex items-center gap-1">
+                                <span>{selectedKeypointGroup.name}-</span>
+                                <select
+                                  aria-label={`${selectedKeypointGroup.name}-${index} 修改后序号`}
+                                  value={rectifySequenceByFrom[index]}
+                                  onChange={event =>
+                                    handleRectifySequenceChange(
+                                      index,
+                                      event.target.value
+                                    )
+                                  }
+                                  className="h-8 min-w-14 rounded bg-gray-800 border border-gray-600 px-2 text-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                                >
+                                  {VERTEBRA_CORNER_SEQUENCE_NUMBERS.map(
+                                    option => (
+                                      <option key={option} value={option}>
+                                        {option}
+                                      </option>
+                                    )
+                                  )}
+                                </select>
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 flex justify-end gap-2">
                           <button
-                            key={keypoint.id}
                             type="button"
                             onClick={() => {
-                              if (!exists) {
-                                onSelectTool(`keypoint:${keypoint.id}`);
-                                setOpenKeypointGroup(null);
-                              }
+                              setOpenKeypointGroup(null);
+                              setRectifySequenceByFrom({
+                                ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM,
+                              });
                             }}
-                            disabled={exists}
-                            className={`h-8 rounded text-xs ${
-                              exists
-                                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                : selectedTool === `keypoint:${keypoint.id}`
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-800 text-white hover:bg-gray-700'
-                            }`}
+                            className="h-8 rounded bg-gray-700 px-3 text-xs text-gray-300 hover:bg-gray-600"
                           >
-                            {keypoint.name}
+                            取消
                           </button>
-                        );
-                      })}
-                    </div>
+                          <button
+                            type="button"
+                            onClick={handleApplyRectifySequence}
+                            className="h-8 rounded bg-blue-600 px-3 text-xs text-white hover:bg-blue-500"
+                          >
+                            应用修改
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-xs text-gray-300 mb-2">
+                          {selectedKeypointGroup.name}
+                        </div>
+                        <div className="max-h-64 overflow-y-auto pr-1 grid grid-cols-4 gap-2">
+                          {selectedKeypointGroup.keypoints.map(keypoint => {
+                            const exists = keypointIds.has(keypoint.id);
+                            return (
+                              <button
+                                key={keypoint.id}
+                                type="button"
+                                onClick={() => {
+                                  if (!exists) {
+                                    onSelectTool(`keypoint:${keypoint.id}`);
+                                    setOpenKeypointGroup(null);
+                                  }
+                                }}
+                                disabled={exists}
+                                className={`h-8 rounded text-xs ${
+                                  exists
+                                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                    : selectedTool === `keypoint:${keypoint.id}`
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-800 text-white hover:bg-gray-700'
+                                }`}
+                              >
+                                {keypoint.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

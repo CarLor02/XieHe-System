@@ -1,8 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, jest } from '@jest/globals';
+import type { ComponentProps } from 'react';
 
 import AnnotationToolbar from './AnnotationToolbar';
-import { Tool } from '@/app/imaging/features/image-viewer/shared/types';
+import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import {
+  AnnotationSource,
+} from '@/app/imaging/features/image-viewer/shared/types';
+import type { Tool } from '@/app/imaging/features/image-viewer/shared/types';
 
 const tools: Tool[] = [
   {
@@ -21,8 +26,17 @@ const tools: Tool[] = [
   },
 ];
 
-function renderToolbar() {
-  const props = {
+const completeC7Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
+  id: `C7-${index}`,
+  point: { x: index * 10, y: index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
+type AnnotationToolbarProps = ComponentProps<typeof AnnotationToolbar>;
+
+function createBaseToolbarProps(): AnnotationToolbarProps {
+  return {
     examType: '正位X光片',
     tools,
     measurements: [],
@@ -73,6 +87,14 @@ function renderToolbar() {
     onToggleAdvicePanel: jest.fn(),
     onChangeTreatmentAdvice: jest.fn(),
     onCopyReport: jest.fn(),
+    onRectifyVertebraCornerOrder: jest.fn(),
+  };
+}
+
+function renderToolbar(overrides: Partial<AnnotationToolbarProps> = {}) {
+  const props = {
+    ...createBaseToolbarProps(),
+    ...overrides,
   };
 
   return {
@@ -118,4 +140,63 @@ it('shows only measurement tools without auxiliary shapes in measurement derive 
   expect(screen.getByRole('button', { name: /Cobb/ })).toBeTruthy();
   expect(screen.queryByText('辅助图形')).toBeNull();
   expect(screen.queryByRole('button', { name: /Arrow/ })).toBeNull();
+});
+
+it('opens a corner order rectification panel only for complete vertebra groups', () => {
+  renderToolbar({ keypoints: completeC7Keypoints });
+
+  fireEvent.click(screen.getByRole('button', { name: '椎体点位纠正' }));
+
+  const c7Button = screen.getByRole('button', { name: /^C7 4$/ });
+  const t1Button = screen.getByRole('button', { name: /^T1 0$/ });
+  expect(c7Button.hasAttribute('disabled')).toBe(false);
+  expect(t1Button.hasAttribute('disabled')).toBe(true);
+  expect(t1Button.getAttribute('title')).toBe('T1的四个关键点尚不完整!');
+
+  fireEvent.click(screen.getByRole('button', { name: /^C7 4$/ }));
+
+  expect(screen.getByText('纠正C7的序号')).toBeTruthy();
+  expect(screen.getByText('C7-1')).toBeTruthy();
+  expect(screen.getByText('C7-4')).toBeTruthy();
+  expect(
+    screen
+      .getAllByRole('combobox')
+      .map(select => (select as HTMLSelectElement).value)
+  ).toEqual(['1', '2', '3', '4']);
+});
+
+it('validates and applies vertebra corner label-only rectification', () => {
+  const onRectifyVertebraCornerOrder = jest.fn();
+  const alertSpy = jest
+    .spyOn(window, 'alert')
+    .mockImplementation(() => undefined);
+
+  renderToolbar({
+    keypoints: completeC7Keypoints,
+    onRectifyVertebraCornerOrder,
+  });
+  fireEvent.click(screen.getByRole('button', { name: '椎体点位纠正' }));
+  fireEvent.click(screen.getByRole('button', { name: /^C7 4$/ }));
+
+  const selects = screen.getAllByRole('combobox');
+  fireEvent.change(selects[0], { target: { value: '2' } });
+  fireEvent.click(screen.getByRole('button', { name: '应用修改' }));
+
+  expect(alertSpy).toHaveBeenCalledWith(
+    '椎体缺少序号1, 请检查您输入的序号!'
+  );
+  expect(onRectifyVertebraCornerOrder).not.toHaveBeenCalled();
+
+  fireEvent.change(selects[0], { target: { value: '3' } });
+  fireEvent.change(selects[2], { target: { value: '1' } });
+  fireEvent.click(screen.getByRole('button', { name: '应用修改' }));
+
+  expect(onRectifyVertebraCornerOrder).toHaveBeenCalledWith('C7', [
+    { from: 1, to: 3 },
+    { from: 2, to: 2 },
+    { from: 3, to: 1 },
+    { from: 4, to: 4 },
+  ]);
+
+  alertSpy.mockRestore();
 });

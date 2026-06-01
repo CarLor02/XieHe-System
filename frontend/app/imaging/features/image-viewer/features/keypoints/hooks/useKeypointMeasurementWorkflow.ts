@@ -36,6 +36,8 @@ import {
   keypointsToCfhAnnotation,
   keypointsToPersistedLayer,
   markMovedKeypointsManual,
+  rectifyVertebraCornerOrder,
+  type VertebraCornerOrderMapping,
   upsertKeypoint,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
@@ -295,6 +297,24 @@ export function useKeypointMeasurementWorkflow({
     ]
   );
 
+  const handleRectifyVertebraCornerOrder = useCallback(
+    (vertebra: string, mapping: VertebraCornerOrderMapping[]) => {
+      if (!isKeypointExam) return;
+
+      const result = rectifyVertebraCornerOrder(keypoints, vertebra, mapping);
+      if (!result.ok) {
+        window.alert(
+          `椎体缺少序号${result.missingSequenceNumbers.join(',')}, 请检查您输入的序号!`
+        );
+        return;
+      }
+
+      applyKeypoints(result.keypoints);
+      setShowVertebraeLayer(true);
+    },
+    [applyKeypoints, isKeypointExam, keypoints]
+  );
+
   const handleCreateTts = useCallback(
     (upperVertebra: string, lowerVertebra: string) => {
       if (!standardDistance) {
@@ -549,6 +569,7 @@ export function useKeypointMeasurementWorkflow({
     handleKeypointAdd,
     handleKeypointDelete,
     handleCreateVertebraCenter,
+    handleRectifyVertebraCornerOrder,
     handleCreateTts,
     handleCreateAvt,
     handleVertebraeUpdate,
