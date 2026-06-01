@@ -253,6 +253,29 @@ it('derives AP TS measurements from C7 corners', () => {
   ]);
 });
 
+it('derives lateral vertebra measurements from keypoint label order', () => {
+  const measurements = deriveKeypointMeasurements({
+    keypoints: [
+      apCorner('T1-1', 10, 10),
+      apCorner('T1-2', 30, 8),
+      apCorner('T1-3', 12, 32),
+      apCorner('T1-4', 32, 30),
+    ],
+    cfhAnnotation: null,
+    examType: '侧位X光片',
+    calculationContext,
+  });
+
+  expect(measurements.find(measurement => measurement.type === 'T1 Slope')).toEqual(
+    expect.objectContaining({
+      points: [
+        { x: 10, y: 10 },
+        { x: 30, y: 8 },
+      ],
+    })
+  );
+});
+
 it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb measurements', () => {
   const firstPassCobb: MeasurementData[] = [
     {

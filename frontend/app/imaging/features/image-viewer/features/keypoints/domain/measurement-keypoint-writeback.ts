@@ -179,7 +179,7 @@ const WRITEBACK_MAP: Record<string, WritebackTarget[]> = {
 
 /**
  * 在给定椎体的 4 个角点中，找到对应终板位置的角点并替换为 newPoint。
- * 使用 extractEndplateLateral 相同的逻辑（Y 排序找上/下，X 排序找前/后）。
+ * 使用几何逻辑（Y 排序找上/下，X 排序找前/后）定位被拖拽的侧位角点。
  */
 function updateVertebraCorner(
   corners: [Point, Point, Point, Point],

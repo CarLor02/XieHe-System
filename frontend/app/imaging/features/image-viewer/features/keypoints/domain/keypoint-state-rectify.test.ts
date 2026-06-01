@@ -39,7 +39,7 @@ const t1Keypoints: KeypointAnnotation[] = [
   },
 ];
 
-it('renames vertebra corner labels without moving their coordinates', () => {
+it('migrates vertebra corner coordinates with their edited labels', () => {
   const result = rectifyVertebraCornerOrder(t1Keypoints, 'T1', [
     { from: 1, to: 3 },
     { from: 2, to: 2 },

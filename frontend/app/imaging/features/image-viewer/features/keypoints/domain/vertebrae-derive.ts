@@ -49,29 +49,20 @@ function makeMeasurement(type: string, points: Point[]): MeasurementData {
   };
 }
 
-// ─── 侧位终板提取（移植自 _extract_endplate_points）────────────────────────
+// ─── 侧位终板提取 ─────────────────────────────────────────────────────────
 
 interface Endplates {
-  upper: [Point, Point]; // [anterior, posterior]（anterior = 较大 x）
-  lower: [Point, Point]; // [anterior, posterior]
+  upper: [Point, Point]; // [Tn-1, Tn-2]
+  lower: [Point, Point]; // [Tn-3, Tn-4]
   center: Point;
 }
 
 function extractEndplateLateral(
   corners: [Point, Point, Point, Point]
 ): Endplates {
-  const sorted = [...corners].sort((a, b) => a.y - b.y);
-  const upperPair = sorted.slice(0, 2) as [Point, Point];
-  const lowerPair = sorted.slice(2) as [Point, Point];
-
-  const [upperAnt, upperPos] =
-    upperPair[0].x > upperPair[1].x ? upperPair : [upperPair[1], upperPair[0]];
-  const [lowerAnt, lowerPos] =
-    lowerPair[0].x > lowerPair[1].x ? lowerPair : [lowerPair[1], lowerPair[0]];
-
   return {
-    upper: [upperAnt, upperPos],
-    lower: [lowerAnt, lowerPos],
+    upper: [corners[0], corners[1]],
+    lower: [corners[2], corners[3]],
     center: centroid(...corners),
   };
 }
