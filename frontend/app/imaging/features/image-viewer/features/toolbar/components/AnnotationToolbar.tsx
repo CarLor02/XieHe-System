@@ -184,7 +184,7 @@ export default function AnnotationToolbar({
   );
   const [cobbUpperVertebra, setCobbUpperVertebra] = useState('');
   const [cobbLowerVertebra, setCobbLowerVertebra] = useState('');
-  const [cobbDuplicateMessage, setCobbDuplicateMessage] = useState<
+  const [toolbarOverlayMessage, setToolbarOverlayMessage] = useState<
     string | null
   >(null);
   const [rectifySequenceByFrom, setRectifySequenceByFrom] = useState<
@@ -255,7 +255,7 @@ export default function AnnotationToolbar({
   const closeToolPopovers = () => {
     setOpenMeasurementTool(null);
     setOpenKeypointGroup(null);
-    setCobbDuplicateMessage(null);
+    setToolbarOverlayMessage(null);
     setRectifySequenceByFrom({ ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM });
   };
 
@@ -336,7 +336,7 @@ export default function AnnotationToolbar({
     const mapping = buildRectifyMapping();
     const missingTargets = getMissingRectifyTargets(mapping);
     if (missingTargets.length > 0) {
-      window.alert(
+      setToolbarOverlayMessage(
         `椎体缺少序号${missingTargets.join(',')}, 请检查您输入的序号!`
       );
       return;
@@ -350,7 +350,7 @@ export default function AnnotationToolbar({
   const openCobbDerivePanel = (isOpen: boolean) => {
     setOpenMeasurementTool(isOpen ? null : 'cobb');
     setOpenKeypointGroup(null);
-    setCobbDuplicateMessage(null);
+    setToolbarOverlayMessage(null);
     setCobbUpperVertebra(selectedCobbUpper);
     setCobbLowerVertebra(selectedCobbLower);
   };
@@ -375,7 +375,7 @@ export default function AnnotationToolbar({
         selectedCobbLower
       )
     ) {
-      setCobbDuplicateMessage(
+      setToolbarOverlayMessage(
         `Cobb${selectedCobbUpper}-${selectedCobbLower}已经存在, 不可重复派生!`
       );
       return;
@@ -383,7 +383,7 @@ export default function AnnotationToolbar({
 
     onCreateCobb(selectedCobbUpper, selectedCobbLower);
     setOpenMeasurementTool(null);
-    setCobbDuplicateMessage(null);
+    setToolbarOverlayMessage(null);
   };
 
   const getUnavailableTitle = (
@@ -802,25 +802,6 @@ export default function AnnotationToolbar({
                           )}
                         </div>
                       )}
-
-                    {cobbDuplicateMessage && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                        <div className="w-80 rounded-lg border border-gray-600 bg-gray-900 p-4 shadow-2xl">
-                          <div className="text-sm text-white">
-                            {cobbDuplicateMessage}
-                          </div>
-                          <div className="mt-4 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => setCobbDuplicateMessage(null)}
-                              className="h-8 rounded bg-blue-600 px-3 text-xs text-white hover:bg-blue-500"
-                            >
-                              知道了
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     {openMeasurementTool === 'vertebra-center' && (
                       <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(22rem,calc(100vh-14rem))] overflow-y-auto">
@@ -1263,6 +1244,23 @@ export default function AnnotationToolbar({
               </div>
             )}
           </div>
+
+          {toolbarOverlayMessage && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="w-80 rounded-lg border border-gray-600 bg-gray-900 p-4 shadow-2xl">
+                <div className="text-sm text-white">{toolbarOverlayMessage}</div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setToolbarOverlayMessage(null)}
+                    className="h-8 rounded bg-blue-600 px-3 text-xs text-white hover:bg-blue-500"
+                  >
+                    知道了
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <ReportPanel reportText={reportText} onCopy={onCopyReport} />
         </div>

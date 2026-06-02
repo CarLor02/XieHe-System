@@ -254,9 +254,6 @@ it('hides lateral sacral and anatomical points in vertebra corner rectify mode',
 
 it('validates and applies vertebra corner label-only rectification', () => {
   const onRectifyVertebraCornerOrder = jest.fn();
-  const alertSpy = jest
-    .spyOn(window, 'alert')
-    .mockImplementation(() => undefined);
 
   renderToolbar({
     keypoints: completeC7Keypoints,
@@ -269,10 +266,10 @@ it('validates and applies vertebra corner label-only rectification', () => {
   fireEvent.change(selects[0], { target: { value: '2' } });
   fireEvent.click(screen.getByRole('button', { name: '应用修改' }));
 
-  expect(alertSpy).toHaveBeenCalledWith(
-    '椎体缺少序号1, 请检查您输入的序号!'
-  );
+  expect(screen.getByText('椎体缺少序号1, 请检查您输入的序号!')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '知道了' })).toBeTruthy();
   expect(onRectifyVertebraCornerOrder).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '知道了' }));
 
   fireEvent.change(selects[0], { target: { value: '3' } });
   fireEvent.change(selects[2], { target: { value: '1' } });
@@ -284,6 +281,4 @@ it('validates and applies vertebra corner label-only rectification', () => {
     { from: 3, to: 1 },
     { from: 4, to: 4 },
   ]);
-
-  alertSpy.mockRestore();
 });
