@@ -25,6 +25,7 @@ from app.core.system.concurrency import require_ai_object_slot, require_batch_pr
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
+from app.models.patient import Patient
 from app.models.user import User
 from app.models.image import ImageAnnotation
 from app.services.storage_gateway import StorageServiceError, storage_gateway
@@ -78,7 +79,11 @@ async def _get_ai_object_client() -> httpx.AsyncClient:
     return _ai_object_client
 
 
-def _image_file_response(image: ImageFile, uploader_name: Optional[str] = None) -> ImageFileResponse:
+def _image_file_response(
+    image: ImageFile,
+    uploader_name: Optional[str] = None,
+    patient_name: Optional[str] = None,
+) -> ImageFileResponse:
     return ImageFileResponse(
         id=image.id,
         file_uuid=image.file_uuid,
@@ -93,6 +98,7 @@ def _image_file_response(image: ImageFile, uploader_name: Optional[str] = None) 
         uploaded_by=image.uploaded_by,
         uploader_name=uploader_name,
         patient_id=image.patient_id,
+        patient_name=patient_name,
         study_date=image.study_date,
         description=image.description,
         annotation=image.annotation,
@@ -101,6 +107,19 @@ def _image_file_response(image: ImageFile, uploader_name: Optional[str] = None) 
         created_at=image.created_at,
         uploaded_at=image.uploaded_at,
     )
+
+
+def _image_file_related_names(db: Session, image: ImageFile) -> tuple[Optional[str], Optional[str]]:
+    uploader_name = None
+    patient_name = None
+
+    if image.uploaded_by:
+        uploader_name = db.query(User.real_name).filter(User.id == image.uploaded_by).scalar()
+
+    if image.patient_id:
+        patient_name = db.query(Patient.name).filter(Patient.id == image.patient_id).scalar()
+
+    return uploader_name, patient_name
 
 
 def _set_presign_cache_headers(response: Response, expires_in: int) -> None:
@@ -270,11 +289,15 @@ async def get_image_files_list(
     - 超级管理员(is_superuser)：能看到全部影像
     """
     try:
-        from app.models.patient import Patient
-
         # 构建查询
-        query = db.query(ImageFile).outerjoin(
+        query = db.query(
+            ImageFile,
+            Patient.name.label("patient_name"),
+            User.real_name.label("uploader_name"),
+        ).outerjoin(
             Patient, ImageFile.patient_id == Patient.id
+        ).outerjoin(
+            User, ImageFile.uploaded_by == User.id
         ).filter(ImageFile.is_deleted == False)
         query = apply_image_visibility_filter(query, db, current_user)
 
@@ -338,9 +361,16 @@ async def get_image_files_list(
 
         # 分页
         total = query.count()
-        images = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        image_rows = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-        items = [_image_file_response(img).dict() for img in images]
+        items = [
+            _image_file_response(
+                image,
+                uploader_name=uploader_name,
+                patient_name=patient_name,
+            ).dict()
+            for image, patient_name, uploader_name in image_rows
+        ]
 
         return paginated_response(
             items=items,
@@ -371,16 +401,31 @@ async def get_patient_images(
     """
     try:
         # 构建查询
-        query = db.query(ImageFile).filter(
+        query = db.query(
+            ImageFile,
+            Patient.name.label("patient_name"),
+            User.real_name.label("uploader_name"),
+        ).outerjoin(
+            Patient, ImageFile.patient_id == Patient.id
+        ).outerjoin(
+            User, ImageFile.uploaded_by == User.id
+        ).filter(
             ImageFile.patient_id == patient_id,
             ImageFile.is_deleted == False
         )
         query = apply_image_visibility_filter(query, db, current_user)
 
         total = query.count()
-        images = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        image_rows = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
         
-        items = [_image_file_response(img).dict() for img in images]
+        items = [
+            _image_file_response(
+                image,
+                uploader_name=uploader_name,
+                patient_name=patient_name,
+            ).dict()
+            for image, patient_name, uploader_name in image_rows
+        ]
 
         return paginated_response(
             items=items,
@@ -444,15 +489,14 @@ async def get_image_file(
                 detail="影像文件不存在"
             )
         
-        # 获取上传者信息
-        uploader_name = None
-        if image.uploaded_by:
-            uploader = db.query(User).filter(User.id == image.uploaded_by).first()
-            if uploader:
-                uploader_name = uploader.username
+        uploader_name, patient_name = _image_file_related_names(db, image)
 
         return success_response(
-            data=_image_file_response(image, uploader_name).dict(),
+            data=_image_file_response(
+                image,
+                uploader_name=uploader_name,
+                patient_name=patient_name,
+            ).dict(),
             message="影像文件详情查询成功"
         )
 
@@ -788,15 +832,14 @@ async def update_annotation(
         
         logger.emit_event(LogLevel.INFO, message=f"用户 {current_user.get('username')} 更新了影像文件 {file_id} 的标注数据")
         
-        # 获取上传者信息
-        uploader_name = None
-        if image.uploaded_by:
-            uploader = db.query(User).filter(User.id == image.uploaded_by).first()
-            if uploader:
-                uploader_name = uploader.username
+        uploader_name, patient_name = _image_file_related_names(db, image)
 
         return success_response(
-            data=_image_file_response(image, uploader_name).dict(),
+            data=_image_file_response(
+                image,
+                uploader_name=uploader_name,
+                patient_name=patient_name,
+            ).dict(),
             message="标注数据更新成功"
         )
         

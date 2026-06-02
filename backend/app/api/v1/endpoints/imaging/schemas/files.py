@@ -19,6 +19,7 @@ class ImageFileResponse(BaseModel):
     uploaded_by: int
     uploader_name: Optional[str] = None
     patient_id: Optional[int]
+    patient_name: Optional[str] = None
     study_date: Optional[datetime]
     description: Optional[str]
     annotation: Optional[Dict[str, Any]] = None

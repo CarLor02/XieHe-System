@@ -22,8 +22,9 @@ export interface ImageFile {
   storage_etag?: string;
   thumbnail_path?: string;
   uploaded_by: number;
-  uploader_name?: string;
+  uploader_name?: string | null;
   patient_id?: number;
+  patient_name?: string | null;
   study_id?: number; // TODO 这个字段后端的接口没返回, 以后看一下
   study_date?: string;
   description?: string;
