@@ -848,9 +848,9 @@ export default function AnnotationToolbar({
                           {VERTEBRA_CORNER_SEQUENCE_NUMBERS.map(index => (
                             <div
                               key={index}
-                              className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs text-gray-300"
+                              className="grid grid-cols-[3.5rem_auto_5.75rem] items-center justify-center gap-x-2 text-xs text-gray-300"
                             >
-                              <span>
+                              <span className="text-right tabular-nums">
                                 {selectedKeypointGroup.name}-{index}
                               </span>
                               <span className="text-gray-500">-&gt;</span>
