@@ -22,9 +22,11 @@ import {
   areKeypointsEqual,
   buildDerivedMeasurementsFromLayer,
   createAvtMeasurement,
+  createNextBoundCobbMeasurement,
   createTtsMeasurement,
   createVertebraCenterMeasurement,
   deriveKeypointMeasurements as deriveKeypointMeasurementsUseCase,
+  hasCobbMeasurementForEndpoints,
   rebuildKeypointMeasurements as rebuildKeypointMeasurementsUseCase,
 } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
 import { DERIVED_ID_PREFIX } from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebrae-derive';
@@ -376,6 +378,68 @@ export function useKeypointMeasurementWorkflow({
     ]
   );
 
+  const handleCreateCobb = useCallback(
+    (upperVertebra: string, lowerVertebra: string) => {
+      if (upperVertebra === lowerVertebra) return;
+      if (
+        hasCobbMeasurementForEndpoints(
+          measurements,
+          upperVertebra,
+          lowerVertebra
+        )
+      ) {
+        return;
+      }
+
+      const probeMeasurement = createNextBoundCobbMeasurement({
+        upperVertebra,
+        lowerVertebra,
+        keypoints,
+        examType,
+        calculationContext,
+        existingMeasurements: measurements,
+      });
+      if (!probeMeasurement) {
+        flashMessage(
+          setSaveMessage,
+          `缺少 ${upperVertebra}-${lowerVertebra} 所需关键点，无法创建 Cobb`
+        );
+        return;
+      }
+
+      setMeasurements(previous => {
+        if (
+          hasCobbMeasurementForEndpoints(
+            previous,
+            upperVertebra,
+            lowerVertebra
+          )
+        ) {
+          return previous;
+        }
+
+        const measurement = createNextBoundCobbMeasurement({
+          upperVertebra,
+          lowerVertebra,
+          keypoints,
+          examType,
+          calculationContext,
+          existingMeasurements: previous,
+        });
+
+        return measurement ? [...previous, measurement] : previous;
+      });
+    },
+    [
+      calculationContext,
+      examType,
+      keypoints,
+      measurements,
+      setMeasurements,
+      setSaveMessage,
+    ]
+  );
+
   const handleVertebraeUpdate = useCallback(
     (updated: VertebraAnnotation[]) => {
       if (isKeypointExam) {
@@ -569,6 +633,7 @@ export function useKeypointMeasurementWorkflow({
     handleKeypointAdd,
     handleKeypointDelete,
     handleCreateVertebraCenter,
+    handleCreateCobb,
     handleRectifyVertebraCornerOrder,
     handleCreateTts,
     handleCreateAvt,

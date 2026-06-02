@@ -6,6 +6,7 @@ import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/f
 import {
   getCobbSequenceNumber,
   getMaxCobbSequenceNumber,
+  getNextCobbType,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
@@ -46,14 +47,31 @@ export function areKeypointsEqual(
 }
 
 export function isDerivedCobbMeasurement(measurement: MeasurementData): boolean {
-  const typeId = getAnnotationTypeId(measurement.type);
   const isKeypointBoundCobb =
     measurement.id.startsWith(`${DERIVED_ID_PREFIX}cobb-`) ||
     measurement.keypointSynced === true;
   return (
     isKeypointBoundCobb &&
-    (typeId === 'cobb' || /^cobb\d+$/i.test(typeId)) &&
+    isCobbMeasurement(measurement) &&
     Boolean(measurement.upperVertebra && measurement.lowerVertebra)
+  );
+}
+
+export function isCobbMeasurement(measurement: MeasurementData): boolean {
+  const typeId = getAnnotationTypeId(measurement.type);
+  return typeId === 'cobb' || /^cobb\d+$/i.test(typeId);
+}
+
+export function hasCobbMeasurementForEndpoints(
+  measurements: MeasurementData[],
+  upperVertebra: string,
+  lowerVertebra: string
+): boolean {
+  return measurements.some(
+    measurement =>
+      isCobbMeasurement(measurement) &&
+      measurement.upperVertebra === upperVertebra &&
+      measurement.lowerVertebra === lowerVertebra
   );
 }
 
@@ -253,6 +271,9 @@ export function createCobbMeasurement({
   examType,
   calculationContext,
   existingMeasurement,
+  measurementType,
+  measurementId,
+  keypointSynced,
 }: {
   upperVertebra: string;
   lowerVertebra: string;
@@ -260,6 +281,9 @@ export function createCobbMeasurement({
   examType: string;
   calculationContext: CalculationContext;
   existingMeasurement?: MeasurementData;
+  measurementType?: string;
+  measurementId?: string;
+  keypointSynced?: boolean;
 }): MeasurementData | null {
   if (upperVertebra === lowerVertebra) return null;
 
@@ -282,11 +306,13 @@ export function createCobbMeasurement({
       lower!.corners[3],
     ] as [Point, Point, Point, Point]);
   const idSuffix = `${upperVertebra}-${lowerVertebra}`.toLowerCase();
-  const type = existingMeasurement?.type ?? 'Cobb';
+  const type = measurementType ?? existingMeasurement?.type ?? 'Cobb';
 
   return {
     id:
-      existingMeasurement?.id ?? `${DERIVED_ID_PREFIX}cobb-bound-${idSuffix}`,
+      measurementId ??
+      existingMeasurement?.id ??
+      `${DERIVED_ID_PREFIX}cobb-bound-${idSuffix}`,
     type,
     value: calculateMeasurementValue(type, points, calculationContext),
     points,
@@ -294,8 +320,34 @@ export function createCobbMeasurement({
     upperVertebra,
     lowerVertebra,
     apexVertebra: existingMeasurement?.apexVertebra ?? null,
-    keypointSynced: existingMeasurement?.keypointSynced,
+    keypointSynced: keypointSynced ?? existingMeasurement?.keypointSynced,
   };
+}
+
+export function createNextBoundCobbMeasurement({
+  upperVertebra,
+  lowerVertebra,
+  keypoints,
+  examType,
+  calculationContext,
+  existingMeasurements,
+}: {
+  upperVertebra: string;
+  lowerVertebra: string;
+  keypoints: KeypointAnnotation[];
+  examType: string;
+  calculationContext: CalculationContext;
+  existingMeasurements: MeasurementData[];
+}): MeasurementData | null {
+  return createCobbMeasurement({
+    upperVertebra,
+    lowerVertebra,
+    keypoints,
+    examType,
+    calculationContext,
+    measurementType: getNextCobbType(existingMeasurements),
+    keypointSynced: true,
+  });
 }
 
 export function createBoundCobbMeasurement({

@@ -2,7 +2,9 @@ import { expect, it } from '@jest/globals';
 
 import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/keypoints';
 import {
+  createNextBoundCobbMeasurement,
   deriveKeypointMeasurements,
+  hasCobbMeasurementForEndpoints,
   rebuildKeypointMeasurements,
 } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
 import { AnnotationSource, MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
@@ -111,6 +113,62 @@ it('starts keypoint-derived Cobb numbering after the current maximum Cobb number
     'cobb3',
     'cobb4',
   ]);
+});
+
+it('creates a numbered keypoint-bound Cobb from selected endpoint vertebrae', () => {
+  const previousMeasurements: MeasurementData[] = [
+    {
+      id: 'manual-cobb-2',
+      type: 'cobb2',
+      value: '10.00°',
+      points: [],
+    },
+  ];
+  const measurement = createNextBoundCobbMeasurement({
+    upperVertebra: 'T1',
+    lowerVertebra: 'T3',
+    keypoints: [
+      apCorner('T1-1', 10, 10),
+      apCorner('T1-2', 30, 12),
+      apCorner('T3-3', 20, 100),
+      apCorner('T3-4', 40, 108),
+    ],
+    examType: '正位X光片',
+    calculationContext,
+    existingMeasurements: previousMeasurements,
+  });
+
+  expect(measurement).toEqual(
+    expect.objectContaining({
+      id: 'vertebrae-derived-cobb-bound-t1-t3',
+      type: 'cobb3',
+      upperVertebra: 'T1',
+      lowerVertebra: 'T3',
+      keypointSynced: true,
+      points: [
+        { x: 10, y: 10 },
+        { x: 30, y: 12 },
+        { x: 20, y: 100 },
+        { x: 40, y: 108 },
+      ],
+    })
+  );
+});
+
+it('detects duplicate Cobb endpoint pairs regardless of Cobb sequence number', () => {
+  const measurements: MeasurementData[] = [
+    {
+      id: 'existing-cobb',
+      type: 'cobb4',
+      value: '12.00°',
+      points: [],
+      upperVertebra: 'T1',
+      lowerVertebra: 'T3',
+    },
+  ];
+
+  expect(hasCobbMeasurementForEndpoints(measurements, 'T1', 'T3')).toBe(true);
+  expect(hasCobbMeasurementForEndpoints(measurements, 'T3', 'T1')).toBe(false);
 });
 
 it('rebuilds a keypoint-synced manual Cobb measurement when endpoint keypoints move', () => {

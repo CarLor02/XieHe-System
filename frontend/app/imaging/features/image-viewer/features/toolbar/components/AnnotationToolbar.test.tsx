@@ -33,6 +33,13 @@ const completeC7Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   confidence: 0.9,
 }));
 
+const completeT1Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
+  id: `T1-${index}`,
+  point: { x: 100 + index * 10, y: 100 + index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
 type AnnotationToolbarProps = ComponentProps<typeof AnnotationToolbar>;
 
 function createBaseToolbarProps(): AnnotationToolbarProps {
@@ -65,6 +72,7 @@ function createBaseToolbarProps(): AnnotationToolbarProps {
     onRestoreAutomaticMeasurement: jest.fn(),
     onCreateAvt: jest.fn(),
     onCreateVertebraCenter: jest.fn(),
+    onCreateCobb: jest.fn(),
     onActivateHandMode: jest.fn(),
     onToggleImagePanLocked: jest.fn(),
     isImagePanLocked: false,
@@ -103,10 +111,10 @@ function renderToolbar(overrides: Partial<AnnotationToolbarProps> = {}) {
   };
 }
 
-it('renders all basic modes and keeps the default Move tool content', () => {
+it('renders anterior basic modes and keeps the default manual annotation content', () => {
   renderToolbar();
 
-  expect(screen.getByRole('button', { name: '移动' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: '手动标注' })).toBeTruthy();
   expect(screen.getByRole('button', { name: '椎体点位纠正' })).toBeTruthy();
   expect(screen.getByRole('button', { name: '测量项派生' })).toBeTruthy();
   expect(screen.getByRole('button', { name: '测量工具' })).toBeTruthy();
@@ -114,6 +122,14 @@ it('renders all basic modes and keeps the default Move tool content', () => {
   expect(screen.getByText('测量标注')).toBeTruthy();
   expect(screen.getByText('辅助图形')).toBeTruthy();
   expect(screen.getByRole('button', { name: /Arrow/ })).toBeTruthy();
+});
+
+it('hides measurement derive mode for lateral annotation', () => {
+  renderToolbar({ examType: '侧位X光片' });
+
+  expect(screen.getByRole('button', { name: '手动标注' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: '椎体点位纠正' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '测量项派生' })).toBeNull();
 });
 
 it('shows only keypoints when the vertebra corner rectify mode is selected', () => {
@@ -129,7 +145,7 @@ it('shows only keypoints when the vertebra corner rectify mode is selected', () 
   expect(screen.getByText('C7')).toBeTruthy();
 });
 
-it('shows only measurement tools without auxiliary shapes in measurement derive mode', () => {
+it('shows only Cobb without auxiliary shapes in anterior measurement derive mode', () => {
   renderToolbar();
 
   fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
@@ -140,6 +156,58 @@ it('shows only measurement tools without auxiliary shapes in measurement derive 
   expect(screen.getByRole('button', { name: /Cobb/ })).toBeTruthy();
   expect(screen.queryByText('辅助图形')).toBeNull();
   expect(screen.queryByRole('button', { name: /Arrow/ })).toBeNull();
+});
+
+it('derives Cobb from selected complete endpoint vertebrae', () => {
+  const onCreateCobb = jest.fn();
+  renderToolbar({
+    keypoints: [...completeC7Keypoints, ...completeT1Keypoints],
+    completeVertebraGroups: ['C7', 'T1'],
+    onCreateCobb,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+
+  expect(screen.getByText('派生Cobb')).toBeTruthy();
+  expect((screen.getByLabelText('上端椎') as HTMLSelectElement).value).toBe(
+    'C7'
+  );
+  expect((screen.getByLabelText('下端椎') as HTMLSelectElement).value).toBe(
+    'T1'
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
+
+  expect(onCreateCobb).toHaveBeenCalledWith('C7', 'T1');
+});
+
+it('shows an overlay when deriving a duplicate Cobb endpoint pair', () => {
+  const onCreateCobb = jest.fn();
+  renderToolbar({
+    keypoints: [...completeC7Keypoints, ...completeT1Keypoints],
+    completeVertebraGroups: ['C7', 'T1'],
+    measurements: [
+      {
+        id: 'existing-cobb',
+        type: 'cobb3',
+        value: '12.00°',
+        points: [],
+        upperVertebra: 'C7',
+        lowerVertebra: 'T1',
+      },
+    ],
+    onCreateCobb,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+  fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
+
+  expect(
+    screen.getByText('CobbC7-T1已经存在, 不可重复派生!')
+  ).toBeTruthy();
+  expect(onCreateCobb).not.toHaveBeenCalled();
 });
 
 it('opens a corner order rectification panel only for complete vertebra groups', () => {

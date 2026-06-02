@@ -460,6 +460,7 @@ export function useImageViewerController({
         measurementWorkflow.handleRestoreAutomaticMeasurement,
       onCreateAvt: keypointWorkflow.handleCreateAvt,
       onCreateVertebraCenter: keypointWorkflow.handleCreateVertebraCenter,
+      onCreateCobb: keypointWorkflow.handleCreateCobb,
       onRectifyVertebraCornerOrder:
         keypointWorkflow.handleRectifyVertebraCornerOrder,
       onActivateHandMode: activateHandMode,
