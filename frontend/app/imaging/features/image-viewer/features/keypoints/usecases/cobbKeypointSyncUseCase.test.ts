@@ -15,6 +15,14 @@ const points: Point[] = [
   { x: 40, y: 40 },
 ];
 
+function pointByKeypointId(
+  keypoints: KeypointAnnotation[] | null
+): Record<string, Point> {
+  return Object.fromEntries(
+    (keypoints ?? []).map(keypoint => [keypoint.id, keypoint.point])
+  );
+}
+
 it('replaces Cobb endpoint keypoints with the Cobb measurement points', () => {
   const measurement: MeasurementData = {
     id: 'cobb-2',
@@ -112,12 +120,12 @@ it('syncs lateral C2-C7 Cobb to lower endplate keypoints', () => {
 
   const synced = syncCobbMeasurementToKeypoints([], measurement, '侧位X光片');
 
-  expect(synced?.map(keypoint => keypoint.id)).toEqual([
-    'C2-3',
-    'C2-4',
-    'C7-3',
-    'C7-4',
-  ]);
+  expect(pointByKeypointId(synced)).toEqual({
+    'C2-4': points[0],
+    'C2-3': points[1],
+    'C7-4': points[2],
+    'C7-3': points[3],
+  });
 });
 
 it('infers C2-C7 lateral Cobb endpoint keypoints even when exam type is omitted', () => {
@@ -132,12 +140,12 @@ it('infers C2-C7 lateral Cobb endpoint keypoints even when exam type is omitted'
 
   const synced = syncCobbMeasurementToKeypoints([], measurement);
 
-  expect(synced?.map(keypoint => keypoint.id)).toEqual([
-    'C2-3',
-    'C2-4',
-    'C7-3',
-    'C7-4',
-  ]);
+  expect(pointByKeypointId(synced)).toEqual({
+    'C2-4': points[0],
+    'C2-3': points[1],
+    'C7-4': points[2],
+    'C7-3': points[3],
+  });
 });
 
 it('syncs lateral Cobb to S1 upper endplate keypoints', () => {
@@ -152,12 +160,12 @@ it('syncs lateral Cobb to S1 upper endplate keypoints', () => {
 
   const synced = syncCobbMeasurementToKeypoints([], measurement, '侧位X光片');
 
-  expect(synced?.map(keypoint => keypoint.id)).toEqual([
-    'L4-1',
-    'L4-2',
-    'S1-1',
-    'S1-2',
-  ]);
+  expect(pointByKeypointId(synced)).toEqual({
+    'L4-2': points[0],
+    'L4-1': points[1],
+    'S1-1': points[2],
+    'S1-2': points[3],
+  });
 });
 
 it('does not sync Cobb measurements without completed endpoint vertebrae', () => {

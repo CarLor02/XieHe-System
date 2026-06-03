@@ -181,10 +181,10 @@ it('creates lateral C2-C7 Cobb from lower endplates', () => {
       lowerVertebra: 'C7',
       keypointSynced: true,
       points: [
-        { x: 10, y: 30 },
         { x: 30, y: 30 },
-        { x: 20, y: 130 },
+        { x: 10, y: 30 },
         { x: 50, y: 130 },
+        { x: 20, y: 130 },
       ],
     })
   );
@@ -208,8 +208,8 @@ it('creates lateral Cobb to S1 from S1 upper endplate points', () => {
   });
 
   expect(measurement?.points).toEqual([
-    { x: 100, y: 100 },
     { x: 180, y: 110 },
+    { x: 100, y: 100 },
     { x: 120, y: 240 },
     { x: 220, y: 250 },
   ]);
@@ -257,10 +257,10 @@ it('rebuilds a lateral keypoint-synced Cobb with lateral endpoint rules', () => 
   ).toEqual(
     expect.objectContaining({
       points: [
-        { x: 30, y: 30 },
         { x: 40, y: 30 },
-        { x: 70, y: 100 },
+        { x: 30, y: 30 },
         { x: 80, y: 100 },
+        { x: 70, y: 100 },
       ],
     })
   );
@@ -438,8 +438,35 @@ it('derives lateral vertebra measurements from keypoint label order', () => {
   expect(measurements.find(measurement => measurement.type === 'T1 Slope')).toEqual(
     expect.objectContaining({
       points: [
-        { x: 10, y: 10 },
         { x: 30, y: 8 },
+        { x: 10, y: 10 },
+      ],
+    })
+  );
+});
+
+it('derives lateral LL L1-S1 with vertebra endpoints right-to-left and keeps S1 order', () => {
+  const measurements = deriveKeypointMeasurements({
+    keypoints: [
+      apCorner('L1-1', 100, 100),
+      apCorner('L1-2', 200, 100),
+      apCorner('L1-3', 100, 140),
+      apCorner('L1-4', 200, 140),
+      apCorner('S1-1', 220, 250),
+      apCorner('S1-2', 120, 240),
+    ],
+    cfhAnnotation: null,
+    examType: '侧位X光片',
+    calculationContext,
+  });
+
+  expect(measurements.find(measurement => measurement.type === 'LL L1-S1')).toEqual(
+    expect.objectContaining({
+      points: [
+        { x: 200, y: 100 },
+        { x: 100, y: 100 },
+        { x: 220, y: 250 },
+        { x: 120, y: 240 },
       ],
     })
   );

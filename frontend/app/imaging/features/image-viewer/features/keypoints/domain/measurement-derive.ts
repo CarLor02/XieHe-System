@@ -47,43 +47,43 @@ export const LATERAL_NAMED_COBB_MEASUREMENT_RULES: LateralNamedCobbMeasurementRu
       name: 'C2-C7 CL',
       upperVertebra: 'C2',
       lowerVertebra: 'C7',
-      endpointPointIds: ['C2-3', 'C2-4', 'C7-3', 'C7-4'],
+      endpointPointIds: ['C2-4', 'C2-3', 'C7-4', 'C7-3'],
     },
     {
       name: 'TK T2-T5',
       upperVertebra: 'T2',
       lowerVertebra: 'T5',
-      endpointPointIds: ['T2-1', 'T2-2', 'T5-3', 'T5-4'],
+      endpointPointIds: ['T2-2', 'T2-1', 'T5-4', 'T5-3'],
     },
     {
       name: 'TK T5-T12',
       upperVertebra: 'T5',
       lowerVertebra: 'T12',
-      endpointPointIds: ['T5-1', 'T5-2', 'T12-3', 'T12-4'],
+      endpointPointIds: ['T5-2', 'T5-1', 'T12-4', 'T12-3'],
     },
     {
       name: 'T10-L2',
       upperVertebra: 'T10',
       lowerVertebra: 'L2',
-      endpointPointIds: ['T10-1', 'T10-2', 'L2-3', 'L2-4'],
+      endpointPointIds: ['T10-2', 'T10-1', 'L2-4', 'L2-3'],
     },
     {
       name: 'LL L1-S1',
       upperVertebra: 'L1',
       lowerVertebra: 'S1',
-      endpointPointIds: ['L1-1', 'L1-2', 'S1-1', 'S1-2'],
+      endpointPointIds: ['L1-2', 'L1-1', 'S1-1', 'S1-2'],
     },
     {
       name: 'LL L1-L4',
       upperVertebra: 'L1',
       lowerVertebra: 'L4',
-      endpointPointIds: ['L1-1', 'L1-2', 'L4-3', 'L4-4'],
+      endpointPointIds: ['L1-2', 'L1-1', 'L4-4', 'L4-3'],
     },
     {
       name: 'LL L4-S1',
       upperVertebra: 'L4',
       lowerVertebra: 'S1',
-      endpointPointIds: ['L4-1', 'L4-2', 'S1-1', 'S1-2'],
+      endpointPointIds: ['L4-2', 'L4-1', 'S1-1', 'S1-2'],
     },
   ];
 
@@ -150,18 +150,18 @@ export function getLateralCobbEndpointPointIds(
 
   if (lowerVertebra === 'S1') {
     return [
-      `${upperVertebra}-1`,
       `${upperVertebra}-2`,
+      `${upperVertebra}-1`,
       'S1-1',
       'S1-2',
     ];
   }
 
   return [
-    `${upperVertebra}-1`,
     `${upperVertebra}-2`,
-    `${lowerVertebra}-3`,
+    `${upperVertebra}-1`,
     `${lowerVertebra}-4`,
+    `${lowerVertebra}-3`,
   ];
 }
 
