@@ -155,6 +155,117 @@ it('creates a numbered keypoint-bound Cobb from selected endpoint vertebrae', ()
   );
 });
 
+it('creates lateral C2-C7 Cobb from lower endplates', () => {
+  const measurement = createNextBoundCobbMeasurement({
+    upperVertebra: 'C2',
+    lowerVertebra: 'C7',
+    keypoints: [
+      apCorner('C2-1', 10, 10),
+      apCorner('C2-2', 30, 10),
+      apCorner('C2-3', 10, 30),
+      apCorner('C2-4', 30, 30),
+      apCorner('C7-1', 20, 100),
+      apCorner('C7-2', 50, 100),
+      apCorner('C7-3', 20, 130),
+      apCorner('C7-4', 50, 130),
+    ],
+    examType: '侧位X光片',
+    calculationContext,
+    existingMeasurements: [],
+  });
+
+  expect(measurement).toEqual(
+    expect.objectContaining({
+      type: 'cobb1',
+      upperVertebra: 'C2',
+      lowerVertebra: 'C7',
+      keypointSynced: true,
+      points: [
+        { x: 10, y: 30 },
+        { x: 30, y: 30 },
+        { x: 20, y: 130 },
+        { x: 50, y: 130 },
+      ],
+    })
+  );
+});
+
+it('creates lateral Cobb to S1 from S1 upper endplate points', () => {
+  const measurement = createNextBoundCobbMeasurement({
+    upperVertebra: 'L4',
+    lowerVertebra: 'S1',
+    keypoints: [
+      apCorner('L4-1', 100, 100),
+      apCorner('L4-2', 180, 110),
+      apCorner('L4-3', 100, 140),
+      apCorner('L4-4', 180, 150),
+      apCorner('S1-1', 120, 240),
+      apCorner('S1-2', 220, 250),
+    ],
+    examType: '侧位X光片',
+    calculationContext,
+    existingMeasurements: [],
+  });
+
+  expect(measurement?.points).toEqual([
+    { x: 100, y: 100 },
+    { x: 180, y: 110 },
+    { x: 120, y: 240 },
+    { x: 220, y: 250 },
+  ]);
+});
+
+it('rebuilds a lateral keypoint-synced Cobb with lateral endpoint rules', () => {
+  const previousMeasurements: MeasurementData[] = [
+    {
+      id: 'manual-lateral-cobb',
+      type: 'cobb1',
+      value: '10.00°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+      upperVertebra: 'C2',
+      lowerVertebra: 'C7',
+      keypointSynced: true,
+    },
+  ];
+
+  const rebuilt = rebuildKeypointMeasurements({
+    previousMeasurements,
+    keypoints: [
+      apCorner('C2-1', 10, 10),
+      apCorner('C2-2', 20, 10),
+      apCorner('C2-3', 30, 30),
+      apCorner('C2-4', 40, 30),
+      apCorner('C7-1', 50, 80),
+      apCorner('C7-2', 60, 80),
+      apCorner('C7-3', 70, 100),
+      apCorner('C7-4', 80, 100),
+    ],
+    cfhAnnotation: null,
+    examType: '侧位X光片',
+    isLateralView: true,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(
+    rebuilt.find(measurement => measurement.id === 'manual-lateral-cobb')
+  ).toEqual(
+    expect.objectContaining({
+      points: [
+        { x: 30, y: 30 },
+        { x: 40, y: 30 },
+        { x: 70, y: 100 },
+        { x: 80, y: 100 },
+      ],
+    })
+  );
+});
+
 it('detects duplicate Cobb endpoint pairs regardless of Cobb sequence number', () => {
   const measurements: MeasurementData[] = [
     {

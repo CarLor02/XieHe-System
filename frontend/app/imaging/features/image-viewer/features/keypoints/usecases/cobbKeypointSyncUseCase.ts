@@ -4,7 +4,11 @@ import {
   type MeasurementData,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
-import { upsertKeypoint } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import {
+  isLateralExamType,
+  upsertKeypoint,
+} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import { getLateralCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 
 function hasCompletedCobbEndpoints(measurement: MeasurementData): boolean {
   return Boolean(
@@ -24,18 +28,22 @@ export function canSyncCobbMeasurementToKeypoints(
 
 export function syncCobbMeasurementToKeypoints(
   keypoints: KeypointAnnotation[],
-  measurement: MeasurementData
+  measurement: MeasurementData,
+  examType?: string
 ): KeypointAnnotation[] | null {
   if (!canSyncCobbMeasurementToKeypoints(measurement)) return null;
 
   const upperVertebra = measurement.upperVertebra!.trim().toUpperCase();
   const lowerVertebra = measurement.lowerVertebra!.trim().toUpperCase();
-  const replacementIds = [
-    `${upperVertebra}-1`,
-    `${upperVertebra}-2`,
-    `${lowerVertebra}-3`,
-    `${lowerVertebra}-4`,
-  ];
+  const replacementIds =
+    examType && isLateralExamType(examType)
+      ? getLateralCobbEndpointPointIds(upperVertebra, lowerVertebra)
+      : [
+          `${upperVertebra}-1`,
+          `${upperVertebra}-2`,
+          `${lowerVertebra}-3`,
+          `${lowerVertebra}-4`,
+        ];
   const replacementIdSet = new Set(replacementIds);
   const retainedKeypoints = keypoints.filter(
     keypoint => !replacementIdSet.has(keypoint.id)

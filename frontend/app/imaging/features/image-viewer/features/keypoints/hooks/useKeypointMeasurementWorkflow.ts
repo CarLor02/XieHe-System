@@ -536,7 +536,8 @@ export function useKeypointMeasurementWorkflow({
 
       const nextKeypoints = syncCobbMeasurementToKeypoints(
         keypoints,
-        measurement
+        measurement,
+        examType
       );
       if (!nextKeypoints) {
         flashMessage(setSaveMessage, '请先填写 Cobb 上下端椎');
@@ -566,6 +567,7 @@ export function useKeypointMeasurementWorkflow({
       flashMessage(setSaveMessage, '已同步 Cobb 端椎到检测层');
     },
     [
+      examType,
       isKeypointExam,
       keypoints,
       measurements,

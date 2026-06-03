@@ -13,6 +13,7 @@ import {
   getKeypointGroupsForExamType,
   hasKeypoint,
   isAnteriorExamType,
+  isLateralExamType,
   type KeypointAnnotation,
   type VertebraCornerOrderMapping,
   type VertebraCornerSequenceNumber,
@@ -31,10 +32,21 @@ import ToolbarToolPanel, {
   ToolTab,
 } from '@/app/imaging/features/image-viewer/features/toolbar/components/ToolbarToolPanel';
 import { hasCobbMeasurementForEndpoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
+import {
+  getCompleteMeasurementDeriveEndpointGroups,
+  isValidMeasurementDeriveEndpointOrder,
+} from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
 const VERTEBRA_CORNER_SEQUENCE_NUMBERS = [1, 2, 3, 4] as const;
+const DERIVE_COBB_TOOL: Tool = {
+  id: 'cobb',
+  name: 'Cobb',
+  icon: 'medical-cobb',
+  description: 'Cobb角测量',
+  pointsNeeded: 4,
+};
 const DEFAULT_RECTIFY_SEQUENCE_BY_FROM: Record<
   VertebraCornerSequenceNumber,
   VertebraCornerSequenceNumber
@@ -192,9 +204,14 @@ export default function AnnotationToolbar({
   >(DEFAULT_RECTIFY_SEQUENCE_BY_FROM);
 
   const isAnteriorView = isAnteriorExamType(examType);
+  const isLateralView = isLateralExamType(examType);
+  const canUseMeasurementDeriveMode = isAnteriorView || isLateralView;
   const availableBasicModes = useMemo(
-    () => (isAnteriorView ? DEFAULT_BASIC_MODES : NON_DERIVE_BASIC_MODES),
-    [isAnteriorView]
+    () =>
+      canUseMeasurementDeriveMode
+        ? DEFAULT_BASIC_MODES
+        : NON_DERIVE_BASIC_MODES,
+    [canUseMeasurementDeriveMode]
   );
   const effectiveBasicMode = availableBasicModes.includes(currentBasicMode)
     ? currentBasicMode
@@ -211,9 +228,10 @@ export default function AnnotationToolbar({
     hasKeypoint(keypoints, 'SL') && hasKeypoint(keypoints, 'SR');
   const visibleMeasurementTools =
     effectiveBasicMode === BasicMode.MeasurementDerive
-      ? measurementTools.filter(tool => isAnteriorView && tool.id === 'cobb')
+      ? [measurementTools.find(tool => tool.id === 'cobb') ?? DERIVE_COBB_TOOL]
       : measurementTools;
-  const completeCobbEndpointOptions = isAnteriorView ? completeVertebraGroups : [];
+  const completeCobbEndpointOptions =
+    getCompleteMeasurementDeriveEndpointGroups(keypoints, examType);
   const defaultCobbUpper = completeCobbEndpointOptions[0] ?? '';
   const defaultCobbLower =
     completeCobbEndpointOptions.find(group => group !== defaultCobbUpper) ?? '';
@@ -367,6 +385,18 @@ export default function AnnotationToolbar({
 
   const handleApplyCobbDerive = () => {
     if (!canApplyCobbDerive) return;
+
+    if (
+      !isValidMeasurementDeriveEndpointOrder(
+        selectedCobbUpper,
+        selectedCobbLower
+      )
+    ) {
+      setToolbarOverlayMessage(
+        '上端椎不应该比下端椎更靠下或与下端椎相同!'
+      );
+      return;
+    }
 
     if (
       hasCobbMeasurementForEndpoints(
@@ -576,7 +606,6 @@ export default function AnnotationToolbar({
                         const isOpen = openMeasurementTool === tool.id;
                         const isCobbDeriveTool =
                           effectiveBasicMode === BasicMode.MeasurementDerive &&
-                          isAnteriorView &&
                           tool.id === 'cobb';
                         const automaticStatus =
                           automaticToolStatus[tool.id] ?? 'missing-keypoints';

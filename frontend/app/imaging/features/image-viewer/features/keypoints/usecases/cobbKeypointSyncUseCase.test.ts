@@ -100,6 +100,26 @@ it('replaces Cobb endpoint keypoints with the Cobb measurement points', () => {
   expect(synced?.some(keypoint => keypoint.id === 'T5-1')).toBe(true);
 });
 
+it('syncs lateral C2-C7 Cobb to lower endplate keypoints', () => {
+  const measurement: MeasurementData = {
+    id: 'cobb-1',
+    type: 'cobb1',
+    value: '18.00°',
+    points,
+    upperVertebra: 'C2',
+    lowerVertebra: 'C7',
+  };
+
+  const synced = syncCobbMeasurementToKeypoints([], measurement, '侧位X光片');
+
+  expect(synced?.map(keypoint => keypoint.id)).toEqual([
+    'C2-3',
+    'C2-4',
+    'C7-3',
+    'C7-4',
+  ]);
+});
+
 it('does not sync Cobb measurements without completed endpoint vertebrae', () => {
   const measurement: MeasurementData = {
     id: 'cobb-2',

@@ -3,6 +3,7 @@ import {
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+import { COBB_THORACIC_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/cobb';
 import {
   getCobbSequenceNumber,
   getMaxCobbSequenceNumber,
@@ -17,9 +18,11 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
   deleteKeypoint,
+  isLateralExamType,
   KeypointAnnotation,
   keypointsToDerivedLayer,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import { getLateralCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 import {
   deriveAllMeasurements,
   DERIVED_ID_PREFIX,
@@ -152,6 +155,34 @@ function findCobbEndpointPoints(
     lowerLeft.point,
     lowerRight.point,
   ];
+}
+
+function findLateralCobbEndpointPoints(
+  keypoints: KeypointAnnotation[],
+  upperVertebra: string,
+  lowerVertebra: string
+): [Point, Point, Point, Point] | null {
+  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
+  const endpointIds = getLateralCobbEndpointPointIds(
+    upperVertebra,
+    lowerVertebra
+  );
+  const points = endpointIds.map(keypointId => byId.get(keypointId)?.point);
+
+  if (points.some(point => !point)) return null;
+  return points as [Point, Point, Point, Point];
+}
+
+function calculateLateralCobbMeasurementValue(
+  points: [Point, Point, Point, Point],
+  calculationContext: CalculationContext
+): string {
+  const results = COBB_THORACIC_CONFIG.calculateResults(
+    points,
+    calculationContext
+  );
+  if (results.length === 0) return '辅助标注';
+  return `${results[0].value}${results[0].unit}`;
 }
 
 export function createVertebraCenterMeasurement({
@@ -324,6 +355,53 @@ export function createCobbMeasurement({
   };
 }
 
+export function createLateralCobbMeasurement({
+  upperVertebra,
+  lowerVertebra,
+  keypoints,
+  existingMeasurement,
+  measurementType,
+  measurementId,
+  keypointSynced,
+  calculationContext,
+}: {
+  upperVertebra: string;
+  lowerVertebra: string;
+  keypoints: KeypointAnnotation[];
+  existingMeasurement?: MeasurementData;
+  measurementType?: string;
+  measurementId?: string;
+  keypointSynced?: boolean;
+  calculationContext: CalculationContext;
+}): MeasurementData | null {
+  if (upperVertebra === lowerVertebra) return null;
+
+  const points = findLateralCobbEndpointPoints(
+    keypoints,
+    upperVertebra,
+    lowerVertebra
+  );
+  if (!points) return null;
+
+  const idSuffix = `${upperVertebra}-${lowerVertebra}`.toLowerCase();
+  const type = measurementType ?? existingMeasurement?.type ?? 'Cobb';
+
+  return {
+    id:
+      measurementId ??
+      existingMeasurement?.id ??
+      `${DERIVED_ID_PREFIX}cobb-bound-${idSuffix}`,
+    type,
+    value: calculateLateralCobbMeasurementValue(points, calculationContext),
+    points,
+    description: `[推导] Cobb（上=${upperVertebra}, 下=${lowerVertebra}）`,
+    upperVertebra,
+    lowerVertebra,
+    apexVertebra: existingMeasurement?.apexVertebra ?? null,
+    keypointSynced: keypointSynced ?? existingMeasurement?.keypointSynced,
+  };
+}
+
 export function createNextBoundCobbMeasurement({
   upperVertebra,
   lowerVertebra,
@@ -339,6 +417,17 @@ export function createNextBoundCobbMeasurement({
   calculationContext: CalculationContext;
   existingMeasurements: MeasurementData[];
 }): MeasurementData | null {
+  if (isLateralExamType(examType)) {
+    return createLateralCobbMeasurement({
+      upperVertebra,
+      lowerVertebra,
+      keypoints,
+      calculationContext,
+      measurementType: getNextCobbType(existingMeasurements),
+      keypointSynced: true,
+    });
+  }
+
   return createCobbMeasurement({
     upperVertebra,
     lowerVertebra,
@@ -362,6 +451,16 @@ export function createBoundCobbMeasurement({
   calculationContext: CalculationContext;
 }): MeasurementData | null {
   if (!measurement.upperVertebra || !measurement.lowerVertebra) return null;
+  if (isLateralExamType(examType)) {
+    return createLateralCobbMeasurement({
+      upperVertebra: measurement.upperVertebra,
+      lowerVertebra: measurement.lowerVertebra,
+      keypoints,
+      calculationContext,
+      existingMeasurement: measurement,
+    });
+  }
+
   return createCobbMeasurement({
     upperVertebra: measurement.upperVertebra,
     lowerVertebra: measurement.lowerVertebra,

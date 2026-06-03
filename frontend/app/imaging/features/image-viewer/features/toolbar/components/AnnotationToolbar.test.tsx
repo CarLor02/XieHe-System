@@ -40,6 +40,20 @@ const completeT1Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   confidence: 0.9,
 }));
 
+const completeC2Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
+  id: `C2-${index}`,
+  point: { x: 200 + index * 10, y: 200 + index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
+const lateralS1Keypoints: KeypointAnnotation[] = [1, 2].map(index => ({
+  id: `S1-${index}`,
+  point: { x: 300 + index * 10, y: 300 + index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
 type AnnotationToolbarProps = ComponentProps<typeof AnnotationToolbar>;
 
 function createBaseToolbarProps(): AnnotationToolbarProps {
@@ -124,12 +138,12 @@ it('renders anterior basic modes and keeps the default manual annotation content
   expect(screen.getByRole('button', { name: /Arrow/ })).toBeTruthy();
 });
 
-it('hides measurement derive mode for lateral annotation', () => {
+it('shows measurement derive mode for lateral annotation', () => {
   renderToolbar({ examType: '侧位X光片' });
 
   expect(screen.getByRole('button', { name: '手动标注' })).toBeTruthy();
   expect(screen.getByRole('button', { name: '椎体点位纠正' })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: '测量项派生' })).toBeNull();
+  expect(screen.getByRole('button', { name: '测量项派生' })).toBeTruthy();
 });
 
 it('shows only keypoints when the vertebra corner rectify mode is selected', () => {
@@ -147,6 +161,22 @@ it('shows only keypoints when the vertebra corner rectify mode is selected', () 
 
 it('shows only Cobb without auxiliary shapes in anterior measurement derive mode', () => {
   renderToolbar();
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+
+  expect(screen.getByRole('button', { name: '测量工具' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '关键点' })).toBeNull();
+  expect(screen.getByText('测量标注')).toBeTruthy();
+  expect(screen.getByRole('button', { name: /Cobb/ })).toBeTruthy();
+  expect(screen.queryByText('辅助图形')).toBeNull();
+  expect(screen.queryByRole('button', { name: /Arrow/ })).toBeNull();
+});
+
+it('shows only Cobb without auxiliary shapes in lateral measurement derive mode', () => {
+  renderToolbar({
+    examType: '侧位X光片',
+    tools: [tools[1]],
+  });
 
   fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
 
@@ -180,6 +210,66 @@ it('derives Cobb from selected complete endpoint vertebrae', () => {
   fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
 
   expect(onCreateCobb).toHaveBeenCalledWith('C7', 'T1');
+});
+
+it('derives lateral Cobb from available endpoint vertebrae including S1 two-point endplate', () => {
+  const onCreateCobb = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    keypoints: [
+      ...completeC2Keypoints,
+      ...completeC7Keypoints,
+      ...lateralS1Keypoints,
+    ],
+    completeVertebraGroups: ['C7'],
+    onCreateCobb,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+
+  expect(screen.getByText('派生Cobb')).toBeTruthy();
+  expect((screen.getByLabelText('上端椎') as HTMLSelectElement).value).toBe(
+    'C2'
+  );
+  expect((screen.getByLabelText('下端椎') as HTMLSelectElement).value).toBe(
+    'C7'
+  );
+  expect(
+    Array.from(
+      (screen.getByLabelText('下端椎') as HTMLSelectElement).options
+    ).map(option => option.value)
+  ).toContain('S1');
+
+  fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
+
+  expect(onCreateCobb).toHaveBeenCalledWith('C2', 'C7');
+});
+
+it('shows an overlay when lateral Cobb endpoint order is invalid', () => {
+  const onCreateCobb = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    keypoints: [...completeC7Keypoints, ...completeT1Keypoints],
+    completeVertebraGroups: ['C7', 'T1'],
+    onCreateCobb,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+  fireEvent.change(screen.getByLabelText('上端椎'), {
+    target: { value: 'T1' },
+  });
+  fireEvent.change(screen.getByLabelText('下端椎'), {
+    target: { value: 'C7' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
+
+  expect(
+    screen.getByText('上端椎不应该比下端椎更靠下或与下端椎相同!')
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: '知道了' })).toBeTruthy();
+  expect(onCreateCobb).not.toHaveBeenCalled();
 });
 
 it('shows an overlay when deriving a duplicate Cobb endpoint pair', () => {
