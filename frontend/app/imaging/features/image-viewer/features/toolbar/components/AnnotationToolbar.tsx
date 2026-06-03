@@ -34,6 +34,7 @@ import ToolbarToolPanel, {
 import { hasCobbMeasurementForEndpoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
 import {
   getCompleteMeasurementDeriveEndpointGroups,
+  getLateralNamedCobbMeasurementRuleByEndpoints,
   isValidMeasurementDeriveEndpointOrder,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 
@@ -395,6 +396,17 @@ export default function AnnotationToolbar({
       setToolbarOverlayMessage(
         '上端椎不应该比下端椎更靠下或与下端椎相同!'
       );
+      return;
+    }
+
+    const namedLateralCobbRule = isLateralView
+      ? getLateralNamedCobbMeasurementRuleByEndpoints(
+          selectedCobbUpper,
+          selectedCobbLower
+        )
+      : null;
+    if (namedLateralCobbRule) {
+      setToolbarOverlayMessage(`${namedLateralCobbRule.name}已存在!`);
       return;
     }
 

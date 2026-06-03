@@ -120,6 +120,46 @@ it('syncs lateral C2-C7 Cobb to lower endplate keypoints', () => {
   ]);
 });
 
+it('infers C2-C7 lateral Cobb endpoint keypoints even when exam type is omitted', () => {
+  const measurement: MeasurementData = {
+    id: 'cobb-1',
+    type: 'cobb1',
+    value: '18.00°',
+    points,
+    upperVertebra: 'C2',
+    lowerVertebra: 'C7',
+  };
+
+  const synced = syncCobbMeasurementToKeypoints([], measurement);
+
+  expect(synced?.map(keypoint => keypoint.id)).toEqual([
+    'C2-3',
+    'C2-4',
+    'C7-3',
+    'C7-4',
+  ]);
+});
+
+it('syncs lateral Cobb to S1 upper endplate keypoints', () => {
+  const measurement: MeasurementData = {
+    id: 'cobb-3',
+    type: 'cobb3',
+    value: '18.00°',
+    points,
+    upperVertebra: 'L4',
+    lowerVertebra: 'S1',
+  };
+
+  const synced = syncCobbMeasurementToKeypoints([], measurement, '侧位X光片');
+
+  expect(synced?.map(keypoint => keypoint.id)).toEqual([
+    'L4-1',
+    'L4-2',
+    'S1-1',
+    'S1-2',
+  ]);
+});
+
 it('does not sync Cobb measurements without completed endpoint vertebrae', () => {
   const measurement: MeasurementData = {
     id: 'cobb-2',

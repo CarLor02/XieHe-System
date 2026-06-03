@@ -8,7 +8,10 @@ import {
   isLateralExamType,
   upsertKeypoint,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
-import { getLateralCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
+import {
+  getLateralCobbEndpointPointIds,
+  getLateralNamedCobbMeasurementRuleByEndpoints,
+} from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 
 function hasCompletedCobbEndpoints(measurement: MeasurementData): boolean {
   return Boolean(
@@ -35,8 +38,17 @@ export function syncCobbMeasurementToKeypoints(
 
   const upperVertebra = measurement.upperVertebra!.trim().toUpperCase();
   const lowerVertebra = measurement.lowerVertebra!.trim().toUpperCase();
+  const shouldUseLateralEndpointRules =
+    (examType && isLateralExamType(examType)) ||
+    lowerVertebra === 'S1' ||
+    Boolean(
+      getLateralNamedCobbMeasurementRuleByEndpoints(
+        upperVertebra,
+        lowerVertebra
+      )
+    );
   const replacementIds =
-    examType && isLateralExamType(examType)
+    shouldUseLateralEndpointRules
       ? getLateralCobbEndpointPointIds(upperVertebra, lowerVertebra)
       : [
           `${upperVertebra}-1`,

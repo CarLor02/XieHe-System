@@ -40,6 +40,34 @@ const completeT1Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   confidence: 0.9,
 }));
 
+const completeT2Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
+  id: `T2-${index}`,
+  point: { x: 120 + index * 10, y: 120 + index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
+const completeT3Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
+  id: `T3-${index}`,
+  point: { x: 140 + index * 10, y: 140 + index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
+const completeT5Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
+  id: `T5-${index}`,
+  point: { x: 160 + index * 10, y: 160 + index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
+const completeT8Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
+  id: `T8-${index}`,
+  point: { x: 180 + index * 10, y: 180 + index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
 const completeC2Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   id: `C2-${index}`,
   point: { x: 200 + index * 10, y: 200 + index * 20 },
@@ -240,10 +268,64 @@ it('derives lateral Cobb from available endpoint vertebrae including S1 two-poin
       (screen.getByLabelText('下端椎') as HTMLSelectElement).options
     ).map(option => option.value)
   ).toContain('S1');
+  fireEvent.change(screen.getByLabelText('下端椎'), {
+    target: { value: 'S1' },
+  });
 
   fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
 
-  expect(onCreateCobb).toHaveBeenCalledWith('C2', 'C7');
+  expect(onCreateCobb).toHaveBeenCalledWith('C2', 'S1');
+});
+
+it('blocks lateral Cobb derivation when the selected endpoints match a named lateral Cobb measurement', () => {
+  const onCreateCobb = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    keypoints: [...completeT2Keypoints, ...completeT5Keypoints],
+    completeVertebraGroups: ['T2', 'T5'],
+    onCreateCobb,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+  fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
+
+  expect(screen.getByText('TK T2-T5已存在!')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '知道了' })).toBeTruthy();
+  expect(onCreateCobb).not.toHaveBeenCalled();
+});
+
+it('blocks C2-C7 lateral Cobb derivation because it matches C2-C7 CL', () => {
+  const onCreateCobb = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    keypoints: [...completeC2Keypoints, ...completeC7Keypoints],
+    completeVertebraGroups: ['C2', 'C7'],
+    onCreateCobb,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+  fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
+
+  expect(screen.getByText('C2-C7 CL已存在!')).toBeTruthy();
+  expect(onCreateCobb).not.toHaveBeenCalled();
+});
+
+it('still derives lateral Cobb when the selected endpoints do not match a named lateral Cobb measurement', () => {
+  const onCreateCobb = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    keypoints: [...completeT3Keypoints, ...completeT8Keypoints],
+    completeVertebraGroups: ['T3', 'T8'],
+    onCreateCobb,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+  fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
+
+  expect(onCreateCobb).toHaveBeenCalledWith('T3', 'T8');
 });
 
 it('shows an overlay when lateral Cobb endpoint order is invalid', () => {
