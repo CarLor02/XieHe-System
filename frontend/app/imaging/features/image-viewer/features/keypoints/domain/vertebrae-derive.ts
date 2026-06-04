@@ -24,10 +24,6 @@ import {
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
-function calcAngle(p1: Point, p2: Point): number {
-  return Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
-}
-
 function midpoint(a: Point, b: Point): Point {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
@@ -187,30 +183,7 @@ interface FrontalCorners {
   center: Point;
 }
 
-function buildFrontalCorners(v: VertebraAnnotation): FrontalCorners {
-  const [tl, tr, bl, br] = v.corners;
-  return {
-    topLeft: tl,
-    topRight: tr,
-    bottomLeft: bl,
-    bottomRight: br,
-    topMid: midpoint(tl, tr),
-    bottomMid: midpoint(bl, br),
-    center: centroid(tl, tr, bl, br),
-  };
-}
-
-function cobbAngle(ul: Point, ur: Point, ll: Point, lr: Point): number {
-  const upperAngle = calcAngle(ul, ur);
-  const lowerAngle = calcAngle(ll, lr);
-  let magnitude = Math.abs(upperAngle - lowerAngle);
-  if (magnitude > 180) magnitude = 360 - magnitude;
-  const leftDist = Math.abs(ll.y - ul.y);
-  const rightDist = Math.abs(lr.y - ur.y);
-  return leftDist > rightDist ? magnitude : -magnitude;
-}
-
-const VERTEBRA_LABELS = new Set([
+const VERTEBRA_ORDER = [
   'C7',
   'T1',
   'T2',
@@ -229,153 +202,162 @@ const VERTEBRA_LABELS = new Set([
   'L3',
   'L4',
   'L5',
-]);
+] as const;
+const ORDER_INDEX: Record<string, number> = Object.fromEntries(
+  VERTEBRA_ORDER.map((name, index) => [name, index])
+);
+
+interface CobbCandidate {
+  upperVertebra: string;
+  lowerVertebra: string;
+  signedCobbV2: number;
+  absCobbV2: number;
+  upperEndplateAngle: number;
+  lowerEndplateAngle: number;
+  vertebraSpan: number;
+  autoRank?: number;
+}
+
+function buildFrontalCorners(v: VertebraAnnotation): FrontalCorners {
+  const [tl, tr, bl, br] = v.corners;
+  return {
+    topLeft: tl,
+    topRight: tr,
+    bottomLeft: bl,
+    bottomRight: br,
+    topMid: midpoint(tl, tr),
+    bottomMid: midpoint(bl, br),
+    center: centroid(tl, tr, bl, br),
+  };
+}
+
+function lineAngle(p1: Point, p2: Point): number {
+  let angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+  if (angle > 90) {
+    angle -= 180;
+  } else if (angle < -90) {
+    angle += 180;
+  }
+  return angle;
+}
+
+function smallAngleBetween(a: number, b: number): number {
+  const diff = Math.abs(a - b) % 180;
+  return Math.min(diff, 180 - diff);
+}
+
+function signedCobb(
+  upper: FrontalCorners,
+  lower: FrontalCorners
+): [number, number, number, number] {
+  const upperAngle = lineAngle(upper.topLeft, upper.topRight);
+  const lowerAngle = lineAngle(lower.bottomLeft, lower.bottomRight);
+  const magnitude = smallAngleBetween(upperAngle, lowerAngle);
+  const leftSpan = Math.abs(lower.bottomLeft.y - upper.topLeft.y);
+  const rightSpan = Math.abs(lower.bottomRight.y - upper.topRight.y);
+  const sign = leftSpan > rightSpan ? 1 : -1;
+  return [sign * magnitude, magnitude, upperAngle, lowerAngle];
+}
+
+const VERTEBRA_LABELS = new Set<string>(VERTEBRA_ORDER);
 const POSE_LABELS = new Set(['CR', 'CL', 'IR', 'IL', 'SR', 'SL']);
+
+function vertebraeInOrder(
+  vertebraeFrontal: Map<string, FrontalCorners>
+): string[] {
+  return VERTEBRA_ORDER.filter(name => vertebraeFrontal.has(name));
+}
+
+function allCandidates(
+  vertebraeFrontal: Map<string, FrontalCorners>
+): CobbCandidate[] {
+  const names = vertebraeInOrder(vertebraeFrontal);
+  const rows: CobbCandidate[] = [];
+
+  names.forEach((upperName, index) => {
+    names.slice(index + 1).forEach(lowerName => {
+      const upper = vertebraeFrontal.get(upperName)!;
+      const lower = vertebraeFrontal.get(lowerName)!;
+      const [signed, magnitude, upperAngle, lowerAngle] = signedCobb(
+        upper,
+        lower
+      );
+      rows.push({
+        upperVertebra: upperName,
+        lowerVertebra: lowerName,
+        signedCobbV2: Number(signed.toFixed(6)),
+        absCobbV2: Number(magnitude.toFixed(6)),
+        upperEndplateAngle: Number(upperAngle.toFixed(6)),
+        lowerEndplateAngle: Number(lowerAngle.toFixed(6)),
+        vertebraSpan: ORDER_INDEX[lowerName] - ORDER_INDEX[upperName],
+      });
+    });
+  });
+
+  return rows;
+}
+
+function selectNonOverlapping(
+  candidates: CobbCandidate[],
+  limit = 3,
+  threshold = 10,
+  minSpan = 3
+): CobbCandidate[] {
+  const selected: CobbCandidate[] = [];
+
+  [...candidates]
+    .sort((left, right) => right.absCobbV2 - left.absCobbV2)
+    .forEach(row => {
+      if (selected.length >= limit) return;
+      if (row.absCobbV2 < threshold) return;
+      if (row.vertebraSpan < minSpan) return;
+
+      const start = ORDER_INDEX[row.upperVertebra];
+      const end = ORDER_INDEX[row.lowerVertebra];
+      const overlapsTooMuch = selected.some(chosen => {
+        const chosenStart = ORDER_INDEX[chosen.upperVertebra];
+        const chosenEnd = ORDER_INDEX[chosen.lowerVertebra];
+        const overlap = Math.max(
+          0,
+          Math.min(end, chosenEnd) - Math.max(start, chosenStart)
+        );
+        return overlap > 1;
+      });
+      if (overlapsTooMuch) return;
+
+      selected.push({
+        ...row,
+        autoRank: selected.length + 1,
+      });
+    });
+
+  return selected;
+}
 
 function findCobbAngles(
   vertebraeFrontal: Map<string, FrontalCorners>
 ): MeasurementData[] {
-  const results: MeasurementData[] = [];
-  const usedApex = new Set<string>();
+  return selectNonOverlapping(allCandidates(vertebraeFrontal)).map(row => {
+    const upper = vertebraeFrontal.get(row.upperVertebra)!;
+    const lower = vertebraeFrontal.get(row.lowerVertebra)!;
+    const autoRank = row.autoRank ?? 1;
 
-  const regions: { name: string; range: string[] }[] = [
-    { name: 'Thoracolumbar', range: ['T12', 'L1'] },
-    {
-      name: 'Thoracic',
-      range: [
-        'T2',
-        'T3',
-        'T4',
-        'T5',
-        'T6',
-        'T7',
-        'T8',
-        'T9',
-        'T10',
-        'T11',
-        'T12',
+    return {
+      id: `vertebrae-derived-cobb-auto-${autoRank}`,
+      type: 'Cobb',
+      value: '',
+      points: [
+        upper.topLeft,
+        upper.topRight,
+        lower.bottomLeft,
+        lower.bottomRight,
       ],
-    },
-    { name: 'Lumbar', range: ['L2', 'L3', 'L4', 'L5'] },
-  ];
-
-  for (const region of regions) {
-    const available = new Map<string, FrontalCorners>();
-    region.range.forEach(name => {
-      if (vertebraeFrontal.has(name))
-        available.set(name, vertebraeFrontal.get(name)!);
-    });
-    if (available.size < 2) continue;
-
-    const allCx = Array.from(available.values()).map(c => c.center.x);
-    const midlineX = allCx.reduce((a, b) => a + b, 0) / allCx.length;
-
-    let maxOffset = 0,
-      apexName = '',
-      apexC: FrontalCorners | null = null,
-      apexY = 0;
-    for (const [name, c] of available.entries()) {
-      const offset = Math.abs(c.center.x - midlineX);
-      if (offset > maxOffset) {
-        maxOffset = offset;
-        apexName = name;
-        apexC = c;
-        apexY = c.center.y;
-      }
-    }
-    if (!apexC || usedApex.has(apexName)) continue;
-
-    const apex = apexC;
-    const apexTilt = calcAngle(apex.topLeft, apex.topRight);
-
-    let maxTilt = apexTilt,
-      upperName = '',
-      upperC: FrontalCorners | null = null;
-    let topmostName = '',
-      topmostC: FrontalCorners | null = null,
-      topmostY = Infinity;
-    for (const [name, c] of available.entries()) {
-      if (c.center.y < apexY - 10) {
-        const tilt = calcAngle(c.topLeft, c.topRight);
-        if (tilt > maxTilt) {
-          maxTilt = tilt;
-          upperName = name;
-          upperC = c;
-        }
-        if (c.center.y < topmostY) {
-          topmostY = c.center.y;
-          topmostName = name;
-          topmostC = c;
-        }
-      }
-    }
-    if (!upperC && topmostC) {
-      upperC = topmostC;
-      upperName = topmostName;
-    }
-    if (!upperC) {
-      upperC = apex;
-      upperName = apexName;
-    }
-
-    let minTilt = apexTilt,
-      lowerName = '',
-      lowerC: FrontalCorners | null = null;
-    let bottomName = '',
-      bottomC: FrontalCorners | null = null,
-      bottomY = -Infinity;
-    for (const [name, c] of available.entries()) {
-      if (c.center.y > apexY + 10) {
-        const tilt = calcAngle(c.topLeft, c.topRight);
-        if (tilt < minTilt) {
-          minTilt = tilt;
-          lowerName = name;
-          lowerC = c;
-        }
-        if (c.center.y > bottomY) {
-          bottomY = c.center.y;
-          bottomName = name;
-          bottomC = c;
-        }
-      }
-    }
-    if (!lowerC && bottomC) {
-      lowerC = bottomC;
-      lowerName = bottomName;
-    }
-    if (!lowerC) {
-      lowerC = apex;
-      lowerName = apexName;
-    }
-
-    if (!upperC || !lowerC || upperName === lowerName) continue;
-
-    const cobb = cobbAngle(
-      upperC.topLeft,
-      upperC.topRight,
-      lowerC.bottomLeft,
-      lowerC.bottomRight
-    );
-    if (Math.abs(cobb) > 10) {
-      results.push({
-        id: `vertebrae-derived-cobb-${region.name.toLowerCase()}`,
-        type: `Cobb-${region.name}`,
-        value: '',
-        points: [
-          upperC.topLeft,
-          upperC.topRight,
-          lowerC.bottomLeft,
-          lowerC.bottomRight,
-        ],
-        description: `[推导] Cobb ${region.name}（上=${upperName}, 下=${lowerName}, 顶=${apexName}）`,
-        upperVertebra: upperName,
-        lowerVertebra: lowerName,
-        apexVertebra: apexName,
-      });
-      usedApex.add(apexName);
-    }
-  }
-  return results;
+      description: `[推导] Cobb Auto${autoRank}（上=${row.upperVertebra}, 下=${row.lowerVertebra}）`,
+      upperVertebra: row.upperVertebra,
+      lowerVertebra: row.lowerVertebra,
+      apexVertebra: null,
+    };
+  });
 }
 
 function deriveAnterior(

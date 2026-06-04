@@ -46,9 +46,9 @@ it('numbers AI Cobb measurements and uses the configured Cobb colors', async () 
     imageWidth: 1000,
     imageHeight: 1000,
     measurements: [
-      cobbAiMeasurement('Cobb-Thoracic', 'T5', 'T12'),
-      cobbAiMeasurement('Cobb-Thoracolumbar', 'T10', 'L2'),
-      cobbAiMeasurement('Cobb-Lumbar', 'L1', 'L5'),
+      cobbAiMeasurement('Cobb-Auto1', 'T5', 'T12'),
+      cobbAiMeasurement('Cobb-Auto2', 'T10', 'L2'),
+      cobbAiMeasurement('Cobb-Auto3', 'L1', 'L5'),
     ],
   });
   const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);

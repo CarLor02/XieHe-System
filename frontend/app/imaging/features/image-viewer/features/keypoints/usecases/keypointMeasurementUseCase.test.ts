@@ -36,6 +36,19 @@ function l4L5LumbarCobbKeypoints(): KeypointAnnotation[] {
   ];
 }
 
+function t1L5GlobalCobbKeypoints(): KeypointAnnotation[] {
+  return [
+    apCorner('T1-1', 100, 100),
+    apCorner('T1-2', 200, 100),
+    apCorner('T1-3', 100, 140),
+    apCorner('T1-4', 200, 140),
+    apCorner('L5-1', 100, 260),
+    apCorner('L5-2', 200, 260),
+    apCorner('L5-3', 100, 300),
+    apCorner('L5-4', 200, 336.397),
+  ];
+}
+
 const calculationContext = {
   standardDistance: null,
   standardDistancePoints: [],
@@ -61,10 +74,10 @@ it('includes L5 in AP keypoint groups and complete AP render layers', () => {
   ).toContain('L5');
 });
 
-it('derives AP Lumbar Cobb measurements with L5 as an endpoint', () => {
+it('derives AP Cobb measurements from global endpoint candidates', () => {
   const rebuilt = rebuildKeypointMeasurements({
     previousMeasurements: [],
-    keypoints: l4L5LumbarCobbKeypoints(),
+    keypoints: t1L5GlobalCobbKeypoints(),
     cfhAnnotation: null,
     examType: '正位X光片',
     isLateralView: false,
@@ -72,14 +85,13 @@ it('derives AP Lumbar Cobb measurements with L5 as an endpoint', () => {
     aiMeasurementIds: new Set(),
   });
 
-  expect(rebuilt).toEqual([
+  expect(rebuilt.find(measurement => measurement.type === 'cobb1')).toEqual(
     expect.objectContaining({
-      type: 'cobb1',
-      upperVertebra: 'L4',
+      upperVertebra: 'T1',
       lowerVertebra: 'L5',
-      apexVertebra: 'L4',
-    }),
-  ]);
+      apexVertebra: null,
+    })
+  );
 });
 
 it('starts keypoint-derived Cobb numbering after the current maximum Cobb number', () => {
@@ -100,7 +112,7 @@ it('starts keypoint-derived Cobb numbering after the current maximum Cobb number
 
   const rebuilt = rebuildKeypointMeasurements({
     previousMeasurements,
-    keypoints: l4L5LumbarCobbKeypoints(),
+    keypoints: t1L5GlobalCobbKeypoints(),
     cfhAnnotation: null,
     examType: '正位X光片',
     isLateralView: false,
@@ -108,11 +120,11 @@ it('starts keypoint-derived Cobb numbering after the current maximum Cobb number
     aiMeasurementIds: new Set(),
   });
 
-  expect(rebuilt.map(measurement => measurement.type)).toEqual([
-    'cobb1',
-    'cobb3',
-    'cobb4',
-  ]);
+  expect(
+    rebuilt
+      .map(measurement => measurement.type)
+      .filter(type => /^cobb\d+$/i.test(type))
+  ).toEqual(['cobb1', 'cobb3', 'cobb4']);
 });
 
 it('creates a numbered keypoint-bound Cobb from selected endpoint vertebrae', () => {
@@ -479,20 +491,11 @@ it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb
       type: 'cobb1',
       value: '20.00°',
       points: [],
-      upperVertebra: 'T12',
-      lowerVertebra: 'L1',
+      upperVertebra: 'T1',
+      lowerVertebra: 'L5',
     },
   ];
-  const keypoints: KeypointAnnotation[] = [
-    apCorner('T12-1', 100, 100),
-    apCorner('T12-2', 200, 100),
-    apCorner('T12-3', 100, 130),
-    apCorner('T12-4', 200, 130),
-    apCorner('L1-1', 180, 180),
-    apCorner('L1-2', 280, 180),
-    apCorner('L1-3', 160, 230),
-    apCorner('L1-4', 260, 266),
-  ];
+  const keypoints = t1L5GlobalCobbKeypoints();
 
   const rebuilt = rebuildKeypointMeasurements({
     previousMeasurements: firstPassCobb,
@@ -504,7 +507,7 @@ it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb
     aiMeasurementIds: new Set(['ai-cobb-1']),
   });
 
-  expect(rebuilt.map(measurement => measurement.type)).toEqual(['cobb1']);
-  expect(rebuilt[0].upperVertebra).toBe('T12');
-  expect(rebuilt[0].lowerVertebra).toBe('L1');
+  const cobb = rebuilt.find(measurement => measurement.type === 'cobb1');
+  expect(cobb?.upperVertebra).toBe('T1');
+  expect(cobb?.lowerVertebra).toBe('L5');
 });

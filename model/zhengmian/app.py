@@ -420,6 +420,145 @@ def calc_angle(p1: dict, p2: dict) -> float:
     return math.degrees(math.atan2(dy, dx))
 
 
+VERTEBRA_ORDER = ["C7"] + [f"T{i}" for i in range(1, 13)] + [f"L{i}" for i in range(1, 6)]
+ORDER_INDEX = {name: idx for idx, name in enumerate(VERTEBRA_ORDER)}
+
+
+def line_angle(p1: dict, p2: dict) -> float:
+    """计算端板线与水平线的夹角，并归一到 [-90, 90]。"""
+    angle = calc_angle(p1, p2)
+    if angle > 90:
+        angle -= 180
+    elif angle < -90:
+        angle += 180
+    return angle
+
+
+def small_angle_between(a: float, b: float) -> float:
+    """按 180 度周期计算两条端板线之间的最小夹角。"""
+    diff = abs(a - b) % 180
+    return min(diff, 180 - diff)
+
+
+def signed_cobb(upper: dict, lower: dict) -> tuple[float, float, float, float]:
+    """
+    基于标准 Cobb 端板计算带符号角度。
+
+    upper 使用上终板 top_left -> top_right；lower 使用下终板
+    bottom_left -> bottom_right。符号沿用当前模型服务约定：左侧跨度更大为正。
+    """
+    uc = upper["corners"]
+    lc = lower["corners"]
+    upper_angle = line_angle(uc["top_left"], uc["top_right"])
+    lower_angle = line_angle(lc["bottom_left"], lc["bottom_right"])
+    magnitude = small_angle_between(upper_angle, lower_angle)
+    left_span = abs(lc["bottom_left"]["y"] - uc["top_left"]["y"])
+    right_span = abs(lc["bottom_right"]["y"] - uc["top_right"]["y"])
+    sign = 1 if left_span > right_span else -1
+    return sign * magnitude, magnitude, upper_angle, lower_angle
+
+
+def vertebrae_in_order(vertebrae: Dict[str, Any]) -> List[str]:
+    return [name for name in VERTEBRA_ORDER if name in vertebrae]
+
+
+def all_candidates(vertebrae: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """遍历全脊柱所有合理上下端椎组合。"""
+    names = vertebrae_in_order(vertebrae)
+    rows = []
+    for i, upper_name in enumerate(names):
+        for lower_name in names[i + 1:]:
+            signed, magnitude, upper_angle, lower_angle = signed_cobb(
+                vertebrae[upper_name],
+                vertebrae[lower_name]
+            )
+            rows.append({
+                "upper_vertebra": upper_name,
+                "lower_vertebra": lower_name,
+                "signed_cobb_v2": round(signed, 6),
+                "abs_cobb_v2": round(magnitude, 6),
+                "upper_endplate_angle": round(upper_angle, 6),
+                "lower_endplate_angle": round(lower_angle, 6),
+                "vertebra_span": ORDER_INDEX[lower_name] - ORDER_INDEX[upper_name],
+            })
+    return rows
+
+
+def select_nonoverlapping(
+    candidates: List[Dict[str, Any]],
+    limit: int = 3,
+    threshold: float = 10.0,
+    min_span: int = 3,
+) -> List[Dict[str, Any]]:
+    """按 Cobb 绝对值选择最多 3 条非高度重叠曲线。"""
+    selected = []
+    for row in sorted(candidates, key=lambda r: float(r["abs_cobb_v2"]), reverse=True):
+        if float(row["abs_cobb_v2"]) < threshold:
+            continue
+        if int(row["vertebra_span"]) < min_span:
+            continue
+
+        start = ORDER_INDEX[row["upper_vertebra"]]
+        end = ORDER_INDEX[row["lower_vertebra"]]
+        overlaps_too_much = False
+        for chosen in selected:
+            c_start = ORDER_INDEX[chosen["upper_vertebra"]]
+            c_end = ORDER_INDEX[chosen["lower_vertebra"]]
+            overlap = max(0, min(end, c_end) - max(start, c_start))
+            if overlap > 1:
+                overlaps_too_much = True
+                break
+        if overlaps_too_much:
+            continue
+
+        output = dict(row)
+        output["auto_rank"] = len(selected) + 1
+        selected.append(output)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def find_cobb_angles_v2(vertebrae_data: Dict[str, dict]) -> List[Dict]:
+    """
+    自动查找最多 3 个 Cobb 角。
+
+    v2 不再固定胸弯/胸腰弯/腰弯区域；它遍历全脊柱端椎组合，
+    按绝对 Cobb 从大到小选择非高度重叠曲线。
+    """
+    cobb_angles = []
+    candidates = all_candidates(vertebrae_data)
+    selected = select_nonoverlapping(candidates)
+
+    for row in selected:
+        upper_name = row["upper_vertebra"]
+        lower_name = row["lower_vertebra"]
+        upper_vertebra = vertebrae_data[upper_name]["corners"]
+        lower_vertebra = vertebrae_data[lower_name]["corners"]
+        auto_rank = row["auto_rank"]
+        cobb = row["signed_cobb_v2"]
+
+        print(
+            f"[DEBUG] Cobb-Auto{auto_rank} = {cobb:.2f}° "
+            f"(上端椎={upper_name}, 下端椎={lower_name})"
+        )
+        cobb_angles.append({
+            "type": f"Cobb-Auto{auto_rank}",
+            "angle": cobb,
+            "upper_vertebra": upper_name,
+            "lower_vertebra": lower_name,
+            "apex_vertebra": None,
+            "points": [
+                {"x": upper_vertebra["top_left"]["x"], "y": upper_vertebra["top_left"]["y"]},
+                {"x": upper_vertebra["top_right"]["x"], "y": upper_vertebra["top_right"]["y"]},
+                {"x": lower_vertebra["bottom_left"]["x"], "y": lower_vertebra["bottom_left"]["y"]},
+                {"x": lower_vertebra["bottom_right"]["x"], "y": lower_vertebra["bottom_right"]["y"]},
+            ],
+        })
+
+    return cobb_angles
+
+
 def calc_tilt_angle(left_point: dict, right_point: dict) -> float:
     """
     计算倾斜角（带正负）
@@ -679,9 +818,9 @@ def convert_to_annotations(
             ]
         })
 
-    # 2. Cobb角 - 自动查找最多3个Cobb角（胸弯、胸腰弯、腰弯）
+    # 2. Cobb角 - 自动查找最多3个全脊柱候选 Cobb 角
     if vertebrae_data:
-        cobb_angles = find_cobb_angles(vertebrae_data)
+        cobb_angles = find_cobb_angles_v2(vertebrae_data)
         for cobb_data in cobb_angles:
             measurements.append({
                 "type": cobb_data["type"],
