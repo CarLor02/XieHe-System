@@ -166,6 +166,47 @@ it('renders anterior basic modes and keeps the default manual annotation content
   expect(screen.getByRole('button', { name: /Arrow/ })).toBeTruthy();
 });
 
+it('selects a measurement tool when it is not already active', () => {
+  const onSelectTool = jest.fn();
+  const onActivateHandMode = jest.fn();
+  renderToolbar({ onSelectTool, onActivateHandMode });
+
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+
+  expect(onSelectTool).toHaveBeenCalledWith('cobb');
+  expect(onActivateHandMode).not.toHaveBeenCalled();
+});
+
+it('returns to hand mode when clicking the active measurement tool again', () => {
+  const onSelectTool = jest.fn();
+  const onActivateHandMode = jest.fn();
+  renderToolbar({
+    selectedTool: 'cobb',
+    onSelectTool,
+    onActivateHandMode,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+
+  expect(onActivateHandMode).toHaveBeenCalled();
+  expect(onSelectTool).not.toHaveBeenCalled();
+});
+
+it('returns to hand mode when clicking the active auxiliary tool again', () => {
+  const onSelectTool = jest.fn();
+  const onActivateHandMode = jest.fn();
+  renderToolbar({
+    selectedTool: 'arrow',
+    onSelectTool,
+    onActivateHandMode,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: /Arrow/ }));
+
+  expect(onActivateHandMode).toHaveBeenCalled();
+  expect(onSelectTool).not.toHaveBeenCalled();
+});
+
 it('shows measurement derive mode for lateral annotation', () => {
   renderToolbar({ examType: '侧位X光片' });
 
@@ -214,6 +255,23 @@ it('shows only Cobb without auxiliary shapes in lateral measurement derive mode'
   expect(screen.getByRole('button', { name: /Cobb/ })).toBeTruthy();
   expect(screen.queryByText('辅助图形')).toBeNull();
   expect(screen.queryByRole('button', { name: /Arrow/ })).toBeNull();
+});
+
+it('keeps Cobb derivation panel behavior even when Cobb is the active tool', () => {
+  const onActivateHandMode = jest.fn();
+  renderToolbar({
+    selectedTool: 'cobb',
+    keypoints: [...completeC7Keypoints, ...completeT1Keypoints],
+    completeVertebraGroups: ['C7', 'T1'],
+    onActivateHandMode,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  onActivateHandMode.mockClear();
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+
+  expect(screen.getByText('派生Cobb')).toBeTruthy();
+  expect(onActivateHandMode).not.toHaveBeenCalled();
 });
 
 it('derives Cobb from selected complete endpoint vertebrae', () => {

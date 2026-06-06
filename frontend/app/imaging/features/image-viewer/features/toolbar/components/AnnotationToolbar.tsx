@@ -278,6 +278,15 @@ export default function AnnotationToolbar({
     setRectifySequenceByFrom({ ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM });
   };
 
+  const handleManualToolSelect = (toolId: string) => {
+    setOpenMeasurementTool(null);
+    if (selectedTool === toolId) {
+      onActivateHandMode();
+      return;
+    }
+    onSelectTool(toolId);
+  };
+
   const handleBasicModeSelect = (mode: BasicMode) => {
     setCurrentBasicMode(mode);
     closeToolPopovers();
@@ -701,8 +710,7 @@ export default function AnnotationToolbar({
                                 setOpenKeypointGroup(null);
                                 return;
                               }
-                              setOpenMeasurementTool(null);
-                              onSelectTool(tool.id);
+                              handleManualToolSelect(tool.id);
                             }}
                             disabled={!isToolAvailable}
                             className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
@@ -934,8 +942,7 @@ export default function AnnotationToolbar({
                         <button
                           key={tool.id}
                           onClick={() => {
-                            setOpenMeasurementTool(null);
-                            onSelectTool(tool.id);
+                            handleManualToolSelect(tool.id);
                           }}
                           className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
                             selectedTool === tool.id
