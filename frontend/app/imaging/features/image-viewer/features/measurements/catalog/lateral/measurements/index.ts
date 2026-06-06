@@ -1,6 +1,7 @@
 import { Tool } from '@/app/imaging/features/image-viewer/shared/types';
 import { VERTEBRA_CENTER_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/vertebra-center';
 import { CL_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cl';
+import { LATERAL_COBB_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cobb';
 import { LL_L1_L4_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/ll-l1-l4';
 import { LL_L1_S1_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/ll-l1-s1';
 import { LL_L4_S1_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/ll-l4-s1';
@@ -15,6 +16,7 @@ import { TK_T5_T12_CONFIG } from '@/app/imaging/features/image-viewer/features/m
 import { TPA_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/tpa';
 
 export { CL_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cl';
+export { LATERAL_COBB_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cobb';
 export { LL_L1_L4_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/ll-l1-l4';
 export { LL_L1_S1_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/ll-l1-s1';
 export { LL_L4_S1_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/ll-l4-s1';
@@ -45,6 +47,8 @@ export const LATERAL_AUTOMATIC_MEASUREMENT_TOOL_IDS = [
 
 export const LATERAL_DEPENDENT_MEASUREMENT_TOOL_IDS = ['cl'] as const;
 
+export const LATERAL_MANUAL_MEASUREMENT_TOOL_IDS = ['cobb'] as const;
+
 export const LATERAL_SELECTION_MEASUREMENT_TOOL_IDS = [] as const;
 
 export const LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS = [
@@ -55,12 +59,14 @@ export const LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS = [
 const LATERAL_MEASUREMENT_TOOL_IDS = [
   ...LATERAL_AUTOMATIC_MEASUREMENT_TOOL_IDS,
   ...LATERAL_DEPENDENT_MEASUREMENT_TOOL_IDS,
+  ...LATERAL_MANUAL_MEASUREMENT_TOOL_IDS,
 ] as const;
 
 export const LATERAL_MEASUREMENT_CONFIGS = {
   't1-slope': T1_SLOPE_CONFIG,
   cl: CL_CONFIG,
   'c2-c7-cl': CL_CONFIG,
+  cobb: LATERAL_COBB_CONFIG,
   'tk-t2-t5': TK_T2_T5_CONFIG,
   'tk-t5-t12': TK_T5_T12_CONFIG,
   't10-l2': T10_L2_CONFIG,

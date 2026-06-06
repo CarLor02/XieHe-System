@@ -78,6 +78,30 @@ it('shows the Cobb sequence number together with endpoint vertebrae in the measu
   ).toBeTruthy();
 });
 
+it('shows pending endpoint labels for numbered Cobb measurements without vertebrae', () => {
+  renderPanel([
+    {
+      id: 'cobb-4',
+      type: 'cobb4',
+      value: '12.00°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+    },
+  ]);
+
+  expect(
+    screen.getByText(
+      (_, element) =>
+        element?.tagName.toLowerCase() === 'span' &&
+        element.textContent === 'Cobb4(上端椎待定-下端椎待定)'
+    )
+  ).toBeTruthy();
+});
+
 it('shows a disabled Cobb sync button until both endpoint vertebrae are filled', () => {
   renderPanel([
     {

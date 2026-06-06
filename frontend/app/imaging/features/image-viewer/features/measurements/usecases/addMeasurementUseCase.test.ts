@@ -57,3 +57,48 @@ it('adds manual Cobb measurements after the current maximum Cobb number', () => 
     'cobb4',
   ]);
 });
+
+it('keeps lateral manual Cobb measurements non-unique and numbered', () => {
+  let measurements: MeasurementData[] = [];
+  const setMeasurements: Dispatch<SetStateAction<MeasurementData[]>> = next => {
+    measurements =
+      typeof next === 'function'
+        ? next(measurements)
+        : (next as MeasurementData[]);
+  };
+  const tools: Tool[] = [
+    {
+      id: 'cobb',
+      name: 'Cobb',
+      icon: 'medical-cobb',
+      description: '任意两节段Cobb角测量',
+      pointsNeeded: 4,
+    },
+  ];
+
+  addMeasurement(
+    'cobb',
+    cobbPoints,
+    measurements,
+    setMeasurements,
+    tools,
+    null,
+    [],
+    imageNaturalSize
+  );
+  addMeasurement(
+    'cobb',
+    cobbPoints,
+    measurements,
+    setMeasurements,
+    tools,
+    null,
+    [],
+    imageNaturalSize
+  );
+
+  expect(measurements.map(measurement => measurement.type)).toEqual([
+    'cobb1',
+    'cobb2',
+  ]);
+});
