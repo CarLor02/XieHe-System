@@ -1,15 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, jest } from '@jest/globals';
+import type { ComponentProps } from 'react';
 
 import MeasurementResultsPanel from './MeasurementResultsPanel';
 import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 
 function renderPanel(
   measurements: MeasurementData[],
-  onCobbKeypointsSync = jest.fn()
+  onCobbKeypointsSync = jest.fn(),
+  overrides: Partial<ComponentProps<typeof MeasurementResultsPanel>> = {}
 ) {
   return render(
     <MeasurementResultsPanel
+      examType="正位X光片"
       showResults={true}
       hideAllLabels={false}
       hideAllAnnotations={false}
@@ -48,6 +51,7 @@ function renderPanel(
       onKeypointDelete={jest.fn()}
       onMeasurementUpdate={jest.fn()}
       onCobbKeypointsSync={onCobbKeypointsSync}
+      {...overrides}
     />
   );
 }
@@ -206,4 +210,40 @@ it('syncs a completed lateral Cobb measurement to the detection layer from the m
   fireEvent.click(syncButton);
 
   expect(onCobbKeypointsSync).toHaveBeenCalledWith('lateral-cobb-1');
+});
+
+it('blocks editing lateral Cobb endpoints when they match a named lateral Cobb measurement', () => {
+  const onMeasurementUpdate = jest.fn();
+  renderPanel(
+    [
+      {
+        id: 'lateral-cobb-1',
+        type: 'lateral-cobb1',
+        value: '18.20°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'T2',
+        lowerVertebra: null,
+      },
+    ],
+    jest.fn(),
+    {
+      examType: '侧位X光片',
+      onMeasurementUpdate,
+    }
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: '下端椎待定' }));
+  fireEvent.change(screen.getByPlaceholderText('下端椎待定'), {
+    target: { value: 'T5' },
+  });
+  fireEvent.blur(screen.getByPlaceholderText('下端椎待定'));
+
+  expect(screen.getByText('TK T2-T5已存在!')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '知道了' })).toBeTruthy();
+  expect(onMeasurementUpdate).not.toHaveBeenCalled();
 });

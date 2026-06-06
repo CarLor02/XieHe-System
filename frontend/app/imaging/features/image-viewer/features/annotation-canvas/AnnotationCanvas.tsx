@@ -672,6 +672,7 @@ export default function AnnotationCanvas({
       onDragEnd={e => e.preventDefault()}
     >
       <MeasurementResultsPanel
+        examType={selectedImage.examType}
         showResults={showResults}
         hideAllLabels={hideAllLabels}
         hideAllAnnotations={hideAllAnnotations}

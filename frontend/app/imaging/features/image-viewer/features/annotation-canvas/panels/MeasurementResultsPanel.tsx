@@ -11,9 +11,11 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
   compareAnatomicalKeypointIds,
+  isLateralExamType,
   KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { canSyncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
+import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 
 type ResultsTab = 'measurements' | 'keypoints';
@@ -23,6 +25,7 @@ function isNumberedCobbMeasurement(type: string): boolean {
 }
 
 interface MeasurementResultsPanelProps {
+  examType: string;
   showResults: boolean;
   hideAllLabels: boolean;
   hideAllAnnotations: boolean;
@@ -60,6 +63,7 @@ interface MeasurementResultsPanelProps {
  * 面板交互与画布渲染弱耦合，单独抽离避免入口继续膨胀。
  */
 export default function MeasurementResultsPanel({
+  examType,
   showResults,
   hideAllLabels,
   hideAllAnnotations,
@@ -98,6 +102,9 @@ export default function MeasurementResultsPanel({
     field: 'upperVertebra' | 'lowerVertebra';
   } | null>(null);
   const [editingCobbEndpointValue, setEditingCobbEndpointValue] = useState('');
+  const [panelOverlayMessage, setPanelOverlayMessage] = useState<string | null>(
+    null
+  );
 
   const startEditingAuxiliaryName = (
     measurementId: string,
@@ -138,7 +145,35 @@ export default function MeasurementResultsPanel({
       return;
     }
 
+    const measurement = measurements.find(
+      item => item.id === editingCobbEndpoint.measurementId
+    );
     const trimmed = editingCobbEndpointValue.trim();
+
+    if (measurement && isLateralExamType(examType)) {
+      const nextUpper =
+        editingCobbEndpoint.field === 'upperVertebra'
+          ? trimmed
+          : (measurement.upperVertebra?.trim() ?? '');
+      const nextLower =
+        editingCobbEndpoint.field === 'lowerVertebra'
+          ? trimmed
+          : (measurement.lowerVertebra?.trim() ?? '');
+
+      if (nextUpper && nextLower) {
+        const namedLateralCobbRule =
+          getLateralNamedCobbMeasurementRuleByEndpoints(
+            nextUpper.toUpperCase(),
+            nextLower.toUpperCase()
+          );
+        if (namedLateralCobbRule) {
+          setPanelOverlayMessage(`${namedLateralCobbRule.name}已存在!`);
+          setEditingCobbEndpoint(null);
+          return;
+        }
+      }
+    }
+
     onMeasurementUpdate(editingCobbEndpoint.measurementId, {
       [editingCobbEndpoint.field]: trimmed.length > 0 ? trimmed : null,
     });
@@ -385,6 +420,22 @@ export default function MeasurementResultsPanel({
       onPointerMove={event => event.stopPropagation()}
       onPointerUp={event => event.stopPropagation()}
     >
+      {panelOverlayMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-80 rounded-lg border border-gray-600 bg-gray-900 p-4 shadow-2xl">
+            <div className="text-sm text-white">{panelOverlayMessage}</div>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPanelOverlayMessage(null)}
+                className="h-8 rounded bg-blue-600 px-3 text-xs text-white hover:bg-blue-500"
+              >
+                知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="w-[500px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg bg-black/70 backdrop-blur-sm">
         <div className="flex items-center justify-between px-3 py-2 bg-black/20 w-full">
           <div className="flex items-center min-w-0">
