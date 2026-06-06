@@ -18,6 +18,10 @@ import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/
 
 type ResultsTab = 'measurements' | 'keypoints';
 
+function isNumberedCobbMeasurement(type: string): boolean {
+  return /^(?:lateral-)?cobb\d*$/i.test(type);
+}
+
 interface MeasurementResultsPanelProps {
   showResults: boolean;
   hideAllLabels: boolean;
@@ -150,7 +154,7 @@ export default function MeasurementResultsPanel({
         ? getAuxiliaryTagText(measurement)
         : getDisplayName(measurement.type);
 
-    if (/^cobb/i.test(measurement.type)) {
+    if (isNumberedCobbMeasurement(measurement.type)) {
       const upper = measurement.upperVertebra?.trim() || '上端椎待定';
       const lower = measurement.lowerVertebra?.trim() || '下端椎待定';
       return `${baseDisplayName}(${upper}-${lower})`;
@@ -229,7 +233,7 @@ export default function MeasurementResultsPanel({
     isEditableAuxiliary: boolean,
     isEditingThisAuxName: boolean
   ) => {
-    if (/^cobb/i.test(measurement.type)) {
+    if (isNumberedCobbMeasurement(measurement.type)) {
       const cobbDisplayName = getDisplayName(measurement.type);
       return (
         <span
@@ -320,7 +324,7 @@ export default function MeasurementResultsPanel({
   };
 
   const renderCobbSyncButton = (measurement: MeasurementData) => {
-    if (!/^cobb/i.test(measurement.type)) return null;
+    if (!isNumberedCobbMeasurement(measurement.type)) return null;
 
     const canSync =
       Boolean(onCobbKeypointsSync) &&

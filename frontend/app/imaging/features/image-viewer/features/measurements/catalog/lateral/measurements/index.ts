@@ -47,7 +47,7 @@ export const LATERAL_AUTOMATIC_MEASUREMENT_TOOL_IDS = [
 
 export const LATERAL_DEPENDENT_MEASUREMENT_TOOL_IDS = ['cl'] as const;
 
-export const LATERAL_MANUAL_MEASUREMENT_TOOL_IDS = ['cobb'] as const;
+export const LATERAL_MANUAL_MEASUREMENT_TOOL_IDS = ['lateral-cobb'] as const;
 
 export const LATERAL_SELECTION_MEASUREMENT_TOOL_IDS = [] as const;
 
@@ -66,7 +66,7 @@ export const LATERAL_MEASUREMENT_CONFIGS = {
   't1-slope': T1_SLOPE_CONFIG,
   cl: CL_CONFIG,
   'c2-c7-cl': CL_CONFIG,
-  cobb: LATERAL_COBB_CONFIG,
+  'lateral-cobb': LATERAL_COBB_CONFIG,
   'tk-t2-t5': TK_T2_T5_CONFIG,
   'tk-t5-t12': TK_T5_T12_CONFIG,
   't10-l2': T10_L2_CONFIG,

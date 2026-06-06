@@ -77,12 +77,16 @@ export function addMeasurement(
     // 如果是Cobb工具，自动编号（统一处理 'cobb' 和 'Cobb'）
     const requestedToolId = getAnnotationTypeId(type);
     let finalType = requestedToolId;
-    const isCobb = requestedToolId === 'cobb';
+    const isCobb =
+        requestedToolId === 'cobb' || requestedToolId === 'lateral-cobb';
     if (isCobb) {
-        finalType = getNextCobbType(measurements);
+        finalType = getNextCobbType(
+            measurements,
+            requestedToolId === 'lateral-cobb' ? 'lateral-cobb' : 'cobb'
+        );
     }
 
-    const configLookupType = isCobb ? 'cobb' : finalType;
+    const configLookupType = isCobb ? requestedToolId : finalType;
 
     // 使用统一的配置系统计算测量值
     const defaultValue =
@@ -91,7 +95,7 @@ export function addMeasurement(
             standardDistancePoints,
             imageNaturalSize,
         }) || '0.0°';
-    const description = isCobb ? 'Cobb角测量' : getDesc(configLookupType);
+    const description = getDesc(configLookupType);
 
     const newMeasurement: MeasurementData = {
         id: Date.now().toString(),

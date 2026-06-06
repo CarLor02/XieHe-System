@@ -17,17 +17,19 @@ export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
 function getNumberedCobbConfig(
   normalizedId: string
 ): AnnotationConfig | undefined {
-  const match = normalizedId.match(/^cobb(\d+)$/i);
+  const match = normalizedId.match(/^(lateral-)?cobb(\d+)$/i);
   if (!match) return undefined;
 
-  const cobbConfig = ANNOTATION_CONFIGS.cobb;
+  const cobbConfig = match[1]
+    ? ANNOTATION_CONFIGS['lateral-cobb']
+    : ANNOTATION_CONFIGS.cobb;
   if (!cobbConfig) return undefined;
 
   return {
     ...cobbConfig,
     id: normalizedId,
-    name: `Cobb${match[1]}`,
-    description: `Cobb角${match[1]}测量`,
+    name: `Cobb${match[2]}`,
+    description: `Cobb角${match[2]}测量`,
   };
 }
 
@@ -47,7 +49,7 @@ export function getAnnotationTypeId(typeId: string): string {
     return typeId;
   }
 
-  if (/^Cobb\d+$/i.test(typeId)) {
+  if (/^(lateral-)?Cobb\d+$/i.test(typeId)) {
     return typeId.toLowerCase();
   }
 

@@ -188,7 +188,7 @@ it('creates lateral C2-C7 Cobb from lower endplates', () => {
 
   expect(measurement).toEqual(
     expect.objectContaining({
-      type: 'cobb1',
+      type: 'lateral-cobb1',
       upperVertebra: 'C2',
       lowerVertebra: 'C7',
       keypointSynced: true,
@@ -231,7 +231,7 @@ it('rebuilds a lateral keypoint-synced Cobb with lateral endpoint rules', () => 
   const previousMeasurements: MeasurementData[] = [
     {
       id: 'manual-lateral-cobb',
-      type: 'cobb1',
+      type: 'lateral-cobb1',
       value: '10.00°',
       points: [
         { x: 1, y: 1 },

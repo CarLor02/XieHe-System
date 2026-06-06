@@ -23,7 +23,7 @@ export function canSyncCobbMeasurementToKeypoints(
   measurement: MeasurementData
 ): boolean {
   return (
-    /^cobb\d*$/i.test(getAnnotationTypeId(measurement.type)) &&
+    /^(?:lateral-)?cobb\d*$/i.test(getAnnotationTypeId(measurement.type)) &&
     hasCompletedCobbEndpoints(measurement) &&
     measurement.points.length >= 4
   );

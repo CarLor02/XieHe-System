@@ -102,6 +102,30 @@ it('shows pending endpoint labels for numbered Cobb measurements without vertebr
   ).toBeTruthy();
 });
 
+it('shows lateral numbered Cobb measurements with the same visible Cobb label', () => {
+  renderPanel([
+    {
+      id: 'lateral-cobb-4',
+      type: 'lateral-cobb4',
+      value: '12.00°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+    },
+  ]);
+
+  expect(
+    screen.getByText(
+      (_, element) =>
+        element?.tagName.toLowerCase() === 'span' &&
+        element.textContent === 'Cobb4(上端椎待定-下端椎待定)'
+    )
+  ).toBeTruthy();
+});
+
 it('shows a disabled Cobb sync button until both endpoint vertebrae are filled', () => {
   renderPanel([
     {
@@ -153,4 +177,33 @@ it('syncs a completed Cobb measurement to the detection layer from the measureme
   fireEvent.click(syncButton);
 
   expect(onCobbKeypointsSync).toHaveBeenCalledWith('cobb-1');
+});
+
+it('syncs a completed lateral Cobb measurement to the detection layer from the measurement list', () => {
+  const onCobbKeypointsSync = jest.fn();
+  renderPanel(
+    [
+      {
+        id: 'lateral-cobb-1',
+        type: 'lateral-cobb1',
+        value: '18.20°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'T5',
+        lowerVertebra: 'T12',
+      },
+    ],
+    onCobbKeypointsSync
+  );
+
+  const syncButton = screen.getByRole('button', { name: '同步检测层' });
+  expect((syncButton as HTMLButtonElement).disabled).toBe(false);
+
+  fireEvent.click(syncButton);
+
+  expect(onCobbKeypointsSync).toHaveBeenCalledWith('lateral-cobb-1');
 });

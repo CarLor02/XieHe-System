@@ -25,8 +25,12 @@ export function calculateMeasurementValue(
     return '';
   }
 
-  // 特殊处理：CobbN 类型使用 cobb 配置
-  const configType = /^Cobb\d+$/i.test(type) ? 'cobb' : getAnnotationTypeId(type);
+  // 特殊处理：CobbN 类型使用对应的基础 Cobb 配置。
+  const configType = /^lateral-Cobb\d+$/i.test(type)
+    ? 'lateral-cobb'
+    : /^Cobb\d+$/i.test(type)
+      ? 'cobb'
+      : getAnnotationTypeId(type);
   const config = getAnnotationConfig(configType);
 
   if (!config) {

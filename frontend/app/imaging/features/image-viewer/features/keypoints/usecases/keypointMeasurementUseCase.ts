@@ -3,7 +3,7 @@ import {
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
-import { COBB_THORACIC_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/cobb';
+import { LATERAL_COBB_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cobb';
 import {
   getCobbSequenceNumber,
   getMaxCobbSequenceNumber,
@@ -62,7 +62,11 @@ export function isDerivedCobbMeasurement(measurement: MeasurementData): boolean 
 
 export function isCobbMeasurement(measurement: MeasurementData): boolean {
   const typeId = getAnnotationTypeId(measurement.type);
-  return typeId === 'cobb' || /^cobb\d+$/i.test(typeId);
+  return (
+    typeId === 'cobb' ||
+    typeId === 'lateral-cobb' ||
+    /^(?:lateral-)?cobb\d+$/i.test(typeId)
+  );
 }
 
 export function hasCobbMeasurementForEndpoints(
@@ -177,7 +181,7 @@ function calculateLateralCobbMeasurementValue(
   points: [Point, Point, Point, Point],
   calculationContext: CalculationContext
 ): string {
-  const results = COBB_THORACIC_CONFIG.calculateResults(
+  const results = LATERAL_COBB_CONFIG.calculateResults(
     points,
     calculationContext
   );
@@ -423,7 +427,7 @@ export function createNextBoundCobbMeasurement({
       lowerVertebra,
       keypoints,
       calculationContext,
-      measurementType: getNextCobbType(existingMeasurements),
+      measurementType: getNextCobbType(existingMeasurements, 'lateral-cobb'),
       keypointSynced: true,
     });
   }

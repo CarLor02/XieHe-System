@@ -68,7 +68,7 @@ it('keeps lateral manual Cobb measurements non-unique and numbered', () => {
   };
   const tools: Tool[] = [
     {
-      id: 'cobb',
+      id: 'lateral-cobb',
       name: 'Cobb',
       icon: 'medical-cobb',
       description: '任意两节段Cobb角测量',
@@ -77,7 +77,7 @@ it('keeps lateral manual Cobb measurements non-unique and numbered', () => {
   ];
 
   addMeasurement(
-    'cobb',
+    'lateral-cobb',
     cobbPoints,
     measurements,
     setMeasurements,
@@ -87,7 +87,7 @@ it('keeps lateral manual Cobb measurements non-unique and numbered', () => {
     imageNaturalSize
   );
   addMeasurement(
-    'cobb',
+    'lateral-cobb',
     cobbPoints,
     measurements,
     setMeasurements,
@@ -98,7 +98,7 @@ it('keeps lateral manual Cobb measurements non-unique and numbered', () => {
   );
 
   expect(measurements.map(measurement => measurement.type)).toEqual([
-    'cobb1',
-    'cobb2',
+    'lateral-cobb1',
+    'lateral-cobb2',
   ]);
 });

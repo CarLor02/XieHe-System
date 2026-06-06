@@ -95,3 +95,18 @@ it('renumbers remaining Cobb measurements after deletion while preserving ids an
     })
   );
 });
+
+it('renumbers lateral Cobb measurements while preserving the lateral type prefix', () => {
+  const renumbered = renumberCobbMeasurementsAfterDelete(
+    [
+      cobbMeasurement('lateral-cobb-two', 'lateral-cobb2'),
+      cobbMeasurement('lateral-cobb-four', 'lateral-cobb4'),
+    ],
+    calculationContext
+  );
+
+  expect(renumbered.map(measurement => measurement.type)).toEqual([
+    'lateral-cobb1',
+    'lateral-cobb2',
+  ]);
+});
