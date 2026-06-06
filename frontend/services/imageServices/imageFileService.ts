@@ -326,13 +326,42 @@ export function formatFileSize(bytes: number): string {
 /**
  * 格式化日期
  */
+const DEFAULT_DISPLAY_TIME_ZONE = 'Asia/Shanghai';
+
+function getDisplayTimeZone(): string {
+  return (
+    process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE?.trim() ||
+    DEFAULT_DISPLAY_TIME_ZONE
+  );
+}
+
+function parseApiDate(dateString: string): Date {
+  const trimmed = dateString.trim();
+  const hasTimeZone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
+  return new Date(hasTimeZone ? trimmed : `${trimmed}Z`);
+}
+
 export function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('zh-CN', {
+  const date = parseApiDate(dateString);
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  const options: Intl.DateTimeFormatOptions = {
+    timeZone: getDisplayTimeZone(),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  });
+  };
+
+  try {
+    return date.toLocaleDateString('zh-CN', options);
+  } catch {
+    return date.toLocaleDateString('zh-CN', {
+      ...options,
+      timeZone: DEFAULT_DISPLAY_TIME_ZONE,
+    });
+  }
 }

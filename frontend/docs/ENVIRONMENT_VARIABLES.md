@@ -90,6 +90,7 @@ if (imageData.examType === '侧位X光片') {
 - `NEXT_PUBLIC_API_URL` - 后端API基础URL
 - `NEXT_PUBLIC_API_BASE_URL` - 后端API基础URL（备用）
 - `NEXT_PUBLIC_API_VERSION` - API版本号
+- `NEXT_PUBLIC_DISPLAY_TIME_ZONE` - 前端显示时间使用的IANA时区，当前默认 `Asia/Shanghai`
 
 ### 功能开关
 
