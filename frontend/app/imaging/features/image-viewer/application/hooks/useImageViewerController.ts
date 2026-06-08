@@ -411,6 +411,22 @@ export function useImageViewerController({
     [beginHistoryAction, keypointWorkflow]
   );
 
+  const handleMeasurementDeleteWithHistory = useCallback(
+    (measurementId: string) => {
+      beginHistoryAction('measurement-delete');
+      measurementWorkflow.handleMeasurementDelete(measurementId);
+    },
+    [beginHistoryAction, measurementWorkflow]
+  );
+
+  const handleKeypointDeleteWithHistory = useCallback(
+    (keypointId: string) => {
+      beginHistoryAction('keypoint-delete');
+      keypointWorkflow.handleKeypointDelete(keypointId);
+    },
+    [beginHistoryAction, keypointWorkflow]
+  );
+
   const handleRectifyVertebraCornerOrderWithHistory = useCallback(
     (
       vertebra: string,
@@ -544,7 +560,7 @@ export function useImageViewerController({
       setSelectedTool,
       onMeasurementAdd: handleMeasurementAddWithHistory,
       onMeasurementsUpdate: setMeasurements,
-      onMeasurementDelete: measurementWorkflow.handleMeasurementDelete,
+      onMeasurementDelete: handleMeasurementDeleteWithHistory,
       onClearAll: clearAllMeasurements,
       canUndoAnnotationHistory,
       onUndoAnnotationHistory: undoAnnotationHistory,
@@ -583,7 +599,7 @@ export function useImageViewerController({
       onVertebraePreviewUpdate:
         keypointWorkflow.handleVertebraePreviewUpdate,
       onKeypointAdd: handleKeypointAddWithHistory,
-      onKeypointDelete: keypointWorkflow.handleKeypointDelete,
+      onKeypointDelete: handleKeypointDeleteWithHistory,
       onMeasurementWriteback: keypointWorkflow.handleMeasurementWriteback,
       onCobbKeypointsSync: keypointWorkflow.handleCobbKeypointsSync,
       onAnnotationDataDragStart: handleAnnotationDataDragStart,
