@@ -246,6 +246,7 @@ export function useImageViewerController({
     setCfhAnnotation: keypointWorkflow.setCfhAnnotation,
     rebuildKeypointMeasurements: keypointWorkflow.rebuildKeypointMeasurements,
     deriveKeypointMeasurements: keypointWorkflow.deriveKeypointMeasurements,
+    onMeasurementDelete: keypointWorkflow.suppressDeletedDerivedMeasurement,
   });
 
   const standardDistanceActions = useStandardDistanceActions({
@@ -287,6 +288,8 @@ export function useImageViewerController({
     rebuildKeypointMeasurements: keypointWorkflow.rebuildKeypointMeasurements,
     lateralDetectionResultRef: keypointWorkflow.lateralDetectionResultRef,
     aiMeasurementIdsRef: keypointWorkflow.aiMeasurementIdsRef,
+    clearDeletedDerivedMeasurementSuppressions:
+      keypointWorkflow.clearDeletedDerivedMeasurementSuppressions,
     setSaveMessage,
   });
 

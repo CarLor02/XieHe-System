@@ -60,6 +60,41 @@ export function isDerivedCobbMeasurement(measurement: MeasurementData): boolean 
   );
 }
 
+export type DerivedMeasurementSuppressionKey = string;
+
+function normalizeVertebraLabel(label: string): string {
+  return label.trim().toUpperCase();
+}
+
+export function getDerivedMeasurementSuppressionKey(
+  measurement: MeasurementData
+): DerivedMeasurementSuppressionKey | null {
+  if (
+    isCobbMeasurement(measurement) &&
+    measurement.upperVertebra &&
+    measurement.lowerVertebra
+  ) {
+    return `cobb:${normalizeVertebraLabel(measurement.upperVertebra)}-${normalizeVertebraLabel(measurement.lowerVertebra)}`;
+  }
+
+  if (measurement.id.startsWith(DERIVED_ID_PREFIX)) {
+    return `id:${measurement.id}`;
+  }
+
+  return null;
+}
+
+function isSuppressedDerivedMeasurement(
+  measurement: MeasurementData,
+  suppressedDerivedMeasurementKeys: Set<DerivedMeasurementSuppressionKey>
+): boolean {
+  const suppressionKey = getDerivedMeasurementSuppressionKey(measurement);
+  return (
+    suppressionKey !== null &&
+    suppressedDerivedMeasurementKeys.has(suppressionKey)
+  );
+}
+
 export function isCobbMeasurement(measurement: MeasurementData): boolean {
   const typeId = getAnnotationTypeId(measurement.type);
   return (
@@ -507,6 +542,7 @@ export function rebuildKeypointMeasurements({
   isLateralView,
   calculationContext,
   aiMeasurementIds,
+  suppressedDerivedMeasurementKeys = new Set(),
 }: {
   previousMeasurements: MeasurementData[];
   keypoints: KeypointAnnotation[];
@@ -515,6 +551,7 @@ export function rebuildKeypointMeasurements({
   isLateralView: boolean;
   calculationContext: CalculationContext;
   aiMeasurementIds: Set<string>;
+  suppressedDerivedMeasurementKeys?: Set<DerivedMeasurementSuppressionKey>;
 }): MeasurementData[] {
   const boundCobbIds = new Set(
     previousMeasurements
@@ -529,8 +566,12 @@ export function rebuildKeypointMeasurements({
     calculationContext,
   }).filter(
     measurement =>
-      !isDerivedCobbMeasurement(measurement) ||
-      (!hasExistingDerivedCobb && !boundCobbIds.has(measurement.id))
+      !isSuppressedDerivedMeasurement(
+        measurement,
+        suppressedDerivedMeasurementKeys
+      ) &&
+      (!isDerivedCobbMeasurement(measurement) ||
+        (!hasExistingDerivedCobb && !boundCobbIds.has(measurement.id)))
   );
 
   const retainedPreviousMeasurements = previousMeasurements.filter(

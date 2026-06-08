@@ -4,6 +4,7 @@ import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/feature
 import {
   createNextBoundCobbMeasurement,
   deriveKeypointMeasurements,
+  getDerivedMeasurementSuppressionKey,
   hasCobbMeasurementForEndpoints,
   rebuildKeypointMeasurements,
 } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
@@ -91,6 +92,41 @@ it('derives AP Cobb measurements from global endpoint candidates', () => {
       lowerVertebra: 'L5',
       apexVertebra: null,
     })
+  );
+});
+
+it('does not recreate suppressed keypoint-derived Cobb measurements during rebuild', () => {
+  const firstRebuild = rebuildKeypointMeasurements({
+    previousMeasurements: [],
+    keypoints: t1L5GlobalCobbKeypoints(),
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+  const cobb = firstRebuild.find(measurement => measurement.type === 'cobb1');
+  const suppressionKey = cobb
+    ? getDerivedMeasurementSuppressionKey(cobb)
+    : null;
+
+  expect(suppressionKey).toBe('cobb:T1-L5');
+
+  const rebuilt = rebuildKeypointMeasurements({
+    previousMeasurements: firstRebuild.filter(
+      measurement => measurement.id !== cobb?.id
+    ),
+    keypoints: t1L5GlobalCobbKeypoints(),
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+    suppressedDerivedMeasurementKeys: new Set([suppressionKey!]),
+  });
+
+  expect(rebuilt.some(measurement => /^cobb\d+$/i.test(measurement.type))).toBe(
+    false
   );
 });
 

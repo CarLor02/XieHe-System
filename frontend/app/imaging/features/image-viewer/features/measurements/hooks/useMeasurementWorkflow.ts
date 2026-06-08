@@ -89,6 +89,7 @@ interface UseMeasurementWorkflowOptions {
   deriveKeypointMeasurements: (
     nextKeypoints: KeypointAnnotation[]
   ) => MeasurementData[];
+  onMeasurementDelete?: (measurement: MeasurementData) => void;
 }
 
 function flashMessage(
@@ -131,6 +132,7 @@ export function useMeasurementWorkflow({
   setCfhAnnotation,
   rebuildKeypointMeasurements,
   deriveKeypointMeasurements,
+  onMeasurementDelete,
 }: UseMeasurementWorkflowOptions) {
   useEffect(() => {
     if (!selectedTool || selectedTool === 'hand' || clickedPoints.length > 0) {
@@ -286,6 +288,7 @@ export function useMeasurementWorkflow({
       }
 
       const typeId = getAnnotationTypeId(target.type);
+      onMeasurementDelete?.(target);
 
       if (isLateralView && isKeypointExam && keypoints.length > 0) {
         if (typeId === 'pi' || typeId === 'pt') {
@@ -387,6 +390,7 @@ export function useMeasurementWorkflow({
       isLateralView,
       keypoints,
       measurements,
+      onMeasurementDelete,
       rebuildKeypointMeasurements,
       setCfhAnnotation,
       setKeypoints,

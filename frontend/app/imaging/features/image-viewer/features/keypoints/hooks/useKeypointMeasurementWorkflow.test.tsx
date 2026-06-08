@@ -4,17 +4,21 @@ import type { Dispatch, SetStateAction } from 'react';
 import { expect, it, jest } from '@jest/globals';
 
 import { useKeypointMeasurementWorkflow } from '@/app/imaging/features/image-viewer/features/keypoints/hooks/useKeypointMeasurementWorkflow';
+import { useMeasurementWorkflow } from '@/app/imaging/features/image-viewer/features/measurements/hooks/useMeasurementWorkflow';
 import { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import {
   AnnotationSource,
   MeasurementData,
+  Point,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 
 type Workflow = ReturnType<typeof useKeypointMeasurementWorkflow>;
+type MeasurementWorkflow = ReturnType<typeof useMeasurementWorkflow>;
 type WorkflowHarnessValue = {
   workflow: Workflow;
+  measurementWorkflow: MeasurementWorkflow;
   measurements: MeasurementData[];
   setMeasurements: Dispatch<SetStateAction<MeasurementData[]>>;
 };
@@ -57,6 +61,11 @@ function WorkflowHarness({
   onValue: (value: WorkflowHarnessValue) => void;
 }) {
   const [measurements, setMeasurements] = useState<MeasurementData[]>([]);
+  const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
+  const [standardDistance, setStandardDistance] = useState<number | null>(null);
+  const [standardDistancePoints, setStandardDistancePoints] = useState<Point[]>(
+    []
+  );
   const workflow = useKeypointMeasurementWorkflow({
     imageId: 'image-1',
     examType: '正位X光片',
@@ -71,10 +80,43 @@ function WorkflowHarness({
     setSaveMessage: jest.fn(),
     setShowStandardDistanceWarning: jest.fn(),
   });
+  const measurementWorkflow = useMeasurementWorkflow({
+    imageId: 'image-1',
+    examType: '正位X光片',
+    canExportJson: false,
+    tools: [],
+    measurements,
+    setMeasurements,
+    selectedTool: 'hand',
+    clickedPoints,
+    setClickedPoints,
+    standardDistance,
+    standardDistancePoints,
+    imageNaturalSize: { width: 1000, height: 1000 },
+    calculationContext,
+    calculateMeasurementValue: () => '0.00°',
+    getDescriptionForType: type => type,
+    setStandardDistance,
+    setStandardDistancePoints,
+    setSaveMessage: jest.fn(),
+    canUseKeypoints: true,
+    isAnteriorView: true,
+    isLateralView: false,
+    isKeypointExam: true,
+    keypoints: workflow.keypoints,
+    setKeypoints: workflow.setKeypoints,
+    activeVertebraeLayer: workflow.activeVertebraeLayer,
+    setVertebraeLayer: workflow.setVertebraeLayer,
+    cfhAnnotation: workflow.cfhAnnotation,
+    setCfhAnnotation: workflow.setCfhAnnotation,
+    rebuildKeypointMeasurements: workflow.rebuildKeypointMeasurements,
+    deriveKeypointMeasurements: workflow.deriveKeypointMeasurements,
+    onMeasurementDelete: workflow.suppressDeletedDerivedMeasurement,
+  });
 
   useEffect(() => {
-    onValue({ workflow, measurements, setMeasurements });
-  }, [measurements, onValue, workflow]);
+    onValue({ workflow, measurementWorkflow, measurements, setMeasurements });
+  }, [measurementWorkflow, measurements, onValue, workflow]);
 
   return null;
 }
@@ -172,9 +214,11 @@ it('does not rebuild deleted AP Cobb measurements when hiding the detection laye
   });
 
   act(() => {
-    latest!.setMeasurements(current =>
-      current.filter(measurement => !isNumberedCobb(measurement))
-    );
+    latest!.measurements
+      .filter(isNumberedCobb)
+      .forEach(measurement =>
+        latest!.measurementWorkflow.handleMeasurementDelete(measurement.id)
+      );
   });
 
   await waitFor(() => {
@@ -189,4 +233,60 @@ it('does not rebuild deleted AP Cobb measurements when hiding the detection laye
     expect(latest!.workflow.showVertebraeLayer).toBe(false);
   });
   expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
+});
+
+it('does not rebuild deleted AP Cobb measurements when keypoints are updated', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.workflow.setKeypoints(apGlobalCobbKeypoints());
+  });
+
+  await waitFor(() => {
+    expect(latest!.measurements.some(isNumberedCobb)).toBe(true);
+  });
+
+  act(() => {
+    latest!.measurements
+      .filter(isNumberedCobb)
+      .forEach(measurement =>
+        latest!.measurementWorkflow.handleMeasurementDelete(measurement.id)
+      );
+  });
+
+  await waitFor(() => {
+    expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
+  });
+
+  const updatedLayer = latest!.workflow.activeVertebraeLayer.map(annotation =>
+    annotation.label === 'T1'
+      ? ({
+          ...annotation,
+          corners: [
+            { x: annotation.corners[0].x + 10, y: annotation.corners[0].y },
+            ...annotation.corners.slice(1),
+          ] as [Point, Point, Point, Point],
+        } satisfies VertebraAnnotation)
+      : annotation
+  );
+
+  act(() => {
+    latest!.workflow.handleVertebraeUpdate(updatedLayer);
+  });
+
+  await waitFor(() => {
+    expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
+  });
 });

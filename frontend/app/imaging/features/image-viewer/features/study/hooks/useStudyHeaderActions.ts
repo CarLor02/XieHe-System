@@ -47,6 +47,7 @@ interface UseStudyHeaderActionsOptions {
   ) => MeasurementData[];
   lateralDetectionResultRef: MutableRefObject<LateralDetectionCache | null>;
   aiMeasurementIdsRef: MutableRefObject<Set<string>>;
+  clearDeletedDerivedMeasurementSuppressions?: () => void;
   setSaveMessage: (message: string) => void;
 }
 
@@ -74,6 +75,7 @@ export function useStudyHeaderActions({
   rebuildKeypointMeasurements,
   lateralDetectionResultRef,
   aiMeasurementIdsRef,
+  clearDeletedDerivedMeasurementSuppressions,
   setSaveMessage,
 }: UseStudyHeaderActionsOptions) {
   const [isSaving, setIsSaving] = useState(false);
@@ -81,6 +83,7 @@ export function useStudyHeaderActions({
   const [isAIMeasuring, setIsAIMeasuring] = useState(false);
 
   const handleAIMeasurement = useCallback(() => {
+    clearDeletedDerivedMeasurementSuppressions?.();
     void runAiMeasurementWorkflow({
       imageId,
       imageData,
@@ -104,6 +107,7 @@ export function useStudyHeaderActions({
   }, [
     aiMeasurementIdsRef,
     canUseKeypoints,
+    clearDeletedDerivedMeasurementSuppressions,
     imageData,
     imageId,
     imageNaturalSize,

@@ -26,6 +26,7 @@ import {
   createTtsMeasurement,
   createVertebraCenterMeasurement,
   deriveKeypointMeasurements as deriveKeypointMeasurementsUseCase,
+  getDerivedMeasurementSuppressionKey,
   hasCobbMeasurementForEndpoints,
   rebuildKeypointMeasurements as rebuildKeypointMeasurementsUseCase,
 } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
@@ -99,6 +100,7 @@ export function useKeypointMeasurementWorkflow({
   );
   const [showVertebraeLayer, setShowVertebraeLayer] = useState(false);
   const aiMeasurementIdsRef = useRef<Set<string>>(new Set());
+  const suppressedDerivedMeasurementKeysRef = useRef<Set<string>>(new Set());
   const lateralDetectionResultRef = useRef<LateralDetectionCache | null>(null);
 
   const completeVertebraGroups = useMemo(
@@ -138,9 +140,27 @@ export function useKeypointMeasurementWorkflow({
         isLateralView,
         calculationContext,
         aiMeasurementIds: aiMeasurementIdsRef.current,
+        suppressedDerivedMeasurementKeys:
+          suppressedDerivedMeasurementKeysRef.current,
       }),
     [calculationContext, cfhAnnotation, examType, isLateralView]
   );
+
+  const suppressDeletedDerivedMeasurement = useCallback(
+    (measurement: MeasurementData) => {
+      const suppressionKey = getDerivedMeasurementSuppressionKey(measurement);
+      if (!suppressionKey) return;
+      suppressedDerivedMeasurementKeysRef.current = new Set([
+        ...suppressedDerivedMeasurementKeysRef.current,
+        suppressionKey,
+      ]);
+    },
+    []
+  );
+
+  const clearDeletedDerivedMeasurementSuppressions = useCallback(() => {
+    suppressedDerivedMeasurementKeysRef.current = new Set();
+  }, []);
 
   const clearKeypointState = useCallback(() => {
     setVertebraeLayer([]);
@@ -148,7 +168,8 @@ export function useKeypointMeasurementWorkflow({
     setCfhAnnotation(null);
     setShowVertebraeLayer(false);
     aiMeasurementIdsRef.current = new Set();
-  }, []);
+    clearDeletedDerivedMeasurementSuppressions();
+  }, [clearDeletedDerivedMeasurementSuppressions]);
 
   const applyKeypoints = useCallback(
     (nextKeypoints: KeypointAnnotation[]) => {
@@ -582,11 +603,10 @@ export function useKeypointMeasurementWorkflow({
       const next = !current;
       if (!next && activeVertebraeLayer.length > 0) {
         if (isKeypointExam) {
-          // 关键点拖动、点位纠正、Cobb 同步等操作发生时已经实时重算测量结果。
-          // 关闭检测层只是视觉隐藏，若再次 rebuild 会把用户已删除的自动派生 Cobb 从现存 keypoints 中恢复回来。
-          // setMeasurements(previous =>
-          //   rebuildKeypointMeasurements(previous, keypoints)
-          // );
+          // 关闭检测层时允许结算仍保留/绑定的测量项；用户删除过的自动派生项会在 rebuild 中被抑制。
+          setMeasurements(previous =>
+            rebuildKeypointMeasurements(previous, keypoints)
+          );
         } else {
           const derivedWithValues = buildDerivedMeasurementsFromLayer({
             layer: activeVertebraeLayer,
@@ -612,6 +632,8 @@ export function useKeypointMeasurementWorkflow({
     cfhAnnotation,
     examType,
     isKeypointExam,
+    keypoints,
+    rebuildKeypointMeasurements,
     setMeasurements,
   ]);
 
@@ -629,6 +651,8 @@ export function useKeypointMeasurementWorkflow({
     aiMeasurementIdsRef: aiMeasurementIdsRef as MutableRefObject<Set<string>>,
     lateralDetectionResultRef:
       lateralDetectionResultRef as MutableRefObject<LateralDetectionCache | null>,
+    suppressDeletedDerivedMeasurement,
+    clearDeletedDerivedMeasurementSuppressions,
     deriveKeypointMeasurements,
     rebuildKeypointMeasurements,
     clearKeypointState,
