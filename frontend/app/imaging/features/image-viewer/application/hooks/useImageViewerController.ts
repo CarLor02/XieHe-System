@@ -50,7 +50,6 @@ interface AnnotationHistorySnapshot {
   keypoints: KeypointAnnotation[];
   vertebraeLayer: VertebraAnnotation[];
   cfhAnnotation: CfhAnnotation | null;
-  showVertebraeLayer: boolean;
   aiMeasurementIds: string[];
 }
 
@@ -186,8 +185,6 @@ export function useImageViewerController({
     setVertebraeLayer: setHistoryVertebraeLayer,
     cfhAnnotation: historyCfhAnnotation,
     setCfhAnnotation: setHistoryCfhAnnotation,
-    showVertebraeLayer: historyShowVertebraeLayer,
-    setShowVertebraeLayer: setHistoryShowVertebraeLayer,
     getAiMeasurementIdsSnapshot,
     restoreAiMeasurementIds,
   } = keypointWorkflow;
@@ -259,7 +256,6 @@ export function useImageViewerController({
       keypoints: historyKeypoints,
       vertebraeLayer: historyVertebraeLayer,
       cfhAnnotation: historyCfhAnnotation,
-      showVertebraeLayer: historyShowVertebraeLayer,
       aiMeasurementIds: getAiMeasurementIdsSnapshot(),
     }),
     [
@@ -271,7 +267,6 @@ export function useImageViewerController({
       historyKeypoints,
       historyVertebraeLayer,
       historyCfhAnnotation,
-      historyShowVertebraeLayer,
       getAiMeasurementIdsSnapshot,
     ]
   );
@@ -286,7 +281,6 @@ export function useImageViewerController({
       setHistoryKeypoints(snapshot.keypoints);
       setHistoryVertebraeLayer(snapshot.vertebraeLayer);
       setHistoryCfhAnnotation(snapshot.cfhAnnotation);
-      setHistoryShowVertebraeLayer(snapshot.showVertebraeLayer);
       restoreAiMeasurementIds(snapshot.aiMeasurementIds);
       setClickedPoints([]);
     },
@@ -295,7 +289,6 @@ export function useImageViewerController({
       setClickedPoints,
       setHistoryCfhAnnotation,
       setHistoryKeypoints,
-      setHistoryShowVertebraeLayer,
       setHistoryVertebraeLayer,
       setMeasurements,
       setPointBindings,
@@ -425,6 +418,20 @@ export function useImageViewerController({
       keypointWorkflow.handleKeypointDelete(keypointId);
     },
     [beginHistoryAction, keypointWorkflow]
+  );
+
+  const handleMeasurementUpdateWithHistory = useCallback(
+    (measurementId: string, updates: Partial<MeasurementData>) => {
+      beginHistoryAction('measurement-update');
+      setMeasurements(previous =>
+        previous.map(measurement =>
+          measurement.id === measurementId
+            ? { ...measurement, ...updates }
+            : measurement
+        )
+      );
+    },
+    [beginHistoryAction, setMeasurements]
   );
 
   const handleRectifyVertebraCornerOrderWithHistory = useCallback(
@@ -560,6 +567,7 @@ export function useImageViewerController({
       setSelectedTool,
       onMeasurementAdd: handleMeasurementAddWithHistory,
       onMeasurementsUpdate: setMeasurements,
+      onMeasurementUpdate: handleMeasurementUpdateWithHistory,
       onMeasurementDelete: handleMeasurementDeleteWithHistory,
       onClearAll: clearAllMeasurements,
       canUndoAnnotationHistory,

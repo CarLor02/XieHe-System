@@ -56,6 +56,7 @@ export default function AnnotationCanvas({
   setSelectedTool,
   onMeasurementAdd,
   onMeasurementsUpdate,
+  onMeasurementUpdate,
   onMeasurementDelete,
   onClearAll,
   canUndoAnnotationHistory,
@@ -104,6 +105,10 @@ export default function AnnotationCanvas({
   setSelectedTool: (tool: string) => void;
   onMeasurementAdd: (type: string, points: Point[]) => void;
   onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
+  onMeasurementUpdate?: (
+    measurementId: string,
+    updates: Partial<MeasurementData>
+  ) => void;
   onMeasurementDelete?: (measurementId: string) => void;
   onClearAll: () => void;
   canUndoAnnotationHistory: boolean;
@@ -399,6 +404,11 @@ export default function AnnotationCanvas({
     measurementId: string,
     updates: Partial<MeasurementData>
   ) => {
+    if (onMeasurementUpdate) {
+      onMeasurementUpdate(measurementId, updates);
+      return;
+    }
+
     onMeasurementsUpdate(
       measurements.map(item =>
         item.id === measurementId ? { ...item, ...updates } : item

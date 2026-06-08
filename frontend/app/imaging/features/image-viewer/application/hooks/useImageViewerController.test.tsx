@@ -7,18 +7,34 @@ const clearHistoryMock = jest.fn();
 const undoHistoryMock = jest.fn();
 const handleMeasurementDeleteMock = jest.fn();
 const handleKeypointDeleteMock = jest.fn();
+const setMeasurementsMock = jest.fn();
+const setShowVertebraeLayerMock = jest.fn();
+let annotationHistoryOptions:
+  | {
+      snapshot: Record<string, unknown>;
+      restoreSnapshot: (snapshot: Record<string, unknown>) => void;
+    }
+  | null = null;
 
 jest.mock('@/lib/api', () => ({
   useUser: () => ({ user: { id: 1 } }),
 }));
 
 jest.mock('@/app/imaging/features/image-viewer/application/hooks/useAnnotationHistory', () => ({
-  useAnnotationHistory: () => ({
-    beginHistoryAction: beginHistoryActionMock,
-    clearHistory: clearHistoryMock,
-    undo: undoHistoryMock,
-    canUndo: true,
-  }),
+  useAnnotationHistory: (
+    options: {
+      snapshot: Record<string, unknown>;
+      restoreSnapshot: (snapshot: Record<string, unknown>) => void;
+    }
+  ) => {
+    annotationHistoryOptions = options;
+    return {
+      beginHistoryAction: beginHistoryActionMock,
+      clearHistory: clearHistoryMock,
+      undo: undoHistoryMock,
+      canUndo: true,
+    };
+  },
 }));
 
 jest.mock('@/app/imaging/features/image-viewer/features/bindings', () => ({
@@ -86,7 +102,7 @@ jest.mock('@/app/imaging/features/image-viewer/features/measurements', () => ({
         points: [{ x: 1, y: 1 }],
       },
     ],
-    setMeasurements: jest.fn(),
+    setMeasurements: setMeasurementsMock,
     reportText: '',
     setReportText: jest.fn(),
     standardDistance: null,
@@ -184,7 +200,7 @@ jest.mock('@/app/imaging/features/image-viewer/features/keypoints', () => ({
     cfhAnnotation: null,
     setCfhAnnotation: jest.fn(),
     showVertebraeLayer: true,
-    setShowVertebraeLayer: jest.fn(),
+    setShowVertebraeLayer: setShowVertebraeLayerMock,
     activeVertebraeLayer: [],
     completeVertebraGroups: [],
     aiMeasurementIdsRef: { current: new Set() },
@@ -237,6 +253,9 @@ beforeEach(() => {
   undoHistoryMock.mockClear();
   handleMeasurementDeleteMock.mockClear();
   handleKeypointDeleteMock.mockClear();
+  setMeasurementsMock.mockClear();
+  setShowVertebraeLayerMock.mockClear();
+  annotationHistoryOptions = null;
 });
 
 it('starts annotation history before deleting a measurement from the results list', async () => {
@@ -260,6 +279,37 @@ it('starts annotation history before deleting a measurement from the results lis
   expect(handleMeasurementDeleteMock).toHaveBeenCalledWith('measurement-1');
 });
 
+it('starts annotation history before updating a measurement from the results list', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const onMeasurementUpdate = (
+    latest!.canvasProps as {
+      onMeasurementUpdate?: (
+        measurementId: string,
+        updates: Record<string, unknown>
+      ) => void;
+    }
+  ).onMeasurementUpdate;
+
+  expect(onMeasurementUpdate).toBeDefined();
+  onMeasurementUpdate?.('measurement-1', { upperVertebra: 'T1' });
+
+  expect(beginHistoryActionMock).toHaveBeenCalledWith('measurement-update');
+  expect(setMeasurementsMock).toHaveBeenCalledWith(expect.any(Function));
+});
+
 it('starts annotation history before deleting a keypoint from the results list', async () => {
   let latest: Controller | null = null;
 
@@ -279,4 +329,40 @@ it('starts annotation history before deleting a keypoint from the results list',
 
   expect(beginHistoryActionMock).toHaveBeenCalledWith('keypoint-delete');
   expect(handleKeypointDeleteMock).toHaveBeenCalledWith('T1-1');
+});
+
+it('does not include detection-layer visibility in annotation history', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+    expect(annotationHistoryOptions).not.toBeNull();
+  });
+
+  expect(annotationHistoryOptions!.snapshot).not.toHaveProperty(
+    'showVertebraeLayer'
+  );
+
+  annotationHistoryOptions!.restoreSnapshot({
+    measurements: [],
+    standardDistance: null,
+    standardDistanceValue: '',
+    standardDistancePoints: [],
+    pointBindings: { syncGroups: [] },
+    keypoints: [],
+    vertebraeLayer: [],
+    cfhAnnotation: null,
+    aiMeasurementIds: [],
+    showVertebraeLayer: false,
+  });
+
+  expect(setShowVertebraeLayerMock).not.toHaveBeenCalled();
 });
