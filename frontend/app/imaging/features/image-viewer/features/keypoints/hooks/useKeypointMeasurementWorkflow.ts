@@ -582,9 +582,11 @@ export function useKeypointMeasurementWorkflow({
       const next = !current;
       if (!next && activeVertebraeLayer.length > 0) {
         if (isKeypointExam) {
-          setMeasurements(previous =>
-            rebuildKeypointMeasurements(previous, keypoints)
-          );
+          // 关键点拖动、点位纠正、Cobb 同步等操作发生时已经实时重算测量结果。
+          // 关闭检测层只是视觉隐藏，若再次 rebuild 会把用户已删除的自动派生 Cobb 从现存 keypoints 中恢复回来。
+          // setMeasurements(previous =>
+          //   rebuildKeypointMeasurements(previous, keypoints)
+          // );
         } else {
           const derivedWithValues = buildDerivedMeasurementsFromLayer({
             layer: activeVertebraeLayer,
@@ -610,8 +612,6 @@ export function useKeypointMeasurementWorkflow({
     cfhAnnotation,
     examType,
     isKeypointExam,
-    keypoints,
-    rebuildKeypointMeasurements,
     setMeasurements,
   ]);
 

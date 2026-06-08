@@ -1,5 +1,6 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { useEffect, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { expect, it, jest } from '@jest/globals';
 
 import { useKeypointMeasurementWorkflow } from '@/app/imaging/features/image-viewer/features/keypoints/hooks/useKeypointMeasurementWorkflow';
@@ -12,6 +13,11 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 
 type Workflow = ReturnType<typeof useKeypointMeasurementWorkflow>;
+type WorkflowHarnessValue = {
+  workflow: Workflow;
+  measurements: MeasurementData[];
+  setMeasurements: Dispatch<SetStateAction<MeasurementData[]>>;
+};
 
 const calculationContext: CalculationContext = {
   standardDistance: null,
@@ -28,7 +34,28 @@ function apKeypoint(id: string, x: number, y: number): KeypointAnnotation {
   };
 }
 
-function WorkflowHarness({ onValue }: { onValue: (value: Workflow) => void }) {
+function apGlobalCobbKeypoints(): KeypointAnnotation[] {
+  return [
+    apKeypoint('T1-1', 100, 100),
+    apKeypoint('T1-2', 200, 100),
+    apKeypoint('T1-3', 100, 140),
+    apKeypoint('T1-4', 200, 140),
+    apKeypoint('L5-1', 100, 260),
+    apKeypoint('L5-2', 200, 260),
+    apKeypoint('L5-3', 100, 300),
+    apKeypoint('L5-4', 200, 336.397),
+  ];
+}
+
+function isNumberedCobb(measurement: MeasurementData): boolean {
+  return /^cobb\d+$/i.test(measurement.type);
+}
+
+function WorkflowHarness({
+  onValue,
+}: {
+  onValue: (value: WorkflowHarnessValue) => void;
+}) {
   const [measurements, setMeasurements] = useState<MeasurementData[]>([]);
   const workflow = useKeypointMeasurementWorkflow({
     imageId: 'image-1',
@@ -46,14 +73,14 @@ function WorkflowHarness({ onValue }: { onValue: (value: Workflow) => void }) {
   });
 
   useEffect(() => {
-    onValue(workflow);
-  }, [onValue, workflow]);
+    onValue({ workflow, measurements, setMeasurements });
+  }, [measurements, onValue, workflow]);
 
   return null;
 }
 
 it('marks only moved AI keypoints as manual after keypoint-layer drag', async () => {
-  let latest: Workflow | null = null;
+  let latest: WorkflowHarnessValue | null = null;
 
   render(
     <WorkflowHarness
@@ -68,7 +95,7 @@ it('marks only moved AI keypoints as manual after keypoint-layer drag', async ()
   });
 
   act(() => {
-    latest!.setKeypoints([
+    latest!.workflow.setKeypoints([
       apKeypoint('T1-1', 100, 100),
       apKeypoint('T1-2', 200, 100),
       apKeypoint('T1-3', 100, 200),
@@ -77,7 +104,7 @@ it('marks only moved AI keypoints as manual after keypoint-layer drag', async ()
   });
 
   await waitFor(() => {
-    expect(latest!.keypoints).toHaveLength(4);
+    expect(latest!.workflow.keypoints).toHaveLength(4);
   });
 
   const updatedLayer: VertebraAnnotation[] = [
@@ -95,22 +122,71 @@ it('marks only moved AI keypoints as manual after keypoint-layer drag', async ()
   ];
 
   act(() => {
-    latest!.handleVertebraeUpdate(updatedLayer);
+    latest!.workflow.handleVertebraeUpdate(updatedLayer);
   });
 
   await waitFor(() => {
     expect(
-      latest!.keypoints.find(keypoint => keypoint.id === 'T1-1')?.source
+      latest!.workflow.keypoints.find(keypoint => keypoint.id === 'T1-1')
+        ?.source
     ).toBe(AnnotationSource.MANUAL);
   });
 
   expect(
-    latest!.keypoints.find(keypoint => keypoint.id === 'T1-2')?.source
+    latest!.workflow.keypoints.find(keypoint => keypoint.id === 'T1-2')
+      ?.source
   ).toBe(AnnotationSource.AI);
   expect(
-    latest!.keypoints.find(keypoint => keypoint.id === 'T1-3')?.source
+    latest!.workflow.keypoints.find(keypoint => keypoint.id === 'T1-3')
+      ?.source
   ).toBe(AnnotationSource.AI);
   expect(
-    latest!.keypoints.find(keypoint => keypoint.id === 'T1-4')?.source
+    latest!.workflow.keypoints.find(keypoint => keypoint.id === 'T1-4')
+      ?.source
   ).toBe(AnnotationSource.AI);
+});
+
+it('does not rebuild deleted AP Cobb measurements when hiding the detection layer', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.workflow.setKeypoints(apGlobalCobbKeypoints());
+    latest!.workflow.setShowVertebraeLayer(true);
+  });
+
+  await waitFor(() => {
+    expect(latest!.measurements.some(isNumberedCobb)).toBe(true);
+    expect(latest!.workflow.showVertebraeLayer).toBe(true);
+  });
+
+  act(() => {
+    latest!.setMeasurements(current =>
+      current.filter(measurement => !isNumberedCobb(measurement))
+    );
+  });
+
+  await waitFor(() => {
+    expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
+  });
+
+  act(() => {
+    latest!.workflow.handleToggleVertebraeLayer();
+  });
+
+  await waitFor(() => {
+    expect(latest!.workflow.showVertebraeLayer).toBe(false);
+  });
+  expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
 });
