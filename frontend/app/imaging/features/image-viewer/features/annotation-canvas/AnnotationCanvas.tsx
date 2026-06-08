@@ -291,14 +291,11 @@ export default function AnnotationCanvas({
 
   // 清空所有标注
   const handleClear = () => {
-    // 显示确认对话框
-    if (window.confirm('确定要清空所有标注吗？此操作无法撤销。')) {
-      // 清空父组件的测量数据（包括所有测量和辅助图形）
-      onClearAll();
+    // 清空父组件的测量数据（包括所有测量和辅助图形）
+    onClearAll();
 
-      // 清空当前正在绘制的点
-      setClickedPoints([]);
-    }
+    // 清空当前正在绘制的点
+    setClickedPoints([]);
   };
 
   const handlePanelMeasurementHover = (measurementId: string | null) => {

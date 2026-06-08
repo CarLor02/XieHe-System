@@ -42,3 +42,34 @@ it('calls the annotation undo handler from the controls panel', () => {
 
   expect(onUndoAnnotationHistory).toHaveBeenCalledTimes(1);
 });
+
+it('asks for confirmation before clearing all annotations', () => {
+  const onClearAll = jest.fn();
+  const confirmSpy = jest.spyOn(window, 'confirm');
+
+  renderPanel({ onClearAll });
+
+  fireEvent.click(screen.getByRole('button', { name: '清空全部' }));
+
+  expect(confirmSpy).not.toHaveBeenCalled();
+  expect(onClearAll).not.toHaveBeenCalled();
+  expect(screen.getByText('确定要清空所有标注吗?')).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: '确定' }));
+
+  expect(onClearAll).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText('确定要清空所有标注吗?')).toBeNull();
+
+  confirmSpy.mockRestore();
+});
+
+it('can cancel the clear-all confirmation', () => {
+  const onClearAll = jest.fn();
+  renderPanel({ onClearAll });
+
+  fireEvent.click(screen.getByRole('button', { name: '清空全部' }));
+  fireEvent.click(screen.getByRole('button', { name: '取消' }));
+
+  expect(onClearAll).not.toHaveBeenCalled();
+  expect(screen.queryByText('确定要清空所有标注吗?')).toBeNull();
+});

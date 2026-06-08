@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 interface CanvasControlsPanelProps {
   imageScale: number;
   contrast: number;
@@ -30,139 +32,178 @@ export default function CanvasControlsPanel({
   onDecreaseBrightness,
   onIncreaseBrightness,
 }: CanvasControlsPanelProps) {
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  const handleConfirmClear = () => {
+    setShowClearConfirm(false);
+    onClearAll();
+  };
+
   return (
-    <div
-      className="absolute top-4 right-4 z-10 bg-black/80 border border-blue-500/30 backdrop-blur-sm rounded-lg p-3 flex flex-col gap-3 min-w-max"
-      onMouseDown={event => event.stopPropagation()}
-      onClick={event => event.stopPropagation()}
-      onMouseUp={event => event.stopPropagation()}
-      onMouseMove={event => event.stopPropagation()}
-      onDoubleClick={event => {
-        event.stopPropagation();
-        event.preventDefault();
-      }}
-    >
-      <div className="flex items-center justify-center">
-        <button
-          onClick={event => {
-            event.stopPropagation();
-            onUndoAnnotationHistory();
-          }}
-          disabled={!canUndoAnnotationHistory}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded text-white text-xs font-medium transition-all active:scale-95 w-full justify-center ${
-            canUndoAnnotationHistory
-              ? 'bg-gray-700 hover:bg-gray-600'
-              : 'bg-gray-700/50 text-white/40 cursor-not-allowed'
-          }`}
-          title="撤回到上一步标注数据"
-        >
-          <i className="ri-arrow-go-back-line"></i>
-          <span>撤回</span>
-        </button>
+    <>
+      <div
+        className="absolute top-4 right-4 z-10 bg-black/80 border border-blue-500/30 backdrop-blur-sm rounded-lg p-3 flex flex-col gap-3 min-w-max"
+        onMouseDown={event => event.stopPropagation()}
+        onClick={event => event.stopPropagation()}
+        onMouseUp={event => event.stopPropagation()}
+        onMouseMove={event => event.stopPropagation()}
+        onDoubleClick={event => {
+          event.stopPropagation();
+          event.preventDefault();
+        }}
+      >
+        <div className="flex items-center justify-center">
+          <button
+            onClick={event => {
+              event.stopPropagation();
+              onUndoAnnotationHistory();
+            }}
+            disabled={!canUndoAnnotationHistory}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded text-white text-xs font-medium transition-all active:scale-95 w-full justify-center ${
+              canUndoAnnotationHistory
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : 'bg-gray-700/50 text-white/40 cursor-not-allowed'
+            }`}
+            title="撤回到上一步标注数据"
+          >
+            <i className="ri-arrow-go-back-line"></i>
+            <span>撤回</span>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-center">
+          <button
+            onClick={event => {
+              event.stopPropagation();
+              setShowClearConfirm(true);
+            }}
+            className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-white text-xs font-medium transition-all active:scale-95 w-full justify-center"
+            title="清空所有标注"
+          >
+            <i className="ri-delete-bin-line"></i>
+            <span>清空全部</span>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-white text-xs whitespace-nowrap">缩放</span>
+          <button
+            onClick={event => {
+              event.stopPropagation();
+              onZoomOut();
+            }}
+            onDoubleClick={event => {
+              event.stopPropagation();
+              event.preventDefault();
+            }}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="缩小 (快捷键: -)"
+          >
+            −
+          </button>
+          <span className="text-white text-xs font-bold w-8 text-center">
+            {Math.round(imageScale * 100)}%
+          </span>
+          <button
+            onClick={event => {
+              event.stopPropagation();
+              onZoomIn();
+            }}
+            onDoubleClick={event => {
+              event.stopPropagation();
+              event.preventDefault();
+            }}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="放大 (快捷键: +)"
+          >
+            +
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-white text-xs whitespace-nowrap">对比度</span>
+          <button
+            onClick={event => {
+              event.stopPropagation();
+              onDecreaseContrast();
+            }}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="降低对比度"
+          >
+            −
+          </button>
+          <span className="text-white text-xs font-bold w-6 text-center">
+            {Math.round(contrast)}
+          </span>
+          <button
+            onClick={event => {
+              event.stopPropagation();
+              onIncreaseContrast();
+            }}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="提高对比度"
+          >
+            +
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-white text-xs whitespace-nowrap">亮度</span>
+          <button
+            onClick={event => {
+              event.stopPropagation();
+              onDecreaseBrightness();
+            }}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="降低亮度"
+          >
+            −
+          </button>
+          <span className="text-white text-xs font-bold w-6 text-center">
+            {Math.round(brightness)}
+          </span>
+          <button
+            onClick={event => {
+              event.stopPropagation();
+              onIncreaseBrightness();
+            }}
+            className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
+            title="提高亮度"
+          >
+            +
+          </button>
+        </div>
       </div>
 
-      <div className="flex items-center justify-center">
-        <button
-          onClick={event => {
-            event.stopPropagation();
-            onClearAll();
-          }}
-          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-white text-xs font-medium transition-all active:scale-95 w-full justify-center"
-          title="清空所有标注"
+      {showClearConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onMouseDown={event => event.stopPropagation()}
+          onClick={event => event.stopPropagation()}
+          onMouseUp={event => event.stopPropagation()}
+          onMouseMove={event => event.stopPropagation()}
         >
-          <i className="ri-delete-bin-line"></i>
-          <span>清空全部</span>
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-white text-xs whitespace-nowrap">缩放</span>
-        <button
-          onClick={event => {
-            event.stopPropagation();
-            onZoomOut();
-          }}
-          onDoubleClick={event => {
-            event.stopPropagation();
-            event.preventDefault();
-          }}
-          className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
-          title="缩小 (快捷键: -)"
-        >
-          −
-        </button>
-        <span className="text-white text-xs font-bold w-8 text-center">
-          {Math.round(imageScale * 100)}%
-        </span>
-        <button
-          onClick={event => {
-            event.stopPropagation();
-            onZoomIn();
-          }}
-          onDoubleClick={event => {
-            event.stopPropagation();
-            event.preventDefault();
-          }}
-          className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
-          title="放大 (快捷键: +)"
-        >
-          +
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-white text-xs whitespace-nowrap">对比度</span>
-        <button
-          onClick={event => {
-            event.stopPropagation();
-            onDecreaseContrast();
-          }}
-          className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
-          title="降低对比度"
-        >
-          −
-        </button>
-        <span className="text-white text-xs font-bold w-6 text-center">
-          {Math.round(contrast)}
-        </span>
-        <button
-          onClick={event => {
-            event.stopPropagation();
-            onIncreaseContrast();
-          }}
-          className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
-          title="提高对比度"
-        >
-          +
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-white text-xs whitespace-nowrap">亮度</span>
-        <button
-          onClick={event => {
-            event.stopPropagation();
-            onDecreaseBrightness();
-          }}
-          className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
-          title="降低亮度"
-        >
-          −
-        </button>
-        <span className="text-white text-xs font-bold w-6 text-center">
-          {Math.round(brightness)}
-        </span>
-        <button
-          onClick={event => {
-            event.stopPropagation();
-            onIncreaseBrightness();
-          }}
-          className="w-6 h-6 bg-gray-600 hover:bg-gray-500 rounded text-white text-xs font-bold transition-all active:scale-95"
-          title="提高亮度"
-        >
-          +
-        </button>
-      </div>
-    </div>
+          <div className="w-80 rounded-lg border border-gray-600 bg-gray-900 p-4 shadow-2xl">
+            <div className="text-sm text-white">确定要清空所有标注吗?</div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowClearConfirm(false)}
+                className="h-8 rounded bg-gray-700 px-3 text-xs text-white hover:bg-gray-600"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmClear}
+                className="h-8 rounded bg-blue-600 px-3 text-xs text-white hover:bg-blue-500"
+              >
+                确定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -310,6 +310,27 @@ it('starts annotation history before updating a measurement from the results lis
   expect(setMeasurementsMock).toHaveBeenCalledWith(expect.any(Function));
 });
 
+it('starts annotation history before clearing all annotations', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  latest!.canvasProps.onClearAll();
+
+  expect(beginHistoryActionMock).toHaveBeenCalledWith('clear-all');
+  expect(setMeasurementsMock).toHaveBeenCalledWith([]);
+});
+
 it('starts annotation history before deleting a keypoint from the results list', async () => {
   let latest: Controller | null = null;
 

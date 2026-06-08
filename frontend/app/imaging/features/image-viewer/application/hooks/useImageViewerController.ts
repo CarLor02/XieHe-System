@@ -499,6 +499,11 @@ export function useImageViewerController({
     setPointBindings,
   ]);
 
+  const handleClearAllWithHistory = useCallback(() => {
+    beginHistoryAction('clear-all');
+    clearAllMeasurements();
+  }, [beginHistoryAction, clearAllMeasurements]);
+
   const handleClearBindings = useCallback(() => {
     clearBindings();
     setSaveMessage('已清除点绑定（再次增减标注时将自动重建）');
@@ -569,7 +574,7 @@ export function useImageViewerController({
       onMeasurementsUpdate: setMeasurements,
       onMeasurementUpdate: handleMeasurementUpdateWithHistory,
       onMeasurementDelete: handleMeasurementDeleteWithHistory,
-      onClearAll: clearAllMeasurements,
+      onClearAll: handleClearAllWithHistory,
       canUndoAnnotationHistory,
       onUndoAnnotationHistory: undoAnnotationHistory,
       tools,
