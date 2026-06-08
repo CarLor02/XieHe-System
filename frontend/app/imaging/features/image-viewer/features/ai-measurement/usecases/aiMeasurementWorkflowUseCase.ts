@@ -82,7 +82,7 @@ export async function runAiMeasurementWorkflow({
   setKeypoints,
   setShowVertebraeLayer,
   setCfhAnnotation,
-  rebuildKeypointMeasurements,
+  deriveInitialMeasurementsFromKeypoints,
   lateralDetectionResultRef,
   aiMeasurementIdsRef,
 }: {
@@ -101,9 +101,9 @@ export async function runAiMeasurementWorkflow({
   setKeypoints: Dispatch<SetStateAction<KeypointAnnotation[]>>;
   setShowVertebraeLayer: (isVisible: boolean) => void;
   setCfhAnnotation: Dispatch<SetStateAction<CfhAnnotation | null>>;
-  rebuildKeypointMeasurements: (
-    previousMeasurements: MeasurementData[],
-    nextKeypoints: KeypointAnnotation[]
+  deriveInitialMeasurementsFromKeypoints: (
+    nextKeypoints: KeypointAnnotation[],
+    previousMeasurements: MeasurementData[]
   ) => MeasurementData[];
   lateralDetectionResultRef: MutableRefObject<{
     vertebrae: VertebraAnnotation[];
@@ -267,7 +267,10 @@ export async function runAiMeasurementWorkflow({
               setKeypoints(nextKeypoints);
               setShowVertebraeLayer(true);
               setMeasurements(previousMeasurements =>
-                rebuildKeypointMeasurements(previousMeasurements, nextKeypoints)
+                deriveInitialMeasurementsFromKeypoints(
+                  nextKeypoints,
+                  previousMeasurements
+                )
               );
               return nextLayer;
             });

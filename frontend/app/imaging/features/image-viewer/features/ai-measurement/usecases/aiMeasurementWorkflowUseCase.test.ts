@@ -83,7 +83,8 @@ it('numbers AI Cobb measurements and uses the configured Cobb colors', async () 
       setKeypoints: jest.fn(),
       setShowVertebraeLayer: jest.fn(),
       setCfhAnnotation: jest.fn(),
-      rebuildKeypointMeasurements: previousMeasurements => previousMeasurements,
+      deriveInitialMeasurementsFromKeypoints: (_, previousMeasurements) =>
+        previousMeasurements,
       lateralDetectionResultRef: { current: null },
       aiMeasurementIdsRef: { current: new Set<string>() },
     });

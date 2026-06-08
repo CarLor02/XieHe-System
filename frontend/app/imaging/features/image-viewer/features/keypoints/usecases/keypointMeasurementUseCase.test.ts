@@ -4,9 +4,10 @@ import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/feature
 import {
   createNextBoundCobbMeasurement,
   deriveKeypointMeasurements,
-  getDerivedMeasurementSuppressionKey,
+  deriveInitialMeasurementsFromKeypoints,
   hasCobbMeasurementForEndpoints,
-  rebuildKeypointMeasurements,
+  recalculateExistingMeasurementsFromKeypoints,
+  syncUniqueMeasurementsAfterKeypointChange,
 } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
 import { AnnotationSource, MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 import {
@@ -75,8 +76,8 @@ it('includes L5 in AP keypoint groups and complete AP render layers', () => {
   ).toContain('L5');
 });
 
-it('derives AP Cobb measurements from global endpoint candidates', () => {
-  const rebuilt = rebuildKeypointMeasurements({
+it('derives initial AP Cobb measurements from global endpoint candidates', () => {
+  const rebuilt = deriveInitialMeasurementsFromKeypoints({
     previousMeasurements: [],
     keypoints: t1L5GlobalCobbKeypoints(),
     cfhAnnotation: null,
@@ -95,8 +96,8 @@ it('derives AP Cobb measurements from global endpoint candidates', () => {
   );
 });
 
-it('does not recreate suppressed keypoint-derived Cobb measurements during rebuild', () => {
-  const firstRebuild = rebuildKeypointMeasurements({
+it('does not create a new Cobb while only recalculating existing measurements', () => {
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
     previousMeasurements: [],
     keypoints: t1L5GlobalCobbKeypoints(),
     cfhAnnotation: null,
@@ -104,25 +105,6 @@ it('does not recreate suppressed keypoint-derived Cobb measurements during rebui
     isLateralView: false,
     calculationContext,
     aiMeasurementIds: new Set(),
-  });
-  const cobb = firstRebuild.find(measurement => measurement.type === 'cobb1');
-  const suppressionKey = cobb
-    ? getDerivedMeasurementSuppressionKey(cobb)
-    : null;
-
-  expect(suppressionKey).toBe('cobb:T1-L5');
-
-  const rebuilt = rebuildKeypointMeasurements({
-    previousMeasurements: firstRebuild.filter(
-      measurement => measurement.id !== cobb?.id
-    ),
-    keypoints: t1L5GlobalCobbKeypoints(),
-    cfhAnnotation: null,
-    examType: '正位X光片',
-    isLateralView: false,
-    calculationContext,
-    aiMeasurementIds: new Set(),
-    suppressedDerivedMeasurementKeys: new Set([suppressionKey!]),
   });
 
   expect(rebuilt.some(measurement => /^cobb\d+$/i.test(measurement.type))).toBe(
@@ -146,7 +128,7 @@ it('starts keypoint-derived Cobb numbering after the current maximum Cobb number
     },
   ];
 
-  const rebuilt = rebuildKeypointMeasurements({
+  const rebuilt = deriveInitialMeasurementsFromKeypoints({
     previousMeasurements,
     keypoints: t1L5GlobalCobbKeypoints(),
     cfhAnnotation: null,
@@ -263,7 +245,7 @@ it('creates lateral Cobb to S1 from S1 upper endplate points', () => {
   ]);
 });
 
-it('rebuilds a lateral keypoint-synced Cobb with lateral endpoint rules', () => {
+it('recalculates a lateral keypoint-synced Cobb with lateral endpoint rules', () => {
   const previousMeasurements: MeasurementData[] = [
     {
       id: 'manual-lateral-cobb',
@@ -281,7 +263,7 @@ it('rebuilds a lateral keypoint-synced Cobb with lateral endpoint rules', () => 
     },
   ];
 
-  const rebuilt = rebuildKeypointMeasurements({
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
     previousMeasurements,
     keypoints: [
       apCorner('C2-1', 10, 10),
@@ -330,7 +312,7 @@ it('detects duplicate Cobb endpoint pairs regardless of Cobb sequence number', (
   expect(hasCobbMeasurementForEndpoints(measurements, 'T3', 'T1')).toBe(false);
 });
 
-it('rebuilds a keypoint-synced manual Cobb measurement when endpoint keypoints move', () => {
+it('recalculates a keypoint-synced manual Cobb measurement when endpoint keypoints move', () => {
   const previousMeasurements: MeasurementData[] = [
     {
       id: 'manual-cobb-1',
@@ -354,7 +336,7 @@ it('rebuilds a keypoint-synced manual Cobb measurement when endpoint keypoints m
     apCorner('T3-4', 200, 280),
   ];
 
-  const rebuilt = rebuildKeypointMeasurements({
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
     previousMeasurements,
     keypoints: movedKeypoints,
     cfhAnnotation: null,
@@ -411,7 +393,7 @@ it('preserves an existing keypoint-derived Cobb number when manual Cobb measurem
     },
   ];
 
-  const rebuilt = rebuildKeypointMeasurements({
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
     previousMeasurements,
     keypoints: l4L5LumbarCobbKeypoints(),
     cfhAnnotation: null,
@@ -520,7 +502,7 @@ it('derives lateral LL L1-S1 with vertebra endpoints right-to-left and keeps S1 
   );
 });
 
-it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb measurements', () => {
+it('replaces first-pass AI Cobb measurements with numbered initial keypoint-derived Cobb measurements', () => {
   const firstPassCobb: MeasurementData[] = [
     {
       id: 'ai-cobb-1',
@@ -533,7 +515,7 @@ it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb
   ];
   const keypoints = t1L5GlobalCobbKeypoints();
 
-  const rebuilt = rebuildKeypointMeasurements({
+  const rebuilt = deriveInitialMeasurementsFromKeypoints({
     previousMeasurements: firstPassCobb,
     keypoints,
     cfhAnnotation: null,
@@ -546,4 +528,49 @@ it('replaces first-pass AI Cobb measurements with numbered keypoint-derived Cobb
   const cobb = rebuilt.find(measurement => measurement.type === 'cobb1');
   expect(cobb?.upperVertebra).toBe('T1');
   expect(cobb?.lowerVertebra).toBe('L5');
+});
+
+it('syncs globally unique measurements after keypoint changes without adding Cobb', () => {
+  const synced = syncUniqueMeasurementsAfterKeypointChange({
+    previousMeasurements: [],
+    keypoints: t1L5GlobalCobbKeypoints(),
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(synced.find(measurement => measurement.type === 'T1 Tilt')).toEqual(
+    expect.objectContaining({
+      type: 'T1 Tilt',
+    })
+  );
+  expect(synced.some(measurement => /^cobb\d*$/i.test(measurement.type))).toBe(
+    false
+  );
+});
+
+it('removes globally unique measurements when keypoint dependencies are missing', () => {
+  const synced = syncUniqueMeasurementsAfterKeypointChange({
+    previousMeasurements: [
+      {
+        id: 'vertebrae-derived-t1-tilt',
+        type: 'T1 Tilt',
+        value: '5.00°',
+        points: [
+          { x: 100, y: 100 },
+          { x: 200, y: 100 },
+        ],
+      },
+    ],
+    keypoints: l4L5LumbarCobbKeypoints(),
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(synced.find(measurement => measurement.type === 'T1 Tilt')).toBeUndefined();
 });

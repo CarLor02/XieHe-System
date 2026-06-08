@@ -82,14 +82,13 @@ interface UseMeasurementWorkflowOptions {
   setVertebraeLayer: Dispatch<SetStateAction<VertebraAnnotation[]>>;
   cfhAnnotation: CfhAnnotation | null;
   setCfhAnnotation: Dispatch<SetStateAction<CfhAnnotation | null>>;
-  rebuildKeypointMeasurements: (
+  syncUniqueKeypointMeasurements: (
     previousMeasurements: MeasurementData[],
     nextKeypoints: KeypointAnnotation[]
   ) => MeasurementData[];
   deriveKeypointMeasurements: (
     nextKeypoints: KeypointAnnotation[]
   ) => MeasurementData[];
-  onMeasurementDelete?: (measurement: MeasurementData) => void;
 }
 
 function flashMessage(
@@ -130,9 +129,8 @@ export function useMeasurementWorkflow({
   setVertebraeLayer,
   cfhAnnotation,
   setCfhAnnotation,
-  rebuildKeypointMeasurements,
+  syncUniqueKeypointMeasurements,
   deriveKeypointMeasurements,
-  onMeasurementDelete,
 }: UseMeasurementWorkflowOptions) {
   useEffect(() => {
     if (!selectedTool || selectedTool === 'hand' || clickedPoints.length > 0) {
@@ -198,7 +196,7 @@ export function useMeasurementWorkflow({
           keypointsToCfhAnnotation(nextKeypoints) ?? cfhAnnotation
         );
         setMeasurements(previous =>
-          rebuildKeypointMeasurements(previous, nextKeypoints)
+          syncUniqueKeypointMeasurements(previous, nextKeypoints)
         );
         return;
       }
@@ -266,13 +264,13 @@ export function useMeasurementWorkflow({
       isLateralView,
       keypoints,
       measurements,
-      rebuildKeypointMeasurements,
       setCfhAnnotation,
       setKeypoints,
       setMeasurements,
       setVertebraeLayer,
       standardDistance,
       standardDistancePoints,
+      syncUniqueKeypointMeasurements,
       tools,
     ]
   );
@@ -288,8 +286,6 @@ export function useMeasurementWorkflow({
       }
 
       const typeId = getAnnotationTypeId(target.type);
-      onMeasurementDelete?.(target);
-
       if (isLateralView && isKeypointExam && keypoints.length > 0) {
         if (typeId === 'pi' || typeId === 'pt') {
           const nextKeypoints = removeKeypointsById(keypoints, ['CFH']);
@@ -297,7 +293,7 @@ export function useMeasurementWorkflow({
           setCfhAnnotation(null);
           setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
           setMeasurements(previous =>
-            rebuildKeypointMeasurements(
+            syncUniqueKeypointMeasurements(
               previous.filter(
                 measurement =>
                   !measurementTypeInSet(
@@ -324,7 +320,7 @@ export function useMeasurementWorkflow({
           if (preservedCfh) setCfhAnnotation(preservedCfh);
           setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
           setMeasurements(previous =>
-            rebuildKeypointMeasurements(
+            syncUniqueKeypointMeasurements(
               previous.filter(
                 measurement =>
                   !measurementTypeInSet(
@@ -390,12 +386,11 @@ export function useMeasurementWorkflow({
       isLateralView,
       keypoints,
       measurements,
-      onMeasurementDelete,
-      rebuildKeypointMeasurements,
       setCfhAnnotation,
       setKeypoints,
       setMeasurements,
       setVertebraeLayer,
+      syncUniqueKeypointMeasurements,
     ]
   );
 

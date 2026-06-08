@@ -60,39 +60,8 @@ export function isDerivedCobbMeasurement(measurement: MeasurementData): boolean 
   );
 }
 
-export type DerivedMeasurementSuppressionKey = string;
-
 function normalizeVertebraLabel(label: string): string {
   return label.trim().toUpperCase();
-}
-
-export function getDerivedMeasurementSuppressionKey(
-  measurement: MeasurementData
-): DerivedMeasurementSuppressionKey | null {
-  if (
-    isCobbMeasurement(measurement) &&
-    measurement.upperVertebra &&
-    measurement.lowerVertebra
-  ) {
-    return `cobb:${normalizeVertebraLabel(measurement.upperVertebra)}-${normalizeVertebraLabel(measurement.lowerVertebra)}`;
-  }
-
-  if (measurement.id.startsWith(DERIVED_ID_PREFIX)) {
-    return `id:${measurement.id}`;
-  }
-
-  return null;
-}
-
-function isSuppressedDerivedMeasurement(
-  measurement: MeasurementData,
-  suppressedDerivedMeasurementKeys: Set<DerivedMeasurementSuppressionKey>
-): boolean {
-  const suppressionKey = getDerivedMeasurementSuppressionKey(measurement);
-  return (
-    suppressionKey !== null &&
-    suppressedDerivedMeasurementKeys.has(suppressionKey)
-  );
 }
 
 export function isCobbMeasurement(measurement: MeasurementData): boolean {
@@ -109,11 +78,15 @@ export function hasCobbMeasurementForEndpoints(
   upperVertebra: string,
   lowerVertebra: string
 ): boolean {
+  const normalizedUpper = normalizeVertebraLabel(upperVertebra);
+  const normalizedLower = normalizeVertebraLabel(lowerVertebra);
   return measurements.some(
     measurement =>
       isCobbMeasurement(measurement) &&
-      measurement.upperVertebra === upperVertebra &&
-      measurement.lowerVertebra === lowerVertebra
+      measurement.upperVertebra != null &&
+      measurement.lowerVertebra != null &&
+      normalizeVertebraLabel(measurement.upperVertebra) === normalizedUpper &&
+      normalizeVertebraLabel(measurement.lowerVertebra) === normalizedLower
   );
 }
 
@@ -534,7 +507,58 @@ export function deriveKeypointMeasurements({
   );
 }
 
-export function rebuildKeypointMeasurements({
+function getDerivedCandidateKey(measurement: MeasurementData): string {
+  return getAnnotationTypeId(measurement.type);
+}
+
+function buildDerivedCandidateMaps(measurements: MeasurementData[]) {
+  return {
+    byId: new Map(measurements.map(measurement => [measurement.id, measurement])),
+    byType: new Map(
+      measurements.map(measurement => [
+        getDerivedCandidateKey(measurement),
+        measurement,
+      ])
+    ),
+  };
+}
+
+function isKeypointDrivenUniqueMeasurement(
+  measurement: MeasurementData,
+  aiMeasurementIds: Set<string>
+): boolean {
+  return (
+    measurement.id.startsWith(DERIVED_ID_PREFIX) ||
+    aiMeasurementIds.has(measurement.id)
+  );
+}
+
+function recalculateDerivedCandidateMeasurement({
+  measurement,
+  candidate,
+  calculationContext,
+}: {
+  measurement: MeasurementData;
+  candidate: MeasurementData;
+  calculationContext: CalculationContext;
+}): MeasurementData {
+  return {
+    ...measurement,
+    type: measurement.type,
+    points: candidate.points,
+    value: calculateMeasurementValue(
+      measurement.type,
+      candidate.points,
+      calculationContext
+    ),
+    description: measurement.description ?? candidate.description,
+    upperVertebra: measurement.upperVertebra ?? candidate.upperVertebra,
+    lowerVertebra: measurement.lowerVertebra ?? candidate.lowerVertebra,
+    apexVertebra: measurement.apexVertebra ?? candidate.apexVertebra,
+  };
+}
+
+export function deriveInitialMeasurementsFromKeypoints({
   previousMeasurements,
   keypoints,
   cfhAnnotation,
@@ -542,7 +566,6 @@ export function rebuildKeypointMeasurements({
   isLateralView,
   calculationContext,
   aiMeasurementIds,
-  suppressedDerivedMeasurementKeys = new Set(),
 }: {
   previousMeasurements: MeasurementData[];
   keypoints: KeypointAnnotation[];
@@ -551,7 +574,6 @@ export function rebuildKeypointMeasurements({
   isLateralView: boolean;
   calculationContext: CalculationContext;
   aiMeasurementIds: Set<string>;
-  suppressedDerivedMeasurementKeys?: Set<DerivedMeasurementSuppressionKey>;
 }): MeasurementData[] {
   const boundCobbIds = new Set(
     previousMeasurements
@@ -566,10 +588,6 @@ export function rebuildKeypointMeasurements({
     calculationContext,
   }).filter(
     measurement =>
-      !isSuppressedDerivedMeasurement(
-        measurement,
-        suppressedDerivedMeasurementKeys
-      ) &&
       (!isDerivedCobbMeasurement(measurement) ||
         (!hasExistingDerivedCobb && !boundCobbIds.has(measurement.id)))
   );
@@ -655,6 +673,138 @@ export function rebuildKeypointMeasurements({
     ...(avtMeasurement ? [avtMeasurement] : []),
     ...(ttsMeasurement ? [ttsMeasurement] : []),
   ]);
+}
+
+export function recalculateExistingMeasurementsFromKeypoints({
+  previousMeasurements,
+  keypoints,
+  cfhAnnotation,
+  examType,
+  isLateralView,
+  calculationContext,
+  aiMeasurementIds,
+}: {
+  previousMeasurements: MeasurementData[];
+  keypoints: KeypointAnnotation[];
+  cfhAnnotation: CfhAnnotation | null;
+  examType: string;
+  isLateralView: boolean;
+  calculationContext: CalculationContext;
+  aiMeasurementIds: Set<string>;
+}): MeasurementData[] {
+  const derivedCandidates = deriveKeypointMeasurements({
+    keypoints,
+    cfhAnnotation,
+    examType,
+    calculationContext,
+  }).filter(measurement => !isCobbMeasurement(measurement));
+  const candidateMaps = buildDerivedCandidateMaps(derivedCandidates);
+
+  const recalculated = previousMeasurements
+    .map(measurement => {
+      if (isDerivedCobbMeasurement(measurement)) {
+        return createBoundCobbMeasurement({
+          measurement,
+          keypoints,
+          examType,
+          calculationContext,
+        });
+      }
+
+      if (measurement.type === 'vertebra-center' && measurement.upperVertebra) {
+        return createVertebraCenterMeasurement({
+          vertebra: measurement.upperVertebra,
+          keypoints,
+          examType,
+          isLateralView,
+          calculationContext,
+        });
+      }
+
+      if (measurement.id === 'ap-keypoint-tts') {
+        return measurement.upperVertebra && measurement.lowerVertebra
+          ? createTtsMeasurement({
+              upperVertebra: measurement.upperVertebra,
+              lowerVertebra: measurement.lowerVertebra,
+              keypoints,
+              calculationContext,
+            })
+          : null;
+      }
+
+      if (measurement.id === 'ap-keypoint-avt') {
+        return measurement.apexVertebra
+          ? createAvtMeasurement({
+              apexVertebra: measurement.apexVertebra,
+              keypoints,
+              calculationContext,
+            })
+          : null;
+      }
+
+      if (isKeypointDrivenUniqueMeasurement(measurement, aiMeasurementIds)) {
+        if (isCobbMeasurement(measurement)) return null;
+        const candidate =
+          candidateMaps.byId.get(measurement.id) ??
+          candidateMaps.byType.get(getDerivedCandidateKey(measurement));
+        return candidate
+          ? recalculateDerivedCandidateMeasurement({
+              measurement,
+              candidate,
+              calculationContext,
+            })
+          : null;
+      }
+
+      return measurement;
+    })
+    .filter(
+      (measurement): measurement is MeasurementData => measurement !== null
+    );
+
+  return filterUniqueAnnotationDuplicates(recalculated);
+}
+
+export function syncUniqueMeasurementsAfterKeypointChange({
+  previousMeasurements,
+  keypoints,
+  cfhAnnotation,
+  examType,
+  isLateralView,
+  calculationContext,
+  aiMeasurementIds,
+}: {
+  previousMeasurements: MeasurementData[];
+  keypoints: KeypointAnnotation[];
+  cfhAnnotation: CfhAnnotation | null;
+  examType: string;
+  isLateralView: boolean;
+  calculationContext: CalculationContext;
+  aiMeasurementIds: Set<string>;
+}): MeasurementData[] {
+  const recalculated = recalculateExistingMeasurementsFromKeypoints({
+    previousMeasurements,
+    keypoints,
+    cfhAnnotation,
+    examType,
+    isLateralView,
+    calculationContext,
+    aiMeasurementIds,
+  });
+  const existingTypes = new Set(
+    recalculated.map(measurement => getDerivedCandidateKey(measurement))
+  );
+  const additions = deriveKeypointMeasurements({
+    keypoints,
+    cfhAnnotation,
+    examType,
+    calculationContext,
+  }).filter(measurement => {
+    const key = getDerivedCandidateKey(measurement);
+    return !isCobbMeasurement(measurement) && !existingTypes.has(key);
+  });
+
+  return filterUniqueAnnotationDuplicates([...recalculated, ...additions]);
 }
 
 export function buildDerivedMeasurementsFromLayer({

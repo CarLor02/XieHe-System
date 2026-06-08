@@ -41,13 +41,12 @@ interface UseStudyHeaderActionsOptions {
   setKeypoints: Dispatch<SetStateAction<KeypointAnnotation[]>>;
   setShowVertebraeLayer: (isVisible: boolean) => void;
   setCfhAnnotation: Dispatch<SetStateAction<CfhAnnotation | null>>;
-  rebuildKeypointMeasurements: (
-    previousMeasurements: MeasurementData[],
-    nextKeypoints: KeypointAnnotation[]
+  deriveInitialMeasurementsFromKeypoints: (
+    nextKeypoints: KeypointAnnotation[],
+    previousMeasurements: MeasurementData[]
   ) => MeasurementData[];
   lateralDetectionResultRef: MutableRefObject<LateralDetectionCache | null>;
   aiMeasurementIdsRef: MutableRefObject<Set<string>>;
-  clearDeletedDerivedMeasurementSuppressions?: () => void;
   setSaveMessage: (message: string) => void;
 }
 
@@ -72,10 +71,9 @@ export function useStudyHeaderActions({
   setKeypoints,
   setShowVertebraeLayer,
   setCfhAnnotation,
-  rebuildKeypointMeasurements,
+  deriveInitialMeasurementsFromKeypoints,
   lateralDetectionResultRef,
   aiMeasurementIdsRef,
-  clearDeletedDerivedMeasurementSuppressions,
   setSaveMessage,
 }: UseStudyHeaderActionsOptions) {
   const [isSaving, setIsSaving] = useState(false);
@@ -83,7 +81,6 @@ export function useStudyHeaderActions({
   const [isAIMeasuring, setIsAIMeasuring] = useState(false);
 
   const handleAIMeasurement = useCallback(() => {
-    clearDeletedDerivedMeasurementSuppressions?.();
     void runAiMeasurementWorkflow({
       imageId,
       imageData,
@@ -100,20 +97,19 @@ export function useStudyHeaderActions({
       setKeypoints,
       setShowVertebraeLayer,
       setCfhAnnotation,
-      rebuildKeypointMeasurements,
+      deriveInitialMeasurementsFromKeypoints,
       lateralDetectionResultRef,
       aiMeasurementIdsRef,
     });
   }, [
     aiMeasurementIdsRef,
     canUseKeypoints,
-    clearDeletedDerivedMeasurementSuppressions,
+    deriveInitialMeasurementsFromKeypoints,
     imageData,
     imageId,
     imageNaturalSize,
     isLateralView,
     lateralDetectionResultRef,
-    rebuildKeypointMeasurements,
     setCfhAnnotation,
     setImageNaturalSize,
     setKeypoints,

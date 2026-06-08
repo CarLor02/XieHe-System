@@ -109,9 +109,8 @@ function WorkflowHarness({
     setVertebraeLayer: workflow.setVertebraeLayer,
     cfhAnnotation: workflow.cfhAnnotation,
     setCfhAnnotation: workflow.setCfhAnnotation,
-    rebuildKeypointMeasurements: workflow.rebuildKeypointMeasurements,
+    syncUniqueKeypointMeasurements: workflow.syncUniqueMeasurements,
     deriveKeypointMeasurements: workflow.deriveKeypointMeasurements,
-    onMeasurementDelete: workflow.suppressDeletedDerivedMeasurement,
   });
 
   useEffect(() => {
@@ -204,7 +203,11 @@ it('does not rebuild deleted AP Cobb measurements when hiding the detection laye
   });
 
   act(() => {
-    latest!.workflow.setKeypoints(apGlobalCobbKeypoints());
+    const initialKeypoints = apGlobalCobbKeypoints();
+    latest!.workflow.setKeypoints(initialKeypoints);
+    latest!.setMeasurements(
+      latest!.workflow.deriveInitialMeasurementsFromKeypoints(initialKeypoints)
+    );
     latest!.workflow.setShowVertebraeLayer(true);
   });
 
@@ -251,7 +254,11 @@ it('does not rebuild deleted AP Cobb measurements when keypoints are updated', a
   });
 
   act(() => {
-    latest!.workflow.setKeypoints(apGlobalCobbKeypoints());
+    const initialKeypoints = apGlobalCobbKeypoints();
+    latest!.workflow.setKeypoints(initialKeypoints);
+    latest!.setMeasurements(
+      latest!.workflow.deriveInitialMeasurementsFromKeypoints(initialKeypoints)
+    );
   });
 
   await waitFor(() => {
@@ -289,4 +296,30 @@ it('does not rebuild deleted AP Cobb measurements when keypoints are updated', a
   await waitFor(() => {
     expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
   });
+});
+
+it('does not create AP Cobb measurements from ordinary keypoint updates', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.workflow.setKeypoints(apGlobalCobbKeypoints());
+  });
+
+  await waitFor(() => {
+    expect(latest!.workflow.keypoints).toHaveLength(8);
+  });
+
+  expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
 });

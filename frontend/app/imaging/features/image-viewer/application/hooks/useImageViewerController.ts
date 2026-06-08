@@ -244,9 +244,8 @@ export function useImageViewerController({
     setVertebraeLayer: keypointWorkflow.setVertebraeLayer,
     cfhAnnotation: keypointWorkflow.cfhAnnotation,
     setCfhAnnotation: keypointWorkflow.setCfhAnnotation,
-    rebuildKeypointMeasurements: keypointWorkflow.rebuildKeypointMeasurements,
+    syncUniqueKeypointMeasurements: keypointWorkflow.syncUniqueMeasurements,
     deriveKeypointMeasurements: keypointWorkflow.deriveKeypointMeasurements,
-    onMeasurementDelete: keypointWorkflow.suppressDeletedDerivedMeasurement,
   });
 
   const standardDistanceActions = useStandardDistanceActions({
@@ -285,11 +284,10 @@ export function useImageViewerController({
     setKeypoints: keypointWorkflow.setKeypoints,
     setShowVertebraeLayer: keypointWorkflow.setShowVertebraeLayer,
     setCfhAnnotation: keypointWorkflow.setCfhAnnotation,
-    rebuildKeypointMeasurements: keypointWorkflow.rebuildKeypointMeasurements,
+    deriveInitialMeasurementsFromKeypoints:
+      keypointWorkflow.deriveInitialMeasurementsFromKeypoints,
     lateralDetectionResultRef: keypointWorkflow.lateralDetectionResultRef,
     aiMeasurementIdsRef: keypointWorkflow.aiMeasurementIdsRef,
-    clearDeletedDerivedMeasurementSuppressions:
-      keypointWorkflow.clearDeletedDerivedMeasurementSuppressions,
     setSaveMessage,
   });
 
