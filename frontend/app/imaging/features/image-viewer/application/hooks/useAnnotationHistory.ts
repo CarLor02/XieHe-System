@@ -6,8 +6,10 @@ interface UseAnnotationHistoryOptions<TSnapshot> {
   maxDepth?: number;
 }
 
-interface BeginHistoryActionOptions {
+interface BeginHistoryActionOptions<TSnapshot> {
   persistAcrossUnchangedRenders?: boolean;
+  commitImmediately?: boolean;
+  snapshot?: TSnapshot;
 }
 
 interface PendingHistoryAction<TSnapshot> {
@@ -36,9 +38,36 @@ export function useAnnotationHistory<TSnapshot>({
   maxDepth = 50,
 }: UseAnnotationHistoryOptions<TSnapshot>) {
   const [undoStack, setUndoStack] = useState<TSnapshot[]>([]);
+  const undoStackRef = useRef<TSnapshot[]>([]);
   const currentSnapshotRef = useRef(cloneSnapshot(snapshot));
   const pendingActionRef =
     useRef<PendingHistoryAction<TSnapshot> | null>(null);
+
+  const pushUndoSnapshots = useCallback(
+    (snapshots: TSnapshot[]) => {
+      if (snapshots.length === 0) return;
+
+      let nextStack = undoStackRef.current;
+      snapshots.forEach(snapshotToPush => {
+        const clonedSnapshot = cloneSnapshot(snapshotToPush);
+        const previousSnapshot = nextStack[nextStack.length - 1];
+        if (
+          previousSnapshot &&
+          snapshotsEqual(previousSnapshot, clonedSnapshot)
+        ) {
+          return;
+        }
+
+        nextStack = [...nextStack, clonedSnapshot].slice(
+          Math.max(0, nextStack.length + 1 - maxDepth)
+        );
+      });
+
+      undoStackRef.current = nextStack;
+      setUndoStack(nextStack);
+    },
+    [maxDepth]
+  );
 
   useEffect(() => {
     const currentSnapshot = cloneSnapshot(snapshot);
@@ -54,17 +83,38 @@ export function useAnnotationHistory<TSnapshot>({
     }
 
     pendingActionRef.current = null;
-    setUndoStack(previous => {
-      const next = [...previous, cloneSnapshot(pendingAction.snapshot)];
-      return next.slice(Math.max(0, next.length - maxDepth));
-    });
-  }, [maxDepth, snapshot]);
+    pushUndoSnapshots([pendingAction.snapshot]);
+  }, [pushUndoSnapshots, snapshot]);
 
   const beginHistoryAction = useCallback(
-    (label: string, options: BeginHistoryActionOptions = {}) => {
+    (
+      label: string,
+      options: BeginHistoryActionOptions<TSnapshot> = {}
+    ) => {
+      const currentSnapshot = cloneSnapshot(
+        options.snapshot ?? currentSnapshotRef.current
+      );
+      const previousPendingAction = pendingActionRef.current;
+      const snapshotsToFlush =
+        previousPendingAction &&
+        !snapshotsEqual(previousPendingAction.snapshot, currentSnapshot)
+          ? [previousPendingAction.snapshot]
+          : [];
+
+      pendingActionRef.current = null;
+
+      if (options.commitImmediately) {
+        pushUndoSnapshots([...snapshotsToFlush, currentSnapshot]);
+        return;
+      }
+
+      if (snapshotsToFlush.length > 0) {
+        pushUndoSnapshots(snapshotsToFlush);
+      }
+
       const pendingAction = {
         label,
-        snapshot: cloneSnapshot(currentSnapshotRef.current),
+        snapshot: currentSnapshot,
         persistAcrossUnchangedRenders:
           options.persistAcrossUnchangedRenders ?? false,
       };
@@ -78,7 +128,7 @@ export function useAnnotationHistory<TSnapshot>({
         }, 0);
       }
     },
-    []
+    [pushUndoSnapshots]
   );
 
   const cancelHistoryAction = useCallback(() => {
@@ -87,17 +137,21 @@ export function useAnnotationHistory<TSnapshot>({
 
   const clearHistory = useCallback(() => {
     pendingActionRef.current = null;
+    undoStackRef.current = [];
     setUndoStack([]);
   }, []);
 
   const undo = useCallback(() => {
-    const snapshotToRestore = undoStack[undoStack.length - 1];
+    const snapshotToRestore =
+      undoStackRef.current[undoStackRef.current.length - 1];
     if (!snapshotToRestore) return;
 
     pendingActionRef.current = null;
-    setUndoStack(previous => previous.slice(0, -1));
+    const nextStack = undoStackRef.current.slice(0, -1);
+    undoStackRef.current = nextStack;
+    setUndoStack(nextStack);
     restoreSnapshot(cloneSnapshot(snapshotToRestore));
-  }, [restoreSnapshot, undoStack]);
+  }, [restoreSnapshot]);
 
   return {
     beginHistoryAction,

@@ -500,9 +500,12 @@ export function useImageViewerController({
   ]);
 
   const handleClearAllWithHistory = useCallback(() => {
-    beginHistoryAction('clear-all');
+    beginHistoryAction('clear-all', {
+      commitImmediately: true,
+      snapshot: annotationHistorySnapshot,
+    });
     clearAllMeasurements();
-  }, [beginHistoryAction, clearAllMeasurements]);
+  }, [annotationHistorySnapshot, beginHistoryAction, clearAllMeasurements]);
 
   const handleClearBindings = useCallback(() => {
     clearBindings();

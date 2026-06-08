@@ -327,7 +327,13 @@ it('starts annotation history before clearing all annotations', async () => {
 
   latest!.canvasProps.onClearAll();
 
-  expect(beginHistoryActionMock).toHaveBeenCalledWith('clear-all');
+  expect(beginHistoryActionMock).toHaveBeenCalledWith(
+    'clear-all',
+    expect.objectContaining({
+      commitImmediately: true,
+      snapshot: annotationHistoryOptions!.snapshot,
+    })
+  );
   expect(setMeasurementsMock).toHaveBeenCalledWith([]);
 });
 

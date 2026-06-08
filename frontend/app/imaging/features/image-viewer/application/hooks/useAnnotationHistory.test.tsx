@@ -171,6 +171,45 @@ it('keeps persistent actions across unchanged renders until the snapshot changes
   });
 });
 
+it('records immediate destructive actions before a following undo can use older history', async () => {
+  let latest: HistoryValue | null = null;
+
+  render(
+    <HistoryHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.beginHistoryAction('first-change');
+    latest!.setCount(1);
+  });
+
+  await waitFor(() => {
+    expect(latest!.count).toBe(1);
+    expect(latest!.canUndo).toBe(true);
+  });
+
+  act(() => {
+    latest!.beginHistoryAction('clear-all', {
+      commitImmediately: true,
+      snapshot: { count: latest!.count },
+    });
+    latest!.setCount(0);
+    latest!.undo();
+  });
+
+  await waitFor(() => {
+    expect(latest!.count).toBe(1);
+  });
+});
+
 it('keeps only the configured number of undo snapshots', async () => {
   let latest: HistoryValue | null = null;
 
