@@ -1135,7 +1135,6 @@ export default function AnnotationToolbar({
                                 onClick={() => {
                                   if (!exists) {
                                     onSelectTool(`keypoint:${keypoint.id}`);
-                                    setOpenKeypointGroup(null);
                                   }
                                 }}
                                 disabled={exists}

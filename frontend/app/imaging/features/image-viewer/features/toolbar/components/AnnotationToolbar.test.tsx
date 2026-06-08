@@ -207,6 +207,18 @@ it('returns to hand mode when clicking the active auxiliary tool again', () => {
   expect(onSelectTool).not.toHaveBeenCalled();
 });
 
+it('keeps the keypoint chooser open after selecting a manual keypoint', () => {
+  const onSelectTool = jest.fn();
+  renderToolbar({ onSelectTool });
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+  fireEvent.click(screen.getByRole('button', { name: /^C7 0$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'C7-1' }));
+
+  expect(onSelectTool).toHaveBeenCalledWith('keypoint:C7-1');
+  expect(screen.getByRole('button', { name: 'C7-2' })).toBeTruthy();
+});
+
 it('shows measurement derive mode for lateral annotation', () => {
   renderToolbar({ examType: '侧位X光片' });
 
