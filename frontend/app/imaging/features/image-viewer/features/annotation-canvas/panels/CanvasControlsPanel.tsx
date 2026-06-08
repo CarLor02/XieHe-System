@@ -2,7 +2,9 @@ interface CanvasControlsPanelProps {
   imageScale: number;
   contrast: number;
   brightness: number;
+  canUndoAnnotationHistory: boolean;
   onClearAll: () => void;
+  onUndoAnnotationHistory: () => void;
   onZoomOut: () => void;
   onZoomIn: () => void;
   onDecreaseContrast: () => void;
@@ -18,7 +20,9 @@ export default function CanvasControlsPanel({
   imageScale,
   contrast,
   brightness,
+  canUndoAnnotationHistory,
   onClearAll,
+  onUndoAnnotationHistory,
   onZoomOut,
   onZoomIn,
   onDecreaseContrast,
@@ -38,6 +42,25 @@ export default function CanvasControlsPanel({
         event.preventDefault();
       }}
     >
+      <div className="flex items-center justify-center">
+        <button
+          onClick={event => {
+            event.stopPropagation();
+            onUndoAnnotationHistory();
+          }}
+          disabled={!canUndoAnnotationHistory}
+          className={`flex items-center gap-1 px-3 py-1.5 rounded text-white text-xs font-medium transition-all active:scale-95 w-full justify-center ${
+            canUndoAnnotationHistory
+              ? 'bg-gray-700 hover:bg-gray-600'
+              : 'bg-gray-700/50 text-white/40 cursor-not-allowed'
+          }`}
+          title="撤回到上一步标注数据"
+        >
+          <i className="ri-arrow-go-back-line"></i>
+          <span>撤回</span>
+        </button>
+      </div>
+
       <div className="flex items-center justify-center">
         <button
           onClick={event => {

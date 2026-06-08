@@ -21,15 +21,37 @@ import {
   useStudyHeaderActions,
 } from '@/app/imaging/features/image-viewer/features/study';
 import { useReportActions } from '@/app/imaging/features/image-viewer/features/report';
+import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { useAnnotationHistory } from '@/app/imaging/features/image-viewer/application/hooks/useAnnotationHistory';
 import {
   isAnteriorExamType,
   isKeypointSupportedExamType,
   isLateralExamType,
   useKeypointMeasurementWorkflow,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import {
+  CfhAnnotation,
+  MeasurementData,
+  Point,
+  VertebraAnnotation,
+} from '@/app/imaging/features/image-viewer/shared/types';
 
 interface UseImageViewerControllerOptions {
   imageId: string;
+}
+
+interface AnnotationHistorySnapshot {
+  measurements: MeasurementData[];
+  standardDistance: number | null;
+  standardDistanceValue: string;
+  standardDistancePoints: Point[];
+  pointBindings: AnnotationBindings;
+  keypoints: KeypointAnnotation[];
+  vertebraeLayer: VertebraAnnotation[];
+  cfhAnnotation: CfhAnnotation | null;
+  showVertebraeLayer: boolean;
+  aiMeasurementIds: string[];
 }
 
 export function useImageViewerController({
@@ -157,6 +179,18 @@ export function useImageViewerController({
     setSaveMessage,
     setShowStandardDistanceWarning,
   });
+  const {
+    keypoints: historyKeypoints,
+    setKeypoints: setHistoryKeypoints,
+    vertebraeLayer: historyVertebraeLayer,
+    setVertebraeLayer: setHistoryVertebraeLayer,
+    cfhAnnotation: historyCfhAnnotation,
+    setCfhAnnotation: setHistoryCfhAnnotation,
+    showVertebraeLayer: historyShowVertebraeLayer,
+    setShowVertebraeLayer: setHistoryShowVertebraeLayer,
+    getAiMeasurementIdsSnapshot,
+    restoreAiMeasurementIds,
+  } = keypointWorkflow;
 
   const {
     pointBindings,
@@ -214,6 +248,76 @@ export function useImageViewerController({
   );
 
   useImageListFetcher(setImageList);
+
+  const annotationHistorySnapshot = useMemo<AnnotationHistorySnapshot>(
+    () => ({
+      measurements,
+      standardDistance,
+      standardDistanceValue,
+      standardDistancePoints,
+      pointBindings,
+      keypoints: historyKeypoints,
+      vertebraeLayer: historyVertebraeLayer,
+      cfhAnnotation: historyCfhAnnotation,
+      showVertebraeLayer: historyShowVertebraeLayer,
+      aiMeasurementIds: getAiMeasurementIdsSnapshot(),
+    }),
+    [
+      measurements,
+      pointBindings,
+      standardDistance,
+      standardDistancePoints,
+      standardDistanceValue,
+      historyKeypoints,
+      historyVertebraeLayer,
+      historyCfhAnnotation,
+      historyShowVertebraeLayer,
+      getAiMeasurementIdsSnapshot,
+    ]
+  );
+
+  const restoreAnnotationHistorySnapshot = useCallback(
+    (snapshot: AnnotationHistorySnapshot) => {
+      setMeasurements(snapshot.measurements);
+      setStandardDistance(snapshot.standardDistance);
+      setStandardDistanceValue(snapshot.standardDistanceValue);
+      setStandardDistancePoints(snapshot.standardDistancePoints);
+      setPointBindings(snapshot.pointBindings);
+      setHistoryKeypoints(snapshot.keypoints);
+      setHistoryVertebraeLayer(snapshot.vertebraeLayer);
+      setHistoryCfhAnnotation(snapshot.cfhAnnotation);
+      setHistoryShowVertebraeLayer(snapshot.showVertebraeLayer);
+      restoreAiMeasurementIds(snapshot.aiMeasurementIds);
+      setClickedPoints([]);
+    },
+    [
+      restoreAiMeasurementIds,
+      setClickedPoints,
+      setHistoryCfhAnnotation,
+      setHistoryKeypoints,
+      setHistoryShowVertebraeLayer,
+      setHistoryVertebraeLayer,
+      setMeasurements,
+      setPointBindings,
+      setStandardDistance,
+      setStandardDistancePoints,
+      setStandardDistanceValue,
+    ]
+  );
+
+  const {
+    beginHistoryAction,
+    clearHistory,
+    undo: undoAnnotationHistory,
+    canUndo: canUndoAnnotationHistory,
+  } = useAnnotationHistory<AnnotationHistorySnapshot>({
+    snapshot: annotationHistorySnapshot,
+    restoreSnapshot: restoreAnnotationHistorySnapshot,
+  });
+
+  useEffect(() => {
+    clearHistory();
+  }, [clearHistory, imageId]);
 
   const measurementWorkflow = useMeasurementWorkflow({
     imageId,
@@ -290,6 +394,56 @@ export function useImageViewerController({
     aiMeasurementIdsRef: keypointWorkflow.aiMeasurementIdsRef,
     setSaveMessage,
   });
+
+  const handleMeasurementAddWithHistory = useCallback(
+    (toolType: string, points: Point[]) => {
+      beginHistoryAction('manual-measurement');
+      measurementWorkflow.handleAddMeasurement(toolType, points);
+    },
+    [beginHistoryAction, measurementWorkflow]
+  );
+
+  const handleKeypointAddWithHistory = useCallback(
+    (keypointId: string, point: Point) => {
+      beginHistoryAction('manual-keypoint');
+      keypointWorkflow.handleKeypointAdd(keypointId, point);
+    },
+    [beginHistoryAction, keypointWorkflow]
+  );
+
+  const handleRectifyVertebraCornerOrderWithHistory = useCallback(
+    (
+      vertebra: string,
+      mapping: Parameters<
+        typeof keypointWorkflow.handleRectifyVertebraCornerOrder
+      >[1]
+    ) => {
+      beginHistoryAction('vertebra-corner-rectify');
+      keypointWorkflow.handleRectifyVertebraCornerOrder(vertebra, mapping);
+    },
+    [beginHistoryAction, keypointWorkflow]
+  );
+
+  const handleCreateCobbWithHistory = useCallback(
+    (upperVertebra: string, lowerVertebra: string) => {
+      beginHistoryAction('measurement-derive-cobb');
+      keypointWorkflow.handleCreateCobb(upperVertebra, lowerVertebra);
+    },
+    [beginHistoryAction, keypointWorkflow]
+  );
+
+  const handleAIMeasurementWithHistory = useCallback(() => {
+    beginHistoryAction('ai-measurement', {
+      persistAcrossUnchangedRenders: true,
+    });
+    studyHeaderActions.handleAIMeasurement();
+  }, [beginHistoryAction, studyHeaderActions]);
+
+  const handleAnnotationDataDragStart = useCallback(() => {
+    beginHistoryAction('annotation-data-drag', {
+      persistAcrossUnchangedRenders: true,
+    });
+  }, [beginHistoryAction]);
 
   useEffect(() => {
     if (!selectedBindingGroupId) return;
@@ -380,7 +534,7 @@ export function useImageViewerController({
       onSave: studyHeaderActions.handleSaveMeasurements,
       onExportJson: measurementWorkflow.exportAnnotationsToJSON,
       onImportJson: measurementWorkflow.importAnnotationsFromJSON,
-      onAIMeasure: studyHeaderActions.handleAIMeasurement,
+      onAIMeasure: handleAIMeasurementWithHistory,
       onGenerateReport: handleReportGenerate,
     },
     canvasProps: {
@@ -388,10 +542,12 @@ export function useImageViewerController({
       measurements,
       selectedTool,
       setSelectedTool,
-      onMeasurementAdd: measurementWorkflow.handleAddMeasurement,
+      onMeasurementAdd: handleMeasurementAddWithHistory,
       onMeasurementsUpdate: setMeasurements,
       onMeasurementDelete: measurementWorkflow.handleMeasurementDelete,
       onClearAll: clearAllMeasurements,
+      canUndoAnnotationHistory,
+      onUndoAnnotationHistory: undoAnnotationHistory,
       tools,
       clickedPoints,
       setClickedPoints,
@@ -426,10 +582,11 @@ export function useImageViewerController({
       onVertebraeUpdate: keypointWorkflow.handleVertebraeUpdate,
       onVertebraePreviewUpdate:
         keypointWorkflow.handleVertebraePreviewUpdate,
-      onKeypointAdd: keypointWorkflow.handleKeypointAdd,
+      onKeypointAdd: handleKeypointAddWithHistory,
       onKeypointDelete: keypointWorkflow.handleKeypointDelete,
       onMeasurementWriteback: keypointWorkflow.handleMeasurementWriteback,
       onCobbKeypointsSync: keypointWorkflow.handleCobbKeypointsSync,
+      onAnnotationDataDragStart: handleAnnotationDataDragStart,
     },
     toolbarProps: {
       examType: imageData.examType,
@@ -461,9 +618,9 @@ export function useImageViewerController({
         measurementWorkflow.handleRestoreAutomaticMeasurement,
       onCreateAvt: keypointWorkflow.handleCreateAvt,
       onCreateVertebraCenter: keypointWorkflow.handleCreateVertebraCenter,
-      onCreateCobb: keypointWorkflow.handleCreateCobb,
+      onCreateCobb: handleCreateCobbWithHistory,
       onRectifyVertebraCornerOrder:
-        keypointWorkflow.handleRectifyVertebraCornerOrder,
+        handleRectifyVertebraCornerOrderWithHistory,
       onActivateHandMode: activateHandMode,
       onToggleImagePanLocked: handleToggleImagePanLocked,
       isImagePanLocked,

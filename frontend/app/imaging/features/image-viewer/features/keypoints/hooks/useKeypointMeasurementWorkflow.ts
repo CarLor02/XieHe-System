@@ -186,6 +186,15 @@ export function useKeypointMeasurementWorkflow({
     aiMeasurementIdsRef.current = new Set();
   }, []);
 
+  const restoreAiMeasurementIds = useCallback((ids: string[]) => {
+    aiMeasurementIdsRef.current = new Set(ids);
+  }, []);
+
+  const getAiMeasurementIdsSnapshot = useCallback(
+    () => Array.from(aiMeasurementIdsRef.current),
+    []
+  );
+
   const applyKeypoints = useCallback(
     (nextKeypoints: KeypointAnnotation[]) => {
       setKeypoints(nextKeypoints);
@@ -688,6 +697,8 @@ export function useKeypointMeasurementWorkflow({
     recalculateExistingMeasurements,
     syncUniqueMeasurements,
     clearKeypointState,
+    restoreAiMeasurementIds,
+    getAiMeasurementIdsSnapshot,
     handleKeypointAdd,
     handleKeypointDelete,
     handleCreateVertebraCenter,

@@ -87,6 +87,7 @@ export function useVertebradDrag({
   onLiveLayerChange,
   containerRef,
   onHoverChange,
+  onAnnotationDragStart,
 }: {
   vertebraeLayer: VertebraAnnotation[];
   /** 图像坐标 → 容器内屏幕坐标 */
@@ -97,6 +98,7 @@ export function useVertebradDrag({
   onLiveLayerChange?: (updated: VertebraAnnotation[]) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onHoverChange?: (keypointId: string | null) => void;
+  onAnnotationDragStart?: () => void;
 }) {
   // 拖拽期间实时渲染的图层（null = 不在拖拽，使用 vertebraeLayer prop）
   const [liveLayer, setLiveLayer] = useState<VertebraAnnotation[] | null>(null);
@@ -240,6 +242,7 @@ export function useVertebradDrag({
       const { screenX, screenY } = clientToScreen(clientX, clientY);
       const hit = findNearestCorner(screenX, screenY);
       if (hit) {
+        onAnnotationDragStart?.();
         dragStateRef.current = { mode: 'corner', ...hit };
         setActiveCorner({ label: hit.vertebraLabel, index: hit.cornerIndex });
         setIsDragging(true);
@@ -251,6 +254,7 @@ export function useVertebradDrag({
       const members = findFrameInterior(screenX, screenY);
       if (!members) return false;
 
+      onAnnotationDragStart?.();
       const [firstMember] = members;
       dragStateRef.current = {
         mode: 'group',
@@ -271,6 +275,7 @@ export function useVertebradDrag({
       clientToScreen,
       findFrameInterior,
       findNearestCorner,
+      onAnnotationDragStart,
       onVertebraeUpdate,
       screenToImage,
       vertebraeLayer,
@@ -283,6 +288,7 @@ export function useVertebradDrag({
       const members = keypointIdsToDragMembers(keypointIds);
       if (members.length === 0) return false;
 
+      onAnnotationDragStart?.();
       const [firstMember] = members;
       if (members.length === 1) {
         dragStateRef.current = { mode: 'corner', ...firstMember };
@@ -303,7 +309,13 @@ export function useVertebradDrag({
       setLiveLayer(vertebraeLayer);
       return true;
     },
-    [keypointIdsToDragMembers, onVertebraeUpdate, screenToImage, vertebraeLayer]
+    [
+      keypointIdsToDragMembers,
+      onAnnotationDragStart,
+      onVertebraeUpdate,
+      screenToImage,
+      vertebraeLayer,
+    ]
   );
 
   /**

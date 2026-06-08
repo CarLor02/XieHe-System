@@ -26,9 +26,11 @@ type DragHook = ReturnType<typeof useVertebradDrag>;
 function DragHarness({
   onValue,
   onVertebraeUpdate,
+  onAnnotationDragStart = jest.fn(),
 }: {
   onValue: (value: DragHook) => void;
   onVertebraeUpdate: (updated: VertebraAnnotation[]) => void;
+  onAnnotationDragStart?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const value = useVertebradDrag({
@@ -39,6 +41,7 @@ function DragHarness({
     onLiveLayerChange: jest.fn(),
     containerRef,
     onHoverChange: jest.fn(),
+    onAnnotationDragStart,
   });
 
   useEffect(() => {
@@ -205,5 +208,36 @@ describe('useVertebradDrag', () => {
     } finally {
       consoleErrorSpy.mockRestore();
     }
+  });
+
+  it('starts annotation history when a keypoint drag is accepted', async () => {
+    let latest: DragHook | null = null;
+    const onAnnotationDragStart = jest.fn();
+
+    render(
+      <DragHarness
+        onValue={value => {
+          latest = value;
+        }}
+        onVertebraeUpdate={jest.fn()}
+        onAnnotationDragStart={onAnnotationDragStart}
+      />
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+    });
+
+    act(() => {
+      expect(latest!.handleMouseDown(100, 100)).toBe(true);
+    });
+
+    expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      latest!.handleMouseMove(110, 110);
+    });
+
+    expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
   });
 });

@@ -16,6 +16,7 @@ interface UseStandardDistanceInteractionOptions {
   recalculateAVTandTS: (distance?: number, points?: Point[]) => void;
   imageToScreen: (point: Point) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
+  onAnnotationDragStart?: () => void;
 }
 
 /**
@@ -36,6 +37,7 @@ export function useStandardDistanceInteraction({
   recalculateAVTandTS,
   imageToScreen,
   screenToImage,
+  onAnnotationDragStart,
 }: UseStandardDistanceInteractionOptions) {
   const beginDragIfHit = (x: number, y: number) => {
     if (standardDistancePoints.length !== 2) return false;
@@ -45,6 +47,7 @@ export function useStandardDistanceInteraction({
       const pointScreen = imageToScreen(standardDistancePoints[index]);
       const distance = calculateDistance({ x, y }, pointScreen);
       if (distance < clickRadius) {
+        onAnnotationDragStart?.();
         setDraggingStandardPointIndex(index);
         return true;
       }

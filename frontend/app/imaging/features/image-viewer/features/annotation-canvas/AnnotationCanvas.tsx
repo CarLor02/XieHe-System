@@ -58,6 +58,8 @@ export default function AnnotationCanvas({
   onMeasurementsUpdate,
   onMeasurementDelete,
   onClearAll,
+  canUndoAnnotationHistory,
+  onUndoAnnotationHistory,
   tools,
   clickedPoints,
   setClickedPoints,
@@ -94,6 +96,7 @@ export default function AnnotationCanvas({
   onKeypointDelete,
   onMeasurementWriteback,
   onCobbKeypointsSync,
+  onAnnotationDataDragStart,
 }: {
   selectedImage: Pick<ImageData, 'examType'>;
   measurements: MeasurementData[];
@@ -103,6 +106,8 @@ export default function AnnotationCanvas({
   onMeasurementsUpdate: (measurements: MeasurementData[]) => void;
   onMeasurementDelete?: (measurementId: string) => void;
   onClearAll: () => void;
+  canUndoAnnotationHistory: boolean;
+  onUndoAnnotationHistory: () => void;
   tools: Tool[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
@@ -148,6 +153,7 @@ export default function AnnotationCanvas({
     measurementId?: string
   ) => void;
   onCobbKeypointsSync?: (measurementId: string) => void;
+  onAnnotationDataDragStart?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const {
@@ -436,6 +442,7 @@ export default function AnnotationCanvas({
     recalculateAVTandTS,
     imageToScreen,
     screenToImage,
+    onAnnotationDragStart: onAnnotationDataDragStart,
   });
 
   const visibleKeypointLayer =
@@ -460,16 +467,18 @@ export default function AnnotationCanvas({
     onLiveLayerChange: onVertebraePreviewUpdate,
     containerRef,
     onHoverChange: handleKeypointHover,
+    onAnnotationDragStart: onAnnotationDataDragStart,
   });
+  const { clearHover } = vertebradDrag;
   const hoveredKeypointCorner = keypointIdToCornerRef(hoverState.keypointId);
   const effectiveHoveredCorner =
     vertebradDrag.hoveredCorner ?? hoveredKeypointCorner;
 
   useEffect(() => {
     if (selectedTool !== 'hand') {
-      vertebradDrag.clearHover();
+      clearHover();
     }
-  }, [selectedTool, vertebradDrag.clearHover]);
+  }, [selectedTool, clearHover]);
 
   const canvasDrag = useCanvasDrag({
     selectedTool,
@@ -494,6 +503,7 @@ export default function AnnotationCanvas({
     screenToImage,
     referenceLines,
     setReferenceLines,
+    onAnnotationDragStart: onAnnotationDataDragStart,
   });
   const drawingTool = useCanvasDrawingTool({
     selectedTool,
@@ -706,6 +716,8 @@ export default function AnnotationCanvas({
         imageScale={imageScale}
         contrast={contrast}
         brightness={brightness}
+        canUndoAnnotationHistory={canUndoAnnotationHistory}
+        onUndoAnnotationHistory={onUndoAnnotationHistory}
         onClearAll={handleClear}
         onZoomOut={zoomOut}
         onZoomIn={zoomIn}

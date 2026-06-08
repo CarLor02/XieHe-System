@@ -52,6 +52,7 @@ interface UseCanvasDragOptions {
       verticalLine: Point | null;
     }>
   >;
+  onAnnotationDragStart?: () => void;
 }
 
 /**
@@ -77,6 +78,7 @@ export function useCanvasDrag({
   screenToImage,
   referenceLines,
   setReferenceLines,
+  onAnnotationDragStart,
 }: UseCanvasDragOptions) {
   const handleMouseMove = (x: number, y: number, buttons: number) => {
     if (
@@ -198,6 +200,9 @@ export function useCanvasDrag({
       }
 
       if (canDrag) {
+        if (selectionState.measurementId) {
+          onAnnotationDragStart?.();
+        }
         setSelectionState(previous => ({ ...previous, isDragging: true }));
       }
     }
