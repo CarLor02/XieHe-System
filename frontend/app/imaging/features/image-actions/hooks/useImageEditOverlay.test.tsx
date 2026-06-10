@@ -2,6 +2,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, jest } from '@jest/globals';
 import { useEffect } from 'react';
 
+import type { CropArea } from '@/app/upload/_components/overlay/upload-options-overlay';
 import type {
   downloadImageFile,
   ImageFile,
@@ -140,6 +141,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  localStorage.clear();
   createElementSpy.mockRestore();
   Object.defineProperty(global, 'Image', {
     configurable: true,
@@ -207,4 +209,98 @@ it('asks for confirmation and replaces the same image content after crop', async
   );
   expect(replacedFile.size).toBe(croppedBlob.size);
   expect(reloadImages).toHaveBeenCalledTimes(1);
+});
+
+it('keeps pending crop unapplied until content replacement is confirmed', async () => {
+  const reloadImages = jest.fn();
+  let latest: HookValue | null = null;
+
+  render(
+    <HookHarness
+      reloadImages={reloadImages}
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await act(async () => {
+    await latest!.openEditOverlay(makeImageFile());
+  });
+
+  await waitFor(() => {
+    expect(latest!.editState).not.toBeNull();
+  });
+
+  const confirm = latest!.handleConfirm as (options: {
+    pendingCrop: CropArea;
+  }) => Promise<void>;
+
+  await act(async () => {
+    await confirm({
+      pendingCrop: {
+        x: 0,
+        y: 0,
+        width: 0.5,
+        height: 0.5,
+      },
+    });
+  });
+
+  expect(latest!.contentResetConfirmOpen).toBe(true);
+  expect(latest!.editState?.cropped).toBe(false);
+  expect(mockUpdateImageExamType).not.toHaveBeenCalled();
+  expect(mockReplaceImageFileContent).not.toHaveBeenCalled();
+
+  await act(async () => {
+    await latest!.confirmContentReplacement();
+  });
+
+  const replacedFile = mockReplaceImageFileContent.mock.calls[0][1] as File;
+  expect(replacedFile.size).toBe(croppedBlob.size);
+  expect(reloadImages).toHaveBeenCalledTimes(1);
+});
+
+it('clears local annotation cache after replacing image content', async () => {
+  localStorage.setItem('annotations_1', '{"measurements":[{"id":"old"}]}');
+  localStorage.setItem('annotations_file-1', '{"vertebraeLayer":[{"label":"T1-1"}]}');
+  localStorage.setItem('annotations_IMG001', '{"vertebraeLayer":[{"label":"T1-2"}]}');
+
+  const reloadImages = jest.fn();
+  let latest: HookValue | null = null;
+
+  render(
+    <HookHarness
+      reloadImages={reloadImages}
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await act(async () => {
+    await latest!.openEditOverlay(makeImageFile());
+  });
+
+  await waitFor(() => {
+    expect(latest!.editState).not.toBeNull();
+  });
+
+  await act(async () => {
+    await latest!.handleCrop('1', {
+      x: 0,
+      y: 0,
+      width: 0.5,
+      height: 0.5,
+    });
+    await latest!.handleConfirm();
+  });
+
+  await act(async () => {
+    await latest!.confirmContentReplacement();
+  });
+
+  expect(localStorage.getItem('annotations_1')).toBeNull();
+  expect(localStorage.getItem('annotations_file-1')).toBeNull();
+  expect(localStorage.getItem('annotations_IMG001')).toBeNull();
 });

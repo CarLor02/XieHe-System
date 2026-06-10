@@ -19,6 +19,10 @@ export interface CropArea {
   height: number;
 }
 
+export interface UploadOptionsConfirmOptions {
+  pendingCrop?: CropArea | null;
+}
+
 interface UploadOptionsOverlayProps {
   file: UploadOptionsFile;
   examTypes: string[];
@@ -26,7 +30,8 @@ interface UploadOptionsOverlayProps {
   onFlip: (fileId: string) => void;
   onCrop: (fileId: string, crop: CropArea) => void | Promise<void>;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (options?: UploadOptionsConfirmOptions) => void | Promise<void>;
+  confirmAppliesCrop?: boolean;
 }
 
 type CropGesture =
@@ -54,6 +59,7 @@ export default function UploadOptionsOverlay({
   onCrop,
   onClose,
   onConfirm,
+  confirmAppliesCrop = true,
 }: UploadOptionsOverlayProps) {
   const imageBoxRef = useRef<HTMLDivElement | null>(null);
   const gestureRef = useRef<CropGesture>(null);
@@ -170,9 +176,13 @@ export default function UploadOptionsOverlay({
 
   const handleConfirmClick = async () => {
     if (cropMode) {
+      if (!confirmAppliesCrop) {
+        await onConfirm({ pendingCrop: cropArea });
+        return;
+      }
       await applyCurrentCrop();
     }
-    onConfirm();
+    await onConfirm({ pendingCrop: null });
   };
 
   return (
@@ -199,6 +209,7 @@ export default function UploadOptionsOverlay({
             <div className="relative flex h-[68vh] max-h-[760px] min-h-[420px] items-center justify-center">
               {canAdjustPixels && !imageLoadFailed ? (
                 <div ref={imageBoxRef} className="relative inline-block max-h-full max-w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- blob/object URL preview inside the edit overlay */}
                   <img
                     src={file.previewUrl}
                     alt={file.name}

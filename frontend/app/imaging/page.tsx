@@ -113,6 +113,7 @@ function ImagingPageContent() {
           onCrop={editOverlay.handleCrop}
           onClose={editOverlay.closeEditOverlay}
           onConfirm={editOverlay.handleConfirm}
+          confirmAppliesCrop={false}
         />
       )}
 

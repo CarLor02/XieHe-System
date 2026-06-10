@@ -1,5 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import type { CropArea } from '@/app/upload/_components/overlay/upload-options-overlay';
+import type {
+  CropArea,
+  UploadOptionsConfirmOptions,
+} from '@/app/upload/_components/overlay/upload-options-overlay';
 import {
   downloadImageFile,
   replaceImageFileContent,
@@ -24,6 +27,10 @@ export interface EditImageState {
   examType: string;
   flipped: boolean;
   cropped: boolean;
+}
+
+interface PendingContentReplacement {
+  crop: CropArea | null;
 }
 
 function renderImageToFile(
@@ -53,6 +60,53 @@ function renderImageToFile(
   });
 }
 
+function renderCropToFile(
+  sourceFile: File,
+  sourceUrl: string,
+  crop: CropArea
+): Promise<File> {
+  return renderImageToFile(sourceFile, sourceUrl, (image, canvas) => {
+    const sourceX = Math.round(crop.x * image.naturalWidth);
+    const sourceY = Math.round(crop.y * image.naturalHeight);
+    const sourceWidth = Math.max(1, Math.round(crop.width * image.naturalWidth));
+    const sourceHeight = Math.max(
+      1,
+      Math.round(crop.height * image.naturalHeight)
+    );
+    canvas.width = sourceWidth;
+    canvas.height = sourceHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      sourceWidth,
+      sourceHeight
+    );
+  });
+}
+
+function clearLocalAnnotationCache(imageFile: ImageFile) {
+  if (typeof window === 'undefined') return;
+
+  const id = imageFile.id.toString();
+  const keys = [
+    `annotations_${id}`,
+    `annotations_IMG${id}`,
+    `annotations_IMG${id.padStart(3, '0')}`,
+    imageFile.file_uuid ? `annotations_${imageFile.file_uuid}` : null,
+  ].filter((key): key is string => Boolean(key));
+
+  for (const key of new Set(keys)) {
+    localStorage.removeItem(key);
+  }
+}
+
 export function useImageEditOverlay({
   reloadImages,
 }: {
@@ -63,6 +117,8 @@ export function useImageEditOverlay({
   const [downloading, setDownloading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [contentResetConfirmOpen, setContentResetConfirmOpen] = useState(false);
+  const pendingContentReplacementRef =
+    useRef<PendingContentReplacement | null>(null);
 
   const updateEditState = useCallback(
     (
@@ -80,6 +136,7 @@ export function useImageEditOverlay({
   const openEditOverlay = useCallback(async (imageFile: ImageFile) => {
     setDownloading(true);
     setContentResetConfirmOpen(false);
+    pendingContentReplacementRef.current = null;
     try {
       const blob = await downloadImageFile(imageFile.id);
       const mimeType = imageFile.mime_type || blob.type || 'image/png';
@@ -109,6 +166,7 @@ export function useImageEditOverlay({
 
   const closeEditOverlay = useCallback(() => {
     setContentResetConfirmOpen(false);
+    pendingContentReplacementRef.current = null;
     updateEditState(prev => {
       if (prev) {
         URL.revokeObjectURL(prev.sourcePreviewUrl);
@@ -187,36 +245,10 @@ export function useImageEditOverlay({
       if (!current.sourceFile.type.startsWith('image/')) return;
 
       try {
-        const nextFile = await renderImageToFile(
+        const nextFile = await renderCropToFile(
           current.sourceFile,
           current.sourcePreviewUrl,
-          (image, canvas) => {
-            const sourceX = Math.round(crop.x * image.naturalWidth);
-            const sourceY = Math.round(crop.y * image.naturalHeight);
-            const sourceWidth = Math.max(
-              1,
-              Math.round(crop.width * image.naturalWidth)
-            );
-            const sourceHeight = Math.max(
-              1,
-              Math.round(crop.height * image.naturalHeight)
-            );
-            canvas.width = sourceWidth;
-            canvas.height = sourceHeight;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-            ctx.drawImage(
-              image,
-              sourceX,
-              sourceY,
-              sourceWidth,
-              sourceHeight,
-              0,
-              0,
-              sourceWidth,
-              sourceHeight
-            );
-          }
+          crop
         );
         const nextPreviewUrl = URL.createObjectURL(nextFile);
         updateEditState(prev => {
@@ -244,10 +276,12 @@ export function useImageEditOverlay({
     );
   }, [updateEditState]);
 
-  const handleConfirm = useCallback(async () => {
+  const handleConfirm = useCallback(async (options?: UploadOptionsConfirmOptions) => {
     const current = editStateRef.current;
     if (!current || saving) return;
-    if (current.cropped || current.flipped) {
+    const pendingCrop = options?.pendingCrop ?? null;
+    if (pendingCrop || current.cropped || current.flipped) {
+      pendingContentReplacementRef.current = { crop: pendingCrop };
       setContentResetConfirmOpen(true);
       return;
     }
@@ -266,6 +300,7 @@ export function useImageEditOverlay({
   }, [saving, closeEditOverlay, reloadImages]);
 
   const cancelContentReplacement = useCallback(() => {
+    pendingContentReplacementRef.current = null;
     setContentResetConfirmOpen(false);
   }, []);
 
@@ -275,9 +310,20 @@ export function useImageEditOverlay({
 
     setSaving(true);
     try {
-      await replaceImageFileContent(current.imageFile.id, current.currentFile, {
+      const pendingReplacement = pendingContentReplacementRef.current;
+      const replacementFile = pendingReplacement?.crop
+        ? await renderCropToFile(
+            current.sourceFile,
+            current.sourcePreviewUrl,
+            pendingReplacement.crop
+          )
+        : current.currentFile;
+
+      await replaceImageFileContent(current.imageFile.id, replacementFile, {
         description: current.examType || null,
       });
+      clearLocalAnnotationCache(current.imageFile);
+      pendingContentReplacementRef.current = null;
       setContentResetConfirmOpen(false);
       closeEditOverlay();
       reloadImages();
