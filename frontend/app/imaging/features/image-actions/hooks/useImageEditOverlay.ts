@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { CropArea } from '@/app/upload/_components/overlay/upload-options-overlay';
 import {
   downloadImageFile,
-  deleteImageFile,
+  replaceImageFileContent,
+  updateImageExamType,
   type ImageFile,
 } from '@/services/imageServices/imageFileService';
-import { uploadSingleFile } from '@/services/imageServices/uploadService';
 
 export const EXAM_TYPES = [
   '正位X光片',
@@ -59,11 +59,27 @@ export function useImageEditOverlay({
   reloadImages: () => void;
 }) {
   const [editState, setEditState] = useState<EditImageState | null>(null);
+  const editStateRef = useRef<EditImageState | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [contentResetConfirmOpen, setContentResetConfirmOpen] = useState(false);
+
+  const updateEditState = useCallback(
+    (
+      updater: (
+        previous: EditImageState | null
+      ) => EditImageState | null
+    ) => {
+      const next = updater(editStateRef.current);
+      editStateRef.current = next;
+      setEditState(next);
+    },
+    []
+  );
 
   const openEditOverlay = useCallback(async (imageFile: ImageFile) => {
     setDownloading(true);
+    setContentResetConfirmOpen(false);
     try {
       const blob = await downloadImageFile(imageFile.id);
       const mimeType = imageFile.mime_type || blob.type || 'image/png';
@@ -72,7 +88,7 @@ export function useImageEditOverlay({
       });
       const sourcePreviewUrl = URL.createObjectURL(file);
       const previewUrl = URL.createObjectURL(file);
-      setEditState({
+      const nextState = {
         imageFile,
         sourceFile: file,
         currentFile: file,
@@ -81,7 +97,9 @@ export function useImageEditOverlay({
         examType: imageFile.description || EXAM_TYPES[0],
         flipped: false,
         cropped: false,
-      });
+      };
+      editStateRef.current = nextState;
+      setEditState(nextState);
     } catch {
       alert('无法下载影像文件进行编辑，请重试');
     } finally {
@@ -90,7 +108,8 @@ export function useImageEditOverlay({
   }, []);
 
   const closeEditOverlay = useCallback(() => {
-    setEditState(prev => {
+    setContentResetConfirmOpen(false);
+    updateEditState(prev => {
       if (prev) {
         URL.revokeObjectURL(prev.sourcePreviewUrl);
         if (prev.previewUrl !== prev.sourcePreviewUrl) {
@@ -99,12 +118,13 @@ export function useImageEditOverlay({
       }
       return null;
     });
-  }, []);
+  }, [updateEditState]);
 
   const handleFlip = useCallback(
     async (fileId: string) => {
-      if (!editState || editState.imageFile.id.toString() !== fileId) return;
-      if (!editState.sourceFile.type.startsWith('image/')) return;
+      const current = editStateRef.current;
+      if (!current || current.imageFile.id.toString() !== fileId) return;
+      if (!current.sourceFile.type.startsWith('image/')) return;
 
       const flipRender = (
         image: HTMLImageElement,
@@ -121,21 +141,25 @@ export function useImageEditOverlay({
 
       try {
         const nextSourceFile = await renderImageToFile(
-          editState.sourceFile,
-          editState.sourcePreviewUrl,
+          current.sourceFile,
+          current.sourcePreviewUrl,
           flipRender
         );
-        const nextCurrentFile = editState.cropped
+        const nextCurrentFile = current.cropped
           ? await renderImageToFile(
-              editState.currentFile,
-              editState.previewUrl,
+              current.currentFile,
+              current.previewUrl,
               flipRender
             )
           : nextSourceFile;
         const nextSourcePreviewUrl = URL.createObjectURL(nextSourceFile);
         const nextPreviewUrl = URL.createObjectURL(nextCurrentFile);
-        setEditState(prev => {
-          if (!prev) return null;
+        updateEditState(prev => {
+          if (!prev || prev.imageFile.id.toString() !== fileId) {
+            URL.revokeObjectURL(nextSourcePreviewUrl);
+            URL.revokeObjectURL(nextPreviewUrl);
+            return prev;
+          }
           URL.revokeObjectURL(prev.sourcePreviewUrl);
           if (prev.previewUrl !== prev.sourcePreviewUrl) {
             URL.revokeObjectURL(prev.previewUrl);
@@ -153,18 +177,19 @@ export function useImageEditOverlay({
         console.error('Flip image error:', error);
       }
     },
-    [editState]
+    [updateEditState]
   );
 
   const handleCrop = useCallback(
     async (fileId: string, crop: CropArea) => {
-      if (!editState || editState.imageFile.id.toString() !== fileId) return;
-      if (!editState.sourceFile.type.startsWith('image/')) return;
+      const current = editStateRef.current;
+      if (!current || current.imageFile.id.toString() !== fileId) return;
+      if (!current.sourceFile.type.startsWith('image/')) return;
 
       try {
         const nextFile = await renderImageToFile(
-          editState.sourceFile,
-          editState.sourcePreviewUrl,
+          current.sourceFile,
+          current.sourcePreviewUrl,
           (image, canvas) => {
             const sourceX = Math.round(crop.x * image.naturalWidth);
             const sourceY = Math.round(crop.y * image.naturalHeight);
@@ -194,8 +219,11 @@ export function useImageEditOverlay({
           }
         );
         const nextPreviewUrl = URL.createObjectURL(nextFile);
-        setEditState(prev => {
-          if (!prev) return null;
+        updateEditState(prev => {
+          if (!prev || prev.imageFile.id.toString() !== fileId) {
+            URL.revokeObjectURL(nextPreviewUrl);
+            return prev;
+          }
           if (prev.previewUrl !== prev.sourcePreviewUrl) {
             URL.revokeObjectURL(prev.previewUrl);
           }
@@ -205,46 +233,74 @@ export function useImageEditOverlay({
         console.error('Crop image error:', error);
       }
     },
-    [editState]
+    [updateEditState]
   );
 
   const handleExamTypeChange = useCallback((fileId: string, examType: string) => {
-    setEditState(prev =>
+    updateEditState(prev =>
       prev && prev.imageFile.id.toString() === fileId
         ? { ...prev, examType }
         : prev
     );
-  }, []);
+  }, [updateEditState]);
 
   const handleConfirm = useCallback(async () => {
-    if (!editState || saving) return;
+    const current = editStateRef.current;
+    if (!current || saving) return;
+    if (current.cropped || current.flipped) {
+      setContentResetConfirmOpen(true);
+      return;
+    }
+
     setSaving(true);
     try {
-      await uploadSingleFile({
-        file: editState.currentFile,
-        patient_id: editState.imageFile.patient_id?.toString() ?? null,
-        description: editState.examType || null,
-      });
-      await deleteImageFile(editState.imageFile.id);
+      await updateImageExamType(current.imageFile.id, current.examType);
       closeEditOverlay();
       reloadImages();
     } catch (error) {
-      console.error('Failed to save edited image:', error);
+      console.error('Failed to save image edit:', error);
       alert('保存失败，请重试');
     } finally {
       setSaving(false);
     }
-  }, [editState, saving, closeEditOverlay, reloadImages]);
+  }, [saving, closeEditOverlay, reloadImages]);
+
+  const cancelContentReplacement = useCallback(() => {
+    setContentResetConfirmOpen(false);
+  }, []);
+
+  const confirmContentReplacement = useCallback(async () => {
+    const current = editStateRef.current;
+    if (!current || saving) return;
+
+    setSaving(true);
+    try {
+      await replaceImageFileContent(current.imageFile.id, current.currentFile, {
+        description: current.examType || null,
+      });
+      setContentResetConfirmOpen(false);
+      closeEditOverlay();
+      reloadImages();
+    } catch (error) {
+      console.error('Failed to replace image content:', error);
+      alert('保存失败，请重试');
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, closeEditOverlay, reloadImages]);
 
   return {
     editState,
     downloading,
     saving,
+    contentResetConfirmOpen,
     openEditOverlay,
     closeEditOverlay,
     handleFlip,
     handleCrop,
     handleExamTypeChange,
     handleConfirm,
+    cancelContentReplacement,
+    confirmContentReplacement,
   };
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ImagingConfirmDialog from '@/app/imaging/shared/components/ImagingConfirmDialog';
 
 interface CanvasControlsPanelProps {
   imageScale: number;
@@ -175,35 +176,12 @@ export default function CanvasControlsPanel({
         </div>
       </div>
 
-      {showClearConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onMouseDown={event => event.stopPropagation()}
-          onClick={event => event.stopPropagation()}
-          onMouseUp={event => event.stopPropagation()}
-          onMouseMove={event => event.stopPropagation()}
-        >
-          <div className="w-80 rounded-lg border border-gray-600 bg-gray-900 p-4 shadow-2xl">
-            <div className="text-sm text-white">确定要清空所有标注吗?</div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowClearConfirm(false)}
-                className="h-8 rounded bg-gray-700 px-3 text-xs text-white hover:bg-gray-600"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmClear}
-                className="h-8 rounded bg-blue-600 px-3 text-xs text-white hover:bg-blue-500"
-              >
-                确定
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ImagingConfirmDialog
+        open={showClearConfirm}
+        message="确定要清空所有标注吗?"
+        onCancel={() => setShowClearConfirm(false)}
+        onConfirm={handleConfirmClear}
+      />
     </>
   );
 }

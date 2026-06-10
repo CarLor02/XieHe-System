@@ -258,6 +258,24 @@ export async function updateImageExamType(
   return extractData<{ id: number; description: string; warning: string | null }>(response);
 }
 
+export async function replaceImageFileContent(
+  fileId: number,
+  file: File,
+  options: { description?: string | null } = {}
+): Promise<ImageFile> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (options.description !== undefined) {
+    formData.append('description', options.description ?? '');
+  }
+
+  const response = await apiClient.patch(
+    `/api/v1/image-files/${fileId}/content`,
+    formData
+  );
+  return extractData<ImageFile>(response);
+}
+
 export async function updateImageAnnotation(
   fileId: number,
   annotation: ImageAnnotationJson

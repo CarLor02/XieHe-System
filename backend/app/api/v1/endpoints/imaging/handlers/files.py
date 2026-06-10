@@ -11,8 +11,19 @@
 import asyncio
 from typing import Any, Optional
 from datetime import datetime, date, timedelta, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status as http_status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status as http_status,
+)
 from fastapi.responses import RedirectResponse
 import httpx
 from sqlalchemy.orm import Session
@@ -48,6 +59,14 @@ _ai_object_client_lock = asyncio.Lock()
 READY_FOR_MODEL_STATUSES = {
     ImageFileStatusEnum.UPLOADED,
     ImageFileStatusEnum.PROCESSED,
+}
+
+REPLACE_CONTENT_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff", ".tif"}
+REPLACE_CONTENT_ALLOWED_MIME_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/tiff",
+    "image/x-tiff",
 }
 
 
@@ -161,6 +180,31 @@ def _get_visible_image_files_by_ids(
 
 def _enum_value(value: Any) -> str:
     return value.value if hasattr(value, "value") else str(value)
+
+
+def _determine_replacement_file_type(filename: str) -> ImageFileTypeEnum:
+    ext = Path(filename).suffix.lower()
+    if ext in {".jpg", ".jpeg"}:
+        return ImageFileTypeEnum.JPEG
+    if ext == ".png":
+        return ImageFileTypeEnum.PNG
+    if ext in {".tif", ".tiff"}:
+        return ImageFileTypeEnum.TIFF
+    return ImageFileTypeEnum.OTHER
+
+
+def _validate_replacement_file(filename: str, content_type: str) -> None:
+    ext = Path(filename).suffix.lower()
+    if ext not in REPLACE_CONTENT_ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="不支持的文件扩展名",
+        )
+    if content_type not in REPLACE_CONTENT_ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="不支持的文件类型",
+        )
 
 
 def _is_lateral_image(image: ImageFile) -> bool:
@@ -697,6 +741,116 @@ async def delete_image_file(
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除影像文件失败"
+        )
+
+
+@router.patch("/{file_id}/content", response_model=dict, summary="替换影像文件内容")
+async def replace_image_file_content(
+    file_id: int,
+    file: UploadFile = File(...),
+    description: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    使用新的图片内容覆盖当前影像对象，保持 image_files.id 不变。
+
+    裁剪/翻转会改变图像坐标系，因此替换成功后清空 image_files.annotation
+    以及旧的 image_annotations 记录，避免旧标注坐标继续显示在新图上。
+    """
+    try:
+        image = db.query(ImageFile).filter(
+            ImageFile.id == file_id,
+            ImageFile.is_deleted == False,
+        ).first()
+
+        if not image:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="影像文件不存在",
+            )
+
+        if image.uploaded_by != current_user.get("id"):
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail="无权替换此文件",
+            )
+
+        filename = file.filename or image.original_filename
+        content_type = (
+            file.content_type
+            or image.mime_type
+            or "application/octet-stream"
+        )
+        _validate_replacement_file(filename, content_type)
+
+        content = await file.read()
+        if not content:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="替换文件不能为空",
+            )
+
+        upload_result = await storage_gateway.put_object(
+            bucket=image.storage_bucket,
+            object_key=image.object_key,
+            data=content,
+            content_type=content_type,
+        )
+
+        image.original_filename = filename
+        image.file_type = _determine_replacement_file_type(filename)
+        image.mime_type = content_type
+        image.file_size = len(content)
+        image.file_hash = None
+        image.storage_etag = upload_result.get("etag")
+        image.thumbnail_path = None
+        image.description = (
+            description if description is not None else image.description
+        )
+        image.annotation = None
+        image.status = ImageFileStatusEnum.UPLOADED
+        image.upload_progress = 100
+        image.uploaded_at = datetime.now()
+        image.updated_at = datetime.now()
+
+        db.query(ImageAnnotation).filter(
+            ImageAnnotation.image_file_id == image.id
+        ).delete(synchronize_session=False)
+
+        db.commit()
+        db.refresh(image)
+
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"用户 {current_user.get('username')} 替换了影像文件 {file_id} 的内容",
+        )
+
+        uploader_name, patient_name = _image_file_related_names(db, image)
+        return success_response(
+            data=_image_file_response(
+                image,
+                uploader_name=uploader_name,
+                patient_name=patient_name,
+            ).dict(),
+            message="影像内容替换成功",
+        )
+
+    except HTTPException:
+        raise
+    except StorageServiceError as e:
+        logger.emit_event(LogLevel.ERROR, message=f"替换影像内容失败: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_502_BAD_GATEWAY,
+            detail="对象存储服务不可用",
+        )
+    except Exception as e:
+        logger.emit_event(LogLevel.ERROR, message=f"替换影像内容失败: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="替换影像内容失败",
         )
 
 

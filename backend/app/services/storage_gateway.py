@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
+from urllib.parse import quote
 
 import httpx
 
@@ -180,6 +181,23 @@ class StorageGateway:
             "POST",
             "/objects/delete",
             json={"bucket": bucket, "object_key": object_key},
+        )
+
+    async def put_object(
+        self,
+        *,
+        bucket: str,
+        object_key: str,
+        data: bytes,
+        content_type: str,
+    ) -> Dict[str, Any]:
+        safe_bucket = quote(bucket, safe="")
+        safe_object_key = quote(object_key, safe="/")
+        return await self._request(
+            "PUT",
+            f"/objects/{safe_bucket}/{safe_object_key}",
+            content=data,
+            headers={"Content-Type": content_type},
         )
 
 

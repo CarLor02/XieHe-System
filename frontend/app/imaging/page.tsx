@@ -8,6 +8,7 @@ import ImagingFrame from './features/image-list/components/ImagingFrame';
 import ImageListPanel from './features/image-list/components/ImageListPanel';
 import ImagingLoadingState from './features/image-list/components/ImagingLoadingState';
 import ImagingSearchFilters from './features/search-filters/components/ImagingSearchFilters';
+import ImagingConfirmDialog from './shared/components/ImagingConfirmDialog';
 import UploadOptionsOverlay from '@/app/upload/_components/overlay/upload-options-overlay';
 import { EXAM_TYPES } from './features/image-actions/hooks/useImageEditOverlay';
 
@@ -114,6 +115,14 @@ function ImagingPageContent() {
           onConfirm={editOverlay.handleConfirm}
         />
       )}
+
+      <ImagingConfirmDialog
+        open={editOverlay.contentResetConfirmOpen}
+        message="裁剪上传后的影像后, 影像标注内容会被清空, 是否继续?"
+        confirmDisabled={editOverlay.saving}
+        onCancel={editOverlay.cancelContentReplacement}
+        onConfirm={editOverlay.confirmContentReplacement}
+      />
 
       {editOverlay.downloading && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45">

@@ -1,0 +1,210 @@
+import { act, render, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, jest } from '@jest/globals';
+import { useEffect } from 'react';
+
+import type {
+  downloadImageFile,
+  ImageFile,
+  replaceImageFileContent,
+  updateImageExamType,
+} from '@/services/imageServices/imageFileService';
+
+const mockDownloadImageFile = jest.fn<typeof downloadImageFile>();
+const mockReplaceImageFileContent =
+  jest.fn<typeof replaceImageFileContent>();
+const mockUpdateImageExamType = jest.fn<typeof updateImageExamType>();
+
+jest.mock('@/services/imageServices/imageFileService', () => ({
+  downloadImageFile: mockDownloadImageFile,
+  replaceImageFileContent: mockReplaceImageFileContent,
+  updateImageExamType: mockUpdateImageExamType,
+}));
+
+const { useImageEditOverlay } = jest.requireActual<
+  typeof import('./useImageEditOverlay')
+>('./useImageEditOverlay');
+
+type HookValue = ReturnType<typeof useImageEditOverlay>;
+
+function makeImageFile(): ImageFile {
+  return {
+    id: 1,
+    file_uuid: 'file-1',
+    original_filename: 'xray.png',
+    file_type: 'PNG',
+    mime_type: 'image/png',
+    file_size: 8,
+    storage_bucket: 'medical-image-files',
+    object_key: 'objects/xray.png',
+    storage_etag: 'etag-1',
+    uploaded_by: 7,
+    patient_id: 3,
+    description: '正位X光片',
+    status: 'UPLOADED',
+    upload_progress: 100,
+    created_at: '2026-06-10T10:00:00',
+  };
+}
+
+function HookHarness({
+  reloadImages,
+  onValue,
+}: {
+  reloadImages: () => void;
+  onValue: (value: HookValue) => void;
+}) {
+  const value = useImageEditOverlay({ reloadImages });
+
+  useEffect(() => {
+    onValue(value);
+  }, [onValue, value]);
+
+  return null;
+}
+
+const originalImage = global.Image;
+const originalCreateObjectURL = URL.createObjectURL;
+const originalRevokeObjectURL = URL.revokeObjectURL;
+
+let createElementSpy: jest.SpiedFunction<typeof document.createElement>;
+let objectUrlIndex = 0;
+let croppedBlob: Blob;
+
+beforeEach(() => {
+  objectUrlIndex = 0;
+  croppedBlob = new Blob(['cropped'], { type: 'image/png' });
+
+  class TestImage {
+    naturalWidth = 100;
+    naturalHeight = 100;
+    onload: (() => void) | null = null;
+
+    set src(_value: string) {
+      setTimeout(() => this.onload?.(), 0);
+    }
+  }
+
+  Object.defineProperty(global, 'Image', {
+    configurable: true,
+    writable: true,
+    value: TestImage,
+  });
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    writable: true,
+    value: jest.fn(() => {
+      objectUrlIndex += 1;
+      return `blob:test-${objectUrlIndex}`;
+    }),
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true,
+    writable: true,
+    value: jest.fn(),
+  });
+
+  const originalCreateElement = document.createElement.bind(document);
+  createElementSpy = jest
+    .spyOn(document, 'createElement')
+    .mockImplementation((tagName: string, options?: ElementCreationOptions) => {
+      const element = originalCreateElement(tagName, options);
+      if (tagName.toLowerCase() === 'canvas') {
+        Object.defineProperty(element, 'getContext', {
+          configurable: true,
+          value: jest.fn(() => ({
+            drawImage: jest.fn(),
+            scale: jest.fn(),
+            translate: jest.fn(),
+          })),
+        });
+        Object.defineProperty(element, 'toBlob', {
+          configurable: true,
+          value: (callback: BlobCallback) => callback(croppedBlob),
+        });
+      }
+      return element;
+    });
+
+  mockDownloadImageFile.mockResolvedValue(
+    new Blob(['original'], { type: 'image/png' })
+  );
+  mockReplaceImageFileContent.mockResolvedValue({
+    ...makeImageFile(),
+    storage_etag: 'new-etag',
+  });
+  mockUpdateImageExamType.mockResolvedValue({
+    id: 1,
+    description: '正位X光片',
+    warning: null,
+  });
+});
+
+afterEach(() => {
+  createElementSpy.mockRestore();
+  Object.defineProperty(global, 'Image', {
+    configurable: true,
+    writable: true,
+    value: originalImage,
+  });
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    writable: true,
+    value: originalCreateObjectURL,
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true,
+    writable: true,
+    value: originalRevokeObjectURL,
+  });
+  jest.clearAllMocks();
+});
+
+it('asks for confirmation and replaces the same image content after crop', async () => {
+  const reloadImages = jest.fn();
+  let latest: HookValue | null = null;
+
+  render(
+    <HookHarness
+      reloadImages={reloadImages}
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await act(async () => {
+    await latest!.openEditOverlay(makeImageFile());
+  });
+
+  await waitFor(() => {
+    expect(latest!.editState).not.toBeNull();
+  });
+
+  const confirmBeforeCropStateIsRendered = latest!.handleConfirm;
+
+  await act(async () => {
+    await latest!.handleCrop('1', {
+      x: 0,
+      y: 0,
+      width: 0.5,
+      height: 0.5,
+    });
+    await confirmBeforeCropStateIsRendered();
+  });
+
+  expect(latest!.contentResetConfirmOpen).toBe(true);
+  expect(mockReplaceImageFileContent).not.toHaveBeenCalled();
+
+  await act(async () => {
+    await latest!.confirmContentReplacement();
+  });
+
+  const replacedFile = mockReplaceImageFileContent.mock.calls[0][1] as File;
+  expect(mockReplaceImageFileContent).toHaveBeenCalledWith(
+    1,
+    expect.any(File),
+    { description: '正位X光片' }
+  );
+  expect(replacedFile.size).toBe(croppedBlob.size);
+  expect(reloadImages).toHaveBeenCalledTimes(1);
+});
