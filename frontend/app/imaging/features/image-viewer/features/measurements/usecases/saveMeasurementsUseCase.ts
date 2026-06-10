@@ -4,6 +4,7 @@ import {
     saveMeasurementRecord,
     updateImageAnnotation,
 } from '@/services/imageServices';
+import {saveLocalAnnotationBackup} from './localAnnotationStorage';
 
 export async function saveMeasurements(
     imageId: string,
@@ -51,8 +52,7 @@ export async function saveMeasurements(
             status: 'pending' as const,
         };
     try {
-        // 1. 先保存到本地存储
-        const key = `annotations_${imageId}`;
+        // 1. 先写本地维护缓存；失败不能阻断后续服务器保存。
         // 对于AI检测标注，需要保存value和description；其他标注只保存type和points
         // 同时保存id，确保加载时绑定数据中的annotationId引用仍然有效
         const simplifiedMeasurements = measurements.map(m => {
@@ -86,10 +86,17 @@ export async function saveMeasurements(
             vertebraeLayer: vertebraeLayer.length > 0 ? vertebraeLayer : undefined,
             cfhAnnotation: cfhAnnotation ?? undefined,
         };
-        localStorage.setItem(key, JSON.stringify(localData, null, 2));
-        console.log(
-            `已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`
-        );
+        const localBackupResult = saveLocalAnnotationBackup(imageId, localData);
+        if (localBackupResult.saved) {
+            console.log(
+                `已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`
+            );
+        } else {
+            console.warn(
+                '本地标注缓存保存失败，继续保存服务器:',
+                localBackupResult.reason
+            );
+        }
 
         // 2. 保存到服务器
         // 转换 imageId 为纯数字格式（去掉 IMG 前缀和前导零）
