@@ -34,10 +34,13 @@ def get_visible_image_uploader_ids(
     """
     Return uploader ids visible to the user.
 
-    `None` means unrestricted visibility for superusers.
+    `None` means unrestricted visibility for superusers/system admins.
     """
 
-    if current_user.get("is_superuser", False):
+    if current_user.get("is_superuser", False) or current_user.get(
+        "is_system_admin",
+        False,
+    ):
         return None
 
     user_id = _extract_user_id(current_user)

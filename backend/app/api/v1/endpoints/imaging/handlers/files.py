@@ -714,8 +714,9 @@ async def delete_image_file(
                 detail="影像文件不存在"
             )
 
-        # 检查权限：只能删除自己上传的文件
-        if image.uploaded_by != current_user.get('id'):
+        # 删除权限与影像可见性保持一致：系统管理员可操作全部，
+        # 团队管理员可操作团队内影像，普通成员只能操作自己上传的影像。
+        if get_visible_image_file(db, file_id, current_user) is None:
             raise HTTPException(
                 status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="无权删除此文件"
@@ -770,7 +771,8 @@ async def replace_image_file_content(
                 detail="影像文件不存在",
             )
 
-        if image.uploaded_by != current_user.get("id"):
+        # 内容替换会清空标注，权限边界必须与影像可见性一致。
+        if get_visible_image_file(db, file_id, current_user) is None:
             raise HTTPException(
                 status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="无权替换此文件",

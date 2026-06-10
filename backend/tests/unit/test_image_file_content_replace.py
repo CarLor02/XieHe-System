@@ -116,6 +116,11 @@ async def test_replace_image_content_keeps_id_and_clears_annotations(
     monkeypatch.setattr(file_handlers.storage_gateway, "put_object", fake_put_object)
     monkeypatch.setattr(
         file_handlers,
+        "get_visible_image_file",
+        lambda db, file_id, current_user: db.image,
+    )
+    monkeypatch.setattr(
+        file_handlers,
         "_image_file_related_names",
         lambda *args, **kwargs: ("替换用户", "替换患者"),
     )

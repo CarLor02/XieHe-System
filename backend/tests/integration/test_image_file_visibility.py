@@ -1,8 +1,10 @@
 from datetime import datetime
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.v1.endpoints.imaging.handlers import files as file_handlers
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 from app.models.patient import GenderEnum, Patient, PatientStatusEnum
 from app.models.team import Team, TeamMembership, TeamMembershipRole, TeamMembershipStatus
@@ -105,8 +107,34 @@ def make_image(
     )
 
 
-def current_user(user_id: int, *, superuser: bool = False) -> dict:
-    return {"id": user_id, "is_superuser": superuser}
+class FakeUploadFile:
+    def __init__(
+        self,
+        *,
+        filename: str = "edited.png",
+        content_type: str = "image/png",
+        content: bytes = b"edited-image",
+    ) -> None:
+        self.filename = filename
+        self.content_type = content_type
+        self._content = content
+
+    async def read(self) -> bytes:
+        return self._content
+
+
+def current_user(
+    user_id: int,
+    *,
+    superuser: bool = False,
+    system_admin: bool = False,
+) -> dict:
+    return {
+        "id": user_id,
+        "username": f"user-{user_id}",
+        "is_superuser": superuser,
+        "is_system_admin": system_admin,
+    }
 
 
 def visible_patient_image_ids(session, user: dict) -> list[int]:
@@ -151,3 +179,107 @@ def test_superuser_can_see_all_non_deleted_images(db_session):
         4,
     ]
     assert get_visible_image_file(db_session, 5, current_user(99, superuser=True)) is None
+
+
+def test_system_admin_can_see_all_non_deleted_images(db_session):
+    assert get_visible_image_uploader_ids(
+        db_session,
+        current_user(99, system_admin=True),
+    ) is None
+    assert visible_patient_image_ids(
+        db_session,
+        current_user(99, system_admin=True),
+    ) == [1, 2, 3, 4]
+
+
+@pytest.mark.asyncio
+async def test_team_admin_can_delete_visible_team_member_image(db_session):
+    result = await file_handlers.delete_image_file(
+        2,
+        current_user=current_user(10),
+        db=db_session,
+    )
+
+    assert result["data"] == {"file_id": 2}
+    assert db_session.get(ImageFile, 2).is_deleted is True
+    assert db_session.get(ImageFile, 2).deleted_by == 10
+
+
+@pytest.mark.asyncio
+async def test_regular_member_cannot_delete_other_uploader_image(db_session):
+    with pytest.raises(HTTPException) as exc_info:
+        await file_handlers.delete_image_file(
+            1,
+            current_user=current_user(11),
+            db=db_session,
+        )
+
+    assert exc_info.value.status_code == 403
+    assert db_session.get(ImageFile, 1).is_deleted is False
+
+
+@pytest.mark.asyncio
+async def test_team_admin_can_replace_visible_team_member_image(
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    put_calls: list[dict[str, object]] = []
+
+    async def fake_put_object(
+        *,
+        bucket: str,
+        object_key: str,
+        data: bytes,
+        content_type: str,
+    ) -> dict[str, str]:
+        put_calls.append(
+            {
+                "bucket": bucket,
+                "object_key": object_key,
+                "data": data,
+                "content_type": content_type,
+            }
+        )
+        return {"etag": "team-admin-etag"}
+
+    monkeypatch.setattr(file_handlers.storage_gateway, "put_object", fake_put_object)
+
+    result = await file_handlers.replace_image_file_content(
+        2,
+        file=FakeUploadFile(content=b"team-admin-edited"),
+        current_user=current_user(10),
+        db=db_session,
+    )
+
+    assert result["data"]["id"] == 2
+    assert result["data"]["storage_etag"] == "team-admin-etag"
+    assert db_session.get(ImageFile, 2).file_size == len(b"team-admin-edited")
+    assert put_calls[0]["object_key"] == "member.png"
+
+
+@pytest.mark.asyncio
+async def test_system_admin_can_replace_any_image(
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    async def fake_put_object(
+        *,
+        bucket: str,
+        object_key: str,
+        data: bytes,
+        content_type: str,
+    ) -> dict[str, str]:
+        return {"etag": "system-admin-etag"}
+
+    monkeypatch.setattr(file_handlers.storage_gateway, "put_object", fake_put_object)
+
+    result = await file_handlers.replace_image_file_content(
+        4,
+        file=FakeUploadFile(content=b"system-admin-edited"),
+        current_user=current_user(99, system_admin=True),
+        db=db_session,
+    )
+
+    assert result["data"]["id"] == 4
+    assert result["data"]["storage_etag"] == "system-admin-etag"
+    assert db_session.get(ImageFile, 4).file_size == len(b"system-admin-edited")
