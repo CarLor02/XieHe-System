@@ -16,7 +16,7 @@ class UserRegister(BaseModel):
     password: str = Field(..., min_length=6, max_length=128, description="密码")
     confirm_password: str = Field(..., min_length=6, max_length=128, description="确认密码")
     full_name: str = Field(..., min_length=2, max_length=100, description="姓名")
-    phone: str = Field(None, max_length=20, description="手机号")
+    phone: str | None = Field(None, max_length=20, description="手机号")
 
 
 class TokenRefresh(BaseModel):

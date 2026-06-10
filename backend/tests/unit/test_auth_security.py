@@ -4,7 +4,11 @@ import jwt
 import pytest
 
 from app.api.v1.endpoints.access.handlers import auth as auth_handlers
-from app.api.v1.endpoints.access.schemas.auth import PasswordChange, TokenRefresh
+from app.api.v1.endpoints.access.schemas.auth import (
+    PasswordChange,
+    TokenRefresh,
+    UserRegister,
+)
 from app.core.access import security as security_module
 from app.core.access.security import (
     hash_password,
@@ -79,6 +83,27 @@ class FakePasswordChangeDb:
 
     def commit(self):
         self.committed = True
+
+
+def test_register_phone_is_optional_and_nullable():
+    payload = {
+        "username": "doctor",
+        "email": "doctor@example.com",
+        "password": "secret123",
+        "confirm_password": "secret123",
+        "full_name": "张三",
+    }
+
+    assert UserRegister.model_fields["phone"].is_required() is False
+    assert UserRegister(**payload).phone is None
+    assert UserRegister(**{**payload, "phone": None}).phone is None
+
+    phone_schema = UserRegister.model_json_schema()["properties"]["phone"]
+    phone_types = {
+        option.get("type")
+        for option in phone_schema.get("anyOf", [])
+    }
+    assert phone_types == {"string", "null"}
 
 
 @pytest.mark.asyncio
