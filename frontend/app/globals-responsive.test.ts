@@ -7,4 +7,5 @@ it('does not globally force a desktop minimum page width', () => {
 
   expect(css).not.toMatch(/body\s*\{[^}]*min-width\s*:\s*1280px/i);
   expect(css).not.toMatch(/html\s*\{[^}]*overflow-x\s*:\s*auto/i);
+  expect(css).not.toContain("../styles/responsive.css");
 });
