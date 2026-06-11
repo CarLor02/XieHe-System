@@ -76,6 +76,96 @@ it('records the previous annotation snapshot after a changed action and restores
   });
 });
 
+it('restores an undone annotation snapshot on redo', async () => {
+  let latest: HistoryValue | null = null;
+
+  render(
+    <HistoryHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.beginHistoryAction('change-count');
+    latest!.setCount(1);
+  });
+
+  await waitFor(() => {
+    expect(latest!.count).toBe(1);
+    expect(latest!.canUndo).toBe(true);
+  });
+
+  act(() => {
+    latest!.undo();
+  });
+
+  await waitFor(() => {
+    expect(latest!.count).toBe(0);
+    expect(latest!.canRedo).toBe(true);
+  });
+
+  act(() => {
+    latest!.redo();
+  });
+
+  await waitFor(() => {
+    expect(latest!.count).toBe(1);
+    expect(latest!.canUndo).toBe(true);
+    expect(latest!.canRedo).toBe(false);
+  });
+});
+
+it('clears redo snapshots after a new annotation change', async () => {
+  let latest: HistoryValue | null = null;
+
+  render(
+    <HistoryHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.beginHistoryAction('first-change');
+    latest!.setCount(1);
+  });
+
+  await waitFor(() => {
+    expect(latest!.count).toBe(1);
+    expect(latest!.canUndo).toBe(true);
+  });
+
+  act(() => {
+    latest!.undo();
+  });
+
+  await waitFor(() => {
+    expect(latest!.count).toBe(0);
+    expect(latest!.canRedo).toBe(true);
+  });
+
+  act(() => {
+    latest!.beginHistoryAction('second-change');
+    latest!.setCount(2);
+  });
+
+  await waitFor(() => {
+    expect(latest!.count).toBe(2);
+    expect(latest!.canRedo).toBe(false);
+  });
+});
+
 it('does not record a history entry when the annotation snapshot is unchanged', async () => {
   let latest: HistoryValue | null = null;
 

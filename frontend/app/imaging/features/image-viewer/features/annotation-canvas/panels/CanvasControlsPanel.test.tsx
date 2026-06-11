@@ -18,6 +18,8 @@ function renderPanel(overrides: Partial<Parameters<typeof CanvasControlsPanel>[0
       onIncreaseBrightness={jest.fn()}
       canUndoAnnotationHistory={false}
       onUndoAnnotationHistory={jest.fn()}
+      canRedoAnnotationHistory={false}
+      onRedoAnnotationHistory={jest.fn()}
       {...overrides}
     />
   );
@@ -41,6 +43,26 @@ it('calls the annotation undo handler from the controls panel', () => {
   fireEvent.click(screen.getByRole('button', { name: '撤回' }));
 
   expect(onUndoAnnotationHistory).toHaveBeenCalledTimes(1);
+});
+
+it('disables the annotation redo button when no redo history is available', () => {
+  renderPanel();
+
+  expect(
+    (screen.getByRole('button', { name: '重做' }) as HTMLButtonElement).disabled
+  ).toBe(true);
+});
+
+it('calls the annotation redo handler from the controls panel', () => {
+  const onRedoAnnotationHistory = jest.fn();
+  renderPanel({
+    canRedoAnnotationHistory: true,
+    onRedoAnnotationHistory,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '重做' }));
+
+  expect(onRedoAnnotationHistory).toHaveBeenCalledTimes(1);
 });
 
 it('asks for confirmation before clearing all annotations', () => {

@@ -53,6 +53,14 @@ interface AnnotationHistorySnapshot {
   aiMeasurementIds: string[];
 }
 
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+
+  if (target.isContentEditable) return true;
+
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
+
 export function useImageViewerController({
   imageId,
 }: UseImageViewerControllerOptions) {
@@ -302,7 +310,9 @@ export function useImageViewerController({
     beginHistoryAction,
     clearHistory,
     undo: undoAnnotationHistory,
+    redo: redoAnnotationHistory,
     canUndo: canUndoAnnotationHistory,
+    canRedo: canRedoAnnotationHistory,
   } = useAnnotationHistory<AnnotationHistorySnapshot>({
     snapshot: annotationHistorySnapshot,
     restoreSnapshot: restoreAnnotationHistorySnapshot,
@@ -311,6 +321,34 @@ export function useImageViewerController({
   useEffect(() => {
     clearHistory();
   }, [clearHistory, imageId]);
+
+  useEffect(() => {
+    const handleAnnotationHistoryShortcut = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || isEditableKeyboardTarget(event.target)) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'z' && canUndoAnnotationHistory) {
+        event.preventDefault();
+        undoAnnotationHistory();
+        return;
+      }
+
+      if (key === 'y' && canRedoAnnotationHistory) {
+        event.preventDefault();
+        redoAnnotationHistory();
+      }
+    };
+
+    document.addEventListener('keydown', handleAnnotationHistoryShortcut);
+    return () => {
+      document.removeEventListener('keydown', handleAnnotationHistoryShortcut);
+    };
+  }, [
+    canRedoAnnotationHistory,
+    canUndoAnnotationHistory,
+    redoAnnotationHistory,
+    undoAnnotationHistory,
+  ]);
 
   const measurementWorkflow = useMeasurementWorkflow({
     imageId,
@@ -580,6 +618,8 @@ export function useImageViewerController({
       onClearAll: handleClearAllWithHistory,
       canUndoAnnotationHistory,
       onUndoAnnotationHistory: undoAnnotationHistory,
+      canRedoAnnotationHistory,
+      onRedoAnnotationHistory: redoAnnotationHistory,
       tools,
       clickedPoints,
       setClickedPoints,

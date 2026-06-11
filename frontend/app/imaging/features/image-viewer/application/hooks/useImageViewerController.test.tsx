@@ -5,6 +5,7 @@ import { expect, it, jest, beforeEach } from '@jest/globals';
 const beginHistoryActionMock = jest.fn();
 const clearHistoryMock = jest.fn();
 const undoHistoryMock = jest.fn();
+const redoHistoryMock = jest.fn();
 const handleMeasurementDeleteMock = jest.fn();
 const handleKeypointDeleteMock = jest.fn();
 const setMeasurementsMock = jest.fn();
@@ -32,7 +33,9 @@ jest.mock('@/app/imaging/features/image-viewer/application/hooks/useAnnotationHi
       beginHistoryAction: beginHistoryActionMock,
       clearHistory: clearHistoryMock,
       undo: undoHistoryMock,
+      redo: redoHistoryMock,
       canUndo: true,
+      canRedo: true,
     };
   },
 }));
@@ -251,6 +254,7 @@ beforeEach(() => {
   beginHistoryActionMock.mockClear();
   clearHistoryMock.mockClear();
   undoHistoryMock.mockClear();
+  redoHistoryMock.mockClear();
   handleMeasurementDeleteMock.mockClear();
   handleKeypointDeleteMock.mockClear();
   setMeasurementsMock.mockClear();
@@ -392,4 +396,93 @@ it('does not include detection-layer visibility in annotation history', async ()
   });
 
   expect(setShowVertebraeLayerMock).not.toHaveBeenCalled();
+});
+
+it('undoes annotation history from Ctrl+Z', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const event = new KeyboardEvent('keydown', {
+    key: 'z',
+    ctrlKey: true,
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  document.dispatchEvent(event);
+
+  expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  expect(undoHistoryMock).toHaveBeenCalledTimes(1);
+  expect(redoHistoryMock).not.toHaveBeenCalled();
+});
+
+it('redoes annotation history from Ctrl+Y', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const event = new KeyboardEvent('keydown', {
+    key: 'y',
+    ctrlKey: true,
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  document.dispatchEvent(event);
+
+  expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  expect(redoHistoryMock).toHaveBeenCalledTimes(1);
+  expect(undoHistoryMock).not.toHaveBeenCalled();
+});
+
+it('does not use annotation history shortcuts inside editable fields', async () => {
+  let latest: Controller | null = null;
+  const input = document.createElement('input');
+  document.body.appendChild(input);
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  input.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      bubbles: true,
+    })
+  );
+
+  expect(undoHistoryMock).not.toHaveBeenCalled();
+  expect(redoHistoryMock).not.toHaveBeenCalled();
+
+  input.remove();
 });

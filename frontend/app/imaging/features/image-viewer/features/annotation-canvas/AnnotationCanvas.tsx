@@ -61,6 +61,8 @@ export default function AnnotationCanvas({
   onClearAll,
   canUndoAnnotationHistory,
   onUndoAnnotationHistory,
+  canRedoAnnotationHistory,
+  onRedoAnnotationHistory,
   tools,
   clickedPoints,
   setClickedPoints,
@@ -113,6 +115,8 @@ export default function AnnotationCanvas({
   onClearAll: () => void;
   canUndoAnnotationHistory: boolean;
   onUndoAnnotationHistory: () => void;
+  canRedoAnnotationHistory: boolean;
+  onRedoAnnotationHistory: () => void;
   tools: Tool[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
@@ -725,6 +729,8 @@ export default function AnnotationCanvas({
         brightness={brightness}
         canUndoAnnotationHistory={canUndoAnnotationHistory}
         onUndoAnnotationHistory={onUndoAnnotationHistory}
+        canRedoAnnotationHistory={canRedoAnnotationHistory}
+        onRedoAnnotationHistory={onRedoAnnotationHistory}
         onClearAll={handleClear}
         onZoomOut={zoomOut}
         onZoomIn={zoomIn}

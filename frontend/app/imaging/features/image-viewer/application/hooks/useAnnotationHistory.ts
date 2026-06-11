@@ -38,16 +38,27 @@ export function useAnnotationHistory<TSnapshot>({
   maxDepth = 50,
 }: UseAnnotationHistoryOptions<TSnapshot>) {
   const [undoStack, setUndoStack] = useState<TSnapshot[]>([]);
+  const [redoStack, setRedoStack] = useState<TSnapshot[]>([]);
   const undoStackRef = useRef<TSnapshot[]>([]);
+  const redoStackRef = useRef<TSnapshot[]>([]);
   const currentSnapshotRef = useRef(cloneSnapshot(snapshot));
   const pendingActionRef =
     useRef<PendingHistoryAction<TSnapshot> | null>(null);
 
-  const pushUndoSnapshots = useCallback(
-    (snapshots: TSnapshot[]) => {
-      if (snapshots.length === 0) return;
+  const setUndoSnapshots = useCallback((snapshots: TSnapshot[]) => {
+    undoStackRef.current = snapshots;
+    setUndoStack(snapshots);
+  }, []);
 
-      let nextStack = undoStackRef.current;
+  const setRedoSnapshots = useCallback((snapshots: TSnapshot[]) => {
+    redoStackRef.current = snapshots;
+    setRedoStack(snapshots);
+  }, []);
+
+  const appendSnapshots = useCallback(
+    (stack: TSnapshot[], snapshots: TSnapshot[]) => {
+      let nextStack = stack;
+      let didAppend = false;
       snapshots.forEach(snapshotToPush => {
         const clonedSnapshot = cloneSnapshot(snapshotToPush);
         const previousSnapshot = nextStack[nextStack.length - 1];
@@ -61,12 +72,45 @@ export function useAnnotationHistory<TSnapshot>({
         nextStack = [...nextStack, clonedSnapshot].slice(
           Math.max(0, nextStack.length + 1 - maxDepth)
         );
+        didAppend = true;
       });
 
-      undoStackRef.current = nextStack;
-      setUndoStack(nextStack);
+      return { nextStack, didAppend };
     },
     [maxDepth]
+  );
+
+  const pushUndoSnapshots = useCallback(
+    (
+      snapshots: TSnapshot[],
+      options: { clearRedo?: boolean } = {}
+    ) => {
+      if (snapshots.length === 0) return;
+
+      const { nextStack, didAppend } = appendSnapshots(
+        undoStackRef.current,
+        snapshots
+      );
+      if (!didAppend) return;
+
+      setUndoSnapshots(nextStack);
+      if (options.clearRedo ?? true) {
+        setRedoSnapshots([]);
+      }
+    },
+    [appendSnapshots, setRedoSnapshots, setUndoSnapshots]
+  );
+
+  const pushRedoSnapshot = useCallback(
+    (snapshotToPush: TSnapshot) => {
+      const { nextStack, didAppend } = appendSnapshots(redoStackRef.current, [
+        snapshotToPush,
+      ]);
+      if (!didAppend) return;
+
+      setRedoSnapshots(nextStack);
+    },
+    [appendSnapshots, setRedoSnapshots]
   );
 
   useEffect(() => {
@@ -137,27 +181,49 @@ export function useAnnotationHistory<TSnapshot>({
 
   const clearHistory = useCallback(() => {
     pendingActionRef.current = null;
-    undoStackRef.current = [];
-    setUndoStack([]);
-  }, []);
+    setUndoSnapshots([]);
+    setRedoSnapshots([]);
+  }, [setRedoSnapshots, setUndoSnapshots]);
 
   const undo = useCallback(() => {
     const snapshotToRestore =
       undoStackRef.current[undoStackRef.current.length - 1];
     if (!snapshotToRestore) return;
 
+    const currentSnapshot = cloneSnapshot(currentSnapshotRef.current);
     pendingActionRef.current = null;
     const nextStack = undoStackRef.current.slice(0, -1);
-    undoStackRef.current = nextStack;
-    setUndoStack(nextStack);
-    restoreSnapshot(cloneSnapshot(snapshotToRestore));
-  }, [restoreSnapshot]);
+    setUndoSnapshots(nextStack);
+    pushRedoSnapshot(currentSnapshot);
+
+    const restoredSnapshot = cloneSnapshot(snapshotToRestore);
+    currentSnapshotRef.current = restoredSnapshot;
+    restoreSnapshot(restoredSnapshot);
+  }, [pushRedoSnapshot, restoreSnapshot, setUndoSnapshots]);
+
+  const redo = useCallback(() => {
+    const snapshotToRestore =
+      redoStackRef.current[redoStackRef.current.length - 1];
+    if (!snapshotToRestore) return;
+
+    const currentSnapshot = cloneSnapshot(currentSnapshotRef.current);
+    pendingActionRef.current = null;
+    const nextRedoStack = redoStackRef.current.slice(0, -1);
+    setRedoSnapshots(nextRedoStack);
+    pushUndoSnapshots([currentSnapshot], { clearRedo: false });
+
+    const restoredSnapshot = cloneSnapshot(snapshotToRestore);
+    currentSnapshotRef.current = restoredSnapshot;
+    restoreSnapshot(restoredSnapshot);
+  }, [pushUndoSnapshots, restoreSnapshot, setRedoSnapshots]);
 
   return {
     beginHistoryAction,
     cancelHistoryAction,
     clearHistory,
     undo,
+    redo,
     canUndo: undoStack.length > 0,
+    canRedo: redoStack.length > 0,
   };
 }

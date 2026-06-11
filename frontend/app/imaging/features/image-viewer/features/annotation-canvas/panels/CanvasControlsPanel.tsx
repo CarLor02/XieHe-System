@@ -6,14 +6,27 @@ interface CanvasControlsPanelProps {
   contrast: number;
   brightness: number;
   canUndoAnnotationHistory: boolean;
+  canRedoAnnotationHistory: boolean;
   onClearAll: () => void;
   onUndoAnnotationHistory: () => void;
+  onRedoAnnotationHistory: () => void;
   onZoomOut: () => void;
   onZoomIn: () => void;
   onDecreaseContrast: () => void;
   onIncreaseContrast: () => void;
   onDecreaseBrightness: () => void;
   onIncreaseBrightness: () => void;
+}
+
+const UNDO_ICON = '/icons/annotation-history/icon_undo.svg';
+const REDO_ICON = '/icons/annotation-history/icon_redo.svg';
+
+function getHistoryIconMask(iconPath: string) {
+  const mask = `url('${iconPath}') center / contain no-repeat`;
+  return {
+    WebkitMask: mask,
+    mask,
+  };
 }
 
 /**
@@ -24,8 +37,10 @@ export default function CanvasControlsPanel({
   contrast,
   brightness,
   canUndoAnnotationHistory,
+  canRedoAnnotationHistory,
   onClearAll,
   onUndoAnnotationHistory,
+  onRedoAnnotationHistory,
   onZoomOut,
   onZoomIn,
   onDecreaseContrast,
@@ -67,8 +82,35 @@ export default function CanvasControlsPanel({
             }`}
             title="撤回到上一步标注数据"
           >
-            <i className="ri-arrow-go-back-line"></i>
+            <span
+              aria-hidden="true"
+              className="h-3.5 w-3.5 bg-current"
+              style={getHistoryIconMask(UNDO_ICON)}
+            />
             <span>撤回</span>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-center">
+          <button
+            onClick={event => {
+              event.stopPropagation();
+              onRedoAnnotationHistory();
+            }}
+            disabled={!canRedoAnnotationHistory}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded text-white text-xs font-medium transition-all active:scale-95 w-full justify-center ${
+              canRedoAnnotationHistory
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : 'bg-gray-700/50 text-white/40 cursor-not-allowed'
+            }`}
+            title="重做到下一步标注数据"
+          >
+            <span
+              aria-hidden="true"
+              className="h-3.5 w-3.5 bg-current"
+              style={getHistoryIconMask(REDO_ICON)}
+            />
+            <span>重做</span>
           </button>
         </div>
 
