@@ -284,24 +284,24 @@ export default function UserSettings({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/20 p-4 backdrop-blur-sm sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/20 p-2 backdrop-blur-sm sm:p-6">
       <div className="h-[calc(100vh-2rem)] max-h-[56rem] w-full max-w-6xl overflow-hidden rounded-lg bg-white shadow-2xl sm:h-[calc(100vh-3rem)]">
-        <div className="flex h-full min-h-0">
+        <div className="flex h-full min-h-0 flex-col md:flex-row">
           {/* 左侧导航 */}
-          <div className="flex h-full w-64 flex-shrink-0 flex-col bg-gray-50 border-r border-gray-200">
-            <div className="p-6 border-b border-gray-200">
+          <div className="flex w-full flex-shrink-0 flex-col bg-gray-50 md:h-full md:w-64 md:border-r md:border-gray-200">
+            <div className="border-b border-gray-200 p-4 sm:p-6">
               <h2 className="text-xl font-semibold text-gray-900">用户设置</h2>
               <p className="text-sm text-gray-500 mt-1">
                 管理您的账户和偏好设置
               </p>
             </div>
 
-            <nav className="flex-1 overflow-y-auto p-4">
+            <nav className="flex gap-2 overflow-x-auto p-3 md:flex-1 md:flex-col md:gap-0 md:space-y-1 md:overflow-y-auto md:p-4">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                  className={`flex min-w-max items-center space-x-3 rounded-lg px-4 py-3 text-left transition-colors md:w-full md:min-w-0 ${
                     activeTab === tab.id
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-700 hover:bg-gray-100'
@@ -318,7 +318,7 @@ export default function UserSettings({
 
           {/* 右侧内容 */}
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex-1 overflow-y-auto p-8">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
               {/* 个人信息 */}
               {activeTab === 'profile' && (
                 <div>
@@ -387,7 +387,7 @@ export default function UserSettings({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             用户名
@@ -714,7 +714,7 @@ export default function UserSettings({
                       <h4 className="font-medium text-gray-900 mb-3">
                         语言和地区
                       </h4>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             语言
@@ -744,7 +744,7 @@ export default function UserSettings({
               )}
             </div>
             {/* 底部按钮 */}
-            <div className="flex flex-shrink-0 justify-end space-x-4 border-t border-gray-200 bg-white px-8 py-5">
+            <div className="flex flex-shrink-0 justify-end space-x-4 border-t border-gray-200 bg-white px-4 py-4 sm:px-8 sm:py-5">
               <button
                 onClick={onClose}
                 disabled={saving}
