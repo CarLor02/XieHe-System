@@ -1,11 +1,13 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element */
+
 import AppShell from '@/components/layout/AppShell';
 import { useUser } from '@/lib/api';
-import { getPatients } from '@/services/patientServices';
 import { uploadSingleFile } from '@/services/imageServices';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
+import PatientSearchSelect from './_components/patient-search-select';
 import UploadOptionsOverlay, {
   CropArea,
 } from './_components/overlay/upload-options-overlay';
@@ -39,15 +41,12 @@ function UploadContent() {
   );
   const [optionsQueue, setOptionsQueue] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  const [allCompleted, setAllCompleted] = useState(false);
-  const [patients, setPatients] = useState<Array<{ id: string; name: string }>>(
-    []
-  );
   const [mounted, setMounted] = useState(false);
 
   // 确保组件已挂载
   useEffect(() => {
-    setMounted(true);
+    const timer = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const examTypes = [
@@ -62,12 +61,9 @@ function UploadContent() {
     file => file.id === activeOptionsFileId
   );
 
-  useEffect(() => {
-    if (uploadFiles.length > 0) {
-      const completed = uploadFiles.every(file => file.status === 'completed');
-      setAllCompleted(completed);
-    }
-  }, [uploadFiles]);
+  const allCompleted =
+    uploadFiles.length > 0 &&
+    uploadFiles.every(file => file.status === 'completed');
 
   // 认证检查
   useEffect(() => {
@@ -76,29 +72,6 @@ function UploadContent() {
       return;
     }
   }, [mounted, isAuthenticated, router]);
-
-  useEffect(() => {
-    if (!mounted || !isAuthenticated) return;
-
-    // 获取患者列表
-    const fetchPatients = async () => {
-      try {
-        const result = await getPatients({ page: 1, page_size: 100 });
-        const patientList = result.items.map(patient => ({
-          id: patient.id.toString(),
-          name: patient.name,
-        }));
-
-        setPatients(patientList);
-      } catch (error) {
-        console.error('Failed to fetch patients:', error);
-        // 不再使用假数据，认证失败会自动跳转到登录页
-        setPatients([]);
-      }
-    };
-
-    fetchPatients();
-  }, [mounted, isAuthenticated]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -469,18 +442,10 @@ function UploadContent() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   选择患者 <span className="text-red-500">*</span>
                 </label>
-                <select
+                <PatientSearchSelect
                   value={selectedPatient}
-                  onChange={e => setSelectedPatient(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
-                >
-                  <option value="">请选择患者</option>
-                  {patients.map(patient => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.name} ({patient.id})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedPatient}
+                />
               </div>
 
               <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
