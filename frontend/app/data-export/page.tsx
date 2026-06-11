@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import { useUser } from '@/lib/api';
 import {
   downloadImageFile,
@@ -300,11 +299,7 @@ export default function DataExportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="max-w-6xl mx-auto">
           {/* 页面标题 */}
           <div className="mb-6">
@@ -593,7 +588,6 @@ export default function DataExportPage() {
             </ul>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

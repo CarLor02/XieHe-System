@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import { useUser } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -51,11 +50,7 @@ export default function PermissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -71,7 +66,6 @@ export default function PermissionsPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

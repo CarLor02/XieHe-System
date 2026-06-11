@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import StatsCard from '@/components/dashboard/StatsCard';
 import TaskList from '@/components/dashboard/TaskList';
 import { useUser } from '@/lib/api';
@@ -142,11 +141,7 @@ const DashboardPage: React.FC = () => {
     : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -277,8 +272,7 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 };
 

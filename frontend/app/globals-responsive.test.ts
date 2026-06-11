@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { expect, it } from '@jest/globals';
 
 it('does not globally force a desktop minimum page width', () => {
   const css = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8');

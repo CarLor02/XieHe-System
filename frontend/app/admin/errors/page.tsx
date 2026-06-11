@@ -9,8 +9,7 @@
 
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { authenticatedJsonFetch } from '@/lib/api';
 import React, { useEffect, useState } from 'react';
@@ -109,27 +108,19 @@ const ErrorMonitoringPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-        <main className="ml-64 pt-16 p-6">
+      <AppShell mainClassName="p-6 pt-16">
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
               <p className="text-gray-600">加载错误统计数据中...</p>
             </div>
           </div>
-        </main>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 pt-16 p-6">
+    <AppShell mainClassName="p-6 pt-16">
         {/* 页面标题 */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
@@ -399,8 +390,7 @@ const ErrorMonitoringPage: React.FC = () => {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </AppShell>
   );
 };
 

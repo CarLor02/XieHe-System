@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import { useUser } from '@/lib/api';
 import { getPatients } from '@/services/patientServices';
 import { uploadSingleFile } from '@/services/imageServices';
@@ -427,11 +426,7 @@ function UploadContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="max-w-4xl mx-auto">
           <div className="mb-6">
             <div className="flex items-center justify-between">
@@ -690,8 +685,6 @@ function UploadContent() {
             </ul>
           </div>
         </div>
-      </main>
-
       {activeOptionsFile && (
         <UploadOptionsOverlay
           file={{
@@ -711,7 +704,7 @@ function UploadContent() {
           onConfirm={handleFileOptionDone}
         />
       )}
-    </div>
+    </AppShell>
   );
 }
 

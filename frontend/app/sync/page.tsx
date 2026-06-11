@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import {
   createPatient,
   getPatients,
@@ -292,10 +291,7 @@ export default function SyncPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-      <main className="ml-64 p-6">
+    <AppShell>
 
           {/* Page title + Config toggle */}
           <div className="flex items-center justify-between mb-4">
@@ -546,14 +542,12 @@ export default function SyncPage() {
             )}
           </div>
 
-      </main>
-
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm shadow-lg z-50 flex items-center gap-2">
           {toast}
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }

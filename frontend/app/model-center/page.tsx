@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import UserSettings from '@/components/UserSettings';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -121,11 +120,7 @@ export default function ModelCenter() {
   // 权限检查：只有超级管理员可以访问模型中心
   if (!isSuperuser) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-
-        <main className="ml-64 p-6">
+      <AppShell>
           <div className="flex items-center justify-center h-[calc(100vh-200px)]">
             <div className="text-center">
               <div className="mb-4">
@@ -143,17 +138,12 @@ export default function ModelCenter() {
               </button>
             </div>
           </div>
-        </main>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="mb-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -243,13 +233,12 @@ export default function ModelCenter() {
             </div>
           )}
         </div>
-      </main>
 
       <UserSettings
         isOpen={showUserSettings}
         onClose={() => setShowUserSettings(false)}
         type="profile"
       />
-    </div>
+    </AppShell>
   );
 }

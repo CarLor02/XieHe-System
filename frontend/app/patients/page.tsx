@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import Tooltip from '@/components/ui/Tooltip';
 import { useUser } from '@/lib/api';
 import { getPatients, Patient } from '@/services/patientServices';
@@ -101,11 +100,7 @@ export default function PatientsPage() {
   const displayedPatients = patients;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="mb-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -487,7 +482,6 @@ export default function PatientsPage() {
             )}
           </div>
         )}
-      </main>
-    </div>
+    </AppShell>
   );
 }

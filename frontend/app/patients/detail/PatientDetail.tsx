@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -66,28 +65,21 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
   // 加载状态
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-        <main className="ml-64 p-6">
+      <AppShell>
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-600">加载中...</p>
             </div>
           </div>
-        </main>
-      </div>
+      </AppShell>
     );
   }
 
   // 错误状态
   if (error || !patient) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-        <main className="ml-64 p-6">
+      <AppShell>
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -103,17 +95,12 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               </button>
             </div>
           </div>
-        </main>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="mb-6">
           {/* 页面标题和操作栏 */}
           <div className="flex items-center justify-between mb-6">
@@ -429,7 +416,6 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </AppShell>
   );
 }

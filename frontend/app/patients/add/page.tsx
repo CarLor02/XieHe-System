@@ -1,8 +1,7 @@
 'use client';
 
 import BirthDatePicker from '@/components/patients/BirthDatePicker';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import { useUser } from '@/lib/api';
 import { createPatient } from '@/services/patientServices';
 import {
@@ -159,11 +158,7 @@ export default function AddPatientPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-8">
+    <AppShell mainClassName="p-8">
         <div className="max-w-6xl mx-auto">
           {/* 页面标题 */}
           <div className="mb-6">
@@ -509,7 +504,6 @@ export default function AddPatientPage() {
             </form>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

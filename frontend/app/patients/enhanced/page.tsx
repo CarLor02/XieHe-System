@@ -9,8 +9,7 @@
  * @created 2025-09-24
  */
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import PatientSearchFilter, {
   SearchFilters,
 } from '@/components/patients/PatientSearchFilter';
@@ -111,11 +110,7 @@ export default function EnhancedPatientsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="space-y-6">
           {/* 页面标题 */}
           <div className="flex items-center justify-between">
@@ -288,7 +283,6 @@ export default function EnhancedPatientsPage() {
             )}
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

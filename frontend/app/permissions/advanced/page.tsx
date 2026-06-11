@@ -1,17 +1,12 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 // import PermissionManager from '@/components/permissions/PermissionManager';
 import React from 'react';
 
 const AdvancedPermissionsPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 pt-16 p-6">
+    <AppShell mainClassName="p-6 pt-16">
         <div className="max-w-7xl mx-auto">
           {/* 权限管理组件 - 临时占位符 */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
@@ -35,8 +30,7 @@ const AdvancedPermissionsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 };
 

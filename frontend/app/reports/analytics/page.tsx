@@ -1,8 +1,7 @@
 'use client';
 
-import Header from '@/components/Header';
+import AppShell from '@/components/layout/AppShell';
 import ReportAnalytics from '@/components/reports/ReportAnalytics';
-import Sidebar from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
 import React, { useState } from 'react';
 
@@ -35,11 +34,7 @@ const ReportAnalyticsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 pt-16 p-6">
+    <AppShell mainClassName="p-6 pt-16">
         <div className="max-w-7xl mx-auto">
           {/* 页面标题 */}
           <div className="mb-6">
@@ -164,8 +159,7 @@ const ReportAnalyticsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 };
 
