@@ -294,7 +294,7 @@ export default function SyncPage() {
     <AppShell>
 
           {/* Page title + Config toggle */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl font-semibold text-gray-800">同步数据</h1>
               <p className="text-sm text-gray-500 mt-0.5">从扫描机同步影像文件到系统</p>
@@ -348,7 +348,7 @@ export default function SyncPage() {
 
           {/* Stats */}
           {stats && (
-            <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 { label: '总文件', value: stats.total, color: 'text-gray-700' },
                 { label: '有效文件', value: stats.valid, color: 'text-blue-600' },

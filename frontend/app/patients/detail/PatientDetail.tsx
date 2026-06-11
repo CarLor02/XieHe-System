@@ -103,7 +103,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
     <AppShell>
         <div className="mb-6">
           {/* 页面标题和操作栏 */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => router.back()}
@@ -118,7 +118,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               </div>
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex flex-wrap gap-3">
               <Link
                 href={`/patients/edit?id=${patientId}`}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow"
@@ -134,7 +134,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* 基本信息卡片 */}
             <div className="col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-6">
@@ -149,7 +149,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">
                     姓名
@@ -390,7 +390,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                 的所有信息吗？此操作不可恢复。
               </p>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"

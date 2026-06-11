@@ -429,7 +429,7 @@ function UploadContent() {
     <AppShell>
         <div className="max-w-4xl mx-auto">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center space-x-4">
                 <button
                   onClick={handleBackToSource}
@@ -464,7 +464,7 @@ function UploadContent() {
             </div>
 
             {/* 患者和检查信息 */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 gap-6 mb-6 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   选择患者 <span className="text-red-500">*</span>

@@ -99,7 +99,7 @@ export default function ModelPermissions() {
       </div>
 
       {/* 权限概览 */}
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -184,7 +184,7 @@ export default function ModelPermissions() {
                 {/* 角色权限 */}
                 <div>
                   <h4 className="font-medium text-gray-900 mb-3">角色权限</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
                     {roles.map((role) => (
                       <label key={role.id} className="flex items-center space-x-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                         <input
@@ -223,7 +223,7 @@ export default function ModelPermissions() {
                 {/* 使用统计 */}
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h4 className="font-medium text-gray-900 mb-2">使用统计</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
                     <div>
                       <span className="text-gray-600">今日调用:</span>
                       <span className="ml-2 font-medium text-gray-900">23</span>

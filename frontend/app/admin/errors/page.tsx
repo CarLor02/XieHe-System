@@ -123,13 +123,13 @@ const ErrorMonitoringPage: React.FC = () => {
     <AppShell mainClassName="p-6 pt-16">
         {/* 页面标题 */}
         <div className="mb-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">错误监控</h1>
               <p className="text-gray-600 mt-1">系统错误统计和监控</p>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-4">
               {/* 时间范围选择 */}
               <select
                 value={timeRange}
@@ -163,7 +163,7 @@ const ErrorMonitoringPage: React.FC = () => {
         {errorStats && (
           <div className="space-y-6">
             {/* 统计概览 */}
-            <div className="grid grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -247,7 +247,7 @@ const ErrorMonitoringPage: React.FC = () => {
             </div>
 
             {/* 错误分类统计 */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* 按类型分组 */}
               <div className="bg-white rounded-lg shadow">
                 <div className="px-6 py-4 border-b border-gray-200">
