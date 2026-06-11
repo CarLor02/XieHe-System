@@ -304,7 +304,86 @@ export default function PatientsPage() {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            <div
+              data-testid="patients-mobile-list"
+              className="divide-y divide-gray-200 md:hidden"
+            >
+              {displayedPatients.map(patient => (
+                <div key={patient.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 truncate">
+                        {patient.name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        ID: {patient.patient_id}
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex flex-shrink-0 px-2 py-1 text-xs font-semibold rounded-full ${
+                        patient.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {patient.status === 'active' ? '活跃' : '非活跃'}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 gap-3 text-sm text-gray-600">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">性别/年龄</span>
+                      <span className="font-medium text-gray-900">
+                        {patient.gender} / {patient.age || '未知'}岁
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">电话</span>
+                      <span className="font-medium text-gray-900">
+                        {patient.phone || '未提供'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4 min-w-0">
+                      <span className="text-gray-500 flex-shrink-0">邮箱</span>
+                      <span
+                        className="font-medium text-gray-900 truncate text-right"
+                        title={patient.email || '未提供'}
+                      >
+                        {patient.email || '未提供'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">注册时间</span>
+                      <span className="font-medium text-gray-900">
+                        {new Date(patient.created_at || '').toLocaleDateString(
+                          'zh-CN'
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <Link
+                      href={`/patients/detail?id=${patient.id}`}
+                      className="flex-1 rounded-lg border border-blue-200 px-3 py-2 text-center text-sm font-medium text-blue-600 hover:bg-blue-50"
+                    >
+                      查看
+                    </Link>
+                    <Link
+                      href={`/patients/edit?id=${patient.id}`}
+                      className="flex-1 rounded-lg border border-green-200 px-3 py-2 text-center text-sm font-medium text-green-600 hover:bg-green-50"
+                    >
+                      编辑
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              data-testid="patients-desktop-table"
+              className="hidden overflow-x-auto md:block"
+            >
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>

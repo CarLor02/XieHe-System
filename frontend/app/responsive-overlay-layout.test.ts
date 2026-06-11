@@ -28,4 +28,12 @@ describe('responsive overlay layouts', () => {
     expect(source).toContain('lg:grid-cols-[minmax(0,1fr)_350px]');
     expect(source).not.toContain('grid grid-cols-[minmax(0,1fr)_350px]');
   });
+
+  it('keeps header notification dropdown inside phone-sized viewports', () => {
+    const source = readFrontendFile('components/Header.tsx');
+
+    expect(source).toContain('fixed left-4 right-4 top-20');
+    expect(source).toContain('sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-96');
+    expect(source).not.toContain('absolute right-0 top-12 w-96 max-w-[calc(100vw-1rem)]');
+  });
 });

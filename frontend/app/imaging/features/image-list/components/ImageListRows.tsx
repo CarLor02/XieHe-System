@@ -94,31 +94,31 @@ export default function ImageListRows({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
                   <Link
                     href={`/imaging/viewer?id=${imageFile.id}`}
-                    className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center gap-2 whitespace-nowrap sm:px-4"
+                    className="bg-blue-600 text-white px-2 py-2 rounded-lg hover:bg-blue-700 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                   >
                     <i className="ri-eye-line w-4 h-4 flex items-center justify-center"></i>
                     <span>标注分析</span>
                   </Link>
                   <button
                     onClick={() => onMoreAction(imageFile.id, 'download')}
-                    className="border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm flex items-center gap-2 whitespace-nowrap sm:px-4"
+                    className="border border-gray-300 text-gray-700 px-2 py-2 rounded-lg hover:bg-gray-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                   >
                     <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
                     <span>下载</span>
                   </button>
                   <button
                     onClick={() => onCropEdit(imageFile)}
-                    className="border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm flex items-center gap-2 whitespace-nowrap sm:px-4"
+                    className="border border-gray-300 text-gray-700 px-2 py-2 rounded-lg hover:bg-gray-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                   >
                     <i className="ri-crop-line w-4 h-4 flex items-center justify-center"></i>
                     <span>裁剪编辑</span>
                   </button>
                   <button
                     onClick={() => onMoreAction(imageFile.id, 'delete')}
-                    className="border border-red-300 text-red-600 px-3 py-2 rounded-lg hover:bg-red-50 text-sm flex items-center gap-2 whitespace-nowrap sm:px-4"
+                    className="border border-red-300 text-red-600 px-2 py-2 rounded-lg hover:bg-red-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                   >
                     <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
                     <span>删除</span>

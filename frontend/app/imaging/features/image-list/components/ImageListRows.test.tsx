@@ -34,7 +34,7 @@ function makeImageFile(overrides: Partial<ImageFile> = {}): ImageFile {
   };
 }
 
-it('stacks image list row content and wraps actions on narrow screens', () => {
+it('keeps all image row actions in one line on phone-sized screens', () => {
   const { container } = render(
     <ImageListRows
       imageFiles={[makeImageFile()]}
@@ -56,6 +56,7 @@ it('stacks image list row content and wraps actions on narrow screens', () => {
   expect(row?.className).toContain('sm:p-6');
 
   const actions = screen.getByRole('link', { name: /标注分析/ }).parentElement;
-  expect(actions?.className).toContain('flex-wrap');
-  expect(actions?.className).toContain('gap-3');
+  expect(actions?.className).toContain('grid');
+  expect(actions?.className).toContain('grid-cols-4');
+  expect(actions?.className).toContain('sm:flex');
 });
