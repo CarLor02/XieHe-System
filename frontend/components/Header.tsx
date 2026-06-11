@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element */
+
 import UserSettings from '@/components/UserSettings';
 import { useAuth, useUser } from '@/lib/api';
 import { createLogger } from '@/lib/logger';
@@ -22,7 +24,17 @@ interface Message {
 
 const logger = createLogger('components.header');
 
-export default function Header() {
+interface HeaderProps {
+  className?: string;
+  showMenuButton?: boolean;
+  onOpenSidebar?: () => void;
+}
+
+export default function Header({
+  className = '',
+  showMenuButton = false,
+  onOpenSidebar,
+}: HeaderProps) {
   const router = useRouter();
   const { user } = useUser();
   const { logout } = useAuth();
@@ -38,9 +50,6 @@ export default function Header() {
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const CIRCUIT_BREAKER_THRESHOLD = 3; // 连续失败3次后暂停
   const CIRCUIT_BREAKER_INTERVAL = 5 * 60 * 1000; // 暂停后每5分钟重试一次
-
-  // 从认证系统获取用户角色
-  const userRole = user?.role || 'staff';
 
   useEffect(() => {
     setMounted(true);
@@ -131,13 +140,25 @@ export default function Header() {
 
   if (!mounted) {
     return (
-      <header className="bg-white border-b border-gray-200 px-6 py-4 ml-64">
+      <header className={`bg-white border-b border-gray-200 px-4 py-4 sm:px-6 ${className}`}>
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex min-w-0 items-center gap-3">
+            {showMenuButton && (
+              <button
+                type="button"
+                onClick={onOpenSidebar}
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 lg:hidden"
+                aria-label="打开侧边导航"
+              >
+                <i className="ri-menu-line text-lg"></i>
+              </button>
+            )}
+            <div className="min-w-0">
             <h1 className="text-xl font-semibold text-gray-800">
               智慧门诊系统
             </h1>
             <p className="text-sm text-gray-500 mt-1">专业的医疗影像管理平台</p>
+            </div>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -242,13 +263,25 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white border-b border-gray-200 px-6 py-4 ml-64">
+      <header className={`bg-white border-b border-gray-200 px-4 py-4 sm:px-6 ${className}`}>
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex min-w-0 items-center gap-3">
+            {showMenuButton && (
+              <button
+                type="button"
+                onClick={onOpenSidebar}
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 lg:hidden"
+                aria-label="打开侧边导航"
+              >
+                <i className="ri-menu-line text-lg"></i>
+              </button>
+            )}
+            <div className="min-w-0">
             <h1 className="text-xl font-semibold text-gray-800">
               智慧门诊系统
             </h1>
             <p className="text-sm text-gray-500 mt-1">专业的医疗影像管理平台</p>
+            </div>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -271,7 +304,7 @@ export default function Header() {
 
               {/* 消息弹窗 */}
               {showMessages && (
-                <div className="absolute right-0 top-12 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                <div className="fixed left-4 right-4 top-20 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-lg border border-gray-200 z-50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-96 sm:max-w-[calc(100vw-1rem)]">
                   <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-gray-900">系统消息</h3>
@@ -377,7 +410,7 @@ export default function Header() {
 
               {/* 用户菜单弹窗 */}
               {showUserMenu && (
-                <div className="absolute right-0 top-12 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                <div className="absolute right-0 top-12 w-72 max-w-[calc(100vw-1rem)] bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                   {/* 用户信息头部 */}
                   <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center space-x-3">

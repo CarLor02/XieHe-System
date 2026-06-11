@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import { useUser } from '@/lib/api';
 import { getPatients } from '@/services/patientServices';
 import { uploadSingleFile } from '@/services/imageServices';
@@ -427,14 +426,10 @@ function UploadContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="max-w-4xl mx-auto">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center space-x-4">
                 <button
                   onClick={handleBackToSource}
@@ -469,7 +464,7 @@ function UploadContent() {
             </div>
 
             {/* 患者和检查信息 */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 gap-6 mb-6 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   选择患者 <span className="text-red-500">*</span>
@@ -690,8 +685,6 @@ function UploadContent() {
             </ul>
           </div>
         </div>
-      </main>
-
       {activeOptionsFile && (
         <UploadOptionsOverlay
           file={{
@@ -711,7 +704,7 @@ function UploadContent() {
           onConfirm={handleFileOptionDone}
         />
       )}
-    </div>
+    </AppShell>
   );
 }
 

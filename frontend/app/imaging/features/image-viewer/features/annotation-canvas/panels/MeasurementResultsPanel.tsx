@@ -410,7 +410,7 @@ export default function MeasurementResultsPanel({
 
   return (
     <div
-      className="absolute top-4 left-4 z-50"
+      className="absolute left-2 right-2 top-2 z-50 sm:left-4 sm:right-auto sm:top-4"
       onMouseDown={event => event.stopPropagation()}
       onClick={event => event.stopPropagation()}
       onMouseUp={event => event.stopPropagation()}
@@ -436,7 +436,7 @@ export default function MeasurementResultsPanel({
           </div>
         </div>
       )}
-      <div className="w-[500px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg bg-black/70 backdrop-blur-sm">
+      <div className="w-full overflow-hidden rounded-lg bg-black/70 backdrop-blur-sm sm:w-[500px] sm:max-w-[calc(100vw-2rem)]">
         <div className="flex items-center justify-between px-3 py-2 bg-black/20 w-full">
           <div className="flex items-center min-w-0">
             <button

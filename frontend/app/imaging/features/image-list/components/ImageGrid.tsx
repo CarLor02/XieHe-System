@@ -39,7 +39,7 @@ export default function ImageGrid({
   onCropEdit,
 }: ImageGridProps) {
   return (
-    <div className="grid grid-cols-4 gap-6 p-6">
+    <div className="grid grid-cols-1 gap-6 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
       {imageFiles.map(imageFile => {
         const patientName = imageFile.patient_name || '未知患者';
         const uploaderName = imageFile.uploader_name || '未知用户';
@@ -106,7 +106,7 @@ export default function ImageGrid({
                 </div>
               </div>
 
-              <div className="flex space-x-2">
+              <div className="flex gap-2">
                 <Link
                   href={`/imaging/viewer?id=${imageFile.id}`}
                   className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"

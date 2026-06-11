@@ -49,13 +49,13 @@ export default function ImagingSearchFilters({
 }: ImagingSearchFiltersProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">影像中心</h1>
           <p className="text-gray-600 mt-1">管理和查看患者医学影像</p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap gap-3">
           <Tooltip content="上传新的医学影像文件" position="bottom">
             <Link
               href="/upload?returnTo=/imaging"
@@ -74,9 +74,9 @@ export default function ImagingSearchFilters({
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-4 flex-1">
-          <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col gap-4 mb-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1 sm:max-w-md">
             <i className="ri-search-line w-4 h-4 flex items-center justify-center absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
             <input
               type="text"
@@ -107,7 +107,7 @@ export default function ImagingSearchFilters({
           </button>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-4">
           <span className="text-sm text-gray-500">
             显示 {visibleCount} 条记录
             {total > 0 && ` (共 ${total} 条)`}
@@ -139,7 +139,7 @@ export default function ImagingSearchFilters({
       </div>
 
       {showFilters && (
-        <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-4 gap-4">
+        <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               检查类型
@@ -199,7 +199,7 @@ export default function ImagingSearchFilters({
             />
           </div>
 
-          <div className="col-span-4 flex justify-end">
+          <div className="flex justify-end md:col-span-2 xl:col-span-4">
             <button
               onClick={onClearFilters}
               className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap"

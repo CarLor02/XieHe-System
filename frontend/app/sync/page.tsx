@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import {
   createPatient,
   getPatients,
@@ -292,13 +291,10 @@ export default function SyncPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-      <main className="ml-64 p-6">
+    <AppShell>
 
           {/* Page title + Config toggle */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl font-semibold text-gray-800">同步数据</h1>
               <p className="text-sm text-gray-500 mt-0.5">从扫描机同步影像文件到系统</p>
@@ -352,7 +348,7 @@ export default function SyncPage() {
 
           {/* Stats */}
           {stats && (
-            <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 { label: '总文件', value: stats.total, color: 'text-gray-700' },
                 { label: '有效文件', value: stats.valid, color: 'text-blue-600' },
@@ -546,14 +542,12 @@ export default function SyncPage() {
             )}
           </div>
 
-      </main>
-
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm shadow-lg z-50 flex items-center gap-2">
           {toast}
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }

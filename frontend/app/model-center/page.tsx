@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import UserSettings from '@/components/UserSettings';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -121,11 +120,7 @@ export default function ModelCenter() {
   // 权限检查：只有超级管理员可以访问模型中心
   if (!isSuperuser) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-
-        <main className="ml-64 p-6">
+      <AppShell>
           <div className="flex items-center justify-center h-[calc(100vh-200px)]">
             <div className="text-center">
               <div className="mb-4">
@@ -143,26 +138,21 @@ export default function ModelCenter() {
               </button>
             </div>
           </div>
-        </main>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="mb-8">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">模型中心</h1>
               <p className="text-gray-600 mt-1">管理和配置您的AI影像分析模型</p>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-4">
               {isAdmin && (
                 <Link href="/model-center/settings" className="text-gray-600 hover:text-blue-600 flex items-center">
                   <i className="ri-settings-3-line mr-1"></i>
@@ -174,7 +164,7 @@ export default function ModelCenter() {
 
           {/* Stats Overview */}
           {stats && (
-            <div className="grid grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 xl:grid-cols-4">
               <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
                 <p className="text-gray-500 text-sm">总模型数</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{stats.total_models}</p>
@@ -196,7 +186,7 @@ export default function ModelCenter() {
 
           {/* Tabs */}
           <div className="border-b border-gray-200 mb-6">
-            <nav className="-mb-px flex space-x-8">
+            <nav className="-mb-px flex gap-8 overflow-x-auto">
               {[
                 { id: 'all', label: '全部模型' },
                 { id: 'front', label: '正面模型' },
@@ -226,7 +216,7 @@ export default function ModelCenter() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : filteredModels.length > 0 ? (
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filteredModels.map(model => (
                 <ModelCard
                   key={model.id}
@@ -243,13 +233,12 @@ export default function ModelCenter() {
             </div>
           )}
         </div>
-      </main>
 
       <UserSettings
         isOpen={showUserSettings}
         onClose={() => setShowUserSettings(false)}
         type="profile"
       />
-    </div>
+    </AppShell>
   );
 }

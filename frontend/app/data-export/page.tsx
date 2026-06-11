@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import { useUser } from '@/lib/api';
 import {
   downloadImageFile,
@@ -300,11 +299,7 @@ export default function DataExportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="max-w-6xl mx-auto">
           {/* 页面标题 */}
           <div className="mb-6">
@@ -316,13 +311,13 @@ export default function DataExportPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">筛选条件</h2>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* 日期范围 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   日期范围
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <input
                     type="date"
                     value={dateRange.start}
@@ -417,7 +412,7 @@ export default function DataExportPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-[760px] w-full">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -480,7 +475,7 @@ export default function DataExportPage() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {img.description || '-'}
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
+                          <td className="max-w-56 break-all px-6 py-4 text-sm text-gray-500">
                             {img.original_filename}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -504,7 +499,7 @@ export default function DataExportPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">导出设置</h2>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   导出内容
@@ -593,7 +588,6 @@ export default function DataExportPage() {
             </ul>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

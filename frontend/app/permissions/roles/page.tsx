@@ -215,7 +215,7 @@ export default function RolesPage() {
         </div>
 
         {/* 统计信息 */}
-        <div className="mt-6 grid grid-cols-4 gap-4">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">总角色数</div>
             <div className="text-2xl font-bold text-gray-900">

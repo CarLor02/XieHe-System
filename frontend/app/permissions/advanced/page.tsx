@@ -1,24 +1,19 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 // import PermissionManager from '@/components/permissions/PermissionManager';
 import React from 'react';
 
 const AdvancedPermissionsPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 pt-16 p-6">
+    <AppShell mainClassName="p-6 pt-16">
         <div className="max-w-7xl mx-auto">
           {/* 权限管理组件 - 临时占位符 */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">权限管理</h2>
               <p className="text-gray-600 mb-6">高级权限管理功能正在开发中...</p>
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div className="bg-blue-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold text-blue-900 mb-2">权限管理</h3>
                   <p className="text-blue-700">管理系统权限和访问控制</p>
@@ -35,8 +30,7 @@ const AdvancedPermissionsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 };
 

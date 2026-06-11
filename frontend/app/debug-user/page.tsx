@@ -1,17 +1,13 @@
 'use client';
 
 import { useUser } from '@/lib/api';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/layout/AppShell';
 
 export default function DebugUserPage() {
   const { user, isAuthenticated } = useUser();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-      <main className="ml-56 p-6">
+    <AppShell>
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">用户数据调试</h1>
           
@@ -75,7 +71,6 @@ export default function DebugUserPage() {
             </ol>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

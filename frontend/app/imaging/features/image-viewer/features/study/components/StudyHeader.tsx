@@ -47,9 +47,9 @@ export default function StudyHeader({
   onGenerateReport,
 }: StudyHeaderProps) {
   return (
-    <div className="bg-black/60 backdrop-blur-sm border-b border-gray-700 px-6 py-3 flex-shrink-0">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+    <div className="bg-black/60 backdrop-blur-sm border-b border-gray-700 px-3 py-2 flex-shrink-0 sm:px-6 sm:py-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center space-x-3 sm:space-x-4">
           <Link
             href="/imaging"
             className="text-white bg-blue-600 hover:bg-blue-700 p-2 rounded-lg transition-colors flex items-center justify-center"
@@ -57,17 +57,17 @@ export default function StudyHeader({
           >
             <i className="ri-arrow-left-line w-5 h-5 flex items-center justify-center"></i>
           </Link>
-          <div>
-            <h1 className="text-white font-semibold">
+          <div className="min-w-0">
+            <h1 className="truncate text-white font-semibold">
               {imageData.patientName} - {imageData.examType}
             </h1>
-            <p className="text-white/60 text-sm">
+            <p className="truncate text-white/60 text-sm">
               影像ID: {imageData.id} | 患者ID: {imageData.patientId}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           {/* 保存状态提示 */}
           {saveMessage && (
             <div className="bg-green-500/80 text-white px-3 py-1 rounded text-sm flex items-center space-x-2">
@@ -77,11 +77,11 @@ export default function StudyHeader({
           )}
 
           {/* 标注操作按钮组 */}
-          <div className="flex items-center space-x-2 border-r border-gray-600 pr-3">
+          <div className="flex flex-wrap items-center gap-2 border-b border-gray-600 pb-2 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-3">
             <button
               onClick={onSave}
               disabled={isSaving}
-              className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="text-white/80 hover:text-white px-2 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 sm:px-3"
               title="保存标注到数据库"
             >
               <span>{isSaving ? '保存中...' : '保存'}</span>
@@ -92,7 +92,7 @@ export default function StudyHeader({
               <button
                 onClick={onExportJson}
                 disabled={measurementsLength === 0}
-                className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="text-white/80 hover:text-white px-2 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 sm:px-3"
                 title="导出标注文件（仅管理员）"
               >
                 <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
@@ -101,7 +101,7 @@ export default function StudyHeader({
             )}
 
             <label
-              className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap cursor-pointer flex items-center space-x-2"
+              className="text-white/80 hover:text-white px-2 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap cursor-pointer flex items-center space-x-2 sm:px-3"
               title="导入标注文件"
             >
               <i className="ri-upload-line w-4 h-4 flex items-center justify-center"></i>
@@ -119,7 +119,7 @@ export default function StudyHeader({
           {canUseKeypointTools && hasVertebraeLayer && (
             <button
               onClick={onToggleVertebraeLayer}
-              className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap flex items-center space-x-2 transition-colors ${
+              className={`px-2 py-2 rounded-lg text-sm whitespace-nowrap flex items-center space-x-2 transition-colors sm:px-3 ${
                 showVertebraeLayer
                   ? 'bg-blue-600/70 text-white hover:bg-blue-600'
                   : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -135,7 +135,7 @@ export default function StudyHeader({
           <button
             onClick={onAIMeasure}
             disabled={isAIMeasuring || isAIDetecting}
-            className="text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            className="text-white/80 hover:text-white px-2 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 sm:px-3"
             title="使用AI自动测量"
           >
             {isAIMeasuring || isAIDetecting ? (
@@ -153,7 +153,7 @@ export default function StudyHeader({
 
           <button
             onClick={onGenerateReport}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"
+            className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap sm:px-4"
           >
             生成报告
           </button>

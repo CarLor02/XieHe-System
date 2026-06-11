@@ -1,5 +1,42 @@
 import type { OpenDropdown } from '../hooks/useImageFileActions';
 
+const MENU_WIDTH = 160;
+const MENU_HEIGHT = 180;
+const MENU_MARGIN = 8;
+
+interface MenuPositionInput {
+  top: number;
+  left: number;
+  menuWidth?: number;
+  menuHeight?: number;
+  viewportWidth?: number;
+  viewportHeight?: number;
+  margin?: number;
+}
+
+export function getClampedMenuPosition({
+  top,
+  left,
+  menuWidth = MENU_WIDTH,
+  menuHeight = MENU_HEIGHT,
+  viewportWidth,
+  viewportHeight,
+  margin = MENU_MARGIN,
+}: MenuPositionInput) {
+  const width =
+    viewportWidth ?? (typeof window === 'undefined' ? menuWidth : window.innerWidth);
+  const height =
+    viewportHeight ??
+    (typeof window === 'undefined' ? menuHeight : window.innerHeight);
+  const maxLeft = Math.max(margin, width - menuWidth - margin);
+  const maxTop = Math.max(margin, height - menuHeight - margin);
+
+  return {
+    top: Math.min(Math.max(top, margin), maxTop),
+    left: Math.min(Math.max(left, margin), maxLeft),
+  };
+}
+
 interface ImageActionMenuProps {
   imageFileId: number;
   description: string;
@@ -28,7 +65,10 @@ export default function ImageActionMenu({
   return (
     <div
       className="fixed w-40 max-h-[calc(100vh-1rem)] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-30"
-      style={{ top: openDropdown.top, left: openDropdown.left }}
+      style={getClampedMenuPosition({
+        top: openDropdown.top,
+        left: openDropdown.left,
+      })}
     >
       <div className="py-1">
         <button

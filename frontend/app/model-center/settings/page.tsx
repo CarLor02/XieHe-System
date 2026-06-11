@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -71,11 +70,7 @@ export default function ModelSettingsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <Sidebar />
-            <Header />
-
-            <main className="ml-64 p-6">
+        <AppShell>
                 <div className="max-w-3xl mx-auto">
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center space-x-4">
@@ -169,7 +164,6 @@ export default function ModelSettingsPage() {
 
                     </div>
                 </div>
-            </main>
-        </div>
+        </AppShell>
     );
 }

@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -66,28 +65,21 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
   // 加载状态
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-        <main className="ml-64 p-6">
+      <AppShell>
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-600">加载中...</p>
             </div>
           </div>
-        </main>
-      </div>
+      </AppShell>
     );
   }
 
   // 错误状态
   if (error || !patient) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-        <main className="ml-64 p-6">
+      <AppShell>
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -103,20 +95,15 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               </button>
             </div>
           </div>
-        </main>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="mb-6">
           {/* 页面标题和操作栏 */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => router.back()}
@@ -131,7 +118,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               </div>
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex flex-wrap gap-3">
               <Link
                 href={`/patients/edit?id=${patientId}`}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow"
@@ -147,7 +134,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* 基本信息卡片 */}
             <div className="col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-6">
@@ -162,7 +149,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">
                     姓名
@@ -403,7 +390,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                 的所有信息吗？此操作不可恢复。
               </p>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
@@ -429,7 +416,6 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </AppShell>
   );
 }

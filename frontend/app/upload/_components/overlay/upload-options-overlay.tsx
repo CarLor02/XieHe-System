@@ -186,9 +186,9 @@ export default function UploadOptionsOverlay({
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/45 px-6 py-8">
-      <div className="w-full max-w-5xl rounded-xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between px-8 py-6">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/45 px-2 py-4 sm:px-6 sm:py-8">
+      <div className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-y-auto rounded-xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between px-4 py-4 sm:px-8 sm:py-6">
           <div>
             <h2 className="text-2xl font-semibold text-gray-900">检查影像</h2>
             <p className="mt-1 text-sm text-gray-500">确认影像信息并进行必要调整</p>
@@ -202,11 +202,11 @@ export default function UploadOptionsOverlay({
           </button>
         </div>
 
-        <div className="mx-8 border-t border-gray-200"></div>
+        <div className="mx-4 border-t border-gray-200 sm:mx-8"></div>
 
-        <div className="grid grid-cols-[minmax(0,1fr)_350px] gap-6 px-8 py-8">
+        <div className="grid grid-cols-1 gap-6 px-4 py-4 sm:px-8 sm:py-8 lg:grid-cols-[minmax(0,1fr)_350px]">
           <div className="overflow-hidden rounded-lg bg-black">
-            <div className="relative flex h-[68vh] max-h-[760px] min-h-[420px] items-center justify-center">
+            <div className="relative flex h-[58vh] max-h-[760px] min-h-[260px] items-center justify-center sm:h-[64vh] sm:min-h-[360px] lg:h-[68vh] lg:min-h-[420px]">
               {canAdjustPixels && !imageLoadFailed ? (
                 <div ref={imageBoxRef} className="relative inline-block max-h-full max-w-full">
                   {/* eslint-disable-next-line @next/next/no-img-element -- blob/object URL preview inside the edit overlay */}
@@ -315,9 +315,9 @@ export default function UploadOptionsOverlay({
           </div>
         </div>
 
-        <div className="mx-8 border-t border-gray-200"></div>
+        <div className="mx-4 border-t border-gray-200 sm:mx-8"></div>
 
-        <div className="flex justify-end gap-4 px-8 py-6">
+        <div className="flex justify-end gap-4 px-4 py-4 sm:px-8 sm:py-6">
           <button
             onClick={onClose}
             className="rounded-lg border border-gray-300 px-7 py-3 text-gray-700 hover:bg-gray-50"

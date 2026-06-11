@@ -1,8 +1,7 @@
 'use client';
 
 import BirthDatePicker from '@/components/patients/BirthDatePicker';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import {
   extractBirthDateFromIdCard,
   extractGenderFromIdCard,
@@ -157,28 +156,20 @@ export default function EditPatient({ patientId }: { patientId: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Sidebar />
-        <Header />
-        <main className="ml-64 p-6">
+      <AppShell>
           <div className="flex items-center justify-center h-64">
             <div className="text-gray-500">加载中...</div>
           </div>
-        </main>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-8">
+    <AppShell mainClassName="p-8">
         <div className="max-w-6xl mx-auto">
           {/* 页面标题 */}
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => router.back()}
@@ -193,7 +184,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                 </div>
               </div>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -234,7 +225,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                   基本信息
                 </h3>
 
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {/* 姓名 - 占1列 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -334,7 +325,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                   联系信息
                 </h3>
 
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {/* 联系电话 - 占1列 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -402,7 +393,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
                   紧急联系人
                 </h3>
 
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   {/* 紧急联系人姓名 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -455,7 +446,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
 
                 <p className="text-gray-600 mb-6">患者信息已成功更新！</p>
 
-                <div className="flex space-x-3">
+                <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() => {
                       setShowSaveModal(false);
@@ -476,7 +467,6 @@ export default function EditPatient({ patientId }: { patientId: string }) {
             </div>
           )}
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

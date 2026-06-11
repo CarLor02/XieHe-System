@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 import {
   TeamJoinRequestItem,
@@ -532,11 +532,11 @@ export default function TeamManagement() {
       {activeTab === 'invitations' ? (
         <TeamInvitations />
       ) : (
-        <div className="flex h-[calc(100vh-280px)] gap-6">
+        <div className="flex min-w-0 flex-col gap-4 lg:h-[calc(100vh-280px)] lg:flex-row lg:gap-6">
           {/* 左侧：团队列表 */}
-          <div className="flex w-80 flex-col gap-4">
+          <div className="flex max-h-96 w-full flex-shrink-0 flex-col gap-4 lg:max-h-none lg:w-64 xl:w-80">
             {/* 操作按钮 */}
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 lg:flex-row">
           {isSystemAdmin ? (
             <>
               <button
@@ -584,16 +584,16 @@ export default function TeamManagement() {
                 return (
                   <div
                     key={team.id}
-                    className={`relative w-full px-4 py-3 text-left transition ${isPending
+                    className={`relative w-full px-3 py-3 text-left transition lg:px-4 ${isPending
                         ? 'bg-gray-50 opacity-90'
                         : 'hover:bg-gray-50 cursor-pointer'
                       } ${isSelected ? 'bg-blue-50' : ''}`}
                     onClick={() => !isPending && setSelectedTeamId(team.id)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-medium text-gray-900">{team.name}</h4>
+                          <h4 className="truncate font-medium text-gray-900">{team.name}</h4>
                         </div>
                         <p className="mt-1 line-clamp-1 text-xs text-gray-500">
                           {team.description || '暂无描述'}
@@ -603,7 +603,7 @@ export default function TeamManagement() {
                           {team.department && <span>{team.department}</span>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-shrink-0 flex-col items-end gap-2 lg:flex-row lg:items-center">
                         {isPending && team.join_request_id ? (
                           <>
                             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
@@ -638,7 +638,7 @@ export default function TeamManagement() {
       </div>
 
       {/* 右侧：团队详情 */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-visible lg:overflow-hidden">
         {!selectedTeam ? (
           <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white">
             <div className="text-center text-gray-500">
@@ -647,7 +647,7 @@ export default function TeamManagement() {
             </div>
           </div>
         ) : (
-          <div className="flex h-full flex-col gap-4 overflow-hidden">
+          <div className="flex h-full flex-col gap-4 overflow-visible lg:overflow-hidden">
             {/* 消息提示 */}
             {error && (
               <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -672,8 +672,8 @@ export default function TeamManagement() {
 
             {/* 团队信息卡片 - 固定高度 */}
             <div className="flex-shrink-0 rounded-lg border border-gray-200 bg-white p-4">
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold text-gray-900">{selectedTeam.name}</h2>
                   <p className="mt-1 text-sm text-gray-600">{selectedTeam.description || '暂无描述'}</p>
                   <div className="mt-3 flex flex-wrap gap-3 text-sm text-gray-500">
@@ -695,7 +695,7 @@ export default function TeamManagement() {
                     </span>
                   </div>
                 </div>
-                <div className="text-center">
+                <div className="flex-shrink-0 text-left sm:text-center">
                   <div className="text-2xl font-bold text-blue-600">{selectedTeam.member_count}</div>
                   <div className="text-xs text-gray-500">
                     成员{selectedTeam.max_members ? ` / ${selectedTeam.max_members}` : ''}
@@ -706,18 +706,18 @@ export default function TeamManagement() {
 
             {/* 成员列表 - 占据剩余空间 */}
             <div className={`flex ${isCurrentUserAdmin ? 'flex-1' : 'flex-[2]'} flex-col overflow-hidden rounded-lg border border-gray-200 bg-white`}>
-              <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3">
+              <div className="flex flex-shrink-0 flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="font-semibold text-gray-900">团队成员</h3>
                   <p className="text-xs text-gray-500">共 {members.length} 名成员</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="text"
                     value={searchMemberKeyword}
                     onChange={e => setSearchMemberKeyword(e.target.value)}
                     placeholder="搜索成员"
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none sm:w-48"
                   />
                   {isCurrentUserAdmin && (
                     <>
@@ -816,14 +816,14 @@ export default function TeamManagement() {
                     })();
 
                     return (
-                      <div key={member.user_id} className="flex items-center justify-between px-4 py-3">
-                        <div className="flex items-center gap-3">
+                      <div key={member.user_id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-3">
                           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
                             <i className="ri-user-line text-gray-600" />
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-900">
+                          <div className="min-w-0">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <span className="truncate text-sm font-medium text-gray-900">
                                 {member.real_name || member.username}
                               </span>
                               {member.is_creator && (
@@ -832,10 +832,10 @@ export default function TeamManagement() {
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-gray-500">{member.email}</div>
+                            <div className="truncate text-xs text-gray-500">{member.email}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {isRoleEditMode && canEditThisMember ? (
                             <select
                               value={editedRoles[member.user_id] || member.role}
@@ -875,7 +875,7 @@ export default function TeamManagement() {
             {/* 加入申请列表 - 占据剩余空间 */}
             {isCurrentUserAdmin && (
               <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
-                <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3">
+                <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4 py-3">
                   <div>
                     <h3 className="font-semibold text-gray-900">加入申请</h3>
                     <p className="text-xs text-gray-500">
@@ -904,14 +904,14 @@ export default function TeamManagement() {
                       return (
                         <div
                           key={request.id}
-                          className="flex items-center justify-between gap-4 px-4 py-3"
+                          className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-900">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <span className="truncate text-sm font-medium text-gray-900">
                                 {request.applicant_real_name || request.applicant_username}
                               </span>
-                              <span className="text-xs text-gray-500">
+                              <span className="truncate text-xs text-gray-500">
                                 ({request.applicant_email || '未填写邮箱'})
                               </span>
                             </div>
@@ -923,7 +923,7 @@ export default function TeamManagement() {
                             </div>
                           </div>
 
-                          <div className="flex flex-shrink-0 items-center gap-2">
+                          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
                             {isPending ? (
                               <>
                                 <button

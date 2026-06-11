@@ -54,36 +54,38 @@ export default function ModelCard({ model, onActivateClick }: ModelCardProps) {
   const statusInfo = getStatusDisplay(model.status);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow group relative">
+    <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow group">
 
-      {/* Badges */}
-      <div className="absolute top-0 right-0 mt-4 mr-4 flex flex-col items-end gap-2">
-        {model.is_system_default && (
-          <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
-            系统默认
-          </span>
-        )}
-        {model.isActive && (
-          <span className="flex items-center space-x-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-            <i className="ri-check-line"></i>
-            <span>当前使用中</span>
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-start mb-4">
-        <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center mr-4 border border-gray-100">
-          {model.view_type === 'front' ? <i className="ri-body-scan-line text-blue-500 text-2xl"></i> :
-            model.view_type === 'side' ? <i className="ri-file-user-line text-purple-500 text-2xl"></i> :
-              <i className="ri-cpu-line text-gray-500 text-2xl"></i>}
+      <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start">
+          <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center mr-4 border border-gray-100 flex-shrink-0">
+            {model.view_type === 'front' ? <i className="ri-body-scan-line text-blue-500 text-2xl"></i> :
+              model.view_type === 'side' ? <i className="ri-file-user-line text-purple-500 text-2xl"></i> :
+                <i className="ri-cpu-line text-gray-500 text-2xl"></i>}
+          </div>
+          <div className="min-w-0">
+            <span className={`inline-block px-2 py-0.5 rounded text-xs border mb-1 ${getViewTypeColor(model.view_type)}`}>
+              {getViewTypeLabel(model.view_type)}
+            </span>
+            <h3 className="text-lg font-bold text-gray-900 line-clamp-1" title={model.title}>
+              {model.title}
+            </h3>
+          </div>
         </div>
-        <div>
-          <span className={`inline-block px-2 py-0.5 rounded text-xs border mb-1 ${getViewTypeColor(model.view_type)}`}>
-            {getViewTypeLabel(model.view_type)}
-          </span>
-          <h3 className="text-lg font-bold text-gray-900 line-clamp-1" title={model.title}>
-            {model.title}
-          </h3>
+
+        {/* Badges */}
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          {model.is_system_default && (
+            <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full whitespace-nowrap">
+              系统默认
+            </span>
+          )}
+          {model.isActive && (
+            <span className="flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full whitespace-nowrap">
+              <i className="ri-check-line"></i>
+              <span>当前使用中</span>
+            </span>
+          )}
         </div>
       </div>
 

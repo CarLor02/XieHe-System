@@ -58,7 +58,7 @@ export default function CanvasControlsPanel({
   return (
     <>
       <div
-        className="absolute top-4 right-4 z-10 bg-black/80 border border-blue-500/30 backdrop-blur-sm rounded-lg p-3 flex flex-col gap-3 min-w-max"
+        className="absolute bottom-2 right-2 z-10 w-52 max-w-[calc(100vw-1rem)] bg-black/80 border border-blue-500/30 backdrop-blur-sm rounded-lg p-2 flex flex-col gap-2 sm:bottom-auto sm:right-4 sm:top-4 sm:w-auto sm:p-3 sm:gap-3"
         onMouseDown={event => event.stopPropagation()}
         onClick={event => event.stopPropagation()}
         onMouseUp={event => event.stopPropagation()}

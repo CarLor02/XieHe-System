@@ -1,8 +1,7 @@
 'use client';
 
-import Header from '@/components/Header';
+import AppShell from '@/components/layout/AppShell';
 import ReportAnalytics from '@/components/reports/ReportAnalytics';
-import Sidebar from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
 import React, { useState } from 'react';
 
@@ -35,15 +34,11 @@ const ReportAnalyticsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 pt-16 p-6">
+    <AppShell mainClassName="p-6 pt-16">
         <div className="max-w-7xl mx-auto">
           {/* 页面标题 */}
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   报告统计分析
@@ -51,7 +46,7 @@ const ReportAnalyticsPage: React.FC = () => {
                 <p className="text-gray-600 mt-1">全面的报告数据统计与分析</p>
               </div>
 
-              <div className="flex items-center space-x-4">
+              <div className="flex flex-wrap items-center gap-4">
                 {/* 刷新按钮 */}
                 <Button
                   variant="outline"
@@ -97,7 +92,7 @@ const ReportAnalyticsPage: React.FC = () => {
 
           {/* 底部信息 */}
           <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <div className="text-center">
                 <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-3">
                   <i className="ri-bar-chart-line text-xl text-blue-600"></i>
@@ -141,7 +136,7 @@ const ReportAnalyticsPage: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               使用说明
             </h3>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">📊 统计功能</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
@@ -164,8 +159,7 @@ const ReportAnalyticsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 };
 

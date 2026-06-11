@@ -1,9 +1,8 @@
 'use client';
 
-import Header from '@/components/Header';
+import AppShell from '@/components/layout/AppShell';
 import DigitalSignature from '@/components/reports/DigitalSignature';
 import ReportReview from '@/components/reports/ReportReview';
-import Sidebar from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
 import React, { useEffect, useState } from 'react';
 
@@ -190,15 +189,11 @@ const ReportReviewPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 pt-16 p-6">
+    <AppShell mainClassName="p-6 pt-16">
         <div className="max-w-7xl mx-auto">
           {/* 页面标题 */}
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   报告审核工作台
@@ -224,7 +219,7 @@ const ReportReviewPage: React.FC = () => {
             <>
               {/* 统计卡片 */}
               {statistics && (
-                <div className="grid grid-cols-4 gap-6 mb-6">
+                <div className="grid grid-cols-1 gap-6 mb-6 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
@@ -293,7 +288,7 @@ const ReportReviewPage: React.FC = () => {
 
               {/* 筛选和搜索 */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       搜索
@@ -404,7 +399,7 @@ const ReportReviewPage: React.FC = () => {
                               </span>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                            <div className="grid grid-cols-1 gap-4 text-sm text-gray-600 sm:grid-cols-2 md:grid-cols-4">
                               <div>
                                 <span className="font-medium">患者：</span>
                                 {report.patient_name} ({report.patient_id})
@@ -449,7 +444,7 @@ const ReportReviewPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   报告信息
                 </h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
                       报告标题
@@ -501,8 +496,7 @@ const ReportReviewPage: React.FC = () => {
             />
           )}
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 };
 

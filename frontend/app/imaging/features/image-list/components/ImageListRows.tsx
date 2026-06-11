@@ -32,9 +32,12 @@ export default function ImageListRows({
         const uploaderName = imageFile.uploader_name || '未知用户';
 
         return (
-          <div key={imageFile.id} className="p-6 hover:bg-gray-50">
-            <div className="flex items-center space-x-4">
-              <Link href={`/imaging/viewer?id=${imageFile.id}`}>
+          <div key={imageFile.id} className="p-4 hover:bg-gray-50 sm:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start">
+              <Link
+                href={`/imaging/viewer?id=${imageFile.id}`}
+                className="self-start"
+              >
                 <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
                   <ImagePreview
                     imageFile={imageFile}
@@ -48,74 +51,74 @@ export default function ImageListRows({
                 </div>
               </Link>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-3">
+              <div className="min-w-0 w-full flex-1">
+                <div className="flex flex-col gap-2 mb-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
                     <span
-                      className="text-lg font-semibold text-gray-900 truncate"
+                      className="min-w-0 max-w-full text-lg font-semibold text-gray-900 truncate"
                       title={imageFile.original_filename}
                     >
                       {imageFile.original_filename}
                     </span>
-                    <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                    <span className="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded flex-shrink-0">
                       {imageFile.description || '请修改检查类型'}
                     </span>
                   </div>
                   <ImageStatusBadge status={imageFile.status} variant="inline" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-600 mb-3">
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">患者:</span>
-                    <span className="font-medium text-right truncate" title={patientName}>
+                <div className="grid grid-cols-1 gap-x-8 gap-y-2 text-sm text-gray-600 mb-3 sm:grid-cols-2">
+                  <div className="flex justify-between gap-4 min-w-0">
+                    <span className="text-gray-500 flex-shrink-0">患者:</span>
+                    <span className="font-medium text-right truncate min-w-0" title={patientName}>
                       {patientName}
                     </span>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">上传者:</span>
-                    <span className="font-medium text-right truncate" title={uploaderName}>
+                  <div className="flex justify-between gap-4 min-w-0">
+                    <span className="text-gray-500 flex-shrink-0">上传者:</span>
+                    <span className="font-medium text-right truncate min-w-0" title={uploaderName}>
                       {uploaderName}
                     </span>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">上传日期:</span>
+                  <div className="flex justify-between gap-4 min-w-0">
+                    <span className="text-gray-500 flex-shrink-0">上传日期:</span>
                     <span className="font-medium text-right">
                       {formatDate(imageFile.created_at)}
                     </span>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-500">文件大小:</span>
+                  <div className="flex justify-between gap-4 min-w-0">
+                    <span className="text-gray-500 flex-shrink-0">文件大小:</span>
                     <span className="font-medium text-right">
                       {formatFileSize(imageFile.file_size)}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3">
+                <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
                   <Link
                     href={`/imaging/viewer?id=${imageFile.id}`}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center space-x-2 whitespace-nowrap"
+                    className="bg-blue-600 text-white px-2 py-2 rounded-lg hover:bg-blue-700 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                   >
                     <i className="ri-eye-line w-4 h-4 flex items-center justify-center"></i>
                     <span>标注分析</span>
                   </Link>
                   <button
                     onClick={() => onMoreAction(imageFile.id, 'download')}
-                    className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm flex items-center space-x-2 whitespace-nowrap"
+                    className="border border-gray-300 text-gray-700 px-2 py-2 rounded-lg hover:bg-gray-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                   >
                     <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
                     <span>下载</span>
                   </button>
                   <button
                     onClick={() => onCropEdit(imageFile)}
-                    className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 text-sm flex items-center space-x-2 whitespace-nowrap"
+                    className="border border-gray-300 text-gray-700 px-2 py-2 rounded-lg hover:bg-gray-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                   >
                     <i className="ri-crop-line w-4 h-4 flex items-center justify-center"></i>
                     <span>裁剪编辑</span>
                   </button>
                   <button
                     onClick={() => onMoreAction(imageFile.id, 'delete')}
-                    className="border border-red-300 text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 text-sm flex items-center space-x-2 whitespace-nowrap"
+                    className="border border-red-300 text-red-600 px-2 py-2 rounded-lg hover:bg-red-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                   >
                     <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
                     <span>删除</span>

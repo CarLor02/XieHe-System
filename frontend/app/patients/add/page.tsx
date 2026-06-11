@@ -1,8 +1,7 @@
 'use client';
 
 import BirthDatePicker from '@/components/patients/BirthDatePicker';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import { useUser } from '@/lib/api';
 import { createPatient } from '@/services/patientServices';
 import {
@@ -159,15 +158,11 @@ export default function AddPatientPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-8">
+    <AppShell mainClassName="p-8">
         <div className="max-w-6xl mx-auto">
           {/* 页面标题 */}
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center space-x-4">
                 <Link
                   href="/patients"
@@ -212,7 +207,7 @@ export default function AddPatientPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   基本信息
                 </h3>
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {/* 姓名 - 占1列 */}
                   <div>
                     <label
@@ -330,7 +325,7 @@ export default function AddPatientPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   联系信息
                 </h3>
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {/* 联系电话 - 占1列 */}
                   <div>
                     <label
@@ -414,7 +409,7 @@ export default function AddPatientPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   紧急联系人
                 </h3>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   {/* 紧急联系人姓名 */}
                   <div>
                     <label
@@ -509,7 +504,6 @@ export default function AddPatientPage() {
             </form>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 }

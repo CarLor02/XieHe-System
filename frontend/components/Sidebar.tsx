@@ -16,7 +16,12 @@ const navigation = [
   { name: '权限管理', href: '/permissions', icon: 'ri-shield-user-line', tooltip: '用户权限和角色管理' },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  className?: string;
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ className = '', onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useUser();
 
@@ -24,7 +29,7 @@ export default function Sidebar() {
   const isSuperuser = user?.is_superuser || false;
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 z-10">
+    <div className={`w-64 bg-white border-r border-gray-200 h-screen ${className}`}>
       {/* Logo */}
       <div className="flex items-center px-4 py-4 border-b border-gray-200">
         <div className="font-['Pacifico'] text-xl text-blue-600">Mesh</div>
@@ -44,6 +49,7 @@ export default function Sidebar() {
             <Tooltip key={item.name} content={item.tooltip} position="right" delay={300}>
               <Link
                 href={item.href}
+                onClick={onNavigate}
                 className={`w-full flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors ${
                   isActive
                     ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'

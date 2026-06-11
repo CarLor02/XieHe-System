@@ -1,7 +1,6 @@
 'use client';
 
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import StatsCard from '@/components/dashboard/StatsCard';
 import TaskList from '@/components/dashboard/TaskList';
 import { useUser } from '@/lib/api';
@@ -142,13 +141,9 @@ const DashboardPage: React.FC = () => {
     : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-
-      <main className="ml-64 p-6">
+    <AppShell>
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">工作台</h1>
               <p className="text-gray-600 mt-1">
@@ -160,7 +155,7 @@ const DashboardPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex flex-wrap gap-3">
               <Link
                 href="/upload"
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap"
@@ -176,7 +171,7 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 xl:grid-cols-4">
             {loading ? (
               // 加载状态
               Array.from({ length: 4 }).map((_, index) => (
@@ -209,8 +204,8 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
             <TaskList />
           </div>
 
@@ -277,8 +272,7 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </AppShell>
   );
 };
 
