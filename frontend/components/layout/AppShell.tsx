@@ -43,7 +43,11 @@ export default function AppShell({
       )}
 
       <div data-testid="app-shell-content" className="min-h-screen lg:pl-64">
-        <Header showMenuButton onOpenSidebar={() => setIsSidebarOpen(true)} />
+        <Header
+          className="sticky top-0 z-40"
+          showMenuButton
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+        />
         <main className={`p-4 sm:p-6 ${mainClassName}`}>
           {children}
         </main>

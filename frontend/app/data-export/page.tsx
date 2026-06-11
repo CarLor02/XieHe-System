@@ -412,7 +412,7 @@ export default function DataExportPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-[760px] w-full">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -475,7 +475,7 @@ export default function DataExportPage() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {img.description || '-'}
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
+                          <td className="max-w-56 break-all px-6 py-4 text-sm text-gray-500">
                             {img.original_filename}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

@@ -5,13 +5,15 @@ import userEvent from '@testing-library/user-event';
 jest.mock('@/components/Header', () => ({
   __esModule: true,
   default: ({
+    className,
     onOpenSidebar,
     showMenuButton,
   }: {
+    className?: string;
     onOpenSidebar?: () => void;
     showMenuButton?: boolean;
   }) => (
-    <header>
+    <header data-testid="app-header" className={className}>
       {showMenuButton && (
         <button type="button" onClick={onOpenSidebar}>
           打开菜单
@@ -44,6 +46,16 @@ it('renders application content with desktop sidebar spacing', () => {
     'lg:pl-64'
   );
   expect(screen.getByText('页面内容')).not.toBeNull();
+});
+
+it('keeps the app header visible while content scrolls', () => {
+  render(<AppShell>页面内容</AppShell>);
+
+  const headerClassName = screen.getByTestId('app-header').className;
+
+  expect(headerClassName).toContain('sticky');
+  expect(headerClassName).toContain('top-0');
+  expect(headerClassName).toContain('z-40');
 });
 
 it('opens and closes the mobile sidebar drawer', async () => {
