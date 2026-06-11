@@ -79,9 +79,9 @@ export default function TaskList() {
 
   return (
     <div className="bg-white rounded-lg border border-gray-200">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <div className="flex flex-col gap-3 px-4 py-4 border-b border-gray-200 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <h3 className="text-lg font-semibold text-gray-900">待处理任务</h3>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* 切换按钮 */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
@@ -89,7 +89,7 @@ export default function TaskList() {
                 setFilterMode('all');
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
+              className={`px-3 py-1 text-xs rounded transition-colors whitespace-nowrap ${
                 filterMode === 'all'
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -102,7 +102,7 @@ export default function TaskList() {
                 setFilterMode('today');
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
+              className={`px-3 py-1 text-xs rounded transition-colors whitespace-nowrap ${
                 filterMode === 'today'
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -124,27 +124,27 @@ export default function TaskList() {
         {displayedTasks.map(task => (
           <div
             key={task.id}
-            className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
+            className="px-4 py-4 hover:bg-gray-50 cursor-pointer sm:px-6"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
                 {task.priority === 'high' && (
-                  <span className="text-red-500 text-sm">🔥</span>
+                  <span className="text-red-500 text-sm flex-shrink-0">🔥</span>
                 )}
-                <div>
-                  <p className="font-medium text-gray-900">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">
                     {task.patient_name}
                   </p>
                   <p className="text-sm text-gray-500">
                     患者ID: {task.patient_id}
                   </p>
                 </div>
-                <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded whitespace-nowrap">
+                <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded whitespace-nowrap flex-shrink-0">
                   {task.study_type}
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-left sm:text-right">
                 <p className="text-sm text-gray-500">
                   {new Date(task.created_at).toLocaleString('zh-CN')}
                 </p>
@@ -161,15 +161,15 @@ export default function TaskList() {
       </div>
 
       {/* 分页控制 */}
-      <div className="px-6 py-4 border-t border-gray-200">
-        <div className="flex items-center justify-between">
+      <div className="px-4 py-4 border-t border-gray-200 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-gray-500">
             显示 {startIndex + 1}-
             {Math.min(startIndex + tasksPerPage, filteredTasks.length)} 条，共{' '}
             {filteredTasks.length} 条
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
@@ -178,7 +178,7 @@ export default function TaskList() {
               上一页
             </button>
 
-            <div className="flex space-x-1">
+            <div className="flex flex-wrap gap-1">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
                   key={page}

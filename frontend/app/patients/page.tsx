@@ -102,7 +102,7 @@ export default function PatientsPage() {
   return (
     <AppShell>
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">患者管理</h1>
               <p className="text-gray-600">管理和查看患者信息</p>
@@ -110,7 +110,7 @@ export default function PatientsPage() {
             <Tooltip content="添加新患者信息到系统" position="left">
               <Link
                 href="/patients/add"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center justify-center w-full sm:w-auto"
               >
                 <i className="ri-add-line mr-1"></i>
                 添加患者
@@ -119,10 +119,10 @@ export default function PatientsPage() {
           </div>
 
           {/* 搜索和筛选 */}
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6">
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 sm:p-5">
             {/* 主搜索行 */}
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="relative w-full lg:flex-1">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <i className="ri-search-line text-gray-400 text-lg"></i>
                 </div>
@@ -140,16 +140,16 @@ export default function PatientsPage() {
               </div>
               <button
                 onClick={handleSearch}
-                className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors sm:w-auto"
               >
                 搜索
               </button>
               {/* 排序 */}
-              <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 bg-white">
+              <div className="flex w-full items-center justify-between gap-1 border border-gray-300 rounded-lg px-2 bg-white sm:w-auto sm:justify-start">
                 <select
                   value={sortBy}
                   onChange={e => setSortBy(e.target.value)}
-                  className="py-2.5 text-sm text-gray-700 bg-transparent appearance-none outline-none cursor-pointer"
+                  className="min-w-0 flex-1 py-2.5 text-sm text-gray-700 bg-transparent appearance-none outline-none cursor-pointer sm:flex-none"
                 >
                   <option value="created_at">注册时间</option>
                   <option value="name">姓名</option>
@@ -167,7 +167,7 @@ export default function PatientsPage() {
 
               <button
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className={`px-4 py-2.5 border rounded-lg transition-colors ${
+                className={`w-full px-4 py-2.5 border rounded-lg transition-colors sm:w-auto ${
                   showAdvancedFilters
                     ? 'bg-blue-50 border-blue-300 text-blue-600'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -182,9 +182,9 @@ export default function PatientsPage() {
 
             {/* 高级筛选面板 */}
             {showAdvancedFilters && (
-              <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-4 items-end">
+              <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {/* 性别筛选 */}
-                <div className="w-48 relative group">
+                <div className="relative group">
                   <label className="block text-xs text-gray-500 mb-1">性别</label>
                   <div className="absolute bottom-0 left-0 pl-3 flex items-center pointer-events-none" style={{height: '38px'}}>
                     <i className="ri-user-line text-gray-400"></i>
@@ -206,7 +206,7 @@ export default function PatientsPage() {
                 </div>
 
                 {/* 年龄筛选 */}
-                <div className="w-48 relative group">
+                <div className="relative group">
                   <label className="block text-xs text-gray-500 mb-1">年龄范围</label>
                   <div className="absolute bottom-0 left-0 pl-3 flex items-center pointer-events-none" style={{height: '38px'}}>
                     <i className="ri-calendar-line text-gray-400"></i>
@@ -231,7 +231,7 @@ export default function PatientsPage() {
                 </div>
 
                 {/* 患者状态 */}
-                <div className="w-40">
+                <div>
                   <label className="block text-xs text-gray-500 mb-1">患者状态</label>
                   <select
                     value={selectedStatus}
@@ -245,7 +245,7 @@ export default function PatientsPage() {
                 </div>
 
                 {/* 有无影像 */}
-                <div className="w-40">
+                <div>
                   <label className="block text-xs text-gray-500 mb-1">影像记录</label>
                   <select
                     value={selectedHasImages}
@@ -262,7 +262,7 @@ export default function PatientsPage() {
                 {hasAdvancedFilters && (
                   <button
                     onClick={clearAdvancedFilters}
-                    className="px-3 py-2 text-sm text-gray-500 hover:text-red-500 border border-gray-200 rounded-lg hover:border-red-200 transition-colors"
+                    className="px-3 py-2 text-sm text-gray-500 hover:text-red-500 border border-gray-200 rounded-lg hover:border-red-200 transition-colors sm:w-fit"
                   >
                     清除筛选
                   </button>
