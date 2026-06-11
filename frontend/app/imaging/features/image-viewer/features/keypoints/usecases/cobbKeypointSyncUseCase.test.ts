@@ -108,6 +108,30 @@ it('replaces Cobb endpoint keypoints with the Cobb measurement points', () => {
   expect(synced?.some(keypoint => keypoint.id === 'T5-1')).toBe(true);
 });
 
+it('uses anterior endpoint keypoint order for anterior Cobb even when endpoints match a lateral named Cobb', () => {
+  const measurement: MeasurementData = {
+    id: 'cobb-t5-t12',
+    type: 'cobb1',
+    value: '18.00°',
+    points,
+    upperVertebra: 'T5',
+    lowerVertebra: 'T12',
+  };
+
+  const synced = syncCobbMeasurementToKeypoints(
+    [],
+    measurement,
+    '正位X光片'
+  );
+
+  expect(pointByKeypointId(synced)).toEqual({
+    'T5-1': points[0],
+    'T5-2': points[1],
+    'T12-3': points[2],
+    'T12-4': points[3],
+  });
+});
+
 it('syncs lateral C2-C7 Cobb to lower endplate keypoints', () => {
   const measurement: MeasurementData = {
     id: 'cobb-1',

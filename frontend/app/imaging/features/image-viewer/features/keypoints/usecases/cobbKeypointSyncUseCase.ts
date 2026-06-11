@@ -38,15 +38,20 @@ export function syncCobbMeasurementToKeypoints(
 
   const upperVertebra = measurement.upperVertebra!.trim().toUpperCase();
   const lowerVertebra = measurement.lowerVertebra!.trim().toUpperCase();
+  const hasExplicitExamType =
+    typeof examType === 'string' && examType.trim().length > 0;
+  const shouldInferLateralEndpointRules =
+    !hasExplicitExamType &&
+    (lowerVertebra === 'S1' ||
+      Boolean(
+        getLateralNamedCobbMeasurementRuleByEndpoints(
+          upperVertebra,
+          lowerVertebra
+        )
+      ));
   const shouldUseLateralEndpointRules =
-    (examType && isLateralExamType(examType)) ||
-    lowerVertebra === 'S1' ||
-    Boolean(
-      getLateralNamedCobbMeasurementRuleByEndpoints(
-        upperVertebra,
-        lowerVertebra
-      )
-    );
+    (hasExplicitExamType && isLateralExamType(examType)) ||
+    shouldInferLateralEndpointRules;
   const replacementIds =
     shouldUseLateralEndpointRules
       ? getLateralCobbEndpointPointIds(upperVertebra, lowerVertebra)
