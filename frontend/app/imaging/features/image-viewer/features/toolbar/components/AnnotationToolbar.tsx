@@ -556,8 +556,8 @@ export default function AnnotationToolbar({
   };
 
   return (
-    <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col flex-shrink-0 overflow-hidden">
-      <div className="bg-gray-800 px-4 py-3 flex-1 overflow-y-auto">
+    <div className="w-full max-h-[38vh] flex-shrink-0 overflow-hidden border-t border-gray-700 bg-gray-800 flex flex-col md:h-auto md:max-h-none md:w-80 md:border-l md:border-t-0">
+      <div className="bg-gray-800 px-3 py-3 flex-1 overflow-y-auto md:px-4">
         <h3 className="font-semibold text-white mb-3">测量工具 - {examType}</h3>
 
         <div className="mb-4">

@@ -25,9 +25,9 @@ function ImageViewer({ imageId }: ImageViewerProps) {
       <div className="fixed inset-0 bg-gray-900 flex flex-col overflow-hidden">
         <StudyHeader {...headerProps} />
 
-        <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="bg-black flex items-center justify-center relative flex-1 overflow-hidden">
+        <div className="flex-1 flex min-h-0 flex-col overflow-hidden md:flex-row">
+          <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+            <div className="bg-black flex min-h-0 items-center justify-center relative flex-1 overflow-hidden">
               <AnnotationCanvas {...canvasProps} />
             </div>
           </div>
