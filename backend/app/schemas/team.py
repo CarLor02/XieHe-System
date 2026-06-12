@@ -20,6 +20,9 @@ class TeamSummary(BaseModel):
     member_count: int = 0
     max_members: Optional[int] = None
     is_member: bool = False
+    my_role: Optional[str] = None
+    my_status: Optional[str] = None
+    is_creator: bool = False
     join_status: Optional[str] = None
     join_request_id: Optional[int] = None
     created_at: Optional[datetime] = None
