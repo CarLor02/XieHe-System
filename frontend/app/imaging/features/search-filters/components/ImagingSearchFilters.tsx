@@ -1,5 +1,9 @@
 import Link from 'next/link';
 import Tooltip from '@/components/ui/Tooltip';
+import EntitySearchSelect, {
+  type EntitySearchSelectLoadParams,
+} from '@/components/common/EntitySearchSelect';
+import type { ImageUploader } from '@/services/imageServices/imageFileService';
 import {
   EXAM_TYPES,
   type ImagingViewMode,
@@ -14,6 +18,8 @@ interface ImagingSearchFiltersProps {
   dateFrom: string;
   dateTo: string;
   viewMode: ImagingViewMode;
+  canUseUploaderView: boolean;
+  selectedUploader: ImageUploader | null;
   visibleCount: number;
   total: number;
   onChangeSearchTerm: (value: string) => void;
@@ -24,6 +30,14 @@ interface ImagingSearchFiltersProps {
   onChangeDateFrom: (value: string) => void;
   onChangeDateTo: (value: string) => void;
   onChangeViewMode: (value: ImagingViewMode) => void;
+  onChangeUploader: (value: string, uploader: ImageUploader | null) => void;
+  onLoadUploaders: (params: EntitySearchSelectLoadParams) => Promise<{
+    items: ImageUploader[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>;
   onClearFilters: () => void;
 }
 
@@ -35,6 +49,8 @@ export default function ImagingSearchFilters({
   dateFrom,
   dateTo,
   viewMode,
+  canUseUploaderView,
+  selectedUploader,
   visibleCount,
   total,
   onChangeSearchTerm,
@@ -45,6 +61,8 @@ export default function ImagingSearchFilters({
   onChangeDateFrom,
   onChangeDateTo,
   onChangeViewMode,
+  onChangeUploader,
+  onLoadUploaders,
   onClearFilters,
 }: ImagingSearchFiltersProps) {
   return (
@@ -94,6 +112,32 @@ export default function ImagingSearchFilters({
           >
             搜索
           </button>
+
+          {canUseUploaderView && (
+            <div className="w-full sm:w-56">
+              <EntitySearchSelect
+                value={selectedUploader ? String(selectedUploader.id) : ''}
+                selectedItem={selectedUploader}
+                placeholder="上传者视角"
+                searchPlaceholder="搜索医生姓名或邮箱"
+                emptyText="暂无可选上传者"
+                loadOptions={onLoadUploaders}
+                getOptionValue={uploader => String(uploader.id)}
+                mapOption={uploader => ({
+                  primary:
+                    uploader.real_name ||
+                    uploader.username ||
+                    `用户 ${uploader.id}`,
+                  secondary: uploader.email || uploader.department || undefined,
+                  meta: [
+                    uploader.is_system_admin ? '系统管理员' : '',
+                    uploader.title || uploader.position || '',
+                  ].filter(Boolean),
+                })}
+                onChange={onChangeUploader}
+              />
+            </div>
+          )}
 
           <button
             onClick={onToggleFilters}

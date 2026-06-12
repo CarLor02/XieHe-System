@@ -14,6 +14,7 @@ interface ImageListPanelProps {
   pageSize: number;
   currentPage: number;
   viewMode: ImagingViewMode;
+  viewerReturnTo: string;
   hasActiveFilters: boolean;
   imageUrls: Record<number, string>;
   previewStates: Record<number, PreviewLoadState>;
@@ -37,6 +38,7 @@ export default function ImageListPanel({
   pageSize,
   currentPage,
   viewMode,
+  viewerReturnTo,
   hasActiveFilters,
   imageUrls,
   previewStates,
@@ -55,6 +57,7 @@ export default function ImageListPanel({
         viewMode === 'grid' ? (
           <ImageGrid
             imageFiles={imageFiles}
+            viewerReturnTo={viewerReturnTo}
             imageUrls={imageUrls}
             previewStates={previewStates}
             openDropdown={openDropdown}
@@ -67,6 +70,7 @@ export default function ImageListPanel({
         ) : (
           <ImageListRows
             imageFiles={imageFiles}
+            viewerReturnTo={viewerReturnTo}
             imageUrls={imageUrls}
             previewStates={previewStates}
             onPreviewError={onPreviewError}

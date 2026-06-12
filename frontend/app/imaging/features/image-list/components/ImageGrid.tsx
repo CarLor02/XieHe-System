@@ -13,6 +13,7 @@ import ImageStatusBadge from './ImageStatusBadge';
 
 interface ImageGridProps {
   imageFiles: ImageFile[];
+  viewerReturnTo: string;
   imageUrls: Record<number, string>;
   previewStates: Record<number, PreviewLoadState>;
   openDropdown: OpenDropdown | null;
@@ -29,6 +30,7 @@ interface ImageGridProps {
 
 export default function ImageGrid({
   imageFiles,
+  viewerReturnTo,
   imageUrls,
   previewStates,
   openDropdown,
@@ -43,13 +45,14 @@ export default function ImageGrid({
       {imageFiles.map(imageFile => {
         const patientName = imageFile.patient_name || '未知患者';
         const uploaderName = imageFile.uploader_name || '未知用户';
+        const viewerHref = `/imaging/viewer?id=${imageFile.id}&returnTo=${encodeURIComponent(viewerReturnTo)}`;
 
         return (
           <div
             key={imageFile.id}
             className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
           >
-            <Link href={`/imaging/viewer?id=${imageFile.id}`}>
+            <Link href={viewerHref}>
               <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer flex items-center justify-center">
                 <ImagePreview
                   imageFile={imageFile}
@@ -108,7 +111,7 @@ export default function ImageGrid({
 
               <div className="flex gap-2">
                 <Link
-                  href={`/imaging/viewer?id=${imageFile.id}`}
+                  href={viewerHref}
                   className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"
                 >
                   标注分析

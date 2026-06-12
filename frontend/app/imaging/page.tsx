@@ -43,6 +43,8 @@ function ImagingPageContent() {
         dateFrom={controller.dateFrom}
         dateTo={controller.dateTo}
         viewMode={controller.viewMode}
+        canUseUploaderView={controller.canUseUploaderView}
+        selectedUploader={controller.selectedUploader}
         visibleCount={controller.imageFiles.length}
         total={controller.total}
         onChangeSearchTerm={controller.setSearchTerm}
@@ -55,6 +57,8 @@ function ImagingPageContent() {
         onChangeDateFrom={controller.setDateFrom}
         onChangeDateTo={controller.setDateTo}
         onChangeViewMode={controller.setViewMode}
+        onChangeUploader={controller.handleChangeUploader}
+        onLoadUploaders={controller.loadUploaders}
         onClearFilters={controller.clearFilters}
       />
 
@@ -64,6 +68,7 @@ function ImagingPageContent() {
         pageSize={controller.pageSize}
         currentPage={controller.currentPage}
         viewMode={controller.viewMode}
+        viewerReturnTo={controller.currentImagingHref}
         hasActiveFilters={controller.hasActiveFilters}
         imageUrls={preview.imageUrls}
         previewStates={preview.previewStates}

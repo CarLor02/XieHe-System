@@ -84,6 +84,25 @@ export interface ImageFileFilters {
   end_date?: string;
   search?: string;
   review_status?: 'reviewed' | 'unreviewed'; // 审核状态筛选
+  uploaded_by?: number;
+}
+
+export interface ImageUploader {
+  id: number;
+  username: string;
+  email?: string | null;
+  real_name?: string | null;
+  department?: string | null;
+  position?: string | null;
+  title?: string | null;
+  is_system_admin?: boolean;
+  system_admin_level?: number;
+}
+
+export interface ImageUploaderFilters {
+  page?: number;
+  page_size?: number;
+  search?: string;
 }
 
 /**
@@ -105,7 +124,7 @@ export interface ImageFileFilters {
 export async function getImageFiles(
   filters: ImageFileFilters = {}
 ): Promise<ImageFileListResponse> {
-  const params: any = {
+  const params: Record<string, string | number> = {
     page: filters.page || 1,
     page_size: filters.page_size || 20,
   };
@@ -116,6 +135,7 @@ export async function getImageFiles(
   if (filters.end_date) params.end_date = filters.end_date;
   if (filters.search) params.search = filters.search;
   if (filters.review_status) params.review_status = filters.review_status;
+  if (filters.uploaded_by !== undefined) params.uploaded_by = filters.uploaded_by;
 
   const response = await apiClient.get('/api/v1/image-files', { params });
   const result = extractPaginatedData<ImageFile>(response);
@@ -126,6 +146,22 @@ export async function getImageFiles(
     page_size: result.pageSize,
     items: result.items,
   };
+}
+
+export async function getVisibleImageUploaders(
+  filters: ImageUploaderFilters = {}
+) {
+  const params: Record<string, string | number> = {
+    page: filters.page || 1,
+    page_size: filters.page_size || 10,
+  };
+
+  if (filters.search) params.search = filters.search;
+
+  const response = await apiClient.get('/api/v1/image-files/uploaders', {
+    params,
+  });
+  return extractPaginatedData<ImageUploader>(response);
 }
 
 export async function getAllImageFiles(

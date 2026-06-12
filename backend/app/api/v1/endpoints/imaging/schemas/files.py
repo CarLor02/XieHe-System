@@ -40,6 +40,19 @@ class ImageFileListResponse(BaseModel):
     items: List[ImageFileResponse]
 
 
+class ImageUploaderResponse(BaseModel):
+    """影像上传者选择列表响应模型"""
+    id: int
+    username: str
+    email: Optional[str] = None
+    real_name: Optional[str] = None
+    department: Optional[str] = None
+    position: Optional[str] = None
+    title: Optional[str] = None
+    is_system_admin: bool = False
+    system_admin_level: int = 0
+
+
 class ImageFileStatsResponse(BaseModel):
     """影像文件统计响应"""
     total_files: int

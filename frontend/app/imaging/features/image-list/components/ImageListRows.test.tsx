@@ -38,6 +38,7 @@ it('keeps all image row actions in one line on phone-sized screens', () => {
   const { container } = render(
     <ImageListRows
       imageFiles={[makeImageFile()]}
+      viewerReturnTo="/imaging?page=2&search=abc"
       imageUrls={{}}
       previewStates={{}}
       onPreviewError={jest.fn()}
@@ -59,4 +60,24 @@ it('keeps all image row actions in one line on phone-sized screens', () => {
   expect(actions?.className).toContain('grid');
   expect(actions?.className).toContain('grid-cols-4');
   expect(actions?.className).toContain('sm:flex');
+});
+
+it('passes the current imaging URL to the row viewer return target', () => {
+  render(
+    <ImageListRows
+      imageFiles={[makeImageFile()]}
+      viewerReturnTo="/imaging?page=2&search=abc"
+      imageUrls={{}}
+      previewStates={{}}
+      onPreviewError={jest.fn()}
+      onMoreAction={jest.fn()}
+      onCropEdit={jest.fn()}
+    />
+  );
+
+  const viewerLink = screen.getByRole('link', { name: /标注分析/ });
+
+  expect(viewerLink.getAttribute('href')).toBe(
+    '/imaging/viewer?id=1&returnTo=%2Fimaging%3Fpage%3D2%26search%3Dabc'
+  );
 });

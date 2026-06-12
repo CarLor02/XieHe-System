@@ -10,6 +10,7 @@ import ImageStatusBadge from './ImageStatusBadge';
 
 interface ImageListRowsProps {
   imageFiles: ImageFile[];
+  viewerReturnTo: string;
   imageUrls: Record<number, string>;
   previewStates: Record<number, PreviewLoadState>;
   onPreviewError: (fileId: number) => void;
@@ -19,6 +20,7 @@ interface ImageListRowsProps {
 
 export default function ImageListRows({
   imageFiles,
+  viewerReturnTo,
   imageUrls,
   previewStates,
   onPreviewError,
@@ -30,12 +32,13 @@ export default function ImageListRows({
       {imageFiles.map(imageFile => {
         const patientName = imageFile.patient_name || '未知患者';
         const uploaderName = imageFile.uploader_name || '未知用户';
+        const viewerHref = `/imaging/viewer?id=${imageFile.id}&returnTo=${encodeURIComponent(viewerReturnTo)}`;
 
         return (
           <div key={imageFile.id} className="p-4 hover:bg-gray-50 sm:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start">
               <Link
-                href={`/imaging/viewer?id=${imageFile.id}`}
+                href={viewerHref}
                 className="self-start"
               >
                 <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
@@ -96,7 +99,7 @@ export default function ImageListRows({
 
                 <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
                   <Link
-                    href={`/imaging/viewer?id=${imageFile.id}`}
+                    href={viewerHref}
                     className="bg-blue-600 text-white px-2 py-2 rounded-lg hover:bg-blue-700 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                   >
                     <i className="ri-eye-line w-4 h-4 flex items-center justify-center"></i>

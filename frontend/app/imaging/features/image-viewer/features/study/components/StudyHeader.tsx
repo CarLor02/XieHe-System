@@ -11,6 +11,7 @@ type HeaderImageData = {
 
 interface StudyHeaderProps {
   imageData: HeaderImageData;
+  returnHref?: string;
   saveMessage: string;
   measurementsLength: number;
   isSaving: boolean;
@@ -30,6 +31,7 @@ interface StudyHeaderProps {
 
 export default function StudyHeader({
   imageData,
+  returnHref = '/imaging',
   saveMessage,
   measurementsLength,
   isSaving,
@@ -51,7 +53,7 @@ export default function StudyHeader({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center space-x-3 sm:space-x-4">
           <Link
-            href="/imaging"
+            href={returnHref}
             className="text-white bg-blue-600 hover:bg-blue-700 p-2 rounded-lg transition-colors flex items-center justify-center"
             title="返回影像列表"
           >

@@ -4,9 +4,12 @@ import { useUser } from '@/lib/api';
 import { getErrorMessage } from '@/lib/api';
 import {
   getImageFiles,
+  getVisibleImageUploaders,
   type ImageFile,
+  type ImageUploader,
 } from '@/services/imageServices/imageFileService';
 import {
+  buildImagingListHref,
   buildImageFileFilters,
   getReviewStatusFilterFromUrl,
   type ImagingViewMode,
@@ -18,10 +21,48 @@ import { useImageEditOverlay } from '@/app/imaging/features/image-actions/hooks/
 
 const DEFAULT_PAGE_SIZE = 20;
 
+function parsePositiveInt(value: string | null, fallback: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseViewMode(value: string | null): ImagingViewMode {
+  return value === 'list' ? 'list' : 'grid';
+}
+
+function getUploaderName(uploader: ImageUploader | null) {
+  if (!uploader) return null;
+  return uploader.real_name || uploader.username || `用户 ${uploader.id}`;
+}
+
+function getInitialUploader(searchParams: ReturnType<typeof useSearchParams>) {
+  const uploadedBy = searchParams.get('uploaded_by');
+  const uploaderId = uploadedBy ? Number(uploadedBy) : NaN;
+  if (!Number.isInteger(uploaderId) || uploaderId <= 0) return null;
+
+  return {
+    id: uploaderId,
+    username: searchParams.get('uploader_name') || `user-${uploaderId}`,
+    real_name: searchParams.get('uploader_name') || `用户 ${uploaderId}`,
+  } satisfies ImageUploader;
+}
+
+function canUseUploaderView(user: ReturnType<typeof useUser>['user']) {
+  const role = user?.role;
+  return Boolean(
+    user?.is_superuser ||
+      user?.is_system_admin ||
+      role === 'admin' ||
+      role === 'system_admin' ||
+      role === 'team_admin' ||
+      role === 'ADMIN'
+  );
+}
+
 export function useImagingPageController() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, user } = useUser();
 
   const urlReviewStatusFilter = getReviewStatusFilterFromUrl(
     searchParams.get('review_status'),
@@ -30,28 +71,48 @@ export function useImagingPageController() {
 
   const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
   const [total, setTotal] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() =>
+    parsePositiveInt(searchParams.get('page'), 1)
+  );
   const [pageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(
+    () => searchParams.get('search') || ''
+  );
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(
+    () => searchParams.get('search') || ''
+  );
   const [showFilters, setShowFilters] = useState(
     urlReviewStatusFilter !== 'all'
   );
-  const [selectedExamType, setSelectedExamType] = useState<string>('all');
+  const [selectedExamType, setSelectedExamType] = useState<string>(
+    () => searchParams.get('description') || 'all'
+  );
   const [selectedReviewStatus, setSelectedReviewStatus] =
     useState<ReviewStatusFilter>(urlReviewStatusFilter);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [viewMode, setViewMode] = useState<ImagingViewMode>('grid');
+  const [dateFrom, setDateFrom] = useState(
+    () => searchParams.get('start_date') || ''
+  );
+  const [dateTo, setDateTo] = useState(
+    () => searchParams.get('end_date') || ''
+  );
+  const [viewMode, setViewMode] = useState<ImagingViewMode>(() =>
+    parseViewMode(searchParams.get('view'))
+  );
+  const [selectedUploader, setSelectedUploader] = useState<ImageUploader | null>(
+    () => getInitialUploader(searchParams)
+  );
 
   const hasActiveFilters = useMemo(
     () =>
       searchTerm.trim() !== '' ||
       selectedExamType !== 'all' ||
-      selectedReviewStatus !== 'all',
-    [searchTerm, selectedExamType, selectedReviewStatus]
+      selectedReviewStatus !== 'all' ||
+      dateFrom !== '' ||
+      dateTo !== '' ||
+      selectedUploader !== null,
+    [dateFrom, dateTo, searchTerm, selectedExamType, selectedReviewStatus, selectedUploader]
   );
 
   const preview = useImagePreviewQueue(imageFiles);
@@ -72,6 +133,7 @@ export function useImagingPageController() {
           reviewStatus: selectedReviewStatus,
           dateFrom,
           dateTo,
+          uploadedBy: selectedUploader?.id ?? null,
         })
       );
 
@@ -102,6 +164,7 @@ export function useImagingPageController() {
     resetPreviewQueue,
     selectedExamType,
     selectedReviewStatus,
+    selectedUploader,
   ]);
 
   const actions = useImageFileActions({
@@ -116,6 +179,44 @@ export function useImagingPageController() {
     setDebouncedSearchTerm(searchTerm);
   }, [searchTerm]);
 
+  const handleChangeExamType = useCallback((value: string) => {
+    setSelectedExamType(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleChangeReviewStatus = useCallback((value: ReviewStatusFilter) => {
+    setSelectedReviewStatus(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleChangeDateFrom = useCallback((value: string) => {
+    setDateFrom(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleChangeDateTo = useCallback((value: string) => {
+    setDateTo(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleChangeUploader = useCallback(
+    (_value: string, uploader: ImageUploader | null) => {
+      setSelectedUploader(uploader);
+      setCurrentPage(1);
+    },
+    []
+  );
+
+  const loadUploaders = useCallback(
+    ({ page, pageSize, search }: { page: number; pageSize: number; search?: string }) =>
+      getVisibleImageUploaders({
+        page,
+        page_size: pageSize,
+        ...(search ? { search } : {}),
+      }),
+    []
+  );
+
   const clearFilters = useCallback(() => {
     setSearchTerm('');
     setDebouncedSearchTerm('');
@@ -123,6 +224,7 @@ export function useImagingPageController() {
     setSelectedReviewStatus('all');
     setDateFrom('');
     setDateTo('');
+    setSelectedUploader(null);
     setCurrentPage(1);
     if (searchParams.toString()) {
       router.replace('/imaging', { scroll: false });
@@ -134,6 +236,7 @@ export function useImagingPageController() {
     setSelectedExamType('all');
     setDateFrom('');
     setDateTo('');
+    setSelectedUploader(null);
   }, []);
 
   useEffect(() => {
@@ -144,16 +247,44 @@ export function useImagingPageController() {
   }, [isAuthenticated, router]);
 
   useEffect(() => {
-    setSelectedReviewStatus(urlReviewStatusFilter);
-    setShowFilters(urlReviewStatusFilter !== 'all');
-    setCurrentPage(1);
-  }, [urlReviewStatusFilter]);
-
-  useEffect(() => {
     if (isAuthenticated) {
       loadImages();
     }
   }, [isAuthenticated, loadImages]);
+
+  const currentImagingHref = useMemo(
+    () =>
+      buildImagingListHref({
+        page: currentPage,
+        searchTerm: debouncedSearchTerm,
+        examType: selectedExamType,
+        reviewStatus: selectedReviewStatus,
+        dateFrom,
+        dateTo,
+        viewMode,
+        uploadedBy: selectedUploader?.id ?? null,
+        uploaderName: getUploaderName(selectedUploader),
+      }),
+    [
+      currentPage,
+      dateFrom,
+      dateTo,
+      debouncedSearchTerm,
+      selectedExamType,
+      selectedReviewStatus,
+      selectedUploader,
+      viewMode,
+    ]
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const targetQuery = currentImagingHref.split('?')[1] || '';
+    if (targetQuery !== searchParams.toString()) {
+      router.replace(currentImagingHref, { scroll: false });
+    }
+  }, [currentImagingHref, isAuthenticated, router, searchParams]);
 
   useEffect(() => {
     if (!actions.openDropdown) return;
@@ -182,6 +313,9 @@ export function useImagingPageController() {
     dateFrom,
     dateTo,
     viewMode,
+    canUseUploaderView: canUseUploaderView(user),
+    selectedUploader,
+    currentImagingHref,
     hasActiveFilters,
     preview,
     actions,
@@ -190,12 +324,14 @@ export function useImagingPageController() {
     handleSearch,
     clearFilters,
     clearEmptyResultFilters,
+    loadUploaders,
+    handleChangeUploader,
     setSearchTerm,
     setShowFilters,
-    setSelectedExamType,
-    setSelectedReviewStatus,
-    setDateFrom,
-    setDateTo,
+    setSelectedExamType: handleChangeExamType,
+    setSelectedReviewStatus: handleChangeReviewStatus,
+    setDateFrom: handleChangeDateFrom,
+    setDateTo: handleChangeDateTo,
     setViewMode,
     setCurrentPage,
   };

@@ -193,6 +193,62 @@ def test_system_admin_can_see_all_non_deleted_images(db_session):
 
 
 @pytest.mark.asyncio
+async def test_team_admin_lists_visible_team_uploaders(db_session):
+    result = await file_handlers.list_visible_image_uploaders(
+        page=1,
+        page_size=10,
+        search=None,
+        current_user=current_user(10),
+        db=db_session,
+    )
+
+    items = result["data"]["items"]
+
+    assert [item["id"] for item in items] == [10, 11]
+    assert [item["real_name"] for item in items] == ["admin", "member"]
+    assert result["data"]["pagination"]["total"] == 2
+
+
+@pytest.mark.asyncio
+async def test_regular_member_cannot_list_uploaders(db_session):
+    with pytest.raises(HTTPException) as exc_info:
+        await file_handlers.list_visible_image_uploaders(
+            page=1,
+            page_size=10,
+            search=None,
+            current_user=current_user(11),
+            db=db_session,
+        )
+
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_image_list_filters_by_visible_uploader(db_session):
+    result = await file_handlers.get_image_files_list(
+        page=1,
+        page_size=20,
+        file_type=None,
+        file_status=None,
+        status=None,
+        pending_only=None,
+        review_status=None,
+        description=None,
+        start_date=None,
+        end_date=None,
+        search=None,
+        uploaded_by=11,
+        current_user=current_user(10),
+        db=db_session,
+    )
+
+    items = result["data"]["items"]
+
+    assert [item["id"] for item in items] == [2]
+    assert items[0]["uploaded_by"] == 11
+
+
+@pytest.mark.asyncio
 async def test_team_admin_can_delete_visible_team_member_image(db_session):
     result = await file_handlers.delete_image_file(
         2,

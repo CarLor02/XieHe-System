@@ -39,14 +39,17 @@ from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeE
 from app.models.patient import Patient
 from app.models.user import User
 from app.models.image import ImageAnnotation
+from app.models.team import TeamMembership, TeamMembershipRole, TeamMembershipStatus
 from app.services.storage_gateway import StorageServiceError, storage_gateway
 from app.services.image_file_visibility import (
     apply_image_visibility_filter,
     get_visible_image_file,
+    get_visible_image_uploader_ids,
 )
 from ..schemas.files import (
     BatchDownloadUrlsRequest,
     ImageFileResponse,
+    ImageUploaderResponse,
     ImageFileStatsResponse,
     UpdateExamTypeRequest,
     UpdateAnnotationRequest,
@@ -125,6 +128,51 @@ def _image_file_response(
         upload_progress=image.upload_progress,
         created_at=image.created_at,
         uploaded_at=image.uploaded_at,
+    )
+
+
+def _extract_current_user_id(current_user: dict[str, Any]) -> Optional[int]:
+    value = current_user.get("id") or current_user.get("user_id")
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _can_choose_image_uploader(db: Session, current_user: dict[str, Any]) -> bool:
+    if current_user.get("is_superuser", False) or current_user.get("is_system_admin", False):
+        return True
+
+    user_id = _extract_current_user_id(current_user)
+    if user_id is None:
+        return False
+
+    return (
+        db.query(TeamMembership.id)
+        .filter(
+            TeamMembership.user_id == user_id,
+            TeamMembership.role == TeamMembershipRole.ADMIN,
+            TeamMembership.status == TeamMembershipStatus.ACTIVE,
+        )
+        .first()
+        is not None
+    )
+
+
+def _user_to_uploader_response(user: User) -> ImageUploaderResponse:
+    department_name = user.department.name if user.department else None
+    return ImageUploaderResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        real_name=user.real_name,
+        department=department_name,
+        position=user.position,
+        title=user.title,
+        is_system_admin=bool(user.is_system_admin),
+        system_admin_level=user.system_admin_level or 0,
     )
 
 
@@ -313,6 +361,7 @@ async def get_image_files_list(
     start_date: Optional[date] = Query(None, description="开始日期"),
     end_date: Optional[date] = Query(None, description="结束日期"),
     search: Optional[str] = Query(None, description="搜索关键词"),
+    uploaded_by: Optional[int] = Query(None, description="上传者用户ID"),
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -403,6 +452,9 @@ async def get_image_files_list(
                 )
             )
 
+        if uploaded_by is not None:
+            query = query.filter(ImageFile.uploaded_by == uploaded_by)
+
         # 分页
         total = query.count()
         image_rows = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
@@ -485,6 +537,57 @@ async def get_patient_images(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取患者影像文件失败"
         )
+
+
+@router.get("/uploaders", response_model=dict, summary="获取当前可见影像上传者")
+async def list_visible_image_uploaders(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=100, description="每页数量"),
+    search: Optional[str] = Query(None, description="搜索姓名、用户名或邮箱"),
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """获取“上传者视角”可选择的用户列表。"""
+    if not _can_choose_image_uploader(db, current_user):
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="无权查看上传者列表",
+        )
+
+    visible_uploader_ids = get_visible_image_uploader_ids(db, current_user)
+    query = db.query(User).filter(
+        User.is_deleted == False,
+        User.status == "active",
+    )
+
+    if visible_uploader_ids is not None:
+        query = query.filter(User.id.in_(visible_uploader_ids))
+
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                User.real_name.ilike(search_pattern),
+                User.username.ilike(search_pattern),
+                User.email.ilike(search_pattern),
+            )
+        )
+
+    total = query.count()
+    users = (
+        query.order_by(User.id.asc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    return paginated_response(
+        items=[_user_to_uploader_response(user).dict() for user in users],
+        total=total,
+        page=page,
+        page_size=page_size,
+        message="上传者列表查询成功",
+    )
 
 
 @router.post("/{file_id}/ai/predict", summary="使用对象存储影像执行AI测量")

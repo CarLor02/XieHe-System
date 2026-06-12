@@ -10,9 +10,10 @@ import { AnnotationToolbar } from '@/app/imaging/features/image-viewer/features/
 
 interface ImageViewerProps {
   imageId: string;
+  returnTo: string;
 }
 
-function ImageViewer({ imageId }: ImageViewerProps) {
+function ImageViewer({ imageId, returnTo }: ImageViewerProps) {
   const {
     headerProps,
     canvasProps,
@@ -23,7 +24,7 @@ function ImageViewer({ imageId }: ImageViewerProps) {
   return (
     <>
       <div className="fixed inset-0 bg-gray-900 flex flex-col overflow-hidden">
-        <StudyHeader {...headerProps} />
+        <StudyHeader {...headerProps} returnHref={returnTo} />
 
         <div className="flex-1 flex min-h-0 flex-col overflow-hidden md:flex-row">
           <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
@@ -44,6 +45,7 @@ function ImageViewer({ imageId }: ImageViewerProps) {
 function ImageViewerContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id') || '';
+  const returnTo = searchParams.get('returnTo') || '/imaging';
 
   if (!id) {
     return (
@@ -56,7 +58,7 @@ function ImageViewerContent() {
     );
   }
 
-  return <ImageViewer imageId={id} />;
+  return <ImageViewer imageId={id} returnTo={returnTo} />;
 }
 
 export default function ImageViewerPage() {

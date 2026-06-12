@@ -42,6 +42,7 @@ function renderImageGrid(imageFile: ImageFile) {
   return render(
     <ImageGrid
       imageFiles={[imageFile]}
+      viewerReturnTo="/imaging?page=3&uploaded_by=7"
       imageUrls={{}}
       previewStates={{}}
       openDropdown={null}
@@ -73,4 +74,14 @@ it('renders fallback labels when patient or uploader names are missing', () => {
 
   expect(screen.getByText('未知患者')).toBeTruthy();
   expect(screen.getByText('未知用户')).toBeTruthy();
+});
+
+it('passes the current imaging URL to the viewer return target', () => {
+  renderImageGrid(makeImageFile());
+
+  const viewerLink = screen.getByRole('link', { name: /标注分析/ });
+
+  expect(viewerLink.getAttribute('href')).toBe(
+    '/imaging/viewer?id=1&returnTo=%2Fimaging%3Fpage%3D3%26uploaded_by%3D7'
+  );
 });
