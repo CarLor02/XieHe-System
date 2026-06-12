@@ -8,6 +8,7 @@ import {
   type ImageFile,
   type ImageUploader,
 } from '@/services/imageServices/imageFileService';
+import { getMyTeams, type TeamSummary } from '@/services/teamService';
 import {
   buildImagingListHref,
   buildImageFileFilters,
@@ -15,6 +16,7 @@ import {
   type ImagingViewMode,
   type ReviewStatusFilter,
 } from '@/app/imaging/domain/imagingFilters';
+import { canUseUploaderView } from '@/app/imaging/domain/uploaderViewPermission';
 import { useImagePreviewQueue } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import { useImageFileActions } from '@/app/imaging/features/image-actions/hooks/useImageFileActions';
 import { useImageEditOverlay } from '@/app/imaging/features/image-actions/hooks/useImageEditOverlay';
@@ -47,22 +49,11 @@ function getInitialUploader(searchParams: ReturnType<typeof useSearchParams>) {
   } satisfies ImageUploader;
 }
 
-function canUseUploaderView(user: ReturnType<typeof useUser>['user']) {
-  const role = user?.role;
-  return Boolean(
-    user?.is_superuser ||
-      user?.is_system_admin ||
-      role === 'admin' ||
-      role === 'system_admin' ||
-      role === 'team_admin' ||
-      role === 'ADMIN'
-  );
-}
-
 export function useImagingPageController() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, user } = useUser();
+  const userId = user?.id ?? null;
 
   const urlReviewStatusFilter = getReviewStatusFilterFromUrl(
     searchParams.get('review_status'),
@@ -103,6 +94,17 @@ export function useImagingPageController() {
   );
   const [selectedUploader, setSelectedUploader] = useState<ImageUploader | null>(
     () => getInitialUploader(searchParams)
+  );
+  const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
+
+  const hasDirectUploaderViewPermission = useMemo(
+    () => canUseUploaderView(user, []),
+    [user]
+  );
+
+  const canUseUploaderViewValue = useMemo(
+    () => canUseUploaderView(user, myTeams),
+    [myTeams, user]
   );
 
   const hasActiveFilters = useMemo(
@@ -249,6 +251,31 @@ export function useImagingPageController() {
   }, [isAuthenticated, router]);
 
   useEffect(() => {
+    if (!isAuthenticated || !userId || hasDirectUploaderViewPermission) {
+      setMyTeams(currentTeams => (currentTeams.length === 0 ? currentTeams : []));
+      return;
+    }
+
+    let cancelled = false;
+
+    getMyTeams()
+      .then(response => {
+        if (!cancelled) {
+          setMyTeams(response.items ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMyTeams([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasDirectUploaderViewPermission, isAuthenticated, userId]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       loadImages();
     }
@@ -316,7 +343,7 @@ export function useImagingPageController() {
     dateFrom,
     dateTo,
     viewMode,
-    canUseUploaderView: canUseUploaderView(user),
+    canUseUploaderView: canUseUploaderViewValue,
     selectedUploader,
     currentImagingHref,
     hasActiveFilters,

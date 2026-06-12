@@ -12,6 +12,9 @@ export interface TeamSummary {
   member_count: number;
   max_members?: number | null;
   is_member: boolean;
+  my_role?: 'ADMIN' | 'MEMBER' | null;
+  my_status?: 'ACTIVE' | 'INVITED' | 'PENDING' | 'INACTIVE' | null;
+  is_creator?: boolean;
   join_status?: string | null;
   join_request_id?: number | null;
   created_at?: string | null;
