@@ -156,6 +156,93 @@ describe('EntitySearchSelect', () => {
     expect(onChange).toHaveBeenCalledWith('', null);
   });
 
+  it('renders the clear control as an integrated segment of the selector', () => {
+    render(
+      <EntitySearchSelect
+        value="7"
+        selectedItem={{
+          id: 7,
+          real_name: '王医生',
+          email: 'doctor@example.com',
+          role: 'ADMIN',
+        }}
+        placeholder="选择上传者"
+        searchPlaceholder="搜索医生姓名或邮箱"
+        loadOptions={loadOptions}
+        getOptionValue={doctor => String(doctor.id)}
+        mapOption={doctor => ({
+          primary: doctor.real_name,
+          secondary: doctor.email,
+          meta: [doctor.role],
+        })}
+        onChange={jest.fn()}
+      />
+    );
+
+    const clearButton = screen.getByRole('button', { name: /清除选择/ });
+    const control = clearButton.closest('[data-testid="entity-search-select-control"]');
+
+    expect(control).toBeTruthy();
+    expect(control?.className).toContain('border');
+    expect(clearButton.className).toContain('border-l');
+    expect(clearButton.className).not.toContain('rounded-lg border');
+  });
+
+  it('keeps selector action icons vertically aligned', () => {
+    render(
+      <EntitySearchSelect
+        value="7"
+        selectedItem={{
+          id: 7,
+          real_name: '王医生',
+          email: 'doctor@example.com',
+          role: 'ADMIN',
+        }}
+        placeholder="选择上传者"
+        searchPlaceholder="搜索医生姓名或邮箱"
+        loadOptions={loadOptions}
+        getOptionValue={doctor => String(doctor.id)}
+        mapOption={doctor => ({
+          primary: doctor.real_name,
+          secondary: doctor.email,
+          meta: [doctor.role],
+        })}
+        onChange={jest.fn()}
+      />
+    );
+
+    const triggerButton = screen.getByRole('button', { name: /王医生/ });
+    const clearButton = screen.getByRole('button', { name: /清除选择/ });
+    const arrowIcon = triggerButton.querySelector('.ri-arrow-down-s-line');
+    const closeIcon = clearButton.querySelector('.ri-close-line');
+
+    expect(triggerButton.className).toContain('h-10');
+    expect(clearButton.className).toContain('h-10');
+    expect(arrowIcon?.className).toContain('h-4');
+    expect(arrowIcon?.className).toContain('w-4');
+    expect(closeIcon?.className).toContain('h-4');
+    expect(closeIcon?.className).toContain('w-4');
+  });
+
+  it('keeps pagination controls on a single line', async () => {
+    loadOptions.mockResolvedValue(makePage([], 1));
+
+    renderSelect();
+    fireEvent.click(screen.getByRole('button', { name: /选择上传者/ }));
+
+    await waitFor(() => expect(loadOptions).toHaveBeenCalledTimes(1));
+
+    const previousButton = screen.getByRole('button', { name: '上一页' });
+    const nextButton = screen.getByRole('button', { name: '下一页' });
+    const pageText = screen.getByText('第 1 / 1 页');
+    const paginationFooter = previousButton.parentElement;
+
+    expect(paginationFooter?.className).toContain('justify-center');
+    expect(previousButton.className).toContain('whitespace-nowrap');
+    expect(nextButton.className).toContain('whitespace-nowrap');
+    expect(pageText.className).toContain('whitespace-nowrap');
+  });
+
   it('uses the controlled selected item when the parent clears selection', () => {
     const selectedDoctor = {
       id: 7,

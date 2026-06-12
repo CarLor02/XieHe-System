@@ -158,16 +158,19 @@ export default function EntitySearchSelect<TItem>({
 
   return (
     <div className="relative">
-      <div className="flex gap-2">
+      <div
+        data-testid="entity-search-select-control"
+        className="flex min-w-0 overflow-hidden rounded-lg border border-gray-300 bg-white text-sm text-gray-800 transition-colors hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500"
+      >
         <button
           type="button"
           aria-expanded={isOpen}
           aria-haspopup="listbox"
           onClick={() => setIsOpen(open => !open)}
-          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-800 transition-colors hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex h-10 min-w-0 flex-1 items-center justify-between gap-3 px-3 text-left focus:outline-none"
         >
           <span className="min-w-0 flex-1 truncate">{label}</span>
-          <i className="ri-arrow-down-s-line flex h-5 w-5 flex-shrink-0 items-center justify-center text-gray-400" />
+          <i className="ri-arrow-down-s-line flex h-4 w-4 flex-shrink-0 items-center justify-center text-gray-400" />
         </button>
 
         {(value || effectiveSelectedItem) && (
@@ -175,7 +178,7 @@ export default function EntitySearchSelect<TItem>({
             type="button"
             aria-label="清除选择"
             onClick={handleClear}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center border-l border-gray-300 text-gray-500 hover:bg-gray-50 focus:outline-none"
           >
             <i className="ri-close-line h-4 w-4" />
           </button>
@@ -265,23 +268,23 @@ export default function EntitySearchSelect<TItem>({
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2 text-sm text-gray-600">
+          <div className="flex flex-nowrap items-center justify-center gap-4 border-t border-gray-100 px-3 py-2 text-sm text-gray-600">
             <button
               type="button"
               disabled={page <= 1 || loading}
               onClick={() => setPage(current => Math.max(1, current - 1))}
-              className="rounded-lg px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex-shrink-0 whitespace-nowrap rounded-lg px-2 py-1.5 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               上一页
             </button>
-            <span>
+            <span className="flex-shrink-0 whitespace-nowrap text-center">
               第 {page} / {totalPages} 页
             </span>
             <button
               type="button"
               disabled={page >= totalPages || loading}
               onClick={() => setPage(current => Math.min(totalPages, current + 1))}
-              className="rounded-lg px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex-shrink-0 whitespace-nowrap rounded-lg px-2 py-1.5 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               下一页
             </button>

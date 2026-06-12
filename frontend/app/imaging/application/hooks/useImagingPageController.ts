@@ -76,6 +76,7 @@ export function useImagingPageController() {
   );
   const [pageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedImagesOnce, setHasLoadedImagesOnce] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState(
     () => searchParams.get('search') || ''
@@ -148,12 +149,13 @@ export function useImagingPageController() {
 
       setImageFiles(response.items);
       setTotal(response.total || 0);
-      setLoading(false);
     } catch (loadError: unknown) {
       console.error('Failed to load images:', loadError);
       setError(getErrorMessage(loadError, '加载影像失败，请重试'));
       setImageFiles([]);
+    } finally {
       setLoading(false);
+      setHasLoadedImagesOnce(true);
     }
   }, [
     currentPage,
@@ -305,6 +307,7 @@ export function useImagingPageController() {
     currentPage,
     pageSize,
     loading,
+    initialLoading: loading && !hasLoadedImagesOnce,
     error,
     searchTerm,
     showFilters,

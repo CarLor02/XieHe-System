@@ -15,8 +15,10 @@ import { EXAM_TYPES } from './features/image-actions/hooks/useImageEditOverlay';
 function ImagingPageContent() {
   const controller = useImagingPageController();
   const { preview, actions, editOverlay } = controller;
+  const isBlockingError =
+    Boolean(controller.error) && controller.imageFiles.length === 0;
 
-  if (controller.loading) {
+  if (controller.initialLoading) {
     return (
       <ImagingLoadingState
         message={controller.error || '加载影像数据中...'}
@@ -24,10 +26,10 @@ function ImagingPageContent() {
     );
   }
 
-  if (controller.error) {
+  if (isBlockingError) {
     return (
       <ImagingErrorState
-        message={controller.error}
+        message={controller.error || '加载影像失败，请重试'}
         onRetry={controller.loadImages}
       />
     );
