@@ -20,6 +20,8 @@ function renderPanel(overrides: Partial<Parameters<typeof CanvasControlsPanel>[0
       onUndoAnnotationHistory={jest.fn()}
       canRedoAnnotationHistory={false}
       onRedoAnnotationHistory={jest.fn()}
+      showVertebraeBoundingBox={true}
+      onToggleVertebraeBoundingBox={jest.fn()}
       {...overrides}
     />
   );
@@ -94,4 +96,25 @@ it('can cancel the clear-all confirmation', () => {
 
   expect(onClearAll).not.toHaveBeenCalled();
   expect(screen.queryByText('确定要清空所有标注吗?')).toBeNull();
+});
+
+it('shows the vertebrae bounding box toggle as enabled by default', () => {
+  renderPanel();
+
+  expect(screen.getByText('检测层显示椎体方框')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '检测层显示椎体方框' }).textContent).toBe(
+    '✅'
+  );
+});
+
+it('calls the vertebrae bounding box toggle handler from the controls panel', () => {
+  const onToggleVertebraeBoundingBox = jest.fn();
+  renderPanel({
+    showVertebraeBoundingBox: false,
+    onToggleVertebraeBoundingBox,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '检测层显示椎体方框' }));
+
+  expect(onToggleVertebraeBoundingBox).toHaveBeenCalledTimes(1);
 });

@@ -91,6 +91,10 @@ function getAnnotationHistoryShortcutAction(
   return ANNOTATION_HISTORY_SHORTCUTS[event.key.toLowerCase()] ?? null;
 }
 
+function isDetectionLayerToggleShortcut(event: KeyboardEvent): boolean {
+  return event.shiftKey && event.key.toLowerCase() === 'd';
+}
+
 export function useImageViewerController({
   imageId,
 }: UseImageViewerControllerOptions) {
@@ -216,6 +220,8 @@ export function useImageViewerController({
     setSaveMessage,
     setShowStandardDistanceWarning,
   });
+  const hasVertebraeLayer = keypointWorkflow.activeVertebraeLayer.length > 0;
+  const handleToggleVertebraeLayer = keypointWorkflow.handleToggleVertebraeLayer;
   const {
     keypoints: historyKeypoints,
     setKeypoints: setHistoryKeypoints,
@@ -356,6 +362,13 @@ export function useImageViewerController({
     const handleAnnotationHistoryShortcut = (event: KeyboardEvent) => {
       if (isEditableKeyboardTarget(event.target)) return;
 
+      if (isDetectionLayerToggleShortcut(event)) {
+        if (!hasVertebraeLayer) return;
+        event.preventDefault();
+        handleToggleVertebraeLayer();
+        return;
+      }
+
       const action = getAnnotationHistoryShortcutAction(event);
       if (action === 'undo' && canUndoAnnotationHistory) {
         event.preventDefault();
@@ -376,6 +389,8 @@ export function useImageViewerController({
   }, [
     canRedoAnnotationHistory,
     canUndoAnnotationHistory,
+    handleToggleVertebraeLayer,
+    hasVertebraeLayer,
     redoAnnotationHistory,
     undoAnnotationHistory,
   ]);
@@ -627,9 +642,9 @@ export function useImageViewerController({
       canUseKeypointTools: canUseKeypoints,
       isAIDetecting: studyHeaderActions.isAIDetecting,
       isAIMeasuring: studyHeaderActions.isAIMeasuring,
-      hasVertebraeLayer: keypointWorkflow.activeVertebraeLayer.length > 0,
+      hasVertebraeLayer,
       showVertebraeLayer: keypointWorkflow.showVertebraeLayer,
-      onToggleVertebraeLayer: keypointWorkflow.handleToggleVertebraeLayer,
+      onToggleVertebraeLayer: handleToggleVertebraeLayer,
       onSave: studyHeaderActions.handleSaveMeasurements,
       onExportJson: measurementWorkflow.exportAnnotationsToJSON,
       onImportJson: measurementWorkflow.importAnnotationsFromJSON,

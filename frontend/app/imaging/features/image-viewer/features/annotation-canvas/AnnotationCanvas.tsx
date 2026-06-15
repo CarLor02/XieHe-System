@@ -165,6 +165,8 @@ export default function AnnotationCanvas({
   onAnnotationDataDragStart?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showVertebraeBoundingBox, setShowVertebraeBoundingBox] =
+    useState(true);
   const {
     imagePosition,
     setImagePosition,
@@ -731,6 +733,10 @@ export default function AnnotationCanvas({
         onUndoAnnotationHistory={onUndoAnnotationHistory}
         canRedoAnnotationHistory={canRedoAnnotationHistory}
         onRedoAnnotationHistory={onRedoAnnotationHistory}
+        showVertebraeBoundingBox={showVertebraeBoundingBox}
+        onToggleVertebraeBoundingBox={() =>
+          setShowVertebraeBoundingBox(current => !current)
+        }
         onClearAll={handleClear}
         onZoomOut={zoomOut}
         onZoomIn={zoomIn}
@@ -825,6 +831,7 @@ export default function AnnotationCanvas({
             activeCorner={vertebradDrag.activeCorner}
             hoveredCorner={effectiveHoveredCorner}
             selectedKeypointIds={selectedKeypointIds}
+            showVertebraeBoundingBox={showVertebraeBoundingBox}
           />
         )}
 

@@ -7,9 +7,11 @@ interface CanvasControlsPanelProps {
   brightness: number;
   canUndoAnnotationHistory: boolean;
   canRedoAnnotationHistory: boolean;
+  showVertebraeBoundingBox: boolean;
   onClearAll: () => void;
   onUndoAnnotationHistory: () => void;
   onRedoAnnotationHistory: () => void;
+  onToggleVertebraeBoundingBox: () => void;
   onZoomOut: () => void;
   onZoomIn: () => void;
   onDecreaseContrast: () => void;
@@ -38,9 +40,11 @@ export default function CanvasControlsPanel({
   brightness,
   canUndoAnnotationHistory,
   canRedoAnnotationHistory,
+  showVertebraeBoundingBox,
   onClearAll,
   onUndoAnnotationHistory,
   onRedoAnnotationHistory,
+  onToggleVertebraeBoundingBox,
   onZoomOut,
   onZoomIn,
   onDecreaseContrast,
@@ -125,6 +129,25 @@ export default function CanvasControlsPanel({
           >
             <i className="ri-delete-bin-line"></i>
             <span>清空全部</span>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-white text-xs whitespace-nowrap">
+            检测层显示椎体方框
+          </span>
+          <button
+            type="button"
+            aria-label="检测层显示椎体方框"
+            aria-pressed={showVertebraeBoundingBox}
+            onClick={event => {
+              event.stopPropagation();
+              onToggleVertebraeBoundingBox();
+            }}
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded border border-gray-500 bg-gray-700 text-xs text-white transition-all hover:bg-gray-600 active:scale-95"
+            title="切换检测层椎体方框显示"
+          >
+            {showVertebraeBoundingBox ? '✅' : ''}
           </button>
         </div>
 

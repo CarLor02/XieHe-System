@@ -126,7 +126,7 @@ export default function StudyHeader({
                   ? 'bg-blue-600/70 text-white hover:bg-blue-600'
                   : 'text-white/60 hover:text-white hover:bg-white/10'
               }`}
-              title={showVertebraeLayer ? '隐藏椎体检测层' : '显示椎体检测层'}
+              title={`${showVertebraeLayer ? '隐藏椎体检测层' : '显示椎体检测层'}，切换快捷键:Shift+D`}
             >
               <i className={`${showVertebraeLayer ? 'ri-eye-line' : 'ri-eye-off-line'} w-4 h-4 flex items-center justify-center`}></i>
               <span>检测层</span>

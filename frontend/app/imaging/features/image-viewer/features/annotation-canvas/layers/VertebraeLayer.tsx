@@ -26,6 +26,8 @@ interface VertebraeLayerProps {
   hoveredCorner?: CornerRef | null;
   /** 当前测量项锚定的关键点，用于显示测量项对应的真实可编辑对象 */
   selectedKeypointIds?: Set<string>;
+  /** 是否渲染完整椎体的连线方框与中心点 */
+  showVertebraeBoundingBox?: boolean;
 }
 
 const EMPTY_SELECTED_KEYPOINT_IDS = new Set<string>();
@@ -49,6 +51,7 @@ export default function VertebraeLayer({
   activeCorner = null,
   hoveredCorner = null,
   selectedKeypointIds = EMPTY_SELECTED_KEYPOINT_IDS,
+  showVertebraeBoundingBox = true,
 }: VertebraeLayerProps) {
   return (
     // 纯渲染，不需要事件，保持 pointer-events: none 继承自父 SVG
@@ -331,29 +334,31 @@ export default function VertebraeLayer({
         return (
           <g key={vertebra.label} className="vertebra-annotation">
             {/* 四边形边框 */}
-            <polygon
-              points={polyPts}
-              fill={
-                isAnyCornerHovered || isAnyCornerActive
-                  ? 'rgba(250, 204, 21, 0.12)'
-                  : isAnyCornerSelected
-                    ? 'rgba(250, 204, 21, 0.1)'
-                    : 'rgba(59, 130, 246, 0.08)'
-              }
-              stroke={
-                isAnyCornerHovered || isAnyCornerActive
-                  ? 'rgba(250, 204, 21, 0.95)'
-                  : isAnyCornerSelected
+            {showVertebraeBoundingBox && (
+              <polygon
+                points={polyPts}
+                fill={
+                  isAnyCornerHovered || isAnyCornerActive
+                    ? 'rgba(250, 204, 21, 0.12)'
+                    : isAnyCornerSelected
+                      ? 'rgba(250, 204, 21, 0.1)'
+                      : 'rgba(59, 130, 246, 0.08)'
+                }
+                stroke={
+                  isAnyCornerHovered || isAnyCornerActive
                     ? 'rgba(250, 204, 21, 0.95)'
-                    : 'rgba(59, 130, 246, 0.85)'
-              }
-              strokeWidth={
-                isAnyCornerHovered || isAnyCornerActive || isAnyCornerSelected
-                  ? 2
-                  : 1.5
-              }
-              strokeLinejoin="round"
-            />
+                    : isAnyCornerSelected
+                      ? 'rgba(250, 204, 21, 0.95)'
+                      : 'rgba(59, 130, 246, 0.85)'
+                }
+                strokeWidth={
+                  isAnyCornerHovered || isAnyCornerActive || isAnyCornerSelected
+                    ? 2
+                    : 1.5
+                }
+                strokeLinejoin="round"
+              />
+            )}
 
             {/* 4个角点小圆（仅渲染，交互由父组件的 useVertebradDrag 处理） */}
             {[tl, tr, bl, br].map((p, i) => {
@@ -383,25 +388,29 @@ export default function VertebraeLayer({
                     stroke="white"
                     strokeWidth={1}
                   />
-                  <text
-                    x={p.x + 8}
-                    y={p.y + 4}
-                    textAnchor="start"
-                    fontSize={10}
-                    fontWeight="600"
-                    fill={labelFill}
-                    stroke="rgba(0,0,0,0.6)"
-                    strokeWidth={2.5}
-                    paintOrder="stroke"
-                  >
-                    {keypointId}
-                  </text>
+                  {showVertebraeBoundingBox && (
+                    <text
+                      x={p.x + 8}
+                      y={p.y + 4}
+                      textAnchor="start"
+                      fontSize={10}
+                      fontWeight="600"
+                      fill={labelFill}
+                      stroke="rgba(0,0,0,0.6)"
+                      strokeWidth={2.5}
+                      paintOrder="stroke"
+                    >
+                      {keypointId}
+                    </text>
+                  )}
                 </g>
               );
             })}
 
             {/* 中心点 */}
-            <circle cx={cx} cy={cy} r={1.5} fill="rgba(59, 130, 246, 0.5)" />
+            {showVertebraeBoundingBox && (
+              <circle cx={cx} cy={cy} r={1.5} fill="rgba(59, 130, 246, 0.5)" />
+            )}
           </g>
         );
       })}

@@ -10,6 +10,8 @@ const handleMeasurementDeleteMock = jest.fn();
 const handleKeypointDeleteMock = jest.fn();
 const setMeasurementsMock = jest.fn();
 const setShowVertebraeLayerMock = jest.fn();
+const handleToggleVertebraeLayerMock = jest.fn();
+let activeVertebraeLayerMock: Array<Record<string, unknown>> = [];
 let annotationHistoryOptions:
   | {
       snapshot: Record<string, unknown>;
@@ -204,7 +206,7 @@ jest.mock('@/app/imaging/features/image-viewer/features/keypoints', () => ({
     setCfhAnnotation: jest.fn(),
     showVertebraeLayer: true,
     setShowVertebraeLayer: setShowVertebraeLayerMock,
-    activeVertebraeLayer: [],
+    activeVertebraeLayer: activeVertebraeLayerMock,
     completeVertebraGroups: [],
     aiMeasurementIdsRef: { current: new Set() },
     lateralDetectionResultRef: { current: null },
@@ -226,7 +228,7 @@ jest.mock('@/app/imaging/features/image-viewer/features/keypoints', () => ({
     handleVertebraePreviewUpdate: jest.fn(),
     handleMeasurementWriteback: jest.fn(),
     handleCobbKeypointsSync: jest.fn(),
-    handleToggleVertebraeLayer: jest.fn(),
+    handleToggleVertebraeLayer: handleToggleVertebraeLayerMock,
   }),
 }));
 
@@ -263,6 +265,8 @@ beforeEach(() => {
   handleKeypointDeleteMock.mockClear();
   setMeasurementsMock.mockClear();
   setShowVertebraeLayerMock.mockClear();
+  handleToggleVertebraeLayerMock.mockClear();
+  activeVertebraeLayerMock = [];
   annotationHistoryOptions = null;
 });
 
@@ -586,6 +590,86 @@ it('does not use annotation history shortcuts inside editable fields', async () 
 
   expect(undoHistoryMock).not.toHaveBeenCalled();
   expect(redoHistoryMock).not.toHaveBeenCalled();
+
+  input.remove();
+});
+
+it('toggles the detection layer from Shift+D when layer data exists', async () => {
+  activeVertebraeLayerMock = [
+    {
+      label: 'T1',
+      corners: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+    },
+  ];
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const event = new KeyboardEvent('keydown', {
+    key: 'D',
+    shiftKey: true,
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  document.dispatchEvent(event);
+
+  expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  expect(handleToggleVertebraeLayerMock).toHaveBeenCalledTimes(1);
+});
+
+it('does not toggle the detection layer from Shift+D inside editable fields', async () => {
+  activeVertebraeLayerMock = [
+    {
+      label: 'T1',
+      corners: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+    },
+  ];
+  let latest: Controller | null = null;
+  const input = document.createElement('input');
+  document.body.appendChild(input);
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  input.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 'd',
+      shiftKey: true,
+      bubbles: true,
+    })
+  );
+
+  expect(handleToggleVertebraeLayerMock).not.toHaveBeenCalled();
 
   input.remove();
 });
