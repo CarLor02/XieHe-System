@@ -388,21 +388,19 @@ export default function VertebraeLayer({
                     stroke="white"
                     strokeWidth={1}
                   />
-                  {showVertebraeBoundingBox && (
-                    <text
-                      x={p.x + 8}
-                      y={p.y + 4}
-                      textAnchor="start"
-                      fontSize={10}
-                      fontWeight="600"
-                      fill={labelFill}
-                      stroke="rgba(0,0,0,0.6)"
-                      strokeWidth={2.5}
-                      paintOrder="stroke"
-                    >
-                      {keypointId}
-                    </text>
-                  )}
+                  <text
+                    x={p.x + 8}
+                    y={p.y + 4}
+                    textAnchor="start"
+                    fontSize={10}
+                    fontWeight="600"
+                    fill={labelFill}
+                    stroke="rgba(0,0,0,0.6)"
+                    strokeWidth={2.5}
+                    paintOrder="stroke"
+                  >
+                    {keypointId}
+                  </text>
                 </g>
               );
             })}

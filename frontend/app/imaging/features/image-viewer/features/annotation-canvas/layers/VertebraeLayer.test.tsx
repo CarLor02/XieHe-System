@@ -44,7 +44,7 @@ it('renders corner labels instead of the vertebra label for a complete vertebra'
   );
 });
 
-it('renders only points when vertebrae bounding boxes are hidden', () => {
+it('keeps corner labels when vertebrae bounding boxes are hidden', () => {
   const vertebraeLayer: VertebraAnnotation[] = [
     {
       label: 'T1',
@@ -71,10 +71,10 @@ it('renders only points when vertebrae bounding boxes are hidden', () => {
     </svg>
   );
 
-  expect(screen.queryByText('T1-1')).toBeNull();
-  expect(screen.queryByText('T1-2')).toBeNull();
-  expect(screen.queryByText('T1-3')).toBeNull();
-  expect(screen.queryByText('T1-4')).toBeNull();
+  expect(screen.getByText('T1-1')).toBeTruthy();
+  expect(screen.getByText('T1-2')).toBeTruthy();
+  expect(screen.getByText('T1-3')).toBeTruthy();
+  expect(screen.getByText('T1-4')).toBeTruthy();
   expect(rendered.container.querySelector('polygon')).toBeNull();
   expect(rendered.container.querySelectorAll('circle')).toHaveLength(4);
 });
