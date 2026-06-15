@@ -153,6 +153,8 @@ export function useImageViewerController({
   } = canvasState;
   const [keypointSequenceSession, setKeypointSequenceSession] =
     useState<KeypointSequenceSession | null>(null);
+  const [keypointSequenceClosedGroupName, setKeypointSequenceClosedGroupName] =
+    useState<string | null>(null);
 
   const {
     studyData,
@@ -370,13 +372,21 @@ export function useImageViewerController({
     activateHandMode();
   }, [activateHandMode]);
 
+  const handleCloseKeypointSequence = useCallback(() => {
+    setKeypointSequenceClosedGroupName(
+      keypointSequenceSession?.groupName ?? null
+    );
+    setKeypointSequenceSession(null);
+    activateHandMode();
+  }, [activateHandMode, keypointSequenceSession]);
+
   useEffect(() => {
     const handleAnnotationHistoryShortcut = (event: KeyboardEvent) => {
       if (isEditableKeyboardTarget(event.target)) return;
 
       if (isEscapeShortcut(event) && keypointSequenceSession) {
         event.preventDefault();
-        handleCancelKeypointSequence();
+        handleCloseKeypointSequence();
         return;
       }
 
@@ -407,7 +417,7 @@ export function useImageViewerController({
   }, [
     canRedoAnnotationHistory,
     canUndoAnnotationHistory,
-    handleCancelKeypointSequence,
+    handleCloseKeypointSequence,
     handleToggleVertebraeLayer,
     hasVertebraeLayer,
     keypointSequenceSession,
@@ -512,12 +522,14 @@ export function useImageViewerController({
       const pendingKeypointIds = keypointIds.filter(Boolean);
       if (pendingKeypointIds.length === 0) {
         setKeypointSequenceSession(null);
+        setKeypointSequenceClosedGroupName(null);
         activateHandMode();
         return;
       }
 
       setClickedPoints([]);
       activateHandMode();
+      setKeypointSequenceClosedGroupName(null);
       setKeypointSequenceSession({
         groupName,
         keypointIds: pendingKeypointIds,
@@ -538,6 +550,7 @@ export function useImageViewerController({
 
       const nextIndex = keypointSequenceSession.currentIndex + 1;
       if (nextIndex >= keypointSequenceSession.keypointIds.length) {
+        setKeypointSequenceClosedGroupName(keypointSequenceSession.groupName);
         setKeypointSequenceSession(null);
         activateHandMode();
         return;
@@ -797,6 +810,7 @@ export function useImageViewerController({
       treatmentAdvice,
       automaticToolStatus: measurementWorkflow.automaticToolStatus,
       keypointSequenceSession,
+      keypointSequenceClosedGroupName,
       onSelectTool: standardDistanceActions.handleSelectTool,
       onStartKeypointSequence: handleStartKeypointSequence,
       onCancelKeypointSequence: handleCancelKeypointSequence,

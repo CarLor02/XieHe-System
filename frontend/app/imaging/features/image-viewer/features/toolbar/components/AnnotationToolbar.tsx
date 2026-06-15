@@ -100,6 +100,7 @@ interface AnnotationToolbarProps {
   treatmentAdvice: string;
   automaticToolStatus: Record<string, ToolStatus>;
   keypointSequenceSession: KeypointSequenceSession | null;
+  keypointSequenceClosedGroupName: string | null;
   onSelectTool: (toolId: string) => void;
   onStartKeypointSequence: (groupName: string, keypointIds: string[]) => void;
   onCancelKeypointSequence: () => void;
@@ -164,6 +165,7 @@ export default function AnnotationToolbar({
   treatmentAdvice,
   automaticToolStatus,
   keypointSequenceSession,
+  keypointSequenceClosedGroupName,
   onSelectTool,
   onStartKeypointSequence,
   onCancelKeypointSequence,
@@ -277,9 +279,13 @@ export default function AnnotationToolbar({
   const visibleKeypointGroups = isRectifyMode
     ? keypointGroups.filter(isRectifiableKeypointGroup)
     : keypointGroups;
-  const selectedKeypointGroup = visibleKeypointGroups.find(
-    group => group.id === openKeypointGroup
-  );
+  const selectedKeypointGroup = visibleKeypointGroups.find(group => {
+    if (group.id !== openKeypointGroup) return false;
+    return !(
+      keypointSequenceClosedGroupName === group.name &&
+      keypointSequenceSession?.groupName !== group.name
+    );
+  });
 
   const closeToolPopovers = useCallback(() => {
     setOpenMeasurementTool(null);
@@ -1047,6 +1053,11 @@ export default function AnnotationToolbar({
                       !isRectifyMode && isRectifiableGroup;
                     const isSequenceGroup =
                       keypointSequenceSession?.groupName === group.name;
+                    const isClosedSequenceGroup =
+                      keypointSequenceClosedGroupName === group.name &&
+                      !isSequenceGroup;
+                    const isEffectivelyOpen =
+                      isOpen && !isClosedSequenceGroup;
 
                     return (
                       <div key={group.id}>
@@ -1054,7 +1065,7 @@ export default function AnnotationToolbar({
                           type="button"
                           onClick={() => {
                             if (!isGroupAvailable) return;
-                            if (isOpen) {
+                            if (isEffectivelyOpen) {
                               setOpenKeypointGroup(null);
                               if (canStartKeypointSequence && isSequenceGroup) {
                                 onCancelKeypointSequence();
@@ -1075,11 +1086,11 @@ export default function AnnotationToolbar({
                             }
                           }}
                           disabled={!isGroupAvailable}
-                          aria-pressed={isOpen || isSequenceGroup}
+                          aria-pressed={isEffectivelyOpen || isSequenceGroup}
                           className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col items-center justify-center ${
                             !isGroupAvailable
                               ? 'bg-gray-700/60 text-gray-500 cursor-not-allowed opacity-55'
-                              : isOpen || isSequenceGroup
+                              : isEffectivelyOpen || isSequenceGroup
                                 ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}

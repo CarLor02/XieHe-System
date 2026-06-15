@@ -114,6 +114,7 @@ function createBaseToolbarProps(): AnnotationToolbarProps {
     treatmentAdvice: '',
     automaticToolStatus: {},
     keypointSequenceSession: null,
+    keypointSequenceClosedGroupName: null,
     onSelectTool: jest.fn(),
     onStartKeypointSequence: jest.fn(),
     onCancelKeypointSequence: jest.fn(),
@@ -284,6 +285,30 @@ it('highlights the keypoint group during sequential keypoint placement', () => {
   expect(
     screen.getByRole('button', { name: /^L5 0$/ }).getAttribute('aria-pressed')
   ).toBe('true');
+});
+
+it('unselects a keypoint group after sequential keypoint placement completes', () => {
+  const { rerender } = renderToolbar();
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+  fireEvent.click(screen.getByRole('button', { name: /^L5 0$/ }));
+
+  expect(
+    screen.getByRole('button', { name: /^L5 0$/ }).getAttribute('aria-pressed')
+  ).toBe('true');
+  expect(screen.getByRole('button', { name: 'L5-1' })).toBeTruthy();
+
+  rerender(
+    <AnnotationToolbar
+      {...createBaseToolbarProps()}
+      keypointSequenceClosedGroupName="L5"
+    />
+  );
+
+  expect(
+    screen.getByRole('button', { name: /^L5 0$/ }).getAttribute('aria-pressed')
+  ).toBe('false');
+  expect(screen.queryByRole('button', { name: 'L5-1' })).toBeNull();
 });
 
 it('shows measurement derive mode for lateral annotation', () => {

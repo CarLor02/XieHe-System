@@ -718,6 +718,7 @@ it('adds sequential keypoints with one history entry per point', async () => {
 
   await waitFor(() => {
     expect(latest!.canvasProps.keypointSequenceSession).toBeNull();
+    expect(latest!.toolbarProps.keypointSequenceClosedGroupName).toBe('L5');
   });
 
   expect(beginHistoryActionMock).toHaveBeenCalledTimes(2);

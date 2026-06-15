@@ -50,6 +50,34 @@ import {
   resolveMeasurementKeypointIds,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-selection';
 
+export function getAnnotationCanvasCursorClass({
+  keypointSequenceSession,
+  showVertebraeLayer,
+  isVertebradDragging,
+  selectedTool,
+  hasActiveOrHoveredCorner,
+  fallbackCursorClass,
+}: {
+  keypointSequenceSession: KeypointSequenceSession | null;
+  showVertebraeLayer: boolean;
+  isVertebradDragging: boolean;
+  selectedTool: string;
+  hasActiveOrHoveredCorner: boolean;
+  fallbackCursorClass: string;
+}): string {
+  if (keypointSequenceSession) return 'cursor-crosshair';
+
+  if (
+    (showVertebraeLayer || isVertebradDragging) &&
+    selectedTool === 'hand' &&
+    hasActiveOrHoveredCorner
+  ) {
+    return 'cursor-crosshair';
+  }
+
+  return fallbackCursorClass;
+}
+
 export default function AnnotationCanvas({
   selectedImage,
   measurements,
@@ -643,13 +671,16 @@ export default function AnnotationCanvas({
     <div
       ref={containerRef}
       data-image-canvas
-      className={`relative w-full h-full overflow-hidden ${
-        (showVertebraeLayer || vertebradDrag.isDragging) &&
-        selectedTool === 'hand' &&
-        (effectiveHoveredCorner ?? vertebradDrag.activeCorner)
-          ? 'cursor-crosshair'
-          : getCursorStyle()
-      } ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
+      className={`relative w-full h-full overflow-hidden ${getAnnotationCanvasCursorClass({
+        keypointSequenceSession,
+        showVertebraeLayer,
+        isVertebradDragging: vertebradDrag.isDragging,
+        selectedTool,
+        hasActiveOrHoveredCorner: Boolean(
+          effectiveHoveredCorner ?? vertebradDrag.activeCorner
+        ),
+        fallbackCursorClass: getCursorStyle(),
+      })} ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
       onMouseDown={e => {
         if (keypointSequenceSession) {
           selectMeasurementKeypoints(null);
