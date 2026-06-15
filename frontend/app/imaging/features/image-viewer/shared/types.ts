@@ -31,6 +31,12 @@ export interface Point {
   y: number;
 }
 
+export interface KeypointSequenceSession {
+  groupName: string;
+  keypointIds: string[];
+  currentIndex: number;
+}
+
 export enum AnnotationSource {
   AI = 'ai',
   MANUAL = 'manual',

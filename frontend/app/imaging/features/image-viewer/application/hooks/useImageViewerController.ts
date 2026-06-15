@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@/lib/api';
 import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings';
 import { useAnnotationEngine } from '@/app/imaging/features/image-viewer/features/bindings';
@@ -32,6 +32,7 @@ import {
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import {
   CfhAnnotation,
+  KeypointSequenceSession,
   MeasurementData,
   Point,
   VertebraAnnotation,
@@ -95,6 +96,10 @@ function isDetectionLayerToggleShortcut(event: KeyboardEvent): boolean {
   return event.shiftKey && event.key.toLowerCase() === 'd';
 }
 
+function isEscapeShortcut(event: KeyboardEvent): boolean {
+  return event.key === 'Escape' || event.key === 'Esc';
+}
+
 export function useImageViewerController({
   imageId,
 }: UseImageViewerControllerOptions) {
@@ -146,6 +151,8 @@ export function useImageViewerController({
     isImagePanLocked,
     setIsImagePanLocked,
   } = canvasState;
+  const [keypointSequenceSession, setKeypointSequenceSession] =
+    useState<KeypointSequenceSession | null>(null);
 
   const {
     studyData,
@@ -358,9 +365,20 @@ export function useImageViewerController({
     clearHistory();
   }, [clearHistory, imageId]);
 
+  const handleCancelKeypointSequence = useCallback(() => {
+    setKeypointSequenceSession(null);
+    activateHandMode();
+  }, [activateHandMode]);
+
   useEffect(() => {
     const handleAnnotationHistoryShortcut = (event: KeyboardEvent) => {
       if (isEditableKeyboardTarget(event.target)) return;
+
+      if (isEscapeShortcut(event) && keypointSequenceSession) {
+        event.preventDefault();
+        handleCancelKeypointSequence();
+        return;
+      }
 
       if (isDetectionLayerToggleShortcut(event)) {
         if (!hasVertebraeLayer) return;
@@ -389,8 +407,10 @@ export function useImageViewerController({
   }, [
     canRedoAnnotationHistory,
     canUndoAnnotationHistory,
+    handleCancelKeypointSequence,
     handleToggleVertebraeLayer,
     hasVertebraeLayer,
+    keypointSequenceSession,
     redoAnnotationHistory,
     undoAnnotationHistory,
   ]);
@@ -485,6 +505,50 @@ export function useImageViewerController({
       keypointWorkflow.handleKeypointAdd(keypointId, point);
     },
     [beginHistoryAction, keypointWorkflow]
+  );
+
+  const handleStartKeypointSequence = useCallback(
+    (groupName: string, keypointIds: string[]) => {
+      const pendingKeypointIds = keypointIds.filter(Boolean);
+      if (pendingKeypointIds.length === 0) {
+        setKeypointSequenceSession(null);
+        activateHandMode();
+        return;
+      }
+
+      setClickedPoints([]);
+      activateHandMode();
+      setKeypointSequenceSession({
+        groupName,
+        keypointIds: pendingKeypointIds,
+        currentIndex: 0,
+      });
+    },
+    [activateHandMode, setClickedPoints]
+  );
+
+  const handleSequenceKeypointAdd = useCallback(
+    (point: Point) => {
+      if (!keypointSequenceSession) return;
+      const keypointId =
+        keypointSequenceSession.keypointIds[keypointSequenceSession.currentIndex];
+      if (!keypointId) return;
+
+      handleKeypointAddWithHistory(keypointId, point);
+
+      const nextIndex = keypointSequenceSession.currentIndex + 1;
+      if (nextIndex >= keypointSequenceSession.keypointIds.length) {
+        setKeypointSequenceSession(null);
+        activateHandMode();
+        return;
+      }
+
+      setKeypointSequenceSession({
+        ...keypointSequenceSession,
+        currentIndex: nextIndex,
+      });
+    },
+    [activateHandMode, handleKeypointAddWithHistory, keypointSequenceSession]
   );
 
   const handleMeasurementDeleteWithHistory = useCallback(
@@ -700,6 +764,8 @@ export function useImageViewerController({
       onVertebraePreviewUpdate:
         keypointWorkflow.handleVertebraePreviewUpdate,
       onKeypointAdd: handleKeypointAddWithHistory,
+      keypointSequenceSession,
+      onSequenceKeypointAdd: handleSequenceKeypointAdd,
       onKeypointDelete: handleKeypointDeleteWithHistory,
       onMeasurementWriteback: keypointWorkflow.handleMeasurementWriteback,
       onCobbKeypointsSync: keypointWorkflow.handleCobbKeypointsSync,
@@ -730,7 +796,10 @@ export function useImageViewerController({
       showAdvicePanel,
       treatmentAdvice,
       automaticToolStatus: measurementWorkflow.automaticToolStatus,
+      keypointSequenceSession,
       onSelectTool: standardDistanceActions.handleSelectTool,
+      onStartKeypointSequence: handleStartKeypointSequence,
+      onCancelKeypointSequence: handleCancelKeypointSequence,
       onRestoreAutomaticMeasurement:
         measurementWorkflow.handleRestoreAutomaticMeasurement,
       onCreateAvt: keypointWorkflow.handleCreateAvt,

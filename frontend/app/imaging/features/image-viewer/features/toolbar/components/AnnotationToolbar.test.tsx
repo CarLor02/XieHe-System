@@ -7,7 +7,10 @@ import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/fea
 import {
   AnnotationSource,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import type { Tool } from '@/app/imaging/features/image-viewer/shared/types';
+import type {
+  KeypointSequenceSession,
+  Tool,
+} from '@/app/imaging/features/image-viewer/shared/types';
 
 const tools: Tool[] = [
   {
@@ -110,7 +113,10 @@ function createBaseToolbarProps(): AnnotationToolbarProps {
     showAdvicePanel: false,
     treatmentAdvice: '',
     automaticToolStatus: {},
+    keypointSequenceSession: null,
     onSelectTool: jest.fn(),
+    onStartKeypointSequence: jest.fn(),
+    onCancelKeypointSequence: jest.fn(),
     onRestoreAutomaticMeasurement: jest.fn(),
     onCreateAvt: jest.fn(),
     onCreateVertebraCenter: jest.fn(),
@@ -209,14 +215,75 @@ it('returns to hand mode when clicking the active auxiliary tool again', () => {
 
 it('keeps the keypoint chooser open after selecting a manual keypoint', () => {
   const onSelectTool = jest.fn();
-  renderToolbar({ onSelectTool });
+  const onCancelKeypointSequence = jest.fn();
+  renderToolbar({ onSelectTool, onCancelKeypointSequence });
 
   fireEvent.click(screen.getByRole('button', { name: '关键点' }));
   fireEvent.click(screen.getByRole('button', { name: /^C7 0$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'C7-1' }));
 
+  expect(onCancelKeypointSequence).toHaveBeenCalled();
   expect(onSelectTool).toHaveBeenCalledWith('keypoint:C7-1');
   expect(screen.getByRole('button', { name: 'C7-2' })).toBeTruthy();
+});
+
+it('starts a sequential missing-keypoint session when an incomplete vertebra group is selected', () => {
+  const onStartKeypointSequence = jest.fn();
+  renderToolbar({ onStartKeypointSequence });
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+  fireEvent.click(screen.getByRole('button', { name: /^L5 0$/ }));
+
+  expect(onStartKeypointSequence).toHaveBeenCalledWith('L5', [
+    'L5-1',
+    'L5-2',
+    'L5-3',
+    'L5-4',
+  ]);
+  expect(screen.getByRole('button', { name: 'L5-1' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'L5-4' })).toBeTruthy();
+});
+
+it('starts a sequential keypoint session with only missing keypoints', () => {
+  const onStartKeypointSequence = jest.fn();
+  renderToolbar({
+    keypoints: completeT5Keypoints.slice(0, 2),
+    onStartKeypointSequence,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+  fireEvent.click(screen.getByRole('button', { name: /^T5 2$/ }));
+
+  expect(onStartKeypointSequence).toHaveBeenCalledWith('T5', [
+    'T5-3',
+    'T5-4',
+  ]);
+});
+
+it('does not start sequential placement for non-vertebra keypoint groups', () => {
+  const onStartKeypointSequence = jest.fn();
+  renderToolbar({ onStartKeypointSequence });
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+  fireEvent.click(screen.getByRole('button', { name: /^姿态点 0$/ }));
+
+  expect(onStartKeypointSequence).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'IL' })).toBeTruthy();
+});
+
+it('highlights the keypoint group during sequential keypoint placement', () => {
+  const keypointSequenceSession: KeypointSequenceSession = {
+    groupName: 'L5',
+    keypointIds: ['L5-1', 'L5-2', 'L5-3', 'L5-4'],
+    currentIndex: 1,
+  };
+  renderToolbar({ keypointSequenceSession });
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+
+  expect(
+    screen.getByRole('button', { name: /^L5 0$/ }).getAttribute('aria-pressed')
+  ).toBe('true');
 });
 
 it('shows measurement derive mode for lateral annotation', () => {

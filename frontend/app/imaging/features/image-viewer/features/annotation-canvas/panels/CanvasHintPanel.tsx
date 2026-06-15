@@ -1,4 +1,8 @@
-import { MeasurementData, Tool } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  KeypointSequenceSession,
+  MeasurementData,
+  Tool,
+} from '@/app/imaging/features/image-viewer/shared/types';
 
 interface CanvasHintPanelProps {
   selectedTool: string;
@@ -12,6 +16,7 @@ interface CanvasHintPanelProps {
     toolId: string,
     measurements: { type: string; points: { x: number; y: number }[] }[]
   ) => { points: { x: number; y: number }[]; count: number };
+  keypointSequenceSession?: KeypointSequenceSession | null;
 }
 
 /**
@@ -26,7 +31,13 @@ export default function CanvasHintPanel({
   currentTool,
   measurements,
   getInheritedPoints,
+  keypointSequenceSession = null,
 }: CanvasHintPanelProps) {
+  const currentSequenceKeypoint =
+    keypointSequenceSession?.keypointIds[keypointSequenceSession.currentIndex];
+  const completedSequenceCount = keypointSequenceSession?.currentIndex ?? 0;
+  const sequenceTotal = keypointSequenceSession?.keypointIds.length ?? 0;
+
   return (
     <div className="absolute bottom-4 left-4 flex flex-col gap-2 max-w-md">
       {selectedTool.toLowerCase() === 'cobb' && (
@@ -39,7 +50,16 @@ export default function CanvasHintPanel({
       )}
 
       <div className="bg-black/70 text-white text-xs px-3 py-2 rounded">
-        {selectedTool === 'hand' ? (
+        {keypointSequenceSession && currentSequenceKeypoint ? (
+          <div>
+            <p className="font-medium text-yellow-300">
+              正在补充 {keypointSequenceSession.groupName}：下一点{' '}
+              {currentSequenceKeypoint}，已完成 {completedSequenceCount}/
+              {sequenceTotal}
+            </p>
+            <p className="text-gray-300 mt-1">按 Esc 取消剩余补点</p>
+          </div>
+        ) : selectedTool === 'hand' ? (
           <div>
             <p className="font-medium">
               移动模式{' '}

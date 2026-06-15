@@ -5,6 +5,7 @@ import {
   Point,
   MeasurementData,
   ImageData,
+  KeypointSequenceSession,
   Tool,
   VertebraAnnotation,
   CfhAnnotation,
@@ -96,6 +97,8 @@ export default function AnnotationCanvas({
   onVertebraeUpdate,
   onVertebraePreviewUpdate,
   onKeypointAdd,
+  keypointSequenceSession = null,
+  onSequenceKeypointAdd,
   onKeypointDelete,
   onMeasurementWriteback,
   onCobbKeypointsSync,
@@ -153,6 +156,8 @@ export default function AnnotationCanvas({
   onVertebraeUpdate?: (updated: VertebraAnnotation[]) => void;
   onVertebraePreviewUpdate?: (updated: VertebraAnnotation[]) => void;
   onKeypointAdd?: (keypointId: string, point: Point) => void;
+  keypointSequenceSession?: KeypointSequenceSession | null;
+  onSequenceKeypointAdd?: (point: Point) => void;
   onKeypointDelete?: (keypointId: string) => void;
   /** 测量点拖动后写回 vertebraeLayer（所有用户都可用） */
   onMeasurementWriteback?: (
@@ -646,6 +651,17 @@ export default function AnnotationCanvas({
           : getCursorStyle()
       } ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
       onMouseDown={e => {
+        if (keypointSequenceSession) {
+          selectMeasurementKeypoints(null);
+          const rect = containerRef.current?.getBoundingClientRect();
+          const point = screenToImage(
+            e.clientX - (rect?.left ?? 0),
+            e.clientY - (rect?.top ?? 0)
+          );
+          onSequenceKeypointAdd?.(point);
+          return;
+        }
+
         if (selectedTool.startsWith('keypoint:')) {
           selectMeasurementKeypoints(null);
           const rect = containerRef.current?.getBoundingClientRect();
@@ -876,6 +892,7 @@ export default function AnnotationCanvas({
         currentTool={currentTool}
         measurements={measurements}
         getInheritedPoints={getInheritedPoints}
+        keypointSequenceSession={keypointSequenceSession}
       />
 
       <OverlayLayer

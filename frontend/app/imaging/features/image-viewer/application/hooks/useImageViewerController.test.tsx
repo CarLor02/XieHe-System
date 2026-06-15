@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
 import { expect, it, jest, beforeEach } from '@jest/globals';
 
@@ -7,10 +7,13 @@ const clearHistoryMock = jest.fn();
 const undoHistoryMock = jest.fn();
 const redoHistoryMock = jest.fn();
 const handleMeasurementDeleteMock = jest.fn();
+const handleKeypointAddMock = jest.fn();
 const handleKeypointDeleteMock = jest.fn();
 const setMeasurementsMock = jest.fn();
 const setShowVertebraeLayerMock = jest.fn();
 const handleToggleVertebraeLayerMock = jest.fn();
+const setSelectedToolMock = jest.fn();
+const activateHandModeMock = jest.fn();
 let activeVertebraeLayerMock: Array<Record<string, unknown>> = [];
 let annotationHistoryOptions:
   | {
@@ -69,9 +72,9 @@ jest.mock('@/app/imaging/features/image-viewer/features/bindings', () => ({
 jest.mock('@/app/imaging/features/image-viewer/features/annotation-canvas', () => ({
   useCanvasInteraction: () => ({
     selectedTool: 'hand',
-    setSelectedTool: jest.fn(),
+    setSelectedTool: setSelectedToolMock,
     handleToolChange: jest.fn(),
-    activateHandMode: jest.fn(),
+    activateHandMode: activateHandModeMock,
     clickedPoints: [],
     setClickedPoints: jest.fn(),
     isSettingStandardDistance: false,
@@ -217,7 +220,7 @@ jest.mock('@/app/imaging/features/image-viewer/features/keypoints', () => ({
     clearKeypointState: jest.fn(),
     restoreAiMeasurementIds: jest.fn(),
     getAiMeasurementIdsSnapshot: jest.fn(() => []),
-    handleKeypointAdd: jest.fn(),
+    handleKeypointAdd: handleKeypointAddMock,
     handleKeypointDelete: handleKeypointDeleteMock,
     handleCreateVertebraCenter: jest.fn(),
     handleCreateCobb: jest.fn(),
@@ -262,10 +265,13 @@ beforeEach(() => {
   undoHistoryMock.mockClear();
   redoHistoryMock.mockClear();
   handleMeasurementDeleteMock.mockClear();
+  handleKeypointAddMock.mockClear();
   handleKeypointDeleteMock.mockClear();
   setMeasurementsMock.mockClear();
   setShowVertebraeLayerMock.mockClear();
   handleToggleVertebraeLayerMock.mockClear();
+  setSelectedToolMock.mockClear();
+  activateHandModeMock.mockClear();
   activeVertebraeLayerMock = [];
   annotationHistoryOptions = null;
 });
@@ -672,4 +678,104 @@ it('does not toggle the detection layer from Shift+D inside editable fields', as
   expect(handleToggleVertebraeLayerMock).not.toHaveBeenCalled();
 
   input.remove();
+});
+
+it('adds sequential keypoints with one history entry per point', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.toolbarProps.onStartKeypointSequence('L5', ['L5-1', 'L5-2']);
+  });
+
+  await waitFor(() => {
+    expect(latest!.canvasProps.keypointSequenceSession?.currentIndex).toBe(0);
+  });
+  activateHandModeMock.mockClear();
+
+  act(() => {
+    latest!.canvasProps.onSequenceKeypointAdd({ x: 10, y: 20 });
+  });
+
+  await waitFor(() => {
+    expect(latest!.canvasProps.keypointSequenceSession?.currentIndex).toBe(1);
+  });
+
+  act(() => {
+    latest!.canvasProps.onSequenceKeypointAdd({ x: 30, y: 40 });
+  });
+
+  await waitFor(() => {
+    expect(latest!.canvasProps.keypointSequenceSession).toBeNull();
+  });
+
+  expect(beginHistoryActionMock).toHaveBeenCalledTimes(2);
+  expect(beginHistoryActionMock).toHaveBeenNthCalledWith(1, 'manual-keypoint');
+  expect(beginHistoryActionMock).toHaveBeenNthCalledWith(2, 'manual-keypoint');
+  expect(handleKeypointAddMock).toHaveBeenNthCalledWith(1, 'L5-1', {
+    x: 10,
+    y: 20,
+  });
+  expect(handleKeypointAddMock).toHaveBeenNthCalledWith(2, 'L5-2', {
+    x: 30,
+    y: 40,
+  });
+  expect(activateHandModeMock).toHaveBeenCalledTimes(1);
+});
+
+it('cancels sequential keypoint placement from Escape outside editable fields', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.toolbarProps.onStartKeypointSequence('L5', [
+      'L5-1',
+      'L5-2',
+      'L5-3',
+      'L5-4',
+    ]);
+  });
+
+  await waitFor(() => {
+    expect(latest!.canvasProps.keypointSequenceSession).not.toBeNull();
+  });
+  activateHandModeMock.mockClear();
+
+  const event = new KeyboardEvent('keydown', {
+    key: 'Escape',
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  act(() => {
+    document.dispatchEvent(event);
+  });
+
+  expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  expect(activateHandModeMock).toHaveBeenCalledTimes(1);
+  await waitFor(() => {
+    expect(latest!.canvasProps.keypointSequenceSession).toBeNull();
+  });
 });

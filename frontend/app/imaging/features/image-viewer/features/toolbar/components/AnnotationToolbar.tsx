@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import BindingPanel from '@/app/imaging/features/image-viewer/features/bindings/components/BindingPanel';
 import ReportPanel from '@/app/imaging/features/image-viewer/features/report/components/ReportPanel';
 import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
@@ -18,7 +18,11 @@ import {
   type VertebraCornerOrderMapping,
   type VertebraCornerSequenceNumber,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
-import { MeasurementData, Tool } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  KeypointSequenceSession,
+  MeasurementData,
+  Tool,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import IconMapper from '@/app/imaging/features/image-viewer/features/toolbar/components/icons/IconMapper';
 import BasicModePanel from '@/app/imaging/features/image-viewer/features/toolbar/components/BasicModePanel';
 import {
@@ -95,7 +99,10 @@ interface AnnotationToolbarProps {
   showAdvicePanel: boolean;
   treatmentAdvice: string;
   automaticToolStatus: Record<string, ToolStatus>;
+  keypointSequenceSession: KeypointSequenceSession | null;
   onSelectTool: (toolId: string) => void;
+  onStartKeypointSequence: (groupName: string, keypointIds: string[]) => void;
+  onCancelKeypointSequence: () => void;
   onRestoreAutomaticMeasurement: (toolId: string) => void;
   onCreateAvt: (apexVertebra: string) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
@@ -156,7 +163,10 @@ export default function AnnotationToolbar({
   showAdvicePanel,
   treatmentAdvice,
   automaticToolStatus,
+  keypointSequenceSession,
   onSelectTool,
+  onStartKeypointSequence,
+  onCancelKeypointSequence,
   onRestoreAutomaticMeasurement,
   onCreateAvt,
   onCreateVertebraCenter,
@@ -271,15 +281,32 @@ export default function AnnotationToolbar({
     group => group.id === openKeypointGroup
   );
 
-  const closeToolPopovers = () => {
+  const closeToolPopovers = useCallback(() => {
     setOpenMeasurementTool(null);
     setOpenKeypointGroup(null);
     setToolbarOverlayMessage(null);
     setRectifySequenceByFrom({ ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM });
-  };
+  }, []);
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (!keypointSequenceSession) return;
+      if (event.key !== 'Escape' && event.key !== 'Esc') return;
+
+      event.preventDefault();
+      closeToolPopovers();
+      onCancelKeypointSequence();
+    };
+
+    document.addEventListener('keydown', handleKeydown);
+    return () => {
+      document.removeEventListener('keydown', handleKeydown);
+    };
+  }, [closeToolPopovers, keypointSequenceSession, onCancelKeypointSequence]);
 
   const handleManualToolSelect = (toolId: string) => {
     setOpenMeasurementTool(null);
+    onCancelKeypointSequence();
     if (selectedTool === toolId) {
       onActivateHandMode();
       return;
@@ -290,12 +317,14 @@ export default function AnnotationToolbar({
   const handleBasicModeSelect = (mode: BasicMode) => {
     setCurrentBasicMode(mode);
     closeToolPopovers();
+    onCancelKeypointSequence();
     onActivateHandMode();
   };
 
   const handleToolTabChange = (tab: ToolTab) => {
     setActiveToolTab(tab);
     closeToolPopovers();
+    onCancelKeypointSequence();
   };
 
   const renderAvailabilityBadge = (isAvailable: boolean) => (
@@ -1004,6 +1033,9 @@ export default function AnnotationToolbar({
                     const existingCount = group.keypoints.filter(keypoint =>
                       keypointIds.has(keypoint.id)
                     ).length;
+                    const missingKeypointIds = group.keypoints
+                      .filter(keypoint => !keypointIds.has(keypoint.id))
+                      .map(keypoint => keypoint.id);
                     const isCompleteKeypointGroup =
                       existingCount === group.keypoints.length;
                     const isRectifiableGroup =
@@ -1011,6 +1043,10 @@ export default function AnnotationToolbar({
                     const isGroupAvailable = isRectifyMode
                       ? isRectifiableGroup && isCompleteKeypointGroup
                       : !isCompleteKeypointGroup;
+                    const canStartKeypointSequence =
+                      !isRectifyMode && isRectifiableGroup;
+                    const isSequenceGroup =
+                      keypointSequenceSession?.groupName === group.name;
 
                     return (
                       <div key={group.id}>
@@ -1018,17 +1054,32 @@ export default function AnnotationToolbar({
                           type="button"
                           onClick={() => {
                             if (!isGroupAvailable) return;
-                            setOpenKeypointGroup(isOpen ? null : group.id);
+                            if (isOpen) {
+                              setOpenKeypointGroup(null);
+                              if (canStartKeypointSequence && isSequenceGroup) {
+                                onCancelKeypointSequence();
+                              }
+                              return;
+                            }
+
+                            setOpenKeypointGroup(group.id);
                             setRectifySequenceByFrom({
                               ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM,
                             });
                             setOpenMeasurementTool(null);
+                            if (canStartKeypointSequence) {
+                              onStartKeypointSequence(
+                                group.name,
+                                missingKeypointIds
+                              );
+                            }
                           }}
                           disabled={!isGroupAvailable}
+                          aria-pressed={isOpen || isSequenceGroup}
                           className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col items-center justify-center ${
                             !isGroupAvailable
                               ? 'bg-gray-700/60 text-gray-500 cursor-not-allowed opacity-55'
-                              : isOpen
+                              : isOpen || isSequenceGroup
                                 ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
@@ -1134,6 +1185,7 @@ export default function AnnotationToolbar({
                                 type="button"
                                 onClick={() => {
                                   if (!exists) {
+                                    onCancelKeypointSequence();
                                     onSelectTool(`keypoint:${keypoint.id}`);
                                   }
                                 }}
