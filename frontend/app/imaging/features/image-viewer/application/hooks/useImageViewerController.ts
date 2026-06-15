@@ -53,12 +53,42 @@ interface AnnotationHistorySnapshot {
   aiMeasurementIds: string[];
 }
 
+type AnnotationHistoryShortcutAction = 'undo' | 'redo';
+
+const ANNOTATION_HISTORY_SHORTCUTS: Record<
+  string,
+  AnnotationHistoryShortcutAction
+> = {
+  z: 'undo',
+  y: 'redo',
+};
+
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
 
   if (target.isContentEditable) return true;
 
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
+
+function isMacKeyboardPlatform(): boolean {
+  if (typeof navigator === 'undefined') return false;
+
+  const platform = navigator.platform || '';
+  const userAgent = navigator.userAgent || '';
+
+  return /Mac/i.test(platform) || /Macintosh|Mac OS X/i.test(userAgent);
+}
+
+function getAnnotationHistoryShortcutAction(
+  event: KeyboardEvent
+): AnnotationHistoryShortcutAction | null {
+  const isMac = isMacKeyboardPlatform();
+  const hasPlatformModifier = isMac ? event.metaKey : event.ctrlKey;
+
+  if (!hasPlatformModifier) return null;
+
+  return ANNOTATION_HISTORY_SHORTCUTS[event.key.toLowerCase()] ?? null;
 }
 
 export function useImageViewerController({
@@ -324,16 +354,16 @@ export function useImageViewerController({
 
   useEffect(() => {
     const handleAnnotationHistoryShortcut = (event: KeyboardEvent) => {
-      if (!event.ctrlKey || isEditableKeyboardTarget(event.target)) return;
+      if (isEditableKeyboardTarget(event.target)) return;
 
-      const key = event.key.toLowerCase();
-      if (key === 'z' && canUndoAnnotationHistory) {
+      const action = getAnnotationHistoryShortcutAction(event);
+      if (action === 'undo' && canUndoAnnotationHistory) {
         event.preventDefault();
         undoAnnotationHistory();
         return;
       }
 
-      if (key === 'y' && canRedoAnnotationHistory) {
+      if (action === 'redo' && canRedoAnnotationHistory) {
         event.preventDefault();
         redoAnnotationHistory();
       }

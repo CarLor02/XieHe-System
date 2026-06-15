@@ -251,6 +251,10 @@ function ControllerHarness({
 }
 
 beforeEach(() => {
+  Object.defineProperty(window.navigator, 'platform', {
+    configurable: true,
+    value: 'Win32',
+  });
   beginHistoryActionMock.mockClear();
   clearHistoryMock.mockClear();
   undoHistoryMock.mockClear();
@@ -454,6 +458,105 @@ it('redoes annotation history from Ctrl+Y', async () => {
   expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
   expect(redoHistoryMock).toHaveBeenCalledTimes(1);
   expect(undoHistoryMock).not.toHaveBeenCalled();
+});
+
+it('undoes annotation history from Command+Z on Mac', async () => {
+  Object.defineProperty(window.navigator, 'platform', {
+    configurable: true,
+    value: 'MacIntel',
+  });
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const event = new KeyboardEvent('keydown', {
+    key: 'z',
+    metaKey: true,
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  document.dispatchEvent(event);
+
+  expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  expect(undoHistoryMock).toHaveBeenCalledTimes(1);
+  expect(redoHistoryMock).not.toHaveBeenCalled();
+});
+
+it('redoes annotation history from Command+Y on Mac', async () => {
+  Object.defineProperty(window.navigator, 'platform', {
+    configurable: true,
+    value: 'MacIntel',
+  });
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const event = new KeyboardEvent('keydown', {
+    key: 'y',
+    metaKey: true,
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  document.dispatchEvent(event);
+
+  expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  expect(redoHistoryMock).toHaveBeenCalledTimes(1);
+  expect(undoHistoryMock).not.toHaveBeenCalled();
+});
+
+it('does not use Ctrl+Z for annotation history on Mac', async () => {
+  Object.defineProperty(window.navigator, 'platform', {
+    configurable: true,
+    value: 'MacIntel',
+  });
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const event = new KeyboardEvent('keydown', {
+    key: 'z',
+    ctrlKey: true,
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  document.dispatchEvent(event);
+
+  expect(preventDefaultSpy).not.toHaveBeenCalled();
+  expect(undoHistoryMock).not.toHaveBeenCalled();
+  expect(redoHistoryMock).not.toHaveBeenCalled();
 });
 
 it('does not use annotation history shortcuts inside editable fields', async () => {
