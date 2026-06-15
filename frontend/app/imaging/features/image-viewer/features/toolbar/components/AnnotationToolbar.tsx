@@ -74,6 +74,13 @@ function isRectifiableKeypointGroup(group: {
   return group.keypoints.length === VERTEBRA_CORNER_SEQUENCE_NUMBERS.length;
 }
 
+function canStartSequentialKeypointGroup(group: {
+  id: string;
+  keypoints: { id: string }[];
+}): boolean {
+  return group.keypoints.length > 1 && group.id !== 'pose' && group.id !== 'CFH';
+}
+
 interface AnnotationToolbarProps {
   examType: string;
   tools: Tool[];
@@ -1050,7 +1057,7 @@ export default function AnnotationToolbar({
                       ? isRectifiableGroup && isCompleteKeypointGroup
                       : !isCompleteKeypointGroup;
                     const canStartKeypointSequence =
-                      !isRectifyMode && isRectifiableGroup;
+                      !isRectifyMode && canStartSequentialKeypointGroup(group);
                     const isSequenceGroup =
                       keypointSequenceSession?.groupName === group.name;
                     const isClosedSequenceGroup =

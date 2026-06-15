@@ -272,6 +272,38 @@ it('does not start sequential placement for non-vertebra keypoint groups', () =>
   expect(screen.getByRole('button', { name: 'IL' })).toBeTruthy();
 });
 
+it('starts a sequential missing-keypoint session for lateral S1', () => {
+  const onStartKeypointSequence = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    onStartKeypointSequence,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+  fireEvent.click(screen.getByRole('button', { name: /^S1 0$/ }));
+
+  expect(onStartKeypointSequence).toHaveBeenCalledWith('S1', [
+    'S1-1',
+    'S1-2',
+  ]);
+  expect(screen.getByRole('button', { name: 'S1-1' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'S1-2' })).toBeTruthy();
+});
+
+it('does not start sequential placement for lateral CFH', () => {
+  const onStartKeypointSequence = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    onStartKeypointSequence,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+  fireEvent.click(screen.getByRole('button', { name: /^CFH 0$/ }));
+
+  expect(onStartKeypointSequence).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'CFH' })).toBeTruthy();
+});
+
 it('highlights the keypoint group during sequential keypoint placement', () => {
   const keypointSequenceSession: KeypointSequenceSession = {
     groupName: 'L5',
