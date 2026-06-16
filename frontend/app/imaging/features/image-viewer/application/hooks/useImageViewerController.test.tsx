@@ -14,6 +14,7 @@ const setShowVertebraeLayerMock = jest.fn();
 const handleToggleVertebraeLayerMock = jest.fn();
 const setSelectedToolMock = jest.fn();
 const activateHandModeMock = jest.fn();
+const handleApplyVertebraLabelOffsetMock = jest.fn();
 let activeVertebraeLayerMock: Array<Record<string, unknown>> = [];
 let annotationHistoryOptions:
   | {
@@ -225,6 +226,7 @@ jest.mock('@/app/imaging/features/image-viewer/features/keypoints', () => ({
     handleCreateVertebraCenter: jest.fn(),
     handleCreateCobb: jest.fn(),
     handleRectifyVertebraCornerOrder: jest.fn(),
+    handleApplyVertebraLabelOffset: handleApplyVertebraLabelOffsetMock,
     handleCreateTts: jest.fn(),
     handleCreateAvt: jest.fn(),
     handleVertebraeUpdate: jest.fn(),
@@ -272,6 +274,7 @@ beforeEach(() => {
   handleToggleVertebraeLayerMock.mockClear();
   setSelectedToolMock.mockClear();
   activateHandModeMock.mockClear();
+  handleApplyVertebraLabelOffsetMock.mockClear();
   activeVertebraeLayerMock = [];
   annotationHistoryOptions = null;
 });
@@ -374,6 +377,35 @@ it('starts annotation history before deleting a keypoint from the results list',
 
   expect(beginHistoryActionMock).toHaveBeenCalledWith('keypoint-delete');
   expect(handleKeypointDeleteMock).toHaveBeenCalledWith('T1-1');
+});
+
+it('starts annotation history before applying vertebra label offset rectification', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const options = {
+    startVertebra: 'T1',
+    endVertebra: 'T3',
+    direction: 'down' as const,
+    offset: 1,
+  };
+  latest!.toolbarProps.onApplyVertebraLabelOffset(options);
+
+  expect(beginHistoryActionMock).toHaveBeenCalledWith(
+    'vertebra-label-offset-rectify'
+  );
+  expect(handleApplyVertebraLabelOffsetMock).toHaveBeenCalledWith(options);
 });
 
 it('does not include detection-layer visibility in annotation history', async () => {

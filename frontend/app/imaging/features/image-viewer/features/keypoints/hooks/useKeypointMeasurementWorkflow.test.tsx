@@ -323,3 +323,68 @@ it('does not create AP Cobb measurements from ordinary keypoint updates', async 
 
   expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
 });
+
+it('shifts keypoints and measurement vertebra fields together', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.workflow.setKeypoints([
+      apKeypoint('T1-1', 10, 20),
+      apKeypoint('T2-1', 30, 40),
+    ]);
+    latest!.setMeasurements([
+      {
+        id: 'manual-measurement',
+        type: 'manual-measurement',
+        value: '0.00°',
+        points: [],
+        upperVertebra: 'T1',
+        lowerVertebra: 'T2',
+        apexVertebra: 'T1',
+      },
+    ]);
+  });
+
+  await waitFor(() => {
+    expect(latest!.workflow.keypoints).toHaveLength(2);
+    expect(latest!.measurements[0]?.upperVertebra).toBe('T1');
+  });
+
+  act(() => {
+    latest!.workflow.handleApplyVertebraLabelOffset({
+      startVertebra: 'T1',
+      endVertebra: 'T2',
+      direction: 'down',
+      offset: 1,
+    });
+  });
+
+  await waitFor(() => {
+    const byId = new Map(
+      latest!.workflow.keypoints.map(keypoint => [keypoint.id, keypoint])
+    );
+    expect(byId.get('T2-1')?.point).toEqual({ x: 10, y: 20 });
+    expect(byId.get('T2-1')?.source).toBe(AnnotationSource.MANUAL);
+    expect(byId.get('T3-1')?.point).toEqual({ x: 30, y: 40 });
+    expect(byId.has('T1-1')).toBe(false);
+    expect(latest!.measurements[0]).toEqual(
+      expect.objectContaining({
+        upperVertebra: 'T2',
+        lowerVertebra: 'T3',
+        apexVertebra: 'T2',
+      })
+    );
+  });
+});

@@ -607,6 +607,18 @@ export function useImageViewerController({
     [beginHistoryAction, keypointWorkflow]
   );
 
+  const handleApplyVertebraLabelOffsetWithHistory = useCallback(
+    (
+      options: Parameters<
+        typeof keypointWorkflow.handleApplyVertebraLabelOffset
+      >[0]
+    ) => {
+      beginHistoryAction('vertebra-label-offset-rectify');
+      keypointWorkflow.handleApplyVertebraLabelOffset(options);
+    },
+    [beginHistoryAction, keypointWorkflow]
+  );
+
   const handleCreateCobbWithHistory = useCallback(
     (upperVertebra: string, lowerVertebra: string) => {
       beginHistoryAction('measurement-derive-cobb');
@@ -821,6 +833,7 @@ export function useImageViewerController({
       onCreateCobb: handleCreateCobbWithHistory,
       onRectifyVertebraCornerOrder:
         handleRectifyVertebraCornerOrderWithHistory,
+      onApplyVertebraLabelOffset: handleApplyVertebraLabelOffsetWithHistory,
       onActivateHandMode: activateHandMode,
       onToggleImagePanLocked: handleToggleImagePanLocked,
       isImagePanLocked,

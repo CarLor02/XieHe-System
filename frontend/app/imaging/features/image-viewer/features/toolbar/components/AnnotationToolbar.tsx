@@ -14,7 +14,10 @@ import {
   hasKeypoint,
   isAnteriorExamType,
   isLateralExamType,
+  shiftVertebraLabels,
   type KeypointAnnotation,
+  type VertebraLabelOffsetDirection,
+  type VertebraLabelOffsetOptions,
   type VertebraCornerOrderMapping,
   type VertebraCornerSequenceNumber,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
@@ -38,6 +41,7 @@ import ToolbarToolPanel, {
 import { hasCobbMeasurementForEndpoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
 import {
   getCompleteMeasurementDeriveEndpointGroups,
+  getMeasurementDeriveVertebraOrder,
   getLateralNamedCobbMeasurementRuleByEndpoints,
   isValidMeasurementDeriveEndpointOrder,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
@@ -119,6 +123,9 @@ interface AnnotationToolbarProps {
     vertebra: string,
     mapping: VertebraCornerOrderMapping[]
   ) => void;
+  onApplyVertebraLabelOffset: (
+    options: Omit<VertebraLabelOffsetOptions, 'examType'>
+  ) => void;
   onActivateHandMode: () => void;
   onToggleImagePanLocked: () => void;
   isImagePanLocked: boolean;
@@ -181,6 +188,7 @@ export default function AnnotationToolbar({
   onCreateVertebraCenter,
   onCreateCobb,
   onRectifyVertebraCornerOrder,
+  onApplyVertebraLabelOffset,
   onActivateHandMode,
   onToggleImagePanLocked,
   isImagePanLocked,
@@ -222,6 +230,11 @@ export default function AnnotationToolbar({
   const [rectifySequenceByFrom, setRectifySequenceByFrom] = useState<
     Record<VertebraCornerSequenceNumber, VertebraCornerSequenceNumber>
   >(DEFAULT_RECTIFY_SEQUENCE_BY_FROM);
+  const [offsetStartVertebra, setOffsetStartVertebra] = useState('');
+  const [offsetEndVertebra, setOffsetEndVertebra] = useState('');
+  const [offsetDirection, setOffsetDirection] =
+    useState<VertebraLabelOffsetDirection>('up');
+  const [offsetValue, setOffsetValue] = useState('1');
 
   const isAnteriorView = isAnteriorExamType(examType);
   const isLateralView = isLateralExamType(examType);
@@ -283,9 +296,20 @@ export default function AnnotationToolbar({
   const effectiveToolTab = getEffectiveToolTab(effectiveBasicMode, activeToolTab);
   const canShowAuxiliaryTools = shouldShowAuxiliaryTools(effectiveBasicMode);
   const isRectifyMode = effectiveBasicMode === BasicMode.VertebraCornerRectify;
+  const isVertebraInnerRectifyTab =
+    isRectifyMode && effectiveToolTab === 'vertebra-inner-rectify';
+  const isVertebraLabelOffsetTab =
+    isRectifyMode && effectiveToolTab === 'vertebra-label-offset';
   const visibleKeypointGroups = isRectifyMode
     ? keypointGroups.filter(isRectifiableKeypointGroup)
     : keypointGroups;
+  const vertebraOffsetOptions = keypointGroups
+    .filter(group => getMeasurementDeriveVertebraOrder(group.name) !== null)
+    .sort(
+      (left, right) =>
+        getMeasurementDeriveVertebraOrder(left.name)! -
+        getMeasurementDeriveVertebraOrder(right.name)!
+    );
   const selectedKeypointGroup = visibleKeypointGroups.find(group => {
     if (group.id !== openKeypointGroup) return false;
     return !(
@@ -299,6 +323,10 @@ export default function AnnotationToolbar({
     setOpenKeypointGroup(null);
     setToolbarOverlayMessage(null);
     setRectifySequenceByFrom({ ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM });
+    setOffsetStartVertebra('');
+    setOffsetEndVertebra('');
+    setOffsetDirection('up');
+    setOffsetValue('1');
   }, []);
 
   useEffect(() => {
@@ -415,6 +443,53 @@ export default function AnnotationToolbar({
     onRectifyVertebraCornerOrder(selectedKeypointGroup.name, mapping);
     setOpenKeypointGroup(null);
     setRectifySequenceByFrom({ ...DEFAULT_RECTIFY_SEQUENCE_BY_FROM });
+  };
+
+  const getVertebraLabelOffsetFailureMessage = (
+    result: Exclude<ReturnType<typeof shiftVertebraLabels>, { ok: true }>
+  ): string => {
+    if (result.reason === 'invalid-offset') return '请输入有效偏移量';
+    if (result.reason === 'invalid-range') {
+      return '起始椎体不应该比结束椎体更靠下!';
+    }
+    if (result.reason === 'out-of-range') {
+      return `偏移后椎体超出可用范围: ${
+        result.targetVertebraLabels?.join(',') ?? ''
+      }`;
+    }
+    return `偏移后关键点不存在: ${
+      result.targetKeypointIds?.join(',') ?? ''
+    }`;
+  };
+
+  const handleApplyVertebraLabelOffset = () => {
+    const missingLabels = [
+      !offsetStartVertebra ? '起始椎体' : null,
+      !offsetEndVertebra ? '结束椎体' : null,
+    ].filter((label): label is string => Boolean(label));
+    if (missingLabels.length > 0) {
+      setToolbarOverlayMessage(`请选择${missingLabels.join('、')}`);
+      return;
+    }
+
+    const parsedOffset = Number(offsetValue);
+    const options = {
+      startVertebra: offsetStartVertebra,
+      endVertebra: offsetEndVertebra,
+      direction: offsetDirection,
+      offset: parsedOffset,
+    };
+    const preview = shiftVertebraLabels(keypoints, {
+      ...options,
+      examType,
+    });
+    if (!preview.ok) {
+      setToolbarOverlayMessage(getVertebraLabelOffsetFailureMessage(preview));
+      return;
+    }
+
+    onApplyVertebraLabelOffset(options);
+    setToolbarOverlayMessage(null);
   };
 
   const openCobbDerivePanel = (isOpen: boolean) => {
@@ -1038,7 +1113,7 @@ export default function AnnotationToolbar({
               </div>
             )}
 
-            {effectiveToolTab === 'keypoint' && (
+            {(effectiveToolTab === 'keypoint' || isVertebraInnerRectifyTab) && (
               <div className="relative">
                 <div className="flex flex-wrap gap-2">
                   {visibleKeypointGroups.map(group => {
@@ -1225,6 +1300,99 @@ export default function AnnotationToolbar({
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {isVertebraLabelOffsetTab && (
+              <div className="relative z-40 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                <div className="text-xs text-gray-300 mb-3">
+                  椎体序号偏移纠正
+                </div>
+                <div className="space-y-3">
+                  <label className="grid grid-cols-[4rem_1fr] items-center gap-2 text-xs text-gray-300">
+                    <span>起始椎体</span>
+                    <select
+                      aria-label="起始椎体"
+                      value={offsetStartVertebra}
+                      onChange={event =>
+                        setOffsetStartVertebra(event.target.value)
+                      }
+                      className="h-8 rounded bg-gray-800 border border-gray-600 px-2 text-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                    >
+                      <option value="">请选择椎体</option>
+                      {vertebraOffsetOptions.map(group => (
+                        <option key={group.name} value={group.name}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid grid-cols-[4rem_1fr] items-center gap-2 text-xs text-gray-300">
+                    <span>结束椎体</span>
+                    <select
+                      aria-label="结束椎体"
+                      value={offsetEndVertebra}
+                      onChange={event => setOffsetEndVertebra(event.target.value)}
+                      className="h-8 rounded bg-gray-800 border border-gray-600 px-2 text-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                    >
+                      <option value="">请选择椎体</option>
+                      {vertebraOffsetOptions.map(group => (
+                        <option key={group.name} value={group.name}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-[4rem_1fr] items-center gap-2 text-xs text-gray-300">
+                    <span>偏移</span>
+                    <div className="grid grid-cols-[minmax(0,1fr)_5rem] gap-2">
+                      <select
+                        aria-label="偏移方向"
+                        value={offsetDirection}
+                        onChange={event =>
+                          setOffsetDirection(
+                            event.target.value as VertebraLabelOffsetDirection
+                          )
+                        }
+                        className="h-8 rounded bg-gray-800 border border-gray-600 px-2 text-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                      >
+                        <option value="up">上移</option>
+                        <option value="down">下移</option>
+                      </select>
+                      <input
+                        aria-label="偏移量"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={offsetValue}
+                        onChange={event => setOffsetValue(event.target.value)}
+                        placeholder="例如: 1"
+                        className="h-8 rounded bg-gray-800 border border-gray-600 px-2 text-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOffsetStartVertebra('');
+                      setOffsetEndVertebra('');
+                      setOffsetDirection('up');
+                      setOffsetValue('1');
+                    }}
+                    className="h-8 rounded bg-gray-700 px-3 text-xs text-gray-300 hover:bg-gray-600"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyVertebraLabelOffset}
+                    className="h-8 rounded bg-blue-600 px-3 text-xs text-white hover:bg-blue-500"
+                  >
+                    应用纠正
+                  </button>
+                </div>
               </div>
             )}
           </ToolbarToolPanel>

@@ -145,6 +145,7 @@ function createBaseToolbarProps(): AnnotationToolbarProps {
     onChangeTreatmentAdvice: jest.fn(),
     onCopyReport: jest.fn(),
     onRectifyVertebraCornerOrder: jest.fn(),
+    onApplyVertebraLabelOffset: jest.fn(),
   };
 }
 
@@ -358,10 +359,51 @@ it('shows only keypoints when the vertebra corner rectify mode is selected', () 
 
   expect(props.onActivateHandMode).toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: '测量工具' })).toBeNull();
-  expect(screen.getByRole('button', { name: '关键点' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: '椎体内纠正' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: '椎体序号偏移纠正' })).toBeTruthy();
   expect(screen.queryByText('测量标注')).toBeNull();
   expect(screen.queryByText('辅助图形')).toBeNull();
   expect(screen.getByText('C7')).toBeTruthy();
+});
+
+it('validates required vertebra selections before applying label offset rectification', () => {
+  const onApplyVertebraLabelOffset = jest.fn();
+  renderToolbar({ onApplyVertebraLabelOffset });
+
+  fireEvent.click(screen.getByRole('button', { name: '椎体点位纠正' }));
+  fireEvent.click(screen.getByRole('button', { name: '椎体序号偏移纠正' }));
+  fireEvent.click(screen.getByRole('button', { name: '应用纠正' }));
+
+  expect(screen.getByText('请选择起始椎体、结束椎体')).toBeTruthy();
+  expect(onApplyVertebraLabelOffset).not.toHaveBeenCalled();
+});
+
+it('applies vertebra label offset rectification with selected range and offset', () => {
+  const onApplyVertebraLabelOffset = jest.fn();
+  renderToolbar({ onApplyVertebraLabelOffset });
+
+  fireEvent.click(screen.getByRole('button', { name: '椎体点位纠正' }));
+  fireEvent.click(screen.getByRole('button', { name: '椎体序号偏移纠正' }));
+  fireEvent.change(screen.getByLabelText('起始椎体'), {
+    target: { value: 'T1' },
+  });
+  fireEvent.change(screen.getByLabelText('结束椎体'), {
+    target: { value: 'T3' },
+  });
+  fireEvent.change(screen.getByLabelText('偏移方向'), {
+    target: { value: 'down' },
+  });
+  fireEvent.change(screen.getByLabelText('偏移量'), {
+    target: { value: '2' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '应用纠正' }));
+
+  expect(onApplyVertebraLabelOffset).toHaveBeenCalledWith({
+    startVertebra: 'T1',
+    endVertebra: 'T3',
+    direction: 'down',
+    offset: 2,
+  });
 });
 
 it('shows only Cobb without auxiliary shapes in anterior measurement derive mode', () => {

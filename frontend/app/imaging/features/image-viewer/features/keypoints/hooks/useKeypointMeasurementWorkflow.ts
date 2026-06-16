@@ -41,6 +41,9 @@ import {
   keypointsToPersistedLayer,
   markMovedKeypointsManual,
   rectifyVertebraCornerOrder,
+  shiftMeasurementVertebraLabels,
+  shiftVertebraLabels,
+  type VertebraLabelOffsetOptions,
   type VertebraCornerOrderMapping,
   upsertKeypoint,
   vertebraeLayerToKeypoints,
@@ -379,6 +382,42 @@ export function useKeypointMeasurementWorkflow({
     [applyKeypoints, isKeypointExam, keypoints]
   );
 
+  const handleApplyVertebraLabelOffset = useCallback(
+    (options: Omit<VertebraLabelOffsetOptions, 'examType'>) => {
+      if (!isKeypointExam) return;
+
+      const result = shiftVertebraLabels(keypoints, {
+        ...options,
+        examType,
+      });
+      if (!result.ok) {
+        return;
+      }
+
+      const nextKeypoints = result.keypoints;
+      setKeypoints(nextKeypoints);
+      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+      if (isLateralView) {
+        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+      }
+      setMeasurements(previous =>
+        recalculateExistingMeasurements(
+          shiftMeasurementVertebraLabels(previous, result.vertebraLabelMap),
+          nextKeypoints
+        )
+      );
+      setShowVertebraeLayer(true);
+    },
+    [
+      examType,
+      isKeypointExam,
+      isLateralView,
+      keypoints,
+      recalculateExistingMeasurements,
+      setMeasurements,
+    ]
+  );
+
   const handleCreateTts = useCallback(
     (upperVertebra: string, lowerVertebra: string) => {
       if (!standardDistance) {
@@ -704,6 +743,7 @@ export function useKeypointMeasurementWorkflow({
     handleCreateVertebraCenter,
     handleCreateCobb,
     handleRectifyVertebraCornerOrder,
+    handleApplyVertebraLabelOffset,
     handleCreateTts,
     handleCreateAvt,
     handleVertebraeUpdate,
