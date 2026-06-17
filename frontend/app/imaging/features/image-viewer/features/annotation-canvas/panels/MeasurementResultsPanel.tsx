@@ -15,7 +15,10 @@ import {
   isLateralExamType,
   KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
-import { canSyncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
+import {
+  canSyncCobbMeasurementToKeypoints,
+  hasSameCobbEndpointVertebrae,
+} from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
 import {
   getLateralNamedCobbMeasurementRuleByEndpoints,
   getMeasurementDeriveVertebraOrder,
@@ -401,6 +404,9 @@ export default function MeasurementResultsPanel({
     const canSync =
       Boolean(onCobbKeypointsSync) &&
       canSyncCobbMeasurementToKeypoints(measurement);
+    const disabledTitle = hasSameCobbEndpointVertebrae(measurement)
+      ? 'Cobb 上端椎和下端椎不能相同'
+      : '填写 Cobb 上下端椎后可同步检测层';
     return (
       <button
         type="button"
@@ -419,7 +425,7 @@ export default function MeasurementResultsPanel({
         title={
           canSync
             ? '同步检测层'
-            : '填写 Cobb 上下端椎后可同步检测层'
+            : disabledTitle
         }
       >
         <span

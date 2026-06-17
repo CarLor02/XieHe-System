@@ -13,9 +13,27 @@ import {
   getLateralNamedCobbMeasurementRuleByEndpoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 
-function hasCompletedCobbEndpoints(measurement: MeasurementData): boolean {
+function normalizeCobbEndpoint(value: string | null | undefined): string {
+  return value?.trim().toUpperCase() ?? '';
+}
+
+export function hasSameCobbEndpointVertebrae(
+  measurement: MeasurementData
+): boolean {
+  const upperVertebra = normalizeCobbEndpoint(measurement.upperVertebra);
+  const lowerVertebra = normalizeCobbEndpoint(measurement.lowerVertebra);
   return Boolean(
-    measurement.upperVertebra?.trim() && measurement.lowerVertebra?.trim()
+    upperVertebra && lowerVertebra && upperVertebra === lowerVertebra
+  );
+}
+
+function hasCompletedDistinctCobbEndpoints(
+  measurement: MeasurementData
+): boolean {
+  const upperVertebra = normalizeCobbEndpoint(measurement.upperVertebra);
+  const lowerVertebra = normalizeCobbEndpoint(measurement.lowerVertebra);
+  return Boolean(
+    upperVertebra && lowerVertebra && upperVertebra !== lowerVertebra
   );
 }
 
@@ -24,7 +42,7 @@ export function canSyncCobbMeasurementToKeypoints(
 ): boolean {
   return (
     /^(?:lateral-)?cobb\d*$/i.test(getAnnotationTypeId(measurement.type)) &&
-    hasCompletedCobbEndpoints(measurement) &&
+    hasCompletedDistinctCobbEndpoints(measurement) &&
     measurement.points.length >= 4
   );
 }
@@ -36,8 +54,8 @@ export function syncCobbMeasurementToKeypoints(
 ): KeypointAnnotation[] | null {
   if (!canSyncCobbMeasurementToKeypoints(measurement)) return null;
 
-  const upperVertebra = measurement.upperVertebra!.trim().toUpperCase();
-  const lowerVertebra = measurement.lowerVertebra!.trim().toUpperCase();
+  const upperVertebra = normalizeCobbEndpoint(measurement.upperVertebra);
+  const lowerVertebra = normalizeCobbEndpoint(measurement.lowerVertebra);
   const hasExplicitExamType =
     typeof examType === 'string' && examType.trim().length > 0;
   const shouldInferLateralEndpointRules =

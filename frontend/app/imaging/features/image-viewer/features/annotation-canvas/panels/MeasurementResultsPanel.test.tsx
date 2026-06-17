@@ -154,6 +154,35 @@ it('shows a disabled Cobb sync button until both endpoint vertebrae are filled',
   ).toBe(true);
 });
 
+it('disables Cobb sync when endpoint vertebrae are the same', () => {
+  const onCobbKeypointsSync = jest.fn();
+  renderPanel(
+    [
+      {
+        id: 'cobb-1',
+        type: 'cobb1',
+        value: '18.20°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'T5',
+        lowerVertebra: 'T5',
+      },
+    ],
+    onCobbKeypointsSync
+  );
+
+  const syncButton = screen.getByRole('button', { name: '同步检测层' });
+  expect((syncButton as HTMLButtonElement).disabled).toBe(true);
+
+  fireEvent.click(syncButton);
+
+  expect(onCobbKeypointsSync).not.toHaveBeenCalled();
+});
+
 it('selects Cobb endpoints from current exam vertebra options instead of free text input', () => {
   const onMeasurementUpdate = jest.fn();
   renderPanel(

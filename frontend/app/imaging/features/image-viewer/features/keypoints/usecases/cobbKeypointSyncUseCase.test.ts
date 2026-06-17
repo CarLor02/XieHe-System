@@ -1,6 +1,9 @@
 import { expect, it } from '@jest/globals';
 
-import { syncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
+import {
+  canSyncCobbMeasurementToKeypoints,
+  syncCobbMeasurementToKeypoints,
+} from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
 import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
   MeasurementData,
@@ -202,5 +205,19 @@ it('does not sync Cobb measurements without completed endpoint vertebrae', () =>
     lowerVertebra: null,
   };
 
+  expect(syncCobbMeasurementToKeypoints([], measurement)).toBeNull();
+});
+
+it('does not sync Cobb measurements whose endpoint vertebrae are the same', () => {
+  const measurement: MeasurementData = {
+    id: 'cobb-2',
+    type: 'cobb2',
+    value: '18.00°',
+    points,
+    upperVertebra: 'T5',
+    lowerVertebra: 't5',
+  };
+
+  expect(canSyncCobbMeasurementToKeypoints(measurement)).toBe(false);
   expect(syncCobbMeasurementToKeypoints([], measurement)).toBeNull();
 });
