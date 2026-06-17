@@ -31,6 +31,10 @@ function isNumberedCobbMeasurement(type: string): boolean {
   return /^(?:lateral-)?cobb\d*$/i.test(type);
 }
 
+function normalizeEndpointValue(value: string | null | undefined): string {
+  return value?.trim().toUpperCase() ?? '';
+}
+
 interface MeasurementResultsPanelProps {
   examType: string;
   showResults: boolean;
@@ -187,16 +191,23 @@ export default function MeasurementResultsPanel({
       return;
     }
 
-    if (isLateralExamType(examType)) {
-      const nextUpper =
-        field === 'upperVertebra'
-          ? vertebra
-          : (measurement.upperVertebra?.trim() ?? '');
-      const nextLower =
-        field === 'lowerVertebra'
-          ? vertebra
-          : (measurement.lowerVertebra?.trim() ?? '');
+    const nextUpper =
+      field === 'upperVertebra'
+        ? vertebra
+        : (measurement.upperVertebra?.trim() ?? '');
+    const nextLower =
+      field === 'lowerVertebra'
+        ? vertebra
+        : (measurement.lowerVertebra?.trim() ?? '');
 
+    if (
+      normalizeEndpointValue(nextUpper) &&
+      normalizeEndpointValue(nextUpper) === normalizeEndpointValue(nextLower)
+    ) {
+      return;
+    }
+
+    if (isLateralExamType(examType)) {
       if (nextUpper && nextLower) {
         const namedLateralCobbRule =
           getLateralNamedCobbMeasurementRuleByEndpoints(
@@ -457,6 +468,16 @@ export default function MeasurementResultsPanel({
     editingCobbEndpoint && editingCobbEndpointMeasurement
       ? (editingCobbEndpointMeasurement[editingCobbEndpoint.field]?.trim() ?? '')
       : '';
+  const editingCobbOppositeEndpointValue =
+    editingCobbEndpoint && editingCobbEndpointMeasurement
+      ? normalizeEndpointValue(
+          editingCobbEndpoint.field === 'upperVertebra'
+            ? editingCobbEndpointMeasurement.lowerVertebra
+            : editingCobbEndpointMeasurement.upperVertebra
+        )
+      : '';
+  const editingCobbOppositeEndpointLabel =
+    editingCobbEndpoint?.field === 'upperVertebra' ? '下端椎' : '上端椎';
 
   return (
     <div
@@ -504,29 +525,45 @@ export default function MeasurementResultsPanel({
           onClick={event => event.stopPropagation()}
           data-canvas-wheel-blocker
         >
-          {cobbEndpointOptions.map(option => (
-            <button
-              key={option}
-              type="button"
-              role="option"
-              aria-selected={option === editingCobbEndpointValue}
-              onClick={event => {
-                event.stopPropagation();
-                selectCobbEndpoint(
-                  editingCobbEndpointMeasurement,
-                  editingCobbEndpoint.field,
-                  option
-                );
-              }}
-              className={`block w-full px-3 py-1.5 text-left font-mono text-xs hover:bg-blue-500/25 ${
-                option === editingCobbEndpointValue
-                  ? 'bg-blue-500/30 text-blue-100'
-                  : 'text-white/85'
-              }`}
-            >
-              {option}
-            </button>
-          ))}
+          {cobbEndpointOptions.map(option => {
+            const isOppositeEndpointOption =
+              editingCobbOppositeEndpointValue.length > 0 &&
+              normalizeEndpointValue(option) === editingCobbOppositeEndpointValue;
+
+            return (
+              <button
+                key={option}
+                type="button"
+                role="option"
+                disabled={isOppositeEndpointOption}
+                aria-disabled={isOppositeEndpointOption}
+                aria-selected={option === editingCobbEndpointValue}
+                title={
+                  isOppositeEndpointOption
+                    ? `该椎体已作为${editingCobbOppositeEndpointLabel}使用`
+                    : undefined
+                }
+                onClick={event => {
+                  event.stopPropagation();
+                  if (isOppositeEndpointOption) return;
+                  selectCobbEndpoint(
+                    editingCobbEndpointMeasurement,
+                    editingCobbEndpoint.field,
+                    option
+                  );
+                }}
+                className={`block w-full px-3 py-1.5 text-left font-mono text-xs ${
+                  isOppositeEndpointOption
+                    ? 'cursor-not-allowed text-white/30'
+                    : option === editingCobbEndpointValue
+                      ? 'bg-blue-500/30 text-blue-100 hover:bg-blue-500/25'
+                      : 'text-white/85 hover:bg-blue-500/25'
+                }`}
+              >
+                {option}
+              </button>
+            );
+          })}
         </div>
       )}
       <div className="w-full overflow-hidden rounded-lg bg-black/70 backdrop-blur-sm sm:w-[500px] sm:max-w-[calc(100vw-2rem)]">

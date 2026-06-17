@@ -244,6 +244,56 @@ it('selects Cobb endpoints from current exam vertebra options instead of free te
   });
 });
 
+it('disables the opposite endpoint vertebra in the Cobb endpoint option list', () => {
+  const onMeasurementUpdate = jest.fn();
+  renderPanel(
+    [
+      {
+        id: 'cobb-4',
+        type: 'cobb4',
+        value: '12.00°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'T5',
+        lowerVertebra: null,
+      },
+    ],
+    jest.fn(),
+    {
+      onMeasurementUpdate,
+    }
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: '下端椎待定' }));
+
+  const listbox = screen.getByRole('listbox', { name: '选择下端椎' });
+  const usedEndpointOption = within(listbox).getByRole('option', {
+    name: 'T5',
+  }) as HTMLButtonElement;
+  const availableEndpointOption = within(listbox).getByRole('option', {
+    name: 'T6',
+  });
+
+  expect(usedEndpointOption.disabled).toBe(true);
+  expect(usedEndpointOption.getAttribute('title')).toBe(
+    '该椎体已作为上端椎使用'
+  );
+
+  fireEvent.click(usedEndpointOption);
+
+  expect(onMeasurementUpdate).not.toHaveBeenCalled();
+
+  fireEvent.click(availableEndpointOption);
+
+  expect(onMeasurementUpdate).toHaveBeenCalledWith('cobb-4', {
+    lowerVertebra: 'T6',
+  });
+});
+
 it('keeps measurement and keypoint tabs outside the scrollable results content', () => {
   renderPanel([
     {
