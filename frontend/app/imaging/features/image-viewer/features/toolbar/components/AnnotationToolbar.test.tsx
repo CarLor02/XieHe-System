@@ -476,6 +476,24 @@ it('derives Cobb from selected complete endpoint vertebrae', () => {
   expect(onCreateCobb).toHaveBeenCalledWith('C7', 'T1');
 });
 
+it('disables the selected lower endpoint in AP Cobb derive upper options', () => {
+  renderToolbar({
+    keypoints: [...completeC7Keypoints, ...completeT1Keypoints],
+    completeVertebraGroups: ['C7', 'T1'],
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+
+  const upperSelect = screen.getByLabelText('上端椎') as HTMLSelectElement;
+  const lowerSelect = screen.getByLabelText('下端椎') as HTMLSelectElement;
+  const selectedLowerOptionInUpper = Array.from(upperSelect.options).find(
+    option => option.value === lowerSelect.value
+  );
+
+  expect(selectedLowerOptionInUpper?.disabled).toBe(true);
+});
+
 it('derives lateral Cobb from available endpoint vertebrae including S1 two-point endplate', () => {
   const onCreateCobb = jest.fn();
   renderToolbar({
@@ -511,6 +529,25 @@ it('derives lateral Cobb from available endpoint vertebrae including S1 two-poin
   fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
 
   expect(onCreateCobb).toHaveBeenCalledWith('C2', 'S1');
+});
+
+it('disables the selected lower endpoint in lateral Cobb derive upper options', () => {
+  renderToolbar({
+    examType: '侧位X光片',
+    keypoints: [...completeC2Keypoints, ...completeC7Keypoints],
+    completeVertebraGroups: ['C2', 'C7'],
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+
+  const upperSelect = screen.getByLabelText('上端椎') as HTMLSelectElement;
+  const lowerSelect = screen.getByLabelText('下端椎') as HTMLSelectElement;
+  const selectedLowerOptionInUpper = Array.from(upperSelect.options).find(
+    option => option.value === lowerSelect.value
+  );
+
+  expect(selectedLowerOptionInUpper?.disabled).toBe(true);
 });
 
 it('blocks lateral Cobb derivation when the selected endpoints match a named lateral Cobb measurement', () => {

@@ -294,6 +294,57 @@ it('disables the opposite endpoint vertebra in the Cobb endpoint option list', (
   });
 });
 
+it('disables the opposite endpoint vertebra in lateral Cobb endpoint options', () => {
+  const onMeasurementUpdate = jest.fn();
+  renderPanel(
+    [
+      {
+        id: 'lateral-cobb-4',
+        type: 'lateral-cobb4',
+        value: '12.00°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'T12',
+        lowerVertebra: null,
+      },
+    ],
+    jest.fn(),
+    {
+      examType: '侧位X光片',
+      onMeasurementUpdate,
+    }
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: '下端椎待定' }));
+
+  const listbox = screen.getByRole('listbox', { name: '选择下端椎' });
+  const usedEndpointOption = within(listbox).getByRole('option', {
+    name: 'T12',
+  }) as HTMLButtonElement;
+  const lateralOnlyEndpointOption = within(listbox).getByRole('option', {
+    name: 'S1',
+  });
+
+  expect(usedEndpointOption.disabled).toBe(true);
+  expect(usedEndpointOption.getAttribute('title')).toBe(
+    '该椎体已作为上端椎使用'
+  );
+
+  fireEvent.click(usedEndpointOption);
+
+  expect(onMeasurementUpdate).not.toHaveBeenCalled();
+
+  fireEvent.click(lateralOnlyEndpointOption);
+
+  expect(onMeasurementUpdate).toHaveBeenCalledWith('lateral-cobb-4', {
+    lowerVertebra: 'S1',
+  });
+});
+
 it('keeps measurement and keypoint tabs outside the scrollable results content', () => {
   renderPanel([
     {

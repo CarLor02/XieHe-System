@@ -911,7 +911,11 @@ export default function AnnotationToolbar({
                                     className="h-8 rounded bg-gray-800 border border-gray-600 px-2 text-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                                   >
                                     {completeCobbEndpointOptions.map(group => (
-                                      <option key={group} value={group}>
+                                      <option
+                                        key={group}
+                                        value={group}
+                                        disabled={group === selectedCobbLower}
+                                      >
                                         {group}
                                       </option>
                                     ))}
