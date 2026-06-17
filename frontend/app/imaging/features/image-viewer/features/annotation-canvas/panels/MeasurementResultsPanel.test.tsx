@@ -181,6 +181,10 @@ it('selects Cobb endpoints from current exam vertebra options instead of free te
   expect(screen.queryByPlaceholderText('上端椎待定')).toBeNull();
   const listbox = screen.getByRole('listbox', { name: '选择上端椎' });
   const options = within(listbox).getAllByRole('option');
+  expect(
+    screen.getByTestId('measurement-results-scroll-content').contains(listbox)
+  ).toBe(false);
+  expect(listbox.closest('.overflow-hidden')).toBeNull();
   expect(options.map(option => option.textContent)).toEqual([
     'C7',
     'T1',

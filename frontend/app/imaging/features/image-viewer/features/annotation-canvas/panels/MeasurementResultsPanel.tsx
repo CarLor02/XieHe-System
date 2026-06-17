@@ -104,6 +104,11 @@ export default function MeasurementResultsPanel({
   const [editingCobbEndpoint, setEditingCobbEndpoint] = useState<{
     measurementId: string;
     field: 'upperVertebra' | 'lowerVertebra';
+    anchor: {
+      left: number;
+      top: number;
+      minWidth: number;
+    };
   } | null>(null);
   const [panelOverlayMessage, setPanelOverlayMessage] = useState<string | null>(
     null
@@ -145,14 +150,27 @@ export default function MeasurementResultsPanel({
 
   const startEditingCobbEndpoint = (
     measurementId: string,
-    field: 'upperVertebra' | 'lowerVertebra'
+    field: 'upperVertebra' | 'lowerVertebra',
+    anchorElement: HTMLElement
   ) => {
     if (!onMeasurementUpdate) return;
+    const rect = anchorElement.getBoundingClientRect();
+    const viewportWidth =
+      typeof window === 'undefined' ? rect.left + 120 : window.innerWidth;
+    const minWidth = Math.max(rect.width, 96);
     setEditingAuxiliaryName(null);
     setEditingCobbEndpoint(current =>
       current?.measurementId === measurementId && current.field === field
         ? null
-        : { measurementId, field }
+        : {
+            measurementId,
+            field,
+            anchor: {
+              left: Math.max(4, Math.min(rect.left, viewportWidth - minWidth - 4)),
+              top: rect.bottom + 4,
+              minWidth,
+            },
+          }
     );
   };
 
@@ -241,7 +259,7 @@ export default function MeasurementResultsPanel({
     if (isEditing) {
       return (
         <span
-          className="relative mx-0.5 inline-flex"
+          className="mx-0.5 inline-flex"
           onKeyDown={event => {
             if (event.key === 'Escape') {
               event.preventDefault();
@@ -260,33 +278,6 @@ export default function MeasurementResultsPanel({
           >
             {displayValue}
           </button>
-          <div
-            role="listbox"
-            aria-label={`选择${field === 'upperVertebra' ? '上端椎' : '下端椎'}`}
-            className="absolute left-0 top-full z-[60] mt-1 max-h-56 min-w-24 overflow-y-auto rounded border border-blue-300/40 bg-gray-900 py-1 shadow-xl"
-            onClick={event => event.stopPropagation()}
-            data-canvas-wheel-blocker
-          >
-            {cobbEndpointOptions.map(option => (
-              <button
-                key={option}
-                type="button"
-                role="option"
-                aria-selected={option === actualValue}
-                onClick={event => {
-                  event.stopPropagation();
-                  selectCobbEndpoint(measurement, field, option);
-                }}
-                className={`block w-full px-3 py-1.5 text-left font-mono text-xs hover:bg-blue-500/25 ${
-                  option === actualValue
-                    ? 'bg-blue-500/30 text-blue-100'
-                    : 'text-white/85'
-                }`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
         </span>
       );
     }
@@ -296,7 +287,7 @@ export default function MeasurementResultsPanel({
         type="button"
         onClick={event => {
           event.stopPropagation();
-          startEditingCobbEndpoint(measurement.id, field);
+          startEditingCobbEndpoint(measurement.id, field, event.currentTarget);
         }}
         className="mx-0.5 font-mono text-blue-300 underline decoration-blue-300 underline-offset-2 hover:text-blue-100 hover:decoration-blue-100"
         title={`点击修改${field === 'upperVertebra' ? '上端椎' : '下端椎'}`}
@@ -453,6 +444,13 @@ export default function MeasurementResultsPanel({
   const sortedKeypoints = [...keypoints].sort((left, right) =>
     compareAnatomicalKeypointIds(left.id, right.id)
   );
+  const editingCobbEndpointMeasurement = editingCobbEndpoint
+    ? measurements.find(item => item.id === editingCobbEndpoint.measurementId)
+    : null;
+  const editingCobbEndpointValue =
+    editingCobbEndpoint && editingCobbEndpointMeasurement
+      ? (editingCobbEndpointMeasurement[editingCobbEndpoint.field]?.trim() ?? '')
+      : '';
 
   return (
     <div
@@ -481,6 +479,48 @@ export default function MeasurementResultsPanel({
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {editingCobbEndpoint && editingCobbEndpointMeasurement && (
+        <div
+          role="listbox"
+          aria-label={`选择${
+            editingCobbEndpoint.field === 'upperVertebra'
+              ? '上端椎'
+              : '下端椎'
+          }`}
+          className="fixed z-[70] max-h-56 overflow-y-auto rounded border border-blue-300/40 bg-gray-900 py-1 shadow-xl"
+          style={{
+            left: editingCobbEndpoint.anchor.left,
+            top: editingCobbEndpoint.anchor.top,
+            minWidth: editingCobbEndpoint.anchor.minWidth,
+          }}
+          onClick={event => event.stopPropagation()}
+          data-canvas-wheel-blocker
+        >
+          {cobbEndpointOptions.map(option => (
+            <button
+              key={option}
+              type="button"
+              role="option"
+              aria-selected={option === editingCobbEndpointValue}
+              onClick={event => {
+                event.stopPropagation();
+                selectCobbEndpoint(
+                  editingCobbEndpointMeasurement,
+                  editingCobbEndpoint.field,
+                  option
+                );
+              }}
+              className={`block w-full px-3 py-1.5 text-left font-mono text-xs hover:bg-blue-500/25 ${
+                option === editingCobbEndpointValue
+                  ? 'bg-blue-500/30 text-blue-100'
+                  : 'text-white/85'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
         </div>
       )}
       <div className="w-full overflow-hidden rounded-lg bg-black/70 backdrop-blur-sm sm:w-[500px] sm:max-w-[calc(100vw-2rem)]">
