@@ -211,6 +211,13 @@ export function useCanvasViewport({
 
     const handleWheelEvent = (event: Event) => {
       const wheelEvent = event as WheelEvent;
+      const target = wheelEvent.target;
+      if (
+        target instanceof Element &&
+        target.closest('[data-canvas-wheel-blocker]')
+      ) {
+        return;
+      }
       wheelEvent.preventDefault();
       wheelEvent.stopPropagation();
       zoomByFactor(wheelEvent.deltaY > 0 ? 0.95 : 1.05);

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, jest } from '@jest/globals';
 import type { ComponentProps } from 'react';
 
@@ -154,6 +154,90 @@ it('shows a disabled Cobb sync button until both endpoint vertebrae are filled',
   ).toBe(true);
 });
 
+it('selects Cobb endpoints from current exam vertebra options instead of free text input', () => {
+  const onMeasurementUpdate = jest.fn();
+  renderPanel(
+    [
+      {
+        id: 'cobb-4',
+        type: 'cobb4',
+        value: '12.00°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+      },
+    ],
+    jest.fn(),
+    {
+      onMeasurementUpdate,
+    }
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: '上端椎待定' }));
+
+  expect(screen.queryByPlaceholderText('上端椎待定')).toBeNull();
+  const listbox = screen.getByRole('listbox', { name: '选择上端椎' });
+  const options = within(listbox).getAllByRole('option');
+  expect(options.map(option => option.textContent)).toEqual([
+    'C7',
+    'T1',
+    'T2',
+    'T3',
+    'T4',
+    'T5',
+    'T6',
+    'T7',
+    'T8',
+    'T9',
+    'T10',
+    'T11',
+    'T12',
+    'L1',
+    'L2',
+    'L3',
+    'L4',
+    'L5',
+  ]);
+  expect(within(listbox).queryByRole('option', { name: 'C2' })).toBeNull();
+  expect(within(listbox).queryByRole('option', { name: 'S1' })).toBeNull();
+
+  fireEvent.click(within(listbox).getByRole('option', { name: 'T5' }));
+
+  expect(onMeasurementUpdate).toHaveBeenCalledWith('cobb-4', {
+    upperVertebra: 'T5',
+  });
+});
+
+it('keeps measurement and keypoint tabs outside the scrollable results content', () => {
+  renderPanel([
+    {
+      id: 'cobb-1',
+      type: 'cobb1',
+      value: '18.20°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+      upperVertebra: 'T5',
+      lowerVertebra: 'T12',
+    },
+  ]);
+
+  const scrollContent = screen.getByTestId('measurement-results-scroll-content');
+
+  expect(scrollContent.contains(screen.getByRole('button', { name: '测量项' }))).toBe(
+    false
+  );
+  expect(scrollContent.contains(screen.getByRole('button', { name: '检测点' }))).toBe(
+    false
+  );
+});
+
 it('syncs a completed Cobb measurement to the detection layer from the measurement list', () => {
   const onCobbKeypointsSync = jest.fn();
   renderPanel(
@@ -238,10 +322,8 @@ it('blocks editing lateral Cobb endpoints when they match a named lateral Cobb m
   );
 
   fireEvent.click(screen.getByRole('button', { name: '下端椎待定' }));
-  fireEvent.change(screen.getByPlaceholderText('下端椎待定'), {
-    target: { value: 'T5' },
-  });
-  fireEvent.blur(screen.getByPlaceholderText('下端椎待定'));
+  const listbox = screen.getByRole('listbox', { name: '选择下端椎' });
+  fireEvent.click(within(listbox).getByRole('option', { name: 'T5' }));
 
   expect(screen.getByText('TK T2-T5已存在!')).toBeTruthy();
   expect(screen.getByRole('button', { name: '知道了' })).toBeTruthy();

@@ -1,4 +1,4 @@
-import { act, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useEffect, useRef } from 'react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
@@ -37,8 +37,10 @@ function emitResize(width: number, height: number) {
 
 function ViewportHarness({
   onValue,
+  includeWheelBlocker = false,
 }: {
   onValue: (value: ReturnType<typeof useCanvasViewport>) => void;
+  includeWheelBlocker?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const value = useCanvasViewport({
@@ -56,7 +58,13 @@ function ViewportHarness({
     onValue(value);
   }, [onValue, value]);
 
-  return <div ref={containerRef} data-testid="viewport" />;
+  return (
+    <div ref={containerRef} data-testid="viewport">
+      {includeWheelBlocker && (
+        <div data-canvas-wheel-blocker data-testid="wheel-blocker" />
+      )}
+    </div>
+  );
 }
 
 describe('useCanvasViewport', () => {
@@ -121,6 +129,43 @@ describe('useCanvasViewport', () => {
         width: 1024,
         height: 768,
       });
+    });
+  });
+
+  it('zooms the canvas when wheel events come from the canvas viewport', async () => {
+    const observedValues: ReturnType<typeof useCanvasViewport>[] = [];
+
+    render(
+      <ViewportHarness
+        onValue={value => {
+          observedValues.push(value);
+        }}
+      />
+    );
+
+    fireEvent.wheel(screen.getByTestId('viewport'), { deltaY: 100 });
+
+    await waitFor(() => {
+      expect(observedValues.at(-1)?.imageScale).toBeCloseTo(0.95);
+    });
+  });
+
+  it('lets wheel events inside overlay panels scroll without zooming the canvas', async () => {
+    const observedValues: ReturnType<typeof useCanvasViewport>[] = [];
+
+    render(
+      <ViewportHarness
+        includeWheelBlocker
+        onValue={value => {
+          observedValues.push(value);
+        }}
+      />
+    );
+
+    fireEvent.wheel(screen.getByTestId('wheel-blocker'), { deltaY: 100 });
+
+    await waitFor(() => {
+      expect(observedValues.at(-1)?.imageScale).toBe(1);
     });
   });
 });
