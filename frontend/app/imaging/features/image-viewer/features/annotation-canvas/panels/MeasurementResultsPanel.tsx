@@ -453,10 +453,31 @@ export default function MeasurementResultsPanel({
   };
 
   const sortedMeasurements = [...measurements].sort((left, right) => {
-    const byName = getMeasurementDisplayName(left).localeCompare(
-      getMeasurementDisplayName(right)
-    );
-    return byName || left.id.localeCompare(right.id);
+    const compareByDisplayName = () => {
+      const byName = getMeasurementDisplayName(left).localeCompare(
+        getMeasurementDisplayName(right)
+      );
+      return byName || left.id.localeCompare(right.id);
+    };
+
+    if (
+      isNumberedCobbMeasurement(left.type) &&
+      isNumberedCobbMeasurement(right.type)
+    ) {
+      const getEndpointOrder = (vertebra: string | null | undefined) =>
+        getMeasurementDeriveVertebraOrder(normalizeEndpointValue(vertebra)) ??
+        Number.MAX_SAFE_INTEGER;
+      const byUpper =
+        getEndpointOrder(left.upperVertebra) -
+        getEndpointOrder(right.upperVertebra);
+      const byLower =
+        getEndpointOrder(left.lowerVertebra) -
+        getEndpointOrder(right.lowerVertebra);
+
+      return byUpper || byLower || compareByDisplayName();
+    }
+
+    return compareByDisplayName();
   });
   const sortedKeypoints = [...keypoints].sort((left, right) =>
     compareAnatomicalKeypointIds(left.id, right.id)

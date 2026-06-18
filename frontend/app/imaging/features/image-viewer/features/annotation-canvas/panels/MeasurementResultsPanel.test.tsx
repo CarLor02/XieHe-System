@@ -56,6 +56,16 @@ function renderPanel(
   );
 }
 
+function getRenderedCobbMeasurementNames(): string[] {
+  return Array.from(
+    screen
+      .getByTestId('measurement-results-scroll-content')
+      .querySelectorAll('span')
+  )
+    .map(element => element.textContent ?? '')
+    .filter(text => /^Cobb\d+\(/.test(text));
+}
+
 it('shows the Cobb sequence number together with endpoint vertebrae in the measurement list', () => {
   renderPanel([
     {
@@ -80,6 +90,122 @@ it('shows the Cobb sequence number together with endpoint vertebrae in the measu
         element.textContent === 'Cobb1(T5-T12)'
     )
   ).toBeTruthy();
+});
+
+it('sorts numbered Cobb measurements by upper vertebra anatomical order', () => {
+  renderPanel([
+    {
+      id: 'cobb-1',
+      type: 'cobb1',
+      value: '18.20°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+      upperVertebra: 'T10',
+      lowerVertebra: 'L1',
+    },
+    {
+      id: 'cobb-4',
+      type: 'cobb4',
+      value: '12.00°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+    },
+    {
+      id: 'cobb-3',
+      type: 'cobb3',
+      value: '10.00°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+      upperVertebra: 'L1',
+      lowerVertebra: 'L4',
+    },
+    {
+      id: 'cobb-2',
+      type: 'cobb2',
+      value: '8.00°',
+      points: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 1, y: 2 },
+        { x: 2, y: 2 },
+      ],
+      upperVertebra: 'T2',
+      lowerVertebra: 'T5',
+    },
+  ]);
+
+  expect(getRenderedCobbMeasurementNames()).toEqual([
+    'Cobb2(T2-T5)',
+    'Cobb1(T10-L1)',
+    'Cobb3(L1-L4)',
+    'Cobb4(上端椎待定-下端椎待定)',
+  ]);
+});
+
+it('sorts lateral numbered Cobb measurements by the same upper vertebra order', () => {
+  renderPanel(
+    [
+      {
+        id: 'lateral-cobb-1',
+        type: 'lateral-cobb1',
+        value: '18.20°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'T12',
+        lowerVertebra: 'L1',
+      },
+      {
+        id: 'lateral-cobb-3',
+        type: 'lateral-cobb3',
+        value: '10.00°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'T5',
+        lowerVertebra: 'T12',
+      },
+      {
+        id: 'lateral-cobb-2',
+        type: 'lateral-cobb2',
+        value: '8.00°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'C2',
+        lowerVertebra: 'C7',
+      },
+    ],
+    jest.fn(),
+    { examType: '侧位X光片' }
+  );
+
+  expect(getRenderedCobbMeasurementNames()).toEqual([
+    'Cobb2(C2-C7)',
+    'Cobb3(T5-T12)',
+    'Cobb1(T12-L1)',
+  ]);
 });
 
 it('shows pending endpoint labels for numbered Cobb measurements without vertebrae', () => {
