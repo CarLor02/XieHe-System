@@ -34,6 +34,7 @@ import {
 import { DERIVED_ID_PREFIX } from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebrae-derive';
 import {
   deleteKeypoint,
+  deleteKeypoints,
   getCompleteSelectableVertebraGroups,
   hasKeypoint,
   KeypointAnnotation,
@@ -79,6 +80,19 @@ function flashMessage(
 ) {
   setSaveMessage(message);
   setTimeout(() => setSaveMessage(''), delay);
+}
+
+function getKeypointIdsForLabelGroup(
+  keypoints: KeypointAnnotation[],
+  label: string
+): string[] {
+  const groupPrefix = `${label}-`;
+  return keypoints
+    .filter(
+      keypoint =>
+        keypoint.id === label || keypoint.id.startsWith(groupPrefix)
+    )
+    .map(keypoint => keypoint.id);
 }
 
 export function useKeypointMeasurementWorkflow({
@@ -313,6 +327,49 @@ export function useKeypointMeasurementWorkflow({
         removedMeasurements.length > 0
           ? `已删除 ${keypointId}，并移除 ${removedMeasurements.length} 个关联测量项`
           : `已删除 ${keypointId}`
+      );
+    },
+    [
+      isKeypointExam,
+      isLateralView,
+      keypoints,
+      measurements,
+      setMeasurements,
+      setSaveMessage,
+      syncUniqueMeasurements,
+    ]
+  );
+
+  const handleKeypointGroupDelete = useCallback(
+    (label: string) => {
+      if (!isKeypointExam) return;
+      const keypointIds = getKeypointIdsForLabelGroup(keypoints, label);
+      if (keypointIds.length === 0) return;
+
+      const nextKeypoints = deleteKeypoints(keypoints, keypointIds);
+      const nextMeasurements = syncUniqueMeasurements(
+        measurements,
+        nextKeypoints
+      );
+      const nextMeasurementIds = new Set(
+        nextMeasurements.map(measurement => measurement.id)
+      );
+      const removedMeasurements = measurements.filter(
+        measurement => !nextMeasurementIds.has(measurement.id)
+      );
+
+      setKeypoints(nextKeypoints);
+      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+      if (isLateralView) {
+        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+      }
+      setMeasurements(nextMeasurements);
+
+      flashMessage(
+        setSaveMessage,
+        removedMeasurements.length > 0
+          ? `已删除 ${label} 的 ${keypointIds.length} 个关键点，并移除 ${removedMeasurements.length} 个关联测量项`
+          : `已删除 ${label} 的 ${keypointIds.length} 个关键点`
       );
     },
     [
@@ -740,6 +797,7 @@ export function useKeypointMeasurementWorkflow({
     getAiMeasurementIdsSnapshot,
     handleKeypointAdd,
     handleKeypointDelete,
+    handleKeypointGroupDelete,
     handleCreateVertebraCenter,
     handleCreateCobb,
     handleRectifyVertebraCornerOrder,

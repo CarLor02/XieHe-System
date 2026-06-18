@@ -612,6 +612,14 @@ export function useImageViewerController({
     [beginHistoryAction, keypointWorkflow]
   );
 
+  const handleKeypointGroupDeleteWithHistory = useCallback(
+    (vertebraLabel: string) => {
+      beginHistoryAction('keypoint-group-delete');
+      keypointWorkflow.handleKeypointGroupDelete(vertebraLabel);
+    },
+    [beginHistoryAction, keypointWorkflow]
+  );
+
   const handleMeasurementUpdateWithHistory = useCallback(
     (measurementId: string, updates: Partial<MeasurementData>) => {
       beginHistoryAction('measurement-update');
@@ -824,6 +832,7 @@ export function useImageViewerController({
       keypointSequenceSession,
       onSequenceKeypointAdd: handleSequenceKeypointAdd,
       onKeypointDelete: handleKeypointDeleteWithHistory,
+      onKeypointGroupDelete: handleKeypointGroupDeleteWithHistory,
       onMeasurementWriteback: keypointWorkflow.handleMeasurementWriteback,
       onCobbKeypointsSync: keypointWorkflow.handleCobbKeypointsSync,
       onAnnotationDataDragStart: handleAnnotationDataDragStart,

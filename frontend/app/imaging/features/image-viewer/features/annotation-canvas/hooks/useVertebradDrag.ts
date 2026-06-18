@@ -29,6 +29,10 @@ interface CornerRef {
   index: number;
 }
 
+export type VertebradDragSelection =
+  | { kind: 'keypoint'; keypointId: string }
+  | { kind: 'vertebra'; vertebraLabel: string };
+
 interface ScreenPoint {
   x: number;
   y: number;
@@ -87,7 +91,9 @@ export function useVertebradDrag({
   onLiveLayerChange,
   containerRef,
   onHoverChange,
+  onSelectionChange,
   onAnnotationDragStart,
+  enableFrameHitTest = true,
 }: {
   vertebraeLayer: VertebraAnnotation[];
   /** 图像坐标 → 容器内屏幕坐标 */
@@ -98,7 +104,9 @@ export function useVertebradDrag({
   onLiveLayerChange?: (updated: VertebraAnnotation[]) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onHoverChange?: (keypointId: string | null) => void;
+  onSelectionChange?: (selection: VertebradDragSelection) => void;
   onAnnotationDragStart?: () => void;
+  enableFrameHitTest?: boolean;
 }) {
   // 拖拽期间实时渲染的图层（null = 不在拖拽，使用 vertebraeLayer prop）
   const [liveLayer, setLiveLayer] = useState<VertebraAnnotation[] | null>(null);
@@ -242,6 +250,10 @@ export function useVertebradDrag({
       const { screenX, screenY } = clientToScreen(clientX, clientY);
       const hit = findNearestCorner(screenX, screenY);
       if (hit) {
+        onSelectionChange?.({
+          kind: 'keypoint',
+          keypointId: hitToKeypointId(hit),
+        });
         onAnnotationDragStart?.();
         dragStateRef.current = { mode: 'corner', ...hit };
         setActiveCorner({ label: hit.vertebraLabel, index: hit.cornerIndex });
@@ -251,11 +263,17 @@ export function useVertebradDrag({
         return true;
       }
 
-      const members = findFrameInterior(screenX, screenY);
+      const members = enableFrameHitTest
+        ? findFrameInterior(screenX, screenY)
+        : null;
       if (!members) return false;
 
       onAnnotationDragStart?.();
       const [firstMember] = members;
+      onSelectionChange?.({
+        kind: 'vertebra',
+        vertebraLabel: firstMember.vertebraLabel,
+      });
       dragStateRef.current = {
         mode: 'group',
         members,
@@ -275,7 +293,10 @@ export function useVertebradDrag({
       clientToScreen,
       findFrameInterior,
       findNearestCorner,
+      enableFrameHitTest,
+      hitToKeypointId,
       onAnnotationDragStart,
+      onSelectionChange,
       onVertebraeUpdate,
       screenToImage,
       vertebraeLayer,

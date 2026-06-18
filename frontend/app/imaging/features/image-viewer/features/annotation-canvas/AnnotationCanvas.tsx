@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Point,
   MeasurementData,
@@ -26,7 +26,10 @@ import { useStandardDistanceInteraction } from '@/app/imaging/features/image-vie
 import { useCanvasDrag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useCanvasDrag';
 import { useCanvasDrawingTool } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useCanvasDrawingTool';
 import { useCanvasPointer } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useCanvasPointer';
-import { useVertebradDrag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useVertebradDrag';
+import {
+  type VertebradDragSelection,
+  useVertebradDrag,
+} from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useVertebradDrag';
 import { useCanvasDrawing } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useCanvasDrawing';
 import { useCanvasOverlayState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useCanvasOverlayState';
 import { useCanvasDerivedState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useCanvasDerivedState';
@@ -44,6 +47,7 @@ import {
   keypointIdToRenderCornerRef,
   keypointsToRenderLayer,
   KeypointAnnotation,
+  renderCornerToKeypointId,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { isDirectlyEditableAnnotation } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
 import {
@@ -76,6 +80,44 @@ export function getAnnotationCanvasCursorClass({
   }
 
   return fallbackCursorClass;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
+
+function isDeleteShortcut(event: KeyboardEvent): boolean {
+  return event.key === 'Delete';
+}
+
+export function getDetectionSelectionKeypointIds(
+  selection: VertebradDragSelection | null,
+  visibleKeypointLayer: VertebraAnnotation[]
+): string[] {
+  if (!selection) return [];
+  if (selection.kind === 'keypoint') {
+    return keypointIdToRenderCornerRef(
+      selection.keypointId,
+      visibleKeypointLayer
+    )
+      ? [selection.keypointId]
+      : [];
+  }
+
+  const vertebra = visibleKeypointLayer.find(
+    item => item.label === selection.vertebraLabel
+  );
+  if (!vertebra) return [];
+
+  return Array.from(
+    new Set(
+      vertebra.corners.map((_, index) =>
+        renderCornerToKeypointId(vertebra.label, index)
+      )
+    )
+  );
 }
 
 export default function AnnotationCanvas({
@@ -128,6 +170,7 @@ export default function AnnotationCanvas({
   keypointSequenceSession = null,
   onSequenceKeypointAdd,
   onKeypointDelete,
+  onKeypointGroupDelete,
   onMeasurementWriteback,
   onCobbKeypointsSync,
   onAnnotationDataDragStart,
@@ -187,6 +230,7 @@ export default function AnnotationCanvas({
   keypointSequenceSession?: KeypointSequenceSession | null;
   onSequenceKeypointAdd?: (point: Point) => void;
   onKeypointDelete?: (keypointId: string) => void;
+  onKeypointGroupDelete?: (vertebraLabel: string) => void;
   /** 测量点拖动后写回 vertebraeLayer（所有用户都可用） */
   onMeasurementWriteback?: (
     measurementType: string,
@@ -259,6 +303,8 @@ export default function AnnotationCanvas({
   const [selectedKeypointIds, setSelectedKeypointIds] = useState<Set<string>>(
     new Set()
   );
+  const [detectionLayerSelection, setDetectionLayerSelection] =
+    useState<VertebradDragSelection | null>(null);
   const {
     drawingState,
     setDrawingState,
@@ -365,6 +411,7 @@ export default function AnnotationCanvas({
         return;
       }
 
+      setDetectionLayerSelection(null);
       const measurement = measurements.find(item => item.id === measurementId);
       const keypointIds = measurement
         ? resolveMeasurementKeypointIds(measurement, keypoints)
@@ -499,6 +546,33 @@ export default function AnnotationCanvas({
           hiddenKeypointIds
         )
       : vertebraeLayer;
+  const rawDetectionSelectedKeypointIds = useMemo(
+    () =>
+      getDetectionSelectionKeypointIds(
+        detectionLayerSelection,
+        visibleKeypointLayer
+      ),
+    [detectionLayerSelection, visibleKeypointLayer]
+  );
+  const effectiveDetectionLayerSelection =
+    selectedTool === 'hand' &&
+    showVertebraeLayer &&
+    rawDetectionSelectedKeypointIds.length > 0
+      ? detectionLayerSelection
+      : null;
+  const detectionSelectedKeypointIds = useMemo(
+    () =>
+      effectiveDetectionLayerSelection ? rawDetectionSelectedKeypointIds : [],
+    [effectiveDetectionLayerSelection, rawDetectionSelectedKeypointIds]
+  );
+  const visibleSelectedKeypointIds = useMemo(() => {
+    if (detectionSelectedKeypointIds.length === 0) return selectedKeypointIds;
+    const next = new Set(selectedKeypointIds);
+    detectionSelectedKeypointIds.forEach(keypointId => {
+      next.add(keypointId);
+    });
+    return next;
+  }, [detectionSelectedKeypointIds, selectedKeypointIds]);
 
   const keypointIdToCornerRef = (keypointId: string | null) => {
     return keypointIdToRenderCornerRef(keypointId, visibleKeypointLayer);
@@ -513,7 +587,9 @@ export default function AnnotationCanvas({
     onLiveLayerChange: onVertebraePreviewUpdate,
     containerRef,
     onHoverChange: handleKeypointHover,
+    onSelectionChange: setDetectionLayerSelection,
     onAnnotationDragStart: onAnnotationDataDragStart,
+    enableFrameHitTest: showVertebraeBoundingBox,
   });
   const { clearHover } = vertebradDrag;
   const hoveredKeypointCorner = keypointIdToCornerRef(hoverState.keypointId);
@@ -525,6 +601,17 @@ export default function AnnotationCanvas({
       clearHover();
     }
   }, [selectedTool, clearHover]);
+
+  useEffect(() => {
+    if (selectedTool === 'hand' && showVertebraeLayer) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setDetectionLayerSelection(null);
+    }, 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [selectedTool, showVertebraeLayer]);
 
   const canvasDrag = useCanvasDrag({
     selectedTool,
@@ -617,14 +704,51 @@ export default function AnnotationCanvas({
     });
   };
 
-  const handleKeypointDelete = (keypointId: string) => {
+  const handleKeypointDelete = useCallback((keypointId: string) => {
     setHiddenKeypointIds(previous => {
       const next = new Set(previous);
       next.delete(keypointId);
       return next;
     });
+    setDetectionLayerSelection(previous =>
+      previous?.kind === 'keypoint' && previous.keypointId === keypointId
+        ? null
+        : previous
+    );
     onKeypointDelete?.(keypointId);
-  };
+  }, [onKeypointDelete]);
+
+  const handleDetectionLayerDelete = useCallback(() => {
+    if (!effectiveDetectionLayerSelection) return false;
+
+    if (effectiveDetectionLayerSelection.kind === 'keypoint') {
+      handleKeypointDelete(effectiveDetectionLayerSelection.keypointId);
+    } else {
+      onKeypointGroupDelete?.(effectiveDetectionLayerSelection.vertebraLabel);
+    }
+
+    setDetectionLayerSelection(null);
+    return true;
+  }, [
+    effectiveDetectionLayerSelection,
+    handleKeypointDelete,
+    onKeypointGroupDelete,
+  ]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isEditableKeyboardTarget(event.target)) return;
+      if (!isDeleteShortcut(event)) return;
+      if (!handleDetectionLayerDelete()) return;
+
+      event.preventDefault();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleDetectionLayerDelete]);
 
   const pointer = useCanvasPointer({
     imageNaturalSize,
@@ -684,6 +808,7 @@ export default function AnnotationCanvas({
       onMouseDown={e => {
         if (keypointSequenceSession) {
           selectMeasurementKeypoints(null);
+          setDetectionLayerSelection(null);
           const rect = containerRef.current?.getBoundingClientRect();
           const point = screenToImage(
             e.clientX - (rect?.left ?? 0),
@@ -695,6 +820,7 @@ export default function AnnotationCanvas({
 
         if (selectedTool.startsWith('keypoint:')) {
           selectMeasurementKeypoints(null);
+          setDetectionLayerSelection(null);
           const rect = containerRef.current?.getBoundingClientRect();
           const point = screenToImage(
             e.clientX - (rect?.left ?? 0),
@@ -714,6 +840,7 @@ export default function AnnotationCanvas({
           selectMeasurementKeypoints(null);
           return;
         }
+        setDetectionLayerSelection(null);
         pointer.onMouseDown(e);
       }}
       onMouseMove={e => {
@@ -877,7 +1004,7 @@ export default function AnnotationCanvas({
             imageToScreen={imageToScreen}
             activeCorner={vertebradDrag.activeCorner}
             hoveredCorner={effectiveHoveredCorner}
-            selectedKeypointIds={selectedKeypointIds}
+            selectedKeypointIds={visibleSelectedKeypointIds}
             showVertebraeBoundingBox={showVertebraeBoundingBox}
           />
         )}

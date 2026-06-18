@@ -9,6 +9,7 @@ const redoHistoryMock = jest.fn();
 const handleMeasurementDeleteMock = jest.fn();
 const handleKeypointAddMock = jest.fn();
 const handleKeypointDeleteMock = jest.fn();
+const handleKeypointGroupDeleteMock = jest.fn();
 const setMeasurementsMock = jest.fn();
 const setShowVertebraeLayerMock = jest.fn();
 const handleToggleVertebraeLayerMock = jest.fn();
@@ -224,6 +225,7 @@ jest.mock('@/app/imaging/features/image-viewer/features/keypoints', () => ({
     getAiMeasurementIdsSnapshot: jest.fn(() => []),
     handleKeypointAdd: handleKeypointAddMock,
     handleKeypointDelete: handleKeypointDeleteMock,
+    handleKeypointGroupDelete: handleKeypointGroupDeleteMock,
     handleCreateVertebraCenter: jest.fn(),
     handleCreateCobb: jest.fn(),
     handleRectifyVertebraCornerOrder: jest.fn(),
@@ -270,6 +272,7 @@ beforeEach(() => {
   handleMeasurementDeleteMock.mockClear();
   handleKeypointAddMock.mockClear();
   handleKeypointDeleteMock.mockClear();
+  handleKeypointGroupDeleteMock.mockClear();
   setMeasurementsMock.mockClear();
   setShowVertebraeLayerMock.mockClear();
   handleToggleVertebraeLayerMock.mockClear();
@@ -383,6 +386,27 @@ it('starts annotation history before deleting a keypoint from the results list',
 
   expect(beginHistoryActionMock).toHaveBeenCalledWith('keypoint-delete');
   expect(handleKeypointDeleteMock).toHaveBeenCalledWith('T1-1');
+});
+
+it('starts annotation history before deleting a selected vertebra group', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  latest!.canvasProps.onKeypointGroupDelete?.('T1');
+
+  expect(beginHistoryActionMock).toHaveBeenCalledWith('keypoint-group-delete');
+  expect(handleKeypointGroupDeleteMock).toHaveBeenCalledWith('T1');
 });
 
 it('starts annotation history before applying vertebra label offset rectification', async () => {

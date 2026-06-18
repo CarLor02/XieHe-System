@@ -3,7 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { AnnotationSource, VertebraAnnotation } from '@/app/imaging/features/image-viewer/shared/types';
-import { useVertebradDrag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useVertebradDrag';
+import {
+  type VertebradDragSelection,
+  useVertebradDrag,
+} from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useVertebradDrag';
 
 function createT1Layer(): VertebraAnnotation[] {
   return [
@@ -27,10 +30,14 @@ function DragHarness({
   onValue,
   onVertebraeUpdate,
   onAnnotationDragStart = jest.fn(),
+  onSelectionChange = jest.fn(),
+  enableFrameHitTest = true,
 }: {
   onValue: (value: DragHook) => void;
   onVertebraeUpdate: (updated: VertebraAnnotation[]) => void;
   onAnnotationDragStart?: () => void;
+  onSelectionChange?: (selection: VertebradDragSelection) => void;
+  enableFrameHitTest?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const value = useVertebradDrag({
@@ -41,7 +48,9 @@ function DragHarness({
     onLiveLayerChange: jest.fn(),
     containerRef,
     onHoverChange: jest.fn(),
+    onSelectionChange,
     onAnnotationDragStart,
+    enableFrameHitTest,
   });
 
   useEffect(() => {
@@ -239,5 +248,87 @@ describe('useVertebradDrag', () => {
     });
 
     expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports keypoint selection when a corner is hit', async () => {
+    let latest: DragHook | null = null;
+    const onSelectionChange = jest.fn();
+
+    render(
+      <DragHarness
+        onValue={value => {
+          latest = value;
+        }}
+        onVertebraeUpdate={jest.fn()}
+        onSelectionChange={onSelectionChange}
+      />
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+    });
+
+    act(() => {
+      expect(latest!.handleMouseDown(100, 100)).toBe(true);
+    });
+
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      kind: 'keypoint',
+      keypointId: 'T1-1',
+    });
+  });
+
+  it('reports vertebra selection when a complete frame interior is hit', async () => {
+    let latest: DragHook | null = null;
+    const onSelectionChange = jest.fn();
+
+    render(
+      <DragHarness
+        onValue={value => {
+          latest = value;
+        }}
+        onVertebraeUpdate={jest.fn()}
+        onSelectionChange={onSelectionChange}
+      />
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+    });
+
+    act(() => {
+      expect(latest!.handleMouseDown(150, 150)).toBe(true);
+    });
+
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      kind: 'vertebra',
+      vertebraLabel: 'T1',
+    });
+  });
+
+  it('does not hit an invisible vertebra frame when frame hit testing is disabled', async () => {
+    let latest: DragHook | null = null;
+    const onSelectionChange = jest.fn();
+
+    render(
+      <DragHarness
+        onValue={value => {
+          latest = value;
+        }}
+        onVertebraeUpdate={jest.fn()}
+        onSelectionChange={onSelectionChange}
+        enableFrameHitTest={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+    });
+
+    act(() => {
+      expect(latest!.handleMouseDown(150, 150)).toBe(false);
+    });
+
+    expect(onSelectionChange).not.toHaveBeenCalled();
   });
 });

@@ -402,6 +402,14 @@ export function deleteKeypoint(
   return keypoints.filter(item => item.id !== keypointId);
 }
 
+export function deleteKeypoints(
+  keypoints: KeypointAnnotation[],
+  keypointIds: string[]
+): KeypointAnnotation[] {
+  const idsToDelete = new Set(keypointIds);
+  return keypoints.filter(item => !idsToDelete.has(item.id));
+}
+
 function getMissingVertebraCornerSequenceNumbers(
   mapping: VertebraCornerOrderMapping[]
 ): VertebraCornerSequenceNumber[] {

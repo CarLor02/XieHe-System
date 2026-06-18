@@ -324,6 +324,46 @@ it('does not create AP Cobb measurements from ordinary keypoint updates', async 
   expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
 });
 
+it('deletes all existing keypoints for a selected vertebra group', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.workflow.setKeypoints([
+      apKeypoint('T1-1', 100, 100),
+      apKeypoint('T1-2', 200, 100),
+      apKeypoint('T1-3', 100, 140),
+      apKeypoint('T1-4', 200, 140),
+      apKeypoint('T10-1', 100, 300),
+    ]);
+  });
+
+  await waitFor(() => {
+    expect(latest!.workflow.keypoints).toHaveLength(5);
+  });
+
+  act(() => {
+    latest!.workflow.handleKeypointGroupDelete('T1');
+  });
+
+  await waitFor(() => {
+    expect(latest!.workflow.keypoints.map(keypoint => keypoint.id)).toEqual([
+      'T10-1',
+    ]);
+  });
+});
+
 it('shifts keypoints and measurement vertebra fields together', async () => {
   let latest: WorkflowHarnessValue | null = null;
 
