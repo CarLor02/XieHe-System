@@ -1,6 +1,6 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
-import { expect, it, jest, beforeEach } from '@jest/globals';
+import { afterEach, beforeEach, expect, it, jest } from '@jest/globals';
 
 const beginHistoryActionMock = jest.fn();
 const clearHistoryMock = jest.fn();
@@ -15,6 +15,7 @@ const handleToggleVertebraeLayerMock = jest.fn();
 const setSelectedToolMock = jest.fn();
 const activateHandModeMock = jest.fn();
 const handleApplyVertebraLabelOffsetMock = jest.fn();
+const handleSaveMeasurementsMock = jest.fn();
 let activeVertebraeLayerMock: Array<Record<string, unknown>> = [];
 let annotationHistoryOptions:
   | {
@@ -179,7 +180,7 @@ jest.mock('@/app/imaging/features/image-viewer/features/study', () => ({
     isAIDetecting: false,
     isAIMeasuring: false,
     handleAIMeasurement: jest.fn(),
-    handleSaveMeasurements: jest.fn(),
+    handleSaveMeasurements: handleSaveMeasurementsMock,
   }),
 }));
 
@@ -275,8 +276,13 @@ beforeEach(() => {
   setSelectedToolMock.mockClear();
   activateHandModeMock.mockClear();
   handleApplyVertebraLabelOffsetMock.mockClear();
+  handleSaveMeasurementsMock.mockClear();
   activeVertebraeLayerMock = [];
   annotationHistoryOptions = null;
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 it('starts annotation history before deleting a measurement from the results list', async () => {
@@ -502,6 +508,34 @@ it('redoes annotation history from Ctrl+Y', async () => {
   expect(undoHistoryMock).not.toHaveBeenCalled();
 });
 
+it('saves annotations from Ctrl+S', async () => {
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const event = new KeyboardEvent('keydown', {
+    key: 's',
+    ctrlKey: true,
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  document.dispatchEvent(event);
+
+  expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  expect(handleSaveMeasurementsMock).toHaveBeenCalledTimes(1);
+});
+
 it('undoes annotation history from Command+Z on Mac', async () => {
   Object.defineProperty(window.navigator, 'platform', {
     configurable: true,
@@ -568,6 +602,38 @@ it('redoes annotation history from Command+Y on Mac', async () => {
   expect(undoHistoryMock).not.toHaveBeenCalled();
 });
 
+it('saves annotations from Command+S on Mac', async () => {
+  Object.defineProperty(window.navigator, 'platform', {
+    configurable: true,
+    value: 'MacIntel',
+  });
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const event = new KeyboardEvent('keydown', {
+    key: 's',
+    metaKey: true,
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  document.dispatchEvent(event);
+
+  expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  expect(handleSaveMeasurementsMock).toHaveBeenCalledTimes(1);
+});
+
 it('does not use Ctrl+Z for annotation history on Mac', async () => {
   Object.defineProperty(window.navigator, 'platform', {
     configurable: true,
@@ -601,6 +667,38 @@ it('does not use Ctrl+Z for annotation history on Mac', async () => {
   expect(redoHistoryMock).not.toHaveBeenCalled();
 });
 
+it('does not save annotations from Ctrl+S on Mac', async () => {
+  Object.defineProperty(window.navigator, 'platform', {
+    configurable: true,
+    value: 'MacIntel',
+  });
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const event = new KeyboardEvent('keydown', {
+    key: 's',
+    ctrlKey: true,
+    bubbles: true,
+  });
+  const preventDefaultSpy = jest.spyOn(event, 'preventDefault');
+
+  document.dispatchEvent(event);
+
+  expect(preventDefaultSpy).not.toHaveBeenCalled();
+  expect(handleSaveMeasurementsMock).not.toHaveBeenCalled();
+});
+
 it('does not use annotation history shortcuts inside editable fields', async () => {
   let latest: Controller | null = null;
   const input = document.createElement('input');
@@ -630,6 +728,81 @@ it('does not use annotation history shortcuts inside editable fields', async () 
   expect(redoHistoryMock).not.toHaveBeenCalled();
 
   input.remove();
+});
+
+it('does not save annotations from Ctrl+S inside editable fields', async () => {
+  let latest: Controller | null = null;
+  const input = document.createElement('input');
+  document.body.appendChild(input);
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  input.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      bubbles: true,
+    })
+  );
+
+  expect(handleSaveMeasurementsMock).not.toHaveBeenCalled();
+
+  input.remove();
+});
+
+it('debounces annotation saves from button and shortcut within 500ms', async () => {
+  jest.useFakeTimers();
+  jest.setSystemTime(0);
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  latest!.headerProps.onSave();
+  latest!.headerProps.onSave();
+
+  expect(handleSaveMeasurementsMock).toHaveBeenCalledTimes(1);
+
+  jest.advanceTimersByTime(499);
+  document.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      bubbles: true,
+    })
+  );
+
+  expect(handleSaveMeasurementsMock).toHaveBeenCalledTimes(1);
+
+  jest.advanceTimersByTime(1);
+  document.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      bubbles: true,
+    })
+  );
+
+  expect(handleSaveMeasurementsMock).toHaveBeenCalledTimes(2);
 });
 
 it('toggles the detection layer from Shift+D when layer data exists', async () => {

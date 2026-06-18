@@ -63,6 +63,7 @@ const ANNOTATION_HISTORY_SHORTCUTS: Record<
   z: 'undo',
   y: 'redo',
 };
+const SAVE_SHORTCUT_DEBOUNCE_MS = 500;
 
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -92,6 +93,13 @@ function getAnnotationHistoryShortcutAction(
   return ANNOTATION_HISTORY_SHORTCUTS[event.key.toLowerCase()] ?? null;
 }
 
+function isSaveShortcut(event: KeyboardEvent): boolean {
+  const isMac = isMacKeyboardPlatform();
+  const hasPlatformModifier = isMac ? event.metaKey : event.ctrlKey;
+
+  return hasPlatformModifier && event.key.toLowerCase() === 's';
+}
+
 function isDetectionLayerToggleShortcut(event: KeyboardEvent): boolean {
   return event.shiftKey && event.key.toLowerCase() === 'd';
 }
@@ -108,6 +116,7 @@ export function useImageViewerController({
   const canvasState = useCanvasInteraction();
   const { saveMessage, setSaveMessage } = useAnnotationPersistence();
   const studyState = useImageStudy();
+  const lastSaveTriggeredAtRef = useRef<number | null>(null);
 
   const {
     measurements,
@@ -380,51 +389,6 @@ export function useImageViewerController({
     activateHandMode();
   }, [activateHandMode, keypointSequenceSession]);
 
-  useEffect(() => {
-    const handleAnnotationHistoryShortcut = (event: KeyboardEvent) => {
-      if (isEditableKeyboardTarget(event.target)) return;
-
-      if (isEscapeShortcut(event) && keypointSequenceSession) {
-        event.preventDefault();
-        handleCloseKeypointSequence();
-        return;
-      }
-
-      if (isDetectionLayerToggleShortcut(event)) {
-        if (!hasVertebraeLayer) return;
-        event.preventDefault();
-        handleToggleVertebraeLayer();
-        return;
-      }
-
-      const action = getAnnotationHistoryShortcutAction(event);
-      if (action === 'undo' && canUndoAnnotationHistory) {
-        event.preventDefault();
-        undoAnnotationHistory();
-        return;
-      }
-
-      if (action === 'redo' && canRedoAnnotationHistory) {
-        event.preventDefault();
-        redoAnnotationHistory();
-      }
-    };
-
-    document.addEventListener('keydown', handleAnnotationHistoryShortcut);
-    return () => {
-      document.removeEventListener('keydown', handleAnnotationHistoryShortcut);
-    };
-  }, [
-    canRedoAnnotationHistory,
-    canUndoAnnotationHistory,
-    handleCloseKeypointSequence,
-    handleToggleVertebraeLayer,
-    hasVertebraeLayer,
-    keypointSequenceSession,
-    redoAnnotationHistory,
-    undoAnnotationHistory,
-  ]);
-
   const measurementWorkflow = useMeasurementWorkflow({
     imageId,
     examType: imageData.examType,
@@ -500,6 +464,74 @@ export function useImageViewerController({
     aiMeasurementIdsRef: keypointWorkflow.aiMeasurementIdsRef,
     setSaveMessage,
   });
+
+  const handleDebouncedSaveMeasurements = useCallback(() => {
+    if (studyHeaderActions.isSaving) return;
+
+    const now = Date.now();
+    const lastSaveTriggeredAt = lastSaveTriggeredAtRef.current;
+    if (
+      lastSaveTriggeredAt !== null &&
+      now - lastSaveTriggeredAt < SAVE_SHORTCUT_DEBOUNCE_MS
+    ) {
+      return;
+    }
+
+    lastSaveTriggeredAtRef.current = now;
+    studyHeaderActions.handleSaveMeasurements();
+  }, [studyHeaderActions]);
+
+  useEffect(() => {
+    const handleAnnotationHistoryShortcut = (event: KeyboardEvent) => {
+      if (isEditableKeyboardTarget(event.target)) return;
+
+      if (isEscapeShortcut(event) && keypointSequenceSession) {
+        event.preventDefault();
+        handleCloseKeypointSequence();
+        return;
+      }
+
+      if (isDetectionLayerToggleShortcut(event)) {
+        if (!hasVertebraeLayer) return;
+        event.preventDefault();
+        handleToggleVertebraeLayer();
+        return;
+      }
+
+      if (isSaveShortcut(event)) {
+        event.preventDefault();
+        handleDebouncedSaveMeasurements();
+        return;
+      }
+
+      const action = getAnnotationHistoryShortcutAction(event);
+      if (action === 'undo' && canUndoAnnotationHistory) {
+        event.preventDefault();
+        undoAnnotationHistory();
+        return;
+      }
+
+      if (action === 'redo' && canRedoAnnotationHistory) {
+        event.preventDefault();
+        redoAnnotationHistory();
+      }
+    };
+
+    document.addEventListener('keydown', handleAnnotationHistoryShortcut);
+    return () => {
+      document.removeEventListener('keydown', handleAnnotationHistoryShortcut);
+    };
+  }, [
+    canRedoAnnotationHistory,
+    canUndoAnnotationHistory,
+    handleCloseKeypointSequence,
+    handleDebouncedSaveMeasurements,
+    handleToggleVertebraeLayer,
+    hasVertebraeLayer,
+    keypointSequenceSession,
+    redoAnnotationHistory,
+    undoAnnotationHistory,
+  ]);
 
   const handleMeasurementAddWithHistory = useCallback(
     (toolType: string, points: Point[]) => {
@@ -734,7 +766,7 @@ export function useImageViewerController({
       hasVertebraeLayer,
       showVertebraeLayer: keypointWorkflow.showVertebraeLayer,
       onToggleVertebraeLayer: handleToggleVertebraeLayer,
-      onSave: studyHeaderActions.handleSaveMeasurements,
+      onSave: handleDebouncedSaveMeasurements,
       onExportJson: measurementWorkflow.exportAnnotationsToJSON,
       onImportJson: measurementWorkflow.importAnnotationsFromJSON,
       onAIMeasure: handleAIMeasurementWithHistory,
