@@ -219,7 +219,7 @@ describe('useVertebradDrag', () => {
     }
   });
 
-  it('starts annotation history when a keypoint drag is accepted', async () => {
+  it('starts annotation history only after a keypoint drag exceeds the threshold', async () => {
     let latest: DragHook | null = null;
     const onAnnotationDragStart = jest.fn();
 
@@ -241,13 +241,106 @@ describe('useVertebradDrag', () => {
       expect(latest!.handleMouseDown(100, 100)).toBe(true);
     });
 
-    expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
+    expect(onAnnotationDragStart).not.toHaveBeenCalled();
 
     act(() => {
       latest!.handleMouseMove(110, 110);
     });
 
     expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not update the layer when a keypoint is only clicked', async () => {
+    let latest: DragHook | null = null;
+    const onAnnotationDragStart = jest.fn();
+    const onVertebraeUpdate = jest.fn();
+
+    render(
+      <DragHarness
+        onValue={value => {
+          latest = value;
+        }}
+        onVertebraeUpdate={onVertebraeUpdate}
+        onAnnotationDragStart={onAnnotationDragStart}
+      />
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+    });
+
+    act(() => {
+      expect(latest!.handleMouseDown(100, 100)).toBe(true);
+    });
+    act(() => {
+      latest!.handleMouseUp();
+    });
+
+    expect(onAnnotationDragStart).not.toHaveBeenCalled();
+    expect(onVertebraeUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not update the layer when pointer movement stays below the drag threshold', async () => {
+    let latest: DragHook | null = null;
+    const onAnnotationDragStart = jest.fn();
+    const onVertebraeUpdate = jest.fn();
+
+    render(
+      <DragHarness
+        onValue={value => {
+          latest = value;
+        }}
+        onVertebraeUpdate={onVertebraeUpdate}
+        onAnnotationDragStart={onAnnotationDragStart}
+      />
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+    });
+
+    act(() => {
+      expect(latest!.handleMouseDown(100, 100)).toBe(true);
+    });
+    act(() => {
+      latest!.handleMouseMove(102, 102);
+    });
+    act(() => {
+      latest!.handleMouseUp();
+    });
+
+    expect(onAnnotationDragStart).not.toHaveBeenCalled();
+    expect(onVertebraeUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not update the layer when a vertebra frame is only clicked', async () => {
+    let latest: DragHook | null = null;
+    const onAnnotationDragStart = jest.fn();
+    const onVertebraeUpdate = jest.fn();
+
+    render(
+      <DragHarness
+        onValue={value => {
+          latest = value;
+        }}
+        onVertebraeUpdate={onVertebraeUpdate}
+        onAnnotationDragStart={onAnnotationDragStart}
+      />
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+    });
+
+    act(() => {
+      expect(latest!.handleMouseDown(150, 150)).toBe(true);
+    });
+    act(() => {
+      latest!.handleMouseUp();
+    });
+
+    expect(onAnnotationDragStart).not.toHaveBeenCalled();
+    expect(onVertebraeUpdate).not.toHaveBeenCalled();
   });
 
   it('reports keypoint selection when a corner is hit', async () => {

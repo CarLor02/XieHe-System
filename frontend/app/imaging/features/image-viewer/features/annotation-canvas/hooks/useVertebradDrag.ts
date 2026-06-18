@@ -16,12 +16,16 @@ interface DragMember {
 type DragState =
   | ({
       mode: 'corner';
+      startScreenPoint: ScreenPoint;
+      dragStarted: boolean;
     } & DragMember)
   | {
       mode: 'group';
       members: DragMember[];
+      startScreenPoint: ScreenPoint;
       startImagePoint: Point;
       initialLayer: VertebraAnnotation[];
+      dragStarted: boolean;
     };
 
 interface CornerRef {
@@ -40,6 +44,7 @@ interface ScreenPoint {
 
 /** 命中检测半径（屏幕像素） */
 const HIT_RADIUS_PX = 10;
+const DRAG_START_THRESHOLD_PX = 3;
 
 function isCompleteVertebraFrame(vertebra: VertebraAnnotation): boolean {
   if (vertebra.label === 'S1') return false;
@@ -218,6 +223,13 @@ export function useVertebradDrag({
     return renderCornerToKeypointId(hit.vertebraLabel, hit.cornerIndex);
   }, []);
 
+  const shouldStartDrag = useCallback(
+    (startPoint: ScreenPoint, currentPoint: ScreenPoint): boolean =>
+      Math.hypot(currentPoint.x - startPoint.x, currentPoint.y - startPoint.y) >
+      DRAG_START_THRESHOLD_PX,
+    []
+  );
+
   const keypointIdsToDragMembers = useCallback(
     (keypointIds: string[]): DragMember[] => {
       const seen = new Set<string>();
@@ -254,12 +266,13 @@ export function useVertebradDrag({
           kind: 'keypoint',
           keypointId: hitToKeypointId(hit),
         });
-        onAnnotationDragStart?.();
-        dragStateRef.current = { mode: 'corner', ...hit };
+        dragStateRef.current = {
+          mode: 'corner',
+          ...hit,
+          startScreenPoint: { x: screenX, y: screenY },
+          dragStarted: false,
+        };
         setActiveCorner({ label: hit.vertebraLabel, index: hit.cornerIndex });
-        setIsDragging(true);
-        liveLayerRef.current = vertebraeLayer;
-        setLiveLayer(vertebraeLayer);
         return true;
       }
 
@@ -268,7 +281,6 @@ export function useVertebradDrag({
         : null;
       if (!members) return false;
 
-      onAnnotationDragStart?.();
       const [firstMember] = members;
       onSelectionChange?.({
         kind: 'vertebra',
@@ -277,16 +289,15 @@ export function useVertebradDrag({
       dragStateRef.current = {
         mode: 'group',
         members,
+        startScreenPoint: { x: screenX, y: screenY },
         startImagePoint: screenToImage(screenX, screenY),
         initialLayer: vertebraeLayer,
+        dragStarted: false,
       };
       setActiveCorner({
         label: firstMember.vertebraLabel,
         index: firstMember.cornerIndex,
       });
-      setIsDragging(true);
-      liveLayerRef.current = vertebraeLayer;
-      setLiveLayer(vertebraeLayer);
       return true;
     },
     [
@@ -295,7 +306,6 @@ export function useVertebradDrag({
       findNearestCorner,
       enableFrameHitTest,
       hitToKeypointId,
-      onAnnotationDragStart,
       onSelectionChange,
       onVertebraeUpdate,
       screenToImage,
@@ -312,13 +322,20 @@ export function useVertebradDrag({
       onAnnotationDragStart?.();
       const [firstMember] = members;
       if (members.length === 1) {
-        dragStateRef.current = { mode: 'corner', ...firstMember };
+        dragStateRef.current = {
+          mode: 'corner',
+          ...firstMember,
+          startScreenPoint: { x: screenX, y: screenY },
+          dragStarted: true,
+        };
       } else {
         dragStateRef.current = {
           mode: 'group',
           members,
+          startScreenPoint: { x: screenX, y: screenY },
           startImagePoint: screenToImage(screenX, screenY),
           initialLayer: vertebraeLayer,
+          dragStarted: true,
         };
       }
       setActiveCorner({
@@ -350,6 +367,18 @@ export function useVertebradDrag({
       const { screenX, screenY } = clientToScreen(clientX, clientY);
       const activeHit = dragStateRef.current;
       if (activeHit) {
+        const currentScreenPoint = { x: screenX, y: screenY };
+        if (!activeHit.dragStarted) {
+          if (!shouldStartDrag(activeHit.startScreenPoint, currentScreenPoint)) {
+            return true;
+          }
+          onAnnotationDragStart?.();
+          activeHit.dragStarted = true;
+          liveLayerRef.current = vertebraeLayer;
+          setLiveLayer(vertebraeLayer);
+          setIsDragging(true);
+        }
+
         const imagePt = screenToImage(screenX, screenY);
         const currentLayer = liveLayerRef.current ?? vertebraeLayer;
         const next =
@@ -393,8 +422,10 @@ export function useVertebradDrag({
       findNearestCorner,
       hitToKeypointId,
       onHoverChange,
+      onAnnotationDragStart,
       onLiveLayerChange,
       screenToImage,
+      shouldStartDrag,
       updateLayerCorner,
       vertebraeLayer,
     ]
@@ -405,12 +436,15 @@ export function useVertebradDrag({
    * 结束拖拽，把最终 liveLayer 传给 onVertebraeUpdate。
    */
   const handleMouseUp = useCallback(() => {
-    if (!dragStateRef.current) return;
+    const activeHit = dragStateRef.current;
+    if (!activeHit) return;
     const finalLayer = liveLayerRef.current;
     dragStateRef.current = null;
     liveLayerRef.current = null;
     setLiveLayer(null);
-    if (finalLayer && onVertebraeUpdate) onVertebraeUpdate(finalLayer);
+    if (activeHit.dragStarted && finalLayer && onVertebraeUpdate) {
+      onVertebraeUpdate(finalLayer);
+    }
     setActiveCorner(null);
     setIsDragging(false);
   }, [onVertebraeUpdate]);
