@@ -52,28 +52,55 @@ export default function ImageGrid({
         const patientName = imageFile.patient_name || '未知患者';
         const uploaderName = imageFile.uploader_name || '未知用户';
         const viewerHref = `/imaging/viewer?id=${imageFile.id}&returnTo=${encodeURIComponent(viewerReturnTo)}`;
+        const isSelectedForExport = selectedExportIds.has(imageFile.id);
 
         return (
           <div
             key={imageFile.id}
             className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
           >
-            <Link href={viewerHref}>
-              <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer flex items-center justify-center">
-                <ImagePreview
-                  imageFile={imageFile}
-                  imageUrls={imageUrls}
-                  previewStates={previewStates}
-                  imgClassName="w-full h-full object-contain"
-                  loadingIconClassName="ri-loader-4-line text-4xl animate-spin"
-                  fallbackIconClassName="ri-image-line text-4xl"
-                  onPreviewError={onPreviewError}
-                />
-                <div className="absolute top-2 right-2">
-                  <ImageStatusBadge status={imageFile.status} variant="overlay" />
+            {isBatchExportMode ? (
+              <button
+                type="button"
+                aria-label={`选择导出图像 ${imageFile.original_filename}`}
+                onClick={() => onToggleExportSelection?.(imageFile.id)}
+                className={`block w-full rounded-t-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  isSelectedForExport ? 'ring-2 ring-blue-500' : ''
+                }`}
+              >
+                <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer flex items-center justify-center">
+                  <ImagePreview
+                    imageFile={imageFile}
+                    imageUrls={imageUrls}
+                    previewStates={previewStates}
+                    imgClassName="w-full h-full object-contain"
+                    loadingIconClassName="ri-loader-4-line text-4xl animate-spin"
+                    fallbackIconClassName="ri-image-line text-4xl"
+                    onPreviewError={onPreviewError}
+                  />
+                  <div className="absolute top-2 right-2">
+                    <ImageStatusBadge status={imageFile.status} variant="overlay" />
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </button>
+            ) : (
+              <Link href={viewerHref}>
+                <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer flex items-center justify-center">
+                  <ImagePreview
+                    imageFile={imageFile}
+                    imageUrls={imageUrls}
+                    previewStates={previewStates}
+                    imgClassName="w-full h-full object-contain"
+                    loadingIconClassName="ri-loader-4-line text-4xl animate-spin"
+                    fallbackIconClassName="ri-image-line text-4xl"
+                    onPreviewError={onPreviewError}
+                  />
+                  <div className="absolute top-2 right-2">
+                    <ImageStatusBadge status={imageFile.status} variant="overlay" />
+                  </div>
+                </div>
+              </Link>
+            )}
 
             <div className="p-4">
               <div className="mb-3">
@@ -118,7 +145,7 @@ export default function ImageGrid({
               {isBatchExportMode ? (
                 <label
                   className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
-                    selectedExportIds.has(imageFile.id)
+                    isSelectedForExport
                       ? 'border-blue-300 bg-blue-50 text-blue-700'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
@@ -127,7 +154,7 @@ export default function ImageGrid({
                   <input
                     type="checkbox"
                     aria-label={`选择导出 ${imageFile.original_filename}`}
-                    checked={selectedExportIds.has(imageFile.id)}
+                    checked={isSelectedForExport}
                     onChange={() => onToggleExportSelection?.(imageFile.id)}
                     className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />

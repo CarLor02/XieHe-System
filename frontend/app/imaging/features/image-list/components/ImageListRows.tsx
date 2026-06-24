@@ -39,26 +39,50 @@ export default function ImageListRows({
         const patientName = imageFile.patient_name || '未知患者';
         const uploaderName = imageFile.uploader_name || '未知用户';
         const viewerHref = `/imaging/viewer?id=${imageFile.id}&returnTo=${encodeURIComponent(viewerReturnTo)}`;
+        const isSelectedForExport = selectedExportIds.has(imageFile.id);
 
         return (
           <div key={imageFile.id} className="p-4 hover:bg-gray-50 sm:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start">
-              <Link
-                href={viewerHref}
-                className="self-start"
-              >
-                <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
-                  <ImagePreview
-                    imageFile={imageFile}
-                    imageUrls={imageUrls}
-                    previewStates={previewStates}
-                    imgClassName="w-full h-full object-contain"
-                    loadingIconClassName="ri-loader-4-line text-2xl animate-spin"
-                    fallbackIconClassName="ri-image-line text-2xl"
-                    onPreviewError={onPreviewError}
-                  />
-                </div>
-              </Link>
+              {isBatchExportMode ? (
+                <button
+                  type="button"
+                  aria-label={`选择导出图像 ${imageFile.original_filename}`}
+                  onClick={() => onToggleExportSelection?.(imageFile.id)}
+                  className={`self-start rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    isSelectedForExport ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
+                    <ImagePreview
+                      imageFile={imageFile}
+                      imageUrls={imageUrls}
+                      previewStates={previewStates}
+                      imgClassName="w-full h-full object-contain"
+                      loadingIconClassName="ri-loader-4-line text-2xl animate-spin"
+                      fallbackIconClassName="ri-image-line text-2xl"
+                      onPreviewError={onPreviewError}
+                    />
+                  </div>
+                </button>
+              ) : (
+                <Link
+                  href={viewerHref}
+                  className="self-start"
+                >
+                  <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
+                    <ImagePreview
+                      imageFile={imageFile}
+                      imageUrls={imageUrls}
+                      previewStates={previewStates}
+                      imgClassName="w-full h-full object-contain"
+                      loadingIconClassName="ri-loader-4-line text-2xl animate-spin"
+                      fallbackIconClassName="ri-image-line text-2xl"
+                      onPreviewError={onPreviewError}
+                    />
+                  </div>
+                </Link>
+              )}
 
               <div className="min-w-0 w-full flex-1">
                 <div className="flex flex-col gap-2 mb-3 lg:flex-row lg:items-start lg:justify-between">
@@ -106,7 +130,7 @@ export default function ImageListRows({
                 {isBatchExportMode ? (
                   <label
                     className={`flex max-w-xs cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
-                      selectedExportIds.has(imageFile.id)
+                      isSelectedForExport
                         ? 'border-blue-300 bg-blue-50 text-blue-700'
                         : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                     }`}
@@ -115,7 +139,7 @@ export default function ImageListRows({
                     <input
                       type="checkbox"
                       aria-label={`选择导出 ${imageFile.original_filename}`}
-                      checked={selectedExportIds.has(imageFile.id)}
+                      checked={isSelectedForExport}
                       onChange={() => onToggleExportSelection?.(imageFile.id)}
                       className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />

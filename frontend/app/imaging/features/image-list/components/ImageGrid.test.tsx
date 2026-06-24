@@ -95,6 +95,18 @@ it('passes the current imaging URL to the viewer return target', () => {
   );
 });
 
+it('keeps the image preview linked to the viewer outside batch export mode', () => {
+  renderImageGrid(makeImageFile());
+
+  const viewerHref =
+    '/imaging/viewer?id=1&returnTo=%2Fimaging%3Fpage%3D3%26uploaded_by%3D7';
+  const viewerLinks = screen
+    .getAllByRole('link')
+    .filter(link => link.getAttribute('href') === viewerHref);
+
+  expect(viewerLinks.length).toBe(2);
+});
+
 it('replaces card actions with an export checkbox in batch export mode', async () => {
   const onToggleExportSelection = jest.fn();
   renderImageGrid(makeImageFile(), {
@@ -110,5 +122,27 @@ it('replaces card actions with an export checkbox in batch export mode', async (
   expect((checkbox as HTMLInputElement).checked).toBe(true);
 
   await userEvent.click(checkbox);
+  expect(onToggleExportSelection).toHaveBeenCalledWith(1);
+});
+
+it('selects the image instead of opening the viewer when clicking the preview in batch export mode', async () => {
+  const onToggleExportSelection = jest.fn();
+  renderImageGrid(makeImageFile(), {
+    isBatchExportMode: true,
+    selectedExportIds: new Set<number>(),
+    onToggleExportSelection,
+  });
+
+  const viewerHref =
+    '/imaging/viewer?id=1&returnTo=%2Fimaging%3Fpage%3D3%26uploaded_by%3D7';
+  const viewerLinks = screen
+    .queryAllByRole('link')
+    .filter(link => link.getAttribute('href') === viewerHref);
+  expect(viewerLinks.length).toBe(0);
+
+  await userEvent.click(
+    screen.getByRole('button', { name: /选择导出图像 xray\.png/ })
+  );
+
   expect(onToggleExportSelection).toHaveBeenCalledWith(1);
 });

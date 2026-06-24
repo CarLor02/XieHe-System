@@ -84,6 +84,28 @@ it('passes the current imaging URL to the row viewer return target', () => {
   );
 });
 
+it('keeps the row thumbnail linked to the viewer outside batch export mode', () => {
+  render(
+    <ImageListRows
+      imageFiles={[makeImageFile()]}
+      viewerReturnTo="/imaging?page=2&search=abc"
+      imageUrls={{}}
+      previewStates={{}}
+      onPreviewError={jest.fn()}
+      onMoreAction={jest.fn()}
+      onCropEdit={jest.fn()}
+    />
+  );
+
+  const viewerHref =
+    '/imaging/viewer?id=1&returnTo=%2Fimaging%3Fpage%3D2%26search%3Dabc';
+  const viewerLinks = screen
+    .getAllByRole('link')
+    .filter(link => link.getAttribute('href') === viewerHref);
+
+  expect(viewerLinks.length).toBe(2);
+});
+
 it('replaces row actions with an export checkbox in batch export mode', async () => {
   const onToggleExportSelection = jest.fn();
   const props: ComponentProps<typeof ImageListRows> = {
@@ -109,5 +131,38 @@ it('replaces row actions with an export checkbox in batch export mode', async ()
   });
 
   await userEvent.click(checkbox);
+  expect(onToggleExportSelection).toHaveBeenCalledWith(1);
+});
+
+it('selects the row image instead of opening the viewer when clicking the thumbnail in batch export mode', async () => {
+  const onToggleExportSelection = jest.fn();
+  render(
+    <ImageListRows
+      imageFiles={[makeImageFile()]}
+      viewerReturnTo="/imaging?page=2&search=abc"
+      imageUrls={{}}
+      previewStates={{}}
+      onPreviewError={jest.fn()}
+      onMoreAction={jest.fn()}
+      onCropEdit={jest.fn()}
+      isBatchExportMode
+      selectedExportIds={new Set<number>()}
+      onToggleExportSelection={onToggleExportSelection}
+    />
+  );
+
+  const viewerHref =
+    '/imaging/viewer?id=1&returnTo=%2Fimaging%3Fpage%3D2%26search%3Dabc';
+  const viewerLinks = screen
+    .queryAllByRole('link')
+    .filter(link => link.getAttribute('href') === viewerHref);
+  expect(viewerLinks.length).toBe(0);
+
+  await userEvent.click(
+    screen.getByRole('button', {
+      name: /选择导出图像 1061问题图像很长很长\.png/,
+    })
+  );
+
   expect(onToggleExportSelection).toHaveBeenCalledWith(1);
 });
