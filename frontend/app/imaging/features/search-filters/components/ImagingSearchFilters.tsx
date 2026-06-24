@@ -4,6 +4,9 @@ import EntitySearchSelect, {
   type EntitySearchSelectLoadParams,
 } from '@/components/common/EntitySearchSelect';
 import type { ImageUploader } from '@/services/imageServices/imageFileService';
+import BatchExportControls from '@/app/imaging/features/batch-export/components/BatchExportControls';
+import type { ExportContentType } from '@/app/imaging/features/batch-export/domain';
+import type { ExportContentOption } from '@/app/imaging/features/batch-export/hooks/use-export-content-options';
 import {
   EXAM_TYPES,
   type ImagingViewMode,
@@ -22,6 +25,13 @@ interface ImagingSearchFiltersProps {
   selectedUploader: ImageUploader | null;
   visibleCount: number;
   total: number;
+  isBatchExportMode: boolean;
+  selectedExportCount: number;
+  exportContent: ExportContentType;
+  exportContentOptions: ExportContentOption[];
+  isExporting: boolean;
+  exportProgress: number;
+  exportMessage: string;
   onChangeSearchTerm: (value: string) => void;
   onSearch: () => void;
   onToggleFilters: () => void;
@@ -39,6 +49,11 @@ interface ImagingSearchFiltersProps {
     totalPages: number;
   }>;
   onClearFilters: () => void;
+  onToggleBatchExportMode: () => void;
+  onExitBatchExportMode: () => void;
+  onChangeExportContent: (value: ExportContentType) => void;
+  onClearExportSelection: () => void;
+  onStartBatchExport: () => void;
 }
 
 export default function ImagingSearchFilters({
@@ -53,6 +68,13 @@ export default function ImagingSearchFilters({
   selectedUploader,
   visibleCount,
   total,
+  isBatchExportMode,
+  selectedExportCount,
+  exportContent,
+  exportContentOptions,
+  isExporting,
+  exportProgress,
+  exportMessage,
   onChangeSearchTerm,
   onSearch,
   onToggleFilters,
@@ -64,6 +86,11 @@ export default function ImagingSearchFilters({
   onChangeUploader,
   onLoadUploaders,
   onClearFilters,
+  onToggleBatchExportMode,
+  onExitBatchExportMode,
+  onChangeExportContent,
+  onClearExportSelection,
+  onStartBatchExport,
 }: ImagingSearchFiltersProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
@@ -83,10 +110,18 @@ export default function ImagingSearchFilters({
               上传影像
             </Link>
           </Tooltip>
-          <Tooltip content="批量下载选中的影像文件" position="bottom">
-            <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 whitespace-nowrap inline-flex items-center">
+          <Tooltip content="批量导出选中的影像文件" position="bottom">
+            <button
+              type="button"
+              onClick={onToggleBatchExportMode}
+              className={`px-4 py-2 rounded-lg whitespace-nowrap inline-flex items-center ${
+                isBatchExportMode
+                  ? 'bg-blue-50 border border-blue-300 text-blue-700 hover:bg-blue-100'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
               <i className="ri-download-line mr-1"></i>
-              批量下载
+              批量导出
             </button>
           </Tooltip>
         </div>
@@ -252,6 +287,21 @@ export default function ImagingSearchFilters({
             </button>
           </div>
         </div>
+      )}
+
+      {isBatchExportMode && (
+        <BatchExportControls
+          exportContent={exportContent}
+          exportContentOptions={exportContentOptions}
+          selectedCount={selectedExportCount}
+          isExporting={isExporting}
+          exportProgress={exportProgress}
+          exportMessage={exportMessage}
+          onChangeExportContent={onChangeExportContent}
+          onClearSelection={onClearExportSelection}
+          onExit={onExitBatchExportMode}
+          onStartExport={onStartBatchExport}
+        />
       )}
     </div>
   );

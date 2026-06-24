@@ -28,6 +28,9 @@ interface ImageListPanelProps {
     status: string
   ) => void;
   onCropEdit: (imageFile: ImageFile) => void;
+  isBatchExportMode?: boolean;
+  selectedExportIds?: Set<number>;
+  onToggleExportSelection?: (fileId: number) => void;
   onClearResultFilters: () => void;
   onChangePage: (updater: (page: number) => number) => void;
 }
@@ -48,6 +51,9 @@ export default function ImageListPanel({
   onMoreAction,
   onOpenChangeTypeModal,
   onCropEdit,
+  isBatchExportMode = false,
+  selectedExportIds = new Set<number>(),
+  onToggleExportSelection,
   onClearResultFilters,
   onChangePage,
 }: ImageListPanelProps) {
@@ -66,6 +72,9 @@ export default function ImageListPanel({
             onMoreAction={onMoreAction}
             onOpenChangeTypeModal={onOpenChangeTypeModal}
             onCropEdit={onCropEdit}
+            isBatchExportMode={isBatchExportMode}
+            selectedExportIds={selectedExportIds}
+            onToggleExportSelection={onToggleExportSelection}
           />
         ) : (
           <ImageListRows
@@ -76,6 +85,9 @@ export default function ImageListPanel({
             onPreviewError={onPreviewError}
             onMoreAction={onMoreAction}
             onCropEdit={onCropEdit}
+            isBatchExportMode={isBatchExportMode}
+            selectedExportIds={selectedExportIds}
+            onToggleExportSelection={onToggleExportSelection}
           />
         )
       ) : (

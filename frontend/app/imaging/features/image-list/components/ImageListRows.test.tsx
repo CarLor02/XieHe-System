@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { expect, it, jest } from '@jest/globals';
+import type { ComponentProps } from 'react';
 
 import ImageListRows from './ImageListRows';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
@@ -80,4 +82,32 @@ it('passes the current imaging URL to the row viewer return target', () => {
   expect(viewerLink.getAttribute('href')).toBe(
     '/imaging/viewer?id=1&returnTo=%2Fimaging%3Fpage%3D2%26search%3Dabc'
   );
+});
+
+it('replaces row actions with an export checkbox in batch export mode', async () => {
+  const onToggleExportSelection = jest.fn();
+  const props: ComponentProps<typeof ImageListRows> = {
+    imageFiles: [makeImageFile()],
+    viewerReturnTo: '/imaging?page=2&search=abc',
+    imageUrls: {},
+    previewStates: {},
+    onPreviewError: jest.fn(),
+    onMoreAction: jest.fn(),
+    onCropEdit: jest.fn(),
+    isBatchExportMode: true,
+    selectedExportIds: new Set<number>(),
+    onToggleExportSelection,
+  };
+
+  render(<ImageListRows {...props} />);
+
+  expect(screen.queryByRole('link', { name: /标注分析/ })).not.toBeTruthy();
+  expect(screen.queryByRole('button', { name: /删除/ })).not.toBeTruthy();
+
+  const checkbox = screen.getByRole('checkbox', {
+    name: /选择导出 1061问题图像很长很长\.png/,
+  });
+
+  await userEvent.click(checkbox);
+  expect(onToggleExportSelection).toHaveBeenCalledWith(1);
 });

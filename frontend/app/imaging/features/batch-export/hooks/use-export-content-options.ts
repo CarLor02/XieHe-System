@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import type { ExportContentType } from '../domain';
 
-interface ExportContentOption {
+export interface ExportContentOption {
   value: ExportContentType;
   label: string;
   adminOnly?: boolean;

@@ -14,7 +14,7 @@ import { EXAM_TYPES } from './features/image-actions/hooks/useImageEditOverlay';
 
 function ImagingPageContent() {
   const controller = useImagingPageController();
-  const { preview, actions, editOverlay } = controller;
+  const { preview, actions, editOverlay, batchExport } = controller;
   const isBlockingError =
     Boolean(controller.error) && controller.imageFiles.length === 0;
 
@@ -49,6 +49,13 @@ function ImagingPageContent() {
         selectedUploader={controller.selectedUploader}
         visibleCount={controller.imageFiles.length}
         total={controller.total}
+        isBatchExportMode={batchExport.isBatchExportMode}
+        selectedExportCount={batchExport.selectedExportCount}
+        exportContent={batchExport.exportContent}
+        exportContentOptions={batchExport.exportContentOptions}
+        isExporting={batchExport.isExporting}
+        exportProgress={batchExport.exportProgress}
+        exportMessage={batchExport.exportMessage}
         onChangeSearchTerm={controller.setSearchTerm}
         onSearch={controller.handleSearch}
         onToggleFilters={() =>
@@ -62,6 +69,11 @@ function ImagingPageContent() {
         onChangeUploader={controller.handleChangeUploader}
         onLoadUploaders={controller.loadUploaders}
         onClearFilters={controller.clearFilters}
+        onToggleBatchExportMode={batchExport.toggleBatchExportMode}
+        onExitBatchExportMode={batchExport.exitBatchExportMode}
+        onChangeExportContent={batchExport.setExportContent}
+        onClearExportSelection={batchExport.clearExportSelection}
+        onStartBatchExport={batchExport.startBatchExport}
       />
 
       <ImageListPanel
@@ -80,6 +92,9 @@ function ImagingPageContent() {
         onMoreAction={actions.handleMoreAction}
         onOpenChangeTypeModal={actions.openChangeTypeModal}
         onCropEdit={editOverlay.openEditOverlay}
+        isBatchExportMode={batchExport.isBatchExportMode}
+        selectedExportIds={batchExport.selectedExportIds}
+        onToggleExportSelection={batchExport.toggleExportSelection}
         onClearResultFilters={controller.clearEmptyResultFilters}
         onChangePage={controller.setCurrentPage}
       />

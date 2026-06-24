@@ -20,6 +20,7 @@ import { canUseUploaderView } from '@/app/imaging/domain/uploaderViewPermission'
 import { useImagePreviewQueue } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import { useImageFileActions } from '@/app/imaging/features/image-actions/hooks/useImageFileActions';
 import { useImageEditOverlay } from '@/app/imaging/features/image-actions/hooks/useImageEditOverlay';
+import { useBatchImageExport } from '@/app/imaging/features/batch-export/hooks';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -120,6 +121,7 @@ export function useImagingPageController() {
 
   const preview = useImagePreviewQueue(imageFiles);
   const { resetPreviewQueue } = preview;
+  const batchExport = useBatchImageExport(imageFiles);
 
   const loadImages = useCallback(async () => {
     try {
@@ -348,6 +350,7 @@ export function useImagingPageController() {
     currentImagingHref,
     hasActiveFilters,
     preview,
+    batchExport,
     actions,
     editOverlay,
     loadImages,

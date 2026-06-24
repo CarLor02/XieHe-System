@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { expect, it, jest } from '@jest/globals';
+import type { ComponentProps } from 'react';
 
 import ImageGrid from './ImageGrid';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
@@ -38,21 +40,28 @@ function makeImageFile(overrides: Partial<ImageFile> = {}): ImageFile {
   };
 }
 
-function renderImageGrid(imageFile: ImageFile) {
-  return render(
-    <ImageGrid
-      imageFiles={[imageFile]}
-      viewerReturnTo="/imaging?page=3&uploaded_by=7"
-      imageUrls={{}}
-      previewStates={{}}
-      openDropdown={null}
-      onPreviewError={jest.fn()}
-      onToggleActionMenu={jest.fn()}
-      onMoreAction={jest.fn()}
-      onOpenChangeTypeModal={jest.fn()}
-      onCropEdit={jest.fn()}
-    />
-  );
+function renderImageGrid(
+  imageFile: ImageFile,
+  overrides: Partial<ComponentProps<typeof ImageGrid>> = {}
+) {
+  const props: ComponentProps<typeof ImageGrid> = {
+    imageFiles: [imageFile],
+    viewerReturnTo: '/imaging?page=3&uploaded_by=7',
+    imageUrls: {},
+    previewStates: {},
+    openDropdown: null,
+    onPreviewError: jest.fn(),
+    onToggleActionMenu: jest.fn(),
+    onMoreAction: jest.fn(),
+    onOpenChangeTypeModal: jest.fn(),
+    onCropEdit: jest.fn(),
+    ...overrides,
+  };
+
+  return {
+    ...render(<ImageGrid {...props} />),
+    props,
+  };
 }
 
 it('renders patient and uploader names on image cards', () => {
@@ -84,4 +93,22 @@ it('passes the current imaging URL to the viewer return target', () => {
   expect(viewerLink.getAttribute('href')).toBe(
     '/imaging/viewer?id=1&returnTo=%2Fimaging%3Fpage%3D3%26uploaded_by%3D7'
   );
+});
+
+it('replaces card actions with an export checkbox in batch export mode', async () => {
+  const onToggleExportSelection = jest.fn();
+  renderImageGrid(makeImageFile(), {
+    isBatchExportMode: true,
+    selectedExportIds: new Set<number>([1]),
+    onToggleExportSelection,
+  });
+
+  expect(screen.queryByRole('link', { name: /标注分析/ })).not.toBeTruthy();
+  expect(screen.queryByRole('button', { name: /更多/ })).not.toBeTruthy();
+
+  const checkbox = screen.getByRole('checkbox', { name: /选择导出 xray\.png/ });
+  expect((checkbox as HTMLInputElement).checked).toBe(true);
+
+  await userEvent.click(checkbox);
+  expect(onToggleExportSelection).toHaveBeenCalledWith(1);
 });

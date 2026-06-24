@@ -16,6 +16,9 @@ interface ImageListRowsProps {
   onPreviewError: (fileId: number) => void;
   onMoreAction: (fileId: number, action: string) => void;
   onCropEdit: (imageFile: ImageFile) => void;
+  isBatchExportMode?: boolean;
+  selectedExportIds?: Set<number>;
+  onToggleExportSelection?: (fileId: number) => void;
 }
 
 export default function ImageListRows({
@@ -26,6 +29,9 @@ export default function ImageListRows({
   onPreviewError,
   onMoreAction,
   onCropEdit,
+  isBatchExportMode = false,
+  selectedExportIds = new Set<number>(),
+  onToggleExportSelection,
 }: ImageListRowsProps) {
   return (
     <div className="divide-y divide-gray-200">
@@ -97,36 +103,55 @@ export default function ImageListRows({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
-                  <Link
-                    href={viewerHref}
-                    className="bg-blue-600 text-white px-2 py-2 rounded-lg hover:bg-blue-700 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
+                {isBatchExportMode ? (
+                  <label
+                    className={`flex max-w-xs cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
+                      selectedExportIds.has(imageFile.id)
+                        ? 'border-blue-300 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
                   >
-                    <i className="ri-eye-line w-4 h-4 flex items-center justify-center"></i>
-                    <span>标注分析</span>
-                  </Link>
-                  <button
-                    onClick={() => onMoreAction(imageFile.id, 'download')}
-                    className="border border-gray-300 text-gray-700 px-2 py-2 rounded-lg hover:bg-gray-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
-                  >
-                    <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
-                    <span>下载</span>
-                  </button>
-                  <button
-                    onClick={() => onCropEdit(imageFile)}
-                    className="border border-gray-300 text-gray-700 px-2 py-2 rounded-lg hover:bg-gray-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
-                  >
-                    <i className="ri-crop-line w-4 h-4 flex items-center justify-center"></i>
-                    <span>裁剪编辑</span>
-                  </button>
-                  <button
-                    onClick={() => onMoreAction(imageFile.id, 'delete')}
-                    className="border border-red-300 text-red-600 px-2 py-2 rounded-lg hover:bg-red-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
-                  >
-                    <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
-                    <span>删除</span>
-                  </button>
-                </div>
+                    <span className="font-medium">选择导出</span>
+                    <input
+                      type="checkbox"
+                      aria-label={`选择导出 ${imageFile.original_filename}`}
+                      checked={selectedExportIds.has(imageFile.id)}
+                      onChange={() => onToggleExportSelection?.(imageFile.id)}
+                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </label>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+                    <Link
+                      href={viewerHref}
+                      className="bg-blue-600 text-white px-2 py-2 rounded-lg hover:bg-blue-700 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
+                    >
+                      <i className="ri-eye-line w-4 h-4 flex items-center justify-center"></i>
+                      <span>标注分析</span>
+                    </Link>
+                    <button
+                      onClick={() => onMoreAction(imageFile.id, 'download')}
+                      className="border border-gray-300 text-gray-700 px-2 py-2 rounded-lg hover:bg-gray-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
+                    >
+                      <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
+                      <span>下载</span>
+                    </button>
+                    <button
+                      onClick={() => onCropEdit(imageFile)}
+                      className="border border-gray-300 text-gray-700 px-2 py-2 rounded-lg hover:bg-gray-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
+                    >
+                      <i className="ri-crop-line w-4 h-4 flex items-center justify-center"></i>
+                      <span>裁剪编辑</span>
+                    </button>
+                    <button
+                      onClick={() => onMoreAction(imageFile.id, 'delete')}
+                      className="border border-red-300 text-red-600 px-2 py-2 rounded-lg hover:bg-red-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
+                    >
+                      <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
+                      <span>删除</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

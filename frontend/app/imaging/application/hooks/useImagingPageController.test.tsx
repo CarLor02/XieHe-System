@@ -14,6 +14,22 @@ const mockGetMyTeams = jest.fn<() => Promise<TeamListResponse>>();
 const mockResetPreviewQueue = jest.fn();
 const mockSetOpenDropdown = jest.fn();
 const mockHandlePreviewError = jest.fn();
+const mockBatchExport = {
+  isBatchExportMode: false,
+  selectedExportIds: new Set<number>(),
+  selectedExportCount: 0,
+  exportContent: 'original-image',
+  exportContentOptions: [{ value: 'original-image', label: '原图影像' }],
+  isExporting: false,
+  exportProgress: 0,
+  exportMessage: '',
+  setExportContent: jest.fn(),
+  toggleBatchExportMode: jest.fn(),
+  exitBatchExportMode: jest.fn(),
+  clearExportSelection: jest.fn(),
+  toggleExportSelection: jest.fn(),
+  startBatchExport: jest.fn(),
+};
 const mockImageFileActions = {
   openDropdown: null,
   setOpenDropdown: mockSetOpenDropdown,
@@ -71,6 +87,10 @@ jest.mock('@/app/imaging/features/image-preview/hooks/useImagePreviewQueue', () 
     handlePreviewError: mockHandlePreviewError,
     resetPreviewQueue: mockResetPreviewQueue,
   }),
+}));
+
+jest.mock('@/app/imaging/features/batch-export/hooks', () => ({
+  useBatchImageExport: () => mockBatchExport,
 }));
 
 jest.mock('@/app/imaging/features/image-actions/hooks/useImageFileActions', () => ({

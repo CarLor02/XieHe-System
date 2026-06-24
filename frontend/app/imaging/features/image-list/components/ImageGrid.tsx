@@ -26,6 +26,9 @@ interface ImageGridProps {
     status: string
   ) => void;
   onCropEdit: (imageFile: ImageFile) => void;
+  isBatchExportMode?: boolean;
+  selectedExportIds?: Set<number>;
+  onToggleExportSelection?: (fileId: number) => void;
 }
 
 export default function ImageGrid({
@@ -39,6 +42,9 @@ export default function ImageGrid({
   onMoreAction,
   onOpenChangeTypeModal,
   onCropEdit,
+  isBatchExportMode = false,
+  selectedExportIds = new Set<number>(),
+  onToggleExportSelection,
 }: ImageGridProps) {
   return (
     <div className="grid grid-cols-1 gap-6 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
@@ -109,32 +115,51 @@ export default function ImageGrid({
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Link
-                  href={viewerHref}
-                  className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"
+              {isBatchExportMode ? (
+                <label
+                  className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    selectedExportIds.has(imageFile.id)
+                      ? 'border-blue-300 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
-                  标注分析
-                </Link>
-                <div className="relative">
-                  <button
-                    onClick={event => onToggleActionMenu(imageFile.id, event)}
-                    className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
-                  >
-                    更多
-                  </button>
-
-                  <ImageActionMenu
-                    imageFileId={imageFile.id}
-                    description={imageFile.description ?? ''}
-                    status={imageFile.status}
-                    openDropdown={openDropdown}
-                    onMoreAction={onMoreAction}
-                    onOpenChangeTypeModal={onOpenChangeTypeModal}
-                    onCropEdit={() => onCropEdit(imageFile)}
+                  <span className="font-medium">选择导出</span>
+                  <input
+                    type="checkbox"
+                    aria-label={`选择导出 ${imageFile.original_filename}`}
+                    checked={selectedExportIds.has(imageFile.id)}
+                    onChange={() => onToggleExportSelection?.(imageFile.id)}
+                    className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
+                </label>
+              ) : (
+                <div className="flex gap-2">
+                  <Link
+                    href={viewerHref}
+                    className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg hover:bg-blue-700 text-sm whitespace-nowrap"
+                  >
+                    标注分析
+                  </Link>
+                  <div className="relative">
+                    <button
+                      onClick={event => onToggleActionMenu(imageFile.id, event)}
+                      className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
+                    >
+                      更多
+                    </button>
+
+                    <ImageActionMenu
+                      imageFileId={imageFile.id}
+                      description={imageFile.description ?? ''}
+                      status={imageFile.status}
+                      openDropdown={openDropdown}
+                      onMoreAction={onMoreAction}
+                      onOpenChangeTypeModal={onOpenChangeTypeModal}
+                      onCropEdit={() => onCropEdit(imageFile)}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         );
