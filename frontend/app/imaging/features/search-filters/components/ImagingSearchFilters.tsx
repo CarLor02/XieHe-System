@@ -187,7 +187,7 @@ export default function ImagingSearchFilters({
           )}
 
           {canUseTeamView && (
-            <div className="w-full sm:w-56">
+            <div className="w-full sm:w-72">
               <TeamMultiSelect
                 selectedIds={selectedTeamIds}
                 placeholder="上传团队视角"
