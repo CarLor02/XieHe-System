@@ -1,6 +1,5 @@
 export { default as StudyHeader } from '@/app/imaging/features/image-viewer/features/study/components/StudyHeader';
 export {
-  canExportAnnotationsJson,
   canUseKeypointTools,
 } from '@/app/imaging/features/image-viewer/features/study/domain/viewer-permissions';
 export { useImageListFetcher } from '@/app/imaging/features/image-viewer/features/study/hooks/useImageListFetcher';

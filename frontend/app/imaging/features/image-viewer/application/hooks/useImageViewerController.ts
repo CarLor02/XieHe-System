@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useUser } from '@/lib/api';
 import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings';
 import { useAnnotationEngine } from '@/app/imaging/features/image-viewer/features/bindings';
 import { useCanvasInteraction } from '@/app/imaging/features/image-viewer/features/annotation-canvas';
@@ -13,7 +12,6 @@ import {
   useStandardDistanceActions,
 } from '@/app/imaging/features/image-viewer/features/measurements';
 import {
-  canExportAnnotationsJson,
   canUseKeypointTools,
   useImageListFetcher,
   useImageStudy,
@@ -111,7 +109,6 @@ function isEscapeShortcut(event: KeyboardEvent): boolean {
 export function useImageViewerController({
   imageId,
 }: UseImageViewerControllerOptions) {
-  const { user } = useUser();
   const measurementsState = useMeasurements();
   const canvasState = useCanvasInteraction();
   const { saveMessage, setSaveMessage } = useAnnotationPersistence();
@@ -205,10 +202,6 @@ export function useImageViewerController({
   );
 
   const tools = useMemo(() => getTools(imageData.examType), [imageData.examType]);
-  const canExportJson = useMemo(
-    () => canExportAnnotationsJson(user),
-    [user]
-  );
   const canUseKeypoints = canUseKeypointTools();
   const isAnteriorView = isAnteriorExamType(imageData.examType);
   const isLateralView = isLateralExamType(imageData.examType);
@@ -390,9 +383,7 @@ export function useImageViewerController({
   }, [activateHandMode, keypointSequenceSession]);
 
   const measurementWorkflow = useMeasurementWorkflow({
-    imageId,
     examType: imageData.examType,
-    canExportJson,
     tools,
     measurements,
     setMeasurements,
@@ -403,10 +394,6 @@ export function useImageViewerController({
     standardDistancePoints,
     imageNaturalSize,
     calculationContext,
-    calculateMeasurementValue,
-    getDescriptionForType,
-    setStandardDistance,
-    setStandardDistancePoints,
     setSaveMessage,
     canUseKeypoints,
     isAnteriorView,
@@ -764,10 +751,7 @@ export function useImageViewerController({
     headerProps: {
       imageData,
       saveMessage,
-      measurementsLength:
-        measurements.length + keypointWorkflow.keypoints.length,
       isSaving: studyHeaderActions.isSaving,
-      canExportJson,
       canUseKeypointTools: canUseKeypoints,
       isAIDetecting: studyHeaderActions.isAIDetecting,
       isAIMeasuring: studyHeaderActions.isAIMeasuring,
@@ -775,8 +759,6 @@ export function useImageViewerController({
       showVertebraeLayer: keypointWorkflow.showVertebraeLayer,
       onToggleVertebraeLayer: handleToggleVertebraeLayer,
       onSave: handleDebouncedSaveMeasurements,
-      onExportJson: measurementWorkflow.exportAnnotationsToJSON,
-      onImportJson: measurementWorkflow.importAnnotationsFromJSON,
       onAIMeasure: handleAIMeasurementWithHistory,
       onGenerateReport: handleReportGenerate,
     },

@@ -62,10 +62,8 @@ function WorkflowHarness({
 }) {
   const [measurements, setMeasurements] = useState<MeasurementData[]>([]);
   const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
-  const [standardDistance, setStandardDistance] = useState<number | null>(null);
-  const [standardDistancePoints, setStandardDistancePoints] = useState<Point[]>(
-    []
-  );
+  const [standardDistance] = useState<number | null>(null);
+  const [standardDistancePoints] = useState<Point[]>([]);
   const workflow = useKeypointMeasurementWorkflow({
     imageId: 'image-1',
     examType: '正位X光片',
@@ -81,9 +79,7 @@ function WorkflowHarness({
     setShowStandardDistanceWarning: jest.fn(),
   });
   const measurementWorkflow = useMeasurementWorkflow({
-    imageId: 'image-1',
     examType: '正位X光片',
-    canExportJson: false,
     tools: [],
     measurements,
     setMeasurements,
@@ -94,10 +90,6 @@ function WorkflowHarness({
     standardDistancePoints,
     imageNaturalSize: { width: 1000, height: 1000 },
     calculationContext,
-    calculateMeasurementValue: () => '0.00°',
-    getDescriptionForType: type => type,
-    setStandardDistance,
-    setStandardDistancePoints,
     setSaveMessage: jest.fn(),
     canUseKeypoints: true,
     isAnteriorView: true,

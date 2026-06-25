@@ -13,9 +13,7 @@ interface StudyHeaderProps {
   imageData: HeaderImageData;
   returnHref?: string;
   saveMessage: string;
-  measurementsLength: number;
   isSaving: boolean;
-  canExportJson: boolean;
   canUseKeypointTools: boolean;
   isAIDetecting: boolean;
   isAIMeasuring: boolean;
@@ -23,8 +21,6 @@ interface StudyHeaderProps {
   showVertebraeLayer: boolean;
   onToggleVertebraeLayer: () => void;
   onSave: () => void;
-  onExportJson: () => void;
-  onImportJson: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onAIMeasure: () => void;
   onGenerateReport: () => void;
 }
@@ -33,9 +29,7 @@ export default function StudyHeader({
   imageData,
   returnHref = '/imaging',
   saveMessage,
-  measurementsLength,
   isSaving,
-  canExportJson,
   canUseKeypointTools,
   isAIDetecting,
   isAIMeasuring,
@@ -43,8 +37,6 @@ export default function StudyHeader({
   showVertebraeLayer,
   onToggleVertebraeLayer,
   onSave,
-  onExportJson,
-  onImportJson,
   onAIMeasure,
   onGenerateReport,
 }: StudyHeaderProps) {
@@ -88,33 +80,6 @@ export default function StudyHeader({
             >
               <span>{isSaving ? '保存中...' : '保存'}</span>
             </button>
-
-            {/* 导出JSON按钮保留管理员限制 */}
-            {canExportJson && (
-              <button
-                onClick={onExportJson}
-                disabled={measurementsLength === 0}
-                className="text-white/80 hover:text-white px-2 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 sm:px-3"
-                title="导出标注文件（仅管理员）"
-              >
-                <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
-                <span>导出JSON</span>
-              </button>
-            )}
-
-            <label
-              className="text-white/80 hover:text-white px-2 py-2 rounded-lg hover:bg-white/10 text-sm whitespace-nowrap cursor-pointer flex items-center space-x-2 sm:px-3"
-              title="导入标注文件"
-            >
-              <i className="ri-upload-line w-4 h-4 flex items-center justify-center"></i>
-              <span>导入JSON</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={onImportJson}
-                className="hidden"
-              />
-            </label>
           </div>
 
           {/* 检测层显隐切换 */}

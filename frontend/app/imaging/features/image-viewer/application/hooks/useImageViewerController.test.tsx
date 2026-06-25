@@ -25,10 +25,6 @@ let annotationHistoryOptions:
     }
   | null = null;
 
-jest.mock('@/lib/api', () => ({
-  useUser: () => ({ user: { id: 1 } }),
-}));
-
 jest.mock('@/app/imaging/features/image-viewer/application/hooks/useAnnotationHistory', () => ({
   useAnnotationHistory: (
     options: {
@@ -141,8 +137,6 @@ jest.mock('@/app/imaging/features/image-viewer/features/measurements', () => ({
   useMeasurementWorkflow: () => ({
     handleAddMeasurement: jest.fn(),
     handleMeasurementDelete: handleMeasurementDeleteMock,
-    exportAnnotationsToJSON: jest.fn(),
-    importAnnotationsFromJSON: jest.fn(),
     automaticToolStatus: {},
     handleRestoreAutomaticMeasurement: jest.fn(),
   }),
@@ -155,7 +149,6 @@ jest.mock('@/app/imaging/features/image-viewer/features/measurements', () => ({
 }));
 
 jest.mock('@/app/imaging/features/image-viewer/features/study', () => ({
-  canExportAnnotationsJson: () => true,
   canUseKeypointTools: () => true,
   useImageListFetcher: jest.fn(),
   useImageStudy: () => ({

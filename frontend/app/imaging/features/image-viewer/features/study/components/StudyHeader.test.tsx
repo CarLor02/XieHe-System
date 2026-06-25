@@ -13,9 +13,7 @@ function renderHeader() {
         examType: '正位X光片',
       }}
       saveMessage=""
-      measurementsLength={1}
       isSaving={false}
-      canExportJson={false}
       canUseKeypointTools={true}
       isAIDetecting={false}
       isAIMeasuring={false}
@@ -23,8 +21,6 @@ function renderHeader() {
       showVertebraeLayer={true}
       onToggleVertebraeLayer={jest.fn()}
       onSave={jest.fn()}
-      onExportJson={jest.fn()}
-      onImportJson={jest.fn()}
       onAIMeasure={jest.fn()}
       onGenerateReport={jest.fn()}
     />
@@ -37,4 +33,11 @@ it('shows the detection-layer keyboard shortcut in the tooltip', () => {
   expect(screen.getByRole('button', { name: /检测层/ }).getAttribute('title')).toContain(
     '切换快捷键:Shift+D'
   );
+});
+
+it('does not render JSON import or export actions in the study header', () => {
+  renderHeader();
+
+  expect(screen.queryByText('导入JSON')).not.toBeTruthy();
+  expect(screen.queryByText('导出JSON')).not.toBeTruthy();
 });

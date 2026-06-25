@@ -1,7 +1,6 @@
 import {
   Dispatch,
   SetStateAction,
-  type ChangeEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -29,10 +28,6 @@ import {
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/usecases/addMeasurementUseCase';
 import {
-  exportAnnotationsToJSON as exportAnnotationsToJSONUseCase,
-  importAnnotationsFromJSON as importAnnotationsFromJSONUseCase,
-} from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationJsonUseCase';
-import {
   extractCfhAnnotationFromMeasurements,
   LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES,
   LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES,
@@ -54,9 +49,7 @@ import { CalculationContext } from '@/app/imaging/features/image-viewer/features
 type AutomaticToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
 interface UseMeasurementWorkflowOptions {
-  imageId: string;
   examType: string;
-  canExportJson: boolean;
   tools: Tool[];
   measurements: MeasurementData[];
   setMeasurements: Dispatch<SetStateAction<MeasurementData[]>>;
@@ -67,10 +60,6 @@ interface UseMeasurementWorkflowOptions {
   standardDistancePoints: Point[];
   imageNaturalSize: ImageSize | null;
   calculationContext: CalculationContext;
-  calculateMeasurementValue: (type: string, points: Point[]) => string;
-  getDescriptionForType: (type: string) => string;
-  setStandardDistance: (distance: number | null) => void;
-  setStandardDistancePoints: (points: Point[]) => void;
   setSaveMessage: (message: string) => void;
   canUseKeypoints: boolean;
   isAnteriorView: boolean;
@@ -101,9 +90,7 @@ function flashMessage(
 }
 
 export function useMeasurementWorkflow({
-  imageId,
   examType,
-  canExportJson,
   tools,
   measurements,
   setMeasurements,
@@ -114,10 +101,6 @@ export function useMeasurementWorkflow({
   standardDistancePoints,
   imageNaturalSize,
   calculationContext,
-  calculateMeasurementValue,
-  getDescriptionForType,
-  setStandardDistance,
-  setStandardDistancePoints,
   setSaveMessage,
   canUseKeypoints,
   isAnteriorView,
@@ -491,57 +474,11 @@ export function useMeasurementWorkflow({
     ]
   );
 
-  const exportAnnotationsToJSON = useCallback(() => {
-    exportAnnotationsToJSONUseCase({
-      canExportJson,
-      imageId,
-      imageNaturalSize,
-      measurements,
-      standardDistance,
-      standardDistancePoints,
-      setSaveMessage,
-    });
-  }, [
-    canExportJson,
-    imageId,
-    imageNaturalSize,
-    measurements,
-    setSaveMessage,
-    standardDistance,
-    standardDistancePoints,
-  ]);
-
-  const importAnnotationsFromJSON = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      importAnnotationsFromJSONUseCase({
-        event,
-        imageNaturalSize,
-        setMeasurements,
-        setStandardDistance,
-        setStandardDistancePoints,
-        setSaveMessage,
-        calculateMeasurementValue,
-        getDescriptionForType,
-      });
-    },
-    [
-      calculateMeasurementValue,
-      getDescriptionForType,
-      imageNaturalSize,
-      setMeasurements,
-      setSaveMessage,
-      setStandardDistance,
-      setStandardDistancePoints,
-    ]
-  );
-
   return {
     handleAddMeasurement,
     handleMeasurementDelete,
     automaticToolStatus,
     handleRestoreAutomaticMeasurement,
-    exportAnnotationsToJSON,
-    importAnnotationsFromJSON,
     calculationContext,
   };
 }

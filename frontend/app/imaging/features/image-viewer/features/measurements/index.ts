@@ -6,10 +6,6 @@ export { useMeasurements } from '@/app/imaging/features/image-viewer/features/me
 export { useStandardDistanceActions } from '@/app/imaging/features/image-viewer/features/measurements/hooks/useStandardDistanceActions';
 export { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/usecases/addMeasurementUseCase';
 export {
-  exportAnnotationsToJSON,
-  importAnnotationsFromJSON,
-} from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationJsonUseCase';
-export {
   extractCfhAnnotationFromMeasurements,
   LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES,
   LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES,
