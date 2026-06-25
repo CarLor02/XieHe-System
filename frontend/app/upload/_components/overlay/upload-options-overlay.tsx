@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import TeamMultiSelect from '@/components/common/TeamMultiSelect';
-import type { TeamSummary } from '@/services/teamService';
+import TeamMultiSelect, {
+  type TeamMultiSelectLoadParams,
+  type TeamMultiSelectPage,
+} from '@/components/common/TeamMultiSelect';
 
 export interface UploadOptionsFile {
   id: string;
@@ -35,9 +37,11 @@ interface UploadOptionsOverlayProps {
   onConfirm: (options?: UploadOptionsConfirmOptions) => void | Promise<void>;
   confirmAppliesCrop?: boolean;
   teamIds?: number[];
-  teamOptions?: TeamSummary[];
+  loadTeams?: (params: TeamMultiSelectLoadParams) => Promise<TeamMultiSelectPage>;
   onTeamIdsChange?: (teamIds: number[]) => void;
 }
+
+type OwnershipScope = 'personal' | 'team';
 
 type CropGesture =
   | { action: 'move' | 'nw' | 'ne' | 'sw' | 'se'; x: number; y: number; crop: CropArea }
@@ -66,7 +70,7 @@ export default function UploadOptionsOverlay({
   onConfirm,
   confirmAppliesCrop = true,
   teamIds = [],
-  teamOptions = [],
+  loadTeams,
   onTeamIdsChange,
 }: UploadOptionsOverlayProps) {
   const imageBoxRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +79,10 @@ export default function UploadOptionsOverlay({
   const [cropArea, setCropArea] = useState<CropArea>(defaultCrop);
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const [cropApplying, setCropApplying] = useState(false);
+  const [ownershipScope, setOwnershipScope] = useState<OwnershipScope>(
+    () => (teamIds.length > 0 ? 'team' : 'personal')
+  );
+  const [ownershipError, setOwnershipError] = useState<string | null>(null);
 
   const canAdjustPixels = file.mimeType.startsWith('image/');
 
@@ -83,7 +91,9 @@ export default function UploadOptionsOverlay({
     setCropArea(defaultCrop);
     setImageLoadFailed(false);
     setCropApplying(false);
-  }, [file.id]);
+    setOwnershipScope(teamIds.length > 0 ? 'team' : 'personal');
+    setOwnershipError(null);
+  }, [file.id, teamIds.length]);
 
   useEffect(() => {
     if (!cropMode) return;
@@ -183,6 +193,15 @@ export default function UploadOptionsOverlay({
   };
 
   const handleConfirmClick = async () => {
+    if (
+      onTeamIdsChange &&
+      ownershipScope === 'team' &&
+      teamIds.length === 0
+    ) {
+      setOwnershipError('请选择至少一个团队');
+      return;
+    }
+
     if (cropMode) {
       if (!confirmAppliesCrop) {
         await onConfirm({ pendingCrop: cropArea });
@@ -191,6 +210,17 @@ export default function UploadOptionsOverlay({
       await applyCurrentCrop();
     }
     await onConfirm({ pendingCrop: null });
+  };
+
+  const handlePersonalScopeChange = () => {
+    setOwnershipScope('personal');
+    setOwnershipError(null);
+    onTeamIdsChange?.([]);
+  };
+
+  const handleTeamScopeChange = () => {
+    setOwnershipScope('team');
+    setOwnershipError(null);
   };
 
   return (
@@ -284,18 +314,58 @@ export default function UploadOptionsOverlay({
             </select>
 
             {onTeamIdsChange && (
-              <div className="mb-6">
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  影像归属
-                </label>
-                <TeamMultiSelect
-                  teams={teamOptions}
-                  selectedIds={teamIds}
-                  onChange={onTeamIdsChange}
-                  placeholder="选择归属团队"
-                  emptyText="暂无可选团队"
-                />
-              </div>
+              <fieldset className="mb-6">
+                <legend className="mb-3 block text-sm font-medium text-gray-700">
+                  影像归属 <span className="text-red-500">*</span>
+                </legend>
+                <div className="space-y-3">
+                  <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-800">
+                    <input
+                      type="radio"
+                      name={`image-ownership-${file.id}`}
+                      checked={ownershipScope === 'personal'}
+                      onChange={handlePersonalScopeChange}
+                      className="mt-1 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>
+                      <span className="block font-medium">仅自己可见</span>
+                      <span className="mt-1 block text-xs leading-5 text-gray-500">
+                        不加入任何团队，只有本人可见
+                      </span>
+                    </span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-800">
+                    <input
+                      type="radio"
+                      name={`image-ownership-${file.id}`}
+                      checked={ownershipScope === 'team'}
+                      onChange={handleTeamScopeChange}
+                      className="mt-1 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">共享给团队</span>
+                      {ownershipScope === 'team' && loadTeams && (
+                        <span className="mt-3 block">
+                          <TeamMultiSelect
+                            selectedIds={teamIds}
+                            loadOptions={loadTeams}
+                            onChange={nextTeamIds => {
+                              setOwnershipError(null);
+                              onTeamIdsChange(nextTeamIds);
+                            }}
+                            placeholder="选择归属团队"
+                            emptyText="暂无可选团队"
+                          />
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </div>
+                {ownershipError && (
+                  <p className="mt-2 text-sm text-red-600">{ownershipError}</p>
+                )}
+              </fieldset>
             )}
 
             <div className="mb-6 border-t border-gray-200"></div>

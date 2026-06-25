@@ -30,7 +30,6 @@ function renderFilters(
     canUseTeamView: false,
     selectedUploader: null,
     selectedTeamIds: [],
-    teamOptions: [],
     visibleCount: 2,
     total: 2,
     exportContent: 'original-image',
@@ -51,6 +50,13 @@ function renderFilters(
     onChangeUploader: jest.fn(),
     onChangeTeams: jest.fn(),
     onLoadUploaders: jest.fn(async () => ({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 10,
+      totalPages: 1,
+    })),
+    onLoadTeams: jest.fn(async () => ({
       items: [],
       total: 0,
       page: 1,

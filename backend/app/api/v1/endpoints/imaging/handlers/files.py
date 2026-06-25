@@ -40,7 +40,7 @@ from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTeamV
 from app.models.patient import Patient
 from app.models.user import User
 from app.models.image import ImageAnnotation
-from app.models.team import TeamMembership, TeamMembershipRole, TeamMembershipStatus
+from app.models.team import Team, TeamMembership, TeamMembershipRole, TeamMembershipStatus
 from app.services.storage_gateway import StorageServiceError, storage_gateway
 from app.services.image_file_visibility import (
     apply_image_visibility_filter,
@@ -288,6 +288,46 @@ def _get_visible_image_files_by_ids(
 
 def _enum_value(value: Any) -> str:
     return value.value if hasattr(value, "value") else str(value)
+
+
+def _team_to_assignable_response(
+    team: Team,
+    current_user_id: Optional[int],
+    membership: Optional[TeamMembership] = None,
+) -> dict[str, Any]:
+    active_memberships = [
+        item
+        for item in team.memberships
+        if item.status == TeamMembershipStatus.ACTIVE
+    ]
+    current_membership = membership
+    if current_membership is None and current_user_id is not None:
+        current_membership = next(
+            (
+                item
+                for item in active_memberships
+                if item.user_id == current_user_id
+            ),
+            None,
+        )
+
+    return {
+        "id": team.id,
+        "name": team.name,
+        "description": team.description,
+        "hospital": team.hospital,
+        "department": team.department,
+        "creator_name": team.creator.real_name if team.creator else None,
+        "member_count": len(active_memberships),
+        "max_members": team.max_members,
+        "is_member": current_membership is not None,
+        "my_role": _enum_value(current_membership.role) if current_membership else None,
+        "my_status": _enum_value(current_membership.status) if current_membership else None,
+        "is_creator": current_user_id is not None and team.creator_id == current_user_id,
+        "join_status": None,
+        "join_request_id": None,
+        "created_at": team.created_at,
+    }
 
 
 def _determine_replacement_file_type(filename: str) -> ImageFileTypeEnum:
@@ -663,6 +703,81 @@ async def list_visible_image_uploaders(
         page=page,
         page_size=page_size,
         message="上传者列表查询成功",
+    )
+
+
+@router.get("/assignable-teams", response_model=dict, summary="获取可设置为影像归属的团队")
+async def list_assignable_image_teams(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=50, description="每页数量"),
+    search: Optional[str] = Query(None, description="搜索团队名、医院、科室或描述"),
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """获取上传或编辑影像时可选择的归属团队。"""
+    user_id = _extract_current_user_id(current_user)
+    can_manage_all = current_user.get("is_superuser", False) or current_user.get(
+        "is_system_admin",
+        False,
+    )
+
+    if can_manage_all:
+        query = db.query(Team).filter(Team.is_active == True)
+    else:
+        if user_id is None:
+            return paginated_response(
+                items=[],
+                total=0,
+                page=page,
+                page_size=page_size,
+                message="可归属团队列表查询成功",
+            )
+        query = (
+            db.query(Team, TeamMembership)
+            .join(TeamMembership, TeamMembership.team_id == Team.id)
+            .filter(
+                Team.is_active == True,
+                TeamMembership.user_id == user_id,
+                TeamMembership.status == TeamMembershipStatus.ACTIVE,
+            )
+        )
+
+    if search:
+        search_pattern = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                Team.name.ilike(search_pattern),
+                Team.description.ilike(search_pattern),
+                Team.hospital.ilike(search_pattern),
+                Team.department.ilike(search_pattern),
+            )
+        )
+
+    total = query.count()
+    rows = (
+        query.order_by(Team.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    if can_manage_all:
+        items = [
+            _team_to_assignable_response(team, user_id)
+            for team in rows
+        ]
+    else:
+        items = [
+            _team_to_assignable_response(team, user_id, membership)
+            for team, membership in rows
+        ]
+
+    return paginated_response(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        message="可归属团队列表查询成功",
     )
 
 

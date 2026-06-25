@@ -3,9 +3,11 @@ import Tooltip from '@/components/ui/Tooltip';
 import EntitySearchSelect, {
   type EntitySearchSelectLoadParams,
 } from '@/components/common/EntitySearchSelect';
-import TeamMultiSelect from '@/components/common/TeamMultiSelect';
+import TeamMultiSelect, {
+  type TeamMultiSelectLoadParams,
+  type TeamMultiSelectPage,
+} from '@/components/common/TeamMultiSelect';
 import type { ImageUploader } from '@/services/imageServices/imageFileService';
-import type { TeamSummary } from '@/services/teamService';
 import BatchExportControls from '@/app/imaging/features/batch-export/components/BatchExportControls';
 import type { ExportContentType } from '@/app/imaging/features/batch-export/domain';
 import type { ExportContentOption } from '@/app/imaging/features/batch-export/hooks/use-export-content-options';
@@ -27,7 +29,6 @@ interface ImagingSearchFiltersProps {
   canUseTeamView: boolean;
   selectedUploader: ImageUploader | null;
   selectedTeamIds: number[];
-  teamOptions: TeamSummary[];
   visibleCount: number;
   total: number;
   isBatchExportMode: boolean;
@@ -54,6 +55,7 @@ interface ImagingSearchFiltersProps {
     pageSize: number;
     totalPages: number;
   }>;
+  onLoadTeams: (params: TeamMultiSelectLoadParams) => Promise<TeamMultiSelectPage>;
   onClearFilters: () => void;
   onToggleBatchExportMode: () => void;
   onExitBatchExportMode: () => void;
@@ -74,7 +76,6 @@ export default function ImagingSearchFilters({
   canUseTeamView,
   selectedUploader,
   selectedTeamIds,
-  teamOptions,
   visibleCount,
   total,
   isBatchExportMode,
@@ -95,6 +96,7 @@ export default function ImagingSearchFilters({
   onChangeUploader,
   onChangeTeams,
   onLoadUploaders,
+  onLoadTeams,
   onClearFilters,
   onToggleBatchExportMode,
   onExitBatchExportMode,
@@ -187,11 +189,11 @@ export default function ImagingSearchFilters({
           {canUseTeamView && (
             <div className="w-full sm:w-56">
               <TeamMultiSelect
-                teams={teamOptions}
                 selectedIds={selectedTeamIds}
                 placeholder="上传团队视角"
                 searchPlaceholder="搜索团队名"
                 emptyText="暂无可选团队"
+                loadOptions={onLoadTeams}
                 onChange={onChangeTeams}
               />
             </div>

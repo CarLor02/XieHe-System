@@ -3,12 +3,11 @@
 /* eslint-disable @next/next/no-img-element */
 
 import AppShell from '@/components/layout/AppShell';
-import type { TeamSummary } from '@/services/teamService';
-import { getMyTeams } from '@/services/teamService';
 import { useUser } from '@/lib/api';
 import { uploadSingleFile } from '@/services/imageServices';
+import { getAssignableImageTeams } from '@/services/imageServices/imageFileService';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import PatientSearchSelect from './_components/patient-search-select';
 import UploadOptionsOverlay, {
   CropArea,
@@ -35,10 +34,9 @@ function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo') || '/imaging';
-  const { isAuthenticated, user } = useUser();
+  const { isAuthenticated } = useUser();
 
   const [selectedPatient, setSelectedPatient] = useState('');
-  const [teamOptions, setTeamOptions] = useState<TeamSummary[]>([]);
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [activeOptionsFileId, setActiveOptionsFileId] = useState<string | null>(
     null
@@ -77,31 +75,15 @@ function UploadContent() {
     }
   }, [mounted, isAuthenticated, router]);
 
-  useEffect(() => {
-    if (!mounted || !isAuthenticated) return;
-
-    let cancelled = false;
-    getMyTeams()
-      .then(response => {
-        if (!cancelled) {
-          setTeamOptions(
-            (response.items ?? []).filter(
-              team =>
-                user?.is_system_admin ||
-                user?.is_superuser ||
-                team.my_status === 'ACTIVE'
-            )
-          );
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setTeamOptions([]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, mounted, user?.is_system_admin, user?.is_superuser]);
+  const loadAssignableTeams = useCallback(
+    ({ page, pageSize, search }: { page: number; pageSize: number; search?: string }) =>
+      getAssignableImageTeams({
+        page,
+        page_size: pageSize,
+        ...(search ? { search } : {}),
+      }),
+    []
+  );
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -703,7 +685,7 @@ function UploadContent() {
             }}
             examTypes={examTypes}
             teamIds={activeOptionsFile.teamIds}
-            teamOptions={teamOptions}
+            loadTeams={loadAssignableTeams}
             onTeamIdsChange={teamIds =>
               updateFileTeamIds(activeOptionsFile.id, teamIds)
             }

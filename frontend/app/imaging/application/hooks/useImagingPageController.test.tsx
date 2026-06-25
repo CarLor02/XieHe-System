@@ -10,6 +10,7 @@ let mockSearchParams = new URLSearchParams();
 const mockUseUser = jest.fn();
 const mockGetImageFiles = jest.fn<(filters?: unknown) => Promise<ImageFileListResponse>>();
 const mockGetVisibleImageUploaders = jest.fn<(filters?: unknown) => Promise<unknown>>();
+const mockGetAssignableImageTeams = jest.fn<(filters?: unknown) => Promise<unknown>>();
 const mockGetMyTeams = jest.fn<() => Promise<TeamListResponse>>();
 const mockResetPreviewQueue = jest.fn();
 const mockSetOpenDropdown = jest.fn();
@@ -67,6 +68,7 @@ jest.mock('@/lib/api', () => ({
 jest.mock('@/services/imageServices/imageFileService', () => ({
   getImageFiles: (...args: unknown[]) => mockGetImageFiles(...args),
   getVisibleImageUploaders: (...args: unknown[]) => mockGetVisibleImageUploaders(...args),
+  getAssignableImageTeams: (...args: unknown[]) => mockGetAssignableImageTeams(...args),
 }));
 
 jest.mock('@/services/teamService', () => ({
@@ -113,6 +115,7 @@ describe('useImagingPageController', () => {
     mockUseUser.mockReset();
     mockGetImageFiles.mockReset();
     mockGetVisibleImageUploaders.mockReset();
+    mockGetAssignableImageTeams.mockReset();
     mockGetMyTeams.mockReset();
     mockResetPreviewQueue.mockReset();
     mockSetOpenDropdown.mockReset();

@@ -5,20 +5,53 @@ import UploadOptionsOverlay, {
   type CropArea,
   type UploadOptionsConfirmOptions,
 } from './upload-options-overlay';
+import type { TeamSummary } from '@/services/teamService';
 
 type CropHandler = (fileId: string, crop: CropArea) => void | Promise<void>;
 type ConfirmHandler = (
   options?: UploadOptionsConfirmOptions
 ) => void | Promise<void>;
+type LoadTeamsHandler = (params: {
+  page: number;
+  pageSize: number;
+  search?: string;
+}) => Promise<{
+  items: TeamSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}>;
+
+const teamPage: Awaited<ReturnType<LoadTeamsHandler>> = {
+  items: [
+    {
+      id: 11,
+      name: '骨科团队',
+      member_count: 3,
+      is_member: true,
+      my_role: 'ADMIN',
+      my_status: 'ACTIVE',
+    },
+  ],
+  total: 1,
+  page: 1,
+  pageSize: 10,
+  totalPages: 1,
+};
 
 function renderOverlay({
   onCrop = jest.fn<CropHandler>(),
   onConfirm = jest.fn<ConfirmHandler>(),
   onTeamIdsChange = jest.fn<(teamIds: number[]) => void>(),
+  loadTeams = jest.fn<LoadTeamsHandler>().mockResolvedValue(teamPage),
+  teamIds = [],
 }: {
   onCrop?: jest.MockedFunction<CropHandler>;
   onConfirm?: jest.MockedFunction<ConfirmHandler>;
   onTeamIdsChange?: jest.MockedFunction<(teamIds: number[]) => void>;
+  loadTeams?: jest.MockedFunction<LoadTeamsHandler>;
+  teamIds?: number[];
 } = {}) {
   render(
     <UploadOptionsOverlay
@@ -38,22 +71,13 @@ function renderOverlay({
       onClose={jest.fn()}
       onConfirm={onConfirm}
       confirmAppliesCrop={false}
-      teamIds={[]}
-      teamOptions={[
-        {
-          id: 11,
-          name: '骨科团队',
-          member_count: 3,
-          is_member: true,
-          my_role: 'ADMIN',
-          my_status: 'ACTIVE',
-        },
-      ]}
+      teamIds={teamIds}
+      loadTeams={loadTeams}
       onTeamIdsChange={onTeamIdsChange}
     />
   );
 
-  return { onCrop, onConfirm, onTeamIdsChange };
+  return { onCrop, onConfirm, onTeamIdsChange, loadTeams };
 }
 
 it('can defer applying an active crop to the outer confirm flow', async () => {
@@ -78,8 +102,35 @@ it('can defer applying an active crop to the outer confirm flow', async () => {
 it('lets users select image team ownership in the overlay', async () => {
   const { onTeamIdsChange } = renderOverlay();
 
+  fireEvent.click(screen.getByRole('radio', { name: /共享给团队/ }));
   fireEvent.click(screen.getByRole('button', { name: /选择归属团队/ }));
+
+  await waitFor(() => {
+    expect(screen.getByRole('checkbox', { name: /骨科团队/ })).toBeTruthy();
+  });
+
   fireEvent.click(screen.getByRole('checkbox', { name: /骨科团队/ }));
 
   expect(onTeamIdsChange).toHaveBeenCalledWith([11]);
+  expect(screen.queryByText(/骨科团队 ×/)).toBeNull();
+});
+
+it('defaults to personal visibility when no team is selected', () => {
+  renderOverlay({ teamIds: [] });
+
+  const personalScopeRadio = screen.getByRole('radio', {
+    name: /仅自己可见/,
+  }) as HTMLInputElement;
+  expect(personalScopeRadio.checked).toBe(true);
+  expect(screen.queryByRole('button', { name: /选择归属团队/ })).toBeNull();
+});
+
+it('blocks confirming shared visibility without a selected team', async () => {
+  const { onConfirm } = renderOverlay({ teamIds: [] });
+
+  fireEvent.click(screen.getByRole('radio', { name: /共享给团队/ }));
+  fireEvent.click(screen.getByRole('button', { name: '确认' }));
+
+  expect(onConfirm).not.toHaveBeenCalled();
+  expect(await screen.findByText('请选择至少一个团队')).toBeTruthy();
 });

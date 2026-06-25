@@ -126,6 +126,7 @@ function makeController(overrides: Record<string, unknown> = {}) {
     clearFilters: jest.fn(),
     clearEmptyResultFilters: jest.fn(),
     loadUploaders: jest.fn(),
+    loadAssignableTeams: jest.fn(),
     handleChangeUploader: jest.fn(),
     handleChangeTeams: jest.fn(),
     setSearchTerm: jest.fn(),

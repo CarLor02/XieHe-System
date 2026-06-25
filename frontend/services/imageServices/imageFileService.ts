@@ -7,6 +7,7 @@
 
 import {apiClient} from '@/lib/api';
 import {extractData, extractPaginatedData} from '@/lib/api/types';
+import type { TeamSummary } from '@/services/teamService';
 
 export type ImageAnnotationJson = Record<string, unknown>;
 
@@ -107,6 +108,12 @@ export interface ImageUploaderFilters {
   search?: string;
 }
 
+export interface AssignableImageTeamFilters {
+  page?: number;
+  page_size?: number;
+  search?: string;
+}
+
 /**
  * 获取影像文件列表
  *
@@ -165,6 +172,22 @@ export async function getVisibleImageUploaders(
     params,
   });
   return extractPaginatedData<ImageUploader>(response);
+}
+
+export async function getAssignableImageTeams(
+  filters: AssignableImageTeamFilters = {}
+) {
+  const params: Record<string, string | number> = {
+    page: filters.page || 1,
+    page_size: filters.page_size || 10,
+  };
+
+  if (filters.search) params.search = filters.search;
+
+  const response = await apiClient.get('/api/v1/image-files/assignable-teams', {
+    params,
+  });
+  return extractPaginatedData<TeamSummary>(response);
 }
 
 export async function getAllImageFiles(

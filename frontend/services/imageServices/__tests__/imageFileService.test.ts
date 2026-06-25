@@ -99,4 +99,43 @@ describe('image file list filters', () => {
 
     jest.dontMock('@/lib/api');
   });
+
+  it('loads assignable image teams from the image file API', async () => {
+    const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
+      data: {
+        code: 200,
+        data: {
+          items: [{ id: 11, name: '骨科团队', member_count: 3, is_member: true }],
+          pagination: {
+            total: 1,
+            page: 2,
+            page_size: 10,
+            total_pages: 3,
+          },
+        },
+      },
+    }));
+
+    jest.resetModules();
+    jest.doMock('@/lib/api', () => ({ apiClient: { get } }));
+    const { getAssignableImageTeams } = await import('../imageFileService');
+
+    const result = await getAssignableImageTeams({
+      page: 2,
+      page_size: 10,
+      search: '骨科',
+    });
+
+    expect(get).toHaveBeenCalledWith('/api/v1/image-files/assignable-teams', {
+      params: {
+        page: 2,
+        page_size: 10,
+        search: '骨科',
+      },
+    });
+    expect(result.items[0].name).toBe('骨科团队');
+    expect(result.totalPages).toBe(3);
+
+    jest.dontMock('@/lib/api');
+  });
 });

@@ -3,6 +3,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/lib/api';
 import { getErrorMessage } from '@/lib/api';
 import {
+  getAssignableImageTeams,
   getImageFiles,
   getVisibleImageUploaders,
   type ImageFile,
@@ -251,6 +252,16 @@ export function useImagingPageController() {
     []
   );
 
+  const loadAssignableTeams = useCallback(
+    ({ page, pageSize, search }: { page: number; pageSize: number; search?: string }) =>
+      getAssignableImageTeams({
+        page,
+        page_size: pageSize,
+        ...(search ? { search } : {}),
+      }),
+    []
+  );
+
   const clearFilters = useCallback(() => {
     setSearchTerm('');
     setDebouncedSearchTerm('');
@@ -393,6 +404,7 @@ export function useImagingPageController() {
     clearFilters,
     clearEmptyResultFilters,
     loadUploaders,
+    loadAssignableTeams,
     handleChangeUploader,
     handleChangeTeams,
     setSearchTerm,

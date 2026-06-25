@@ -48,7 +48,6 @@ function ImagingPageContent() {
         canUseTeamView={controller.canUseTeamView}
         selectedUploader={controller.selectedUploader}
         selectedTeamIds={controller.selectedTeamIds}
-        teamOptions={controller.myTeams}
         visibleCount={controller.imageFiles.length}
         total={controller.total}
         isBatchExportMode={batchExport.isBatchExportMode}
@@ -71,6 +70,7 @@ function ImagingPageContent() {
         onChangeUploader={controller.handleChangeUploader}
         onChangeTeams={controller.handleChangeTeams}
         onLoadUploaders={controller.loadUploaders}
+        onLoadTeams={controller.loadAssignableTeams}
         onClearFilters={controller.clearFilters}
         onToggleBatchExportMode={batchExport.toggleBatchExportMode}
         onExitBatchExportMode={batchExport.exitBatchExportMode}
@@ -124,7 +124,7 @@ function ImagingPageContent() {
           }}
           examTypes={EXAM_TYPES}
           teamIds={editOverlay.editState.teamIds}
-          teamOptions={controller.myTeams}
+          loadTeams={controller.loadAssignableTeams}
           onTeamIdsChange={editOverlay.handleTeamIdsChange}
           onExamTypeChange={editOverlay.handleExamTypeChange}
           onFlip={editOverlay.handleFlip}

@@ -84,6 +84,25 @@ def seed_visibility_data(session: Session) -> None:
     ]
 
     session.add_all(users + [patient, team] + memberships + images)
+    session.add_all(
+        [
+            Team(id=2, name="康复团队", creator_id=13),
+            Team(id=3, name="影像团队", creator_id=10),
+            Team(id=4, name="停用团队", creator_id=10, is_active=False),
+            TeamMembership(
+                team_id=2,
+                user_id=13,
+                role=TeamMembershipRole.ADMIN,
+                status=TeamMembershipStatus.ACTIVE,
+            ),
+            TeamMembership(
+                team_id=3,
+                user_id=10,
+                role=TeamMembershipRole.ADMIN,
+                status=TeamMembershipStatus.ACTIVE,
+            ),
+        ]
+    )
     session.commit()
 
 
@@ -239,6 +258,39 @@ async def test_regular_member_cannot_list_uploaders(db_session):
         )
 
     assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_assignable_teams_are_paginated_and_scoped_to_user_memberships(db_session):
+    result = await file_handlers.list_assignable_image_teams(
+        page=1,
+        page_size=1,
+        search=None,
+        current_user=current_user(10),
+        db=db_session,
+    )
+
+    items = result["data"]["items"]
+
+    assert [item["id"] for item in items] == [3]
+    assert result["data"]["pagination"]["total"] == 2
+    assert result["data"]["pagination"]["total_pages"] == 2
+
+
+@pytest.mark.asyncio
+async def test_system_admin_can_page_all_active_assignable_teams(db_session):
+    result = await file_handlers.list_assignable_image_teams(
+        page=1,
+        page_size=10,
+        search="团队",
+        current_user=current_user(99, system_admin=True),
+        db=db_session,
+    )
+
+    items = result["data"]["items"]
+
+    assert [item["id"] for item in items] == [3, 2, 1]
+    assert result["data"]["pagination"]["total"] == 3
 
 
 @pytest.mark.asyncio
