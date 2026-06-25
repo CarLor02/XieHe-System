@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getNotificationMessages } from '@/services/notificationServices';
 import { getMyInvitations } from '@/services/teamService';
-import Tooltip from './ui/Tooltip';
+import AppDropdown from './common/AppDropdown';
 
 interface Message {
   id: string;
@@ -52,6 +52,7 @@ export default function Header({
   const CIRCUIT_BREAKER_INTERVAL = 5 * 60 * 1000; // 暂停后每5分钟重试一次
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -261,6 +262,20 @@ export default function Header({
     }
   };
 
+  const handleMessagesOpenChange = (open: boolean) => {
+    setShowMessages(open);
+    if (open) {
+      setShowUserMenu(false);
+    }
+  };
+
+  const handleUserMenuOpenChange = (open: boolean) => {
+    setShowUserMenu(open);
+    if (open) {
+      setShowMessages(false);
+    }
+  };
+
   return (
     <>
       <header className={`bg-white border-b border-gray-200 px-4 py-4 sm:px-6 ${className}`}>
@@ -285,10 +300,17 @@ export default function Header({
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Tooltip content={unreadCount > 0 ? `${unreadCount} 条未读消息` : '消息通知'} position="bottom">
+            <AppDropdown
+              open={showMessages}
+              onOpenChange={handleMessagesOpenChange}
+              align="end"
+              contentClassName="w-[calc(100vw-2rem)] max-w-96 overflow-hidden"
+              trigger={
                 <button
-                  onClick={() => setShowMessages(!showMessages)}
+                  type="button"
+                  aria-label={
+                    unreadCount > 0 ? `${unreadCount} 条未读消息` : '消息通知'
+                  }
                   className="relative"
                 >
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors">
@@ -300,11 +322,8 @@ export default function Header({
                     </span>
                   )}
                 </button>
-              </Tooltip>
-
-              {/* 消息弹窗 */}
-              {showMessages && (
-                <div className="fixed left-4 right-4 top-20 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-lg border border-gray-200 z-50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-96 sm:max-w-[calc(100vw-1rem)]">
+              }
+            >
                   <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-gray-900">系统消息</h3>
@@ -383,14 +402,16 @@ export default function Header({
                       </button>
                     </div>
                   )}
-                </div>
-              )}
-            </div>
+            </AppDropdown>
 
-            <div className="relative">
-              <Tooltip content="用户菜单" position="bottom">
+            <AppDropdown
+              open={showUserMenu}
+              onOpenChange={handleUserMenuOpenChange}
+              align="end"
+              contentClassName="w-72 max-w-[calc(100vw-1rem)] overflow-hidden"
+              trigger={
                 <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  type="button"
                   className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors"
                 >
                   <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
@@ -406,11 +427,8 @@ export default function Header({
                   </div>
                   <i className="ri-arrow-down-s-line w-4 h-4 flex items-center justify-center text-gray-400"></i>
                 </button>
-              </Tooltip>
-
-              {/* 用户菜单弹窗 */}
-              {showUserMenu && (
-                <div className="absolute right-0 top-12 w-72 max-w-[calc(100vw-1rem)] bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+              }
+            >
                   {/* 用户信息头部 */}
                   <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center space-x-3">
@@ -479,22 +497,9 @@ export default function Header({
                       <span>退出登录</span>
                     </button>
                   </div>
-                </div>
-              )}
-            </div>
+            </AppDropdown>
           </div>
         </div>
-
-        {/* 点击外部关闭弹窗 */}
-        {(showMessages || showUserMenu) && (
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => {
-              setShowMessages(false);
-              setShowUserMenu(false);
-            }}
-          ></div>
-        )}
       </header>
 
       {/* UserSettings Modal */}

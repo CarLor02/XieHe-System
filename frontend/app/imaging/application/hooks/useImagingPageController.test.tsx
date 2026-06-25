@@ -13,7 +13,6 @@ const mockGetVisibleImageUploaders = jest.fn<(filters?: unknown) => Promise<unkn
 const mockGetAssignableImageTeams = jest.fn<(filters?: unknown) => Promise<unknown>>();
 const mockGetMyTeams = jest.fn<() => Promise<TeamListResponse>>();
 const mockResetPreviewQueue = jest.fn();
-const mockSetOpenDropdown = jest.fn();
 const mockHandlePreviewError = jest.fn();
 const mockBatchExport = {
   isBatchExportMode: false,
@@ -32,9 +31,6 @@ const mockBatchExport = {
   startBatchExport: jest.fn(),
 };
 const mockImageFileActions = {
-  openDropdown: null,
-  setOpenDropdown: mockSetOpenDropdown,
-  toggleImageActionMenu: jest.fn(),
   handleMoreAction: jest.fn(),
 };
 const mockEditOverlay = {
@@ -118,7 +114,6 @@ describe('useImagingPageController', () => {
     mockGetAssignableImageTeams.mockReset();
     mockGetMyTeams.mockReset();
     mockResetPreviewQueue.mockReset();
-    mockSetOpenDropdown.mockReset();
 
     mockUseUser.mockReturnValue({
       isAuthenticated: true,

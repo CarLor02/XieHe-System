@@ -89,9 +89,7 @@ function ImagingPageContent() {
         hasActiveFilters={controller.hasActiveFilters}
         imageUrls={preview.imageUrls}
         previewStates={preview.previewStates}
-        openDropdown={actions.openDropdown}
         onPreviewError={preview.handlePreviewError}
-        onToggleActionMenu={actions.toggleImageActionMenu}
         onMoreAction={actions.handleMoreAction}
         onCropEdit={editOverlay.openEditOverlay}
         isBatchExportMode={batchExport.isBatchExportMode}
@@ -100,13 +98,6 @@ function ImagingPageContent() {
         onClearResultFilters={controller.clearEmptyResultFilters}
         onChangePage={controller.setCurrentPage}
       />
-
-      {actions.openDropdown && (
-        <div
-          className="fixed inset-0 z-20"
-          onClick={() => actions.setOpenDropdown(null)}
-        ></div>
-      )}
 
       {editOverlay.editState && (
         <UploadOptionsOverlay

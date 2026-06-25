@@ -200,7 +200,6 @@ export function useImagingPageController() {
     imageFiles,
     reloadImages: loadImages,
   });
-  const { openDropdown, setOpenDropdown } = actions;
 
   const editOverlay = useImageEditOverlay({ reloadImages: loadImages });
 
@@ -295,6 +294,7 @@ export function useImagingPageController() {
 
   useEffect(() => {
     if (!isAuthenticated || !userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMyTeams(currentTeams => (currentTeams.length === 0 ? currentTeams : []));
       return;
     }
@@ -320,6 +320,7 @@ export function useImagingPageController() {
 
   useEffect(() => {
     if (isAuthenticated) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadImages();
     }
   }, [isAuthenticated, loadImages]);
@@ -359,19 +360,6 @@ export function useImagingPageController() {
       router.replace(currentImagingHref, { scroll: false });
     }
   }, [currentImagingHref, isAuthenticated, router, searchParams]);
-
-  useEffect(() => {
-    if (!openDropdown) return;
-
-    const closeDropdown = () => setOpenDropdown(null);
-    window.addEventListener('resize', closeDropdown);
-    window.addEventListener('scroll', closeDropdown, true);
-
-    return () => {
-      window.removeEventListener('resize', closeDropdown);
-      window.removeEventListener('scroll', closeDropdown, true);
-    };
-  }, [openDropdown, setOpenDropdown]);
 
   return {
     imageFiles,

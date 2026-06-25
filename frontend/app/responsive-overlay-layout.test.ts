@@ -32,8 +32,10 @@ describe('responsive overlay layouts', () => {
   it('keeps header notification dropdown inside phone-sized viewports', () => {
     const source = readFrontendFile('components/Header.tsx');
 
-    expect(source).toContain('fixed left-4 right-4 top-20');
-    expect(source).toContain('sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-96');
+    expect(source).toContain(
+      'contentClassName="w-[calc(100vw-2rem)] max-w-96 overflow-hidden"'
+    );
+    expect(source).toContain('align="end"');
     expect(source).not.toContain('absolute right-0 top-12 w-96 max-w-[calc(100vw-1rem)]');
   });
 });

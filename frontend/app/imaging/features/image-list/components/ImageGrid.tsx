@@ -1,4 +1,3 @@
-import type { MouseEvent } from 'react';
 import Link from 'next/link';
 import {
   formatDate,
@@ -8,7 +7,6 @@ import {
 import ImagePreview from '@/app/imaging/features/image-preview/components/ImagePreview';
 import type { PreviewLoadState } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import ImageActionMenu from '@/app/imaging/features/image-actions/components/ImageActionMenu';
-import type { OpenDropdown } from '@/app/imaging/features/image-actions/hooks/useImageFileActions';
 import ImageStatusBadge from './ImageStatusBadge';
 
 interface ImageGridProps {
@@ -16,9 +14,7 @@ interface ImageGridProps {
   viewerReturnTo: string;
   imageUrls: Record<number, string>;
   previewStates: Record<number, PreviewLoadState>;
-  openDropdown: OpenDropdown | null;
   onPreviewError: (fileId: number) => void;
-  onToggleActionMenu: (fileId: number, event: MouseEvent<HTMLButtonElement>) => void;
   onMoreAction: (fileId: number, action: string) => void;
   onCropEdit: (imageFile: ImageFile) => void;
   isBatchExportMode?: boolean;
@@ -31,9 +27,7 @@ export default function ImageGrid({
   viewerReturnTo,
   imageUrls,
   previewStates,
-  openDropdown,
   onPreviewError,
-  onToggleActionMenu,
   onMoreAction,
   onCropEdit,
   isBatchExportMode = false,
@@ -161,21 +155,11 @@ export default function ImageGrid({
                   >
                     标注分析
                   </Link>
-                  <div className="relative">
-                    <button
-                      onClick={event => onToggleActionMenu(imageFile.id, event)}
-                      className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
-                    >
-                      更多
-                    </button>
-
-                    <ImageActionMenu
-                      imageFileId={imageFile.id}
-                      openDropdown={openDropdown}
-                      onMoreAction={onMoreAction}
-                      onCropEdit={() => onCropEdit(imageFile)}
-                    />
-                  </div>
+                  <ImageActionMenu
+                    imageFileId={imageFile.id}
+                    onMoreAction={onMoreAction}
+                    onCropEdit={() => onCropEdit(imageFile)}
+                  />
                 </div>
               )}
             </div>

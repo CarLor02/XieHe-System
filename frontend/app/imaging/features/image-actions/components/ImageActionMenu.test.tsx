@@ -1,24 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { expect, it, jest } from '@jest/globals';
 
-import ImageActionMenu, { getClampedMenuPosition } from './ImageActionMenu';
-
-it('keeps the image action menu inside the viewport', () => {
-  expect(
-    getClampedMenuPosition({
-      top: 760,
-      left: 370,
-      menuWidth: 160,
-      menuHeight: 180,
-      viewportWidth: 390,
-      viewportHeight: 844,
-      margin: 8,
-    })
-  ).toEqual({
-    top: 656,
-    left: 222,
-  });
-});
+import ImageActionMenu from './ImageActionMenu';
 
 it('uses one edit info action instead of separate type and crop actions', () => {
   const onEditInfo = jest.fn();
@@ -26,11 +10,12 @@ it('uses one edit info action instead of separate type and crop actions', () => 
   render(
     <ImageActionMenu
       imageFileId={1}
-      openDropdown={{ id: '1', top: 10, left: 10 }}
       onMoreAction={jest.fn()}
       onCropEdit={onEditInfo}
     />
   );
+
+  fireEvent.click(screen.getByRole('button', { name: '更多' }));
 
   expect(screen.queryByText('修改类型')).toBeNull();
   expect(screen.queryByText('裁剪编辑')).toBeNull();
@@ -38,4 +23,31 @@ it('uses one edit info action instead of separate type and crop actions', () => 
   fireEvent.click(screen.getByRole('button', { name: /编辑信息/ }));
 
   expect(onEditInfo).toHaveBeenCalledTimes(1);
+});
+
+it('closes the image action menu from outside click and escape', async () => {
+  const user = userEvent.setup();
+
+  render(
+    <div>
+      <ImageActionMenu
+        imageFileId={1}
+        onMoreAction={jest.fn()}
+        onCropEdit={jest.fn()}
+      />
+      <button type="button">外部区域</button>
+    </div>
+  );
+
+  await user.click(screen.getByRole('button', { name: '更多' }));
+  expect(screen.getByRole('button', { name: /下载/ })).toBeTruthy();
+
+  await user.click(screen.getByRole('button', { name: '外部区域' }));
+  expect(screen.queryByRole('button', { name: /下载/ })).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: '更多' }));
+  expect(screen.getByRole('button', { name: /下载/ })).toBeTruthy();
+
+  await user.keyboard('{Escape}');
+  expect(screen.queryByRole('button', { name: /下载/ })).toBeNull();
 });

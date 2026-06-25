@@ -101,9 +101,6 @@ function makeController(overrides: Record<string, unknown> = {}) {
       startBatchExport: jest.fn(),
     },
     actions: {
-      openDropdown: null,
-      setOpenDropdown: jest.fn(),
-      toggleImageActionMenu: jest.fn(),
       handleMoreAction: jest.fn(),
     },
     editOverlay: {

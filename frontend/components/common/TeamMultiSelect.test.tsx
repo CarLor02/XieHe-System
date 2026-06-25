@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import TeamMultiSelect, { type TeamMultiSelectPage } from './TeamMultiSelect';
@@ -70,5 +71,45 @@ describe('TeamMultiSelect', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /康复团队/ }));
 
     expect(onChange).toHaveBeenCalledWith([11, 12]);
+  });
+
+  it('closes the team list from outside click and escape', async () => {
+    const user = userEvent.setup();
+    loadOptions.mockResolvedValue({
+      items: [makeTeam(11, '骨科团队')],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+      totalPages: 1,
+    });
+
+    render(
+      <div>
+        <TeamMultiSelect
+          selectedIds={[]}
+          placeholder="选择归属团队"
+          searchPlaceholder="搜索团队名"
+          loadOptions={loadOptions}
+          onChange={jest.fn()}
+        />
+        <button type="button">外部区域</button>
+      </div>
+    );
+
+    await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: /骨科团队/ })).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole('button', { name: '外部区域' }));
+    expect(screen.queryByRole('checkbox', { name: /骨科团队/ })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: /骨科团队/ })).toBeTruthy();
+    });
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('checkbox', { name: /骨科团队/ })).toBeNull();
   });
 });

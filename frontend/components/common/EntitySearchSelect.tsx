@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import AppDropdown from './AppDropdown';
 
 const DEFAULT_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -156,37 +157,52 @@ export default function EntitySearchSelect<TItem>({
     setPage(1);
   };
 
-  return (
-    <div className="relative">
-      <div
-        data-testid="entity-search-select-control"
-        className="flex min-w-0 overflow-hidden rounded-lg border border-gray-300 bg-white text-sm text-gray-800 transition-colors hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500"
-      >
-        <button
-          type="button"
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          onClick={() => setIsOpen(open => !open)}
-          className="flex h-10 min-w-0 flex-1 items-center justify-between gap-3 px-3 text-left focus:outline-none"
-        >
-          <span className="min-w-0 flex-1 truncate">{label}</span>
-          <i className="ri-arrow-down-s-line flex h-4 w-4 flex-shrink-0 items-center justify-center text-gray-400" />
-        </button>
+  const handleOpenChange = (nextOpen: boolean) => {
+    setIsOpen(nextOpen);
+  };
 
-        {(value || effectiveSelectedItem) && (
+  return (
+    <AppDropdown
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      align="start"
+      contentClassName="w-[var(--radix-dropdown-menu-trigger-width)] min-w-72 overflow-hidden"
+      trigger={
+        <div
+          data-testid="entity-search-select-control"
+          className="flex min-w-0 overflow-hidden rounded-lg border border-gray-300 bg-white text-sm text-gray-800 transition-colors hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500"
+        >
           <button
             type="button"
-            aria-label="清除选择"
-            onClick={handleClear}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center border-l border-gray-300 text-gray-500 hover:bg-gray-50 focus:outline-none"
+            aria-expanded={isOpen}
+            aria-haspopup="listbox"
+            onClick={() => {
+              if (!isOpen) {
+                handleOpenChange(true);
+              }
+            }}
+            className="flex h-10 min-w-0 flex-1 items-center justify-between gap-3 px-3 text-left focus:outline-none"
           >
-            <i className="ri-close-line h-4 w-4" />
+            <span className="min-w-0 flex-1 truncate">{label}</span>
+            <i className="ri-arrow-down-s-line flex h-4 w-4 flex-shrink-0 items-center justify-center text-gray-400" />
           </button>
-        )}
-      </div>
 
-      {isOpen && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-lg border border-gray-200 bg-white shadow-lg">
+          {(value || effectiveSelectedItem) && (
+            <button
+              type="button"
+              aria-label="清除选择"
+              onClick={event => {
+                event.stopPropagation();
+                handleClear();
+              }}
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center border-l border-gray-300 text-gray-500 hover:bg-gray-50 focus:outline-none"
+            >
+              <i className="ri-close-line h-4 w-4" />
+            </button>
+          )}
+        </div>
+      }
+    >
           <div className="border-b border-gray-100 p-3">
             <div className="relative">
               <i className="ri-search-line absolute left-3 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center text-gray-400" />
@@ -194,6 +210,11 @@ export default function EntitySearchSelect<TItem>({
                 type="text"
                 value={searchKey}
                 onChange={event => handleSearchKeyChange(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key !== 'Escape') {
+                    event.stopPropagation();
+                  }
+                }}
                 placeholder={searchPlaceholder}
                 className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -289,8 +310,6 @@ export default function EntitySearchSelect<TItem>({
               下一页
             </button>
           </div>
-        </div>
-      )}
-    </div>
+    </AppDropdown>
   );
 }

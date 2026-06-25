@@ -1,68 +1,57 @@
-import type { OpenDropdown } from '../hooks/useImageFileActions';
+'use client';
 
-const MENU_WIDTH = 160;
-const MENU_HEIGHT = 144;
-const MENU_MARGIN = 8;
-
-interface MenuPositionInput {
-  top: number;
-  left: number;
-  menuWidth?: number;
-  menuHeight?: number;
-  viewportWidth?: number;
-  viewportHeight?: number;
-  margin?: number;
-}
-
-export function getClampedMenuPosition({
-  top,
-  left,
-  menuWidth = MENU_WIDTH,
-  menuHeight = MENU_HEIGHT,
-  viewportWidth,
-  viewportHeight,
-  margin = MENU_MARGIN,
-}: MenuPositionInput) {
-  const width =
-    viewportWidth ?? (typeof window === 'undefined' ? menuWidth : window.innerWidth);
-  const height =
-    viewportHeight ??
-    (typeof window === 'undefined' ? menuHeight : window.innerHeight);
-  const maxLeft = Math.max(margin, width - menuWidth - margin);
-  const maxTop = Math.max(margin, height - menuHeight - margin);
-
-  return {
-    top: Math.min(Math.max(top, margin), maxTop),
-    left: Math.min(Math.max(left, margin), maxLeft),
-  };
-}
+import { useState } from 'react';
+import AppDropdown from '@/components/common/AppDropdown';
 
 interface ImageActionMenuProps {
   imageFileId: number;
-  openDropdown: OpenDropdown | null;
   onMoreAction: (fileId: number, action: string) => void;
   onCropEdit: () => void;
 }
 
 export default function ImageActionMenu({
   imageFileId,
-  openDropdown,
   onMoreAction,
   onCropEdit,
 }: ImageActionMenuProps) {
-  if (openDropdown?.id !== imageFileId.toString()) return null;
+  const [open, setOpen] = useState(false);
+
+  const handleAction = (action: string) => {
+    setOpen(false);
+    onMoreAction(imageFileId, action);
+  };
+
+  const handleEditInfo = () => {
+    setOpen(false);
+    onCropEdit();
+  };
 
   return (
-    <div
-      className="fixed w-40 max-h-[calc(100vh-1rem)] overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-30"
-      style={getClampedMenuPosition({
-        top: openDropdown.top,
-        left: openDropdown.left,
-      })}
+    <AppDropdown
+      open={open}
+      onOpenChange={setOpen}
+      align="end"
+      sideOffset={4}
+      contentClassName="w-40 max-h-[calc(100vh-1rem)] overflow-y-auto"
+      trigger={
+        <button
+          type="button"
+          aria-label="更多"
+          onClick={() => {
+            if (!open) {
+              setOpen(true);
+            }
+          }}
+          className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
+        >
+          更多
+        </button>
+      }
     >
       <div className="py-1">
         <button
-          onClick={() => onMoreAction(imageFileId, 'download')}
+          type="button"
+          onClick={() => handleAction('download')}
           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
         >
           <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
@@ -70,7 +59,8 @@ export default function ImageActionMenu({
         </button>
         <div className="border-t border-gray-100"></div>
         <button
-          onClick={onCropEdit}
+          type="button"
+          onClick={handleEditInfo}
           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
         >
           <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
@@ -78,13 +68,14 @@ export default function ImageActionMenu({
         </button>
         <div className="border-t border-gray-100"></div>
         <button
-          onClick={() => onMoreAction(imageFileId, 'delete')}
+          type="button"
+          onClick={() => handleAction('delete')}
           className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
         >
           <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
           <span>删除</span>
         </button>
       </div>
-    </div>
+    </AppDropdown>
   );
 }

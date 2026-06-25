@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import EntitySearchSelect, {
@@ -276,5 +277,54 @@ describe('EntitySearchSelect', () => {
     expect(
       screen.queryByRole('button', { name: /清除选择/ })
     ).not.toBeTruthy();
+  });
+
+  it('closes the entity list from outside click and escape', async () => {
+    const user = userEvent.setup();
+    loadOptions.mockResolvedValue(
+      makePage([
+        {
+          id: 7,
+          real_name: '王医生',
+          email: 'doctor@example.com',
+          role: 'ADMIN',
+        },
+      ])
+    );
+
+    render(
+      <div>
+        <EntitySearchSelect
+          value=""
+          placeholder="选择上传者"
+          searchPlaceholder="搜索医生姓名或邮箱"
+          loadOptions={loadOptions}
+          getOptionValue={doctor => String(doctor.id)}
+          mapOption={doctor => ({
+            primary: doctor.real_name,
+            secondary: doctor.email,
+            meta: [doctor.role],
+          })}
+          onChange={jest.fn()}
+        />
+        <button type="button">外部区域</button>
+      </div>
+    );
+
+    await user.click(screen.getByRole('button', { name: /选择上传者/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /王医生/ })).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole('button', { name: '外部区域' }));
+    expect(screen.queryByRole('option', { name: /王医生/ })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /选择上传者/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /王医生/ })).toBeTruthy();
+    });
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('option', { name: /王医生/ })).toBeNull();
   });
 });

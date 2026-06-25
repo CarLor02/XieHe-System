@@ -161,6 +161,8 @@ describe('PatientSearchSelect', () => {
         page_size: 10,
       });
     });
-    expect(screen.getByText('第二页患者')).not.toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText('第二页患者')).not.toBeNull();
+    });
   });
 });
