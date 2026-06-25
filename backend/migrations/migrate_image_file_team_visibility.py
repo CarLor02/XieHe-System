@@ -15,7 +15,10 @@ PROJECT_ROOT = BACKEND_ROOT.parent
 sys.path.insert(0, str(BACKEND_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.scripts.env_loader import load_project_env  # noqa: E402
+try:
+    from backend.scripts.env_loader import load_project_env  # type: ignore[import-not-found] # noqa: E402
+except ModuleNotFoundError:
+    from scripts.env_loader import load_project_env  # type: ignore[import-not-found] # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
