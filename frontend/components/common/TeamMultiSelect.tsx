@@ -203,23 +203,23 @@ export default function TeamMultiSelect({
               ))
             )}
           </div>
-          <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2 text-sm text-gray-600">
+          <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 text-sm text-gray-600">
             <button
               type="button"
               disabled={loading || page <= 1}
               onClick={() => handlePageChange(Math.max(page - 1, 1))}
-              className="rounded px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
+              className="flex-shrink-0 whitespace-nowrap rounded px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
             >
               上一页
             </button>
-            <span>
+            <span className="flex-shrink-0 whitespace-nowrap">
               第 {page} / {totalPages} 页
             </span>
             <button
               type="button"
               disabled={loading || page >= totalPages}
               onClick={() => handlePageChange(page + 1)}
-              className="rounded px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
+              className="flex-shrink-0 whitespace-nowrap rounded px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
             >
               下一页
             </button>
