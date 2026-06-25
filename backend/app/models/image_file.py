@@ -83,6 +83,35 @@ class ImageFile(Base):
     # 关系映射
     uploader = relationship("User", foreign_keys=[uploaded_by], backref="uploaded_images")
     deleter = relationship("User", foreign_keys=[deleted_by], backref="deleted_images")
+    team_visibilities = relationship(
+        "ImageFileTeamVisibility",
+        back_populates="image_file",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
     
     def __repr__(self):
         return f"<ImageFile(id={self.id}, filename={self.original_filename}, uploaded_by={self.uploaded_by})>"
+
+
+class ImageFileTeamVisibility(Base):
+    """团队对影像文件的可见归属。"""
+
+    __tablename__ = "image_file_team_visibility"
+
+    image_file_id = Column(
+        Integer,
+        ForeignKey("image_files.id"),
+        primary_key=True,
+        comment="影像文件ID",
+    )
+    team_id = Column(
+        Integer,
+        ForeignKey("teams.id"),
+        primary_key=True,
+        comment="团队ID",
+    )
+    created_at = Column(DateTime, default=func.now(), nullable=False, comment="创建时间")
+
+    image_file = relationship("ImageFile", back_populates="team_visibilities")
+    team = relationship("Team")

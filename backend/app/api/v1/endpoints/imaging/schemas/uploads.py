@@ -12,6 +12,7 @@ class CreateUploadSessionRequest(BaseModel):
     mime_type: str = Field(..., min_length=1, max_length=100, description="MIME类型")
     patient_id: Optional[int] = Field(None, description="患者ID")
     description: Optional[str] = Field(None, description="检查类型/描述")
+    team_ids: List[int] = Field(default_factory=list, description="影像归属团队ID")
     file_hash: Optional[str] = Field(None, max_length=64, description="文件MD5，可选")
 
 

@@ -23,6 +23,7 @@ from .team import (
 )
 from .image_file import (
     ImageFile,
+    ImageFileTeamVisibility,
     ImageFileTypeEnum,
     ImageFileStatusEnum,
 )
@@ -58,6 +59,7 @@ __all__ = [
     "TeamMembershipStatus",
     # 影像文件
     "ImageFile",
+    "ImageFileTeamVisibility",
     "ImageFileTypeEnum",
     "ImageFileStatusEnum",
     # 影像管理枚举

@@ -18,6 +18,10 @@ from app.core.config import settings
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import paginated_response, success_response
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
+from app.services.image_file_visibility import (
+    replace_image_team_visibility,
+    validate_assignable_team_ids,
+)
 from app.services.storage_gateway import StorageServiceError, storage_gateway
 from ..schemas.uploads import (
     CompleteUploadSessionRequest,
@@ -85,6 +89,11 @@ async def create_upload_session(
     """Create an ImageFile row and return MinIO multipart presigned URLs."""
 
     _validate_upload_request(request)
+    try:
+        team_ids = validate_assignable_team_ids(db, current_user, request.team_ids)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+
     file_uuid = str(uuid.uuid4())
     object_key = _build_object_key(file_uuid, request.filename)
     bucket = settings.IMAGE_FILE_BUCKET
@@ -125,6 +134,8 @@ async def create_upload_session(
         )
 
         db.add(image_file)
+        db.flush()
+        replace_image_team_visibility(db, image_file, team_ids)
         db.commit()
         db.refresh(image_file)
 

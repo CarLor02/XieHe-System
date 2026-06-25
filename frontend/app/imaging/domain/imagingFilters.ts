@@ -35,6 +35,7 @@ export function buildImageFileFilters({
   dateFrom,
   dateTo,
   uploadedBy,
+  teamIds,
 }: {
   page: number;
   pageSize: number;
@@ -44,6 +45,7 @@ export function buildImageFileFilters({
   dateFrom: string;
   dateTo: string;
   uploadedBy?: number | null;
+  teamIds?: number[];
 }): ImageFileFilters {
   const filters: ImageFileFilters = {
     page,
@@ -57,6 +59,9 @@ export function buildImageFileFilters({
   if (dateTo) filters.end_date = dateTo;
   if (uploadedBy !== null && uploadedBy !== undefined) {
     filters.uploaded_by = uploadedBy;
+  }
+  if (teamIds?.length) {
+    filters.team_ids = teamIds;
   }
 
   return filters;
@@ -72,6 +77,7 @@ export function buildImagingListHref({
   viewMode,
   uploadedBy,
   uploaderName,
+  teamIds,
 }: {
   page: number;
   searchTerm: string;
@@ -82,6 +88,7 @@ export function buildImagingListHref({
   viewMode: ImagingViewMode;
   uploadedBy?: number | null;
   uploaderName?: string | null;
+  teamIds?: number[];
 }) {
   const params = new URLSearchParams();
 
@@ -95,6 +102,9 @@ export function buildImagingListHref({
   if (uploadedBy !== null && uploadedBy !== undefined) {
     params.set('uploaded_by', String(uploadedBy));
     if (uploaderName) params.set('uploader_name', uploaderName);
+  }
+  if (teamIds?.length) {
+    params.set('team_ids', teamIds.join(','));
   }
 
   const query = params.toString();

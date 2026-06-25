@@ -28,6 +28,7 @@ export interface ImageFile {
   study_id?: number; // TODO 这个字段后端的接口没返回, 以后看一下
   study_date?: string;
   description?: string;
+  team_ids?: number[];
   annotation?: ImageAnnotationJson | null;
   status:
     | 'UPLOADING'
@@ -85,6 +86,7 @@ export interface ImageFileFilters {
   search?: string;
   review_status?: 'reviewed' | 'unreviewed'; // 审核状态筛选
   uploaded_by?: number;
+  team_ids?: number[];
 }
 
 export interface ImageUploader {
@@ -136,6 +138,7 @@ export async function getImageFiles(
   if (filters.search) params.search = filters.search;
   if (filters.review_status) params.review_status = filters.review_status;
   if (filters.uploaded_by !== undefined) params.uploaded_by = filters.uploaded_by;
+  if (filters.team_ids?.length) params.team_ids = filters.team_ids.join(',');
 
   const response = await apiClient.get('/api/v1/image-files', { params });
   const result = extractPaginatedData<ImageFile>(response);
@@ -294,15 +297,26 @@ export async function updateImageExamType(
   return extractData<{ id: number; description: string; warning: string | null }>(response);
 }
 
+export async function updateImageInfo(
+  fileId: number,
+  payload: { description: string; team_ids: number[] }
+): Promise<ImageFile & { warning?: string | null }> {
+  const response = await apiClient.patch(`/api/v1/image-files/${fileId}/info`, payload);
+  return extractData<ImageFile & { warning?: string | null }>(response);
+}
+
 export async function replaceImageFileContent(
   fileId: number,
   file: File,
-  options: { description?: string | null } = {}
+  options: { description?: string | null; team_ids?: number[] } = {}
 ): Promise<ImageFile> {
   const formData = new FormData();
   formData.append('file', file);
   if (options.description !== undefined) {
     formData.append('description', options.description ?? '');
+  }
+  if (options.team_ids !== undefined) {
+    formData.append('team_ids', JSON.stringify(options.team_ids));
   }
 
   const response = await apiClient.patch(

@@ -20,11 +20,6 @@ interface ImageGridProps {
   onPreviewError: (fileId: number) => void;
   onToggleActionMenu: (fileId: number, event: MouseEvent<HTMLButtonElement>) => void;
   onMoreAction: (fileId: number, action: string) => void;
-  onOpenChangeTypeModal: (
-    fileId: number,
-    currentDesc: string,
-    status: string
-  ) => void;
   onCropEdit: (imageFile: ImageFile) => void;
   isBatchExportMode?: boolean;
   selectedExportIds?: Set<number>;
@@ -40,7 +35,6 @@ export default function ImageGrid({
   onPreviewError,
   onToggleActionMenu,
   onMoreAction,
-  onOpenChangeTypeModal,
   onCropEdit,
   isBatchExportMode = false,
   selectedExportIds = new Set<number>(),
@@ -177,11 +171,8 @@ export default function ImageGrid({
 
                     <ImageActionMenu
                       imageFileId={imageFile.id}
-                      description={imageFile.description ?? ''}
-                      status={imageFile.status}
                       openDropdown={openDropdown}
                       onMoreAction={onMoreAction}
-                      onOpenChangeTypeModal={onOpenChangeTypeModal}
                       onCropEdit={() => onCropEdit(imageFile)}
                     />
                   </div>

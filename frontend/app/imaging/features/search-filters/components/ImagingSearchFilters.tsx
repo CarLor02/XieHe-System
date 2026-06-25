@@ -3,7 +3,9 @@ import Tooltip from '@/components/ui/Tooltip';
 import EntitySearchSelect, {
   type EntitySearchSelectLoadParams,
 } from '@/components/common/EntitySearchSelect';
+import TeamMultiSelect from '@/components/common/TeamMultiSelect';
 import type { ImageUploader } from '@/services/imageServices/imageFileService';
+import type { TeamSummary } from '@/services/teamService';
 import BatchExportControls from '@/app/imaging/features/batch-export/components/BatchExportControls';
 import type { ExportContentType } from '@/app/imaging/features/batch-export/domain';
 import type { ExportContentOption } from '@/app/imaging/features/batch-export/hooks/use-export-content-options';
@@ -22,7 +24,10 @@ interface ImagingSearchFiltersProps {
   dateTo: string;
   viewMode: ImagingViewMode;
   canUseUploaderView: boolean;
+  canUseTeamView: boolean;
   selectedUploader: ImageUploader | null;
+  selectedTeamIds: number[];
+  teamOptions: TeamSummary[];
   visibleCount: number;
   total: number;
   isBatchExportMode: boolean;
@@ -41,6 +46,7 @@ interface ImagingSearchFiltersProps {
   onChangeDateTo: (value: string) => void;
   onChangeViewMode: (value: ImagingViewMode) => void;
   onChangeUploader: (value: string, uploader: ImageUploader | null) => void;
+  onChangeTeams: (teamIds: number[]) => void;
   onLoadUploaders: (params: EntitySearchSelectLoadParams) => Promise<{
     items: ImageUploader[];
     total: number;
@@ -65,7 +71,10 @@ export default function ImagingSearchFilters({
   dateTo,
   viewMode,
   canUseUploaderView,
+  canUseTeamView,
   selectedUploader,
+  selectedTeamIds,
+  teamOptions,
   visibleCount,
   total,
   isBatchExportMode,
@@ -84,6 +93,7 @@ export default function ImagingSearchFilters({
   onChangeDateTo,
   onChangeViewMode,
   onChangeUploader,
+  onChangeTeams,
   onLoadUploaders,
   onClearFilters,
   onToggleBatchExportMode,
@@ -170,6 +180,19 @@ export default function ImagingSearchFilters({
                   ].filter(Boolean),
                 })}
                 onChange={onChangeUploader}
+              />
+            </div>
+          )}
+
+          {canUseTeamView && (
+            <div className="w-full sm:w-56">
+              <TeamMultiSelect
+                teams={teamOptions}
+                selectedIds={selectedTeamIds}
+                placeholder="上传团队视角"
+                searchPlaceholder="搜索团队名"
+                emptyText="暂无可选团队"
+                onChange={onChangeTeams}
               />
             </div>
           )}

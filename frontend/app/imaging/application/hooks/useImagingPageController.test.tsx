@@ -35,13 +35,6 @@ const mockImageFileActions = {
   setOpenDropdown: mockSetOpenDropdown,
   toggleImageActionMenu: jest.fn(),
   handleMoreAction: jest.fn(),
-  openChangeTypeModal: jest.fn(),
-  changeTypeModal: null,
-  changeTypeSelected: '',
-  changeTypeLoading: false,
-  setChangeTypeSelected: jest.fn(),
-  setChangeTypeModal: jest.fn(),
-  handleChangeType: jest.fn(),
 };
 const mockEditOverlay = {
   openEditOverlay: jest.fn(),

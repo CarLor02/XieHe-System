@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from sqlalchemy import false
+from sqlalchemy import and_, exists, false, or_
 from sqlalchemy.orm import Query, Session
 
-from app.models.image_file import ImageFile
-from app.models.team import TeamMembership, TeamMembershipRole, TeamMembershipStatus
+from app.models.image_file import ImageFile, ImageFileTeamVisibility
+from app.models.team import Team, TeamMembership, TeamMembershipRole, TeamMembershipStatus
 
 
 def _extract_user_id(current_user: dict[str, Any]) -> Optional[int]:
@@ -47,45 +47,46 @@ def get_visible_image_uploader_ids(
     if user_id is None:
         return []
 
-    admin_team_ids = [
-        team_id
-        for (team_id,) in db.query(TeamMembership.team_id)
-        .filter(
-            TeamMembership.user_id == user_id,
-            TeamMembership.role == TeamMembershipRole.ADMIN,
-            TeamMembership.status == TeamMembershipStatus.ACTIVE,
-        )
-        .all()
+    visibility_filter = build_image_visibility_filter(db, current_user)
+    if visibility_filter is None:
+        query = db.query(ImageFile.uploaded_by)
+    else:
+        query = db.query(ImageFile.uploaded_by).filter(visibility_filter)
+
+    uploader_ids = [
+        uploader_id
+        for (uploader_id,) in query.filter(ImageFile.is_deleted == False).distinct().all()
     ]
-
-    if not admin_team_ids:
-        return [user_id]
-
-    member_ids = [
-        member_id
-        for (member_id,) in db.query(TeamMembership.user_id)
-        .filter(
-            TeamMembership.team_id.in_(admin_team_ids),
-            TeamMembership.status == TeamMembershipStatus.ACTIVE,
-        )
-        .distinct()
-        .all()
-    ]
-
-    return sorted({user_id, *member_ids})
+    return sorted(uploader_ids)
 
 
 def build_image_visibility_filter(db: Session, current_user: dict[str, Any]):
     """Build a SQLAlchemy filter condition for visible image files."""
 
-    visible_uploader_ids = get_visible_image_uploader_ids(db, current_user)
-    if visible_uploader_ids is None:
+    if current_user.get("is_superuser", False) or current_user.get(
+        "is_system_admin",
+        False,
+    ):
         return None
 
-    if not visible_uploader_ids:
+    user_id = _extract_user_id(current_user)
+    if user_id is None:
         return false()
 
-    return ImageFile.uploaded_by.in_(visible_uploader_ids)
+    team_admin_visibility = exists().where(
+        and_(
+            ImageFileTeamVisibility.image_file_id == ImageFile.id,
+            ImageFileTeamVisibility.team_id == TeamMembership.team_id,
+            TeamMembership.user_id == user_id,
+            TeamMembership.role == TeamMembershipRole.ADMIN,
+            TeamMembership.status == TeamMembershipStatus.ACTIVE,
+        )
+    )
+
+    return or_(
+        ImageFile.uploaded_by == user_id,
+        team_admin_visibility,
+    )
 
 
 def apply_image_visibility_filter(
@@ -114,3 +115,57 @@ def get_visible_image_file(
         ImageFile.is_deleted == False,
     )
     return apply_image_visibility_filter(query, db, current_user).first()
+
+
+def normalize_team_ids(team_ids: list[int] | None) -> list[int]:
+    """Return stable, positive, unique team ids."""
+
+    if not team_ids:
+        return []
+    return sorted({int(team_id) for team_id in team_ids if int(team_id) > 0})
+
+
+def validate_assignable_team_ids(
+    db: Session,
+    current_user: dict[str, Any],
+    team_ids: list[int] | None,
+) -> list[int]:
+    """Validate that the current user can assign image visibility to teams."""
+
+    normalized_ids = normalize_team_ids(team_ids)
+    if not normalized_ids:
+        return []
+
+    query = db.query(Team.id).filter(Team.id.in_(normalized_ids), Team.is_active.is_(True))
+
+    if not (
+        current_user.get("is_superuser", False)
+        or current_user.get("is_system_admin", False)
+    ):
+        user_id = _extract_user_id(current_user)
+        if user_id is None:
+            raise PermissionError("无权设置影像团队归属")
+        query = query.join(TeamMembership, TeamMembership.team_id == Team.id).filter(
+            TeamMembership.user_id == user_id,
+            TeamMembership.status == TeamMembershipStatus.ACTIVE,
+        )
+
+    allowed_ids = {team_id for (team_id,) in query.distinct().all()}
+    missing_ids = [team_id for team_id in normalized_ids if team_id not in allowed_ids]
+    if missing_ids:
+        raise PermissionError("无权设置影像团队归属")
+
+    return normalized_ids
+
+
+def replace_image_team_visibility(
+    db: Session,
+    image: ImageFile,
+    team_ids: list[int],
+) -> None:
+    """Replace team visibility rows for an image."""
+
+    image.team_visibilities = [
+        ImageFileTeamVisibility(image_file_id=image.id, team_id=team_id)
+        for team_id in team_ids
+    ]

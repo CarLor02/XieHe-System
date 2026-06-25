@@ -20,6 +20,7 @@ class ImageFileResponse(BaseModel):
     uploader_name: Optional[str] = None
     patient_id: Optional[int]
     patient_name: Optional[str] = None
+    team_ids: List[int] = Field(default_factory=list)
     study_date: Optional[datetime]
     description: Optional[str]
     annotation: Optional[Dict[str, Any]] = None
@@ -64,6 +65,13 @@ class ImageFileStatsResponse(BaseModel):
 class UpdateExamTypeRequest(BaseModel):
     """修改检查类型请求模型"""
     description: str = Field(..., description="检查类型（正位X光片/侧位X光片等）")
+
+
+class UpdateImageInfoRequest(BaseModel):
+    """修改影像信息请求模型"""
+
+    description: str = Field(..., description="检查类型（正位X光片/侧位X光片等）")
+    team_ids: List[int] = Field(default_factory=list, description="影像归属团队ID")
 
 
 class UpdateAnnotationRequest(BaseModel):

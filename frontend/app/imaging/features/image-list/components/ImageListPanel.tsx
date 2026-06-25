@@ -22,11 +22,6 @@ interface ImageListPanelProps {
   onPreviewError: (fileId: number) => void;
   onToggleActionMenu: (fileId: number, event: MouseEvent<HTMLButtonElement>) => void;
   onMoreAction: (fileId: number, action: string) => void;
-  onOpenChangeTypeModal: (
-    fileId: number,
-    currentDesc: string,
-    status: string
-  ) => void;
   onCropEdit: (imageFile: ImageFile) => void;
   isBatchExportMode?: boolean;
   selectedExportIds?: Set<number>;
@@ -49,7 +44,6 @@ export default function ImageListPanel({
   onPreviewError,
   onToggleActionMenu,
   onMoreAction,
-  onOpenChangeTypeModal,
   onCropEdit,
   isBatchExportMode = false,
   selectedExportIds = new Set<number>(),
@@ -70,7 +64,6 @@ export default function ImageListPanel({
             onPreviewError={onPreviewError}
             onToggleActionMenu={onToggleActionMenu}
             onMoreAction={onMoreAction}
-            onOpenChangeTypeModal={onOpenChangeTypeModal}
             onCropEdit={onCropEdit}
             isBatchExportMode={isBatchExportMode}
             selectedExportIds={selectedExportIds}

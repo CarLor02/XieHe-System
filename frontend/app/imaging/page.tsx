@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 import { useImagingPageController } from './application/hooks/useImagingPageController';
-import ChangeExamTypeModal from './features/image-actions/components/ChangeExamTypeModal';
 import ImagingErrorState from './features/image-list/components/ImagingErrorState';
 import ImagingFrame from './features/image-list/components/ImagingFrame';
 import ImageListPanel from './features/image-list/components/ImageListPanel';
@@ -46,7 +45,10 @@ function ImagingPageContent() {
         dateTo={controller.dateTo}
         viewMode={controller.viewMode}
         canUseUploaderView={controller.canUseUploaderView}
+        canUseTeamView={controller.canUseTeamView}
         selectedUploader={controller.selectedUploader}
+        selectedTeamIds={controller.selectedTeamIds}
+        teamOptions={controller.myTeams}
         visibleCount={controller.imageFiles.length}
         total={controller.total}
         isBatchExportMode={batchExport.isBatchExportMode}
@@ -67,6 +69,7 @@ function ImagingPageContent() {
         onChangeDateTo={controller.setDateTo}
         onChangeViewMode={controller.setViewMode}
         onChangeUploader={controller.handleChangeUploader}
+        onChangeTeams={controller.handleChangeTeams}
         onLoadUploaders={controller.loadUploaders}
         onClearFilters={controller.clearFilters}
         onToggleBatchExportMode={batchExport.toggleBatchExportMode}
@@ -90,7 +93,6 @@ function ImagingPageContent() {
         onPreviewError={preview.handlePreviewError}
         onToggleActionMenu={actions.toggleImageActionMenu}
         onMoreAction={actions.handleMoreAction}
-        onOpenChangeTypeModal={actions.openChangeTypeModal}
         onCropEdit={editOverlay.openEditOverlay}
         isBatchExportMode={batchExport.isBatchExportMode}
         selectedExportIds={batchExport.selectedExportIds}
@@ -105,15 +107,6 @@ function ImagingPageContent() {
           onClick={() => actions.setOpenDropdown(null)}
         ></div>
       )}
-
-      <ChangeExamTypeModal
-        modal={actions.changeTypeModal}
-        selectedExamType={actions.changeTypeSelected}
-        loading={actions.changeTypeLoading}
-        onChangeSelectedExamType={actions.setChangeTypeSelected}
-        onClose={() => actions.setChangeTypeModal(null)}
-        onConfirm={actions.handleChangeType}
-      />
 
       {editOverlay.editState && (
         <UploadOptionsOverlay
@@ -130,6 +123,9 @@ function ImagingPageContent() {
               'image/png',
           }}
           examTypes={EXAM_TYPES}
+          teamIds={editOverlay.editState.teamIds}
+          teamOptions={controller.myTeams}
+          onTeamIdsChange={editOverlay.handleTeamIdsChange}
           onExamTypeChange={editOverlay.handleExamTypeChange}
           onFlip={editOverlay.handleFlip}
           onCrop={editOverlay.handleCrop}

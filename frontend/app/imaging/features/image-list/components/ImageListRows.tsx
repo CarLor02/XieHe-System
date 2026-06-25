@@ -164,8 +164,8 @@ export default function ImageListRows({
                       onClick={() => onCropEdit(imageFile)}
                       className="border border-gray-300 text-gray-700 px-2 py-2 rounded-lg hover:bg-gray-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
                     >
-                      <i className="ri-crop-line w-4 h-4 flex items-center justify-center"></i>
-                      <span>裁剪编辑</span>
+                      <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
+                      <span>编辑信息</span>
                     </button>
                     <button
                       onClick={() => onMoreAction(imageFile.id, 'delete')}

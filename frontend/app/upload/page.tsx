@@ -3,6 +3,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import AppShell from '@/components/layout/AppShell';
+import type { TeamSummary } from '@/services/teamService';
+import { getMyTeams } from '@/services/teamService';
 import { useUser } from '@/lib/api';
 import { uploadSingleFile } from '@/services/imageServices';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -26,15 +28,17 @@ interface UploadFile {
   previewUrl: string; // 列表预览，展示当前上传内容
   sourcePreviewUrl: string; // Overlay 裁剪源预览，保留未裁剪图像
   examType: string;
+  teamIds: number[];
 }
 
 function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo') || '/imaging';
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, user } = useUser();
 
   const [selectedPatient, setSelectedPatient] = useState('');
+  const [teamOptions, setTeamOptions] = useState<TeamSummary[]>([]);
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [activeOptionsFileId, setActiveOptionsFileId] = useState<string | null>(
     null
@@ -72,6 +76,32 @@ function UploadContent() {
       return;
     }
   }, [mounted, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!mounted || !isAuthenticated) return;
+
+    let cancelled = false;
+    getMyTeams()
+      .then(response => {
+        if (!cancelled) {
+          setTeamOptions(
+            (response.items ?? []).filter(
+              team =>
+                user?.is_system_admin ||
+                user?.is_superuser ||
+                team.my_status === 'ACTIVE'
+            )
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setTeamOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, mounted, user?.is_system_admin, user?.is_superuser]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -115,6 +145,7 @@ function UploadContent() {
         previewUrl,
         sourcePreviewUrl,
         examType: examTypes[0],
+        teamIds: [],
       };
     });
 
@@ -144,12 +175,21 @@ function UploadContent() {
     );
   };
 
+  const updateFileTeamIds = (fileId: string, nextTeamIds: number[]) => {
+    setUploadFiles(prev =>
+      prev.map(file =>
+        file.id === fileId ? { ...file, teamIds: nextTeamIds } : file
+      )
+    );
+  };
+
   const uploadFile = async (uploadFileItem: UploadFile) => {
     try {
       await uploadSingleFile({
         file: uploadFileItem.file,
         patient_id: selectedPatient || null,
         description: uploadFileItem.examType || null,
+        team_ids: uploadFileItem.teamIds,
       });
       setUploadFiles(prev =>
         prev.map(f =>
@@ -652,17 +692,22 @@ function UploadContent() {
         </div>
       {activeOptionsFile && (
         <UploadOptionsOverlay
-          file={{
-            id: activeOptionsFile.id,
-            name: activeOptionsFile.name,
-            previewUrl: activeOptionsFile.sourcePreviewUrl,
-            examType: activeOptionsFile.examType,
-            flipped: activeOptionsFile.flipped,
-            cropped: activeOptionsFile.cropped,
-            mimeType: activeOptionsFile.type,
-          }}
-          examTypes={examTypes}
-          onExamTypeChange={updateFileExamType}
+            file={{
+              id: activeOptionsFile.id,
+              name: activeOptionsFile.name,
+              previewUrl: activeOptionsFile.sourcePreviewUrl,
+              examType: activeOptionsFile.examType,
+              flipped: activeOptionsFile.flipped,
+              cropped: activeOptionsFile.cropped,
+              mimeType: activeOptionsFile.type,
+            }}
+            examTypes={examTypes}
+            teamIds={activeOptionsFile.teamIds}
+            teamOptions={teamOptions}
+            onTeamIdsChange={teamIds =>
+              updateFileTeamIds(activeOptionsFile.id, teamIds)
+            }
+            onExamTypeChange={updateFileExamType}
           onFlip={handleFlip}
           onCrop={handleCrop}
           onClose={handleFileOptionDone}

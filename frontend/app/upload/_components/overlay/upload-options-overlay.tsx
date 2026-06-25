@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import TeamMultiSelect from '@/components/common/TeamMultiSelect';
+import type { TeamSummary } from '@/services/teamService';
 
 export interface UploadOptionsFile {
   id: string;
@@ -32,6 +34,9 @@ interface UploadOptionsOverlayProps {
   onClose: () => void;
   onConfirm: (options?: UploadOptionsConfirmOptions) => void | Promise<void>;
   confirmAppliesCrop?: boolean;
+  teamIds?: number[];
+  teamOptions?: TeamSummary[];
+  onTeamIdsChange?: (teamIds: number[]) => void;
 }
 
 type CropGesture =
@@ -60,6 +65,9 @@ export default function UploadOptionsOverlay({
   onClose,
   onConfirm,
   confirmAppliesCrop = true,
+  teamIds = [],
+  teamOptions = [],
+  onTeamIdsChange,
 }: UploadOptionsOverlayProps) {
   const imageBoxRef = useRef<HTMLDivElement | null>(null);
   const gestureRef = useRef<CropGesture>(null);
@@ -274,6 +282,21 @@ export default function UploadOptionsOverlay({
                 </option>
               ))}
             </select>
+
+            {onTeamIdsChange && (
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  影像归属
+                </label>
+                <TeamMultiSelect
+                  teams={teamOptions}
+                  selectedIds={teamIds}
+                  onChange={onTeamIdsChange}
+                  placeholder="选择归属团队"
+                  emptyText="暂无可选团队"
+                />
+              </div>
+            )}
 
             <div className="mb-6 border-t border-gray-200"></div>
 

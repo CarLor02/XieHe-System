@@ -50,6 +50,18 @@ function getInitialUploader(searchParams: ReturnType<typeof useSearchParams>) {
   } satisfies ImageUploader;
 }
 
+function parseTeamIds(value: string | null) {
+  if (!value) return [];
+  return Array.from(
+    new Set(
+      value
+        .split(',')
+        .map(item => Number(item.trim()))
+        .filter(id => Number.isInteger(id) && id > 0)
+    )
+  );
+}
+
 export function useImagingPageController() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -96,17 +108,16 @@ export function useImagingPageController() {
   const [selectedUploader, setSelectedUploader] = useState<ImageUploader | null>(
     () => getInitialUploader(searchParams)
   );
-  const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
-
-  const hasDirectUploaderViewPermission = useMemo(
-    () => canUseUploaderView(user, []),
-    [user]
+  const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>(() =>
+    parseTeamIds(searchParams.get('team_ids'))
   );
+  const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
 
   const canUseUploaderViewValue = useMemo(
     () => canUseUploaderView(user, myTeams),
     [myTeams, user]
   );
+  const canUseTeamView = Boolean(user?.is_superuser || user?.is_system_admin);
 
   const hasActiveFilters = useMemo(
     () =>
@@ -115,8 +126,17 @@ export function useImagingPageController() {
       selectedReviewStatus !== 'all' ||
       dateFrom !== '' ||
       dateTo !== '' ||
-      selectedUploader !== null,
-    [dateFrom, dateTo, searchTerm, selectedExamType, selectedReviewStatus, selectedUploader]
+      selectedUploader !== null ||
+      selectedTeamIds.length > 0,
+    [
+      dateFrom,
+      dateTo,
+      searchTerm,
+      selectedExamType,
+      selectedReviewStatus,
+      selectedTeamIds.length,
+      selectedUploader,
+    ]
   );
 
   const preview = useImagePreviewQueue(imageFiles);
@@ -139,6 +159,7 @@ export function useImagingPageController() {
           dateFrom,
           dateTo,
           uploadedBy: selectedUploader?.id ?? null,
+          teamIds: selectedTeamIds,
         })
       );
 
@@ -170,6 +191,7 @@ export function useImagingPageController() {
     resetPreviewQueue,
     selectedExamType,
     selectedReviewStatus,
+    selectedTeamIds,
     selectedUploader,
   ]);
 
@@ -177,6 +199,7 @@ export function useImagingPageController() {
     imageFiles,
     reloadImages: loadImages,
   });
+  const { openDropdown, setOpenDropdown } = actions;
 
   const editOverlay = useImageEditOverlay({ reloadImages: loadImages });
 
@@ -213,6 +236,11 @@ export function useImagingPageController() {
     []
   );
 
+  const handleChangeTeams = useCallback((teamIds: number[]) => {
+    setSelectedTeamIds(teamIds);
+    setCurrentPage(1);
+  }, []);
+
   const loadUploaders = useCallback(
     ({ page, pageSize, search }: { page: number; pageSize: number; search?: string }) =>
       getVisibleImageUploaders({
@@ -231,6 +259,7 @@ export function useImagingPageController() {
     setDateFrom('');
     setDateTo('');
     setSelectedUploader(null);
+    setSelectedTeamIds([]);
     setCurrentPage(1);
     if (searchParams.toString()) {
       router.replace('/imaging', { scroll: false });
@@ -243,6 +272,7 @@ export function useImagingPageController() {
     setDateFrom('');
     setDateTo('');
     setSelectedUploader(null);
+    setSelectedTeamIds([]);
   }, []);
 
   useEffect(() => {
@@ -253,7 +283,7 @@ export function useImagingPageController() {
   }, [isAuthenticated, router]);
 
   useEffect(() => {
-    if (!isAuthenticated || !userId || hasDirectUploaderViewPermission) {
+    if (!isAuthenticated || !userId) {
       setMyTeams(currentTeams => (currentTeams.length === 0 ? currentTeams : []));
       return;
     }
@@ -275,7 +305,7 @@ export function useImagingPageController() {
     return () => {
       cancelled = true;
     };
-  }, [hasDirectUploaderViewPermission, isAuthenticated, userId]);
+  }, [isAuthenticated, userId]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -295,6 +325,7 @@ export function useImagingPageController() {
         viewMode,
         uploadedBy: selectedUploader?.id ?? null,
         uploaderName: getUploaderName(selectedUploader),
+        teamIds: selectedTeamIds,
       }),
     [
       currentPage,
@@ -303,6 +334,7 @@ export function useImagingPageController() {
       debouncedSearchTerm,
       selectedExamType,
       selectedReviewStatus,
+      selectedTeamIds,
       selectedUploader,
       viewMode,
     ]
@@ -318,9 +350,9 @@ export function useImagingPageController() {
   }, [currentImagingHref, isAuthenticated, router, searchParams]);
 
   useEffect(() => {
-    if (!actions.openDropdown) return;
+    if (!openDropdown) return;
 
-    const closeDropdown = () => actions.setOpenDropdown(null);
+    const closeDropdown = () => setOpenDropdown(null);
     window.addEventListener('resize', closeDropdown);
     window.addEventListener('scroll', closeDropdown, true);
 
@@ -328,7 +360,7 @@ export function useImagingPageController() {
       window.removeEventListener('resize', closeDropdown);
       window.removeEventListener('scroll', closeDropdown, true);
     };
-  }, [actions.openDropdown, actions.setOpenDropdown]);
+  }, [openDropdown, setOpenDropdown]);
 
   return {
     imageFiles,
@@ -346,7 +378,10 @@ export function useImagingPageController() {
     dateTo,
     viewMode,
     canUseUploaderView: canUseUploaderViewValue,
+    canUseTeamView,
     selectedUploader,
+    selectedTeamIds,
+    myTeams,
     currentImagingHref,
     hasActiveFilters,
     preview,
@@ -359,6 +394,7 @@ export function useImagingPageController() {
     clearEmptyResultFilters,
     loadUploaders,
     handleChangeUploader,
+    handleChangeTeams,
     setSearchTerm,
     setShowFilters,
     setSelectedExamType: handleChangeExamType,

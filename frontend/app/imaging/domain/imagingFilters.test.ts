@@ -14,6 +14,7 @@ describe('imaging filters', () => {
         dateFrom: '2026-06-01',
         dateTo: '2026-06-12',
         uploadedBy: 7,
+        teamIds: [11, 12],
       })
     ).toEqual({
       page: 3,
@@ -24,6 +25,7 @@ describe('imaging filters', () => {
       start_date: '2026-06-01',
       end_date: '2026-06-12',
       uploaded_by: 7,
+      team_ids: [11, 12],
     });
   });
 
@@ -39,9 +41,10 @@ describe('imaging filters', () => {
         viewMode: 'list',
         uploadedBy: 7,
         uploaderName: '王医生',
+        teamIds: [11, 12],
       })
     ).toBe(
-      '/imaging?page=3&search=%E5%BC%A0%E4%B8%89&description=%E6%AD%A3%E4%BD%8DX%E5%85%89%E7%89%87&review_status=reviewed&start_date=2026-06-01&end_date=2026-06-12&view=list&uploaded_by=7&uploader_name=%E7%8E%8B%E5%8C%BB%E7%94%9F'
+      '/imaging?page=3&search=%E5%BC%A0%E4%B8%89&description=%E6%AD%A3%E4%BD%8DX%E5%85%89%E7%89%87&review_status=reviewed&start_date=2026-06-01&end_date=2026-06-12&view=list&uploaded_by=7&uploader_name=%E7%8E%8B%E5%8C%BB%E7%94%9F&team_ids=11%2C12'
     );
   });
 });

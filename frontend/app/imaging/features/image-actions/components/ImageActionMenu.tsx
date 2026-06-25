@@ -1,7 +1,7 @@
 import type { OpenDropdown } from '../hooks/useImageFileActions';
 
 const MENU_WIDTH = 160;
-const MENU_HEIGHT = 180;
+const MENU_HEIGHT = 144;
 const MENU_MARGIN = 8;
 
 interface MenuPositionInput {
@@ -39,25 +39,15 @@ export function getClampedMenuPosition({
 
 interface ImageActionMenuProps {
   imageFileId: number;
-  description: string;
-  status: string;
   openDropdown: OpenDropdown | null;
   onMoreAction: (fileId: number, action: string) => void;
-  onOpenChangeTypeModal: (
-    fileId: number,
-    currentDesc: string,
-    status: string
-  ) => void;
   onCropEdit: () => void;
 }
 
 export default function ImageActionMenu({
   imageFileId,
-  description,
-  status,
   openDropdown,
   onMoreAction,
-  onOpenChangeTypeModal,
   onCropEdit,
 }: ImageActionMenuProps) {
   if (openDropdown?.id !== imageFileId.toString()) return null;
@@ -80,19 +70,11 @@ export default function ImageActionMenu({
         </button>
         <div className="border-t border-gray-100"></div>
         <button
-          onClick={() => onOpenChangeTypeModal(imageFileId, description, status)}
-          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-        >
-          <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
-          <span>修改类型</span>
-        </button>
-        <div className="border-t border-gray-100"></div>
-        <button
           onClick={onCropEdit}
           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
         >
-          <i className="ri-crop-line w-4 h-4 flex items-center justify-center"></i>
-          <span>裁剪编辑</span>
+          <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
+          <span>编辑信息</span>
         </button>
         <div className="border-t border-gray-100"></div>
         <button

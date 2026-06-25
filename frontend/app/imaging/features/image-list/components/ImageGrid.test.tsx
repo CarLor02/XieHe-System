@@ -53,7 +53,6 @@ function renderImageGrid(
     onPreviewError: jest.fn(),
     onToggleActionMenu: jest.fn(),
     onMoreAction: jest.fn(),
-    onOpenChangeTypeModal: jest.fn(),
     onCropEdit: jest.fn(),
     ...overrides,
   };

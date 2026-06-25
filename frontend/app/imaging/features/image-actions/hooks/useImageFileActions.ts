@@ -3,7 +3,6 @@ import { getErrorMessage } from '@/lib/api';
 import {
   deleteImageFile,
   downloadImageFile,
-  updateImageExamType,
   type ImageFile,
 } from '@/services/imageServices/imageFileService';
 
@@ -18,12 +17,6 @@ export type OpenDropdown = {
   left: number;
 };
 
-export type ChangeTypeModalState = {
-  fileId: number;
-  currentDesc: string;
-  status: string;
-} | null;
-
 interface UseImageFileActionsOptions {
   imageFiles: ImageFile[];
   reloadImages: () => void;
@@ -34,19 +27,6 @@ export function useImageFileActions({
   reloadImages,
 }: UseImageFileActionsOptions) {
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown | null>(null);
-  const [changeTypeModal, setChangeTypeModal] =
-    useState<ChangeTypeModalState>(null);
-  const [changeTypeSelected, setChangeTypeSelected] = useState('');
-  const [changeTypeLoading, setChangeTypeLoading] = useState(false);
-
-  const openChangeTypeModal = useCallback(
-    (fileId: number, currentDesc: string, status: string) => {
-      setChangeTypeSelected(currentDesc || '');
-      setChangeTypeModal({ fileId, currentDesc, status });
-      setOpenDropdown(null);
-    },
-    []
-  );
 
   const toggleImageActionMenu = useCallback(
     (fileId: number, event: MouseEvent<HTMLButtonElement>) => {
@@ -87,27 +67,6 @@ export function useImageFileActions({
     },
     [openDropdown]
   );
-
-  const handleChangeType = useCallback(async () => {
-    if (!changeTypeModal) return;
-    setChangeTypeLoading(true);
-    try {
-      const result = await updateImageExamType(
-        changeTypeModal.fileId,
-        changeTypeSelected
-      );
-      setChangeTypeModal(null);
-      reloadImages();
-      if (result.warning) alert(`✓ 修改成功\n⚠️ ${result.warning}`);
-    } catch (error: unknown) {
-      const message =
-        (error as { response?: { data?: { detail?: string } } })?.response
-          ?.data?.detail ?? '修改失败，请重试';
-      alert(message);
-    } finally {
-      setChangeTypeLoading(false);
-    }
-  }, [changeTypeModal, changeTypeSelected, reloadImages]);
 
   const handleMoreAction = useCallback(
     async (fileId: number, action: string) => {
@@ -153,14 +112,7 @@ export function useImageFileActions({
   return {
     openDropdown,
     setOpenDropdown,
-    changeTypeModal,
-    setChangeTypeModal,
-    changeTypeSelected,
-    setChangeTypeSelected,
-    changeTypeLoading,
-    openChangeTypeModal,
     toggleImageActionMenu,
-    handleChangeType,
     handleMoreAction,
   };
 }

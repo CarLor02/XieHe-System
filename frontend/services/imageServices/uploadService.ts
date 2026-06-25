@@ -9,6 +9,7 @@ export interface UploadSingleRequest {
   file: File;
   patient_id?: string | null;
   description?: string | null;
+  team_ids?: number[];
 }
 
 export interface UploadPartUrl {
@@ -65,6 +66,7 @@ export async function createImageUploadSession(payload: {
   mime_type: string;
   patient_id?: number | null;
   description?: string | null;
+  team_ids?: number[];
 }): Promise<UploadSession> {
   const response = await apiClient.post('/api/v1/upload/sessions', payload);
   return extractData<UploadSession>(response);
@@ -104,6 +106,7 @@ export async function uploadSingleFile(
     mime_type: file.type || 'application/octet-stream',
     patient_id: payload.patient_id ? Number(payload.patient_id) : null,
     description: payload.description || null,
+    team_ids: payload.team_ids || [],
   });
 
   const completedParts: CompletedUploadPart[] = [];

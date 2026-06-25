@@ -7,18 +7,18 @@ import type {
   downloadImageFile,
   ImageFile,
   replaceImageFileContent,
-  updateImageExamType,
+  updateImageInfo,
 } from '@/services/imageServices/imageFileService';
 
 const mockDownloadImageFile = jest.fn<typeof downloadImageFile>();
 const mockReplaceImageFileContent =
   jest.fn<typeof replaceImageFileContent>();
-const mockUpdateImageExamType = jest.fn<typeof updateImageExamType>();
+const mockUpdateImageInfo = jest.fn<typeof updateImageInfo>();
 
 jest.mock('@/services/imageServices/imageFileService', () => ({
   downloadImageFile: mockDownloadImageFile,
   replaceImageFileContent: mockReplaceImageFileContent,
-  updateImageExamType: mockUpdateImageExamType,
+  updateImageInfo: mockUpdateImageInfo,
 }));
 
 const { useImageEditOverlay } = jest.requireActual<
@@ -41,6 +41,7 @@ function makeImageFile(): ImageFile {
     uploaded_by: 7,
     patient_id: 3,
     description: '正位X光片',
+    team_ids: [11],
     status: 'UPLOADED',
     upload_progress: 100,
     created_at: '2026-06-10T10:00:00',
@@ -133,11 +134,7 @@ beforeEach(() => {
     ...makeImageFile(),
     storage_etag: 'new-etag',
   });
-  mockUpdateImageExamType.mockResolvedValue({
-    id: 1,
-    description: '正位X光片',
-    warning: null,
-  });
+  mockUpdateImageInfo.mockResolvedValue(makeImageFile());
 });
 
 afterEach(() => {
@@ -159,6 +156,44 @@ afterEach(() => {
     value: originalRevokeObjectURL,
   });
   jest.clearAllMocks();
+});
+
+it('updates image type and team ownership without replacing file content', async () => {
+  const reloadImages = jest.fn();
+  let latest: HookValue | null = null;
+
+  render(
+    <HookHarness
+      reloadImages={reloadImages}
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await act(async () => {
+    await latest!.openEditOverlay(makeImageFile());
+  });
+
+  await waitFor(() => {
+    expect(latest!.editState).not.toBeNull();
+  });
+
+  await act(async () => {
+    latest!.handleTeamIdsChange([11, 12]);
+    latest!.handleExamTypeChange('1', '侧位X光片');
+  });
+
+  await act(async () => {
+    await latest!.handleConfirm();
+  });
+
+  expect(mockUpdateImageInfo).toHaveBeenCalledWith(1, {
+    description: '侧位X光片',
+    team_ids: [11, 12],
+  });
+  expect(mockReplaceImageFileContent).not.toHaveBeenCalled();
+  expect(reloadImages).toHaveBeenCalledTimes(1);
 });
 
 it('asks for confirmation and replaces the same image content after crop', async () => {
@@ -205,7 +240,7 @@ it('asks for confirmation and replaces the same image content after crop', async
   expect(mockReplaceImageFileContent).toHaveBeenCalledWith(
     1,
     expect.any(File),
-    { description: '正位X光片' }
+    { description: '正位X光片', team_ids: [11] }
   );
   expect(replacedFile.size).toBe(croppedBlob.size);
   expect(reloadImages).toHaveBeenCalledTimes(1);
@@ -249,7 +284,7 @@ it('keeps pending crop unapplied until content replacement is confirmed', async 
 
   expect(latest!.contentResetConfirmOpen).toBe(true);
   expect(latest!.editState?.cropped).toBe(false);
-  expect(mockUpdateImageExamType).not.toHaveBeenCalled();
+  expect(mockUpdateImageInfo).not.toHaveBeenCalled();
   expect(mockReplaceImageFileContent).not.toHaveBeenCalled();
 
   await act(async () => {

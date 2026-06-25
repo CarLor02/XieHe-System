@@ -6,7 +6,7 @@ import type {
 import {
   downloadImageFile,
   replaceImageFileContent,
-  updateImageExamType,
+  updateImageInfo,
   type ImageFile,
 } from '@/services/imageServices/imageFileService';
 
@@ -25,6 +25,7 @@ export interface EditImageState {
   sourcePreviewUrl: string;
   previewUrl: string;
   examType: string;
+  teamIds: number[];
   flipped: boolean;
   cropped: boolean;
 }
@@ -152,6 +153,7 @@ export function useImageEditOverlay({
         sourcePreviewUrl,
         previewUrl,
         examType: imageFile.description || EXAM_TYPES[0],
+        teamIds: imageFile.team_ids ?? [],
         flipped: false,
         cropped: false,
       };
@@ -276,6 +278,10 @@ export function useImageEditOverlay({
     );
   }, [updateEditState]);
 
+  const handleTeamIdsChange = useCallback((teamIds: number[]) => {
+    updateEditState(prev => (prev ? { ...prev, teamIds } : prev));
+  }, [updateEditState]);
+
   const handleConfirm = useCallback(async (options?: UploadOptionsConfirmOptions) => {
     const current = editStateRef.current;
     if (!current || saving) return;
@@ -288,7 +294,10 @@ export function useImageEditOverlay({
 
     setSaving(true);
     try {
-      await updateImageExamType(current.imageFile.id, current.examType);
+      await updateImageInfo(current.imageFile.id, {
+        description: current.examType,
+        team_ids: current.teamIds,
+      });
       closeEditOverlay();
       reloadImages();
     } catch (error) {
@@ -321,6 +330,7 @@ export function useImageEditOverlay({
 
       await replaceImageFileContent(current.imageFile.id, replacementFile, {
         description: current.examType || null,
+        team_ids: current.teamIds,
       });
       clearLocalAnnotationCache(current.imageFile);
       pendingContentReplacementRef.current = null;
@@ -345,6 +355,7 @@ export function useImageEditOverlay({
     handleFlip,
     handleCrop,
     handleExamTypeChange,
+    handleTeamIdsChange,
     handleConfirm,
     cancelContentReplacement,
     confirmContentReplacement,

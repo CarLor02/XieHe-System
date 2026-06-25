@@ -9,6 +9,7 @@
 """
 
 import asyncio
+import json
 from typing import Any, Optional
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
@@ -35,7 +36,7 @@ from app.core.config import settings
 from app.core.system.concurrency import require_ai_object_slot, require_batch_presign_slot
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response, paginated_response
-from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
+from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTeamVisibility, ImageFileTypeEnum
 from app.models.patient import Patient
 from app.models.user import User
 from app.models.image import ImageAnnotation
@@ -45,12 +46,16 @@ from app.services.image_file_visibility import (
     apply_image_visibility_filter,
     get_visible_image_file,
     get_visible_image_uploader_ids,
+    normalize_team_ids,
+    replace_image_team_visibility,
+    validate_assignable_team_ids,
 )
 from ..schemas.files import (
     BatchDownloadUrlsRequest,
     ImageFileResponse,
     ImageUploaderResponse,
     ImageFileStatsResponse,
+    UpdateImageInfoRequest,
     UpdateExamTypeRequest,
     UpdateAnnotationRequest,
 )
@@ -121,6 +126,7 @@ def _image_file_response(
         uploader_name=uploader_name,
         patient_id=image.patient_id,
         patient_name=patient_name,
+        team_ids=sorted({visibility.team_id for visibility in image.team_visibilities}),
         study_date=image.study_date,
         description=image.description,
         annotation=image.annotation,
@@ -187,6 +193,60 @@ def _image_file_related_names(db: Session, image: ImageFile) -> tuple[Optional[s
         patient_name = db.query(Patient.name).filter(Patient.id == image.patient_id).scalar()
 
     return uploader_name, patient_name
+
+
+def _parse_team_ids_param(value: Optional[str]) -> list[int]:
+    if not value:
+        return []
+    try:
+        return normalize_team_ids([int(item) for item in value.split(",") if item.strip()])
+    except ValueError:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="team_ids 参数格式错误",
+        )
+
+
+def _parse_team_ids_form(value: Optional[str]) -> Optional[list[int]]:
+    if value is None or not isinstance(value, str):
+        return None
+    try:
+        payload = json.loads(value)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="team_ids 参数格式错误",
+        )
+    if not isinstance(payload, list):
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="team_ids 参数格式错误",
+        )
+    try:
+        return normalize_team_ids([int(item) for item in payload])
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="team_ids 参数格式错误",
+        )
+
+
+def _update_image_info(
+    db: Session,
+    image: ImageFile,
+    current_user: dict[str, Any],
+    *,
+    description: Optional[str],
+    team_ids: Optional[list[int]],
+) -> None:
+    if description is not None:
+        image.description = description
+
+    if team_ids is not None:
+        validated_team_ids = validate_assignable_team_ids(db, current_user, team_ids)
+        replace_image_team_visibility(db, image, validated_team_ids)
+
+    image.updated_at = datetime.now()
 
 
 def _set_presign_cache_headers(response: Response, expires_in: int) -> None:
@@ -362,6 +422,7 @@ async def get_image_files_list(
     end_date: Optional[date] = Query(None, description="结束日期"),
     search: Optional[str] = Query(None, description="搜索关键词"),
     uploaded_by: Optional[int] = Query(None, description="上传者用户ID"),
+    team_ids: Optional[str] = Query(None, description="团队ID筛选，逗号分隔"),
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -382,6 +443,8 @@ async def get_image_files_list(
     - 超级管理员(is_superuser)：能看到全部影像
     """
     try:
+        selected_team_ids = _parse_team_ids_param(team_ids)
+
         # 构建查询
         query = db.query(
             ImageFile,
@@ -455,6 +518,17 @@ async def get_image_files_list(
         if uploaded_by is not None:
             query = query.filter(ImageFile.uploaded_by == uploaded_by)
 
+        if selected_team_ids:
+            team_visibility_exists = (
+                db.query(ImageFileTeamVisibility.image_file_id)
+                .filter(
+                    ImageFileTeamVisibility.image_file_id == ImageFile.id,
+                    ImageFileTeamVisibility.team_id.in_(selected_team_ids),
+                )
+                .exists()
+            )
+            query = query.filter(team_visibility_exists)
+
         # 分页
         total = query.count()
         image_rows = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
@@ -476,6 +550,8 @@ async def get_image_files_list(
             message="影像文件列表查询成功"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取影像列表失败: {e}")
         raise HTTPException(
@@ -853,6 +929,7 @@ async def replace_image_file_content(
     file_id: int,
     file: UploadFile = File(...),
     description: Optional[str] = Form(None),
+    team_ids: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -880,6 +957,11 @@ async def replace_image_file_content(
                 status_code=http_status.HTTP_403_FORBIDDEN,
                 detail="无权替换此文件",
             )
+
+        parsed_team_ids = _parse_team_ids_form(team_ids)
+        parsed_description = description if isinstance(description, str) else None
+        if parsed_team_ids is not None:
+            validate_assignable_team_ids(db, current_user, parsed_team_ids)
 
         filename = file.filename or image.original_filename
         content_type = (
@@ -910,14 +992,17 @@ async def replace_image_file_content(
         image.file_hash = None
         image.storage_etag = upload_result.get("etag")
         image.thumbnail_path = None
-        image.description = (
-            description if description is not None else image.description
+        _update_image_info(
+            db,
+            image,
+            current_user,
+            description=parsed_description,
+            team_ids=parsed_team_ids,
         )
         image.annotation = None
         image.status = ImageFileStatusEnum.UPLOADED
         image.upload_progress = 100
         image.uploaded_at = datetime.now()
-        image.updated_at = datetime.now()
 
         db.query(ImageAnnotation).filter(
             ImageAnnotation.image_file_id == image.id
@@ -941,6 +1026,9 @@ async def replace_image_file_content(
             message="影像内容替换成功",
         )
 
+    except PermissionError as e:
+        db.rollback()
+        raise HTTPException(status_code=http_status.HTTP_403_FORBIDDEN, detail=str(e))
     except HTTPException:
         raise
     except StorageServiceError as e:
@@ -1013,6 +1101,54 @@ async def get_image_stats(
         )
 
 
+@router.patch("/{file_id}/info", response_model=dict, summary="修改影像信息")
+async def update_image_info(
+    file_id: int,
+    request: UpdateImageInfoRequest,
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """修改影像检查类型和团队归属。"""
+    try:
+        image = get_visible_image_file(db, file_id, current_user)
+        if not image:
+            raise HTTPException(status_code=404, detail="影像文件不存在")
+
+        warning = None
+        if image.status == ImageFileStatusEnum.PROCESSED:
+            warning = "该影像已完成AI分析，修改检查类型可能影响结果解读"
+        elif image.annotation:
+            warning = "该影像已有标注数据，修改检查类型可能影响标注关联"
+
+        _update_image_info(
+            db,
+            image,
+            current_user,
+            description=request.description,
+            team_ids=request.team_ids,
+        )
+        db.commit()
+        db.refresh(image)
+
+        uploader_name, patient_name = _image_file_related_names(db, image)
+        payload = _image_file_response(
+            image,
+            uploader_name=uploader_name,
+            patient_name=patient_name,
+        ).dict()
+        payload["warning"] = warning
+        return success_response(data=payload, message="影像信息修改成功")
+    except PermissionError as exc:
+        db.rollback()
+        raise HTTPException(status_code=403, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.emit_event(LogLevel.ERROR, message=f"修改影像信息失败: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="修改影像信息失败")
+
+
 @router.patch("/{file_id}/exam-type", response_model=dict, summary="修改影像检查类型")
 async def update_exam_type(
     file_id: int,
@@ -1025,11 +1161,7 @@ async def update_exam_type(
     已处理或有标注的影像仍可修改，但会在响应中附带警告提示。
     """
     try:
-        image = db.query(ImageFile).filter(
-            ImageFile.id == file_id,
-            ImageFile.is_deleted == False
-        ).first()
-
+        image = get_visible_image_file(db, file_id, current_user)
         if not image:
             raise HTTPException(status_code=404, detail="影像文件不存在")
 
@@ -1039,8 +1171,13 @@ async def update_exam_type(
         elif image.annotation:
             warning = "该影像已有标注数据，修改检查类型可能影响标注关联"
 
-        image.description = request.description
-        image.updated_at = func.now()
+        _update_image_info(
+            db,
+            image,
+            current_user,
+            description=request.description,
+            team_ids=None,
+        )
         db.commit()
         db.refresh(image)
 

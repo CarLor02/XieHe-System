@@ -10,6 +10,11 @@ jest.mock('@/components/common/EntitySearchSelect', () => ({
   default: () => <div data-testid="entity-search-select" />,
 }));
 
+jest.mock('@/components/common/TeamMultiSelect', () => ({
+  __esModule: true,
+  default: () => <div data-testid="team-multi-select" />,
+}));
+
 function renderFilters(
   overrides: Partial<ComponentProps<typeof ImagingSearchFilters>> = {}
 ) {
@@ -22,7 +27,10 @@ function renderFilters(
     dateTo: '',
     viewMode: 'grid',
     canUseUploaderView: false,
+    canUseTeamView: false,
     selectedUploader: null,
+    selectedTeamIds: [],
+    teamOptions: [],
     visibleCount: 2,
     total: 2,
     exportContent: 'original-image',
@@ -41,6 +49,7 @@ function renderFilters(
     onChangeDateTo: jest.fn(),
     onChangeViewMode: jest.fn(),
     onChangeUploader: jest.fn(),
+    onChangeTeams: jest.fn(),
     onLoadUploaders: jest.fn(async () => ({
       items: [],
       total: 0,

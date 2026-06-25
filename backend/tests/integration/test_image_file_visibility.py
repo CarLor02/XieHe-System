@@ -5,7 +5,12 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.imaging.handlers import files as file_handlers
-from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
+from app.models.image_file import (
+    ImageFile,
+    ImageFileStatusEnum,
+    ImageFileTeamVisibility,
+    ImageFileTypeEnum,
+)
 from app.models.patient import GenderEnum, Patient, PatientStatusEnum
 from app.models.team import Team, TeamMembership, TeamMembershipRole, TeamMembershipStatus
 from app.models.user import User
@@ -150,14 +155,25 @@ def visible_patient_image_ids(session, user: dict) -> list[int]:
     ]
 
 
+def assign_image_to_team(session: Session, image_id: int, team_id: int = 1) -> None:
+    session.add(ImageFileTeamVisibility(image_file_id=image_id, team_id=team_id))
+    session.commit()
+
+
 def test_regular_member_only_sees_own_uploaded_images(db_session):
     assert get_visible_image_uploader_ids(db_session, current_user(11)) == [11]
     assert visible_patient_image_ids(db_session, current_user(11)) == [2]
     assert get_visible_image_file(db_session, 1, current_user(11)) is None
 
 
-def test_team_admin_sees_active_team_member_images(db_session):
-    assert get_visible_image_uploader_ids(db_session, current_user(10)) == [10, 11]
+def test_team_admin_does_not_see_unassigned_member_personal_images(db_session):
+    assert visible_patient_image_ids(db_session, current_user(10)) == [1]
+    assert get_visible_image_file(db_session, 2, current_user(10)) is None
+
+
+def test_team_admin_sees_team_owned_member_images(db_session):
+    assign_image_to_team(db_session, 2)
+
     assert visible_patient_image_ids(db_session, current_user(10)) == [1, 2]
     assert get_visible_image_file(db_session, 2, current_user(10)).id == 2
 
@@ -194,6 +210,8 @@ def test_system_admin_can_see_all_non_deleted_images(db_session):
 
 @pytest.mark.asyncio
 async def test_team_admin_lists_visible_team_uploaders(db_session):
+    assign_image_to_team(db_session, 2)
+
     result = await file_handlers.list_visible_image_uploaders(
         page=1,
         page_size=10,
@@ -225,6 +243,8 @@ async def test_regular_member_cannot_list_uploaders(db_session):
 
 @pytest.mark.asyncio
 async def test_image_list_filters_by_visible_uploader(db_session):
+    assign_image_to_team(db_session, 2)
+
     result = await file_handlers.get_image_files_list(
         page=1,
         page_size=20,
@@ -238,6 +258,7 @@ async def test_image_list_filters_by_visible_uploader(db_session):
         end_date=None,
         search=None,
         uploaded_by=11,
+        team_ids=None,
         current_user=current_user(10),
         db=db_session,
     )
@@ -250,6 +271,8 @@ async def test_image_list_filters_by_visible_uploader(db_session):
 
 @pytest.mark.asyncio
 async def test_team_admin_can_delete_visible_team_member_image(db_session):
+    assign_image_to_team(db_session, 2)
+
     result = await file_handlers.delete_image_file(
         2,
         current_user=current_user(10),
@@ -279,6 +302,8 @@ async def test_team_admin_can_replace_visible_team_member_image(
     db_session,
     monkeypatch: pytest.MonkeyPatch,
 ):
+    assign_image_to_team(db_session, 2)
+
     put_calls: list[dict[str, object]] = []
 
     async def fake_put_object(

@@ -14,9 +14,11 @@ type ConfirmHandler = (
 function renderOverlay({
   onCrop = jest.fn<CropHandler>(),
   onConfirm = jest.fn<ConfirmHandler>(),
+  onTeamIdsChange = jest.fn<(teamIds: number[]) => void>(),
 }: {
   onCrop?: jest.MockedFunction<CropHandler>;
   onConfirm?: jest.MockedFunction<ConfirmHandler>;
+  onTeamIdsChange?: jest.MockedFunction<(teamIds: number[]) => void>;
 } = {}) {
   render(
     <UploadOptionsOverlay
@@ -36,10 +38,22 @@ function renderOverlay({
       onClose={jest.fn()}
       onConfirm={onConfirm}
       confirmAppliesCrop={false}
+      teamIds={[]}
+      teamOptions={[
+        {
+          id: 11,
+          name: '骨科团队',
+          member_count: 3,
+          is_member: true,
+          my_role: 'ADMIN',
+          my_status: 'ACTIVE',
+        },
+      ]}
+      onTeamIdsChange={onTeamIdsChange}
     />
   );
 
-  return { onCrop, onConfirm };
+  return { onCrop, onConfirm, onTeamIdsChange };
 }
 
 it('can defer applying an active crop to the outer confirm flow', async () => {
@@ -59,4 +73,13 @@ it('can defer applying an active crop to the outer confirm flow', async () => {
     });
   });
   expect(onCrop).not.toHaveBeenCalled();
+});
+
+it('lets users select image team ownership in the overlay', async () => {
+  const { onTeamIdsChange } = renderOverlay();
+
+  fireEvent.click(screen.getByRole('button', { name: /选择归属团队/ }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /骨科团队/ }));
+
+  expect(onTeamIdsChange).toHaveBeenCalledWith([11]);
 });
