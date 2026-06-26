@@ -8,6 +8,10 @@ import { uploadSingleFile } from '@/services/imageServices';
 import { getAssignableImageTeams } from '@/services/imageServices/imageFileService';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
+import {
+  readImageOwnershipPreference,
+  writeImageOwnershipPreference,
+} from '@/app/imaging/domain/imageOwnershipPreference';
 import PatientSearchSelect from './_components/patient-search-select';
 import UploadOptionsOverlay, {
   CropArea,
@@ -34,7 +38,7 @@ function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo') || '/imaging';
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, user } = useUser();
 
   const [selectedPatient, setSelectedPatient] = useState('');
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
@@ -101,15 +105,58 @@ function UploadContent() {
     setDragActive(false);
 
     const files = Array.from(e.dataTransfer.files);
-    handleFiles(files);
+    void handleFiles(files);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    handleFiles(files);
+    void handleFiles(files);
   };
 
-  const handleFiles = (files: File[]) => {
+  const resolveDefaultUploadTeamIds = useCallback(async () => {
+    const preference = readImageOwnershipPreference(user?.id ?? null, 'upload');
+    if (preference?.scope !== 'team' || preference.teamIds.length === 0) {
+      return [];
+    }
+
+    const expectedTeamIds = new Set(preference.teamIds);
+    const assignableTeamIds = new Set<number>();
+    let page = 1;
+    let totalPages = 1;
+
+    try {
+      do {
+        const result = await loadAssignableTeams({ page, pageSize: 100 });
+        const items = result.items ?? [];
+        items.forEach(team => {
+          if (expectedTeamIds.has(team.id)) {
+            assignableTeamIds.add(team.id);
+          }
+        });
+        totalPages = Math.max(result.totalPages || 1, 1);
+        page += 1;
+      } while (page <= totalPages && assignableTeamIds.size < expectedTeamIds.size);
+    } catch {
+      return preference.teamIds;
+    }
+
+    const visibleTeamIds = preference.teamIds.filter(teamId =>
+      assignableTeamIds.has(teamId)
+    );
+    if (visibleTeamIds.length !== preference.teamIds.length) {
+      writeImageOwnershipPreference(
+        user?.id ?? null,
+        'upload',
+        visibleTeamIds.length > 0 ? 'team' : 'personal',
+        visibleTeamIds
+      );
+    }
+
+    return visibleTeamIds;
+  }, [loadAssignableTeams, user?.id]);
+
+  const handleFiles = async (files: File[]) => {
+    const defaultTeamIds = await resolveDefaultUploadTeamIds();
     const newFiles: UploadFile[] = files.map((file, index) => {
       const previewUrl = URL.createObjectURL(file);
       const sourcePreviewUrl = URL.createObjectURL(file);
@@ -127,7 +174,7 @@ function UploadContent() {
         previewUrl,
         sourcePreviewUrl,
         examType: examTypes[0],
-        teamIds: [],
+        teamIds: defaultTeamIds,
       };
     });
 
@@ -147,6 +194,18 @@ function UploadContent() {
     const [nextFileId, ...remainingFileIds] = optionsQueue;
     setActiveOptionsFileId(nextFileId ?? null);
     setOptionsQueue(remainingFileIds);
+  };
+
+  const handleFileOptionConfirm = () => {
+    if (activeOptionsFile) {
+      writeImageOwnershipPreference(
+        user?.id ?? null,
+        'upload',
+        activeOptionsFile.teamIds.length > 0 ? 'team' : 'personal',
+        activeOptionsFile.teamIds
+      );
+    }
+    handleFileOptionDone();
   };
 
   const updateFileExamType = (fileId: string, nextExamType: string) => {
@@ -674,9 +733,10 @@ function UploadContent() {
         </div>
       {activeOptionsFile && (
         <UploadOptionsOverlay
-            file={{
-              id: activeOptionsFile.id,
-              name: activeOptionsFile.name,
+          key={activeOptionsFile.id}
+          file={{
+            id: activeOptionsFile.id,
+            name: activeOptionsFile.name,
               previewUrl: activeOptionsFile.sourcePreviewUrl,
               examType: activeOptionsFile.examType,
               flipped: activeOptionsFile.flipped,
@@ -693,7 +753,15 @@ function UploadContent() {
           onFlip={handleFlip}
           onCrop={handleCrop}
           onClose={handleFileOptionDone}
-          onConfirm={handleFileOptionDone}
+          onConfirm={handleFileOptionConfirm}
+          onOwnershipPreferenceChange={(scope, teamIds) =>
+            writeImageOwnershipPreference(
+              user?.id ?? null,
+              'upload',
+              scope,
+              teamIds
+            )
+          }
         />
       )}
     </AppShell>

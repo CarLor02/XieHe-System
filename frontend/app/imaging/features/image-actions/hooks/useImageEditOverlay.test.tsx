@@ -27,7 +27,7 @@ const { useImageEditOverlay } = jest.requireActual<
 
 type HookValue = ReturnType<typeof useImageEditOverlay>;
 
-function makeImageFile(): ImageFile {
+function makeImageFile(overrides: Partial<ImageFile> = {}): ImageFile {
   return {
     id: 1,
     file_uuid: 'file-1',
@@ -45,6 +45,7 @@ function makeImageFile(): ImageFile {
     status: 'UPLOADED',
     upload_progress: 100,
     created_at: '2026-06-10T10:00:00',
+    ...overrides,
   };
 }
 
@@ -194,6 +195,119 @@ it('updates image type and team ownership without replacing file content', async
   });
   expect(mockReplaceImageFileContent).not.toHaveBeenCalled();
   expect(reloadImages).toHaveBeenCalledTimes(1);
+});
+
+it('does not store edit ownership preference after changing image ownership', async () => {
+  const reloadImages = jest.fn();
+  let latest: HookValue | null = null;
+
+  render(
+    <HookHarness
+      reloadImages={reloadImages}
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await act(async () => {
+    await latest!.openEditOverlay(makeImageFile());
+  });
+
+  await waitFor(() => {
+    expect(latest!.editState).not.toBeNull();
+  });
+
+  await act(async () => {
+    latest!.handleTeamIdsChange([12]);
+  });
+
+  await act(async () => {
+    await latest!.handleConfirm();
+  });
+
+  expect(
+    localStorage.getItem('xiehe:image-ownership-preference:7:edit')
+  ).toBeNull();
+});
+
+it('does not derive edit ownership preference from unchanged image teams', async () => {
+  localStorage.setItem(
+    'xiehe:image-ownership-preference:7:upload',
+    JSON.stringify({
+      version: 1,
+      scope: 'team',
+      teamIds: [11],
+      updatedAt: '2026-06-26T00:00:00.000Z',
+    })
+  );
+  const reloadImages = jest.fn();
+  let latest: HookValue | null = null;
+
+  render(
+    <HookHarness
+      reloadImages={reloadImages}
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await act(async () => {
+    await latest!.openEditOverlay(makeImageFile({ team_ids: [11] }));
+  });
+
+  await waitFor(() => {
+    expect(latest!.editState?.teamIds).toEqual([11]);
+  });
+
+  await act(async () => {
+    await latest!.handleConfirm();
+  });
+
+  expect(
+    localStorage.getItem('xiehe:image-ownership-preference:7:edit')
+  ).toBeNull();
+  expect(
+    JSON.parse(
+      localStorage.getItem('xiehe:image-ownership-preference:7:upload') || '{}'
+    )
+  ).toMatchObject({
+    version: 1,
+    scope: 'team',
+    teamIds: [11],
+  });
+});
+
+it('uses the image current teams when opening edit even if an edit preference exists', async () => {
+  localStorage.setItem(
+    'xiehe:image-ownership-preference:7:edit',
+    JSON.stringify({
+      version: 1,
+      scope: 'team',
+      teamIds: [99],
+      updatedAt: '2026-06-26T00:00:00.000Z',
+    })
+  );
+  const reloadImages = jest.fn();
+  let latest: HookValue | null = null;
+
+  render(
+    <HookHarness
+      reloadImages={reloadImages}
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await act(async () => {
+    await latest!.openEditOverlay(makeImageFile());
+  });
+
+  await waitFor(() => {
+    expect(latest!.editState?.teamIds).toEqual([11]);
+  });
 });
 
 it('asks for confirmation and replaces the same image content after crop', async () => {

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { expect, it, jest } from '@jest/globals';
 
 import UploadOptionsOverlay, {
@@ -100,10 +101,11 @@ it('can defer applying an active crop to the outer confirm flow', async () => {
 });
 
 it('lets users select image team ownership in the overlay', async () => {
+  const user = userEvent.setup();
   const { onTeamIdsChange } = renderOverlay();
 
-  fireEvent.click(screen.getByRole('radio', { name: /共享给团队/ }));
-  fireEvent.click(screen.getByRole('button', { name: /选择归属团队/ }));
+  await user.click(screen.getByRole('radio', { name: /共享给团队/ }));
+  await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
 
   await waitFor(() => {
     expect(screen.getByRole('checkbox', { name: /骨科团队/ })).toBeTruthy();
@@ -113,6 +115,51 @@ it('lets users select image team ownership in the overlay', async () => {
 
   expect(onTeamIdsChange).toHaveBeenCalledWith([11]);
   expect(screen.queryByText(/骨科团队 ×/)).toBeNull();
+});
+
+it('keeps the team selector trigger outside the shared-team radio label', async () => {
+  const user = userEvent.setup();
+
+  renderOverlay();
+
+  await user.click(screen.getByRole('radio', { name: /共享给团队/ }));
+
+  const trigger = screen.getByRole('button', { name: /选择归属团队/ });
+
+  expect(trigger.closest('label')).toBeNull();
+});
+
+it('opens the team list and shows an empty state when no teams are available', async () => {
+  const user = userEvent.setup();
+  const loadTeams = jest.fn<LoadTeamsHandler>().mockResolvedValue({
+    items: [],
+    total: 0,
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+  });
+
+  renderOverlay({ loadTeams });
+
+  await user.click(screen.getByRole('radio', { name: /共享给团队/ }));
+  await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
+
+  expect(await screen.findByText('没有可选择的团队')).toBeTruthy();
+  expect(screen.getByRole('button', { name: /选择归属团队/ })).toBeTruthy();
+});
+
+it('renders the team list above the upload overlay layer', async () => {
+  const user = userEvent.setup();
+
+  renderOverlay();
+
+  await user.click(screen.getByRole('radio', { name: /共享给团队/ }));
+  await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
+
+  const listbox = await screen.findByRole('listbox');
+  const dropdownContent = listbox.closest('[data-side]');
+
+  expect(dropdownContent?.className).toContain('z-[10001]');
 });
 
 it('defaults to personal visibility when no team is selected', () => {

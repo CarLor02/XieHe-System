@@ -101,6 +101,7 @@ function ImagingPageContent() {
 
       {editOverlay.editState && (
         <UploadOptionsOverlay
+          key={editOverlay.editState.imageFile.id}
           file={{
             id: editOverlay.editState.imageFile.id.toString(),
             name: editOverlay.editState.imageFile.original_filename,

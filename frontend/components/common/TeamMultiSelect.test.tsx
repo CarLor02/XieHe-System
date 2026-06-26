@@ -112,4 +112,31 @@ describe('TeamMultiSelect', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('checkbox', { name: /骨科团队/ })).toBeNull();
   });
+
+  it('stays open and renders custom empty text when no teams are available', async () => {
+    const user = userEvent.setup();
+    loadOptions.mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 10,
+      totalPages: 1,
+    });
+
+    render(
+      <TeamMultiSelect
+        selectedIds={[]}
+        placeholder="选择归属团队"
+        searchPlaceholder="搜索团队名"
+        emptyText="没有可选择的团队"
+        loadOptions={loadOptions}
+        onChange={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
+
+    expect(await screen.findByText('没有可选择的团队')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /选择归属团队/ })).toBeTruthy();
+  });
 });

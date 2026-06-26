@@ -5,6 +5,7 @@ import TeamMultiSelect, {
   type TeamMultiSelectLoadParams,
   type TeamMultiSelectPage,
 } from '@/components/common/TeamMultiSelect';
+import type { ImageOwnershipPreferenceScope } from '@/app/imaging/domain/imageOwnershipPreference';
 
 export interface UploadOptionsFile {
   id: string;
@@ -39,6 +40,10 @@ interface UploadOptionsOverlayProps {
   teamIds?: number[];
   loadTeams?: (params: TeamMultiSelectLoadParams) => Promise<TeamMultiSelectPage>;
   onTeamIdsChange?: (teamIds: number[]) => void;
+  onOwnershipPreferenceChange?: (
+    scope: ImageOwnershipPreferenceScope,
+    teamIds: number[]
+  ) => void;
 }
 
 type OwnershipScope = 'personal' | 'team';
@@ -72,6 +77,7 @@ export default function UploadOptionsOverlay({
   teamIds = [],
   loadTeams,
   onTeamIdsChange,
+  onOwnershipPreferenceChange,
 }: UploadOptionsOverlayProps) {
   const imageBoxRef = useRef<HTMLDivElement | null>(null);
   const gestureRef = useRef<CropGesture>(null);
@@ -85,15 +91,6 @@ export default function UploadOptionsOverlay({
   const [ownershipError, setOwnershipError] = useState<string | null>(null);
 
   const canAdjustPixels = file.mimeType.startsWith('image/');
-
-  useEffect(() => {
-    setCropMode(false);
-    setCropArea(defaultCrop);
-    setImageLoadFailed(false);
-    setCropApplying(false);
-    setOwnershipScope(teamIds.length > 0 ? 'team' : 'personal');
-    setOwnershipError(null);
-  }, [file.id, teamIds.length]);
 
   useEffect(() => {
     if (!cropMode) return;
@@ -201,6 +198,8 @@ export default function UploadOptionsOverlay({
       setOwnershipError('请选择至少一个团队');
       return;
     }
+
+    onOwnershipPreferenceChange?.(ownershipScope, teamIds);
 
     if (cropMode) {
       if (!confirmAppliesCrop) {
@@ -335,32 +334,35 @@ export default function UploadOptionsOverlay({
                     </span>
                   </label>
 
-                  <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-800">
-                    <input
-                      type="radio"
-                      name={`image-ownership-${file.id}`}
-                      checked={ownershipScope === 'team'}
-                      onChange={handleTeamScopeChange}
-                      className="mt-1 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium">共享给团队</span>
-                      {ownershipScope === 'team' && loadTeams && (
-                        <span className="mt-3 block">
-                          <TeamMultiSelect
-                            selectedIds={teamIds}
-                            loadOptions={loadTeams}
-                            onChange={nextTeamIds => {
-                              setOwnershipError(null);
-                              onTeamIdsChange(nextTeamIds);
-                            }}
-                            placeholder="选择归属团队"
-                            emptyText="暂无可选团队"
-                          />
-                        </span>
-                      )}
-                    </span>
-                  </label>
+                  <div>
+                    <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-800">
+                      <input
+                        type="radio"
+                        name={`image-ownership-${file.id}`}
+                        checked={ownershipScope === 'team'}
+                        onChange={handleTeamScopeChange}
+                        className="mt-1 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">共享给团队</span>
+                      </span>
+                    </label>
+                    {ownershipScope === 'team' && loadTeams && (
+                      <div className="ml-7 mt-3">
+                        <TeamMultiSelect
+                          selectedIds={teamIds}
+                          loadOptions={loadTeams}
+                          onChange={nextTeamIds => {
+                            setOwnershipError(null);
+                            onTeamIdsChange(nextTeamIds);
+                          }}
+                          placeholder="选择归属团队"
+                          emptyText="没有可选择的团队"
+                          dropdownContentClassName="z-[10001]"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 {ownershipError && (
                   <p className="mt-2 text-sm text-red-600">{ownershipError}</p>

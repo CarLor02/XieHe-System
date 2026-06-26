@@ -201,7 +201,9 @@ export function useImagingPageController() {
     reloadImages: loadImages,
   });
 
-  const editOverlay = useImageEditOverlay({ reloadImages: loadImages });
+  const editOverlay = useImageEditOverlay({
+    reloadImages: loadImages,
+  });
 
   const handleSearch = useCallback(() => {
     setCurrentPage(1);
