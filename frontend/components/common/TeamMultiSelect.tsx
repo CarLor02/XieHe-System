@@ -139,11 +139,6 @@ export default function TeamMultiSelect({
             type="button"
             aria-expanded={open}
             aria-haspopup="listbox"
-            onClick={() => {
-              if (!open) {
-                handleOpenChange(true);
-              }
-            }}
             className="flex h-10 min-w-0 flex-1 items-center justify-between gap-3 px-3 text-left focus:outline-none"
           >
             <span className="min-w-0 flex-1 truncate">{label}</span>

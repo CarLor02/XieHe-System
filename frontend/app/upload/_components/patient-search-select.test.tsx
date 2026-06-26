@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import type { Patient } from '@/services/patientServices';
@@ -51,6 +52,7 @@ describe('PatientSearchSelect', () => {
   });
 
   it('loads the first 10 patients when opened and selects a patient with full details', async () => {
+    const user = userEvent.setup();
     mockGetPatients.mockResolvedValue(
       makeResult({ items: [makePatient()] })
     );
@@ -58,7 +60,7 @@ describe('PatientSearchSelect', () => {
 
     render(<PatientSearchSelect value="" onChange={onChange} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /请选择患者/ }));
+    await user.click(screen.getByRole('button', { name: /请选择患者/ }));
 
     await waitFor(() => {
       expect(mockGetPatients).toHaveBeenCalledWith({
@@ -72,20 +74,21 @@ describe('PatientSearchSelect', () => {
     expect(screen.getByText('男')).not.toBeNull();
     expect(screen.getByText('41岁')).not.toBeNull();
 
-    fireEvent.click(screen.getByRole('option', { name: /李先生/ }));
+    await user.click(screen.getByRole('option', { name: /李先生/ }));
 
     expect(onChange).toHaveBeenCalledWith('1');
     expect(screen.getByRole('button', { name: /李先生/ })).not.toBeNull();
   });
 
   it('left aligns the patient name and phone inside each option', async () => {
+    const user = userEvent.setup();
     mockGetPatients.mockResolvedValue(
       makeResult({ items: [makePatient({ name: 'testweb', phone: '13434343222' })] })
     );
 
     render(<PatientSearchSelect value="" onChange={jest.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /请选择患者/ }));
+    await user.click(screen.getByRole('button', { name: /请选择患者/ }));
 
     const option = await screen.findByRole('option', { name: /testweb/ });
     const primaryInfo = option.querySelector('[data-testid="patient-option-primary"]');
@@ -100,13 +103,14 @@ describe('PatientSearchSelect', () => {
 
   it('debounces searchKey input and searches by name or phone', async () => {
     jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     mockGetPatients.mockResolvedValue(
       makeResult({ items: [makePatient({ id: 2, name: '王女士' })] })
     );
 
     render(<PatientSearchSelect value="" onChange={jest.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /请选择患者/ }));
+    await user.click(screen.getByRole('button', { name: /请选择患者/ }));
     await waitFor(() => expect(mockGetPatients).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByPlaceholderText('搜索患者姓名或手机号'), {
@@ -129,6 +133,7 @@ describe('PatientSearchSelect', () => {
   });
 
   it('uses server pagination with 10 patients per page', async () => {
+    const user = userEvent.setup();
     mockGetPatients
       .mockResolvedValueOnce(
         makeResult({
@@ -147,13 +152,13 @@ describe('PatientSearchSelect', () => {
 
     render(<PatientSearchSelect value="" onChange={jest.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /请选择患者/ }));
+    await user.click(screen.getByRole('button', { name: /请选择患者/ }));
 
     await waitFor(() => {
       expect(screen.getByText('第 1 / 2 页')).not.toBeNull();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '下一页' }));
+    await user.click(screen.getByRole('button', { name: '下一页' }));
 
     await waitFor(() => {
       expect(mockGetPatients).toHaveBeenLastCalledWith({

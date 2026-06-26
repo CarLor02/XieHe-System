@@ -37,11 +37,6 @@ export default function ImageActionMenu({
         <button
           type="button"
           aria-label="更多"
-          onClick={() => {
-            if (!open) {
-              setOpen(true);
-            }
-          }}
           className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
         >
           更多

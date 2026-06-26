@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
@@ -37,6 +37,7 @@ describe('TeamMultiSelect', () => {
   });
 
   it('loads teams by page and keeps selected teams out of pills', async () => {
+    const user = userEvent.setup();
     loadOptions
       .mockResolvedValueOnce({
         items: [makeTeam(11, '骨科团队')],
@@ -55,20 +56,20 @@ describe('TeamMultiSelect', () => {
 
     const { onChange } = renderSelect([11]);
 
-    fireEvent.click(screen.getByRole('button', { name: /已选择 1 个团队/ }));
+    await user.click(screen.getByRole('button', { name: /已选择 1 个团队/ }));
 
     await waitFor(() => {
       expect(loadOptions).toHaveBeenCalledWith({ page: 1, pageSize: 10 });
     });
     expect(screen.queryByText(/骨科团队 ×/)).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: '下一页' }));
+    await user.click(screen.getByRole('button', { name: '下一页' }));
 
     await waitFor(() => {
       expect(loadOptions).toHaveBeenLastCalledWith({ page: 2, pageSize: 10 });
     });
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /康复团队/ }));
+    await user.click(screen.getByRole('checkbox', { name: /康复团队/ }));
 
     expect(onChange).toHaveBeenCalledWith([11, 12]);
   });
@@ -95,6 +96,14 @@ describe('TeamMultiSelect', () => {
         <button type="button">外部区域</button>
       </div>
     );
+
+    await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: /骨科团队/ })).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
+    expect(screen.queryByRole('checkbox', { name: /骨科团队/ })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
     await waitFor(() => {

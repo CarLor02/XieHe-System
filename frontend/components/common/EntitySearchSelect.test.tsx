@@ -53,6 +53,7 @@ describe('EntitySearchSelect', () => {
   });
 
   it('loads selectable entities with mapped fields', async () => {
+    const user = userEvent.setup();
     loadOptions.mockResolvedValue(
       makePage([
         {
@@ -66,7 +67,7 @@ describe('EntitySearchSelect', () => {
     const onChange = jest.fn();
 
     renderSelect(onChange);
-    fireEvent.click(screen.getByRole('button', { name: /选择上传者/ }));
+    await user.click(screen.getByRole('button', { name: /选择上传者/ }));
 
     await waitFor(() => {
       expect(loadOptions).toHaveBeenCalledWith({
@@ -75,7 +76,7 @@ describe('EntitySearchSelect', () => {
       });
     });
 
-    fireEvent.click(screen.getByRole('option', { name: /王医生/ }));
+    await user.click(screen.getByRole('option', { name: /王医生/ }));
 
     expect(screen.getByText(/doctor@example.com/)).toBeTruthy();
     expect(onChange).toHaveBeenCalledWith('7', {
@@ -88,6 +89,7 @@ describe('EntitySearchSelect', () => {
 
   it('debounces search and can clear the selected value', async () => {
     jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     loadOptions
       .mockResolvedValueOnce(
         makePage([
@@ -133,7 +135,7 @@ describe('EntitySearchSelect', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /王医生/ }));
+    await user.click(screen.getByRole('button', { name: /王医生/ }));
     await waitFor(() => expect(loadOptions).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByPlaceholderText('搜索医生姓名或邮箱'), {
@@ -152,7 +154,7 @@ describe('EntitySearchSelect', () => {
       });
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /清除选择/ }));
+    await user.click(screen.getByRole('button', { name: /清除选择/ }));
 
     expect(onChange).toHaveBeenCalledWith('', null);
   });
@@ -226,10 +228,11 @@ describe('EntitySearchSelect', () => {
   });
 
   it('keeps pagination controls on a single line', async () => {
+    const user = userEvent.setup();
     loadOptions.mockResolvedValue(makePage([], 1));
 
     renderSelect();
-    fireEvent.click(screen.getByRole('button', { name: /选择上传者/ }));
+    await user.click(screen.getByRole('button', { name: /选择上传者/ }));
 
     await waitFor(() => expect(loadOptions).toHaveBeenCalledTimes(1));
 
@@ -310,6 +313,14 @@ describe('EntitySearchSelect', () => {
         <button type="button">外部区域</button>
       </div>
     );
+
+    await user.click(screen.getByRole('button', { name: /选择上传者/ }));
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /王医生/ })).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole('button', { name: /选择上传者/ }));
+    expect(screen.queryByRole('option', { name: /王医生/ })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: /选择上传者/ }));
     await waitFor(() => {
