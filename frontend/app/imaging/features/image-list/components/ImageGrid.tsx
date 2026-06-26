@@ -7,6 +7,7 @@ import {
 import ImagePreview from '@/app/imaging/features/image-preview/components/ImagePreview';
 import type { PreviewLoadState } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import ImageActionMenu from '@/app/imaging/features/image-actions/components/ImageActionMenu';
+import ImageOwnershipTeamRow from './ImageOwnershipTeamRow';
 import ImageStatusBadge from './ImageStatusBadge';
 
 interface ImageGridProps {
@@ -116,6 +117,10 @@ export default function ImageGrid({
                     {uploaderName}
                   </span>
                 </div>
+                <ImageOwnershipTeamRow
+                  imageFile={imageFile}
+                  rowClassName="flex justify-between gap-4"
+                />
                 <div className="flex justify-between gap-4">
                   <span>上传日期:</span>
                   <span className="font-medium text-right">

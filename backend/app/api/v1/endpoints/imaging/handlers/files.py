@@ -27,7 +27,7 @@ from fastapi import (
 )
 from fastapi.responses import RedirectResponse
 import httpx
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import or_, func
 
 from app.core.database.session import get_db
@@ -111,6 +111,11 @@ def _image_file_response(
     uploader_name: Optional[str] = None,
     patient_name: Optional[str] = None,
 ) -> ImageFileResponse:
+    team_visibilities = sorted(
+        image.team_visibilities,
+        key=lambda visibility: visibility.team_id,
+    )
+
     return ImageFileResponse(
         id=image.id,
         file_uuid=image.file_uuid,
@@ -126,7 +131,12 @@ def _image_file_response(
         uploader_name=uploader_name,
         patient_id=image.patient_id,
         patient_name=patient_name,
-        team_ids=sorted({visibility.team_id for visibility in image.team_visibilities}),
+        team_ids=[visibility.team_id for visibility in team_visibilities],
+        team_names=[
+            visibility.team.name
+            for visibility in team_visibilities
+            if visibility.team is not None and visibility.team.name
+        ],
         study_date=image.study_date,
         description=image.description,
         annotation=image.annotation,
@@ -494,6 +504,10 @@ async def get_image_files_list(
             Patient, ImageFile.patient_id == Patient.id
         ).outerjoin(
             User, ImageFile.uploaded_by == User.id
+        ).options(
+            selectinload(ImageFile.team_visibilities).selectinload(
+                ImageFileTeamVisibility.team
+            )
         ).filter(ImageFile.is_deleted == False)
         query = apply_image_visibility_filter(query, db, current_user)
 
@@ -621,6 +635,10 @@ async def get_patient_images(
             Patient, ImageFile.patient_id == Patient.id
         ).outerjoin(
             User, ImageFile.uploaded_by == User.id
+        ).options(
+            selectinload(ImageFile.team_visibilities).selectinload(
+                ImageFileTeamVisibility.team
+            )
         ).filter(
             ImageFile.patient_id == patient_id,
             ImageFile.is_deleted == False

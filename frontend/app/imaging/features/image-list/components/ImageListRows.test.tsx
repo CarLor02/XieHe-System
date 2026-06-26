@@ -53,6 +53,8 @@ it('keeps all image row actions in one line on phone-sized screens', () => {
   expect(screen.getByText('正位X光片')).toBeTruthy();
   expect(screen.getByText('李老先生')).toBeTruthy();
   expect(screen.getByText('系统管理员')).toBeTruthy();
+  expect(screen.getByText('归属团队:')).toBeTruthy();
+  expect(screen.getByText('仅自己可见')).toBeTruthy();
 
   const row = container.firstElementChild?.firstElementChild;
   expect(row?.className).toContain('p-4');
@@ -62,6 +64,33 @@ it('keeps all image row actions in one line on phone-sized screens', () => {
   expect(actions?.className).toContain('grid');
   expect(actions?.className).toContain('grid-cols-4');
   expect(actions?.className).toContain('sm:flex');
+});
+
+it('renders ownership teams in rows with truncated hover text', async () => {
+  render(
+    <ImageListRows
+      imageFiles={[
+        makeImageFile({
+          team_names: ['脊柱外科超长团队一', '康复团队二'],
+        }),
+      ]}
+      viewerReturnTo="/imaging?page=2&search=abc"
+      imageUrls={{}}
+      previewStates={{}}
+      onPreviewError={jest.fn()}
+      onMoreAction={jest.fn()}
+      onCropEdit={jest.fn()}
+    />
+  );
+
+  const displayText = screen.getByText('脊柱外科超长团队一、康复...');
+  expect(displayText).toBeTruthy();
+
+  await userEvent.hover(displayText);
+
+  expect((await screen.findByRole('tooltip')).textContent).toContain(
+    '脊柱外科超长团队一、康复团队二'
+  );
 });
 
 it('passes the current imaging URL to the row viewer return target', () => {

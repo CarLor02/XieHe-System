@@ -70,6 +70,24 @@ it('renders patient and uploader names on image cards', () => {
   expect(screen.getByText('王医生')).toBeTruthy();
 });
 
+it('renders ownership teams below uploader with truncated hover text', async () => {
+  const fullTeamText = '脊柱外科超长团队一、康复团队二';
+  renderImageGrid(
+    makeImageFile({
+      team_names: ['脊柱外科超长团队一', '康复团队二'],
+    })
+  );
+
+  expect(screen.getByText('归属团队:')).toBeTruthy();
+
+  const displayText = screen.getByText('脊柱外科超长团队一、康复...');
+  expect(displayText).toBeTruthy();
+
+  await userEvent.hover(displayText);
+
+  expect((await screen.findByRole('tooltip')).textContent).toContain(fullTeamText);
+});
+
 it('renders fallback labels when patient or uploader names are missing', () => {
   renderImageGrid(
     makeImageFile({

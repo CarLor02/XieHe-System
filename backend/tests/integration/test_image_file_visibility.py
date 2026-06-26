@@ -322,6 +322,61 @@ async def test_image_list_filters_by_visible_uploader(db_session):
 
 
 @pytest.mark.asyncio
+async def test_image_list_includes_team_names(db_session):
+    assign_image_to_team(db_session, 2, 1)
+    assign_image_to_team(db_session, 2, 3)
+
+    result = await file_handlers.get_image_files_list(
+        page=1,
+        page_size=20,
+        file_type=None,
+        file_status=None,
+        status=None,
+        pending_only=None,
+        review_status=None,
+        description=None,
+        start_date=None,
+        end_date=None,
+        search=None,
+        uploaded_by=11,
+        team_ids=None,
+        current_user=current_user(10),
+        db=db_session,
+    )
+
+    items = result["data"]["items"]
+
+    assert items[0]["team_ids"] == [1, 3]
+    assert items[0]["team_names"] == ["脊柱团队", "影像团队"]
+
+
+@pytest.mark.asyncio
+async def test_personal_image_list_returns_empty_team_names(db_session):
+    result = await file_handlers.get_image_files_list(
+        page=1,
+        page_size=20,
+        file_type=None,
+        file_status=None,
+        status=None,
+        pending_only=None,
+        review_status=None,
+        description=None,
+        start_date=None,
+        end_date=None,
+        search=None,
+        uploaded_by=10,
+        team_ids=None,
+        current_user=current_user(10),
+        db=db_session,
+    )
+
+    items = result["data"]["items"]
+
+    assert items[0]["team_ids"] == []
+    assert items[0]["team_names"] == []
+
+
+@pytest.mark.asyncio
 async def test_team_admin_can_delete_visible_team_member_image(db_session):
     assign_image_to_team(db_session, 2)
 

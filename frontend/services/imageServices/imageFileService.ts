@@ -30,6 +30,7 @@ export interface ImageFile {
   study_date?: string;
   description?: string;
   team_ids?: number[];
+  team_names?: string[];
   annotation?: ImageAnnotationJson | null;
   status:
     | 'UPLOADING'

@@ -7,6 +7,7 @@ import {
 import ImagePreview from '@/app/imaging/features/image-preview/components/ImagePreview';
 import type { PreviewLoadState } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import ImageStatusBadge from './ImageStatusBadge';
+import ImageOwnershipTeamRow from './ImageOwnershipTeamRow';
 
 interface ImageListRowsProps {
   imageFiles: ImageFile[];
@@ -113,6 +114,10 @@ export default function ImageListRows({
                       {uploaderName}
                     </span>
                   </div>
+                  <ImageOwnershipTeamRow
+                    imageFile={imageFile}
+                    labelClassName="text-gray-500"
+                  />
                   <div className="flex justify-between gap-4 min-w-0">
                     <span className="text-gray-500 flex-shrink-0">上传日期:</span>
                     <span className="font-medium text-right">
