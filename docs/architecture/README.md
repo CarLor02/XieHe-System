@@ -9,6 +9,7 @@
 ```
 docs/architecture/
 ├── README.md                    # 架构文档总览
+├── system-architecture-and-workflow.md # 整体架构示意图与流程图说明
 ├── system-overview.md           # 系统总体架构
 ├── frontend-architecture.md     # 前端架构设计
 ├── backend-architecture.md      # 后端架构设计
@@ -216,6 +217,7 @@ docs/architecture/
 ## 📚 相关文档
 
 - [系统总体架构](./system-overview.md)
+- [整体架构与流程图说明](./system-architecture-and-workflow.md)
 - [前端架构设计](./frontend-architecture.md)
 - [后端架构设计](./backend-architecture.md)
 - [数据库设计](./database-design.md)
