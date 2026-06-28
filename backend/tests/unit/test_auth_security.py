@@ -85,6 +85,26 @@ class FakePasswordChangeDb:
         self.committed = True
 
 
+class FakeLastInsertIdResult:
+    def scalar(self):
+        return 101
+
+
+class FakeRegisterDb:
+    def __init__(self):
+        self.executed = []
+        self.committed = False
+
+    def execute(self, sql, params=None):
+        self.executed.append((str(sql), params))
+        if "LAST_INSERT_ID" in str(sql):
+            return FakeLastInsertIdResult()
+        return None
+
+    def commit(self):
+        self.committed = True
+
+
 def test_register_phone_is_optional_and_nullable():
     payload = {
         "username": "doctor",
@@ -104,6 +124,52 @@ def test_register_phone_is_optional_and_nullable():
         for option in phone_schema.get("anyOf", [])
     }
     assert phone_types == {"string", "null"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("phone", "expected_phone"),
+    [
+        (None, None),
+        ("", None),
+        ("   ", None),
+        ("13800138000", "13800138000"),
+    ],
+)
+async def test_register_normalizes_empty_phone_to_null(monkeypatch, phone, expected_phone):
+    db = FakeRegisterDb()
+
+    monkeypatch.setattr(
+        auth_handlers,
+        "get_user_by_username_or_email",
+        lambda db, username_or_email: None,
+    )
+
+    async def fake_hash_password(plain_password):
+        return "hashed-password"
+
+    monkeypatch.setattr(auth_handlers, "hash_password_async", fake_hash_password)
+
+    response = await auth_handlers.register(
+        UserRegister(
+            username="newdoctor",
+            email="newdoctor@example.com",
+            password="secret123",
+            confirm_password="secret123",
+            full_name="张三",
+            phone=phone,
+        ),
+        db=db,
+    )
+
+    insert_params = db.executed[0][1]
+
+    assert db.committed is True
+    if expected_phone is None:
+        assert insert_params["phone"] is None
+    else:
+        assert insert_params["phone"] == expected_phone
+    assert response["message"] == "注册成功"
 
 
 @pytest.mark.asyncio

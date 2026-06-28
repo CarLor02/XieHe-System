@@ -347,6 +347,11 @@ async def register(
 
         # 使用 bcrypt 加密密码（自动包含盐值）
         password_hash = await hash_password_async(register_data.password)
+        normalized_phone = (
+            register_data.phone.strip() if register_data.phone else None
+        )
+        if normalized_phone == "":
+            normalized_phone = None
 
         # 插入新用户到数据库
         # 注意：数据库表使用 real_name, status 而不是 full_name, is_active
@@ -364,7 +369,7 @@ async def register(
         db.execute(text(insert_sql), {
             "username": register_data.username,
             "email": register_data.email,
-            "phone": register_data.phone,
+            "phone": normalized_phone,
             "real_name": register_data.full_name,
             "password_hash": password_hash,
             "created_at": datetime.now()
@@ -380,7 +385,7 @@ async def register(
             "username": register_data.username,
             "email": register_data.email,
             "full_name": register_data.full_name,
-            "phone": register_data.phone,
+            "phone": normalized_phone,
             "is_active": True,
             "is_superuser": False,
             "roles": ["doctor"],
