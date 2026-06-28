@@ -23,22 +23,59 @@ zhengmian/
 pip install -r requirements.txt
 ```
 
-### 2. 启动服务
+### 2. 权重文件
+
+权重文件**不在 Git 仓库中**，从 GitHub Releases 下载：
 
 ```bash
-# 方式1: 直接运行
-python app.py
+# 进入目录
+cd XieHe-System/model/zhengmian
+mkdir -p weights
 
-# 方式2: 使用 uvicorn (支持热重载)
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
+# 从 GitHub Releases 下载（替换 <TAG> 为实际版本号）
+curl -L "https://github.com/CarLor02/XieHe-System/releases/download/<TAG>/pose.pt" \
+     -o weights/pose.pt
+curl -L "https://github.com/CarLor02/XieHe-System/releases/download/<TAG>/pose_corner.pt" \
+     -o weights/pose_corner.pt
 ```
 
-服务启动后访问: http://localhost:8000
+权重文件位置：
+```
+zhengmian/weights/
+├── pose.pt         # 躯干标志点检测模型 (6个关键点)
+└── pose_corner.pt  # 椎体角点检测模型 (18类椎体，每个4角点)
+```
 
-### 3. API 文档
+### 3. 启动服务
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+```bash
+# 直接运行
+python app.py
+
+# 或使用 uvicorn（支持热重载）
+uvicorn app:app --reload --host 0.0.0.0 --port 8001
+```
+
+服务启动后访问: http://localhost:8001
+
+### 4. Docker 部署（推荐）
+
+**前提**: 权重文件已下载到 `weights/` 目录。
+
+```bash
+# 构建镜像
+docker build -t xiehe-ai-zhengmian:local .
+
+# 运行容器
+docker run -d --name xiehe-ai-zhengmian -p 8001:8001 xiehe-ai-zhengmian:local
+```
+
+更多部署方式见 [AI_HOST_DEPLOYMENT.md](../AI_HOST_DEPLOYMENT.md)。
+
+### 5. API 文档
+
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
 
 ## API 接口
 
@@ -57,7 +94,7 @@ GET /health
 }
 ```
 
-### 1. 图片推理（计算指标）
+### 1. 图片推理——文件上传模式
 
 ```bash
 POST /predict
@@ -65,9 +102,54 @@ POST /predict
 
 **请求:**
 ```bash
-curl -X POST http://localhost:8000/predict \
+curl -X POST http://localhost:8001/predict \
      -F "file=@spine_xray.jpg" \
      -F "image_id=IMG018"
+```
+
+### 2. 图片推理——对象模式（生产接口）
+
+后端通过此接口调用，图片由服务从 MinIO/storage-service 自动获取。
+
+```bash
+POST /predict_object
+```
+
+**请求体 (JSON):**
+```json
+{
+  "bucket": "medical-image-files",
+  "object_key": "images/abc123.jpg"
+}
+```
+
+**响应:** 与 `/predict` 相同格式。
+
+### 3. 检测关键点——文件上传模式
+
+```bash
+POST /detect_keypoints
+```
+
+**请求:**
+```bash
+curl -X POST http://localhost:8001/detect_keypoints \
+     -F "file=@spine_xray.jpg" \
+     -F "image_id=IMG018"
+```
+
+### 4. 检测关键点——对象模式（生产接口）
+
+```bash
+POST /detect_keypoints_object
+```
+
+**请求体 (JSON):**
+```json
+{
+  "bucket": "medical-image-files",
+  "object_key": "images/abc123.jpg"
+}
 ```
 
 **响应 (前端交互系统格式):**
@@ -125,7 +207,7 @@ curl -X POST http://localhost:8000/predict \
 }
 ```
 
-### 2. 检测关键点（原始数据）
+### 5. 检测关键点（原始数据，文件上传）
 
 ```bash
 POST /detect_keypoints
@@ -133,7 +215,7 @@ POST /detect_keypoints
 
 **请求:**
 ```bash
-curl -X POST http://localhost:8000/detect_keypoints \
+curl -X POST http://localhost:8001/detect_keypoints \
      -F "file=@spine_xray.jpg" \
      -F "image_id=IMG018"
 ```
@@ -235,22 +317,15 @@ Pose Corner 模型输出的椎体编号**不依赖**模型预测的原始类别 
 
 `class_id` 字段存储的是 y 排序后的位置序号（而非模型原始类别 ID），这样可以避免类别预测偏移或空间重复导致的命名错误。
 
-## Docker 部署 (可选)
+## Docker 部署
 
-```dockerfile
-FROM python:3.10-slim
-
-WORKDIR /app
-COPY . .
-
-RUN pip install --no-cache-dir -r requirements.txt
-
-EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+权重文件须已下载到 `weights/` 目录（见"权重文件"节），然后：
 
 ```bash
-docker build -t spine-api .
-docker run -p 8000:8000 spine-api
+docker build -t xiehe-ai-zhengmian:local .
+docker run -d --name xiehe-ai-zhengmian -p 8001:8001 xiehe-ai-zhengmian:local
+
+# 验证
+curl http://localhost:8001/health
 ```
 

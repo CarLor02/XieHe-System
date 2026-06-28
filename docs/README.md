@@ -1,18 +1,18 @@
-# 医疗影像诊断系统项目文档
+# 脊柱 AI 辅助分析系统文档
 
 ## 📋 项目概览
 
-这是一个基于 Next.js + Python FastAPI + MySQL + Redis 的完整医疗影像诊断系统。
+基于 Next.js + Python FastAPI + MinIO 对象存储 + AI 推理服务的脊柱 X 光辅助分析系统。
 
 **主要功能模块:**
 
-- 用户认证与权限管理
+- 用户认证与权限管理（JWT + RBAC）
 - 患者信息管理
-- 医疗影像上传、存储与处理
-- DICOM 影像查看与标注
-- AI 模型集成与智能诊断
+- 影像上传（MinIO 对象存储）与 DICOM 查看
+- AI 自动测量（正面 Cobb 角 + 侧面 SVA/PI）
+- 手动标注（Fabric.js + Konva 画布）
 - 诊断报告生成与管理
-- 系统监控与日志管理
+- 系统日志（logging-service）
 
 ## 📁 文档结构
 
@@ -47,129 +47,39 @@ docs/
 └── images/                      # 文档图片资源
 ```
 
-## 🎯 项目进度跟踪
-
-### 查看项目进度
-
-项目进度详情请查看: [project-progress.md](./project-progress.md)
-
-该文档包含:
-
-- 184 个详细任务的完成状态
-- 6 个开发阶段的里程碑
-- 任务统计概览
-- 风险与问题记录
-- 更新日志
-
-### 更新任务状态
-
-我们提供了便捷的脚本来更新任务状态:
-
-```bash
-# 基本用法
-python scripts/update_task_status.py <task_id> <status>
-
-# 完整用法
-python scripts/update_task_status.py <task_id> <status> [test_status] [completion_date] [notes]
-```
-
-**状态说明:**
-
-- `NOT_STARTED` - 未开始 ⏳
-- `IN_PROGRESS` - 进行中 🔄
-- `COMPLETED` - 已完成 ✅
-- `CANCELLED` - 已取消 ❌
-
-**测试状态:**
-
-- `TESTING` - 测试中 🧪
-- `TEST_PASSED` - 测试通过 ✅🧪
-- `TEST_FAILED` - 测试失败 ❌🧪
-
-**示例:**
-
-```bash
-# 标记任务为进行中
-python scripts/update_task_status.py hBx19u6Pgd8yb2QMuuXP2V IN_PROGRESS
-
-# 标记任务完成并通过测试
-python scripts/update_task_status.py hBx19u6Pgd8yb2QMuuXP2V COMPLETED TEST_PASSED 2025-09-25 "编码规范文档已完成"
-
-# 标记任务完成（自动使用今天日期）
-python scripts/update_task_status.py hBx19u6Pgd8yb2QMuuXP2V COMPLETED
-```
-
-## 🏗️ 开发阶段
-
-### 第一阶段：项目规范与架构设计 (21 个任务)
-
-- 项目编码与文档规范制定
-- 项目目录结构设计
-- 系统架构设计
-
-### 第二阶段：基础环境搭建 (21 个任务)
-
-- 数据库设计与初始化
-- 后端项目初始化
-- 前端项目优化
-
-### 第三阶段：核心功能模块开发 (70 个任务)
-
-- 用户认证系统
-- 患者管理模块
-- 影像上传与存储
-- 影像处理与展示
-- AI 模型集成
-- 诊断报告系统
-- 权限管理系统
-- 工作台仪表板
-- 消息通知系统
-- 系统日志与监控
-
-### 第四阶段：系统集成与优化 (28 个任务)
-
-- 前端组件开发与集成
-- 数据库优化与索引
-- 安全性加固
-- 性能优化
-
-### 第五阶段：测试与部署 (14 个任务)
-
-- 单元测试与集成测试
-- 部署与上线
-
-### 第六阶段：文档与验收 (14 个任务)
-
-- 用户手册与文档
-- 系统验收与优化
-
 ## 🔧 技术栈
 
 **前端:**
 
-- Next.js 15.3.2
-- React 19.0.0
-- TypeScript
-- Tailwind CSS
-- Zustand/Redux Toolkit (状态管理)
+- Next.js 15.5 + React 19 + TypeScript
+- Tailwind CSS v4
+- Redux Toolkit + Zustand + TanStack Query（状态管理）
+- Cornerstone.js（DICOM 影像查看）
+- Fabric.js + Konva（标注画布）
 
 **后端:**
 
-- Python 3.x
-- FastAPI
-- SQLAlchemy (ORM)
-- Pydantic (数据验证)
+- Python 3.12 + FastAPI
+- SQLAlchemy 2.0（ORM）+ Alembic（数据库迁移）
+- Pydantic（数据验证）
+
+**存储:**
+
+- MinIO（影像文件对象存储）
+- storage-service（Go，MinIO 访问中间层）
+
+**AI 推理:**
+
+- YOLO（正面服务 :8001 + 侧面服务 :8002）
 
 **数据库:**
 
-- MySQL 8.0+ (主数据库)
-- Redis (缓存)
+- MySQL 8.0+（主数据库，无 Redis）
 
 **部署:**
 
 - Docker & Docker Compose
-- Nginx (反向代理)
-- SSL/TLS (HTTPS)
+- Nginx（反向代理）
 
 ## 📊 项目统计
 
@@ -180,67 +90,15 @@ python scripts/update_task_status.py hBx19u6Pgd8yb2QMuuXP2V COMPLETED
 
 ## 🚀 快速开始
 
-1. **克隆项目**
-
-   ```bash
-   git clone <repository-url>
-   cd XieHe-System
-   ```
-
-2. **查看项目进度**
-
-   ```bash
-   cat docs/project-progress.md
-   ```
-
-3. **开始第一个任务**
-
-   - 查看第一阶段任务列表
-   - 选择要开始的任务
-   - 更新任务状态为进行中
-
-4. **完成任务后**
-   - 更新任务状态为已完成
-   - 运行相关测试
-   - 更新测试状态
-   - 记录完成日期和备注
-
-## 📝 注意事项
-
-1. **任务完成流程**:
-
-   - 开始任务前: 更新状态为 `IN_PROGRESS`
-   - 完成开发后: 更新状态为 `COMPLETED`
-   - 测试通过后: 更新测试状态为 `TEST_PASSED`
-
-2. **文档维护**:
-
-   - 每完成一个任务都要更新进度文档
-   - 遇到问题及时记录在风险与问题记录中
-   - 定期更新里程碑完成情况
-
-3. **代码规范**:
-   - 严格遵循项目编码规范
-   - 每个功能都要编写相应的测试
-   - 提交代码前进行代码审查
+详见根目录 [README.md](../README.md) 中的本地启动步骤。
 
 ## 🤝 贡献指南
 
-1. 遵循项目编码规范
-2. 完成任务后及时更新进度文档
-3. 编写充分的测试用例
-4. 提交清晰的 commit 信息
-5. 进行代码审查
-
-## 📞 联系方式
-
-如有问题或建议，请通过以下方式联系:
-
-- 项目 Issues
-- 开发团队邮箱
-- 项目管理工具
+1. 遵循项目编码规范（见 `coding-standards.md`）
+2. 编写充分的测试用例
+3. 提交清晰的 commit 信息（Conventional Commits）
+4. 进行代码审查
 
 ---
 
-**最后更新**: 2025-09-24  
-**文档版本**: v1.0
+**最后更新**: 2026-06-27

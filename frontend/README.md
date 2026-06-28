@@ -7,449 +7,205 @@
 
 ## 📋 概述
 
-基于 Next.js 15.5.4 的现代化医疗影像诊断系统前端应用，提供直观的用户界面和丰富的交互功能，支持DICOM影像查看、AI诊断结果展示、报告管理等核心功能。
+基于 Next.js 的医疗影像诊断系统前端，面向脊柱 X 光片的 AI 辅助分析、影像标注、测量与报告生成。前端只与后端通信，所有 AI 推理均由后端代理调用 AI 微服务完成。
 
 ### ✨ 特性
 
-- 🚀 **现代化架构**: Next.js 15 + React 19 + TypeScript
-- 🎨 **美观界面**: Tailwind CSS v4 + 响应式设计
-- 🔒 **安全认证**: JWT + 多角色权限管理
-- 📊 **数据可视化**: 实时仪表板 + 图表展示
-- 📱 **移动适配**: PWA 支持 + 触摸友好
-- 🧪 **完整测试**: Jest + Testing Library + Cypress
+- 🚀 **现代架构**: Next.js 15 App Router + React 19 + TypeScript
+- 🎨 **UI 组件**: Tailwind CSS v4 + Radix UI + Headless UI + Framer Motion
+- 🔒 **认证**: JWT（access + refresh token）多角色权限管理
+- 🦴 **DICOM 支持**: Cornerstone.js + dcmjs + dicom-parser 本地影像解码
+- 🖊️ **影像标注**: Fabric.js + Konva + react-konva 绘图层
+- 🤖 **AI 分析**: 通过后端代理调用正位/侧位脊柱 AI 模型
+- 🌐 **国际化**: i18n 多语言支持
+- 🧪 **测试**: Jest + Testing Library
 
 ## 📁 目录结构
 
 ```
 frontend/
-├── README.md                    # 前端项目说明
-├── package.json                 # 项目依赖和脚本
-├── package-lock.json            # 依赖锁定文件
 ├── next.config.js               # Next.js 配置
 ├── tailwind.config.js           # Tailwind CSS 配置
 ├── tsconfig.json                # TypeScript 配置
-├── .env.local.example           # 环境变量示例
-├── .eslintrc.json              # ESLint 配置
-├── .prettierrc                  # Prettier 配置
-├── Dockerfile                   # Docker 镜像构建
-├── app/                         # Next.js App Router
+├── jest.config.mjs              # Jest 测试配置
+├── eslint.config.mjs            # ESLint 配置
+├── Dockerfile                   # 生产容器构建
+├── nginx.conf                   # 生产 Nginx 配置
+├── app/                         # Next.js App Router（路由入口）
+│   ├── layout.tsx              # 根布局
+│   ├── page.tsx                # 根页面（重定向）
+│   ├── providers.tsx           # 全局 Provider（React Query、Redux 等）
 │   ├── globals.css             # 全局样式
-│   ├── layout.tsx              # 根布局组件
-│   ├── page.tsx                # 首页
-│   ├── not-found.tsx           # 404 页面
-│   ├── loading.tsx             # 加载页面
-│   ├── error.tsx               # 错误页面
-│   ├── auth/                   # 认证相关页面
-│   │   ├── login/              # 登录页面
-│   │   ├── register/           # 注册页面
-│   │   └── forgot-password/    # 忘记密码页面
-│   ├── dashboard/              # 仪表板页面
-│   ├── patients/               # 患者管理页面
-│   │   ├── page.tsx           # 患者列表
-│   │   ├── [id]/              # 患者详情
-│   │   └── new/               # 新建患者
-│   ├── images/                 # 影像管理页面
-│   │   ├── page.tsx           # 影像列表
-│   │   ├── [id]/              # 影像详情
-│   │   ├── upload/            # 影像上传
-│   │   └── viewer/            # 影像查看器
-│   ├── diagnosis/              # 诊断相关页面
-│   │   ├── page.tsx           # 诊断列表
-│   │   ├── [id]/              # 诊断详情
-│   │   └── new/               # 新建诊断
-│   ├── reports/                # 报告管理页面
-│   │   ├── page.tsx           # 报告列表
-│   │   ├── [id]/              # 报告详情
-│   │   ├── new/               # 新建报告
-│   │   └── templates/         # 报告模板
-│   ├── settings/               # 系统设置页面
-│   │   ├── profile/           # 个人资料
-│   │   ├── security/          # 安全设置
-│   │   └── preferences/       # 偏好设置
-│   └── admin/                  # 管理员页面
-│       ├── users/             # 用户管理
-│       ├── roles/             # 角色管理
-│       └── system/            # 系统管理
-├── components/                  # 可复用组件
-│   ├── ui/                     # 基础UI组件
-│   │   ├── Button.tsx         # 按钮组件
-│   │   ├── Input.tsx          # 输入框组件
-│   │   ├── Modal.tsx          # 模态框组件
-│   │   ├── Table.tsx          # 表格组件
-│   │   ├── Card.tsx           # 卡片组件
-│   │   ├── Badge.tsx          # 徽章组件
-│   │   ├── Avatar.tsx         # 头像组件
-│   │   ├── Spinner.tsx        # 加载动画
-│   │   ├── Toast.tsx          # 提示消息
-│   │   └── Tooltip.tsx        # 工具提示
-│   ├── forms/                  # 表单组件
-│   │   ├── PatientForm.tsx    # 患者表单
-│   │   ├── ImageUploadForm.tsx # 影像上传表单
-│   │   ├── DiagnosisForm.tsx  # 诊断表单
-│   │   └── ReportForm.tsx     # 报告表单
+│   ├── auth/                   # 登录 / 注册页面
+│   ├── dashboard/              # 仪表板
+│   ├── patients/               # 患者管理
+│   ├── imaging/                # 影像查看与 AI 分析（核心功能）
+│   ├── upload/                 # 影像上传
+│   ├── reports/                # 报告管理
+│   ├── admin/                  # 管理后台（用户 / 团队 / 权限）
+│   ├── model-center/           # AI 模型中心
+│   ├── permissions/            # 权限配置页
+│   └── sync/                   # 数据同步
+├── components/                  # 共享展示组件
+│   ├── Header.tsx / Sidebar.tsx # 全局导航
+│   ├── UserSettings.tsx        # 用户设置
+│   ├── auth/                   # 认证相关组件
+│   ├── common/                 # 通用基础组件
+│   ├── dashboard/              # 仪表板图表/统计组件
 │   ├── layout/                 # 布局组件
-│   │   ├── Header.tsx         # 页面头部
-│   │   ├── Sidebar.tsx        # 侧边栏
-│   │   ├── Footer.tsx         # 页面底部
-│   │   ├── Navigation.tsx     # 导航组件
-│   │   └── Breadcrumb.tsx     # 面包屑导航
-│   ├── charts/                 # 图表组件
-│   │   ├── LineChart.tsx      # 折线图
-│   │   ├── BarChart.tsx       # 柱状图
-│   │   ├── PieChart.tsx       # 饼图
-│   │   └── StatCard.tsx       # 统计卡片
-│   └── medical/                # 医疗专用组件
-│       ├── DicomViewer.tsx    # DICOM查看器
-│       ├── ImageAnnotation.tsx # 影像标注
-│       ├── DiagnosisResult.tsx # 诊断结果
-│       └── ReportEditor.tsx   # 报告编辑器
-├── lib/                        # 核心库和配置
-│   ├── api.ts                 # API 客户端配置
-│   ├── auth.ts                # 认证相关函数
-│   ├── utils.ts               # 通用工具函数
-│   ├── validations.ts         # 数据验证规则
-│   ├── constants.ts           # 常量定义
-│   ├── storage.ts             # 本地存储管理
-│   ├── permissions.ts         # 权限管理
-│   └── dicom.ts               # DICOM 处理工具
-├── hooks/                      # 自定义 React Hooks
-│   ├── useAuth.ts             # 认证状态管理
-│   ├── useApi.ts              # API 请求管理
-│   ├── useLocalStorage.ts     # 本地存储管理
-│   ├── useDebounce.ts         # 防抖处理
-│   ├── useInfiniteScroll.ts   # 无限滚动
-│   ├── usePagination.ts       # 分页管理
-│   └── useDicomViewer.ts      # DICOM 查看器状态
-├── types/                      # TypeScript 类型定义
-│   ├── index.ts               # 导出所有类型
-│   ├── api.ts                 # API 响应类型
-│   ├── auth.ts                # 认证相关类型
-│   ├── patient.ts             # 患者数据类型
-│   ├── image.ts               # 影像数据类型
-│   ├── diagnosis.ts           # 诊断数据类型
-│   ├── report.ts              # 报告数据类型
-│   ├── user.ts                # 用户数据类型
-│   └── common.ts              # 通用类型定义
-├── store/                      # 状态管理
-│   ├── index.ts               # Store 配置
-│   ├── authSlice.ts           # 认证状态
-│   ├── patientSlice.ts        # 患者状态
-│   ├── imageSlice.ts          # 影像状态
-│   ├── diagnosisSlice.ts      # 诊断状态
-│   ├── reportSlice.ts         # 报告状态
-│   └── uiSlice.ts             # UI 状态
-├── utils/                      # 工具函数
-│   ├── format.ts              # 格式化工具
-│   ├── date.ts                # 日期处理工具
-│   ├── file.ts                # 文件处理工具
-│   ├── image.ts               # 图像处理工具
-│   ├── validation.ts          # 验证工具
-│   ├── api.ts                 # API 工具
-│   └── dicom.ts               # DICOM 工具
-├── constants/                  # 常量定义
-│   ├── index.ts               # 导出所有常量
-│   ├── api.ts                 # API 相关常量
-│   ├── routes.ts              # 路由常量
-│   ├── messages.ts            # 消息常量
-│   ├── colors.ts              # 颜色常量
-│   └── medical.ts             # 医疗相关常量
-├── styles/                     # 样式文件
-│   ├── globals.css            # 全局样式
-│   ├── components.css         # 组件样式
-│   └── medical.css            # 医疗专用样式
-└── public/                     # 静态资源
-    ├── images/                # 图片资源
-    ├── icons/                 # 图标资源
-    ├── fonts/                 # 字体文件
-    └── favicon.ico            # 网站图标
+│   ├── medical/                # 医疗专用组件（DICOM 查看器、标注画布等）
+│   ├── patients/               # 患者相关组件
+│   ├── reports/                # 报告相关组件
+│   └── ui/                     # 基础 UI 原语
+├── services/                    # API 调用层（按业务域分组）
+│   ├── imageServices/          # 影像文件、上传、AI 测量、标注
+│   ├── patientServices/        # 患者 CRUD
+│   ├── reportServices/         # 报告生成与查询
+│   ├── dashboardServices/      # 仪表板数据
+│   ├── dicomServices/          # DICOM 文件处理
+│   ├── modelServices/          # AI 模型中心
+│   ├── notificationServices/   # 系统通知
+│   ├── permissionServices/     # 权限查询
+│   ├── syncServices/           # 数据同步
+│   ├── systemServices/         # 系统配置
+│   ├── userService.ts          # 用户管理
+│   ├── teamService.ts          # 团队管理
+│   └── errorService.ts         # 统一错误处理
+├── lib/
+│   ├── api/                    # axios 客户端 + 请求拦截器
+│   ├── logger/                 # 前端日志
+│   └── utils.ts                # 通用工具函数
+├── hooks/                       # 自定义 React Hooks
+│   ├── useErrorHandler.ts
+│   └── useLocalStorage.ts
+├── types/
+│   └── common.ts               # 公共 TypeScript 类型
+├── utils/
+│   └── idCardUtils.ts          # 身份证号工具
+├── i18n/                        # 国际化（中文等）
+│   ├── index.ts
+│   └── locales/
+├── docs/
+│   └── ENVIRONMENT_VARIABLES.md # 环境变量完整说明
+└── public/                      # 静态资源（图标、字体）
 ```
 
-## 🚀 快速开始
+## 🚀 本地开发启动
 
-### 环境要求
+### 前置要求
 
-- **Node.js**: 18.0+ (推荐 18.x LTS)
-- **npm**: 8.0+ 或 **yarn**: 1.22+ 或 **pnpm**: 7.0+
+- **Node.js** 18+（`node -v` 检查）
+- **npm** 8+
+- 后端服务已在 http://localhost:8000 运行（见后端 README）
 
-### 安装步骤
-
-1. **安装依赖**
-   ```bash
-   # 使用 npm
-   npm install
-
-   # 或使用 yarn
-   yarn install
-
-   # 或使用 pnpm
-   pnpm install
-   ```
-
-2. **配置环境变量**（可选）
-   ```bash
-   # 如果需要自定义配置
-   cp .env.test.example .env.test
-   vim .env.test
-   ```
-
-3. **启动开发服务器**
-   ```bash
-   npm run dev
-   # 或 yarn dev
-   # 或 pnpm dev
-   ```
-
-4. **访问应用**
-   - 前端应用: http://localhost:3000
-   - 确保后端服务运行在: http://localhost:8000
-
-### 生产构建
+### 安装与启动
 
 ```bash
-# 构建生产版本
-npm run build
+cd XieHe-System/frontend
 
-# 启动生产服务器
-npm run start
+# 安装依赖（首次或 package.json 变动后执行）
+npm install
 
-# 或导出静态文件
-npm run export
+# 启动开发服务器
+npm run dev
 ```
+
+访问 http://localhost:3000
+
+### 环境变量
+
+前端通过 `.env.local` 读取配置，完整说明见 `docs/ENVIRONMENT_VARIABLES.md`。
+
+最常用的配置项：
+
+```bash
+# 后端 API 地址（默认指向本地）
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+> `.env.local` 不提交到 Git，每个开发者本地维护自己的副本。
 
 ## 🔧 技术栈
 
-### 核心框架
-- **Next.js 15.5.4**: React 全栈框架 (App Router)
-- **React 19.0**: 用户界面库
-- **TypeScript 5.x**: 静态类型检查
-- **Tailwind CSS v4.1.14**: 原子化CSS框架
+| 类别 | 技术 |
+|---|---|
+| 框架 | Next.js 15 (App Router) + React 19 + TypeScript 5 |
+| 样式 | Tailwind CSS v4 + clsx + tailwind-merge |
+| UI 组件 | Radix UI + Headless UI + Lucide React + Framer Motion |
+| 表单 | React Hook Form + Zod |
+| 状态管理 | Redux Toolkit（全局）+ Zustand（局部）+ TanStack Query（服务端缓存）|
+| 影像处理 | Cornerstone.js + cornerstone-wado-image-loader + dcmjs + dicom-parser |
+| 绘图标注 | Fabric.js + Konva + react-konva |
+| 图表 | Chart.js + react-chartjs-2 + Recharts |
+| HTTP | axios（含 token 刷新拦截器）|
+| 国际化 | 自定义 i18n（`i18n/` 目录）|
+| 测试 | Jest + React Testing Library |
 
-### 状态管理
-- **Redux Toolkit**: 全局状态管理
-- **Zustand**: 轻量级状态管理
-- **TanStack Query**: 服务端状态管理
+## 🧪 质量检查
 
-### UI组件库
-- **Headless UI**: 无样式组件库
-- **Radix UI**: 高质量组件原语
-- **Lucide React**: 图标库
-- **React Hook Form**: 表单管理
-- **Framer Motion**: 动画库
-
-### 样式和主题
-- **Tailwind CSS v4**: 原子化CSS
-- **PostCSS**: CSS 后处理器
-- **CSS Modules**: 模块化样式
-- **clsx**: 条件类名工具
-
-### 医疗专用库
-- **Cornerstone.js**: DICOM影像查看
-- **OHIF Viewer**: 医疗影像查看器
-- **dcmjs**: DICOM文件处理
-- **Chart.js**: 数据可视化
-
-### 开发工具
-- **ESLint**: 代码检查
-- **Prettier**: 代码格式化
-- **TypeScript**: 类型检查
-- **Jest**: 单元测试
-- **Cypress**: 端到端测试
-
-## 🎨 设计系统
-
-### 颜色主题
-- **Primary**: 医疗蓝色系
-- **Secondary**: 辅助色彩
-- **Success**: 成功状态色
-- **Warning**: 警告状态色
-- **Error**: 错误状态色
-
-### 组件规范
-- 遵循 Atomic Design 设计原则
-- 支持深色/浅色主题切换
-- 响应式设计，支持移动端
-- 无障碍访问支持
-
-## 🔒 安全特性
-
-### 认证授权
-- JWT令牌认证
-- 角色权限控制
-- 路由守卫保护
-- 自动令牌刷新
-
-### 数据安全
-- 敏感数据加密传输
-- XSS攻击防护
-- CSRF保护
-- 内容安全策略
-
-## 📱 响应式设计
-
-### 断点设置
-- **Mobile**: < 768px
-- **Tablet**: 768px - 1024px
-- **Desktop**: > 1024px
-- **Large**: > 1440px
-
-### 适配策略
-- 移动优先设计
-- 触摸友好交互
-- 自适应布局
-- 性能优化
-
-## 🧪 测试
-
-### 测试框架
-- **Jest**: 单元测试
-- **React Testing Library**: 组件测试
-- **Cypress**: 端到端测试
-- **Storybook**: 组件文档
-
-### 运行测试
+每次提交前应运行：
 
 ```bash
+cd XieHe-System/frontend
+
+# TypeScript 类型检查
+npm run type-check
+
+# ESLint 代码检查
+npm run lint
+
 # 单元测试
 npm run test
 
-# 端到端测试
-npm run test:e2e
-
-# 测试覆盖率
+# 覆盖率报告
 npm run test:coverage
 ```
 
-## 📈 性能优化
-
-### 构建优化
-- 代码分割
-- 树摇优化
-- 图片优化
-- 字体优化
-
-### 运行时优化
-- 懒加载
-- 虚拟滚动
-- 缓存策略
-- 预加载
-
-## 🚀 部署
-
-### Docker部署
+涉及路由、Next.js 配置或大范围重构时还需执行：
 
 ```bash
-# 构建镜像
-docker build -t medical-frontend .
-
-# 运行容器
-docker run -p 3000:3000 medical-frontend
-```
-
-### 静态部署
-
-```bash
-# 构建静态文件
 npm run build
-npm run export
-
-# 部署到静态服务器
 ```
 
-## 📊 监控分析
-
-### 性能监控
-- Core Web Vitals
-- 页面加载时间
-- 用户交互延迟
-- 错误率统计
-
-### 用户分析
-- 页面访问统计
-- 用户行为分析
-- 功能使用情况
-- 转化率分析
-
-## 🛠️ 开发规范
-
-### 代码规范
-- 遵循 TypeScript 严格模式
-- 使用 ESLint + Prettier
-- 组件命名采用 PascalCase
-- 文件命名采用 kebab-case
-
-### 提交规范
-- 使用 Conventional Commits
-- 提交前自动代码检查
-- 必须通过所有测试
-- 代码审查通过
-
-## 🛠️ 开发支持
-
-### 开发工具
-- **VS Code**: 推荐编辑器
-- **React DevTools**: React调试工具
-- **Redux DevTools**: 状态调试工具
-- **Lighthouse**: 性能分析工具
-
-### 故障排除
-
-#### 样式问题
-如果页面没有样式或样式加载不正确：
+## 🚀 生产部署
 
 ```bash
-# 检查 Tailwind CSS 配置
-npm run build  # 查看编译错误
+# 构建生产镜像（内含 Nginx 静态服务）
+docker build -t xiehe-frontend:local XieHe-System/frontend/
 
-# 重新安装依赖
-rm -rf node_modules package-lock.json
-npm install
-
-# 检查 PostCSS 配置
-# 确保 postcss.config.mjs 使用 @tailwindcss/postcss 插件
+docker run -d -p 3000:80 xiehe-frontend:local
 ```
 
-#### React Hooks 错误
-如果遇到 "React has detected a change in the order of Hooks" 错误：
-- 确保所有 Hooks 在组件顶层调用
-- 不要在条件语句、循环或嵌套函数中调用 Hooks
-- 避免在早期返回（early return）之后调用 Hooks
+## 🛠️ 常见问题
 
-#### API 连接问题
-如果前端无法连接后端：
-- 确保后端服务运行在 http://localhost:8080
-- 检查浏览器控制台是否有 CORS 错误
-- 确认后端 CORS 配置允许 http://localhost:3000
+### 无法连接后端 API
 
-#### 依赖冲突
-如果遇到依赖版本冲突：
+1. 确认后端已启动：`curl http://localhost:8000/health`
+2. 检查 `.env.local` 中的 `NEXT_PUBLIC_API_BASE_URL` 是否指向正确地址（应为 `http://localhost:8000/api/v1`）
+3. 查看浏览器 Network 面板确认请求发到了哪个地址
+
+### Tailwind 样式不生效
+
 ```bash
-# 清理并重新安装
-rm -rf node_modules package-lock.json
-npm install
-
-# 或使用 npm ci 进行干净安装
-npm ci
+# 清除缓存重启
+rm -rf .next
+npm run dev
 ```
 
-### 调试技巧
-- 使用浏览器开发者工具
-- React DevTools 组件调试
-- Network 面板 API 调试
-- Console 日志调试
+### 依赖安装失败
 
-### 开发模式 vs 生产模式
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
 
-| 特性 | 开发模式 | 生产模式 |
-|------|----------|----------|
-| 热重载 | ✅ 支持 | ❌ 不支持 |
-| 源码映射 | ✅ 详细 | ⚠️ 简化 |
-| 代码压缩 | ❌ 不压缩 | ✅ 压缩 |
-| 错误边界 | 🔍 详细错误 | 🛡️ 用户友好 |
-| 性能 | 🐌 较慢 | 🚀 优化 |
+### AI 分析按钮无反应 / 报错
+
+前端的 AI 调用走后端代理（`POST /api/v1/image-files/{id}/ai/predict`），确认：
+1. 后端正常运行
+2. 本地 AI 容器已启动（见后端 README）
+3. 浏览器 Network 面板中该请求是否返回非 200 状态码及错误信息
 
 ---
 
-**注意**:
-- 开发前请仔细阅读项目编码规范和组件设计文档
-- 确保后端服务正常运行再启动前端
-- 遇到问题请先查看故障排除部分
+**注意**: `.env.local` 包含本地配置，不提交到 Git。
