@@ -33,9 +33,8 @@ RUN if [ -n "$APK_MIRROR" ]; then \
     vips-dev \
     pkgconfig
 
-# 复制package文件；使用根 lockfile 固定 workspace 依赖版本
-COPY package.json package-lock.json ./
-COPY frontend/package.json ./frontend/package.json
+# 复制前端 package 文件；使用 frontend 自己的 lockfile 固定依赖版本
+COPY frontend/package.json frontend/package-lock.json ./frontend/
 
 # 配置 npm 使用国内镜像，并避免构建阶段访问额外下载/审计服务
 ENV CYPRESS_INSTALL_BINARY=0
@@ -50,16 +49,18 @@ ARG NPM_LOGLEVEL=warn
 ARG NPM_FOREGROUND_SCRIPTS=false
 ARG NPM_TIMING=false
 
-# 安装前端 workspace 依赖（使用 --legacy-peer-deps 解决 React 19 兼容性问题）
+# 安装前端依赖（使用 --legacy-peer-deps 解决 React 19 兼容性问题）
 # --mount=type=cache 把 npm 缓存留在宿主机，重建时跳过已下载的包
+WORKDIR /app/frontend
 RUN --mount=type=cache,target=/root/.npm \
     if [ "$NPM_FOREGROUND_SCRIPTS" = "true" ]; then \
-      npm ci --workspace frontend --legacy-peer-deps --no-audit --no-fund \
+      npm ci --legacy-peer-deps --no-audit --no-fund \
         --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING" --foreground-scripts; \
     else \
-      npm ci --workspace frontend --legacy-peer-deps --no-audit --no-fund \
+      npm ci --legacy-peer-deps --no-audit --no-fund \
         --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING"; \
     fi
+WORKDIR /app
 
 # 复制源代码
 COPY frontend/ ./frontend/
@@ -98,7 +99,8 @@ RUN find frontend -name "*.sh" -type f ! -name "entrypoint.sh" ! -name "startup.
     rm -rf /tmp/.XIN-unix /tmp/.X11-unix /var/tmp/.unix 2>/dev/null || true
 
 # 构建应用 - 输出到 out 目录（静态导出）
-RUN npm run build --workspace frontend
+WORKDIR /app/frontend
+RUN npm run build
 
 # 安全加固: 构建后清理临时文件和可疑目录
 RUN rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
