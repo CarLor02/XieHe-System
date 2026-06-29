@@ -49,6 +49,14 @@ def test_backend_compose_injects_python_settings_env_names() -> None:
         assert f"{name}:" in backend_compose
 
 
+def test_redis_compose_mounts_existing_config_file() -> None:
+    redis_compose = read("infrastructure/docker/compose/redis.yml")
+    redis_config = REPO_ROOT / "infrastructure" / "redis" / "redis.conf"
+
+    assert "../../redis/redis.conf:/usr/local/etc/redis/redis.conf:ro" in redis_compose
+    assert redis_config.is_file()
+
+
 def test_pc_deploy_generates_required_dotenv_files() -> None:
     deploy_script = read("deploy_pc.sh")
 
