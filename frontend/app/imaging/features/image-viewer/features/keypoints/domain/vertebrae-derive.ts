@@ -48,10 +48,10 @@ function makeMeasurement(type: string, points: Point[]): MeasurementData {
 // ─── 侧位终板提取 ─────────────────────────────────────────────────────────
 
 interface Endplates {
-  // 侧位测量点顺序按前侧到后侧（图像上通常是右到左）：
-  // measurement point 1/2 对应关键点 2/1，point 3/4 对应关键点 4/3。
-  upper: [Point, Point]; // [Tn-2, Tn-1]
-  lower: [Point, Point]; // [Tn-4, Tn-3]
+  // 侧位测量点顺序按图像左到右：
+  // measurement point 1/2 对应关键点 1/2，point 3/4 对应关键点 3/4。
+  upper: [Point, Point]; // [Tn-1, Tn-2]
+  lower: [Point, Point]; // [Tn-3, Tn-4]
   center: Point;
 }
 
@@ -59,8 +59,8 @@ function extractEndplateLateral(
   corners: [Point, Point, Point, Point]
 ): Endplates {
   return {
-    upper: [corners[1], corners[0]],
-    lower: [corners[3], corners[2]],
+    upper: [corners[0], corners[1]],
+    lower: [corners[2], corners[3]],
     center: centroid(...corners),
   };
 }
@@ -69,7 +69,7 @@ function extractEndplateLateral(
 
 function sortSacralEndplate(points: [Point, Point]): [Point, Point] {
   const [p1, p2] = points;
-  return p1.x >= p2.x ? [p1, p2] : [p2, p1];
+  return p1.x <= p2.x ? [p1, p2] : [p2, p1];
 }
 
 function deriveLateral(

@@ -211,10 +211,10 @@ it('creates lateral C2-C7 Cobb from lower endplates', () => {
       lowerVertebra: 'C7',
       keypointSynced: true,
       points: [
-        { x: 30, y: 30 },
         { x: 10, y: 30 },
-        { x: 50, y: 130 },
+        { x: 30, y: 30 },
         { x: 20, y: 130 },
+        { x: 50, y: 130 },
       ],
     })
   );
@@ -238,8 +238,8 @@ it('creates lateral Cobb to S1 from S1 upper endplate points', () => {
   });
 
   expect(measurement?.points).toEqual([
-    { x: 180, y: 110 },
     { x: 100, y: 100 },
+    { x: 180, y: 110 },
     { x: 120, y: 240 },
     { x: 220, y: 250 },
   ]);
@@ -287,10 +287,10 @@ it('recalculates a lateral keypoint-synced Cobb with lateral endpoint rules', ()
   ).toEqual(
     expect.objectContaining({
       points: [
-        { x: 40, y: 30 },
         { x: 30, y: 30 },
-        { x: 80, y: 100 },
+        { x: 40, y: 30 },
         { x: 70, y: 100 },
+        { x: 80, y: 100 },
       ],
     })
   );
@@ -468,14 +468,14 @@ it('derives lateral vertebra measurements from keypoint label order', () => {
   expect(measurements.find(measurement => measurement.type === 'T1 Slope')).toEqual(
     expect.objectContaining({
       points: [
-        { x: 30, y: 8 },
         { x: 10, y: 10 },
+        { x: 30, y: 8 },
       ],
     })
   );
 });
 
-it('derives lateral LL L1-S1 with vertebra endpoints right-to-left and keeps S1 order', () => {
+it('derives lateral LL L1-S1 with vertebra and S1 endpoints left-to-right', () => {
   const measurements = deriveKeypointMeasurements({
     keypoints: [
       apCorner('L1-1', 100, 100),
@@ -493,10 +493,31 @@ it('derives lateral LL L1-S1 with vertebra endpoints right-to-left and keeps S1 
   expect(measurements.find(measurement => measurement.type === 'LL L1-S1')).toEqual(
     expect.objectContaining({
       points: [
-        { x: 200, y: 100 },
         { x: 100, y: 100 },
-        { x: 220, y: 250 },
+        { x: 200, y: 100 },
         { x: 120, y: 240 },
+        { x: 220, y: 250 },
+      ],
+    })
+  );
+});
+
+it('derives lateral SS from S1 keypoints in left-to-right display order', () => {
+  const measurements = deriveKeypointMeasurements({
+    keypoints: [
+      apCorner('S1-1', 120, 240),
+      apCorner('S1-2', 220, 250),
+    ],
+    cfhAnnotation: null,
+    examType: '侧位X光片',
+    calculationContext,
+  });
+
+  expect(measurements.find(measurement => measurement.type === 'SS')).toEqual(
+    expect.objectContaining({
+      points: [
+        { x: 120, y: 240 },
+        { x: 220, y: 250 },
       ],
     })
   );

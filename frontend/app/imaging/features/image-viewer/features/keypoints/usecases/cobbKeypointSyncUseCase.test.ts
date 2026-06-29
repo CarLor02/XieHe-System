@@ -148,10 +148,10 @@ it('syncs lateral C2-C7 Cobb to lower endplate keypoints', () => {
   const synced = syncCobbMeasurementToKeypoints([], measurement, '侧位X光片');
 
   expect(pointByKeypointId(synced)).toEqual({
-    'C2-4': points[0],
-    'C2-3': points[1],
-    'C7-4': points[2],
-    'C7-3': points[3],
+    'C2-3': points[0],
+    'C2-4': points[1],
+    'C7-3': points[2],
+    'C7-4': points[3],
   });
 });
 
@@ -168,10 +168,10 @@ it('infers C2-C7 lateral Cobb endpoint keypoints even when exam type is omitted'
   const synced = syncCobbMeasurementToKeypoints([], measurement);
 
   expect(pointByKeypointId(synced)).toEqual({
-    'C2-4': points[0],
-    'C2-3': points[1],
-    'C7-4': points[2],
-    'C7-3': points[3],
+    'C2-3': points[0],
+    'C2-4': points[1],
+    'C7-3': points[2],
+    'C7-4': points[3],
   });
 });
 
@@ -188,8 +188,8 @@ it('syncs lateral Cobb to S1 upper endplate keypoints', () => {
   const synced = syncCobbMeasurementToKeypoints([], measurement, '侧位X光片');
 
   expect(pointByKeypointId(synced)).toEqual({
-    'L4-2': points[0],
-    'L4-1': points[1],
+    'L4-1': points[0],
+    'L4-2': points[1],
     'S1-1': points[2],
     'S1-2': points[3],
   });

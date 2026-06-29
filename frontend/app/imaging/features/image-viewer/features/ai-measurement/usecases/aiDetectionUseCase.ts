@@ -36,8 +36,13 @@ export async function detectLateralVertebrae(imageId: string): Promise<{
 
       vertebraeMap.forEach((vertebra: any) => {
         if (vertebra.label === 'S1' && vertebra.keypoints?.length >= 2) {
-          vertebra.keypoints.slice(0, 2).forEach((kp: any, index: number) => {
-            const pt = { x: kp.x * imageWidth, y: kp.y * imageHeight };
+          const s1Points = sortPointsLeftToRight(
+            vertebra.keypoints.slice(0, 2).map((kp: any) => ({
+              x: kp.x * imageWidth,
+              y: kp.y * imageHeight,
+            }))
+          );
+          s1Points.forEach((pt, index) => {
             newVertebrae.push({
               label: `S1-${index + 1}`,
               corners: [pt, pt, pt, pt],
@@ -92,6 +97,10 @@ function sortCornersGeometrically(
   const top = sorted.slice(0, 2).sort((a, b) => a.x - b.x); // y 较小的两点：左=TL，右=TR
   const bot = sorted.slice(2, 4).sort((a, b) => a.x - b.x); // y 较大的两点：左=BL，右=BR
   return [top[0], top[1], bot[0], bot[1]];
+}
+
+function sortPointsLeftToRight(pts: Point[]): Point[] {
+  return [...pts].sort((left, right) => left.x - right.x);
 }
 
 const FRONTAL_POSE_LABEL_TO_PATIENT_LEFT_SCREEN_LEFT: Record<string, string> = {
@@ -149,11 +158,13 @@ export async function aiDetect(
 
         vertebraeMap.forEach((vertebra: any) => {
           if (vertebra.label === 'S1' && vertebra.keypoints?.length >= 2) {
-            vertebra.keypoints.slice(0, 2).forEach((kp: any, index: number) => {
-              const pt = {
+            const s1Points = sortPointsLeftToRight(
+              vertebra.keypoints.slice(0, 2).map((kp: any) => ({
                 x: kp.x * imageWidth,
                 y: kp.y * imageHeight,
-              };
+              }))
+            );
+            s1Points.forEach((pt, index) => {
               newVertebrae.push({
                 label: `S1-${index + 1}`,
                 corners: [pt, pt, pt, pt],

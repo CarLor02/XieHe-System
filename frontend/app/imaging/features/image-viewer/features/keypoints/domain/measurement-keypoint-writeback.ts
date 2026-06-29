@@ -29,7 +29,7 @@ type VertebraTarget = {
 
 type S1Target = {
   kind: 's1';
-  /** 0 = sortSacralEndplate 后 index 0（较大 X），1 = index 1（较小 X） */
+  /** 0 = S1-1 / 图像左端点，1 = S1-2 / 图像右端点 */
   s1UpperIndex: 0 | 1;
 };
 
@@ -78,57 +78,57 @@ type WritebackTarget =
 
 const WRITEBACK_MAP: Record<string, WritebackTarget[]> = {
   't1-slope': [
-    { kind: 'vertebra', vertebraLabel: 'T1', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'T1', endplate: 'upper', side: 'posterior' },
+    { kind: 'vertebra', vertebraLabel: 'T1', endplate: 'upper', side: 'anterior' },
   ],
   'tk-t2-t5': [
-    { kind: 'vertebra', vertebraLabel: 'T2', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'T2', endplate: 'upper', side: 'posterior' },
-    { kind: 'vertebra', vertebraLabel: 'T5', endplate: 'lower', side: 'anterior' },
+    { kind: 'vertebra', vertebraLabel: 'T2', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'T5', endplate: 'lower', side: 'posterior' },
+    { kind: 'vertebra', vertebraLabel: 'T5', endplate: 'lower', side: 'anterior' },
   ],
   'tk-t5-t12': [
-    { kind: 'vertebra', vertebraLabel: 'T5', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'T5', endplate: 'upper', side: 'posterior' },
-    { kind: 'vertebra', vertebraLabel: 'T12', endplate: 'lower', side: 'anterior' },
+    { kind: 'vertebra', vertebraLabel: 'T5', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'T12', endplate: 'lower', side: 'posterior' },
+    { kind: 'vertebra', vertebraLabel: 'T12', endplate: 'lower', side: 'anterior' },
   ],
   't10-l2': [
-    { kind: 'vertebra', vertebraLabel: 'T10', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'T10', endplate: 'upper', side: 'posterior' },
-    { kind: 'vertebra', vertebraLabel: 'L2', endplate: 'lower', side: 'anterior' },
+    { kind: 'vertebra', vertebraLabel: 'T10', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'L2', endplate: 'lower', side: 'posterior' },
+    { kind: 'vertebra', vertebraLabel: 'L2', endplate: 'lower', side: 'anterior' },
   ],
   'll-l1-s1': [
-    { kind: 'vertebra', vertebraLabel: 'L1', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'L1', endplate: 'upper', side: 'posterior' },
+    { kind: 'vertebra', vertebraLabel: 'L1', endplate: 'upper', side: 'anterior' },
     { kind: 's1', s1UpperIndex: 0 },
     { kind: 's1', s1UpperIndex: 1 },
   ],
   'll-l1-l4': [
-    { kind: 'vertebra', vertebraLabel: 'L1', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'L1', endplate: 'upper', side: 'posterior' },
-    { kind: 'vertebra', vertebraLabel: 'L4', endplate: 'lower', side: 'anterior' },
+    { kind: 'vertebra', vertebraLabel: 'L1', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'L4', endplate: 'lower', side: 'posterior' },
+    { kind: 'vertebra', vertebraLabel: 'L4', endplate: 'lower', side: 'anterior' },
   ],
   'll-l4-s1': [
-    { kind: 'vertebra', vertebraLabel: 'L4', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'L4', endplate: 'upper', side: 'posterior' },
+    { kind: 'vertebra', vertebraLabel: 'L4', endplate: 'upper', side: 'anterior' },
     { kind: 's1', s1UpperIndex: 0 },
     { kind: 's1', s1UpperIndex: 1 },
   ],
   'sva': [
-    { kind: 'vertebra', vertebraLabel: 'C7', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'C7', endplate: 'upper', side: 'posterior' },
-    { kind: 'vertebra', vertebraLabel: 'C7', endplate: 'lower', side: 'anterior' },
+    { kind: 'vertebra', vertebraLabel: 'C7', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'C7', endplate: 'lower', side: 'posterior' },
+    { kind: 'vertebra', vertebraLabel: 'C7', endplate: 'lower', side: 'anterior' },
     { kind: 's1-posterior' },
   ],
   'tpa': [
-    { kind: 'vertebra', vertebraLabel: 'T1', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'T1', endplate: 'upper', side: 'posterior' },
-    { kind: 'vertebra', vertebraLabel: 'T1', endplate: 'lower', side: 'anterior' },
+    { kind: 'vertebra', vertebraLabel: 'T1', endplate: 'upper', side: 'anterior' },
     { kind: 'vertebra', vertebraLabel: 'T1', endplate: 'lower', side: 'posterior' },
+    { kind: 'vertebra', vertebraLabel: 'T1', endplate: 'lower', side: 'anterior' },
     { kind: 'cfh' },
     { kind: 's1', s1UpperIndex: 0 },
     { kind: 's1', s1UpperIndex: 1 },
@@ -205,25 +205,24 @@ function updateS1(
   s1UpperIndex: 0 | 1,
   newPoint: Point
 ): VertebraAnnotation[] {
-  // 单条 S1 记录（corners[0]=左, corners[1]=右，但排序基于 X）
+  // 单条 S1 记录（corners[0]=左, corners[1]=右）
   const hasSingleS1 = vertebraeLayer.some(v => v.label === 'S1');
   if (hasSingleS1) {
     return vertebraeLayer.map(v => {
       if (v.label !== 'S1') return v;
       const next = [...v.corners] as [Point, Point, Point, Point];
-      const c0Larger = v.corners[0].x >= v.corners[1].x;
-      if (s1UpperIndex === 0) next[c0Larger ? 0 : 1] = newPoint;
-      else next[c0Larger ? 1 : 0] = newPoint;
+      if (s1UpperIndex === 0) {
+        next[0] = newPoint;
+        next[2] = newPoint;
+      } else {
+        next[1] = newPoint;
+        next[3] = newPoint;
+      }
       return { ...v, corners: next, source: AnnotationSource.MANUAL };
     });
   }
   // 分离的 S1-1 / S1-2 记录（每条 corners[0] 为实际坐标）
-  const s1Point1 = vertebraeLayer.find(v => v.label === 'S1-1');
-  const s1Point2 = vertebraeLayer.find(v => v.label === 'S1-2');
-  if (!s1Point1 || !s1Point2) return vertebraeLayer;
-  const s1Point1IsLargerX = s1Point1.corners[0].x >= s1Point2.corners[0].x;
-  const targetLabel =
-    (s1UpperIndex === 0) === s1Point1IsLargerX ? 'S1-1' : 'S1-2';
+  const targetLabel = s1UpperIndex === 0 ? 'S1-1' : 'S1-2';
   return vertebraeLayer.map(v => {
     if (v.label !== targetLabel) return v;
     const next = [...v.corners] as [Point, Point, Point, Point];
