@@ -38,6 +38,7 @@ from app.schemas.team import (
     TeamMembersResponse,
     TeamSearchResponse,
     TeamSummary,
+    TeamUpdateRequest,
 )
 from app.services.team_service import team_service
 from ..schemas.permissions import (
@@ -645,6 +646,46 @@ async def create_team_endpoint(
     except Exception as exc:
         logger.emit_event(LogLevel.ERROR, message=("创建团队失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
         raise HTTPException(status_code=500, detail="创建团队失败，请稍后重试")
+
+
+@router.patch(
+    "/teams/{team_id}",
+    response_model=Dict[str, Any],
+    summary="更新团队信息",
+)
+async def update_team_endpoint(
+    team_id: int,
+    request: TeamUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_active_user),
+):
+    """更新协作团队基础信息"""
+
+    try:
+        user_id = _extract_user_id(current_user)
+        team_data = team_service.update_team(
+            db,
+            operator_user_id=user_id,
+            team_id=team_id,
+            name=request.name,
+            description=request.description,
+            hospital=request.hospital,
+            department=request.department,
+            max_members=request.max_members,
+        )
+        return success_response(
+            data=TeamSummary(**team_data).dict(),
+            message="团队信息已更新",
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = 404 if "不存在" in detail else 400
+        raise HTTPException(status_code=status_code, detail=detail)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except Exception as exc:
+        logger.emit_event(LogLevel.ERROR, message=("更新团队失败: %s" % (exc,)), metadata={"stack_trace": traceback.format_exc()})
+        raise HTTPException(status_code=500, detail="更新团队失败，请稍后重试")
 
 
 @router.get("/teams/search", response_model=Dict[str, Any], summary="搜索团队")

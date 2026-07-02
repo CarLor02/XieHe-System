@@ -18,9 +18,11 @@ import {
   reviewTeamJoinRequest,
   searchTeams,
   updateMemberRole,
+  updateTeam,
 } from '@/services/teamService';
 import { useUser } from '@/lib/api';
 import TeamInvitations from './TeamInvitations';
+import { canManageTeam } from './domain/team-management-permissions';
 
 const STATUS_BADGE_MAP: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-700',
@@ -61,6 +63,14 @@ const ROLE_LABEL_MAP: Record<string, string> = {
 const formatDateTime = (value?: string | null) =>
   value ? new Date(value).toLocaleString('zh-CN') : '未知';
 
+const EMPTY_TEAM_FORM = {
+  name: '',
+  description: '',
+  hospital: '',
+  department: '',
+  maxMembers: '10',
+};
+
 export default function TeamManagement() {
   const { isAuthenticated, user } = useUser();
 
@@ -95,18 +105,14 @@ export default function TeamManagement() {
   // UI 状态
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [teamFormModalOpen, setTeamFormModalOpen] = useState(false);
+  const [teamFormMode, setTeamFormMode] = useState<'create' | 'edit'>('create');
+  const [editingTeam, setEditingTeam] = useState<TeamSummary | null>(null);
+  const [savingTeamForm, setSavingTeamForm] = useState(false);
   const [searchTeamModalOpen, setSearchTeamModalOpen] = useState(false);
 
-  // 创建团队表单
-  const [createForm, setCreateForm] = useState({
-    name: '',
-    description: '',
-    hospital: '',
-    department: '',
-    maxMembers: '10',
-  });
+  // 创建/编辑团队表单
+  const [teamForm, setTeamForm] = useState(EMPTY_TEAM_FORM);
 
   // 搜索团队
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -225,36 +231,76 @@ export default function TeamManagement() {
     }
   };
 
-  // 创建团队
-  const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const openCreateTeamForm = () => {
+    setTeamFormMode('create');
+    setEditingTeam(null);
+    setTeamForm(EMPTY_TEAM_FORM);
+    setTeamFormModalOpen(true);
+  };
+
+  const openEditTeamForm = (team: TeamSummary) => {
+    setTeamFormMode('edit');
+    setEditingTeam(team);
+    setTeamForm({
+      name: team.name,
+      description: team.description ?? '',
+      hospital: team.hospital ?? '',
+      department: team.department ?? '',
+      maxMembers: String(team.max_members ?? 10),
+    });
+    setTeamFormModalOpen(true);
+  };
+
+  const closeTeamForm = () => {
+    if (savingTeamForm) return;
+    setTeamFormModalOpen(false);
+    setEditingTeam(null);
+    setTeamFormMode('create');
+    setTeamForm(EMPTY_TEAM_FORM);
+  };
+
+  // 创建/编辑团队
+  const handleTeamFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!createForm.name.trim()) {
+    if (!teamForm.name.trim()) {
       setError('团队名称不能为空');
       return;
     }
 
     try {
-      setCreatingTeam(true);
-      const maxMembersNumber = Number(createForm.maxMembers);
+      setSavingTeamForm(true);
+      const maxMembersNumber = Number(teamForm.maxMembers);
       const payload = {
-        name: createForm.name.trim(),
-        description: createForm.description.trim() || undefined,
-        hospital: createForm.hospital.trim() || undefined,
-        department: createForm.department.trim() || undefined,
+        name: teamForm.name.trim(),
+        description: teamForm.description.trim() || (teamFormMode === 'edit' ? '' : undefined),
+        hospital: teamForm.hospital.trim() || (teamFormMode === 'edit' ? '' : undefined),
+        department: teamForm.department.trim() || (teamFormMode === 'edit' ? '' : undefined),
         max_members: Number.isNaN(maxMembersNumber) ? undefined : maxMembersNumber,
       };
 
-      const createdTeam = await createTeam(payload);
-      setSuccessMessage('团队创建成功');
-      setCreateModalOpen(false);
-      setCreateForm({ name: '', description: '', hospital: '', department: '', maxMembers: '10' });
-      await loadTeams();
-      setSelectedTeamId(createdTeam.id);
+      if (teamFormMode === 'edit' && editingTeam) {
+        const updatedTeam = await updateTeam(editingTeam.id, payload);
+        setSuccessMessage('团队信息已更新');
+        setMyTeams(prev =>
+          prev.map(team => (team.id === updatedTeam.id ? { ...team, ...updatedTeam } : team))
+        );
+        setSelectedTeamId(updatedTeam.id);
+      } else {
+        const createdTeam = await createTeam(payload);
+        setSuccessMessage('团队创建成功');
+        await loadTeams();
+        setSelectedTeamId(createdTeam.id);
+      }
+
+      setTeamFormModalOpen(false);
+      setEditingTeam(null);
+      setTeamFormMode('create');
+      setTeamForm(EMPTY_TEAM_FORM);
     } catch (err) {
       console.error(err);
-      setError('创建团队失败');
+      setError(teamFormMode === 'edit' ? '更新团队失败' : '创建团队失败');
     } finally {
-      setCreatingTeam(false);
+      setSavingTeamForm(false);
     }
   };
 
@@ -540,7 +586,7 @@ export default function TeamManagement() {
           {isSystemAdmin ? (
             <>
               <button
-                onClick={() => setCreateModalOpen(true)}
+                onClick={openCreateTeamForm}
                 className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
                 创建团队
@@ -580,6 +626,7 @@ export default function TeamManagement() {
               {myTeams.map(team => {
                 const isPending = team.join_status === 'PENDING' || team.join_status === 'pending';
                 const isSelected = team.id === selectedTeamId;
+                const canEditTeam = canManageTeam(actualUser, team);
 
                 return (
                   <div
@@ -604,6 +651,18 @@ export default function TeamManagement() {
                         </div>
                       </div>
                       <div className="flex flex-shrink-0 flex-col items-end gap-2 lg:flex-row lg:items-center">
+                        {!isPending && canEditTeam && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditTeamForm(team);
+                            }}
+                            className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            设置
+                          </button>
+                        )}
                         {isPending && team.join_request_id ? (
                           <>
                             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
@@ -961,27 +1020,31 @@ export default function TeamManagement() {
         )}
       </div>
 
-      {/* 创建团队模态框 */}
-      {createModalOpen && (
+      {/* 创建/编辑团队模态框 */}
+      {teamFormModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-xl rounded-lg bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">创建新团队</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {teamFormMode === 'edit' ? '编辑团队' : '创建新团队'}
+              </h3>
               <button
-                onClick={() => !creatingTeam && setCreateModalOpen(false)}
+                onClick={closeTeamForm}
                 className="text-gray-400 hover:text-gray-600"
+                disabled={savingTeamForm}
               >
                 <i className="ri-close-line text-xl" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="space-y-4 px-6 py-5">
+            <form onSubmit={handleTeamFormSubmit} className="space-y-4 px-6 py-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">团队名称</label>
+                <label htmlFor="team-form-name" className="mb-2 block text-sm font-medium text-gray-700">团队名称</label>
                 <input
+                  id="team-form-name"
                   type="text"
-                  value={createForm.name}
-                  onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+                  value={teamForm.name}
+                  onChange={e => setTeamForm(prev => ({ ...prev, name: e.target.value }))}
                   required
                   placeholder="请输入团队名称"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
@@ -989,10 +1052,11 @@ export default function TeamManagement() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">团队描述</label>
+                <label htmlFor="team-form-description" className="mb-2 block text-sm font-medium text-gray-700">团队描述</label>
                 <textarea
-                  value={createForm.description}
-                  onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
+                  id="team-form-description"
+                  value={teamForm.description}
+                  onChange={e => setTeamForm(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
                   placeholder="简单介绍团队职责与目标"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
@@ -1001,23 +1065,25 @@ export default function TeamManagement() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">所属医院</label>
+                  <label htmlFor="team-form-hospital" className="mb-2 block text-sm font-medium text-gray-700">所属医院</label>
                   <input
+                    id="team-form-hospital"
                     type="text"
-                    value={createForm.hospital}
-                    onChange={e => setCreateForm(prev => ({ ...prev, hospital: e.target.value }))}
+                    value={teamForm.hospital}
+                    onChange={e => setTeamForm(prev => ({ ...prev, hospital: e.target.value }))}
                     placeholder="例如：协和医院"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">所属科室</label>
+                  <label htmlFor="team-form-department" className="mb-2 block text-sm font-medium text-gray-700">所属科室</label>
                   <input
+                    id="team-form-department"
                     type="text"
-                    value={createForm.department}
+                    value={teamForm.department}
                     onChange={e =>
-                      setCreateForm(prev => ({ ...prev, department: e.target.value }))
+                      setTeamForm(prev => ({ ...prev, department: e.target.value }))
                     }
                     placeholder="例如：放射科"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
@@ -1026,13 +1092,14 @@ export default function TeamManagement() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">最大成员数</label>
+                <label htmlFor="team-form-max-members" className="mb-2 block text-sm font-medium text-gray-700">最大成员数</label>
                 <input
+                  id="team-form-max-members"
                   type="number"
                   min={1}
                   max={500}
-                  value={createForm.maxMembers}
-                  onChange={e => setCreateForm(prev => ({ ...prev, maxMembers: e.target.value }))}
+                  value={teamForm.maxMembers}
+                  onChange={e => setTeamForm(prev => ({ ...prev, maxMembers: e.target.value }))}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
                 />
               </div>
@@ -1040,18 +1107,20 @@ export default function TeamManagement() {
               <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
                 <button
                   type="button"
-                  onClick={() => !creatingTeam && setCreateModalOpen(false)}
+                  onClick={closeTeamForm}
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  disabled={creatingTeam}
+                  disabled={savingTeamForm}
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                  disabled={creatingTeam}
+                  disabled={savingTeamForm}
                 >
-                  {creatingTeam ? '创建中...' : '创建团队'}
+                  {savingTeamForm
+                    ? (teamFormMode === 'edit' ? '保存中...' : '创建中...')
+                    : (teamFormMode === 'edit' ? '保存修改' : '创建团队')}
                 </button>
               </div>
             </form>

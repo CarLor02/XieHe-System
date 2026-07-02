@@ -319,6 +319,84 @@ class TestTeamManagementService:
             assert membership is not None
             assert membership.role == TeamMembershipRole.ADMIN
 
+    def test_system_admin_can_update_any_team(self, setup_database):
+        with _open_session() as db:
+            data = team_service.update_team(
+                db,
+                setup_database["leader_id"],
+                setup_database["team_secondary_id"],
+                name="系统管理员改名团队",
+                description="系统管理员更新描述",
+                hospital="新医院",
+                department="新科室",
+                max_members=18,
+            )
+
+        assert data["name"] == "系统管理员改名团队"
+        assert data["description"] == "系统管理员更新描述"
+        assert data["hospital"] == "新医院"
+        assert data["department"] == "新科室"
+        assert data["max_members"] == 18
+
+    def test_team_admin_can_update_own_team(self, setup_database):
+        with _open_session() as db:
+            data = team_service.update_team(
+                db,
+                setup_database["admin_id"],
+                setup_database["team_primary_id"],
+                name="团队管理员改名团队",
+                description="团队管理员更新描述",
+                hospital="协和新院区",
+                department="脊柱外科",
+                max_members=25,
+            )
+
+        assert data["name"] == "团队管理员改名团队"
+        assert data["description"] == "团队管理员更新描述"
+        assert data["hospital"] == "协和新院区"
+        assert data["department"] == "脊柱外科"
+        assert data["max_members"] == 25
+
+    def test_ordinary_member_cannot_update_team(self, setup_database):
+        with _open_session() as db:
+            db.add(
+                TeamMembership(
+                    team_id=setup_database["team_primary_id"],
+                    user_id=setup_database["applicant_id"],
+                    role=TeamMembershipRole.MEMBER,
+                    status=TeamMembershipStatus.ACTIVE,
+                )
+            )
+            db.commit()
+
+            with pytest.raises(PermissionError):
+                team_service.update_team(
+                    db,
+                    setup_database["applicant_id"],
+                    setup_database["team_primary_id"],
+                    name="普通成员不能改名",
+                )
+
+    def test_update_team_rejects_duplicate_name(self, setup_database):
+        with _open_session() as db:
+            with pytest.raises(ValueError, match="团队名称已存在"):
+                team_service.update_team(
+                    db,
+                    setup_database["leader_id"],
+                    setup_database["team_primary_id"],
+                    name="测试团队二",
+                )
+
+    def test_update_team_rejects_max_members_less_than_active_members(self, setup_database):
+        with _open_session() as db:
+            with pytest.raises(ValueError, match="最大成员数不能小于当前成员数"):
+                team_service.update_team(
+                    db,
+                    setup_database["leader_id"],
+                    setup_database["team_primary_id"],
+                    max_members=1,
+                )
+
     def test_invite_member(self, setup_database):
         with _open_session() as db:
             invitation = team_service.invite_member(

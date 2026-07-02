@@ -467,6 +467,92 @@ class TeamService:
         db.refresh(team, attribute_names=["memberships", "join_requests", "creator"])  # 改为creator
         return self._build_team_summary(team, creator_id)
 
+    def update_team(
+        self,
+        db: Session,
+        operator_user_id: int,
+        team_id: int,
+        *,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        hospital: Optional[str] = None,
+        department: Optional[str] = None,
+        max_members: Optional[int] = None,
+    ) -> Dict:
+        operator_user_id = _normalize_user_id(operator_user_id)
+        if operator_user_id is None:
+            raise ValueError("无效的用户ID")
+
+        operator = db.query(User).filter(User.id == operator_user_id).first()
+        if not operator:
+            raise ValueError("用户不存在")
+
+        team = (
+            db.query(Team)
+            .options(
+                joinedload(Team.memberships),
+                joinedload(Team.creator),
+                joinedload(Team.join_requests),
+            )
+            .filter(Team.id == team_id, Team.is_active.is_(True))
+            .first()
+        )
+        if not team:
+            raise ValueError("团队不存在或已停用")
+
+        membership = next(
+            (
+                item
+                for item in team.memberships
+                if item.user_id == operator_user_id
+                and item.status == TeamMembershipStatus.ACTIVE
+            ),
+            None,
+        )
+        is_team_admin = bool(membership and membership.role == TeamMembershipRole.ADMIN)
+        if not operator.is_system_admin and not is_team_admin:
+            raise PermissionError("只有系统管理员或团队管理员可以修改团队信息")
+
+        if name is not None:
+            normalized_name = name.strip()
+            if not normalized_name:
+                raise ValueError("团队名称不能为空")
+
+            existing = (
+                db.query(Team)
+                .filter(
+                    func.lower(Team.name) == normalized_name.lower(),
+                    Team.id != team_id,
+                    Team.is_active.is_(True),
+                )
+                .first()
+            )
+            if existing:
+                raise ValueError("团队名称已存在")
+            team.name = normalized_name
+
+        if description is not None:
+            team.description = description.strip() or None
+
+        if hospital is not None:
+            team.hospital = hospital.strip() or None
+
+        if department is not None:
+            team.department = department.strip() or None
+
+        if max_members is not None:
+            active_member_count = sum(
+                1 for item in team.memberships if item.status == TeamMembershipStatus.ACTIVE
+            )
+            if max_members < active_member_count:
+                raise ValueError("最大成员数不能小于当前成员数")
+            team.max_members = max_members
+
+        db.commit()
+        db.refresh(team)
+        db.refresh(team, attribute_names=["memberships", "join_requests", "creator"])
+        return self._build_team_summary(team, operator_user_id)
+
     def list_join_requests(
         self,
         db: Session,

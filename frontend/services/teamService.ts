@@ -90,6 +90,14 @@ export interface TeamCreateRequest {
   max_members?: number;
 }
 
+export interface TeamUpdateRequest {
+  name?: string;
+  description?: string;
+  hospital?: string;
+  department?: string;
+  max_members?: number;
+}
+
 const client = apiClient;
 
 export async function searchTeams(keyword: string): Promise<TeamSearchResponse> {
@@ -220,6 +228,22 @@ export async function createTeam(payload: TeamCreateRequest): Promise<TeamSummar
     return extractData<TeamSummary>(response);
   } catch (error) {
     handleApiError(error, 'team_create');
+    throw error;
+  }
+}
+
+export async function updateTeam(
+  teamId: number,
+  payload: TeamUpdateRequest
+): Promise<TeamSummary> {
+  try {
+    const response = await client.patch(
+      `/api/v1/permissions/teams/${teamId}`,
+      payload
+    );
+    return extractData<TeamSummary>(response);
+  } catch (error) {
+    handleApiError(error, 'team_update');
     throw error;
   }
 }
