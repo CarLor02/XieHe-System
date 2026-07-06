@@ -8,8 +8,9 @@ python-multipart>=0.0.6
 
 # Deep Learning
 ultralytics>=8.0.0
-torch>=2.0.0
-torchvision>=0.15.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
 
 # Image Processing
 opencv-python>=4.8.0
