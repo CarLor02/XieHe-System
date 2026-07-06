@@ -91,6 +91,9 @@ ss
 - `--output`：输出 Excel 路径，必填。
 - `--recursive`：递归读取子目录图片。
 - `--raw-output-dir`：可选，保存每张图片的完整 AI 测量 JSON，便于排查。
+- `--lr_flip`：可选，在 AI 推理前对每张图片做左右翻转。用于处理图片方向与模型训练方向相反、导致模型无法检测的批次。
+
+如果同时使用 `--lr_flip` 和 `--raw-output-dir`，raw JSON 中的关键点坐标对应翻转后的图像坐标。
 
 ## Excel 输出
 

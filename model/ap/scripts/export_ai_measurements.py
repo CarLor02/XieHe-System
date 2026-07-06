@@ -7,13 +7,16 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+MODEL_ROOT = ROOT.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(MODEL_ROOT))
 
 from measurement_pipeline import (
     ApMeasurementMetric,
     METRIC_DISPLAY_NAMES,
     build_measurement_excel_row,
 )
+from shared.image_transforms import maybe_lr_flip
 
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp"}
@@ -49,6 +52,13 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path, help="输出 Excel 路径")
     parser.add_argument("--recursive", action="store_true", help="递归读取子目录图片")
     parser.add_argument("--raw-output-dir", type=Path, help="可选：保存每张图片的原始 JSON")
+    parser.add_argument(
+        "--lr_flip",
+        "--lr-flip",
+        dest="lr_flip",
+        action="store_true",
+        help="推理前先对图片进行左右翻转",
+    )
     args = parser.parse_args()
 
     metrics = parse_metrics(args.metrics)
@@ -65,7 +75,7 @@ def main() -> int:
 
     for image_path in images:
         try:
-            image = decode_image(image_path.read_bytes())
+            image = maybe_lr_flip(decode_image(image_path.read_bytes()), args.lr_flip)
             result = measurement_image(image, image_path.stem)
             write_raw(args.raw_output_dir, image_path, result)
             rows.append(
