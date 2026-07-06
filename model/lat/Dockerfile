@@ -25,6 +25,7 @@ COPY app.py .
 COPY config.py .
 COPY inference_service.py .
 COPY keypoints_service.py .
+COPY measurement_pipeline.py .
 COPY metrics_calculator.py .
 COPY models.py .
 

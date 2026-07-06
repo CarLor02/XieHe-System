@@ -17,6 +17,7 @@ from config import HOST, PORT
 from models import DetectionResponse, KeypointsRequest, KeypointsResponse, Point
 from inference_service import get_inference_service
 from keypoints_service import compute_keypoints
+from measurement_pipeline import derive_measurements_from_detection
 
 
 class ObjectImageRequest(BaseModel):
@@ -69,6 +70,18 @@ def detect_and_calculate_image(image, image_id: str = "lateral_spine"):
     h, w = image.shape[:2]
     detection_result = detect_image(image)
     return compute_keypoints(
+        detection_result.vertebrae,
+        detection_result.cfh,
+        image_width=w,
+        image_height=h,
+        image_id=image_id,
+    )
+
+
+def measurement_image(image, image_id: str = "lateral_spine"):
+    h, w = image.shape[:2]
+    detection_result = detect_image(image)
+    return derive_measurements_from_detection(
         detection_result.vertebrae,
         detection_result.cfh,
         image_width=w,
@@ -205,6 +218,17 @@ async def detect_and_calculate_keypoints_object(request: ObjectImageRequest):
     try:
         image = decode_image(fetch_object_image_bytes(request.bucket, request.object_key))
         return detect_and_calculate_image(image, request.image_id or "lateral_spine")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"处理失败: {str(e)}")
+
+
+@app.post("/api/measurement")
+async def measure_object(request: ObjectImageRequest):
+    try:
+        image = decode_image(fetch_object_image_bytes(request.bucket, request.object_key))
+        return measurement_image(image, request.image_id or "lateral_spine")
     except HTTPException:
         raise
     except Exception as e:

@@ -1,13 +1,13 @@
 # AI inference services (optional, included by deploy_pc.sh --with-ai)
-# zhengmian = 正面/front-view analysis  (port 8001)
-# cemian    = 侧面/lateral-view analysis (port 8002)
+# ap = 正面/front-view analysis  (port 8001)
+# lat    = 侧面/lateral-view analysis (port 8002)
 # NOTE: When running AI models on host (not in Docker), see model/AI_HOST_DEPLOYMENT.md
 
 services:
-  ai-zhengmian:
+  ai-ap:
     build:
-      context: ../../..
-      dockerfile: model/zhengmian/Dockerfile
+      context: ../../../model/ap
+      dockerfile: Dockerfile
       extra_hosts:
         - 'host.docker.internal:host-gateway'
       args:
@@ -19,15 +19,15 @@ services:
         no_proxy: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1,localaddress,.localdomain}
         PIP_INDEX_URL: ${BUILD_PIP_INDEX_URL:-}
         PIP_TRUSTED_HOST: ${BUILD_PIP_TRUSTED_HOST:-}
-    image: xiehe-ai-zhengmian
-    container_name: medical_ai_zhengmian
+    image: xiehe-ai-ap
+    container_name: medical_ai_ap
     restart: unless-stopped
     environment:
       STORAGE_SERVICE_URL: ${STORAGE_SERVICE_URL:-http://storage-service:8090}
       STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
       STORAGE_SERVICE_TIMEOUT: ${STORAGE_SERVICE_TIMEOUT:-30}
     ports:
-      - '${AI_ZHENGMIAN_PORT_BIND:-0.0.0.0:8001:8001}'
+      - '${AI_AP_PORT_BIND:-0.0.0.0:8001:8001}'
     depends_on:
       storage-service:
         condition: service_healthy
@@ -40,10 +40,10 @@ services:
       start_period: 60s
       retries: 3
 
-  ai-cemian:
+  ai-lat:
     build:
-      context: ../../..
-      dockerfile: model/cemian/Dockerfile
+      context: ../../../model/lat
+      dockerfile: Dockerfile
       extra_hosts:
         - 'host.docker.internal:host-gateway'
       args:
@@ -55,15 +55,15 @@ services:
         no_proxy: ${BUILD_NO_PROXY:-localhost,127.0.0.1,::1,localaddress,.localdomain}
         PIP_INDEX_URL: ${BUILD_PIP_INDEX_URL:-}
         PIP_TRUSTED_HOST: ${BUILD_PIP_TRUSTED_HOST:-}
-    image: xiehe-ai-cemian
-    container_name: medical_ai_cemian
+    image: xiehe-ai-lat
+    container_name: medical_ai_lat
     restart: unless-stopped
     environment:
       STORAGE_SERVICE_URL: ${STORAGE_SERVICE_URL:-http://storage-service:8090}
       STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
       STORAGE_SERVICE_TIMEOUT: ${STORAGE_SERVICE_TIMEOUT:-30}
     ports:
-      - '${AI_CEMIAN_PORT_BIND:-0.0.0.0:8002:8002}'
+      - '${AI_LAT_PORT_BIND:-0.0.0.0:8002:8002}'
     depends_on:
       storage-service:
         condition: service_healthy

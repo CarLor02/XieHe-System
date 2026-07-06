@@ -69,8 +69,8 @@ async def test_ai_predict_posts_visible_object_ref_to_front_model(
     )
     monkeypatch.setattr(
         file_handlers.settings,
-        "AI_FRONT_PREDICT_OBJECT_URL",
-        "http://front/predict_object",
+        "AI_AP_MEASUREMENT_OBJECT_URL",
+        "http://front/api/measurement",
     )
     monkeypatch.setattr(file_handlers, "_post_ai_object_request", fake_post)
 
@@ -83,11 +83,56 @@ async def test_ai_predict_posts_visible_object_ref_to_front_model(
     assert result["imageId"] == "IMG301"
     assert calls == [
         (
-            "http://front/predict_object",
+            "http://front/api/measurement",
             {
                 "bucket": "medical-image-files",
                 "object_key": "objects/front.png",
                 "image_id": "IMG301",
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_ai_predict_posts_lateral_object_ref_to_lat_measurement_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, dict]] = []
+
+    async def fake_post(url: str, payload: dict) -> dict:
+        calls.append((url, payload))
+        return {"imageId": payload["image_id"], "measurements": []}
+
+    monkeypatch.setattr(
+        file_handlers,
+        "get_visible_image_file",
+        lambda db, file_id, current_user: make_image(
+            image_id=file_id,
+            object_key="objects/side.png",
+            description="侧位X光片",
+        ),
+    )
+    monkeypatch.setattr(
+        file_handlers.settings,
+        "AI_LAT_MEASUREMENT_OBJECT_URL",
+        "http://lat/api/measurement",
+    )
+    monkeypatch.setattr(file_handlers, "_post_ai_object_request", fake_post)
+
+    result = await file_handlers.run_image_file_ai_predict(
+        302,
+        current_user={"id": 31},
+        db=object(),
+    )
+
+    assert result["imageId"] == "IMG302"
+    assert calls == [
+        (
+            "http://lat/api/measurement",
+            {
+                "bucket": "medical-image-files",
+                "object_key": "objects/side.png",
+                "image_id": "IMG302",
             },
         )
     ]

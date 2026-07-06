@@ -1,6 +1,6 @@
 #!/bin/bash
-# 宿主机启动侧面模型服务脚本
-# 用于在宿主机（非 Docker 容器）环境下启动 cemian AI 服务
+# 宿主机启动正面模型服务脚本
+# 用于在宿主机（非 Docker 容器）环境下启动 ap AI 服务
 #
 # 用法:
 #   ./start_host.sh           # 后台启动
@@ -17,14 +17,14 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 项目根目录（假设脚本在 model/cemian/ 下）
+# 项目根目录（假设脚本在 model/ap/ 下）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DOTENV_DIR="$PROJECT_ROOT/dotenv"
 LOG_DIR="$PROJECT_ROOT/logs/ai"
-PID_FILE="$SCRIPT_DIR/.cemian.pid"
-LOG_FILE="$LOG_DIR/cemian.log"
-PORT=8002
+PID_FILE="$SCRIPT_DIR/.ap.pid"
+LOG_FILE="$LOG_DIR/ap.log"
+PORT=8001
 
 # 解析参数
 ACTION="start"
@@ -116,7 +116,7 @@ stop_service() {
 case "$ACTION" in
     stop)
         echo -e "${GREEN}========================================${NC}"
-        echo -e "${GREEN}停止侧面模型服务${NC}"
+        echo -e "${GREEN}停止正面模型服务${NC}"
         echo -e "${GREEN}========================================${NC}"
         stop_service
         exit 0
@@ -124,7 +124,7 @@ case "$ACTION" in
 
     status)
         echo -e "${GREEN}========================================${NC}"
-        echo -e "${GREEN}侧面模型服务状态${NC}"
+        echo -e "${GREEN}正面模型服务状态${NC}"
         echo -e "${GREEN}========================================${NC}"
         get_status
         exit $?
@@ -137,7 +137,7 @@ case "$ACTION" in
             exit 1
         fi
         echo -e "${GREEN}========================================${NC}"
-        echo -e "${GREEN}侧面模型服务日志 (Ctrl+C 退出)${NC}"
+        echo -e "${GREEN}正面模型服务日志 (Ctrl+C 退出)${NC}"
         echo -e "${GREEN}========================================${NC}"
         tail -f "$LOG_FILE"
         exit 0
@@ -146,7 +146,7 @@ esac
 
 # ==================== 启动服务 ====================
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}启动侧面模型服务（宿主机模式）${NC}"
+echo -e "${GREEN}启动正面模型服务（宿主机模式）${NC}"
 echo -e "${GREEN}========================================${NC}"
 
 # 检查是否已运行

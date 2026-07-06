@@ -107,18 +107,18 @@ docker run -d \
 
 ```bash
 # 正位模型（端口 8001）
-docker build -t xiehe-ai-zhengmian:local XieHe-System/model/zhengmian/
-docker run -d --name xiehe-ai-zhengmian -p 8001:8001 \
+docker build -t xiehe-ai-ap:local XieHe-System/model/ap/
+docker run -d --name xiehe-ai-ap -p 8001:8001 \
   -e STORAGE_SERVICE_URL=http://host.docker.internal:8090 \
   -e STORAGE_SERVICE_TOKEN=dev-storage-service-token \
-  xiehe-ai-zhengmian:local
+  xiehe-ai-ap:local
 
 # 侧位模型（端口 8002）
-docker build -t xiehe-ai-cemian:local XieHe-System/model/cemian/
-docker run -d --name xiehe-ai-cemian -p 8002:8002 \
+docker build -t xiehe-ai-lat:local XieHe-System/model/lat/
+docker run -d --name xiehe-ai-lat -p 8002:8002 \
   -e STORAGE_SERVICE_URL=http://host.docker.internal:8090 \
   -e STORAGE_SERVICE_TOKEN=dev-storage-service-token \
-  xiehe-ai-cemian:local
+  xiehe-ai-lat:local
 ```
 
 ### 第三步：配置 .env
@@ -134,9 +134,9 @@ STORAGE_SERVICE_URL=http://localhost:8090
 STORAGE_SERVICE_TOKEN=dev-storage-service-token
 
 # AI 服务（使用 localhost，避免系统代理干扰）
-AI_FRONT_PREDICT_OBJECT_URL=http://localhost:8001/predict_object
+AI_AP_MEASUREMENT_OBJECT_URL=http://localhost:8001/api/measurement
 AI_FRONT_KEYPOINTS_OBJECT_URL=http://localhost:8001/detect_keypoints_object
-AI_LATERAL_PREDICT_OBJECT_URL=http://localhost:8002/api/detect_and_keypoints_object
+AI_LAT_MEASUREMENT_OBJECT_URL=http://localhost:8002/api/measurement
 AI_LATERAL_DETECT_OBJECT_URL=http://localhost:8002/api/detect_object
 ```
 
@@ -178,7 +178,7 @@ NO_PROXY=localhost,127.0.0.1 uvicorn app.main:app --reload --host 0.0.0.0 --port
 | ORM / 迁移 | SQLAlchemy + Alembic |
 | 数据库 | MySQL 8.0 |
 | 对象存储 | MinIO（通过 storage-service Go 网关访问） |
-| AI 推理 | 独立 Python 容器（zhengmian / cemian），CPU/GPU 均可 |
+| AI 推理 | 独立 Python 容器（ap / lat），CPU/GPU 均可 |
 | 认证 | JWT（access + refresh token） |
 | 测试 | pytest + pytest-asyncio + httpx |
 

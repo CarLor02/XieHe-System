@@ -5,6 +5,10 @@ import type {
   DetectKeypointsResponse,
   LateralDetectResponse,
 } from './aiAnnotationService';
+import type {
+  CfhAnnotation,
+  VertebraAnnotation,
+} from '@/app/imaging/features/image-viewer/shared/types';
 
 export interface PredictMeasurementsResponse {
   imageId: string;
@@ -13,6 +17,9 @@ export interface PredictMeasurementsResponse {
   image_width?: number;
   image_height?: number;
   measurements: AiMeasurementData[];
+  vertebrae?: VertebraAnnotation[];
+  cfh?: CfhAnnotation | null;
+  raw_keypoints?: unknown;
 }
 
 export async function getAiMeasurementsResponse(

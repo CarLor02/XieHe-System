@@ -5,7 +5,7 @@
 ## 目录结构
 
 ```
-zhengmian/
+ap/
 ├── app.py              # FastAPI 服务主文件（生产版本）
 ├── requirements.txt    # Python 依赖
 ├── README.md           # 本文件
@@ -29,7 +29,7 @@ pip install -r requirements.txt
 
 ```bash
 # 进入目录
-cd XieHe-System/model/zhengmian
+cd XieHe-System/model/ap
 mkdir -p weights
 
 # 从 GitHub Releases 下载（替换 <TAG> 为实际版本号）
@@ -41,7 +41,7 @@ curl -L "https://github.com/CarLor02/XieHe-System/releases/download/<TAG>/pose_c
 
 权重文件位置：
 ```
-zhengmian/weights/
+ap/weights/
 ├── pose.pt         # 躯干标志点检测模型 (6个关键点)
 └── pose_corner.pt  # 椎体角点检测模型 (18类椎体，每个4角点)
 ```
@@ -64,10 +64,10 @@ uvicorn app:app --reload --host 0.0.0.0 --port 8001
 
 ```bash
 # 构建镜像
-docker build -t xiehe-ai-zhengmian:local .
+docker build -t xiehe-ai-ap:local .
 
 # 运行容器
-docker run -d --name xiehe-ai-zhengmian -p 8001:8001 xiehe-ai-zhengmian:local
+docker run -d --name xiehe-ai-ap -p 8001:8001 xiehe-ai-ap:local
 ```
 
 更多部署方式见 [AI_HOST_DEPLOYMENT.md](../AI_HOST_DEPLOYMENT.md)。
@@ -112,7 +112,7 @@ curl -X POST http://localhost:8001/predict \
 后端通过此接口调用，图片由服务从 MinIO/storage-service 自动获取。
 
 ```bash
-POST /predict_object
+POST /api/measurement
 ```
 
 **请求体 (JSON):**
@@ -322,8 +322,8 @@ Pose Corner 模型输出的椎体编号**不依赖**模型预测的原始类别 
 权重文件须已下载到 `weights/` 目录（见"权重文件"节），然后：
 
 ```bash
-docker build -t xiehe-ai-zhengmian:local .
-docker run -d --name xiehe-ai-zhengmian -p 8001:8001 xiehe-ai-zhengmian:local
+docker build -t xiehe-ai-ap:local .
+docker run -d --name xiehe-ai-ap -p 8001:8001 xiehe-ai-ap:local
 
 # 验证
 curl http://localhost:8001/health

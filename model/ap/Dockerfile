@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app.py .
+COPY measurement_pipeline.py .
 
 # Prevent cached model file layers from reusing stale weights.
 ARG WEIGHTS_CACHE_BUST=0

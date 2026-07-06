@@ -24,11 +24,7 @@ import {
   KeypointAnnotation,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
-import { deriveAllMeasurements } from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebrae-derive';
-import {
-  aiDetect,
-  detectLateralVertebrae,
-} from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
+import { detectLateralVertebrae } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
 
 const S1_RELATED_TYPES = new Set([
   'ss',
@@ -76,14 +72,10 @@ export async function runAiMeasurementWorkflow({
   setSaveMessage,
   setIsAIMeasuring,
   setIsAIDetecting,
-  canUseKeypoints,
-  isLateralView,
   setVertebraeLayer,
   setKeypoints,
   setShowVertebraeLayer,
   setCfhAnnotation,
-  deriveInitialMeasurementsFromKeypoints,
-  lateralDetectionResultRef,
   aiMeasurementIdsRef,
 }: {
   imageId: string;
@@ -159,7 +151,6 @@ export async function runAiMeasurementWorkflow({
               getAnnotationConfig(incomingTypeId);
 
             if (!tool || tool.category !== 'measurement') return false;
-            if (isLateralView && S1_RELATED_TYPES.has(tool.id)) return false;
             if (tool.id === 'sva') {
               return (
                 Array.isArray(measurement.points) &&
@@ -199,11 +190,14 @@ export async function runAiMeasurementWorkflow({
             }
 
             const typeForCalculation = isCobb ? 'cobb' : finalType;
-            const value = calculateMeasurementValue(
-              typeForCalculation,
-              scaledPoints,
-              calculationContext
-            );
+            const value =
+              typeof measurement.value === 'string' && measurement.value
+                ? measurement.value
+                : calculateMeasurementValue(
+                    typeForCalculation,
+                    scaledPoints,
+                    calculationContext
+                  );
 
             if (isCobb) {
               console.log(`[DEBUG] ${finalType} 椎体信息:`, {
@@ -249,93 +243,23 @@ export async function runAiMeasurementWorkflow({
       setSaveMessage(`AI测量完成，已加载 ${aiMeasurements.length} 个标注`);
       setTimeout(() => setSaveMessage(''), 3000);
 
-      if (canUseKeypoints) {
-        setSaveMessage('AI检测中...');
-        void aiDetect(
-          imageId,
-          imageData,
-          layerOrUpdater => {
-            setVertebraeLayer(previous => {
-              const nextLayer =
-                typeof layerOrUpdater === 'function'
-                  ? layerOrUpdater(previous)
-                  : layerOrUpdater;
-              const nextKeypoints = vertebraeLayerToKeypoints(
-                nextLayer,
-                imageData.examType
-              );
-              setKeypoints(nextKeypoints);
-              setShowVertebraeLayer(true);
-              setMeasurements(previousMeasurements =>
-                deriveInitialMeasurementsFromKeypoints(
-                  nextKeypoints,
-                  previousMeasurements
-                )
-              );
-              return nextLayer;
-            });
-          },
-          setCfhAnnotation,
-          setSaveMessage,
-          setIsAIDetecting
+      if (Array.isArray(aiData.vertebrae) && aiData.vertebrae.length > 0) {
+        setVertebraeLayer(aiData.vertebrae);
+        setKeypoints(
+          vertebraeLayerToKeypoints(
+            aiData.vertebrae,
+            imageData.examType,
+            aiData.cfh ?? null
+          )
         );
-      } else if (isLateralView) {
-        void (async () => {
-          try {
-            let detectResult = lateralDetectionResultRef.current;
-            if (!detectResult) {
-              detectResult = await detectLateralVertebrae(imageId);
-              if (!detectResult || detectResult.vertebrae.length === 0) return;
-              lateralDetectionResultRef.current = detectResult;
-            }
-
-            const derived = deriveAllMeasurements(
-              detectResult.vertebrae,
-              detectResult.cfh,
-              imageData.examType
-            );
-
-            const derivedNonS1WithValues = derived
-              .filter(
-                measurement =>
-                  !S1_RELATED_TYPES.has(getAnnotationTypeId(measurement.type))
-              )
-              .map(measurement => ({
-                ...measurement,
-                value: calculateMeasurementValue(
-                  measurement.type,
-                  measurement.points,
-                  calculationContext
-                ),
-              }));
-
-            if (derivedNonS1WithValues.length === 0) return;
-
-            setMeasurements(previous => {
-              const existingTypeIds = new Set(
-                previous.map(measurement =>
-                  getAnnotationTypeId(measurement.type)
-                )
-              );
-              const missing = derivedNonS1WithValues.filter(
-                measurement =>
-                  !existingTypeIds.has(getAnnotationTypeId(measurement.type))
-              );
-              if (missing.length === 0) return previous;
-              console.log(
-                `[handleAIMeasurement] 侧位推导补全 ${missing.length} 个测量:`,
-                missing.map(measurement => measurement.type)
-              );
-              return [...previous, ...missing];
-            });
-          } catch (error) {
-            console.warn(
-              '[handleAIMeasurement] 侧位推导补全失败，跳过:',
-              error
-            );
-          }
-        })();
+        setShowVertebraeLayer(true);
+      } else {
+        setVertebraeLayer([]);
+        setKeypoints([]);
+        setShowVertebraeLayer(false);
       }
+      setCfhAnnotation(aiData.cfh ?? null);
+      setIsAIDetecting(false);
     } else {
       setSaveMessage('AI测量完成，但未返回有效数据');
       setTimeout(() => setSaveMessage(''), 3000);

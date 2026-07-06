@@ -31,12 +31,12 @@
 ├── 后端 (Python 3.12 + FastAPI)
 │   ├── REST API 服务
 │   ├── 对象存储网关 (调用 storage-service)
-│   └── AI 推理代理 (调用 zhengmian / cemian 服务)
+│   └── AI 推理代理 (调用 ap / lat 服务)
 ├── storage-service (Go)          # MinIO 访问中间层
 │   └── MinIO                     # 影像文件对象存储
 ├── AI 推理服务 (Python + YOLO)
-│   ├── zhengmian (正位, :8001)   # Cobb 角等脊柱正位指标
-│   └── cemian (侧位, :8002)      # SVA/PI 等脊柱侧位指标
+│   ├── ap (正位, :8001)   # Cobb 角等脊柱正位指标
+│   └── lat (侧位, :8002)      # SVA/PI 等脊柱侧位指标
 ├── communication (可选)           # 扫描机本地 DICOM 文件索引服务
 ├── mobile (KMP)                   # Android + iOS 移动端
 ├── 数据库层
@@ -83,8 +83,8 @@ XieHe-System/
 │   ├── alembic/         # 数据库迁移脚本（0001→0004）
 │   └── tests/           # 单元测试 + 集成测试
 ├── 📁 model/             # AI 推理服务
-│   ├── zhengmian/       # 正位脊柱分析（端口 8001）
-│   ├── cemian/          # 侧位脊柱分析（端口 8002）
+│   ├── ap/       # 正位脊柱分析（端口 8001）
+│   ├── lat/          # 侧位脊柱分析（端口 8002）
 │   └── AI_HOST_DEPLOYMENT.md  # 权重下载与本地部署指南
 ├── 📁 mobile/            # KMP 移动端（Android + iOS）
 ├── 📁 communication/     # 扫描机端 DICOM 文件索引服务（可选）
@@ -161,12 +161,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 # 从 GitHub Releases 下载权重（见 model/AI_HOST_DEPLOYMENT.md）
 
 # 构建并启动正面服务（Cobb 角等）
-docker build -t xiehe-ai-zhengmian:local model/zhengmian/
-docker run -d --name xiehe-ai-zhengmian -p 8001:8001 xiehe-ai-zhengmian:local
+docker build -t xiehe-ai-ap:local model/ap/
+docker run -d --name xiehe-ai-ap -p 8001:8001 xiehe-ai-ap:local
 
 # 构建并启动侧面服务（SVA/PI 等）
-docker build -t xiehe-ai-cemian:local model/cemian/
-docker run -d --name xiehe-ai-cemian -p 8002:8002 xiehe-ai-cemian:local
+docker build -t xiehe-ai-lat:local model/lat/
+docker run -d --name xiehe-ai-lat -p 8002:8002 xiehe-ai-lat:local
 
 # 确认健康
 curl http://localhost:8001/health

@@ -233,6 +233,6 @@ flowchart TD
 | 影像文件 AI 转发 | `backend/app/api/v1/endpoints/imaging/handlers/files.py` | 根据检查类型选择正位/侧位 object 接口，向模型服务发送对象存储位置 |
 | 测量标注保存 | `backend/app/api/v1/endpoints/imaging/handlers/annotations.py` | 保存医生确认或修正后的测量数据，并更新影像状态 |
 | 影像 API 路由 | `backend/app/api/v1/endpoints/imaging/router.py` | 聚合 upload、image-files、measurements、ai-diagnosis 和 models 路由 |
-| 正位模型服务 | `model/zhengmian/README.md` | 说明正位 `/predict`、`/detect_keypoints`、关键点和测量项输出 |
-| 侧位模型服务 | `model/cemian/README.md` | 说明侧位检测、关键点生成和指标计算三步流程 |
+| 正位模型服务 | `model/ap/README.md` | 说明正位 `/predict`、`/detect_keypoints`、关键点和测量项输出 |
+| 侧位模型服务 | `model/lat/README.md` | 说明侧位检测、关键点生成和指标计算三步流程 |
 

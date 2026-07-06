@@ -380,9 +380,9 @@ def _model_object_payload(image: ImageFile) -> dict[str, str]:
 def _get_ai_object_url(image: ImageFile, operation: str) -> str:
     if operation == "predict":
         url = (
-            settings.AI_LATERAL_PREDICT_OBJECT_URL
+            settings.AI_LAT_MEASUREMENT_OBJECT_URL
             if _is_lateral_image(image)
-            else settings.AI_FRONT_PREDICT_OBJECT_URL
+            else settings.AI_AP_MEASUREMENT_OBJECT_URL
         )
     elif operation == "detect-keypoints":
         url = (

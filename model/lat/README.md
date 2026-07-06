@@ -1,4 +1,4 @@
-# 脊柱分析服务——侧面（cemian）
+# 脊柱分析服务——侧面（lat）
 
 基于 FastAPI + YOLO 的侧面脊柱 X 光片分析服务，运行于端口 **8002**。
 
@@ -26,7 +26,7 @@
 ## 📁 目录结构
 
 ```
-model/cemian/
+model/lat/
 ├── app.py                    # FastAPI 应用
 ├── config.py                 # 配置（端口等）
 ├── models.py                 # 数据模型
@@ -48,7 +48,7 @@ model/cemian/
 权重文件**不在 Git 仓库中**，从 GitHub Releases 下载：
 
 ```bash
-cd XieHe-System/model/cemian
+cd XieHe-System/model/lat
 mkdir -p models
 
 # 替换 <TAG> 为实际版本号
@@ -64,8 +64,8 @@ curl -L "https://github.com/CarLor02/XieHe-System/releases/download/<TAG>/cfh_mo
 
 ```bash
 # 在 XieHe-System 目录执行
-docker build -t xiehe-ai-cemian:local model/cemian/
-docker run -d --name xiehe-ai-cemian -p 8002:8002 xiehe-ai-cemian:local
+docker build -t xiehe-ai-lat:local model/lat/
+docker run -d --name xiehe-ai-lat -p 8002:8002 xiehe-ai-lat:local
 
 # 验证
 curl http://localhost:8002/health
@@ -74,7 +74,7 @@ curl http://localhost:8002/health
 ### 3. 直接运行（开发调试）
 
 ```bash
-cd XieHe-System/model/cemian
+cd XieHe-System/model/lat
 pip install -r requirements.txt
 python3 app.py
 ```
@@ -113,7 +113,7 @@ curl -X POST http://localhost:8002/api/detect_and_keypoints \
 | 端点 | 说明 |
 |---|---|
 | `POST /api/detect_object` | 文件对象检测 |
-| `POST /api/detect_and_keypoints_object` | 文件对象检测 + 测量点（生产主接口）|
+| `POST /api/measurement` | 文件对象检测 + 测量点（生产主接口）|
 
 **请求体 (JSON):**
 ```json

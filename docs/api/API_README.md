@@ -678,7 +678,7 @@ POST /api/v1/upload/image
 |------|------|------|------|
 | `file` | File | ✓ | 影像文件（DICOM、JPG、PNG等） |
 | `patient_id` | int | ✓ | 患者ID |
-| `exam_type` | string | ✓ | 检查类型（zhengmian/cemian） |
+| `exam_type` | string | ✓ | 检查类型（ap/lat） |
 | `description` | string | ✗ | 描述信息 |
 
 **响应**:
@@ -694,7 +694,7 @@ POST /api/v1/upload/image
       "file_size": 2048576,
       "mime_type": "image/jpeg",
       "patient_id": 1,
-      "exam_type": "zhengmian",
+      "exam_type": "ap",
       "uploaded_at": "2025-01-30T10:00:00Z"
     }
   },
@@ -758,7 +758,7 @@ POST /api/v1/measurements/
 {
   "imageId": "IMG001",
   "patientId": 1,
-  "examType": "zhengmian",
+  "examType": "ap",
   "measurements": [
     {
       "type": "Cobb-Thoracic",
@@ -795,7 +795,7 @@ POST /api/v1/measurements/
 
 #### 6.1 获取影像文件列表
 ```http
-GET /api/v1/image-files/?patient_id=1&exam_type=zhengmian
+GET /api/v1/image-files/?patient_id=1&exam_type=ap
 ```
 
 **Headers**: `Authorization: Bearer <token>`
@@ -822,7 +822,7 @@ GET /api/v1/image-files/?patient_id=1&exam_type=zhengmian
         "file_size": 2048576,
         "patient_id": 1,
         "patient_name": "张三",
-        "exam_type": "zhengmian",
+        "exam_type": "ap",
         "uploaded_at": "2025-01-30T10:00:00Z"
       }
     ],
@@ -871,7 +871,7 @@ POST /api/v1/reports/
 {
   "patient_id": 1,
   "image_file_id": 1,
-  "exam_type": "zhengmian",
+  "exam_type": "ap",
   "findings": "胸弯Cobb角25.3度，左凸畸形",
   "diagnosis": "脊柱侧弯",
   "recommendations": "建议进一步治疗",
@@ -926,7 +926,7 @@ GET /api/v1/reports/?page=1&patient_id=1&status=completed
         "report_number": "R20250130001",
         "patient_id": 1,
         "patient_name": "张三",
-        "exam_type": "zhengmian",
+        "exam_type": "ap",
         "status": "completed",
         "priority": "normal",
         "created_at": "2025-01-30T10:00:00Z",
@@ -964,7 +964,7 @@ GET /api/v1/reports/{report_id}
     "patient_id": 1,
     "patient_name": "张三",
     "image_file_id": 1,
-    "exam_type": "zhengmian",
+    "exam_type": "ap",
     "findings": "胸弯Cobb角25.3度，左凸畸形",
     "diagnosis": "脊柱侧弯",
     "recommendations": "建议进一步治疗",
@@ -1018,13 +1018,13 @@ GET /api/v1/ai-diagnosis/models
   "data": {
     "models": [
       {
-        "name": "zhengmian",
+        "name": "ap",
         "description": "脊柱正位X光分析模型",
         "classes": ["C7", "T1-T12", "L1-L5"],
         "is_loaded": true
       },
       {
-        "name": "cemian",
+        "name": "lat",
         "description": "脊柱侧位X光分析模型",
         "classes": ["vertebrae"],
         "is_loaded": true
@@ -1048,7 +1048,7 @@ POST /api/v1/ai-diagnosis/analyze
 ```json
 {
   "image_id": "IMG001",
-  "model_name": "zhengmian",
+  "model_name": "ap",
   "patient_id": "1",
   "priority": "normal"
 }
@@ -1201,7 +1201,7 @@ GET /api/v1/health/
   "file_size": 2048576,
   "mime_type": "image/jpeg",
   "patient_id": 1,
-  "exam_type": "zhengmian",
+  "exam_type": "ap",
   "description": "脊柱正位X光",
   "uploaded_by": 1,
   "uploaded_at": "2025-01-30T10:00:00Z"
@@ -1232,7 +1232,7 @@ GET /api/v1/health/
   "report_number": "R20250130001",
   "patient_id": 1,
   "image_file_id": 1,
-  "exam_type": "zhengmian",
+  "exam_type": "ap",
   "findings": "胸弯Cobb角25.3度，左凸畸形",
   "diagnosis": "脊柱侧弯",
   "recommendations": "建议进一步治疗",
@@ -1444,7 +1444,7 @@ with open("spine_xray.jpg", "rb") as f:
     files = {"file": f}
     data = {
         "patient_id": 1,
-        "exam_type": "zhengmian"
+        "exam_type": "ap"
     }
     upload_response = requests.post(
         f"{BASE_URL}/upload/image",
@@ -1563,7 +1563,7 @@ curl -X POST http://localhost:8000/api/v1/upload/image \
   -H "Authorization: Bearer <your_token>" \
   -F "file=@spine_xray.jpg" \
   -F "patient_id=1" \
-  -F "exam_type=zhengmian"
+  -F "exam_type=ap"
 ```
 
 ---
@@ -1616,7 +1616,7 @@ curl -X POST http://localhost:8000/api/v1/upload/image \
 
 ### A. 模型服务API
 
-模型服务独立部署，详见 [模型API文档](./model/zhengmian/backend/readme_API.md)
+模型服务独立部署，详见 [模型API文档](./model/ap/backend/readme_API.md)
 
 **模型服务地址**: `http://localhost:8001`
 

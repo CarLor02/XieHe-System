@@ -34,6 +34,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import cv2
 from ultralytics import YOLO
+from measurement_pipeline import derive_measurements_from_keypoints
 
 # ==================== 配置 ====================
 POSE_MODEL_PATH = "weights/pose.pt"
@@ -48,6 +49,7 @@ class PointXY(BaseModel):
 class Measurement(BaseModel):
     type: str
     points: List[PointXY]
+    value: Optional[str] = None
     angle: Optional[float] = None  # Cobb角的角度值
     upper_vertebra: Optional[str] = None  # 上端椎（例如 "T6"）
     lower_vertebra: Optional[str] = None  # 下端椎（例如 "T12"）
@@ -59,6 +61,9 @@ class AnnotationsResponse(BaseModel):
     imageWidth: int
     imageHeight: int
     measurements: List[Measurement]
+    vertebrae: Optional[List[dict]] = None
+    cfh: Optional[dict] = None
+    raw_keypoints: Optional[dict] = None
 
 
 class ObjectImageRequest(BaseModel):
@@ -123,6 +128,10 @@ def decode_image(contents: bytes):
 
 
 def predict_image(img, image_id: str):
+    return measurement_image(img, image_id)
+
+
+def measurement_image(img, image_id: str):
     image_height, image_width = img.shape[:2]
 
     pose_data = infer_pose(img)
@@ -132,7 +141,13 @@ def predict_image(img, image_id: str):
         print("[INFO] Pose detection failed, falling back to anatomical estimation from vertebrae.")
         pose_data = estimate_pose_from_vertebrae(vertebrae_data)
 
-    return convert_to_annotations(pose_data, vertebrae_data, image_id, image_width, image_height)
+    return derive_measurements_from_keypoints(
+        pose_data,
+        vertebrae_data,
+        image_id=image_id,
+        image_width=image_width,
+        image_height=image_height,
+    )
 
 
 def detect_keypoints_image(img, image_id: str):
@@ -965,11 +980,11 @@ async def predict(
     return predict_image(img, image_id)
 
 
-@app.post("/predict_object", response_model=AnnotationsResponse, response_model_exclude_none=True)
-async def predict_object(request: ObjectImageRequest):
+@app.post("/api/measurement", response_model=AnnotationsResponse, response_model_exclude_none=True)
+async def measure_object(request: ObjectImageRequest):
     contents = fetch_object_image_bytes(request.bucket, request.object_key)
     img = decode_image(contents)
-    return predict_image(img, request.image_id or "IMG001")
+    return measurement_image(img, request.image_id or "IMG001")
 
 
 @app.post("/detect_keypoints")

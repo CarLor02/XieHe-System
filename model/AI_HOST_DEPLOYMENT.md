@@ -2,12 +2,12 @@
 
 ## 问题描述
 
-当 AI 模型服务（zhengmian/cemian）运行在**宿主机**而不是 Docker 容器内时，需要特殊的配置才能访问 Docker 内的 storage-service。
+当 AI 模型服务（ap/lat）运行在**宿主机**而不是 Docker 容器内时，需要特殊的配置才能访问 Docker 内的 storage-service。
 
 ### 403 错误原因
 
 ```
-INFO:     172.19.0.6:39608 - "POST /predict_object HTTP/1.1" 403 Forbidden
+INFO:     172.19.0.6:39608 - "POST /api/measurement HTTP/1.1" 403 Forbidden
 ```
 
 **根本原因**：
@@ -24,8 +24,8 @@ INFO:     172.19.0.6:39608 - "POST /predict_object HTTP/1.1" 403 Forbidden
 │                                         │
 │  ┌──────────────────────────────────┐   │
 │  │ AI 模型服务 (Port 8001/8002)      │   │
-│  │ - zhengmian: 8001                │   │
-│  │ - cemian: 8002                   │   │
+│  │ - ap: 8001                │   │
+│  │ - lat: 8002                   │   │
 │  └──────────────────────────────────┘   │
 │           │                             │
 │           │ 需要访问                     │
@@ -89,7 +89,7 @@ curl http://localhost:8090/health
 **正确的启动命令**（修复 403 错误）：
 
 ```bash
-cd ~/Documents/XieHe-System/model/zhengmian
+cd ~/Documents/XieHe-System/model/ap
 
 # 从 dotenv 读取 token
 TOKEN=$(grep "^STORAGE_SERVICE_TOKEN=" ~/Documents/XieHe-System/dotenv/.env.storage | cut -d= -f2)
@@ -117,7 +117,7 @@ STORAGE_SERVICE_TOKEN=$TOKEN \
 curl http://localhost:8001/health
 
 # 测试预测接口
-curl -X POST http://localhost:8001/predict_object \
+curl -X POST http://localhost:8001/api/measurement \
   -H "Content-Type: application/json" \
   -d '{
     "bucket": "medical-image-files",
@@ -132,7 +132,7 @@ curl -X POST http://localhost:8001/predict_object \
 
 ```yaml
 services:
-  ai-zhengmian:
+  ai-ap:
     environment:
       STORAGE_SERVICE_URL: ${STORAGE_SERVICE_URL:-http://storage-service:8090}
       STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}

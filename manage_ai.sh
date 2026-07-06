@@ -1,6 +1,6 @@
 #!/bin/bash
 # AI 服务管理脚本
-# 用于统一管理 zhengmian 和 cemian AI 服务
+# 用于统一管理 ap 和 lat AI 服务
 
 set -e
 
@@ -13,8 +13,8 @@ NC='\033[0m' # No Color
 
 # 项目根目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ZHENGMIAN_SCRIPT="$SCRIPT_DIR/model/zhengmian/start_host.sh"
-CEMIAN_SCRIPT="$SCRIPT_DIR/model/cemian/start_host.sh"
+AP_SCRIPT="$SCRIPT_DIR/model/ap/start_host.sh"
+LAT_SCRIPT="$SCRIPT_DIR/model/lat/start_host.sh"
 
 print_header() {
     echo -e "${GREEN}========================================${NC}"
@@ -36,12 +36,12 @@ print_info() {
 
 # 检查脚本是否存在
 check_scripts() {
-    if [ ! -f "$ZHENGMIAN_SCRIPT" ]; then
-        print_error "未找到 zhengmian 启动脚本: $ZHENGMIAN_SCRIPT"
+    if [ ! -f "$AP_SCRIPT" ]; then
+        print_error "未找到 ap 启动脚本: $AP_SCRIPT"
         exit 1
     fi
-    if [ ! -f "$CEMIAN_SCRIPT" ]; then
-        print_error "未找到 cemian 启动脚本: $CEMIAN_SCRIPT"
+    if [ ! -f "$LAT_SCRIPT" ]; then
+        print_error "未找到 lat 启动脚本: $LAT_SCRIPT"
         exit 1
     fi
 }
@@ -50,12 +50,12 @@ check_scripts() {
 start_all() {
     print_header "启动所有 AI 服务"
     
-    echo -e "${BLUE}启动正面模型服务 (zhengmian)...${NC}"
-    "$ZHENGMIAN_SCRIPT" || print_error "正面模型启动失败"
+    echo -e "${BLUE}启动正面模型服务 (ap)...${NC}"
+    "$AP_SCRIPT" || print_error "正面模型启动失败"
     echo ""
     
-    echo -e "${BLUE}启动侧面模型服务 (cemian)...${NC}"
-    "$CEMIAN_SCRIPT" || print_error "侧面模型启动失败"
+    echo -e "${BLUE}启动侧面模型服务 (lat)...${NC}"
+    "$LAT_SCRIPT" || print_error "侧面模型启动失败"
     echo ""
     
     print_success "所有服务启动完成"
@@ -65,12 +65,12 @@ start_all() {
 stop_all() {
     print_header "停止所有 AI 服务"
     
-    echo -e "${BLUE}停止正面模型服务 (zhengmian)...${NC}"
-    "$ZHENGMIAN_SCRIPT" --stop || true
+    echo -e "${BLUE}停止正面模型服务 (ap)...${NC}"
+    "$AP_SCRIPT" --stop || true
     echo ""
     
-    echo -e "${BLUE}停止侧面模型服务 (cemian)...${NC}"
-    "$CEMIAN_SCRIPT" --stop || true
+    echo -e "${BLUE}停止侧面模型服务 (lat)...${NC}"
+    "$LAT_SCRIPT" --stop || true
     echo ""
     
     print_success "所有服务已停止"
@@ -89,12 +89,12 @@ restart_all() {
 status_all() {
     print_header "AI 服务状态"
     
-    echo -e "${BLUE}正面模型服务 (zhengmian, 端口 8001):${NC}"
-    "$ZHENGMIAN_SCRIPT" --status || true
+    echo -e "${BLUE}正面模型服务 (ap, 端口 8001):${NC}"
+    "$AP_SCRIPT" --status || true
     echo ""
     
-    echo -e "${BLUE}侧面模型服务 (cemian, 端口 8002):${NC}"
-    "$CEMIAN_SCRIPT" --status || true
+    echo -e "${BLUE}侧面模型服务 (lat, 端口 8002):${NC}"
+    "$LAT_SCRIPT" --status || true
 }
 
 # 查看所有服务日志
@@ -102,12 +102,12 @@ logs_all() {
     print_header "查看所有 AI 服务日志"
     print_info "提示: 使用 Ctrl+C 退出日志查看"
     print_info "日志文件位置:"
-    echo -e "  - ${BLUE}logs/ai/zhengmian.log${NC}"
-    echo -e "  - ${BLUE}logs/ai/cemian.log${NC}"
+    echo -e "  - ${BLUE}logs/ai/ap.log${NC}"
+    echo -e "  - ${BLUE}logs/ai/lat.log${NC}"
     echo ""
     
     # 同时查看两个日志文件
-    tail -f logs/ai/zhengmian.log logs/ai/cemian.log
+    tail -f logs/ai/ap.log logs/ai/lat.log
 }
 
 # 显示帮助

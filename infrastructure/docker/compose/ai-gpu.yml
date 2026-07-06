@@ -3,7 +3,7 @@
 # Usage: docker compose -f ai.yml -f ai-gpu.yml ...
 
 services:
-  ai-zhengmian:
+  ai-ap:
     deploy:
       resources:
         reservations:
@@ -12,7 +12,7 @@ services:
               count: all
               capabilities: [gpu]
 
-  ai-cemian:
+  ai-lat:
     deploy:
       resources:
         reservations:

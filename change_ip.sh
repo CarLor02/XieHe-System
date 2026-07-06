@@ -273,20 +273,20 @@ main() {
         print_error "Frontend 无法访问: http://$NEW_IP:3030"
     fi
 
-    # 测试 AI zhengmian
+    # 测试 AI ap
     if curl -s -f "http://$NEW_IP:8001/health" > /dev/null 2>&1; then
-        print_success "AI zhengmian 可访问: http://$NEW_IP:8001"
+        print_success "AI ap 可访问: http://$NEW_IP:8001"
         ((SUCCESS_COUNT++))
     else
-        print_error "AI zhengmian 无法访问: http://$NEW_IP:8001"
+        print_error "AI ap 无法访问: http://$NEW_IP:8001"
     fi
 
-    # 测试 AI cemian
+    # 测试 AI lat
     if curl -s -f "http://$NEW_IP:8002/health" > /dev/null 2>&1; then
-        print_success "AI cemian 可访问: http://$NEW_IP:8002"
+        print_success "AI lat 可访问: http://$NEW_IP:8002"
         ((SUCCESS_COUNT++))
     else
-        print_error "AI cemian 无法访问: http://$NEW_IP:8002"
+        print_error "AI lat 无法访问: http://$NEW_IP:8002"
     fi
 
     echo ""

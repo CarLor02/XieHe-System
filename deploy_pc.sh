@@ -10,7 +10,7 @@
 #   ./deploy_pc.sh [OPTIONS]
 #
 # 选项:
-#   --with-ai          同时部署 AI 推理服务（zhengmian + cemian）
+#   --with-ai          同时部署 AI 推理服务（ap + lat）
 #   --gpu              AI 服务使用 NVIDIA GPU（需 nvidia-container-toolkit）
 #   --ip <IP>          手动指定局域网 IP（默认自动检测）
 #   --update-ip        仅更新 IP（不重新部署），IP 变化时使用
@@ -30,10 +30,10 @@
 #常见命令
 #git fetch origin && git reset --hard origin/main 拉取
 #./deploy_pc.sh --skip-pull --reset-env 重建参数，修改后不会覆盖数据库愿密码
-#./model/zhengmian/start_host.sh --stop
-#./model/zhengmian/start_host.sh --stop
+#./model/ap/start_host.sh --stop
+#./model/ap/start_host.sh --stop
 # 停止所有 uvicorn 进程（小心，会停掉所有 uvicorn） pkill -f "uvicorn app:app"
-# 启动所有 AI 服务（zhengmian + cemian）./manage_ai.sh start
+# 启动所有 AI 服务（ap + lat）./manage_ai.sh start
 # 停止所有 AI 服务 ./manage_ai.sh stop
 # 重启所有 AI 服务 ./manage_ai.sh restart
 # 查看所有服务状态 ./manage_ai.sh status
@@ -355,9 +355,9 @@ EOF
 JWT_SECRET_KEY=${JWT_SECRET}
 FORWARDED_ALLOW_IPS=*
 BACKEND_CORS_ORIGINS=http://${LAN_IP}:3030,http://localhost:3030
-AI_FRONT_PREDICT_OBJECT_URL=http://${LAN_IP}:8001/predict_object
+AI_AP_MEASUREMENT_OBJECT_URL=http://${LAN_IP}:8001/api/measurement
 AI_FRONT_KEYPOINTS_OBJECT_URL=http://${LAN_IP}:8001/detect_keypoints_object
-AI_LATERAL_PREDICT_OBJECT_URL=http://${LAN_IP}:8002/api/detect_and_keypoints_object
+AI_LAT_MEASUREMENT_OBJECT_URL=http://${LAN_IP}:8002/api/measurement
 AI_LATERAL_DETECT_OBJECT_URL=http://${LAN_IP}:8002/api/detect_object
 EOF
 
@@ -392,8 +392,8 @@ generate_ai_dotenv() {
     [ -f "$DOTENV_DIR/.env.storage" ] && \
         storage_token=$(grep "^STORAGE_SERVICE_TOKEN=" "$DOTENV_DIR/.env.storage" | cut -d= -f2)
     cat > "$file" <<EOF
-AI_ZHENGMIAN_PORT_BIND=0.0.0.0:8001:8001
-AI_CEMIAN_PORT_BIND=0.0.0.0:8002:8002
+AI_AP_PORT_BIND=0.0.0.0:8001:8001
+AI_LAT_PORT_BIND=0.0.0.0:8002:8002
 # Docker AI 容器与 storage-service 同在 medical_network，直接访问内部地址
 STORAGE_SERVICE_URL=http://storage-service:8090
 STORAGE_SERVICE_TOKEN=${storage_token}
@@ -452,7 +452,7 @@ build_docker_images() {
     print_success "主系统镜像构建完成"
 
     if [ "$WITH_AI" = "1" ]; then
-        print_step "构建 AI 推理镜像（zhengmian / cemian）..."
+        print_step "构建 AI 推理镜像（ap / lat）..."
         ai_compose build "${build_args[@]}" || { print_error "AI 镜像构建失败"; exit 1; }
         print_success "AI 镜像构建完成"
     fi
@@ -503,8 +503,8 @@ health_check() {
     wait_http "MinIO"    "http://localhost:9000/minio/health/live" 10
 
     if [ "$WITH_AI" = "1" ]; then
-        wait_http "AI 正面服务 (zhengmian)" "http://localhost:8001/health" 30
-        wait_http "AI 侧面服务 (cemian)"    "http://localhost:8002/health" 30
+        wait_http "AI 正面服务 (ap)" "http://localhost:8001/health" 30
+        wait_http "AI 侧面服务 (lat)"    "http://localhost:8002/health" 30
     fi
 }
 
@@ -626,8 +626,8 @@ print_summary() {
     echo -e "  ${YELLOW}重启服务：${NC}   ./scripts/compose.sh restart"
     echo -e "  ${YELLOW}查看状态：${NC}   ./scripts/compose.sh ps"
     if [ "$WITH_AI" = "1" ]; then
-        echo -e "  ${YELLOW}AI 日志：${NC}    docker logs -f medical_ai_zhengmian"
-        echo -e "             docker logs -f medical_ai_cemian"
+        echo -e "  ${YELLOW}AI 日志：${NC}    docker logs -f medical_ai_ap"
+        echo -e "             docker logs -f medical_ai_lat"
     fi
     echo ""
     echo -e "${CYAN}配置文件位于：${NC} ${PROJECT_DIR}/dotenv/"
@@ -642,8 +642,8 @@ print_summary() {
         echo -e "  ${YELLOW}cd ${PROJECT_DIR}${NC}"
         echo -e "  ${YELLOW}export STORAGE_SERVICE_URL=http://localhost:8090${NC}"
         echo -e "  ${YELLOW}export STORAGE_SERVICE_TOKEN=${storage_token}${NC}"
-        echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8001 --app-dir model/zhengmian &${NC}"
-        echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8002 --app-dir model/cemian &${NC}"
+        echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8001 --app-dir model/ap &${NC}"
+        echo -e "  ${YELLOW}uvicorn app:app --host 0.0.0.0 --port 8002 --app-dir model/lat &${NC}"
         echo ""
         echo -e "${CYAN}IP 变更后更新配置：${NC}"
         echo -e "  ${YELLOW}./deploy_pc.sh --update-ip${NC}"

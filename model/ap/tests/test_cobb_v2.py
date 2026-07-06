@@ -62,7 +62,8 @@ def _install_dependency_stubs() -> None:
 
 def load_app_module():
     _install_dependency_stubs()
-    spec = importlib.util.spec_from_file_location("zhengmian_app_for_test", ROOT / "app.py")
+    sys.path.insert(0, str(ROOT))
+    spec = importlib.util.spec_from_file_location("ap_app_for_test", ROOT / "app.py")
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     spec.loader.exec_module(module)

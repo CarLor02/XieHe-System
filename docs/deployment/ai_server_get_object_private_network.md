@@ -9,8 +9,8 @@
 
 ```text
 <COMPOSE_PRIVATE_IP>       运行 frontend/backend/storage-service/minio 的机器
-<FRONT_MODEL_PRIVATE_IP>   正位模型服务器
-<LATERAL_MODEL_PRIVATE_IP> 侧位模型服务器
+<AP_MODEL_PRIVATE_IP>   正位模型服务器
+<LAT_MODEL_PRIVATE_IP> 侧位模型服务器
 ```
 
 涉及 token：
@@ -71,10 +71,10 @@ USER_AVATAR_BUCKET=medical-user-avatars
 编辑 Compose 机器上的 `dotenv/.env.backend`，增加或确认：
 
 ```shell
-AI_FRONT_PREDICT_OBJECT_URL=http://<FRONT_MODEL_PRIVATE_IP>:8001/predict_object
-AI_FRONT_KEYPOINTS_OBJECT_URL=http://<FRONT_MODEL_PRIVATE_IP>:8001/detect_keypoints_object
-AI_LATERAL_PREDICT_OBJECT_URL=http://<LATERAL_MODEL_PRIVATE_IP>:8002/api/detect_and_keypoints_object
-AI_LATERAL_DETECT_OBJECT_URL=http://<LATERAL_MODEL_PRIVATE_IP>:8002/api/detect_object
+AI_AP_MEASUREMENT_OBJECT_URL=http://<AP_MODEL_PRIVATE_IP>:8001/api/measurement
+AI_FRONT_KEYPOINTS_OBJECT_URL=http://<AP_MODEL_PRIVATE_IP>:8001/detect_keypoints_object
+AI_LAT_MEASUREMENT_OBJECT_URL=http://<LAT_MODEL_PRIVATE_IP>:8002/api/measurement
+AI_LATERAL_DETECT_OBJECT_URL=http://<LAT_MODEL_PRIVATE_IP>:8002/api/detect_object
 ```
 
 不要再把这四个 object URL 配到 `dotenv/.env.frontend` 的 `NEXT_PUBLIC_*` 中。前端现在只调用后端 `/api/v1/image-files/{file_id}/ai/*`。
@@ -84,7 +84,7 @@ AI_LATERAL_DETECT_OBJECT_URL=http://<LATERAL_MODEL_PRIVATE_IP>:8002/api/detect_o
 编辑 Compose 机器上的 `dotenv/.env.frontend`：
 
 ```shell
-MODEL_STORAGE_ALLOWED_CIDR=<FRONT_MODEL_PRIVATE_IP>/32
+MODEL_STORAGE_ALLOWED_CIDR=<AP_MODEL_PRIVATE_IP>/32
 ```
 
 如果正位和侧位模型不在同一台机器，而当前只使用一个 Nginx allow 变量，可以先放行模型服务器所在内网网段：
@@ -157,7 +157,7 @@ proxy_pass http://storage-service:8090/objects/;
 
 ## 7. 配置并部署正位模型服务器
 
-在正位模型服务器编辑 `model/zhengmian/.env.build`：
+在正位模型服务器编辑 `model/ap/.env.build`：
 
 ```shell
 IMAGE_NAME=spine-analysis-api
@@ -181,7 +181,7 @@ PROXY_PORT=<proxy-port>
 部署：
 
 ```shell
-cd /path/to/XieHe-System/model/zhengmian
+cd /path/to/XieHe-System/model/ap
 ./deploy.sh
 ```
 
@@ -194,7 +194,7 @@ docker logs --tail=100 spine-api
 
 ## 8. 配置并部署侧位模型服务器
 
-在侧位模型服务器编辑 `model/cemian/.env.build`：
+在侧位模型服务器编辑 `model/lat/.env.build`：
 
 ```shell
 IMAGE_NAME=spine-scoliosis-api
@@ -218,7 +218,7 @@ PROXY_PORT=<proxy-port>
 部署：
 
 ```shell
-cd /path/to/XieHe-System/model/cemian
+cd /path/to/XieHe-System/model/lat
 ./deploy.sh
 ```
 
@@ -309,8 +309,8 @@ POST /api/v1/image-files/<file_id>/ai/detect-keypoints
 `502 AI模型服务不可用`：后端访问不到模型服务，或模型服务访问内网拉图入口失败。分别在 Compose 机器和模型服务器上执行：
 
 ```shell
-curl -fsS http://<FRONT_MODEL_PRIVATE_IP>:8001/health
-curl -fsS http://<LATERAL_MODEL_PRIVATE_IP>:8002/health
+curl -fsS http://<AP_MODEL_PRIVATE_IP>:8001/health
+curl -fsS http://<LAT_MODEL_PRIVATE_IP>:8002/health
 docker logs --tail=100 spine-api
 docker logs --tail=100 spine-scoliosis-api
 ```
@@ -327,10 +327,10 @@ git revert <object-mode-commit>
 模型服务器同步回滚代码后，分别重新执行：
 
 ```shell
-cd /path/to/XieHe-System/model/zhengmian
+cd /path/to/XieHe-System/model/ap
 ./deploy.sh
 
-cd /path/to/XieHe-System/model/cemian
+cd /path/to/XieHe-System/model/lat
 ./deploy.sh
 ```
 

@@ -2,8 +2,8 @@
  * 椎体角点 → 测量数据推导函数
  *
  * 移植自后端：
- *   侧位：model/cemian/keypoints_service.py
- *   正位：model/zhengmian/app.py
+ *   侧位：model/lat/keypoints_service.py
+ *   正位：model/ap/app.py
  *
  * corners 约定（与 aiDetectionUseCase 保持一致）：
  *   [0]=TL(左上)  [1]=TR(右上)  [2]=BL(左下)  [3]=BR(右下)
@@ -171,7 +171,7 @@ function deriveLateral(
   return out;
 }
 
-// ─── 正位工具（移植自 zhengmian/app.py）────────────────────────────────────
+// ─── 正位工具（移植自 ap/app.py）────────────────────────────────────
 
 interface FrontalCorners {
   topLeft: Point;
