@@ -23,18 +23,18 @@ python3 -c "import fastapi, uvicorn, ultralytics" 2>/dev/null || {
 
 # 检查模型文件
 echo "🔍 检查模型文件..."
-CORNER_MODEL="models/corner_model.pt"
-CFH_MODEL="models/cfh_model.pt"
+CORNER_MODEL="weights/corner_model.pt"
+CFH_MODEL="weights/cfh_model.pt"
 
 if [ ! -f "$CORNER_MODEL" ]; then
     echo "❌ 错误: Corner模型不存在: $CORNER_MODEL"
-    echo "   请确保模型文件存在于 models/ 文件夹中"
+    echo "   请确保模型文件存在于 weights/ 文件夹中"
     exit 1
 fi
 
 if [ ! -f "$CFH_MODEL" ]; then
     echo "❌ 错误: CFH模型不存在: $CFH_MODEL"
-    echo "   请确保模型文件存在于 models/ 文件夹中"
+    echo "   请确保模型文件存在于 weights/ 文件夹中"
     exit 1
 fi
 

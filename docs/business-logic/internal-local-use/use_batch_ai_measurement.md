@@ -7,7 +7,7 @@
 - 图片必须按检查类型分批处理：正位图片使用 `model/ap`，侧位图片使用 `model/lat`。
 - 模型权重必须存在：
   - 正位：`model/ap/weights/pose.pt`、`model/ap/weights/pose_corner.pt`
-  - 侧位：`model/lat/models/corner_model.pt`、`model/lat/models/cfh_model.pt`
+  - 侧位：`model/lat/weights/corner_model.pt`、`model/lat/weights/cfh_model.pt`
 - 已安装对应模型目录依赖：
 
 ```bash

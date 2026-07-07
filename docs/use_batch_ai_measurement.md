@@ -9,7 +9,7 @@
    - 侧位：`model/lat/.venv`
 2. 模型权重已放在默认位置。
    - 正位：`model/ap/weights/pose.pt`、`model/ap/weights/pose_corner.pt`
-   - 侧位：`model/lat/models/corner_model.pt`、`model/lat/models/cfh_model.pt`
+   - 侧位：`model/lat/weights/corner_model.pt`、`model/lat/weights/cfh_model.pt`
 3. 图片是本地文件，不需要先上传到服务器或对象存储。
 4. 从仓库根目录执行命令，脚本会自动把 `model/` 加入 import path。
 

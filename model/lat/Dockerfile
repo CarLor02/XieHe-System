@@ -30,8 +30,8 @@ COPY lat/ ./lat/
 ARG WEIGHTS_CACHE_BUST=0
 RUN echo "$WEIGHTS_CACHE_BUST" > /dev/null
 
-# Copy model files
-COPY lat/models/ ./lat/models/
+# Copy model weights
+COPY lat/weights/ ./lat/weights/
 
 ENV YOLO_CONFIG_DIR=/tmp \
     MPLCONFIGDIR=/tmp/matplotlib

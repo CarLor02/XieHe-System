@@ -30,16 +30,16 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# 检查 models 目录是否存在
-if [ ! -d "$SCRIPT_DIR/models" ]; then
-    echo "❌ 错误：未找到 models/ 目录！"
-    echo "请确保模型文件在 models/ 目录中"
+# 检查 weights 目录是否存在
+if [ ! -d "$SCRIPT_DIR/weights" ]; then
+    echo "❌ 错误：未找到 weights/ 目录！"
+    echo "请确保模型文件在 weights/ 目录中"
     exit 1
 fi
 
 # 检查模型文件是否存在
-if [ ! -f "$SCRIPT_DIR/models/corner_model.pt" ] || [ ! -f "$SCRIPT_DIR/models/cfh_model.pt" ]; then
-    echo "⚠️  警告：在 models/ 目录中未找到模型文件"
+if [ ! -f "$SCRIPT_DIR/weights/corner_model.pt" ] || [ ! -f "$SCRIPT_DIR/weights/cfh_model.pt" ]; then
+    echo "⚠️  警告：在 weights/ 目录中未找到模型文件"
     echo "期望的文件: corner_model.pt, cfh_model.pt"
     read -p "是否继续？(y/n) " -n 1 -r
     echo

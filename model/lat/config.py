@@ -6,9 +6,9 @@ from pathlib import Path
 # 当前目录（6-app_backend）
 CURRENT_DIR = Path(__file__).parent
 
-# 模型路径（本地models文件夹）
-CORNER_MODEL_PATH = CURRENT_DIR / "models/corner_model.pt"
-CFH_MODEL_PATH = CURRENT_DIR / "models/cfh_model.pt"
+# 模型路径（本地 weights 文件夹）
+CORNER_MODEL_PATH = CURRENT_DIR / "weights" / "corner_model.pt"
+CFH_MODEL_PATH = CURRENT_DIR / "weights" / "cfh_model.pt"
 
 # 推理参数
 CORNER_CONF_THRESHOLD = 0.2  # Corner模型置信度阈值
@@ -28,4 +28,3 @@ VERTEBRA_NAMES = {
 
 # 反向映射
 VERTEBRA_IDS = {v: k for k, v in VERTEBRA_NAMES.items()}
-
