@@ -257,7 +257,7 @@ alembic downgrade -1
 
 ## 📚 相关文档
 
-- [数据库设计文档](../../../docs/architecture/database-design.md)
+- [数据库设计文档](../../../docs/architecture/database/database-design.md)
 - [API 接口文档](../../../docs/api/README.md)
 - [开发指南](../../../docs/development/README.md)
 
