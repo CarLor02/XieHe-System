@@ -121,7 +121,11 @@ export default function BatchImportOverlay({
               患者 <span className="text-red-500">*</span>
             </label>
             <div className="mb-6">
-              <PatientSearchSelect value={patientId} onChange={onPatientChange} />
+              <PatientSearchSelect
+                value={patientId}
+                onChange={onPatientChange}
+                dropdownContentClassName="z-[10001]"
+              />
             </div>
 
             <label htmlFor="batch-import-exam-type" className="mb-2 block text-sm font-medium text-gray-700">

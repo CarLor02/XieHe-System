@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import AppDropdown from './AppDropdown';
+import { cn } from '@/lib/utils';
 
 const DEFAULT_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -39,6 +40,7 @@ interface EntitySearchSelectProps<TItem> {
   getOptionValue: (item: TItem) => string;
   mapOption: (item: TItem) => EntitySearchSelectOptionView;
   onChange: (value: string, item: TItem | null) => void;
+  dropdownContentClassName?: string;
   testIds?: {
     primary?: string;
     name?: string;
@@ -68,6 +70,7 @@ export default function EntitySearchSelect<TItem>({
   getOptionValue,
   mapOption,
   onChange,
+  dropdownContentClassName,
   testIds,
 }: EntitySearchSelectProps<TItem>) {
   const [isOpen, setIsOpen] = useState(false);
@@ -170,7 +173,10 @@ export default function EntitySearchSelect<TItem>({
         open={isOpen}
         onOpenChange={handleOpenChange}
         align="start"
-        contentClassName="w-[var(--radix-dropdown-menu-trigger-width)] min-w-72 overflow-hidden"
+        contentClassName={cn(
+          'w-[var(--radix-dropdown-menu-trigger-width)] min-w-72 overflow-hidden',
+          dropdownContentClassName
+        )}
         trigger={
           <button
             type="button"

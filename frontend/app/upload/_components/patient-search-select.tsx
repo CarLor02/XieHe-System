@@ -12,6 +12,7 @@ const PAGE_SIZE = 10;
 interface PatientSearchSelectProps {
   value: string;
   onChange: (patientId: string) => void;
+  dropdownContentClassName?: string;
 }
 
 function formatPhone(patient: Patient) {
@@ -31,6 +32,7 @@ function formatAge(patient: Patient) {
 export default function PatientSearchSelect({
   value,
   onChange,
+  dropdownContentClassName,
 }: PatientSearchSelectProps) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
@@ -59,6 +61,7 @@ export default function PatientSearchSelect({
         secondary: `手机号：${formatPhone(patient)}`,
         meta: [formatGender(patient), formatAge(patient)],
       })}
+      dropdownContentClassName={dropdownContentClassName}
       onChange={(patientId, patient) => {
         setSelectedPatient(patient);
         onChange(patientId);

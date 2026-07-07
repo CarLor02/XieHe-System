@@ -1,14 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it, jest } from '@jest/globals';
+import { beforeEach, expect, it, jest } from '@jest/globals';
+import type { Patient } from '@/services/patientServices';
 
-jest.mock('@/app/upload/_components/patient-search-select', () => ({
+const mockGetPatients = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+
+jest.mock('@/services/patientServices', () => ({
   __esModule: true,
-  default: ({ onChange }: { onChange: (patientId: string) => void }) => (
-    <button type="button" onClick={() => onChange('3')}>
-      选择患者
-    </button>
-  ),
+  getPatients: (...args: unknown[]) => mockGetPatients(...args),
 }));
 
 jest.mock('@/components/common/TeamMultiSelect', () => ({
@@ -20,7 +19,9 @@ jest.mock('@/components/common/TeamMultiSelect', () => ({
   ),
 }));
 
-import BatchImportOverlay from './BatchImportOverlay';
+const BatchImportOverlay = jest.requireActual<
+  typeof import('./BatchImportOverlay')
+>('./BatchImportOverlay').default;
 
 const files = [
   {
@@ -40,6 +41,22 @@ const files = [
     aiStatus: 'pending' as const,
   },
 ];
+
+function makePatient(overrides: Partial<Patient> = {}): Patient {
+  return {
+    id: 3,
+    patient_id: 'P003',
+    name: '王丽',
+    gender: '女',
+    age: 35,
+    phone: '13800138003',
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  mockGetPatients.mockReset();
+});
 
 function renderOverlay(overrides = {}) {
   const props = {
@@ -91,4 +108,23 @@ it('renders batch file names and shared import options without crop controls', a
   expect(props.onExamTypeChange).toHaveBeenCalledWith('侧位X光片');
   expect(props.onToggleFlip).toHaveBeenCalledTimes(1);
   expect(props.onConfirm).toHaveBeenCalledTimes(1);
+});
+
+it('renders the patient list above the batch import overlay layer', async () => {
+  const user = userEvent.setup();
+  mockGetPatients.mockResolvedValue({
+    items: [makePatient()],
+    total: 1,
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+  });
+  renderOverlay();
+
+  await user.click(screen.getByRole('button', { name: /请选择患者/ }));
+
+  const listbox = await screen.findByRole('listbox');
+  const dropdownContent = listbox.closest('[data-side]');
+
+  expect(dropdownContent?.className).toContain('z-[10001]');
 });
