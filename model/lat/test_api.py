@@ -3,10 +3,13 @@
 测试API输出格式
 """
 import sys
-sys.path.insert(0, '.')
+from pathlib import Path
 
-from models import Point, VertebraDetection, CFHDetection
-from keypoints_service import compute_keypoints
+MODEL_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(MODEL_ROOT))
+
+from lat.domain.detection_models import Point, VertebraDetection, CFHDetection
+from lat.legacy.keypoints_service import compute_keypoints
 
 # 辅助函数：创建椎体
 def make_vertebra(label, y_start):
@@ -65,4 +68,3 @@ print(f"  - 指标数量: {len(output['measurements'])}")
 print("\n指标列表:")
 for m in output['measurements']:
     print(f"  - {m['type']}: {len(m['points'])} 个点")
-

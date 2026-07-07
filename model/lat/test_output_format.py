@@ -3,8 +3,14 @@
 测试输出格式
 """
 import json
-from models import Point, VertebraDetection, CFHDetection
-from keypoints_service import compute_keypoints
+import sys
+from pathlib import Path
+
+MODEL_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(MODEL_ROOT))
+
+from lat.domain.detection_models import Point, VertebraDetection, CFHDetection
+from lat.legacy.keypoints_service import compute_keypoints
 
 # 创建简单的测试数据
 def make_vertebra(label, y_start):
@@ -84,4 +90,3 @@ print("  TPA: 7 个点 (T1四个角点 + CFH + S1左 + S1右)")
 print("  PI: 3 个点 (CFH + S1左 + S1右)")
 print("  PT: 3 个点 (CFH + S1左 + S1右)")
 print("  SS: 2 个点")
-

@@ -8,7 +8,7 @@
 """
 import numpy as np
 from typing import Dict, Optional
-from models import Point, VertebraKeypoints
+from lat.domain.detection_models import Point, VertebraKeypoints
 
 
 class MetricsCalculator:
@@ -245,4 +245,3 @@ class MetricsCalculator:
             l5.lower_endplate_posterior,
             l5.lower_endplate_anterior
         )
-

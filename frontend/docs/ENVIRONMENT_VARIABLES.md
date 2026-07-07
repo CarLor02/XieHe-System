@@ -27,11 +27,11 @@ cp .env.example .env.test
 
 #### `NEXT_PUBLIC_AI_DETECT_URL`
 - **用途**: AI测量功能接口
-- **接口**: `/predict`
+- **接口**: `/api/measurement`
 - **功能**: 返回测量结果和关键点
 - **示例**: 
-  - 开发环境: `http://localhost:8001/predict`
-  - 生产环境: `http://115.190.121.59:8001/predict`
+  - 开发环境: `http://localhost:8001/api/measurement`
+  - 生产环境: `http://115.190.121.59:8001/api/measurement`
 
 #### `NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL`
 - **用途**: AI检测功能接口

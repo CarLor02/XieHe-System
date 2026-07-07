@@ -2,14 +2,14 @@ import unittest
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from measurement_pipeline import (
+from lat.domain.measurement_pipeline import (
     LatMeasurementMetric,
     build_measurement_excel_row,
     derive_measurements_from_detection,
 )
-from models import CFHDetection, Point, VertebraDetection
+from lat.domain.detection_models import CFHDetection, Point, VertebraDetection
 
 
 def make_vertebra(label, points):

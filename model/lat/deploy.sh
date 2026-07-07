@@ -5,9 +5,12 @@
 
 set -e
 
-if [ -f .env.build ]; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODEL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if [ -f "$SCRIPT_DIR/.env.build" ]; then
     set -a
-    source .env.build
+    source "$SCRIPT_DIR/.env.build"
     set +a
 fi
 
@@ -28,14 +31,14 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # 检查 models 目录是否存在
-if [ ! -d "models" ]; then
+if [ ! -d "$SCRIPT_DIR/models" ]; then
     echo "❌ 错误：未找到 models/ 目录！"
     echo "请确保模型文件在 models/ 目录中"
     exit 1
 fi
 
 # 检查模型文件是否存在
-if [ ! -f "models/corner_model.pt" ] || [ ! -f "models/cfh_model.pt" ]; then
+if [ ! -f "$SCRIPT_DIR/models/corner_model.pt" ] || [ ! -f "$SCRIPT_DIR/models/cfh_model.pt" ]; then
     echo "⚠️  警告：在 models/ 目录中未找到模型文件"
     echo "期望的文件: corner_model.pt, cfh_model.pt"
     read -p "是否继续？(y/n) " -n 1 -r
@@ -78,7 +81,7 @@ if [ -n "${PROXY_PORT:-}" ]; then
     )
 fi
 
-docker build "${BUILD_ARGS[@]}" -t "$IMAGE_NAME" .
+docker build "${BUILD_ARGS[@]}" -f "$SCRIPT_DIR/Dockerfile" -t "$IMAGE_NAME" "$MODEL_ROOT"
 
 # 运行容器
 echo "🚀 正在启动容器..."

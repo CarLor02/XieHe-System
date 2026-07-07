@@ -16,22 +16,25 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY ap/requirements.txt ./requirements.txt
 
 # Install Python dependencies
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
 # Copy application code
-COPY app.py .
-COPY measurement_pipeline.py .
+COPY shared/ ./shared/
+COPY ap/ ./ap/
 
 # Prevent cached model file layers from reusing stale weights.
 ARG WEIGHTS_CACHE_BUST=0
 RUN echo "$WEIGHTS_CACHE_BUST" > /dev/null
 
 # Copy model weights
-COPY weights/ ./weights/
+COPY ap/weights/ ./ap/weights/
+
+ENV YOLO_CONFIG_DIR=/tmp \
+    MPLCONFIGDIR=/tmp/matplotlib
 
 # Expose port
 EXPOSE 8001
@@ -41,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8001/health')"
 
 # Run the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "ap.interfaces.http.app:app", "--host", "0.0.0.0", "--port", "8001"]

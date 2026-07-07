@@ -3,9 +3,12 @@
 测试新格式输出
 """
 import sys
-sys.path.insert(0, '.')
+from pathlib import Path
 
-from models import Point, Measurement, KeypointsResponse
+MODEL_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(MODEL_ROOT))
+
+from lat.domain.detection_models import Point, Measurement, KeypointsResponse
 
 # 创建一个测试输出
 measurements = [
@@ -53,4 +56,3 @@ response = KeypointsResponse(
 # 输出JSON
 import json
 print(json.dumps(response.model_dump(), indent=2, ensure_ascii=False))
-

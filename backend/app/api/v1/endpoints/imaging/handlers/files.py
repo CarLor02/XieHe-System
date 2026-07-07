@@ -378,20 +378,13 @@ def _model_object_payload(image: ImageFile) -> dict[str, str]:
 
 
 def _get_ai_object_url(image: ImageFile, operation: str) -> str:
-    if operation == "predict":
-        url = (
-            settings.AI_LAT_MEASUREMENT_OBJECT_URL
-            if _is_lateral_image(image)
-            else settings.AI_AP_MEASUREMENT_OBJECT_URL
-        )
-    elif operation == "detect-keypoints":
-        url = (
-            settings.AI_LATERAL_DETECT_OBJECT_URL
-            if _is_lateral_image(image)
-            else settings.AI_FRONT_KEYPOINTS_OBJECT_URL
-        )
-    else:
+    if operation != "predict":
         raise ValueError(f"unsupported AI operation: {operation}")
+    url = (
+        settings.AI_LAT_MEASUREMENT_OBJECT_URL
+        if _is_lateral_image(image)
+        else settings.AI_AP_MEASUREMENT_OBJECT_URL
+    )
 
     if not url:
         raise HTTPException(
@@ -809,20 +802,6 @@ async def run_image_file_ai_predict(
     image = _get_ai_ready_visible_image(db, file_id, current_user)
     return await _post_ai_object_request(
         _get_ai_object_url(image, "predict"),
-        _model_object_payload(image),
-    )
-
-
-@router.post("/{file_id}/ai/detect-keypoints", summary="使用对象存储影像执行AI关键点检测")
-async def run_image_file_ai_detect_keypoints(
-    file_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-    _slot: None = Depends(require_ai_object_slot),
-):
-    image = _get_ai_ready_visible_image(db, file_id, current_user)
-    return await _post_ai_object_request(
-        _get_ai_object_url(image, "detect-keypoints"),
         _model_object_payload(image),
     )
 

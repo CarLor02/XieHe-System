@@ -5,6 +5,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Iterable
 
+from ap.domain.cobb import (
+    ORDER_INDEX,
+    VERTEBRA_ORDER,
+    all_candidates,
+    as_corners,
+    line_angle,
+    select_nonoverlapping,
+)
+
 
 Point = dict[str, float]
 Measurement = dict[str, Any]
@@ -32,27 +41,6 @@ METRIC_DISPLAY_NAMES: dict[ApMeasurementMetric, str] = {
     ApMeasurementMetric.TS: "TS",
 }
 
-VERTEBRA_ORDER = [
-    "C7",
-    "T1",
-    "T2",
-    "T3",
-    "T4",
-    "T5",
-    "T6",
-    "T7",
-    "T8",
-    "T9",
-    "T10",
-    "T11",
-    "T12",
-    "L1",
-    "L2",
-    "L3",
-    "L4",
-    "L5",
-]
-ORDER_INDEX = {name: index for index, name in enumerate(VERTEBRA_ORDER)}
 POSE_LABEL_MAP = {
     "CR": "CL",
     "CL": "CR",
@@ -65,20 +53,6 @@ POSE_LABEL_MAP = {
 
 def _pt(x: float, y: float) -> Point:
     return {"x": float(x), "y": float(y)}
-
-
-def line_angle(p1: Point, p2: Point) -> float:
-    angle = math.degrees(math.atan2(p2["y"] - p1["y"], p2["x"] - p1["x"]))
-    if angle > 90:
-        angle -= 180
-    elif angle < -90:
-        angle += 180
-    return angle
-
-
-def small_angle_between(a: float, b: float) -> float:
-    diff = abs(a - b) % 180
-    return min(diff, 180 - diff)
 
 
 def _calculate_actual_distance(pixel_distance: float) -> float:
@@ -130,90 +104,13 @@ def _frontal_corners(vertebra: dict[str, Any]) -> dict[str, Point]:
     }
 
 
-def _as_corners(vertebra: dict[str, Any]) -> dict[str, Point]:
-    if "corners" in vertebra:
-        return _frontal_corners(vertebra)
-    return {
-        "top_left": _pt(vertebra["top_left"]["x"], vertebra["top_left"]["y"]),
-        "top_right": _pt(vertebra["top_right"]["x"], vertebra["top_right"]["y"]),
-        "bottom_left": _pt(vertebra["bottom_left"]["x"], vertebra["bottom_left"]["y"]),
-        "bottom_right": _pt(vertebra["bottom_right"]["x"], vertebra["bottom_right"]["y"]),
-        "center": _pt(
-            vertebra.get("center", {}).get("x", 0),
-            vertebra.get("center", {}).get("y", 0),
-        ),
-    }
-
-
-def signed_cobb(upper: dict[str, Any], lower: dict[str, Any]) -> tuple[float, float, float, float]:
-    upper_corners = _as_corners(upper)
-    lower_corners = _as_corners(lower)
-    upper_angle = line_angle(upper_corners["top_left"], upper_corners["top_right"])
-    lower_angle = line_angle(lower_corners["bottom_left"], lower_corners["bottom_right"])
-    magnitude = small_angle_between(upper_angle, lower_angle)
-    left_span = abs(lower_corners["bottom_left"]["y"] - upper_corners["top_left"]["y"])
-    right_span = abs(lower_corners["bottom_right"]["y"] - upper_corners["top_right"]["y"])
-    sign = 1 if left_span > right_span else -1
-    return sign * magnitude, magnitude, upper_angle, lower_angle
-
-
-def all_candidates(vertebrae: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
-    names = [name for name in VERTEBRA_ORDER if name in vertebrae]
-    rows: list[dict[str, Any]] = []
-    for upper_index, upper_name in enumerate(names):
-        for lower_name in names[upper_index + 1 :]:
-            signed, magnitude, upper_angle, lower_angle = signed_cobb(
-                vertebrae[upper_name],
-                vertebrae[lower_name],
-            )
-            rows.append(
-                {
-                    "upper_vertebra": upper_name,
-                    "lower_vertebra": lower_name,
-                    "signed_cobb_v2": round(signed, 6),
-                    "abs_cobb_v2": round(magnitude, 6),
-                    "upper_endplate_angle": round(upper_angle, 6),
-                    "lower_endplate_angle": round(lower_angle, 6),
-                    "vertebra_span": ORDER_INDEX[lower_name] - ORDER_INDEX[upper_name],
-                }
-            )
-    return rows
-
-
-def select_nonoverlapping(
-    candidates: list[dict[str, Any]],
-    limit: int = 3,
-    threshold: float = 10.0,
-    min_span: int = 3,
-) -> list[dict[str, Any]]:
-    selected: list[dict[str, Any]] = []
-    for row in sorted(candidates, key=lambda item: float(item["abs_cobb_v2"]), reverse=True):
-        if len(selected) >= limit:
-            break
-        if float(row["abs_cobb_v2"]) < threshold or int(row["vertebra_span"]) < min_span:
-            continue
-        start = ORDER_INDEX[row["upper_vertebra"]]
-        end = ORDER_INDEX[row["lower_vertebra"]]
-        overlaps = False
-        for chosen in selected:
-            chosen_start = ORDER_INDEX[chosen["upper_vertebra"]]
-            chosen_end = ORDER_INDEX[chosen["lower_vertebra"]]
-            overlap = max(0, min(end, chosen_end) - max(start, chosen_start))
-            if overlap > 1:
-                overlaps = True
-                break
-        if not overlaps:
-            selected.append({**row, "auto_rank": len(selected) + 1})
-    return selected
-
-
 def find_cobb_angles_v2(vertebrae_data: dict[str, dict[str, Any]]) -> list[Measurement]:
     cobb_angles: list[Measurement] = []
     for row in select_nonoverlapping(all_candidates(vertebrae_data)):
         upper_name = row["upper_vertebra"]
         lower_name = row["lower_vertebra"]
-        upper = _as_corners(vertebrae_data[upper_name])
-        lower = _as_corners(vertebrae_data[lower_name])
+        upper = as_corners(vertebrae_data[upper_name])
+        lower = as_corners(vertebrae_data[lower_name])
         type_id = f"Cobb-Auto{row['auto_rank']}"
         points = [
             upper["top_left"],

@@ -3,18 +3,16 @@
 """
 import numpy as np
 from ultralytics import YOLO
-from pathlib import Path
-from typing import Tuple, List, Optional
-import cv2
+from typing import List, Optional
 
-from config import (
+from lat.config import (
     CORNER_MODEL_PATH, 
     CFH_MODEL_PATH,
     CORNER_CONF_THRESHOLD,
     CFH_CONF_THRESHOLD,
     VERTEBRA_NAMES
 )
-from models import (
+from lat.domain.detection_models import (
     Point, 
     VertebraDetection, 
     CFHDetection, 
@@ -157,4 +155,3 @@ def get_inference_service() -> InferenceService:
     if _inference_service is None:
         _inference_service = InferenceService()
     return _inference_service
-

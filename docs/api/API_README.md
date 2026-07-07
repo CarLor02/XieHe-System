@@ -1622,7 +1622,7 @@ curl -X POST http://localhost:8000/api/v1/upload/image \
 
 **主要接口**:
 - `GET /health` - 健康检查
-- `POST /predict` - 图片推理（计算指标）
+- `POST /api/measurement` - 对象存储图片推理（计算指标）
 - `POST /detect_keypoints` - 检测关键点（原始数据）
 
 ### B. API版本管理

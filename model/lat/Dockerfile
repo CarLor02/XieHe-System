@@ -16,27 +16,25 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY lat/requirements.txt ./requirements.txt
 
 # Install Python dependencies
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
 # Copy application code
-COPY app.py .
-COPY config.py .
-COPY inference_service.py .
-COPY keypoints_service.py .
-COPY measurement_pipeline.py .
-COPY metrics_calculator.py .
-COPY models.py .
+COPY shared/ ./shared/
+COPY lat/ ./lat/
 
 # Prevent cached model file layers from reusing stale weights.
 ARG WEIGHTS_CACHE_BUST=0
 RUN echo "$WEIGHTS_CACHE_BUST" > /dev/null
 
 # Copy model files
-COPY models/ ./models/
+COPY lat/models/ ./lat/models/
+
+ENV YOLO_CONFIG_DIR=/tmp \
+    MPLCONFIGDIR=/tmp/matplotlib
 
 # Expose port
 EXPOSE 8002
@@ -46,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8002/health')"
 
 # Run the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8002"]
+CMD ["uvicorn", "lat.interfaces.http.app:app", "--host", "0.0.0.0", "--port", "8002"]

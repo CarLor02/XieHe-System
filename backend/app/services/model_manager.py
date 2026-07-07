@@ -92,7 +92,11 @@ class ModelManager:
         """检查模型健康状态"""
         try:
             # 构建 health 接口 URL
-            base_url = endpoint_url.rstrip('/predict').rstrip('/')
+            base_url = endpoint_url.rstrip("/")
+            for suffix in ("/api/measurement", "/predict"):
+                if base_url.endswith(suffix):
+                    base_url = base_url[: -len(suffix)]
+                    break
             health_url = f"{base_url}/health"
 
             async with httpx.AsyncClient(timeout=5.0) as client:
@@ -101,7 +105,7 @@ class ModelManager:
                 if response.status_code == 200:
                     data = response.json()
                     # 检查模型是否加载成功
-                    if data.get("status") == "ok":
+                    if data.get("status") in {"ok", "healthy"}:
                         return ModelStatus.READY
                     else:
                         return ModelStatus.ERROR

@@ -2,47 +2,27 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-MODEL_ROOT = ROOT.parent
-sys.path.insert(0, str(ROOT))
+MODEL_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(MODEL_ROOT))
 
-from measurement_pipeline import (
+from ap.application.measurement_service import load_measurement_models, measure_image
+from ap.domain.measurement_pipeline import (
     ApMeasurementMetric,
     METRIC_DISPLAY_NAMES,
     build_measurement_excel_row,
 )
+from shared.application.batch_export import empty_metric_row, iter_images, write_excel, write_raw
 from shared.image_transforms import maybe_lr_flip
-
-
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp"}
+from shared.infrastructure.image_io import decode_image_bytes
 
 
 def parse_metrics(raw: str | None) -> list[ApMeasurementMetric]:
     if not raw:
         return list(ApMeasurementMetric)
     return [ApMeasurementMetric(item.strip()) for item in raw.split(",") if item.strip()]
-
-
-def iter_images(input_dir: Path, recursive: bool) -> list[Path]:
-    pattern = "**/*" if recursive else "*"
-    return sorted(
-        path
-        for path in input_dir.glob(pattern)
-        if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
-    )
-
-
-def write_raw(raw_dir: Path | None, image_path: Path, result: dict) -> None:
-    if raw_dir is None:
-        return
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    target = raw_dir / f"{image_path.stem}.json"
-    target.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def main() -> int:
@@ -66,17 +46,14 @@ def main() -> int:
     if not images:
         raise SystemExit(f"未找到图片: {args.input_dir}")
 
-    import pandas as pd
-    from app import decode_image, load_models, measurement_image
-
-    load_models()
+    load_measurement_models()
     rows: list[dict[str, str]] = []
     errors: list[dict[str, str]] = []
 
     for image_path in images:
         try:
-            image = maybe_lr_flip(decode_image(image_path.read_bytes()), args.lr_flip)
-            result = measurement_image(image, image_path.stem)
+            image = maybe_lr_flip(decode_image_bytes(image_path.read_bytes()), args.lr_flip)
+            result = measure_image(image, image_path.stem)
             write_raw(args.raw_output_dir, image_path, result)
             rows.append(
                 build_measurement_excel_row(
@@ -86,17 +63,10 @@ def main() -> int:
                 )
             )
         except Exception as exc:  # noqa: BLE001 - internal batch script should keep going.
-            row = {"id": image_path.stem}
-            row.update({METRIC_DISPLAY_NAMES[metric]: "" for metric in metrics})
-            rows.append(row)
+            rows.append(empty_metric_row(image_path, metrics, METRIC_DISPLAY_NAMES))
             errors.append({"id": image_path.stem, "file": str(image_path), "error": str(exc)})
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with pd.ExcelWriter(args.output, engine="openpyxl") as writer:
-        pd.DataFrame(rows).to_excel(writer, sheet_name="measurements", index=False)
-        if errors:
-            pd.DataFrame(errors).to_excel(writer, sheet_name="errors", index=False)
-
+    write_excel(args.output, rows, errors)
     print(f"已导出 {len(rows)} 张图片的测量结果: {args.output}")
     if errors:
         print(f"其中 {len(errors)} 张图片失败，见 errors sheet")

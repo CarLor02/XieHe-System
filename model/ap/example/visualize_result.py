@@ -153,21 +153,13 @@ def main():
         raise FileNotFoundError(f"找不到图片: {args.image}")
     h, w = img.shape[:2]
 
-    # ── 获取 predict 结果 ────────────────────────────────────────────────────
+    # ── 获取 measurement 结果 ────────────────────────────────────────────────
     if args.result:
         with open(args.result) as f:
             predict_data = json.load(f)
-        print(f"📂 加载 predict JSON: {args.result}")
+        print(f"📂 加载 measurement JSON: {args.result}")
     else:
-        print(f"🌐 调用 API /predict ...")
-        with open(args.image, "rb") as f:
-            resp = requests.post(
-                f"{args.api}/predict",
-                files={"file": (Path(args.image).name, f, "image/png")},
-                params={"image_id": Path(args.image).stem}
-            )
-        resp.raise_for_status()
-        predict_data = resp.json()
+        raise SystemExit("AP service no longer exposes upload prediction; pass --result JSON from /api/measurement.")
 
     measurements = predict_data.get("measurements", [])
     res_w = predict_data.get("imageWidth",  w)

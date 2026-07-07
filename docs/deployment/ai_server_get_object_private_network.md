@@ -72,12 +72,10 @@ USER_AVATAR_BUCKET=medical-user-avatars
 
 ```shell
 AI_AP_MEASUREMENT_OBJECT_URL=http://<AP_MODEL_PRIVATE_IP>:8001/api/measurement
-AI_FRONT_KEYPOINTS_OBJECT_URL=http://<AP_MODEL_PRIVATE_IP>:8001/detect_keypoints_object
 AI_LAT_MEASUREMENT_OBJECT_URL=http://<LAT_MODEL_PRIVATE_IP>:8002/api/measurement
-AI_LATERAL_DETECT_OBJECT_URL=http://<LAT_MODEL_PRIVATE_IP>:8002/api/detect_object
 ```
 
-不要再把这四个 object URL 配到 `dotenv/.env.frontend` 的 `NEXT_PUBLIC_*` 中。前端现在只调用后端 `/api/v1/image-files/{file_id}/ai/*`。
+不要再把 object URL 配到 `dotenv/.env.frontend` 的 `NEXT_PUBLIC_*` 中。前端现在只调用后端 `/api/v1/image-files/{file_id}/ai/predict`。
 
 ## 5. 配置 frontend Nginx 的内网拉图 allowlist
 

@@ -135,9 +135,7 @@ STORAGE_SERVICE_TOKEN=dev-storage-service-token
 
 # AI 服务（使用 localhost，避免系统代理干扰）
 AI_AP_MEASUREMENT_OBJECT_URL=http://localhost:8001/api/measurement
-AI_FRONT_KEYPOINTS_OBJECT_URL=http://localhost:8001/detect_keypoints_object
 AI_LAT_MEASUREMENT_OBJECT_URL=http://localhost:8002/api/measurement
-AI_LATERAL_DETECT_OBJECT_URL=http://localhost:8002/api/detect_object
 ```
 
 > ⚠️ AI 服务 URL 必须使用 `localhost` 而非 `127.0.0.1`，否则在开启系统代理时 httpx 会将请求路由到代理导致连接失败。
@@ -192,7 +190,7 @@ NO_PROXY=localhost,127.0.0.1 uvicorn app.main:app --reload --host 0.0.0.0 --port
 | 患者 | `GET/POST /api/v1/patients` · `GET/PUT /api/v1/patients/{id}` |
 | 影像上传 | `POST /api/v1/upload/initiate` · `POST /api/v1/upload/complete` |
 | 影像文件 | `GET /api/v1/image-files` · `GET /api/v1/image-files/{id}` |
-| AI 分析 | `POST /api/v1/image-files/{id}/ai/predict` · `POST /api/v1/image-files/{id}/ai/detect-keypoints` |
+| AI 分析 | `POST /api/v1/image-files/{id}/ai/predict` |
 | 标注 | `PUT /api/v1/image-files/{id}/annotation` |
 | 报告 | `GET/POST /api/v1/reports` |
 | 健康检查 | `GET /health` |

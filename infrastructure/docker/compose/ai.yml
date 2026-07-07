@@ -6,8 +6,8 @@
 services:
   ai-ap:
     build:
-      context: ../../../model/ap
-      dockerfile: Dockerfile
+      context: ../../../model
+      dockerfile: ap/Dockerfile
       extra_hosts:
         - 'host.docker.internal:host-gateway'
       args:
@@ -42,8 +42,8 @@ services:
 
   ai-lat:
     build:
-      context: ../../../model/lat
-      dockerfile: Dockerfile
+      context: ../../../model
+      dockerfile: lat/Dockerfile
       extra_hosts:
         - 'host.docker.internal:host-gateway'
       args:

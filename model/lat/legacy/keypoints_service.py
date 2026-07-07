@@ -7,7 +7,7 @@
 import numpy as np
 from typing import List, Optional, Dict
 
-from models import (
+from lat.domain.detection_models import (
     Point,
     VertebraDetection,
     CFHDetection,
@@ -275,4 +275,3 @@ def _estimate_s1_point(vertebrae_dict: Dict) -> Optional[Point]:
     s1_x = l5_lower_center_x
 
     return Point(x=s1_x, y=s1_y)
-

@@ -98,7 +98,7 @@ TOKEN=$(grep "^STORAGE_SERVICE_TOKEN=" ~/Documents/XieHe-System/dotenv/.env.stor
 STORAGE_SERVICE_URL=http://localhost:8090 \
 STORAGE_SERVICE_TOKEN=$TOKEN \
 STORAGE_SERVICE_TIMEOUT=30 \
-/opt/miniconda3/envs/xiehe/bin/uvicorn app:app --host 0.0.0.0 --port 8001
+PYTHONPATH=.. /opt/miniconda3/envs/xiehe/bin/uvicorn ap.interfaces.http.app:app --host 0.0.0.0 --port 8001
 ```
 
 **错误的启动命令**（会导致 403）：
@@ -107,7 +107,7 @@ STORAGE_SERVICE_TIMEOUT=30 \
 # ❌ 错误：3030 是前端端口，不是 storage-service
 STORAGE_SERVICE_URL=http://localhost:3030/internal/model-storage \
 STORAGE_SERVICE_TOKEN=$TOKEN \
-/opt/miniconda3/envs/xiehe/bin/uvicorn app:app --host 0.0.0.0 --port 8001
+PYTHONPATH=.. /opt/miniconda3/envs/xiehe/bin/uvicorn ap.interfaces.http.app:app --host 0.0.0.0 --port 8001
 ```
 
 ### 步骤 5：测试 AI 服务

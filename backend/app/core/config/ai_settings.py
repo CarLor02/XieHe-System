@@ -13,8 +13,6 @@ class AiSettings(BaseAppSettings):
     AI_MODEL_MAX_RETRIES: int = 3
     AI_AP_MEASUREMENT_OBJECT_URL: str = ""
     AI_LAT_MEASUREMENT_OBJECT_URL: str = ""
-    AI_FRONT_KEYPOINTS_OBJECT_URL: str = ""
-    AI_LATERAL_DETECT_OBJECT_URL: str = ""
 
     AI_MODELS_DIR: str = "./models"
     DEFAULT_MODEL_NAME: str = "medical_diagnosis_v1.0"

@@ -69,4 +69,3 @@ class KeypointsResponse(BaseModel):
         default_factory=lambda: [Point(x=0, y=0), Point(x=200, y=0)],
         description="标准距离参考点"
     )
-

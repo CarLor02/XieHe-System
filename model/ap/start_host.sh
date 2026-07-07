@@ -20,6 +20,7 @@ NC='\033[0m' # No Color
 # 项目根目录（假设脚本在 model/ap/ 下）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+MODEL_ROOT="$PROJECT_ROOT/model"
 DOTENV_DIR="$PROJECT_ROOT/dotenv"
 LOG_DIR="$PROJECT_ROOT/logs/ai"
 PID_FILE="$SCRIPT_DIR/.ap.pid"
@@ -210,15 +211,16 @@ export STORAGE_SERVICE_URL="http://localhost:8090"
 export STORAGE_SERVICE_TOKEN="$TOKEN"
 export STORAGE_SERVICE_TIMEOUT="30"
 
-# 切换到模型目录
-cd "$SCRIPT_DIR"
+# 切换到模型根目录，确保 ap 和 shared 都可导入
+cd "$MODEL_ROOT"
+export PYTHONPATH="$MODEL_ROOT:${PYTHONPATH:-}"
 
 # 后台启动服务
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}启动 Uvicorn 服务 (http://0.0.0.0:$PORT)${NC}"
 echo -e "${GREEN}========================================${NC}"
 
-nohup "$UVICORN_BIN" app:app --host 0.0.0.0 --port $PORT > "$LOG_FILE" 2>&1 &
+nohup "$UVICORN_BIN" ap.interfaces.http.app:app --host 0.0.0.0 --port $PORT > "$LOG_FILE" 2>&1 &
 PID=$!
 echo $PID > "$PID_FILE"
 

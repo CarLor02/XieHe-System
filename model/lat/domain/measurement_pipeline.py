@@ -5,7 +5,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Iterable
 
-from models import CFHDetection, Point, VertebraDetection
+from lat.domain.detection_models import CFHDetection, Point, VertebraDetection
 
 
 PointDict = dict[str, float]

@@ -46,69 +46,10 @@ def test_health():
 def test_predict():
     """测试推理接口"""
     print("\n" + "=" * 50)
-    print("测试推理接口: POST /predict")
+    print("测试推理接口: POST /api/measurement")
     print("=" * 50)
-    
-    if not TEST_IMAGE.exists():
-        print(f"❌ 测试图片不存在: {TEST_IMAGE}")
-        return False
-    
-    print(f"测试图片: {TEST_IMAGE}")
-    print(f"图片大小: {TEST_IMAGE.stat().st_size / 1024:.1f} KB")
-    
-    try:
-        with open(TEST_IMAGE, "rb") as f:
-            files = {"file": (TEST_IMAGE.name, f, "image/png")}
-            params = {"image_id": "TEST_001"}
-            response = requests.post(
-                f"{API_BASE_URL}/predict",
-                files=files,
-                params=params
-            )
-        
-        response.raise_for_status()
-        result = response.json()
-        
-        # 保存结果
-        with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
-        print(f"✅ 结果已保存到: {OUTPUT_FILE}")
-        
-        # 打印结果摘要
-        print(f"\n图片ID: {result['imageId']}")
-        print(f"图片尺寸: {result.get('imageWidth', 'N/A')} x {result.get('imageHeight', 'N/A')}")
-        print(f"检测到的测量项: {len(result['measurements'])} 个")
-        print("\n测量项列表:")
-        print("-" * 80)
-
-        for m in result["measurements"]:
-            points_str = ", ".join([f"({p['x']:.1f}, {p['y']:.1f})" for p in m["points"]])
-
-            # 如果是Cobb角，显示额外信息
-            if m['type'].startswith('Cobb'):
-                angle = m.get('angle', 'N/A')
-                upper = m.get('upper_vertebra', 'N/A')
-                lower = m.get('lower_vertebra', 'N/A')
-                apex = m.get('apex_vertebra', 'N/A')
-                print(f"  {m['type']:20s} | {len(m['points'])} 点 | 角度: {angle:6.2f}° | {upper} → {apex} → {lower}")
-                print(f"    └─ 点位: {points_str[:60]}...")
-            # 如果有角度信息（CA, Pelvic, Sacral），显示角度
-            elif m.get('angle') is not None:
-                angle = m['angle']
-                print(f"  {m['type']:20s} | {len(m['points'])} 点 | 角度: {angle:6.2f}° | {points_str[:60]}...")
-            else:
-                print(f"  {m['type']:20s} | {len(m['points'])} 点 | {points_str[:60]}...")
-
-        return True
-        
-    except requests.exceptions.ConnectionError:
-        print("❌ 连接失败！请确保服务已启动: python app.py")
-        return False
-    except Exception as e:
-        print(f"❌ 错误: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    print("AP service no longer exposes upload prediction. Use object-storage /api/measurement.")
+    return False
 
 
 def main():
@@ -130,4 +71,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

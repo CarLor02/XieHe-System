@@ -47,9 +47,11 @@ echo ""
 
 # 启动服务
 echo "🌐 启动服务..."
-echo "   访问地址: http://localhost:8000"
-echo "   API文档: http://localhost:8000/docs"
+echo "   访问地址: http://localhost:8002"
+echo "   API文档: http://localhost:8002/docs"
 echo ""
 
-python3 app.py
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODEL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$MODEL_ROOT"
+PYTHONPATH="$MODEL_ROOT:${PYTHONPATH:-}" python3 -m uvicorn lat.interfaces.http.app:app --host 0.0.0.0 --port 8002
