@@ -62,6 +62,7 @@ interface ImagingSearchFiltersProps {
   onChangeExportContent: (value: ExportContentType) => void;
   onClearExportSelection: () => void;
   onStartBatchExport: () => void;
+  onStartBatchImport: () => void;
 }
 
 export default function ImagingSearchFilters({
@@ -103,6 +104,7 @@ export default function ImagingSearchFilters({
   onChangeExportContent,
   onClearExportSelection,
   onStartBatchExport,
+  onStartBatchImport,
 }: ImagingSearchFiltersProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
@@ -121,6 +123,16 @@ export default function ImagingSearchFilters({
               <i className="ri-upload-line mr-1"></i>
               上传影像
             </Link>
+          </Tooltip>
+          <Tooltip content="批量导入影像并自动进行AI测量" position="bottom">
+            <button
+              type="button"
+              onClick={onStartBatchImport}
+              className="px-4 py-2 rounded-lg whitespace-nowrap inline-flex items-center bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              <i className="ri-folder-upload-line mr-1"></i>
+              批量导入
+            </button>
           </Tooltip>
           <Tooltip content="批量导出选中的影像文件" position="bottom">
             <button

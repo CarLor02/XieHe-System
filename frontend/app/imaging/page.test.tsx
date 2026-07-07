@@ -34,6 +34,11 @@ jest.mock('@/app/upload/_components/overlay/upload-options-overlay', () => ({
   default: () => null,
 }));
 
+jest.mock('@/app/imaging/features/batch-import/components/BatchImportOverlay', () => ({
+  __esModule: true,
+  default: () => <div>批量导入Overlay</div>,
+}));
+
 function makeImageFile(overrides: Partial<ImageFile> = {}): ImageFile {
   return {
     id: 1,
@@ -99,6 +104,27 @@ function makeController(overrides: Record<string, unknown> = {}) {
       clearExportSelection: jest.fn(),
       toggleExportSelection: jest.fn(),
       startBatchExport: jest.fn(),
+    },
+    batchImport: {
+      setFileInputElement: jest.fn(),
+      overlayOpen: false,
+      files: [],
+      patientId: '',
+      examType: '正位X光片',
+      ownershipScope: 'personal',
+      teamIds: [],
+      lrFlip: false,
+      isUploading: false,
+      message: '',
+      openFileDialog: jest.fn(),
+      handleFileInput: jest.fn(),
+      closeOverlay: jest.fn(),
+      setPatientId: jest.fn(),
+      setExamType: jest.fn(),
+      setOwnershipScope: jest.fn(),
+      setTeamIds: jest.fn(),
+      toggleFlip: jest.fn(),
+      startImport: jest.fn(),
     },
     actions: {
       handleMoreAction: jest.fn(),
@@ -185,5 +211,31 @@ describe('ImagingPage', () => {
 
     expect(screen.getByText('还没有上传任何影像')).toBeTruthy();
     expect(screen.queryByText('加载影像数据中...')).not.toBeTruthy();
+  });
+
+  it('renders the batch import overlay when selected files are being configured', () => {
+    useImagingPageControllerMock.mockReturnValue(
+      makeController({
+        batchImport: {
+          ...makeController().batchImport,
+          overlayOpen: true,
+          files: [
+            {
+              id: 'file-1',
+              name: 'ap-001.png',
+              size: 1024,
+              type: 'image/png',
+              uploadStatus: 'pending',
+              aiStatus: 'pending',
+            },
+          ],
+        },
+      })
+    );
+
+    const { default: ImagingPage } = jest.requireActual<typeof import('./page')>('./page');
+    render(<ImagingPage />);
+
+    expect(screen.getByText('批量导入Overlay')).toBeTruthy();
   });
 });

@@ -69,6 +69,7 @@ function renderFilters(
     onChangeExportContent: jest.fn(),
     onClearExportSelection: jest.fn(),
     onStartBatchExport: jest.fn(),
+    onStartBatchImport: jest.fn(),
     ...overrides,
   };
 
@@ -85,6 +86,15 @@ it('opens batch export controls from the imaging center toolbar', async () => {
   await userEvent.click(screen.getByRole('button', { name: /批量导出/ }));
 
   expect(onToggleBatchExportMode).toHaveBeenCalledTimes(1);
+});
+
+it('opens batch import file selection from the imaging center toolbar', async () => {
+  const onStartBatchImport = jest.fn();
+  renderFilters({ onStartBatchImport });
+
+  await userEvent.click(screen.getByRole('button', { name: /批量导入/ }));
+
+  expect(onStartBatchImport).toHaveBeenCalledTimes(1);
 });
 
 it('shows export content selection and export action in batch export mode', () => {

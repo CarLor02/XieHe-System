@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useCallback, useRef } from 'react';
 import { useImagingPageController } from './application/hooks/useImagingPageController';
 import ImagingErrorState from './features/image-list/components/ImagingErrorState';
 import ImagingFrame from './features/image-list/components/ImagingFrame';
@@ -9,11 +9,16 @@ import ImagingLoadingState from './features/image-list/components/ImagingLoading
 import ImagingSearchFilters from './features/search-filters/components/ImagingSearchFilters';
 import ImagingConfirmDialog from './shared/components/ImagingConfirmDialog';
 import UploadOptionsOverlay from '@/app/upload/_components/overlay/upload-options-overlay';
+import BatchImportOverlay from '@/app/imaging/features/batch-import/components/BatchImportOverlay';
 import { EXAM_TYPES } from './features/image-actions/hooks/useImageEditOverlay';
 
 function ImagingPageContent() {
   const controller = useImagingPageController();
-  const { preview, actions, editOverlay, batchExport } = controller;
+  const { preview, actions, editOverlay, batchExport, batchImport } = controller;
+  const batchImportFileInputRef = useRef<HTMLInputElement>(null);
+  const openBatchImportDialog = useCallback(() => {
+    batchImportFileInputRef.current?.click();
+  }, []);
   const isBlockingError =
     Boolean(controller.error) && controller.imageFiles.length === 0;
 
@@ -77,6 +82,17 @@ function ImagingPageContent() {
         onChangeExportContent={batchExport.setExportContent}
         onClearExportSelection={batchExport.clearExportSelection}
         onStartBatchExport={batchExport.startBatchExport}
+        onStartBatchImport={openBatchImportDialog}
+      />
+
+      <input
+        ref={batchImportFileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        accept=".dcm,.dicom,.jpg,.jpeg,.png,.tiff,.tif"
+        onChange={batchImport.handleFileInput}
+        aria-hidden="true"
       />
 
       <ImageListPanel
@@ -124,6 +140,28 @@ function ImagingPageContent() {
           onClose={editOverlay.closeEditOverlay}
           onConfirm={editOverlay.handleConfirm}
           confirmAppliesCrop={false}
+        />
+      )}
+
+      {batchImport.overlayOpen && (
+        <BatchImportOverlay
+          files={batchImport.files}
+          patientId={batchImport.patientId}
+          examType={batchImport.examType}
+          examTypes={batchImport.examTypes}
+          ownershipScope={batchImport.ownershipScope}
+          teamIds={batchImport.teamIds}
+          lrFlip={batchImport.lrFlip}
+          isUploading={batchImport.isUploading}
+          message={batchImport.message}
+          loadTeams={batchImport.loadTeams}
+          onPatientChange={batchImport.setPatientId}
+          onExamTypeChange={batchImport.setExamType}
+          onOwnershipScopeChange={batchImport.setOwnershipScope}
+          onTeamIdsChange={batchImport.setTeamIds}
+          onToggleFlip={batchImport.toggleFlip}
+          onConfirm={batchImport.startImport}
+          onClose={batchImport.closeOverlay}
         />
       )}
 

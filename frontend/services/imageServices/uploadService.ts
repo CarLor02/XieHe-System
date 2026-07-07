@@ -28,6 +28,56 @@ export interface UploadSession {
   parts: UploadPartUrl[];
 }
 
+export interface BatchCreateUploadFile {
+  client_file_id: string;
+  filename: string;
+  size: number;
+  mime_type: string;
+  file_hash?: string | null;
+}
+
+export interface BatchUploadSessionItem extends UploadSession {
+  client_file_id: string;
+}
+
+export interface BatchCreateUploadSessionsResponse {
+  items: BatchUploadSessionItem[];
+}
+
+export interface BatchCompleteUploadItem {
+  client_file_id: string;
+  image_file_id: number;
+  upload_id: string;
+  parts: CompletedUploadPart[];
+  file_hash?: string | null;
+}
+
+export interface BatchCompleteUploadResult {
+  client_file_id: string;
+  image_file_id: number;
+  status: string;
+  upload_progress: number;
+  ai_status: 'pending' | 'running' | 'succeeded' | 'failed';
+  error?: string | null;
+}
+
+export interface BatchCompleteUploadResponse {
+  items: BatchCompleteUploadResult[];
+}
+
+export interface BatchUploadStatusItem {
+  image_file_id: number;
+  status: string;
+  upload_progress: number;
+  has_annotation: boolean;
+  ai_status: 'pending' | 'running' | 'succeeded' | 'failed';
+  error?: string | null;
+}
+
+export interface BatchUploadStatusResponse {
+  items: BatchUploadStatusItem[];
+}
+
 export interface CompletedUploadPart {
   part_number: number;
   etag: string;
@@ -60,6 +110,12 @@ export interface UploadRecord {
   created_at?: string;
 }
 
+type ApiPutConfigWithAuthBypass = NonNullable<
+  Parameters<typeof apiClient.put>[2]
+> & {
+  _skipAuthRefresh?: boolean;
+};
+
 export async function createImageUploadSession(payload: {
   filename: string;
   size: number;
@@ -83,17 +139,44 @@ export async function completeImageUploadSession(
   return extractData<UploadStatusRecord>(response);
 }
 
-async function uploadPart(url: string, blob: Blob): Promise<string> {
-  const response = await apiClient.put(url, blob, {
+export async function uploadObjectPart(url: string, blob: Blob): Promise<string> {
+  const config: ApiPutConfigWithAuthBypass = {
     headers: { 'Content-Type': 'application/octet-stream' },
     transformRequest: [(data: Blob) => data],
     _skipAuthRefresh: true,
-  } as any);
+  };
+  const response = await apiClient.put(url, blob, config);
   const etag = response.headers?.etag || response.headers?.ETag;
   if (!etag) {
     throw new Error('对象存储未返回 ETag');
   }
   return etag.replace(/^"|"$/g, '');
+}
+
+export async function createBatchImageUploadSessions(payload: {
+  patient_id: number;
+  description?: string | null;
+  team_ids?: number[];
+  files: BatchCreateUploadFile[];
+}): Promise<BatchCreateUploadSessionsResponse> {
+  const response = await apiClient.post('/api/v1/upload/batch/sessions', payload);
+  return extractData<BatchCreateUploadSessionsResponse>(response);
+}
+
+export async function completeBatchImageUpload(payload: {
+  items: BatchCompleteUploadItem[];
+}): Promise<BatchCompleteUploadResponse> {
+  const response = await apiClient.post('/api/v1/upload/batch/complete', payload);
+  return extractData<BatchCompleteUploadResponse>(response);
+}
+
+export async function getBatchUploadStatus(
+  imageFileIds: number[]
+): Promise<BatchUploadStatusResponse> {
+  const response = await apiClient.get('/api/v1/upload/batch/status', {
+    params: { image_file_ids: imageFileIds.join(',') },
+  });
+  return extractData<BatchUploadStatusResponse>(response);
 }
 
 export async function uploadSingleFile(
@@ -113,7 +196,7 @@ export async function uploadSingleFile(
   for (const part of session.parts) {
     const start = (part.part_number - 1) * session.part_size;
     const end = Math.min(start + session.part_size, file.size);
-    const etag = await uploadPart(part.url, file.slice(start, end));
+    const etag = await uploadObjectPart(part.url, file.slice(start, end));
     completedParts.push({ part_number: part.part_number, etag });
   }
 

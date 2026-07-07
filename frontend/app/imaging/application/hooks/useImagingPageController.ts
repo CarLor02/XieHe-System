@@ -22,6 +22,7 @@ import { useImagePreviewQueue } from '@/app/imaging/features/image-preview/hooks
 import { useImageFileActions } from '@/app/imaging/features/image-actions/hooks/useImageFileActions';
 import { useImageEditOverlay } from '@/app/imaging/features/image-actions/hooks/useImageEditOverlay';
 import { useBatchImageExport } from '@/app/imaging/features/batch-export/hooks';
+import { useBatchImageImport } from '@/app/imaging/features/batch-import/hooks/useBatchImageImport';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -169,14 +170,12 @@ export function useImagingPageController() {
       }
 
       if (!Array.isArray(response.items)) {
-        console.error('Invalid response.items:', response);
         throw new Error('Response items is not an array');
       }
 
       setImageFiles(response.items);
       setTotal(response.total || 0);
     } catch (loadError: unknown) {
-      console.error('Failed to load images:', loadError);
       setError(getErrorMessage(loadError, '加载影像失败，请重试'));
       setImageFiles([]);
     } finally {
@@ -363,6 +362,11 @@ export function useImagingPageController() {
     }
   }, [currentImagingHref, isAuthenticated, router, searchParams]);
 
+  const batchImport = useBatchImageImport({
+    reloadImages: loadImages,
+    loadTeams: loadAssignableTeams,
+  });
+
   return {
     imageFiles,
     total,
@@ -387,6 +391,7 @@ export function useImagingPageController() {
     hasActiveFilters,
     preview,
     batchExport,
+    batchImport,
     actions,
     editOverlay,
     loadImages,
