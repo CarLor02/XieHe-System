@@ -1,6 +1,6 @@
 'use client';
 
-import OverlayPortal from '@/components/overlay/OverlayPortal';
+import { AppDialog } from '@/components/overlay/overlay-components';
 
 interface StandardDistanceWarningDialogProps {
   open: boolean;
@@ -11,17 +11,15 @@ export default function StandardDistanceWarningDialog({
   open,
   onClose,
 }: StandardDistanceWarningDialogProps) {
-  if (!open) return null;
-
   return (
-    <OverlayPortal
+    <AppDialog
+      open={open}
+      title="标准距离提示"
       layer="modal"
-      className="fixed inset-0 bg-black/50 flex items-center justify-center"
+      overlayClassName="bg-black/50"
+      contentClassName="w-full max-w-md rounded-lg border-0 bg-white p-6 shadow-xl"
     >
-      <div
-        className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
-        onClick={event => event.stopPropagation()}
-      >
+      <div>
         <div className="flex items-start mb-4">
           <div className="flex-shrink-0">
             <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
@@ -57,6 +55,6 @@ export default function StandardDistanceWarningDialog({
           </button>
         </div>
       </div>
-    </OverlayPortal>
+    </AppDialog>
   );
 }

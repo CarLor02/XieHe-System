@@ -2,7 +2,7 @@
 
 import * as Tooltip from '@radix-ui/react-tooltip';
 import type { ComponentPropsWithoutRef } from 'react';
-import { useOverlayContainer } from '../OverlayProvider';
+import { useOverlayContainer } from '../../OverlayProvider';
 
 type RadixTooltipPortalProps = Omit<
   ComponentPropsWithoutRef<typeof Tooltip.Portal>,

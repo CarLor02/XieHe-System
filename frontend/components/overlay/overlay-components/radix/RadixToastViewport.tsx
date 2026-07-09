@@ -4,8 +4,8 @@ import * as Toast from '@radix-ui/react-toast';
 import type { ComponentPropsWithoutRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
-import { OVERLAY_LAYER_CLASS_NAMES } from '../overlayLayers';
-import { useOverlayContainer } from '../OverlayProvider';
+import { OVERLAY_LAYER_CLASS_NAMES } from '../../overlayLayers';
+import { useOverlayContainer } from '../../OverlayProvider';
 
 type RadixToastViewportProps = ComponentPropsWithoutRef<typeof Toast.Viewport>;
 

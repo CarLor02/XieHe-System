@@ -2,11 +2,11 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, expect, it, jest } from '@jest/globals';
 
-import type { OverlayContainerState } from '../OverlayProvider';
+import type { OverlayContainerState } from '../../OverlayProvider';
 
 const mockUseOverlayContainer = jest.fn<() => OverlayContainerState>();
 
-jest.mock('../OverlayProvider', () => ({
+jest.mock('../../OverlayProvider', () => ({
   __esModule: true,
   useOverlayContainer: () => mockUseOverlayContainer(),
 }));

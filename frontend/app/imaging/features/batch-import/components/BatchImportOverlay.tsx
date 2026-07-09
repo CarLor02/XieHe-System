@@ -5,7 +5,7 @@ import TeamMultiSelect, {
   type TeamMultiSelectLoadParams,
   type TeamMultiSelectPage,
 } from '@/components/common/TeamMultiSelect';
-import OverlayPortal from '@/components/overlay/OverlayPortal';
+import { AppModal } from '@/components/overlay/overlay-components';
 import type {
   BatchImportFileItem,
   BatchImportOwnershipScope,
@@ -72,10 +72,7 @@ export default function BatchImportOverlay({
   const hasDicomOrUnsupported = files.some(file => !file.type.startsWith('image/'));
 
   return (
-    <OverlayPortal
-      layer="blocking"
-      className="fixed inset-0 flex items-center justify-center bg-slate-900/45 px-2 py-4 sm:px-6 sm:py-8"
-    >
+    <AppModal open title="批量导入影像窗口">
       <div className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-y-auto rounded-xl bg-white shadow-2xl">
         <div className="flex items-start justify-between px-4 py-4 sm:px-8 sm:py-6">
           <div>
@@ -249,6 +246,6 @@ export default function BatchImportOverlay({
           </button>
         </div>
       </div>
-    </OverlayPortal>
+    </AppModal>
   );
 }

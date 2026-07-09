@@ -24,7 +24,7 @@ import {
   getMeasurementDeriveVertebraOrder,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
-import AppMessageDialog from '@/components/overlay/AppMessageDialog';
+import { AppMessageDialog } from '@/components/overlay/overlay-components';
 
 type ResultsTab = 'measurements' | 'keypoints';
 

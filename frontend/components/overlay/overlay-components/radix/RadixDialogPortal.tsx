@@ -2,7 +2,7 @@
 
 import * as Dialog from '@radix-ui/react-dialog';
 import type { ComponentPropsWithoutRef } from 'react';
-import { useOverlayContainer } from '../OverlayProvider';
+import { useOverlayContainer } from '../../OverlayProvider';
 
 type RadixDialogPortalProps = Omit<
   ComponentPropsWithoutRef<typeof Dialog.Portal>,

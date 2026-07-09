@@ -2,7 +2,7 @@
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from 'react';
-import { RadixDropdownPortal } from '@/components/overlay/overlay-components';
+import { RadixDropdownPortal } from '@/components/overlay/overlay-components/radix';
 import { OVERLAY_LAYER_CLASS_NAMES } from '@/components/overlay/overlayLayers';
 import { cn } from '@/lib/utils';
 

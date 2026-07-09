@@ -2,7 +2,7 @@
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { ComponentPropsWithoutRef } from 'react';
-import { useOverlayContainer } from '../OverlayProvider';
+import { useOverlayContainer } from '../../OverlayProvider';
 
 type RadixDropdownPortalProps = Omit<
   ComponentPropsWithoutRef<typeof DropdownMenu.Portal>,

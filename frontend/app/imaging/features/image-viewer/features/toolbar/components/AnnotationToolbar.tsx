@@ -45,7 +45,7 @@ import {
   getLateralNamedCobbMeasurementRuleByEndpoints,
   isValidMeasurementDeriveEndpointOrder,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
-import AppMessageDialog from '@/components/overlay/AppMessageDialog';
+import { AppMessageDialog } from '@/components/overlay/overlay-components';
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 

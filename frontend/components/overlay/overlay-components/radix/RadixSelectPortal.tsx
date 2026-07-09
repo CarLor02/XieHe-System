@@ -2,7 +2,7 @@
 
 import * as Select from '@radix-ui/react-select';
 import type { ComponentPropsWithoutRef } from 'react';
-import { useOverlayContainer } from '../OverlayProvider';
+import { useOverlayContainer } from '../../OverlayProvider';
 
 type RadixSelectPortalProps = Omit<
   ComponentPropsWithoutRef<typeof Select.Portal>,

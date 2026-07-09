@@ -11,7 +11,7 @@ import ImagingConfirmDialog from './shared/components/ImagingConfirmDialog';
 import UploadOptionsOverlay from '@/app/upload/_components/overlay/upload-options-overlay';
 import BatchImportOverlay from '@/app/imaging/features/batch-import/components/BatchImportOverlay';
 import { EXAM_TYPES } from './features/image-actions/hooks/useImageEditOverlay';
-import OverlayPortal from '@/components/overlay/OverlayPortal';
+import { AppModal } from '@/components/overlay/overlay-components';
 
 function ImagingPageContent() {
   const controller = useImagingPageController();
@@ -175,15 +175,16 @@ function ImagingPageContent() {
       />
 
       {editOverlay.downloading && (
-        <OverlayPortal
-          layer="blocking"
-          className="fixed inset-0 flex items-center justify-center bg-slate-900/45"
+        <AppModal
+          open
+          title="正在加载影像"
+          contentClassName="fixed inset-0 flex items-center justify-center outline-none"
         >
           <div className="rounded-xl bg-white px-8 py-6 shadow-2xl flex items-center gap-4">
             <i className="ri-loader-4-line text-2xl text-blue-600 animate-spin"></i>
             <span className="text-gray-700">正在加载影像...</span>
           </div>
-        </OverlayPortal>
+        </AppModal>
       )}
     </ImagingFrame>
   );
