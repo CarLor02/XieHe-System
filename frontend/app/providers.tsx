@@ -14,6 +14,7 @@ import { hasUsableSession } from '@/lib/api/session/sessionStore';
 import { sessionInitializerLogging } from '@/lib/logger/sessionLogging';
 import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
+import OverlayProvider from '@/components/overlay/OverlayProvider';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -271,6 +272,8 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
  */
 export default function Providers({ children }: ProvidersProps) {
   return (
-    <AuthInitializer>{children}</AuthInitializer>
+    <OverlayProvider>
+      <AuthInitializer>{children}</AuthInitializer>
+    </OverlayProvider>
   );
 }

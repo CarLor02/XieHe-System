@@ -1,3 +1,7 @@
+'use client';
+
+import OverlayPortal from '@/components/overlay/OverlayPortal';
+
 interface ImagingConfirmDialogProps {
   open: boolean;
   message: string;
@@ -20,8 +24,9 @@ export default function ImagingConfirmDialog({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[11000] flex items-center justify-center bg-black/40"
+    <OverlayPortal
+      layer="modal"
+      className="fixed inset-0 flex items-center justify-center bg-black/40"
       onMouseDown={event => event.stopPropagation()}
       onClick={event => event.stopPropagation()}
       onMouseUp={event => event.stopPropagation()}
@@ -47,6 +52,6 @@ export default function ImagingConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </OverlayPortal>
   );
 }

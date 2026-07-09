@@ -5,6 +5,7 @@ import TeamMultiSelect, {
   type TeamMultiSelectLoadParams,
   type TeamMultiSelectPage,
 } from '@/components/common/TeamMultiSelect';
+import OverlayPortal from '@/components/overlay/OverlayPortal';
 import type { ImageOwnershipPreferenceScope } from '@/app/imaging/domain/imageOwnershipPreference';
 
 export interface UploadOptionsFile {
@@ -223,7 +224,10 @@ export default function UploadOptionsOverlay({
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/45 px-2 py-4 sm:px-6 sm:py-8">
+    <OverlayPortal
+      layer="blocking"
+      className="fixed inset-0 flex items-center justify-center bg-slate-900/45 px-2 py-4 sm:px-6 sm:py-8"
+    >
       <div className="max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-y-auto rounded-xl bg-white shadow-2xl">
         <div className="flex items-start justify-between px-4 py-4 sm:px-8 sm:py-6">
           <div>
@@ -428,6 +432,6 @@ export default function UploadOptionsOverlay({
           </button>
         </div>
       </div>
-    </div>
+    </OverlayPortal>
   );
 }

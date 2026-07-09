@@ -24,6 +24,7 @@ import {
   getMeasurementDeriveVertebraOrder,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
+import AppMessageDialog from '@/components/overlay/AppMessageDialog';
 
 type ResultsTab = 'measurements' | 'keypoints';
 
@@ -513,22 +514,11 @@ export default function MeasurementResultsPanel({
       onPointerMove={event => event.stopPropagation()}
       onPointerUp={event => event.stopPropagation()}
     >
-      {panelOverlayMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-80 rounded-lg border border-gray-600 bg-gray-900 p-4 shadow-2xl">
-            <div className="text-sm text-white">{panelOverlayMessage}</div>
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setPanelOverlayMessage(null)}
-                className="h-8 rounded bg-blue-600 px-3 text-xs text-white hover:bg-blue-500"
-              >
-                知道了
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AppMessageDialog
+        open={Boolean(panelOverlayMessage)}
+        message={panelOverlayMessage}
+        onClose={() => setPanelOverlayMessage(null)}
+      />
       {editingCobbEndpoint && editingCobbEndpointMeasurement && (
         <div
           role="listbox"
