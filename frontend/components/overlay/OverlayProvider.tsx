@@ -13,6 +13,20 @@ interface OverlayContextValue {
   hostElement: HTMLElement | null;
 }
 
+interface OverlayHostProps {
+  hostId?: string;
+  hostTestId: string;
+  hostScope: 'global' | 'scoped';
+  onHostElementChange: (element: HTMLDivElement | null) => void;
+}
+
+interface OverlayScopeProviderProps {
+  children: ReactNode;
+  hostId?: string;
+  hostTestId?: string;
+  hostScope?: 'global' | 'scoped';
+}
+
 const OverlayContext = createContext<OverlayContextValue | undefined>(undefined);
 
 /**
@@ -79,20 +93,27 @@ export function useOverlayHostElement(): HTMLElement | null | undefined {
 }
 
 function OverlayHost({
+  hostId,
+  hostTestId,
+  hostScope,
   onHostElementChange,
-}: {
-  onHostElementChange: (element: HTMLDivElement | null) => void;
-}) {
+}: OverlayHostProps) {
   return (
     <div
-      id="xiehe-overlay-host"
-      data-testid="xiehe-overlay-host"
+      id={hostId}
+      data-overlay-host={hostScope}
+      data-testid={hostTestId}
       ref={onHostElementChange}
     />
   );
 }
 
-export default function OverlayProvider({ children }: { children: ReactNode }) {
+export function OverlayScopeProvider({
+  children,
+  hostId,
+  hostTestId = 'xiehe-overlay-scoped-host',
+  hostScope = 'scoped',
+}: OverlayScopeProviderProps) {
   const [hostElement, setHostElement] = useState<HTMLDivElement | null>(null);
   const handleHostElementChange = useCallback((element: HTMLDivElement | null) => {
     setHostElement(element);
@@ -102,7 +123,24 @@ export default function OverlayProvider({ children }: { children: ReactNode }) {
   return (
     <OverlayContext.Provider value={contextValue}>
       {children}
-      <OverlayHost onHostElementChange={handleHostElementChange} />
+      <OverlayHost
+        hostId={hostId}
+        hostTestId={hostTestId}
+        hostScope={hostScope}
+        onHostElementChange={handleHostElementChange}
+      />
     </OverlayContext.Provider>
+  );
+}
+
+export default function OverlayProvider({ children }: { children: ReactNode }) {
+  return (
+    <OverlayScopeProvider
+      hostId="xiehe-overlay-host"
+      hostTestId="xiehe-overlay-host"
+      hostScope="global"
+    >
+      {children}
+    </OverlayScopeProvider>
   );
 }

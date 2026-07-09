@@ -3,6 +3,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import type { ReactNode, SyntheticEvent } from 'react';
 import { cn } from '@/lib/utils';
+import { OverlayScopeProvider } from '../../OverlayProvider';
 import {
   OVERLAY_LAYER_CLASS_NAMES,
   type OverlayLayer,
@@ -37,9 +38,7 @@ export default function AppModal({
   contentClassName,
 }: AppModalProps) {
   return (
-    // Workflow modals host nested portaled dropdowns, so Radix's inert modal
-    // mode would treat those dropdowns as outside content and block them.
-    <Dialog.Root open={open} onOpenChange={onOpenChange} modal={false}>
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialogPortal>
         <Dialog.Overlay
           data-overlay-layer={layer}
@@ -72,7 +71,8 @@ export default function AppModal({
           onMouseMove={stopOverlayEvent}
         >
           <Dialog.Title className="sr-only">{title}</Dialog.Title>
-          {children}
+          {/* Keep nested dropdown/select portals inside the Radix modal content. */}
+          <OverlayScopeProvider>{children}</OverlayScopeProvider>
         </Dialog.Content>
       </RadixDialogPortal>
     </Dialog.Root>
