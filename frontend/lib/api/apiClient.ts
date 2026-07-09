@@ -14,7 +14,7 @@ import {
   useSessionStore,
 } from './session/sessionStore';
 import { redirectToLogin } from './session/sessionEffects';
-import { createApiClientError, type ApiClientError } from './client/errors';
+import { createApiClientError } from './client/errors';
 import { parseResponsePayload } from './client/responsePayload';
 
 const logger = createLogger('api.fetchClient');

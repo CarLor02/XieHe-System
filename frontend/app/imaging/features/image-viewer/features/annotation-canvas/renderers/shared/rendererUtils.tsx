@@ -1,5 +1,4 @@
 import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
-import { estimateTextHeight, estimateTextWidth } from '@/app/imaging/features/image-viewer/shared/labels';
 import { getDisplayName } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
 
 /**

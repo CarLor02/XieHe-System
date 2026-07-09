@@ -38,6 +38,7 @@ interface UseErrorHandlerReturn {
   handleApiError: (error: any, context?: string) => string
   clearError: () => void
   retryLastAction: () => void
+  setRetryAction: (action: () => void) => void
   reportError: (error: Error, context?: any) => Promise<void>
 }
 
@@ -151,6 +152,7 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}): UseErrorH
     handleApiError: handleApiErrorCallback,
     clearError,
     retryLastAction,
+    setRetryAction,
     reportError
   }
 }

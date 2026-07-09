@@ -91,13 +91,14 @@ export const Tooltip = ({
   };
 
   return (
-    <div className="relative inline-block">
-      {React.cloneElement(children as React.ReactElement<any>, {
-        onMouseEnter: showTooltip,
-        onMouseLeave: hideTooltip,
-        onFocus: showTooltip,
-        onBlur: hideTooltip,
-      })}
+    <div
+      className="relative inline-block"
+      onMouseEnter={showTooltip}
+      onMouseLeave={hideTooltip}
+      onFocus={showTooltip}
+      onBlur={hideTooltip}
+    >
+      {children}
       
       {isVisible && !disabled && (
         <div
@@ -125,4 +126,3 @@ export const Tooltip = ({
 };
 
 export default Tooltip;
-

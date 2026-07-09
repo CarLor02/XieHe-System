@@ -9,6 +9,8 @@ export function renderSingleLineWithHorizontal(
   displayColor: string,
   _imageScale: number
 ): JSX.Element | null {
+  void _imageScale;
+
   if (screenPoints.length < 2) return null;
 
   return (
