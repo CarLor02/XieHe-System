@@ -10,14 +10,72 @@ import {
 } from 'react';
 
 interface OverlayContextValue {
-  hostElement: HTMLDivElement | null;
+  hostElement: HTMLElement | null;
 }
 
-const OverlayContext = createContext<OverlayContextValue | null>(null);
+const OverlayContext = createContext<OverlayContextValue | undefined>(undefined);
 
-export function useOverlayHostElement(): HTMLDivElement | null | undefined {
+/**
+ * Overlay container state intentionally has three states instead of collapsing
+ * "outside provider" and "waiting host" into one fallback path.
+ *
+ * Outside the provider we allow Radix to use its default body container, which
+ * keeps isolated tests and local reuse working. Inside the provider, however,
+ * the host ref is null on the first render; rendering a Radix Portal at that
+ * moment would mount it under document.body and then move it into OverlayHost
+ * on the next render. That short-lived body mount is enough to reintroduce
+ * z-index races and focus/position flicker, so consumers must skip portal
+ * rendering while the host is still waiting.
+ */
+export type OverlayContainerState =
+  | {
+      type: 'outside-provider';
+      shouldRenderPortal: true;
+      container: undefined;
+    }
+  | {
+      type: 'waiting-host';
+      shouldRenderPortal: false;
+      container: undefined;
+    }
+  | {
+      type: 'ready';
+      shouldRenderPortal: true;
+      container: HTMLElement;
+    };
+
+export function useOverlayContainer(): OverlayContainerState {
   const context = useContext(OverlayContext);
-  return context ? context.hostElement : undefined;
+
+  if (context === undefined) {
+    return {
+      type: 'outside-provider',
+      shouldRenderPortal: true,
+      container: undefined,
+    };
+  }
+
+  if (context.hostElement === null) {
+    return {
+      type: 'waiting-host',
+      shouldRenderPortal: false,
+      container: undefined,
+    };
+  }
+
+  return {
+    type: 'ready',
+    shouldRenderPortal: true,
+    container: context.hostElement,
+  };
+}
+
+export function useOverlayHostElement(): HTMLElement | null | undefined {
+  const overlayContainer = useOverlayContainer();
+
+  if (overlayContainer.type === 'outside-provider') return undefined;
+  if (overlayContainer.type === 'waiting-host') return null;
+  return overlayContainer.container;
 }
 
 function OverlayHost({

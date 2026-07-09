@@ -2,6 +2,8 @@
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from 'react';
+import { RadixDropdownPortal } from '@/components/overlay/overlay-components';
+import { OVERLAY_LAYER_CLASS_NAMES } from '@/components/overlay/overlayLayers';
 import { cn } from '@/lib/utils';
 
 type DropdownContentProps = ComponentPropsWithoutRef<typeof DropdownMenu.Content>;
@@ -34,20 +36,21 @@ export default function AppDropdown({
   return (
     <DropdownMenu.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
+      <RadixDropdownPortal>
         <DropdownMenu.Content
           side={side}
           align={align}
           sideOffset={sideOffset}
           collisionPadding={collisionPadding}
           className={cn(
-            'z-50 rounded-lg border border-gray-200 bg-white shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+            OVERLAY_LAYER_CLASS_NAMES.dropdown,
+            'rounded-lg border border-gray-200 bg-white shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
             contentClassName
           )}
         >
           {children}
         </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+      </RadixDropdownPortal>
     </DropdownMenu.Root>
   );
 }
