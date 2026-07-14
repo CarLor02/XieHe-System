@@ -16,6 +16,60 @@ function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
   });
 }
 
+async function createImageCanvasFromBlob(imageBlob: Blob): Promise<{
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+}> {
+  const image = await loadImageFromBlob(imageBlob);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth || image.width;
+  canvas.height = image.naturalHeight || image.height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('无法创建绘图上下文');
+  }
+
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return {
+    canvas,
+    width: canvas.width,
+    height: canvas.height,
+  };
+}
+
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+  quality?: number
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      blob => {
+        if (!blob) {
+          reject(new Error('影像生成失败'));
+          return;
+        }
+        resolve(blob);
+      },
+      mimeType,
+      quality
+    );
+  });
+}
+
+export async function convertImageBlobToPngBlob(
+  imageBlob: Blob
+): Promise<{ blob: Blob; width: number; height: number }> {
+  const { canvas, width, height } = await createImageCanvasFromBlob(imageBlob);
+  return {
+    blob: await canvasToBlob(canvas, 'image/png'),
+    width,
+    height,
+  };
+}
+
 /**
  * 将 SVG 字符串转换为图片
  */
@@ -207,19 +261,11 @@ export async function createAnnotatedImageBlob({
   annotationSize?: { width?: number; height?: number };
   format: AnnotatedImageExportFormat;
 }): Promise<Blob> {
-  // 加载 DICOM 图像
-  const image = await loadImageFromBlob(imageBlob);
-  const canvas = document.createElement('canvas');
-  canvas.width = image.naturalWidth || image.width;
-  canvas.height = image.naturalHeight || image.height;
-
+  const { canvas } = await createImageCanvasFromBlob(imageBlob);
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     throw new Error('无法创建绘图上下文');
   }
-
-  // 绘制基础图像
-  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
   // 计算坐标缩放（如果标注是在不同分辨率下创建的）
   const sourceWidth = annotationSize?.width || canvas.width;
@@ -256,17 +302,5 @@ export async function createAnnotatedImageBlob({
 
   // 导出最终图像
   const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      blob => {
-        if (!blob) {
-          reject(new Error('绘图影像生成失败'));
-          return;
-        }
-        resolve(blob);
-      },
-      mimeType,
-      format === 'jpeg' ? 0.92 : undefined
-    );
-  });
+  return canvasToBlob(canvas, mimeType, format === 'jpeg' ? 0.92 : undefined);
 }

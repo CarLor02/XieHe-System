@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useUser } from '@/lib/api';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 
@@ -14,6 +14,14 @@ function canExportPrivilegedData(user: ReturnType<typeof useUser>['user']) {
       user?.role === 'system_admin' ||
       user?.role === 'team_admin' ||
       user?.role === 'ADMIN'
+  );
+}
+
+function isPrivilegedExportContent(exportContent: ExportContentType): boolean {
+  return (
+    exportContent === 'annotation-points' ||
+    exportContent === 'training-data' ||
+    exportContent === 'labelme-compatible-data'
   );
 }
 
@@ -41,15 +49,13 @@ export function useBatchImageExport(imageFiles: ImageFile[]) {
     () => Array.from(selectedExportImages.values()),
     [selectedExportImages]
   );
-
-  useEffect(() => {
-    if (
-      (exportContent === 'annotation-points' || exportContent === 'training-data') &&
-      !canExportAnnotationPoints
-    ) {
-      setExportContent('original-image');
-    }
-  }, [canExportAnnotationPoints, exportContent]);
+  const effectiveExportContent = useMemo(
+    () =>
+      isPrivilegedExportContent(exportContent) && !canExportAnnotationPoints
+        ? 'original-image'
+        : exportContent,
+    [canExportAnnotationPoints, exportContent]
+  );
 
   const clearExportSelection = useCallback(() => {
     setSelectedExportImages(new Map());
@@ -96,7 +102,7 @@ export function useBatchImageExport(imageFiles: ImageFile[]) {
     }
 
     if (
-      (exportContent === 'annotation-points' || exportContent === 'training-data') &&
+      isPrivilegedExportContent(effectiveExportContent) &&
       !canExportAnnotationPoints
     ) {
       setExportMessage('当前账号无权导出标注点检测数据');
@@ -110,7 +116,7 @@ export function useBatchImageExport(imageFiles: ImageFile[]) {
     try {
       const files = await buildBatchExportFiles({
         images: selectedImages,
-        exportContent,
+        exportContent: effectiveExportContent,
         onProgress: setExportProgress,
       });
       const zipFilename = `data_export_${new Date().toISOString().slice(0, 10)}.zip`;
@@ -128,13 +134,13 @@ export function useBatchImageExport(imageFiles: ImageFile[]) {
     } finally {
       setIsExporting(false);
     }
-  }, [canExportAnnotationPoints, exportContent, selectedImages]);
+  }, [canExportAnnotationPoints, effectiveExportContent, selectedImages]);
 
   return {
     isBatchExportMode,
     selectedExportIds,
     selectedExportCount,
-    exportContent,
+    exportContent: effectiveExportContent,
     exportContentOptions,
     isExporting,
     exportProgress,

@@ -7,6 +7,11 @@ import {
 import {
   buildAnnotationPointRows,
   buildExportFilename,
+  buildLabelMeAnnotationBlob,
+  buildLabelMeAnnotationPayload,
+  buildLabelMeExportPath,
+  buildLabelMeImageFilename,
+  buildLabelMeJsonFilename,
   buildMeasurementRows,
   buildTrainingLabelBlob,
   buildTrainingLabelFilename,
@@ -18,7 +23,10 @@ import {
   getParameterMeasurements,
   parseAnnotationData,
 } from '../domain';
-import { createAnnotatedImageBlob } from './create-annotated-image-export';
+import {
+  convertImageBlobToPngBlob,
+  createAnnotatedImageBlob,
+} from './create-annotated-image-export';
 
 const TABULAR_EXPORT_FORMAT = 'csv' as const;
 const ANNOTATED_IMAGE_FORMAT = 'png' as const;
@@ -122,6 +130,35 @@ export async function buildBatchExportFiles({
           console.warn(`影像 ${image.id} 缺少尺寸信息，跳过训练数据导出`);
         }
       }
+    } else if (exportContent === 'labelme-compatible-data') {
+      const imageBlob = await downloadImageFile(image.id);
+      const pngImage = await convertImageBlobToPngBlob(imageBlob);
+      const imageFilename = buildLabelMeImageFilename(image);
+      const jsonFilename = buildLabelMeJsonFilename(image);
+      const sourceSize = {
+        width: annotationData?.imageWidth || pngImage.width,
+        height: annotationData?.imageHeight || pngImage.height,
+      };
+      const targetSize = {
+        width: pngImage.width,
+        height: pngImage.height,
+      };
+      const labelMePayload = buildLabelMeAnnotationPayload({
+        imagePath: imageFilename,
+        vertebraeLayer: annotationData?.vertebraeLayer ?? [],
+        cfhAnnotation: annotationData?.cfhAnnotation ?? null,
+        sourceSize,
+        targetSize,
+      });
+
+      files.push({
+        filename: buildLabelMeExportPath(image, imageFilename),
+        blob: pngImage.blob,
+      });
+      files.push({
+        filename: buildLabelMeExportPath(image, jsonFilename),
+        blob: buildLabelMeAnnotationBlob(labelMePayload),
+      });
     } else {
       const rows = buildMeasurementRows(
         image,

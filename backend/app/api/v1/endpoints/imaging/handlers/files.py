@@ -110,6 +110,7 @@ def _image_file_response(
     image: ImageFile,
     uploader_name: Optional[str] = None,
     patient_name: Optional[str] = None,
+    patient_identifier: Optional[str] = None,
 ) -> ImageFileResponse:
     team_visibilities = sorted(
         image.team_visibilities,
@@ -131,6 +132,7 @@ def _image_file_response(
         uploader_name=uploader_name,
         patient_id=image.patient_id,
         patient_name=patient_name,
+        patient_identifier=patient_identifier,
         team_ids=[visibility.team_id for visibility in team_visibilities],
         team_names=[
             visibility.team.name
@@ -192,17 +194,26 @@ def _user_to_uploader_response(user: User) -> ImageUploaderResponse:
     )
 
 
-def _image_file_related_names(db: Session, image: ImageFile) -> tuple[Optional[str], Optional[str]]:
+def _image_file_related_names(
+    db: Session,
+    image: ImageFile,
+) -> tuple[Optional[str], Optional[str], Optional[str]]:
     uploader_name = None
     patient_name = None
+    patient_identifier = None
 
     if image.uploaded_by:
         uploader_name = db.query(User.real_name).filter(User.id == image.uploaded_by).scalar()
 
     if image.patient_id:
         patient_name = db.query(Patient.name).filter(Patient.id == image.patient_id).scalar()
+        patient_identifier = (
+            db.query(Patient.patient_id)
+            .filter(Patient.id == image.patient_id)
+            .scalar()
+        )
 
-    return uploader_name, patient_name
+    return uploader_name, patient_name, patient_identifier
 
 
 def _parse_team_ids_param(value: Optional[str]) -> list[int]:
@@ -492,6 +503,7 @@ async def get_image_files_list(
         query = db.query(
             ImageFile,
             Patient.name.label("patient_name"),
+            Patient.patient_id.label("patient_identifier"),
             User.real_name.label("uploader_name"),
         ).outerjoin(
             Patient, ImageFile.patient_id == Patient.id
@@ -585,8 +597,9 @@ async def get_image_files_list(
                 image,
                 uploader_name=uploader_name,
                 patient_name=patient_name,
+                patient_identifier=patient_identifier,
             ).dict()
-            for image, patient_name, uploader_name in image_rows
+            for image, patient_name, patient_identifier, uploader_name in image_rows
         ]
 
         return paginated_response(
@@ -623,6 +636,7 @@ async def get_patient_images(
         query = db.query(
             ImageFile,
             Patient.name.label("patient_name"),
+            Patient.patient_id.label("patient_identifier"),
             User.real_name.label("uploader_name"),
         ).outerjoin(
             Patient, ImageFile.patient_id == Patient.id
@@ -646,8 +660,9 @@ async def get_patient_images(
                 image,
                 uploader_name=uploader_name,
                 patient_name=patient_name,
+                patient_identifier=patient_identifier,
             ).dict()
-            for image, patient_name, uploader_name in image_rows
+            for image, patient_name, patient_identifier, uploader_name in image_rows
         ]
 
         return paginated_response(
@@ -824,13 +839,17 @@ async def get_image_file(
                 detail="影像文件不存在"
             )
         
-        uploader_name, patient_name = _image_file_related_names(db, image)
+        uploader_name, patient_name, patient_identifier = _image_file_related_names(
+            db,
+            image,
+        )
 
         return success_response(
             data=_image_file_response(
                 image,
                 uploader_name=uploader_name,
                 patient_name=patient_name,
+                patient_identifier=patient_identifier,
             ).dict(),
             message="影像文件详情查询成功"
         )
@@ -1128,12 +1147,16 @@ async def replace_image_file_content(
             message=f"用户 {current_user.get('username')} 替换了影像文件 {file_id} 的内容",
         )
 
-        uploader_name, patient_name = _image_file_related_names(db, image)
+        uploader_name, patient_name, patient_identifier = _image_file_related_names(
+            db,
+            image,
+        )
         return success_response(
             data=_image_file_response(
                 image,
                 uploader_name=uploader_name,
                 patient_name=patient_name,
+                patient_identifier=patient_identifier,
             ).dict(),
             message="影像内容替换成功",
         )
@@ -1242,11 +1265,15 @@ async def update_image_info(
         db.commit()
         db.refresh(image)
 
-        uploader_name, patient_name = _image_file_related_names(db, image)
+        uploader_name, patient_name, patient_identifier = _image_file_related_names(
+            db,
+            image,
+        )
         payload = _image_file_response(
             image,
             uploader_name=uploader_name,
             patient_name=patient_name,
+            patient_identifier=patient_identifier,
         ).dict()
         payload["warning"] = warning
         return success_response(data=payload, message="影像信息修改成功")
@@ -1340,13 +1367,17 @@ async def update_annotation(
         
         logger.emit_event(LogLevel.INFO, message=f"用户 {current_user.get('username')} 更新了影像文件 {file_id} 的标注数据")
         
-        uploader_name, patient_name = _image_file_related_names(db, image)
+        uploader_name, patient_name, patient_identifier = _image_file_related_names(
+            db,
+            image,
+        )
 
         return success_response(
             data=_image_file_response(
                 image,
                 uploader_name=uploader_name,
                 patient_name=patient_name,
+                patient_identifier=patient_identifier,
             ).dict(),
             message="标注数据更新成功"
         )

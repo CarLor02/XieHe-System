@@ -20,6 +20,7 @@ class ImageFileResponse(BaseModel):
     uploader_name: Optional[str] = None
     patient_id: Optional[int]
     patient_name: Optional[str] = None
+    patient_identifier: Optional[str] = None
     team_ids: List[int] = Field(default_factory=list)
     team_names: List[str] = Field(default_factory=list)
     study_date: Optional[datetime]

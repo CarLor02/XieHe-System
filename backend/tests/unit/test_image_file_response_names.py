@@ -36,10 +36,12 @@ def test_image_file_response_includes_patient_and_real_uploader_names() -> None:
         make_image_file(),
         uploader_name="王医生",
         patient_name="张三",
+        patient_identifier="P2026001",
     )
 
     assert response.uploader_name == "王医生"
     assert response.patient_name == "张三"
+    assert response.patient_identifier == "P2026001"
 
 
 class ScalarQuery:
@@ -63,6 +65,7 @@ class RelatedNameDb:
         values = {
             "real_name": "王医生",
             "name": "张三",
+            "patient_id": "P2026001",
         }
         return ScalarQuery(values[column_name])
 
@@ -70,9 +73,13 @@ class RelatedNameDb:
 def test_related_names_query_user_real_name() -> None:
     db = RelatedNameDb()
 
-    uploader_name, patient_name = _image_file_related_names(db, make_image_file())
+    uploader_name, patient_name, patient_identifier = _image_file_related_names(
+        db,
+        make_image_file(),
+    )
 
     assert uploader_name == "王医生"
     assert patient_name == "张三"
+    assert patient_identifier == "P2026001"
     assert "real_name" in db.queried_columns
     assert "username" not in db.queried_columns

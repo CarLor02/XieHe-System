@@ -55,3 +55,27 @@ export function buildExportFilename(
 export function buildTrainingLabelFilename(image: ImageFile): string {
   return `${getFilenameBase(image)}_label.json`;
 }
+
+function getLabelMePatientFolder(image: ImageFile): string {
+  return (
+    sanitizeFilename(
+      image.patient_identifier ||
+        (image.patient_id ? `patient_${image.patient_id}` : `image_${image.id}`)
+    ) || `image_${image.id}`
+  );
+}
+
+export function buildLabelMeImageFilename(image: ImageFile): string {
+  return `${getFilenameBase(image)}.png`;
+}
+
+export function buildLabelMeJsonFilename(image: ImageFile): string {
+  return `${getFilenameBase(image)}.json`;
+}
+
+export function buildLabelMeExportPath(
+  image: ImageFile,
+  filename: string
+): string {
+  return `${getLabelMePatientFolder(image)}/${sanitizeFilename(filename)}`;
+}

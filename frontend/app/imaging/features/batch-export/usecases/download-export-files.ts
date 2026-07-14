@@ -135,23 +135,37 @@ function createEndOfCentralDirectory({
 }
 
 function makeUniqueFilename(filename: string, usedFilenames: Set<string>): string {
-  const sanitized = sanitizeFilename(filename) || 'export';
+  const sanitized = sanitizeZipPath(filename) || 'export';
   if (!usedFilenames.has(sanitized)) {
     usedFilenames.add(sanitized);
     return sanitized;
   }
 
   const dotIndex = sanitized.lastIndexOf('.');
-  const base = dotIndex > 0 ? sanitized.slice(0, dotIndex) : sanitized;
-  const extension = dotIndex > 0 ? sanitized.slice(dotIndex) : '';
+  const slashIndex = sanitized.lastIndexOf('/');
+  const nameStartIndex = slashIndex >= 0 ? slashIndex + 1 : 0;
+  const directory = slashIndex >= 0 ? sanitized.slice(0, nameStartIndex) : '';
+  const base =
+    dotIndex > nameStartIndex
+      ? sanitized.slice(nameStartIndex, dotIndex)
+      : sanitized.slice(nameStartIndex);
+  const extension = dotIndex > nameStartIndex ? sanitized.slice(dotIndex) : '';
   let index = 2;
-  let next = `${base} (${index})${extension}`;
+  let next = `${directory}${base} (${index})${extension}`;
   while (usedFilenames.has(next)) {
     index += 1;
-    next = `${base} (${index})${extension}`;
+    next = `${directory}${base} (${index})${extension}`;
   }
   usedFilenames.add(next);
   return next;
+}
+
+function sanitizeZipPath(filename: string): string {
+  return filename
+    .split('/')
+    .map(part => sanitizeFilename(part))
+    .filter(Boolean)
+    .join('/');
 }
 
 export async function createZipBlob(files: ExportFile[]): Promise<Blob> {

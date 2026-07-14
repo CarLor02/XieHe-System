@@ -1,4 +1,8 @@
-import type { MeasurementData, VertebraAnnotation } from '@/app/imaging/features/image-viewer/public';
+import type {
+  CfhAnnotation,
+  MeasurementData,
+  VertebraAnnotation,
+} from '@/app/imaging/features/image-viewer/public';
 import {
   getAnnotationConfig,
   getAnnotationTypeId,
@@ -23,6 +27,9 @@ export function parseAnnotationData(image: ImageFile): ParsedAnnotationData | nu
     imageHeight: Number(parsed.imageHeight) || undefined,
     vertebraeLayer: Array.isArray(parsed.vertebraeLayer)
       ? parsed.vertebraeLayer as VertebraAnnotation[]
+      : undefined,
+    cfhAnnotation: parsed.cfhAnnotation
+      ? parsed.cfhAnnotation as CfhAnnotation
       : undefined,
   };
 }
