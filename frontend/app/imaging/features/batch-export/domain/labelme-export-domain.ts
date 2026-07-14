@@ -25,6 +25,13 @@ interface LabelMeShape {
   mask: null;
 }
 
+type CornerIndex = 1 | 2 | 3 | 4;
+
+interface VertebraCornerRef {
+  groupLabel: string;
+  cornerIndex: CornerIndex;
+}
+
 export interface LabelMePayload {
   version: string;
   flags: Record<string, never>;
@@ -74,6 +81,111 @@ function getS1PointIndex(label: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+function getVertebraCornerRef(label: string): VertebraCornerRef | null {
+  const match = /^([A-Z][A-Z]?\d+)-(1|2|3|4)$/.exec(label);
+  if (!match || match[1] === 'S1') {
+    return null;
+  }
+  return {
+    groupLabel: match[1],
+    cornerIndex: Number(match[2]) as CornerIndex,
+  };
+}
+
+function getAverageConfidence(annotations: VertebraAnnotation[]): number {
+  if (annotations.length === 0) {
+    return 1;
+  }
+  return (
+    annotations.reduce((sum, annotation) => sum + annotation.confidence, 0) /
+    annotations.length
+  );
+}
+
+function createGroupedVertebra(
+  label: string,
+  annotations: Record<CornerIndex, VertebraAnnotation>
+): VertebraAnnotation {
+  const ordered = [1, 2, 3, 4].map(
+    index => annotations[index as CornerIndex]
+  ) as [
+    VertebraAnnotation,
+    VertebraAnnotation,
+    VertebraAnnotation,
+    VertebraAnnotation,
+  ];
+
+  return {
+    label,
+    corners: ordered.map(annotation => annotation.corners[0]) as [
+      Point,
+      Point,
+      Point,
+      Point,
+    ],
+    confidence: getAverageConfidence(ordered),
+    source: ordered[0].source,
+  };
+}
+
+export function normalizeVertebraeLayerForLabelMe(
+  vertebraeLayer: VertebraAnnotation[]
+): VertebraAnnotation[] {
+  const fullVertebraLabels = new Set<string>();
+  const cornerGroups = new Map<
+    string,
+    Partial<Record<CornerIndex, VertebraAnnotation>>
+  >();
+  const emittedGroups = new Set<string>();
+
+  vertebraeLayer.forEach(annotation => {
+    const cornerRef = getVertebraCornerRef(annotation.label);
+    if (cornerRef) {
+      const group = cornerGroups.get(cornerRef.groupLabel) ?? {};
+      group[cornerRef.cornerIndex] = annotation;
+      cornerGroups.set(cornerRef.groupLabel, group);
+      return;
+    }
+
+    if (!isSinglePointAnnotation(annotation)) {
+      fullVertebraLabels.add(annotation.label);
+    }
+  });
+
+  return vertebraeLayer.flatMap(annotation => {
+    const cornerRef = getVertebraCornerRef(annotation.label);
+    if (!cornerRef) {
+      return [annotation];
+    }
+
+    if (fullVertebraLabels.has(cornerRef.groupLabel)) {
+      return [];
+    }
+
+    const group = cornerGroups.get(cornerRef.groupLabel);
+    const isComplete =
+      Boolean(group?.[1]) &&
+      Boolean(group?.[2]) &&
+      Boolean(group?.[3]) &&
+      Boolean(group?.[4]);
+    if (!isComplete) {
+      return [annotation];
+    }
+
+    if (emittedGroups.has(cornerRef.groupLabel)) {
+      return [];
+    }
+
+    emittedGroups.add(cornerRef.groupLabel);
+    return [
+      createGroupedVertebra(
+        cornerRef.groupLabel,
+        group as Record<CornerIndex, VertebraAnnotation>
+      ),
+    ];
+  });
+}
+
 export function buildLabelMeAnnotationPayload({
   imagePath,
   vertebraeLayer,
@@ -90,8 +202,10 @@ export function buildLabelMeAnnotationPayload({
   const shapes: LabelMeShape[] = [];
   const s1Points = new Map<number, LabelMePoint>();
   let hasCfhShape = false;
+  const normalizedVertebraeLayer =
+    normalizeVertebraeLayerForLabelMe(vertebraeLayer);
 
-  vertebraeLayer.forEach(annotation => {
+  normalizedVertebraeLayer.forEach(annotation => {
     const s1PointIndex = getS1PointIndex(annotation.label);
     if (s1PointIndex !== null) {
       s1Points.set(
