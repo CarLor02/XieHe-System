@@ -168,20 +168,33 @@ function sanitizeZipPath(filename: string): string {
     .join('/');
 }
 
+function getZipDirectoryEntries(filename: string): string[] {
+  const segments = filename.split('/').filter(Boolean);
+  if (segments.length <= 1) {
+    return [];
+  }
+
+  const entries: string[] = [];
+  for (let index = 1; index < segments.length; index += 1) {
+    entries.push(`${segments.slice(0, index).join('/')}/`);
+  }
+  return entries;
+}
+
 export async function createZipBlob(files: ExportFile[]): Promise<Blob> {
   const encoder = new TextEncoder();
   const usedFilenames = new Set<string>();
+  const usedDirectoryEntries = new Set<string>();
   const localParts: ArrayBuffer[] = [];
   const centralParts: ArrayBuffer[] = [];
   let offset = 0;
   let centralDirectorySize = 0;
+  let entryCount = 0;
 
-  for (const file of files) {
-    const filename = makeUniqueFilename(file.filename, usedFilenames);
+  function addZipEntry(filename: string, contentBuffer: ArrayBuffer) {
     const filenameBytes = encoder.encode(filename);
-    const contentBuffer = await file.blob.arrayBuffer();
     const content = new Uint8Array(contentBuffer);
-    const crc = crc32(content);
+    const crc = content.length > 0 ? crc32(content) : 0;
     const localHeaderOffset = offset;
     const localHeader = createLocalHeader({
       filenameBytes,
@@ -199,10 +212,24 @@ export async function createZipBlob(files: ExportFile[]): Promise<Blob> {
     centralParts.push(centralHeader.buffer as ArrayBuffer);
     offset += localHeader.length + content.length;
     centralDirectorySize += centralHeader.length;
+    entryCount += 1;
+  }
+
+  for (const file of files) {
+    const filename = makeUniqueFilename(file.filename, usedFilenames);
+    getZipDirectoryEntries(filename).forEach(directoryEntry => {
+      if (usedDirectoryEntries.has(directoryEntry)) {
+        return;
+      }
+      usedDirectoryEntries.add(directoryEntry);
+      addZipEntry(directoryEntry, new ArrayBuffer(0));
+    });
+    const contentBuffer = await file.blob.arrayBuffer();
+    addZipEntry(filename, contentBuffer);
   }
 
   const endHeader = createEndOfCentralDirectory({
-    fileCount: files.length,
+    fileCount: entryCount,
     centralDirectorySize,
     centralDirectoryOffset: offset,
   });

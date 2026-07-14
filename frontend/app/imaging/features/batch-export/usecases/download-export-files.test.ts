@@ -42,6 +42,7 @@ it('preserves sanitized folder segments in zip entry names', async () => {
 
   const zipText = await readBlobAsText(zipBlob);
 
+  expect(zipText).toContain('P001/');
   expect(zipText).toContain('P001/spine.png');
   expect(zipText).toContain('P001/spine.json');
   expect(zipText).not.toContain('P001_spine.png');
