@@ -1,10 +1,21 @@
 import { expect, it } from '@jest/globals';
 
 import {
+  getCompleteMeasurementDeriveEndpointGroups,
+  getMeasurementDeriveVertebraOrder,
   getLateralCobbEndpointPointIds,
   getLateralNamedCobbMeasurementRuleByEndpoints,
   LATERAL_NAMED_COBB_MEASUREMENT_RULES,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
+import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+
+const completeKeypoints = (vertebra: string) =>
+  [1, 2, 3, 4].map(index => ({
+    id: `${vertebra}-${index}`,
+    point: { x: index * 10, y: index * 20 },
+    source: AnnotationSource.AI,
+    confidence: 0.9,
+  }));
 
 it('defines named lateral Cobb measurements with their exact endpoint point ids', () => {
   expect(LATERAL_NAMED_COBB_MEASUREMENT_RULES).toEqual([
@@ -69,4 +80,23 @@ it('uses named lateral Cobb endpoint rules before the generic lateral Cobb rule'
   expect(getLateralNamedCobbMeasurementRuleByEndpoints('T2', 'T5')?.name).toBe(
     'TK T2-T5'
   );
+});
+
+it('uses C3-C6 in lateral Cobb derivation endpoint order', () => {
+  expect(getMeasurementDeriveVertebraOrder('C2')).toBeLessThan(
+    getMeasurementDeriveVertebraOrder('C3')!
+  );
+  expect(getMeasurementDeriveVertebraOrder('C6')).toBeLessThan(
+    getMeasurementDeriveVertebraOrder('C7')!
+  );
+  expect(
+    getCompleteMeasurementDeriveEndpointGroups(
+      [
+        ...completeKeypoints('C3'),
+        ...completeKeypoints('C6'),
+        ...completeKeypoints('C7'),
+      ],
+      '侧位X光片'
+    )
+  ).toEqual(['C3', 'C6', 'C7']);
 });

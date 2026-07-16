@@ -1,6 +1,10 @@
 // 编号越小代表生理学位置越靠上。
 export const MEASUREMENT_DERIVE_VERTEBRA_ORDER = [
   'C2',
+  'C3',
+  'C4',
+  'C5',
+  'C6',
   'C7',
   'T1',
   'T2',

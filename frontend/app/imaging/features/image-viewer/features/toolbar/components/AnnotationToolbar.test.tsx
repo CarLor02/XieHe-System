@@ -78,6 +78,20 @@ const completeC2Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   confidence: 0.9,
 }));
 
+const completeC3Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
+  id: `C3-${index}`,
+  point: { x: 220 + index * 10, y: 220 + index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
+const completeC6Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
+  id: `C6-${index}`,
+  point: { x: 240 + index * 10, y: 240 + index * 20 },
+  source: AnnotationSource.AI,
+  confidence: 0.9,
+}));
+
 const lateralS1Keypoints: KeypointAnnotation[] = [1, 2].map(index => ({
   id: `S1-${index}`,
   point: { x: 300 + index * 10, y: 300 + index * 20 },
@@ -289,6 +303,28 @@ it('starts a sequential missing-keypoint session for lateral S1', () => {
   ]);
   expect(screen.getByRole('button', { name: 'S1-1' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'S1-2' })).toBeTruthy();
+});
+
+it('starts a sequential missing-keypoint session for lateral C3-C6 vertebrae', () => {
+  const onStartKeypointSequence = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    onStartKeypointSequence,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+  expect(screen.queryByRole('button', { name: /^C3 0$/ })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^C6 0$/ })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /^C3 0$/ }));
+
+  expect(onStartKeypointSequence).toHaveBeenCalledWith('C3', [
+    'C3-1',
+    'C3-2',
+    'C3-3',
+    'C3-4',
+  ]);
+  expect(screen.getByRole('button', { name: 'C3-1' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'C3-4' })).toBeTruthy();
 });
 
 it('does not start sequential placement for lateral CFH', () => {
@@ -599,6 +635,30 @@ it('still derives lateral Cobb when the selected endpoints do not match a named 
   fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
 
   expect(onCreateCobb).toHaveBeenCalledWith('T3', 'T8');
+});
+
+it('derives lateral Cobb from newly available cervical endpoint vertebrae', () => {
+  const onCreateCobb = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    keypoints: [...completeC3Keypoints, ...completeC6Keypoints],
+    completeVertebraGroups: ['C3', 'C6'],
+    onCreateCobb,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+
+  expect((screen.getByLabelText('上端椎') as HTMLSelectElement).value).toBe(
+    'C3'
+  );
+  expect((screen.getByLabelText('下端椎') as HTMLSelectElement).value).toBe(
+    'C6'
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
+
+  expect(onCreateCobb).toHaveBeenCalledWith('C3', 'C6');
 });
 
 it('shows an overlay when lateral Cobb endpoint order is invalid', () => {

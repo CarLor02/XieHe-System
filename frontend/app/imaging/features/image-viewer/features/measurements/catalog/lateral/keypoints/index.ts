@@ -14,6 +14,10 @@ export interface LateralKeypointGroup {
 
 export const LATERAL_VERTEBRA_GROUPS = [
   'C2',
+  'C3',
+  'C4',
+  'C5',
+  'C6',
   'C7',
   'T1',
   'T2',
@@ -35,6 +39,10 @@ export const LATERAL_VERTEBRA_GROUPS = [
 ] as const;
 
 export const LATERAL_CENTER_VERTEBRA_GROUPS = [
+  'C3',
+  'C4',
+  'C5',
+  'C6',
   'C7',
   'T1',
   'T2',
@@ -130,7 +138,7 @@ export function isLateralKeypointId(id: string): boolean {
 export function parseLateralVertebraKeypointId(
   id: string
 ): { group: string; pointIndex: number } | null {
-  const match = /^(C2|C7|T\d{1,2}|L\d)-([1-4])$/.exec(id);
+  const match = /^(C[2-7]|T\d{1,2}|L\d)-([1-4])$/.exec(id);
   if (!match) return null;
 
   return {
