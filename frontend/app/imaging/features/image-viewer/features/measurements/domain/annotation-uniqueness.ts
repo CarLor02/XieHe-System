@@ -1,5 +1,8 @@
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { MeasurementData, Tool } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Tool,
+} from '@/app/imaging/features/image-viewer/shared/types';
 
 const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
   // 正位标注：除 Cobb、椎体中心、辅助图形外唯一。
@@ -10,6 +13,7 @@ const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
   'avt',
   'tts',
   'lld',
+  'hemipelvic-width-ratio',
   'ts',
   // 侧位标注：除椎体中心、辅助图形外唯一。
   't1-slope',
@@ -39,8 +43,10 @@ export function measurementMatchesTool(
   measurement: Pick<MeasurementData, 'type'>,
   tool: Pick<Tool, 'id' | 'name'>
 ): boolean {
-  return getCanonicalAnnotationId(measurement.type) ===
-    getCanonicalAnnotationId(tool.id);
+  return (
+    getCanonicalAnnotationId(measurement.type) ===
+    getCanonicalAnnotationId(tool.id)
+  );
 }
 
 export function hasAnnotationForTool(

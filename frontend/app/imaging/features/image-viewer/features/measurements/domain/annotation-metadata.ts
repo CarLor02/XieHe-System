@@ -38,7 +38,7 @@ const AUXILIARY_MEASUREMENT_VALUE_TAG_TYPES = new Set([
   'aux-angle',
   'aux-horizontal-line',
   'aux-vertical-line',
-  'circle',  // 显示半径
+  'circle', // 显示半径
 ]);
 
 /**
@@ -112,6 +112,16 @@ export function getInteractivePointsCount(type: string): number | undefined {
   return config?.interactivePointsCount;
 }
 
+export function shouldShowPointLabels(type: string): boolean {
+  const config = getAnnotationConfig(type);
+  return config?.showPointLabels ?? true;
+}
+
+export function shouldPreserveCanvasValue(type: string): boolean {
+  const config = getAnnotationConfig(type);
+  return config?.preserveCanvasValue ?? false;
+}
+
 /**
  * 返回 maxXRightLabel 模式下的标签间距（屏幕像素）。
  * 优先使用 AnnotationConfig.apLabelGapX；未设置时返回默认值 8。
@@ -181,7 +191,8 @@ export function calculateSmartLabelPosition(
   let hasOverlap = false;
   for (const occupied of occupiedPositions) {
     const distance = Math.sqrt(
-      Math.pow(basePosition.x - occupied.x, 2) + Math.pow(basePosition.y - occupied.y, 2)
+      Math.pow(basePosition.x - occupied.x, 2) +
+        Math.pow(basePosition.y - occupied.y, 2)
     );
     if (distance < overlapThreshold) {
       hasOverlap = true;
@@ -202,11 +213,23 @@ export function calculateSmartLabelPosition(
     // 左侧
     { x: basePosition.x - horizontalOffset, y: basePosition.y },
     // 上下左侧组合
-    { x: basePosition.x - horizontalOffset, y: basePosition.y - verticalOffset },
-    { x: basePosition.x - horizontalOffset, y: basePosition.y + verticalOffset },
+    {
+      x: basePosition.x - horizontalOffset,
+      y: basePosition.y - verticalOffset,
+    },
+    {
+      x: basePosition.x - horizontalOffset,
+      y: basePosition.y + verticalOffset,
+    },
     // 上下右侧组合
-    { x: basePosition.x + horizontalOffset, y: basePosition.y - verticalOffset },
-    { x: basePosition.x + horizontalOffset, y: basePosition.y + verticalOffset },
+    {
+      x: basePosition.x + horizontalOffset,
+      y: basePosition.y - verticalOffset,
+    },
+    {
+      x: basePosition.x + horizontalOffset,
+      y: basePosition.y + verticalOffset,
+    },
     // 更远的位置
     { x: basePosition.x, y: basePosition.y - verticalOffset * 2 },
     { x: basePosition.x, y: basePosition.y + verticalOffset * 2 },
@@ -218,7 +241,8 @@ export function calculateSmartLabelPosition(
 
     for (const occupied of occupiedPositions) {
       const distance = Math.sqrt(
-        Math.pow(candidate.x - occupied.x, 2) + Math.pow(candidate.y - occupied.y, 2)
+        Math.pow(candidate.x - occupied.x, 2) +
+          Math.pow(candidate.y - occupied.y, 2)
       );
 
       if (distance < overlapThreshold) {
@@ -330,7 +354,12 @@ export function renderSpecialSVGElements(
   if (!config || !config.renderSpecialElements) {
     return null;
   }
-  return config.renderSpecialElements(screenPoints, displayColor, imageScale, context);
+  return config.renderSpecialElements(
+    screenPoints,
+    displayColor,
+    imageScale,
+    context
+  );
 }
 
 /**

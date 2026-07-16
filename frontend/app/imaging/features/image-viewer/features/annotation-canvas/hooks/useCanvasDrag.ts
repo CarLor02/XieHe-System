@@ -4,8 +4,16 @@ import {
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
+import {
+  HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
+  moveHemipelvicVerticalLine,
+  updateHemipelvicInteractivePoint,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
 
 interface UseCanvasDragOptions {
   selectedTool: string;
@@ -186,16 +194,13 @@ export function useCanvasDrag({
       const selectedTypeId = selectedMeasurement
         ? getAnnotationTypeId(selectedMeasurement.type)
         : null;
-      // AVT 不允许整体拖拽，但允许逐点拖拽（selectionState.type === 'point'）
-      if (
-        selectedTypeId === 'avt' &&
-        selectionState.type !== 'point'
-      ) {
+      // AVT 不允许整体拖拽，但允许逐点拖拽。
+      if (selectedTypeId === 'avt' && selectionState.type === 'whole') {
         return false;
       }
       // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
       // 仍允许逐点拖拽（会通过 onMeasurementWriteback 同步回关键点层）。
-      if (disableWholeDrag && selectionState.type !== 'point') {
+      if (disableWholeDrag && selectionState.type === 'whole') {
         return false;
       }
 
@@ -224,14 +229,11 @@ export function useCanvasDrag({
       }
       const activeTypeId = getAnnotationTypeId(measurement.type);
       // AVT 整体拖拽禁止；TTS 允许整体拖拽（只移动躯干线，见下方）；逐点拖拽正常通过
-      if (
-        activeTypeId === 'avt' &&
-        selectionState.type !== 'point'
-      ) {
+      if (activeTypeId === 'avt' && selectionState.type === 'whole') {
         return false;
       }
       // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
-      if (disableWholeDrag && selectionState.type !== 'point') {
+      if (disableWholeDrag && selectionState.type === 'whole') {
         return false;
       }
 
@@ -243,6 +245,31 @@ export function useCanvasDrag({
         let newPointY = imagePoint.y - selectionState.dragOffset.y;
 
         const typeId = getAnnotationTypeId(measurement.type);
+        if (typeId === HEMIPELVIC_WIDTH_RATIO_TOOL_ID) {
+          const points = updateHemipelvicInteractivePoint(
+            measurement.points,
+            selectionState.pointIndex,
+            { x: newPointX, y: newPointY }
+          );
+          onMeasurementsUpdate(
+            measurements.map(item =>
+              item.id === measurement.id
+                ? {
+                    ...item,
+                    points,
+                    value:
+                      calculateMeasurementValue(item.type, points, {
+                        standardDistance,
+                        standardDistancePoints,
+                        imageNaturalSize,
+                      }) || item.value,
+                  }
+                : item
+            )
+          );
+          return true;
+        }
+
         if (typeId === 'aux-horizontal-line') {
           const otherIndex = selectionState.pointIndex === 0 ? 1 : 0;
           newPointY = measurement.points[otherIndex].y;
@@ -335,6 +362,35 @@ export function useCanvasDrag({
           );
         }
 
+        return true;
+      }
+
+      if (
+        selectionState.type === 'line' &&
+        selectionState.pointIndex !== null &&
+        activeTypeId === HEMIPELVIC_WIDTH_RATIO_TOOL_ID
+      ) {
+        const points = moveHemipelvicVerticalLine(
+          measurement.points,
+          selectionState.pointIndex,
+          imagePoint.x - selectionState.dragOffset.x
+        );
+        onMeasurementsUpdate(
+          measurements.map(item =>
+            item.id === measurement.id
+              ? {
+                  ...item,
+                  points,
+                  value:
+                    calculateMeasurementValue(item.type, points, {
+                      standardDistance,
+                      standardDistancePoints,
+                      imageNaturalSize,
+                    }) || item.value,
+                }
+              : item
+          )
+        );
         return true;
       }
 

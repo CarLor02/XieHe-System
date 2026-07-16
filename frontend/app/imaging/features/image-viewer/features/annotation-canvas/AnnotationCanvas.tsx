@@ -10,10 +10,11 @@ import {
   VertebraAnnotation,
   CfhAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import { AnnotationBindings, PointRef } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import {
-  getInheritedPoints,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
+  AnnotationBindings,
+  PointRef,
+} from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
 import {
   imageToScreen as utilImageToScreen,
   screenToImage as utilScreenToImage,
@@ -50,9 +51,7 @@ import {
   renderCornerToKeypointId,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { isDirectlyEditableAnnotation } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
-import {
-  resolveMeasurementKeypointIds,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-selection';
+import { resolveMeasurementKeypointIds } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-selection';
 
 export function getAnnotationCanvasCursorClass({
   keypointSequenceSession,
@@ -663,6 +662,8 @@ export default function AnnotationCanvas({
       imageScale,
       imagePosition,
       imageNaturalSize,
+      standardDistance,
+      standardDistancePoints,
       containerSize: containerSize ?? undefined,
       selectionState,
       hoverState,
@@ -704,19 +705,22 @@ export default function AnnotationCanvas({
     });
   };
 
-  const handleKeypointDelete = useCallback((keypointId: string) => {
-    setHiddenKeypointIds(previous => {
-      const next = new Set(previous);
-      next.delete(keypointId);
-      return next;
-    });
-    setDetectionLayerSelection(previous =>
-      previous?.kind === 'keypoint' && previous.keypointId === keypointId
-        ? null
-        : previous
-    );
-    onKeypointDelete?.(keypointId);
-  }, [onKeypointDelete]);
+  const handleKeypointDelete = useCallback(
+    (keypointId: string) => {
+      setHiddenKeypointIds(previous => {
+        const next = new Set(previous);
+        next.delete(keypointId);
+        return next;
+      });
+      setDetectionLayerSelection(previous =>
+        previous?.kind === 'keypoint' && previous.keypointId === keypointId
+          ? null
+          : previous
+      );
+      onKeypointDelete?.(keypointId);
+    },
+    [onKeypointDelete]
+  );
 
   const handleDetectionLayerDelete = useCallback(() => {
     if (!effectiveDetectionLayerSelection) return false;
@@ -795,16 +799,18 @@ export default function AnnotationCanvas({
     <div
       ref={containerRef}
       data-image-canvas
-      className={`relative w-full h-full overflow-hidden ${getAnnotationCanvasCursorClass({
-        keypointSequenceSession,
-        showVertebraeLayer,
-        isVertebradDragging: vertebradDrag.isDragging,
-        selectedTool,
-        hasActiveOrHoveredCorner: Boolean(
-          effectiveHoveredCorner ?? vertebradDrag.activeCorner
-        ),
-        fallbackCursorClass: getCursorStyle(),
-      })} ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
+      className={`relative w-full h-full overflow-hidden ${getAnnotationCanvasCursorClass(
+        {
+          keypointSequenceSession,
+          showVertebraeLayer,
+          isVertebradDragging: vertebradDrag.isDragging,
+          selectedTool,
+          hasActiveOrHoveredCorner: Boolean(
+            effectiveHoveredCorner ?? vertebradDrag.activeCorner
+          ),
+          fallbackCursorClass: getCursorStyle(),
+        }
+      )} ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`}
       onMouseDown={e => {
         if (keypointSequenceSession) {
           selectMeasurementKeypoints(null);

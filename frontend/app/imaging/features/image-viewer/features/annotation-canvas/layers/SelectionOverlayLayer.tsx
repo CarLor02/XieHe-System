@@ -1,4 +1,7 @@
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 
@@ -33,6 +36,15 @@ export default function SelectionOverlayLayer({
         selectionState.pointIndex !== null
       ) {
         selectedPoints = [measurement.points[selectionState.pointIndex]];
+      } else if (
+        selectionState.type === 'line' &&
+        selectionState.pointIndex !== null
+      ) {
+        const firstEndpointIndex = 4 + selectionState.pointIndex * 2;
+        selectedPoints = measurement.points.slice(
+          firstEndpointIndex,
+          firstEndpointIndex + 2
+        );
       } else if (selectionState.type === 'whole') {
         selectedPoints = measurement.points;
       }

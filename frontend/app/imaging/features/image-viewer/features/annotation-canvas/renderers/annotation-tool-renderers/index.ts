@@ -1,5 +1,6 @@
 export { renderC7Offset } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers/renderC7Offset';
 export { renderHorizontalLines } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers/renderHorizontalLines';
+export { renderHemipelvicWidthRatio } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers/renderHemipelvicWidthRatio';
 export { renderPI } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers/renderPI';
 export { renderPT } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers/renderPT';
 export { renderSacralWithPerpendicular } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers/renderSacralWithPerpendicular';

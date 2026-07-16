@@ -55,6 +55,8 @@ export interface SpecialElementRenderContext {
   imagePoints: Point[];
   screenPoints: Point[];
   imageToScreen: (point: Point) => Point;
+  /** Optional measurement context for special renderers that display calibrated values. */
+  calculationContext?: CalculationContext;
 }
 
 export interface AnnotationConfig {
@@ -99,6 +101,12 @@ export interface AnnotationConfig {
    * 设置为 0 时，所有点均不显示圆圈（测量整体仍可通过 isInHoverRange 选中）。
    */
   interactivePointsCount?: number;
+
+  /** Whether generic point-number labels are rendered. Defaults to true. */
+  showPointLabels?: boolean;
+
+  /** Keep the stored measurement value unchanged on canvas instead of rounding it. */
+  preserveCanvasValue?: boolean;
 
   // 计算函数
   calculateResults: (

@@ -12,7 +12,7 @@ export interface DrawingState {
 export interface SelectionState {
   measurementId: string | null;
   pointIndex: number | null;
-  type: 'point' | 'whole' | null;
+  type: 'point' | 'line' | 'whole' | null;
   isDragging: boolean;
   dragOffset: Point;
 }

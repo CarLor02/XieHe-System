@@ -25,13 +25,21 @@ import {
   isFixedLabelPositionType,
   getInteractivePointsCount,
   getApLabelGapX,
+  shouldPreserveCanvasValue,
+  shouldShowPointLabels,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-state';
 import { imageToScreen } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
 import { getAdaptiveFontSize } from '@/app/imaging/features/image-viewer/shared/constants';
 import { estimateTextWidth } from '@/app/imaging/features/image-viewer/shared/labels';
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
-import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
+import {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  HoverState,
+  SelectionState,
+} from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { renderAuxiliaryTag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/support-shape-renderers/auxiliaryTagRenderer';
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/shared/rendererUtils';
 
@@ -40,6 +48,8 @@ interface RenderMeasurementProps {
   imageScale: number;
   imagePosition: { x: number; y: number };
   imageNaturalSize: { width: number; height: number } | null;
+  standardDistance?: number | null;
+  standardDistancePoints?: Point[];
   /** 可选：覆盖容器尺寸，绕开 DOM 查询（用于导出场景） */
   containerSize?: { width: number; height: number };
   selectionState: SelectionState;
@@ -114,11 +124,15 @@ function ownsSharedPointLabel(
   const labelKey = getPelvicSharedPointLabelKey(measurement, pointIndex);
   if (!labelKey) return true;
 
-  return !allMeasurements.slice(0, measurementIndex).some(previous =>
-    previous.points.some((_, previousPointIndex) =>
-      getPelvicSharedPointLabelKey(previous, previousPointIndex) === labelKey
-    )
-  );
+  return !allMeasurements
+    .slice(0, measurementIndex)
+    .some(previous =>
+      previous.points.some(
+        (_, previousPointIndex) =>
+          getPelvicSharedPointLabelKey(previous, previousPointIndex) ===
+          labelKey
+      )
+    );
 }
 
 function renderIndexedPoint({
@@ -164,11 +178,9 @@ function renderIndexedPoint({
   );
   const isInSelectedGroup =
     selectedBindingGroupId !== null &&
-    getSyncGroupsForPoint(
-      measurement.id,
-      pointIndex,
-      pointBindings
-    ).some(group => group.id === selectedBindingGroupId);
+    getSyncGroupsForPoint(measurement.id, pointIndex, pointBindings).some(
+      group => group.id === selectedBindingGroupId
+    );
   const isManualSelected =
     isManualBindingMode &&
     manualBindingSelectedPoints.some(
@@ -283,8 +295,12 @@ function renderAuxiliaryShape(
         cx={screenPoints[0].x}
         cy={screenPoints[0].y}
         r={radius}
-        fill={isMeasurementSelected || isMeasurementHovered ? displayColor : 'none'}
-        fillOpacity={isMeasurementSelected || isMeasurementHovered ? '0.1' : '0'}
+        fill={
+          isMeasurementSelected || isMeasurementHovered ? displayColor : 'none'
+        }
+        fillOpacity={
+          isMeasurementSelected || isMeasurementHovered ? '0.1' : '0'
+        }
         stroke={displayColor}
         strokeWidth={isMeasurementSelected || isMeasurementHovered ? '3' : '2'}
         opacity={isMeasurementSelected || isMeasurementHovered ? '1' : '0.6'}
@@ -299,8 +315,12 @@ function renderAuxiliaryShape(
         cy={screenPoints[0].y}
         rx={Math.abs(screenPoints[1].x - screenPoints[0].x)}
         ry={Math.abs(screenPoints[1].y - screenPoints[0].y)}
-        fill={isMeasurementSelected || isMeasurementHovered ? displayColor : 'none'}
-        fillOpacity={isMeasurementSelected || isMeasurementHovered ? '0.1' : '0'}
+        fill={
+          isMeasurementSelected || isMeasurementHovered ? displayColor : 'none'
+        }
+        fillOpacity={
+          isMeasurementSelected || isMeasurementHovered ? '0.1' : '0'
+        }
         stroke={displayColor}
         strokeWidth={isMeasurementSelected || isMeasurementHovered ? '3' : '2'}
         opacity={isMeasurementSelected || isMeasurementHovered ? '1' : '0.6'}
@@ -317,8 +337,12 @@ function renderAuxiliaryShape(
         y={minY}
         width={Math.abs(screenPoints[1].x - screenPoints[0].x)}
         height={Math.abs(screenPoints[1].y - screenPoints[0].y)}
-        fill={isMeasurementSelected || isMeasurementHovered ? displayColor : 'none'}
-        fillOpacity={isMeasurementSelected || isMeasurementHovered ? '0.1' : '0'}
+        fill={
+          isMeasurementSelected || isMeasurementHovered ? displayColor : 'none'
+        }
+        fillOpacity={
+          isMeasurementSelected || isMeasurementHovered ? '0.1' : '0'
+        }
         stroke={displayColor}
         strokeWidth={isMeasurementSelected || isMeasurementHovered ? '3' : '2'}
         opacity={isMeasurementSelected || isMeasurementHovered ? '1' : '0.6'}
@@ -361,8 +385,18 @@ function renderAuxiliaryShape(
 
   if (typeId === 'vertebra-center' && screenPoints.length === 4) {
     const centerScreen = {
-      x: (screenPoints[0].x + screenPoints[1].x + screenPoints[2].x + screenPoints[3].x) / 4,
-      y: (screenPoints[0].y + screenPoints[1].y + screenPoints[2].y + screenPoints[3].y) / 4,
+      x:
+        (screenPoints[0].x +
+          screenPoints[1].x +
+          screenPoints[2].x +
+          screenPoints[3].x) /
+        4,
+      y:
+        (screenPoints[0].y +
+          screenPoints[1].y +
+          screenPoints[2].y +
+          screenPoints[3].y) /
+        4,
     };
 
     return (
@@ -371,7 +405,9 @@ function renderAuxiliaryShape(
           points={screenPoints.map(point => `${point.x},${point.y}`).join(' ')}
           fill="none"
           stroke={displayColor}
-          strokeWidth={isMeasurementSelected || isMeasurementHovered ? '3' : '2'}
+          strokeWidth={
+            isMeasurementSelected || isMeasurementHovered ? '3' : '2'
+          }
           opacity={isMeasurementSelected || isMeasurementHovered ? '1' : '0.6'}
         />
         <circle
@@ -446,7 +482,9 @@ function renderAuxiliaryShape(
           x2={screenPoints[1].x}
           y2={screenPoints[1].y}
           stroke={displayColor}
-          strokeWidth={isMeasurementSelected || isMeasurementHovered ? '3' : '2'}
+          strokeWidth={
+            isMeasurementSelected || isMeasurementHovered ? '3' : '2'
+          }
           opacity={isMeasurementSelected || isMeasurementHovered ? '1' : '0.8'}
         />
         <line
@@ -455,7 +493,9 @@ function renderAuxiliaryShape(
           x2={screenPoints[2].x}
           y2={screenPoints[2].y}
           stroke={displayColor}
-          strokeWidth={isMeasurementSelected || isMeasurementHovered ? '3' : '2'}
+          strokeWidth={
+            isMeasurementSelected || isMeasurementHovered ? '3' : '2'
+          }
           opacity={isMeasurementSelected || isMeasurementHovered ? '1' : '0.8'}
         />
       </>
@@ -463,8 +503,7 @@ function renderAuxiliaryShape(
   }
 
   if (
-    (typeId === 'aux-horizontal-line' ||
-      typeId === 'aux-vertical-line') &&
+    (typeId === 'aux-horizontal-line' || typeId === 'aux-vertical-line') &&
     screenPoints.length === 2
   ) {
     return (
@@ -492,6 +531,8 @@ export default function renderMeasurement({
   imageScale,
   imagePosition,
   imageNaturalSize,
+  standardDistance = null,
+  standardDistancePoints = [],
   containerSize,
   selectionState,
   hoverState,
@@ -511,11 +552,18 @@ export default function renderMeasurement({
     containerSize,
   };
   const projectImagePoint = (point: Point) => imageToScreen(point, context);
-  const screenPoints = measurement.points.map(point => imageToScreen(point, context));
+  const screenPoints = measurement.points.map(point =>
+    imageToScreen(point, context)
+  );
   const specialElementContext = {
     imagePoints: measurement.points,
     screenPoints,
     imageToScreen: projectImagePoint,
+    calculationContext: {
+      standardDistance,
+      standardDistancePoints,
+      imageNaturalSize,
+    },
   };
   const displayName = getAnnotationDisplayName(measurement.type);
   const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
@@ -527,7 +575,7 @@ export default function renderMeasurement({
     hasCustomAuxiliaryTagText(measurement);
   const isMeasurementSelected =
     selectionState.measurementId === measurement.id &&
-    selectionState.type === 'whole';
+    (selectionState.type === 'line' || selectionState.type === 'whole');
   const isMeasurementHovered =
     !isMeasurementSelected &&
     hoverState.measurementId === measurement.id &&
@@ -548,7 +596,11 @@ export default function renderMeasurement({
   );
 
   // 获取基础标签位置
-  const baseLabelPosition = getLabelPositionForType(measurement.type, measurement.points, imageScale);
+  const baseLabelPosition = getLabelPositionForType(
+    measurement.type,
+    measurement.points,
+    imageScale
+  );
 
   // 固定标签位置的类型（PI、PT等骨盆测量）跳过智能避让，直接使用 getLabelPosition 结果
   const isFixedLabel = isFixedLabelPositionType(measurement.type);
@@ -571,7 +623,9 @@ export default function renderMeasurement({
   const labelPosition = imageToScreen(smartLabelPosition, context);
 
   // 使用格式化后的值用于图表显示
-  const displayValue = formatDisplayValue(measurement.value);
+  const displayValue = shouldPreserveCanvasValue(measurement.type)
+    ? measurement.value
+    : formatDisplayValue(measurement.value);
   const valueTagName = usesAuxiliaryValueTag
     ? getAuxiliaryMeasurementValueTagName(measurement)
     : displayName;
@@ -585,7 +639,8 @@ export default function renderMeasurement({
   const isRightSideLabel = isRightSideLabelType(measurement.type);
   const isMaxXRightLabel = isMaxXRightLabelType(measurement.type);
   // rightSideLabel（侧面）：文字左缘从第1个点右侧 20px 开始，textAnchor="start"
-  const firstPointScreenX = screenPoints.length > 0 ? screenPoints[0].x : labelPosition.x;
+  const firstPointScreenX =
+    screenPoints.length > 0 ? screenPoints[0].x : labelPosition.x;
   // maxXRightLabel（正面 AP）：锚点 = imageToScreen(getLabelPosition.x)（已在屏幕空间）。
   // getLabelPosition 只返回测量右端点的图像坐标，不加任何偏移，由此处统一加固定屏幕间距。
   // 效果：文字左缘始终在锚点右侧 AP_LABEL_GAP px，与缩放比例无关（类比侧面 rightSideLabel + 20px）。
@@ -607,21 +662,21 @@ export default function renderMeasurement({
 
   return (
     <g key={measurement.id}>
-      {(!isAuxiliaryShape ||
-        usesAuxiliaryValueTag ||
-        specialShapeNode) &&
+      {(!isAuxiliaryShape || usesAuxiliaryValueTag || specialShapeNode) &&
         interactivePoints.map((point, pointIndex) =>
           renderIndexedPoint({
             measurement,
             point,
             pointIndex,
             pointColor: displayColor,
-            showPointLabel: ownsSharedPointLabel(
-              measurement,
-              pointIndex,
-              allMeasurements,
-              measurementIndex
-            ),
+            showPointLabel:
+              shouldShowPointLabels(measurement.type) &&
+              ownsSharedPointLabel(
+                measurement,
+                pointIndex,
+                allMeasurements,
+                measurementIndex
+              ),
             selectionState,
             hoverState,
             pointBindings,
