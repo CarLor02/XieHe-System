@@ -9,12 +9,21 @@ import { isAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/a
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { isEditableAuxiliaryAnnotationType } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
 import { calculateQuadrilateralCenter } from '@/app/imaging/features/image-viewer/shared/geometry';
-import { MeasurementData, Point, TransformContext } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Point,
+  TransformContext,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import { hitTestMeasurementLabel } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hit-test/hitTestLabel';
 import { hitTestMeasurementPoint } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hit-test/hitTestPoint';
+import {
+  getHemipelvicVerticalLines,
+  HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
 
 export type HitResult =
   | { kind: 'point'; measurementId: string; pointIndex: number }
+  | { kind: 'line'; measurementId: string; lineIndex: number }
   | { kind: 'whole'; measurementId: string }
   | { kind: 'label'; measurementId: string }
   | { kind: 'none' };
@@ -93,10 +102,7 @@ function hitTestMeasurementShape(
     );
   }
 
-  if (
-    typeId === 'vertebra-center' &&
-    measurement.points.length === 4
-  ) {
+  if (typeId === 'vertebra-center' && measurement.points.length === 4) {
     if (
       isPolygonClicked(screenPoint, measurement.points, context, lineRadius)
     ) {
@@ -107,8 +113,10 @@ function hitTestMeasurementShape(
     const centerScreen = imageToScreen(center);
 
     return (
-      Math.hypot(screenPoint.x - centerScreen.x, screenPoint.y - centerScreen.y) <
-      15
+      Math.hypot(
+        screenPoint.x - centerScreen.x,
+        screenPoint.y - centerScreen.y
+      ) < 15
     );
   }
 
@@ -163,6 +171,22 @@ export function hitTestMeasurement({
         measurementId: measurement.id,
         pointIndex,
       };
+    }
+
+    if (
+      getAnnotationTypeId(measurement.type) === HEMIPELVIC_WIDTH_RATIO_TOOL_ID
+    ) {
+      const hitLine = getHemipelvicVerticalLines(measurement.points).find(
+        line =>
+          isLineClicked(screenPoint, line.top, line.bottom, context, lineRadius)
+      );
+      if (hitLine) {
+        return {
+          kind: 'line',
+          measurementId: measurement.id,
+          lineIndex: hitLine.sourceIndex,
+        };
+      }
     }
 
     const isSupportShape = isAuxiliaryShape(measurement.type);

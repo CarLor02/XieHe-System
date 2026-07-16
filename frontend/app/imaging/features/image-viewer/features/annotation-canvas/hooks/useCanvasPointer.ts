@@ -2,14 +2,20 @@ import { useCallback } from 'react';
 import { INTERACTION_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import { hitTestMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hit-test/hitTestMeasurement';
 import { hitTestWorkingPoint } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hit-test/hitTestPoint';
 import {
   getMeasurementSelectionBoxInScreen,
   isPointInSelectionBox,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hit-test/selectionBox';
-import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
+import {
+  HoverState,
+  SelectionState,
+} from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 
 interface UseCanvasPointerOptions {
   imageNaturalSize: { width: number; height: number } | null;
@@ -205,11 +211,26 @@ export function useCanvasPointer({
                 y: imagePoint.y - point.y,
               },
             });
+          } else if (selectionHit.kind === 'line') {
+            onDisplayMeasurementSelect(null);
+            const anchor = selectedMeasurement.points[selectionHit.lineIndex];
+            setSelectionState({
+              measurementId: selectedMeasurement.id,
+              pointIndex: selectionHit.lineIndex,
+              type: 'line',
+              isDragging: false,
+              dragOffset: {
+                x: imagePoint.x - anchor.x,
+                y: 0,
+              },
+            });
           } else {
             // 点击测量体（非点区域）：整体拖拽
             onDisplayMeasurementSelect(null);
             // TTS: 只移动躯干线（点0-1），dragOffset 用躯干线中心（与移动时保持一致，避免跳变）
-            const selectedTypeId = getAnnotationTypeId(selectedMeasurement.type);
+            const selectedTypeId = getAnnotationTypeId(
+              selectedMeasurement.type
+            );
             const pointsForCenter =
               selectedTypeId === 'tts' && selectedMeasurement.points.length >= 2
                 ? selectedMeasurement.points.slice(0, 2)
@@ -376,7 +397,11 @@ export function useCanvasPointer({
         return;
       }
 
-      if (hoverHit.kind === 'whole' || hoverHit.kind === 'label') {
+      if (
+        hoverHit.kind === 'line' ||
+        hoverHit.kind === 'whole' ||
+        hoverHit.kind === 'label'
+      ) {
         setHoverState({
           measurementId: hoverHit.measurementId,
           keypointId: null,

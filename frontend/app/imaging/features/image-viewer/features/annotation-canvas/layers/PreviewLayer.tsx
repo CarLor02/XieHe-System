@@ -1,9 +1,19 @@
 import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateQuadrilateralCenter } from '@/app/imaging/features/image-viewer/shared/geometry';
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import renderPreview from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/renderPreview';
-import { DrawingState, ReferenceLines } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
+import {
+  DrawingState,
+  ReferenceLines,
+} from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/shared/rendererUtils';
+import {
+  HEMIPELVIC_WIDTH_RATIO_INITIAL_LINE_LENGTH,
+  HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
 
 interface PreviewLayerProps {
   selectedTool: string;
@@ -301,31 +311,32 @@ function renderStructuredPreview({
             opacity="0.6"
           />
         )}
-        {clickedPoints.length === 4 && (() => {
-          const center = calculateQuadrilateralCenter(clickedPoints);
-          const centerScreen = imageToScreen(center);
-          return (
-            <g>
-              <circle
-                cx={centerScreen.x}
-                cy={centerScreen.y}
-                r="6"
-                fill="#10b981"
-                opacity="0.5"
-              />
-              <text
-                x={centerScreen.x}
-                y={centerScreen.y - 12}
-                fill="#10b981"
-                fontSize="12"
-                textAnchor="middle"
-                opacity="0.7"
-              >
-                中心
-              </text>
-            </g>
-          );
-        })()}
+        {clickedPoints.length === 4 &&
+          (() => {
+            const center = calculateQuadrilateralCenter(clickedPoints);
+            const centerScreen = imageToScreen(center);
+            return (
+              <g>
+                <circle
+                  cx={centerScreen.x}
+                  cy={centerScreen.y}
+                  r="6"
+                  fill="#10b981"
+                  opacity="0.5"
+                />
+                <text
+                  x={centerScreen.x}
+                  y={centerScreen.y - 12}
+                  fill="#10b981"
+                  fontSize="12"
+                  textAnchor="middle"
+                  opacity="0.7"
+                >
+                  中心
+                </text>
+              </g>
+            );
+          })()}
       </>
     );
   }
@@ -344,44 +355,45 @@ function renderStructuredPreview({
             opacity="0.8"
           />
         ))}
-        {screenPoints.length === 2 && (() => {
-          const config = getAnnotationConfig('aux-length');
-          const results =
-            config?.calculateResults(clickedPoints, {
-              standardDistance,
-              standardDistancePoints,
-              imageNaturalSize,
-            }) || [];
-          const distanceText =
-            results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
-          const midX = (screenPoints[0].x + screenPoints[1].x) / 2;
-          const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
+        {screenPoints.length === 2 &&
+          (() => {
+            const config = getAnnotationConfig('aux-length');
+            const results =
+              config?.calculateResults(clickedPoints, {
+                standardDistance,
+                standardDistancePoints,
+                imageNaturalSize,
+              }) || [];
+            const distanceText =
+              results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
+            const midX = (screenPoints[0].x + screenPoints[1].x) / 2;
+            const midY = (screenPoints[0].y + screenPoints[1].y) / 2;
 
-          return (
-            <>
-              <line
-                x1={screenPoints[0].x}
-                y1={screenPoints[0].y}
-                x2={screenPoints[1].x}
-                y2={screenPoints[1].y}
-                stroke="#3b82f6"
-                strokeWidth="2"
-                strokeDasharray="5,5"
-                opacity="0.6"
-              />
-              <text
-                x={midX}
-                y={midY - 10}
-                fill="#3b82f6"
-                fontSize="12"
-                textAnchor="middle"
-                opacity="0.7"
-              >
-                {distanceText}
-              </text>
-            </>
-          );
-        })()}
+            return (
+              <>
+                <line
+                  x1={screenPoints[0].x}
+                  y1={screenPoints[0].y}
+                  x2={screenPoints[1].x}
+                  y2={screenPoints[1].y}
+                  stroke="#3b82f6"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                  opacity="0.6"
+                />
+                <text
+                  x={midX}
+                  y={midY - 10}
+                  fill="#3b82f6"
+                  fontSize="12"
+                  textAnchor="middle"
+                  opacity="0.7"
+                >
+                  {distanceText}
+                </text>
+              </>
+            );
+          })()}
       </>
     );
   }
@@ -394,7 +406,11 @@ function renderStructuredPreview({
     const previewPoints = [...clickedPoints];
     if (clickedPoints.length === 1 && liveMouseImagePoint) {
       previewPoints.push(
-        constrainAuxLinePoint(selectedTool, clickedPoints[0], liveMouseImagePoint)
+        constrainAuxLinePoint(
+          selectedTool,
+          clickedPoints[0],
+          liveMouseImagePoint
+        )
       );
     }
     const screenPoints = previewPoints.map(point => imageToScreen(point));
@@ -465,49 +481,52 @@ function renderStructuredPreview({
             opacity="0.6"
           />
         )}
-        {screenPoints.length === 4 && (() => {
-          const config = getAnnotationConfig('aux-angle');
-          const results =
-            config?.calculateResults(clickedPoints, {
-              standardDistance,
-              standardDistancePoints,
-              imageNaturalSize,
-            }) || [];
-          const rawAngleText =
-            results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
-          // 使用格式化后的值用于图表显示
-          const angleText = rawAngleText ? formatDisplayValue(rawAngleText) : '';
-          const centerPoint = {
-            x:
-              (screenPoints[0].x +
-                screenPoints[1].x +
-                screenPoints[2].x +
-                screenPoints[3].x) /
-              4,
-            y:
-              (screenPoints[0].y +
-                screenPoints[1].y +
-                screenPoints[2].y +
-                screenPoints[3].y) /
-              4,
-          };
+        {screenPoints.length === 4 &&
+          (() => {
+            const config = getAnnotationConfig('aux-angle');
+            const results =
+              config?.calculateResults(clickedPoints, {
+                standardDistance,
+                standardDistancePoints,
+                imageNaturalSize,
+              }) || [];
+            const rawAngleText =
+              results.length > 0 ? `${results[0].value}${results[0].unit}` : '';
+            // 使用格式化后的值用于图表显示
+            const angleText = rawAngleText
+              ? formatDisplayValue(rawAngleText)
+              : '';
+            const centerPoint = {
+              x:
+                (screenPoints[0].x +
+                  screenPoints[1].x +
+                  screenPoints[2].x +
+                  screenPoints[3].x) /
+                4,
+              y:
+                (screenPoints[0].y +
+                  screenPoints[1].y +
+                  screenPoints[2].y +
+                  screenPoints[3].y) /
+                4,
+            };
 
-          return (
-            <text
-              x={centerPoint.x}
-              y={centerPoint.y - 15}
-              fill="#8b5cf6"
-              fontSize="11"
-              fontWeight="bold"
-              textAnchor="middle"
-              stroke="#000000"
-              strokeWidth="3"
-              paintOrder="stroke"
-            >
-              {angleText}
-            </text>
-          );
-        })()}
+            return (
+              <text
+                x={centerPoint.x}
+                y={centerPoint.y - 15}
+                fill="#8b5cf6"
+                fontSize="11"
+                fontWeight="bold"
+                textAnchor="middle"
+                stroke="#000000"
+                strokeWidth="3"
+                paintOrder="stroke"
+              >
+                {angleText}
+              </text>
+            );
+          })()}
       </>
     );
   }
@@ -634,6 +653,26 @@ export default function PreviewLayer({
 
       {renderDynamicShapePreview(selectedTool, drawingState, imageToScreen)}
 
+      {selectedTool === HEMIPELVIC_WIDTH_RATIO_TOOL_ID &&
+        clickedPoints.map((point, index) => {
+          const halfLength = HEMIPELVIC_WIDTH_RATIO_INITIAL_LINE_LENGTH / 2;
+          const top = imageToScreen({ x: point.x, y: point.y - halfLength });
+          const bottom = imageToScreen({ x: point.x, y: point.y + halfLength });
+          return (
+            <line
+              key={`hemipelvic-preview-line-${index}`}
+              x1={top.x}
+              y1={top.y}
+              x2={bottom.x}
+              y2={bottom.y}
+              stroke="#ef4444"
+              strokeWidth="2"
+              strokeDasharray="5,5"
+              opacity="0.8"
+            />
+          );
+        })}
+
       {renderStructuredPreview({
         selectedTool,
         clickedPoints,
@@ -645,7 +684,8 @@ export default function PreviewLayer({
         constrainAuxLinePoint,
       })}
 
-      {(selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) &&
+      {(selectedTool.includes('t1-tilt') ||
+        selectedTool.includes('t1-slope')) &&
         referenceLines.t1Tilt && (
           <ReferenceLinePreview
             point={referenceLines.t1Tilt}

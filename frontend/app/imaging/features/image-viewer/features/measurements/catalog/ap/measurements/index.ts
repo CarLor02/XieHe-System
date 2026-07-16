@@ -2,8 +2,14 @@ import { Tool } from '@/app/imaging/features/image-viewer/shared/types';
 import { VERTEBRA_CENTER_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/vertebra-center';
 import { AVT_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/avt';
 import { CA_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/ca';
-import { COBB1_CONFIG, COBB2_CONFIG, COBB3_CONFIG, COBB_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/cobb';
+import {
+  COBB1_CONFIG,
+  COBB2_CONFIG,
+  COBB3_CONFIG,
+  COBB_CONFIG,
+} from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/cobb';
 import { CSS_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/css';
+import { HEMIPELVIC_WIDTH_RATIO_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/hemipelvic-width-ratio';
 import { LLD_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/lld';
 import { PO_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/po';
 import { T1_TILT_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/t1-tilt';
@@ -21,6 +27,7 @@ export {
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/cobb';
 export { CA_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/ca';
 export { CSS_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/css';
+export { HEMIPELVIC_WIDTH_RATIO_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/hemipelvic-width-ratio';
 export { LLD_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/lld';
 export { PO_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/po';
 export { T1_TILT_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/t1-tilt';
@@ -36,10 +43,7 @@ export const AP_AUTOMATIC_MEASUREMENT_TOOL_IDS = [
   'ts',
 ] as const;
 
-export const AP_SELECTION_MEASUREMENT_TOOL_IDS = [
-  'avt',
-  'tts',
-] as const;
+export const AP_SELECTION_MEASUREMENT_TOOL_IDS = ['avt', 'tts'] as const;
 
 const AP_MEASUREMENT_TOOL_IDS = [
   't1-tilt',
@@ -50,6 +54,7 @@ const AP_MEASUREMENT_TOOL_IDS = [
   'avt',
   'tts',
   'lld',
+  'hemipelvic-width-ratio',
   'ts',
 ] as const;
 
@@ -73,6 +78,7 @@ export const AP_MEASUREMENT_CONFIGS = {
   avt: AVT_CONFIG,
   tts: TTS_CONFIG,
   lld: LLD_CONFIG,
+  'hemipelvic-width-ratio': HEMIPELVIC_WIDTH_RATIO_CONFIG,
   ts: TS_CONFIG,
   'vertebra-center': VERTEBRA_CENTER_CONFIG,
 } as const;

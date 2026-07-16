@@ -7,7 +7,14 @@ import {
 import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { Point, Tool } from '@/app/imaging/features/image-viewer/shared/types';
-import { DrawingState, ReferenceLines } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
+import {
+  DrawingState,
+  ReferenceLines,
+} from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
+import {
+  createHemipelvicWidthRatioPoints,
+  HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
 
 const POLYGON_CLOSE_TOLERANCE_PX = 18;
 
@@ -24,7 +31,11 @@ interface UseCanvasDrawingToolOptions {
   drawingState: DrawingState;
   setDrawingState: React.Dispatch<React.SetStateAction<DrawingState>>;
   setReferenceLines: React.Dispatch<React.SetStateAction<ReferenceLines>>;
-  constrainAuxLinePoint: (toolId: string, anchor: Point, rawPoint: Point) => Point;
+  constrainAuxLinePoint: (
+    toolId: string,
+    anchor: Point,
+    rawPoint: Point
+  ) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
 }
 
@@ -63,7 +74,8 @@ function buildInheritedMap(
         continue;
       }
       const source = measurements.find(
-        measurement => getAnnotationTypeId(measurement.type) === participant.typeName
+        measurement =>
+          getAnnotationTypeId(measurement.type) === participant.typeName
       );
       if (source && participant.pointIndex < source.points.length) {
         inheritedMap.set(
@@ -261,9 +273,14 @@ export function useCanvasDrawingTool({
       let clickedExistingPoint = false;
       for (let index = 0; index < clickedPoints.length; index += 1) {
         const point = clickedPoints[index];
-        const distance = Math.hypot(imagePoint.x - point.x, imagePoint.y - point.y);
+        const distance = Math.hypot(
+          imagePoint.x - point.x,
+          imagePoint.y - point.y
+        );
         if (distance < 5 / imageScale) {
-          setClickedPoints(clickedPoints.filter((_, pointIndex) => pointIndex !== index));
+          setClickedPoints(
+            clickedPoints.filter((_, pointIndex) => pointIndex !== index)
+          );
           clickedExistingPoint = true;
           break;
         }
@@ -279,13 +296,30 @@ export function useCanvasDrawingTool({
       }
       // TTS：每对点（0-1 躯干线，2-3 骶骨线）强制水平（Y 与前一点相同）
       if (selectedTool === 'tts' && clickedPoints.length % 2 === 1) {
-        finalPoint = { x: imagePoint.x, y: clickedPoints[clickedPoints.length - 1].y };
+        finalPoint = {
+          x: imagePoint.x,
+          y: clickedPoints[clickedPoints.length - 1].y,
+        };
       }
 
       const newPoints = [...clickedPoints, finalPoint];
       setClickedPoints(newPoints);
 
-      if (selectedTool.includes('t1-tilt') || selectedTool.includes('t1-slope')) {
+      if (selectedTool === HEMIPELVIC_WIDTH_RATIO_TOOL_ID) {
+        if (newPoints.length === 4) {
+          addMeasurement(
+            currentTool.id,
+            createHemipelvicWidthRatioPoints(newPoints)
+          );
+          setClickedPoints([]);
+        }
+        return true;
+      }
+
+      if (
+        selectedTool.includes('t1-tilt') ||
+        selectedTool.includes('t1-slope')
+      ) {
         if (newPoints.length === 1) {
           setReferenceLines(previous => ({ ...previous, t1Tilt: imagePoint }));
         } else if (newPoints.length === 2) {
@@ -391,10 +425,7 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      const inheritedMap = buildInheritedMap(
-        currentTool.id,
-        measurements
-      );
+      const inheritedMap = buildInheritedMap(currentTool.id, measurements);
       const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
       if (newPoints.length === effectiveNeeded) {
         const allPoints = assembleInheritedPoints(
@@ -432,7 +463,11 @@ export function useCanvasDrawingTool({
 
       return handleMeasurementToolMouseDown(x, y);
     },
-    [handleDynamicShapeMouseDown, handleMeasurementToolMouseDown, handleSpecialPointToolMouseDown]
+    [
+      handleDynamicShapeMouseDown,
+      handleMeasurementToolMouseDown,
+      handleSpecialPointToolMouseDown,
+    ]
   );
 
   const handleMouseMove = useCallback(

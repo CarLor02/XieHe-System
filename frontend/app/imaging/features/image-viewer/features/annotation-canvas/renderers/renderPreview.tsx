@@ -1,11 +1,15 @@
 import type { JSX } from 'react';
-import { Point, MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  Point,
+  MeasurementData,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import {
   POINT_INHERITANCE_RULES,
   SHARED_ANATOMICAL_POINT_GROUPS,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
 import { renderSpecialSVGElements } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { HEMIPELVIC_WIDTH_RATIO_TOOL_ID } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
 
 interface RenderPreviewProps {
   selectedTool: string;
@@ -33,6 +37,10 @@ export default function renderPreview({
   imageToScreen,
   getInheritedPoints,
 }: RenderPreviewProps): JSX.Element | null {
+  if (selectedTool === HEMIPELVIC_WIDTH_RATIO_TOOL_ID) {
+    return null;
+  }
+
   if (
     selectedTool === 'circle' ||
     selectedTool === 'ellipse' ||
@@ -58,7 +66,10 @@ export default function renderPreview({
   if (!isPelvicIncidenceTool && clickedPoints.length < 2) {
     return null;
   }
-  if (isPelvicIncidenceTool && clickedPoints.length + inheritedPreviewCount < 2) {
+  if (
+    isPelvicIncidenceTool &&
+    clickedPoints.length + inheritedPreviewCount < 2
+  ) {
     return null;
   }
 
@@ -91,10 +102,14 @@ export default function renderPreview({
       for (const participant of group.participants) {
         if (participant.toolId === currentToolId) continue;
         const source = measurements.find(
-          measurement => getAnnotationTypeId(measurement.type) === participant.typeName
+          measurement =>
+            getAnnotationTypeId(measurement.type) === participant.typeName
         );
         if (source && participant.pointIndex < source.points.length) {
-          inheritedMap.set(mine.pointIndex, source.points[participant.pointIndex]);
+          inheritedMap.set(
+            mine.pointIndex,
+            source.points[participant.pointIndex]
+          );
           break;
         }
       }
