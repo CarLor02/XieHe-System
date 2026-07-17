@@ -27,6 +27,10 @@ import {
   deriveAllMeasurements,
   DERIVED_ID_PREFIX,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebrae-derive';
+import {
+  buildBoundMeasurementPoints,
+  getMeasurementKeypointBindingRule,
+} from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-binding';
 
 export function areKeypointsEqual(
   left: KeypointAnnotation[],
@@ -496,14 +500,19 @@ export function deriveKeypointMeasurements({
 }): MeasurementData[] {
   const derivedLayer = keypointsToDerivedLayer(keypoints, examType);
   return deriveAllMeasurements(derivedLayer, cfhAnnotation, examType).map(
-    measurement => ({
-      ...measurement,
-      value: calculateMeasurementValue(
-        measurement.type,
-        measurement.points,
-        calculationContext
-      ),
-    })
+    measurement => {
+      const isKeypointBound =
+        getMeasurementKeypointBindingRule(measurement.type) !== null;
+      return {
+        ...measurement,
+        value: calculateMeasurementValue(
+          measurement.type,
+          measurement.points,
+          calculationContext
+        ),
+        ...(isKeypointBound ? { keypointSynced: true } : {}),
+      };
+    }
   );
 }
 
@@ -740,6 +749,32 @@ export function recalculateExistingMeasurementsFromKeypoints({
               calculationContext,
             })
           : null;
+      }
+
+      const bindingRule = getMeasurementKeypointBindingRule(measurement.type);
+      if (bindingRule) {
+        const points = buildBoundMeasurementPoints(
+          measurement.type,
+          keypoints,
+          measurement.points
+        );
+        if (!points) {
+          return measurement.keypointSynced === true ||
+            aiMeasurementIds.has(measurement.id)
+            ? null
+            : measurement;
+        }
+
+        return {
+          ...measurement,
+          points,
+          value: calculateMeasurementValue(
+            measurement.type,
+            points,
+            calculationContext
+          ),
+          keypointSynced: true,
+        };
       }
 
       if (isKeypointDrivenUniqueMeasurement(measurement, aiMeasurementIds)) {

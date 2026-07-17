@@ -21,6 +21,7 @@ import {
   keypointsToDerivedLayer,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -260,7 +261,18 @@ function signedCobb(
 }
 
 const VERTEBRA_LABELS = new Set<string>(VERTEBRA_ORDER);
-const POSE_LABELS = new Set(['CR', 'CL', 'IR', 'IL', 'SR', 'SL']);
+const POSE_LABELS = new Set([
+  'CR',
+  'CL',
+  'IR',
+  'IL',
+  'SR',
+  'SL',
+  'ASIS_L',
+  'SI_L',
+  'SI_R',
+  'ASIS_R',
+]);
 
 function vertebraeInOrder(
   vertebraeFrontal: Map<string, FrontalCorners>
@@ -389,6 +401,24 @@ function deriveAnterior(
     out.push(makeMeasurement('Pelvic', [pose.get('IR')!, pose.get('IL')!]));
   if (pose.has('SR') && pose.has('SL'))
     out.push(makeMeasurement('Sacral', [pose.get('SR')!, pose.get('SL')!]));
+  if (
+    pose.has('ASIS_L') &&
+    pose.has('SI_L') &&
+    pose.has('SI_R') &&
+    pose.has('ASIS_R')
+  ) {
+    out.push(
+      makeMeasurement(
+        'hemipelvic-width-ratio',
+        createHemipelvicWidthRatioPoints([
+          pose.get('ASIS_L')!,
+          pose.get('SI_L')!,
+          pose.get('SI_R')!,
+          pose.get('ASIS_R')!,
+        ])
+      )
+    );
+  }
 
   const csvlX =
     pose.has('SR') && pose.has('SL')

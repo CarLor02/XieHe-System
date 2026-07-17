@@ -37,12 +37,14 @@ import {
 import { calculateMeasurementValue as calcMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
 import {
   applyMeasurementPointToVertebrae,
+  getMeasurementKeypointBindingRule,
   KeypointAnnotation,
   keypointsToCfhAnnotation,
   keypointsToPersistedLayer,
   removeKeypointsById,
   upsertKeypoint,
   vertebraeLayerToKeypoints,
+  writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 
@@ -197,6 +199,25 @@ export function useMeasurementWorkflow({
         allowReplace
       );
 
+      if (
+        canUseKeypoints &&
+        isAnteriorView &&
+        getMeasurementKeypointBindingRule(toolType)
+      ) {
+        const nextKeypoints = writeMeasurementPointsToKeypoints(
+          keypoints,
+          toolType,
+          points
+        );
+        if (nextKeypoints !== keypoints) {
+          setKeypoints(nextKeypoints);
+          setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+          setMeasurements(previous =>
+            syncUniqueKeypointMeasurements(previous, nextKeypoints)
+          );
+        }
+      }
+
       if (isLateralView && typeId === 'ss' && cfhAnnotation) {
         setMeasurements(previous =>
           restorePiPtFromSsAndCfh(
@@ -243,6 +264,7 @@ export function useMeasurementWorkflow({
       cfhAnnotation,
       examType,
       imageNaturalSize,
+      isAnteriorView,
       isKeypointExam,
       isLateralView,
       keypoints,

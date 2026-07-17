@@ -96,10 +96,12 @@ function HemipelvicLineDragHarness({
   onValue,
   onMeasurementsChange,
   onAnnotationDragStart,
+  onMeasurementWriteback,
 }: {
   onValue: (value: CanvasDragHook) => void;
   onMeasurementsChange: (measurements: MeasurementData[]) => void;
   onAnnotationDragStart: () => void;
+  onMeasurementWriteback: jest.Mock;
 }) {
   const [measurements, setMeasurements] = useState<MeasurementData[]>([
     {
@@ -134,6 +136,7 @@ function HemipelvicLineDragHarness({
     imageNaturalSize: { width: 1000, height: 1000 },
     imageScale: 1,
     onMeasurementsUpdate: setMeasurements,
+    onMeasurementWriteback,
     imageToScreen: point => point,
     screenToImage: (screenX, screenY) => ({ x: screenX, y: screenY }),
     referenceLines: { t1Tilt: null },
@@ -153,6 +156,7 @@ it('moves one L/R line horizontally and recalculates the ratio', async () => {
   let latest: CanvasDragHook | null = null;
   let latestMeasurements: MeasurementData[] = [];
   const onAnnotationDragStart = jest.fn();
+  const onMeasurementWriteback = jest.fn();
 
   render(
     <HemipelvicLineDragHarness
@@ -163,6 +167,7 @@ it('moves one L/R line horizontally and recalculates the ratio', async () => {
         latestMeasurements = measurements;
       }}
       onAnnotationDragStart={onAnnotationDragStart}
+      onMeasurementWriteback={onMeasurementWriteback}
     />
   );
 
@@ -181,4 +186,11 @@ it('moves one L/R line horizontally and recalculates the ratio', async () => {
   expect(latestMeasurements[0].points[4].x).toBe(5);
   expect(latestMeasurements[0].points[5].x).toBe(5);
   expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
+  expect(onMeasurementWriteback).toHaveBeenLastCalledWith(
+    'hemipelvic-width-ratio',
+    0,
+    { x: 5, y: 100 },
+    'lr-1',
+    latestMeasurements[0].points
+  );
 });

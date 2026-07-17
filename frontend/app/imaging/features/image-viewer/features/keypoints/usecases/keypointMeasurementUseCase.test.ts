@@ -60,6 +60,7 @@ const calculationContext = {
 it('includes L5 in AP keypoint groups and complete AP render layers', () => {
   const groups = getApKeypointGroups();
   const l5Group = groups.find(group => group.id === 'L5');
+  const poseGroup = groups.find(group => group.id === 'pose');
   const keypoints = l4L5LumbarCobbKeypoints().filter(keypoint =>
     keypoint.id.startsWith('L5-')
   );
@@ -74,6 +75,9 @@ it('includes L5 in AP keypoint groups and complete AP render layers', () => {
   expect(
     keypointsToRenderLayer(keypoints, '正位X光片').map(item => item.label)
   ).toContain('L5');
+  expect(poseGroup?.keypoints.map(keypoint => keypoint.id)).toEqual(
+    expect.arrayContaining(['ASIS_L', 'SI_L', 'SI_R', 'ASIS_R'])
+  );
 });
 
 it('derives initial AP Cobb measurements from global endpoint candidates', () => {
@@ -110,6 +114,99 @@ it('does not create a new Cobb while only recalculating existing measurements', 
   expect(rebuilt.some(measurement => /^cobb\d+$/i.test(measurement.type))).toBe(
     false
   );
+});
+
+it('recalculates a manual CA from CL and CR without relying on its id source', () => {
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
+    previousMeasurements: [
+      {
+        id: 'manual-ca',
+        type: 'ca',
+        value: '0.00°',
+        points: [
+          { x: 10, y: 10 },
+          { x: 20, y: 20 },
+        ],
+      },
+    ],
+    keypoints: [apCorner('CR', 240, 120), apCorner('CL', 100, 80)],
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(rebuilt).toEqual([
+    expect.objectContaining({
+      id: 'manual-ca',
+      type: 'ca',
+      points: [
+        { x: 240, y: 120 },
+        { x: 100, y: 80 },
+      ],
+      keypointSynced: true,
+    }),
+  ]);
+});
+
+it('automatically derives one L/R measurement when all four pose keypoints exist', () => {
+  const synced = syncUniqueMeasurementsAfterKeypointChange({
+    previousMeasurements: [],
+    keypoints: [
+      apCorner('ASIS_L', 100, 100),
+      apCorner('SI_L', 200, 100),
+      apCorner('SI_R', 300, 100),
+      apCorner('ASIS_R', 400, 100),
+    ],
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(synced).toEqual([
+    expect.objectContaining({
+      type: 'hemipelvic-width-ratio',
+      keypointSynced: true,
+      points: expect.arrayContaining([
+        { x: 100, y: 100 },
+        { x: 400, y: 100 },
+      ]),
+    }),
+  ]);
+  expect(synced[0].points).toHaveLength(12);
+});
+
+it('removes a keypoint-bound L/R measurement when one dependency is deleted', () => {
+  const completeKeypoints = [
+    apCorner('ASIS_L', 100, 100),
+    apCorner('SI_L', 200, 100),
+    apCorner('SI_R', 300, 100),
+    apCorner('ASIS_R', 400, 100),
+  ];
+  const [derived] = syncUniqueMeasurementsAfterKeypointChange({
+    previousMeasurements: [],
+    keypoints: completeKeypoints,
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  const synced = syncUniqueMeasurementsAfterKeypointChange({
+    previousMeasurements: [derived],
+    keypoints: completeKeypoints.filter(item => item.id !== 'SI_R'),
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(synced).toEqual([]);
 });
 
 it('starts keypoint-derived Cobb numbering after the current maximum Cobb number', () => {

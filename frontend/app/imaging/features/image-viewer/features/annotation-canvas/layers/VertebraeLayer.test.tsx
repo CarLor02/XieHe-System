@@ -78,3 +78,29 @@ it('keeps corner labels when vertebrae bounding boxes are hidden', () => {
   expect(rendered.container.querySelector('polygon')).toBeNull();
   expect(rendered.container.querySelectorAll('circle')).toHaveLength(4);
 });
+
+it('places the ASIS_R pose label inside the L/R measurement', () => {
+  const point = { x: 100, y: 50 };
+  const vertebraeLayer: VertebraAnnotation[] = [
+    {
+      label: 'ASIS_R',
+      corners: [point, point, point, point],
+      confidence: 1,
+      source: AnnotationSource.MANUAL,
+    },
+  ];
+
+  render(
+    <svg>
+      <VertebraeLayer
+        vertebraeLayer={vertebraeLayer}
+        cfhAnnotation={null}
+        imageToScreen={screenPoint => screenPoint}
+      />
+    </svg>
+  );
+
+  const label = screen.getByText('ASIS_R');
+  expect(label.getAttribute('x')).toBe('90');
+  expect(label.getAttribute('text-anchor')).toBe('end');
+});

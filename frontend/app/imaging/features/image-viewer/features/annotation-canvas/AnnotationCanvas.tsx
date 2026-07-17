@@ -235,7 +235,8 @@ export default function AnnotationCanvas({
     measurementType: string,
     pointIndex: number,
     newPoint: Point,
-    measurementId?: string
+    measurementId?: string,
+    updatedPoints?: Point[]
   ) => void;
   onCobbKeypointsSync?: (measurementId: string) => void;
   onAnnotationDataDragStart?: () => void;

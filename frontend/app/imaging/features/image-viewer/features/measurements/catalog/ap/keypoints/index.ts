@@ -33,7 +33,18 @@ export const AP_VERTEBRA_GROUPS = [
   'L5',
 ] as const;
 
-export const AP_POSE_KEYPOINTS = ['IL', 'IR', 'SL', 'SR', 'CL', 'CR'] as const;
+export const AP_POSE_KEYPOINTS = [
+  'IL',
+  'IR',
+  'SL',
+  'SR',
+  'CL',
+  'CR',
+  'ASIS_L',
+  'SI_L',
+  'SI_R',
+  'ASIS_R',
+] as const;
 
 export const AP_VERTEBRA_KEYPOINTS: ApKeypointConfig[] =
   AP_VERTEBRA_GROUPS.flatMap(group =>

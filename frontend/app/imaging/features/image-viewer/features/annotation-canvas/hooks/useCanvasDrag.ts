@@ -38,7 +38,8 @@ interface UseCanvasDragOptions {
     measurementType: string,
     pointIndex: number,
     newPoint: Point,
-    measurementId?: string
+    measurementId?: string,
+    updatedPoints?: Point[]
   ) => void;
   imageToScreen: (point: Point) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
@@ -267,6 +268,13 @@ export function useCanvasDrag({
                 : item
             )
           );
+          onMeasurementWriteback?.(
+            measurement.type,
+            selectionState.pointIndex,
+            points[selectionState.pointIndex],
+            measurement.id,
+            points
+          );
           return true;
         }
 
@@ -354,11 +362,15 @@ export function useCanvasDrag({
 
         // 将被拖拽的测量点同步写回 vertebraeLayer（Cobb 及辅助图形无映射，自动跳过）
         if (onMeasurementWriteback && selectionState.pointIndex !== null) {
+          const updatedMeasurement = updatedMeasurements.find(
+            item => item.id === measurement.id
+          );
           onMeasurementWriteback(
             measurement.type,
             selectionState.pointIndex,
             { x: newPointX, y: newPointY },
-            measurement.id
+            measurement.id,
+            updatedMeasurement?.points
           );
         }
 
@@ -390,6 +402,13 @@ export function useCanvasDrag({
                 }
               : item
           )
+        );
+        onMeasurementWriteback?.(
+          measurement.type,
+          selectionState.pointIndex,
+          points[selectionState.pointIndex],
+          measurement.id,
+          points
         );
         return true;
       }
