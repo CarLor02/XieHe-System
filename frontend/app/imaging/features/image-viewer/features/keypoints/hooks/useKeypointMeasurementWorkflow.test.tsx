@@ -112,6 +112,66 @@ function WorkflowHarness({
   return null;
 }
 
+it('keeps a manually drawn CA and CL/CR keypoints synchronized both ways', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.measurementWorkflow.handleAddMeasurement('ca', [
+      { x: 220, y: 100 },
+      { x: 100, y: 90 },
+    ]);
+  });
+
+  await waitFor(() => {
+    expect(
+      latest!.workflow.keypoints.find(keypoint => keypoint.id === 'CR')?.point
+    ).toEqual({ x: 220, y: 100 });
+    expect(
+      latest!.workflow.keypoints.find(keypoint => keypoint.id === 'CL')?.point
+    ).toEqual({ x: 100, y: 90 });
+  });
+
+  const movedLayer = latest!.workflow.activeVertebraeLayer.map(annotation =>
+    annotation.label === 'CL'
+      ? {
+          ...annotation,
+          corners: [
+            { x: 80, y: 70 },
+            { x: 80, y: 70 },
+            { x: 80, y: 70 },
+            { x: 80, y: 70 },
+          ] as [Point, Point, Point, Point],
+        }
+      : annotation
+  );
+
+  act(() => {
+    latest!.workflow.handleVertebraeUpdate(movedLayer);
+  });
+
+  await waitFor(() => {
+    expect(
+      latest!.measurements.find(measurement => measurement.type === 'ca')
+        ?.points
+    ).toEqual([
+      { x: 220, y: 100 },
+      { x: 80, y: 70 },
+    ]);
+  });
+});
+
 it('marks only moved AI keypoints as manual after keypoint-layer drag', async () => {
   let latest: WorkflowHarnessValue | null = null;
 

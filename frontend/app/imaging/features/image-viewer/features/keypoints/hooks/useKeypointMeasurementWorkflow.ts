@@ -50,6 +50,11 @@ import {
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-writeback';
+import {
+  backfillMissingBoundKeypoints,
+  getMeasurementKeypointBindingRule,
+  writeMeasurementPointsToKeypoints,
+} from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-binding';
 import { syncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
 import { runLateralDetectionCache } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
 
@@ -119,6 +124,11 @@ export function useKeypointMeasurementWorkflow({
   const [showVertebraeLayer, setShowVertebraeLayer] = useState(false);
   const aiMeasurementIdsRef = useRef<Set<string>>(new Set());
   const lateralDetectionResultRef = useRef<LateralDetectionCache | null>(null);
+  const keypointsRef = useRef<KeypointAnnotation[]>(keypoints);
+
+  useEffect(() => {
+    keypointsRef.current = keypoints;
+  }, [keypoints]);
 
   const completeVertebraGroups = useMemo(
     () => getCompleteSelectableVertebraGroups(keypoints, examType),
@@ -255,6 +265,30 @@ export function useKeypointMeasurementWorkflow({
         : restoredKeypoints
     );
   }, [cfhAnnotation, examType, isKeypointExam, vertebraeLayer]);
+
+  useEffect(() => {
+    if (!isKeypointExam || measurements.length === 0) return;
+
+    const nextKeypoints = backfillMissingBoundKeypoints(
+      keypoints,
+      measurements
+    );
+    if (areKeypointsEqual(keypoints, nextKeypoints)) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const latestKeypoints = keypointsRef.current;
+      const latestBackfilled = backfillMissingBoundKeypoints(
+        latestKeypoints,
+        measurements
+      );
+      if (areKeypointsEqual(latestKeypoints, latestBackfilled)) return;
+      setKeypoints(latestBackfilled);
+      setVertebraeLayer(keypointsToPersistedLayer(latestBackfilled));
+    }, 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isKeypointExam, keypoints, measurements]);
 
   useEffect(() => {
     if (!isKeypointExam || keypoints.length === 0) return;
@@ -651,12 +685,36 @@ export function useKeypointMeasurementWorkflow({
       measurementType: string,
       pointIndex: number,
       newPoint: Point,
-      measurementId?: string
+      measurementId?: string,
+      updatedPoints?: Point[]
     ) => {
       const sourceMeasurement = measurementId
         ? measurements.find(measurement => measurement.id === measurementId)
         : null;
       const dynamicVertebraLabel = sourceMeasurement?.apexVertebra ?? undefined;
+      const bindingRule = getMeasurementKeypointBindingRule(measurementType);
+
+      if (bindingRule && sourceMeasurement) {
+        const measurementPoints =
+          updatedPoints ??
+          sourceMeasurement.points.map((point, index) =>
+            index === pointIndex ? newPoint : point
+          );
+        const nextKeypoints = writeMeasurementPointsToKeypoints(
+          keypoints,
+          measurementType,
+          measurementPoints,
+          pointIndex
+        );
+        if (!areKeypointsEqual(keypoints, nextKeypoints)) {
+          setKeypoints(nextKeypoints);
+          setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+          setMeasurements(previous =>
+            recalculateExistingMeasurements(previous, nextKeypoints)
+          );
+        }
+        return;
+      }
 
       const { vertebraeLayer: nextLayer, cfhAnnotation: nextCfh } =
         applyMeasurementPointToVertebrae(
@@ -682,7 +740,10 @@ export function useKeypointMeasurementWorkflow({
       cfhAnnotation,
       examType,
       isKeypointExam,
+      keypoints,
       measurements,
+      recalculateExistingMeasurements,
+      setMeasurements,
     ]
   );
 

@@ -55,7 +55,7 @@ export interface MeasurementData {
   upperVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
   lowerVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
   apexVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
-  keypointSynced?: boolean; // Cobb 手动同步到检测层后，后续关键点移动时需按端椎重算该测量
+  keypointSynced?: boolean; // 测量项已绑定关键点；后续关键点移动或缺失时应重算或移除
 }
 
 /**
