@@ -87,6 +87,7 @@ export default function VertebraeLayer({
               : isSelected
                 ? 'rgba(253, 224, 71, 1)'
                 : 'rgba(147, 197, 253, 1)';
+          const renderLabelOnLeft = vertebra.label === 'ASIS_R';
           // 菱形（旋转 45° 的正方形）
           const d = r * 1.2;
           const diamond = `${sc.x},${sc.y - d} ${sc.x + d},${sc.y} ${sc.x},${sc.y + d} ${sc.x - d},${sc.y}`;
@@ -100,8 +101,9 @@ export default function VertebraeLayer({
                 strokeWidth={1.2}
               />
               <text
-                x={sc.x + 10}
+                x={sc.x + (renderLabelOnLeft ? -10 : 10)}
                 y={sc.y + 4}
+                textAnchor={renderLabelOnLeft ? 'end' : 'start'}
                 fontSize={10}
                 fontWeight="600"
                 fill={textFill}
