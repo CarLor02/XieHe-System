@@ -34,12 +34,12 @@ async def test_ai_object_request_reuses_lifecycle_client() -> None:
 
     await file_handlers.stop_ai_object_client()
     await file_handlers.start_ai_object_client(httpx.MockTransport(handler))
-    first_client = file_handlers._ai_object_client
+    first_client = file_handlers.ai_model_client._client
 
     try:
         first = await file_handlers._post_ai_object_request("http://ai/predict", {"image_id": "IMG1"})
         second = await file_handlers._post_ai_object_request("http://ai/predict", {"image_id": "IMG2"})
-        assert file_handlers._ai_object_client is first_client
+        assert file_handlers.ai_model_client._client is first_client
     finally:
         await file_handlers.stop_ai_object_client()
 
@@ -47,6 +47,26 @@ async def test_ai_object_request_reuses_lifecycle_client() -> None:
     assert second == {"ok": True}
     assert len(requests) == 2
     assert first_client is not None
+
+
+@pytest.mark.asyncio
+async def test_ai_object_request_preserves_model_error_detail() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(422, json={"detail": "invalid image"})
+
+    await file_handlers.stop_ai_object_client()
+    await file_handlers.start_ai_object_client(httpx.MockTransport(handler))
+    try:
+        with pytest.raises(HTTPException) as error:
+            await file_handlers._post_ai_object_request(
+                "http://ai/predict",
+                {"image_id": "IMG1"},
+            )
+    finally:
+        await file_handlers.stop_ai_object_client()
+
+    assert error.value.status_code == 422
+    assert error.value.detail == {"detail": "invalid image"}
 
 
 @pytest.mark.asyncio

@@ -30,6 +30,7 @@ def test_config_registry_contains_expected_domains() -> None:
         "cache",
         "concurrency",
         "monitoring",
+        "mq",
         "external",
         "development",
     ]

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useRef } from 'react';
+import { Suspense } from 'react';
 import { useImagingPageController } from './application/hooks/useImagingPageController';
 import ImagingErrorState from './features/image-list/components/ImagingErrorState';
 import ImagingFrame from './features/image-list/components/ImagingFrame';
@@ -16,10 +16,6 @@ import { AppModal } from '@/components/overlay/overlay-components';
 function ImagingPageContent() {
   const controller = useImagingPageController();
   const { preview, actions, editOverlay, batchExport, batchImport } = controller;
-  const batchImportFileInputRef = useRef<HTMLInputElement>(null);
-  const openBatchImportDialog = useCallback(() => {
-    batchImportFileInputRef.current?.click();
-  }, []);
   const isBlockingError =
     Boolean(controller.error) && controller.imageFiles.length === 0;
 
@@ -83,17 +79,7 @@ function ImagingPageContent() {
         onChangeExportContent={batchExport.setExportContent}
         onClearExportSelection={batchExport.clearExportSelection}
         onStartBatchExport={batchExport.startBatchExport}
-        onStartBatchImport={openBatchImportDialog}
-      />
-
-      <input
-        ref={batchImportFileInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        accept=".dcm,.dicom,.jpg,.jpeg,.png,.tiff,.tif"
-        onChange={batchImport.handleFileInput}
-        aria-hidden="true"
+        onStartBatchImport={batchImport.openOverlay}
       />
 
       <ImageListPanel
@@ -146,6 +132,7 @@ function ImagingPageContent() {
 
       {batchImport.overlayOpen && (
         <BatchImportOverlay
+          activeTab={batchImport.activeTab}
           files={batchImport.files}
           patientId={batchImport.patientId}
           examType={batchImport.examType}
@@ -155,12 +142,27 @@ function ImagingPageContent() {
           lrFlip={batchImport.lrFlip}
           isUploading={batchImport.isUploading}
           message={batchImport.message}
+          maxFiles={batchImport.maxFiles}
+          batches={batchImport.batches}
+          batchPage={batchImport.batchPage}
+          batchTotalPages={batchImport.batchTotalPages}
+          selectedBatchId={batchImport.selectedBatchId}
+          taskItems={batchImport.taskItems}
+          itemPage={batchImport.itemPage}
+          itemTotalPages={batchImport.itemTotalPages}
+          tasksLoading={batchImport.tasksLoading}
           loadTeams={batchImport.loadTeams}
+          onTabChange={batchImport.setActiveTab}
+          onFileInput={batchImport.handleFileInput}
           onPatientChange={batchImport.setPatientId}
           onExamTypeChange={batchImport.setExamType}
           onOwnershipScopeChange={batchImport.setOwnershipScope}
           onTeamIdsChange={batchImport.setTeamIds}
           onToggleFlip={batchImport.toggleFlip}
+          onSelectBatch={batchImport.setSelectedBatchId}
+          onChangeBatchPage={batchImport.changeBatchPage}
+          onChangeItemPage={batchImport.changeItemPage}
+          onRetryTaskItem={batchImport.retryTaskItem}
           onConfirm={batchImport.startImport}
           onClose={batchImport.closeOverlay}
         />

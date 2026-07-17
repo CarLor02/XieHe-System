@@ -1,5 +1,6 @@
 services:
   backend:
+    image: xiehe-medical-backend:local
     build:
       context: ../../..
       dockerfile: backend/Dockerfile
@@ -42,6 +43,9 @@ services:
       AI_AP_MEASUREMENT_OBJECT_URL: ${AI_AP_MEASUREMENT_OBJECT_URL:-}
       AI_LAT_MEASUREMENT_OBJECT_URL: ${AI_LAT_MEASUREMENT_OBJECT_URL:-}
       AI_OBJECT_CONCURRENCY_LIMIT: ${AI_OBJECT_CONCURRENCY_LIMIT:-50}
+      BATCH_IMPORT_MAX_FILES: ${BATCH_IMPORT_MAX_FILES:-200}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      AI_TASK_KAFKA_TOPIC: ${AI_TASK_KAFKA_TOPIC:-medical.image-ai.predict.v1}
       BATCH_PRESIGN_CONCURRENCY_LIMIT: ${BATCH_PRESIGN_CONCURRENCY_LIMIT:-100}
       LEGACY_DIAGNOSIS_CONCURRENCY_LIMIT: ${LEGACY_DIAGNOSIS_CONCURRENCY_LIMIT:-100}
       REPORT_EXPORT_CONCURRENCY_LIMIT: ${REPORT_EXPORT_CONCURRENCY_LIMIT:-100}
@@ -62,9 +66,49 @@ services:
         condition: service_healthy
       logging-service:
         condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     networks:
       - medical_network
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8080/health']
       timeout: 10s
       retries: 5
+
+  ai-worker:
+    image: xiehe-medical-backend:local
+    pull_policy: never
+    container_name: medical_ai_worker
+    restart: unless-stopped
+    entrypoint: ['python', '-m', 'app.workers.ai_worker']
+    healthcheck:
+      disable: true
+    environment:
+      PYTHONPATH: ${PYTHONPATH}
+      ENVIRONMENT: ${ENVIRONMENT}
+      DATABASE_URL: ${DATABASE_URL}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      REDIS_URL: ${REDIS_URL}
+      LOGGING_SERVICE_URL: ${LOGGING_SERVICE_URL:-http://logging-service:8091}
+      LOGGING_SERVICE_TOKEN: ${LOGGING_SERVICE_TOKEN:-dev-logging-service-token}
+      AI_AP_MEASUREMENT_OBJECT_URL: ${AI_AP_MEASUREMENT_OBJECT_URL:-}
+      AI_LAT_MEASUREMENT_OBJECT_URL: ${AI_LAT_MEASUREMENT_OBJECT_URL:-}
+      AI_MODEL_TIMEOUT: ${AI_MODEL_TIMEOUT:-30}
+      AI_MODEL_MAX_RETRIES: ${AI_MODEL_MAX_RETRIES:-3}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      AI_TASK_KAFKA_TOPIC: ${AI_TASK_KAFKA_TOPIC:-medical.image-ai.predict.v1}
+      AI_TASK_KAFKA_GROUP_ID: ${AI_TASK_KAFKA_GROUP_ID:-medical-image-ai-worker-v1}
+      AI_WORKER_CONCURRENCY: ${AI_WORKER_CONCURRENCY:-2}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,minio,kafka,storage-service,logging-service,backend,medical_mysql,medical_redis,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend
+      no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,redis,minio,kafka,storage-service,logging-service,backend,medical_mysql,medical_redis,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend
+    depends_on:
+      backend:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks:
+      - medical_network

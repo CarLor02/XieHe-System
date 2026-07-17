@@ -40,6 +40,8 @@ services:
     environment:
       LOGGING_KAFKA_TOPIC: ${LOGGING_KAFKA_TOPIC:-logging.events.v1}
       LOGGING_KAFKA_PARTITIONS: ${LOGGING_KAFKA_PARTITIONS:-${KAFKA_NUM_PARTITIONS:-3}}
+      AI_TASK_KAFKA_TOPIC: ${AI_TASK_KAFKA_TOPIC:-medical.image-ai.predict.v1}
+      AI_TASK_KAFKA_PARTITIONS: ${AI_TASK_KAFKA_PARTITIONS:-${KAFKA_NUM_PARTITIONS:-3}}
       KAFKA_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR:-1}
     command:
       - /bin/sh
@@ -56,5 +58,16 @@ services:
           --bootstrap-server kafka:9092 \
           --describe \
           --topic "$$LOGGING_KAFKA_TOPIC"
+        /opt/kafka/bin/kafka-topics.sh \
+          --bootstrap-server kafka:9092 \
+          --create \
+          --if-not-exists \
+          --topic "$$AI_TASK_KAFKA_TOPIC" \
+          --partitions "$$AI_TASK_KAFKA_PARTITIONS" \
+          --replication-factor "$$KAFKA_REPLICATION_FACTOR"
+        /opt/kafka/bin/kafka-topics.sh \
+          --bootstrap-server kafka:9092 \
+          --describe \
+          --topic "$$AI_TASK_KAFKA_TOPIC"
     networks:
       - medical_network

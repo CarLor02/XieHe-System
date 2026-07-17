@@ -8,7 +8,6 @@
 创建时间: 2026-01-05
 """
 
-import asyncio
 import json
 from typing import Any, Optional
 from datetime import datetime, date, timedelta, timezone
@@ -26,7 +25,6 @@ from fastapi import (
     status as http_status,
 )
 from fastapi.responses import RedirectResponse
-import httpx
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import or_, func
 
@@ -42,6 +40,11 @@ from app.models.user import User
 from app.models.image import ImageAnnotation
 from app.models.team import Team, TeamMembership, TeamMembershipRole, TeamMembershipStatus
 from app.services.storage_gateway import StorageServiceError, storage_gateway
+from app.services.ai_model_client import (
+    AiModelClient,
+    AiModelRequestError,
+    ai_model_client,
+)
 from app.services.image_file_visibility import (
     apply_image_visibility_filter,
     get_visible_image_file,
@@ -61,8 +64,6 @@ from ..schemas.files import (
 )
 
 router = APIRouter()
-_ai_object_client: Optional[httpx.AsyncClient] = None
-_ai_object_client_lock = asyncio.Lock()
 
 READY_FOR_MODEL_STATUSES = {
     ImageFileStatusEnum.UPLOADED,
@@ -79,31 +80,17 @@ REPLACE_CONTENT_ALLOWED_MIME_TYPES = {
 
 
 async def start_ai_object_client(
-    async_transport: Optional[httpx.AsyncBaseTransport] = None,
+    async_transport=None,
 ) -> None:
-    async with _ai_object_client_lock:
-        global _ai_object_client
-        if _ai_object_client is not None and not _ai_object_client.is_closed:
-            return
-        _ai_object_client = httpx.AsyncClient(
-            timeout=settings.AI_MODEL_TIMEOUT,
-            transport=async_transport,
-        )
+    global ai_model_client
+    if async_transport is not None:
+        await ai_model_client.stop()
+        ai_model_client = AiModelClient(transport=async_transport)
+    await ai_model_client.start()
 
 
 async def stop_ai_object_client() -> None:
-    async with _ai_object_client_lock:
-        global _ai_object_client
-        client = _ai_object_client
-        _ai_object_client = None
-        if client is not None and not client.is_closed:
-            await client.aclose()
-
-
-async def _get_ai_object_client() -> httpx.AsyncClient:
-    await start_ai_object_client()
-    assert _ai_object_client is not None
-    return _ai_object_client
+    await ai_model_client.stop()
 
 
 def _image_file_response(
@@ -381,28 +368,16 @@ def _is_lateral_image(image: ImageFile) -> bool:
 
 
 def _model_object_payload(image: ImageFile) -> dict[str, str]:
-    return {
-        "bucket": image.storage_bucket,
-        "object_key": image.object_key,
-        "image_id": f"IMG{image.id}",
-    }
+    return AiModelClient.object_payload(image)
 
 
 def _get_ai_object_url(image: ImageFile, operation: str) -> str:
     if operation != "predict":
         raise ValueError(f"unsupported AI operation: {operation}")
-    url = (
-        settings.AI_LAT_MEASUREMENT_OBJECT_URL
-        if _is_lateral_image(image)
-        else settings.AI_AP_MEASUREMENT_OBJECT_URL
-    )
-
-    if not url:
-        raise HTTPException(
-            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI模型 object 接口未配置",
-        )
-    return url
+    try:
+        return AiModelClient.measurement_url(image)
+    except AiModelRequestError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
 def _get_ai_ready_visible_image(
@@ -428,37 +403,10 @@ def _get_ai_ready_visible_image(
 
 async def _post_ai_object_request(url: str, payload: dict[str, str]) -> dict[str, Any]:
     try:
-        client = await _get_ai_object_client()
-        response = await client.post(url, json=payload)
-    except httpx.HTTPError as exc:
+        return await ai_model_client.post(url, payload)
+    except AiModelRequestError as exc:
         logger.emit_event(LogLevel.ERROR, message=f"AI模型 object 请求失败: {exc}")
-        raise HTTPException(
-            status_code=http_status.HTTP_502_BAD_GATEWAY,
-            detail="AI模型服务不可用",
-        )
-
-    if response.status_code >= 400:
-        detail: Any
-        try:
-            detail = response.json()
-        except ValueError:
-            detail = response.text
-        raise HTTPException(status_code=response.status_code, detail=detail)
-
-    try:
-        payload_data = response.json()
-    except ValueError as exc:
-        logger.emit_event(LogLevel.ERROR, message=f"AI模型 object 响应不是 JSON: {exc}")
-        raise HTTPException(
-            status_code=http_status.HTTP_502_BAD_GATEWAY,
-            detail="AI模型响应格式错误",
-        )
-    if not isinstance(payload_data, dict):
-        raise HTTPException(
-            status_code=http_status.HTTP_502_BAD_GATEWAY,
-            detail="AI模型响应格式错误",
-        )
-    return payload_data
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
 # API 端点

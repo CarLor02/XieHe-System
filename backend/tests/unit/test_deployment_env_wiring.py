@@ -45,8 +45,15 @@ def test_backend_compose_injects_python_settings_env_names() -> None:
         "BATCH_PRESIGN_CONCURRENCY_LIMIT",
         "LEGACY_DIAGNOSIS_CONCURRENCY_LIMIT",
         "REPORT_EXPORT_CONCURRENCY_LIMIT",
+        "BATCH_IMPORT_MAX_FILES",
+        "KAFKA_BOOTSTRAP_SERVERS",
+        "AI_TASK_KAFKA_TOPIC",
     ):
         assert f"{name}:" in backend_compose
+
+    assert "ai-worker:" in backend_compose
+    assert "app.workers.ai_worker" in backend_compose
+    assert "pull_policy: never" in backend_compose
 
 
 def test_redis_compose_mounts_existing_config_file() -> None:

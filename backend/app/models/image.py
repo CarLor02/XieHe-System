@@ -117,7 +117,14 @@ class AITask(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True, comment="任务ID")
     task_id = Column(String(64), unique=True, nullable=False, comment="任务ID")
-    image_file_id = Column(Integer, ForeignKey('image_files.id'), nullable=False, comment="影像文件ID")
+    image_file_id = Column(Integer, ForeignKey('image_files.id'), nullable=True, comment="影像文件ID")
+    batch_item_id = Column(
+        Integer,
+        ForeignKey("image_import_items.id"),
+        nullable=True,
+        comment="批量导入项ID",
+    )
+    attempt_count = Column(Integer, nullable=False, default=0, comment="处理尝试次数")
 
     task_name = Column(String(100), nullable=False, comment="任务名称")
     task_type = Column(String(50), nullable=False, comment="任务类型")
@@ -143,4 +150,4 @@ class AITask(Base):
 
     # 关系
     image_file = relationship("ImageFile", backref="ai_tasks")
-
+    batch_item = relationship("ImageImportItem")

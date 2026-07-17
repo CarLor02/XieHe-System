@@ -1,56 +1,36 @@
-import { ChangeEvent, useCallback, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type {
   BatchImportFileItem,
   BatchImportOwnershipScope,
-} from '@/app/imaging/features/batch-import/domain/types';
+  BatchImportTab,
+} from '../domain/types';
 import { EXAM_TYPES } from '@/app/imaging/domain/imagingFilters';
-import { maybeFlipImageFile } from '@/app/imaging/features/batch-import/domain/imageTransform';
 import type {
   TeamMultiSelectLoadParams,
   TeamMultiSelectPage,
 } from '@/components/common/TeamMultiSelect';
 import {
-  completeBatchImageUpload,
-  createBatchImageUploadSessions,
-  getBatchUploadStatus,
-  uploadObjectPart,
-  type BatchCompleteUploadItem,
-  type BatchUploadSessionItem,
+  enqueueImageImportItem,
+  getImageImportBatches,
+  getImageImportConfig,
+  getImageImportItems,
+  type ImageImportBatch,
+  type ImageImportItem,
 } from '@/services/imageServices';
+import { runBatchImportPipeline } from '../usecases/runBatchImportPipeline';
 
-const MAX_BATCH_FILES = 200;
-const UPLOAD_CONCURRENCY = 3;
+const DEFAULT_MAX_BATCH_FILES = 200;
+const DEFAULT_SESSION_WINDOW_SIZE = 10;
 const POLL_INTERVAL_MS = 2_000;
-const MAX_POLL_ATTEMPTS = 180;
 
-type PreparedFile = BatchImportFileItem & { file: File };
+type LocalBatchFile = BatchImportFileItem & { file: File };
 
 interface UseBatchImageImportOptions {
   reloadImages: () => Promise<void>;
   loadTeams: (params: TeamMultiSelectLoadParams) => Promise<TeamMultiSelectPage>;
 }
 
-async function runWithConcurrency<T>(
-  items: T[],
-  limit: number,
-  worker: (item: T) => Promise<void>
-) {
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
-      const item = items[cursor];
-      cursor += 1;
-      await worker(item);
-    }
-  });
-  await Promise.all(runners);
-}
-
-function delay(ms: number) {
-  return new Promise(resolve => window.setTimeout(resolve, ms));
-}
-
-function toImportFile(file: File, index: number): PreparedFile {
+function toImportFile(file: File, index: number): LocalBatchFile {
   return {
     id: `batch-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
     name: file.name,
@@ -62,12 +42,17 @@ function toImportFile(file: File, index: number): PreparedFile {
   };
 }
 
+function isTerminalBatch(batch: ImageImportBatch) {
+  return ['COMPLETED', 'PARTIAL_FAILED', 'FAILED'].includes(batch.status);
+}
+
 export function useBatchImageImport({
   reloadImages,
   loadTeams,
 }: UseBatchImageImportOptions) {
   const [overlayOpen, setOverlayOpen] = useState(false);
-  const [files, setFiles] = useState<PreparedFile[]>([]);
+  const [activeTab, setActiveTab] = useState<BatchImportTab>('new-import');
+  const [files, setFiles] = useState<LocalBatchFile[]>([]);
   const [patientId, setPatientId] = useState('');
   const [examType, setExamType] = useState<string>(EXAM_TYPES[0]);
   const [ownershipScope, setOwnershipScope] =
@@ -76,25 +61,101 @@ export function useBatchImageImport({
   const [lrFlip, setLrFlip] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState('');
+  const [maxFiles, setMaxFiles] = useState(DEFAULT_MAX_BATCH_FILES);
+  const [sessionWindowSize, setSessionWindowSize] = useState(
+    DEFAULT_SESSION_WINDOW_SIZE
+  );
+  const [batches, setBatches] = useState<ImageImportBatch[]>([]);
+  const [batchPage, setBatchPage] = useState(1);
+  const [batchTotalPages, setBatchTotalPages] = useState(1);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const [taskItems, setTaskItems] = useState<ImageImportItem[]>([]);
+  const [itemPage, setItemPage] = useState(1);
+  const [itemTotalPages, setItemTotalPages] = useState(1);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const activeBatchIdRef = useRef<string | null>(null);
 
-  const patchFile = useCallback((fileId: string, patch: Partial<BatchImportFileItem>) => {
-    setFiles(current =>
-      current.map(file => (file.id === fileId ? { ...file, ...patch } : file))
-    );
-  }, []);
+  const patchFile = useCallback(
+    (fileId: string, patch: Partial<BatchImportFileItem>) => {
+      setFiles(current =>
+        current.map(file => (file.id === fileId ? { ...file, ...patch } : file))
+      );
+    },
+    []
+  );
 
-  const handleFileInput = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files || []);
-    event.target.value = '';
-    if (selectedFiles.length === 0) return;
-    if (selectedFiles.length > MAX_BATCH_FILES) {
-      setMessage(`一次最多导入 ${MAX_BATCH_FILES} 张影像`);
-      return;
+  const loadBatches = useCallback(async (page: number) => {
+    setTasksLoading(true);
+    try {
+      const result = await getImageImportBatches({ page, page_size: 10 });
+      setBatches(result.items);
+      setBatchPage(result.page);
+      setBatchTotalPages(Math.max(1, result.totalPages));
+      setSelectedBatchId(current => current ?? result.items[0]?.batch_id ?? null);
+      if (
+        activeBatchIdRef.current &&
+        result.items.some(
+          batch =>
+            batch.batch_id === activeBatchIdRef.current &&
+            isTerminalBatch(batch)
+        )
+      ) {
+        activeBatchIdRef.current = null;
+        void reloadImages();
+      }
+    } catch {
+      setMessage('导入任务加载失败，请稍后重试');
+    } finally {
+      setTasksLoading(false);
     }
-    setFiles(selectedFiles.map(toImportFile));
-    setOverlayOpen(true);
-    setMessage('');
+  }, [reloadImages]);
+
+  const loadBatchItems = useCallback(async (batchId: string, page = 1) => {
+    try {
+      const result = await getImageImportItems(batchId, {
+        page,
+        page_size: 20,
+      });
+      setTaskItems(result.items);
+      setItemPage(result.page);
+      setItemTotalPages(Math.max(1, result.totalPages));
+    } catch {
+      setMessage('导入文件进度加载失败，请稍后重试');
+    }
   }, []);
+
+  const openOverlay = useCallback(() => {
+    setOverlayOpen(true);
+    setActiveTab('new-import');
+    setMessage('');
+    void getImageImportConfig()
+      .then(config => {
+        setMaxFiles(config.max_files || DEFAULT_MAX_BATCH_FILES);
+        setSessionWindowSize(
+          config.session_window_size || DEFAULT_SESSION_WINDOW_SIZE
+        );
+      })
+      .catch(() => {
+        setMaxFiles(DEFAULT_MAX_BATCH_FILES);
+        setSessionWindowSize(DEFAULT_SESSION_WINDOW_SIZE);
+      });
+    void loadBatches(1);
+  }, [loadBatches]);
+
+  const handleFileInput = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const selectedFiles = Array.from(event.target.files || []);
+      event.target.value = '';
+      if (selectedFiles.length === 0) return;
+      if (selectedFiles.length > maxFiles) {
+        setMessage(`一次最多导入 ${maxFiles} 张影像`);
+        return;
+      }
+      setFiles(selectedFiles.map(toImportFile));
+      setMessage('');
+    },
+    [maxFiles]
+  );
 
   const closeOverlay = useCallback(() => {
     if (isUploading) return;
@@ -103,97 +164,25 @@ export function useBatchImageImport({
     setMessage('');
   }, [isUploading]);
 
-  const prepareFiles = useCallback(async () => {
-    const prepared = new Map<string, File>();
-
-    for (const item of files) {
-      patchFile(item.id, { uploadStatus: 'preparing', error: null });
-      try {
-        prepared.set(item.id, await maybeFlipImageFile(item.file, lrFlip));
-      } catch (error) {
-        patchFile(item.id, {
-          uploadStatus: 'error',
-          aiStatus: 'failed',
-          error: error instanceof Error ? error.message : '影像处理失败',
-        });
-      }
-    }
-
-    return prepared;
-  }, [files, lrFlip, patchFile]);
-
-  const uploadSession = useCallback(
-    async (
-      session: BatchUploadSessionItem,
-      preparedFiles: Map<string, File>
-    ): Promise<BatchCompleteUploadItem | null> => {
-      const file = preparedFiles.get(session.client_file_id);
-      if (!file) return null;
-
-      patchFile(session.client_file_id, {
-        uploadStatus: 'uploading',
-        imageFileId: session.image_file_id,
-      });
-
-      try {
-        const parts = [];
-        for (const part of session.parts) {
-          const start = (part.part_number - 1) * session.part_size;
-          const end = Math.min(start + session.part_size, file.size);
-          const etag = await uploadObjectPart(part.url, file.slice(start, end));
-          parts.push({ part_number: part.part_number, etag });
-        }
-        return {
-          client_file_id: session.client_file_id,
-          image_file_id: session.image_file_id,
-          upload_id: session.upload_id,
-          parts,
-        };
-      } catch (error) {
-        patchFile(session.client_file_id, {
-          uploadStatus: 'error',
-          aiStatus: 'failed',
-          error: error instanceof Error ? error.message : '上传失败',
-        });
-        return null;
-      }
-    },
-    [patchFile]
-  );
-
-  const pollAiStatus = useCallback(
-    async (imageFileIds: number[]) => {
-      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
-        const result = await getBatchUploadStatus(imageFileIds);
-        const statusByImageId = new Map(
-          result.items.map(item => [item.image_file_id, item])
-        );
-        setFiles(current =>
-          current.map(file => {
-            if (!file.imageFileId) return file;
-            const status = statusByImageId.get(file.imageFileId);
-            if (!status) return file;
-            return {
-              ...file,
-              uploadStatus:
-                status.status === 'FAILED' ? 'error' : file.uploadStatus,
-              aiStatus: status.ai_status,
-              error: status.error ?? file.error,
-            };
-          })
-        );
-
-        if (result.items.every(item => item.ai_status === 'succeeded' || item.ai_status === 'failed')) {
-          await reloadImages();
-          return true;
-        }
-        await delay(POLL_INTERVAL_MS);
-      }
-      await reloadImages();
-      return false;
-    },
-    [reloadImages]
-  );
+  useEffect(() => {
+    if (!overlayOpen) return;
+    const hasActiveBatch =
+      Boolean(activeBatchIdRef.current) || batches.some(batch => !isTerminalBatch(batch));
+    if (!hasActiveBatch) return;
+    const timer = window.setInterval(() => {
+      void loadBatches(batchPage);
+      if (selectedBatchId) void loadBatchItems(selectedBatchId, itemPage);
+    }, POLL_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [
+    batchPage,
+    batches,
+    loadBatchItems,
+    loadBatches,
+    overlayOpen,
+    itemPage,
+    selectedBatchId,
+  ]);
 
   const startImport = useCallback(async () => {
     if (!patientId) {
@@ -210,73 +199,25 @@ export function useBatchImageImport({
     }
 
     setIsUploading(true);
-    setMessage('正在准备影像...');
-
     try {
-      const preparedFiles = await prepareFiles();
-      const readyFiles = files.filter(file => preparedFiles.has(file.id));
-      if (readyFiles.length === 0) {
-        setMessage('没有可上传的影像文件');
-        return;
-      }
-
-      setMessage('正在创建上传会话...');
-      const sessions = await createBatchImageUploadSessions({
-        patient_id: Number(patientId),
+      const batchId = await runBatchImportPipeline({
+        files,
+        patientId: Number(patientId),
         description: examType,
-        team_ids: ownershipScope === 'team' ? teamIds : [],
-        files: readyFiles.map(file => {
-          const prepared = preparedFiles.get(file.id) || file.file;
-          return {
-            client_file_id: file.id,
-            filename: prepared.name,
-            size: prepared.size,
-            mime_type: prepared.type || file.type || 'application/octet-stream',
-          };
-        }),
+        teamIds: ownershipScope === 'team' ? teamIds : [],
+        flip: lrFlip,
+        sessionWindowSize,
+        onFilePatch: patchFile,
+        onMessage: setMessage,
       });
-
-      const completedItems: BatchCompleteUploadItem[] = [];
-      setMessage('正在上传影像...');
-      await runWithConcurrency(sessions.items, UPLOAD_CONCURRENCY, async session => {
-        const completed = await uploadSession(session, preparedFiles);
-        if (completed) completedItems.push(completed);
-      });
-
-      if (completedItems.length === 0) {
-        setMessage('影像上传失败');
-        return;
-      }
-
-      setMessage('上传完成，正在启动AI检测...');
-      const completeResult = await completeBatchImageUpload({ items: completedItems });
-      const resultByClientId = new Map(
-        completeResult.items.map(item => [item.client_file_id, item])
-      );
-      const imageIds = completeResult.items
-        .filter(item => !item.error)
-        .map(item => item.image_file_id);
-      setFiles(current =>
-        current.map(file => {
-          const result = resultByClientId.get(file.id);
-          if (!result) return file;
-          return {
-            ...file,
-            imageFileId: result.image_file_id,
-            uploadStatus: result.error ? 'error' : 'uploaded',
-            aiStatus: result.ai_status,
-            error: result.error ?? file.error,
-          };
-        })
-      );
-
-      if (imageIds.length > 0) {
-        setMessage('AI检测处理中...');
-        const finished = await pollAiStatus(imageIds);
-        setMessage(finished ? '批量导入完成' : '批量导入已提交，AI仍在处理中');
-      } else {
-        setMessage('影像上传完成失败');
-      }
+      activeBatchIdRef.current = batchId;
+      setSelectedBatchId(batchId);
+      setActiveTab('import-tasks');
+      await Promise.all([
+        loadBatches(1),
+        loadBatchItems(batchId, 1),
+        reloadImages(),
+      ]);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '批量导入失败');
     } finally {
@@ -285,16 +226,53 @@ export function useBatchImageImport({
   }, [
     examType,
     files,
+    loadBatchItems,
+    loadBatches,
+    lrFlip,
     ownershipScope,
     patientId,
-    pollAiStatus,
-    prepareFiles,
+    patchFile,
+    reloadImages,
+    sessionWindowSize,
     teamIds,
-    uploadSession,
   ]);
+
+  const retryTaskItem = useCallback(
+    async (itemId: number) => {
+      if (!selectedBatchId) return;
+      try {
+        await enqueueImageImportItem(selectedBatchId, itemId);
+        await loadBatchItems(selectedBatchId, itemPage);
+        await loadBatches(batchPage);
+      } catch {
+        setMessage('AI任务重新入队失败，请稍后重试');
+      }
+    },
+    [batchPage, itemPage, loadBatchItems, loadBatches, selectedBatchId]
+  );
+
+  const changeTab = useCallback(
+    (tab: BatchImportTab) => {
+      setActiveTab(tab);
+      if (tab === 'import-tasks' && selectedBatchId) {
+        void loadBatchItems(selectedBatchId, 1);
+      }
+    },
+    [loadBatchItems, selectedBatchId]
+  );
+
+  const selectBatch = useCallback(
+    (batchId: string) => {
+      setSelectedBatchId(batchId);
+      setItemPage(1);
+      void loadBatchItems(batchId, 1);
+    },
+    [loadBatchItems]
+  );
 
   return {
     overlayOpen,
+    activeTab,
     files,
     patientId,
     examType,
@@ -304,13 +282,30 @@ export function useBatchImageImport({
     lrFlip,
     isUploading,
     message,
+    maxFiles,
+    batches,
+    batchPage,
+    batchTotalPages,
+    selectedBatchId,
+    taskItems,
+    itemPage,
+    itemTotalPages,
+    tasksLoading,
     loadTeams,
+    openOverlay,
     handleFileInput,
     closeOverlay,
+    setActiveTab: changeTab,
     setPatientId,
     setExamType,
     setOwnershipScope,
     setTeamIds,
+    setSelectedBatchId: selectBatch,
+    changeBatchPage: (page: number) => void loadBatches(page),
+    changeItemPage: (page: number) => {
+      if (selectedBatchId) void loadBatchItems(selectedBatchId, page);
+    },
+    retryTaskItem,
     toggleFlip: () => setLrFlip(value => !value),
     startImport,
   };

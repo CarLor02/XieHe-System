@@ -7,6 +7,7 @@ export type BatchImportUploadStatus =
 
 export type BatchImportAiStatus =
   | 'pending'
+  | 'queued'
   | 'running'
   | 'succeeded'
   | 'failed';
@@ -24,3 +25,5 @@ export interface BatchImportFileItem {
   imageFileId?: number;
   error?: string | null;
 }
+
+export type BatchImportTab = 'new-import' | 'import-tasks';

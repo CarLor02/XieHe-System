@@ -2,22 +2,15 @@
 
 from __future__ import annotations
 
-import asyncio
 import re
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Any
 
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from app.core.database.session import SessionLocal
-from app.core.system.logger import LogLevel, logger
 from app.models.image import AnnotationTypeEnum, ImageAnnotation
 from app.models.image_file import ImageFile, ImageFileStatusEnum
-from app.api.v1.endpoints.imaging.handlers import files as file_handlers
-
-
-_batch_ai_semaphore = asyncio.Semaphore(2)
 
 TYPE_ALIASES = {
     "T1 Tilt": "t1-tilt",
@@ -120,17 +113,6 @@ def build_annotation_from_ai_response(
     return annotation
 
 
-def batch_ai_status_for_image(image: Any) -> str:
-    status = image.status
-    if status == ImageFileStatusEnum.PROCESSING:
-        return "running"
-    if status == ImageFileStatusEnum.PROCESSED and image.annotation is not None:
-        return "succeeded"
-    if status == ImageFileStatusEnum.FAILED:
-        return "failed"
-    return "pending"
-
-
 def _parse_measurement_value(value: str) -> tuple[float | None, str | None]:
     if not value:
         return None, None
@@ -179,53 +161,3 @@ def persist_ai_annotation(
     now = datetime.now()
     image.status = ImageFileStatusEnum.PROCESSED
     image.updated_at = now
-
-
-async def process_image_ai(image_file_id: int, user_id: int | None) -> None:
-    """Run AI for one imported image and persist viewer-ready annotation JSON."""
-
-    async with _batch_ai_semaphore:
-        db = SessionLocal()
-        try:
-            image = (
-                db.query(ImageFile)
-                .filter(ImageFile.id == image_file_id, ImageFile.is_deleted == False)
-                .first()
-            )
-            if not image or image.status != ImageFileStatusEnum.UPLOADED:
-                return
-
-            image.status = ImageFileStatusEnum.PROCESSING
-            image.updated_at = datetime.now()
-            db.commit()
-            db.refresh(image)
-
-            ai_response = await file_handlers._post_ai_object_request(
-                file_handlers._get_ai_object_url(image, "predict"),
-                file_handlers._model_object_payload(image),
-            )
-            persist_ai_annotation(db, image, ai_response=ai_response, user_id=user_id)
-            db.commit()
-        except Exception as exc:  # noqa: BLE001 - background task must record per-image failure.
-            db.rollback()
-            failed = (
-                db.query(ImageFile)
-                .filter(ImageFile.id == image_file_id, ImageFile.is_deleted == False)
-                .first()
-            )
-            if failed:
-                failed.status = ImageFileStatusEnum.FAILED
-                failed.updated_at = datetime.now()
-                db.commit()
-            logger.emit_event(
-                LogLevel.ERROR,
-                message=f"批量导入影像 {image_file_id} AI 处理失败: {exc}",
-            )
-        finally:
-            db.close()
-
-
-async def process_batch_ai(image_file_ids: Iterable[int], user_id: int | None) -> None:
-    await asyncio.gather(
-        *(process_image_ai(image_file_id, user_id) for image_file_id in image_file_ids)
-    )

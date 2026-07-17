@@ -70,80 +70,30 @@ class BatchCreateUploadFileRequest(BaseModel):
     file_hash: Optional[str] = Field(None, max_length=64)
 
 
-class BatchCreateUploadSessionsRequest(BaseModel):
-    """Create MinIO multipart upload sessions for a batch of image files."""
+class CreateImageImportBatchRequest(BaseModel):
+    """Create durable batch metadata and item rows before upload starts."""
 
     patient_id: int = Field(..., gt=0)
     description: Optional[str] = None
     team_ids: List[int] = Field(default_factory=list)
-    files: List[BatchCreateUploadFileRequest] = Field(..., min_length=1, max_length=200)
+    files: List[BatchCreateUploadFileRequest] = Field(..., min_length=1)
 
 
-class BatchUploadSessionItem(BaseModel):
-    """Upload session returned for one file in a batch."""
+class CreateImageImportSessionsRequest(BaseModel):
+    """Request upload sessions for a bounded item window."""
 
-    client_file_id: str
-    image_file_id: int
-    file_uuid: str
-    storage_bucket: str
-    object_key: str
-    upload_id: str
-    part_size: int
-    expires_in: int
-    parts: List[PresignedUploadPart]
+    item_ids: List[int] = Field(..., min_length=1, max_length=10)
 
 
-class BatchCreateUploadSessionsResponse(BaseModel):
-    """Batch upload sessions response."""
+class CompleteImageImportItemRequest(BaseModel):
+    """Complete one item's multipart upload."""
 
-    items: List[BatchUploadSessionItem]
-
-
-class BatchCompleteUploadItem(BaseModel):
-    """One completed multipart upload in a batch."""
-
-    client_file_id: str
-    image_file_id: int
-    upload_id: str
+    upload_id: str = Field(..., min_length=1)
     parts: List[CompleteUploadPart] = Field(..., min_length=1)
     file_hash: Optional[str] = Field(None, max_length=64)
 
 
-class BatchCompleteUploadRequest(BaseModel):
-    """Complete a batch of MinIO multipart uploads."""
+class MarkImageImportUploadFailedRequest(BaseModel):
+    """Persist a browser/object-storage upload failure."""
 
-    items: List[BatchCompleteUploadItem] = Field(..., min_length=1, max_length=200)
-
-
-class BatchCompleteUploadResult(BaseModel):
-    """Per-file complete result."""
-
-    client_file_id: str
-    image_file_id: int
-    status: str
-    upload_progress: int
-    ai_status: str
-    error: Optional[str] = None
-
-
-class BatchCompleteUploadResponse(BaseModel):
-    """Batch complete response."""
-
-    items: List[BatchCompleteUploadResult]
-
-
-class BatchUploadStatusItem(BaseModel):
-    """Per-file polling status after batch import."""
-
-    image_file_id: int
-    status: str
-    upload_progress: int
-    has_annotation: bool
-    ai_status: str
-    error: Optional[str] = None
-
-
-class BatchUploadStatusResponse(BaseModel):
-    """Batch polling response."""
-
-    items: List[BatchUploadStatusItem]
+    error: str = Field(..., min_length=1, max_length=2000)

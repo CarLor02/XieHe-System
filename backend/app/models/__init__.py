@@ -39,6 +39,13 @@ from .image import (
     ImageAnnotation,
     AITask,
 )
+from .image_import import (
+    ImageImportAiStatus,
+    ImageImportBatch,
+    ImageImportBatchStatus,
+    ImageImportItem,
+    ImageImportUploadStatus,
+)
 
 __all__ = [
     # 用户管理
@@ -72,4 +79,9 @@ __all__ = [
     # 影像管理模型
     "ImageAnnotation",
     "AITask",
+    "ImageImportAiStatus",
+    "ImageImportBatch",
+    "ImageImportBatchStatus",
+    "ImageImportItem",
+    "ImageImportUploadStatus",
 ]

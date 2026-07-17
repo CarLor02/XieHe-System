@@ -36,46 +36,47 @@ export interface BatchCreateUploadFile {
   file_hash?: string | null;
 }
 
-export interface BatchUploadSessionItem extends UploadSession {
-  client_file_id: string;
+export interface ImageImportConfig {
+  max_files: number;
+  session_window_size: number;
 }
 
-export interface BatchCreateUploadSessionsResponse {
-  items: BatchUploadSessionItem[];
-}
-
-export interface BatchCompleteUploadItem {
+export interface ImageImportItem {
+  id: number;
   client_file_id: string;
-  image_file_id: number;
-  upload_id: string;
-  parts: CompletedUploadPart[];
-  file_hash?: string | null;
-}
-
-export interface BatchCompleteUploadResult {
-  client_file_id: string;
-  image_file_id: number;
-  status: string;
-  upload_progress: number;
-  ai_status: 'pending' | 'running' | 'succeeded' | 'failed';
+  filename: string;
+  size: number;
+  mime_type: string;
+  image_file_id?: number | null;
+  upload_status: 'PENDING' | 'SESSION_CREATED' | 'UPLOADING' | 'UPLOADED' | 'FAILED';
+  ai_status: 'PENDING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
   error?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface BatchCompleteUploadResponse {
-  items: BatchCompleteUploadResult[];
+export interface ImageImportBatch {
+  batch_id: string;
+  patient_id: number;
+  description?: string | null;
+  team_ids: number[];
+  status: 'UPLOADING' | 'PROCESSING' | 'COMPLETED' | 'PARTIAL_FAILED' | 'FAILED';
+  total_items: number;
+  uploaded_items: number;
+  succeeded_items: number;
+  failed_items: number;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
 }
 
-export interface BatchUploadStatusItem {
-  image_file_id: number;
-  status: string;
-  upload_progress: number;
-  has_annotation: boolean;
-  ai_status: 'pending' | 'running' | 'succeeded' | 'failed';
-  error?: string | null;
+export interface CreatedImageImportBatch extends ImageImportBatch {
+  items: ImageImportItem[];
 }
 
-export interface BatchUploadStatusResponse {
-  items: BatchUploadStatusItem[];
+export interface ImageImportUploadSession extends UploadSession {
+  item_id: number;
+  client_file_id: string;
 }
 
 export interface CompletedUploadPart {
@@ -153,30 +154,88 @@ export async function uploadObjectPart(url: string, blob: Blob): Promise<string>
   return etag.replace(/^"|"$/g, '');
 }
 
-export async function createBatchImageUploadSessions(payload: {
+export async function getImageImportConfig(): Promise<ImageImportConfig> {
+  const response = await apiClient.get('/api/v1/upload/batches/config');
+  return extractData<ImageImportConfig>(response);
+}
+
+export async function createImageImportBatch(payload: {
   patient_id: number;
   description?: string | null;
   team_ids?: number[];
   files: BatchCreateUploadFile[];
-}): Promise<BatchCreateUploadSessionsResponse> {
-  const response = await apiClient.post('/api/v1/upload/batch/sessions', payload);
-  return extractData<BatchCreateUploadSessionsResponse>(response);
+}): Promise<CreatedImageImportBatch> {
+  const response = await apiClient.post('/api/v1/upload/batches', payload);
+  return extractData<CreatedImageImportBatch>(response);
 }
 
-export async function completeBatchImageUpload(payload: {
-  items: BatchCompleteUploadItem[];
-}): Promise<BatchCompleteUploadResponse> {
-  const response = await apiClient.post('/api/v1/upload/batch/complete', payload);
-  return extractData<BatchCompleteUploadResponse>(response);
+export async function createImageImportSessions(
+  batchId: string,
+  itemIds: number[]
+): Promise<{ items: ImageImportUploadSession[] }> {
+  const response = await apiClient.post(
+    `/api/v1/upload/batches/${batchId}/sessions`,
+    { item_ids: itemIds }
+  );
+  return extractData<{ items: ImageImportUploadSession[] }>(response);
 }
 
-export async function getBatchUploadStatus(
-  imageFileIds: number[]
-): Promise<BatchUploadStatusResponse> {
-  const response = await apiClient.get('/api/v1/upload/batch/status', {
-    params: { image_file_ids: imageFileIds.join(',') },
-  });
-  return extractData<BatchUploadStatusResponse>(response);
+export async function completeImageImportItem(
+  batchId: string,
+  itemId: number,
+  payload: {
+    upload_id: string;
+    parts: CompletedUploadPart[];
+    file_hash?: string | null;
+  }
+): Promise<ImageImportItem> {
+  const response = await apiClient.post(
+    `/api/v1/upload/batches/${batchId}/items/${itemId}/complete`,
+    payload
+  );
+  return extractData<ImageImportItem>(response);
+}
+
+export async function markImageImportUploadFailed(
+  batchId: string,
+  itemId: number,
+  error: string
+): Promise<ImageImportItem> {
+  const response = await apiClient.post(
+    `/api/v1/upload/batches/${batchId}/items/${itemId}/upload-failed`,
+    { error }
+  );
+  return extractData<ImageImportItem>(response);
+}
+
+export async function enqueueImageImportItem(
+  batchId: string,
+  itemId: number
+): Promise<ImageImportItem> {
+  const response = await apiClient.post(
+    `/api/v1/upload/batches/${batchId}/items/${itemId}/enqueue`
+  );
+  return extractData<ImageImportItem>(response);
+}
+
+export async function getImageImportBatches(params?: {
+  page?: number;
+  page_size?: number;
+  status?: string;
+}): Promise<PaginatedResult<ImageImportBatch>> {
+  const response = await apiClient.get('/api/v1/upload/batches', { params });
+  return extractPaginatedData<ImageImportBatch>(response);
+}
+
+export async function getImageImportItems(
+  batchId: string,
+  params?: { page?: number; page_size?: number }
+): Promise<PaginatedResult<ImageImportItem>> {
+  const response = await apiClient.get(
+    `/api/v1/upload/batches/${batchId}/items`,
+    { params }
+  );
+  return extractPaginatedData<ImageImportItem>(response);
 }
 
 export async function uploadSingleFile(

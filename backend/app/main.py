@@ -38,6 +38,10 @@ from app.core.system.logger import LogLevel, logger
 from app.core.system.request_context import request_id_var
 from app.services.realtime_service import start_realtime_service, stop_realtime_service
 from app.services.storage_gateway import storage_gateway
+from app.services.ai_task_queue import (
+    start_ai_task_publisher,
+    stop_ai_task_publisher,
+)
 from app.tasks.object_cleanup import start_object_cleanup_scheduler
 
 
@@ -66,6 +70,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"❌ 实时数据推送服务启动失败: {e}")
 
+    try:
+        await start_ai_task_publisher()
+        logger.emit_event(LogLevel.INFO, message="✅ AI任务 Publisher 启动成功")
+    except Exception as e:
+        # Upload completion remains durable in MySQL and can be re-enqueued.
+        logger.emit_event(LogLevel.ERROR, message=f"❌ AI任务 Publisher 启动失败: {e}")
+
     # 这里可以添加其他启动时的初始化工作
     # 例如：缓存预热、AI模型加载等
 
@@ -81,6 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 清理数据库连接
     try:
+        await stop_ai_task_publisher()
         await stop_ai_object_client()
         await storage_gateway.stop()
         logger.emit_event(LogLevel.INFO, message="✅ 内部HTTP客户端已关闭")

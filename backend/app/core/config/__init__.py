@@ -15,6 +15,7 @@ from .email_settings import EmailSettings, email_settings
 from .external_settings import ExternalSettings, external_settings
 from .logging_settings import LoggingSettings, logging_settings
 from .monitoring_settings import MonitoringSettings, monitoring_settings
+from .mq_settings import MqSettings, mq_settings
 from .redis_settings import RedisSettings, redis_settings
 from .security_settings import SecuritySettings, security_settings
 from .storage_settings import StorageSettings, storage_settings
@@ -33,6 +34,7 @@ CONFIG_REGISTRY = OrderedDict(
         ("cache", cache_settings),
         ("concurrency", concurrency_settings),
         ("monitoring", monitoring_settings),
+        ("mq", mq_settings),
         ("external", external_settings),
         ("development", development_settings),
     ]
@@ -72,6 +74,7 @@ __all__ = [
     "ExternalSettings",
     "LoggingSettings",
     "MonitoringSettings",
+    "MqSettings",
     "RedisSettings",
     "SecuritySettings",
     "Settings",
@@ -86,6 +89,7 @@ __all__ = [
     "external_settings",
     "logging_settings",
     "monitoring_settings",
+    "mq_settings",
     "redis_settings",
     "security_settings",
     "settings",
