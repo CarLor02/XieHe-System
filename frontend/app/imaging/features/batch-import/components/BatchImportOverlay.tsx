@@ -398,7 +398,7 @@ export default function BatchImportOverlay(props: BatchImportOverlayProps) {
                   <PatientSearchSelect
                     value={props.patientId}
                     onChange={props.onPatientChange}
-                    dropdownContentClassName="z-[10001]"
+                    contentClassName="z-[10001]"
                   />
                 </div>
 
@@ -459,7 +459,7 @@ export default function BatchImportOverlay(props: BatchImportOverlayProps) {
                         onChange={props.onTeamIdsChange}
                         placeholder="选择归属团队"
                         emptyText="没有可选择的团队"
-                        dropdownContentClassName="z-[10001]"
+                        contentClassName="z-[10001]"
                       />
                     )}
                   </div>

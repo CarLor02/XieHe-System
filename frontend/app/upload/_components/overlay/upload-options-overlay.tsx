@@ -359,7 +359,7 @@ export default function UploadOptionsOverlay({
                           }}
                           placeholder="选择归属团队"
                           emptyText="没有可选择的团队"
-                          dropdownContentClassName="z-[10001]"
+                          contentClassName="z-[10001]"
                         />
                       </div>
                     )}

@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import EntitySearchSelect, {
   type EntitySearchSelectPage,
 } from './EntitySearchSelect';
+import OverlayProvider from '@/components/overlay/OverlayProvider';
+import { AppModal } from '@/components/overlay/overlay-components';
 
 type Doctor = {
   id: number;
@@ -245,6 +247,88 @@ describe('EntitySearchSelect', () => {
     expect(previousButton.className).toContain('whitespace-nowrap');
     expect(nextButton.className).toContain('whitespace-nowrap');
     expect(pageText.className).toContain('whitespace-nowrap');
+  });
+
+  it('keeps a modal combobox open while a page request is pending', async () => {
+    const user = userEvent.setup();
+    let resolveSecondPage:
+      | ((page: EntitySearchSelectPage<Doctor>) => void)
+      | undefined;
+    const secondPage = new Promise<EntitySearchSelectPage<Doctor>>(resolve => {
+      resolveSecondPage = resolve;
+    });
+    loadOptions
+      .mockResolvedValueOnce(
+        makePage(
+          [
+            {
+              id: 7,
+              real_name: '第一页医生',
+              email: 'page1@example.com',
+              role: 'MEMBER',
+            },
+          ],
+          2
+        )
+      )
+      .mockReturnValueOnce(secondPage);
+
+    render(
+      <OverlayProvider>
+        <AppModal open title="选择医生">
+          <EntitySearchSelect
+            value=""
+            placeholder="选择上传者"
+            searchPlaceholder="搜索医生姓名或邮箱"
+            loadOptions={loadOptions}
+            getOptionValue={doctor => String(doctor.id)}
+            mapOption={doctor => ({
+              primary: doctor.real_name,
+              secondary: doctor.email,
+              meta: [doctor.role],
+            })}
+            onChange={jest.fn()}
+          />
+        </AppModal>
+      </OverlayProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: /选择上传者/ }));
+    await screen.findByText('第一页医生');
+    const nextButton = screen.getByRole('button', { name: '下一页' });
+
+    await user.click(nextButton);
+    await waitFor(() => expect(loadOptions).toHaveBeenCalledTimes(2));
+
+    expect(document.activeElement).toBe(nextButton);
+    expect(nextButton.getAttribute('aria-disabled')).toBe('true');
+    expect(nextButton.hasAttribute('disabled')).toBe(false);
+    expect(
+      screen.getByPlaceholderText('搜索医生姓名或邮箱')
+    ).toBeTruthy();
+
+    await act(async () => {
+      resolveSecondPage?.(
+        makePage(
+          [
+            {
+              id: 8,
+              real_name: '第二页医生',
+              email: 'page2@example.com',
+              role: 'MEMBER',
+            },
+          ],
+          2
+        )
+      );
+    });
+
+    await screen.findByText('第二页医生');
+    expect(
+      screen.getByPlaceholderText('搜索医生姓名或邮箱')
+    ).toBeTruthy();
+    expect(document.activeElement).toBe(nextButton);
+    expect(nextButton.getAttribute('aria-disabled')).toBe('true');
   });
 
   it('uses the controlled selected item when the parent clears selection', () => {

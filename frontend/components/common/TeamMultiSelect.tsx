@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { TeamSummary } from '@/services/teamService';
 import { cn } from '@/lib/utils';
-import AppDropdown from './AppDropdown';
+import AppCombobox from './AppCombobox';
+import AsyncPaginationControls from './AsyncPaginationControls';
 
 export interface TeamMultiSelectLoadParams {
   page: number;
@@ -27,7 +28,7 @@ interface TeamMultiSelectProps {
   searchPlaceholder?: string;
   emptyText?: string;
   pageSize?: number;
-  dropdownContentClassName?: string;
+  contentClassName?: string;
 }
 
 export default function TeamMultiSelect({
@@ -38,7 +39,7 @@ export default function TeamMultiSelect({
   searchPlaceholder = '搜索团队名',
   emptyText = '暂无可选团队',
   pageSize = 10,
-  dropdownContentClassName,
+  contentClassName,
 }: TeamMultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -126,13 +127,13 @@ export default function TeamMultiSelect({
 
   return (
     <div className="flex min-w-0 overflow-hidden rounded-lg border border-gray-300 bg-white text-sm text-gray-800 transition-colors hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500">
-      <AppDropdown
+      <AppCombobox
         open={open}
         onOpenChange={handleOpenChange}
         align="start"
         contentClassName={cn(
-          'w-[var(--radix-dropdown-menu-trigger-width)] min-w-72 overflow-hidden',
-          dropdownContentClassName
+          'w-[var(--radix-popover-trigger-width)] min-w-72 overflow-hidden',
+          contentClassName
         )}
         trigger={
           <button
@@ -146,88 +147,68 @@ export default function TeamMultiSelect({
           </button>
         }
       >
-          <div className="border-b border-gray-100 p-3">
-            <div className="relative">
-              <i className="ri-search-line absolute left-3 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center text-gray-400" />
-              <input
-                value={search}
-                onChange={event => handleSearchChange(event.target.value)}
-                onKeyDown={event => {
-                  if (event.key !== 'Escape') {
-                    event.stopPropagation();
-                  }
-                }}
-                placeholder={searchPlaceholder}
-                aria-label={searchPlaceholder}
-                className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+        <div className="border-b border-gray-100 p-3">
+          <div className="relative">
+            <i className="ri-search-line absolute left-3 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center text-gray-400" />
+            <input
+              value={search}
+              onChange={event => handleSearchChange(event.target.value)}
+              placeholder={searchPlaceholder}
+              aria-label={searchPlaceholder}
+              className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+        <div role="listbox" className="max-h-64 overflow-y-auto py-1">
+          {loading ? (
+            <div className="px-4 py-6 text-center text-sm text-gray-500">
+              正在加载...
             </div>
-          </div>
-          <div role="listbox" className="max-h-64 overflow-y-auto py-1">
-            {loading ? (
-              <div className="px-4 py-6 text-center text-sm text-gray-500">
-                正在加载...
-              </div>
-            ) : error ? (
-              <div className="px-4 py-5 text-center text-sm text-red-600">
-                <p>{error}</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoading(true);
-                    setError(null);
-                    setReloadKey(value => value + 1);
-                  }}
-                  className="mt-2 text-blue-600 hover:text-blue-700"
-                >
-                  重试
-                </button>
-              </div>
-            ) : teams.length === 0 ? (
-              <div className="px-4 py-6 text-center text-sm text-gray-500">
-                {emptyText}
-              </div>
-            ) : (
-              teams.map(team => (
-                <label
-                  key={team.id}
-                  className="flex cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-3 text-sm last:border-b-0 hover:bg-blue-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedSet.has(team.id)}
-                    onChange={() => toggleTeam(team.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-gray-900">
-                    {team.name}
-                  </span>
-                </label>
-              ))
-            )}
-          </div>
-          <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 text-sm text-gray-600">
-            <button
-              type="button"
-              disabled={loading || page <= 1}
-              onClick={() => handlePageChange(Math.max(page - 1, 1))}
-              className="flex-shrink-0 whitespace-nowrap rounded px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
-            >
-              上一页
-            </button>
-            <span className="flex-shrink-0 whitespace-nowrap">
-              第 {page} / {totalPages} 页
-            </span>
-            <button
-              type="button"
-              disabled={loading || page >= totalPages}
-              onClick={() => handlePageChange(page + 1)}
-              className="flex-shrink-0 whitespace-nowrap rounded px-2 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
-            >
-              下一页
-            </button>
-          </div>
-      </AppDropdown>
+          ) : error ? (
+            <div className="px-4 py-5 text-center text-sm text-red-600">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoading(true);
+                  setError(null);
+                  setReloadKey(value => value + 1);
+                }}
+                className="mt-2 text-blue-600 hover:text-blue-700"
+              >
+                重试
+              </button>
+            </div>
+          ) : teams.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-gray-500">
+              {emptyText}
+            </div>
+          ) : (
+            teams.map(team => (
+              <label
+                key={team.id}
+                className="flex cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-3 text-sm last:border-b-0 hover:bg-blue-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedSet.has(team.id)}
+                  onChange={() => toggleTeam(team.id)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="min-w-0 flex-1 truncate text-gray-900">
+                  {team.name}
+                </span>
+              </label>
+            ))
+          )}
+        </div>
+        <AsyncPaginationControls
+          page={page}
+          totalPages={totalPages}
+          loading={loading}
+          onPageChange={handlePageChange}
+        />
+      </AppCombobox>
       {selectedIds.length > 0 && (
         <button
           type="button"

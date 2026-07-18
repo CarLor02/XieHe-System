@@ -1,9 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import TeamMultiSelect, { type TeamMultiSelectPage } from './TeamMultiSelect';
 import type { TeamSummary } from '@/services/teamService';
+import OverlayProvider from '@/components/overlay/OverlayProvider';
+import { AppModal } from '@/components/overlay/overlay-components';
 
 const loadOptions = jest.fn<
   (params: { page: number; pageSize: number; search?: string }) => Promise<TeamMultiSelectPage>
@@ -147,5 +149,63 @@ describe('TeamMultiSelect', () => {
 
     expect(await screen.findByText('没有可选择的团队')).toBeTruthy();
     expect(screen.getByRole('button', { name: /选择归属团队/ })).toBeTruthy();
+  });
+
+  it('keeps a modal team combobox open while a page request is pending', async () => {
+    const user = userEvent.setup();
+    let resolveSecondPage: ((page: TeamMultiSelectPage) => void) | undefined;
+    const secondPage = new Promise<TeamMultiSelectPage>(resolve => {
+      resolveSecondPage = resolve;
+    });
+    loadOptions
+      .mockResolvedValueOnce({
+        items: [makeTeam(11, '第一页团队')],
+        total: 2,
+        page: 1,
+        pageSize: 10,
+        totalPages: 2,
+      })
+      .mockReturnValueOnce(secondPage);
+
+    render(
+      <OverlayProvider>
+        <AppModal open title="选择团队">
+          <TeamMultiSelect
+            selectedIds={[]}
+            placeholder="选择归属团队"
+            searchPlaceholder="搜索团队名"
+            loadOptions={loadOptions}
+            onChange={jest.fn()}
+          />
+        </AppModal>
+      </OverlayProvider>
+    );
+
+    await user.click(screen.getByRole('button', { name: /选择归属团队/ }));
+    await screen.findByText('第一页团队');
+    const nextButton = screen.getByRole('button', { name: '下一页' });
+
+    await user.click(nextButton);
+    await waitFor(() => expect(loadOptions).toHaveBeenCalledTimes(2));
+
+    expect(document.activeElement).toBe(nextButton);
+    expect(nextButton.getAttribute('aria-disabled')).toBe('true');
+    expect(nextButton.hasAttribute('disabled')).toBe(false);
+    expect(screen.getByPlaceholderText('搜索团队名')).toBeTruthy();
+
+    await act(async () => {
+      resolveSecondPage?.({
+        items: [makeTeam(12, '第二页团队')],
+        total: 2,
+        page: 2,
+        pageSize: 10,
+        totalPages: 2,
+      });
+    });
+
+    await screen.findByText('第二页团队');
+    expect(screen.getByPlaceholderText('搜索团队名')).toBeTruthy();
+    expect(document.activeElement).toBe(nextButton);
+    expect(nextButton.getAttribute('aria-disabled')).toBe('true');
   });
 });

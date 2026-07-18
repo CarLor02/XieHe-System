@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { expect, it } from '@jest/globals';
 
 import AppDropdown from '@/components/common/AppDropdown';
+import AppCombobox from '@/components/common/AppCombobox';
 import OverlayProvider from '../../OverlayProvider';
 import AppModal from './AppModal';
 
@@ -48,4 +49,31 @@ it('renders nested dropdown content into the modal scoped overlay host', async (
     screen.getByRole('button', { name: '菜单项' }).closest('[data-overlay-host="scoped"]')
   ).toBe(scopedHost);
   expect(globalHost.querySelector('[data-overlay-host="scoped"]')).toBe(scopedHost);
+});
+
+it('renders nested combobox content into the modal scoped overlay host', async () => {
+  render(
+    <OverlayProvider>
+      <AppModal open title="工作流弹窗">
+        <AppCombobox
+          open
+          onOpenChange={() => undefined}
+          trigger={<button type="button">选择项目</button>}
+        >
+          <input aria-label="搜索项目" />
+        </AppCombobox>
+      </AppModal>
+    </OverlayProvider>
+  );
+
+  const globalHost = screen.getByTestId('xiehe-overlay-host');
+  const scopedHost = await screen.findByTestId('xiehe-overlay-scoped-host');
+
+  const searchInput = await screen.findByRole('textbox', {
+    name: '搜索项目',
+  });
+  expect(scopedHost.contains(searchInput)).toBe(true);
+  expect(globalHost.querySelector('[data-overlay-host="scoped"]')).toBe(
+    scopedHost
+  );
 });
