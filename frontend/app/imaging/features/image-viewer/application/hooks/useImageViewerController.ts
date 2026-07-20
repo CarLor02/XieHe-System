@@ -182,6 +182,9 @@ export function useImageViewerController({
             patientId: studyData.patient_id
               ? studyData.patient_id.toString()
               : '0',
+            patientIdentifier: studyData.patient_identifier,
+            patientGender: studyData.patient_gender,
+            patientAge: studyData.patient_age,
             examType: studyData.study_description || studyData.modality,
             studyDate: studyData.study_date,
             captureTime: studyData.created_at,
@@ -192,6 +195,9 @@ export function useImageViewerController({
             id: imageId,
             patientName: '加载中...',
             patientId: '...',
+            patientIdentifier: null,
+            patientGender: null,
+            patientAge: null,
             examType: '加载中...',
             studyDate: '...',
             captureTime: '...',

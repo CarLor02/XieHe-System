@@ -121,8 +121,14 @@ async def test_replace_image_content_keeps_id_and_clears_annotations(
     )
     monkeypatch.setattr(
         file_handlers,
-        "_image_file_related_names",
-        lambda *args, **kwargs: ("替换用户", "替换患者"),
+        "_image_file_related_metadata",
+        lambda *args, **kwargs: file_handlers.ImageFileRelatedMetadata(
+            uploader_name="替换用户",
+            patient_name="替换患者",
+            patient_identifier="P301",
+            patient_gender="FEMALE",
+            patient_age=35,
+        ),
     )
 
     db = FakeSession(make_image())

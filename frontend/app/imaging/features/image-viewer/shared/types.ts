@@ -139,6 +139,9 @@ export interface StudyData {
   study_id: string;
   patient_id: number;
   patient_name: string;
+  patient_identifier?: string | null;
+  patient_gender?: string | null;
+  patient_age?: number | null;
   study_date: string;
   study_description: string;
   modality: string;
@@ -153,6 +156,9 @@ export interface ImageData {
   id: string;
   patientName: string;
   patientId: string;
+  patientIdentifier?: string | null;
+  patientGender?: string | null;
+  patientAge?: number | null;
   examType: string;
   studyDate: string;
   captureTime: string;

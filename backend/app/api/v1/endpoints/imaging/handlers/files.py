@@ -9,7 +9,7 @@
 """
 
 import json
-from typing import Any, Optional
+from typing import Any, NamedTuple, Optional
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 
@@ -79,6 +79,14 @@ REPLACE_CONTENT_ALLOWED_MIME_TYPES = {
 }
 
 
+class ImageFileRelatedMetadata(NamedTuple):
+    uploader_name: Optional[str]
+    patient_name: Optional[str]
+    patient_identifier: Optional[str]
+    patient_gender: Optional[str]
+    patient_age: Optional[int]
+
+
 async def start_ai_object_client(
     async_transport=None,
 ) -> None:
@@ -98,6 +106,8 @@ def _image_file_response(
     uploader_name: Optional[str] = None,
     patient_name: Optional[str] = None,
     patient_identifier: Optional[str] = None,
+    patient_gender: Optional[str] = None,
+    patient_age: Optional[int] = None,
 ) -> ImageFileResponse:
     team_visibilities = sorted(
         image.team_visibilities,
@@ -120,6 +130,8 @@ def _image_file_response(
         patient_id=image.patient_id,
         patient_name=patient_name,
         patient_identifier=patient_identifier,
+        patient_gender=patient_gender,
+        patient_age=patient_age,
         team_ids=[visibility.team_id for visibility in team_visibilities],
         team_names=[
             visibility.team.name
@@ -181,26 +193,44 @@ def _user_to_uploader_response(user: User) -> ImageUploaderResponse:
     )
 
 
-def _image_file_related_names(
+def _image_file_related_metadata(
     db: Session,
     image: ImageFile,
-) -> tuple[Optional[str], Optional[str], Optional[str]]:
+) -> ImageFileRelatedMetadata:
     uploader_name = None
     patient_name = None
     patient_identifier = None
+    patient_gender = None
+    patient_age = None
 
     if image.uploaded_by:
         uploader_name = db.query(User.real_name).filter(User.id == image.uploaded_by).scalar()
 
     if image.patient_id:
-        patient_name = db.query(Patient.name).filter(Patient.id == image.patient_id).scalar()
-        patient_identifier = (
-            db.query(Patient.patient_id)
+        patient_row = (
+            db.query(
+                Patient.name,
+                Patient.patient_id,
+                Patient.gender,
+                Patient.age,
+            )
             .filter(Patient.id == image.patient_id)
-            .scalar()
+            .first()
         )
+        if patient_row is not None:
+            patient_name = patient_row[0]
+            patient_identifier = patient_row[1]
+            gender = patient_row[2]
+            patient_gender = gender.value if hasattr(gender, "value") else gender
+            patient_age = patient_row[3]
 
-    return uploader_name, patient_name, patient_identifier
+    return ImageFileRelatedMetadata(
+        uploader_name=uploader_name,
+        patient_name=patient_name,
+        patient_identifier=patient_identifier,
+        patient_gender=patient_gender,
+        patient_age=patient_age,
+    )
 
 
 def _parse_team_ids_param(value: Optional[str]) -> list[int]:
@@ -787,7 +817,7 @@ async def get_image_file(
                 detail="影像文件不存在"
             )
         
-        uploader_name, patient_name, patient_identifier = _image_file_related_names(
+        related_metadata = _image_file_related_metadata(
             db,
             image,
         )
@@ -795,9 +825,11 @@ async def get_image_file(
         return success_response(
             data=_image_file_response(
                 image,
-                uploader_name=uploader_name,
-                patient_name=patient_name,
-                patient_identifier=patient_identifier,
+                uploader_name=related_metadata.uploader_name,
+                patient_name=related_metadata.patient_name,
+                patient_identifier=related_metadata.patient_identifier,
+                patient_gender=related_metadata.patient_gender,
+                patient_age=related_metadata.patient_age,
             ).dict(),
             message="影像文件详情查询成功"
         )
@@ -1095,16 +1127,18 @@ async def replace_image_file_content(
             message=f"用户 {current_user.get('username')} 替换了影像文件 {file_id} 的内容",
         )
 
-        uploader_name, patient_name, patient_identifier = _image_file_related_names(
+        related_metadata = _image_file_related_metadata(
             db,
             image,
         )
         return success_response(
             data=_image_file_response(
                 image,
-                uploader_name=uploader_name,
-                patient_name=patient_name,
-                patient_identifier=patient_identifier,
+                uploader_name=related_metadata.uploader_name,
+                patient_name=related_metadata.patient_name,
+                patient_identifier=related_metadata.patient_identifier,
+                patient_gender=related_metadata.patient_gender,
+                patient_age=related_metadata.patient_age,
             ).dict(),
             message="影像内容替换成功",
         )
@@ -1213,15 +1247,17 @@ async def update_image_info(
         db.commit()
         db.refresh(image)
 
-        uploader_name, patient_name, patient_identifier = _image_file_related_names(
+        related_metadata = _image_file_related_metadata(
             db,
             image,
         )
         payload = _image_file_response(
             image,
-            uploader_name=uploader_name,
-            patient_name=patient_name,
-            patient_identifier=patient_identifier,
+            uploader_name=related_metadata.uploader_name,
+            patient_name=related_metadata.patient_name,
+            patient_identifier=related_metadata.patient_identifier,
+            patient_gender=related_metadata.patient_gender,
+            patient_age=related_metadata.patient_age,
         ).dict()
         payload["warning"] = warning
         return success_response(data=payload, message="影像信息修改成功")
@@ -1315,7 +1351,7 @@ async def update_annotation(
         
         logger.emit_event(LogLevel.INFO, message=f"用户 {current_user.get('username')} 更新了影像文件 {file_id} 的标注数据")
         
-        uploader_name, patient_name, patient_identifier = _image_file_related_names(
+        related_metadata = _image_file_related_metadata(
             db,
             image,
         )
@@ -1323,9 +1359,11 @@ async def update_annotation(
         return success_response(
             data=_image_file_response(
                 image,
-                uploader_name=uploader_name,
-                patient_name=patient_name,
-                patient_identifier=patient_identifier,
+                uploader_name=related_metadata.uploader_name,
+                patient_name=related_metadata.patient_name,
+                patient_identifier=related_metadata.patient_identifier,
+                patient_gender=related_metadata.patient_gender,
+                patient_age=related_metadata.patient_age,
             ).dict(),
             message="标注数据更新成功"
         )

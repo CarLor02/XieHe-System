@@ -21,6 +21,8 @@ class ImageFileResponse(BaseModel):
     patient_id: Optional[int]
     patient_name: Optional[str] = None
     patient_identifier: Optional[str] = None
+    patient_gender: Optional[str] = None
+    patient_age: Optional[int] = None
     team_ids: List[int] = Field(default_factory=list)
     team_names: List[str] = Field(default_factory=list)
     study_date: Optional[datetime]

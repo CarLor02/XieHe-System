@@ -27,6 +27,8 @@ export interface ImageFile {
   patient_id?: number;
   patient_name?: string | null;
   patient_identifier?: string | null;
+  patient_gender?: string | null;
+  patient_age?: number | null;
   study_id?: number; // TODO 这个字段后端的接口没返回, 以后看一下
   study_date?: string;
   description?: string;

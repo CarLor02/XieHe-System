@@ -3,11 +3,35 @@
 import Link from 'next/link';
 
 type HeaderImageData = {
-  id: string;
   patientName: string;
-  patientId: string;
+  patientIdentifier?: string | null;
+  patientGender?: string | null;
+  patientAge?: number | null;
   examType: string;
 };
+
+const PATIENT_GENDER_LABELS: Record<string, string> = {
+  MALE: '男',
+  FEMALE: '女',
+  OTHER: '其他',
+  男: '男',
+  女: '女',
+  其他: '其他',
+};
+
+function formatPatientGender(gender?: string | null) {
+  const normalizedGender = gender?.trim();
+  if (!normalizedGender) return '性别不详';
+  return (
+    PATIENT_GENDER_LABELS[normalizedGender.toUpperCase()] || '性别不详'
+  );
+}
+
+function formatPatientAge(age?: number | null) {
+  return Number.isInteger(age) && age !== undefined && age !== null && age >= 0
+    ? `${age}岁`
+    : '年龄不详';
+}
 
 interface StudyHeaderProps {
   imageData: HeaderImageData;
@@ -40,6 +64,16 @@ export default function StudyHeader({
   onAIMeasure,
   onGenerateReport,
 }: StudyHeaderProps) {
+  const patientName = imageData.patientName.trim() || '患者不详';
+  const patientIdentifier =
+    imageData.patientIdentifier?.trim() || '患者ID不详';
+  const patientSummary = [
+    `患者:${patientName}`,
+    `患者ID:${patientIdentifier}`,
+    formatPatientGender(imageData.patientGender),
+    formatPatientAge(imageData.patientAge),
+  ].join(' · ');
+
   return (
     <div className="bg-black/60 backdrop-blur-sm border-b border-gray-700 px-3 py-2 flex-shrink-0 sm:px-6 sm:py-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -53,11 +87,9 @@ export default function StudyHeader({
           </Link>
           <div className="min-w-0">
             <h1 className="truncate text-white font-semibold">
-              {imageData.patientName} - {imageData.examType}
+              {patientName} - {imageData.examType}
             </h1>
-            <p className="truncate text-white/60 text-sm">
-              影像ID: {imageData.id} | 患者ID: {imageData.patientId}
-            </p>
+            <p className="truncate text-white/60 text-sm">{patientSummary}</p>
           </div>
         </div>
 

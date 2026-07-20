@@ -155,6 +155,9 @@ jest.mock('@/app/imaging/features/image-viewer/features/study', () => ({
     studyData: {
       patient_name: 'patient',
       patient_id: 1,
+      patient_identifier: 'P2026001',
+      patient_gender: 'MALE',
+      patient_age: 41,
       study_description: '正位X光片',
       modality: 'DX',
       study_date: '2026-06-08',
@@ -279,6 +282,21 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+});
+
+it('keeps the database patient id separate from header demographics', async () => {
+  let latest: Controller | null = null;
+
+  render(<ControllerHarness onValue={value => (latest = value)} />);
+
+  await waitFor(() => expect(latest).not.toBeNull());
+
+  expect(latest!.headerProps.imageData).toMatchObject({
+    patientId: '1',
+    patientIdentifier: 'P2026001',
+    patientGender: 'MALE',
+    patientAge: 41,
+  });
 });
 
 it('starts annotation history before deleting a measurement from the results list', async () => {
