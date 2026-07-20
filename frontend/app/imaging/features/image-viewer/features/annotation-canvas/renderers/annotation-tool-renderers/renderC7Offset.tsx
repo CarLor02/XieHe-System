@@ -27,6 +27,8 @@ export function renderC7Offset(
   const height = RENDER_IMAGE_LENGTHS.verticalGuideLength;
 
   if (imagePoints.length >= 2 && imagePoints.length < 6) {
+    // 历史兼容：旧 TS/AVT 标注只保存两条参考线的中心点，无法还原当前6点轮廓。
+    // 这里保留两点图形渲染，确保历史标注仍可显示；新建标注不会使用该数据结构。
     const reference = imagePoints[0];
     const center = imagePoints[1];
     const topY = Math.min(reference.y, center.y) - height / 2;

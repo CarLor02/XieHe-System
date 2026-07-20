@@ -47,6 +47,8 @@ AVT 不使用全局序号。实例身份由 measurement `id` 和 `apexVertebra` 
 - 经过顶椎中心绘制垂直引导线。
 - 显示 SR、SL 骶骨参考线及其中点，并经过中点绘制 CSVL 垂直引导线。
 - AVT 数值同时显示在影像和左上角测量结果列表中。
+- 影像中的 AVT 数值标签显示在被选顶椎四角点区域的右侧，并与四角点中心等高；SR、SL 的位置不参与标签定位。
+- 多个 AVT 分别以各自顶椎为标签锚点，避免共享 SR、SL 导致标签集中重叠。
 
 ## 绑定与调整规则
 
@@ -66,4 +68,4 @@ AVT 不使用全局序号。实例身份由 measurement `id` 和 `apexVertebra` 
 
 - 历史 AVT 可能使用固定 ID `ap-keypoint-avt`，重算时必须保持该 ID 不变。
 - 新创建的 AVT 使用包含顶椎标签的稳定 ID，以区分不同顶椎实例。
-- 历史两点格式 `[apexCenter, csvlRef]` 继续保留计算兼容，但不能在缺少 `apexVertebra` 时自动推导出新的顶椎绑定。
+- 历史两点格式 `[apexCenter, csvlRef]` 继续保留计算、图形和标签定位兼容；标签使用 `apexCenter` 定位，但不能在缺少 `apexVertebra` 时自动推导出新的顶椎绑定。
