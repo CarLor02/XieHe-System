@@ -39,10 +39,9 @@ function renderHeader(overrides: HeaderDataOverrides = {}) {
 it('shows the patient business identifier and demographics without database ids', () => {
   renderHeader();
 
-  expect(
-    screen.getByText('患者:张三 · 患者ID:P001 · 男 · 41岁')
-  ).toBeTruthy();
+  expect(screen.getByText('患者ID:P001 · 男 · 41岁')).toBeTruthy();
   expect(screen.queryByText(/影像ID:/)).not.toBeTruthy();
+  expect(screen.queryByText(/患者:张三/)).not.toBeTruthy();
 });
 
 it('uses consistent placeholders when optional patient fields are missing', () => {
@@ -54,10 +53,9 @@ it('uses consistent placeholders when optional patient fields are missing', () =
   });
 
   expect(
-    screen.getByText(
-      '患者:患者不详 · 患者ID:患者ID不详 · 性别不详 · 年龄不详'
-    )
+    screen.getByText('患者ID:患者ID不详 · 性别不详 · 年龄不详')
   ).toBeTruthy();
+  expect(screen.getByRole('heading', { name: '患者不详 - 正位X光片' })).toBeTruthy();
 });
 
 it('shows age zero instead of treating it as missing', () => {
@@ -66,9 +64,7 @@ it('shows age zero instead of treating it as missing', () => {
     patientAge: 0,
   });
 
-  expect(
-    screen.getByText('患者:张三 · 患者ID:P001 · 女 · 0岁')
-  ).toBeTruthy();
+  expect(screen.getByText('患者ID:P001 · 女 · 0岁')).toBeTruthy();
 });
 
 it('shows the detection-layer keyboard shortcut in the tooltip', () => {

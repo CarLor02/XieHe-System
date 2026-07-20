@@ -68,7 +68,6 @@ export default function StudyHeader({
   const patientIdentifier =
     imageData.patientIdentifier?.trim() || '患者ID不详';
   const patientSummary = [
-    `患者:${patientName}`,
     `患者ID:${patientIdentifier}`,
     formatPatientGender(imageData.patientGender),
     formatPatientAge(imageData.patientAge),
