@@ -257,9 +257,17 @@ export default function AnnotationToolbar({
   const measurementTypeIds = new Set(
     measurements.map(measurement => getAnnotationTypeId(measurement.type))
   );
-  const hasAvt = measurements.some(item => item.type.toLowerCase() === 'avt');
+  const avtApexGroups = new Set(
+    measurements
+      .filter(item => getAnnotationTypeId(item.type) === 'avt')
+      .map(item => item.apexVertebra?.trim().toUpperCase())
+      .filter((group): group is string => Boolean(group))
+  );
   const hasSacralLine =
     hasKeypoint(keypoints, 'SL') && hasKeypoint(keypoints, 'SR');
+  const availableAvtVertebraGroups = completeVertebraGroups.filter(
+    group => !avtApexGroups.has(group.trim().toUpperCase())
+  );
   const visibleMeasurementTools =
     effectiveBasicMode === BasicMode.MeasurementDerive
       ? [measurementTools.find(tool => tool.id === 'cobb') ?? DERIVE_COBB_TOOL]
@@ -286,12 +294,13 @@ export default function AnnotationToolbar({
     selectedCobbUpper !== selectedCobbLower;
   const canCreateAvt =
     isAnteriorView &&
-    !hasAvt &&
     hasSacralLine &&
-    completeVertebraGroups.length >= 1;
+    availableAvtVertebraGroups.length >= 1;
   const avtStatus: ToolStatus = canCreateAvt
     ? 'available'
-    : hasAvt
+    : hasSacralLine &&
+        completeVertebraGroups.length > 0 &&
+        availableAvtVertebraGroups.length === 0
       ? 'exists'
       : 'missing-keypoints';
   const effectiveToolTab = getEffectiveToolTab(effectiveBasicMode, activeToolTab);
@@ -1024,24 +1033,35 @@ export default function AnnotationToolbar({
                         </div>
                         {completeVertebraGroups.length > 0 ? (
                           <div className="grid grid-cols-4 gap-2">
-                            {completeVertebraGroups.map(group => (
-                              <button
-                                key={group}
-                                type="button"
-                                onClick={() => {
-                                  onCreateAvt(group);
-                                  setOpenMeasurementTool(null);
-                                }}
-                                disabled={!canCreateAvt}
-                                className={`h-8 rounded text-xs ${
-                                  !canCreateAvt
-                                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                    : 'bg-gray-800 text-white hover:bg-gray-700'
-                                }`}
-                              >
-                                {group}
-                              </button>
-                            ))}
+                            {completeVertebraGroups.map(group => {
+                              const exists = avtApexGroups.has(
+                                group.trim().toUpperCase()
+                              );
+                              const disabled = !hasSacralLine || exists;
+                              return (
+                                <button
+                                  key={group}
+                                  type="button"
+                                  onClick={() => {
+                                    onCreateAvt(group);
+                                    setOpenMeasurementTool(null);
+                                  }}
+                                  disabled={disabled}
+                                  title={
+                                    exists
+                                      ? `${group}的AVT已存在`
+                                      : `创建AVT(${group})`
+                                  }
+                                  className={`h-8 rounded text-xs ${
+                                    disabled
+                                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                      : 'bg-gray-800 text-white hover:bg-gray-700'
+                                  }`}
+                                >
+                                  {group}
+                                </button>
+                              );
+                            })}
                           </div>
                         ) : (
                           <span className="text-xs text-gray-500">

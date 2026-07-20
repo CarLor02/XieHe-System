@@ -29,6 +29,14 @@ const tools: Tool[] = [
   },
 ];
 
+const avtTool: Tool = {
+  id: 'avt',
+  name: 'AVT',
+  icon: 'ri-focus-2-line',
+  description: '顶椎平移量',
+  pointsNeeded: 6,
+};
+
 const completeC7Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   id: `C7-${index}`,
   point: { x: index * 10, y: index * 20 },
@@ -49,6 +57,15 @@ const completeT2Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   source: AnnotationSource.AI,
   confidence: 0.9,
 }));
+
+const sacralKeypoints: KeypointAnnotation[] = ['SR', 'SL'].map(
+  (id, index) => ({
+    id,
+    point: { x: 200 + index * 100, y: 500 },
+    source: AnnotationSource.AI,
+    confidence: 0.9,
+  })
+);
 
 const completeT3Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   id: `T3-${index}`,
@@ -227,6 +244,39 @@ it('returns to hand mode when clicking the active auxiliary tool again', () => {
 
   expect(onActivateHandMode).toHaveBeenCalled();
   expect(onSelectTool).not.toHaveBeenCalled();
+});
+
+it('allows multiple AVT measurements while disabling an already used apex', () => {
+  const onCreateAvt = jest.fn();
+  renderToolbar({
+    tools: [...tools, avtTool],
+    measurements: [
+      {
+        id: 'ap-keypoint-avt-t1',
+        type: 'avt',
+        value: '10.00mm',
+        points: [],
+        apexVertebra: 'T1',
+      },
+    ],
+    keypoints: [
+      ...completeT1Keypoints,
+      ...completeT2Keypoints,
+      ...sacralKeypoints,
+    ],
+    completeVertebraGroups: ['T1', 'T2'],
+    onCreateAvt,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: /AVT/ }));
+
+  const t1Button = screen.getByRole('button', { name: 'T1' });
+  const t2Button = screen.getByRole('button', { name: 'T2' });
+  expect((t1Button as HTMLButtonElement).disabled).toBe(true);
+  expect((t2Button as HTMLButtonElement).disabled).toBe(false);
+
+  fireEvent.click(t2Button);
+  expect(onCreateAvt).toHaveBeenCalledWith('T2');
 });
 
 it('keeps the keypoint chooser open after selecting a manual keypoint', () => {

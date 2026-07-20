@@ -17,7 +17,6 @@ import {
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   areKeypointsEqual,
   buildDerivedMeasurementsFromLayer,
@@ -27,6 +26,7 @@ import {
   createVertebraCenterMeasurement,
   deriveKeypointMeasurements as deriveKeypointMeasurementsUseCase,
   deriveInitialMeasurementsFromKeypoints as deriveInitialMeasurementsFromKeypointsUseCase,
+  hasAvtMeasurementForApex,
   hasCobbMeasurementForEndpoints,
   recalculateExistingMeasurementsFromKeypoints,
   syncUniqueMeasurementsAfterKeypointChange,
@@ -555,10 +555,11 @@ export function useKeypointMeasurementWorkflow({
         flashMessage(setSaveMessage, '缺少 AVT 所需关键点，无法创建');
         return;
       }
-      setMeasurements(previous => [
-        ...previous.filter(item => getAnnotationTypeId(item.type) !== 'avt'),
-        measurement,
-      ]);
+      setMeasurements(previous => {
+        return hasAvtMeasurementForApex(previous, apexVertebra)
+          ? previous
+          : [...previous, measurement];
+      });
     },
     [
       calculationContext,

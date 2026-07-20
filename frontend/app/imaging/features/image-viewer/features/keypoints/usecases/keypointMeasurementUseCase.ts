@@ -77,6 +77,27 @@ export function isCobbMeasurement(measurement: MeasurementData): boolean {
   );
 }
 
+export function isBoundAvtMeasurement(
+  measurement: MeasurementData
+): boolean {
+  return (
+    getAnnotationTypeId(measurement.type) === 'avt' &&
+    Boolean(measurement.apexVertebra)
+  );
+}
+
+export function hasAvtMeasurementForApex(
+  measurements: MeasurementData[],
+  apexVertebra: string
+): boolean {
+  const normalizedApex = normalizeVertebraLabel(apexVertebra);
+  return measurements.some(
+    measurement =>
+      isBoundAvtMeasurement(measurement) &&
+      normalizeVertebraLabel(measurement.apexVertebra!) === normalizedApex
+  );
+}
+
 export function hasCobbMeasurementForEndpoints(
   measurements: MeasurementData[],
   upperVertebra: string,
@@ -282,10 +303,12 @@ export function createAvtMeasurement({
   apexVertebra,
   keypoints,
   calculationContext,
+  existingMeasurement,
 }: {
   apexVertebra: string;
   keypoints: KeypointAnnotation[];
   calculationContext: CalculationContext;
+  existingMeasurement?: MeasurementData;
 }): MeasurementData | null {
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
   const sl = byId.get('SL');
@@ -300,14 +323,18 @@ export function createAvtMeasurement({
   const points = [tl, tr, bl, br, sr.point, sl.point];
 
   return {
-    id: 'ap-keypoint-avt',
-    type: 'avt',
+    ...existingMeasurement,
+    id:
+      existingMeasurement?.id ??
+      `ap-keypoint-avt-${apexVertebra.trim().toLowerCase()}`,
+    type: existingMeasurement?.type ?? 'avt',
     value: calculateMeasurementValue('avt', points, calculationContext),
     points,
-    description: `AVT ${apexVertebra}`,
+    description: existingMeasurement?.description ?? `AVT ${apexVertebra}`,
     upperVertebra: null,
     lowerVertebra: null,
     apexVertebra,
+    keypointSynced: true,
   };
 }
 
@@ -610,7 +637,7 @@ export function deriveInitialMeasurementsFromKeypoints({
         measurement.type === 'vertebra-center' &&
         measurement.upperVertebra
       ) &&
-      measurement.id !== 'ap-keypoint-avt' &&
+      !isBoundAvtMeasurement(measurement) &&
       measurement.id !== 'ap-keypoint-tts'
   );
 
@@ -658,16 +685,19 @@ export function deriveInitialMeasurementsFromKeypoints({
           calculationContext,
         })
       : null;
-  const existingAvt = previousMeasurements.find(
-    measurement => measurement.id === 'ap-keypoint-avt'
-  );
-  const avtMeasurement = existingAvt?.apexVertebra
-    ? createAvtMeasurement({
-        apexVertebra: existingAvt.apexVertebra,
+  const avtMeasurements = previousMeasurements
+    .filter(isBoundAvtMeasurement)
+    .map(measurement =>
+      createAvtMeasurement({
+        apexVertebra: measurement.apexVertebra!,
         keypoints,
         calculationContext,
+        existingMeasurement: measurement,
       })
-    : null;
+    )
+    .filter(
+      (measurement): measurement is MeasurementData => measurement !== null
+    );
 
   const rebuiltDerivedMeasurements = applyCobbSequenceTypes(
     [...derivedWithValues, ...boundCobbMeasurements],
@@ -679,7 +709,7 @@ export function deriveInitialMeasurementsFromKeypoints({
     ...retainedPreviousMeasurements,
     ...rebuiltDerivedMeasurements,
     ...centerMeasurements,
-    ...(avtMeasurement ? [avtMeasurement] : []),
+    ...avtMeasurements,
     ...(ttsMeasurement ? [ttsMeasurement] : []),
   ]);
 }
@@ -741,14 +771,13 @@ export function recalculateExistingMeasurementsFromKeypoints({
           : null;
       }
 
-      if (measurement.id === 'ap-keypoint-avt') {
-        return measurement.apexVertebra
-          ? createAvtMeasurement({
-              apexVertebra: measurement.apexVertebra,
-              keypoints,
-              calculationContext,
-            })
-          : null;
+      if (isBoundAvtMeasurement(measurement)) {
+        return createAvtMeasurement({
+          apexVertebra: measurement.apexVertebra!,
+          keypoints,
+          calculationContext,
+          existingMeasurement: measurement,
+        });
       }
 
       const bindingRule = getMeasurementKeypointBindingRule(measurement.type);

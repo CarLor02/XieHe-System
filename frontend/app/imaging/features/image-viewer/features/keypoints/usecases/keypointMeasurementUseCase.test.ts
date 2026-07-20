@@ -2,9 +2,11 @@ import { expect, it } from '@jest/globals';
 
 import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/keypoints';
 import {
+  createAvtMeasurement,
   createNextBoundCobbMeasurement,
   deriveKeypointMeasurements,
   deriveInitialMeasurementsFromKeypoints,
+  hasAvtMeasurementForApex,
   hasCobbMeasurementForEndpoints,
   recalculateExistingMeasurementsFromKeypoints,
   syncUniqueMeasurementsAfterKeypointChange,
@@ -56,6 +58,21 @@ const calculationContext = {
   standardDistancePoints: [],
   imageNaturalSize: { width: 1000, height: 1000 },
 };
+
+function multipleAvtKeypoints(): KeypointAnnotation[] {
+  return [
+    apCorner('T1-1', 100, 100),
+    apCorner('T1-2', 200, 100),
+    apCorner('T1-3', 100, 140),
+    apCorner('T1-4', 200, 140),
+    apCorner('T2-1', 120, 180),
+    apCorner('T2-2', 220, 180),
+    apCorner('T2-3', 120, 220),
+    apCorner('T2-4', 220, 220),
+    apCorner('SR', 300, 400),
+    apCorner('SL', 200, 400),
+  ];
+}
 
 it('includes L5 in AP keypoint groups and complete AP render layers', () => {
   const groups = getApKeypointGroups();
@@ -547,6 +564,149 @@ it('derives AP TS measurements from C7 corners', () => {
     { x: 10, y: 30 },
     { x: 20, y: 30 },
   ]);
+});
+
+it('creates stable AVT ids per apex and preserves a historical id', () => {
+  const keypoints = multipleAvtKeypoints();
+  const t1 = createAvtMeasurement({
+    apexVertebra: 'T1',
+    keypoints,
+    calculationContext,
+  });
+  const historical = createAvtMeasurement({
+    apexVertebra: 'T2',
+    keypoints,
+    calculationContext,
+    existingMeasurement: {
+      id: 'ap-keypoint-avt',
+      type: 'avt',
+      value: '0.00mm',
+      points: [],
+      apexVertebra: 'T2',
+    },
+  });
+
+  expect(t1?.id).toBe('ap-keypoint-avt-t1');
+  expect(historical?.id).toBe('ap-keypoint-avt');
+  expect(hasAvtMeasurementForApex([t1!], 't1')).toBe(true);
+  expect(hasAvtMeasurementForApex([t1!], 'T2')).toBe(false);
+});
+
+it('rebuilds multiple AVT measurements without changing their ids', () => {
+  const keypoints = multipleAvtKeypoints();
+  const previousMeasurements = [
+    createAvtMeasurement({
+      apexVertebra: 'T1',
+      keypoints,
+      calculationContext,
+      existingMeasurement: {
+        id: 'ap-keypoint-avt',
+        type: 'avt',
+        value: '0.00mm',
+        points: [],
+        apexVertebra: 'T1',
+      },
+    })!,
+    createAvtMeasurement({
+      apexVertebra: 'T2',
+      keypoints,
+      calculationContext,
+    })!,
+  ];
+  const movedKeypoints = keypoints.map(keypoint =>
+    keypoint.id === 'SR'
+      ? { ...keypoint, point: { x: 340, y: 410 } }
+      : keypoint
+  );
+
+  const rebuilt = deriveInitialMeasurementsFromKeypoints({
+    previousMeasurements,
+    keypoints: movedKeypoints,
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(
+    rebuilt
+      .filter(measurement => measurement.type === 'avt')
+      .map(measurement => measurement.id)
+  ).toEqual(['ap-keypoint-avt', 'ap-keypoint-avt-t2']);
+  expect(
+    rebuilt
+      .filter(measurement => measurement.type === 'avt')
+      .map(measurement => measurement.points[4])
+  ).toEqual([
+    { x: 340, y: 410 },
+    { x: 340, y: 410 },
+  ]);
+});
+
+it('removes only the AVT whose apex keypoints are missing', () => {
+  const keypoints = multipleAvtKeypoints();
+  const previousMeasurements = [
+    createAvtMeasurement({
+      apexVertebra: 'T1',
+      keypoints,
+      calculationContext,
+    })!,
+    createAvtMeasurement({
+      apexVertebra: 'T2',
+      keypoints,
+      calculationContext,
+    })!,
+  ];
+  const withoutT1 = keypoints.filter(
+    keypoint => !keypoint.id.startsWith('T1-')
+  );
+
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
+    previousMeasurements,
+    keypoints: withoutT1,
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(
+    rebuilt
+      .filter(measurement => measurement.type === 'avt')
+      .map(measurement => measurement.apexVertebra)
+  ).toEqual(['T2']);
+});
+
+it('removes all AVT measurements when a sacral reference point is missing', () => {
+  const keypoints = multipleAvtKeypoints();
+  const previousMeasurements = [
+    createAvtMeasurement({
+      apexVertebra: 'T1',
+      keypoints,
+      calculationContext,
+    })!,
+    createAvtMeasurement({
+      apexVertebra: 'T2',
+      keypoints,
+      calculationContext,
+    })!,
+  ];
+
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
+    previousMeasurements,
+    keypoints: keypoints.filter(keypoint => keypoint.id !== 'SR'),
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(
+    rebuilt.some(measurement => measurement.type === 'avt')
+  ).toBe(false);
 });
 
 it('updates a bound manual TTS from moved SR and SL keypoints', () => {

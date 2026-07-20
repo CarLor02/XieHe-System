@@ -5,12 +5,11 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 
 const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
-  // 正位标注：除 Cobb、椎体中心、辅助图形外唯一。
+  // 正位标注：Cobb、椎体中心、AVT 和辅助图形允许多个实例。
   't1-tilt',
   'ca',
   'po',
   'css',
-  'avt',
   'tts',
   'lld',
   'hemipelvic-width-ratio',
