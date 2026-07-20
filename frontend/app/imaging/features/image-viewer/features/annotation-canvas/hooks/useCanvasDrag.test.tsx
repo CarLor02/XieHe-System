@@ -194,3 +194,110 @@ it('moves one L/R line horizontally and recalculates the ratio', async () => {
     latestMeasurements[0].points
   );
 });
+
+function TtsLineDragHarness({
+  onValue,
+  onMeasurementsChange,
+  onAnnotationDragStart,
+}: {
+  onValue: (value: CanvasDragHook) => void;
+  onMeasurementsChange: (measurements: MeasurementData[]) => void;
+  onAnnotationDragStart: () => void;
+}) {
+  const [measurements, setMeasurements] = useState<MeasurementData[]>([
+    {
+      id: 'manual-tts',
+      type: 'tts',
+      value: '-9.00mm',
+      points: [
+        { x: 10, y: 20 },
+        { x: 30, y: 20 },
+        { x: 40, y: 100 },
+        { x: 60, y: 100 },
+      ],
+    },
+  ]);
+  const [selectionState, setSelectionState] = useState<SelectionState>({
+    measurementId: 'manual-tts',
+    pointIndex: null,
+    type: 'whole',
+    isDragging: false,
+    dragOffset: { x: 0, y: 0 },
+  });
+  const value = useCanvasDrag({
+    selectedTool: 'hand',
+    selectionState,
+    setSelectionState,
+    measurements,
+    clickedPoints: [],
+    setClickedPoints: jest.fn(),
+    pointBindings: { syncGroups: [] },
+    standardDistance: null,
+    standardDistancePoints: [],
+    imageNaturalSize: { width: 1000, height: 1000 },
+    imageScale: 1,
+    onMeasurementsUpdate: setMeasurements,
+    imageToScreen: point => point,
+    screenToImage: (screenX, screenY) => ({ x: screenX, y: screenY }),
+    referenceLines: { t1Tilt: null },
+    setReferenceLines: jest.fn(),
+    onAnnotationDragStart,
+  });
+
+  useEffect(() => {
+    onValue(value);
+    onMeasurementsChange(measurements);
+  }, [measurements, onMeasurementsChange, onValue, value]);
+
+  return null;
+}
+
+it('moves a manual TTS trunk line only vertically in one history step', async () => {
+  let latest: CanvasDragHook | null = null;
+  let latestMeasurements: MeasurementData[] = [];
+  const onAnnotationDragStart = jest.fn();
+
+  render(
+    <TtsLineDragHarness
+      onValue={value => {
+        latest = value;
+      }}
+      onMeasurementsChange={measurements => {
+        latestMeasurements = measurements;
+      }}
+      onAnnotationDragStart={onAnnotationDragStart}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    expect(latest!.handleMouseMove(25, 35, 1)).toBe(true);
+  });
+
+  await waitFor(() => {
+    expect(latestMeasurements[0].points.slice(0, 2)).toEqual([
+      { x: 10, y: 35 },
+      { x: 30, y: 35 },
+    ]);
+  });
+  expect(latestMeasurements[0].points.slice(2)).toEqual([
+    { x: 40, y: 100 },
+    { x: 60, y: 100 },
+  ]);
+  expect(latestMeasurements[0].value).toBe('-9.00mm');
+
+  act(() => {
+    expect(latest!.handleMouseMove(30, 40, 1)).toBe(true);
+  });
+
+  await waitFor(() => {
+    expect(latestMeasurements[0].points.slice(0, 2)).toEqual([
+      { x: 10, y: 40 },
+      { x: 30, y: 40 },
+    ]);
+  });
+  expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
+});

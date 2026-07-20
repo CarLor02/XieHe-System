@@ -14,6 +14,11 @@ import {
   moveHemipelvicVerticalLine,
   updateHemipelvicInteractivePoint,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import {
+  getManualTtsTrunkPoints,
+  isManualTtsMeasurement,
+  moveManualTtsTrunkLineVertically,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
 
 interface UseCanvasDragOptions {
   selectedTool: string;
@@ -150,7 +155,9 @@ export function useCanvasDrag({
               minY = Math.min(startScreen.y, endScreen.y) - 15;
               maxY = Math.max(startScreen.y, endScreen.y) + 15;
             } else {
-              const screenPoints = measurement.points.map(point =>
+              const interactionPoints =
+                getManualTtsTrunkPoints(measurement) ?? measurement.points;
+              const screenPoints = interactionPoints.map(point =>
                 imageToScreen(point)
               );
               const xs = screenPoints.map(point => point.x);
@@ -199,6 +206,14 @@ export function useCanvasDrag({
       if (selectedTypeId === 'avt' && selectionState.type === 'whole') {
         return false;
       }
+      if (
+        selectedTypeId === 'tts' &&
+        selectionState.type === 'whole' &&
+        selectedMeasurement &&
+        !isManualTtsMeasurement(selectedMeasurement)
+      ) {
+        return false;
+      }
       // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
       // 仍允许逐点拖拽（会通过 onMeasurementWriteback 同步回关键点层）。
       if (disableWholeDrag && selectionState.type === 'whole') {
@@ -231,6 +246,13 @@ export function useCanvasDrag({
       const activeTypeId = getAnnotationTypeId(measurement.type);
       // AVT 整体拖拽禁止；TTS 允许整体拖拽（只移动躯干线，见下方）；逐点拖拽正常通过
       if (activeTypeId === 'avt' && selectionState.type === 'whole') {
+        return false;
+      }
+      if (
+        activeTypeId === 'tts' &&
+        selectionState.type === 'whole' &&
+        !isManualTtsMeasurement(measurement)
+      ) {
         return false;
       }
       // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
@@ -417,10 +439,9 @@ export function useCanvasDrag({
         return false;
       }
 
-      // TTS 整体拖拽：只移动躯干线（点0-1），骶骨参考线（点2-3，继承自CSS）保持不动。
-      // 中心也只用躯干线两点，否则 dragOffset 与移动中心不一致会导致抖动。
-      const isTtsDrag = activeTypeId === 'tts';
-      const centerPoints = isTtsDrag
+      // 手工 TTS 整体拖拽只移动躯干线（点0-1），且只允许垂直位移。
+      const isManualTtsDrag = isManualTtsMeasurement(measurement);
+      const centerPoints = isManualTtsDrag
         ? measurement.points.slice(0, 2)
         : measurement.points;
       const xs = centerPoints.map(point => point.x);
@@ -429,13 +450,14 @@ export function useCanvasDrag({
       const currentCenterY = (Math.min(...ys) + Math.max(...ys)) / 2;
       const newCenterX = imagePoint.x - selectionState.dragOffset.x;
       const newCenterY = imagePoint.y - selectionState.dragOffset.y;
-      const deltaX = newCenterX - currentCenterX;
+      const deltaX = isManualTtsDrag ? 0 : newCenterX - currentCenterX;
       const deltaY = newCenterY - currentCenterY;
-      const movedPoints = measurement.points.map((point, idx) => {
-        // TTS: 只移动躯干线（索引0、1），骶骨线（索引2、3）固定
-        if (isTtsDrag && idx >= 2) return point;
-        return { x: point.x + deltaX, y: point.y + deltaY };
-      });
+      const movedPoints = isManualTtsDrag
+        ? moveManualTtsTrunkLineVertically(measurement, deltaY)
+        : measurement.points.map(point => ({
+            x: point.x + deltaX,
+            y: point.y + deltaY,
+          }));
 
       let bindingPropagated = measurements;
       for (

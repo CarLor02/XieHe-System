@@ -4,6 +4,7 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
 
 interface SelectionOverlayLayerProps {
   selectionState: SelectionState;
@@ -46,7 +47,8 @@ export default function SelectionOverlayLayer({
           firstEndpointIndex + 2
         );
       } else if (selectionState.type === 'whole') {
-        selectedPoints = measurement.points;
+        selectedPoints =
+          getManualTtsTrunkPoints(measurement) ?? measurement.points;
       }
     }
   } else if (

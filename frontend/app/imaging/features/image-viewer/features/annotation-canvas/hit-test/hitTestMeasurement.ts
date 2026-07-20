@@ -20,6 +20,7 @@ import {
   getHemipelvicVerticalLines,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
 
 export type HitResult =
   | { kind: 'point'; measurementId: string; pointIndex: number }
@@ -171,6 +172,20 @@ export function hitTestMeasurement({
         measurementId: measurement.id,
         pointIndex,
       };
+    }
+
+    const ttsTrunkPoints = getManualTtsTrunkPoints(measurement);
+    if (
+      ttsTrunkPoints &&
+      isLineClicked(
+        screenPoint,
+        ttsTrunkPoints[0],
+        ttsTrunkPoints[1],
+        context,
+        lineRadius
+      )
+    ) {
+      return { kind: 'whole', measurementId: measurement.id };
     }
 
     if (

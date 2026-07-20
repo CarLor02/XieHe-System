@@ -1,6 +1,7 @@
 import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
 import { getBoundingBox } from '@/app/imaging/features/image-viewer/shared/geometry';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
 
 /**
  * 计算标注的选择边界框，供选中态与 hover 态复用。
@@ -63,8 +64,10 @@ export function getMeasurementSelectionBoxInScreen(
     };
   }
 
+  const interactionPoints =
+    getManualTtsTrunkPoints(measurement) ?? measurement.points;
   const screenBounds = getBoundingBox(
-    measurement.points.map(point => imageToScreen(point))
+    interactionPoints.map(point => imageToScreen(point))
   );
   return {
     minX: screenBounds.minX - padding,

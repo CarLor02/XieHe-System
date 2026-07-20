@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import { INTERACTION_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
 import {
   MeasurementData,
@@ -16,6 +15,19 @@ import {
   HoverState,
   SelectionState,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
+import { getManualTtsTrunkCenter } from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
+
+function getMeasurementDragCenter(measurement: MeasurementData): Point {
+  const ttsTrunkCenter = getManualTtsTrunkCenter(measurement);
+  if (ttsTrunkCenter) return ttsTrunkCenter;
+
+  const xs = measurement.points.map(point => point.x);
+  const ys = measurement.points.map(point => point.y);
+  return {
+    x: (Math.min(...xs) + Math.max(...xs)) / 2,
+    y: (Math.min(...ys) + Math.max(...ys)) / 2,
+  };
+}
 
 interface UseCanvasPointerOptions {
   imageNaturalSize: { width: number; height: number } | null;
@@ -227,26 +239,15 @@ export function useCanvasPointer({
           } else {
             // 点击测量体（非点区域）：整体拖拽
             onDisplayMeasurementSelect(null);
-            // TTS: 只移动躯干线（点0-1），dragOffset 用躯干线中心（与移动时保持一致，避免跳变）
-            const selectedTypeId = getAnnotationTypeId(
-              selectedMeasurement.type
-            );
-            const pointsForCenter =
-              selectedTypeId === 'tts' && selectedMeasurement.points.length >= 2
-                ? selectedMeasurement.points.slice(0, 2)
-                : selectedMeasurement.points;
-            const xs = pointsForCenter.map(point => point.x);
-            const ys = pointsForCenter.map(point => point.y);
-            const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
-            const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+            const center = getMeasurementDragCenter(selectedMeasurement);
             setSelectionState({
               measurementId: selectedMeasurement.id,
               pointIndex: null,
               type: 'whole',
               isDragging: false,
               dragOffset: {
-                x: imagePoint.x - centerX,
-                y: imagePoint.y - centerY,
+                x: imagePoint.x - center.x,
+                y: imagePoint.y - center.y,
               },
             });
           }
@@ -309,21 +310,12 @@ export function useCanvasPointer({
               imageToScreen
             );
             if (isPointInSelectionBox(screenPoint, box)) {
-              // TTS: 只移动躯干线，dragOffset 用躯干线中心
-              const wholeTypeId = getAnnotationTypeId(measurement.type);
-              const pointsForCenter =
-                wholeTypeId === 'tts' && measurement.points.length >= 2
-                  ? measurement.points.slice(0, 2)
-                  : measurement.points;
-              const xs = pointsForCenter.map(point => point.x);
-              const ys = pointsForCenter.map(point => point.y);
-              const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
-              const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+              const center = getMeasurementDragCenter(measurement);
               setSelectionState(previous => ({
                 ...previous,
                 dragOffset: {
-                  x: imagePoint.x - centerX,
-                  y: imagePoint.y - centerY,
+                  x: imagePoint.x - center.x,
+                  y: imagePoint.y - center.y,
                 },
               }));
               return true;
@@ -446,7 +438,6 @@ export function useCanvasPointer({
         onCanvasClick();
       }
       if (!imageNaturalSize) {
-        console.warn('⚠️ 图像尚未加载完成，请稍候再进行操作');
         return;
       }
 
