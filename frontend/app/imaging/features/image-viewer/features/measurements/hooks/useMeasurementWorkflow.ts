@@ -42,6 +42,7 @@ import {
   keypointsToCfhAnnotation,
   keypointsToPersistedLayer,
   removeKeypointsById,
+  shouldWriteMeasurementKeypointsOnComplete,
   upsertKeypoint,
   vertebraeLayerToKeypoints,
   writeMeasurementPointsToKeypoints,
@@ -187,6 +188,10 @@ export function useMeasurementWorkflow({
       }
 
       const allowReplace = !canUseKeypoints || isLateralView;
+      const bindingRule =
+        canUseKeypoints && isAnteriorView
+          ? getMeasurementKeypointBindingRule(toolType)
+          : null;
       addMeasurement(
         toolType,
         points,
@@ -196,13 +201,15 @@ export function useMeasurementWorkflow({
         standardDistance,
         standardDistancePoints,
         imageNaturalSize ?? { width: 0, height: 0 },
-        allowReplace
+        {
+          allowReplace,
+          keypointSynced: bindingRule !== null,
+        }
       );
 
       if (
-        canUseKeypoints &&
-        isAnteriorView &&
-        getMeasurementKeypointBindingRule(toolType)
+        bindingRule &&
+        shouldWriteMeasurementKeypointsOnComplete(toolType)
       ) {
         const nextKeypoints = writeMeasurementPointsToKeypoints(
           keypoints,

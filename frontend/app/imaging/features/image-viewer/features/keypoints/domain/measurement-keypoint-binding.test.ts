@@ -3,6 +3,7 @@ import { expect, it } from '@jest/globals';
 import {
   backfillMissingBoundKeypoints,
   buildBoundMeasurementPoints,
+  shouldWriteMeasurementKeypointsOnComplete,
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-binding';
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
@@ -79,6 +80,72 @@ it('marks only the CA endpoint changed by a measurement drag as manual', () => {
   );
 });
 
+it('binds only TTS sacral points to SR and SL', () => {
+  const existing = [
+    {
+      ...keypoint('SR', 300, 200),
+      source: AnnotationSource.AI,
+    },
+    {
+      ...keypoint('SL', 200, 200),
+      source: AnnotationSource.AI,
+    },
+  ];
+  const points = [
+    { x: 100, y: 50 },
+    { x: 180, y: 50 },
+    { x: 320, y: 210 },
+    { x: 200, y: 200 },
+  ];
+
+  const unchanged = writeMeasurementPointsToKeypoints(
+    existing,
+    'tts',
+    points,
+    0
+  );
+  expect(unchanged).toBe(existing);
+
+  const written = writeMeasurementPointsToKeypoints(
+    existing,
+    'tts',
+    points,
+    2
+  );
+  expect(written.find(item => item.id === 'SR')).toEqual(
+    expect.objectContaining({
+      point: { x: 320, y: 210 },
+      source: AnnotationSource.MANUAL,
+    })
+  );
+  expect(written.find(item => item.id === 'SL')?.source).toBe(
+    AnnotationSource.AI
+  );
+  expect(shouldWriteMeasurementKeypointsOnComplete('tts')).toBe(false);
+});
+
+it('rebuilds TTS sacral points from SR and SL without moving its trunk line', () => {
+  const existingPoints = [
+    { x: 100, y: 50 },
+    { x: 180, y: 50 },
+    { x: 300, y: 200 },
+    { x: 200, y: 200 },
+  ];
+
+  expect(
+    buildBoundMeasurementPoints(
+      'tts',
+      [keypoint('SR', 320, 210), keypoint('SL', 190, 205)],
+      existingPoints
+    )
+  ).toEqual([
+    { x: 100, y: 50 },
+    { x: 180, y: 50 },
+    { x: 320, y: 210 },
+    { x: 190, y: 205 },
+  ]);
+});
+
 it('maps unordered L/R anchors to semantic keypoints from screen left to right', () => {
   const points = createHemipelvicWidthRatioPoints([
     { x: 300, y: 130 },
@@ -130,7 +197,7 @@ it('rebuilds L/R from moved keypoints without resetting adjusted line lengths', 
   expect(leftLine.bottom).toEqual({ x: 120, y: 185 });
 });
 
-it('backfills missing CA and L/R keypoints from historical measurements', () => {
+it('backfills missing CA, TTS, and L/R keypoints from historical measurements', () => {
   const measurements: MeasurementData[] = [
     {
       id: 'legacy-ca',
@@ -139,6 +206,17 @@ it('backfills missing CA and L/R keypoints from historical measurements', () => 
       points: [
         { x: 200, y: 100 },
         { x: 100, y: 100 },
+      ],
+    },
+    {
+      id: 'legacy-tts',
+      type: 'tts',
+      value: '-10.00mm',
+      points: [
+        { x: 100, y: 50 },
+        { x: 180, y: 50 },
+        { x: 320, y: 210 },
+        { x: 190, y: 205 },
       ],
     },
     {
@@ -157,8 +235,25 @@ it('backfills missing CA and L/R keypoints from historical measurements', () => 
   const backfilled = backfillMissingBoundKeypoints([], measurements);
 
   expect(backfilled.map(item => item.id)).toEqual(
-    expect.arrayContaining(['CR', 'CL', 'ASIS_L', 'SI_L', 'SI_R', 'ASIS_R'])
+    expect.arrayContaining([
+      'CR',
+      'CL',
+      'SR',
+      'SL',
+      'ASIS_L',
+      'SI_L',
+      'SI_R',
+      'ASIS_R',
+    ])
   );
+  expect(backfilled.find(item => item.id === 'SR')?.point).toEqual({
+    x: 320,
+    y: 210,
+  });
+  expect(backfilled.find(item => item.id === 'SL')?.point).toEqual({
+    x: 190,
+    y: 205,
+  });
   expect(backfilled.find(item => item.id === 'ASIS_L')?.point.x).toBe(100);
   expect(backfilled.find(item => item.id === 'ASIS_R')?.point.x).toBe(400);
 });

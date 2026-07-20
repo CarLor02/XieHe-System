@@ -71,9 +71,14 @@ export function addMeasurement(
     standardDistance: number | null,
     standardDistancePoints: Point[],
     imageNaturalSize: ImageSize,
-    /** 替换模式：当同类型测量已存在时，用新测量替换旧测量（而非拦截）。 */
-    allowReplace = false
+    options: {
+        /** 替换模式：当同类型测量已存在时，用新测量替换旧测量（而非拦截）。 */
+        allowReplace?: boolean;
+        /** 标记该测量项由统一关键点绑定规则维护。 */
+        keypointSynced?: boolean;
+    } = {}
 ){
+    const {allowReplace = false, keypointSynced = false} = options;
     // 如果是Cobb工具，自动编号（统一处理 'cobb' 和 'Cobb'）
     const requestedToolId = getAnnotationTypeId(type);
     let finalType = requestedToolId;
@@ -103,6 +108,7 @@ export function addMeasurement(
         value: defaultValue,
         points: points,
         description,
+        ...(keypointSynced ? {keypointSynced: true} : {}),
     };
 
     setMeasurements(prev => {

@@ -13,7 +13,6 @@ export function isManualTtsMeasurement(
     getAnnotationTypeId(measurement.type) === 'tts' &&
     measurement.points.length >= 2 &&
     measurement.id !== DERIVED_TTS_MEASUREMENT_ID &&
-    measurement.keypointSynced !== true &&
     !measurement.upperVertebra &&
     !measurement.lowerVertebra
   );

@@ -30,6 +30,15 @@ describe('manual TTS interaction rules', () => {
     expect(getManualTtsTrunkCenter(manualTts)).toEqual({ x: 20, y: 20 });
   });
 
+  it('keeps a keypoint-synced manual TTS directly editable', () => {
+    expect(
+      isManualTtsMeasurement({
+        ...manualTts,
+        keypointSynced: true,
+      })
+    ).toBe(true);
+  });
+
   it('moves only the trunk line vertically', () => {
     expect(moveManualTtsTrunkLineVertically(manualTts, 15)).toEqual([
       { x: 10, y: 35 },

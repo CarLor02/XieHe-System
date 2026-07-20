@@ -209,6 +209,7 @@ function TtsLineDragHarness({
       id: 'manual-tts',
       type: 'tts',
       value: '-9.00mm',
+      keypointSynced: true,
       points: [
         { x: 10, y: 20 },
         { x: 30, y: 20 },
@@ -237,6 +238,7 @@ function TtsLineDragHarness({
     imageNaturalSize: { width: 1000, height: 1000 },
     imageScale: 1,
     onMeasurementsUpdate: setMeasurements,
+    disableWholeDrag: true,
     imageToScreen: point => point,
     screenToImage: (screenX, screenY) => ({ x: screenX, y: screenY }),
     referenceLines: { t1Tilt: null },
@@ -252,7 +254,7 @@ function TtsLineDragHarness({
   return null;
 }
 
-it('moves a manual TTS trunk line only vertically in one history step', async () => {
+it('moves a bound manual TTS trunk line despite whole-drag restrictions', async () => {
   let latest: CanvasDragHook | null = null;
   let latestMeasurements: MeasurementData[] = [];
   const onAnnotationDragStart = jest.fn();

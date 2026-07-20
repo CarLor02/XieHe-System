@@ -549,6 +549,72 @@ it('derives AP TS measurements from C7 corners', () => {
   ]);
 });
 
+it('updates a bound manual TTS from moved SR and SL keypoints', () => {
+  const measurement: MeasurementData = {
+    id: 'manual-tts',
+    type: 'tts',
+    value: '-10.00mm',
+    keypointSynced: true,
+    points: [
+      { x: 100, y: 50 },
+      { x: 180, y: 50 },
+      { x: 300, y: 200 },
+      { x: 200, y: 200 },
+    ],
+  };
+
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
+    previousMeasurements: [measurement],
+    keypoints: [apCorner('SR', 320, 210), apCorner('SL', 190, 205)],
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(rebuilt).toEqual([
+    expect.objectContaining({
+      id: 'manual-tts',
+      type: 'tts',
+      keypointSynced: true,
+      points: [
+        { x: 100, y: 50 },
+        { x: 180, y: 50 },
+        { x: 320, y: 210 },
+        { x: 190, y: 205 },
+      ],
+    }),
+  ]);
+});
+
+it('removes a bound manual TTS when SR or SL is missing', () => {
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
+    previousMeasurements: [
+      {
+        id: 'manual-tts',
+        type: 'tts',
+        value: '-10.00mm',
+        keypointSynced: true,
+        points: [
+          { x: 100, y: 50 },
+          { x: 180, y: 50 },
+          { x: 300, y: 200 },
+          { x: 200, y: 200 },
+        ],
+      },
+    ],
+    keypoints: [apCorner('SR', 320, 210)],
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    aiMeasurementIds: new Set(),
+  });
+
+  expect(rebuilt).toEqual([]);
+});
+
 it('derives lateral vertebra measurements from keypoint label order', () => {
   const measurements = deriveKeypointMeasurements({
     keypoints: [

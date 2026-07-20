@@ -214,9 +214,13 @@ export function useCanvasDrag({
       ) {
         return false;
       }
-      // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
-      // 仍允许逐点拖拽（会通过 onMeasurementWriteback 同步回关键点层）。
-      if (disableWholeDrag && selectionState.type === 'whole') {
+      // 关键点联动测量默认禁止整体拖拽；手动 TTS 只移动未绑定的躯干线，可例外。
+      if (
+        disableWholeDrag &&
+        selectionState.type === 'whole' &&
+        selectedMeasurement &&
+        !isManualTtsMeasurement(selectedMeasurement)
+      ) {
         return false;
       }
 
@@ -255,8 +259,12 @@ export function useCanvasDrag({
       ) {
         return false;
       }
-      // 关键点联动模式（侧位）：禁止整体拖拽，防止测量层与关键点层拖分离。
-      if (disableWholeDrag && selectionState.type === 'whole') {
+      // 关键点联动测量默认禁止整体拖拽；手动 TTS 只移动未绑定的躯干线，可例外。
+      if (
+        disableWholeDrag &&
+        selectionState.type === 'whole' &&
+        !isManualTtsMeasurement(measurement)
+      ) {
         return false;
       }
 

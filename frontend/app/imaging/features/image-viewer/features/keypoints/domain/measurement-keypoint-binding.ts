@@ -26,6 +26,7 @@ export const HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS = [
 interface MeasurementKeypointBindingRule {
   typeId: string;
   requiredKeypointIds: readonly string[];
+  writebackOnComplete?: boolean;
   getKeypointUpdates: (
     points: Point[],
     changedPointIndex?: number
@@ -92,6 +93,35 @@ const CA_BINDING_RULE: MeasurementKeypointBindingRule = {
   buildMeasurementPoints: byId => getRequiredPoints(byId, ['CR', 'CL']),
 };
 
+const TTS_BINDING_RULE: MeasurementKeypointBindingRule = {
+  typeId: 'tts',
+  requiredKeypointIds: ['SR', 'SL'],
+  // 骶骨点由现有关键点继承；创建 TTS 本身不代表医生调整了 SR/SL。
+  writebackOnComplete: false,
+  getKeypointUpdates: (points, changedPointIndex) => {
+    if (points.length < 4) return [];
+    const updates = [
+      { keypointId: 'SR', point: points[2] },
+      { keypointId: 'SL', point: points[3] },
+    ];
+    if (changedPointIndex === undefined) return updates;
+    if (changedPointIndex === 2) return [updates[0]];
+    if (changedPointIndex === 3) return [updates[1]];
+    return [];
+  },
+  buildMeasurementPoints: (byId, existingPoints) => {
+    const sacralPoints = getRequiredPoints(byId, ['SR', 'SL']);
+    if (!sacralPoints || !existingPoints || existingPoints.length < 4) {
+      return null;
+    }
+
+    const points = existingPoints.map(point => ({ ...point }));
+    points[2] = sacralPoints[0];
+    points[3] = sacralPoints[1];
+    return points;
+  },
+};
+
 const HEMIPELVIC_WIDTH_RATIO_BINDING_RULE: MeasurementKeypointBindingRule = {
   typeId: HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
   requiredKeypointIds: HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS,
@@ -141,10 +171,11 @@ const MEASUREMENT_KEYPOINT_BINDING_RULES = new Map<
   string,
   MeasurementKeypointBindingRule
 >(
-  [CA_BINDING_RULE, HEMIPELVIC_WIDTH_RATIO_BINDING_RULE].map(rule => [
-    rule.typeId,
-    rule,
-  ])
+  [
+    CA_BINDING_RULE,
+    TTS_BINDING_RULE,
+    HEMIPELVIC_WIDTH_RATIO_BINDING_RULE,
+  ].map(rule => [rule.typeId, rule])
 );
 
 export function getMeasurementKeypointBindingRule(
@@ -155,6 +186,13 @@ export function getMeasurementKeypointBindingRule(
       getAnnotationTypeId(measurementType)
     ) ?? null
   );
+}
+
+export function shouldWriteMeasurementKeypointsOnComplete(
+  measurementType: string
+): boolean {
+  const rule = getMeasurementKeypointBindingRule(measurementType);
+  return rule ? rule.writebackOnComplete !== false : false;
 }
 
 export function buildBoundMeasurementPoints(

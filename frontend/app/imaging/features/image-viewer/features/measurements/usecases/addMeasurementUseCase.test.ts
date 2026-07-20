@@ -102,3 +102,32 @@ it('keeps lateral manual Cobb measurements non-unique and numbered', () => {
     'lateral-cobb2',
   ]);
 });
+
+it('marks a newly added bound measurement as keypoint-synced', () => {
+  let measurements: MeasurementData[] = [];
+  const setMeasurements: Dispatch<SetStateAction<MeasurementData[]>> = next => {
+    measurements =
+      typeof next === 'function'
+        ? next(measurements)
+        : (next as MeasurementData[]);
+  };
+
+  addMeasurement(
+    'tts',
+    [
+      { x: 100, y: 50 },
+      { x: 180, y: 50 },
+      { x: 300, y: 200 },
+      { x: 200, y: 200 },
+    ],
+    measurements,
+    setMeasurements,
+    [],
+    null,
+    [],
+    imageNaturalSize,
+    { keypointSynced: true }
+  );
+
+  expect(measurements[0]?.keypointSynced).toBe(true);
+});
