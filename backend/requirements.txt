@@ -44,6 +44,7 @@ python-dateutil==2.8.2
 click==8.1.7
 psutil==5.9.6
 jinja2==3.1.2
+openpyxl==3.1.5
 
 # 配置管理
 python-dotenv==1.0.0
