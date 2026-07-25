@@ -6,7 +6,7 @@ import {
   getHemipelvicVerticalLines,
   moveHemipelvicVerticalLine,
   updateHemipelvicInteractivePoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+} from './geometry';
 
 const unorderedAnchors = [
   { x: 300, y: 20 },

@@ -5,7 +5,7 @@ import {
   HEMIPELVIC_WIDTH_RATIO_ANCHOR_COUNT,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
   sortHemipelvicVerticalLines,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import {
   AnnotationSource,
   MeasurementData,

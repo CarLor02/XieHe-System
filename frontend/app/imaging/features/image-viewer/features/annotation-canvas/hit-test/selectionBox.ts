@@ -1,7 +1,7 @@
 import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
 import { getBoundingBox } from '@/app/imaging/features/image-viewer/shared/geometry';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
+import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 
 /**
  * 计算标注的选择边界框，供选中态与 hover 态复用。

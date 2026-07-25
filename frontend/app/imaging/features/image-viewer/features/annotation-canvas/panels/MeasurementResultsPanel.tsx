@@ -20,12 +20,12 @@ import {
   hasSameCobbEndpointVertebrae,
 } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
 import {
-  getLateralNamedCobbMeasurementRuleByEndpoints,
   getMeasurementDeriveVertebraOrder,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
+import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
-import { resolveAvtDefinition } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
+import { resolveAvtDefinition } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 
 type ResultsTab = 'measurements' | 'keypoints';
 

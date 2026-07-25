@@ -5,7 +5,7 @@ import { expect, it, jest } from '@jest/globals';
 import { useCanvasDrag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hooks/useCanvasDrag';
 import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
-import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 
 type CanvasDragHook = ReturnType<typeof useCanvasDrag>;
 

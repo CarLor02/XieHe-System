@@ -8,7 +8,7 @@ import {
   getCobbSequenceNumber,
   getMaxCobbSequenceNumber,
   getNextCobbType,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
   buildAvtPoints,
@@ -19,7 +19,7 @@ import {
   isAvtMetadata,
   isSameAvtTarget,
   type AvtTarget,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import {
   CfhAnnotation,
   MeasurementData,
@@ -32,7 +32,7 @@ import {
   KeypointAnnotation,
   keypointsToDerivedLayer,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
-import { getLateralCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
+import { getLateralCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 import {
   deriveAllMeasurements,
   DERIVED_ID_PREFIX,

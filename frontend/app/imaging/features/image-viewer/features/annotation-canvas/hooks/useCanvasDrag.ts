@@ -16,16 +16,16 @@ import {
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
   moveHemipelvicVerticalLine,
   updateHemipelvicInteractivePoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import {
   isAvtMetadata,
   updateHorizontalDiscAnchors,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import {
   getManualTtsTrunkPoints,
   isManualTtsMeasurement,
   moveManualTtsTrunkLineVertically,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 
 interface UseCanvasDragOptions {
   selectedTool: string;

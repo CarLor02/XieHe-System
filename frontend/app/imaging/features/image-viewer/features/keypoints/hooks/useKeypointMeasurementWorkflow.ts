@@ -35,7 +35,7 @@ import {
   getAvtPointKeypointId,
   isAvtMetadata,
   type AvtTarget,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import { DERIVED_ID_PREFIX } from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebrae-derive';
 import {
   deleteKeypoint,

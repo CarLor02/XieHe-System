@@ -6,7 +6,7 @@ import {
 import {
   getAvtTargetLabel,
   type AvtDiscPlacementSession,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 
 interface CanvasHintPanelProps {
   selectedTool: string;

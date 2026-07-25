@@ -1,7 +1,7 @@
 import { expect, it } from '@jest/globals';
 
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
-import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence';
+import { renumberCobbMeasurementsAfterDelete } from './sequence';
 import type {
   MeasurementData,
   Point,

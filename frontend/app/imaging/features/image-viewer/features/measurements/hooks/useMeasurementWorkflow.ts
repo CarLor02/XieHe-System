@@ -24,7 +24,7 @@ import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features
 import {
   getCobbSequenceNumber,
   renumberCobbMeasurementsAfterDelete,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/usecases/addMeasurementUseCase';
 import {

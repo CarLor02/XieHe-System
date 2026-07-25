@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { HEMIPELVIC_WIDTH_RATIO_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/hemipelvic-width-ratio';
-import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 
 describe('L/R measurement config', () => {
   it('defines the AP manual tool metadata', () => {

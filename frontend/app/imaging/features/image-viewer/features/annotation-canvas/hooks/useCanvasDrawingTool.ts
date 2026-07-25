@@ -14,11 +14,11 @@ import {
 import {
   createHemipelvicWidthRatioPoints,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import {
   createHorizontalDiscAnchors,
   type AvtDiscPlacementSession,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 
 const POLYGON_CLOSE_TOLERANCE_PX = 18;
 

@@ -13,7 +13,7 @@ import {
   getAvtPointKeypointId,
   getAvtRequiredKeypointIds,
   isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 
 const POINT_MATCH_TOLERANCE = 0.5;
 

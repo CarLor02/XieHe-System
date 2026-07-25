@@ -4,7 +4,7 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
+import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 
 interface SelectionOverlayLayerProps {
   selectionState: SelectionState;

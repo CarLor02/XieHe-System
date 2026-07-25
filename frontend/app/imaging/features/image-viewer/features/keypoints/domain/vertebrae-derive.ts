@@ -21,7 +21,7 @@ import {
   keypointsToDerivedLayer,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
-import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 

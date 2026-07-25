@@ -13,7 +13,7 @@ import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features
 import {
   HEMIPELVIC_WIDTH_RATIO_INITIAL_LINE_LENGTH,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 
 interface PreviewLayerProps {
   selectedTool: string;

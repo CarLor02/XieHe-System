@@ -11,7 +11,7 @@ import {
 import {
   getLateralCobbEndpointPointIds,
   getLateralNamedCobbMeasurementRuleByEndpoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 
 function normalizeCobbEndpoint(value: string | null | undefined): string {
   return value?.trim().toUpperCase() ?? '';

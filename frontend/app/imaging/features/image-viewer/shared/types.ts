@@ -4,7 +4,7 @@
  */
 
 import {AnnotationBindings} from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
-import type { AvtMetadata } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt/types';
+import type { AvtMetadata } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt/types';
 
 /**
  * 图像尺寸

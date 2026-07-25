@@ -19,8 +19,8 @@ import { hitTestMeasurementPoint } from '@/app/imaging/features/image-viewer/fea
 import {
   getHemipelvicVerticalLines,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
-import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 
 export type HitResult =
   | { kind: 'point'; measurementId: string; pointIndex: number }

@@ -15,7 +15,7 @@ import {
   HoverState,
   SelectionState,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
-import { getManualTtsTrunkCenter } from '@/app/imaging/features/image-viewer/features/measurements/domain/tts-interaction';
+import { getManualTtsTrunkCenter } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 
 function getMeasurementDragCenter(measurement: MeasurementData): Point {
   const ttsTrunkCenter = getManualTtsTrunkCenter(measurement);

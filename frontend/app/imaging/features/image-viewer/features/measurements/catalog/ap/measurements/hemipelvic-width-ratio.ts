@@ -4,7 +4,7 @@ import {
   type Point,
   type SpecialElementRenderContext,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
-import { calculateHemipelvicWidthRatioGeometry } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import { calculateHemipelvicWidthRatioGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 
 export const HEMIPELVIC_WIDTH_RATIO_CONFIG: AnnotationConfig = {
   id: 'hemipelvic-width-ratio',

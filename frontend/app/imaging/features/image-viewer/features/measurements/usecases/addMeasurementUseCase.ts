@@ -10,7 +10,7 @@ import {
     hasUniqueAnnotationForTool,
     measurementMatchesTool,
 } from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness";
-import {getNextCobbType} from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence";
+import {getNextCobbType} from "@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb";
 import {S1_BINDING_POINT_MAP} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
 import {Dispatch, SetStateAction} from "react";
 

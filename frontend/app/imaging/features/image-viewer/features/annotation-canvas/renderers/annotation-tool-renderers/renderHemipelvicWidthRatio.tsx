@@ -5,7 +5,7 @@ import {
   calculateActualDistance,
   type SpecialElementRenderContext,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
-import { calculateHemipelvicWidthRatioGeometry } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import { calculateHemipelvicWidthRatioGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 
 function renderDistanceMarker(
   key: string,

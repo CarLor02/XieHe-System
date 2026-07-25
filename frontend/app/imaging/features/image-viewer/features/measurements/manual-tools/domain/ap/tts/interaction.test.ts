@@ -5,7 +5,7 @@ import {
   getManualTtsTrunkPoints,
   isManualTtsMeasurement,
   moveManualTtsTrunkLineVertically,
-} from './tts-interaction';
+} from './interaction';
 import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 
 const manualTts: MeasurementData = {

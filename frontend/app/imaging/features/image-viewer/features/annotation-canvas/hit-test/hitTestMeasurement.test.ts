@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { hitTestMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/hit-test/hitTestMeasurement';
-import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 
 const points = createHemipelvicWidthRatioPoints([
   { x: 10, y: 0 },

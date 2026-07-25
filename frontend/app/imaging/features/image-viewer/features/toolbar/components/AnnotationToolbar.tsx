@@ -41,9 +41,9 @@ import { hasCobbMeasurementForEndpoints } from '@/app/imaging/features/image-vie
 import {
   getCompleteMeasurementDeriveEndpointGroups,
   getMeasurementDeriveVertebraOrder,
-  getLateralNamedCobbMeasurementRuleByEndpoints,
   isValidMeasurementDeriveEndpointOrder,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
+import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
 import {
   AVT_DISC_TARGETS,
@@ -53,7 +53,7 @@ import {
   hasAvtReferenceKeypoints,
   isSameAvtTarget,
   type AvtTarget,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 

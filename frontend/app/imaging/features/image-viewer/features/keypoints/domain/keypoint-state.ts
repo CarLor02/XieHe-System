@@ -23,7 +23,7 @@ import {
 import {
   createAvtMetadata,
   isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import {
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,
   getMeasurementDeriveVertebraOrder,
