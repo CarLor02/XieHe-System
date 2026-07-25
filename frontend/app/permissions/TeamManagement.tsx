@@ -4,15 +4,11 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 import {
   TeamJoinRequestItem,
-  TeamMember,
-  TeamMembersResponse,
+  type TeamMember,
   TeamSummary,
   applyToJoinTeam,
   cancelTeamJoinRequest,
   createTeam,
-  getMyTeams,
-  getTeamJoinRequests,
-  getTeamMembers,
   inviteTeamMember,
   removeMember,
   reviewTeamJoinRequest,
@@ -23,6 +19,7 @@ import {
 import { useUser } from '@/lib/api';
 import TeamInvitations from './TeamInvitations';
 import { canManageTeam } from './domain/team-management-permissions';
+import { useTeamPermissionData } from './application/hooks/useTeamPermissionData';
 
 const STATUS_BADGE_MAP: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-700',
@@ -82,19 +79,8 @@ export default function TeamManagement() {
 
   const [activeTab, setActiveTab] = useState<'list' | 'members' | 'invitations'>('list');
 
-  // 团队列表
-  const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-  const [loadingTeams, setLoadingTeams] = useState(false);
-
-  // 成员列表
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
   const [searchMemberKeyword, setSearchMemberKeyword] = useState('');
 
-  // 加入申请列表
-  const [joinRequests, setJoinRequests] = useState<TeamJoinRequestItem[]>([]);
-  const [loadingJoinRequests, setLoadingJoinRequests] = useState(false);
   const [processingRequestId, setProcessingRequestId] = useState<number | null>(null);
 
   // 角色编辑状态
@@ -131,10 +117,28 @@ export default function TeamManagement() {
   const [inviteMessage, setInviteMessage] = useState('');
   const [invitingMember, setInvitingMember] = useState(false);
 
-  const selectedTeam = useMemo(
-    () => myTeams.find(team => team.id === selectedTeamId) ?? null,
-    [myTeams, selectedTeamId]
-  );
+  const {
+    myTeams,
+    selectedTeamId,
+    setSelectedTeamId,
+    selectedTeam,
+    members,
+    joinRequests,
+    isCurrentUserAdmin,
+    loadingTeams,
+    loadingMembers,
+    loadingJoinRequests,
+    loadError,
+    clearLoadError,
+    refreshTeams,
+    refreshMembers,
+    refreshJoinRequests,
+  } = useTeamPermissionData({
+    isAuthenticated,
+    currentUserId: actualUser?.id,
+    initialSelection: 'none',
+  });
+  const visibleError = error ?? loadError;
 
   const filteredMembers = useMemo(() => {
     if (!searchMemberKeyword.trim()) return members;
@@ -145,68 +149,6 @@ export default function TeamManagement() {
         .some(value => value!.toLowerCase().includes(keyword))
     );
   }, [members, searchMemberKeyword]);
-
-  const currentMember = useMemo(
-    () => {
-      if (!user) return null;
-
-      // user 的结构是 { user: { id, username, ... } }
-      const actualUser = (user as any).user || user;
-      const userId = actualUser.id;
-
-      if (!userId) return null;
-
-      // 确保类型一致再比较
-      return members.find(member => Number(member.user_id) === Number(userId)) ?? null;
-    },
-    [members, user]
-  );
-
-  const isCurrentUserAdmin = currentMember?.role === 'ADMIN';
-
-  // 加载团队列表
-  const loadTeams = async () => {
-    try {
-      setLoadingTeams(true);
-      const response = await getMyTeams();
-      const items = response?.items ?? [];
-      setMyTeams(items);
-      // 不自动选中任何团队，让用户主动点击选择
-    } catch (err) {
-      console.error(err);
-      setError('获取团队列表失败');
-    } finally {
-      setLoadingTeams(false);
-    }
-  };
-
-  // 加载成员列表
-  const loadMembers = async (teamId: number) => {
-    try {
-      setLoadingMembers(true);
-      const response: TeamMembersResponse | undefined = await getTeamMembers(teamId);
-      setMembers(response?.members ?? []);
-    } catch (err) {
-      console.error('获取成员列表失败:', err);
-      setError('获取成员列表失败');
-    } finally {
-      setLoadingMembers(false);
-    }
-  };
-
-  // 加载加入申请
-  const loadJoinRequests = async (teamId: number) => {
-    try {
-      setLoadingJoinRequests(true);
-      const response = await getTeamJoinRequests(teamId);
-      setJoinRequests(response.items);
-    } catch (err) {
-      console.error('获取申请列表失败:', err);
-      setError('获取申请列表失败');
-    } finally {
-      setLoadingJoinRequests(false);
-    }
-  };
 
   // 处理加入申请
   const handleReviewJoinRequest = async (
@@ -219,9 +161,9 @@ export default function TeamManagement() {
       setProcessingRequestId(request.id);
       const result = await reviewTeamJoinRequest(selectedTeamId, request.id, decision);
       setSuccessMessage(result.message || '申请已处理');
-      await loadJoinRequests(selectedTeamId);
+      await refreshJoinRequests();
       if (decision === 'approve') {
-        await loadMembers(selectedTeamId);
+        await refreshMembers();
       }
     } catch (err) {
       console.error(err);
@@ -281,14 +223,12 @@ export default function TeamManagement() {
       if (teamFormMode === 'edit' && editingTeam) {
         const updatedTeam = await updateTeam(editingTeam.id, payload);
         setSuccessMessage('团队信息已更新');
-        setMyTeams(prev =>
-          prev.map(team => (team.id === updatedTeam.id ? { ...team, ...updatedTeam } : team))
-        );
+        await refreshTeams();
         setSelectedTeamId(updatedTeam.id);
       } else {
         const createdTeam = await createTeam(payload);
         setSuccessMessage('团队创建成功');
-        await loadTeams();
+        await refreshTeams();
         setSelectedTeamId(createdTeam.id);
       }
 
@@ -343,7 +283,7 @@ export default function TeamManagement() {
         )
       );
       // 刷新"我的团队"列表，显示新申请的团队
-      await loadTeams();
+      await refreshTeams();
     } catch (err) {
       console.error(err);
       setError('申请失败');
@@ -366,7 +306,7 @@ export default function TeamManagement() {
         )
       );
       // 刷新"我的团队"列表，移除已撤销的申请
-      await loadTeams();
+      await refreshTeams();
     } catch (err) {
       console.error(err);
       setError('撤销申请失败');
@@ -436,7 +376,7 @@ export default function TeamManagement() {
       setEditedRoles({});
 
       // 刷新成员列表
-      await loadMembers(selectedTeamId);
+      await refreshMembers();
     } catch (err: any) {
       console.error(err);
       setError(err?.response?.data?.detail || '保存角色修改失败');
@@ -458,7 +398,7 @@ export default function TeamManagement() {
       const result = await removeMember(selectedTeamId, member.user_id);
       setSuccessMessage(result.message || '成员已删除');
       // 刷新成员列表
-      await loadMembers(selectedTeamId);
+      await refreshMembers();
     } catch (err: any) {
       console.error(err);
       setError(err?.response?.data?.detail || '删除成员失败');
@@ -489,7 +429,7 @@ export default function TeamManagement() {
       setInviteRole('MEMBER');
       setInviteMessage('');
       // 刷新成员列表
-      await loadMembers(selectedTeamId);
+      await refreshMembers();
     } catch (err: any) {
       console.error(err);
       setError(err?.response?.data?.detail || '发送邀请失败');
@@ -497,34 +437,6 @@ export default function TeamManagement() {
       setInvitingMember(false);
     }
   };
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    loadTeams();
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (!selectedTeamId || !isAuthenticated) return;
-    // 切换团队时立即清空成员和申请列表
-    setMembers([]);
-    setJoinRequests([]);
-    loadMembers(selectedTeamId);
-  }, [selectedTeamId, isAuthenticated]);
-
-  useEffect(() => {
-    if (!selectedTeamId || !isAuthenticated) {
-      setJoinRequests([]);
-      return;
-    }
-    // 只有当 members 加载完成且当前用户是管理员时才加载申请列表
-    if (members.length > 0 && isCurrentUserAdmin) {
-      loadJoinRequests(selectedTeamId);
-    } else if (members.length > 0 && !isCurrentUserAdmin) {
-      // 如果不是管理员，清空申请列表
-      setJoinRequests([]);
-    }
-    // 当 members 为空时不做任何操作，等待加载完成
-  }, [selectedTeamId, isAuthenticated, isCurrentUserAdmin, members.length]);
 
   // 监听从通知栏切换到邀请标签页的事件
   useEffect(() => {
@@ -708,10 +620,16 @@ export default function TeamManagement() {
         ) : (
           <div className="flex h-full flex-col gap-4 overflow-visible lg:overflow-hidden">
             {/* 消息提示 */}
-            {error && (
+            {visibleError && (
               <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                <span>{error}</span>
-                <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
+                <span>{visibleError}</span>
+                <button
+                  onClick={() => {
+                    setError(null);
+                    clearLoadError();
+                  }}
+                  className="text-red-500 hover:text-red-700"
+                >
                   <i className="ri-close-line" />
                 </button>
               </div>
@@ -942,7 +860,7 @@ export default function TeamManagement() {
                     </p>
                   </div>
                   <button
-                    onClick={() => selectedTeamId && loadJoinRequests(selectedTeamId)}
+                    onClick={() => void refreshJoinRequests()}
                     className="text-sm text-blue-600 hover:text-blue-700"
                   >
                     <i className="ri-refresh-line mr-1" />

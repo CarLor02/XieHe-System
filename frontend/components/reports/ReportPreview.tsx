@@ -111,6 +111,8 @@ export default function ReportPreview({
         if (imageMatch) {
           return (
             <div key={index} className="my-4 text-center">
+              {/* 用户报告中的任意图片没有可靠的尺寸元数据，保留原生图片比例。 */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imageMatch[2]}
                 alt={imageMatch[1]}

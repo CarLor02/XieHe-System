@@ -9,7 +9,7 @@
  * @created 2025-09-24
  */
 
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { Button } from '../ui/Button'
 
 interface ReportSection {
@@ -61,7 +61,6 @@ const toReportFieldText = (value: ReportData[keyof ReportData]) => {
 
 export default function ReportEditor({
   initialData,
-  template,
   onSave,
   onPreview,
   readOnly = false,

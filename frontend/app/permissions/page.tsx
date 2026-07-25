@@ -1,21 +1,17 @@
 'use client';
 
 import AppShell from '@/components/layout/AppShell';
+import { useIsClient } from '@/hooks/useIsClient';
 import { useUser } from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 // import DataPermissions from './DataPermissions'; // 暂时隐藏
 import TeamManagement from './TeamManagement';
 
 export default function PermissionsPage() {
   const router = useRouter();
   const { isAuthenticated } = useUser();
-  const [mounted, setMounted] = useState(false);
-
-  // 确保组件已挂载
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsClient();
 
   // 认证检查
   useEffect(() => {

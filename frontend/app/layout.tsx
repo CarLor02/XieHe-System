@@ -40,7 +40,8 @@ export default function RootLayout({
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />
-        {/* Remix Icon CSS - 本地字体，不依赖外网 CDN */}
+        {/* Public 目录中的离线图标样式无法由 Turbopack 作为源码 CSS 导入。 */}
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link
           rel="stylesheet"
           href="/fonts/remixicon/remixicon.min.css"

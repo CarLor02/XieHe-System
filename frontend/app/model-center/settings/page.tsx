@@ -29,31 +29,37 @@ export default function ModelSettingsPage() {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        fetchData();
+        let cancelled = false;
+
+        const fetchData = async () => {
+            try {
+                const modelsRes = await getModels({ page_size: 100 });
+                const configRes = await getModelConfiguration();
+                if (cancelled) return;
+
+                const allModels = modelsRes.items || [];
+                setFrontModels(allModels.filter((m: any) => m.view_type === 'front'));
+                setSideModels(allModels.filter((m: any) => m.view_type === 'side'));
+                setConfig({
+                    front_model_id: configRes.front_model_id || '',
+                    side_model_id: configRes.side_model_id || ''
+                });
+            } catch (error) {
+                if (!cancelled) {
+                    console.error('Failed to load settings:', error);
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        void fetchData();
+        return () => {
+            cancelled = true;
+        };
     }, []);
-
-    const fetchData = async () => {
-        try {
-            // Fetch models
-            const modelsRes = await getModels({ page_size: 100 });
-            const allModels = modelsRes.items || [];
-
-            setFrontModels(allModels.filter((m: any) => m.view_type === 'front'));
-            setSideModels(allModels.filter((m: any) => m.view_type === 'side'));
-
-            // Fetch config
-            const configRes = await getModelConfiguration();
-            setConfig({
-                front_model_id: configRes.front_model_id || '',
-                side_model_id: configRes.side_model_id || ''
-            });
-
-        } catch (error) {
-            console.error('Failed to load settings:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleSave = async () => {
         setSaving(true);

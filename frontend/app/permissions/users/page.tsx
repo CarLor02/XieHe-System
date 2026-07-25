@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { getUserPermissionDetail } from '@/services/permissionServices';
 
 interface UserPermission {
@@ -24,52 +24,48 @@ interface User {
   roles: string[];
 }
 
+const MOCK_USERS: User[] = [
+  {
+    id: 1,
+    username: 'admin',
+    email: 'admin@xiehe.com',
+    full_name: '系统管理员',
+    is_active: true,
+    roles: ['admin'],
+  },
+  {
+    id: 2,
+    username: 'doctor1',
+    email: 'doctor1@xiehe.com',
+    full_name: '张医生',
+    is_active: true,
+    roles: ['doctor', 'radiologist'],
+  },
+  {
+    id: 3,
+    username: 'nurse1',
+    email: 'nurse1@xiehe.com',
+    full_name: '李护士',
+    is_active: true,
+    roles: ['nurse'],
+  },
+];
+
 export default function UserPermissionsPage() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userPermissions, setUserPermissions] = useState<UserPermission | null>(
     null
   );
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [permissionsLoading, setPermissionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      // 模拟用户数据，因为用户API还在开发中
-      const mockUsers: User[] = [
-        {
-          id: 1,
-          username: 'admin',
-          email: 'admin@xiehe.com',
-          full_name: '系统管理员',
-          is_active: true,
-          roles: ['admin'],
-        },
-        {
-          id: 2,
-          username: 'doctor1',
-          email: 'doctor1@xiehe.com',
-          full_name: '张医生',
-          is_active: true,
-          roles: ['doctor', 'radiologist'],
-        },
-        {
-          id: 3,
-          username: 'nurse1',
-          email: 'nurse1@xiehe.com',
-          full_name: '李护士',
-          is_active: true,
-          roles: ['nurse'],
-        },
-      ];
-      setUsers(mockUsers);
+      setUsers(MOCK_USERS);
       setError(null);
     } catch (err: any) {
       console.error('获取用户列表失败:', err);

@@ -40,7 +40,6 @@ interface ReportExportProps {
 
 export default function ReportExport({
   reportIds,
-  reportTitles = [],
   onExportStart,
   onExportComplete,
   onExportError,

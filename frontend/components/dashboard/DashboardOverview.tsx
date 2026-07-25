@@ -259,17 +259,6 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
     return colors[priority as keyof typeof colors] || colors.normal;
   };
 
-  // 获取通知类型颜色
-  const getNotificationColor = (type: string): string => {
-    const colors = {
-      info: 'bg-blue-100 text-blue-800',
-      warning: 'bg-yellow-100 text-yellow-800',
-      error: 'bg-red-100 text-red-800',
-      success: 'bg-green-100 text-green-800',
-    };
-    return colors[type as keyof typeof colors] || colors.info;
-  };
-
   // 获取通知类型图标
   const getNotificationIcon = (type: string): string => {
     const icons = {

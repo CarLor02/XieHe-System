@@ -34,7 +34,6 @@ interface DigitalSignatureProps {
 }
 
 const DigitalSignature: React.FC<DigitalSignatureProps> = ({
-  documentId,
   documentType,
   signerName,
   onSignatureComplete,
@@ -47,7 +46,6 @@ const DigitalSignature: React.FC<DigitalSignatureProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [signatureType, setSignatureType] = useState<SignatureType>(SignatureType.HANDWRITTEN);
   const [pinCode, setPinCode] = useState('');
-  const [showPinInput, setShowPinInput] = useState(false);
   const [signatureData, setSignatureData] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
@@ -174,11 +172,6 @@ const DigitalSignature: React.FC<DigitalSignatureProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  // 处理PIN码签名
-  const handlePinSignature = () => {
-    setShowPinInput(true);
   };
 
   // 处理数字证书签名

@@ -66,9 +66,47 @@ interface ReportReviewProps {
   onReviewComplete?: (result: any) => void;
 }
 
+function createMockReviewStatus(
+  reportId: string,
+  now = new Date().getTime()
+): ReviewStatusData {
+  return {
+    report_id: reportId,
+    current_status: ReviewStatus.PENDING,
+    current_level: ReviewLevel.PRIMARY,
+    current_reviewer_id: 'reviewer_002',
+    current_reviewer_name: '李主任',
+    review_history: [
+      {
+        id: 'hist_001',
+        report_id: reportId,
+        reviewer_id: 'reviewer_001',
+        reviewer_name: '张医生',
+        review_level: ReviewLevel.PRIMARY,
+        action: ReviewAction.SUBMIT,
+        status: ReviewStatus.PENDING,
+        comments: '报告已提交，请进行初审',
+        created_at: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+        updated_at: new Date(now - 2 * 60 * 60 * 1000).toISOString()
+      }
+    ],
+    next_reviewers: [
+      {id: 'reviewer_002', name: '李主任', level: 'primary'},
+      {id: 'reviewer_003', name: '王教授', level: 'secondary'}
+    ],
+    can_edit: false,
+    can_submit: false,
+    can_review: true,
+    estimated_completion: new Date(now + 24 * 60 * 60 * 1000).toISOString()
+  };
+}
+
+function createActionId(): string {
+  return `ACT_${new Date().getTime()}`;
+}
+
 const ReportReview: React.FC<ReportReviewProps> = ({
   reportId,
-  onStatusChange,
   onReviewComplete
 }) => {
   const [reviewStatus, setReviewStatus] = useState<ReviewStatusData | null>(null);
@@ -84,35 +122,7 @@ const ReportReview: React.FC<ReportReviewProps> = ({
     try {
       setLoading(true);
       // 模拟API调用
-      const mockData: ReviewStatusData = {
-        report_id: reportId,
-        current_status: ReviewStatus.PENDING,
-        current_level: ReviewLevel.PRIMARY,
-        current_reviewer_id: 'reviewer_002',
-        current_reviewer_name: '李主任',
-        review_history: [
-          {
-            id: 'hist_001',
-            report_id: reportId,
-            reviewer_id: 'reviewer_001',
-            reviewer_name: '张医生',
-            review_level: ReviewLevel.PRIMARY,
-            action: ReviewAction.SUBMIT,
-            status: ReviewStatus.PENDING,
-            comments: '报告已提交，请进行初审',
-            created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-          }
-        ],
-        next_reviewers: [
-          {id: 'reviewer_002', name: '李主任', level: 'primary'},
-          {id: 'reviewer_003', name: '王教授', level: 'secondary'}
-        ],
-        can_edit: false,
-        can_submit: false,
-        can_review: true,
-        estimated_completion: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      };
+      const mockData = createMockReviewStatus(reportId);
       
       setReviewStatus(mockData);
     } catch (error) {
@@ -132,7 +142,7 @@ const ReportReview: React.FC<ReportReviewProps> = ({
         success: true,
         message: getActionMessage(action),
         data: {
-          action_id: `ACT_${Date.now()}`,
+          action_id: createActionId(),
           report_id: reportId,
           action: action,
           comments: comments,
@@ -342,7 +352,7 @@ const ReportReview: React.FC<ReportReviewProps> = ({
                 </p>
                 {item.comments && (
                   <p className="text-sm text-gray-500 mt-1 italic">
-                    "{item.comments}"
+                    “{item.comments}”
                   </p>
                 )}
                 {item.signature_data && (

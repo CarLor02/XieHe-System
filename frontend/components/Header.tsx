@@ -504,6 +504,7 @@ export default function Header({
 
       {/* UserSettings Modal */}
       <UserSettings
+        key={showUserSettings ? settingsType ?? 'profile' : 'closed'}
         isOpen={showUserSettings}
         onClose={() => {
           setShowUserSettings(false);

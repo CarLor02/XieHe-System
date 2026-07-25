@@ -9,7 +9,7 @@
  * @created 2025-09-24
  */
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 // 搜索筛选参数接口
 export interface SearchFilters {
@@ -44,40 +44,36 @@ export default function PatientSearchFilter({
   resultCount
 }: PatientSearchFilterProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
-  const [localFilters, setLocalFilters] = useState<SearchFilters>(filters)
-
-  // 同步外部filters到本地状态
-  useEffect(() => {
-    setLocalFilters(filters)
-  }, [filters])
 
   // 更新单个筛选条件
   const updateFilter = (key: keyof SearchFilters, value: any) => {
-    const newFilters = { ...localFilters, [key]: value }
-    setLocalFilters(newFilters)
+    const newFilters = { ...filters, [key]: value }
     onFiltersChange(newFilters)
   }
 
   // 清除单个筛选条件
   const clearFilter = (key: keyof SearchFilters) => {
-    const newFilters = { ...localFilters }
+    const newFilters = { ...filters }
     delete newFilters[key]
-    setLocalFilters(newFilters)
     onFiltersChange(newFilters)
   }
 
   // 重置所有筛选条件
   const handleReset = () => {
-    setLocalFilters({})
     onReset()
     setIsAdvancedOpen(false)
   }
 
   // 获取活跃筛选条件数量
   const getActiveFiltersCount = () => {
-    const { search, sortBy, sortOrder, ...otherFilters } = localFilters
-    return Object.keys(otherFilters).filter(key => 
-      otherFilters[key as keyof typeof otherFilters] !== undefined
+    const excludedKeys = new Set<keyof SearchFilters>([
+      'search',
+      'sortBy',
+      'sortOrder',
+    ])
+    return Object.entries(filters).filter(
+      ([key, value]) =>
+        !excludedKeys.has(key as keyof SearchFilters) && value !== undefined
     ).length
   }
 
@@ -85,10 +81,10 @@ export default function PatientSearchFilter({
   const renderFilterTags = () => {
     const tags = []
     
-    if (localFilters.gender) {
+    if (filters.gender) {
       tags.push(
         <span key="gender" className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          性别: {localFilters.gender}
+          性别: {filters.gender}
           <button 
             className="ml-1 text-blue-600 hover:text-blue-800" 
             onClick={() => clearFilter('gender')}
@@ -99,12 +95,12 @@ export default function PatientSearchFilter({
       )
     }
     
-    if (localFilters.ageMin !== undefined || localFilters.ageMax !== undefined) {
-      const ageText = localFilters.ageMin && localFilters.ageMax 
-        ? `${localFilters.ageMin}-${localFilters.ageMax}岁`
-        : localFilters.ageMin 
-        ? `≥${localFilters.ageMin}岁`
-        : `≤${localFilters.ageMax}岁`
+    if (filters.ageMin !== undefined || filters.ageMax !== undefined) {
+      const ageText = filters.ageMin && filters.ageMax
+        ? `${filters.ageMin}-${filters.ageMax}岁`
+        : filters.ageMin
+        ? `≥${filters.ageMin}岁`
+        : `≤${filters.ageMax}岁`
       
       tags.push(
         <span key="age" className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -122,10 +118,10 @@ export default function PatientSearchFilter({
       )
     }
     
-    if (localFilters.isActive !== undefined) {
+    if (filters.isActive !== undefined) {
       tags.push(
         <span key="status" className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-          状态: {localFilters.isActive ? '正常' : '停用'}
+          状态: {filters.isActive ? '正常' : '停用'}
           <button 
             className="ml-1 text-purple-600 hover:text-purple-800" 
             onClick={() => clearFilter('isActive')}
@@ -191,7 +187,7 @@ export default function PatientSearchFilter({
           <input
             type="text"
             placeholder="搜索患者姓名、ID、电话、身份证号..."
-            value={localFilters.search || ''}
+            value={filters.search || ''}
             onChange={(e) => updateFilter('search', e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -223,7 +219,7 @@ export default function PatientSearchFilter({
                 性别
               </label>
               <select 
-                value={localFilters.gender || ''} 
+                value={filters.gender || ''}
                 onChange={(e) => updateFilter('gender', e.target.value || undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -241,7 +237,7 @@ export default function PatientSearchFilter({
                 <input
                   type="number"
                   placeholder="最小"
-                  value={localFilters.ageMin || ''}
+                  value={filters.ageMin || ''}
                   onChange={(e) => updateFilter('ageMin', e.target.value ? parseInt(e.target.value) : undefined)}
                   min={0}
                   max={150}
@@ -251,7 +247,7 @@ export default function PatientSearchFilter({
                 <input
                   type="number"
                   placeholder="最大"
-                  value={localFilters.ageMax || ''}
+                  value={filters.ageMax || ''}
                   onChange={(e) => updateFilter('ageMax', e.target.value ? parseInt(e.target.value) : undefined)}
                   min={0}
                   max={150}
@@ -264,7 +260,7 @@ export default function PatientSearchFilter({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">患者状态</label>
               <select 
-                value={localFilters.isActive === undefined ? '' : localFilters.isActive.toString()} 
+                value={filters.isActive === undefined ? '' : filters.isActive.toString()}
                 onChange={(e) => updateFilter('isActive', e.target.value === '' ? undefined : e.target.value === 'true')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -279,7 +275,7 @@ export default function PatientSearchFilter({
               <label className="block text-sm font-medium text-gray-700 mb-2">排序方式</label>
               <div className="flex gap-2">
                 <select 
-                  value={localFilters.sortBy || 'created_at'} 
+                  value={filters.sortBy || 'created_at'}
                   onChange={(e) => updateFilter('sortBy', e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -290,7 +286,7 @@ export default function PatientSearchFilter({
                   <option value="patient_id">患者ID</option>
                 </select>
                 <select 
-                  value={localFilters.sortOrder || 'desc'} 
+                  value={filters.sortOrder || 'desc'}
                   onChange={(e) => updateFilter('sortOrder', e.target.value as 'asc' | 'desc')}
                   className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >

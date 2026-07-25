@@ -6,17 +6,6 @@ import ReportReview from '@/components/reports/ReportReview';
 import { Button } from '@/components/ui/Button';
 import React, { useEffect, useState } from 'react';
 
-// 审核状态枚举
-enum ReviewStatus {
-  DRAFT = 'draft',
-  PENDING = 'pending',
-  IN_REVIEW = 'in_review',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
-  REVISION = 'revision',
-  FINAL = 'final',
-}
-
 // 审核级别枚举
 enum ReviewLevel {
   PRIMARY = 'primary',

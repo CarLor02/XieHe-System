@@ -31,7 +31,7 @@ export default function UserSettings({
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
-  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [loadingTeams, setLoadingTeams] = useState(isOpen);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -50,68 +50,15 @@ export default function UserSettings({
   // 获取 authStore 的 fetchUserInfo 方法
   const { fetchUserInfo, forceLogout } = useSessionStore();
 
-  // 当 type 改变时，更新 activeTab
-  useEffect(() => {
-    if (type) {
-      setActiveTab(type);
-    }
-  }, [type]);
-
-  // 加载用户信息
-  useEffect(() => {
-    if (isOpen) {
-      loadUserInfo();
-      loadMyTeams();
-    }
-  }, [isOpen]);
-
-  // 加载用户所属的团队
-  const loadMyTeams = async () => {
-    setLoadingTeams(true);
-    try {
-      const response = await getMyTeams();
-      setMyTeams(response.items || []);
-
-      // 如果用户有团队，设置第一个团队为默认选中
-      if (
-        response.items &&
-        response.items.length > 0 &&
-        !formData.organization
-      ) {
-        setFormData(prev => ({
-          ...prev,
-          organization: response.items[0].id.toString(),
-        }));
-      }
-    } catch (error) {
-      console.error('加载团队列表失败:', error);
-      setMyTeams([]);
-    } finally {
-      setLoadingTeams(false);
-    }
-  };
-
   const loadUserInfo = async () => {
     try {
       setLoading(true);
-      console.log('开始加载用户信息...');
       const data = await getCurrentUser();
-      console.log('用户信息加载成功:', data);
-      console.log('详细字段值:', {
-        username: data.username,
-        email: data.email,
-        phone: data.phone,
-        real_name: data.real_name,
-        department: data.department,
-        department_id: data.department_id,
-        position: data.position,
-        title: data.title,
-      });
 
       setUserInfo(data);
 
-      const newFormData = {
-        ...formData,
+      setFormData(previous => ({
+        ...previous,
         username: data.username || '',
         email: data.email || '',
         phone: data.phone || '',
@@ -120,10 +67,7 @@ export default function UserSettings({
         department_id: data.department_id || null,
         position: data.position || '',
         title: data.title || '',
-      };
-
-      console.log('设置表单数据:', newFormData);
-      setFormData(newFormData);
+      }));
     } catch (error: any) {
       console.error('加载用户信息失败:', error);
       console.error('错误详情:', error.response?.data);
@@ -141,6 +85,73 @@ export default function UserSettings({
     }
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+
+    const loadInitialUserInfo = async () => {
+      try {
+        const data = await getCurrentUser();
+        if (cancelled) return;
+
+        setUserInfo(data);
+        setFormData(previous => ({
+          ...previous,
+          username: data.username || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          real_name: data.real_name || '',
+          department: data.department || '',
+          department_id: data.department_id || null,
+          position: data.position || '',
+          title: data.title || '',
+        }));
+      } catch (error) {
+        if (!cancelled) {
+          console.error('加载用户信息失败:', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const loadInitialTeams = async () => {
+      try {
+        const response = await getMyTeams();
+        if (cancelled) return;
+
+        const items = response.items || [];
+        setMyTeams(items);
+        if (items.length > 0) {
+          setFormData(previous => ({
+            ...previous,
+            organization:
+              previous.organization || items[0].id.toString(),
+          }));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('加载团队列表失败:', error);
+          setMyTeams([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingTeams(false);
+        }
+      }
+    };
+
+    void loadInitialUserInfo();
+    void loadInitialTeams();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -151,10 +162,8 @@ export default function UserSettings({
         position: formData.position || undefined,
         title: formData.title || undefined,
       };
-      console.log('准备保存用户信息:', updateData);
-
       const result = await updateCurrentUser(updateData);
-      console.log('保存成功，返回数据:', result);
+      void result;
 
       alert('保存成功！');
 
@@ -162,9 +171,7 @@ export default function UserSettings({
       await loadUserInfo();
 
       // 同时更新 authStore 中的用户信息，这样 Header 组件也会更新
-      console.log('更新 authStore 中的用户信息...');
       await fetchUserInfo();
-      console.log('authStore 用户信息已更新');
     } catch (error: any) {
       console.error('保存失败:', error);
       console.error('错误详情:', error.response?.data);

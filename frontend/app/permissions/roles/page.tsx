@@ -12,10 +12,6 @@ export default function RolesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchRoles();
-  }, []);
-
   const fetchRoles = async () => {
     try {
       setLoading(true);
@@ -29,6 +25,31 @@ export default function RolesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getPermissionRoles()
+      .then(response => {
+        if (cancelled) return;
+        setRoles(response.items);
+        setError(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        console.error('获取角色列表失败:', error);
+        setError('获取角色列表失败');
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredRoles = roles.filter(
     role =>

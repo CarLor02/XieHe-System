@@ -15,7 +15,12 @@
 
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { createPortal } from 'react-dom'
 
 // 断点定义
@@ -85,36 +90,25 @@ const MobileMenuOverlay: React.FC<MobileMenuOverlayProps> = ({
   )
 }
 
-// 获取当前屏幕尺寸
+const getScreenSize = (): ScreenSize => {
+  const width = window.innerWidth
+
+  if (width >= breakpoints['2xl']) return '2xl'
+  if (width >= breakpoints.xl) return 'xl'
+  if (width >= breakpoints.lg) return 'lg'
+  if (width >= breakpoints.md) return 'md'
+  if (width >= breakpoints.sm) return 'sm'
+  return 'xs'
+}
+
+const subscribeToScreenSize = (listener: () => void) => {
+  window.addEventListener('resize', listener)
+  return () => window.removeEventListener('resize', listener)
+}
+
+// useSyncExternalStore 保持服务端快照稳定，并直接订阅浏览器视口。
 const useScreenSize = (): ScreenSize => {
-  const [screenSize, setScreenSize] = useState<ScreenSize>('lg')
-  
-  useEffect(() => {
-    const updateScreenSize = () => {
-      const width = window.innerWidth
-      
-      if (width >= breakpoints['2xl']) {
-        setScreenSize('2xl')
-      } else if (width >= breakpoints.xl) {
-        setScreenSize('xl')
-      } else if (width >= breakpoints.lg) {
-        setScreenSize('lg')
-      } else if (width >= breakpoints.md) {
-        setScreenSize('md')
-      } else if (width >= breakpoints.sm) {
-        setScreenSize('sm')
-      } else {
-        setScreenSize('xs')
-      }
-    }
-    
-    updateScreenSize()
-    window.addEventListener('resize', updateScreenSize)
-    
-    return () => window.removeEventListener('resize', updateScreenSize)
-  }, [])
-  
-  return screenSize
+  return useSyncExternalStore(subscribeToScreenSize, getScreenSize, () => 'lg')
 }
 
 // 滑动手势Hook
@@ -160,6 +154,102 @@ const useSwipeGestures = (
   }, [handleTouchStart, handleTouchEnd])
 }
 
+interface ResponsiveHeaderProps {
+  header?: React.ReactNode
+  isMobile: boolean
+  enableMobileMenu: boolean
+  sidebarWidth: number
+  headerHeight: number
+  onOpenMobileMenu: () => void
+}
+
+const ResponsiveHeader: React.FC<ResponsiveHeaderProps> = ({
+  header,
+  isMobile,
+  enableMobileMenu,
+  sidebarWidth,
+  headerHeight,
+  onOpenMobileMenu,
+}) => {
+  if (!header) return null
+
+  return (
+    <div
+      className="fixed top-0 right-0 z-40 border-b border-gray-200 bg-white"
+      style={{
+        height: headerHeight,
+        left: isMobile ? 0 : sidebarWidth
+      }}
+    >
+      <div className="flex h-full items-center px-4">
+        {isMobile && enableMobileMenu && (
+          <button
+            onClick={onOpenMobileMenu}
+            className="mr-4 rounded-md p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label="打开菜单"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
+
+        <div className="flex-1">{header}</div>
+      </div>
+    </div>
+  )
+}
+
+interface ResponsiveSidebarProps {
+  sidebar?: React.ReactNode
+  isMobile: boolean
+  isMobileMenuOpen: boolean
+  sidebarWidth: number
+  onCloseMobileMenu: () => void
+}
+
+const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
+  sidebar,
+  isMobile,
+  isMobileMenuOpen,
+  sidebarWidth,
+  onCloseMobileMenu,
+}) => {
+  if (!sidebar) return null
+
+  if (isMobile) {
+    return (
+      <MobileMenuOverlay isOpen={isMobileMenuOpen} onClose={onCloseMobileMenu}>
+        <div className="h-full overflow-y-auto">
+          <div className="flex items-center justify-between border-b border-gray-200 p-4">
+            <h2 className="text-lg font-semibold text-gray-900">菜单</h2>
+            <button
+              onClick={onCloseMobileMenu}
+              className="rounded-md p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="关闭菜单"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div onClick={onCloseMobileMenu}>{sidebar}</div>
+        </div>
+      </MobileMenuOverlay>
+    )
+  }
+
+  return (
+    <div
+      className="fixed top-0 left-0 z-30 h-full overflow-y-auto border-r border-gray-200 bg-white"
+      style={{ width: sidebarWidth }}
+    >
+      {sidebar}
+    </div>
+  )
+}
+
 const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({
   children,
   sidebar,
@@ -189,92 +279,26 @@ const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({
     enableSwipeGestures ? openMobileMenu : undefined
   )
   
-  // 响应式头部组件
-  const ResponsiveHeader = () => {
-    if (!header) return null
-    
-    return (
-      <div
-        className={`fixed top-0 right-0 z-40 bg-white border-b border-gray-200 ${
-          isMobile ? 'left-0' : `left-${sidebarWidth}`
-        }`}
-        style={{
-          height: headerHeight,
-          left: isMobile ? 0 : sidebarWidth
-        }}
-      >
-        <div className="flex items-center h-full px-4">
-          {/* 移动端菜单按钮 */}
-          {isMobile && enableMobileMenu && (
-            <button
-              onClick={openMobileMenu}
-              className="mr-4 p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="打开菜单"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          )}
-          
-          {/* 头部内容 */}
-          <div className="flex-1">
-            {header}
-          </div>
-        </div>
-      </div>
-    )
-  }
-  
-  // 响应式侧边栏组件
-  const ResponsiveSidebar = () => {
-    if (!sidebar) return null
-    
-    if (isMobile) {
-      return (
-        <MobileMenuOverlay isOpen={isMobileMenuOpen} onClose={closeMobileMenu}>
-          <div className="h-full overflow-y-auto">
-            {/* 移动端关闭按钮 */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">菜单</h2>
-              <button
-                onClick={closeMobileMenu}
-                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="关闭菜单"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            {/* 侧边栏内容 */}
-            <div onClick={closeMobileMenu}>
-              {sidebar}
-            </div>
-          </div>
-        </MobileMenuOverlay>
-      )
-    }
-    
-    // 桌面端固定侧边栏
-    return (
-      <div
-        className="fixed top-0 left-0 z-30 h-full bg-white border-r border-gray-200 overflow-y-auto"
-        style={{ width: sidebarWidth }}
-      >
-        {sidebar}
-      </div>
-    )
-  }
-  
   return (
     <div className={`min-h-screen bg-gray-50 ${className}`}>
       {/* 响应式侧边栏 */}
-      <ResponsiveSidebar />
+      <ResponsiveSidebar
+        sidebar={sidebar}
+        isMobile={isMobile}
+        isMobileMenuOpen={isMobileMenuOpen}
+        sidebarWidth={sidebarWidth}
+        onCloseMobileMenu={closeMobileMenu}
+      />
       
       {/* 响应式头部 */}
-      <ResponsiveHeader />
+      <ResponsiveHeader
+        header={header}
+        isMobile={isMobile}
+        enableMobileMenu={enableMobileMenu}
+        sidebarWidth={sidebarWidth}
+        headerHeight={headerHeight}
+        onOpenMobileMenu={openMobileMenu}
+      />
       
       {/* 主内容区域 */}
       <main

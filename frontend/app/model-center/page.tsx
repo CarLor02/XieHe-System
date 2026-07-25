@@ -36,7 +36,6 @@ export default function ModelCenter() {
   const [activeTab, setActiveTab] = useState('all');
   const [models, setModels] = useState<ModelData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
 
   // 认证检查
@@ -50,7 +49,6 @@ export default function ModelCenter() {
   const loadModels = async () => {
     try {
       setLoading(true);
-      setError(null);
 
       const response = await getModels({
         page_size: 100,
@@ -80,7 +78,6 @@ export default function ModelCenter() {
       setModels(convertedModels);
     } catch (err: any) {
       console.error('Failed to load models:', err);
-      setError('加载模型数据失败');
     } finally {
       setLoading(false);
     }
@@ -235,6 +232,7 @@ export default function ModelCenter() {
         </div>
 
       <UserSettings
+        key={showUserSettings ? 'profile-open' : 'closed'}
         isOpen={showUserSettings}
         onClose={() => setShowUserSettings(false)}
         type="profile"

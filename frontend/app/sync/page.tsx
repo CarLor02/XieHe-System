@@ -105,10 +105,20 @@ export default function SyncPage() {
   // ── Init ────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const url = localStorage.getItem(LS_URL_KEY);
-    const key = localStorage.getItem(LS_KEY_KEY);
-    if (url) setServiceUrl(url);
-    if (key) setApiKey(key);
+    let cancelled = false;
+
+    // 浏览器存储只能在 hydration 后读取；放入微任务也避免 effect 内同步级联更新。
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const url = localStorage.getItem(LS_URL_KEY);
+      const key = localStorage.getItem(LS_KEY_KEY);
+      if (url) setServiceUrl(url);
+      if (key) setApiKey(key);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const syncConfig = useCallback<() => SyncServiceConfig>(() => ({

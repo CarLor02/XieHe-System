@@ -1,4 +1,4 @@
-/* remixicon 已通过 layout.tsx 的 <link> 标签本地加载，无需重复 @import */
+/* Remix Icon 由根 layout 从 public 目录加载，保持离线构建和运行。 */
 @import "../tailwind.css";
 
 @layer base {

@@ -44,14 +44,11 @@ export default function ReportExportPage() {
   const [reports, setReports] = useState<ReportData[]>([]);
   const [selectedReports, setSelectedReports] = useState<number[]>([]);
   const [filters, setFilters] = useState<ExportFilters>({});
-  const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
   // 获取报告数据
   const fetchReports = async () => {
     try {
-      setLoading(true);
-
       const result = await getReports({
         page: 1,
         page_size: 100,
@@ -87,8 +84,6 @@ export default function ReportExportPage() {
     } catch (err: any) {
       console.error('获取报告数据失败:', err);
       setReports([]);
-    } finally {
-      setLoading(false);
     }
   };
 

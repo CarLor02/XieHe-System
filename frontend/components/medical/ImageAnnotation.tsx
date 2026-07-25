@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { v4 as uuidv4 } from 'uuid'
 
 interface ImageAnnotationProps {
   imageUrl: string
@@ -40,6 +41,106 @@ interface AnnotationTool {
   type: Annotation['type']
   name: string
   icon: string
+}
+
+const drawArrow = (
+  ctx: CanvasRenderingContext2D,
+  start: Point,
+  end: Point
+) => {
+  const headLength = 15
+  const angle = Math.atan2(end.y - start.y, end.x - start.x)
+
+  ctx.beginPath()
+  ctx.moveTo(start.x, start.y)
+  ctx.lineTo(end.x, end.y)
+  ctx.stroke()
+
+  ctx.beginPath()
+  ctx.moveTo(end.x, end.y)
+  ctx.lineTo(
+    end.x - headLength * Math.cos(angle - Math.PI / 6),
+    end.y - headLength * Math.sin(angle - Math.PI / 6)
+  )
+  ctx.moveTo(end.x, end.y)
+  ctx.lineTo(
+    end.x - headLength * Math.cos(angle + Math.PI / 6),
+    end.y - headLength * Math.sin(angle + Math.PI / 6)
+  )
+  ctx.stroke()
+}
+
+const drawAnnotation = (
+  ctx: CanvasRenderingContext2D,
+  annotation: Annotation,
+  scale: number,
+  isSelected: boolean
+) => {
+  ctx.strokeStyle = annotation.color
+  ctx.lineWidth = annotation.strokeWidth
+  ctx.fillStyle = annotation.color
+
+  const points = annotation.points.map(point => ({
+    x: point.x * scale,
+    y: point.y * scale
+  }))
+
+  switch (annotation.type) {
+    case 'rectangle':
+      if (points.length >= 2) {
+        ctx.strokeRect(
+          points[0].x,
+          points[0].y,
+          points[1].x - points[0].x,
+          points[1].y - points[0].y
+        )
+      }
+      break
+    case 'circle':
+      if (points.length >= 2) {
+        const radius = Math.hypot(
+          points[1].x - points[0].x,
+          points[1].y - points[0].y
+        )
+        ctx.beginPath()
+        ctx.arc(points[0].x, points[0].y, radius, 0, 2 * Math.PI)
+        ctx.stroke()
+      }
+      break
+    case 'arrow':
+      if (points.length >= 2) {
+        drawArrow(ctx, points[0], points[1])
+      }
+      break
+    case 'text':
+      if (points.length >= 1 && annotation.text) {
+        ctx.font = `${annotation.strokeWidth * 8}px Arial`
+        ctx.fillText(annotation.text, points[0].x, points[0].y)
+      }
+      break
+    case 'freehand':
+      if (points.length > 1) {
+        ctx.beginPath()
+        ctx.moveTo(points[0].x, points[0].y)
+        for (let index = 1; index < points.length; index += 1) {
+          ctx.lineTo(points[index].x, points[index].y)
+        }
+        ctx.stroke()
+      }
+      break
+  }
+
+  if (isSelected && points.length >= 2) {
+    ctx.strokeStyle = '#00ff00'
+    ctx.lineWidth = 1
+    ctx.setLineDash([5, 5])
+    const minX = Math.min(...points.map(point => point.x))
+    const minY = Math.min(...points.map(point => point.y))
+    const maxX = Math.max(...points.map(point => point.x))
+    const maxY = Math.max(...points.map(point => point.y))
+    ctx.strokeRect(minX - 5, minY - 5, maxX - minX + 10, maxY - minY + 10)
+    ctx.setLineDash([])
+  }
 }
 
 const ImageAnnotation: React.FC<ImageAnnotationProps> = ({
@@ -78,23 +179,6 @@ const ImageAnnotation: React.FC<ImageAnnotationProps> = ({
     '#ff00ff', '#00ffff', '#ffffff', '#000000'
   ]
 
-  // 加载图像
-  useEffect(() => {
-    if (!imageUrl) return
-
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    
-    img.onload = () => {
-      imageRef.current = img
-      setImageLoaded(true)
-      resizeCanvas()
-      redrawCanvas()
-    }
-
-    img.src = imageUrl
-  }, [imageUrl])
-
   // 调整画布大小
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current
@@ -126,7 +210,7 @@ const ImageAnnotation: React.FC<ImageAnnotationProps> = ({
       y: (containerRect.height - canvasHeight) / 2
     })
 
-  }, [imageLoaded])
+  }, [])
 
   // 重绘画布
   const redrawCanvas = useCallback(() => {
@@ -145,117 +229,49 @@ const ImageAnnotation: React.FC<ImageAnnotationProps> = ({
 
     // 绘制标注
     annotations.forEach(annotation => {
-      drawAnnotation(ctx, annotation)
+      drawAnnotation(
+        ctx,
+        annotation,
+        scale,
+        annotation.id === selectedAnnotation?.id
+      )
     })
 
     // 绘制当前正在创建的标注
     if (currentAnnotation) {
-      drawAnnotation(ctx, currentAnnotation)
+      drawAnnotation(
+        ctx,
+        currentAnnotation,
+        scale,
+        currentAnnotation.id === selectedAnnotation?.id
+      )
     }
 
-  }, [annotations, currentAnnotation, imageLoaded])
+  }, [
+    annotations,
+    currentAnnotation,
+    imageLoaded,
+    scale,
+    selectedAnnotation?.id
+  ])
 
-  // 绘制标注
-  const drawAnnotation = (ctx: CanvasRenderingContext2D, annotation: Annotation) => {
-    ctx.strokeStyle = annotation.color
-    ctx.lineWidth = annotation.strokeWidth
-    ctx.fillStyle = annotation.color
+  // 加载图像。回调完成后由 redraw effect 统一绘制，避免读取旧状态。
+  useEffect(() => {
+    if (!imageUrl) return
 
-    const points = annotation.points.map(p => ({
-      x: p.x * scale,
-      y: p.y * scale
-    }))
-
-    switch (annotation.type) {
-      case 'rectangle':
-        if (points.length >= 2) {
-          const width = points[1].x - points[0].x
-          const height = points[1].y - points[0].y
-          ctx.strokeRect(points[0].x, points[0].y, width, height)
-        }
-        break
-
-      case 'circle':
-        if (points.length >= 2) {
-          const radius = Math.sqrt(
-            Math.pow(points[1].x - points[0].x, 2) + 
-            Math.pow(points[1].y - points[0].y, 2)
-          )
-          ctx.beginPath()
-          ctx.arc(points[0].x, points[0].y, radius, 0, 2 * Math.PI)
-          ctx.stroke()
-        }
-        break
-
-      case 'arrow':
-        if (points.length >= 2) {
-          drawArrow(ctx, points[0], points[1])
-        }
-        break
-
-      case 'text':
-        if (points.length >= 1 && annotation.text) {
-          ctx.font = `${annotation.strokeWidth * 8}px Arial`
-          ctx.fillText(annotation.text, points[0].x, points[0].y)
-        }
-        break
-
-      case 'freehand':
-        if (points.length > 1) {
-          ctx.beginPath()
-          ctx.moveTo(points[0].x, points[0].y)
-          for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y)
-          }
-          ctx.stroke()
-        }
-        break
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      imageRef.current = img
+      resizeCanvas()
+      setImageLoaded(true)
     }
+    img.src = imageUrl
 
-    // 如果是选中的标注，绘制选择框
-    if (annotation === selectedAnnotation) {
-      ctx.strokeStyle = '#00ff00'
-      ctx.lineWidth = 1
-      ctx.setLineDash([5, 5])
-      
-      if (points.length >= 2) {
-        const minX = Math.min(...points.map(p => p.x))
-        const minY = Math.min(...points.map(p => p.y))
-        const maxX = Math.max(...points.map(p => p.x))
-        const maxY = Math.max(...points.map(p => p.y))
-        
-        ctx.strokeRect(minX - 5, minY - 5, maxX - minX + 10, maxY - minY + 10)
-      }
-      
-      ctx.setLineDash([])
+    return () => {
+      img.onload = null
     }
-  }
-
-  // 绘制箭头
-  const drawArrow = (ctx: CanvasRenderingContext2D, start: Point, end: Point) => {
-    const headLength = 15
-    const angle = Math.atan2(end.y - start.y, end.x - start.x)
-
-    // 绘制线条
-    ctx.beginPath()
-    ctx.moveTo(start.x, start.y)
-    ctx.lineTo(end.x, end.y)
-    ctx.stroke()
-
-    // 绘制箭头头部
-    ctx.beginPath()
-    ctx.moveTo(end.x, end.y)
-    ctx.lineTo(
-      end.x - headLength * Math.cos(angle - Math.PI / 6),
-      end.y - headLength * Math.sin(angle - Math.PI / 6)
-    )
-    ctx.moveTo(end.x, end.y)
-    ctx.lineTo(
-      end.x - headLength * Math.cos(angle + Math.PI / 6),
-      end.y - headLength * Math.sin(angle + Math.PI / 6)
-    )
-    ctx.stroke()
-  }
+  }, [imageUrl, resizeCanvas])
 
   // 重绘画布
   useEffect(() => {
@@ -264,14 +280,11 @@ const ImageAnnotation: React.FC<ImageAnnotationProps> = ({
 
   // 窗口大小变化时调整画布
   useEffect(() => {
-    const handleResize = () => {
-      resizeCanvas()
-      redrawCanvas()
-    }
+    const handleResize = () => resizeCanvas()
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [resizeCanvas, redrawCanvas])
+  }, [resizeCanvas])
 
   // 获取鼠标在画布上的坐标
   const getCanvasPoint = (e: React.MouseEvent): Point => {
@@ -306,7 +319,7 @@ const ImageAnnotation: React.FC<ImageAnnotationProps> = ({
 
     // 开始创建新标注
     const newAnnotation: Annotation = {
-      id: `annotation_${Date.now()}`,
+      id: `annotation_${uuidv4()}`,
       type: currentTool,
       points: [point],
       color: currentColor,
@@ -350,7 +363,6 @@ const ImageAnnotation: React.FC<ImageAnnotationProps> = ({
       } : null)
     }
 
-    redrawCanvas()
   }
 
   // 鼠标抬起
@@ -422,14 +434,19 @@ const ImageAnnotation: React.FC<ImageAnnotationProps> = ({
   }
 
   // 删除选中的标注
-  const deleteSelectedAnnotation = () => {
+  const deleteSelectedAnnotation = useCallback(() => {
     if (selectedAnnotation) {
       const updatedAnnotations = annotations.filter(a => a.id !== selectedAnnotation.id)
       onAnnotationsChange?.(updatedAnnotations)
       setSelectedAnnotation(null)
       onAnnotationSelect?.(null)
     }
-  }
+  }, [
+    annotations,
+    onAnnotationsChange,
+    onAnnotationSelect,
+    selectedAnnotation,
+  ])
 
   // 键盘事件
   useEffect(() => {
@@ -441,7 +458,7 @@ const ImageAnnotation: React.FC<ImageAnnotationProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedAnnotation, readOnly])
+  }, [deleteSelectedAnnotation, readOnly, selectedAnnotation])
 
   return (
     <div className={`image-annotation ${className} flex flex-col h-full`}>

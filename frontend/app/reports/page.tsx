@@ -72,15 +72,12 @@ export default function ReportsPage() {
   const [currentView, setCurrentView] = useState<
     'list' | 'edit' | 'preview' | 'create' | 'export'
   >('list');
-  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
 
   // 分页状态
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalReports, setTotalReports] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const currentPage = 1;
   const reportsPerPage = 20;
 
   // 认证检查
@@ -94,9 +91,6 @@ export default function ReportsPage() {
   // 获取报告数据
   const fetchReports = async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       const result = await getReports({
         page: currentPage,
         page_size: reportsPerPage,
@@ -135,18 +129,12 @@ export default function ReportsPage() {
         }));
 
         setReports(apiReports);
-        setTotalReports(result.total);
       } else {
         setReports([]);
-        setTotalReports(0);
       }
     } catch (err: any) {
       console.error('获取报告数据失败:', err);
-      setError('获取报告数据失败，请稍后重试');
       setReports([]);
-      setTotalReports(0);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -205,7 +193,6 @@ export default function ReportsPage() {
 
   // 保存报告
   const handleSaveReport = async (reportData: any) => {
-    setLoading(true);
     try {
       // 这里应该调用API保存报告
       console.log('保存报告:', reportData);
@@ -244,8 +231,6 @@ export default function ReportsPage() {
     } catch (error) {
       console.error('保存报告失败:', error);
       alert('保存报告失败，请重试');
-    } finally {
-      setLoading(false);
     }
   };
 

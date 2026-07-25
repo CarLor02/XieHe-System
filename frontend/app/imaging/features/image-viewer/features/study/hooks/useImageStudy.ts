@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ImageData, StudyData } from '@/app/imaging/features/image-viewer/shared/types';
+import { StudyData } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**
  * study/image payload 拉取状态容器。
@@ -26,4 +26,3 @@ export function useImageStudy() {
     setImageNaturalSize,
   };
 }
-

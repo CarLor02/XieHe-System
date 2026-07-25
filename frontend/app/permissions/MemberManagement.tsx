@@ -1,19 +1,14 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 
 import {
   TeamJoinRequestItem,
-  TeamMember,
-  TeamMembersResponse,
-  TeamSummary,
-  getMyTeams,
-  getTeamJoinRequests,
-  getTeamMembers,
   inviteTeamMember,
   reviewTeamJoinRequest,
 } from '@/services/teamService';
 import { useUser } from '@/lib/api';
+import { useTeamPermissionData } from './application/hooks/useTeamPermissionData';
 
 const ROLE_OPTIONS = [
   { id: 'member', name: '普通成员', description: '参与团队协作' },
@@ -40,13 +35,6 @@ const formatDateTime = (value?: string | null) =>
 export default function MemberManagement() {
   const { isAuthenticated, user } = useUser();
 
-  const [myTeams, setMyTeams] = useState<TeamSummary[]>([]);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-  const [currentTeam, setCurrentTeam] = useState<TeamSummary | null>(null);
-  const [members, setMembers] = useState<TeamMember[]>([]);
-
-  const [loadingTeams, setLoadingTeams] = useState(false);
-  const [loadingMembers, setLoadingMembers] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -57,9 +45,28 @@ export default function MemberManagement() {
   const [inviteRole, setInviteRole] = useState('doctor');
   const [inviteMessage, setInviteMessage] = useState('');
 
-  const [joinRequests, setJoinRequests] = useState<TeamJoinRequestItem[]>([]);
-  const [loadingJoinRequests, setLoadingJoinRequests] = useState(false);
   const [processingRequestId, setProcessingRequestId] = useState<number | null>(null);
+  const {
+    myTeams,
+    selectedTeamId,
+    setSelectedTeamId,
+    currentTeam,
+    members,
+    joinRequests,
+    isCurrentUserAdmin,
+    loadingTeams,
+    loadingMembers,
+    loadingJoinRequests,
+    loadError,
+    clearLoadError,
+    refreshMembers,
+    refreshJoinRequests,
+  } = useTeamPermissionData({
+    isAuthenticated,
+    currentUserId: user?.id,
+    initialSelection: 'first',
+  });
+  const visibleError = error ?? loadError;
 
   const filteredMembers = useMemo(() => {
     if (!searchKeyword.trim()) return members;
@@ -70,112 +77,6 @@ export default function MemberManagement() {
         .some(value => value!.toLowerCase().includes(keyword))
     );
   }, [members, searchKeyword]);
-
-  const currentMember = useMemo(
-    () => members.find(member => (user?.id ? member.user_id === user.id : false)) ?? null,
-    [members, user?.id]
-  );
-
-  const isCurrentUserAdmin = currentMember?.role === 'ADMIN';
-
-  // 调试日志
-  useEffect(() => {
-    console.log('MemberManagement Debug:', {
-      userId: user?.id,
-      currentMember,
-      isCurrentUserAdmin,
-      membersCount: members.length,
-      selectedTeamId,
-    });
-  }, [user?.id, currentMember, isCurrentUserAdmin, members.length, selectedTeamId]);
-
-  const loadTeams = async () => {
-    try {
-      setLoadingTeams(true);
-      setError(null);
-      const response = await getMyTeams();
-      const items = response?.items ?? [];
-      setMyTeams(items);
-      if (items.length > 0) {
-        setSelectedTeamId(prev => prev ?? items[0].id);
-      } else {
-        setSelectedTeamId(null);
-        setMembers([]);
-        setCurrentTeam(null);
-        setJoinRequests([]);
-      }
-    } catch (err) {
-      console.error(err);
-      setError('获取团队列表失败，请稍后重试');
-    } finally {
-      setLoadingTeams(false);
-    }
-  };
-
-  const loadMembers = async (teamId: number) => {
-    try {
-      setLoadingMembers(true);
-      setError(null);
-      const response: TeamMembersResponse | undefined = await getTeamMembers(teamId);
-      setCurrentTeam(response?.team ?? null);
-      setMembers(response?.members ?? []);
-    } catch (err) {
-      console.error(err);
-      setError('获取成员列表失败，请稍后重试');
-    } finally {
-      setLoadingMembers(false);
-    }
-  };
-
-  const loadJoinRequests = async (teamId: number) => {
-    try {
-      setLoadingJoinRequests(true);
-      setError(null);
-      const response = await getTeamJoinRequests(teamId);
-      setJoinRequests(response.items);
-    } catch (err) {
-      console.error(err);
-      setError('获取加入申请列表失败，请稍后重试');
-    } finally {
-      setLoadingJoinRequests(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setMyTeams([]);
-      setMembers([]);
-      setCurrentTeam(null);
-      return;
-    }
-    loadTeams();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (selectedTeamId) {
-      loadMembers(selectedTeamId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTeamId]);
-
-  useEffect(() => {
-    if (!selectedTeamId || !isAuthenticated) {
-      setJoinRequests([]);
-      return;
-    }
-    // 如果当前成员信息还没加载完成，等待
-    if (members.length === 0) {
-      return;
-    }
-    // 只有管理员才加载申请列表
-    if (!isCurrentUserAdmin) {
-      setJoinRequests([]);
-      return;
-    }
-    loadJoinRequests(selectedTeamId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTeamId, isCurrentUserAdmin, isAuthenticated, members.length]);
 
   const handleInviteSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -192,7 +93,7 @@ export default function MemberManagement() {
       setInviteModalOpen(false);
       setInviteEmail('');
       setInviteMessage('');
-      await loadMembers(selectedTeamId);
+      await refreshMembers();
     } catch (err) {
       console.error(err);
       setError('发送邀请失败，请稍后重试');
@@ -210,9 +111,9 @@ export default function MemberManagement() {
       setError(null);
       const result = await reviewTeamJoinRequest(selectedTeamId, request.id, decision);
       setSuccessMessage(result.message || '加入申请已处理');
-      await loadJoinRequests(selectedTeamId);
+      await refreshJoinRequests();
       if (decision === 'approve') {
-        await loadMembers(selectedTeamId);
+        await refreshMembers();
       }
     } catch (err) {
       console.error(err);
@@ -232,12 +133,15 @@ export default function MemberManagement() {
 
   return (
     <div className="space-y-6">
-      {error && (
+      {visibleError && (
         <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <i className="ri-error-warning-line text-lg" />
-          <span>{error}</span>
+          <span>{visibleError}</span>
           <button
-            onClick={() => setError(null)}
+            onClick={() => {
+              setError(null);
+              clearLoadError();
+            }}
             className="ml-auto text-red-500 hover:text-red-700"
           >
             <i className="ri-close-line" />
@@ -304,7 +208,7 @@ export default function MemberManagement() {
               />
             </div>
             <button
-              onClick={() => selectedTeamId && loadMembers(selectedTeamId)}
+              onClick={() => void refreshMembers()}
               className="h-10 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 hover:bg-gray-50"
               disabled={!selectedTeamId}
             >
@@ -358,7 +262,7 @@ export default function MemberManagement() {
               </p>
             </div>
             <button
-              onClick={() => selectedTeamId && loadJoinRequests(selectedTeamId)}
+              onClick={() => void refreshJoinRequests()}
               className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm text-amber-800 hover:bg-amber-50"
               disabled={loadingJoinRequests || !selectedTeamId}
             >

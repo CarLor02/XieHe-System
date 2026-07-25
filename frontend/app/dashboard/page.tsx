@@ -3,6 +3,7 @@
 import AppShell from '@/components/layout/AppShell';
 import StatsCard from '@/components/dashboard/StatsCard';
 import TaskList from '@/components/dashboard/TaskList';
+import { useIsClient } from '@/hooks/useIsClient';
 import { useUser } from '@/lib/api';
 import { getDashboardStats, type DashboardStats } from '@/services/dashboardServices';
 import Link from 'next/link';
@@ -11,18 +12,13 @@ import { useEffect, useState } from 'react';
 
 const DashboardPage: React.FC = () => {
   const router = useRouter();
-  const { isAuthenticated, user } = useUser();
+  const { isAuthenticated } = useUser();
+  const mounted = useIsClient();
   const [dashboardData, setDashboardData] = useState<DashboardStats | null>(
     null
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  // 确保组件已挂载
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // 认证检查
   useEffect(() => {

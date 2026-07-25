@@ -220,19 +220,6 @@ const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ onExport }) => {
     }
   };
 
-  // 获取时间范围文本
-  const getTimeRangeText = (range: TimeRange): string => {
-    const texts = {
-      [TimeRange.TODAY]: '今日',
-      [TimeRange.WEEK]: '本周',
-      [TimeRange.MONTH]: '本月',
-      [TimeRange.QUARTER]: '本季度',
-      [TimeRange.YEAR]: '本年',
-      [TimeRange.CUSTOM]: '自定义'
-    };
-    return texts[range] || range;
-  };
-
   // 处理导出
   const handleExport = (format: string) => {
     if (onExport) {

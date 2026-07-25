@@ -386,7 +386,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
               </div>
 
               <p className="text-gray-600 mb-6">
-                确定要删除患者 "{patient.name}"
+                确定要删除患者“{patient.name}”
                 的所有信息吗？此操作不可恢复。
               </p>
 
