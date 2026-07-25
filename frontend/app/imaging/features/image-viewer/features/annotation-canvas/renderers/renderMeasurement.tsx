@@ -31,7 +31,7 @@ import {
 import {
   getAvtLabelPosition,
   isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
 import { renderAvtMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-state';
 import { imageToScreen } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';

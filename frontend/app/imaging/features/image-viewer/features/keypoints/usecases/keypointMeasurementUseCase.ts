@@ -19,7 +19,7 @@ import {
   isAvtMetadata,
   isSameAvtTarget,
   type AvtTarget,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
 import {
   CfhAnnotation,
   MeasurementData,

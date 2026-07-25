@@ -38,7 +38,7 @@ import {
 import type {
   AvtDiscPlacementSession,
   AvtTarget,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
 
 interface UseImageViewerControllerOptions {
   imageId: string;

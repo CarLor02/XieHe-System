@@ -11,7 +11,7 @@ import {
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
-import { calculateAvtValue } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+import { calculateAvtValue } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
 
 /**
  * 根据标注类型和点位计算测量值

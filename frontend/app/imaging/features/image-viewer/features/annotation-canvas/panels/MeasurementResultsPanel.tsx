@@ -25,7 +25,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
-import { resolveAvtDefinition } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+import { resolveAvtDefinition } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
 
 type ResultsTab = 'measurements' | 'keypoints';
 

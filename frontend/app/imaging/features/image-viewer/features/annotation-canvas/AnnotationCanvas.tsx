@@ -52,7 +52,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { isDirectlyEditableAnnotation } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
 import { resolveMeasurementKeypointIds } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-selection';
-import type { AvtDiscPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+import type { AvtDiscPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
 
 export function getAnnotationCanvasCursorClass({
   keypointSequenceSession,

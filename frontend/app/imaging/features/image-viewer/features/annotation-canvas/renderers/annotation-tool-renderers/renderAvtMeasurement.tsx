@@ -6,7 +6,7 @@ import type {
 import {
   getAvtGeometry,
   isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
 
 interface RenderAvtMeasurementOptions {
   measurement: MeasurementData;

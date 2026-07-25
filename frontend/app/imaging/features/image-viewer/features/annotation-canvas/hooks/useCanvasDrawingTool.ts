@@ -18,7 +18,7 @@ import {
 import {
   createHorizontalDiscAnchors,
   type AvtDiscPlacementSession,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/avt';
 
 const POLYGON_CLOSE_TOLERANCE_PX = 18;
 
