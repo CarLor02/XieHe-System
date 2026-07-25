@@ -19,7 +19,7 @@ import {
   type VertebraLabelOffsetOptions,
   type VertebraCornerOrderMapping,
   type VertebraCornerSequenceNumber,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+} from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   KeypointSequenceSession,
   MeasurementData,
@@ -37,12 +37,12 @@ import ToolbarToolPanel, {
   shouldShowAuxiliaryTools,
   ToolTab,
 } from '@/app/imaging/features/image-viewer/features/toolbar/components/ToolbarToolPanel';
-import { hasCobbMeasurementForEndpoints } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
 import {
   getCompleteMeasurementDeriveEndpointGroups,
   getMeasurementDeriveVertebraOrder,
+  hasCobbMeasurementForEndpoints,
   isValidMeasurementDeriveEndpointOrder,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
 import {

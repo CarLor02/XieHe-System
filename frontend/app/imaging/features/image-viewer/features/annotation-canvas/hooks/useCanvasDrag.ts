@@ -5,7 +5,7 @@ import {
 import {
   calculateMeasurementDataValue,
   calculateMeasurementValue,
-} from '@/app/imaging/features/image-viewer/features/measurements/usecases/calculateMeasurementValue';
+} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   MeasurementData,

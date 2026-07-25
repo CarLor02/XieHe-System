@@ -44,11 +44,11 @@ Cobb 的端椎在用户填写前无法确定，因此使用动态端椎映射和
 
 ## 当前已注册的绑定规则
 
-| 测量项 | 测量项点位 | 绑定关键点 | 关键点完整条件 |
-| ------ | ---------- | ---------- | -------------- |
-| CA     | 2 个点     | `CR`、`CL` | `CR`、`CL` 均存在 |
-| TTS    | 2 个手工躯干线端点和 2 个骶骨参考点 | `SR`、`SL` | `SR`、`SL` 均存在 |
-| L/R    | 4 个解剖锚点和 8 个纵线端点 | `ASIS_L`、`SI_L`、`SI_R`、`ASIS_R` | 四个关键点均存在 |
+| 测量项 | 测量项点位                          | 绑定关键点                         | 关键点完整条件    |
+| ------ | ----------------------------------- | ---------------------------------- | ----------------- |
+| CA     | 2 个点                              | `CR`、`CL`                         | `CR`、`CL` 均存在 |
+| TTS    | 2 个手工躯干线端点和 2 个骶骨参考点 | `SR`、`SL`                         | `SR`、`SL` 均存在 |
+| L/R    | 4 个解剖锚点和 8 个纵线端点         | `ASIS_L`、`SI_L`、`SI_R`、`ASIS_R` | 四个关键点均存在  |
 
 ## CA 绑定
 
@@ -75,12 +75,12 @@ Cobb 的端椎在用户填写前无法确定，因此使用动态端椎映射和
 
 ### 点位映射
 
-| TTS 测量项点位 | 含义 | 绑定关键点 |
-| -------------- | ---- | ---------- |
-| `points[0]` | 手工躯干水平线端点 1 | 不绑定 |
-| `points[1]` | 手工躯干水平线端点 2 | 不绑定 |
-| `points[2]` | 骶骨参考点 | `SR` |
-| `points[3]` | 骶骨参考点 | `SL` |
+| TTS 测量项点位 | 含义                 | 绑定关键点 |
+| -------------- | -------------------- | ---------- |
+| `points[0]`    | 手工躯干水平线端点 1 | 不绑定     |
+| `points[1]`    | 手工躯干水平线端点 2 | 不绑定     |
+| `points[2]`    | 骶骨参考点           | `SR`       |
+| `points[3]`    | 骶骨参考点           | `SL`       |
 
 ### TTS 到关键点
 
@@ -100,8 +100,8 @@ Cobb 的端椎在用户填写前无法确定，因此使用动态端椎映射和
 
 L/R 的四条纵线始终按影像屏幕中的 X 坐标从左到右排序，并绑定为：
 
-| 水平顺序 | 解剖含义 | 关键点 |
-| -------- | -------- | ------ |
+| 水平顺序 | 解剖含义       | 关键点   |
+| -------- | -------------- | -------- |
 | 1        | 左外缘（ASIS） | `ASIS_L` |
 | 2        | 左内缘（SI）   | `SI_L`   |
 | 3        | 右内缘（SI）   | `SI_R`   |
@@ -195,12 +195,12 @@ L/R 测量项共保存 12 个点：
 ## 实现位置
 
 - 绑定规则：
-  `frontend/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-binding.ts`
+  `frontend/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding.ts`
 - 关键点到测量项的重算：
-  `frontend/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase.ts`
+  `frontend/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/synchronizeMeasurementsUseCase.ts`
 - 测量完成后的关键点写回：
-  `frontend/app/imaging/features/image-viewer/features/measurements/hooks/useMeasurementWorkflow.ts`
+  `frontend/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useMeasurementWorkflow.ts`
 - 拖拽后的双向同步：
-  `frontend/app/imaging/features/image-viewer/features/keypoints/hooks/useKeypointMeasurementWorkflow.ts`
+  `frontend/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useMeasurementKeypointWorkflow.ts`
 - L/R 几何与水平排序：
-  `frontend/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio.ts`
+  `frontend/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio/`

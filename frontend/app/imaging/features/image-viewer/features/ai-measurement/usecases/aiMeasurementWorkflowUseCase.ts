@@ -10,7 +10,7 @@ import {
   getAnnotationConfig,
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/usecases/calculateMeasurementValue';
+import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getDescriptionForType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
@@ -23,7 +23,7 @@ import {
 import {
   KeypointAnnotation,
   vertebraeLayerToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+} from '@/app/imaging/features/image-viewer/features/keypoints';
 import { detectLateralVertebrae } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
 
 const S1_RELATED_TYPES = new Set([

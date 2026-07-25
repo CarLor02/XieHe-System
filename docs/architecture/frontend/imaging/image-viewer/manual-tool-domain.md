@@ -25,7 +25,9 @@ measurements/
 │   ├── ap/                          # 仅正位工具规则
 │   ├── lateral/                     # 仅侧位工具规则
 │   └── shared/                      # 正侧位真正共用的纯规则
-└── usecases/                        # 跨工具、状态或 catalog 的应用流程
+└── application/
+    ├── hooks/                       # 测量领域的 React 状态适配
+    └── usecases/                    # 跨工具、状态或 catalog 的应用流程
 ```
 
 `manual-tools/domain/ap` 与 `manual-tools/domain/lateral` 按工具名建目录。
@@ -67,7 +69,7 @@ Catalog 是工具注册和展示适配层，只负责：
 Catalog 不实现医学公式，不作为其他领域模块的工具函数仓库。新增工具时，
 应先建立 domain 规则，再由 catalog 引用。
 
-### `usecases`
+### `application/usecases`
 
 需要访问 catalog、多个测量项或 React 状态之外的应用流程放在 use case，例如：
 
@@ -86,7 +88,7 @@ Canvas renderer 只根据已经确定的点位和测量结果绘制 SVG。渲染
 ## 依赖方向
 
 ```text
-usecases / hooks / annotation-canvas
+application/usecases / application/hooks / annotation-canvas
                 ↓
               catalog
                 ↓

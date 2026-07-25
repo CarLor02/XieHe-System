@@ -14,14 +14,12 @@ import {
   getKeypointGroupsForExamType,
   isLateralExamType,
   KeypointAnnotation,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+} from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   canSyncCobbMeasurementToKeypoints,
-  hasSameCobbEndpointVertebrae,
-} from '@/app/imaging/features/image-viewer/features/keypoints/usecases/cobbKeypointSyncUseCase';
-import {
   getMeasurementDeriveVertebraOrder,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
+  hasSameCobbEndpointVertebrae,
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';

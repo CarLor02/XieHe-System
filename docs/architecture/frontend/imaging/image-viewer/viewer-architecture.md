@@ -1,8 +1,9 @@
 # Image Viewer Feature Architecture
 
-`frontend/app/imaging/viewer/page.tsx` only owns the Next.js route boundary. The
-viewer implementation is isolated in `frontend/app/imaging/viewer/` and is now
-organized by feature instead of by a single horizontal component tree.
+`frontend/app/imaging/viewer/page.tsx` only owns the Next.js route boundary.
+The implementation is isolated in
+`frontend/app/imaging/features/image-viewer/` and is organized by feature
+instead of by a single horizontal component tree.
 
 ## Principles
 
@@ -37,6 +38,7 @@ viewer/
     ├── annotation-canvas/
     ├── bindings/
     ├── keypoints/
+    ├── measurement-keypoint-sync/
     ├── measurements/
     ├── report/
     ├── study/
@@ -69,38 +71,52 @@ layout and dependency constraints.
   geometry, point-layout, and hit-testing rules.
 - `domain/` owns stable measurement types, canonical tool IDs, serialization,
   editability, and uniqueness rules.
-- `usecases/calculateMeasurementValue.ts` dispatches registered tool formulas.
-- `usecases/annotationInheritanceUseCase.ts` contains inherited/shared point
+- `application/usecases/calculateMeasurementValue.ts` dispatches registered tool formulas.
+- `application/usecases/annotationInheritanceUseCase.ts` contains inherited/shared point
   orchestration.
 - `domain/annotation-uniqueness.ts` defines uniqueness and duplicate filtering.
-- `usecases/addMeasurementUseCase.ts` creates/replaces measurements.
-- `usecases/saveMeasurementsUseCase.ts` persists measurements and annotation
+- `application/usecases/addMeasurementUseCase.ts` creates/replaces measurements.
+- `application/usecases/saveMeasurementsUseCase.ts` persists measurements and annotation
   payloads.
-- `usecases/annotationJsonUseCase.ts` handles JSON import/export.
-- `usecases/measurementDependencyUseCase.ts` handles lateral CFH/S1 dependency
+- `application/usecases/measurementDependencyUseCase.ts` handles lateral CFH/S1 dependency
   cleanup and restoration.
-- `hooks/useMeasurementCalculation.ts` builds calculation context and value
+- `application/hooks/useMeasurementCalculation.ts` builds calculation context and value
   helpers.
-- `hooks/useMeasurementWorkflow.ts` owns measurement add/delete, inherited-point
-  preload, JSON import/export wiring, and automatic measurement restoration.
-- `hooks/useStandardDistanceActions.ts` owns standard-distance toolbar actions
+- `application/hooks/useStandardDistanceActions.ts` owns standard-distance toolbar actions
   and AVT/TTS gating.
 
 ### `features/keypoints`
 
-Owns keypoint state, vertebra derivation, and measurement rebuilding from
-keypoints.
+Owns keypoint catalog, keypoint entities, layer conversion, vertebra correction,
+and keypoint-only React state.
 
-- `domain/keypoint-state.ts` is the keypoint state model and conversion layer.
-- `domain/vertebrae-derive.ts` derives measurements from vertebra annotations.
-- `domain/measurement-keypoint-writeback.ts` maps measurement point edits back
-  into keypoints/vertebrae.
-- `usecases/keypointMeasurementUseCase.ts` creates AP keypoint measurements,
-  rebuilds derived measurements, and keeps bound Cobb/AVT/TTS/center
-  measurements consistent.
-- `hooks/useKeypointMeasurementWorkflow.ts` owns keypoint layer state, derived
-  measurement rebuilds, vertebra drag callbacks, keypoint add/delete callbacks,
-  and detection-layer toggling.
+- `catalog/{ap,lateral}` defines the keypoint groups available for each exam.
+- `domain/keypoint.ts` defines keypoint entities and anatomical ordering.
+- `domain/keypoint-layer-mapper.ts` converts keypoints and persisted detection
+  layers without knowing about measurements.
+- `domain/vertebra-correction.ts` owns corner-order and vertebra-label
+  correction rules.
+- `application/hooks/useKeypointLayerState.ts` owns keypoint/detection-layer
+  state without reading or modifying measurements.
+
+### `features/measurement-keypoint-sync`
+
+Owns every operation that must know both keypoints and measurements. Detailed
+dependency rules are documented in
+[`measurement-keypoint-sync.md`](./measurement-keypoint-sync.md).
+
+- `domain/measurement-keypoint-binding.ts` defines bidirectional binding rules.
+- `domain/measurement-keypoint-writeback.ts` maps edited measurement points
+  back to keypoints and persisted vertebra layers.
+- `application/usecases/createBoundMeasurementUseCase.ts` creates bound
+  Cobb/AVT/TTS/vertebra-center measurements.
+- `application/usecases/synchronizeMeasurementsUseCase.ts` separates AI initial
+  derivation, existing measurement recalculation, and unique non-Cobb
+  derivation after keypoint changes.
+- `application/hooks/useMeasurementKeypointWorkflow.ts` coordinates React state
+  across the two sibling features.
+- `application/hooks/useMeasurementWorkflow.ts` owns measurement commands that
+  also write or delete bound keypoints.
 
 ### `features/ai-measurement`
 
@@ -155,8 +171,10 @@ Owns report display and report generation.
 - The application controller may compose feature barrels such as
   `./features/measurements`, but feature business rules should stay in their own
   `hooks/`, `domain/`, and `usecases/`.
-- Cross-feature imports should target another feature's public `index.ts` or a
-  clearly owned domain/usecase file.
+- Cross-feature imports target another feature's public `index.ts`.
+- `keypoints` and `measurements` are sibling features and must not depend on one
+  another. Cross-domain logic belongs to `measurement-keypoint-sync`, which may
+  depend on both.
 - External modules, such as `frontend/app/data-export`, must import viewer
   types/render helpers from `@/app/imaging/viewer/public`.
 - Do not reintroduce root-level `components/`, `domain/`, `hooks/`, `usecase/`,
@@ -164,8 +182,8 @@ Owns report display and report generation.
 
 ## Validation Checklist
 
-- `rg "@/app/imaging/viewer/image-viewer|./image-viewer|image-viewer/public" frontend`
-  should not show active imports.
+- `features/feature-boundaries.test.ts` must pass and keep the keypoint and
+  measurement dependency direction intact.
 - `npm --prefix frontend run type-check` should not introduce new
   viewer errors.
 - `npm --prefix frontend run build` should render the viewer route with the new

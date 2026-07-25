@@ -3,7 +3,7 @@ import { expect, it, jest } from '@jest/globals';
 import type { ComponentProps } from 'react';
 
 import AnnotationToolbar from './AnnotationToolbar';
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
   KeypointSequenceSession,

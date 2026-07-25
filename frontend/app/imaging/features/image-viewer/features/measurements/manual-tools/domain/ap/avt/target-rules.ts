@@ -1,7 +1,7 @@
 import {
   getMeasurementDeriveVertebraOrder,
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebra-order';
+} from '@/app/imaging/features/image-viewer/shared/domain/spine/vertebra-order';
 import type {
   AvtMetadata,
   AvtReferenceLine,

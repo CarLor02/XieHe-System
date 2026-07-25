@@ -7,7 +7,6 @@ import {
   useAnnotationPersistence,
   useLocalAnnotationsDataLoader,
   useMeasurementCalculation,
-  useMeasurementWorkflow,
   useMeasurements,
   useStandardDistanceActions,
 } from '@/app/imaging/features/image-viewer/features/measurements';
@@ -25,9 +24,12 @@ import {
   isAnteriorExamType,
   isKeypointSupportedExamType,
   isLateralExamType,
-  useKeypointMeasurementWorkflow,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import {
+  useMeasurementKeypointWorkflow,
+  useMeasurementWorkflow,
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import {
   CfhAnnotation,
   KeypointSequenceSession,
@@ -232,7 +234,7 @@ export function useImageViewerController({
     imageNaturalSize,
   });
 
-  const keypointWorkflow = useKeypointMeasurementWorkflow({
+  const keypointWorkflow = useMeasurementKeypointWorkflow({
     imageId,
     examType: imageData.examType,
     imageNaturalSize,

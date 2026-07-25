@@ -14,7 +14,7 @@ import {
   AnnotationBindings,
   PointRef,
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
-import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationInheritanceUseCase';
+import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
 import {
   imageToScreen as utilImageToScreen,
   screenToImage as utilScreenToImage,
@@ -49,9 +49,9 @@ import {
   keypointsToRenderLayer,
   KeypointAnnotation,
   renderCornerToKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+} from '@/app/imaging/features/image-viewer/features/keypoints';
 import { isDirectlyEditableAnnotation } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
-import { resolveMeasurementKeypointIds } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-selection';
+import { resolveMeasurementKeypointIds } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import type { AvtDiscPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 
 export function getAnnotationCanvasCursorClass({

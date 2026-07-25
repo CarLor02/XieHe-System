@@ -1,7 +1,7 @@
 import { expect, it } from '@jest/globals';
 
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/usecases/calculateMeasurementValue';
-import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/usecases/renumberCobbMeasurementsAfterDelete';
+import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
+import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/renumberCobbMeasurementsAfterDelete';
 import type {
   MeasurementData,
   Point,

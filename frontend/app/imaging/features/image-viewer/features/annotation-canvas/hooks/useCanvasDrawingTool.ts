@@ -3,7 +3,7 @@ import {
   POINT_INHERITANCE_RULES,
   SHARED_ANATOMICAL_POINT_GROUPS,
   getInheritedPoints,
-} from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationInheritanceUseCase';
+} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
 import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { Point, Tool } from '@/app/imaging/features/image-viewer/shared/types';

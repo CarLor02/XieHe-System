@@ -7,7 +7,7 @@ import {
   renderCornerToKeypointId,
   isSacralEndplateKeypointLabel,
   isVertebraCornerKeypointLabel,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+} from '@/app/imaging/features/image-viewer/features/keypoints';
 
 interface CornerRef {
   label: string;

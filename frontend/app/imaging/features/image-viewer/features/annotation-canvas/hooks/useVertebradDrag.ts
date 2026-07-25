@@ -6,7 +6,7 @@ import {
   isSinglePointKeypointLabel,
   keypointIdToRenderCornerRef,
   renderCornerToKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+} from '@/app/imaging/features/image-viewer/features/keypoints';
 
 interface DragMember {
   vertebraLabel: string;
