@@ -67,11 +67,17 @@ export async function saveMeasurements(
                     description: m.description,
                 };
             } else {
-                // 其他标注：保存id, type和points（value和description可以重新计算）
+                // 其他标注保留重建与业务绑定所需的 metadata；
+                // 其中 AVT 的可变点布局不能仅靠 type + points 恢复。
                 return {
                     id: m.id,
                     type: m.type,
                     points: m.points,
+                    upperVertebra: m.upperVertebra,
+                    lowerVertebra: m.lowerVertebra,
+                    apexVertebra: m.apexVertebra,
+                    keypointSynced: m.keypointSynced,
+                    avtMetadata: m.avtMetadata,
                 };
             }
         });

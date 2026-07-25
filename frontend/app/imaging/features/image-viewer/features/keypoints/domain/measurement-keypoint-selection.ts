@@ -4,8 +4,16 @@ import {
   parseLateralVertebraKeypointId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/keypoints';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
+import {
+  getAvtPointKeypointId,
+  getAvtRequiredKeypointIds,
+  isAvtMetadata,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 
 const POINT_MATCH_TOLERANCE = 0.5;
 
@@ -118,6 +126,16 @@ export function resolveMeasurementKeypointIds(
   const selected = new Set<string>();
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
   const completeGroups = buildCompleteVertebraGroups(keypoints);
+  if (
+    getAnnotationTypeId(measurement.type) === 'avt' &&
+    isAvtMetadata(measurement.avtMetadata)
+  ) {
+    return uniqueSorted(
+      getAvtRequiredKeypointIds(measurement.avtMetadata).filter(id =>
+        byId.has(id)
+      )
+    );
+  }
 
   for (const measurementPoint of measurement.points) {
     for (const keypoint of keypoints) {
@@ -207,6 +225,15 @@ export function resolveMeasurementPointDragTarget(
 
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
   const typeId = getAnnotationTypeId(measurement.type);
+  if (typeId === 'avt' && isAvtMetadata(measurement.avtMetadata)) {
+    const keypointId = getAvtPointKeypointId(
+      measurement.avtMetadata,
+      pointIndex
+    );
+    return keypointId && byId.has(keypointId)
+      ? { keypointIds: [keypointId] }
+      : null;
+  }
 
   if (typeId === 'sva' && pointIndex === 4 && byId.has('S1-2')) {
     return { keypointIds: ['S1-2'] };

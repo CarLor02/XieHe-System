@@ -11,7 +11,6 @@ import { isLateralRestorableMeasurementTool } from '@/app/imaging/features/image
 import { isUniqueAnnotationTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
   getKeypointGroupsForExamType,
-  hasKeypoint,
   isAnteriorExamType,
   isLateralExamType,
   shiftVertebraLabels,
@@ -46,6 +45,15 @@ import {
   isValidMeasurementDeriveEndpointOrder,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
+import {
+  AVT_DISC_TARGETS,
+  AVT_VERTEBRA_TARGETS,
+  createAvtMetadata,
+  getAvtTargetLabel,
+  hasAvtReferenceKeypoints,
+  isSameAvtTarget,
+  type AvtTarget,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
@@ -83,7 +91,9 @@ function canStartSequentialKeypointGroup(group: {
   id: string;
   keypoints: { id: string }[];
 }): boolean {
-  return group.keypoints.length > 1 && group.id !== 'pose' && group.id !== 'CFH';
+  return (
+    group.keypoints.length > 1 && group.id !== 'pose' && group.id !== 'CFH'
+  );
 }
 
 interface AnnotationToolbarProps {
@@ -117,7 +127,7 @@ interface AnnotationToolbarProps {
   onStartKeypointSequence: (groupName: string, keypointIds: string[]) => void;
   onCancelKeypointSequence: () => void;
   onRestoreAutomaticMeasurement: (toolId: string) => void;
-  onCreateAvt: (apexVertebra: string) => void;
+  onCreateAvt: (target: AvtTarget) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
   onCreateCobb: (upperVertebra: string, lowerVertebra: string) => void;
   onRectifyVertebraCornerOrder: (
@@ -236,6 +246,9 @@ export default function AnnotationToolbar({
   const [offsetDirection, setOffsetDirection] =
     useState<VertebraLabelOffsetDirection>('up');
   const [offsetValue, setOffsetValue] = useState('1');
+  const [avtTargetType, setAvtTargetType] = useState<AvtTarget['type'] | null>(
+    null
+  );
 
   const isAnteriorView = isAnteriorExamType(examType);
   const isLateralView = isLateralExamType(examType);
@@ -257,16 +270,32 @@ export default function AnnotationToolbar({
   const measurementTypeIds = new Set(
     measurements.map(measurement => getAnnotationTypeId(measurement.type))
   );
-  const avtApexGroups = new Set(
-    measurements
-      .filter(item => getAnnotationTypeId(item.type) === 'avt')
-      .map(item => item.apexVertebra?.trim().toUpperCase())
-      .filter((group): group is string => Boolean(group))
+  const completeVertebraGroupSet = new Set(
+    completeVertebraGroups.map(group => group.trim().toUpperCase())
   );
-  const hasSacralLine =
-    hasKeypoint(keypoints, 'SL') && hasKeypoint(keypoints, 'SR');
-  const availableAvtVertebraGroups = completeVertebraGroups.filter(
-    group => !avtApexGroups.has(group.trim().toUpperCase())
+  const avtMeasurements = measurements.filter(
+    item => getAnnotationTypeId(item.type) === 'avt'
+  );
+  const avtVertebraTargets: AvtTarget[] = AVT_VERTEBRA_TARGETS.map(
+    vertebra => ({
+      type: 'vertebra',
+      vertebra,
+    })
+  );
+  const avtDiscTargets: AvtTarget[] = AVT_DISC_TARGETS;
+  const isAvtTargetAvailable = (target: AvtTarget) => {
+    const metadata = createAvtMetadata(target);
+    const hasTargetPoints =
+      target.type === 'disc' ||
+      completeVertebraGroupSet.has(target.vertebra.toUpperCase());
+    const hasReferencePoints = hasAvtReferenceKeypoints(metadata, keypointIds);
+    const exists = avtMeasurements.some(measurement =>
+      isSameAvtTarget(measurement, target)
+    );
+    return hasTargetPoints && hasReferencePoints && !exists;
+  };
+  const availableAvtTargets = [...avtVertebraTargets, ...avtDiscTargets].filter(
+    isAvtTargetAvailable
   );
   const visibleMeasurementTools =
     effectiveBasicMode === BasicMode.MeasurementDerive
@@ -286,24 +315,23 @@ export default function AnnotationToolbar({
     completeCobbEndpointOptions.includes(cobbLowerVertebra) &&
     cobbLowerVertebra !== selectedCobbUpper
       ? cobbLowerVertebra
-      : completeCobbEndpointOptions.find(group => group !== selectedCobbUpper) ??
-        defaultCobbLower;
+      : (completeCobbEndpointOptions.find(
+          group => group !== selectedCobbUpper
+        ) ?? defaultCobbLower);
   const canOpenCobbDerivePanel = completeCobbEndpointOptions.length >= 2;
   const canApplyCobbDerive =
     Boolean(selectedCobbUpper && selectedCobbLower) &&
     selectedCobbUpper !== selectedCobbLower;
-  const canCreateAvt =
-    isAnteriorView &&
-    hasSacralLine &&
-    availableAvtVertebraGroups.length >= 1;
+  const canCreateAvt = isAnteriorView && availableAvtTargets.length >= 1;
   const avtStatus: ToolStatus = canCreateAvt
     ? 'available'
-    : hasSacralLine &&
-        completeVertebraGroups.length > 0 &&
-        availableAvtVertebraGroups.length === 0
+    : avtMeasurements.length > 0 && availableAvtTargets.length === 0
       ? 'exists'
       : 'missing-keypoints';
-  const effectiveToolTab = getEffectiveToolTab(effectiveBasicMode, activeToolTab);
+  const effectiveToolTab = getEffectiveToolTab(
+    effectiveBasicMode,
+    activeToolTab
+  );
   const canShowAuxiliaryTools = shouldShowAuxiliaryTools(effectiveBasicMode);
   const isRectifyMode = effectiveBasicMode === BasicMode.VertebraCornerRectify;
   const isVertebraInnerRectifyTab =
@@ -337,6 +365,7 @@ export default function AnnotationToolbar({
     setOffsetEndVertebra('');
     setOffsetDirection('up');
     setOffsetValue('1');
+    setAvtTargetType(null);
   }, []);
 
   useEffect(() => {
@@ -467,9 +496,7 @@ export default function AnnotationToolbar({
         result.targetVertebraLabels?.join(',') ?? ''
       }`;
     }
-    return `偏移后关键点不存在: ${
-      result.targetKeypointIds?.join(',') ?? ''
-    }`;
+    return `偏移后关键点不存在: ${result.targetKeypointIds?.join(',') ?? ''}`;
   };
 
   const handleApplyVertebraLabelOffset = () => {
@@ -513,7 +540,11 @@ export default function AnnotationToolbar({
   const handleCobbUpperChange = (value: string) => {
     setCobbUpperVertebra(value);
     setCobbLowerVertebra(current => {
-      if (current && current !== value && completeCobbEndpointOptions.includes(current)) {
+      if (
+        current &&
+        current !== value &&
+        completeCobbEndpointOptions.includes(current)
+      ) {
         return current;
       }
       return completeCobbEndpointOptions.find(group => group !== value) ?? '';
@@ -529,9 +560,7 @@ export default function AnnotationToolbar({
         selectedCobbLower
       )
     ) {
-      setToolbarOverlayMessage(
-        '上端椎不应该比下端椎更靠下或与下端椎相同!'
-      );
+      setToolbarOverlayMessage('上端椎不应该比下端椎更靠下或与下端椎相同!');
       return;
     }
 
@@ -734,9 +763,7 @@ export default function AnnotationToolbar({
                       {visibleMeasurementTools.map(tool => {
                         const isUniquenessBlocked =
                           isUniqueAnnotationTool(tool.id) &&
-                          measurementTypeIds.has(
-                            getAnnotationTypeId(tool.id)
-                          );
+                          measurementTypeIds.has(getAnnotationTypeId(tool.id));
                         const isCobbTool = isAnteriorView && tool.id === 'cobb';
                         // 可推导工具走自动恢复路径；Cobb 始终走手动放点路径，
                         // 端椎在结果列表中后置填写。
@@ -745,7 +772,7 @@ export default function AnnotationToolbar({
                           !isCobbTool &&
                           (isApAutomaticMeasurementTool(tool.id) ||
                             isLateralRestorableMeasurementTool(tool.id));
-                        // AVT 走选择面板（需要骶骨线关键点）。
+                        // AVT 走目标类型/层级选择面板，参考点要求由 AVT domain 决定。
                         // TTS 走直接放点路径（画水平线，骶骨参考继承自 CSS/SL/SR），不走椎体选择面板。
                         const isSelectionTool =
                           canUseKeypointTools &&
@@ -834,6 +861,7 @@ export default function AnnotationToolbar({
                               }
                               if (isSelectionTool) {
                                 setOpenMeasurementTool(isOpen ? null : tool.id);
+                                setAvtTargetType(null);
                                 setOpenKeypointGroup(null);
                                 return;
                               }
@@ -867,9 +895,7 @@ export default function AnnotationToolbar({
                               <IconMapper
                                 iconId={tool.icon}
                                 className={`text-lg mb-1 ${
-                                  !isToolAvailable
-                                    ? 'opacity-40 grayscale'
-                                    : ''
+                                  !isToolAvailable ? 'opacity-40 grayscale' : ''
                                 }`}
                                 style={{
                                   lineHeight: '1',
@@ -886,7 +912,8 @@ export default function AnnotationToolbar({
                             </div>
                             {renderAvailabilityBadge(isToolAvailable)}
                             {/* 放点数量下标 */}
-                            {tool.pointsNeeded != null &&
+                            {!isSelectionTool &&
+                              tool.pointsNeeded != null &&
                               tool.pointsNeeded > 0 && (
                                 <div className="absolute -bottom-1 -left-1 bg-gray-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">
                                   {tool.pointsNeeded}
@@ -1028,45 +1055,118 @@ export default function AnnotationToolbar({
 
                     {openMeasurementTool === 'avt' && (
                       <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(22rem,calc(100vh-14rem))] overflow-y-auto">
-                        <div className="text-xs text-gray-300 mb-2">
-                          选择顶椎
-                        </div>
-                        {completeVertebraGroups.length > 0 ? (
-                          <div className="grid grid-cols-4 gap-2">
-                            {completeVertebraGroups.map(group => {
-                              const exists = avtApexGroups.has(
-                                group.trim().toUpperCase()
-                              );
-                              const disabled = !hasSacralLine || exists;
-                              return (
-                                <button
-                                  key={group}
-                                  type="button"
-                                  onClick={() => {
-                                    onCreateAvt(group);
-                                    setOpenMeasurementTool(null);
-                                  }}
-                                  disabled={disabled}
-                                  title={
-                                    exists
-                                      ? `${group}的AVT已存在`
-                                      : `创建AVT(${group})`
-                                  }
-                                  className={`h-8 rounded text-xs ${
-                                    disabled
-                                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                      : 'bg-gray-800 text-white hover:bg-gray-700'
-                                  }`}
-                                >
-                                  {group}
-                                </button>
-                              );
-                            })}
-                          </div>
+                        {avtTargetType === null ? (
+                          <>
+                            <div className="text-xs text-gray-300 mb-2">
+                              选择 AVT 测量对象
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(
+                                [
+                                  ['vertebra', '椎体中心'],
+                                  ['disc', '椎间盘'],
+                                ] as const
+                              ).map(([type, label]) => {
+                                const targets =
+                                  type === 'vertebra'
+                                    ? avtVertebraTargets
+                                    : avtDiscTargets;
+                                const hasAvailableTarget =
+                                  targets.some(isAvtTargetAvailable);
+                                return (
+                                  <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setAvtTargetType(type)}
+                                    disabled={!hasAvailableTarget}
+                                    className={`h-9 rounded text-xs ${
+                                      hasAvailableTarget
+                                        ? 'bg-gray-800 text-white hover:bg-gray-700'
+                                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    {label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
                         ) : (
-                          <span className="text-xs text-gray-500">
-                            暂无完整椎体关键点
-                          </span>
+                          <>
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setAvtTargetType(null)}
+                                className="text-xs text-blue-300 hover:text-blue-200"
+                              >
+                                返回
+                              </button>
+                              <span className="text-xs text-gray-300">
+                                选择
+                                {avtTargetType === 'vertebra'
+                                  ? '椎体'
+                                  : '椎间盘'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                              {(avtTargetType === 'vertebra'
+                                ? avtVertebraTargets
+                                : avtDiscTargets
+                              ).map(target => {
+                                const metadata = createAvtMetadata(target);
+                                const hasTargetPoints =
+                                  target.type === 'disc' ||
+                                  completeVertebraGroupSet.has(
+                                    target.vertebra.toUpperCase()
+                                  );
+                                const hasReferencePoints =
+                                  hasAvtReferenceKeypoints(
+                                    metadata,
+                                    keypointIds
+                                  );
+                                const exists = avtMeasurements.some(
+                                  measurement =>
+                                    isSameAvtTarget(measurement, target)
+                                );
+                                const disabled =
+                                  !hasTargetPoints ||
+                                  !hasReferencePoints ||
+                                  exists;
+                                const targetLabel = getAvtTargetLabel(target);
+                                const title = exists
+                                  ? `${targetLabel}的AVT已存在`
+                                  : !hasTargetPoints
+                                    ? `${targetLabel}缺少完整椎体关键点`
+                                    : !hasReferencePoints
+                                      ? `${targetLabel}缺少${
+                                          metadata.referenceLine === 'c7pl'
+                                            ? 'C7PL'
+                                            : 'CSVL'
+                                        }参考点`
+                                      : `创建AVT(${targetLabel})`;
+                                return (
+                                  <button
+                                    key={`${target.type}:${targetLabel}`}
+                                    type="button"
+                                    onClick={() => {
+                                      onCreateAvt(target);
+                                      setOpenMeasurementTool(null);
+                                      setAvtTargetType(null);
+                                    }}
+                                    disabled={disabled}
+                                    title={title}
+                                    className={`h-8 rounded text-xs ${
+                                      disabled
+                                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                        : 'bg-gray-800 text-white hover:bg-gray-700'
+                                    }`}
+                                  >
+                                    {targetLabel}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
                         )}
                       </div>
                     )}
@@ -1163,8 +1263,7 @@ export default function AnnotationToolbar({
                     const isClosedSequenceGroup =
                       keypointSequenceClosedGroupName === group.name &&
                       !isSequenceGroup;
-                    const isEffectivelyOpen =
-                      isOpen && !isClosedSequenceGroup;
+                    const isEffectivelyOpen = isOpen && !isClosedSequenceGroup;
 
                     return (
                       <div key={group.id}>
@@ -1357,7 +1456,9 @@ export default function AnnotationToolbar({
                     <select
                       aria-label="结束椎体"
                       value={offsetEndVertebra}
-                      onChange={event => setOffsetEndVertebra(event.target.value)}
+                      onChange={event =>
+                        setOffsetEndVertebra(event.target.value)
+                      }
                       className="h-8 rounded bg-gray-800 border border-gray-600 px-2 text-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                     >
                       <option value="">请选择椎体</option>

@@ -4,6 +4,7 @@
  */
 
 import {AnnotationBindings} from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import type { AvtMetadata } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt/types';
 
 /**
  * 图像尺寸
@@ -55,6 +56,7 @@ export interface MeasurementData {
   upperVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
   lowerVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
   apexVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
+  avtMetadata?: AvtMetadata; // AVT v2: 椎体/椎间盘目标、参考线与点位布局
   keypointSynced?: boolean; // 测量项已绑定关键点；后续关键点移动或缺失时应重算或移除
 }
 

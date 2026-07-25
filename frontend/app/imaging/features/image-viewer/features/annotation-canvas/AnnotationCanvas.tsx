@@ -52,6 +52,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
 import { isDirectlyEditableAnnotation } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
 import { resolveMeasurementKeypointIds } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-keypoint-selection';
+import type { AvtDiscPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 
 export function getAnnotationCanvasCursorClass({
   keypointSequenceSession,
@@ -136,6 +137,8 @@ export default function AnnotationCanvas({
   tools,
   clickedPoints,
   setClickedPoints,
+  avtDiscPlacementSession = null,
+  onAvtDiscPlacementComplete,
   imageId,
   isSettingStandardDistance,
   setIsSettingStandardDistance,
@@ -193,6 +196,8 @@ export default function AnnotationCanvas({
   tools: Tool[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
+  avtDiscPlacementSession?: AvtDiscPlacementSession | null;
+  onAvtDiscPlacementComplete?: (anchors: readonly [Point, Point]) => void;
   imageId: string;
   isSettingStandardDistance: boolean;
   setIsSettingStandardDistance: (value: boolean) => void;
@@ -646,6 +651,8 @@ export default function AnnotationCanvas({
     imageScale,
     onMeasurementAdd,
     onMeasurementComplete: () => setSelectedTool('hand'),
+    avtDiscPlacementSession,
+    onAvtDiscPlacementComplete,
     drawingState,
     setDrawingState,
     setReferenceLines,
@@ -1057,6 +1064,7 @@ export default function AnnotationCanvas({
         measurements={measurements}
         getInheritedPoints={getInheritedPoints}
         keypointSequenceSession={keypointSequenceSession}
+        avtDiscPlacementSession={avtDiscPlacementSession}
       />
 
       <OverlayLayer

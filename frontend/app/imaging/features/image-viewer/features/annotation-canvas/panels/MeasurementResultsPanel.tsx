@@ -25,6 +25,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/measurement-derive';
 import { HoverState, SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
+import { resolveAvtDefinition } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 
 type ResultsTab = 'measurements' | 'keypoints';
 
@@ -252,8 +253,9 @@ export default function MeasurementResultsPanel({
       return `TTS(${measurement.upperVertebra}-${measurement.lowerVertebra})`;
     }
 
-    if (measurement.type.toLowerCase() === 'avt' && measurement.apexVertebra) {
-      return `AVT(${measurement.apexVertebra})`;
+    if (measurement.type.toLowerCase() === 'avt') {
+      const targetLabel = resolveAvtDefinition(measurement)?.targetLabel;
+      return targetLabel ? `AVT(${targetLabel})` : baseDisplayName;
     }
 
     return baseDisplayName;

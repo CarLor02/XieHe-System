@@ -3,6 +3,10 @@ import {
   MeasurementData,
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  getAvtTargetLabel,
+  type AvtDiscPlacementSession,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 
 interface CanvasHintPanelProps {
   selectedTool: string;
@@ -17,6 +21,7 @@ interface CanvasHintPanelProps {
     measurements: { type: string; points: { x: number; y: number }[] }[]
   ) => { points: { x: number; y: number }[]; count: number };
   keypointSequenceSession?: KeypointSequenceSession | null;
+  avtDiscPlacementSession?: AvtDiscPlacementSession | null;
 }
 
 /**
@@ -32,6 +37,7 @@ export default function CanvasHintPanel({
   measurements,
   getInheritedPoints,
   keypointSequenceSession = null,
+  avtDiscPlacementSession = null,
 }: CanvasHintPanelProps) {
   const currentSequenceKeypoint =
     keypointSequenceSession?.keypointIds[keypointSequenceSession.currentIndex];
@@ -50,7 +56,20 @@ export default function CanvasHintPanel({
       )}
 
       <div className="bg-black/70 text-white text-xs px-3 py-2 rounded">
-        {keypointSequenceSession && currentSequenceKeypoint ? (
+        {avtDiscPlacementSession ? (
+          <div>
+            <p className="font-medium text-yellow-300">
+              正在标注椎间盘 AVT(
+              {getAvtTargetLabel(avtDiscPlacementSession.target)})
+            </p>
+            <p className="mt-1">
+              {clickedPointsCount === 0
+                ? '点击椎间盘横线的第一个端点'
+                : '点击第二个端点，系统将自动保持水平'}
+            </p>
+            <p className="text-gray-300 mt-1">按 Esc 取消</p>
+          </div>
+        ) : keypointSequenceSession && currentSequenceKeypoint ? (
           <div>
             <p className="font-medium text-yellow-300">
               正在补充 {keypointSequenceSession.groupName}：下一点{' '}

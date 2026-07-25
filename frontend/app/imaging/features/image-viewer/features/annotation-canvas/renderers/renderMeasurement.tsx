@@ -28,6 +28,11 @@ import {
   shouldPreserveCanvasValue,
   shouldShowPointLabels,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+import {
+  getAvtLabelPosition,
+  isAvtMetadata,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+import { renderAvtMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-state';
 import { imageToScreen } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
 import { getAdaptiveFontSize } from '@/app/imaging/features/image-viewer/shared/constants';
@@ -587,20 +592,28 @@ export default function renderMeasurement({
     baseColor
   );
 
-  const specialShapeNode = renderAuxiliaryShape(
+  const auxiliaryShapeNode = renderAuxiliaryShape(
     measurement,
     screenPoints,
     displayColor,
     isMeasurementSelected,
     isMeasurementHovered
   );
+  const avtShapeNode =
+    isAvtMetadata(measurement.avtMetadata) &&
+    getAnnotationTypeId(measurement.type) === 'avt'
+      ? renderAvtMeasurement({
+          measurement,
+          displayColor,
+          imageToScreen: projectImagePoint,
+        })
+      : null;
+  const specialShapeNode = auxiliaryShapeNode ?? avtShapeNode;
 
   // 获取基础标签位置
-  const baseLabelPosition = getLabelPositionForType(
-    measurement.type,
-    measurement.points,
-    imageScale
-  );
+  const baseLabelPosition = isAvtMetadata(measurement.avtMetadata)
+    ? getAvtLabelPosition(measurement)
+    : getLabelPositionForType(measurement.type, measurement.points, imageScale);
 
   // 固定标签位置的类型（PI、PT等骨盆测量）跳过智能避让，直接使用 getLabelPosition 结果
   const isFixedLabel = isFixedLabelPositionType(measurement.type);
@@ -609,7 +622,11 @@ export default function renderMeasurement({
   const occupiedPositions = allMeasurements
     .slice(0, measurementIndex)
     .filter(m => !hiddenMeasurementIds.has(m.id))
-    .map(m => getLabelPositionForType(m.type, m.points, imageScale));
+    .map(m =>
+      isAvtMetadata(m.avtMetadata)
+        ? getAvtLabelPosition(m)
+        : getLabelPositionForType(m.type, m.points, imageScale)
+    );
 
   // 使用智能位置计算避免重叠（固定标签跳过）
   const smartLabelPosition = isFixedLabel

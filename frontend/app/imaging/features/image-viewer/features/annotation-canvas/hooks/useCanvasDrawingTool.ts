@@ -15,6 +15,10 @@ import {
   createHemipelvicWidthRatioPoints,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import {
+  createHorizontalDiscAnchors,
+  type AvtDiscPlacementSession,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 
 const POLYGON_CLOSE_TOLERANCE_PX = 18;
 
@@ -28,6 +32,8 @@ interface UseCanvasDrawingToolOptions {
   onMeasurementAdd: (type: string, points: Point[]) => void;
   /** 测量放置完成后回调，用于自动切换工具（如切回 hand 模式） */
   onMeasurementComplete?: () => void;
+  avtDiscPlacementSession?: AvtDiscPlacementSession | null;
+  onAvtDiscPlacementComplete?: (anchors: readonly [Point, Point]) => void;
   drawingState: DrawingState;
   setDrawingState: React.Dispatch<React.SetStateAction<DrawingState>>;
   setReferenceLines: React.Dispatch<React.SetStateAction<ReferenceLines>>;
@@ -122,6 +128,8 @@ export function useCanvasDrawingTool({
   imageScale,
   onMeasurementAdd,
   onMeasurementComplete,
+  avtDiscPlacementSession,
+  onAvtDiscPlacementComplete,
   drawingState,
   setDrawingState,
   setReferenceLines,
@@ -290,6 +298,21 @@ export function useCanvasDrawingTool({
         return true;
       }
 
+      if (selectedTool === 'avt' && avtDiscPlacementSession) {
+        if (clickedPoints.length === 0) {
+          setClickedPoints([imagePoint]);
+          return true;
+        }
+
+        const anchors = createHorizontalDiscAnchors(
+          clickedPoints[0],
+          imagePoint
+        );
+        onAvtDiscPlacementComplete?.(anchors);
+        setClickedPoints([]);
+        return true;
+      }
+
       let finalPoint = imagePoint;
       if (selectedTool === 'ts' && clickedPoints.length === 1) {
         finalPoint = { x: imagePoint.x, y: clickedPoints[0].y };
@@ -440,10 +463,12 @@ export function useCanvasDrawingTool({
     },
     [
       addMeasurement,
+      avtDiscPlacementSession,
       clickedPoints,
       getCurrentTool,
       imageScale,
       measurements,
+      onAvtDiscPlacementComplete,
       screenToImage,
       selectedTool,
       setClickedPoints,

@@ -21,6 +21,10 @@ import {
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
+  createAvtMetadata,
+  isAvtMetadata,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+import {
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,
   getMeasurementDeriveVertebraOrder,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebra-order';
@@ -271,12 +275,44 @@ export function shiftMeasurementVertebraLabels(
     return vertebraLabelMap.get(value) ?? value;
   };
 
-  return measurements.map(measurement => ({
-    ...measurement,
-    upperVertebra: shiftField(measurement.upperVertebra),
-    lowerVertebra: shiftField(measurement.lowerVertebra),
-    apexVertebra: shiftField(measurement.apexVertebra),
-  }));
+  return measurements.map(measurement => {
+    let avtMetadata = measurement.avtMetadata;
+    if (isAvtMetadata(avtMetadata)) {
+      if (avtMetadata.target.type === 'vertebra') {
+        const shifted = vertebraLabelMap.get(avtMetadata.target.vertebra);
+        if (shifted) {
+          avtMetadata = createAvtMetadata({
+            type: 'vertebra',
+            vertebra: shifted,
+          });
+        }
+      } else {
+        const shiftedUpper = vertebraLabelMap.get(
+          avtMetadata.target.upperVertebra
+        );
+        const shiftedLower = vertebraLabelMap.get(
+          avtMetadata.target.lowerVertebra
+        );
+        // 椎间盘是相邻椎体的值对象；只有两端同时偏移时才更新标签，
+        // 防止局部纠正把它改成无法解析的非相邻组合。
+        if (shiftedUpper && shiftedLower) {
+          avtMetadata = createAvtMetadata({
+            type: 'disc',
+            upperVertebra: shiftedUpper,
+            lowerVertebra: shiftedLower,
+          });
+        }
+      }
+    }
+
+    return {
+      ...measurement,
+      upperVertebra: shiftField(measurement.upperVertebra),
+      lowerVertebra: shiftField(measurement.lowerVertebra),
+      apexVertebra: shiftField(measurement.apexVertebra),
+      avtMetadata,
+    };
+  });
 }
 
 export function shiftVertebraLabels(
@@ -319,7 +355,9 @@ export function shiftVertebraLabels(
       offset
     );
     if (!targetLabel || !availableGroupMap.has(targetLabel)) {
-      outOfRangeTargets.push(targetLabel ?? `${sourceLabel}${options.direction}`);
+      outOfRangeTargets.push(
+        targetLabel ?? `${sourceLabel}${options.direction}`
+      );
       continue;
     }
     vertebraLabelMap.set(sourceLabel, targetLabel);

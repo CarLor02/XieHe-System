@@ -89,3 +89,67 @@ it('creates a twelve-point L/R measurement after four anatomical clicks', () => 
   expect(onMeasurementComplete).toHaveBeenCalledTimes(1);
   expect(result.current.clickedPoints).toEqual([]);
 });
+
+it('completes a manual AVT disc line with two horizontal sorted anchors', () => {
+  const onMeasurementAdd = jest.fn();
+  const onAvtDiscPlacementComplete = jest.fn();
+
+  const { result } = renderHook(() => {
+    const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
+    const [drawingState, setDrawingState] = useState<DrawingState>({
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null,
+    });
+    const [, setReferenceLines] = useState(emptyReferenceLines);
+
+    return {
+      clickedPoints,
+      drawingTool: useCanvasDrawingTool({
+        selectedTool: 'avt',
+        tools: [
+          {
+            id: 'avt',
+            name: 'AVT',
+            icon: 'ri-focus-2-line',
+            description: '顶椎平移量',
+            pointsNeeded: 6,
+          },
+        ],
+        measurements: [],
+        clickedPoints,
+        setClickedPoints,
+        imageScale: 1,
+        onMeasurementAdd,
+        avtDiscPlacementSession: {
+          target: {
+            type: 'disc',
+            upperVertebra: 'T11',
+            lowerVertebra: 'T12',
+          },
+        },
+        onAvtDiscPlacementComplete,
+        drawingState,
+        setDrawingState,
+        setReferenceLines,
+        constrainAuxLinePoint: (_toolId, _anchor, point) => point,
+        screenToImage: (x, y) => ({ x, y }),
+      }),
+    };
+  });
+
+  act(() => {
+    expect(result.current.drawingTool.handleMouseDown(80, 20)).toBe(true);
+  });
+  expect(result.current.clickedPoints).toEqual([{ x: 80, y: 20 }]);
+
+  act(() => {
+    expect(result.current.drawingTool.handleMouseDown(20, 90)).toBe(true);
+  });
+  expect(onAvtDiscPlacementComplete).toHaveBeenCalledWith([
+    { x: 20, y: 20 },
+    { x: 80, y: 20 },
+  ]);
+  expect(onMeasurementAdd).not.toHaveBeenCalled();
+  expect(result.current.clickedPoints).toEqual([]);
+});

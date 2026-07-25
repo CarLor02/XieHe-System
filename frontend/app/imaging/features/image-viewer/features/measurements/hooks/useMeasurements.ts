@@ -1,6 +1,10 @@
 import { useState } from 'react';
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { calculateMeasurementDataValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
 
 /**
  * measurement 列表、报告文本、标准距离与辅助面板状态。
@@ -10,9 +14,15 @@ export function useMeasurements() {
   const [reportText, setReportText] = useState('');
   const [standardDistance, setStandardDistance] = useState<number | null>(null);
   const [standardDistanceValue, setStandardDistanceValue] = useState('');
-  const [standardDistancePoints, setStandardDistancePoints] = useState<Point[]>([]);
-  const [hoveredStandardPointIndex, setHoveredStandardPointIndex] = useState<number | null>(null);
-  const [draggingStandardPointIndex, setDraggingStandardPointIndex] = useState<number | null>(null);
+  const [standardDistancePoints, setStandardDistancePoints] = useState<Point[]>(
+    []
+  );
+  const [hoveredStandardPointIndex, setHoveredStandardPointIndex] = useState<
+    number | null
+  >(null);
+  const [draggingStandardPointIndex, setDraggingStandardPointIndex] = useState<
+    number | null
+  >(null);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   const [showTagPanel, setShowTagPanel] = useState(false);
@@ -37,36 +47,16 @@ export function useMeasurements() {
       currentMeasurements.map(measurement => {
         const typeId = getAnnotationTypeId(measurement.type);
         if (
-          (typeId === 'avt' ||
-            typeId === 'ts' ||
-            typeId === 'sva') &&
+          (typeId === 'avt' || typeId === 'ts' || typeId === 'sva') &&
           measurement.points.length >= 2
         ) {
-          const imageWidth = imageNaturalSize?.width || 1000;
-          const referenceWidth = 300;
-          // 带符号的像素偏移：约定 points[0] 为测量点（顶椎/C7），points[1] 为参考线
-          const pixelOffset =
-            measurement.points[0].x - measurement.points[1].x;
-          const pixelDistance = Math.abs(pixelOffset);
-
-          let distance: number;
-          if (distanceToUse && pointsToUse && pointsToUse.length === 2) {
-            const standardPixelDx = pointsToUse[1].x - pointsToUse[0].x;
-            const standardPixelDy = pointsToUse[1].y - pointsToUse[0].y;
-            const standardPixelLength = Math.sqrt(
-              standardPixelDx * standardPixelDx +
-                standardPixelDy * standardPixelDy
-            );
-            distance = (pixelDistance / standardPixelLength) * distanceToUse;
-          } else {
-            distance = (pixelDistance / imageWidth) * referenceWidth;
-          }
-
-          const signedDistance = pixelOffset < 0 ? -distance : distance;
-
           return {
             ...measurement,
-            value: `${signedDistance.toFixed(2)}mm`,
+            value: calculateMeasurementDataValue(measurement, {
+              standardDistance: distanceToUse,
+              standardDistancePoints: pointsToUse,
+              imageNaturalSize,
+            }),
           };
         }
 

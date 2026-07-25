@@ -4,9 +4,7 @@ import type { ComponentProps } from 'react';
 
 import AnnotationToolbar from './AnnotationToolbar';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-state';
-import {
-  AnnotationSource,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
   KeypointSequenceSession,
   Tool,
@@ -57,15 +55,6 @@ const completeT2Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   source: AnnotationSource.AI,
   confidence: 0.9,
 }));
-
-const sacralKeypoints: KeypointAnnotation[] = ['SR', 'SL'].map(
-  (id, index) => ({
-    id,
-    point: { x: 200 + index * 100, y: 500 },
-    source: AnnotationSource.AI,
-    confidence: 0.9,
-  })
-);
 
 const completeT3Keypoints: KeypointAnnotation[] = [1, 2, 3, 4].map(index => ({
   id: `T3-${index}`,
@@ -246,37 +235,46 @@ it('returns to hand mode when clicking the active auxiliary tool again', () => {
   expect(onSelectTool).not.toHaveBeenCalled();
 });
 
-it('allows multiple AVT measurements while disabling an already used apex', () => {
+it('allows multiple AVT measurements while disabling an already used target', () => {
   const onCreateAvt = jest.fn();
   renderToolbar({
     tools: [...tools, avtTool],
     measurements: [
       {
-        id: 'ap-keypoint-avt-t1',
+        id: 'ap-keypoint-avt-t2',
         type: 'avt',
         value: '10.00mm',
         points: [],
-        apexVertebra: 'T1',
+        apexVertebra: 'T2',
+        avtMetadata: {
+          schemaVersion: 2,
+          target: { type: 'vertebra', vertebra: 'T2' },
+          referenceLine: 'c7pl',
+        },
       },
     ],
     keypoints: [
-      ...completeT1Keypoints,
       ...completeT2Keypoints,
-      ...sacralKeypoints,
+      ...completeT3Keypoints,
+      ...completeC7Keypoints,
     ],
-    completeVertebraGroups: ['T1', 'T2'],
+    completeVertebraGroups: ['C7', 'T2', 'T3'],
     onCreateAvt,
   });
 
   fireEvent.click(screen.getByRole('button', { name: /AVT/ }));
+  fireEvent.click(screen.getByRole('button', { name: '椎体中心' }));
 
-  const t1Button = screen.getByRole('button', { name: 'T1' });
   const t2Button = screen.getByRole('button', { name: 'T2' });
-  expect((t1Button as HTMLButtonElement).disabled).toBe(true);
-  expect((t2Button as HTMLButtonElement).disabled).toBe(false);
+  const t3Button = screen.getByRole('button', { name: 'T3' });
+  expect((t2Button as HTMLButtonElement).disabled).toBe(true);
+  expect((t3Button as HTMLButtonElement).disabled).toBe(false);
 
-  fireEvent.click(t2Button);
-  expect(onCreateAvt).toHaveBeenCalledWith('T2');
+  fireEvent.click(t3Button);
+  expect(onCreateAvt).toHaveBeenCalledWith({
+    type: 'vertebra',
+    vertebra: 'T3',
+  });
 });
 
 it('keeps the keypoint chooser open after selecting a manual keypoint', () => {
@@ -320,10 +318,7 @@ it('starts a sequential keypoint session with only missing keypoints', () => {
   fireEvent.click(screen.getByRole('button', { name: '关键点' }));
   fireEvent.click(screen.getByRole('button', { name: /^T5 2$/ }));
 
-  expect(onStartKeypointSequence).toHaveBeenCalledWith('T5', [
-    'T5-3',
-    'T5-4',
-  ]);
+  expect(onStartKeypointSequence).toHaveBeenCalledWith('T5', ['T5-3', 'T5-4']);
 });
 
 it('does not start sequential placement for non-vertebra keypoint groups', () => {
@@ -347,10 +342,7 @@ it('starts a sequential missing-keypoint session for lateral S1', () => {
   fireEvent.click(screen.getByRole('button', { name: '关键点' }));
   fireEvent.click(screen.getByRole('button', { name: /^S1 0$/ }));
 
-  expect(onStartKeypointSequence).toHaveBeenCalledWith('S1', [
-    'S1-1',
-    'S1-2',
-  ]);
+  expect(onStartKeypointSequence).toHaveBeenCalledWith('S1', ['S1-1', 'S1-2']);
   expect(screen.getByRole('button', { name: 'S1-1' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'S1-2' })).toBeTruthy();
 });
@@ -759,9 +751,7 @@ it('shows an overlay when deriving a duplicate Cobb endpoint pair', () => {
   fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
   fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
 
-  expect(
-    screen.getByText('CobbC7-T1已经存在, 不可重复派生!')
-  ).toBeTruthy();
+  expect(screen.getByText('CobbC7-T1已经存在, 不可重复派生!')).toBeTruthy();
   expect(onCreateCobb).not.toHaveBeenCalled();
 });
 

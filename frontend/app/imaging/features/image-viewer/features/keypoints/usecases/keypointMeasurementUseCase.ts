@@ -11,6 +11,16 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-cobb-sequence';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
+  buildAvtPoints,
+  calculateAvtValue,
+  createAvtMetadata,
+  getAvtMeasurementId,
+  getAvtTargetLabel,
+  isAvtMetadata,
+  isSameAvtTarget,
+  type AvtTarget,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
+import {
   CfhAnnotation,
   MeasurementData,
   Point,
@@ -53,7 +63,9 @@ export function areKeypointsEqual(
   });
 }
 
-export function isDerivedCobbMeasurement(measurement: MeasurementData): boolean {
+export function isDerivedCobbMeasurement(
+  measurement: MeasurementData
+): boolean {
   const isKeypointBoundCobb =
     measurement.id.startsWith(`${DERIVED_ID_PREFIX}cobb-`) ||
     measurement.keypointSynced === true;
@@ -77,12 +89,21 @@ export function isCobbMeasurement(measurement: MeasurementData): boolean {
   );
 }
 
-export function isBoundAvtMeasurement(
-  measurement: MeasurementData
-): boolean {
+export function isBoundAvtMeasurement(measurement: MeasurementData): boolean {
   return (
     getAnnotationTypeId(measurement.type) === 'avt' &&
-    Boolean(measurement.apexVertebra)
+    (Boolean(measurement.apexVertebra) ||
+      isAvtMetadata(measurement.avtMetadata))
+  );
+}
+
+export function hasAvtMeasurementForTarget(
+  measurements: MeasurementData[],
+  target: AvtTarget
+): boolean {
+  return measurements.some(
+    measurement =>
+      isBoundAvtMeasurement(measurement) && isSameAvtTarget(measurement, target)
   );
 }
 
@@ -90,12 +111,10 @@ export function hasAvtMeasurementForApex(
   measurements: MeasurementData[],
   apexVertebra: string
 ): boolean {
-  const normalizedApex = normalizeVertebraLabel(apexVertebra);
-  return measurements.some(
-    measurement =>
-      isBoundAvtMeasurement(measurement) &&
-      normalizeVertebraLabel(measurement.apexVertebra!) === normalizedApex
-  );
+  return hasAvtMeasurementForTarget(measurements, {
+    type: 'vertebra',
+    vertebra: normalizeVertebraLabel(apexVertebra),
+  });
 }
 
 export function hasCobbMeasurementForEndpoints(
@@ -186,12 +205,7 @@ function findCobbEndpointPoints(
   const lowerRight = byId.get(`${lowerVertebra}-4`);
 
   if (!upperLeft || !upperRight || !lowerLeft || !lowerRight) return null;
-  return [
-    upperLeft.point,
-    upperRight.point,
-    lowerLeft.point,
-    lowerRight.point,
-  ];
+  return [upperLeft.point, upperRight.point, lowerLeft.point, lowerRight.point];
 }
 
 function findLateralCobbEndpointPoints(
@@ -300,42 +314,102 @@ export function createTtsMeasurement({
 }
 
 export function createAvtMeasurement({
-  apexVertebra,
+  target,
   keypoints,
   calculationContext,
   existingMeasurement,
+  discAnchors,
 }: {
-  apexVertebra: string;
+  target: AvtTarget;
   keypoints: KeypointAnnotation[];
   calculationContext: CalculationContext;
   existingMeasurement?: MeasurementData;
+  discAnchors?: readonly [Point, Point];
 }): MeasurementData | null {
-  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
-  const sl = byId.get('SL');
-  const sr = byId.get('SR');
-  if (!sl || !sr) return null;
+  const byId = new Map(
+    keypoints.map(keypoint => [keypoint.id, keypoint.point] as const)
+  );
+  const metadata = createAvtMetadata(target);
+  const existingDiscAnchors =
+    target.type === 'disc' && existingMeasurement?.points.length
+      ? (existingMeasurement.points.slice(0, 2) as [Point, Point])
+      : undefined;
+  const points = buildAvtPoints(
+    metadata,
+    byId,
+    discAnchors ?? existingDiscAnchors
+  );
+  if (!points) return null;
 
-  const layer = keypointsToDerivedLayer(keypoints, '正位X光片');
-  const apex = findDerivedVertebra(layer, apexVertebra);
-  if (!apex) return null;
-
-  const [tl, tr, bl, br] = apex.corners;
-  const points = [tl, tr, bl, br, sr.point, sl.point];
-
-  return {
+  const measurement: MeasurementData = {
     ...existingMeasurement,
-    id:
-      existingMeasurement?.id ??
-      `ap-keypoint-avt-${apexVertebra.trim().toLowerCase()}`,
+    id: existingMeasurement?.id ?? getAvtMeasurementId(target),
     type: existingMeasurement?.type ?? 'avt',
-    value: calculateMeasurementValue('avt', points, calculationContext),
+    value: '',
     points,
-    description: existingMeasurement?.description ?? `AVT ${apexVertebra}`,
+    description:
+      existingMeasurement?.description ?? `AVT ${getAvtTargetLabel(target)}`,
     upperVertebra: null,
     lowerVertebra: null,
-    apexVertebra,
+    apexVertebra: target.type === 'vertebra' ? target.vertebra : null,
+    avtMetadata: metadata,
     keypointSynced: true,
   };
+  measurement.value =
+    calculateAvtValue(measurement, calculationContext) ?? measurement.value;
+  return measurement;
+}
+
+function rebuildLegacyAvtMeasurement({
+  measurement,
+  keypoints,
+  calculationContext,
+}: {
+  measurement: MeasurementData;
+  keypoints: KeypointAnnotation[];
+  calculationContext: CalculationContext;
+}): MeasurementData | null {
+  if (!measurement.apexVertebra) return null;
+  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
+  const sr = byId.get('SR');
+  const sl = byId.get('SL');
+  const layer = keypointsToDerivedLayer(keypoints, '正位X光片');
+  const apex = findDerivedVertebra(layer, measurement.apexVertebra);
+  if (!apex || !sr || !sl) return null;
+
+  // 历史兼容：旧 AVT 没有 metadata，始终保持原六点 CSVL 语义，
+  // 不能按当前层级规则将 T2-T11 静默迁移成 C7PL。
+  const points = [...apex.corners, sr.point, sl.point];
+  const rebuilt = { ...measurement, points };
+  return {
+    ...rebuilt,
+    value: calculateAvtValue(rebuilt, calculationContext) ?? measurement.value,
+  };
+}
+
+function rebuildAvtMeasurement({
+  measurement,
+  keypoints,
+  calculationContext,
+}: {
+  measurement: MeasurementData;
+  keypoints: KeypointAnnotation[];
+  calculationContext: CalculationContext;
+}): MeasurementData | null {
+  if (!isAvtMetadata(measurement.avtMetadata)) {
+    return rebuildLegacyAvtMeasurement({
+      measurement,
+      keypoints,
+      calculationContext,
+    });
+  }
+
+  return createAvtMeasurement({
+    target: measurement.avtMetadata.target,
+    keypoints,
+    calculationContext,
+    existingMeasurement: measurement,
+  });
 }
 
 export function createCobbMeasurement({
@@ -366,9 +440,15 @@ export function createCobbMeasurement({
     upperVertebra,
     lowerVertebra
   );
-  const layer = endpointPoints ? [] : keypointsToDerivedLayer(keypoints, examType);
-  const upper = endpointPoints ? null : findDerivedVertebra(layer, upperVertebra);
-  const lower = endpointPoints ? null : findDerivedVertebra(layer, lowerVertebra);
+  const layer = endpointPoints
+    ? []
+    : keypointsToDerivedLayer(keypoints, examType);
+  const upper = endpointPoints
+    ? null
+    : findDerivedVertebra(layer, upperVertebra);
+  const lower = endpointPoints
+    ? null
+    : findDerivedVertebra(layer, lowerVertebra);
   if (!endpointPoints && (!upper || !lower)) return null;
 
   const points =
@@ -549,7 +629,9 @@ function getDerivedCandidateKey(measurement: MeasurementData): string {
 
 function buildDerivedCandidateMaps(measurements: MeasurementData[]) {
   return {
-    byId: new Map(measurements.map(measurement => [measurement.id, measurement])),
+    byId: new Map(
+      measurements.map(measurement => [measurement.id, measurement])
+    ),
     byType: new Map(
       measurements.map(measurement => [
         getDerivedCandidateKey(measurement),
@@ -624,8 +706,8 @@ export function deriveInitialMeasurementsFromKeypoints({
     calculationContext,
   }).filter(
     measurement =>
-      (!isDerivedCobbMeasurement(measurement) ||
-        (!hasExistingDerivedCobb && !boundCobbIds.has(measurement.id)))
+      !isDerivedCobbMeasurement(measurement) ||
+      (!hasExistingDerivedCobb && !boundCobbIds.has(measurement.id))
   );
 
   const retainedPreviousMeasurements = previousMeasurements.filter(
@@ -633,10 +715,7 @@ export function deriveInitialMeasurementsFromKeypoints({
       !measurement.id.startsWith(DERIVED_ID_PREFIX) &&
       !isDerivedCobbMeasurement(measurement) &&
       !aiMeasurementIds.has(measurement.id) &&
-      !(
-        measurement.type === 'vertebra-center' &&
-        measurement.upperVertebra
-      ) &&
+      !(measurement.type === 'vertebra-center' && measurement.upperVertebra) &&
       !isBoundAvtMeasurement(measurement) &&
       measurement.id !== 'ap-keypoint-tts'
   );
@@ -688,11 +767,10 @@ export function deriveInitialMeasurementsFromKeypoints({
   const avtMeasurements = previousMeasurements
     .filter(isBoundAvtMeasurement)
     .map(measurement =>
-      createAvtMeasurement({
-        apexVertebra: measurement.apexVertebra!,
+      rebuildAvtMeasurement({
+        measurement,
         keypoints,
         calculationContext,
-        existingMeasurement: measurement,
       })
     )
     .filter(
@@ -772,11 +850,10 @@ export function recalculateExistingMeasurementsFromKeypoints({
       }
 
       if (isBoundAvtMeasurement(measurement)) {
-        return createAvtMeasurement({
-          apexVertebra: measurement.apexVertebra!,
+        return rebuildAvtMeasurement({
+          measurement,
           keypoints,
           calculationContext,
-          existingMeasurement: measurement,
         });
       }
 

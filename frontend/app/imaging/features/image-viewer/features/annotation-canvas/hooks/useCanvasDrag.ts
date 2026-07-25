@@ -2,7 +2,10 @@ import {
   applyPointBindings,
   AnnotationBindings,
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+import {
+  calculateMeasurementDataValue,
+  calculateMeasurementValue,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   MeasurementData,
@@ -14,6 +17,10 @@ import {
   moveHemipelvicVerticalLine,
   updateHemipelvicInteractivePoint,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/hemipelvic-width-ratio';
+import {
+  isAvtMetadata,
+  updateHorizontalDiscAnchors,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 import {
   getManualTtsTrunkPoints,
   isManualTtsMeasurement,
@@ -308,6 +315,38 @@ export function useCanvasDrag({
           return true;
         }
 
+        if (
+          typeId === 'avt' &&
+          isAvtMetadata(measurement.avtMetadata) &&
+          measurement.avtMetadata.target.type === 'disc' &&
+          (selectionState.pointIndex === 0 || selectionState.pointIndex === 1)
+        ) {
+          const anchors = updateHorizontalDiscAnchors(
+            [measurement.points[0], measurement.points[1]],
+            selectionState.pointIndex,
+            { x: newPointX, y: newPointY }
+          );
+          const points = [...anchors, ...measurement.points.slice(2)];
+          const nextMeasurement = {
+            ...measurement,
+            points,
+          };
+          nextMeasurement.value = calculateMeasurementDataValue(
+            nextMeasurement,
+            {
+              standardDistance,
+              standardDistancePoints,
+              imageNaturalSize,
+            }
+          );
+          onMeasurementsUpdate(
+            measurements.map(item =>
+              item.id === measurement.id ? nextMeasurement : item
+            )
+          );
+          return true;
+        }
+
         if (typeId === 'aux-horizontal-line') {
           const otherIndex = selectionState.pointIndex === 0 ? 1 : 0;
           newPointY = measurement.points[otherIndex].y;
@@ -351,11 +390,14 @@ export function useCanvasDrag({
               ...item,
               points,
               value:
-                calculateMeasurementValue(item.type, points, {
-                  standardDistance,
-                  standardDistancePoints,
-                  imageNaturalSize,
-                }) || item.value,
+                calculateMeasurementDataValue(
+                  { ...item, points },
+                  {
+                    standardDistance,
+                    standardDistancePoints,
+                    imageNaturalSize,
+                  }
+                ) || item.value,
             };
           }
 
@@ -377,7 +419,7 @@ export function useCanvasDrag({
             return {
               ...item,
               value:
-                calculateMeasurementValue(item.type, item.points, {
+                calculateMeasurementDataValue(item, {
                   standardDistance,
                   standardDistancePoints,
                   imageNaturalSize,
@@ -510,7 +552,7 @@ export function useCanvasDrag({
           return {
             ...item,
             value:
-              calculateMeasurementValue(item.type, item.points, {
+              calculateMeasurementDataValue(item, {
                 standardDistance,
                 standardDistancePoints,
                 imageNaturalSize,

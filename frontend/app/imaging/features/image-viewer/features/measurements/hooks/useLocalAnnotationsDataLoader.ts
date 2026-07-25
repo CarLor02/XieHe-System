@@ -1,10 +1,13 @@
-import {ImageSize, MeasurementData, Point, StudyData, VertebraAnnotation, CfhAnnotation} from '@/app/imaging/features/image-viewer/shared/types';
+import {ImageSize, MeasurementData, Point, VertebraAnnotation, CfhAnnotation} from '@/app/imaging/features/image-viewer/shared/types';
 import {AnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
 import {RefObject, useEffect} from "react";
 import {
     CalculationContext,
     getAnnotationTypeId,
 } from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config";
+import {
+    calculateMeasurementDataValue,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
 
 export function useLocalAnnotationsDataLoader(
     imageId: string,
@@ -117,24 +120,40 @@ export function useLocalAnnotationsDataLoader(
                         const isAIDetection = m.type.startsWith('AI检测-');
                         const typeId = isAIDetection ? m.type : getAnnotationTypeId(m.type);
 
-                        return {
+                        const restoredMeasurement: MeasurementData = {
                             id:
                                 m.id ||
                                 Date.now().toString() +
                                 Math.random().toString(36).substring(2, 11),
                             type: typeId,
-                            value: isAIDetection
-                                ? m.value || ''
-                                : calcMeasurementValue(typeId, scaledPoints, {
-                                    standardDistance: loadedStandardDistance,
-                                    standardDistancePoints: loadedStandardDistancePoints,
-                                    imageNaturalSize,
-                                }),
+                            value: '',
                             points: scaledPoints,
                             description: isAIDetection
                                 ? m.description || m.type
                                 : getDescriptionForType(typeId),
+                            upperVertebra: m.upperVertebra,
+                            lowerVertebra: m.lowerVertebra,
+                            apexVertebra: m.apexVertebra,
+                            keypointSynced: m.keypointSynced,
+                            avtMetadata: m.avtMetadata,
                         };
+                        restoredMeasurement.value = isAIDetection
+                            ? m.value || ''
+                            : getAnnotationTypeId(typeId) === 'avt'
+                              ? calculateMeasurementDataValue(
+                                  restoredMeasurement,
+                                  {
+                                      standardDistance: loadedStandardDistance,
+                                      standardDistancePoints: loadedStandardDistancePoints,
+                                      imageNaturalSize,
+                                  }
+                              )
+                              : calcMeasurementValue(typeId, scaledPoints, {
+                                  standardDistance: loadedStandardDistance,
+                                  standardDistancePoints: loadedStandardDistancePoints,
+                                  imageNaturalSize,
+                              });
+                        return restoredMeasurement;
                     });
                     setMeasurements(restoredMeasurements);
                     console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);

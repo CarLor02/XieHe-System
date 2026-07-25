@@ -10,6 +10,8 @@ import {
   getAnnotationDisplayName,
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import { calculateAvtValue } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 
 /**
  * 根据标注类型和点位计算测量值
@@ -47,4 +49,22 @@ export function calculateMeasurementValue(
 
   // 如果有多个测量结果，返回第一个
   return `${results[0].value}${results[0].unit}`;
+}
+
+/**
+ * 对需要 measurement metadata 才能解析点布局的工具，使用完整测量实体计算。
+ * 其他工具继续复用按 type + points 的 catalog 计算路径。
+ */
+export function calculateMeasurementDataValue(
+  measurement: MeasurementData,
+  context: CalculationContext
+): string {
+  if (getAnnotationTypeId(measurement.type) === 'avt') {
+    return calculateAvtValue(measurement, context) ?? measurement.value;
+  }
+  return calculateMeasurementValue(
+    measurement.type,
+    measurement.points,
+    context
+  );
 }

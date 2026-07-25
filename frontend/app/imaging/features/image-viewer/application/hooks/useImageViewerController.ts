@@ -35,6 +35,10 @@ import {
   Point,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
+import type {
+  AvtDiscPlacementSession,
+  AvtTarget,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 
 interface UseImageViewerControllerOptions {
   imageId: string;
@@ -161,6 +165,8 @@ export function useImageViewerController({
     useState<KeypointSequenceSession | null>(null);
   const [keypointSequenceClosedGroupName, setKeypointSequenceClosedGroupName] =
     useState<string | null>(null);
+  const [avtDiscPlacementSession, setAvtDiscPlacementSession] =
+    useState<AvtDiscPlacementSession | null>(null);
 
   const {
     studyData,
@@ -207,7 +213,10 @@ export function useImageViewerController({
     [imageId, studyData]
   );
 
-  const tools = useMemo(() => getTools(imageData.examType), [imageData.examType]);
+  const tools = useMemo(
+    () => getTools(imageData.examType),
+    [imageData.examType]
+  );
   const canUseKeypoints = canUseKeypointTools();
   const isAnteriorView = isAnteriorExamType(imageData.examType);
   const isLateralView = isLateralExamType(imageData.examType);
@@ -238,7 +247,8 @@ export function useImageViewerController({
     setShowStandardDistanceWarning,
   });
   const hasVertebraeLayer = keypointWorkflow.activeVertebraeLayer.length > 0;
-  const handleToggleVertebraeLayer = keypointWorkflow.handleToggleVertebraeLayer;
+  const handleToggleVertebraeLayer =
+    keypointWorkflow.handleToggleVertebraeLayer;
   const {
     keypoints: historyKeypoints,
     setKeypoints: setHistoryKeypoints,
@@ -388,6 +398,18 @@ export function useImageViewerController({
     activateHandMode();
   }, [activateHandMode, keypointSequenceSession]);
 
+  const handleCancelAvtDiscPlacement = useCallback(() => {
+    setAvtDiscPlacementSession(null);
+    setClickedPoints([]);
+    activateHandMode();
+  }, [activateHandMode, setClickedPoints]);
+
+  const handleActivateHandMode = useCallback(() => {
+    setAvtDiscPlacementSession(null);
+    setClickedPoints([]);
+    activateHandMode();
+  }, [activateHandMode, setClickedPoints]);
+
   const measurementWorkflow = useMeasurementWorkflow({
     examType: imageData.examType,
     tools,
@@ -484,6 +506,12 @@ export function useImageViewerController({
         return;
       }
 
+      if (isEscapeShortcut(event) && avtDiscPlacementSession) {
+        event.preventDefault();
+        handleCancelAvtDiscPlacement();
+        return;
+      }
+
       if (isDetectionLayerToggleShortcut(event)) {
         if (!hasVertebraeLayer) return;
         event.preventDefault();
@@ -517,6 +545,8 @@ export function useImageViewerController({
   }, [
     canRedoAnnotationHistory,
     canUndoAnnotationHistory,
+    avtDiscPlacementSession,
+    handleCancelAvtDiscPlacement,
     handleCloseKeypointSequence,
     handleDebouncedSaveMeasurements,
     handleToggleVertebraeLayer,
@@ -532,6 +562,68 @@ export function useImageViewerController({
       measurementWorkflow.handleAddMeasurement(toolType, points);
     },
     [beginHistoryAction, measurementWorkflow]
+  );
+
+  const handleSelectAvtTarget = useCallback(
+    (target: AvtTarget) => {
+      if (!standardDistance) {
+        setShowStandardDistanceWarning(true);
+        return;
+      }
+
+      setClickedPoints([]);
+      if (target.type === 'disc') {
+        setAvtDiscPlacementSession({ target });
+        setSelectedTool('avt');
+        return;
+      }
+
+      beginHistoryAction('manual-measurement-avt');
+      keypointWorkflow.handleCreateAvt(target);
+      setAvtDiscPlacementSession(null);
+      activateHandMode();
+    },
+    [
+      activateHandMode,
+      beginHistoryAction,
+      keypointWorkflow,
+      setClickedPoints,
+      setSelectedTool,
+      setShowStandardDistanceWarning,
+      standardDistance,
+    ]
+  );
+
+  const handleToolbarToolSelect = useCallback(
+    (toolId: string) => {
+      setAvtDiscPlacementSession(null);
+      standardDistanceActions.handleSelectTool(toolId);
+    },
+    [standardDistanceActions]
+  );
+
+  const handleCompleteAvtDiscPlacement = useCallback(
+    (anchors: readonly [Point, Point]) => {
+      if (!avtDiscPlacementSession) return;
+
+      beginHistoryAction('manual-measurement-avt-disc');
+      const created = keypointWorkflow.handleCreateAvt(
+        avtDiscPlacementSession.target,
+        anchors
+      );
+      if (!created) return;
+
+      setAvtDiscPlacementSession(null);
+      setClickedPoints([]);
+      activateHandMode();
+    },
+    [
+      activateHandMode,
+      avtDiscPlacementSession,
+      beginHistoryAction,
+      keypointWorkflow,
+      setClickedPoints,
+    ]
   );
 
   const handleKeypointAddWithHistory = useCallback(
@@ -568,7 +660,9 @@ export function useImageViewerController({
     (point: Point) => {
       if (!keypointSequenceSession) return;
       const keypointId =
-        keypointSequenceSession.keypointIds[keypointSequenceSession.currentIndex];
+        keypointSequenceSession.keypointIds[
+          keypointSequenceSession.currentIndex
+        ];
       if (!keypointId) return;
 
       handleKeypointAddWithHistory(keypointId, point);
@@ -697,12 +791,7 @@ export function useImageViewerController({
     setClickedPoints([]);
     setPointBindings(createEmptyBindings());
     keypointWorkflow.clearKeypointState();
-  }, [
-    keypointWorkflow,
-    setClickedPoints,
-    setMeasurements,
-    setPointBindings,
-  ]);
+  }, [keypointWorkflow, setClickedPoints, setMeasurements, setPointBindings]);
 
   const handleClearAllWithHistory = useCallback(() => {
     beginHistoryAction('clear-all', {
@@ -785,6 +874,8 @@ export function useImageViewerController({
       tools,
       clickedPoints,
       setClickedPoints,
+      avtDiscPlacementSession,
+      onAvtDiscPlacementComplete: handleCompleteAvtDiscPlacement,
       imageId,
       isSettingStandardDistance,
       setIsSettingStandardDistance,
@@ -795,8 +886,10 @@ export function useImageViewerController({
       setHoveredStandardPointIndex,
       draggingStandardPointIndex,
       setDraggingStandardPointIndex,
-      recalculateAVTandTS: (distance?: number, points?: typeof standardDistancePoints) =>
-        recalculateAVTandTS(imageNaturalSize, distance, points),
+      recalculateAVTandTS: (
+        distance?: number,
+        points?: typeof standardDistancePoints
+      ) => recalculateAVTandTS(imageNaturalSize, distance, points),
       onImageSizeChange: setImageNaturalSize,
       onToolChange: handleToolChange,
       isImagePanLocked,
@@ -814,8 +907,7 @@ export function useImageViewerController({
       cfhAnnotation: keypointWorkflow.cfhAnnotation,
       showVertebraeLayer: keypointWorkflow.showVertebraeLayer,
       onVertebraeUpdate: keypointWorkflow.handleVertebraeUpdate,
-      onVertebraePreviewUpdate:
-        keypointWorkflow.handleVertebraePreviewUpdate,
+      onVertebraePreviewUpdate: keypointWorkflow.handleVertebraePreviewUpdate,
       onKeypointAdd: handleKeypointAddWithHistory,
       keypointSequenceSession,
       onSequenceKeypointAdd: handleSequenceKeypointAdd,
@@ -852,18 +944,17 @@ export function useImageViewerController({
       automaticToolStatus: measurementWorkflow.automaticToolStatus,
       keypointSequenceSession,
       keypointSequenceClosedGroupName,
-      onSelectTool: standardDistanceActions.handleSelectTool,
+      onSelectTool: handleToolbarToolSelect,
       onStartKeypointSequence: handleStartKeypointSequence,
       onCancelKeypointSequence: handleCancelKeypointSequence,
       onRestoreAutomaticMeasurement:
         measurementWorkflow.handleRestoreAutomaticMeasurement,
-      onCreateAvt: keypointWorkflow.handleCreateAvt,
+      onCreateAvt: handleSelectAvtTarget,
       onCreateVertebraCenter: keypointWorkflow.handleCreateVertebraCenter,
       onCreateCobb: handleCreateCobbWithHistory,
-      onRectifyVertebraCornerOrder:
-        handleRectifyVertebraCornerOrderWithHistory,
+      onRectifyVertebraCornerOrder: handleRectifyVertebraCornerOrderWithHistory,
       onApplyVertebraLabelOffset: handleApplyVertebraLabelOffsetWithHistory,
-      onActivateHandMode: activateHandMode,
+      onActivateHandMode: handleActivateHandMode,
       onToggleImagePanLocked: handleToggleImagePanLocked,
       isImagePanLocked,
       onToggleBindingPanel: () => setIsBindingPanelOpen(open => !open),
@@ -874,7 +965,8 @@ export function useImageViewerController({
       onSelectBindingGroup: setSelectedBindingGroupId,
       onRemoveBindingGroup: removeBindingGroup,
       onRemoveBindingMember: removeBindingMember,
-      onStartStandardDistance: standardDistanceActions.handleStartStandardDistance,
+      onStartStandardDistance:
+        standardDistanceActions.handleStartStandardDistance,
       onChangeStandardDistanceValue: setStandardDistanceValue,
       onStandardDistanceInputBlur:
         standardDistanceActions.handleStandardDistanceInputBlur,

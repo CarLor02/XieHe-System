@@ -26,11 +26,16 @@ import {
   createVertebraCenterMeasurement,
   deriveKeypointMeasurements as deriveKeypointMeasurementsUseCase,
   deriveInitialMeasurementsFromKeypoints as deriveInitialMeasurementsFromKeypointsUseCase,
-  hasAvtMeasurementForApex,
+  hasAvtMeasurementForTarget,
   hasCobbMeasurementForEndpoints,
   recalculateExistingMeasurementsFromKeypoints,
   syncUniqueMeasurementsAfterKeypointChange,
 } from '@/app/imaging/features/image-viewer/features/keypoints/usecases/keypointMeasurementUseCase';
+import {
+  getAvtPointKeypointId,
+  isAvtMetadata,
+  type AvtTarget,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/avt';
 import { DERIVED_ID_PREFIX } from '@/app/imaging/features/image-viewer/features/keypoints/domain/vertebrae-derive';
 import {
   deleteKeypoint,
@@ -94,8 +99,7 @@ function getKeypointIdsForLabelGroup(
   const groupPrefix = `${label}-`;
   return keypoints
     .filter(
-      keypoint =>
-        keypoint.id === label || keypoint.id.startsWith(groupPrefix)
+      keypoint => keypoint.id === label || keypoint.id.startsWith(groupPrefix)
     )
     .map(keypoint => keypoint.id);
 }
@@ -321,7 +325,9 @@ export function useKeypointMeasurementWorkflow({
       if (isLateralView) {
         setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
       }
-      setMeasurements(previous => syncUniqueMeasurements(previous, nextKeypoints));
+      setMeasurements(previous =>
+        syncUniqueMeasurements(previous, nextKeypoints)
+      );
       setShowVertebraeLayer(true);
     },
     [
@@ -541,25 +547,27 @@ export function useKeypointMeasurementWorkflow({
   );
 
   const handleCreateAvt = useCallback(
-    (apexVertebra: string) => {
+    (target: AvtTarget, discAnchors?: readonly [Point, Point]) => {
       if (!standardDistance) {
         setShowStandardDistanceWarning(true);
-        return;
+        return false;
       }
       const measurement = createAvtMeasurement({
-        apexVertebra,
+        target,
         keypoints,
         calculationContext,
+        discAnchors,
       });
       if (!measurement) {
         flashMessage(setSaveMessage, '缺少 AVT 所需关键点，无法创建');
-        return;
+        return false;
       }
       setMeasurements(previous => {
-        return hasAvtMeasurementForApex(previous, apexVertebra)
+        return hasAvtMeasurementForTarget(previous, target)
           ? previous
           : [...previous, measurement];
       });
+      return true;
     },
     [
       calculationContext,
@@ -602,11 +610,7 @@ export function useKeypointMeasurementWorkflow({
 
       setMeasurements(previous => {
         if (
-          hasCobbMeasurementForEndpoints(
-            previous,
-            upperVertebra,
-            lowerVertebra
-          )
+          hasCobbMeasurementForEndpoints(previous, upperVertebra, lowerVertebra)
         ) {
           return previous;
         }
@@ -694,6 +698,27 @@ export function useKeypointMeasurementWorkflow({
         : null;
       const dynamicVertebraLabel = sourceMeasurement?.apexVertebra ?? undefined;
       const bindingRule = getMeasurementKeypointBindingRule(measurementType);
+
+      if (sourceMeasurement && isAvtMetadata(sourceMeasurement.avtMetadata)) {
+        const keypointId = getAvtPointKeypointId(
+          sourceMeasurement.avtMetadata,
+          pointIndex
+        );
+        if (!keypointId) return;
+
+        const nextKeypoints = upsertKeypoint(keypoints, {
+          id: keypointId,
+          point: { ...newPoint },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        });
+        setKeypoints(nextKeypoints);
+        setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+        setMeasurements(previous =>
+          recalculateExistingMeasurements(previous, nextKeypoints)
+        );
+        return;
+      }
 
       if (bindingRule && sourceMeasurement) {
         const measurementPoints =
