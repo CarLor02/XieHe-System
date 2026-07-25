@@ -13,9 +13,9 @@ export {
   restorePiPtFromSsAndCfh,
 } from '@/app/imaging/features/image-viewer/features/measurements/usecases/measurementDependencyUseCase';
 export { saveMeasurements } from '@/app/imaging/features/image-viewer/features/measurements/usecases/saveMeasurementsUseCase';
-export * from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+export * from '@/app/imaging/features/image-viewer/features/measurements/usecases/calculateMeasurementValue';
 export * from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
-export * from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
-export * from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+export * from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationInheritanceUseCase';
+export * from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 export * from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-serialization';
 export * from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';

@@ -58,12 +58,20 @@ Owns study/image data loading and user capability checks.
 
 ### `features/measurements`
 
-Owns measurement tools, formulas, persistence, JSON import/export, and
-dependency rules between measurements.
+Owns measurement tool registration, pure manual-tool rules, persistence, and
+dependency rules between measurements. See
+[`manual-tool-domain.md`](./manual-tool-domain.md) for the detailed tool-domain
+layout and dependency constraints.
 
-- `catalog/` defines AP, lateral, and auxiliary tools.
-- `domain/annotation-calculation.ts` contains pure measurement formulas.
-- `domain/annotation-inheritance.ts` contains inherited/shared point rules.
+- `catalog/` registers AP, lateral, and auxiliary tools and adapts them to
+  canvas rendering.
+- `manual-tools/domain/{ap,lateral,shared}` owns pure formulas, medical
+  geometry, point-layout, and hit-testing rules.
+- `domain/` owns stable measurement types, canonical tool IDs, serialization,
+  editability, and uniqueness rules.
+- `usecases/calculateMeasurementValue.ts` dispatches registered tool formulas.
+- `usecases/annotationInheritanceUseCase.ts` contains inherited/shared point
+  orchestration.
 - `domain/annotation-uniqueness.ts` defines uniqueness and duplicate filtering.
 - `usecases/addMeasurementUseCase.ts` creates/replaces measurements.
 - `usecases/saveMeasurementsUseCase.ts` persists measurements and annotation

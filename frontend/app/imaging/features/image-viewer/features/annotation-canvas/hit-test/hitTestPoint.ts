@@ -1,6 +1,6 @@
 import { INTERACTION_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
-import { getInteractivePointsCount } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+import { getInteractivePointsCount } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 interface HitTestMeasurementPointOptions {

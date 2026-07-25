@@ -4,7 +4,7 @@ import {
   Point,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { calculateMeasurementDataValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+import { calculateMeasurementDataValue } from '@/app/imaging/features/image-viewer/features/measurements/usecases/calculateMeasurementValue';
 
 /**
  * measurement 列表、报告文本、标准距离与辅助面板状态。

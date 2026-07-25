@@ -1,14 +1,8 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type Point,
-  type SpecialElementRenderContext,
-  calculateAngleBetweenVectors,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  toAcuteAngle,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { calculatePiResults, isPiInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pi';
+import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/pelvic';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const PI_CONFIG: AnnotationConfig = {
   id: 'pi',
@@ -20,29 +14,7 @@ export const PI_CONFIG: AnnotationConfig = {
   color: '#f59e0b',
   fixedLabelPosition: true,
 
-  calculateResults: (points: Point[]) => {
-    if (points.length < 3) return [];
-
-    const geometry = getPelvicMeasurementGeometry(points);
-    if (!geometry || !geometry.femoralHeadCenter) return [];
-
-    const cToM = {
-      x: geometry.sacralMidpoint.x - geometry.femoralHeadCenter.x,
-      y: geometry.sacralMidpoint.y - geometry.femoralHeadCenter.y,
-    };
-
-    const angle = toAcuteAngle(
-      calculateAngleBetweenVectors(cToM, geometry.sacralNormal)
-    );
-
-    return [
-      {
-        name: 'PI',
-        value: angle.toFixed(2),
-        unit: '°',
-      },
-    ];
-  },
+  calculateResults: calculatePiResults,
 
   getLabelPosition: (points: Point[]) => {
     const geometry = getPelvicMeasurementGeometry(points);
@@ -53,62 +25,8 @@ export const PI_CONFIG: AnnotationConfig = {
     return geometry.sacralMidpoint;
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    const geometry = getPelvicMeasurementGeometry(points);
-    if (!geometry) return false;
-
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-
-    if (isPointNearPoint(mousePoint, geometry.sacralMidpoint, tolerance))
-      return true;
-
-    const normalLength = 80;
-    const normalStart = {
-      x: geometry.sacralMidpoint.x - geometry.sacralNormal.x * normalLength,
-      y: geometry.sacralMidpoint.y - geometry.sacralNormal.y * normalLength,
-    };
-    const normalEnd = {
-      x: geometry.sacralMidpoint.x + geometry.sacralNormal.x * normalLength,
-      y: geometry.sacralMidpoint.y + geometry.sacralNormal.y * normalLength,
-    };
-
-    const isNearSacralLine = isPointNearLine(
-      mousePoint,
-      geometry.sacralLeft,
-      geometry.sacralRight,
-      tolerance
-    );
-    const isNearNormal = isPointNearLine(
-      mousePoint,
-      normalStart,
-      normalEnd,
-      tolerance
-    );
-    const isNearFemoralLine = geometry.femoralHeadCenter
-      ? isPointNearLine(
-          mousePoint,
-          geometry.femoralHeadCenter,
-          geometry.sacralMidpoint,
-          tolerance
-        )
-      : false;
-
-    return isNearSacralLine || isNearNormal || isNearFemoralLine;
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return PI_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isPiInRange,
+  isInSelectionRange: isPiInRange,
 
   renderSpecialElements: (
     points: Point[],

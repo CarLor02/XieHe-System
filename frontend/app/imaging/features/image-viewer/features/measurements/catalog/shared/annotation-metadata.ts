@@ -4,14 +4,18 @@
  */
 
 import type { JSX } from 'react';
-import {
-  Point,
+import type {
   SpecialElementRenderContext,
+} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import {
   getAnnotationConfig,
   getAnnotationDisplayName,
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
 
 const EDITABLE_AUXILIARY_CONFIG_IDS = new Set([
   'circle',

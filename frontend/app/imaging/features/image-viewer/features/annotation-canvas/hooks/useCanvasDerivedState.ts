@@ -1,4 +1,4 @@
-import { getEffectivePointsNeeded } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
+import { getEffectivePointsNeeded } from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationInheritanceUseCase';
 import { MeasurementData, Tool } from '@/app/imaging/features/image-viewer/shared/types';
 import { HoverState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';
 

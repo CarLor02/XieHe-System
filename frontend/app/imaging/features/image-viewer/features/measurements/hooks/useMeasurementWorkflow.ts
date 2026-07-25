@@ -20,11 +20,11 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { AP_AUTOMATIC_MEASUREMENT_TOOL_IDS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements';
 import { LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements';
-import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
+import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationInheritanceUseCase';
 import {
   getCobbSequenceNumber,
-  renumberCobbMeasurementsAfterDelete,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
+import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/usecases/renumberCobbMeasurementsAfterDelete';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/usecases/addMeasurementUseCase';
 import {
@@ -34,7 +34,7 @@ import {
   measurementTypeInSet,
   restorePiPtFromSsAndCfh,
 } from '@/app/imaging/features/image-viewer/features/measurements/usecases/measurementDependencyUseCase';
-import { calculateMeasurementValue as calcMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+import { calculateMeasurementValue as calcMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/usecases/calculateMeasurementValue';
 import {
   applyMeasurementPointToVertebrae,
   getMeasurementKeypointBindingRule,
@@ -47,7 +47,7 @@ import {
   vertebraeLayerToKeypoints,
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 
 type AutomaticToolStatus = 'available' | 'exists' | 'missing-keypoints';
 

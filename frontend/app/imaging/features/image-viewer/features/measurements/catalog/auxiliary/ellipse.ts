@@ -1,20 +1,5 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const ELLIPSE_CONFIG: AnnotationConfig = {
   id: 'ellipse',
@@ -31,7 +16,6 @@ export const ELLIPSE_CONFIG: AnnotationConfig = {
     if (points.length < 1) return { x: 0, y: 0 };
     const center = points[0];
     if (points.length >= 2) {
-      const radiusX = Math.abs(points[1].x - center.x);
       const radiusY = Math.abs(points[1].y - center.y);
       // label 放在中心下方，距离为Y半径/2 或 30 像素，取大值
       const labelDistance = Math.max(radiusY / 2, 30 / imageScale);

@@ -14,7 +14,7 @@ import {
   AnnotationBindings,
   PointRef,
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
-import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
+import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationInheritanceUseCase';
 import {
   imageToScreen as utilImageToScreen,
   screenToImage as utilScreenToImage,

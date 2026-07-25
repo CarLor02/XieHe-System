@@ -1,20 +1,6 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const RECTANGLE_CONFIG: AnnotationConfig = {
   id: 'rectangle',

@@ -1,11 +1,10 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  type SpecialElementRenderContext,
-  calculateActualDistance,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+  calculateLegacyAvtResults,
+  isAvtInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const AVT_CONFIG: AnnotationConfig = {
   id: 'avt',
@@ -19,29 +18,7 @@ export const AVT_CONFIG: AnnotationConfig = {
   color: '#059669',
   maxXRightLabel: true,
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 2) return [];
-
-    let apexCenterX: number, csvlX: number;
-
-    if (points.length >= 6) {
-      // 6点格式：[tl, tr, bl, br, SR, SL]
-      apexCenterX =
-        (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-      csvlX = (points[4].x + points[5].x) / 2;
-    } else {
-      // 历史兼容：旧 AVT 仅保存 [apexCenter, csvlRef] 两点。
-      // 已有标注仍依赖该格式完成计算，不能按当前6点语义读取或直接移除此分支。
-      apexCenterX = points[0].x;
-      csvlX = points[1].x;
-    }
-
-    const pixelOffset = apexCenterX - csvlX;
-    const actualDistance = calculateActualDistance(Math.abs(pixelOffset), context);
-    const signedDistance = pixelOffset < 0 ? -actualDistance : actualDistance;
-
-    return [{ name: 'AVT', value: signedDistance.toFixed(2), unit: 'mm' }];
-  },
+  calculateResults: calculateLegacyAvtResults,
 
   getLabelPosition: (points: Point[]) => {
     if (points.length === 0) return { x: 0, y: 0 };
@@ -62,29 +39,8 @@ export const AVT_CONFIG: AnnotationConfig = {
     return { x: rightX, y: centerY };
   },
 
-  isInHoverRange: (mousePoint: Point, points: Point[], tolerance = 10) => {
-    if (points.length < 2) return false;
-    if (points.length >= 6) {
-      // 6点格式：检查顶椎中心线或骶骨中点线
-      const centerX =
-        (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-      const midX = (points[4].x + points[5].x) / 2;
-      return (
-        Math.abs(mousePoint.x - centerX) <= tolerance ||
-        Math.abs(mousePoint.x - midX) <= tolerance
-      );
-    }
-    // 历史兼容：旧2点 AVT 使用 [apexCenter, csvlRef]，两条垂直参考线都应可命中。
-    // 已保存的旧标注仍会进入此分支，因此不能只保留当前6点格式的命中规则。
-    return (
-      Math.abs(mousePoint.x - points[0].x) <= tolerance ||
-      Math.abs(mousePoint.x - points[1].x) <= tolerance
-    );
-  },
-
-  isInSelectionRange: (mousePoint: Point, points: Point[], tolerance = 15) => {
-    return AVT_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isAvtInRange,
+  isInSelectionRange: isAvtInRange,
 
   renderSpecialElements: (
     points: Point[],

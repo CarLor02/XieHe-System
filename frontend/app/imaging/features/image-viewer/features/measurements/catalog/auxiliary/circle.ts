@@ -1,20 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import { calculateActualDistance } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/calibration';
+import { calculateDistance2D } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const CIRCLE_CONFIG: AnnotationConfig = {
   id: 'circle',
@@ -32,7 +20,7 @@ export const CIRCLE_CONFIG: AnnotationConfig = {
     return [{ name: '半径', value: actualRadius.toFixed(1), unit: 'mm' }];
   },
 
-  getLabelPosition: (points: Point[], imageScale: number = 1) => {
+  getLabelPosition: (points: Point[]) => {
     // label 放在圆的左侧，水平对齐圆心
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
     const center = points[0];
@@ -40,20 +28,7 @@ export const CIRCLE_CONFIG: AnnotationConfig = {
     return { x: center.x - radius, y: center.y };
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    // 圆形的悬浮检测需要特殊处理
-    return false; // 将在特殊逻辑中处理
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return false; // 将在特殊逻辑中处理
-  },
+  // 圆形命中由画布图形命中模块处理，catalog 不重复实现。
+  isInHoverRange: () => false,
+  isInSelectionRange: () => false,
 };

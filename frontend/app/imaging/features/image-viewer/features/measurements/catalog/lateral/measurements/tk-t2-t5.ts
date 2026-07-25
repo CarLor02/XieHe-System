@@ -1,21 +1,7 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
-import { COBB_THORACIC_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/cobb';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { calculateLateralCobbResults, isLateralCobbInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const TK_T2_T5_CONFIG: AnnotationConfig = {
   id: 'tk-t2-t5',
@@ -27,18 +13,17 @@ export const TK_T2_T5_CONFIG: AnnotationConfig = {
   color: '#a78bfa',
   rightSideLabel: true,
 
-  calculateResults: COBB_THORACIC_CONFIG.calculateResults,
-  getLabelPosition: (points: Point[], _imageScale: number = 1) => {
+  calculateResults: calculateLateralCobbResults,
+  getLabelPosition: (points: Point[]) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
     // 侧面影像：锚点在第1个点旁，渲染层负责实际屏幕偏移（rightSideLabel）。
     return { x: points[0].x, y: points[0].y };
   },
-  isInHoverRange: COBB_THORACIC_CONFIG.isInHoverRange,
-  isInSelectionRange: COBB_THORACIC_CONFIG.isInSelectionRange,
+  isInHoverRange: isLateralCobbInRange,
+  isInSelectionRange: isLateralCobbInRange,
   renderSpecialElements: (
     points: Point[],
-    displayColor: string,
-    imageScale: number = 1
+    displayColor: string
   ) => {
     return Renderers.renderTwoLines(points, displayColor);
   },

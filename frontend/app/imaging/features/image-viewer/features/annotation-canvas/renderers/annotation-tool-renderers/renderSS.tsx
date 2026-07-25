@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
-import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import {
   buildAngleArc,
   getSpecialRenderImagePoints,

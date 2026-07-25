@@ -1,10 +1,8 @@
 import type { JSX } from 'react';
 
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
-import {
-  calculateActualDistance,
-  type SpecialElementRenderContext,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { calculateActualDistance } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/calibration';
 import { calculateHemipelvicWidthRatioGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 
 function renderDistanceMarker(

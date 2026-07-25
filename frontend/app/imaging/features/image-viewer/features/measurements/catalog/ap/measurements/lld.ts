@@ -1,11 +1,7 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  type SpecialElementRenderContext,
-  calculateActualDistance,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { calculateLldResults, isLldInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/lld';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const LLD_CONFIG: AnnotationConfig = {
   id: 'lld',
@@ -17,20 +13,7 @@ export const LLD_CONFIG: AnnotationConfig = {
   color: '#f97316',
   maxXRightLabel: true,
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 2) return [];
-
-    const pixelDistance = Math.abs(points[1].y - points[0].y);
-    const actualDistance = calculateActualDistance(pixelDistance, context);
-
-    return [
-      {
-        name: 'LLD',
-        value: actualDistance.toFixed(2),
-        unit: 'mm',
-      },
-    ];
-  },
+  calculateResults: calculateLldResults,
 
   getLabelPosition: (points: Point[]) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
@@ -40,26 +23,8 @@ export const LLD_CONFIG: AnnotationConfig = {
     };
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    if (points.length < 2) return false;
-
-    return (
-      Math.abs(mousePoint.y - points[0].y) <= tolerance ||
-      Math.abs(mousePoint.y - points[1].y) <= tolerance
-    );
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return LLD_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isLldInRange,
+  isInSelectionRange: isLldInRange,
 
   renderSpecialElements: (
     points: Point[],

@@ -27,7 +27,7 @@ import {
   getApLabelGapX,
   shouldPreserveCanvasValue,
   shouldShowPointLabels,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import {
   getAvtLabelPosition,
   isAvtMetadata,

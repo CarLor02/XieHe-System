@@ -1,7 +1,5 @@
-import {
-  type AnnotationConfig,
-  type Point,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const ARROW_CONFIG: AnnotationConfig = {
   id: 'arrow',

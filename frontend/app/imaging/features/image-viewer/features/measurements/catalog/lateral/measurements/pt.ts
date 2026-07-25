@@ -1,12 +1,8 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type Point,
-  type SpecialElementRenderContext,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { calculatePtResults, isPtInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pt';
+import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/pelvic';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const PT_CONFIG: AnnotationConfig = {
   id: 'pt',
@@ -18,25 +14,7 @@ export const PT_CONFIG: AnnotationConfig = {
   color: '#f97316',
   fixedLabelPosition: true,
 
-  calculateResults: (points: Point[]) => {
-    if (points.length < 3) return [];
-
-    const geometry = getPelvicMeasurementGeometry(points);
-    if (!geometry || !geometry.femoralHeadCenter) return [];
-
-    const dx = geometry.sacralMidpoint.x - geometry.femoralHeadCenter.x;
-    const dy = geometry.sacralMidpoint.y - geometry.femoralHeadCenter.y;
-    const magnitude = Math.atan2(Math.abs(dx), Math.abs(dy)) * (180 / Math.PI);
-    const angle = dx < 0 ? -magnitude : magnitude;
-
-    return [
-      {
-        name: 'PT',
-        value: angle.toFixed(2),
-        unit: '°',
-      },
-    ];
-  },
+  calculateResults: calculatePtResults,
 
   getLabelPosition: (points: Point[]) => {
     const geometry = getPelvicMeasurementGeometry(points);
@@ -47,60 +25,8 @@ export const PT_CONFIG: AnnotationConfig = {
     return geometry.femoralHeadCenter;
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    const geometry = getPelvicMeasurementGeometry(points);
-    if (!geometry) return false;
-
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-
-    if (isPointNearPoint(mousePoint, geometry.sacralMidpoint, tolerance))
-      return true;
-
-    const isNearSacralLine = isPointNearLine(
-      mousePoint,
-      geometry.sacralLeft,
-      geometry.sacralRight,
-      tolerance
-    );
-    if (!geometry.femoralHeadCenter) return isNearSacralLine;
-
-    const verticalLength = 80;
-    const verticalTop = {
-      x: geometry.femoralHeadCenter.x,
-      y: geometry.femoralHeadCenter.y - verticalLength,
-    };
-    const verticalBottom = {
-      x: geometry.femoralHeadCenter.x,
-      y: geometry.femoralHeadCenter.y + verticalLength,
-    };
-    const isNearCfhVertical = isPointNearLine(
-      mousePoint,
-      verticalTop,
-      verticalBottom,
-      tolerance
-    );
-    const isNearFemoralLine = isPointNearLine(
-      mousePoint,
-      geometry.femoralHeadCenter,
-      geometry.sacralMidpoint,
-      tolerance
-    );
-
-    return isNearSacralLine || isNearCfhVertical || isNearFemoralLine;
-  },
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return PT_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isPtInRange,
+  isInSelectionRange: isPtInRange,
 
   renderSpecialElements: (
     points: Point[],

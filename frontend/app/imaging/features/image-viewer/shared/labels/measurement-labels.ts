@@ -8,7 +8,7 @@ import {
   getDisplayName,
   getLabelPositionForType,
   usesAuxiliaryMeasurementValueTag,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
 import { TEXT_LABEL_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 

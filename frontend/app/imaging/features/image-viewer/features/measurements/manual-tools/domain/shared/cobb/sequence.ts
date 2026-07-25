@@ -1,8 +1,4 @@
-import {
-  getAnnotationTypeId,
-  type CalculationContext,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
 import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 
 type CobbTypePrefix = 'cobb' | 'lateral-cobb';
@@ -42,29 +38,25 @@ export function getNextCobbType(
   return `${prefix}${getMaxCobbSequenceNumber(measurements) + 1}`;
 }
 
-export function renumberCobbMeasurementsAfterDelete(
-  measurements: MeasurementData[],
-  calculationContext: CalculationContext
+/**
+ * 删除后只负责生成新的 Cobb type，不在领域层重算 value。
+ * value 重算属于应用流程，避免序号规则反向依赖 catalog。
+ */
+export function renumberCobbTypesAfterDelete(
+  measurements: MeasurementData[]
 ): MeasurementData[] {
-  let nextSequenceNumber = 1;
+  let nextSequence = 1;
 
   return measurements.map(measurement => {
-    const currentSequenceNumber = getCobbSequenceNumber(measurement.type);
-    if (currentSequenceNumber === null) return measurement;
-
-    const prefix = getCobbTypePrefix(measurement.type) ?? 'cobb';
-    const type = `${prefix}${nextSequenceNumber}`;
-    nextSequenceNumber += 1;
-    if (getAnnotationTypeId(measurement.type) === type) {
+    const prefix = getCobbTypePrefix(measurement.type);
+    if (!prefix || getCobbSequenceNumber(measurement.type) === null) {
       return measurement;
     }
 
-    return {
-      ...measurement,
-      type,
-      value:
-        calculateMeasurementValue(type, measurement.points, calculationContext) ||
-        measurement.value,
-    };
+    const type = `${prefix}${nextSequence}`;
+    nextSequence += 1;
+    return getAnnotationTypeId(measurement.type) === type
+      ? measurement
+      : { ...measurement, type };
   });
 }

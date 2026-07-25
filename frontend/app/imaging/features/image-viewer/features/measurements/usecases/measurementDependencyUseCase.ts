@@ -1,7 +1,7 @@
 import {
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { getDescriptionForType } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+import { getDescriptionForType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import {
   AnnotationSource,
   CfhAnnotation,

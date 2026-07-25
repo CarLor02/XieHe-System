@@ -1,8 +1,8 @@
 import {
-  CalculationContext,
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/usecases/calculateMeasurementValue';
 import { LATERAL_COBB_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cobb';
 import {
   getCobbSequenceNumber,

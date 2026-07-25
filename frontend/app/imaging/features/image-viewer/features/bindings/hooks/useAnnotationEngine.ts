@@ -8,7 +8,7 @@ import {
   getSyncGroupsForPoint,
   mergeBindings,
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
-import { autoCreateInheritanceBindings } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
+import { autoCreateInheritanceBindings } from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationInheritanceUseCase';
 import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 

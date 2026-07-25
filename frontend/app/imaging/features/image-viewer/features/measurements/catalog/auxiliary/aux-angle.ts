@@ -1,20 +1,8 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
+import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const AUX_ANGLE_CONFIG: AnnotationConfig = {
   id: 'aux-angle',
@@ -25,7 +13,7 @@ export const AUX_ANGLE_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#8b5cf6', // 紫色
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
+  calculateResults: (points: Point[]) => {
     if (points.length < 4) return [];
 
     // 计算第一条线的角度（点0到点1）
@@ -95,8 +83,7 @@ export const AUX_ANGLE_CONFIG: AnnotationConfig = {
 
   renderSpecialElements: (
     points: Point[],
-    displayColor: string,
-    imageScale: number = 1
+    displayColor: string
   ) => {
     return Renderers.renderTwoLines(points, displayColor);
   },

@@ -16,7 +16,7 @@ import {
   Point,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import {
   areKeypointsEqual,
   buildDerivedMeasurementsFromLayer,

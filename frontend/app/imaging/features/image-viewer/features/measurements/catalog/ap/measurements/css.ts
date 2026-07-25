@@ -1,12 +1,7 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type Point,
-  type SpecialElementRenderContext,
-  calculateAngleToHorizontal,
-  isPointNearLine,
-  isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { calculateCssResults, isCssInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/css';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const CSS_CONFIG: AnnotationConfig = {
   id: 'css',
@@ -18,26 +13,7 @@ export const CSS_CONFIG: AnnotationConfig = {
   color: '#f43f5e',
   maxXRightLabel: true,
 
-  calculateResults: (points: Point[]) => {
-    if (points.length < 2) return [];
-
-    // 计算角度（图像左边高为正）
-    // points[0] 是图像左侧点，points[1] 是图像右侧点
-    // dx = points[1].x - points[0].x > 0（右侧x更大）
-    // dy = points[1].y - points[0].y
-    // 如果图像左侧高：points[0].y < points[1].y → dy > 0 → angle > 0 ✅
-    // 如果图像右侧高：points[0].y > points[1].y → dy < 0 → angle < 0 ✅
-    // 直接使用原始角度，不反转
-    const angle = calculateAngleToHorizontal(points[0], points[1]);
-
-    return [
-      {
-        name: 'CSS',
-        value: angle.toFixed(2),
-        unit: '°',
-      },
-    ];
-  },
+  calculateResults: calculateCssResults,
 
   getLabelPosition: (points: Point[]) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
@@ -45,27 +21,8 @@ export const CSS_CONFIG: AnnotationConfig = {
     return { x: rightPoint.x, y: rightPoint.y };
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    if (points.length < 2) return false;
-
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-
-    return isPointNearLine(mousePoint, points[0], points[1], tolerance);
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return CSS_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isCssInRange,
+  isInSelectionRange: isCssInRange,
 
   renderSpecialElements: (
     points: Point[],

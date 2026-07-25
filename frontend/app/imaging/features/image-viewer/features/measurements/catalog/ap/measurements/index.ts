@@ -19,8 +19,6 @@ import { TTS_CONFIG } from '@/app/imaging/features/image-viewer/features/measure
 export { AVT_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/avt';
 export {
   COBB_CONFIG,
-  COBB_THORACIC_CONFIG,
-  COBB_LUMBAR_CONFIG,
   COBB1_CONFIG,
   COBB2_CONFIG,
   COBB3_CONFIG,

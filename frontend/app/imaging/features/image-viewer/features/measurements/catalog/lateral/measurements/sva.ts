@@ -1,14 +1,8 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  type SpecialElementRenderContext,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  isPointNearLine,
-  isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
+import { calculateSvaResults, isSvaInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/sva';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const SVA_CONFIG: AnnotationConfig = {
   id: 'sva',
@@ -19,33 +13,7 @@ export const SVA_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#65a30d',
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 5) return [];
-
-    // 计算前4个点的C7椎体中心
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-
-    // 第5个点：骶椎后缘参考点
-    const point5 = points[4];
-
-    // 计算水平距离（带正负）
-    // 正值：C7中点在骶椎后缘左侧（centerX < point5.x）
-    // 负值：C7中点在骶椎后缘右侧（centerX > point5.x）
-    const pixelDistance = point5.x - centerX;
-    const actualDistance = calculateActualDistance(
-      Math.abs(pixelDistance),
-      context
-    );
-    const signedDistance = pixelDistance > 0 ? actualDistance : -actualDistance;
-
-    return [
-      {
-        name: 'SVA',
-        value: signedDistance.toFixed(2),
-        unit: 'mm',
-      },
-    ];
-  },
+  calculateResults: calculateSvaResults,
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 5) return points[0] || { x: 0, y: 0 };
@@ -66,40 +34,8 @@ export const SVA_CONFIG: AnnotationConfig = {
     };
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    if (points.length < 5) return false;
-
-    // 检查是否靠近任何一个点
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-
-    // 检查是否靠近椎体中心
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-    if (isPointNearPoint(mousePoint, { x: centerX, y: centerY }, tolerance))
-      return true;
-
-    // 检查是否靠近中心到第5个点的连线
-    return isPointNearLine(
-      mousePoint,
-      { x: centerX, y: centerY },
-      points[4],
-      tolerance
-    );
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return SVA_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isSvaInRange,
+  isInSelectionRange: isSvaInRange,
 
   renderSpecialElements: (
     points: Point[],

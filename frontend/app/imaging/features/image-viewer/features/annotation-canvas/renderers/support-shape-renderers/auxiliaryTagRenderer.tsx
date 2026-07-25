@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import {
   getAuxiliaryTagText,
   usesInlineAuxiliaryTag,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 interface RenderAuxiliaryTagProps {

@@ -1,20 +1,9 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
   calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
   pointToLineDistance,
-  toAcuteAngle,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
   id: 'vertebra-center',

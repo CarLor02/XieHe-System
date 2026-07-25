@@ -1,12 +1,7 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type Point,
-  type SpecialElementRenderContext,
-  calculateAngleToHorizontal,
-  isPointNearLine,
-  isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { calculateT1SlopeResults, isT1SlopeInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/t1-slope';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const T1_SLOPE_CONFIG: AnnotationConfig = {
   id: 't1-slope',
@@ -18,19 +13,7 @@ export const T1_SLOPE_CONFIG: AnnotationConfig = {
   color: '#e879f9',
   rightSideLabel: true,
 
-  calculateResults: (points: Point[]) => {
-    if (points.length < 2) return [];
-
-    const angle = calculateAngleToHorizontal(points[0], points[1]);
-
-    return [
-      {
-        name: 'T1 Slope',
-        value: angle.toFixed(2),
-        unit: '°',
-      },
-    ];
-  },
+  calculateResults: calculateT1SlopeResults,
 
   getLabelPosition: (points: Point[]) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
@@ -38,27 +21,8 @@ export const T1_SLOPE_CONFIG: AnnotationConfig = {
     return { x: points[0].x, y: points[0].y };
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    if (points.length < 2) return false;
-
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-
-    return isPointNearLine(mousePoint, points[0], points[1], tolerance);
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return T1_SLOPE_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isT1SlopeInRange,
+  isInSelectionRange: isT1SlopeInRange,
 
   renderSpecialElements: (
     points: Point[],

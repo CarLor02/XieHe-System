@@ -1,13 +1,8 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type Point,
-  type SpecialElementRenderContext,
-  LABEL_OFFSET,
-  calculateAngleToHorizontal,
-  isPointNearLine,
-  isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
+import { calculateSsResults, isSsInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/ss';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const SS_CONFIG: AnnotationConfig = {
   id: 'ss',
@@ -18,19 +13,7 @@ export const SS_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#f59e0b',
 
-  calculateResults: (points: Point[]) => {
-    if (points.length < 2) return [];
-
-    const angle = Math.abs(calculateAngleToHorizontal(points[0], points[1]));
-
-    return [
-      {
-        name: 'SS',
-        value: angle.toFixed(2),
-        unit: '°',
-      },
-    ];
-  },
+  calculateResults: calculateSsResults,
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
@@ -43,27 +26,8 @@ export const SS_CONFIG: AnnotationConfig = {
     };
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    if (points.length < 2) return false;
-
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-
-    return isPointNearLine(mousePoint, points[0], points[1], tolerance);
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return SS_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isSsInRange,
+  isInSelectionRange: isSsInRange,
 
   renderSpecialElements: (
     points: Point[],

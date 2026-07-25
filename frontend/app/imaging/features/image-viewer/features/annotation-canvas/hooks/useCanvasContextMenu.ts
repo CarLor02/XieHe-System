@@ -3,7 +3,7 @@ import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features
 import {
   getEditableAuxiliaryAnnotationLabel,
   isEditableAuxiliaryAnnotationType,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 import { isAuxiliaryTool } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-state';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/types';

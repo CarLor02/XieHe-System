@@ -2,10 +2,9 @@ import type {
   MeasurementData,
   Point,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import {
-  calculateActualDistance,
-  type CalculationContext,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import { calculateActualDistance } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/calibration';
 import { getAvtGeometry } from './measurement-geometry';
 
 type AvtMeasurementLike = Pick<
@@ -27,6 +26,34 @@ export function calculateAvtValue(
   );
   const signedDistance = pixelOffset < 0 ? -actualDistance : actualDistance;
   return `${signedDistance.toFixed(2)}mm`;
+}
+
+/**
+ * 仅供缺少 AVT metadata 的历史 catalog 路径使用。
+ *
+ * 当前 AVT 应通过 calculateAvtValue 按 metadata 解析；这里继续兼容旧两点格式和
+ * 第一版六点格式，避免已有标注在加载后失去数值。
+ */
+export function calculateLegacyAvtResults(
+  points: Point[],
+  context: CalculationContext
+): MeasurementResult[] {
+  if (points.length < 2) return [];
+  const targetX =
+    points.length >= 6
+      ? points.slice(0, 4).reduce((sum, point) => sum + point.x, 0) / 4
+      : points[0].x;
+  const referenceX =
+    points.length >= 6 ? (points[4].x + points[5].x) / 2 : points[1].x;
+  const pixelOffset = targetX - referenceX;
+  const distance = calculateActualDistance(Math.abs(pixelOffset), context);
+  return [
+    {
+      name: 'AVT',
+      value: (pixelOffset < 0 ? -distance : distance).toFixed(2),
+      unit: 'mm',
+    },
+  ];
 }
 
 export function getAvtLabelPosition(measurement: AvtMeasurementLike): Point {

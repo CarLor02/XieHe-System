@@ -1,12 +1,11 @@
 import { AP_MEASUREMENT_CONFIGS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements';
 import { AUXILIARY_CONFIGS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
 import { LATERAL_MEASUREMENT_CONFIGS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import {
-  type AnnotationConfig,
+  getAnnotationTypeId as getDomainAnnotationTypeId,
   normalizeAnnotationLookupKey,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
-
-export * from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
 
 export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   ...AP_MEASUREMENT_CONFIGS,
@@ -45,17 +44,8 @@ export function getAnnotationConfig(
 }
 
 export function getAnnotationTypeId(typeId: string): string {
-  if (typeId.startsWith('AI检测-')) {
-    return typeId;
-  }
-
-  if (/^(lateral-)?Cobb\d+$/i.test(typeId)) {
-    return typeId.toLowerCase();
-  }
-
-  return (
-    getAnnotationConfig(typeId)?.id || normalizeAnnotationLookupKey(typeId)
-  );
+  const normalizedTypeId = getDomainAnnotationTypeId(typeId);
+  return getAnnotationConfig(normalizedTypeId)?.id || normalizedTypeId;
 }
 
 export function getAnnotationDisplayName(typeId: string): string {

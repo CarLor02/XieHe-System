@@ -1,9 +1,9 @@
 import {ImageSize, MeasurementData, Point, Tool} from "@/app/imaging/features/image-viewer/shared/types";
 import {
     calculateMeasurementValue as calcMeasurementValue
-} from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation";
-import {getDescriptionForType as getDesc} from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata";
-import {getInheritedPoints} from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance";
+} from "@/app/imaging/features/image-viewer/features/measurements/usecases/calculateMeasurementValue";
+import {getDescriptionForType as getDesc} from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata";
+import {getInheritedPoints} from "@/app/imaging/features/image-viewer/features/measurements/usecases/annotationInheritanceUseCase";
 import {getAnnotationTypeId} from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config";
 import {
     hasAnnotationForTool,

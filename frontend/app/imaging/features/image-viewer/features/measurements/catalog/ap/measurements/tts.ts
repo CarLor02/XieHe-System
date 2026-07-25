@@ -1,12 +1,7 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  type SpecialElementRenderContext,
-  calculateActualDistance,
-  isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { calculateTtsResults, isTtsInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const TTS_CONFIG: AnnotationConfig = {
   id: 'tts',
@@ -18,30 +13,7 @@ export const TTS_CONFIG: AnnotationConfig = {
   color: '#84cc16',
   maxXRightLabel: true,
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 4) return [];
-
-    // 躯干线中点 X（点0-1）
-    const trunkMidX = (points[0].x + points[1].x) / 2;
-    // 骶骨线中点 X（点2-3，继承自 Sacral）
-    const sacralMidX = (points[2].x + points[3].x) / 2;
-
-    // 带符号的像素距离：躯干线中点在骶骨中点左侧时为负
-    const pixelOffset = trunkMidX - sacralMidX;
-    const actualDistance = calculateActualDistance(
-      Math.abs(pixelOffset),
-      context
-    );
-    const signedDistance = pixelOffset < 0 ? -actualDistance : actualDistance;
-
-    return [
-      {
-        name: 'TTS',
-        value: signedDistance.toFixed(2),
-        unit: 'mm',
-      },
-    ];
-  },
+  calculateResults: calculateTtsResults,
 
   getLabelPosition: (points: Point[]) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
@@ -59,33 +31,8 @@ export const TTS_CONFIG: AnnotationConfig = {
     };
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    if (points.length < 1) return false;
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-    if (points.length >= 2) {
-      const trunkMidX = (points[0].x + points[1].x) / 2;
-      if (Math.abs(mousePoint.x - trunkMidX) <= tolerance) return true;
-    }
-    if (points.length >= 4) {
-      const sacralMidX = (points[2].x + points[3].x) / 2;
-      if (Math.abs(mousePoint.x - sacralMidX) <= tolerance) return true;
-    }
-    return false;
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return TTS_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isTtsInRange,
+  isInSelectionRange: isTtsInRange,
 
   renderSpecialElements: (
     points: Point[],

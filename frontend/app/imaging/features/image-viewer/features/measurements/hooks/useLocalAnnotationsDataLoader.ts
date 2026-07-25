@@ -2,12 +2,12 @@ import {ImageSize, MeasurementData, Point, VertebraAnnotation, CfhAnnotation} fr
 import {AnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
 import {RefObject, useEffect} from "react";
 import {
-    CalculationContext,
     getAnnotationTypeId,
 } from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config";
+import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import {
     calculateMeasurementDataValue,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-calculation';
+} from '@/app/imaging/features/image-viewer/features/measurements/usecases/calculateMeasurementValue';
 
 export function useLocalAnnotationsDataLoader(
     imageId: string,

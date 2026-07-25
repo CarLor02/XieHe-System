@@ -1,20 +1,8 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
+import { calculateApCobbResults, isApCobbInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/cobb';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const COBB_CONFIG: AnnotationConfig = {
   id: 'cobb',
@@ -25,45 +13,7 @@ export const COBB_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#f59e0b', // 橙色
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 4) return [];
-
-    // 计算第一条线的角度（点1到点2，上端椎的上边缘）
-    const dx1 = points[1].x - points[0].x;
-    const dy1 = points[1].y - points[0].y;
-    const angle1 = Math.atan2(dy1, dx1);
-
-    // 计算第二条线的角度（点3到点4，下端椎的下边缘）
-    const dx2 = points[3].x - points[2].x;
-    const dy2 = points[3].y - points[2].y;
-    const angle2 = Math.atan2(dy2, dx2);
-
-    // 计算两条线的夹角（绝对值）
-    let angleDiff = Math.abs(angle2 - angle1) * (180 / Math.PI);
-
-    // 确保角度在0-180度范围内
-    if (angleDiff > 180) {
-      angleDiff = 360 - angleDiff;
-    }
-
-    // 判断正负：比较左右两侧的y坐标距离
-    // 左边点的y距离（点1到点3）
-    const leftYDistance = Math.abs(points[2].y - points[0].y);
-    // 右边点的y距离（点2到点4）
-    const rightYDistance = Math.abs(points[3].y - points[1].y);
-
-    // 右凸（右边距离大）→ 正值
-    // 左凸（左边距离大）→ 负值
-    const signedAngle = leftYDistance > rightYDistance ? -angleDiff : angleDiff;
-
-    return [
-      {
-        name: 'Cobb角',
-        value: signedAngle.toFixed(2),
-        unit: '°',
-      },
-    ];
-  },
+  calculateResults: calculateApCobbResults,
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
@@ -76,45 +26,16 @@ export const COBB_CONFIG: AnnotationConfig = {
     };
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    if (points.length < 4) return false;
-
-    // 检查是否接近任意点
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-
-    // 检查是否接近两条线段
-    return (
-      isPointNearLine(mousePoint, points[0], points[1], tolerance) ||
-      isPointNearLine(mousePoint, points[2], points[3], tolerance)
-    );
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return COBB_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isApCobbInRange,
+  isInSelectionRange: isApCobbInRange,
 
   renderSpecialElements: (
     points: Point[],
-    displayColor: string,
-    imageScale: number = 1
+    displayColor: string
   ) => {
     return Renderers.renderTwoLines(points, displayColor);
   },
 };
-
-// 保留旧的配置作为别名，以兼容现有代码
-export const COBB_THORACIC_CONFIG = COBB_CONFIG;
-export const COBB_LUMBAR_CONFIG = COBB_CONFIG;
 
 export const COBB1_CONFIG: AnnotationConfig = {
   ...COBB_CONFIG,

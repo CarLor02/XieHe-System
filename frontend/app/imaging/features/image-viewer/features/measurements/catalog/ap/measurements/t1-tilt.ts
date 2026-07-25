@@ -1,12 +1,7 @@
 import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type Point,
-  type SpecialElementRenderContext,
-  calculateAngleToHorizontal,
-  isPointNearLine,
-  isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { calculateT1TiltResults, isT1TiltInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/t1-tilt';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const T1_TILT_CONFIG: AnnotationConfig = {
   id: 't1-tilt',
@@ -18,19 +13,7 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
   color: '#8b5cf6',
   maxXRightLabel: true,
 
-  calculateResults: (points: Point[]) => {
-    if (points.length < 2) return [];
-
-    const angle = calculateAngleToHorizontal(points[0], points[1]);
-
-    return [
-      {
-        name: 'T1 Tilt',
-        value: angle.toFixed(2),
-        unit: '°',
-      },
-    ];
-  },
+  calculateResults: calculateT1TiltResults,
 
   getLabelPosition: (points: Point[]) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
@@ -38,29 +21,8 @@ export const T1_TILT_CONFIG: AnnotationConfig = {
     return { x: rightPoint.x, y: rightPoint.y };
   },
 
-  isInHoverRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 10
-  ) => {
-    if (points.length < 2) return false;
-
-    // 检查是否接近任意点
-    for (const point of points) {
-      if (isPointNearPoint(mousePoint, point, tolerance)) return true;
-    }
-
-    // 检查是否接近连线
-    return isPointNearLine(mousePoint, points[0], points[1], tolerance);
-  },
-
-  isInSelectionRange: (
-    mousePoint: Point,
-    points: Point[],
-    tolerance: number = 15
-  ) => {
-    return T1_TILT_CONFIG.isInHoverRange(mousePoint, points, tolerance);
-  },
+  isInHoverRange: isT1TiltInRange,
+  isInSelectionRange: isT1TiltInRange,
 
   renderSpecialElements: (
     points: Point[],

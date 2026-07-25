@@ -7,7 +7,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/hit-test/shape-hit-test';
 import { isAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-state';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { isEditableAuxiliaryAnnotationType } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+import { isEditableAuxiliaryAnnotationType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { calculateQuadrilateralCenter } from '@/app/imaging/features/image-viewer/shared/geometry';
 import {
   MeasurementData,

@@ -6,8 +6,8 @@ import {
 import {
   POINT_INHERITANCE_RULES,
   SHARED_ANATOMICAL_POINT_GROUPS,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-inheritance';
-import { renderSpecialSVGElements } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+} from '@/app/imaging/features/image-viewer/features/measurements/usecases/annotationInheritanceUseCase';
+import { renderSpecialSVGElements } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { HEMIPELVIC_WIDTH_RATIO_TOOL_ID } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 

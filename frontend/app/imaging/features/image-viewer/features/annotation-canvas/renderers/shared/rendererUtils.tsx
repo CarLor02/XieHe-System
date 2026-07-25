@@ -1,5 +1,5 @@
 import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
-import { getDisplayName } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-metadata';
+import { getDisplayName } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 
 /**
  * 格式化图表上显示的数值

@@ -1,17 +1,16 @@
 /**
- * 标注值计算规则。
- * 这一层只保留纯业务公式，不再依赖过渡聚合文件。
+ * 标注值计算分派。
+ * 该用例通过 catalog 找到工具，再调用已迁入 manual-tools/domain 的纯公式。
  */
 
 import {
-  CalculationContext,
-  Point,
   getAnnotationConfig,
   getAnnotationDisplayName,
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import { calculateAvtValue } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import type { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**
  * 根据标注类型和点位计算测量值

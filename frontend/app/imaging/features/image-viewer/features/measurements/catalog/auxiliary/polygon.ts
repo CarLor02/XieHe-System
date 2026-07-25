@@ -1,20 +1,5 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import {
-  type AnnotationConfig,
-  type CalculationContext,
-  type Point,
-  LABEL_OFFSET,
-  calculateActualDistance,
-  calculateAngleBetweenVectors,
-  calculateAngleToHorizontal,
-  calculateCenterPoint,
-  calculateDistance2D,
-  getPelvicMeasurementGeometry,
-  isPointNearLine,
-  isPointNearPoint,
-  pointToLineDistance,
-  toAcuteAngle,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-utils';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const POLYGON_CONFIG: AnnotationConfig = {
   id: 'polygon',
@@ -26,7 +11,7 @@ export const POLYGON_CONFIG: AnnotationConfig = {
   color: '#a855f7',
 
   calculateResults: () => [],
-  getLabelPosition: (points: Point[], imageScale: number = 1) =>
+  getLabelPosition: (points: Point[]) =>
     points[0] || { x: 0, y: 0 },
   isInHoverRange: () => false,
   isInSelectionRange: () => false,
