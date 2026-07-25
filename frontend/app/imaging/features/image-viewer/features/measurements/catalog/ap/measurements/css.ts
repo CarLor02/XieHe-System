@@ -1,6 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import { calculateCssResults, isCssInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/css';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import {
+  calculateCssResults,
+  isCssInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/css';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const CSS_CONFIG: AnnotationConfig = {
@@ -24,17 +26,5 @@ export const CSS_CONFIG: AnnotationConfig = {
   isInHoverRange: isCssInRange,
   isInSelectionRange: isCssInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderSacralWithPerpendicular(
-      points,
-      displayColor,
-      imageScale,
-      context
-    );
-  },
+  rendererId: 'sacral-with-perpendicular',
 };

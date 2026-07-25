@@ -1,6 +1,6 @@
 import { expect, it } from '@jest/globals';
 
-import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/features/keypoints/catalog/ap';
+import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   createAvtMeasurement,
   createNextBoundCobbMeasurement,

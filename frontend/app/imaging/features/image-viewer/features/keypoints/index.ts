@@ -1,5 +1,5 @@
-export * from '@/app/imaging/features/image-viewer/features/keypoints/catalog/ap';
-export * from '@/app/imaging/features/image-viewer/features/keypoints/catalog/lateral';
+export * from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/ap';
+export * from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
 export * from '@/app/imaging/features/image-viewer/features/keypoints/domain/exam-type';
 export * from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint';
 export * from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-label';

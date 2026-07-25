@@ -1,9 +1,9 @@
-import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/features/keypoints/catalog/ap';
-import { getLateralKeypointGroups } from '@/app/imaging/features/image-viewer/features/keypoints/catalog/lateral';
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
+  getApKeypointGroups,
+  getLateralKeypointGroups,
   isAnteriorExamType,
   isLateralExamType,
+  type KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,

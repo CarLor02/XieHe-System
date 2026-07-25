@@ -1,6 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import { calculateTtsResults, isTtsInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import {
+  calculateTtsResults,
+  isTtsInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const TTS_CONFIG: AnnotationConfig = {
@@ -34,12 +36,5 @@ export const TTS_CONFIG: AnnotationConfig = {
   isInHoverRange: isTtsInRange,
   isInSelectionRange: isTtsInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderTTS(points, displayColor, imageScale, context);
-  },
+  rendererId: 'tts',
 };

@@ -1,5 +1,5 @@
-import { AP_VERTEBRA_GROUPS } from '@/app/imaging/features/image-viewer/features/keypoints/catalog/ap';
-import { LATERAL_CENTER_VERTEBRA_GROUPS } from '@/app/imaging/features/image-viewer/features/keypoints/catalog/lateral';
+import { AP_VERTEBRA_GROUPS } from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/ap';
+import { LATERAL_CENTER_VERTEBRA_GROUPS } from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
 import {
   isAnteriorExamType,
   isLateralExamType,

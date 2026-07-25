@@ -1,7 +1,9 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
-import { calculateSvaResults, isSvaInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/sva';
+import {
+  calculateSvaResults,
+  isSvaInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/sva';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const SVA_CONFIG: AnnotationConfig = {
@@ -37,12 +39,5 @@ export const SVA_CONFIG: AnnotationConfig = {
   isInHoverRange: isSvaInRange,
   isInSelectionRange: isSvaInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderSVA(points, displayColor, imageScale, context);
-  },
+  rendererId: 'sva',
 };

@@ -1,12 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-jest.mock(
-  '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers',
-  () => ({
-    renderTwoLines: jest.fn(() => null),
-  })
-);
-
 describe('lateral measurement catalog', () => {
   it('exposes a generic manual Cobb tool for lateral annotation', () => {
     const {
@@ -15,12 +8,11 @@ describe('lateral measurement catalog', () => {
       getLateralMeasurementTools,
       isLateralMeasurementTool,
       isLateralRestorableMeasurementTool,
-    } =
-      jest.requireActual<
-        typeof import('@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements')
-      >(
-        '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements'
-      );
+    } = jest.requireActual<
+      typeof import('@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements')
+    >(
+      '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements'
+    );
     const tools = getLateralMeasurementTools();
     const cobbTool = tools.find(tool => tool.id === 'lateral-cobb');
 

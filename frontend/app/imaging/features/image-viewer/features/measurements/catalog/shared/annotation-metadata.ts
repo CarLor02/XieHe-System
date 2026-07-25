@@ -1,12 +1,8 @@
 /**
  * 标注元信息与渲染元数据。
- * 负责颜色、描述、标签位置以及特殊 SVG 图元的纯读取逻辑。
+ * 负责颜色、描述和标签位置等纯元数据读取。
  */
 
-import type { JSX } from 'react';
-import type {
-  SpecialElementRenderContext,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import {
   getAnnotationConfig,
   getAnnotationDisplayName,
@@ -341,28 +337,6 @@ export function isEditableAuxiliaryAnnotationType(type: string): boolean {
   return (
     config.category === 'auxiliary' ||
     EDITABLE_AUXILIARY_CONFIG_IDS.has(config.id)
-  );
-}
-
-/**
- * 获取 SVG 特殊渲染元素
- */
-export function renderSpecialSVGElements(
-  type: string,
-  screenPoints: Point[],
-  displayColor: string,
-  imageScale: number,
-  context?: SpecialElementRenderContext
-): JSX.Element | null {
-  const config = getAnnotationConfig(type);
-  if (!config || !config.renderSpecialElements) {
-    return null;
-  }
-  return config.renderSpecialElements(
-    screenPoints,
-    displayColor,
-    imageScale,
-    context
   );
 }
 

@@ -1,6 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import { calculateT1SlopeResults, isT1SlopeInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/t1-slope';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import {
+  calculateT1SlopeResults,
+  isT1SlopeInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/t1-slope';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const T1_SLOPE_CONFIG: AnnotationConfig = {
@@ -24,12 +26,5 @@ export const T1_SLOPE_CONFIG: AnnotationConfig = {
   isInHoverRange: isT1SlopeInRange,
   isInSelectionRange: isT1SlopeInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderT1Slope(points, displayColor, imageScale, context);
-  },
+  rendererId: 't1-slope',
 };

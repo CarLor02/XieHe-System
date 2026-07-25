@@ -1,6 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import { calculateLldResults, isLldInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/lld';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import {
+  calculateLldResults,
+  isLldInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/lld';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const LLD_CONFIG: AnnotationConfig = {
@@ -26,17 +28,5 @@ export const LLD_CONFIG: AnnotationConfig = {
   isInHoverRange: isLldInRange,
   isInSelectionRange: isLldInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderHorizontalLines(
-      points,
-      displayColor,
-      imageScale,
-      context
-    );
-  },
+  rendererId: 'horizontal-lines',
 };

@@ -16,7 +16,7 @@ measurements/
 │   └── shared/
 │       ├── annotation-config.ts     # 工具注册表与查询
 │       ├── annotation-config-types.ts
-│       ├── annotation-metadata.ts   # 标签、颜色、渲染元数据
+│       ├── annotation-metadata.ts   # 标签、颜色和交互元数据
 │       └── label-layout.ts          # 标签屏幕偏移
 ├── domain/
 │   ├── annotation-type-id.ts        # 稳定工具 key 规范化
@@ -63,8 +63,8 @@ Catalog 是工具注册和展示适配层，只负责：
 
 - 工具 ID、名称、图标、描述、点数、颜色和分类。
 - 标签锚点、标签偏移及其他画布展示参数。
-- 将 domain 的计算、命中函数和 annotation-canvas renderer 组合为
-  `AnnotationConfig`。
+- 将 domain 的计算、命中函数和强类型 `rendererId` 组合为
+  `AnnotationConfig`，但不依赖 React 或具体 canvas renderer。
 
 Catalog 不实现医学公式，不作为其他领域模块的工具函数仓库。新增工具时，
 应先建立 domain 规则，再由 catalog 引用。
@@ -112,5 +112,5 @@ rg "from .*catalog|from .*annotation-canvas|from 'react'" \
 1. 确定工具属于 AP、lateral 或 shared，并记录固定点序。
 2. 在对应工具目录实现纯计算与必要的几何、命中规则。
 3. 为点数不足、符号方向、退化几何和历史格式补单元测试。
-4. 在 catalog 中只添加元数据、标签布局、领域函数引用和 renderer。
+4. 在 catalog 中只添加元数据、标签布局、领域函数引用和 `rendererId`。
 5. 若工具需要关键点绑定或继承，通过 use case 接入，不把状态写回放进计算函数。

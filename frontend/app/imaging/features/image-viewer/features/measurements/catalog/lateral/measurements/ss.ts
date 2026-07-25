@@ -1,7 +1,9 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
-import { calculateSsResults, isSsInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/ss';
+import {
+  calculateSsResults,
+  isSsInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/ss';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const SS_CONFIG: AnnotationConfig = {
@@ -29,12 +31,5 @@ export const SS_CONFIG: AnnotationConfig = {
   isInHoverRange: isSsInRange,
   isInSelectionRange: isSsInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderSS(points, displayColor, imageScale, context);
-  },
+  rendererId: 'ss',
 };

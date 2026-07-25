@@ -1,14 +1,14 @@
-import { parseApVertebraKeypointId } from '@/app/imaging/features/image-viewer/features/keypoints/catalog/ap';
 import {
+  parseApVertebraKeypointId,
   parseLateralSacralKeypointId,
   parseLateralVertebraKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/catalog/lateral';
+  type KeypointAnnotation,
+} from '@/app/imaging/features/image-viewer/features/keypoints';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   MeasurementData,
   Point,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   getAvtPointKeypointId,
   getAvtRequiredKeypointIds,

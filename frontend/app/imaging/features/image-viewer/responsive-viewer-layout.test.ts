@@ -16,7 +16,9 @@ describe('image viewer responsive layout', () => {
       'features/toolbar/components/AnnotationToolbar.tsx'
     );
 
-    expect(page).toContain('flex-1 flex min-h-0 flex-col overflow-hidden md:flex-row');
+    expect(page).toContain(
+      'flex-1 flex min-h-0 flex-col overflow-hidden md:flex-row'
+    );
     expect(toolbar).toContain('w-full');
     expect(toolbar).toContain('md:w-80');
     expect(toolbar).not.toContain('className="w-80 bg-gray-800');
@@ -31,10 +33,10 @@ describe('image viewer responsive layout', () => {
 
   it('keeps floating canvas panels inside narrow viewports', () => {
     const resultsPanel = readViewerFile(
-      'features/annotation-canvas/panels/MeasurementResultsPanel.tsx'
+      'features/annotation-canvas/presentation/panels/MeasurementResultsPanel.tsx'
     );
     const controlsPanel = readViewerFile(
-      'features/annotation-canvas/panels/CanvasControlsPanel.tsx'
+      'features/annotation-canvas/presentation/panels/CanvasControlsPanel.tsx'
     );
 
     expect(resultsPanel).toContain('left-2 right-2 top-2');

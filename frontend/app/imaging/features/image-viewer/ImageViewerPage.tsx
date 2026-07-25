@@ -3,8 +3,10 @@
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useImageViewerController } from '@/app/imaging/features/image-viewer/application/hooks/useImageViewerController';
-import { AnnotationCanvas } from '@/app/imaging/features/image-viewer/features/annotation-canvas';
-import StandardDistanceWarningDialog from '@/app/imaging/features/image-viewer/features/annotation-canvas/components/StandardDistanceWarningDialog';
+import {
+  AnnotationCanvas,
+  StandardDistanceWarningDialog,
+} from '@/app/imaging/features/image-viewer/features/annotation-canvas';
 import { StudyHeader } from '@/app/imaging/features/image-viewer/features/study';
 import { AnnotationToolbar } from '@/app/imaging/features/image-viewer/features/toolbar';
 
@@ -63,7 +65,13 @@ function ImageViewerContent() {
 
 export default function ImageViewerPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen">加载中...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-screen">
+          加载中...
+        </div>
+      }
+    >
       <ImageViewerContent />
     </Suspense>
   );

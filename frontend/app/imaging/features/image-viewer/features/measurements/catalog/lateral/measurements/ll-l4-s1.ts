@@ -1,6 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import { calculateLateralCobbResults, isLateralCobbInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
+import {
+  calculateLateralCobbResults,
+  isLateralCobbInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const LL_L4_S1_CONFIG: AnnotationConfig = {
@@ -21,10 +23,5 @@ export const LL_L4_S1_CONFIG: AnnotationConfig = {
   },
   isInHoverRange: isLateralCobbInRange,
   isInSelectionRange: isLateralCobbInRange,
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string
-  ) => {
-    return Renderers.renderTwoLines(points, displayColor);
-  },
+  rendererId: 'two-lines',
 };

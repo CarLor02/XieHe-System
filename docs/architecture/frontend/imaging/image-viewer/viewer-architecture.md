@@ -65,8 +65,8 @@ dependency rules between measurements. See
 [`manual-tool-domain.md`](./manual-tool-domain.md) for the detailed tool-domain
 layout and dependency constraints.
 
-- `catalog/` registers AP, lateral, and auxiliary tools and adapts them to
-  canvas rendering.
+- `catalog/` registers AP, lateral, and auxiliary tools and exposes typed
+  visual metadata such as `rendererId`; it does not import canvas renderers.
 - `manual-tools/domain/{ap,lateral,shared}` owns pure formulas, medical
   geometry, point-layout, and hit-testing rules.
 - `domain/` owns stable measurement types, canonical tool IDs, serialization,
@@ -90,7 +90,8 @@ layout and dependency constraints.
 Owns keypoint catalog, keypoint entities, layer conversion, vertebra correction,
 and keypoint-only React state.
 
-- `catalog/{ap,lateral}` defines the keypoint groups available for each exam.
+- `domain/catalog/{ap,lateral}` defines the keypoint groups available for each
+  exam.
 - `domain/keypoint.ts` defines keypoint entities and anatomical ordering.
 - `domain/keypoint-layer-mapper.ts` converts keypoints and persisted detection
   layers without knowing about measurements.
@@ -139,17 +140,23 @@ Owns point binding state and UI.
 
 Owns the image canvas interaction surface.
 
-- `AnnotationCanvas.tsx` composes viewport, pointer, drag, drawing, selection,
-  and overlay hooks.
-- `components/StandardDistanceWarningDialog.tsx` renders the shared
+- `presentation/AnnotationCanvas.tsx` is a thin composition view.
+- `presentation/hooks/useAnnotationCanvasController.ts` composes viewport,
+  pointer, drag, drawing, selection, and overlay state into layer/panel props.
+- `presentation/components/StandardDistanceWarningDialog.tsx` renders the shared
   standard-distance prerequisite dialog.
-- `domain/` contains canvas-only pure helpers for hit testing, tool state, and
-  coordinate transforms.
-- `hooks/` owns canvas interaction state and event handlers.
-- `layers/` renders image, measurements, previews, overlays, selection, and
-  vertebrae.
-- `renderers/` renders medical measurement tools and support shapes.
-- `panels/` renders canvas-local controls, hints, and measurement results.
+- `domain/` contains canvas-only state models, pure geometric hit testing, tool
+  policies, and DOM-free coordinate transforms.
+- `application/` owns measurement-aware hit testing and canvas interaction
+  state.
+- `presentation/{layers,renderers,panels}` renders the image, SVG annotations,
+  previews, controls, and results.
+- `presentation/renderers/special-annotation-renderer-registry.tsx` maps
+  catalog `rendererId` values to JSX implementations. Measurements never
+  import this registry.
+
+See [`annotation-canvas.md`](./annotation-canvas.md) for the detailed layering
+and renderer dependency direction.
 
 ### `features/toolbar`
 
@@ -175,6 +182,10 @@ Owns report display and report generation.
 - `keypoints` and `measurements` are sibling features and must not depend on one
   another. Cross-domain logic belongs to `measurement-keypoint-sync`, which may
   depend on both.
+- `measurements` must not import `annotation-canvas`. The canvas presentation
+  consumes measurement catalog metadata and resolves renderer IDs locally.
+- `annotation-canvas/domain` must not access React or browser globals, and
+  `annotation-canvas/application` must not import presentation.
 - External modules, such as `frontend/app/data-export`, must import viewer
   types/render helpers from `@/app/imaging/viewer/public`.
 - Do not reintroduce root-level `components/`, `domain/`, `hooks/`, `usecase/`,

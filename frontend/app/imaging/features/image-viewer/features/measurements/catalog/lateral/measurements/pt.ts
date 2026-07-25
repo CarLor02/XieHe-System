@@ -1,6 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import { calculatePtResults, isPtInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pt';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import {
+  calculatePtResults,
+  isPtInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pt';
 import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/pelvic';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
@@ -28,12 +30,5 @@ export const PT_CONFIG: AnnotationConfig = {
   isInHoverRange: isPtInRange,
   isInSelectionRange: isPtInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderPT(points, displayColor, imageScale, context);
-  },
+  rendererId: 'pt',
 };

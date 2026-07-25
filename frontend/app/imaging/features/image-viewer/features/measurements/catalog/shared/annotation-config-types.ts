@@ -1,19 +1,30 @@
-import type { JSX } from 'react';
-
-import type { CalculationContext, MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type {
+  CalculationContext,
+  MeasurementResult,
+} from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**
- * Catalog 对画布提供的展示契约。
- *
- * 这里只描述工具如何被注册和渲染；计算与命中实现由 manual-tools/domain 提供。
+ * Catalog 仅声明所需的视觉语义，具体 JSX renderer 由画布 presentation 注册。
+ * 该抽象保证 measurements 不反向依赖 annotation-canvas。
  */
-export interface SpecialElementRenderContext {
-  imagePoints: Point[];
-  screenPoints: Point[];
-  imageToScreen: (point: Point) => Point;
-  calculationContext?: CalculationContext;
-}
+export type AnnotationRendererId =
+  | 'c7-offset'
+  | 'hemipelvic-width-ratio'
+  | 'horizontal-lines'
+  | 'pi'
+  | 'pt'
+  | 'sacral-with-perpendicular'
+  | 'single-horizontal-line'
+  | 'single-line-with-horizontal'
+  | 'single-vertical-line'
+  | 'ss'
+  | 'sva'
+  | 't1-slope'
+  | 't1-tilt'
+  | 'tpa'
+  | 'tts'
+  | 'two-lines';
 
 export interface AnnotationConfig {
   id: string;
@@ -30,6 +41,7 @@ export interface AnnotationConfig {
   interactivePointsCount?: number;
   showPointLabels?: boolean;
   preserveCanvasValue?: boolean;
+  rendererId?: AnnotationRendererId;
   calculateResults: (
     points: Point[],
     context: CalculationContext
@@ -45,10 +57,4 @@ export interface AnnotationConfig {
     points: Point[],
     tolerance?: number
   ) => boolean;
-  renderSpecialElements?: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number,
-    context?: SpecialElementRenderContext
-  ) => JSX.Element | null;
 }

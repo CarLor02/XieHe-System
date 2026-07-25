@@ -1,10 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-jest.mock(
-  '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers',
-  () => ({ renderC7Offset: () => null })
-);
-
 const { AVT_CONFIG } = jest.requireActual<
   typeof import('@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/avt')
 >(

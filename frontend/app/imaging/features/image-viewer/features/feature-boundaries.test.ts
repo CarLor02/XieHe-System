@@ -16,7 +16,7 @@ function collectSourceFiles(directory: string): string[] {
 }
 
 function findForbiddenImports(
-  featureName: 'keypoints' | 'measurements',
+  featureName: string,
   forbiddenFeatureNames: string[]
 ): string[] {
   const featureRoot = path.join(FEATURES_ROOT, featureName);
@@ -29,6 +29,23 @@ function findForbiddenImports(
           `${path.relative(FEATURES_ROOT, filePath)} -> ${forbiddenName}`
       );
   });
+}
+
+function findForbiddenSourcePatterns(
+  directory: string,
+  patterns: string[]
+): string[] {
+  return collectSourceFiles(path.join(FEATURES_ROOT, directory)).flatMap(
+    filePath => {
+      const source = fs.readFileSync(filePath, 'utf8');
+      return patterns
+        .filter(pattern => source.includes(pattern))
+        .map(
+          pattern =>
+            `${path.relative(FEATURES_ROOT, filePath)} contains ${pattern}`
+        );
+    }
+  );
 }
 
 it('keeps keypoints independent from measurements and their synchronization layer', () => {
@@ -45,6 +62,33 @@ it('keeps measurements independent from keypoints and their synchronization laye
     findForbiddenImports('measurements', [
       'keypoints',
       'measurement-keypoint-sync',
+    ])
+  ).toEqual([]);
+});
+
+it('keeps measurements independent from annotation canvas presentation', () => {
+  expect(findForbiddenImports('measurements', ['annotation-canvas'])).toEqual(
+    []
+  );
+});
+
+it('keeps annotation canvas domain pure and independent from outer layers', () => {
+  expect(
+    findForbiddenSourcePatterns('annotation-canvas/domain', [
+      "from 'react'",
+      'from "react"',
+      'document.',
+      'window.',
+      '/annotation-canvas/application/',
+      '/annotation-canvas/presentation/',
+    ])
+  ).toEqual([]);
+});
+
+it('prevents annotation canvas application from importing presentation', () => {
+  expect(
+    findForbiddenSourcePatterns('annotation-canvas/application', [
+      '/annotation-canvas/presentation/',
     ])
   ).toEqual([]);
 });

@@ -1,6 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import { calculatePoResults, isPoInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/po';
+import {
+  calculatePoResults,
+  isPoInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/po';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const PO_CONFIG: AnnotationConfig = {
@@ -24,15 +26,5 @@ export const PO_CONFIG: AnnotationConfig = {
   isInHoverRange: isPoInRange,
   isInSelectionRange: isPoInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1
-  ) => {
-    return Renderers.renderSingleLineWithHorizontal(
-      points,
-      displayColor,
-      imageScale
-    );
-  },
+  rendererId: 'single-line-with-horizontal',
 };

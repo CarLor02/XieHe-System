@@ -9,7 +9,7 @@ export type {
   Tool,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
-export { default as renderMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/renderMeasurement';
+export { renderMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas';
 export {
   getAnnotationConfig,
   getAnnotationDisplayName,

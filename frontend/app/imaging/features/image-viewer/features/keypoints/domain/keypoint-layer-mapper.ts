@@ -2,14 +2,14 @@ import {
   AP_POSE_KEYPOINTS,
   AP_VERTEBRA_GROUPS,
   parseApVertebraKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/catalog/ap';
+} from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/ap';
 import {
   LATERAL_ANATOMICAL_KEYPOINTS,
   LATERAL_SACRAL_KEYPOINTS,
   LATERAL_VERTEBRA_GROUPS,
   parseLateralSacralKeypointId,
   parseLateralVertebraKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/catalog/lateral';
+} from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
 import {
   isAnteriorExamType,
   isLateralExamType,

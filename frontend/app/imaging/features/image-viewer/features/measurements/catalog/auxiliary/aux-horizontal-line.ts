@@ -1,8 +1,10 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import { calculateActualDistance } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/calibration';
-import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+import {
+  isPointNearLine,
+  isPointNearPoint,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const AUX_HORIZONTAL_LINE_CONFIG: AnnotationConfig = {
@@ -62,17 +64,5 @@ export const AUX_HORIZONTAL_LINE_CONFIG: AnnotationConfig = {
     );
   },
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderSingleHorizontalLine(
-      points,
-      displayColor,
-      imageScale,
-      context
-    );
-  },
+  rendererId: 'single-horizontal-line',
 };

@@ -16,7 +16,7 @@ import {
   Point,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import { isLateralVertebraLabel } from '@/app/imaging/features/image-viewer/features/keypoints/catalog/lateral';
+import { isLateralVertebraLabel } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   keypointsToDerivedLayer,
   vertebraeLayerToKeypoints,

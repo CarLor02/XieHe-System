@@ -1,7 +1,9 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
-import { calculateApCobbResults, isApCobbInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/cobb';
+import {
+  calculateApCobbResults,
+  isApCobbInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/cobb';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const COBB_CONFIG: AnnotationConfig = {
@@ -29,12 +31,7 @@ export const COBB_CONFIG: AnnotationConfig = {
   isInHoverRange: isApCobbInRange,
   isInSelectionRange: isApCobbInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string
-  ) => {
-    return Renderers.renderTwoLines(points, displayColor);
-  },
+  rendererId: 'two-lines',
 };
 
 export const COBB1_CONFIG: AnnotationConfig = {

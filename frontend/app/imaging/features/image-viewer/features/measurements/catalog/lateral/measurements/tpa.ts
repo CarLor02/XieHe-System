@@ -1,7 +1,9 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
-import { calculateTpaResults, isTpaInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/tpa';
+import {
+  calculateTpaResults,
+  isTpaInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/tpa';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const TPA_CONFIG: AnnotationConfig = {
@@ -48,12 +50,5 @@ export const TPA_CONFIG: AnnotationConfig = {
   isInHoverRange: isTpaInRange,
   isInSelectionRange: isTpaInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderTPA(points, displayColor, imageScale, context);
-  },
+  rendererId: 'tpa',
 };

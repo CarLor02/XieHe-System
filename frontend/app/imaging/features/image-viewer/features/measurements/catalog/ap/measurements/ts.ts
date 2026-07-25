@@ -1,6 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import { calculateTsResults, isTsInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/ts';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import {
+  calculateTsResults,
+  isTsInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/ts';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const TS_CONFIG: AnnotationConfig = {
@@ -40,12 +42,5 @@ export const TS_CONFIG: AnnotationConfig = {
   isInHoverRange: isTsInRange,
   isInSelectionRange: isTsInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderC7Offset(points, displayColor, imageScale, context);
-  },
+  rendererId: 'c7-offset',
 };

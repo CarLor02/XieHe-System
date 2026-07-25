@@ -3,7 +3,8 @@
  * 处理点击检测、悬浮检测等选择相关逻辑
  */
 
-import { Point, TransformContext } from '@/app/imaging/features/image-viewer/shared/types';
+import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
+import { Point } from '@/app/imaging/features/image-viewer/shared/types';
 import {
   calculateDistance,
   pointToLineDistance,
@@ -73,7 +74,7 @@ export function isCircleClicked(
   const centerScreen = imageToScreen(center, context);
   const edgeScreen = imageToScreen(edge, context);
   const screenRadius = calculateDistance(centerScreen, edgeScreen);
-  
+
   return isPointNearCircle(clickPoint, centerScreen, screenRadius, tolerance);
 }
 
@@ -100,7 +101,13 @@ export function isEllipseClicked(
 
   if (radiusX === 0 || radiusY === 0) return false;
 
-  return isPointNearEllipse(clickPoint, centerScreen, radiusX, radiusY, tolerance);
+  return isPointNearEllipse(
+    clickPoint,
+    centerScreen,
+    radiusX,
+    radiusY,
+    tolerance
+  );
 }
 
 /**
@@ -121,7 +128,7 @@ export function isRectangleClicked(
 ): boolean {
   const p1Screen = imageToScreen(rectStart, context);
   const p2Screen = imageToScreen(rectEnd, context);
-  
+
   const minX = Math.min(p1Screen.x, p2Screen.x);
   const maxX = Math.max(p1Screen.x, p2Screen.x);
   const minY = Math.min(p1Screen.y, p2Screen.y);
@@ -164,7 +171,7 @@ export function isPolygonClicked(
   for (let i = 0; i < points.length; i++) {
     const current = points[i];
     const next = points[(i + 1) % points.length];
-    
+
     if (isLineClicked(clickPoint, current, next, context, tolerance)) {
       return true;
     }

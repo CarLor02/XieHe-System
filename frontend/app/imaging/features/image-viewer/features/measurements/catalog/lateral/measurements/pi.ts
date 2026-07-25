@@ -1,6 +1,8 @@
-import * as Renderers from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import { calculatePiResults, isPiInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pi';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import {
+  calculatePiResults,
+  isPiInRange,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pi';
 import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/pelvic';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
@@ -28,12 +30,5 @@ export const PI_CONFIG: AnnotationConfig = {
   isInHoverRange: isPiInRange,
   isInSelectionRange: isPiInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale: number = 1,
-    context?: SpecialElementRenderContext
-  ) => {
-    return Renderers.renderPI(points, displayColor, imageScale, context);
-  },
+  rendererId: 'pi',
 };

@@ -1,5 +1,4 @@
-import { renderHemipelvicWidthRatio } from '@/app/imaging/features/image-viewer/features/annotation-canvas/renderers/annotation-tool-renderers/renderHemipelvicWidthRatio';
-import type { AnnotationConfig, SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import {
   calculateHemipelvicWidthRatioGeometry,
   calculateHemipelvicWidthRatioResults,
@@ -35,11 +34,5 @@ export const HEMIPELVIC_WIDTH_RATIO_CONFIG: AnnotationConfig = {
   isInHoverRange: isHemipelvicWidthRatioInRange,
   isInSelectionRange: isHemipelvicWidthRatioInRange,
 
-  renderSpecialElements: (
-    points: Point[],
-    displayColor: string,
-    imageScale = 1,
-    context?: SpecialElementRenderContext
-  ) =>
-    renderHemipelvicWidthRatio(points, displayColor, imageScale, context),
+  rendererId: 'hemipelvic-width-ratio',
 };
