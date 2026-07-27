@@ -14,8 +14,12 @@ export function useStudyDataLoader(
     setStandardDistancePoints: (distancePoints: Point[]) => void,
     setPointBindings: (pointBindings: AnnotationBindings) => void,
     dbAnnotationLoadedRef: RefObject<boolean>,
-    setVertebraeLayer?: (layer: VertebraAnnotation[]) => void,
-    setCfhAnnotation?: (cfh: CfhAnnotation | null) => void,
+    restorePersistedKeypointState: (input: {
+        examType: string;
+        measurements: MeasurementData[];
+        vertebraeLayer: VertebraAnnotation[];
+        cfhAnnotation: CfhAnnotation | null;
+    }) => void,
 ) {
     // 从API获取真实的影像数据
     async function fetchStudyData() {
@@ -46,16 +50,18 @@ export function useStudyDataLoader(
             if (imageFile.annotation) {
                 try {
                     const annotationData = imageFile.annotation as unknown as AnnotationData; // TODO 以后看一下这里的校验能不能精准一些
+                    let restoredMeasurements: MeasurementData[] = [];
                     if (
                         annotationData.measurements &&
                         Array.isArray(annotationData.measurements) // TODO 以后看下这里的校验能不能精准一些
                     ) {
-                        setMeasurements(
-                            (annotationData.measurements as MeasurementData[]).map(measurement => ({
+                        restoredMeasurements = (
+                            annotationData.measurements as MeasurementData[]
+                        ).map(measurement => ({
                                 ...measurement,
                                 type: getAnnotationTypeId(measurement.type),
-                            }))
-                        );
+                            }));
+                        setMeasurements(restoredMeasurements);
                         // 标记 DB 数据已加载，阻止 localStorage 后续覆盖
                         dbAnnotationLoadedRef.current = true;
                         console.log(
@@ -87,14 +93,21 @@ export function useStudyDataLoader(
                         };
                         setPointBindings(validated);
                     }
-                    // 恢复椎体角点层
-                    if (annotationData.vertebraeLayer && Array.isArray(annotationData.vertebraeLayer) && annotationData.vertebraeLayer.length > 0) {
-                        setVertebraeLayer?.(annotationData.vertebraeLayer);
-                        console.log(`从数据库恢复了 ${annotationData.vertebraeLayer.length} 节椎体角点`);
+                    const restoredVertebraeLayer =
+                        annotationData.vertebraeLayer &&
+                        Array.isArray(annotationData.vertebraeLayer)
+                            ? annotationData.vertebraeLayer
+                            : [];
+                    if (restoredVertebraeLayer.length > 0) {
+                        console.log(`从数据库恢复了 ${restoredVertebraeLayer.length} 节椎体角点`);
                     }
-                    if (annotationData.cfhAnnotation) {
-                        setCfhAnnotation?.(annotationData.cfhAnnotation);
-                    }
+                    restorePersistedKeypointState({
+                        examType:
+                            studyData.study_description || studyData.modality,
+                        measurements: restoredMeasurements,
+                        vertebraeLayer: restoredVertebraeLayer,
+                        cfhAnnotation: annotationData.cfhAnnotation ?? null,
+                    });
                 } catch (e) {
                     console.error('解析标注数据失败:', e);
                 }

@@ -58,12 +58,15 @@ import {
 import { shiftMeasurementVertebraLabels } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/shiftMeasurementVertebraLabelsUseCase';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
 import {
-  backfillMissingBoundKeypoints,
   getMeasurementKeypointBindingRule,
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import { syncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/cobbKeypointSyncUseCase';
 import { runLateralDetectionCache } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
+import {
+  hydratePersistedKeypointState,
+  type PersistedKeypointStateInput,
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/hydratePersistedKeypointStateUseCase';
 
 interface UseMeasurementKeypointWorkflowOptions {
   imageId: string;
@@ -135,11 +138,6 @@ export function useMeasurementKeypointWorkflow({
   } = useKeypointLayerState({ examType, isKeypointExam });
   const aiMeasurementIdsRef = useRef<Set<string>>(new Set());
   const lateralDetectionResultRef = useRef<LateralDetectionCache | null>(null);
-  const keypointsRef = useRef<KeypointAnnotation[]>(keypoints);
-
-  useEffect(() => {
-    keypointsRef.current = keypoints;
-  }, [keypoints]);
 
   const deriveKeypointMeasurements = useCallback(
     (nextKeypoints: KeypointAnnotation[]): MeasurementData[] =>
@@ -238,6 +236,16 @@ export function useMeasurementKeypointWorkflow({
     ]
   );
 
+  const restorePersistedKeypointState = useCallback(
+    (input: PersistedKeypointStateInput) => {
+      const restored = hydratePersistedKeypointState(input);
+      setKeypoints(restored.keypoints);
+      setVertebraeLayer(restored.vertebraeLayer);
+      setCfhAnnotation(restored.cfhAnnotation);
+    },
+    [setCfhAnnotation, setKeypoints, setVertebraeLayer]
+  );
+
   useEffect(() => {
     if (!isLateralView || canUseKeypoints || !imageNaturalSize) return;
     void runLateralDetectionCache({ imageId, lateralDetectionResultRef });
@@ -267,36 +275,6 @@ export function useMeasurementKeypointWorkflow({
         : restoredKeypoints
     );
   }, [cfhAnnotation, examType, isKeypointExam, setKeypoints, vertebraeLayer]);
-
-  useEffect(() => {
-    if (!isKeypointExam || measurements.length === 0) return;
-
-    const nextKeypoints = backfillMissingBoundKeypoints(
-      keypoints,
-      measurements
-    );
-    if (areKeypointsEqual(keypoints, nextKeypoints)) return;
-
-    const timeoutId = window.setTimeout(() => {
-      const latestKeypoints = keypointsRef.current;
-      const latestBackfilled = backfillMissingBoundKeypoints(
-        latestKeypoints,
-        measurements
-      );
-      if (areKeypointsEqual(latestKeypoints, latestBackfilled)) return;
-      setKeypoints(latestBackfilled);
-      setVertebraeLayer(keypointsToPersistedLayer(latestBackfilled));
-    }, 0);
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    isKeypointExam,
-    keypoints,
-    measurements,
-    setKeypoints,
-    setVertebraeLayer,
-  ]);
 
   useEffect(() => {
     if (!isKeypointExam || keypoints.length === 0) return;
@@ -905,6 +883,7 @@ export function useMeasurementKeypointWorkflow({
     deriveKeypointMeasurements,
     recalculateExistingMeasurements,
     syncUniqueMeasurements,
+    restorePersistedKeypointState,
     clearKeypointState,
     restoreAiMeasurementIds,
     getAiMeasurementIdsSnapshot,

@@ -297,13 +297,13 @@ export function useImageViewerController({
     setStandardDistancePoints,
     setPointBindings,
     dbAnnotationLoadedRef,
-    keypointWorkflow.setVertebraeLayer,
-    keypointWorkflow.setCfhAnnotation
+    keypointWorkflow.restorePersistedKeypointState
   );
 
   useLocalAnnotationsDataLoader(
     imageId,
     imageNaturalSize,
+    imageData.examType,
     setMeasurements,
     standardDistance,
     setStandardDistance,
@@ -313,8 +313,7 @@ export function useImageViewerController({
     dbAnnotationLoadedRef,
     calculateMeasurementValue,
     getDescriptionForType,
-    keypointWorkflow.setVertebraeLayer,
-    keypointWorkflow.setCfhAnnotation
+    keypointWorkflow.restorePersistedKeypointState
   );
 
   useImageListFetcher(setImageList);

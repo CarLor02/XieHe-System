@@ -229,6 +229,79 @@ it('creates missing PO and CSS keypoints when the manual tools complete', async 
   });
 });
 
+it('hydrates the complete persisted layer before backfilling bound keypoints', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.workflow.restorePersistedKeypointState({
+      examType: '正位X光片',
+      measurements: [
+        {
+          id: 'po-1',
+          type: 'po',
+          value: '0.00°',
+          points: [
+            { x: 80, y: 300 },
+            { x: 240, y: 300 },
+          ],
+        },
+      ],
+      vertebraeLayer: [
+        {
+          label: 'T4',
+          corners: [
+            { x: 100, y: 100 },
+            { x: 200, y: 100 },
+            { x: 100, y: 160 },
+            { x: 200, y: 160 },
+          ],
+          confidence: 0.9,
+          source: AnnotationSource.AI,
+        },
+      ],
+      cfhAnnotation: null,
+    });
+  });
+
+  await waitFor(() => {
+    expect(latest!.workflow.keypoints.map(keypoint => keypoint.id)).toEqual(
+      expect.arrayContaining([
+        'T4-1',
+        'T4-2',
+        'T4-3',
+        'T4-4',
+        'IL',
+        'IR',
+      ])
+    );
+  });
+
+  expect(
+    latest!.workflow.vertebraeLayer.map(annotation => annotation.label)
+  ).toEqual(
+    expect.arrayContaining([
+      'T4-1',
+      'T4-2',
+      'T4-3',
+      'T4-4',
+      'IL',
+      'IR',
+    ])
+  );
+});
+
 it('marks only moved AI keypoints as manual after keypoint-layer drag', async () => {
   let latest: WorkflowHarnessValue | null = null;
 

@@ -12,6 +12,7 @@ import {
 export function useLocalAnnotationsDataLoader(
     imageId: string,
     imageNaturalSize: ImageSize,
+    examType: string,
     setMeasurements: (measurements: MeasurementData[]) => void,
     standardDistance: number | null,
     setStandardDistance: (distance: number | null) => void,
@@ -25,8 +26,12 @@ export function useLocalAnnotationsDataLoader(
         context: CalculationContext
     ) => string,
     getDescriptionForType: (type: string) => string,
-    setVertebraeLayer?: (layer: VertebraAnnotation[]) => void,
-    setCfhAnnotation?: (cfh: CfhAnnotation | null) => void,
+    restorePersistedKeypointState: (input: {
+        examType: string;
+        measurements: MeasurementData[];
+        vertebraeLayer: VertebraAnnotation[];
+        cfhAnnotation: CfhAnnotation | null;
+    }) => void,
 ) {
     // 从localStorage加载标注数据
     const loadAnnotationsFromLocalStorage = () => {
@@ -88,6 +93,7 @@ export function useLocalAnnotationsDataLoader(
                 }
 
                 // 然后加载measurements（使用已加载的标准距离）
+                let restoredMeasurements: MeasurementData[] = [];
                 if (data.measurements && Array.isArray(data.measurements)) {
                     // 检查是否需要坐标转换
                     const storedImageWidth = data.imageWidth;
@@ -109,7 +115,7 @@ export function useLocalAnnotationsDataLoader(
                     }
 
                     // 恢复measurements；优先使用保存的id（确保绑定引用有效），否则生成新id
-                    const restoredMeasurements = data.measurements.map((m: any) => {
+                    restoredMeasurements = data.measurements.map((m: any) => {
                         // 转换坐标（如果需要）
                         const scaledPoints = m.points.map((p: any) => ({
                             x: p.x * scaleX,
@@ -186,13 +192,19 @@ export function useLocalAnnotationsDataLoader(
                     setPointBindings({ syncGroups: [] });
                 }
                 // 恢复椎体角点层（image 坐标，无需缩放）
-                if (data.vertebraeLayer && Array.isArray(data.vertebraeLayer) && data.vertebraeLayer.length > 0) {
-                    setVertebraeLayer?.(data.vertebraeLayer);
+                const restoredVertebraeLayer =
+                    data.vertebraeLayer && Array.isArray(data.vertebraeLayer)
+                        ? data.vertebraeLayer
+                        : [];
+                if (restoredVertebraeLayer.length > 0) {
                     console.log(`从 localStorage 恢复了 ${data.vertebraeLayer.length} 节椎体角点`);
                 }
-                if (data.cfhAnnotation) {
-                    setCfhAnnotation?.(data.cfhAnnotation);
-                }
+                restorePersistedKeypointState({
+                    examType,
+                    measurements: restoredMeasurements,
+                    vertebraeLayer: restoredVertebraeLayer,
+                    cfhAnnotation: data.cfhAnnotation ?? null,
+                });
             } else if (imageNaturalSize) {
                 // 如果完全没有保存的数据，设置默认标准距离
                 const defaultPoints = [
@@ -226,5 +238,5 @@ export function useLocalAnnotationsDataLoader(
             console.log('图像尺寸已确定，加载标注数据:', imageNaturalSize);
             loadAnnotationsFromLocalStorage();
         }
-    }, [imageNaturalSize, imageId]);
+    }, [examType, imageNaturalSize, imageId]);
 }
