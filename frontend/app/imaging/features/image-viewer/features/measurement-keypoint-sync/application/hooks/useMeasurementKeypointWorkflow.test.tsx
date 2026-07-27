@@ -229,6 +229,55 @@ it('creates missing PO and CSS keypoints when the manual tools complete', async 
   });
 });
 
+it('creates AVT from the same keypoint snapshot that completes staged placement', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+  const target = { type: 'vertebra', vertebra: 'T2' } as const;
+
+  render(
+    <WorkflowHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const orderedKeypoints = [
+    'C7-1',
+    'C7-2',
+    'C7-3',
+    'C7-4',
+    'T2-1',
+    'T2-2',
+    'T2-3',
+    'T2-4',
+  ];
+  for (const [index, keypointId] of orderedKeypoints.entries()) {
+    act(() => {
+      latest!.workflow.handleAddAvtKeypoint(target, keypointId, {
+        x: 100 + index * 10,
+        y: 100 + index * 5,
+      });
+    });
+    await waitFor(() => {
+      expect(
+        latest!.workflow.keypoints.some(keypoint => keypoint.id === keypointId)
+      ).toBe(true);
+    });
+  }
+
+  await waitFor(() => {
+    const measurement = latest!.measurements.find(
+      item => item.id === 'ap-keypoint-avt-t2'
+    );
+    expect(measurement?.points).toHaveLength(8);
+    expect(measurement?.avtMetadata?.target).toEqual(target);
+  });
+});
+
 it('hydrates the complete persisted layer before backfilling bound keypoints', async () => {
   let latest: WorkflowHarnessValue | null = null;
 
@@ -277,28 +326,14 @@ it('hydrates the complete persisted layer before backfilling bound keypoints', a
 
   await waitFor(() => {
     expect(latest!.workflow.keypoints.map(keypoint => keypoint.id)).toEqual(
-      expect.arrayContaining([
-        'T4-1',
-        'T4-2',
-        'T4-3',
-        'T4-4',
-        'IL',
-        'IR',
-      ])
+      expect.arrayContaining(['T4-1', 'T4-2', 'T4-3', 'T4-4', 'IL', 'IR'])
     );
   });
 
   expect(
     latest!.workflow.vertebraeLayer.map(annotation => annotation.label)
   ).toEqual(
-    expect.arrayContaining([
-      'T4-1',
-      'T4-2',
-      'T4-3',
-      'T4-4',
-      'IL',
-      'IR',
-    ])
+    expect.arrayContaining(['T4-1', 'T4-2', 'T4-3', 'T4-4', 'IL', 'IR'])
   );
 });
 

@@ -51,3 +51,37 @@ it('shows the bound keypoint group for a manual CSS measurement', () => {
 
   expect(screen.getByText('骶骨点待排序点 2/2')).toBeTruthy();
 });
+
+it('shows AVT reference placement progress before disc anchors', () => {
+  render(
+    <CanvasHintPanel
+      selectedTool="avt"
+      isImagePanLocked={false}
+      isHovering={false}
+      clickedPointsCount={0}
+      pointsNeeded={0}
+      currentTool={null}
+      measurements={[]}
+      getInheritedPoints={jest.fn(() => ({ points: [], count: 0 }))}
+      avtPlacementSession={{
+        target: {
+          type: 'disc',
+          upperVertebra: 'T12',
+          lowerVertebra: 'L1',
+        },
+        step: {
+          kind: 'keypoint',
+          phase: 'reference',
+          label: 'CSVL',
+          keypointId: 'SR',
+          completedCount: 1,
+          totalCount: 2,
+        },
+      }}
+    />
+  );
+
+  expect(
+    screen.getByText('正在补充 CSVL：下一点 SR，已标注 1/2 个点')
+  ).toBeTruthy();
+});

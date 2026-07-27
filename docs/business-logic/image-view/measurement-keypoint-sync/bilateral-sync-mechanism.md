@@ -113,4 +113,6 @@
 
 - 通用 `CobbN/lateral-cobbN`。
 - 不对应解剖关键点的辅助图形。
-- AVT 缺少 C7PL 或 CSVL 参考点时的交互补点流程；该项记录在 `manual-tools/need-to-fix.md`。
+
+AVT 使用 measurement metadata 动态确定绑定。手动创建时必须先补 C7PL/CSVL
+参考点，再补目标椎体点或椎间盘自有点；AVT 不作为全局唯一项自动派生。

@@ -121,11 +121,15 @@ it('completes a manual AVT disc line with two horizontal sorted anchors', () => 
         setClickedPoints,
         imageScale: 1,
         onMeasurementAdd,
-        avtDiscPlacementSession: {
+        avtPlacementSession: {
           target: {
             type: 'disc',
             upperVertebra: 'T11',
             lowerVertebra: 'T12',
+          },
+          step: {
+            kind: 'disc',
+            label: 'T11-T12',
           },
         },
         onAvtDiscPlacementComplete,

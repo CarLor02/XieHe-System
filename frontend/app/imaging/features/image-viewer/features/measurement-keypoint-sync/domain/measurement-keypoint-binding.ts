@@ -15,6 +15,7 @@ import {
   AP_MEASUREMENT_KEYPOINT_BINDING_RULES,
   HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS,
 } from './ap-binding-rules';
+import { getAvtMeasurementKeypointBindingRule } from './avt-binding-rule';
 import type { MeasurementKeypointBindingRule } from './binding-rule-types';
 import { LATERAL_MEASUREMENT_KEYPOINT_BINDING_RULES } from './lateral-binding-rules';
 
@@ -45,6 +46,15 @@ export function getMeasurementKeypointBindingRule(
   return (
     MEASUREMENT_KEYPOINT_BINDING_RULES.get(getBindingTypeId(measurementType)) ??
     null
+  );
+}
+
+export function getMeasurementKeypointBindingRuleForMeasurement(
+  measurement: MeasurementData
+): MeasurementKeypointBindingRule | null {
+  return (
+    getAvtMeasurementKeypointBindingRule(measurement) ??
+    getMeasurementKeypointBindingRule(measurement.type)
   );
 }
 
@@ -118,6 +128,27 @@ export function writeMeasurementPointsToKeypoints(
   );
 }
 
+export function writeMeasurementToKeypoints(
+  keypoints: KeypointAnnotation[],
+  measurement: MeasurementData,
+  points: Point[],
+  changedPointIndex?: number
+): KeypointAnnotation[] {
+  const rule = getMeasurementKeypointBindingRuleForMeasurement(measurement);
+  if (!rule) return keypoints;
+
+  return rule.getKeypointUpdates(points, changedPointIndex).reduce(
+    (current, update) =>
+      upsertKeypoint(current, {
+        id: update.keypointId,
+        point: { ...update.point },
+        source: AnnotationSource.MANUAL,
+        confidence: 1,
+      }),
+    keypoints
+  );
+}
+
 /**
  * 兼容历史标注：仅补齐缺失关键点，不覆盖已经存在的关键点。
  * 多个测量项引用同一缺失点时，测量列表中较早的项目优先。
@@ -129,7 +160,7 @@ export function backfillMissingBoundKeypoints(
   let nextKeypoints = keypoints;
 
   for (const measurement of measurements) {
-    const rule = getMeasurementKeypointBindingRule(measurement.type);
+    const rule = getMeasurementKeypointBindingRuleForMeasurement(measurement);
     if (!rule) continue;
 
     const existingIds = new Set(nextKeypoints.map(keypoint => keypoint.id));

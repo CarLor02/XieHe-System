@@ -38,9 +38,10 @@ import {
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
-  AvtDiscPlacementSession,
+  AvtPlacementSession,
   AvtTarget,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import { createAvtPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 
 interface UseImageViewerControllerOptions {
   imageId: string;
@@ -167,8 +168,8 @@ export function useImageViewerController({
     useState<KeypointSequenceSession | null>(null);
   const [keypointSequenceClosedGroupName, setKeypointSequenceClosedGroupName] =
     useState<string | null>(null);
-  const [avtDiscPlacementSession, setAvtDiscPlacementSession] =
-    useState<AvtDiscPlacementSession | null>(null);
+  const [avtPlacementSession, setAvtPlacementSession] =
+    useState<AvtPlacementSession | null>(null);
 
   const {
     studyData,
@@ -399,14 +400,14 @@ export function useImageViewerController({
     activateHandMode();
   }, [activateHandMode, keypointSequenceSession]);
 
-  const handleCancelAvtDiscPlacement = useCallback(() => {
-    setAvtDiscPlacementSession(null);
+  const handleCancelAvtPlacement = useCallback(() => {
+    setAvtPlacementSession(null);
     setClickedPoints([]);
     activateHandMode();
   }, [activateHandMode, setClickedPoints]);
 
   const handleActivateHandMode = useCallback(() => {
-    setAvtDiscPlacementSession(null);
+    setAvtPlacementSession(null);
     setClickedPoints([]);
     activateHandMode();
   }, [activateHandMode, setClickedPoints]);
@@ -507,9 +508,9 @@ export function useImageViewerController({
         return;
       }
 
-      if (isEscapeShortcut(event) && avtDiscPlacementSession) {
+      if (isEscapeShortcut(event) && avtPlacementSession) {
         event.preventDefault();
-        handleCancelAvtDiscPlacement();
+        handleCancelAvtPlacement();
         return;
       }
 
@@ -546,8 +547,8 @@ export function useImageViewerController({
   }, [
     canRedoAnnotationHistory,
     canUndoAnnotationHistory,
-    avtDiscPlacementSession,
-    handleCancelAvtDiscPlacement,
+    avtPlacementSession,
+    handleCancelAvtPlacement,
     handleCloseKeypointSequence,
     handleDebouncedSaveMeasurements,
     handleToggleVertebraeLayer,
@@ -573,15 +574,19 @@ export function useImageViewerController({
       }
 
       setClickedPoints([]);
-      if (target.type === 'disc') {
-        setAvtDiscPlacementSession({ target });
+      const placementSession = createAvtPlacementSession(
+        target,
+        new Set(keypointWorkflow.keypoints.map(keypoint => keypoint.id))
+      );
+      if (placementSession) {
+        setAvtPlacementSession(placementSession);
         setSelectedTool('avt');
         return;
       }
 
       beginHistoryAction('manual-measurement-avt');
       keypointWorkflow.handleCreateAvt(target);
-      setAvtDiscPlacementSession(null);
+      setAvtPlacementSession(null);
       activateHandMode();
     },
     [
@@ -597,7 +602,7 @@ export function useImageViewerController({
 
   const handleToolbarToolSelect = useCallback(
     (toolId: string) => {
-      setAvtDiscPlacementSession(null);
+      setAvtPlacementSession(null);
       standardDistanceActions.handleSelectTool(toolId);
     },
     [standardDistanceActions]
@@ -605,22 +610,54 @@ export function useImageViewerController({
 
   const handleCompleteAvtDiscPlacement = useCallback(
     (anchors: readonly [Point, Point]) => {
-      if (!avtDiscPlacementSession) return;
+      if (!avtPlacementSession || avtPlacementSession.step.kind !== 'disc') {
+        return;
+      }
 
       beginHistoryAction('manual-measurement-avt-disc');
       const created = keypointWorkflow.handleCreateAvt(
-        avtDiscPlacementSession.target,
+        avtPlacementSession.target,
         anchors
       );
       if (!created) return;
 
-      setAvtDiscPlacementSession(null);
+      setAvtPlacementSession(null);
       setClickedPoints([]);
       activateHandMode();
     },
     [
       activateHandMode,
-      avtDiscPlacementSession,
+      avtPlacementSession,
+      beginHistoryAction,
+      keypointWorkflow,
+      setClickedPoints,
+    ]
+  );
+
+  const handleAvtKeypointPlacement = useCallback(
+    (point: Point) => {
+      if (
+        !avtPlacementSession ||
+        avtPlacementSession.step.kind !== 'keypoint'
+      ) {
+        return;
+      }
+
+      beginHistoryAction('manual-measurement-avt-keypoint');
+      const nextSession = keypointWorkflow.handleAddAvtKeypoint(
+        avtPlacementSession.target,
+        avtPlacementSession.step.keypointId,
+        point
+      );
+      setAvtPlacementSession(nextSession);
+      setClickedPoints([]);
+      if (!nextSession) {
+        activateHandMode();
+      }
+    },
+    [
+      activateHandMode,
+      avtPlacementSession,
       beginHistoryAction,
       keypointWorkflow,
       setClickedPoints,
@@ -875,7 +912,8 @@ export function useImageViewerController({
       tools,
       clickedPoints,
       setClickedPoints,
-      avtDiscPlacementSession,
+      avtPlacementSession,
+      onAvtKeypointPlacement: handleAvtKeypointPlacement,
       onAvtDiscPlacementComplete: handleCompleteAvtDiscPlacement,
       imageId,
       isSettingStandardDistance,

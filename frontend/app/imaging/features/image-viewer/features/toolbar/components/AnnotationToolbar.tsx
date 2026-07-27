@@ -48,9 +48,7 @@ import { AppMessageDialog } from '@/components/overlay/overlay-components';
 import {
   AVT_DISC_TARGETS,
   AVT_VERTEBRA_TARGETS,
-  createAvtMetadata,
   getAvtTargetLabel,
-  hasAvtReferenceKeypoints,
   isSameAvtTarget,
   type AvtTarget,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
@@ -270,9 +268,6 @@ export default function AnnotationToolbar({
   const measurementTypeIds = new Set(
     measurements.map(measurement => getAnnotationTypeId(measurement.type))
   );
-  const completeVertebraGroupSet = new Set(
-    completeVertebraGroups.map(group => group.trim().toUpperCase())
-  );
   const avtMeasurements = measurements.filter(
     item => getAnnotationTypeId(item.type) === 'avt'
   );
@@ -284,15 +279,10 @@ export default function AnnotationToolbar({
   );
   const avtDiscTargets: AvtTarget[] = AVT_DISC_TARGETS;
   const isAvtTargetAvailable = (target: AvtTarget) => {
-    const metadata = createAvtMetadata(target);
-    const hasTargetPoints =
-      target.type === 'disc' ||
-      completeVertebraGroupSet.has(target.vertebra.toUpperCase());
-    const hasReferencePoints = hasAvtReferenceKeypoints(metadata, keypointIds);
     const exists = avtMeasurements.some(measurement =>
       isSameAvtTarget(measurement, target)
     );
-    return hasTargetPoints && hasReferencePoints && !exists;
+    return !exists;
   };
   const availableAvtTargets = [...avtVertebraTargets, ...avtDiscTargets].filter(
     isAvtTargetAvailable
@@ -1113,37 +1103,15 @@ export default function AnnotationToolbar({
                                 ? avtVertebraTargets
                                 : avtDiscTargets
                               ).map(target => {
-                                const metadata = createAvtMetadata(target);
-                                const hasTargetPoints =
-                                  target.type === 'disc' ||
-                                  completeVertebraGroupSet.has(
-                                    target.vertebra.toUpperCase()
-                                  );
-                                const hasReferencePoints =
-                                  hasAvtReferenceKeypoints(
-                                    metadata,
-                                    keypointIds
-                                  );
                                 const exists = avtMeasurements.some(
                                   measurement =>
                                     isSameAvtTarget(measurement, target)
                                 );
-                                const disabled =
-                                  !hasTargetPoints ||
-                                  !hasReferencePoints ||
-                                  exists;
+                                const disabled = exists;
                                 const targetLabel = getAvtTargetLabel(target);
                                 const title = exists
                                   ? `${targetLabel}的AVT已存在`
-                                  : !hasTargetPoints
-                                    ? `${targetLabel}缺少完整椎体关键点`
-                                    : !hasReferencePoints
-                                      ? `${targetLabel}缺少${
-                                          metadata.referenceLine === 'c7pl'
-                                            ? 'C7PL'
-                                            : 'CSVL'
-                                        }参考点`
-                                      : `创建AVT(${targetLabel})`;
+                                  : `创建AVT(${targetLabel})`;
                                 return (
                                   <button
                                     key={`${target.type}:${targetLabel}`}

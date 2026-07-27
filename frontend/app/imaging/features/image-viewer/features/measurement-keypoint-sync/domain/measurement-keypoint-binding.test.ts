@@ -4,7 +4,9 @@ import {
   backfillMissingBoundKeypoints,
   buildBoundMeasurementPoints,
   getMeasurementKeypointBindingRule,
+  getMeasurementKeypointBindingRuleForMeasurement,
   normalizeBoundMeasurementPoints,
+  writeMeasurementToKeypoints,
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
@@ -321,4 +323,91 @@ it('keeps generic Cobb tools outside the automatic binding registry', () => {
   expect(getMeasurementKeypointBindingRule('Cobb3')).toBeNull();
   expect(getMeasurementKeypointBindingRule('lateral-cobb')).toBeNull();
   expect(getMeasurementKeypointBindingRule('lateral-cobb2')).toBeNull();
+});
+
+it('resolves AVT binding from metadata and backfills only anatomical keypoints', () => {
+  const measurement: MeasurementData = {
+    id: 'ap-keypoint-avt-disc-t12-l1',
+    type: 'avt',
+    value: '1.00mm',
+    points: [
+      { x: 120, y: 100 },
+      { x: 180, y: 100 },
+      { x: 300, y: 400 },
+      { x: 200, y: 400 },
+    ],
+    avtMetadata: {
+      schemaVersion: 2,
+      target: {
+        type: 'disc',
+        upperVertebra: 'T12',
+        lowerVertebra: 'L1',
+      },
+      referenceLine: 'csvl',
+    },
+  };
+
+  expect(
+    getMeasurementKeypointBindingRuleForMeasurement(measurement)
+      ?.requiredKeypointIds
+  ).toEqual(['SR', 'SL']);
+  expect(
+    backfillMissingBoundKeypoints([], [measurement]).map(item => item.id)
+  ).toEqual(expect.arrayContaining(['SR', 'SL']));
+});
+
+it('writes a schema-v2 AVT reference drag through the dynamic binding rule', () => {
+  const measurement: MeasurementData = {
+    id: 'ap-keypoint-avt-t2',
+    type: 'avt',
+    value: '1.00mm',
+    points: [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+      { x: 100, y: 200 },
+      { x: 200, y: 200 },
+      { x: 80, y: 20 },
+      { x: 180, y: 20 },
+      { x: 80, y: 60 },
+      { x: 180, y: 60 },
+    ],
+    avtMetadata: {
+      schemaVersion: 2,
+      target: { type: 'vertebra', vertebra: 'T2' },
+      referenceLine: 'c7pl',
+    },
+  };
+
+  const written = writeMeasurementToKeypoints(
+    [keypoint('C7-2', 180, 20)],
+    measurement,
+    measurement.points.map((point, index) =>
+      index === 5 ? { x: 190, y: 25 } : point
+    ),
+    5
+  );
+
+  expect(written).toHaveLength(1);
+  expect(written[0]).toEqual(
+    expect.objectContaining({
+      id: 'C7-2',
+      point: { x: 190, y: 25 },
+      source: AnnotationSource.MANUAL,
+    })
+  );
+});
+
+it('does not guess bindings for legacy AVT measurements without metadata', () => {
+  const legacy: MeasurementData = {
+    id: 'ap-keypoint-avt',
+    type: 'avt',
+    value: '1.00mm',
+    points: [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+    ],
+  };
+
+  expect(getMeasurementKeypointBindingRuleForMeasurement(legacy)).toBeNull();
+  expect(backfillMissingBoundKeypoints([], [legacy])).toEqual([]);
 });

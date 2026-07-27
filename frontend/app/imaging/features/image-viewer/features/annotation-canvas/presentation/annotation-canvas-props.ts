@@ -3,7 +3,7 @@ import type {
   PointRef,
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
-import type { AvtDiscPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import type { AvtPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import type {
   CfhAnnotation,
   ImageData,
@@ -38,7 +38,8 @@ export interface AnnotationCanvasProps {
   tools: Tool[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
-  avtDiscPlacementSession?: AvtDiscPlacementSession | null;
+  avtPlacementSession?: AvtPlacementSession | null;
+  onAvtKeypointPlacement?: (point: Point) => void;
   onAvtDiscPlacementComplete?: (anchors: readonly [Point, Point]) => void;
   imageId: string;
   isSettingStandardDistance: boolean;

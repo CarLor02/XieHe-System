@@ -15,7 +15,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import {
   createHorizontalDiscAnchors,
-  type AvtDiscPlacementSession,
+  type AvtPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 
 const POLYGON_CLOSE_TOLERANCE_PX = 18;
@@ -30,7 +30,7 @@ interface UseCanvasDrawingToolOptions {
   onMeasurementAdd: (type: string, points: Point[]) => void;
   /** 测量放置完成后回调，用于自动切换工具（如切回 hand 模式） */
   onMeasurementComplete?: () => void;
-  avtDiscPlacementSession?: AvtDiscPlacementSession | null;
+  avtPlacementSession?: AvtPlacementSession | null;
   onAvtDiscPlacementComplete?: (anchors: readonly [Point, Point]) => void;
   drawingState: DrawingState;
   setDrawingState: React.Dispatch<React.SetStateAction<DrawingState>>;
@@ -75,7 +75,7 @@ export function useCanvasDrawingTool({
   imageScale,
   onMeasurementAdd,
   onMeasurementComplete,
-  avtDiscPlacementSession,
+  avtPlacementSession,
   onAvtDiscPlacementComplete,
   drawingState,
   setDrawingState,
@@ -245,7 +245,7 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      if (selectedTool === 'avt' && avtDiscPlacementSession) {
+      if (selectedTool === 'avt' && avtPlacementSession?.step.kind === 'disc') {
         if (clickedPoints.length === 0) {
           setClickedPoints([imagePoint]);
           return true;
@@ -332,10 +332,7 @@ export function useCanvasDrawingTool({
         selectedTool.includes('sva') ||
         selectedTool === 'ts'
       ) {
-        const inheritedMap = getInheritedPointMap(
-          currentTool.id,
-          measurements
-        );
+        const inheritedMap = getInheritedPointMap(currentTool.id, measurements);
         const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
 
         if (newPoints.length === 1) {
@@ -398,10 +395,7 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      const inheritedMap = getInheritedPointMap(
-        currentTool.id,
-        measurements
-      );
+      const inheritedMap = getInheritedPointMap(currentTool.id, measurements);
       const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
       if (newPoints.length === effectiveNeeded) {
         const allPoints = assembleInheritedPoints(
@@ -416,7 +410,7 @@ export function useCanvasDrawingTool({
     },
     [
       addMeasurement,
-      avtDiscPlacementSession,
+      avtPlacementSession,
       clickedPoints,
       getCurrentTool,
       imageScale,

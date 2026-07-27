@@ -38,6 +38,7 @@ import type { AnnotationCanvasProps } from '@/app/imaging/features/image-viewer/
 
 export function getAnnotationCanvasCursorClass({
   keypointSequenceSession,
+  avtPlacementSession = null,
   showVertebraeLayer,
   isVertebradDragging,
   selectedTool,
@@ -45,13 +46,14 @@ export function getAnnotationCanvasCursorClass({
   fallbackCursorClass,
 }: {
   keypointSequenceSession: KeypointSequenceSession | null;
+  avtPlacementSession?: AnnotationCanvasProps['avtPlacementSession'];
   showVertebraeLayer: boolean;
   isVertebradDragging: boolean;
   selectedTool: string;
   hasActiveOrHoveredCorner: boolean;
   fallbackCursorClass: string;
 }): string {
-  if (keypointSequenceSession) return 'cursor-crosshair';
+  if (keypointSequenceSession || avtPlacementSession) return 'cursor-crosshair';
 
   if (
     (showVertebraeLayer || isVertebradDragging) &&
@@ -119,7 +121,8 @@ export function useAnnotationCanvasController({
   tools,
   clickedPoints,
   setClickedPoints,
-  avtDiscPlacementSession = null,
+  avtPlacementSession = null,
+  onAvtKeypointPlacement,
   onAvtDiscPlacementComplete,
   imageId,
   isSettingStandardDistance,
@@ -564,7 +567,7 @@ export function useAnnotationCanvasController({
     imageScale,
     onMeasurementAdd,
     onMeasurementComplete: () => setSelectedTool('hand'),
-    avtDiscPlacementSession,
+    avtPlacementSession,
     onAvtDiscPlacementComplete,
     drawingState,
     setDrawingState,
@@ -716,6 +719,18 @@ export function useAnnotationCanvasController({
   });
 
   const handleCanvasMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (avtPlacementSession?.step.kind === 'keypoint') {
+      selectMeasurementKeypoints(null);
+      setDetectionLayerSelection(null);
+      const rect = containerRef.current?.getBoundingClientRect();
+      const point = screenToImage(
+        event.clientX - (rect?.left ?? 0),
+        event.clientY - (rect?.top ?? 0)
+      );
+      onAvtKeypointPlacement?.(point);
+      return;
+    }
+
     if (keypointSequenceSession) {
       selectMeasurementKeypoints(null);
       setDetectionLayerSelection(null);
@@ -775,6 +790,7 @@ export function useAnnotationCanvasController({
       className: `relative w-full h-full overflow-hidden ${getAnnotationCanvasCursorClass(
         {
           keypointSequenceSession,
+          avtPlacementSession,
           showVertebraeLayer,
           isVertebradDragging: vertebradDrag.isDragging,
           selectedTool,
@@ -902,7 +918,7 @@ export function useAnnotationCanvasController({
       currentTool,
       measurements,
       keypointSequenceSession,
-      avtDiscPlacementSession,
+      avtPlacementSession,
     },
     overlayLayer: {
       editLabelDialog,

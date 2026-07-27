@@ -9,11 +9,7 @@ import {
   MeasurementData,
   Point,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import {
-  getAvtPointKeypointId,
-  getAvtRequiredKeypointIds,
-  isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import { getMeasurementKeypointBindingRuleForMeasurement } from './measurement-keypoint-binding';
 
 const POINT_MATCH_TOLERANCE = 0.5;
 
@@ -126,14 +122,11 @@ export function resolveMeasurementKeypointIds(
   const selected = new Set<string>();
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
   const completeGroups = buildCompleteVertebraGroups(keypoints);
-  if (
-    getAnnotationTypeId(measurement.type) === 'avt' &&
-    isAvtMetadata(measurement.avtMetadata)
-  ) {
+  const dynamicBindingRule =
+    getMeasurementKeypointBindingRuleForMeasurement(measurement);
+  if (getAnnotationTypeId(measurement.type) === 'avt' && dynamicBindingRule) {
     return uniqueSorted(
-      getAvtRequiredKeypointIds(measurement.avtMetadata).filter(id =>
-        byId.has(id)
-      )
+      dynamicBindingRule.requiredKeypointIds.filter(id => byId.has(id))
     );
   }
 
@@ -225,14 +218,14 @@ export function resolveMeasurementPointDragTarget(
 
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
   const typeId = getAnnotationTypeId(measurement.type);
-  if (typeId === 'avt' && isAvtMetadata(measurement.avtMetadata)) {
-    const keypointId = getAvtPointKeypointId(
-      measurement.avtMetadata,
-      pointIndex
-    );
-    return keypointId && byId.has(keypointId)
-      ? { keypointIds: [keypointId] }
-      : null;
+  const dynamicBindingRule =
+    getMeasurementKeypointBindingRuleForMeasurement(measurement);
+  if (typeId === 'avt' && dynamicBindingRule) {
+    const keypointIds = dynamicBindingRule
+      .getKeypointUpdates(measurement.points, pointIndex)
+      .map(update => update.keypointId)
+      .filter(keypointId => byId.has(keypointId));
+    return keypointIds.length > 0 ? { keypointIds } : null;
   }
 
   if (typeId === 'sva' && pointIndex === 4 && byId.has('S1-2')) {

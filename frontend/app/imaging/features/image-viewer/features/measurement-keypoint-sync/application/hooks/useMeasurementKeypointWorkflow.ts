@@ -33,8 +33,8 @@ import {
   hasCobbMeasurementForEndpoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-query';
 import {
-  getAvtPointKeypointId,
-  isAvtMetadata,
+  createAvtPlacementSession,
+  type AvtPlacementSession,
   type AvtTarget,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import { DERIVED_ID_PREFIX } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/vertebrae-derive';
@@ -59,7 +59,8 @@ import { shiftMeasurementVertebraLabels } from '@/app/imaging/features/image-vie
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
 import {
   getMeasurementKeypointBindingRule,
-  writeMeasurementPointsToKeypoints,
+  getMeasurementKeypointBindingRuleForMeasurement,
+  writeMeasurementToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import { syncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/cobbKeypointSyncUseCase';
 import { runLateralDetectionCache } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
@@ -575,6 +576,65 @@ export function useMeasurementKeypointWorkflow({
     ]
   );
 
+  const handleAddAvtKeypoint = useCallback(
+    (
+      target: AvtTarget,
+      keypointId: string,
+      point: Point
+    ): AvtPlacementSession | null => {
+      if (!isKeypointExam || hasKeypoint(keypoints, keypointId)) {
+        return createAvtPlacementSession(
+          target,
+          new Set(keypoints.map(keypoint => keypoint.id))
+        );
+      }
+
+      const nextKeypoints = upsertKeypoint(keypoints, {
+        id: keypointId,
+        point,
+        source: AnnotationSource.MANUAL,
+        confidence: 1,
+      });
+      const nextSession = createAvtPlacementSession(
+        target,
+        new Set(nextKeypoints.map(keypoint => keypoint.id))
+      );
+      const completedMeasurement =
+        nextSession === null
+          ? createAvtMeasurement({
+              target,
+              keypoints: nextKeypoints,
+              calculationContext,
+            })
+          : null;
+
+      setKeypoints(nextKeypoints);
+      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+      setMeasurements(previous => {
+        const synchronized = syncUniqueMeasurements(previous, nextKeypoints);
+        if (
+          !completedMeasurement ||
+          hasAvtMeasurementForTarget(synchronized, target)
+        ) {
+          return synchronized;
+        }
+        return [...synchronized, completedMeasurement];
+      });
+      setShowVertebraeLayer(true);
+      return nextSession;
+    },
+    [
+      calculationContext,
+      isKeypointExam,
+      keypoints,
+      setKeypoints,
+      setMeasurements,
+      setShowVertebraeLayer,
+      setVertebraeLayer,
+      syncUniqueMeasurements,
+    ]
+  );
+
   const handleCreateCobb = useCallback(
     (upperVertebra: string, lowerVertebra: string) => {
       if (upperVertebra === lowerVertebra) return;
@@ -694,28 +754,9 @@ export function useMeasurementKeypointWorkflow({
         ? measurements.find(measurement => measurement.id === measurementId)
         : null;
       const dynamicVertebraLabel = sourceMeasurement?.apexVertebra ?? undefined;
-      const bindingRule = getMeasurementKeypointBindingRule(measurementType);
-
-      if (sourceMeasurement && isAvtMetadata(sourceMeasurement.avtMetadata)) {
-        const keypointId = getAvtPointKeypointId(
-          sourceMeasurement.avtMetadata,
-          pointIndex
-        );
-        if (!keypointId) return;
-
-        const nextKeypoints = upsertKeypoint(keypoints, {
-          id: keypointId,
-          point: { ...newPoint },
-          source: AnnotationSource.MANUAL,
-          confidence: 1,
-        });
-        setKeypoints(nextKeypoints);
-        setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
-        setMeasurements(previous =>
-          recalculateExistingMeasurements(previous, nextKeypoints)
-        );
-        return;
-      }
+      const bindingRule = sourceMeasurement
+        ? getMeasurementKeypointBindingRuleForMeasurement(sourceMeasurement)
+        : getMeasurementKeypointBindingRule(measurementType);
 
       if (bindingRule && sourceMeasurement) {
         const measurementPoints =
@@ -723,9 +764,9 @@ export function useMeasurementKeypointWorkflow({
           sourceMeasurement.points.map((point, index) =>
             index === pointIndex ? newPoint : point
           );
-        const nextKeypoints = writeMeasurementPointsToKeypoints(
+        const nextKeypoints = writeMeasurementToKeypoints(
           keypoints,
-          measurementType,
+          sourceMeasurement,
           measurementPoints,
           pointIndex
         );
@@ -896,6 +937,7 @@ export function useMeasurementKeypointWorkflow({
     handleApplyVertebraLabelOffset,
     handleCreateTts,
     handleCreateAvt,
+    handleAddAvtKeypoint,
     handleVertebraeUpdate,
     handleVertebraePreviewUpdate,
     handleMeasurementWriteback,

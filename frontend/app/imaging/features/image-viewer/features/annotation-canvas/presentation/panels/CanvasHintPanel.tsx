@@ -5,7 +5,7 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
   getAvtTargetLabel,
-  type AvtDiscPlacementSession,
+  type AvtPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import { getNextManualMeasurementPointIndex } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
 import { getMeasurementKeypointDrawingHint } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
@@ -23,7 +23,7 @@ interface CanvasHintPanelProps {
     measurements: { type: string; points: { x: number; y: number }[] }[]
   ) => { points: { x: number; y: number }[]; count: number };
   keypointSequenceSession?: KeypointSequenceSession | null;
-  avtDiscPlacementSession?: AvtDiscPlacementSession | null;
+  avtPlacementSession?: AvtPlacementSession | null;
 }
 
 /**
@@ -39,7 +39,7 @@ export default function CanvasHintPanel({
   measurements,
   getInheritedPoints,
   keypointSequenceSession = null,
-  avtDiscPlacementSession = null,
+  avtPlacementSession = null,
 }: CanvasHintPanelProps) {
   const currentSequenceKeypoint =
     keypointSequenceSession?.keypointIds[keypointSequenceSession.currentIndex];
@@ -73,18 +73,32 @@ export default function CanvasHintPanel({
       )}
 
       <div className="bg-black/70 text-white text-xs px-3 py-2 rounded">
-        {avtDiscPlacementSession ? (
+        {avtPlacementSession ? (
           <div>
-            <p className="font-medium text-yellow-300">
-              正在标注椎间盘 AVT(
-              {getAvtTargetLabel(avtDiscPlacementSession.target)})
-            </p>
-            <p className="mt-1">
-              {clickedPointsCount === 0
-                ? '点击椎间盘横线的第一个端点'
-                : '点击第二个端点，系统将自动保持水平'}
-            </p>
-            <p className="text-gray-300 mt-1">按 Esc 取消</p>
+            {avtPlacementSession.step.kind === 'keypoint' ? (
+              <>
+                <p className="font-medium text-yellow-300">
+                  正在补充 {avtPlacementSession.step.label}：下一点{' '}
+                  {avtPlacementSession.step.keypointId}，已标注{' '}
+                  {avtPlacementSession.step.completedCount}/
+                  {avtPlacementSession.step.totalCount} 个点
+                </p>
+                <p className="text-gray-300 mt-1">按 Esc 取消剩余补点</p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-yellow-300">
+                  正在标注椎间盘 AVT(
+                  {getAvtTargetLabel(avtPlacementSession.target)})
+                </p>
+                <p className="mt-1">
+                  {clickedPointsCount === 0
+                    ? '点击椎间盘横线的第一个端点，已标注 0/2 个点'
+                    : '点击第二个端点，系统将自动保持水平，已标注 1/2 个点'}
+                </p>
+                <p className="text-gray-300 mt-1">按 Esc 取消</p>
+              </>
+            )}
           </div>
         ) : keypointSequenceSession && currentSequenceKeypoint ? (
           <div>

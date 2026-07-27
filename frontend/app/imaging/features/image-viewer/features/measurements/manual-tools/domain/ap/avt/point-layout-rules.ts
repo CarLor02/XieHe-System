@@ -1,7 +1,11 @@
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 import type { AvtMetadata, AvtPointLayout } from './types';
 
-function getReferenceKeypointIds(metadata: AvtMetadata): readonly string[] {
+export function getAvtReferenceKeypointIds(
+  metadata: AvtMetadata
+): readonly string[] {
+  // 历史兼容：CSVL 在 AVT measurement.points 中固定保存为 SR、SL。
+  // 手动补点使用 placement-rules 中独立的 SL、SR 交互顺序，不能改动这里。
   return metadata.referenceLine === 'c7pl'
     ? ['C7-1', 'C7-2', 'C7-3', 'C7-4']
     : ['SR', 'SL'];
@@ -27,7 +31,7 @@ export function getAvtRequiredKeypointIds(
     target.type === 'vertebra'
       ? [1, 2, 3, 4].map(index => `${target.vertebra}-${index}`)
       : [];
-  return [...targetIds, ...getReferenceKeypointIds(metadata)];
+  return [...targetIds, ...getAvtReferenceKeypointIds(metadata)];
 }
 
 export function getAvtPointKeypointId(
@@ -42,7 +46,7 @@ export function getAvtPointKeypointId(
   }
 
   return (
-    getReferenceKeypointIds(metadata)[pointIndex - targetPointCount] ?? null
+    getAvtReferenceKeypointIds(metadata)[pointIndex - targetPointCount] ?? null
   );
 }
 
@@ -50,7 +54,7 @@ export function hasAvtReferenceKeypoints(
   metadata: AvtMetadata,
   keypointIds: ReadonlySet<string>
 ): boolean {
-  return getReferenceKeypointIds(metadata).every(id => keypointIds.has(id));
+  return getAvtReferenceKeypointIds(metadata).every(id => keypointIds.has(id));
 }
 
 export function buildAvtPoints(
@@ -67,7 +71,7 @@ export function buildAvtPoints(
       : discAnchors
         ? [...discAnchors]
         : [];
-  const referencePoints = getReferenceKeypointIds(metadata).map(id =>
+  const referencePoints = getAvtReferenceKeypointIds(metadata).map(id =>
     keypointsById.get(id)
   );
 

@@ -17,8 +17,23 @@ export interface AvtMetadata {
   referenceLine: AvtReferenceLine;
 }
 
-export interface AvtDiscPlacementSession {
-  target: Extract<AvtTarget, { type: 'disc' }>;
+export type AvtPlacementStep =
+  | {
+      kind: 'keypoint';
+      phase: 'reference' | 'target';
+      label: string;
+      keypointId: string;
+      completedCount: number;
+      totalCount: number;
+    }
+  | {
+      kind: 'disc';
+      label: string;
+    };
+
+export interface AvtPlacementSession {
+  target: AvtTarget;
+  step: AvtPlacementStep;
 }
 
 export type AvtPointLayout =
