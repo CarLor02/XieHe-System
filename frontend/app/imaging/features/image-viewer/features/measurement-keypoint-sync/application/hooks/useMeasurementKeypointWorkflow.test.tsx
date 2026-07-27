@@ -166,9 +166,66 @@ it('keeps a manually drawn CA and CL/CR keypoints synchronized both ways', async
       latest!.measurements.find(measurement => measurement.type === 'ca')
         ?.points
     ).toEqual([
-      { x: 220, y: 100 },
       { x: 80, y: 70 },
+      { x: 220, y: 100 },
     ]);
+  });
+});
+
+it('creates missing PO and CSS keypoints when the manual tools complete', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.measurementWorkflow.handleAddMeasurement('po', [
+      { x: 260, y: 160 },
+      { x: 120, y: 150 },
+    ]);
+  });
+
+  await waitFor(() => {
+    expect(latest!.workflow.keypoints.map(keypoint => keypoint.id)).toEqual(
+      expect.arrayContaining(['IL', 'IR'])
+    );
+  });
+
+  act(() => {
+    latest!.measurementWorkflow.handleAddMeasurement('css', [
+      { x: 300, y: 240 },
+      { x: 100, y: 230 },
+    ]);
+  });
+
+  await waitFor(() => {
+    expect(
+      Object.fromEntries(
+        latest!.workflow.keypoints.map(keypoint => [
+          keypoint.id,
+          keypoint.point,
+        ])
+      )
+    ).toEqual(
+      expect.objectContaining({
+        IL: { x: 120, y: 150 },
+        IR: { x: 260, y: 160 },
+        SL: { x: 100, y: 230 },
+        SR: { x: 300, y: 240 },
+      })
+    );
+    expect(
+      latest!.measurements.map(measurement => measurement.type.toLowerCase())
+    ).toEqual(expect.arrayContaining(['po', 'css']));
   });
 });
 

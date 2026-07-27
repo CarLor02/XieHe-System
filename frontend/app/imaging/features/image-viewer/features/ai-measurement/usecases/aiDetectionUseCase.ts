@@ -7,6 +7,7 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { Dispatch, SetStateAction } from 'react';
 import { getAiKeypointDetectionResponse } from '@/services/imageServices';
+import { sortCornersGeometrically } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/point-normalization';
 
 /**
  * 侧位椎体检测（不设置任何状态，仅返回检测数据）。
@@ -86,23 +87,14 @@ export async function detectLateralVertebrae(imageId: string): Promise<{
   }
 }
 
-/**
- * 按几何坐标将4个角点排序为 [TL, TR, BL, BR]。
- * 不依赖 AI 返回的顺序，对脊柱椎体（倾角 < 45°）始终正确。
- */
-function sortCornersGeometrically(
-  pts: { x: number; y: number }[]
-): [Point, Point, Point, Point] {
-  const sorted = [...pts].sort((a, b) => a.y - b.y);
-  const top = sorted.slice(0, 2).sort((a, b) => a.x - b.x); // y 较小的两点：左=TL，右=TR
-  const bot = sorted.slice(2, 4).sort((a, b) => a.x - b.x); // y 较大的两点：左=BL，右=BR
-  return [top[0], top[1], bot[0], bot[1]];
-}
-
 function sortPointsLeftToRight(pts: Point[]): Point[] {
   return [...pts].sort((left, right) => left.x - right.x);
 }
 
+/**
+ * AI 正位姿态点模型使用的左右方向与前端领域语义相反。
+ * 交换只属于接口适配；进入 keypoint domain 后始终保持屏幕左侧为 _L。
+ */
 const FRONTAL_POSE_LABEL_TO_PATIENT_LEFT_SCREEN_LEFT: Record<string, string> = {
   CR: 'CL',
   CL: 'CR',

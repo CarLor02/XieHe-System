@@ -187,6 +187,17 @@ export function getInheritedPoints(
   toolId: string,
   measurements: { type: string; points: Point[] }[]
 ): { points: Point[]; count: number } {
+  const inherited = getInheritedPointMap(toolId, measurements);
+  const sorted = Array.from(inherited.entries()).sort(
+    (left, right) => left[0] - right[0]
+  );
+  return { points: sorted.map(([, point]) => point), count: sorted.length };
+}
+
+export function getInheritedPointMap(
+  toolId: string,
+  measurements: { type: string; points: Point[] }[]
+): Map<number, Point> {
   const inherited = new Map<number, Point>();
 
   const asymRules = POINT_INHERITANCE_RULES[toolId] || [];
@@ -221,8 +232,21 @@ export function getInheritedPoints(
     }
   }
 
-  const sorted = Array.from(inherited.entries()).sort((left, right) => left[0] - right[0]);
-  return { points: sorted.map(([, point]) => point), count: sorted.length };
+  return inherited;
+}
+
+/** 返回本次第 currentManualPointIndex 个手动点击最终填入的 measurement.points 索引。 */
+export function getNextManualMeasurementPointIndex(
+  toolId: string,
+  measurements: { type: string; points: Point[] }[],
+  pointsNeeded: number,
+  currentManualPointIndex: number
+): number | null {
+  const inherited = getInheritedPointMap(toolId, measurements);
+  const missingIndices = Array.from({ length: pointsNeeded }, (_, index) =>
+    inherited.has(index) ? null : index
+  ).filter((index): index is number => index !== null);
+  return missingIndices[currentManualPointIndex] ?? null;
 }
 
 /**

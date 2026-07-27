@@ -7,6 +7,8 @@ import {
   getAvtTargetLabel,
   type AvtDiscPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import { getNextManualMeasurementPointIndex } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
+import { getMeasurementKeypointDrawingHint } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 
 interface CanvasHintPanelProps {
   selectedTool: string;
@@ -43,6 +45,21 @@ export default function CanvasHintPanel({
     keypointSequenceSession?.keypointIds[keypointSequenceSession.currentIndex];
   const completedSequenceCount = keypointSequenceSession?.currentIndex ?? 0;
   const sequenceTotal = keypointSequenceSession?.keypointIds.length ?? 0;
+  const nextMeasurementPointIndex = currentTool
+    ? getNextManualMeasurementPointIndex(
+        currentTool.id,
+        measurements,
+        pointsNeeded,
+        clickedPointsCount
+      )
+    : null;
+  const measurementKeypointHint =
+    currentTool && nextMeasurementPointIndex !== null
+      ? getMeasurementKeypointDrawingHint(
+          currentTool.id,
+          nextMeasurementPointIndex
+        )
+      : null;
 
   return (
     <div className="absolute bottom-4 left-4 flex flex-col gap-2 max-w-md">
@@ -196,7 +213,9 @@ export default function CanvasHintPanel({
             <p className="font-medium">T1 Tilt 测量模式</p>
             <p>已标注 {clickedPointsCount}/2 个点</p>
             {clickedPointsCount === 0 && (
-              <p className="text-yellow-400 mt-1">点击T1椎体上终板起点</p>
+              <p className="text-yellow-400 mt-1">
+                {measurementKeypointHint ?? '点击T1椎体上终板起点'}
+              </p>
             )}
             {clickedPointsCount === 1 && (
               <>
@@ -222,7 +241,9 @@ export default function CanvasHintPanel({
                 )}
             </p>
             {clickedPointsCount < pointsNeeded && (
-              <p className="text-yellow-400 mt-1">点击图像标注关键点</p>
+              <p className="text-yellow-400 mt-1">
+                {measurementKeypointHint ?? '点击图像标注关键点'}
+              </p>
             )}
           </div>
         )}

@@ -1,196 +1,87 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
-  createHemipelvicWidthRatioPoints,
-  getHemipelvicVerticalLines,
-  HEMIPELVIC_WIDTH_RATIO_ANCHOR_COUNT,
-  HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
-  sortHemipelvicVerticalLines,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
-import {
-  AnnotationSource,
-  MeasurementData,
-  Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
-import {
-  KeypointAnnotation,
+  isAnteriorExamType,
+  isLateralExamType,
+  type KeypointAnnotation,
   upsertKeypoint,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import {
+  AnnotationSource,
+  type MeasurementData,
+  type Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
 
-export const HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS = [
-  'ASIS_L',
-  'SI_L',
-  'SI_R',
-  'ASIS_R',
-] as const;
+import {
+  AP_MEASUREMENT_KEYPOINT_BINDING_RULES,
+  HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS,
+} from './ap-binding-rules';
+import type { MeasurementKeypointBindingRule } from './binding-rule-types';
+import { LATERAL_MEASUREMENT_KEYPOINT_BINDING_RULES } from './lateral-binding-rules';
 
-interface MeasurementKeypointBindingRule {
-  typeId: string;
-  requiredKeypointIds: readonly string[];
-  writebackOnComplete?: boolean;
-  getKeypointUpdates: (
-    points: Point[],
-    changedPointIndex?: number
-  ) => Array<{
-    keypointId: string;
-    point: Point;
-  }>;
-  buildMeasurementPoints: (
-    byId: Map<string, KeypointAnnotation>,
-    existingPoints?: Point[]
-  ) => Point[] | null;
-}
-
-function getRequiredPoints(
-  byId: Map<string, KeypointAnnotation>,
-  keypointIds: readonly string[]
-): Point[] | null {
-  const points = keypointIds.map(keypointId => byId.get(keypointId)?.point);
-  return points.every((point): point is Point => point !== undefined)
-    ? points
-    : null;
-}
-
-function moveHemipelvicLineToAnchor(
-  points: Point[],
-  sourceIndex: number,
-  target: Point
-): Point[] {
-  const line = getHemipelvicVerticalLines(points).find(
-    item => item.sourceIndex === sourceIndex
-  );
-  if (!line) return points;
-
-  const nextPoints = points.map(point => ({ ...point }));
-  const delta = {
-    x: target.x - line.anchor.x,
-    y: target.y - line.anchor.y,
-  };
-  nextPoints[line.anchorIndex] = { ...target };
-  nextPoints[line.topPointIndex] = {
-    x: line.top.x + delta.x,
-    y: line.top.y + delta.y,
-  };
-  nextPoints[line.bottomPointIndex] = {
-    x: line.bottom.x + delta.x,
-    y: line.bottom.y + delta.y,
-  };
-  return nextPoints;
-}
-
-const CA_BINDING_RULE: MeasurementKeypointBindingRule = {
-  typeId: 'ca',
-  requiredKeypointIds: ['CR', 'CL'],
-  getKeypointUpdates: (points, changedPointIndex) => {
-    if (points.length < 2) return [];
-    const updates = [
-      { keypointId: 'CR', point: points[0] },
-      { keypointId: 'CL', point: points[1] },
-    ];
-    return changedPointIndex === undefined
-      ? updates
-      : updates.filter((_, index) => index === changedPointIndex);
-  },
-  buildMeasurementPoints: byId => getRequiredPoints(byId, ['CR', 'CL']),
-};
-
-const TTS_BINDING_RULE: MeasurementKeypointBindingRule = {
-  typeId: 'tts',
-  requiredKeypointIds: ['SR', 'SL'],
-  // 骶骨点由现有关键点继承；创建 TTS 本身不代表医生调整了 SR/SL。
-  writebackOnComplete: false,
-  getKeypointUpdates: (points, changedPointIndex) => {
-    if (points.length < 4) return [];
-    const updates = [
-      { keypointId: 'SR', point: points[2] },
-      { keypointId: 'SL', point: points[3] },
-    ];
-    if (changedPointIndex === undefined) return updates;
-    if (changedPointIndex === 2) return [updates[0]];
-    if (changedPointIndex === 3) return [updates[1]];
-    return [];
-  },
-  buildMeasurementPoints: (byId, existingPoints) => {
-    const sacralPoints = getRequiredPoints(byId, ['SR', 'SL']);
-    if (!sacralPoints || !existingPoints || existingPoints.length < 4) {
-      return null;
-    }
-
-    const points = existingPoints.map(point => ({ ...point }));
-    points[2] = sacralPoints[0];
-    points[3] = sacralPoints[1];
-    return points;
-  },
-};
-
-const HEMIPELVIC_WIDTH_RATIO_BINDING_RULE: MeasurementKeypointBindingRule = {
-  typeId: HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
-  requiredKeypointIds: HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS,
-  getKeypointUpdates: (points, changedPointIndex) => {
-    if (
-      changedPointIndex !== undefined &&
-      changedPointIndex >= HEMIPELVIC_WIDTH_RATIO_ANCHOR_COUNT
-    ) {
-      return [];
-    }
-    const sortedLines = sortHemipelvicVerticalLines(
-      getHemipelvicVerticalLines(points)
-    );
-    if (sortedLines.length !== HEMIPELVIC_WIDTH_RATIO_ANCHOR_COUNT) return [];
-
-    return sortedLines.map((line, index) => ({
-      keypointId: HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS[index],
-      point: line.anchor,
-    }));
-  },
-  buildMeasurementPoints: (byId, existingPoints) => {
-    const anchors = getRequiredPoints(
-      byId,
-      HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS
-    );
-    if (!anchors) return null;
-
-    const sortedExistingLines = existingPoints
-      ? sortHemipelvicVerticalLines(getHemipelvicVerticalLines(existingPoints))
-      : [];
-    if (
-      !existingPoints ||
-      sortedExistingLines.length !== HEMIPELVIC_WIDTH_RATIO_ANCHOR_COUNT
-    ) {
-      return createHemipelvicWidthRatioPoints(anchors);
-    }
-
-    return sortedExistingLines.reduce(
-      (points, line, index) =>
-        moveHemipelvicLineToAnchor(points, line.sourceIndex, anchors[index]),
-      existingPoints
-    );
-  },
-};
+export { HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS };
+export type { MeasurementKeypointBindingRule };
 
 const MEASUREMENT_KEYPOINT_BINDING_RULES = new Map<
   string,
   MeasurementKeypointBindingRule
 >(
-  [CA_BINDING_RULE, TTS_BINDING_RULE, HEMIPELVIC_WIDTH_RATIO_BINDING_RULE].map(
-    rule => [rule.typeId, rule]
-  )
+  [
+    ...AP_MEASUREMENT_KEYPOINT_BINDING_RULES,
+    ...LATERAL_MEASUREMENT_KEYPOINT_BINDING_RULES,
+  ].map(rule => [rule.typeId, rule])
 );
+
+function getBindingTypeId(measurementType: string): string {
+  const typeId = getAnnotationTypeId(measurementType);
+  // 历史派生数据使用 Pelvic/Sacral 作为 PO/CSS 的 type，读取时继续兼容。
+  if (typeId === 'pelvic') return 'po';
+  if (typeId === 'sacral') return 'css';
+  return typeId;
+}
 
 export function getMeasurementKeypointBindingRule(
   measurementType: string
 ): MeasurementKeypointBindingRule | null {
   return (
-    MEASUREMENT_KEYPOINT_BINDING_RULES.get(
-      getAnnotationTypeId(measurementType)
-    ) ?? null
+    MEASUREMENT_KEYPOINT_BINDING_RULES.get(getBindingTypeId(measurementType)) ??
+    null
   );
 }
 
-export function shouldWriteMeasurementKeypointsOnComplete(
-  measurementType: string
-): boolean {
+export function getAutoDeriveMeasurementKeypointBindingRules(
+  examType: string
+): MeasurementKeypointBindingRule[] {
+  const examView = isLateralExamType(examType)
+    ? 'lateral'
+    : isAnteriorExamType(examType)
+      ? 'ap'
+      : null;
+  if (!examView) return [];
+
+  return Array.from(MEASUREMENT_KEYPOINT_BINDING_RULES.values()).filter(
+    rule => rule.examView === examView && rule.autoDerive
+  );
+}
+
+export function normalizeBoundMeasurementPoints(
+  measurementType: string,
+  points: Point[]
+): Point[] {
   const rule = getMeasurementKeypointBindingRule(measurementType);
-  return rule ? rule.writebackOnComplete !== false : false;
+  return rule
+    ? rule.normalizePoints(points).points
+    : points.map(point => ({ ...point }));
+}
+
+export function getMeasurementKeypointDrawingHint(
+  measurementType: string,
+  pointIndex: number
+): string | null {
+  return (
+    getMeasurementKeypointBindingRule(measurementType)?.getDrawingHint?.(
+      pointIndex
+    ) ?? null
+  );
 }
 
 export function buildBoundMeasurementPoints(
@@ -227,6 +118,10 @@ export function writeMeasurementPointsToKeypoints(
   );
 }
 
+/**
+ * 兼容历史标注：仅补齐缺失关键点，不覆盖已经存在的关键点。
+ * 多个测量项引用同一缺失点时，测量列表中较早的项目优先。
+ */
 export function backfillMissingBoundKeypoints(
   keypoints: KeypointAnnotation[],
   measurements: MeasurementData[]

@@ -1,11 +1,9 @@
 import { useCallback } from 'react';
 import {
-  POINT_INHERITANCE_RULES,
-  SHARED_ANATOMICAL_POINT_GROUPS,
+  getInheritedPointMap,
   getInheritedPoints,
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
 import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { Point, Tool } from '@/app/imaging/features/image-viewer/shared/types';
 import {
   DrawingState,
@@ -43,57 +41,6 @@ interface UseCanvasDrawingToolOptions {
     rawPoint: Point
   ) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
-}
-
-function buildInheritedMap(
-  toolId: string,
-  measurements: { type: string; points: Point[] }[]
-) {
-  const inheritedMap = new Map<number, Point>();
-  const asymRules = POINT_INHERITANCE_RULES[toolId] || [];
-
-  for (const rule of asymRules) {
-    const source = measurements.find(
-      measurement => getAnnotationTypeId(measurement.type) === rule.fromType
-    );
-    if (!source) continue;
-
-    for (let index = 0; index < rule.sourcePointIndices.length; index += 1) {
-      const sourceIndex = rule.sourcePointIndices[index];
-      const destinationIndex = rule.destinationPointIndices[index];
-      if (sourceIndex < source.points.length) {
-        inheritedMap.set(destinationIndex, source.points[sourceIndex]);
-      }
-    }
-  }
-
-  for (const group of SHARED_ANATOMICAL_POINT_GROUPS) {
-    const ownParticipant = group.participants.find(
-      participant => participant.toolId === toolId
-    );
-    if (!ownParticipant || inheritedMap.has(ownParticipant.pointIndex)) {
-      continue;
-    }
-
-    for (const participant of group.participants) {
-      if (participant.toolId === toolId) {
-        continue;
-      }
-      const source = measurements.find(
-        measurement =>
-          getAnnotationTypeId(measurement.type) === participant.typeName
-      );
-      if (source && participant.pointIndex < source.points.length) {
-        inheritedMap.set(
-          ownParticipant.pointIndex,
-          source.points[participant.pointIndex]
-        );
-        break;
-      }
-    }
-  }
-
-  return inheritedMap;
 }
 
 function assembleInheritedPoints(
@@ -385,7 +332,10 @@ export function useCanvasDrawingTool({
         selectedTool.includes('sva') ||
         selectedTool === 'ts'
       ) {
-        const inheritedMap = buildInheritedMap(currentTool.id, measurements);
+        const inheritedMap = getInheritedPointMap(
+          currentTool.id,
+          measurements
+        );
         const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
 
         if (newPoints.length === 1) {
@@ -448,7 +398,10 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      const inheritedMap = buildInheritedMap(currentTool.id, measurements);
+      const inheritedMap = getInheritedPointMap(
+        currentTool.id,
+        measurements
+      );
       const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
       if (newPoints.length === effectiveNeeded) {
         const allPoints = assembleInheritedPoints(

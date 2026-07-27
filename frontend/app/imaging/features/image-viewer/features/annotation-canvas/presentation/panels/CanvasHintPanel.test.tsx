@@ -28,3 +28,26 @@ it('shows progress for sequential keypoint placement', () => {
   expect(screen.getByText('正在补充 L5：下一点 L5-2，已完成 1/4')).toBeTruthy();
   expect(screen.getByText('按 Esc 取消剩余补点')).toBeTruthy();
 });
+
+it('shows the bound keypoint group for a manual CSS measurement', () => {
+  render(
+    <CanvasHintPanel
+      selectedTool="css"
+      isImagePanLocked={false}
+      isHovering={false}
+      clickedPointsCount={1}
+      pointsNeeded={2}
+      currentTool={{
+        id: 'css',
+        name: 'CSS',
+        icon: 'test',
+        description: 'test',
+        pointsNeeded: 2,
+      }}
+      measurements={[]}
+      getInheritedPoints={jest.fn(() => ({ points: [], count: 0 }))}
+    />
+  );
+
+  expect(screen.getByText('骶骨点待排序点 2/2')).toBeTruthy();
+});

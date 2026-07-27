@@ -6,7 +6,6 @@ import {
   useMemo,
 } from 'react';
 import {
-  AnnotationSource,
   CfhAnnotation,
   ImageSize,
   MeasurementData,
@@ -38,12 +37,11 @@ import {
   deleteKeypoints,
   keypointsToCfhAnnotation,
   keypointsToPersistedLayer,
-  upsertKeypoint,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   getMeasurementKeypointBindingRule,
-  shouldWriteMeasurementKeypointsOnComplete,
+  normalizeBoundMeasurementPoints,
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
@@ -166,41 +164,16 @@ export function useMeasurementWorkflow({
   const handleAddMeasurement = useCallback(
     (toolType: string, points: Point[]) => {
       const typeId = getAnnotationTypeId(toolType);
-
-      if (canUseKeypoints && isLateralView && typeId === 'ss') {
-        const s1P0 = points[0] ?? { x: 0, y: 0 };
-        const s1P1 = points[1] ?? { x: 0, y: 0 };
-        let nextKeypoints = upsertKeypoint(keypoints, {
-          id: 'S1-1',
-          point: s1P0,
-          source: AnnotationSource.MANUAL,
-          confidence: 1,
-        });
-        nextKeypoints = upsertKeypoint(nextKeypoints, {
-          id: 'S1-2',
-          point: s1P1,
-          source: AnnotationSource.MANUAL,
-          confidence: 1,
-        });
-        setKeypoints(nextKeypoints);
-        setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
-        setCfhAnnotation(
-          keypointsToCfhAnnotation(nextKeypoints) ?? cfhAnnotation
-        );
-        setMeasurements(previous =>
-          syncUniqueKeypointMeasurements(previous, nextKeypoints)
-        );
-        return;
-      }
-
       const allowReplace = !canUseKeypoints || isLateralView;
-      const bindingRule =
-        canUseKeypoints && isAnteriorView
-          ? getMeasurementKeypointBindingRule(toolType)
-          : null;
+      const bindingRule = canUseKeypoints
+        ? getMeasurementKeypointBindingRule(toolType)
+        : null;
+      const normalizedPoints = bindingRule
+        ? normalizeBoundMeasurementPoints(toolType, points)
+        : points;
       addMeasurement(
         toolType,
-        points,
+        normalizedPoints,
         measurements,
         setMeasurements,
         tools,
@@ -213,19 +186,25 @@ export function useMeasurementWorkflow({
         }
       );
 
-      if (bindingRule && shouldWriteMeasurementKeypointsOnComplete(toolType)) {
+      if (bindingRule) {
         const nextKeypoints = writeMeasurementPointsToKeypoints(
           keypoints,
           toolType,
-          points
+          normalizedPoints
         );
         if (nextKeypoints !== keypoints) {
           setKeypoints(nextKeypoints);
           setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+          if (isLateralView) {
+            setCfhAnnotation(
+              keypointsToCfhAnnotation(nextKeypoints) ?? cfhAnnotation
+            );
+          }
           setMeasurements(previous =>
             syncUniqueKeypointMeasurements(previous, nextKeypoints)
           );
         }
+        return;
       }
 
       if (isLateralView && typeId === 'ss' && cfhAnnotation) {
@@ -246,13 +225,13 @@ export function useMeasurementWorkflow({
       if (canUseKeypoints && isLateralView && typeId !== 'ss') {
         let currentLayer = activeVertebraeLayer;
         let currentCfh = cfhAnnotation;
-        for (let i = 0; i < points.length; i++) {
+        for (let i = 0; i < normalizedPoints.length; i++) {
           const result = applyMeasurementPointToVertebrae(
             currentLayer,
             currentCfh,
             toolType,
             i,
-            points[i]
+            normalizedPoints[i]
           );
           currentLayer = result.vertebraeLayer;
           currentCfh = result.cfhAnnotation;
@@ -274,7 +253,6 @@ export function useMeasurementWorkflow({
       cfhAnnotation,
       examType,
       imageNaturalSize,
-      isAnteriorView,
       isKeypointExam,
       isLateralView,
       keypoints,

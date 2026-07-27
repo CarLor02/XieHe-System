@@ -395,12 +395,12 @@ function deriveAnterior(
 
   out.push(...findCobbAngles(frontal));
 
-  if (pose.has('CR') && pose.has('CL'))
-    out.push(makeMeasurement('CA', [pose.get('CR')!, pose.get('CL')!]));
-  if (pose.has('IR') && pose.has('IL'))
-    out.push(makeMeasurement('Pelvic', [pose.get('IR')!, pose.get('IL')!]));
-  if (pose.has('SR') && pose.has('SL'))
-    out.push(makeMeasurement('Sacral', [pose.get('SR')!, pose.get('SL')!]));
+  if (pose.has('CL') && pose.has('CR'))
+    out.push(makeMeasurement('CA', [pose.get('CL')!, pose.get('CR')!]));
+  if (pose.has('IL') && pose.has('IR'))
+    out.push(makeMeasurement('Pelvic', [pose.get('IL')!, pose.get('IR')!]));
+  if (pose.has('SL') && pose.has('SR'))
+    out.push(makeMeasurement('Sacral', [pose.get('SL')!, pose.get('SR')!]));
   if (
     pose.has('ASIS_L') &&
     pose.has('SI_L') &&
@@ -427,19 +427,19 @@ function deriveAnterior(
 
   if (csvlX !== null) {
     if (frontal.has('C7') && pose.has('SR') && pose.has('SL')) {
-      // 6点格式与手动 TS 一致：[tl, tr, bl, br, sacralR, sacralL]
+      // 6点格式与手动 TS 一致：[tl, tr, bl, br, sacralL, sacralR]
       // renderC7Offset 会绘制 C7 锥体框（4角连线）+ 骶骨参考线，检测层隐藏时也能正常渲染。
       const c7 = frontal.get('C7')!;
-      const sr = pose.get('SR')!;
       const sl = pose.get('SL')!;
+      const sr = pose.get('SR')!;
       out.push(
         makeMeasurement('TS', [
           c7.topLeft,
           c7.topRight,
           c7.bottomLeft,
           c7.bottomRight,
-          sr,
           sl,
+          sr,
         ])
       );
     }

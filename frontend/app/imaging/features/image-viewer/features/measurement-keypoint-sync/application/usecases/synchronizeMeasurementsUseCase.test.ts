@@ -162,8 +162,8 @@ it('recalculates a manual CA from CL and CR without relying on its id source', (
       id: 'manual-ca',
       type: 'ca',
       points: [
-        { x: 240, y: 120 },
         { x: 100, y: 80 },
+        { x: 240, y: 120 },
       ],
       keypointSynced: true,
     }),
@@ -789,8 +789,8 @@ it('updates a bound manual TTS from moved SR and SL keypoints', () => {
       points: [
         { x: 100, y: 50 },
         { x: 180, y: 50 },
-        { x: 320, y: 210 },
         { x: 190, y: 205 },
+        { x: 320, y: 210 },
       ],
     }),
   ]);
@@ -830,6 +830,79 @@ it('derives lateral vertebra measurements from keypoint label order', () => {
       apCorner('T1-2', 30, 8),
       apCorner('T1-3', 12, 32),
       apCorner('T1-4', 32, 30),
+    ],
+    cfhAnnotation: null,
+    examType: '侧位X光片',
+    calculationContext,
+  });
+
+  expect(
+    measurements.find(measurement => measurement.type === 'T1 Slope')
+  ).toEqual(
+    expect.objectContaining({
+      points: [
+        { x: 10, y: 10 },
+        { x: 30, y: 8 },
+      ],
+    })
+  );
+});
+
+it('derives T1 Tilt from its two-point minimum dependency', () => {
+  const measurements = deriveKeypointMeasurements({
+    keypoints: [
+      apCorner('T1-1', 100, 100),
+      apCorner('T1-2', 200, 110),
+    ],
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    calculationContext,
+  });
+
+  expect(
+    measurements.find(measurement => measurement.type === 'T1 Tilt')
+  ).toEqual(
+    expect.objectContaining({
+      points: [
+        { x: 100, y: 100 },
+        { x: 200, y: 110 },
+      ],
+      keypointSynced: true,
+    })
+  );
+});
+
+it('derives PO and CSS with stable domain types from their minimum points', () => {
+  const measurements = deriveKeypointMeasurements({
+    keypoints: [
+      apCorner('IL', 100, 200),
+      apCorner('IR', 300, 210),
+      apCorner('SL', 120, 400),
+      apCorner('SR', 280, 410),
+    ],
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    calculationContext,
+  });
+
+  expect(
+    measurements.map(measurement => ({
+      id: measurement.id,
+      type: measurement.type,
+    }))
+  ).toEqual(
+    expect.arrayContaining([
+      { id: 'vertebrae-derived-pelvic', type: 'PO' },
+      { id: 'vertebrae-derived-sacral', type: 'CSS' },
+    ])
+  );
+});
+
+it('derives T1 Slope from its two-point minimum dependency', () => {
+  const measurements = deriveKeypointMeasurements({
+    keypoints: [
+      apCorner('T1-1', 10, 10),
+      apCorner('T1-2', 30, 8),
     ],
     cfhAnnotation: null,
     examType: '侧位X光片',

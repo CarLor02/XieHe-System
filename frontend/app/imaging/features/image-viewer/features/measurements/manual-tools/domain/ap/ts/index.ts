@@ -6,7 +6,7 @@ import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 /**
  * TS 计算 C7 中心相对骶骨参考线中点的水平距离。
  *
- * 当前六点格式为 [C7四角点, SR, SL]；历史两点格式继续兼容旧标注。
+ * 当前六点格式为 [C7四角点, SL, SR]；历史两点格式继续兼容旧标注。
  */
 export function calculateTsResults(
   points: Point[],
@@ -20,7 +20,7 @@ export function calculateTsResults(
     c7CenterX = points[0].x;
     referenceX = points[1].x;
   } else if (points.length >= 6) {
-    // 当前格式：[C7四角点, SR, SL]。
+    // 当前格式：[C7四角点, SL, SR]。
     c7CenterX = points.slice(0, 4).reduce((sum, point) => sum + point.x, 0) / 4;
     referenceX = (points[4].x + points[5].x) / 2;
   } else {

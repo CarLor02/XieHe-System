@@ -299,20 +299,21 @@ const WRITEBACK_MAP: Record<string, WritebackTarget[]> = {
   ],
 
   // ── 正位 AP 姿态关键点写回 ──────────────────────────────────────────────────
-  // CA（锁骨角）：points[0]=CR, points[1]=CL（与 deriveAnterior 顺序一致）
+  // 已迁移规则的兼容写回：统一按屏幕从左到右使用 L → R 点序。
+  // CA（锁骨角）：points[0]=CL, points[1]=CR
   ca: [
-    { kind: 'ap-pose', keypointId: 'CR' },
     { kind: 'ap-pose', keypointId: 'CL' },
+    { kind: 'ap-pose', keypointId: 'CR' },
   ],
-  // PO（骨盆倾斜角）：points[0]=IR, points[1]=IL
+  // PO（骨盆倾斜角）：points[0]=IL, points[1]=IR
   po: [
-    { kind: 'ap-pose', keypointId: 'IR' },
     { kind: 'ap-pose', keypointId: 'IL' },
+    { kind: 'ap-pose', keypointId: 'IR' },
   ],
-  // CSS（冠状面骶骨倾斜角）：points[0]=SR, points[1]=SL
+  // CSS（冠状面骶骨倾斜角）：points[0]=SL, points[1]=SR
   css: [
-    { kind: 'ap-pose', keypointId: 'SR' },
     { kind: 'ap-pose', keypointId: 'SL' },
+    { kind: 'ap-pose', keypointId: 'SR' },
   ],
 
   // ── 正位 AP 椎体角点写回 ──────────────────────────────────────────────────
@@ -323,15 +324,15 @@ const WRITEBACK_MAP: Record<string, WritebackTarget[]> = {
     { kind: 'ap-vertebra', label: 'T1', cornerIndex: 0 },
     { kind: 'ap-vertebra', label: 'T1', cornerIndex: 1 },
   ],
-  // TS：6点格式 [tl, tr, bl, br, SR, SL]
-  // points[0..3] → C7 四个角点；points[4..5] → 骶骨参考点 SR/SL
+  // TS：6点格式 [tl, tr, bl, br, SL, SR]
+  // points[0..3] → C7 四个角点；points[4..5] → 骶骨参考点 SL/SR
   ts: [
     { kind: 'ap-vertebra', label: 'C7', cornerIndex: 0 },
     { kind: 'ap-vertebra', label: 'C7', cornerIndex: 1 },
     { kind: 'ap-vertebra', label: 'C7', cornerIndex: 2 },
     { kind: 'ap-vertebra', label: 'C7', cornerIndex: 3 },
-    { kind: 'ap-pose', keypointId: 'SR' },
     { kind: 'ap-pose', keypointId: 'SL' },
+    { kind: 'ap-pose', keypointId: 'SR' },
   ],
   // AVT：6点格式 [tl, tr, bl, br, SR, SL]
   // points[0..3] → 顶锥四个角点（椎体标签由运行时动态传入）；points[4..5] → SR/SL

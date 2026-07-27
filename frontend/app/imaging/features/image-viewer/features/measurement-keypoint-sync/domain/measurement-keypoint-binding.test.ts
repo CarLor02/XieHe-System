@@ -3,7 +3,8 @@ import { expect, it } from '@jest/globals';
 import {
   backfillMissingBoundKeypoints,
   buildBoundMeasurementPoints,
-  shouldWriteMeasurementKeypointsOnComplete,
+  getMeasurementKeypointBindingRule,
+  normalizeBoundMeasurementPoints,
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
@@ -26,27 +27,27 @@ function keypoint(id: string, x: number, y: number): KeypointAnnotation {
   };
 }
 
-it('writes CA points to CR and CL and rebuilds CA from moved keypoints', () => {
+it('sorts CA points from screen left CL to screen right CR and rebuilds CA', () => {
   const written = writeMeasurementPointsToKeypoints([], 'ca', [
     { x: 200, y: 100 },
     { x: 100, y: 90 },
   ]);
 
-  expect(written.find(item => item.id === 'CR')?.point).toEqual({
-    x: 200,
-    y: 100,
-  });
   expect(written.find(item => item.id === 'CL')?.point).toEqual({
     x: 100,
     y: 90,
+  });
+  expect(written.find(item => item.id === 'CR')?.point).toEqual({
+    x: 200,
+    y: 100,
   });
 
   const moved = written.map(item =>
     item.id === 'CL' ? { ...item, point: { x: 80, y: 70 } } : item
   );
   expect(buildBoundMeasurementPoints('ca', moved)).toEqual([
-    { x: 200, y: 100 },
     { x: 80, y: 70 },
+    { x: 200, y: 100 },
   ]);
 });
 
@@ -116,10 +117,9 @@ it('binds only TTS sacral points to SR and SL', () => {
   expect(written.find(item => item.id === 'SL')?.source).toBe(
     AnnotationSource.AI
   );
-  expect(shouldWriteMeasurementKeypointsOnComplete('tts')).toBe(false);
 });
 
-it('rebuilds TTS sacral points from SR and SL without moving its trunk line', () => {
+it('rebuilds TTS sacral points from SL and SR without moving its trunk line', () => {
   const existingPoints = [
     { x: 100, y: 50 },
     { x: 180, y: 50 },
@@ -136,8 +136,8 @@ it('rebuilds TTS sacral points from SR and SL without moving its trunk line', ()
   ).toEqual([
     { x: 100, y: 50 },
     { x: 180, y: 50 },
-    { x: 320, y: 210 },
     { x: 190, y: 205 },
+    { x: 320, y: 210 },
   ]);
 });
 
@@ -251,4 +251,74 @@ it('backfills missing CA, TTS, and L/R keypoints from historical measurements', 
   });
   expect(backfilled.find(item => item.id === 'ASIS_L')?.point.x).toBe(100);
   expect(backfilled.find(item => item.id === 'ASIS_R')?.point.x).toBe(400);
+});
+
+it('writes PO and CSS into left-to-right AP pose keypoints', () => {
+  const po = writeMeasurementPointsToKeypoints([], 'po', [
+    { x: 280, y: 160 },
+    { x: 120, y: 150 },
+  ]);
+  const css = writeMeasurementPointsToKeypoints(po, 'css', [
+    { x: 300, y: 240 },
+    { x: 100, y: 230 },
+  ]);
+
+  expect(css.find(item => item.id === 'IL')?.point.x).toBe(120);
+  expect(css.find(item => item.id === 'IR')?.point.x).toBe(280);
+  expect(css.find(item => item.id === 'SL')?.point.x).toBe(100);
+  expect(css.find(item => item.id === 'SR')?.point.x).toBe(300);
+});
+
+it('keeps historical Pelvic and Sacral measurement type aliases bound', () => {
+  expect(getMeasurementKeypointBindingRule('Pelvic')?.typeId).toBe('po');
+  expect(getMeasurementKeypointBindingRule('Sacral')?.typeId).toBe('css');
+});
+
+it('sorts TS C7 corners and sacral points before writing all six keypoints', () => {
+  const rawPoints = [
+    { x: 220, y: 120 },
+    { x: 100, y: 220 },
+    { x: 100, y: 100 },
+    { x: 220, y: 230 },
+    { x: 300, y: 400 },
+    { x: 80, y: 390 },
+  ];
+  const normalized = normalizeBoundMeasurementPoints('ts', rawPoints);
+  const written = writeMeasurementPointsToKeypoints([], 'ts', rawPoints);
+
+  expect(normalized).toEqual([
+    { x: 100, y: 100 },
+    { x: 220, y: 120 },
+    { x: 100, y: 220 },
+    { x: 220, y: 230 },
+    { x: 80, y: 390 },
+    { x: 300, y: 400 },
+  ]);
+  expect(
+    ['C7-1', 'C7-2', 'C7-3', 'C7-4', 'SL', 'SR'].map(
+      id => written.find(item => item.id === id)?.point
+    )
+  ).toEqual(normalized);
+});
+
+it('writes fixed lateral endplates without requiring complete vertebra groups', () => {
+  const written = writeMeasurementPointsToKeypoints([], 'tk-t2-t5', [
+    { x: 220, y: 100 },
+    { x: 100, y: 110 },
+    { x: 260, y: 300 },
+    { x: 140, y: 290 },
+  ]);
+
+  expect(written.map(item => item.id)).toEqual(
+    expect.arrayContaining(['T2-1', 'T2-2', 'T5-3', 'T5-4'])
+  );
+  expect(written.find(item => item.id === 'T2-1')?.point.x).toBe(100);
+  expect(written.find(item => item.id === 'T5-3')?.point.x).toBe(140);
+});
+
+it('keeps generic Cobb tools outside the automatic binding registry', () => {
+  expect(getMeasurementKeypointBindingRule('cobb')).toBeNull();
+  expect(getMeasurementKeypointBindingRule('Cobb3')).toBeNull();
+  expect(getMeasurementKeypointBindingRule('lateral-cobb')).toBeNull();
+  expect(getMeasurementKeypointBindingRule('lateral-cobb2')).toBeNull();
 });
