@@ -18,7 +18,8 @@ import { useCanvasContextMenu } from '@/app/imaging/features/image-viewer/featur
 import { useStandardDistanceInteraction } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useStandardDistanceInteraction';
 import { useCanvasDrag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useCanvasDrag';
 import { useCanvasDrawingTool } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useCanvasDrawingTool';
-import { useCanvasPointer } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/hooks/useCanvasPointer';
+import { useCanvasPointerInteraction } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useCanvasPointerInteraction';
+import { useCanvasPointerEvents } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/hooks/useCanvasPointerEvents';
 import {
   type VertebradDragSelection,
   useVertebradDrag,
@@ -35,6 +36,7 @@ import {
 import { isDirectlyEditableAnnotation } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
 import { resolveMeasurementKeypointIds } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import type { AnnotationCanvasProps } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/annotation-canvas-props';
+import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
 
 export function getAnnotationCanvasCursorClass({
   keypointSequenceSession,
@@ -169,6 +171,7 @@ export function useAnnotationCanvasController({
     imagePosition,
     setImagePosition,
     imageScale,
+    setImageScale,
     brightness,
     setBrightness,
     contrast,
@@ -229,8 +232,8 @@ export function useAnnotationCanvasController({
   const {
     drawingState,
     setDrawingState,
-    liveMouseImagePoint,
-    setLiveMouseImagePoint,
+    livePointerImagePoint,
+    setLivePointerImagePoint,
     referenceLines,
     setReferenceLines,
     constrainAuxLinePoint,
@@ -600,20 +603,14 @@ export function useAnnotationCanvasController({
       measurementIndex: index,
     });
 
-  const handleMouseEnter = () => {
+  const handlePointerHoverEnter = () => {
     setIsHovering(true);
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
   };
 
-  const handleMouseLeave = () => {
+  const handlePointerHoverLeave = () => {
     setIsHovering(false);
-    setIsDragging(false);
-    // 鼠标离开时结束角点拖拽（避免拖着角点飞出画布）
-    vertebradDrag.handleMouseUp();
     vertebradDrag.clearHover();
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
+    pointerInteraction.clearHover();
   };
 
   const handleToggleKeypointVisibility = (keypointId: string) => {
@@ -677,7 +674,7 @@ export function useAnnotationCanvasController({
     };
   }, [handleDetectionLayerDelete]);
 
-  const pointer = useCanvasPointer({
+  const pointerInteraction = useCanvasPointerInteraction({
     imageNaturalSize,
     selectedTool,
     isManualBindingMode,
@@ -704,7 +701,7 @@ export function useAnnotationCanvasController({
     setContrast,
     isImagePanLocked,
     drawingState,
-    setLiveMouseImagePoint,
+    setLivePointerImagePoint,
     imageToScreen,
     screenToImage,
     getTransformContext,
@@ -714,19 +711,14 @@ export function useAnnotationCanvasController({
     onManualBindingPointToggle,
     onDisplayMeasurementSelect: selectMeasurementKeypoints,
     onCanvasClick,
-    onContextMenu: handleContextMenu,
     setImagePosition,
   });
 
-  const handleCanvasMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleCanvasPointerDown = (input: CanvasPointerInput) => {
     if (avtPlacementSession?.step.kind === 'keypoint') {
       selectMeasurementKeypoints(null);
       setDetectionLayerSelection(null);
-      const rect = containerRef.current?.getBoundingClientRect();
-      const point = screenToImage(
-        event.clientX - (rect?.left ?? 0),
-        event.clientY - (rect?.top ?? 0)
-      );
+      const point = screenToImage(input.screenPoint.x, input.screenPoint.y);
       onAvtKeypointPlacement?.(point);
       return;
     }
@@ -734,11 +726,7 @@ export function useAnnotationCanvasController({
     if (keypointSequenceSession) {
       selectMeasurementKeypoints(null);
       setDetectionLayerSelection(null);
-      const rect = containerRef.current?.getBoundingClientRect();
-      const point = screenToImage(
-        event.clientX - (rect?.left ?? 0),
-        event.clientY - (rect?.top ?? 0)
-      );
+      const point = screenToImage(input.screenPoint.x, input.screenPoint.y);
       onSequenceKeypointAdd?.(point);
       return;
     }
@@ -746,11 +734,7 @@ export function useAnnotationCanvasController({
     if (selectedTool.startsWith('keypoint:')) {
       selectMeasurementKeypoints(null);
       setDetectionLayerSelection(null);
-      const rect = containerRef.current?.getBoundingClientRect();
-      const point = screenToImage(
-        event.clientX - (rect?.left ?? 0),
-        event.clientY - (rect?.top ?? 0)
-      );
+      const point = screenToImage(input.screenPoint.x, input.screenPoint.y);
       onKeypointAdd?.(selectedTool.replace(/^keypoint:/, ''), point);
       setSelectedTool('hand');
       return;
@@ -759,35 +743,75 @@ export function useAnnotationCanvasController({
     const handledKeypoint =
       selectedTool === 'hand' &&
       showVertebraeLayer &&
-      vertebradDrag.handleMouseDown(event.clientX, event.clientY);
+      vertebradDrag.beginInteraction(
+        input.clientPoint.x,
+        input.clientPoint.y,
+        input.policy.pointHitRadius,
+        input.policy.dragStartThreshold
+      );
     if (handledKeypoint) {
       selectMeasurementKeypoints(null);
       return;
     }
 
     setDetectionLayerSelection(null);
-    pointer.onMouseDown(event);
+    pointerInteraction.beginPointerInteraction(input);
   };
 
-  const handleCanvasMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleCanvasPointerMove = (input: CanvasPointerInput) => {
     const handledKeypoint =
       selectedTool === 'hand' &&
       (showVertebraeLayer || vertebradDrag.isDragging) &&
-      vertebradDrag.handleMouseMove(event.clientX, event.clientY);
-    if (!handledKeypoint) pointer.onMouseMove(event);
+      vertebradDrag.updateInteraction(
+        input.clientPoint.x,
+        input.clientPoint.y,
+        input.policy.supportsHover,
+        input.policy.pointHitRadius
+      );
+    if (!handledKeypoint) {
+      pointerInteraction.updatePointerInteraction(input);
+    }
   };
 
-  const handleCanvasMouseUp = () => {
+  const handleCanvasPointerEnd = () => {
     if (showVertebraeLayer || vertebradDrag.isDragging) {
-      vertebradDrag.handleMouseUp();
+      vertebradDrag.endInteraction();
     }
-    pointer.onMouseUp();
+    pointerInteraction.endPointerInteraction();
   };
+
+  const pointerEvents = useCanvasPointerEvents({
+    imageScale,
+    imagePosition,
+    canStartPinch: () =>
+      selectedTool === 'hand' &&
+      !vertebradDrag.hasStartedInteraction() &&
+      !selectionState.isDragging &&
+      draggingStandardPointIndex === null &&
+      !drawingState.isDrawing,
+    onPinchStart: () => {
+      vertebradDrag.cancelPendingInteraction();
+      pointerInteraction.endPointerInteraction();
+      setLivePointerImagePoint(null);
+    },
+    onPinchViewportChange: viewport => {
+      setImageScale(viewport.imageScale);
+      setImagePosition(viewport.imagePosition);
+    },
+    onPointerDown: handleCanvasPointerDown,
+    onPointerMove: handleCanvasPointerMove,
+    onPointerEnd: handleCanvasPointerEnd,
+    onHoverEnter: handlePointerHoverEnter,
+    onHoverLeave: handlePointerHoverLeave,
+  });
 
   return {
     container: {
+      className: 'relative w-full h-full overflow-hidden',
+    },
+    interactionSurface: {
       ref: containerRef,
-      className: `relative w-full h-full overflow-hidden ${getAnnotationCanvasCursorClass(
+      className: `absolute inset-0 z-0 overflow-hidden ${getAnnotationCanvasCursorClass(
         {
           keypointSequenceSession,
           avtPlacementSession,
@@ -800,14 +824,11 @@ export function useAnnotationCanvasController({
           fallbackCursorClass: getCursorStyle(),
         }
       )} ${isHovering ? 'ring-2 ring-blue-400/50' : ''}`,
-      onMouseDown: handleCanvasMouseDown,
-      onMouseMove: handleCanvasMouseMove,
-      onMouseUp: handleCanvasMouseUp,
-      onMouseEnter: handleMouseEnter,
-      onMouseLeave: handleMouseLeave,
+      style: { touchAction: 'none' },
+      ...pointerEvents,
       onWheel: handleWheel,
       onDoubleClick: handleDoubleClick,
-      onContextMenu: pointer.onContextMenu,
+      onContextMenu: handleContextMenu,
     },
     resultsPanel: {
       examType: selectedImage.examType,
@@ -897,7 +918,7 @@ export function useAnnotationCanvasController({
       isStandardDistanceHidden,
       imageScale,
       imageNaturalSize,
-      liveMouseImagePoint,
+      livePointerImagePoint,
       drawingState,
       imageToScreen,
       constrainAuxLinePoint,

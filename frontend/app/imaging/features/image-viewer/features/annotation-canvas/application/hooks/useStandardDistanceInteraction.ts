@@ -1,5 +1,5 @@
+import { useRef } from 'react';
 import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
-import { INTERACTION_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 import { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 interface UseStandardDistanceInteractionOptions {
@@ -39,15 +39,22 @@ export function useStandardDistanceInteraction({
   screenToImage,
   onAnnotationDragStart,
 }: UseStandardDistanceInteractionOptions) {
-  const beginDragIfHit = (x: number, y: number) => {
+  const dragStartRef = useRef<{
+    point: Point;
+    historyStarted: boolean;
+  } | null>(null);
+
+  const beginDragIfHit = (x: number, y: number, pointHitRadius: number) => {
     if (standardDistancePoints.length !== 2) return false;
 
-    const clickRadius = INTERACTION_CONSTANTS.POINT_CLICK_RADIUS;
     for (let index = 0; index < standardDistancePoints.length; index += 1) {
       const pointScreen = imageToScreen(standardDistancePoints[index]);
       const distance = calculateDistance({ x, y }, pointScreen);
-      if (distance < clickRadius) {
-        onAnnotationDragStart?.();
+      if (distance < pointHitRadius) {
+        dragStartRef.current = {
+          point: { x, y },
+          historyStarted: false,
+        };
         setDraggingStandardPointIndex(index);
         return true;
       }
@@ -55,11 +62,9 @@ export function useStandardDistanceInteraction({
     return false;
   };
 
-  const handleMouseDown = (x: number, y: number, button: number) => {
-    if (button !== 0) return false;
-
+  const beginInteraction = (x: number, y: number, pointHitRadius: number) => {
     if (isSettingStandardDistance) {
-      if (beginDragIfHit(x, y)) {
+      if (beginDragIfHit(x, y, pointHitRadius)) {
         return true;
       }
 
@@ -75,15 +80,38 @@ export function useStandardDistanceInteraction({
       return true;
     }
 
-    if (selectedTool === 'hand' && beginDragIfHit(x, y)) {
+    if (selectedTool === 'hand' && beginDragIfHit(x, y, pointHitRadius)) {
       return true;
     }
 
     return false;
   };
 
-  const handleMouseMove = (x: number, y: number, buttons: number) => {
-    if (draggingStandardPointIndex !== null && buttons === 1) {
+  const updateInteraction = (
+    x: number,
+    y: number,
+    primaryActionPressed: boolean,
+    supportsHover: boolean,
+    pointHitRadius: number,
+    dragStartThreshold: number
+  ) => {
+    if (
+      draggingStandardPointIndex !== null &&
+      primaryActionPressed &&
+      dragStartRef.current
+    ) {
+      if (!dragStartRef.current.historyStarted) {
+        const distance = calculateDistance(dragStartRef.current.point, {
+          x,
+          y,
+        });
+        if (distance <= dragStartThreshold) {
+          return true;
+        }
+        onAnnotationDragStart?.();
+        dragStartRef.current.historyStarted = true;
+      }
+
       const imagePoint = screenToImage(x, y);
       const newPoints = [...standardDistancePoints];
       newPoints[draggingStandardPointIndex] = imagePoint;
@@ -95,15 +123,14 @@ export function useStandardDistanceInteraction({
       return true;
     }
 
-    if (standardDistancePoints.length > 0) {
-      const hoverRadius = INTERACTION_CONSTANTS.HOVER_RADIUS;
+    if (supportsHover && standardDistancePoints.length > 0) {
       let foundHover = false;
 
       for (let index = 0; index < standardDistancePoints.length; index += 1) {
         const pointScreen = imageToScreen(standardDistancePoints[index]);
         const distance = calculateDistance({ x, y }, pointScreen);
 
-        if (distance < hoverRadius) {
+        if (distance < pointHitRadius) {
           setHoveredStandardPointIndex(index);
           foundHover = true;
           break;
@@ -118,15 +145,16 @@ export function useStandardDistanceInteraction({
     return false;
   };
 
-  const handleMouseUp = () => {
+  const endInteraction = () => {
+    dragStartRef.current = null;
     if (draggingStandardPointIndex !== null) {
       setDraggingStandardPointIndex(null);
     }
   };
 
   return {
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
+    beginInteraction,
+    updateInteraction,
+    endInteraction,
   };
 }

@@ -23,6 +23,7 @@ export type { AnnotationCanvasProps };
 
 function AnnotationCanvasView({
   container,
+  interactionSurface,
   resultsPanel,
   controlsPanel,
   image,
@@ -44,77 +45,89 @@ function AnnotationCanvasView({
       <MeasurementResultsPanel {...resultsPanel} />
       <CanvasControlsPanel {...controlsPanel} />
 
-      <div className="relative flex items-center justify-center w-full h-full">
-        {image.imageLoading ? (
-          <div className="flex items-center justify-center text-white">
-            <i className="ri-loader-line w-8 h-8 flex items-center justify-center animate-spin mb-3 text-2xl" />
-            <p className="text-sm ml-2">加载图像中...</p>
-          </div>
-        ) : image.imageUrl ? (
-          <ImageLayer
-            imageUrl={image.imageUrl}
-            examType={image.examType}
-            imagePosition={image.imagePosition}
-            imageScale={image.imageScale}
-            brightness={image.brightness}
-            contrast={image.contrast}
-            onDragStart={event => event.preventDefault()}
-            onLoad={image.onLoad}
-          />
-        ) : (
-          <div className="flex items-center justify-center text-white">
-            <p className="text-sm">图像加载失败</p>
-          </div>
-        )}
-      </div>
-
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        style={{ zIndex: 10 }}
+      <div
+        {...interactionSurface}
+        data-canvas-interaction-surface
+        onDragStart={event => event.preventDefault()}
+        onDrag={event => event.preventDefault()}
+        onDragEnd={event => event.preventDefault()}
       >
-        <defs>
-          <marker
-            id="arrowhead-normal"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
-            orient="auto"
-          >
-            <polygon points="0 0, 10 3, 0 6" fill="#f59e0b" />
-          </marker>
-          <marker
-            id="arrowhead-hovered"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
-            orient="auto"
-          >
-            <polygon points="0 0, 10 3, 0 6" fill="#fbbf24" />
-          </marker>
-          <marker
-            id="arrowhead-selected"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
-            orient="auto"
-          >
-            <polygon points="0 0, 10 3, 0 6" fill="#ef4444" />
-          </marker>
-        </defs>
+        <div className="relative flex h-full w-full items-center justify-center">
+          {image.imageLoading ? (
+            <div className="flex items-center justify-center text-white">
+              <i className="ri-loader-line mb-3 flex h-8 w-8 animate-spin items-center justify-center text-2xl" />
+              <p className="ml-2 text-sm">加载图像中...</p>
+            </div>
+          ) : image.imageUrl ? (
+            <ImageLayer
+              imageUrl={image.imageUrl}
+              examType={image.examType}
+              imagePosition={image.imagePosition}
+              imageScale={image.imageScale}
+              brightness={image.brightness}
+              contrast={image.contrast}
+              onDragStart={event => event.preventDefault()}
+              onLoad={image.onLoad}
+            />
+          ) : (
+            <div className="flex items-center justify-center text-white">
+              <p className="text-sm">图像加载失败</p>
+            </div>
+          )}
+        </div>
 
-        {vertebrae.visible && <VertebraeLayer {...vertebrae} />}
-        <MeasurementLayer {...measurementLayer} />
-        <PreviewLayer
-          {...previewLayer}
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          style={{ zIndex: 10 }}
+        >
+          <defs>
+            <marker
+              id="arrowhead-normal"
+              markerWidth="10"
+              markerHeight="10"
+              refX="9"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3, 0 6" fill="#f59e0b" />
+            </marker>
+            <marker
+              id="arrowhead-hovered"
+              markerWidth="10"
+              markerHeight="10"
+              refX="9"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3, 0 6" fill="#fbbf24" />
+            </marker>
+            <marker
+              id="arrowhead-selected"
+              markerWidth="10"
+              markerHeight="10"
+              refX="9"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3, 0 6" fill="#ef4444" />
+            </marker>
+          </defs>
+
+          {vertebrae.visible && <VertebraeLayer {...vertebrae} />}
+          <MeasurementLayer {...measurementLayer} />
+          <PreviewLayer
+            {...previewLayer}
+            getInheritedPoints={getInheritedPoints}
+          />
+          <SelectionOverlayLayer {...selectionLayer} />
+        </svg>
+
+        <CanvasHintPanel
+          {...hintPanel}
           getInheritedPoints={getInheritedPoints}
         />
-        <SelectionOverlayLayer {...selectionLayer} />
-      </svg>
+      </div>
 
-      <CanvasHintPanel {...hintPanel} getInheritedPoints={getInheritedPoints} />
       <OverlayLayer {...overlayLayer} />
     </div>
   );

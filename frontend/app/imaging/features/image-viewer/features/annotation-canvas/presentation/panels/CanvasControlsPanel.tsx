@@ -63,10 +63,11 @@ export default function CanvasControlsPanel({
     <>
       <div
         className="absolute bottom-2 right-2 z-10 w-52 max-w-[calc(100vw-1rem)] bg-black/80 border border-blue-500/30 backdrop-blur-sm rounded-lg p-2 flex flex-col gap-2 sm:bottom-auto sm:right-4 sm:top-4 sm:w-auto sm:p-3 sm:gap-3"
-        onMouseDown={event => event.stopPropagation()}
         onClick={event => event.stopPropagation()}
-        onMouseUp={event => event.stopPropagation()}
-        onMouseMove={event => event.stopPropagation()}
+        onPointerDown={event => event.stopPropagation()}
+        onPointerUp={event => event.stopPropagation()}
+        onPointerMove={event => event.stopPropagation()}
+        onPointerCancel={event => event.stopPropagation()}
         onDoubleClick={event => {
           event.stopPropagation();
           event.preventDefault();

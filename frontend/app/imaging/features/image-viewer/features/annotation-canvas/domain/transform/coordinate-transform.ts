@@ -86,7 +86,7 @@ export function imageToScreen(point: Point, context: TransformContext): Point {
 /**
  * 将屏幕坐标系转换为图像坐标系
  *
- * 屏幕坐标系：容器内的显示坐标（相对于容器左上角，从handleMouseDown/Move传入）
+ * 屏幕坐标系：容器内的显示坐标（相对于容器左上角，由 Pointer Events 适配层传入）
  * 图像坐标系：左上角为原点，右为x正，下为y正（标准图像坐标系）
  *
  * @param screenX 屏幕X坐标

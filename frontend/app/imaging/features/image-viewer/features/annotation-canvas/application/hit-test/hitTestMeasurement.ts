@@ -36,6 +36,7 @@ interface HitTestMeasurementOptions {
   imageToScreen: (point: Point) => Point;
   context: TransformContext;
   isMeasurementHidden?: (measurement: MeasurementData) => boolean;
+  pointRadius?: number;
   lineRadius?: number;
 }
 
@@ -154,6 +155,7 @@ export function hitTestMeasurement({
   imageToScreen,
   context,
   isMeasurementHidden,
+  pointRadius,
   lineRadius = 8,
 }: HitTestMeasurementOptions): HitResult {
   for (const measurement of measurements) {
@@ -165,6 +167,7 @@ export function hitTestMeasurement({
       measurement,
       screenPoint,
       imageToScreen,
+      radius: pointRadius,
     });
     if (pointIndex !== null) {
       return {

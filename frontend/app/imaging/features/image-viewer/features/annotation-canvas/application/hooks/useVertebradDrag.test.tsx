@@ -159,13 +159,13 @@ describe('useVertebradDrag', () => {
     });
 
     act(() => {
-      expect(latest!.handleMouseDown(150, 150)).toBe(true);
+      expect(latest!.beginInteraction(150, 150, 10, 3)).toBe(true);
     });
     act(() => {
-      latest!.handleMouseMove(180, 190);
+      latest!.updateInteraction(180, 190, true, 10);
     });
     act(() => {
-      latest!.handleMouseUp();
+      latest!.endInteraction();
     });
 
     await waitFor(() => {
@@ -206,10 +206,10 @@ describe('useVertebradDrag', () => {
       });
 
       act(() => {
-        expect(latest!.handleMouseDown(150, 150)).toBe(true);
+        expect(latest!.beginInteraction(150, 150, 10, 3)).toBe(true);
       });
       act(() => {
-        latest!.handleMouseMove(180, 190);
+        latest!.updateInteraction(180, 190, true, 10);
       });
 
       await waitFor(() => {
@@ -241,16 +241,39 @@ describe('useVertebradDrag', () => {
     });
 
     act(() => {
-      expect(latest!.handleMouseDown(100, 100)).toBe(true);
+      expect(latest!.beginInteraction(100, 100, 10, 3)).toBe(true);
     });
 
     expect(onAnnotationDragStart).not.toHaveBeenCalled();
 
     act(() => {
-      latest!.handleMouseMove(110, 110);
+      latest!.updateInteraction(110, 110, true, 10);
     });
 
     expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the input policy radius for touch-friendly keypoint hits', async () => {
+    let latest: DragHook | null = null;
+
+    render(
+      <DragHarness
+        onValue={value => {
+          latest = value;
+        }}
+        onVertebraeUpdate={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+    });
+
+    act(() => {
+      expect(latest!.beginInteraction(100, 80, 10, 3)).toBe(false);
+      expect(latest!.beginInteraction(100, 80, 22, 6)).toBe(true);
+      latest!.endInteraction();
+    });
   });
 
   it('does not update the layer when a keypoint is only clicked', async () => {
@@ -273,10 +296,10 @@ describe('useVertebradDrag', () => {
     });
 
     act(() => {
-      expect(latest!.handleMouseDown(100, 100)).toBe(true);
+      expect(latest!.beginInteraction(100, 100, 10, 3)).toBe(true);
     });
     act(() => {
-      latest!.handleMouseUp();
+      latest!.endInteraction();
     });
 
     expect(onAnnotationDragStart).not.toHaveBeenCalled();
@@ -303,13 +326,13 @@ describe('useVertebradDrag', () => {
     });
 
     act(() => {
-      expect(latest!.handleMouseDown(100, 100)).toBe(true);
+      expect(latest!.beginInteraction(100, 100, 10, 3)).toBe(true);
     });
     act(() => {
-      latest!.handleMouseMove(102, 102);
+      latest!.updateInteraction(102, 102, true, 10);
     });
     act(() => {
-      latest!.handleMouseUp();
+      latest!.endInteraction();
     });
 
     expect(onAnnotationDragStart).not.toHaveBeenCalled();
@@ -336,10 +359,10 @@ describe('useVertebradDrag', () => {
     });
 
     act(() => {
-      expect(latest!.handleMouseDown(150, 150)).toBe(true);
+      expect(latest!.beginInteraction(150, 150, 10, 3)).toBe(true);
     });
     act(() => {
-      latest!.handleMouseUp();
+      latest!.endInteraction();
     });
 
     expect(onAnnotationDragStart).not.toHaveBeenCalled();
@@ -365,7 +388,7 @@ describe('useVertebradDrag', () => {
     });
 
     act(() => {
-      expect(latest!.handleMouseDown(100, 100)).toBe(true);
+      expect(latest!.beginInteraction(100, 100, 10, 3)).toBe(true);
     });
 
     expect(onSelectionChange).toHaveBeenCalledWith({
@@ -393,7 +416,7 @@ describe('useVertebradDrag', () => {
     });
 
     act(() => {
-      expect(latest!.handleMouseDown(150, 150)).toBe(true);
+      expect(latest!.beginInteraction(150, 150, 10, 3)).toBe(true);
     });
 
     expect(onSelectionChange).toHaveBeenCalledWith({
@@ -422,7 +445,7 @@ describe('useVertebradDrag', () => {
     });
 
     act(() => {
-      expect(latest!.handleMouseDown(150, 150)).toBe(false);
+      expect(latest!.beginInteraction(150, 150, 10, 3)).toBe(false);
     });
 
     expect(onSelectionChange).not.toHaveBeenCalled();

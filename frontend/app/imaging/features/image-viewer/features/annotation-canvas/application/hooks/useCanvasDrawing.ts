@@ -25,7 +25,7 @@ const EMPTY_REFERENCE_LINES: ReferenceLines = {
 
 /**
  * 绘制预览局部状态。
- * 统一承接 drawingState、动态鼠标点和参考线，避免入口组件继续直接持有这类临时状态。
+ * 统一承接 drawingState、动态指针点和参考线，避免入口组件继续直接持有这类临时状态。
  */
 export function useCanvasDrawing() {
   const [drawingState, setDrawingState] = useState<DrawingState>({
@@ -33,9 +33,8 @@ export function useCanvasDrawing() {
     startPoint: null,
     currentPoint: null,
   });
-  const [liveMouseImagePoint, setLiveMouseImagePoint] = useState<Point | null>(
-    null
-  );
+  const [livePointerImagePoint, setLivePointerImagePoint] =
+    useState<Point | null>(null);
   const [referenceLines, setReferenceLines] = useState<ReferenceLines>(
     EMPTY_REFERENCE_LINES
   );
@@ -51,8 +50,8 @@ export function useCanvasDrawing() {
   return {
     drawingState,
     setDrawingState,
-    liveMouseImagePoint,
-    setLiveMouseImagePoint,
+    livePointerImagePoint,
+    setLivePointerImagePoint,
     referenceLines,
     setReferenceLines,
     constrainAuxLinePoint,

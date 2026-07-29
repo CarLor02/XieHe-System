@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import {
   applyPointBindings,
   AnnotationBindings,
@@ -101,13 +102,33 @@ export function useCanvasDrag({
   setReferenceLines,
   onAnnotationDragStart,
 }: UseCanvasDragOptions) {
-  const handleMouseMove = (x: number, y: number, buttons: number) => {
+  const dragStartRef = useRef<Point | null>(null);
+
+  const beginInteraction = (x: number, y: number) => {
+    dragStartRef.current = { x, y };
+  };
+
+  const updateInteraction = (
+    x: number,
+    y: number,
+    primaryActionPressed: boolean,
+    dragStartThreshold: number
+  ) => {
     if (
       !(selectionState.measurementId || selectionState.pointIndex !== null) ||
       selectedTool !== 'hand' ||
-      buttons !== 1
+      !primaryActionPressed
     ) {
       return false;
+    }
+
+    if (
+      !selectionState.isDragging &&
+      dragStartRef.current &&
+      Math.hypot(x - dragStartRef.current.x, y - dragStartRef.current.y) <=
+        dragStartThreshold
+    ) {
+      return true;
     }
 
     const imagePoint = screenToImage(x, y);
@@ -186,12 +207,12 @@ export function useCanvasDrag({
             maxY = Math.max(...ys) + 15;
           }
 
-          const mouseScreenPoint = imageToScreen(imagePoint);
+          const pointerScreenPoint = imageToScreen(imagePoint);
           if (
-            mouseScreenPoint.x >= minX &&
-            mouseScreenPoint.x <= maxX &&
-            mouseScreenPoint.y >= minY &&
-            mouseScreenPoint.y <= maxY
+            pointerScreenPoint.x >= minX &&
+            pointerScreenPoint.x <= maxX &&
+            pointerScreenPoint.y >= minY &&
+            pointerScreenPoint.y <= maxY
           ) {
             canDrag = true;
           }
@@ -590,13 +611,15 @@ export function useCanvasDrag({
   };
 
   const endDragSelection = () => {
+    dragStartRef.current = null;
     if (selectionState.isDragging) {
       setSelectionState(previous => ({ ...previous, isDragging: false }));
     }
   };
 
   return {
-    handleMouseMove,
+    beginInteraction,
+    updateInteraction,
     endDragSelection,
   };
 }

@@ -28,7 +28,7 @@ interface PreviewLayerProps {
   isStandardDistanceHidden: boolean;
   imageScale: number;
   imageNaturalSize: { width: number; height: number } | null;
-  liveMouseImagePoint: Point | null;
+  livePointerImagePoint: Point | null;
   drawingState: DrawingState;
   imageToScreen: (point: Point) => Point;
   constrainAuxLinePoint: (
@@ -223,7 +223,7 @@ function renderStructuredPreview({
   standardDistance,
   standardDistancePoints,
   imageNaturalSize,
-  liveMouseImagePoint,
+  livePointerImagePoint,
   imageToScreen,
   constrainAuxLinePoint,
 }: {
@@ -232,7 +232,7 @@ function renderStructuredPreview({
   standardDistance: number | null;
   standardDistancePoints: Point[];
   imageNaturalSize: { width: number; height: number } | null;
-  liveMouseImagePoint: Point | null;
+  livePointerImagePoint: Point | null;
   imageToScreen: (point: Point) => Point;
   constrainAuxLinePoint: (
     toolId: string,
@@ -404,12 +404,12 @@ function renderStructuredPreview({
     clickedPoints.length > 0
   ) {
     const previewPoints = [...clickedPoints];
-    if (clickedPoints.length === 1 && liveMouseImagePoint) {
+    if (clickedPoints.length === 1 && livePointerImagePoint) {
       previewPoints.push(
         constrainAuxLinePoint(
           selectedTool,
           clickedPoints[0],
-          liveMouseImagePoint
+          livePointerImagePoint
         )
       );
     }
@@ -551,7 +551,7 @@ export default function PreviewLayer({
   isStandardDistanceHidden,
   imageScale,
   imageNaturalSize,
-  liveMouseImagePoint,
+  livePointerImagePoint,
   drawingState,
   imageToScreen,
   constrainAuxLinePoint,
@@ -679,7 +679,7 @@ export default function PreviewLayer({
         standardDistance,
         standardDistancePoints,
         imageNaturalSize,
-        liveMouseImagePoint,
+        livePointerImagePoint,
         imageToScreen,
         constrainAuxLinePoint,
       })}
@@ -809,11 +809,11 @@ export default function PreviewLayer({
 
       {selectedTool === 'ts' &&
         clickedPoints.length === 1 &&
-        liveMouseImagePoint &&
+        livePointerImagePoint &&
         (() => {
           const firstPoint = imageToScreen(clickedPoints[0]);
           const constrainedSecondPoint = imageToScreen({
-            x: liveMouseImagePoint.x,
+            x: livePointerImagePoint.x,
             y: clickedPoints[0].y,
           });
           return (

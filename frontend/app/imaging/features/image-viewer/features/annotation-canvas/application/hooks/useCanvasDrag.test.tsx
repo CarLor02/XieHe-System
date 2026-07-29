@@ -79,17 +79,48 @@ it('starts annotation history only once for one measurement drag', async () => {
   });
 
   act(() => {
-    expect(latest!.handleMouseMove(5, 5, 1)).toBe(true);
+    expect(latest!.updateInteraction(5, 5, true, 0)).toBe(true);
   });
   await waitFor(() => {
     expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
   });
 
   act(() => {
-    expect(latest!.handleMouseMove(6, 6, 1)).toBe(true);
+    expect(latest!.updateInteraction(6, 6, true, 0)).toBe(true);
   });
 
   expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
+});
+
+it('does not mutate a selected measurement below the pointer drag threshold', async () => {
+  let latest: CanvasDragHook | null = null;
+  const onAnnotationDragStart = jest.fn();
+
+  render(
+    <DragHarness
+      onValue={value => {
+        latest = value;
+      }}
+      onAnnotationDragStart={onAnnotationDragStart}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  act(() => {
+    latest!.beginInteraction(0, 0);
+    expect(latest!.updateInteraction(3, 3, true, 6)).toBe(true);
+  });
+  expect(onAnnotationDragStart).not.toHaveBeenCalled();
+
+  act(() => {
+    expect(latest!.updateInteraction(10, 10, true, 6)).toBe(true);
+  });
+  await waitFor(() => {
+    expect(onAnnotationDragStart).toHaveBeenCalledTimes(1);
+  });
 });
 
 function HemipelvicLineDragHarness({
@@ -176,7 +207,7 @@ it('moves one L/R line horizontally and recalculates the ratio', async () => {
   });
 
   act(() => {
-    expect(latest!.handleMouseMove(5, 100, 1)).toBe(true);
+    expect(latest!.updateInteraction(5, 100, true, 0)).toBe(true);
   });
 
   await waitFor(() => {
@@ -276,7 +307,7 @@ it('moves a bound manual TTS trunk line despite whole-drag restrictions', async 
   });
 
   act(() => {
-    expect(latest!.handleMouseMove(25, 35, 1)).toBe(true);
+    expect(latest!.updateInteraction(25, 35, true, 0)).toBe(true);
   });
 
   await waitFor(() => {
@@ -292,7 +323,7 @@ it('moves a bound manual TTS trunk line despite whole-drag restrictions', async 
   expect(latestMeasurements[0].value).toBe('-9.00mm');
 
   act(() => {
-    expect(latest!.handleMouseMove(30, 40, 1)).toBe(true);
+    expect(latest!.updateInteraction(30, 40, true, 0)).toBe(true);
   });
 
   await waitFor(() => {

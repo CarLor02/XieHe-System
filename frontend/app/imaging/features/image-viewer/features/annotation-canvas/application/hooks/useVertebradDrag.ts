@@ -21,6 +21,7 @@ type DragState =
       mode: 'corner';
       startScreenPoint: ScreenPoint;
       dragStarted: boolean;
+      dragStartThreshold: number;
     } & DragMember)
   | {
       mode: 'group';
@@ -29,6 +30,7 @@ type DragState =
       startImagePoint: Point;
       initialLayer: VertebraAnnotation[];
       dragStarted: boolean;
+      dragStartThreshold: number;
     };
 
 interface CornerRef {
@@ -44,10 +46,6 @@ interface ScreenPoint {
   x: number;
   y: number;
 }
-
-/** 命中检测半径（屏幕像素） */
-const HIT_RADIUS_PX = 10;
-const DRAG_START_THRESHOLD_PX = 3;
 
 function isCompleteVertebraFrame(vertebra: VertebraAnnotation): boolean {
   if (vertebra.label === 'S1') return false;
@@ -89,7 +87,7 @@ function isPointInsidePolygon(
  * 不依赖 SVG pointer-events，直接使用 clientX/clientY 与容器 getBoundingClientRect
  * 做命中测试，彻底解决 SVG pointer-events-none 导致圆圈无法接收事件的问题。
  *
- * 使用方：AnnotationCanvas 在 onMouseDown/Move/Up 中调用本 hook 返回的 handlers。
+ * 使用方通过统一 Pointer Events 适配器调用本 hook 返回的交互方法。
  */
 export function useVertebradDrag({
   vertebraeLayer,
@@ -120,7 +118,7 @@ export function useVertebradDrag({
   const [liveLayer, setLiveLayer] = useState<VertebraAnnotation[] | null>(null);
   // 当前被激活（拖拽中）的角点
   const [activeCorner, setActiveCorner] = useState<CornerRef | null>(null);
-  // 当前鼠标悬停的角点
+  // 当前支持 hover 的指针悬停角点
   const [hoveredCorner, setHoveredCorner] = useState<CornerRef | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   // 拖拽元数据（不需要触发重渲染）
@@ -179,13 +177,17 @@ export function useVertebradDrag({
   );
 
   /**
-   * 在当前 vertebraeLayer 中查找距屏幕点最近且在 HIT_RADIUS_PX 内的角点。
+   * 在当前 vertebraeLayer 中查找距屏幕点最近且在命中半径内的角点。
    * 使用 imageToScreen 将图像坐标转为屏幕坐标后比较。
    */
   const findNearestCorner = useCallback(
-    (screenX: number, screenY: number): DragMember | null => {
+    (
+      screenX: number,
+      screenY: number,
+      hitRadius: number
+    ): DragMember | null => {
       let best: DragMember | null = null;
-      let bestDist = HIT_RADIUS_PX;
+      let bestDist = hitRadius;
       for (const vertebra of vertebraeLayer) {
         vertebra.corners.forEach((corner, i) => {
           const sc = imageToScreen(corner);
@@ -227,9 +229,13 @@ export function useVertebradDrag({
   }, []);
 
   const shouldStartDrag = useCallback(
-    (startPoint: ScreenPoint, currentPoint: ScreenPoint): boolean =>
+    (
+      startPoint: ScreenPoint,
+      currentPoint: ScreenPoint,
+      dragStartThreshold: number
+    ): boolean =>
       Math.hypot(currentPoint.x - startPoint.x, currentPoint.y - startPoint.y) >
-      DRAG_START_THRESHOLD_PX,
+      dragStartThreshold,
     []
   );
 
@@ -256,14 +262,18 @@ export function useVertebradDrag({
   );
 
   /**
-   * 在 div onMouseDown 中调用。
-   * @returns true 表示命中角点，调用方应跳过后续 pointer.onMouseDown
+   * Pointer down 时调用。点位优先于完整椎体框命中。
    */
-  const handleMouseDown = useCallback(
-    (clientX: number, clientY: number): boolean => {
+  const beginInteraction = useCallback(
+    (
+      clientX: number,
+      clientY: number,
+      hitRadius: number,
+      dragStartThreshold: number
+    ): boolean => {
       if (!onVertebraeUpdate) return false;
       const { screenX, screenY } = clientToScreen(clientX, clientY);
-      const hit = findNearestCorner(screenX, screenY);
+      const hit = findNearestCorner(screenX, screenY, hitRadius);
       if (hit) {
         onSelectionChange?.({
           kind: 'keypoint',
@@ -274,6 +284,7 @@ export function useVertebradDrag({
           ...hit,
           startScreenPoint: { x: screenX, y: screenY },
           dragStarted: false,
+          dragStartThreshold,
         };
         setActiveCorner({ label: hit.vertebraLabel, index: hit.cornerIndex });
         return true;
@@ -296,6 +307,7 @@ export function useVertebradDrag({
         startImagePoint: screenToImage(screenX, screenY),
         initialLayer: vertebraeLayer,
         dragStarted: false,
+        dragStartThreshold,
       };
       setActiveCorner({
         label: firstMember.vertebraLabel,
@@ -316,7 +328,7 @@ export function useVertebradDrag({
     ]
   );
 
-  const handleKeypointsMouseDown = useCallback(
+  const beginBoundKeypointInteraction = useCallback(
     (keypointIds: string[], screenX: number, screenY: number): boolean => {
       if (!onVertebraeUpdate) return false;
       const members = keypointIdsToDragMembers(keypointIds);
@@ -330,6 +342,7 @@ export function useVertebradDrag({
           ...firstMember,
           startScreenPoint: { x: screenX, y: screenY },
           dragStarted: true,
+          dragStartThreshold: 0,
         };
       } else {
         dragStateRef.current = {
@@ -339,6 +352,7 @@ export function useVertebradDrag({
           startImagePoint: screenToImage(screenX, screenY),
           initialLayer: vertebraeLayer,
           dragStarted: true,
+          dragStartThreshold: 0,
         };
       }
       setActiveCorner({
@@ -359,21 +373,35 @@ export function useVertebradDrag({
     ]
   );
 
+  const clearHover = useCallback(() => {
+    setHoveredCorner(null);
+    onHoverChange?.(null);
+  }, [onHoverChange]);
+
   /**
-   * 在 div onMouseMove 中调用。
+   * Pointer move 时调用。
    * 拖拽中：更新 liveLayer（角点跟手）。
    * 未拖拽：更新 hoveredCorner（高亮悬停）。
-   * @returns true 表示正在拖拽或悬停关键点，调用方可跳过 pointer.onMouseMove
+   * @returns true 表示正在拖拽或悬停关键点，调用方应停止后续 measurement 分发
    */
-  const handleMouseMove = useCallback(
-    (clientX: number, clientY: number): boolean => {
+  const updateInteraction = useCallback(
+    (
+      clientX: number,
+      clientY: number,
+      supportsHover: boolean,
+      hitRadius: number
+    ): boolean => {
       const { screenX, screenY } = clientToScreen(clientX, clientY);
       const activeHit = dragStateRef.current;
       if (activeHit) {
         const currentScreenPoint = { x: screenX, y: screenY };
         if (!activeHit.dragStarted) {
           if (
-            !shouldStartDrag(activeHit.startScreenPoint, currentScreenPoint)
+            !shouldStartDrag(
+              activeHit.startScreenPoint,
+              currentScreenPoint,
+              activeHit.dragStartThreshold
+            )
           ) {
             return true;
           }
@@ -414,8 +442,13 @@ export function useVertebradDrag({
         onHoverChange?.(activeMember ? hitToKeypointId(activeMember) : null);
         return true;
       }
-      // 更新悬停状态
-      const hit = findNearestCorner(screenX, screenY);
+      if (!supportsHover) {
+        clearHover();
+        return false;
+      }
+
+      // 触摸不模拟 hover；鼠标与支持悬停的触摸笔才更新此状态。
+      const hit = findNearestCorner(screenX, screenY, hitRadius);
       setHoveredCorner(
         hit ? { label: hit.vertebraLabel, index: hit.cornerIndex } : null
       );
@@ -424,6 +457,7 @@ export function useVertebradDrag({
     },
     [
       clientToScreen,
+      clearHover,
       findNearestCorner,
       hitToKeypointId,
       onHoverChange,
@@ -437,10 +471,10 @@ export function useVertebradDrag({
   );
 
   /**
-   * 在 div onMouseUp / onMouseLeave 中调用。
+   * Pointer up/cancel/lost capture 时调用。
    * 结束拖拽，把最终 liveLayer 传给 onVertebraeUpdate。
    */
-  const handleMouseUp = useCallback(() => {
+  const endInteraction = useCallback(() => {
     const activeHit = dragStateRef.current;
     if (!activeHit) return;
     const finalLayer = liveLayerRef.current;
@@ -454,10 +488,22 @@ export function useVertebradDrag({
     setIsDragging(false);
   }, [onVertebraeUpdate]);
 
-  const clearHover = useCallback(() => {
-    setHoveredCorner(null);
-    onHoverChange?.(null);
-  }, [onHoverChange]);
+  const cancelPendingInteraction = useCallback(() => {
+    const activeHit = dragStateRef.current;
+    if (!activeHit || activeHit.dragStarted) return false;
+
+    dragStateRef.current = null;
+    liveLayerRef.current = null;
+    setLiveLayer(null);
+    setActiveCorner(null);
+    setIsDragging(false);
+    return true;
+  }, []);
+
+  const hasStartedInteraction = useCallback(
+    () => Boolean(dragStateRef.current?.dragStarted),
+    []
+  );
 
   return {
     /** 渲染时使用的图层：拖拽中为实时图层，否则为 vertebraeLayer prop */
@@ -465,10 +511,12 @@ export function useVertebradDrag({
     activeCorner,
     isDragging,
     hoveredCorner,
-    handleMouseDown,
-    handleKeypointsMouseDown,
-    handleMouseMove,
-    handleMouseUp,
+    beginInteraction,
+    beginBoundKeypointInteraction,
+    updateInteraction,
+    endInteraction,
+    cancelPendingInteraction,
+    hasStartedInteraction,
     clearHover,
   };
 }

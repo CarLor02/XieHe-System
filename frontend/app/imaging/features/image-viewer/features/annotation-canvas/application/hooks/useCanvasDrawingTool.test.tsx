@@ -71,7 +71,7 @@ it('creates a twelve-point L/R measurement after four anatomical clicks', () => 
     [20, 40],
   ]) {
     act(() => {
-      expect(result.current.drawingTool.handleMouseDown(x, y)).toBe(true);
+      expect(result.current.drawingTool.beginInteraction(x, y)).toBe(true);
     });
   }
 
@@ -143,12 +143,12 @@ it('completes a manual AVT disc line with two horizontal sorted anchors', () => 
   });
 
   act(() => {
-    expect(result.current.drawingTool.handleMouseDown(80, 20)).toBe(true);
+    expect(result.current.drawingTool.beginInteraction(80, 20)).toBe(true);
   });
   expect(result.current.clickedPoints).toEqual([{ x: 80, y: 20 }]);
 
   act(() => {
-    expect(result.current.drawingTool.handleMouseDown(20, 90)).toBe(true);
+    expect(result.current.drawingTool.beginInteraction(20, 90)).toBe(true);
   });
   expect(onAvtDiscPlacementComplete).toHaveBeenCalledWith([
     { x: 20, y: 20 },

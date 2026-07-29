@@ -58,6 +58,31 @@ describe('L/R measurement hit testing', () => {
       })
     ).toEqual({ kind: 'line', measurementId: 'lr-1', lineIndex: 1 });
   });
+
+  it('accepts the input policy point radius', () => {
+    expect(
+      hitTestMeasurement({
+        measurements: [
+          {
+            id: 'lr-1',
+            type: 'hemipelvic-width-ratio',
+            value: '1.00',
+            points,
+          },
+        ],
+        screenPoint: { x: -10, y: 0 },
+        imageScale: 1,
+        imageToScreen: point => point,
+        pointRadius: 22,
+        context: {
+          imageNaturalSize: null,
+          imagePosition: { x: 0, y: 0 },
+          imageScale: 1,
+          containerSize: null,
+        },
+      })
+    ).toEqual({ kind: 'point', measurementId: 'lr-1', pointIndex: 0 });
+  });
 });
 
 describe('manual TTS measurement hit testing', () => {

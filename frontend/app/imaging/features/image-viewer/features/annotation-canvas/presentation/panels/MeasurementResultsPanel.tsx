@@ -509,14 +509,12 @@ export default function MeasurementResultsPanel({
     <div
       data-canvas-wheel-blocker
       className="absolute left-2 right-2 top-2 z-50 sm:left-4 sm:right-auto sm:top-4"
-      onMouseDown={event => event.stopPropagation()}
       onClick={event => event.stopPropagation()}
-      onMouseUp={event => event.stopPropagation()}
-      onMouseMove={event => event.stopPropagation()}
       onWheel={event => event.stopPropagation()}
       onPointerDown={event => event.stopPropagation()}
       onPointerMove={event => event.stopPropagation()}
       onPointerUp={event => event.stopPropagation()}
+      onPointerCancel={event => event.stopPropagation()}
     >
       <AppMessageDialog
         open={Boolean(panelOverlayMessage)}

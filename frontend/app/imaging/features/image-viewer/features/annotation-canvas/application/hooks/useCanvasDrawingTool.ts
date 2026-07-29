@@ -64,7 +64,7 @@ function assembleInheritedPoints(
 
 /**
  * 绘制工具点击状态机。
- * 负责 clickedPoints 累积、继承点补齐、reference line 维护，以及动态图形 mouse up 完成。
+ * 负责 clickedPoints 累积、继承点补齐、reference line 维护，以及动态图形 pointer up 完成。
  */
 export function useCanvasDrawingTool({
   selectedTool,
@@ -104,7 +104,7 @@ export function useCanvasDrawingTool({
     }
   }, [clickedPoints, addMeasurement, setClickedPoints]);
 
-  const handleDynamicShapeMouseDown = useCallback(
+  const beginDynamicShape = useCallback(
     (x: number, y: number) => {
       if (
         selectedTool !== 'circle' &&
@@ -126,7 +126,7 @@ export function useCanvasDrawingTool({
     [screenToImage, selectedTool, setDrawingState]
   );
 
-  const handleSpecialPointToolMouseDown = useCallback(
+  const beginSpecialPointTool = useCallback(
     (x: number, y: number) => {
       const imagePoint = screenToImage(x, y);
 
@@ -212,7 +212,7 @@ export function useCanvasDrawingTool({
     ]
   );
 
-  const handleMeasurementToolMouseDown = useCallback(
+  const beginMeasurementTool = useCallback(
     (x: number, y: number) => {
       const imagePoint = screenToImage(x, y);
       const currentTool = getCurrentTool();
@@ -423,26 +423,22 @@ export function useCanvasDrawingTool({
     ]
   );
 
-  const handleMouseDown = useCallback(
+  const beginInteraction = useCallback(
     (x: number, y: number) => {
-      if (handleDynamicShapeMouseDown(x, y)) {
+      if (beginDynamicShape(x, y)) {
         return true;
       }
 
-      if (handleSpecialPointToolMouseDown(x, y)) {
+      if (beginSpecialPointTool(x, y)) {
         return true;
       }
 
-      return handleMeasurementToolMouseDown(x, y);
+      return beginMeasurementTool(x, y);
     },
-    [
-      handleDynamicShapeMouseDown,
-      handleMeasurementToolMouseDown,
-      handleSpecialPointToolMouseDown,
-    ]
+    [beginDynamicShape, beginMeasurementTool, beginSpecialPointTool]
   );
 
-  const handleMouseMove = useCallback(
+  const updateInteraction = useCallback(
     (x: number, y: number) => {
       if (!drawingState.isDrawing) {
         return false;
@@ -458,7 +454,7 @@ export function useCanvasDrawingTool({
     [drawingState.isDrawing, screenToImage, setDrawingState]
   );
 
-  const handleMouseUp = useCallback(() => {
+  const endInteraction = useCallback(() => {
     if (
       drawingState.isDrawing &&
       drawingState.startPoint &&
@@ -493,8 +489,8 @@ export function useCanvasDrawingTool({
   }, [addMeasurement, drawingState, selectedTool, setDrawingState]);
 
   return {
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
+    beginInteraction,
+    updateInteraction,
+    endInteraction,
   };
 }

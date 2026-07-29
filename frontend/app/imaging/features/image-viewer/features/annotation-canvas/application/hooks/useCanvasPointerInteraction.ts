@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { INTERACTION_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
 import {
   MeasurementData,
@@ -17,6 +16,7 @@ import {
   SelectionState,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { getManualTtsTrunkCenter } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
 
 function getMeasurementDragCenter(measurement: MeasurementData): Point {
   const ttsTrunkCenter = getManualTtsTrunkCenter(measurement);
@@ -30,7 +30,7 @@ function getMeasurementDragCenter(measurement: MeasurementData): Point {
   };
 }
 
-interface UseCanvasPointerOptions {
+interface UseCanvasPointerInteractionOptions {
   imageNaturalSize: { width: number; height: number } | null;
   selectedTool: string;
   isManualBindingMode: boolean;
@@ -59,23 +59,36 @@ interface UseCanvasPointerOptions {
   setContrast: React.Dispatch<React.SetStateAction<number>>;
   isImagePanLocked: boolean;
   drawingState: { isDrawing: boolean };
-  setLiveMouseImagePoint: (point: Point | null) => void;
+  setLivePointerImagePoint: (point: Point | null) => void;
   imageToScreen: (point: Point) => Point;
   screenToImage: (x: number, y: number) => Point;
   getTransformContext: () => TransformContext;
   standardDistanceInteraction: {
-    handleMouseDown: (x: number, y: number, button: number) => boolean;
-    handleMouseMove: (x: number, y: number, buttons: number) => boolean;
-    handleMouseUp: () => void;
+    beginInteraction: (x: number, y: number, pointHitRadius: number) => boolean;
+    updateInteraction: (
+      x: number,
+      y: number,
+      primaryActionPressed: boolean,
+      supportsHover: boolean,
+      pointHitRadius: number,
+      dragStartThreshold: number
+    ) => boolean;
+    endInteraction: () => void;
   };
   canvasDrag: {
-    handleMouseMove: (x: number, y: number, buttons: number) => boolean;
+    beginInteraction: (x: number, y: number) => void;
+    updateInteraction: (
+      x: number,
+      y: number,
+      primaryActionPressed: boolean,
+      dragStartThreshold: number
+    ) => boolean;
     endDragSelection: () => void;
   };
   drawingTool: {
-    handleMouseDown: (x: number, y: number) => boolean;
-    handleMouseMove: (x: number, y: number) => boolean;
-    handleMouseUp: () => void;
+    beginInteraction: (x: number, y: number) => boolean;
+    updateInteraction: (x: number, y: number) => boolean;
+    endInteraction: () => void;
   };
   onManualBindingPointToggle: (
     annotationId: string,
@@ -83,7 +96,6 @@ interface UseCanvasPointerOptions {
   ) => void;
   onDisplayMeasurementSelect: (measurementId: string | null) => void;
   onCanvasClick: () => void;
-  onContextMenu: (event: React.MouseEvent) => void;
   setImagePosition: React.Dispatch<React.SetStateAction<Point>>;
 }
 
@@ -91,7 +103,7 @@ interface UseCanvasPointerOptions {
  * 指针事件统一调度。
  * 这里承接事件决策，入口组件只绑定 handlers，不再直接保留鼠标状态机。
  */
-export function useCanvasPointer({
+export function useCanvasPointerInteraction({
   imageNaturalSize,
   selectedTool,
   isManualBindingMode,
@@ -116,7 +128,7 @@ export function useCanvasPointer({
   setContrast,
   isImagePanLocked,
   drawingState,
-  setLiveMouseImagePoint,
+  setLivePointerImagePoint,
   imageToScreen,
   screenToImage,
   getTransformContext,
@@ -126,9 +138,8 @@ export function useCanvasPointer({
   onManualBindingPointToggle,
   onDisplayMeasurementSelect,
   onCanvasClick,
-  onContextMenu,
   setImagePosition,
-}: UseCanvasPointerOptions) {
+}: UseCanvasPointerInteractionOptions) {
   const clearSelection = useCallback(() => {
     onDisplayMeasurementSelect(null);
     setSelectionState({
@@ -140,10 +151,9 @@ export function useCanvasPointer({
     });
   }, [onDisplayMeasurementSelect, setSelectionState]);
 
-  const handleManualBindingMouseDown = useCallback(
-    (x: number, y: number) => {
+  const handleManualBindingPointerDown = useCallback(
+    (x: number, y: number, pointHitRadius: number) => {
       const screenPoint = { x, y };
-      const clickRadius = INTERACTION_CONSTANTS.POINT_CLICK_RADIUS;
 
       for (const measurement of measurements) {
         if (hideAllAnnotations || hiddenAnnotationIds.has(measurement.id)) {
@@ -151,7 +161,7 @@ export function useCanvasPointer({
         }
         for (let index = 0; index < measurement.points.length; index += 1) {
           const pointScreen = imageToScreen(measurement.points[index]);
-          if (calculateDistance(screenPoint, pointScreen) < clickRadius) {
+          if (calculateDistance(screenPoint, pointScreen) < pointHitRadius) {
             onManualBindingPointToggle(measurement.id, index);
             return true;
           }
@@ -169,7 +179,7 @@ export function useCanvasPointer({
     ]
   );
 
-  const handleViewportMouseDown = useCallback(
+  const beginViewportInteraction = useCallback(
     (x: number, y: number) => {
       clearSelection();
       setAdjustMode('zoom');
@@ -186,8 +196,9 @@ export function useCanvasPointer({
     ]
   );
 
-  const handleHandModeMouseDown = useCallback(
-    (x: number, y: number) => {
+  const beginHandModeInteraction = useCallback(
+    (x: number, y: number, input: CanvasPointerInput) => {
+      canvasDrag.beginInteraction(x, y);
       const imagePoint = screenToImage(x, y);
       const screenPoint = { x, y };
       const selectionHit = hitTestMeasurement({
@@ -198,7 +209,8 @@ export function useCanvasPointer({
         context: getTransformContext(),
         isMeasurementHidden: measurement =>
           hideAllAnnotations || hiddenAnnotationIds.has(measurement.id),
-        lineRadius: INTERACTION_CONSTANTS.LINE_CLICK_RADIUS,
+        pointRadius: input.policy.pointHitRadius,
+        lineRadius: input.policy.lineHitRadius,
       });
 
       if (selectionHit.kind !== 'none') {
@@ -256,6 +268,7 @@ export function useCanvasPointer({
         points: clickedPoints,
         screenPoint,
         imageToScreen,
+        radius: input.policy.pointHitRadius,
       });
       if (workingPointIndex !== null) {
         onDisplayMeasurementSelect(null);
@@ -284,10 +297,14 @@ export function useCanvasPointer({
           ) {
             const selectedPoint = measurement.points[selectionState.pointIndex];
             const pointBox = {
-              minX: imageToScreen(selectedPoint).x - 15,
-              maxX: imageToScreen(selectedPoint).x + 15,
-              minY: imageToScreen(selectedPoint).y - 15,
-              maxY: imageToScreen(selectedPoint).y + 15,
+              minX:
+                imageToScreen(selectedPoint).x - input.policy.selectionPadding,
+              maxX:
+                imageToScreen(selectedPoint).x + input.policy.selectionPadding,
+              minY:
+                imageToScreen(selectedPoint).y - input.policy.selectionPadding,
+              maxY:
+                imageToScreen(selectedPoint).y + input.policy.selectionPadding,
             };
             if (isPointInSelectionBox(screenPoint, pointBox)) {
               setSelectionState(previous => ({
@@ -321,13 +338,14 @@ export function useCanvasPointer({
         }
       }
 
-      handleViewportMouseDown(x, y);
+      beginViewportInteraction(x, y);
       return true;
     },
     [
       clickedPoints,
+      canvasDrag,
       getTransformContext,
-      handleViewportMouseDown,
+      beginViewportInteraction,
       hideAllAnnotations,
       hiddenAnnotationIds,
       imageScale,
@@ -342,13 +360,13 @@ export function useCanvasPointer({
     ]
   );
 
-  const handleDrawingToolMouseDown = useCallback(
-    (x: number, y: number) => drawingTool.handleMouseDown(x, y),
+  const beginDrawingToolInteraction = useCallback(
+    (x: number, y: number) => drawingTool.beginInteraction(x, y),
     [drawingTool]
   );
 
   const handleHandModeHover = useCallback(
-    (x: number, y: number) => {
+    (x: number, y: number, input: CanvasPointerInput) => {
       if (
         selectedTool !== 'hand' ||
         selectionState.isDragging ||
@@ -373,7 +391,8 @@ export function useCanvasPointer({
         context: getTransformContext(),
         isMeasurementHidden: measurement =>
           hideAllAnnotations || hiddenAnnotationIds.has(measurement.id),
-        lineRadius: INTERACTION_CONSTANTS.LINE_CLICK_RADIUS,
+        pointRadius: input.policy.pointHitRadius,
+        lineRadius: input.policy.lineHitRadius,
       });
 
       if (hoverHit.kind === 'point') {
@@ -404,7 +423,7 @@ export function useCanvasPointer({
         points: clickedPoints,
         screenPoint,
         imageToScreen,
-        radius: INTERACTION_CONSTANTS.HOVER_RADIUS,
+        radius: input.policy.pointHitRadius,
       });
       setHoverState({
         measurementId: null,
@@ -429,45 +448,44 @@ export function useCanvasPointer({
     ]
   );
 
-  const onMouseDown = useCallback(
-    (event: React.MouseEvent) => {
-      if (event.button === 0) {
-        onCanvasClick();
-      }
+  const beginPointerInteraction = useCallback(
+    (input: CanvasPointerInput) => {
+      if (!input.primaryActionPressed) return;
+      onCanvasClick();
       if (!imageNaturalSize) {
         return;
       }
 
-      const rect = event.currentTarget.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
+      const { x, y } = input.screenPoint;
 
-      if (isManualBindingMode && event.button === 0) {
-        handleManualBindingMouseDown(x, y);
+      if (isManualBindingMode) {
+        handleManualBindingPointerDown(x, y, input.policy.pointHitRadius);
         return;
       }
 
-      if (standardDistanceInteraction.handleMouseDown(x, y, event.button)) {
+      if (
+        standardDistanceInteraction.beginInteraction(
+          x,
+          y,
+          input.policy.pointHitRadius
+        )
+      ) {
         return;
       }
 
-      if (event.button !== 0) {
-        return;
-      }
-
-      setDragStartPos({ x: event.clientX, y: event.clientY });
+      setDragStartPos(input.clientPoint);
 
       if (selectedTool === 'hand') {
-        handleHandModeMouseDown(x, y);
+        beginHandModeInteraction(x, y, input);
         return;
       }
 
-      handleDrawingToolMouseDown(x, y);
+      beginDrawingToolInteraction(x, y);
     },
     [
-      handleDrawingToolMouseDown,
-      handleHandModeMouseDown,
-      handleManualBindingMouseDown,
+      beginDrawingToolInteraction,
+      beginHandModeInteraction,
+      handleManualBindingPointerDown,
       imageNaturalSize,
       isManualBindingMode,
       onCanvasClick,
@@ -477,24 +495,40 @@ export function useCanvasPointer({
     ]
   );
 
-  const onMouseMove = useCallback(
-    (event: React.MouseEvent) => {
+  const updatePointerInteraction = useCallback(
+    (input: CanvasPointerInput) => {
       if (!imageNaturalSize) {
         return;
       }
 
-      const rect = event.currentTarget.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      setLiveMouseImagePoint(screenToImage(x, y));
+      const { x, y } = input.screenPoint;
+      if (input.policy.supportsHover || input.primaryActionPressed) {
+        setLivePointerImagePoint(screenToImage(x, y));
+      }
 
-      if (standardDistanceInteraction.handleMouseMove(x, y, event.buttons)) {
+      if (
+        standardDistanceInteraction.updateInteraction(
+          x,
+          y,
+          input.primaryActionPressed,
+          input.policy.supportsHover,
+          input.policy.pointHitRadius,
+          input.policy.dragStartThreshold
+        )
+      ) {
         return;
       }
 
-      drawingTool.handleMouseMove(x, y);
+      drawingTool.updateInteraction(x, y);
 
-      if (canvasDrag.handleMouseMove(x, y, event.buttons)) {
+      if (
+        canvasDrag.updateInteraction(
+          x,
+          y,
+          input.primaryActionPressed,
+          input.policy.dragStartThreshold
+        )
+      ) {
         return;
       }
 
@@ -508,19 +542,21 @@ export function useCanvasPointer({
           x: x - dragStart.x,
           y: y - dragStart.y,
         });
-      } else if (adjustMode === 'brightness' && event.buttons === 1) {
-        const deltaX = event.clientX - dragStartPos.x;
-        const deltaY = event.clientY - dragStartPos.y;
+      } else if (adjustMode === 'brightness' && input.primaryActionPressed) {
+        const deltaX = input.clientPoint.x - dragStartPos.x;
+        const deltaY = input.clientPoint.y - dragStartPos.y;
         setContrast(previous =>
           Math.max(-100, Math.min(100, previous + deltaX * 0.5))
         );
         setBrightness(previous =>
           Math.max(-100, Math.min(100, previous - deltaY * 0.5))
         );
-        setDragStartPos({ x: event.clientX, y: event.clientY });
+        setDragStartPos(input.clientPoint);
       }
 
-      handleHandModeHover(x, y);
+      if (input.policy.supportsHover) {
+        handleHandModeHover(x, y, input);
+      }
     },
     [
       adjustMode,
@@ -540,15 +576,15 @@ export function useCanvasPointer({
       setContrast,
       setDragStartPos,
       setImagePosition,
-      setLiveMouseImagePoint,
+      setLivePointerImagePoint,
       standardDistanceInteraction,
     ]
   );
 
-  const onMouseUp = useCallback(() => {
-    standardDistanceInteraction.handleMouseUp();
+  const endPointerInteraction = useCallback(() => {
+    standardDistanceInteraction.endInteraction();
     canvasDrag.endDragSelection();
-    drawingTool.handleMouseUp();
+    drawingTool.endInteraction();
     setIsDragging(false);
     setAdjustMode('none');
   }, [
@@ -560,9 +596,15 @@ export function useCanvasPointer({
   ]);
 
   return {
-    onMouseDown,
-    onMouseMove,
-    onMouseUp,
-    onContextMenu,
+    beginPointerInteraction,
+    updatePointerInteraction,
+    endPointerInteraction,
+    clearHover: () =>
+      setHoverState({
+        measurementId: null,
+        keypointId: null,
+        pointIndex: null,
+        elementType: null,
+      }),
   };
 }
