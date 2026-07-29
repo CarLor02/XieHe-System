@@ -26,6 +26,24 @@ it('uses one edit info action instead of separate type and crop actions', async 
   expect(onEditInfo).toHaveBeenCalledTimes(1);
 });
 
+it('dispatches rename from the image action menu', async () => {
+  const user = userEvent.setup();
+  const onMoreAction = jest.fn();
+
+  render(
+    <ImageActionMenu
+      imageFileId={7}
+      onMoreAction={onMoreAction}
+      onCropEdit={jest.fn()}
+    />
+  );
+
+  await user.click(screen.getByRole('button', { name: '更多' }));
+  await user.click(screen.getByRole('button', { name: /重命名/ }));
+
+  expect(onMoreAction).toHaveBeenCalledWith(7, 'rename');
+});
+
 it('closes the image action menu from outside click and escape', async () => {
   const user = userEvent.setup();
 

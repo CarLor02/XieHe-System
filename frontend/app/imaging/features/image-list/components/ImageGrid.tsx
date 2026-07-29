@@ -9,6 +9,7 @@ import type { PreviewLoadState } from '@/app/imaging/features/image-preview/hook
 import ImageActionMenu from '@/app/imaging/features/image-actions/components/ImageActionMenu';
 import ImageOwnershipTeamRow from './ImageOwnershipTeamRow';
 import ImageStatusBadge from './ImageStatusBadge';
+import type { ImageFileAction } from '@/app/imaging/features/image-actions/domain/imageFileAction';
 
 interface ImageGridProps {
   imageFiles: ImageFile[];
@@ -16,7 +17,7 @@ interface ImageGridProps {
   imageUrls: Record<number, string>;
   previewStates: Record<number, PreviewLoadState>;
   onPreviewError: (fileId: number) => void;
-  onMoreAction: (fileId: number, action: string) => void;
+  onMoreAction: (fileId: number, action: ImageFileAction) => void;
   onCropEdit: (imageFile: ImageFile) => void;
   isBatchExportMode?: boolean;
   selectedExportIds?: Set<number>;

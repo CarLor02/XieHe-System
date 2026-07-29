@@ -29,6 +29,35 @@ it('does not apply an extra offset to timestamps that already include a timezone
 });
 
 describe('image file list filters', () => {
+  it('renames an image through the filename endpoint', async () => {
+    const patch = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => ({
+        data: {
+          code: 200,
+          message: '影像重命名成功',
+          data: {
+            id: 7,
+            original_filename: 'renamed.png',
+          },
+        },
+      })
+    );
+
+    jest.resetModules();
+    jest.doMock('@/lib/api', () => ({ apiClient: { patch } }));
+    const { renameImageFile } = await import('../imageFileService');
+
+    const result = await renameImageFile(7, 'renamed');
+
+    expect(patch).toHaveBeenCalledWith(
+      '/api/v1/image-files/7/filename',
+      { basename: 'renamed' }
+    );
+    expect(result.original_filename).toBe('renamed.png');
+
+    jest.dontMock('@/lib/api');
+  });
+
   it('sends uploaded_by when filtering by uploader', async () => {
     const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
       data: {

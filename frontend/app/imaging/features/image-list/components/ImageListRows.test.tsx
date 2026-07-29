@@ -64,6 +64,7 @@ it('keeps all image row actions in one line on phone-sized screens', () => {
   expect(actions?.className).toContain('grid');
   expect(actions?.className).toContain('grid-cols-4');
   expect(actions?.className).toContain('sm:flex');
+  expect(screen.getByRole('button', { name: '更多' })).toBeTruthy();
 });
 
 it('renders ownership teams in rows with truncated hover text', async () => {

@@ -5,6 +5,7 @@ import ImageEmptyState from './ImageEmptyState';
 import ImageGrid from './ImageGrid';
 import ImageListRows from './ImageListRows';
 import ImagePagination from './ImagePagination';
+import type { ImageFileAction } from '@/app/imaging/features/image-actions/domain/imageFileAction';
 
 interface ImageListPanelProps {
   imageFiles: ImageFile[];
@@ -17,7 +18,7 @@ interface ImageListPanelProps {
   imageUrls: Record<number, string>;
   previewStates: Record<number, PreviewLoadState>;
   onPreviewError: (fileId: number) => void;
-  onMoreAction: (fileId: number, action: string) => void;
+  onMoreAction: (fileId: number, action: ImageFileAction) => void;
   onCropEdit: (imageFile: ImageFile) => void;
   isBatchExportMode?: boolean;
   selectedExportIds?: Set<number>;

@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List, Literal, Optional
 from datetime import datetime, date
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 class ImageFileResponse(BaseModel):
     """影像文件响应模型"""
@@ -76,6 +76,32 @@ class UpdateImageInfoRequest(BaseModel):
 
     description: str = Field(..., description="检查类型（正位X光片/侧位X光片等）")
     team_ids: List[int] = Field(default_factory=list, description="影像归属团队ID")
+
+
+class RenameImageFileRequest(BaseModel):
+    """重命名影像文件请求模型。扩展名由服务端保留，不允许客户端修改。"""
+
+    basename: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="不含扩展名的新影像名",
+    )
+
+    @field_validator("basename", mode="before")
+    @classmethod
+    def validate_basename(cls, value):
+        if not isinstance(value, str):
+            return value
+
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("新影像名不能为空")
+        if "/" in normalized or "\\" in normalized:
+            raise ValueError("新影像名不能包含路径分隔符")
+        if any(ord(character) < 32 for character in normalized):
+            raise ValueError("新影像名不能包含控制字符")
+        return normalized
 
 
 class UpdateAnnotationRequest(BaseModel):

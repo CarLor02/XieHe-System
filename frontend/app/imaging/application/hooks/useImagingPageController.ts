@@ -195,9 +195,18 @@ export function useImagingPageController() {
     selectedUploader,
   ]);
 
+  const handleImageUpdated = useCallback((updatedImage: ImageFile) => {
+    setImageFiles(current =>
+      current.map(image =>
+        image.id === updatedImage.id ? updatedImage : image
+      )
+    );
+  }, []);
+
   const actions = useImageFileActions({
     imageFiles,
     reloadImages: loadImages,
+    onImageUpdated: handleImageUpdated,
   });
 
   const editOverlay = useImageEditOverlay({

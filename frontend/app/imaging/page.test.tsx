@@ -128,6 +128,14 @@ function makeController(overrides: Record<string, unknown> = {}) {
     },
     actions: {
       handleMoreAction: jest.fn(),
+      renameTarget: null,
+      renameBasename: '',
+      renameExtension: '',
+      renameError: null,
+      renaming: false,
+      handleRenameBasenameChange: jest.fn(),
+      closeRenameDialog: jest.fn(),
+      confirmRename: jest.fn(),
     },
     editOverlay: {
       openEditOverlay: jest.fn(),

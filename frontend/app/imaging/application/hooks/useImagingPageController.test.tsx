@@ -32,6 +32,14 @@ const mockBatchExport = {
 };
 const mockImageFileActions = {
   handleMoreAction: jest.fn(),
+  renameTarget: null,
+  renameBasename: '',
+  renameExtension: '',
+  renameError: null,
+  renaming: false,
+  handleRenameBasenameChange: jest.fn(),
+  closeRenameDialog: jest.fn(),
+  confirmRename: jest.fn(),
 };
 const mockEditOverlay = {
   openEditOverlay: jest.fn(),

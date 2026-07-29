@@ -8,6 +8,8 @@ import ImagePreview from '@/app/imaging/features/image-preview/components/ImageP
 import type { PreviewLoadState } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import ImageStatusBadge from './ImageStatusBadge';
 import ImageOwnershipTeamRow from './ImageOwnershipTeamRow';
+import type { ImageFileAction } from '@/app/imaging/features/image-actions/domain/imageFileAction';
+import ImageActionMenu from '@/app/imaging/features/image-actions/components/ImageActionMenu';
 
 interface ImageListRowsProps {
   imageFiles: ImageFile[];
@@ -15,7 +17,7 @@ interface ImageListRowsProps {
   imageUrls: Record<number, string>;
   previewStates: Record<number, PreviewLoadState>;
   onPreviewError: (fileId: number) => void;
-  onMoreAction: (fileId: number, action: string) => void;
+  onMoreAction: (fileId: number, action: ImageFileAction) => void;
   onCropEdit: (imageFile: ImageFile) => void;
   isBatchExportMode?: boolean;
   selectedExportIds?: Set<number>;
@@ -172,13 +174,11 @@ export default function ImageListRows({
                       <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
                       <span>编辑信息</span>
                     </button>
-                    <button
-                      onClick={() => onMoreAction(imageFile.id, 'delete')}
-                      className="border border-red-300 text-red-600 px-2 py-2 rounded-lg hover:bg-red-50 text-xs flex items-center justify-center gap-1 whitespace-nowrap sm:px-4 sm:text-sm sm:gap-2"
-                    >
-                      <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
-                      <span>删除</span>
-                    </button>
+                    <ImageActionMenu
+                      imageFileId={imageFile.id}
+                      onMoreAction={onMoreAction}
+                      onCropEdit={() => onCropEdit(imageFile)}
+                    />
                   </div>
                 )}
               </div>

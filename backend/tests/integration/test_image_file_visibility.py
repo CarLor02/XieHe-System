@@ -471,3 +471,67 @@ async def test_system_admin_can_replace_any_image(
     assert result["data"]["id"] == 4
     assert result["data"]["storage_etag"] == "system-admin-etag"
     assert db_session.get(ImageFile, 4).file_size == len(b"system-admin-edited")
+
+
+@pytest.mark.asyncio
+async def test_owner_can_rename_image_without_changing_storage_or_annotations(
+    db_session,
+):
+    image = db_session.get(ImageFile, 1)
+    image.annotation = {"measurements": [{"id": "m1"}]}
+    original_object_key = image.object_key
+    db_session.commit()
+
+    result = await file_handlers.rename_image_file(
+        1,
+        request=file_handlers.RenameImageFileRequest(basename="  renamed-image  "),
+        current_user=current_user(10),
+        db=db_session,
+    )
+
+    renamed_image = db_session.get(ImageFile, 1)
+    assert result["data"]["original_filename"] == "renamed-image.png"
+    assert renamed_image.original_filename == "renamed-image.png"
+    assert renamed_image.object_key == original_object_key
+    assert renamed_image.annotation == {"measurements": [{"id": "m1"}]}
+
+
+@pytest.mark.asyncio
+async def test_team_admin_can_rename_visible_team_member_image(db_session):
+    assign_image_to_team(db_session, 2)
+
+    result = await file_handlers.rename_image_file(
+        2,
+        request=file_handlers.RenameImageFileRequest(basename="team-image"),
+        current_user=current_user(10),
+        db=db_session,
+    )
+
+    assert result["data"]["original_filename"] == "team-image.png"
+    assert db_session.get(ImageFile, 2).original_filename == "team-image.png"
+
+
+@pytest.mark.asyncio
+async def test_regular_member_cannot_rename_other_uploader_image(db_session):
+    with pytest.raises(HTTPException) as exc_info:
+        await file_handlers.rename_image_file(
+            1,
+            request=file_handlers.RenameImageFileRequest(basename="forbidden"),
+            current_user=current_user(11),
+            db=db_session,
+        )
+
+    assert exc_info.value.status_code == 404
+    assert db_session.get(ImageFile, 1).original_filename == "admin.png"
+
+
+@pytest.mark.asyncio
+async def test_system_admin_can_rename_any_image(db_session):
+    result = await file_handlers.rename_image_file(
+        4,
+        request=file_handlers.RenameImageFileRequest(basename="system-renamed"),
+        current_user=current_user(99, system_admin=True),
+        db=db_session,
+    )
+
+    assert result["data"]["original_filename"] == "system-renamed.png"

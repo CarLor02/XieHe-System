@@ -332,6 +332,17 @@ export async function updateImageInfo(
   return extractData<ImageFile & { warning?: string | null }>(response);
 }
 
+export async function renameImageFile(
+  fileId: number,
+  basename: string
+): Promise<ImageFile> {
+  const response = await apiClient.patch(
+    `/api/v1/image-files/${fileId}/filename`,
+    { basename }
+  );
+  return extractData<ImageFile>(response);
+}
+
 export async function replaceImageFileContent(
   fileId: number,
   file: File,

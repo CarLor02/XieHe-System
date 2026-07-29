@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import AppDropdown from '@/components/common/AppDropdown';
+import type { ImageFileAction } from '../domain/imageFileAction';
 
 interface ImageActionMenuProps {
   imageFileId: number;
-  onMoreAction: (fileId: number, action: string) => void;
+  onMoreAction: (fileId: number, action: ImageFileAction) => void;
   onCropEdit: () => void;
 }
 
@@ -16,7 +17,7 @@ export default function ImageActionMenu({
 }: ImageActionMenuProps) {
   const [open, setOpen] = useState(false);
 
-  const handleAction = (action: string) => {
+  const handleAction = (action: ImageFileAction) => {
     setOpen(false);
     onMoreAction(imageFileId, action);
   };
@@ -51,6 +52,15 @@ export default function ImageActionMenu({
         >
           <i className="ri-download-line w-4 h-4 flex items-center justify-center"></i>
           <span>下载</span>
+        </button>
+        <div className="border-t border-gray-100"></div>
+        <button
+          type="button"
+          onClick={() => handleAction('rename')}
+          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+        >
+          <i className="ri-file-edit-line w-4 h-4 flex items-center justify-center"></i>
+          <span>重命名</span>
         </button>
         <div className="border-t border-gray-100"></div>
         <button

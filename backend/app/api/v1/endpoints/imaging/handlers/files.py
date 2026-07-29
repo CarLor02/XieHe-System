@@ -58,6 +58,7 @@ from ..schemas.files import (
     ImageFileResponse,
     ImageUploaderResponse,
     ImageFileStatsResponse,
+    RenameImageFileRequest,
     UpdateImageInfoRequest,
     UpdateExamTypeRequest,
     UpdateAnnotationRequest,
@@ -306,6 +307,19 @@ def _download_url_payload(
         "mime_type": image.mime_type,
         "etag": image.storage_etag,
     }
+
+
+def _build_renamed_filename(original_filename: str, basename: str) -> str:
+    """保留真实文件扩展名，避免展示名与 MIME/文件内容产生格式冲突。"""
+
+    suffix = Path(original_filename).suffix
+    renamed_filename = f"{basename}{suffix}"
+    if len(renamed_filename) > 255:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="新影像名过长",
+        )
+    return renamed_filename
 
 
 def _get_visible_image_files_by_ids(
@@ -1270,6 +1284,54 @@ async def update_image_info(
         logger.emit_event(LogLevel.ERROR, message=f"修改影像信息失败: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="修改影像信息失败")
+
+
+@router.patch("/{file_id}/filename", response_model=dict, summary="重命名影像文件")
+async def rename_image_file(
+    file_id: int,
+    request: RenameImageFileRequest,
+    current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """只修改用户可见文件名；对象存储 Key、文件内容和标注数据保持不变。"""
+
+    try:
+        image = get_visible_image_file(db, file_id, current_user)
+        if not image:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="影像文件不存在",
+            )
+
+        image.original_filename = _build_renamed_filename(
+            image.original_filename,
+            request.basename,
+        )
+        image.updated_at = datetime.now()
+        db.commit()
+        db.refresh(image)
+
+        related_metadata = _image_file_related_metadata(db, image)
+        return success_response(
+            data=_image_file_response(
+                image,
+                uploader_name=related_metadata.uploader_name,
+                patient_name=related_metadata.patient_name,
+                patient_identifier=related_metadata.patient_identifier,
+                patient_gender=related_metadata.patient_gender,
+                patient_age=related_metadata.patient_age,
+            ).dict(),
+            message="影像重命名成功",
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.emit_event(LogLevel.ERROR, message=f"影像重命名失败: {exc}")
+        db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="影像重命名失败",
+        )
 
 
 @router.patch("/{file_id}/exam-type", response_model=dict, summary="修改影像检查类型")

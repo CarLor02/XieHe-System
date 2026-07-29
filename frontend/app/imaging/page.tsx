@@ -12,6 +12,7 @@ import UploadOptionsOverlay from '@/app/upload/_components/overlay/upload-option
 import BatchImportOverlay from '@/app/imaging/features/batch-import/components/BatchImportOverlay';
 import { EXAM_TYPES } from './features/image-actions/hooks/useImageEditOverlay';
 import { AppModal } from '@/components/overlay/overlay-components';
+import ImageRenameDialog from './features/image-actions/components/ImageRenameDialog';
 
 function ImagingPageContent() {
   const controller = useImagingPageController();
@@ -174,6 +175,17 @@ function ImagingPageContent() {
         confirmDisabled={editOverlay.saving}
         onCancel={editOverlay.cancelContentReplacement}
         onConfirm={editOverlay.confirmContentReplacement}
+      />
+
+      <ImageRenameDialog
+        imageFile={actions.renameTarget}
+        basename={actions.renameBasename}
+        extension={actions.renameExtension}
+        error={actions.renameError}
+        saving={actions.renaming}
+        onBasenameChange={actions.handleRenameBasenameChange}
+        onCancel={actions.closeRenameDialog}
+        onConfirm={actions.confirmRename}
       />
 
       {editOverlay.downloading && (
