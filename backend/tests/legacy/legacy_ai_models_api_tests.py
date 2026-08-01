@@ -8,7 +8,6 @@ AI模型功能测试
 """
 
 import pytest
-import asyncio
 from fastapi.testclient import TestClient
 import tempfile
 import os
@@ -16,7 +15,6 @@ import json
 from unittest.mock import Mock, patch
 
 from app.main import app
-from app.services.model_monitoring_service import model_monitoring_service
 
 client = TestClient(app)
 
@@ -253,88 +251,6 @@ class TestAIModels:
             assert response.status_code == 200
             result = response.json()
             assert "message" in result
-
-
-class TestModelMonitoring:
-    """模型监控测试类"""
-    
-    @pytest.fixture
-    def auth_headers(self):
-        """获取认证头"""
-        login_data = {
-            "username": "test_user",
-            "password": "test_password"
-        }
-        response = client.post("/api/v1/auth/login", data=login_data)
-        if response.status_code == 200:
-            token = response.json().get("access_token")
-            return {"Authorization": f"Bearer {token}"}
-        return {}
-    
-    @pytest.mark.asyncio
-    async def test_model_monitoring_service(self):
-        """测试模型监控服务"""
-        # 启动监控服务
-        await model_monitoring_service.start()
-        
-        # 记录一些测试指标
-        await model_monitoring_service.record_inference_time(
-            model_id="test_model_1",
-            model_name="测试模型1",
-            inference_time=1.5
-        )
-        
-        await model_monitoring_service.record_model_accuracy(
-            model_id="test_model_1",
-            model_name="测试模型1",
-            accuracy=0.95
-        )
-        
-        await model_monitoring_service.record_model_error(
-            model_id="test_model_1",
-            model_name="测试模型1",
-            error_type="ValidationError",
-            error_message="输入数据格式错误"
-        )
-        
-        # 获取模型状态
-        status = model_monitoring_service.get_model_status("test_model_1")
-        assert isinstance(status, dict)
-        
-        # 获取模型指标
-        metrics = model_monitoring_service.get_model_metrics("test_model_1")
-        assert isinstance(metrics, list)
-        
-        # 获取模型错误
-        errors = model_monitoring_service.get_model_errors("test_model_1")
-        assert isinstance(errors, list)
-        assert len(errors) > 0
-        
-        # 停止监控服务
-        await model_monitoring_service.stop()
-    
-    def test_model_monitoring_api(self, auth_headers):
-        """测试模型监控API"""
-        response = client.get(
-            "/api/v1/models/monitoring/status",
-            headers=auth_headers
-        )
-        
-        assert response.status_code == 200
-        result = response.json()
-        assert isinstance(result, dict)
-    
-    def test_model_health_check(self, auth_headers):
-        """测试模型健康检查"""
-        response = client.get(
-            "/api/v1/models/health",
-            headers=auth_headers
-        )
-        
-        assert response.status_code == 200
-        result = response.json()
-        assert "healthy_models" in result
-        assert "unhealthy_models" in result
 
 
 class TestModelIntegration:

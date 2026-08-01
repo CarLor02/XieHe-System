@@ -18,9 +18,7 @@ class ModelViewType(str, Enum):
 
 
 class ModelStatus(str, Enum):
-    TRAINING = "training"
     READY = "ready"
-    DEPLOYED = "deployed"
     STOPPED = "stopped"
     ERROR = "error"
 
@@ -34,14 +32,14 @@ class AIModel(BaseModel):
     status: ModelStatus = ModelStatus.READY
     endpoint_url: str
     is_active: bool = False
-    accuracy: float = 0.0
     created_at: str
     updated_at: str
-    creator: str
     tags: List[str] = []
 
     class Config:
         use_enum_values = True
+        # 兼容历史 models.json 中已移除的 accuracy、creator 等冗余字段。
+        extra = "ignore"
 
 
 class ModelConfiguration(BaseModel):
@@ -146,10 +144,8 @@ class ModelManager:
             status=status,
             endpoint_url=endpoint_url,
             is_active=False,
-            accuracy=0.0,
             created_at=datetime.now().isoformat(),
             updated_at=datetime.now().isoformat(),
-            creator=model_data.get("creator", "User"),
             tags=model_data.get("tags", []),
         )
 
