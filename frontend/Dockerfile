@@ -21,11 +21,12 @@ ARG https_proxy
 ARG no_proxy
 ARG APK_MIRROR
 
-# 安装系统依赖（包括 sharp 所需的构建工具）
-RUN if [ -n "$APK_MIRROR" ]; then \
+# 安装系统依赖（包括 sharp 所需的构建工具）。索引和安装包不写入镜像层。
+RUN --mount=type=cache,id=xiehe-frontend-builder-apk,target=/var/cache/apk,sharing=locked \
+    if [ -n "$APK_MIRROR" ]; then \
         sed -i "s/dl-cdn.alpinelinux.org/${APK_MIRROR}/g" /etc/apk/repositories; \
     fi && \
-    apk add --no-cache \
+    apk add --update-cache \
     libc6-compat \
     python3 \
     make \
@@ -52,7 +53,7 @@ ARG NPM_TIMING=false
 # 安装前端依赖（使用 --legacy-peer-deps 解决 React 19 兼容性问题）
 # --mount=type=cache 把 npm 缓存留在宿主机，重建时跳过已下载的包
 WORKDIR /app/frontend
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=xiehe-frontend-npm,target=/root/.npm,sharing=locked \
     if [ "$NPM_FOREGROUND_SCRIPTS" = "true" ]; then \
       npm ci --legacy-peer-deps --no-audit --no-fund \
         --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING" --foreground-scripts; \
@@ -130,11 +131,12 @@ RUN rm -f /usr/bin/wget /bin/wget \
           /usr/sbin/cron /usr/sbin/crond \
           2>/dev/null || true
 
-# 安装 curl 用于健康检查，gettext 提供 envsubst 生成运行时 Nginx 配置
-RUN if [ -n "$APK_MIRROR" ]; then \
+# 安装 curl 用于健康检查，gettext 提供 envsubst 生成运行时 Nginx 配置。
+RUN --mount=type=cache,id=xiehe-frontend-runtime-apk,target=/var/cache/apk,sharing=locked \
+    if [ -n "$APK_MIRROR" ]; then \
         sed -i "s/dl-cdn.alpinelinux.org/${APK_MIRROR}/g" /etc/apk/repositories; \
     fi && \
-    apk add --no-cache curl gettext
+    apk add --update-cache curl gettext
 
 # 安全加固: 清理恶意文件目录
 RUN rm -rf /tmp/.XIN-unix /tmp/.X11-unix /tmp/.* \

@@ -5,21 +5,24 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies. AP and lateral images share the compatible apt cache.
+RUN --mount=type=cache,id=xiehe-model-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=xiehe-model-apt-lib,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache && \
+    apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
+    libgomp1
 
 # Copy requirements first for better caching
 COPY ap/requirements.txt ./requirements.txt
 
 # Install Python dependencies
-RUN --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=xiehe-model-pip,target=/root/.cache/pip,sharing=locked \
     pip install -r requirements.txt
 
 # Copy application code

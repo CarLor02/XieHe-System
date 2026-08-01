@@ -35,11 +35,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-# 安装系统依赖（编译和运行时都需要）
-RUN if [ -n "$APT_MIRROR" ]; then \
+# 安装系统依赖（编译和运行时都需要）。apt 列表和下载包只保留在 builder 缓存中。
+RUN --mount=type=cache,id=xiehe-backend-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=xiehe-backend-apt-lib,target=/var/lib/apt,sharing=locked \
+    if [ -n "$APT_MIRROR" ]; then \
         sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
         sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list 2>/dev/null || true; \
     fi && \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache && \
     apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
@@ -47,12 +51,12 @@ RUN if [ -n "$APT_MIRROR" ]; then \
     pkg-config \
     libffi-dev \
     libssl-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    curl
 
 # 先按锁文件安装运行时依赖，以保持本地和镜像环境一致并复用构建缓存。
 COPY backend/pyproject.toml backend/uv.lock ./
-RUN UV_INDEX_URL="${PIP_INDEX_URL:-https://pypi.org/simple}" \
+RUN --mount=type=cache,id=xiehe-backend-uv,target=/root/.cache/uv,sharing=locked \
+    UV_INDEX_URL="${PIP_INDEX_URL:-https://pypi.org/simple}" \
     UV_EXTRA_INDEX_URL="$PIP_EXTRA_INDEX_URL" \
     UV_INSECURE_HOST="$PIP_TRUSTED_HOST" \
     UV_HTTP_TIMEOUT="$PIP_TIMEOUT" \

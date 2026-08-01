@@ -23,14 +23,14 @@ COPY lib-go/go.mod lib-go/go.sum ./lib-go/
 COPY storage-service/go.mod storage-service/go.sum ./storage-service/
 WORKDIR /src/storage-service
 # BuildKit cache mounts keep module downloads reusable across source-only rebuilds.
-RUN --mount=type=cache,target=/go/pkg/mod \
+RUN --mount=type=cache,id=xiehe-services-go-mod,target=/go/pkg/mod,sharing=locked \
     go mod download
 WORKDIR /src
 COPY lib-go ./lib-go
 COPY storage-service ./storage-service
 WORKDIR /src/storage-service
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,id=xiehe-services-go-mod,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,id=xiehe-services-go-build,target=/root/.cache/go-build,sharing=locked \
     CGO_ENABLED=0 GOOS=linux go build -o /out/storage-service ./cmd
 
 FROM alpine:3.20
