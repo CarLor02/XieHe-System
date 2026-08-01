@@ -310,10 +310,9 @@ Content-Type: application/json
 | 患者管理 | `/patients` | 患者信息管理 | ✓ |
 | 文件上传 | `/upload` | 影像文件上传 | ✓ |
 | 影像标注 | `/measurements` | 测量数据管理 | ✓ |
-| 影像文件管理 | `/image-files` | 影像文件CRUD | ✓ |
+| 影像文件管理 | `/image-files` | 影像文件CRUD与AI测量 | ✓ |
 | 报告管理 | `/reports` | 诊断报告管理 | ✓ |
 | 报告生成 | `/report-generation` | 自动报告生成 | ✓ |
-| AI辅助诊断 | `/ai-diagnosis` | AI模型分析 | ✓ |
 | 模型管理 | `/models` | AI模型配置 | ✓ |
 | 系统管理 | `/system` | 系统配置、日志 | ✓ |
 | 工作台 | `/dashboard` | 统计数据 | ✓ |
@@ -1001,111 +1000,9 @@ DELETE /api/v1/reports/{report_id}
 
 ---
 
-### 8. AI辅助诊断 (`/ai-diagnosis`)
+### 8. 工作台 (`/dashboard`)
 
-#### 8.1 获取可用AI模型列表
-```http
-GET /api/v1/ai-diagnosis/models
-```
-
-**Headers**: `Authorization: Bearer <token>`
-
-**响应**:
-```json
-{
-  "code": 200,
-  "message": "获取成功",
-  "data": {
-    "models": [
-      {
-        "name": "ap",
-        "description": "脊柱正位X光分析模型",
-        "classes": ["C7", "T1-T12", "L1-L5"],
-        "is_loaded": true
-      },
-      {
-        "name": "lat",
-        "description": "脊柱侧位X光分析模型",
-        "classes": ["vertebrae"],
-        "is_loaded": true
-      }
-    ]
-  },
-  "timestamp": "2025-01-30T10:00:00Z"
-}
-```
-
----
-
-#### 8.2 AI分析请求
-```http
-POST /api/v1/ai-diagnosis/analyze
-```
-
-**Headers**: `Authorization: Bearer <token>`
-
-**请求体**:
-```json
-{
-  "image_id": "IMG001",
-  "model_name": "ap",
-  "patient_id": "1",
-  "priority": "normal"
-}
-```
-
-**响应**:
-```json
-{
-  "code": 200,
-  "message": "AI分析已提交，正在处理中",
-  "data": {
-    "analysis_id": "ANALYSIS_001",
-    "status": "processing"
-  },
-  "timestamp": "2025-01-30T10:00:00Z"
-}
-```
-
----
-
-#### 8.3 获取AI分析结果
-```http
-GET /api/v1/ai-diagnosis/analysis/{analysis_id}
-```
-
-**Headers**: `Authorization: Bearer <token>`
-
-**响应**:
-```json
-{
-  "code": 200,
-  "message": "获取成功",
-  "data": {
-    "analysis_id": "ANALYSIS_001",
-    "status": "completed",
-    "results": {
-      "measurements": [
-        {
-          "type": "Cobb-Thoracic",
-          "angle": 25.3,
-          "confidence": 0.95
-        }
-      ],
-      "diagnosis": "脊柱侧弯",
-      "confidence": 0.92
-    },
-    "completed_at": "2025-01-30T10:05:00Z"
-  },
-  "timestamp": "2025-01-30T10:05:00Z"
-}
-```
-
----
-
-### 9. 工作台 (`/dashboard`)
-
-#### 9.1 获取工作台概览
+#### 8.1 获取工作台概览
 ```http
 GET /api/v1/dashboard/overview
 ```
@@ -1141,9 +1038,9 @@ GET /api/v1/dashboard/overview
 
 ---
 
-### 10. 健康检查 (`/health`)
+### 9. 健康检查 (`/health`)
 
-#### 10.1 服务健康检查
+#### 9.1 服务健康检查
 ```http
 GET /api/v1/health/
 ```
@@ -1375,7 +1272,7 @@ GET /api/v1/health/
   "code": 503,
   "message": "AI模型不可用",
   "error_code": "AI_MODEL_NOT_AVAILABLE",
-  "path": "/api/v1/ai-diagnosis/analyze",
+  "path": "/api/v1/image-files/123/ai/predict",
   "timestamp": "2025-01-30T10:00:00Z"
 }
 ```
@@ -1658,7 +1555,7 @@ curl -X POST http://localhost:8000/api/v1/upload/image \
 - ✅ 新增分页响应格式（items + pagination）
 - ✅ 新增统一错误响应格式（code, message, error_code, path, timestamp）
 - ✅ 新增完整的错误码参考文档
-- ✅ 更新所有18个模块的API响应示例
+- ✅ 更新各模块的API响应示例
 - ✅ 更新Python、JavaScript代码示例以适配新格式
 - ✅ 新增响应格式说明章节
 - ✅ 新增错误码参考章节
@@ -1666,7 +1563,7 @@ curl -X POST http://localhost:8000/api/v1/upload/image \
 ### v1.0.0 (2026-01-30)
 - ✅ 完整的后端API文档
 - ✅ 认证、用户、患者、影像、报告等模块
-- ✅ AI辅助诊断接口
+- ✅ 影像AI测量接口
 - ✅ 工作台统计数据
 - ✅ 健康检查接口
 - ✅ 详细的调用示例和注意事项

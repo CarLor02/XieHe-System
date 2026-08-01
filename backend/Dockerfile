@@ -69,9 +69,8 @@ COPY backend/ .
 COPY infrastructure/docker/backend-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# 创建必要的目录
-RUN mkdir -p logs storage/images storage/reports storage/temp && \
-    chmod -R 755 logs storage
+# 创建必要的日志目录
+RUN mkdir -p logs && chmod -R 755 logs
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

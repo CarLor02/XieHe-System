@@ -57,10 +57,6 @@ batch_presign_gate = ConcurrencyGate(
     name="batch_presign",
     limit=settings.BATCH_PRESIGN_CONCURRENCY_LIMIT,
 )
-legacy_diagnosis_gate = ConcurrencyGate(
-    name="legacy_diagnosis",
-    limit=settings.LEGACY_DIAGNOSIS_CONCURRENCY_LIMIT,
-)
 report_export_gate = ConcurrencyGate(
     name="report_export",
     limit=settings.REPORT_EXPORT_CONCURRENCY_LIMIT,
@@ -89,14 +85,6 @@ async def require_batch_presign_slot() -> AsyncIterator[None]:
     """Limit concurrent batch presign requests."""
     async for item in _require_slot(
         batch_presign_gate, "批量影像访问地址请求繁忙，请稍后重试"
-    ):
-        yield item
-
-
-async def require_legacy_diagnosis_slot() -> AsyncIterator[None]:
-    """Limit concurrent legacy diagnosis requests."""
-    async for item in _require_slot(
-        legacy_diagnosis_gate, "AI诊断请求繁忙，请稍后重试"
     ):
         yield item
 

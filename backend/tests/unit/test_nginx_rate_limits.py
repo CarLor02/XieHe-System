@@ -32,7 +32,7 @@ def test_frontend_nginx_limits_high_risk_backend_paths() -> None:
     assert "limit_req zone=api_auth burst=3 nodelay;" in config
     assert "location = /api/v1/image-files/download-urls" in config
     assert "location ~ ^/api/v1/image-files/[0-9]+/ai/" in config
-    assert "location ^~ /api/v1/ai-diagnosis/ai/" in config
+    assert "/api/v1/ai-diagnosis/" not in config
     assert "location ^~ /api/v1/report-export/" in config
     assert "limit_req zone=api_heavy burst=4 nodelay;" in config
     assert "location ~ ^/api/v1/upload/sessions/[0-9]+/complete$" in config
@@ -48,3 +48,9 @@ def test_outer_nginx_uses_same_rate_limit_zone_names() -> None:
     assert "zone=api_auth:10m" in config
     assert "zone=api_heavy:10m" in config
     assert "zone=api_upload:10m" in config
+
+
+def test_outer_nginx_does_not_proxy_legacy_diagnosis() -> None:
+    config = _read_config("infrastructure/nginx/default.conf")
+
+    assert "/api/v1/ai-diagnosis/" not in config

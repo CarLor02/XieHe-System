@@ -5,13 +5,12 @@ import inspect
 import pytest
 from fastapi.params import Depends
 
-from app.api.v1.endpoints.imaging.handlers import diagnosis, files
+from app.api.v1.endpoints.imaging.handlers import files
 from app.api.v1.endpoints.reports.handlers import export
 from app.core.system.concurrency import (
     ConcurrencyGate,
     require_ai_object_slot,
     require_batch_presign_slot,
-    require_legacy_diagnosis_slot,
     require_report_export_slot,
 )
 
@@ -30,15 +29,6 @@ def test_heavy_endpoints_declare_concurrency_dependencies() -> None:
     )
     assert require_ai_object_slot in _dependency_functions(
         files.run_image_file_ai_predict
-    )
-    assert require_legacy_diagnosis_slot in _dependency_functions(
-        diagnosis.analyze_image
-    )
-    assert require_legacy_diagnosis_slot in _dependency_functions(
-        diagnosis.batch_analyze_images
-    )
-    assert require_legacy_diagnosis_slot in _dependency_functions(
-        diagnosis.compare_models
     )
     assert require_report_export_slot in _dependency_functions(
         export.export_single_report
