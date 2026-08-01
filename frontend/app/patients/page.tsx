@@ -4,9 +4,49 @@ import AppShell from '@/components/layout/AppShell';
 import Tooltip from '@/components/ui/Tooltip';
 import { useUser } from '@/lib/api';
 import { getPatients, Patient } from '@/services/patientServices';
+import type { PatientListFilters } from '@/services/patientServices';
+import { createLogger } from '@/lib/logger';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+
+const logger = createLogger('patients.page');
+
+interface PatientQueryState {
+  page: number;
+  pageSize: number;
+  searchTerm: string;
+  gender: string;
+  ageRange: string;
+  status: string;
+  hasImages: string;
+  sortBy: string;
+  sortOrder: string;
+}
+
+function createPatientQuery(state: PatientQueryState): PatientListFilters {
+  let ageMin: number | undefined;
+  let ageMax: number | undefined;
+  if (state.ageRange) {
+    const [min, max] = state.ageRange.split('-').map(Number);
+    if (!Number.isNaN(min)) ageMin = min;
+    if (!Number.isNaN(max)) ageMax = max;
+  }
+
+  return {
+    page: state.page,
+    page_size: state.pageSize,
+    search: state.searchTerm.trim() || undefined,
+    gender: state.gender || undefined,
+    age_min: ageMin,
+    age_max: ageMax,
+    status: state.status || undefined,
+    has_images:
+      state.hasImages === '' ? undefined : state.hasImages === 'true',
+    sort_by: state.sortBy,
+    sort_order: state.sortOrder as 'asc' | 'desc',
+  };
+}
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -41,32 +81,25 @@ export default function PatientsPage() {
     try {
       setLoading(true);
       setError(null);
-      let ageMin: number | undefined;
-      let ageMax: number | undefined;
-      if (selectedAgeRange) {
-        const [min, max] = selectedAgeRange.split('-').map(Number);
-        if (!isNaN(min)) ageMin = min;
-        if (!isNaN(max)) ageMax = max;
-      }
-
-      const result = await getPatients({
-        page: currentPage,
-        page_size: pageSize,
-        search: committedSearchTerm.trim() || undefined,
-        gender: selectedGender || undefined,
-        age_min: ageMin,
-        age_max: ageMax,
-        status: selectedStatus || undefined,
-        has_images: selectedHasImages === '' ? undefined : selectedHasImages === 'true',
-        sort_by: sortBy,
-        sort_order: sortOrder as 'asc' | 'desc',
-      });
+      const result = await getPatients(
+        createPatientQuery({
+          page: currentPage,
+          pageSize,
+          searchTerm: committedSearchTerm,
+          gender: selectedGender,
+          ageRange: selectedAgeRange,
+          status: selectedStatus,
+          hasImages: selectedHasImages,
+          sortBy,
+          sortOrder,
+        })
+      );
 
       setPatients(result.items);
       setTotalPatients(result.total);
       setTotalPages(result.totalPages);
     } catch (err: any) {
-      console.error('Failed to load patients:', err);
+      logger.error('Failed to load patients:', err);
       const errorMessage =
         err.response?.data?.message || err.message || '加载患者数据失败';
       setError(errorMessage);
@@ -77,6 +110,7 @@ export default function PatientsPage() {
   };
 
   const handleSearch = () => {
+    setLoading(true);
     setCurrentPage(1);
     setCommittedSearchTerm(searchTerm);
   };
@@ -86,6 +120,7 @@ export default function PatientsPage() {
     selectedStatus !== '' || selectedHasImages !== '';
 
   const clearAdvancedFilters = () => {
+    setLoading(true);
     setSelectedGender('');
     setSelectedAgeRange('');
     setSelectedStatus('');
@@ -93,9 +128,49 @@ export default function PatientsPage() {
   };
 
   useEffect(() => {
-    loadPatients();
+    let isCurrent = true;
+    const query = createPatientQuery({
+      page: currentPage,
+      pageSize,
+      searchTerm: committedSearchTerm,
+      gender: selectedGender,
+      ageRange: selectedAgeRange,
+      status: selectedStatus,
+      hasImages: selectedHasImages,
+      sortBy,
+      sortOrder,
+    });
+
+    getPatients(query)
+      .then(result => {
+        if (!isCurrent) return;
+        setError(null);
+        setPatients(result.items);
+        setTotalPatients(result.total);
+        setTotalPages(result.totalPages);
+      })
+      .catch((err: any) => {
+        if (!isCurrent) return;
+        logger.error('Failed to load patients:', err);
+        setError(
+          err.response?.data?.message || err.message || '加载患者数据失败'
+        );
+        setPatients([]);
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, [currentPage, committedSearchTerm, selectedGender, selectedAgeRange,
       selectedStatus, selectedHasImages, sortBy, sortOrder]);
+
+  const changePage = (page: number) => {
+    setLoading(true);
+    setCurrentPage(page);
+  };
 
   const displayedPatients = patients;
 
@@ -148,7 +223,10 @@ export default function PatientsPage() {
               <div className="flex w-full items-center justify-between gap-1 border border-gray-300 rounded-lg px-2 bg-white sm:w-auto sm:justify-start">
                 <select
                   value={sortBy}
-                  onChange={e => setSortBy(e.target.value)}
+                  onChange={e => {
+                    setLoading(true);
+                    setSortBy(e.target.value);
+                  }}
                   className="min-w-0 flex-1 py-2.5 text-sm text-gray-700 bg-transparent appearance-none outline-none cursor-pointer sm:flex-none"
                 >
                   <option value="created_at">注册时间</option>
@@ -156,7 +234,10 @@ export default function PatientsPage() {
                   <option value="age">年龄</option>
                 </select>
                 <button
-                  onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+                  onClick={() => {
+                    setLoading(true);
+                    setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+                  }}
                   title={sortOrder === 'asc' ? '升序' : '降序'}
                   className="text-gray-500 hover:text-blue-500 px-1"
                 >
@@ -194,7 +275,10 @@ export default function PatientsPage() {
                   </div>
                   <select
                     value={selectedGender}
-                    onChange={e => setSelectedGender(e.target.value)}
+                    onChange={e => {
+                      setLoading(true);
+                      setSelectedGender(e.target.value);
+                    }}
                     className="w-full pl-9 pr-9 py-2 border border-gray-300 rounded-lg
                       focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                       text-gray-700 appearance-none cursor-pointer bg-white text-sm"
@@ -216,7 +300,10 @@ export default function PatientsPage() {
                   </div>
                   <select
                     value={selectedAgeRange}
-                    onChange={e => setSelectedAgeRange(e.target.value)}
+                    onChange={e => {
+                      setLoading(true);
+                      setSelectedAgeRange(e.target.value);
+                    }}
                     className="w-full pl-9 pr-9 py-2 border border-gray-300 rounded-lg
                       focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                       text-gray-700 appearance-none cursor-pointer bg-white text-sm"
@@ -235,7 +322,10 @@ export default function PatientsPage() {
                   <label className="block text-xs text-gray-500 mb-1">患者状态</label>
                   <select
                     value={selectedStatus}
-                    onChange={e => setSelectedStatus(e.target.value)}
+                    onChange={e => {
+                      setLoading(true);
+                      setSelectedStatus(e.target.value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 appearance-none bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">全部状态</option>
@@ -249,7 +339,10 @@ export default function PatientsPage() {
                   <label className="block text-xs text-gray-500 mb-1">影像记录</label>
                   <select
                     value={selectedHasImages}
-                    onChange={e => setSelectedHasImages(e.target.value)}
+                    onChange={e => {
+                      setLoading(true);
+                      setSelectedHasImages(e.target.value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 appearance-none bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">全部患者</option>
@@ -479,7 +572,7 @@ export default function PatientsPage() {
                   <div className="flex-1 flex justify-between sm:hidden">
                     <button
                       onClick={() =>
-                        setCurrentPage(Math.max(1, currentPage - 1))
+                        changePage(Math.max(1, currentPage - 1))
                       }
                       disabled={currentPage === 1}
                       className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -488,7 +581,7 @@ export default function PatientsPage() {
                     </button>
                     <button
                       onClick={() =>
-                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                        changePage(Math.min(totalPages, currentPage + 1))
                       }
                       disabled={currentPage === totalPages}
                       className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -516,7 +609,7 @@ export default function PatientsPage() {
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                         <button
                           onClick={() =>
-                            setCurrentPage(Math.max(1, currentPage - 1))
+                            changePage(Math.max(1, currentPage - 1))
                           }
                           disabled={currentPage === 1}
                           className="relative inline-flex items-center justify-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -530,7 +623,7 @@ export default function PatientsPage() {
                             return (
                               <button
                                 key={page}
-                                onClick={() => setCurrentPage(page)}
+                                onClick={() => changePage(page)}
                                 className={`relative inline-flex items-center justify-center px-4 py-2 border text-sm font-medium ${
                                   currentPage === page
                                     ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
@@ -544,9 +637,7 @@ export default function PatientsPage() {
                         )}
                         <button
                           onClick={() =>
-                            setCurrentPage(
-                              Math.min(totalPages, currentPage + 1)
-                            )
+                            changePage(Math.min(totalPages, currentPage + 1))
                           }
                           disabled={currentPage === totalPages}
                           className="relative inline-flex items-center justify-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"

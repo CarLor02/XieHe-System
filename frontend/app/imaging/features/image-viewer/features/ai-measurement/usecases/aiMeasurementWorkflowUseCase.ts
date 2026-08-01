@@ -25,6 +25,9 @@ import {
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { detectLateralVertebrae } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.ai.measurement.usecases.aiMeasurementWorkflowUseCase');
 
 const S1_RELATED_TYPES = new Set([
   'ss',
@@ -53,12 +56,12 @@ export async function runLateralDetectionCache({
     if (!detectResult || detectResult.vertebrae.length === 0) return;
 
     lateralDetectionResultRef.current = detectResult;
-    console.log(
+    logger.debug(
       '[lateralDetection] 预检测完成，椎体数量:',
       detectResult.vertebrae.length
     );
   } catch (error) {
-    console.warn('[lateralDetection] 预检测失败，SS 绑定推导将不可用:', error);
+    logger.warn('[lateralDetection] 预检测失败，SS 绑定推导将不可用:', error);
   }
 }
 
@@ -200,7 +203,7 @@ export async function runAiMeasurementWorkflow({
                   );
 
             if (isCobb) {
-              console.log(`[DEBUG] ${finalType} 椎体信息:`, {
+              logger.debug(`[DEBUG] ${finalType} 椎体信息:`, {
                 upper_vertebra: measurement.upper_vertebra,
                 lower_vertebra: measurement.lower_vertebra,
                 apex_vertebra: measurement.apex_vertebra,
@@ -265,7 +268,7 @@ export async function runAiMeasurementWorkflow({
       setTimeout(() => setSaveMessage(''), 3000);
     }
   } catch (error) {
-    console.error('AI测量失败:', error);
+    logger.error('AI测量失败:', error);
     setSaveMessage('AI测量失败，请检查服务是否正常运行');
     setTimeout(() => setSaveMessage(''), 3000);
   } finally {

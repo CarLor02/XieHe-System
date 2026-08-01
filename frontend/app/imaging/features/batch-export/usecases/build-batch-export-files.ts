@@ -27,6 +27,9 @@ import {
   convertImageBlobToPngBlob,
   createAnnotatedImageBlob,
 } from './create-annotated-image-export';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.batch.export.usecases.build.batch.export.files');
 
 const TABULAR_EXPORT_FORMAT = 'csv' as const;
 const ANNOTATED_IMAGE_FORMAT = 'png' as const;
@@ -127,7 +130,7 @@ export async function buildBatchExportFiles({
             blob: buildTrainingLabelBlob(image, vertebraeLayer, imageWidth, imageHeight),
           });
         } else {
-          console.warn(`影像 ${image.id} 缺少尺寸信息，跳过训练数据导出`);
+          logger.warn(`影像 ${image.id} 缺少尺寸信息，跳过训练数据导出`);
         }
       }
     } else if (exportContent === 'labelme-compatible-data') {

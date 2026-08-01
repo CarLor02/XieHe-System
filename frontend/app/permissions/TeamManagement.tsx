@@ -20,6 +20,9 @@ import { useUser } from '@/lib/api';
 import TeamInvitations from './TeamInvitations';
 import { canManageTeam } from './domain/team-management-permissions';
 import { useTeamPermissionData } from './application/hooks/useTeamPermissionData';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.permissions.TeamManagement');
 
 const STATUS_BADGE_MAP: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-700',
@@ -166,7 +169,7 @@ export default function TeamManagement() {
         await refreshMembers();
       }
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       setError('处理申请失败');
     } finally {
       setProcessingRequestId(null);
@@ -237,7 +240,7 @@ export default function TeamManagement() {
       setTeamFormMode('create');
       setTeamForm(EMPTY_TEAM_FORM);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       setError(teamFormMode === 'edit' ? '更新团队失败' : '创建团队失败');
     } finally {
       setSavingTeamForm(false);
@@ -254,7 +257,7 @@ export default function TeamManagement() {
       const response = await searchTeams(searchKeyword.trim());
       setSearchResults(response.results);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       setError('搜索团队失败');
     } finally {
       setSearching(false);
@@ -285,7 +288,7 @@ export default function TeamManagement() {
       // 刷新"我的团队"列表，显示新申请的团队
       await refreshTeams();
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       setError('申请失败');
     } finally {
       setSubmittingJoinRequest(false);
@@ -308,7 +311,7 @@ export default function TeamManagement() {
       // 刷新"我的团队"列表，移除已撤销的申请
       await refreshTeams();
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       setError('撤销申请失败');
     } finally {
       setCancellingRequestId(null);
@@ -378,7 +381,7 @@ export default function TeamManagement() {
       // 刷新成员列表
       await refreshMembers();
     } catch (err: any) {
-      console.error(err);
+      logger.error(err);
       setError(err?.response?.data?.detail || '保存角色修改失败');
     } finally {
       setSavingRoles(false);
@@ -400,7 +403,7 @@ export default function TeamManagement() {
       // 刷新成员列表
       await refreshMembers();
     } catch (err: any) {
-      console.error(err);
+      logger.error(err);
       setError(err?.response?.data?.detail || '删除成员失败');
     }
   };
@@ -431,7 +434,7 @@ export default function TeamManagement() {
       // 刷新成员列表
       await refreshMembers();
     } catch (err: any) {
-      console.error(err);
+      logger.error(err);
       setError(err?.response?.data?.detail || '发送邀请失败');
     } finally {
       setInvitingMember(false);

@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { getUserPermissionDetail } from '@/services/permissionServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.permissions.users.page');
 
 interface UserPermission {
   user_id: string;
@@ -68,7 +71,7 @@ export default function UserPermissionsPage() {
       setUsers(MOCK_USERS);
       setError(null);
     } catch (err: any) {
-      console.error('获取用户列表失败:', err);
+      logger.error('获取用户列表失败:', err);
       setError(err.response?.data?.message || '获取用户列表失败');
     } finally {
       setLoading(false);
@@ -81,7 +84,7 @@ export default function UserPermissionsPage() {
       const response = await getUserPermissionDetail(userId);
       setUserPermissions(response);
     } catch (err: any) {
-      console.error('获取用户权限失败:', err);
+      logger.error('获取用户权限失败:', err);
       setError(err.response?.data?.message || '获取用户权限失败');
     } finally {
       setPermissionsLoading(false);

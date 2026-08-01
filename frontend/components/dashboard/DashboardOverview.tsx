@@ -10,6 +10,9 @@ import {
 } from '@/services/dashboardServices';
 import { getNotificationMessages } from '@/services/notificationServices';
 import { getSystemStats } from '@/services/systemServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('components.dashboard.overview');
 
 // 类型定义
 interface DashboardOverview {
@@ -86,6 +89,124 @@ interface DashboardOverviewProps {
   onRefresh?: () => void;
 }
 
+interface DashboardOverviewData {
+  overview: DashboardOverview;
+  tasks: TaskItem[];
+  notifications: NotificationItem[];
+  metrics: SystemMetrics;
+  actions: QuickAction[];
+}
+
+async function requestDashboardOverview(): Promise<DashboardOverviewData> {
+  const statsResponse = await getDashboardStats();
+  const overview: DashboardOverview = {
+    total_patients: statsResponse.total_patients || 0,
+    new_patients_today: statsResponse.new_patients_today || 0,
+    new_patients_week: statsResponse.new_patients_week || 0,
+    active_patients: statsResponse.active_patients || 0,
+    total_images: statsResponse.total_images || 0,
+    images_today: statsResponse.images_today || 0,
+    images_week: statsResponse.images_week || 0,
+    pending_images: statsResponse.pending_images || 0,
+    processed_images: statsResponse.processed_images || 0,
+    completion_rate: statsResponse.completion_rate || 0,
+    average_processing_time: statsResponse.average_processing_time || 0,
+    system_alerts: statsResponse.system_alerts || 0,
+  };
+
+  const tasksResponse = await getDashboardTasks();
+  const tasks: TaskItem[] = tasksResponse.map((task: DashboardTask) => ({
+    task_id: task.task_id,
+    title: task.title || '未知任务',
+    description: task.description || '',
+    status: task.status || 'pending',
+    priority: task.priority || 'normal',
+    assigned_to: task.assigned_to || '',
+    assigned_to_name: task.assigned_to_name || '未分配',
+    created_at: task.created_at || '',
+    due_date: task.due_date || '',
+    progress: task.progress || 0,
+    tags: task.tags || [],
+    estimated_hours: task.estimated_hours || 0,
+    actual_hours: task.actual_hours || 0,
+  }));
+
+  const notificationsResponse = await getNotificationMessages();
+  const notifications: NotificationItem[] = notificationsResponse.map(notif => ({
+    notification_id: String(notif.id),
+    title: notif.title || '通知',
+    message: notif.content || '',
+    type: notif.message_type || 'info',
+    created_at: notif.created_at || '',
+    read: notif.is_read || false,
+    sender: 'SYSTEM',
+    sender_name: notif.sender_name || '系统',
+    action_url: notif.action_url || '',
+  }));
+
+  const metricsResponse = await getSystemStats();
+  const metrics: SystemMetrics = {
+    cpu_usage: metricsResponse.cpu_usage || 0,
+    memory_usage: metricsResponse.memory_usage || 0,
+    disk_usage: metricsResponse.disk_usage || 0,
+    network_io: { incoming: 0, outgoing: 0 },
+    database_connections: 0,
+    active_sessions: metricsResponse.active_users || 0,
+    api_response_time: 0,
+    error_rate: 0,
+    uptime: metricsResponse.system_uptime || '未知',
+  };
+
+  return {
+    overview,
+    tasks,
+    notifications,
+    metrics,
+    actions: [
+      {
+        action_id: 'ACT_001',
+        title: '创建新报告',
+        description: '快速创建新的医疗报告',
+        icon: 'ri-file-add-line',
+        url: '/reports/create',
+        category: '报告管理',
+        permissions: ['report:create'],
+        usage_count: 0,
+      },
+      {
+        action_id: 'ACT_002',
+        title: '上传影像',
+        description: '上传新的医疗影像文件',
+        icon: 'ri-upload-line',
+        url: '/upload',
+        category: '影像管理',
+        permissions: ['image:upload'],
+        usage_count: 0,
+      },
+      {
+        action_id: 'ACT_003',
+        title: '患者管理',
+        description: '管理患者信息和档案',
+        icon: 'ri-user-line',
+        url: '/patients',
+        category: '患者管理',
+        permissions: ['patient:manage'],
+        usage_count: 0,
+      },
+      {
+        action_id: 'ACT_004',
+        title: '审核报告',
+        description: '审核待处理的医疗报告',
+        icon: 'ri-check-line',
+        url: '/reports/review',
+        category: '审核管理',
+        permissions: ['report:review'],
+        usage_count: 0,
+      },
+    ],
+  };
+}
+
 const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
   onRefresh,
 }) => {
@@ -103,124 +224,14 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-
-      // 获取仪表板统计数据
-      const statsResponse = await getDashboardStats();
-      const overview: DashboardOverview = {
-        total_patients: statsResponse.total_patients || 0,
-        new_patients_today: statsResponse.new_patients_today || 0,
-        new_patients_week: statsResponse.new_patients_week || 0,
-        active_patients: statsResponse.active_patients || 0,
-        total_images: statsResponse.total_images || 0,
-        images_today: statsResponse.images_today || 0,
-        images_week: statsResponse.images_week || 0,
-        pending_images: statsResponse.pending_images || 0,
-        processed_images: statsResponse.processed_images || 0,
-        completion_rate: statsResponse.completion_rate || 0,
-        average_processing_time: statsResponse.average_processing_time || 0,
-        system_alerts: statsResponse.system_alerts || 0,
-      };
-
-      // 获取任务数据
-      const tasksResponse = await getDashboardTasks();
-      const tasks: TaskItem[] = tasksResponse.map((task: DashboardTask) => ({
-          task_id: task.task_id,
-          title: task.title || '未知任务',
-          description: task.description || '',
-          status: task.status || 'pending',
-          priority: task.priority || 'normal',
-          assigned_to: task.assigned_to || '',
-          assigned_to_name: task.assigned_to_name || '未分配',
-          created_at: task.created_at || '',
-          due_date: task.due_date || '',
-          progress: task.progress || 0,
-          tags: task.tags || [],
-          estimated_hours: task.estimated_hours || 0,
-          actual_hours: task.actual_hours || 0,
-        }));
-
-      // 获取通知数据
-      const notificationsResponse = await getNotificationMessages();
-      const notifications: NotificationItem[] = notificationsResponse.map(notif => ({
-        notification_id: String(notif.id),
-        title: notif.title || '通知',
-        message: notif.content || '',
-        type: notif.message_type || 'info',
-        created_at: notif.created_at || '',
-        read: notif.is_read || false,
-        sender: 'SYSTEM',
-        sender_name: notif.sender_name || '系统',
-        action_url: notif.action_url || '',
-      }));
-
-      // 获取系统指标
-      const metricsResponse = await getSystemStats();
-      const metrics: SystemMetrics = {
-        cpu_usage: metricsResponse.cpu_usage || 0,
-        memory_usage: metricsResponse.memory_usage || 0,
-        disk_usage: metricsResponse.disk_usage || 0,
-        network_io: {
-          incoming: 0,
-          outgoing: 0,
-        },
-        database_connections: 0,
-        active_sessions: metricsResponse.active_users || 0,
-        api_response_time: 0,
-        error_rate: 0,
-        uptime: metricsResponse.system_uptime || '未知',
-      };
-
-      // 快速操作数据（可以保持静态）
-      const actions: QuickAction[] = [
-        {
-          action_id: 'ACT_001',
-          title: '创建新报告',
-          description: '快速创建新的医疗报告',
-          icon: 'ri-file-add-line',
-          url: '/reports/create',
-          category: '报告管理',
-          permissions: ['report:create'],
-          usage_count: 0,
-        },
-        {
-          action_id: 'ACT_002',
-          title: '上传影像',
-          description: '上传新的医疗影像文件',
-          icon: 'ri-upload-line',
-          url: '/upload',
-          category: '影像管理',
-          permissions: ['image:upload'],
-          usage_count: 0,
-        },
-        {
-          action_id: 'ACT_003',
-          title: '患者管理',
-          description: '管理患者信息和档案',
-          icon: 'ri-user-line',
-          url: '/patients',
-          category: '患者管理',
-          permissions: ['patient:manage'],
-          usage_count: 0,
-        },
-        {
-          action_id: 'ACT_004',
-          title: '审核报告',
-          description: '审核待处理的医疗报告',
-          icon: 'ri-check-line',
-          url: '/reports/review',
-          category: '审核管理',
-          permissions: ['report:review'],
-          usage_count: 0,
-        },
-      ];
-
-      setOverview(overview);
-      setRecentTasks(tasks);
-      setNotifications(notifications);
-      setSystemMetrics(metrics);
-      setQuickActions(actions);
+      const data = await requestDashboardOverview();
+      setOverview(data.overview);
+      setRecentTasks(data.tasks);
+      setNotifications(data.notifications);
+      setSystemMetrics(data.metrics);
+      setQuickActions(data.actions);
     } catch (error) {
-      console.error('获取仪表板数据失败:', error);
+      logger.error('获取仪表板数据失败:', error);
     } finally {
       setLoading(false);
     }
@@ -288,7 +299,27 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    let isCurrent = true;
+
+    requestDashboardOverview()
+      .then(data => {
+        if (!isCurrent) return;
+        setOverview(data.overview);
+        setRecentTasks(data.tasks);
+        setNotifications(data.notifications);
+        setSystemMetrics(data.metrics);
+        setQuickActions(data.actions);
+      })
+      .catch(error => {
+        if (isCurrent) logger.error('获取仪表板数据失败:', error);
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   if (loading) {

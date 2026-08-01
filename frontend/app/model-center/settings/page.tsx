@@ -8,6 +8,9 @@ import {
     getModels,
     updateModelConfiguration,
 } from '@/services/modelServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.model.center.settings.page');
 
 interface ModelOption {
     id: string;
@@ -46,7 +49,7 @@ export default function ModelSettingsPage() {
                 });
             } catch (error) {
                 if (!cancelled) {
-                    console.error('Failed to load settings:', error);
+                    logger.error('Failed to load settings:', error);
                 }
             } finally {
                 if (!cancelled) {
@@ -68,7 +71,7 @@ export default function ModelSettingsPage() {
             alert('设置已保存');
             router.push('/model-center');
         } catch (error) {
-            console.error('Failed to save settings:', error);
+            logger.error('Failed to save settings:', error);
             alert('保存失败');
         } finally {
             setSaving(false);

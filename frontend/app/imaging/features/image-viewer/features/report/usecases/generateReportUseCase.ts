@@ -1,6 +1,9 @@
 import {MeasurementData, ImageData} from "@/app/imaging/features/image-viewer/shared/types";
 import { generateMeasurementReport } from '@/services/imageServices';
 import { getAnnotationDisplayName, getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.report.usecases.generateReportUseCase');
 
 /*
 * 生成报告
@@ -36,7 +39,7 @@ export async function generateReport(
             throw new Error('报告生成失败');
         }
     } catch (error) {
-        console.error('生成报告失败:', error);
+        logger.error('生成报告失败:', error);
 
         // 如果API调用失败，使用本地简单生成作为后备方案
         let report = `【${imageData.examType}测量报告】\n\n`;

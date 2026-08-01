@@ -9,6 +9,9 @@ import {
 } from '@/services/teamService';
 import { useUser } from '@/lib/api';
 import { useTeamPermissionData } from './application/hooks/useTeamPermissionData';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.permissions.MemberManagement');
 
 const ROLE_OPTIONS = [
   { id: 'member', name: '普通成员', description: '参与团队协作' },
@@ -95,7 +98,7 @@ export default function MemberManagement() {
       setInviteMessage('');
       await refreshMembers();
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       setError('发送邀请失败，请稍后重试');
     }
   };
@@ -116,7 +119,7 @@ export default function MemberManagement() {
         await refreshMembers();
       }
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       setError('处理加入申请失败，请稍后重试');
     } finally {
       setProcessingRequestId(null);

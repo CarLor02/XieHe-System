@@ -22,6 +22,9 @@ import {
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.measurement.keypoint.sync.domain.vertebrae.derive');
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -472,7 +475,7 @@ export function deriveAllMeasurements(
       );
     }
   } catch (e) {
-    console.error('[vertebrae-derive] 推导失败:', e);
+    logger.error('[vertebrae-derive] 推导失败:', e);
     return [];
   }
 }

@@ -13,6 +13,9 @@ import {
   getPatientDetail,
   type Patient,
 } from '@/services/patientServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.patients.detail.PatientDetail');
 
 export default function PatientDetail({ patientId }: { patientId: string }) {
   const router = useRouter();
@@ -32,7 +35,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
         setPatient(patientData);
         setError(null);
       } catch (err: any) {
-        console.error('获取患者详情失败:', err);
+        logger.error('获取患者详情失败:', err);
         setError(err.response?.data?.detail || '获取患者详情失败');
       } finally {
         setLoading(false);
@@ -50,7 +53,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
         const result = await getPatientImages(Number(patientId), 1, 20);
         setImageFiles(result.items);
       } catch (err: any) {
-        console.error('获取影像记录失败:', err);
+        logger.error('获取影像记录失败:', err);
         setImageFiles([]);
       } finally {
         setImagesLoading(false);
@@ -403,7 +406,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                       await deletePatient(patientId);
                       router.push('/patients');
                     } catch (err: any) {
-                      console.error('删除患者失败:', err);
+                      logger.error('删除患者失败:', err);
                       alert(err.response?.data?.detail || '删除患者失败');
                       setShowDeleteModal(false);
                     }

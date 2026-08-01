@@ -22,6 +22,9 @@ import {
   handleApiError,
   sendClientErrorReport,
 } from '@/services/errorService'
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('hooks.useErrorHandler');
 
 interface UseErrorHandlerOptions {
   enableAutoReport?: boolean
@@ -140,7 +143,7 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}): UseErrorH
       
       await sendClientErrorReport(errorReport)
     } catch (reportError) {
-      console.error('手动错误报告失败:', reportError)
+      logger.error('手动错误报告失败:', reportError)
     }
   }, [])
   

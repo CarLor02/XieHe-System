@@ -7,6 +7,9 @@ import {
 import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 import { isAuxiliaryTool } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-interaction-policy';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.annotation.canvas.presentation.hooks.useCanvasContextMenu');
 
 interface UseCanvasContextMenuOptions {
   imageNaturalSize: { width: number; height: number } | null;
@@ -44,7 +47,7 @@ export function useCanvasContextMenu({
     event.stopPropagation();
 
     if (!imageNaturalSize) {
-      console.warn('⚠️ 图像尚未加载完成，请稍候再进行操作');
+      logger.warn('⚠️ 图像尚未加载完成，请稍候再进行操作');
       return;
     }
 

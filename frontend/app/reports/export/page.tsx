@@ -13,6 +13,9 @@ import { useEffect, useState } from 'react';
 import ReportExport from '../../../components/reports/ReportExport';
 import { Button } from '../../../components/ui/Button';
 import { getReports } from '@/services/reportServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('reports.export-page');
 
 interface ReportData {
   id: number;
@@ -46,49 +49,46 @@ export default function ReportExportPage() {
   const [filters, setFilters] = useState<ExportFilters>({});
   const [showFilters, setShowFilters] = useState(true);
 
-  // 获取报告数据
-  const fetchReports = async () => {
-    try {
-      const result = await getReports({
-        page: 1,
-        page_size: 100,
-      });
+  useEffect(() => {
+    let isCurrent = true;
 
-      if (result.items && result.items.length > 0) {
+    getReports({ page: 1, page_size: 100 })
+      .then(result => {
+        if (!isCurrent) return;
         const apiReports = result.items
           .filter(
-            report => report.status === 'finalized' || report.status === 'approved'
+            report =>
+              report.status === 'finalized' || report.status === 'approved'
           )
-          .map((report: any) => ({
-          id: report.id,
-          report_number: report.report_number || `RPT-${report.id}`,
-          report_title: report.report_title || '诊断报告',
-          status: report.status || 'finalized',
-          priority: report.priority || 'normal',
-          patient_name: report.patient_name || '未知患者',
-          patient_id: report.patient_id,
-          examination_date:
-            report.report_date || report.created_at?.split('T')[0] || '',
-          report_date:
-            report.report_date || report.created_at?.split('T')[0] || '',
-          reporting_physician: report.reporting_physician || '未指定医生',
-          primary_diagnosis: report.primary_diagnosis || '',
-          created_at: report.created_at || '',
-          updated_at: report.updated_at || '',
-        }));
+          .map(report => ({
+            id: report.id,
+            report_number: report.report_number || `RPT-${report.id}`,
+            report_title: report.report_title || '诊断报告',
+            status: (report.status || 'finalized') as ReportData['status'],
+            priority: (report.priority || 'normal') as ReportData['priority'],
+            patient_name: report.patient_name || '未知患者',
+            patient_id: report.patient_id,
+            examination_date:
+              report.report_date || report.created_at?.split('T')[0] || '',
+            report_date:
+              report.report_date || report.created_at?.split('T')[0] || '',
+            reporting_physician: report.reporting_physician || '未指定医生',
+            primary_diagnosis: report.primary_diagnosis || '',
+            created_at: report.created_at || '',
+            updated_at: report.updated_at || '',
+          }));
 
         setReports(apiReports);
-      } else {
+      })
+      .catch(error => {
+        if (!isCurrent) return;
+        logger.error('获取报告数据失败:', error);
         setReports([]);
-      }
-    } catch (err: any) {
-      console.error('获取报告数据失败:', err);
-      setReports([]);
-    }
-  };
+      });
 
-  useEffect(() => {
-    fetchReports();
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   // 筛选报告
@@ -183,16 +183,16 @@ export default function ReportExportPage() {
 
   // 导出处理
   const handleExportStart = () => {
-    console.log('开始导出...');
+    logger.debug('开始导出...');
   };
 
   const handleExportComplete = (taskId: string, downloadUrl: string) => {
-    console.log('导出完成:', taskId, downloadUrl);
+    logger.debug('导出完成:', taskId, downloadUrl);
     // 可以显示成功通知
   };
 
   const handleExportError = (error: string) => {
-    console.error('导出失败:', error);
+    logger.error('导出失败:', error);
     // 可以显示错误通知
   };
 

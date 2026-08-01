@@ -16,6 +16,9 @@ import PatientSearchSelect from './_components/patient-search-select';
 import UploadOptionsOverlay, {
   CropArea,
 } from './_components/overlay/upload-options-overlay';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.upload.page');
 
 interface UploadFile {
   id: string;
@@ -240,7 +243,7 @@ function UploadContent() {
         )
       );
     } catch (error) {
-      console.error('Upload error:', error);
+      logger.error('Upload error:', error);
       setUploadFiles(prev =>
         prev.map(f =>
           f.id === uploadFileItem.id ? { ...f, status: 'error', progress: 0 } : f
@@ -371,7 +374,7 @@ function UploadContent() {
         flipped: !target.flipped,
       });
     } catch (error) {
-      console.error('Flip image error:', error);
+      logger.error('Flip image error:', error);
     }
   };
 
@@ -413,7 +416,7 @@ function UploadContent() {
       );
       replaceCurrentFile(fileId, nextFile, { cropped: true });
     } catch (error) {
-      console.error('Crop image error:', error);
+      logger.error('Crop image error:', error);
     }
   };
 
@@ -423,7 +426,7 @@ function UploadContent() {
       return;
     }
 
-    console.log('开始上传文件...');
+    logger.debug('开始上传文件...');
 
     // 获取所有待上传的文件
     const filesToUpload = uploadFiles.filter(f => f.status === 'pending');

@@ -1,3 +1,5 @@
+/* eslint-disable no-console -- This module is the single console sink used by the application logger. */
+
 export type LogLevelName =
   | 'trace'
   | 'debug'

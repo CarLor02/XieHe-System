@@ -13,10 +13,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/lib/api';
 import { getReports } from '@/services/reportServices';
+import type { ReportSummary } from '@/services/reportServices';
 import ReportEditor from '../../components/reports/ReportEditor';
 import ReportExport from '../../components/reports/ReportExport';
 import ReportPreview from '../../components/reports/ReportPreview';
 import { Button } from '../../components/ui/Button';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('reports.page');
 
 interface ReportData {
   id: number;
@@ -88,58 +92,60 @@ export default function ReportsPage() {
     }
   }, [isAuthenticated, router]);
 
-  // 获取报告数据
-  const fetchReports = async () => {
-    try {
-      const result = await getReports({
-        page: currentPage,
-        page_size: reportsPerPage,
-        search: searchTerm || undefined,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        priority: priorityFilter !== 'all' ? priorityFilter : undefined,
+  useEffect(() => {
+    let isCurrent = true;
+
+    getReports({
+      page: currentPage,
+      page_size: reportsPerPage,
+      search: searchTerm || undefined,
+      status: statusFilter !== 'all' ? statusFilter : undefined,
+      priority: priorityFilter !== 'all' ? priorityFilter : undefined,
+    })
+      .then(result => {
+        if (!isCurrent) return;
+        setReports(
+          result.items.map(item => {
+            const report = item as ReportSummary & Partial<ReportData>;
+            return {
+              id: report.id,
+              report_number: report.report_number || `RPT-${report.id}`,
+              report_title: report.report_title || '诊断报告',
+              status: report.status || 'draft',
+              priority: report.priority || 'normal',
+              patient_name: report.patient_name || '未知患者',
+              patient_id: report.patient_id,
+              examination_date:
+                report.report_date || report.created_at?.split('T')[0] || '',
+              report_date:
+                report.report_date || report.created_at?.split('T')[0] || '',
+              reporting_physician:
+                report.reporting_physician || '未指定医生',
+              primary_diagnosis: report.primary_diagnosis || '',
+              clinical_history: report.clinical_history || '',
+              examination_technique: report.examination_technique || '',
+              findings: report.findings || '',
+              impression: report.impression || '',
+              recommendations: report.recommendations || '',
+              notes: report.notes || '',
+              tags: report.tags || [],
+              ai_assisted: report.ai_assisted || false,
+              ai_confidence: report.ai_confidence || 0,
+              created_at: report.created_at || '',
+              updated_at: report.updated_at || '',
+            };
+          })
+        );
+      })
+      .catch(error => {
+        if (!isCurrent) return;
+        logger.error('获取报告数据失败:', error);
+        setReports([]);
       });
 
-      // 转换API数据格式
-      if (result.items && result.items.length > 0) {
-        const apiReports = result.items.map((report: any) => ({
-          id: report.id,
-          report_number: report.report_number || `RPT-${report.id}`,
-          report_title: report.report_title || '诊断报告',
-          status: report.status || 'draft',
-          priority: report.priority || 'normal',
-          patient_name: report.patient_name || '未知患者',
-          patient_id: report.patient_id,
-          examination_date:
-            report.report_date || report.created_at?.split('T')[0] || '',
-          report_date:
-            report.report_date || report.created_at?.split('T')[0] || '',
-          reporting_physician: report.reporting_physician || '未指定医生',
-          primary_diagnosis: report.primary_diagnosis || '',
-          clinical_history: report.clinical_history || '',
-          examination_technique: report.examination_technique || '',
-          findings: report.findings || '',
-          impression: report.impression || '',
-          recommendations: report.recommendations || '',
-          notes: report.notes || '',
-          tags: report.tags || [],
-          ai_assisted: report.ai_assisted || false,
-          ai_confidence: report.ai_confidence || 0,
-          created_at: report.created_at || '',
-          updated_at: report.updated_at || '',
-        }));
-
-        setReports(apiReports);
-      } else {
-        setReports([]);
-      }
-    } catch (err: any) {
-      console.error('获取报告数据失败:', err);
-      setReports([]);
-    }
-  };
-
-  useEffect(() => {
-    fetchReports();
+    return () => {
+      isCurrent = false;
+    };
   }, [currentPage, searchTerm, statusFilter, priorityFilter]);
 
   // 由于使用API分页和筛选，直接使用reports
@@ -195,7 +201,7 @@ export default function ReportsPage() {
   const handleSaveReport = async (reportData: any) => {
     try {
       // 这里应该调用API保存报告
-      console.log('保存报告:', reportData);
+      logger.debug('保存报告:', reportData);
 
       if (selectedReport) {
         // 更新现有报告
@@ -229,7 +235,7 @@ export default function ReportsPage() {
       alert('报告保存成功！');
       setCurrentView('list');
     } catch (error) {
-      console.error('保存报告失败:', error);
+      logger.error('保存报告失败:', error);
       alert('保存报告失败，请重试');
     }
   };
@@ -242,7 +248,7 @@ export default function ReportsPage() {
 
   // 导出报告
   const handleExportReport = (format: 'pdf' | 'word' | 'image') => {
-    console.log(`导出报告为 ${format} 格式`);
+    logger.debug(`导出报告为 ${format} 格式`);
     alert(`正在导出为 ${format} 格式...`);
   };
 
@@ -476,13 +482,13 @@ export default function ReportsPage() {
             <ReportExport
               reportIds={[selectedReport.id]}
               reportTitles={[selectedReport.report_title]}
-              onExportStart={() => console.log('开始导出...')}
+              onExportStart={() => logger.debug('开始导出...')}
               onExportComplete={(taskId, downloadUrl) => {
-                console.log('导出完成:', taskId, downloadUrl);
+                logger.debug('导出完成:', taskId, downloadUrl);
                 // 可以显示成功通知或自动下载
               }}
               onExportError={error => {
-                console.error('导出失败:', error);
+                logger.error('导出失败:', error);
                 // 可以显示错误通知
               }}
             />

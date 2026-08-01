@@ -17,6 +17,9 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { sendClientErrorReport } from '@/services/errorService'
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('components.common.ErrorBoundary');
 
 interface Props {
   children: ReactNode
@@ -81,9 +84,9 @@ class ErrorBoundary extends Component<Props, State> {
       
       await sendClientErrorReport(errorReport)
       
-      console.error('错误已报告:', errorReport)
+      logger.error('错误已报告:', errorReport)
     } catch (reportError) {
-      console.error('错误报告失败:', reportError)
+      logger.error('错误报告失败:', reportError)
     }
   }
   

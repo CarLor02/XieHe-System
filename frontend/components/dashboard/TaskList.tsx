@@ -1,8 +1,11 @@
 'use client';
 
 import { getDashboardPendingTasks, type DashboardPendingTask } from '@/services/dashboardServices';
+import { createLogger } from '@/lib/logger';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+
+const logger = createLogger('components.dashboard.task-list');
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<DashboardPendingTask[]>([]);
@@ -20,7 +23,7 @@ export default function TaskList() {
       const taskData = await getDashboardPendingTasks();
       setTasks(taskData);
     } catch (err: any) {
-      console.error('Failed to load tasks:', err);
+      logger.error('Failed to load tasks:', err);
       setError('加载任务失败');
       // 使用备用数据
       setTasks([]);
@@ -30,7 +33,25 @@ export default function TaskList() {
   };
 
   useEffect(() => {
-    loadTasks();
+    let isCurrent = true;
+
+    getDashboardPendingTasks()
+      .then(taskData => {
+        if (isCurrent) setTasks(taskData);
+      })
+      .catch(err => {
+        if (!isCurrent) return;
+        logger.error('Failed to load tasks:', err);
+        setError('加载任务失败');
+        setTasks([]);
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   // 过滤今日任务

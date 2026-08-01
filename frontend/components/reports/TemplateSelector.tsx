@@ -11,6 +11,9 @@
 
 import React, { useState, useEffect } from 'react'
 import { Button } from '../ui/Button'
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('components.reports.TemplateSelector');
 
 interface ReportTemplate {
   id: number
@@ -280,7 +283,7 @@ export default function TemplateSelector({
 
         setTemplates(mockTemplates)
       } catch (error) {
-        console.error('获取模板失败:', error)
+        logger.error('获取模板失败:', error)
       } finally {
         setLoading(false)
       }

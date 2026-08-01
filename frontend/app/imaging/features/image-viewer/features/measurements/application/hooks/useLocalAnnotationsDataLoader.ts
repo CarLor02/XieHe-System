@@ -8,6 +8,9 @@ import type { CalculationContext } from '@/app/imaging/features/image-viewer/fea
 import {
     calculateMeasurementDataValue,
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.measurements.application.hooks.useLocalAnnotationsDataLoader');
 
 export function useLocalAnnotationsDataLoader(
     imageId: string,
@@ -37,7 +40,7 @@ export function useLocalAnnotationsDataLoader(
     const loadAnnotationsFromLocalStorage = () => {
         // 若 DB 已成功加载标注数据，localStorage 仅作历史备份，不再覆盖
         if (dbAnnotationLoadedRef.current) {
-            console.log('DB 标注数据已加载，跳过 localStorage');
+            logger.debug('DB 标注数据已加载，跳过 localStorage');
             return;
         }
         try {
@@ -76,7 +79,7 @@ export function useLocalAnnotationsDataLoader(
                     loadedStandardDistancePoints = scaledStandardPoints;
                     setStandardDistance(data.standardDistance);
                     setStandardDistancePoints(scaledStandardPoints);
-                    console.log(`已加载标准距离: ${data.standardDistance}mm`);
+                    logger.debug(`已加载标准距离: ${data.standardDistance}mm`);
                 } else if (imageNaturalSize) {
                     // 如果没有保存的标准距离，设置默认值：左上角(0,0)到(200,0)，标准距离100mm
                     const defaultPoints = [
@@ -87,7 +90,7 @@ export function useLocalAnnotationsDataLoader(
                     loadedStandardDistancePoints = defaultPoints;
                     setStandardDistance(100);
                     setStandardDistancePoints(defaultPoints);
-                    console.log(
+                    logger.debug(
                         '未找到标准距离，已设置默认值: 100mm，标注点: (0,0)到(200,0)'
                     );
                 }
@@ -104,7 +107,7 @@ export function useLocalAnnotationsDataLoader(
                     if (storedImageWidth && storedImageHeight && imageNaturalSize) {
                         scaleX = imageNaturalSize.width / storedImageWidth;
                         scaleY = imageNaturalSize.height / storedImageHeight;
-                        console.log('从本地加载标注，坐标缩放比例:', {
+                        logger.debug('从本地加载标注，坐标缩放比例:', {
                             storedSize: {
                                 width: storedImageWidth,
                                 height: storedImageHeight,
@@ -162,7 +165,7 @@ export function useLocalAnnotationsDataLoader(
                         return restoredMeasurement;
                     });
                     setMeasurements(restoredMeasurements);
-                    console.log(`已从本地加载 ${restoredMeasurements.length} 个标注`);
+                    logger.debug(`已从本地加载 ${restoredMeasurements.length} 个标注`);
                 }
                 // 与已恢复的 measurements ids 同步校验绑定配置
                 // 无论曾设置过什么绑定（包括从 DB 加载的），都必须在此更新为与当前 measurements 匹配的版本
@@ -197,7 +200,7 @@ export function useLocalAnnotationsDataLoader(
                         ? data.vertebraeLayer
                         : [];
                 if (restoredVertebraeLayer.length > 0) {
-                    console.log(`从 localStorage 恢复了 ${data.vertebraeLayer.length} 节椎体角点`);
+                    logger.debug(`从 localStorage 恢复了 ${data.vertebraeLayer.length} 节椎体角点`);
                 }
                 restorePersistedKeypointState({
                     examType,
@@ -213,12 +216,12 @@ export function useLocalAnnotationsDataLoader(
                 ];
                 setStandardDistance(100);
                 setStandardDistancePoints(defaultPoints);
-                console.log(
+                logger.debug(
                     '未找到本地数据，已设置默认标准距离: 100mm，标注点: (0,0)到(200,0)'
                 );
             }
         } catch (error) {
-            console.error('加载本地标注数据失败:', error);
+            logger.error('加载本地标注数据失败:', error);
             // 即使加载失败，也设置默认标准距离
             if (imageNaturalSize) {
                 const defaultPoints = [
@@ -227,7 +230,7 @@ export function useLocalAnnotationsDataLoader(
                 ];
                 setStandardDistance(100);
                 setStandardDistancePoints(defaultPoints);
-                console.log('加载失败，已设置默认标准距离: 100mm');
+                logger.debug('加载失败，已设置默认标准距离: 100mm');
             }
         }
     };
@@ -235,7 +238,7 @@ export function useLocalAnnotationsDataLoader(
     // 当图像尺寸确定后，自动加载标注数据
     useEffect(() => {
         if (imageNaturalSize) {
-            console.log('图像尺寸已确定，加载标注数据:', imageNaturalSize);
+            logger.debug('图像尺寸已确定，加载标注数据:', imageNaturalSize);
             loadAnnotationsFromLocalStorage();
         }
     }, [examType, imageNaturalSize, imageId]);

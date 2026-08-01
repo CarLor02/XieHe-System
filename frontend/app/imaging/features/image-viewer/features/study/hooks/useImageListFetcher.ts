@@ -1,5 +1,8 @@
 import {useEffect} from "react";
 import { getImageFiles } from '@/services/imageServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.study.hooks.useImageListFetcher');
 
 export function useImageListFetcher(setImageList:(imageIdList: string[]) => void) {
     async function fetchImageList(){
@@ -16,7 +19,7 @@ export function useImageListFetcher(setImageList:(imageIdList: string[]) => void
             });
             setImageList(ids);
         } catch (error) {
-            console.error('获取影像列表失败:', error);
+            logger.error('获取影像列表失败:', error);
             // 如果获取失败，使用空列表
             setImageList([]);
         }

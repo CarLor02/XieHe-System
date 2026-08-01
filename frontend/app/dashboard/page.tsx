@@ -45,7 +45,24 @@ const DashboardPage: React.FC = () => {
   // 初始加载
   useEffect(() => {
     if (mounted && isAuthenticated) {
-      loadDashboardData();
+      let isCurrent = true;
+
+      getDashboardStats()
+        .then(data => {
+          if (isCurrent) setDashboardData(data);
+        })
+        .catch(err => {
+          if (isCurrent) {
+            setError(err instanceof Error ? err.message : '加载仪表板数据失败');
+          }
+        })
+        .finally(() => {
+          if (isCurrent) setLoading(false);
+        });
+
+      return () => {
+        isCurrent = false;
+      };
     }
   }, [mounted, isAuthenticated]);
 

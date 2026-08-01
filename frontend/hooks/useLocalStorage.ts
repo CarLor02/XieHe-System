@@ -12,6 +12,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('hooks.useLocalStorage');
 
 /**
  * 本地存储 Hook
@@ -34,7 +37,7 @@ export function useLocalStorage<T>(
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
+      logger.warn(`Error reading localStorage key "${key}":`, error);
       return initialValue;
     }
   });
@@ -59,7 +62,7 @@ export function useLocalStorage<T>(
           );
         }
       } catch (error) {
-        console.warn(`Error setting localStorage key "${key}":`, error);
+        logger.warn(`Error setting localStorage key "${key}":`, error);
       }
     },
     [key, storedValue]
@@ -81,7 +84,7 @@ export function useLocalStorage<T>(
         );
       }
     } catch (error) {
-      console.warn(`Error removing localStorage key "${key}":`, error);
+      logger.warn(`Error removing localStorage key "${key}":`, error);
     }
   }, [key, initialValue]);
 
@@ -107,7 +110,7 @@ export function useLocalStorage<T>(
         try {
           setStoredValue(JSON.parse(e.newValue));
         } catch (error) {
-          console.warn(`Error parsing localStorage value for key "${key}":`, error);
+          logger.warn(`Error parsing localStorage value for key "${key}":`, error);
         }
       }
     };
@@ -143,7 +146,7 @@ export function useSessionStorage<T>(
       const item = window.sessionStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.warn(`Error reading sessionStorage key "${key}":`, error);
+      logger.warn(`Error reading sessionStorage key "${key}":`, error);
       return initialValue;
     }
   });
@@ -160,7 +163,7 @@ export function useSessionStorage<T>(
           window.sessionStorage.setItem(key, JSON.stringify(valueToStore));
         }
       } catch (error) {
-        console.warn(`Error setting sessionStorage key "${key}":`, error);
+        logger.warn(`Error setting sessionStorage key "${key}":`, error);
       }
     },
     [key, storedValue]
@@ -175,7 +178,7 @@ export function useSessionStorage<T>(
         window.sessionStorage.removeItem(key);
       }
     } catch (error) {
-      console.warn(`Error removing sessionStorage key "${key}":`, error);
+      logger.warn(`Error removing sessionStorage key "${key}":`, error);
     }
   }, [key, initialValue]);
 
@@ -196,7 +199,7 @@ export const storageUtils = {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : defaultValue ?? null;
     } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
+      logger.warn(`Error reading localStorage key "${key}":`, error);
       return defaultValue ?? null;
     }
   },
@@ -210,7 +213,7 @@ export const storageUtils = {
     try {
       window.localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
-      console.warn(`Error setting localStorage key "${key}":`, error);
+      logger.warn(`Error setting localStorage key "${key}":`, error);
     }
   },
 
@@ -223,7 +226,7 @@ export const storageUtils = {
     try {
       window.localStorage.removeItem(key);
     } catch (error) {
-      console.warn(`Error removing localStorage key "${key}":`, error);
+      logger.warn(`Error removing localStorage key "${key}":`, error);
     }
   },
 
@@ -236,7 +239,7 @@ export const storageUtils = {
     try {
       window.localStorage.clear();
     } catch (error) {
-      console.warn('Error clearing localStorage:', error);
+      logger.warn('Error clearing localStorage:', error);
     }
   },
 
@@ -250,7 +253,7 @@ export const storageUtils = {
       const item = window.sessionStorage.getItem(key);
       return item ? JSON.parse(item) : defaultValue ?? null;
     } catch (error) {
-      console.warn(`Error reading sessionStorage key "${key}":`, error);
+      logger.warn(`Error reading sessionStorage key "${key}":`, error);
       return defaultValue ?? null;
     }
   },
@@ -264,7 +267,7 @@ export const storageUtils = {
     try {
       window.sessionStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
-      console.warn(`Error setting sessionStorage key "${key}":`, error);
+      logger.warn(`Error setting sessionStorage key "${key}":`, error);
     }
   },
 
@@ -277,7 +280,7 @@ export const storageUtils = {
     try {
       window.sessionStorage.removeItem(key);
     } catch (error) {
-      console.warn(`Error removing sessionStorage key "${key}":`, error);
+      logger.warn(`Error removing sessionStorage key "${key}":`, error);
     }
   },
 
@@ -290,7 +293,7 @@ export const storageUtils = {
     try {
       window.sessionStorage.clear();
     } catch (error) {
-      console.warn('Error clearing sessionStorage:', error);
+      logger.warn('Error clearing sessionStorage:', error);
     }
   },
 };

@@ -14,6 +14,9 @@ import { Building2, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.auth.register.page');
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -127,7 +130,7 @@ export default function RegisterPage() {
       }
     } catch (err) {
       // 错误已经在 authStore 中处理
-      console.error('注册失败:', err);
+      logger.error('注册失败:', err);
     }
   };
 

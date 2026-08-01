@@ -12,6 +12,9 @@ import {
 import { useSessionStore } from '@/lib/api';
 import { getMyTeams } from '@/services/teamService';
 import type { TeamSummary } from '@/services/teamService';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('components.UserSettings');
 
 interface UserSettingsProps {
   isOpen: boolean;
@@ -69,8 +72,8 @@ export default function UserSettings({
         title: data.title || '',
       }));
     } catch (error: any) {
-      console.error('加载用户信息失败:', error);
-      console.error('错误详情:', error.response?.data);
+      logger.error('加载用户信息失败:', error);
+      logger.error('错误详情:', error.response?.data);
 
       // 检查是否是认证错误
       if (error.message?.includes('认证') || error.message?.includes('凭据')) {
@@ -109,7 +112,7 @@ export default function UserSettings({
         }));
       } catch (error) {
         if (!cancelled) {
-          console.error('加载用户信息失败:', error);
+          logger.error('加载用户信息失败:', error);
         }
       } finally {
         if (!cancelled) {
@@ -134,7 +137,7 @@ export default function UserSettings({
         }
       } catch (error) {
         if (!cancelled) {
-          console.error('加载团队列表失败:', error);
+          logger.error('加载团队列表失败:', error);
           setMyTeams([]);
         }
       } finally {
@@ -173,8 +176,8 @@ export default function UserSettings({
       // 同时更新 authStore 中的用户信息，这样 Header 组件也会更新
       await fetchUserInfo();
     } catch (error: any) {
-      console.error('保存失败:', error);
-      console.error('错误详情:', error.response?.data);
+      logger.error('保存失败:', error);
+      logger.error('错误详情:', error.response?.data);
 
       // 检查是否是认证错误
       if (error.message?.includes('认证') || error.message?.includes('凭据')) {
@@ -200,7 +203,7 @@ export default function UserSettings({
       setUserInfo(nextUser);
       await fetchUserInfo();
     } catch (error: any) {
-      console.error('头像上传失败:', error);
+      logger.error('头像上传失败:', error);
       alert(error.message || '头像上传失败，请重试');
     } finally {
       setAvatarUploading(false);
@@ -217,7 +220,7 @@ export default function UserSettings({
       setUserInfo(nextUser);
       await fetchUserInfo();
     } catch (error: any) {
-      console.error('头像删除失败:', error);
+      logger.error('头像删除失败:', error);
       alert(error.message || '头像删除失败，请重试');
     } finally {
       setAvatarUploading(false);

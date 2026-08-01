@@ -9,6 +9,9 @@ import {
   updateImageInfo,
   type ImageFile,
 } from '@/services/imageServices/imageFileService';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.actions.hooks.useImageEditOverlay');
 
 export const EXAM_TYPES = [
   '正位X光片',
@@ -234,7 +237,7 @@ export function useImageEditOverlay({
           };
         });
       } catch (error) {
-        console.error('Flip image error:', error);
+        logger.error('Flip image error:', error);
       }
     },
     [updateEditState]
@@ -264,7 +267,7 @@ export function useImageEditOverlay({
           return { ...prev, currentFile: nextFile, previewUrl: nextPreviewUrl, cropped: true };
         });
       } catch (error) {
-        console.error('Crop image error:', error);
+        logger.error('Crop image error:', error);
       }
     },
     [updateEditState]
@@ -301,7 +304,7 @@ export function useImageEditOverlay({
       closeEditOverlay();
       reloadImages();
     } catch (error) {
-      console.error('Failed to save image edit:', error);
+      logger.error('Failed to save image edit:', error);
       alert('保存失败，请重试');
     } finally {
       setSaving(false);
@@ -338,7 +341,7 @@ export function useImageEditOverlay({
       closeEditOverlay();
       reloadImages();
     } catch (error) {
-      console.error('Failed to replace image content:', error);
+      logger.error('Failed to replace image content:', error);
       alert('保存失败，请重试');
     } finally {
       setSaving(false);

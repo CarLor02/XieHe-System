@@ -8,6 +8,9 @@ import {
 import { Dispatch, SetStateAction } from 'react';
 import { getAiKeypointDetectionResponse } from '@/services/imageServices';
 import { sortCornersGeometrically } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/point-normalization';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.ai.measurement.usecases.aiDetectionUseCase');
 
 /**
  * 侧位椎体检测（不设置任何状态，仅返回检测数据）。
@@ -82,7 +85,7 @@ export async function detectLateralVertebrae(imageId: string): Promise<{
 
     return { vertebrae: newVertebrae, cfh: newCfh };
   } catch (e) {
-    console.warn('[detectLateralVertebrae] 检测失败，跳过推导补全:', e);
+    logger.warn('[detectLateralVertebrae] 检测失败，跳过推导补全:', e);
     return null;
   }
 }
@@ -122,7 +125,7 @@ export async function aiDetect(
 
   try {
     const aiData: any = await getAiKeypointDetectionResponse(imageId);
-    console.log('AI检测返回数据:', aiData);
+    logger.debug('AI检测返回数据:', aiData);
 
     const newVertebrae: VertebraAnnotation[] = [];
     let newCfh: CfhAnnotation | null = null;
@@ -135,7 +138,7 @@ export async function aiDetect(
       const imageHeight: number = aiData.image_height;
 
       if (aiData.vertebrae && Array.isArray(aiData.vertebrae)) {
-        console.log(`🔍 原始检测到 ${aiData.vertebrae.length} 个椎体`);
+        logger.debug(`🔍 原始检测到 ${aiData.vertebrae.length} 个椎体`);
 
         // 过滤低置信度 + 去重（保留最高置信度）
         const vertebraeMap = new Map<string, any>();
@@ -168,7 +171,7 @@ export async function aiDetect(
             return;
           }
           if (!vertebra.keypoints || vertebra.keypoints.length !== 4) {
-            console.warn(
+            logger.warn(
               `⚠️ 椎体 ${vertebra.label} 角点数量不是4:`,
               vertebra.keypoints?.length
             );
@@ -190,7 +193,7 @@ export async function aiDetect(
           pointCount += 4;
         });
 
-        console.log(`✅ 共解析 ${newVertebrae.length} 个椎体`);
+        logger.debug(`✅ 共解析 ${newVertebrae.length} 个椎体`);
       }
 
       // 股骨头（侧位专用）
@@ -274,7 +277,7 @@ export async function aiDetect(
     }
     setTimeout(() => setSaveMessage(''), 3000);
   } catch (error) {
-    console.error('AI检测失败:', error);
+    logger.error('AI检测失败:', error);
     setSaveMessage('AI检测失败，请检查服务是否正常运行');
     setTimeout(() => setSaveMessage(''), 3000);
   } finally {

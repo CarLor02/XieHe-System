@@ -14,9 +14,21 @@ import PatientSearchFilter, {
   SearchFilters,
 } from '@/components/patients/PatientSearchFilter';
 import { getPatients, Patient } from '@/services/patientServices';
+import { createLogger } from '@/lib/logger';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+
+const logger = createLogger('patients.enhanced-page');
+
+function fetchEnhancedPatients(page: number, filters: SearchFilters) {
+  return getPatients({
+    page,
+    page_size: 20,
+    search: filters.search || undefined,
+    gender: filters.gender || undefined,
+  });
+}
 
 export default function EnhancedPatientsPage() {
   const router = useRouter();
@@ -34,19 +46,13 @@ export default function EnhancedPatientsPage() {
       setLoading(true);
       setError(null);
 
-      const params = {
-        page: currentPage,
-        page_size: 20,
-        search: filters.search || undefined,
-        gender: filters.gender || undefined,
-      };
-      const response = await getPatients(params);
+      const response = await fetchEnhancedPatients(currentPage, filters);
       setPatients(response.items);
       setTotal(response.total);
       setTotalPages(response.totalPages);
     } catch (err) {
       setError('加载患者列表失败');
-      console.error('Load patients error:', err);
+      logger.error('Load patients error:', err);
     } finally {
       setLoading(false);
     }
@@ -54,23 +60,47 @@ export default function EnhancedPatientsPage() {
 
   // 初始加载和筛选条件变化时重新加载
   useEffect(() => {
-    loadPatients();
+    let isCurrent = true;
+
+    fetchEnhancedPatients(currentPage, filters)
+      .then(response => {
+        if (!isCurrent) return;
+        setError(null);
+        setPatients(response.items);
+        setTotal(response.total);
+        setTotalPages(response.totalPages);
+      })
+      .catch(err => {
+        if (!isCurrent) return;
+        setError('加载患者列表失败');
+        logger.error('Load patients error:', err);
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, [currentPage, filters]);
 
   // 处理筛选条件变化
   const handleFiltersChange = (newFilters: SearchFilters) => {
+    setLoading(true);
     setFilters(newFilters);
     setCurrentPage(1); // 重置到第一页
   };
 
   // 处理搜索
   const handleSearch = () => {
+    setLoading(true);
     setCurrentPage(1);
     loadPatients();
   };
 
   // 重置筛选
   const handleReset = () => {
+    setLoading(true);
     setFilters({});
     setCurrentPage(1);
   };
@@ -263,16 +293,20 @@ export default function EnhancedPatientsPage() {
                 </div>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    onClick={() => {
+                      setLoading(true);
+                      setCurrentPage(Math.max(1, currentPage - 1));
+                    }}
                     disabled={currentPage === 1}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     上一页
                   </button>
                   <button
-                    onClick={() =>
-                      setCurrentPage(Math.min(totalPages, currentPage + 1))
-                    }
+                    onClick={() => {
+                      setLoading(true);
+                      setCurrentPage(Math.min(totalPages, currentPage + 1));
+                    }}
                     disabled={currentPage === totalPages}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >

@@ -4,6 +4,9 @@ import AppShell from '@/components/layout/AppShell';
 import ReportAnalytics from '@/components/reports/ReportAnalytics';
 import { Button } from '@/components/ui/Button';
 import React, { useState } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.reports.analytics.page');
 
 const ReportAnalyticsPage: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
@@ -14,19 +17,19 @@ const ReportAnalyticsPage: React.FC = () => {
       setIsExporting(true);
 
       // 模拟导出API调用
-      console.log(`开始导出${format.toUpperCase()}格式的统计报告...`);
+      logger.debug(`开始导出${format.toUpperCase()}格式的统计报告...`);
 
       // 模拟导出延迟
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // 模拟下载
       const fileName = `report_analytics_${new Date().toISOString().split('T')[0]}.${format}`;
-      console.log(`导出完成: ${fileName}`);
+      logger.debug(`导出完成: ${fileName}`);
 
       // 显示成功消息
       alert(`统计报告已成功导出为${format.toUpperCase()}格式！`);
     } catch (error) {
-      console.error('导出失败:', error);
+      logger.error('导出失败:', error);
       alert('导出失败，请稍后重试');
     } finally {
       setIsExporting(false);

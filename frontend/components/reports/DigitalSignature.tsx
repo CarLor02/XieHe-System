@@ -2,6 +2,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('components.reports.DigitalSignature');
 
 // 签名类型枚举
 enum SignatureType {
@@ -167,7 +170,7 @@ const DigitalSignature: React.FC<DigitalSignatureProps> = ({
 
       alert('签名创建成功！');
     } catch (error) {
-      console.error('创建签名失败:', error);
+      logger.error('创建签名失败:', error);
       alert('签名创建失败，请重试');
     } finally {
       setLoading(false);

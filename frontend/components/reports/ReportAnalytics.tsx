@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 
 // 时间范围枚举
@@ -76,21 +76,12 @@ interface ReportAnalyticsProps {
   onExport?: (format: string) => void;
 }
 
-const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ onExport }) => {
-  const [timeRange, setTimeRange] = useState<TimeRange>(TimeRange.MONTH);
-  const [statistics, setStatistics] = useState<ReportStatistics | null>(null);
-  const [doctorWorkload, setDoctorWorkload] = useState<DoctorWorkload[]>([]);
-  const [patientAnalytics, setPatientAnalytics] = useState<PatientAnalytics | null>(null);
-  const [charts, setCharts] = useState<ChartData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'doctors' | 'patients' | 'trends'>('overview');
-
-  // 获取统计数据
-  const fetchAnalyticsData = async () => {
-    try {
-      setLoading(true);
-      
-      // 模拟API调用
+function createMockAnalyticsData(): {
+  statistics: ReportStatistics;
+  doctorWorkload: DoctorWorkload[];
+  patientAnalytics: PatientAnalytics;
+  charts: ChartData[];
+} {
       const mockStatistics: ReportStatistics = {
         total_reports: 1247,
         completed_reports: 1089,
@@ -209,16 +200,20 @@ const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ onExport }) => {
         }
       ];
 
-      setStatistics(mockStatistics);
-      setDoctorWorkload(mockDoctors);
-      setPatientAnalytics(mockPatients);
-      setCharts(mockCharts);
-    } catch (error) {
-      console.error('获取统计数据失败:', error);
-    } finally {
-      setLoading(false);
-    }
+  return {
+    statistics: mockStatistics,
+    doctorWorkload: mockDoctors,
+    patientAnalytics: mockPatients,
+    charts: mockCharts,
   };
+}
+
+const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ onExport }) => {
+  const [timeRange, setTimeRange] = useState<TimeRange>(TimeRange.MONTH);
+  const [{ statistics, doctorWorkload, patientAnalytics, charts }] = useState(
+    createMockAnalyticsData
+  );
+  const [activeTab, setActiveTab] = useState<'overview' | 'doctors' | 'patients' | 'trends'>('overview');
 
   // 处理导出
   const handleExport = (format: string) => {
@@ -228,19 +223,6 @@ const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ onExport }) => {
       alert(`导出${format.toUpperCase()}格式的统计报告`);
     }
   };
-
-  useEffect(() => {
-    fetchAnalyticsData();
-  }, [timeRange]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">加载统计数据...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

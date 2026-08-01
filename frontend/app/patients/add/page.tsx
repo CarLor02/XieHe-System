@@ -12,6 +12,9 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.patients.add.page');
 
 interface PatientFormData {
   patient_id: string;
@@ -144,7 +147,7 @@ export default function AddPatientPage() {
         router.push('/patients');
       }, 2000);
     } catch (err: any) {
-      console.error('Failed to create patient:', err);
+      logger.error('Failed to create patient:', err);
       const errorMessage =
         err.response?.data?.message || err.message || '创建患者失败';
       setError(errorMessage);

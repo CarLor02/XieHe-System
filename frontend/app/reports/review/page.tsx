@@ -4,7 +4,10 @@ import AppShell from '@/components/layout/AppShell';
 import DigitalSignature from '@/components/reports/DigitalSignature';
 import ReportReview from '@/components/reports/ReportReview';
 import { Button } from '@/components/ui/Button';
-import React, { useEffect, useState } from 'react';
+import { createLogger } from '@/lib/logger';
+import React, { useState } from 'react';
+
+const logger = createLogger('reports.review-page');
 
 // 审核级别枚举
 enum ReviewLevel {
@@ -34,6 +37,58 @@ interface ReviewStatistics {
   avg_wait_time: number;
 }
 
+function createMockPendingReports(now = Date.now()): PendingReport[] {
+  return [
+    {
+      report_id: 'RPT_001',
+      title: '胸部X光检查报告',
+      patient_name: '张三',
+      patient_id: 'PAT_001',
+      report_type: 'X-RAY',
+      current_level: ReviewLevel.PRIMARY,
+      submitted_at: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+      priority: 'high',
+      estimated_time: 30,
+      submitter: '李医生',
+    },
+    {
+      report_id: 'RPT_002',
+      title: '腰椎MRI检查报告',
+      patient_name: '李四',
+      patient_id: 'PAT_002',
+      report_type: 'MRI',
+      current_level: ReviewLevel.SECONDARY,
+      submitted_at: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
+      priority: 'normal',
+      estimated_time: 45,
+      submitter: '王医生',
+    },
+    {
+      report_id: 'RPT_003',
+      title: '头部CT检查报告',
+      patient_name: '王五',
+      patient_id: 'PAT_003',
+      report_type: 'CT',
+      current_level: ReviewLevel.PRIMARY,
+      submitted_at: new Date(now - 6 * 60 * 60 * 1000).toISOString(),
+      priority: 'urgent',
+      estimated_time: 20,
+      submitter: '赵医生',
+    },
+  ];
+}
+
+function createReviewStatistics(reports: PendingReport[]): ReviewStatistics {
+  return {
+    total_pending: reports.length,
+    high_priority: reports.filter(
+      report => report.priority === 'high' || report.priority === 'urgent'
+    ).length,
+    overdue: 1,
+    avg_wait_time: 45,
+  };
+}
+
 const ReportReviewPage: React.FC = () => {
   const [currentView, setCurrentView] = useState<
     'list' | 'review' | 'signature'
@@ -41,75 +96,11 @@ const ReportReviewPage: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<PendingReport | null>(
     null
   );
-  const [pendingReports, setPendingReports] = useState<PendingReport[]>([]);
-  const [statistics, setStatistics] = useState<ReviewStatistics | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [pendingReports, setPendingReports] = useState(createMockPendingReports);
+  const statistics = createReviewStatistics(pendingReports);
   const [filterLevel, setFilterLevel] = useState<ReviewLevel | 'all'>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-
-  // 获取待审核报告列表
-  const fetchPendingReports = async () => {
-    try {
-      setLoading(true);
-
-      // 模拟API调用
-      const mockReports: PendingReport[] = [
-        {
-          report_id: 'RPT_001',
-          title: '胸部X光检查报告',
-          patient_name: '张三',
-          patient_id: 'PAT_001',
-          report_type: 'X-RAY',
-          current_level: ReviewLevel.PRIMARY,
-          submitted_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          priority: 'high',
-          estimated_time: 30,
-          submitter: '李医生',
-        },
-        {
-          report_id: 'RPT_002',
-          title: '腰椎MRI检查报告',
-          patient_name: '李四',
-          patient_id: 'PAT_002',
-          report_type: 'MRI',
-          current_level: ReviewLevel.SECONDARY,
-          submitted_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          priority: 'normal',
-          estimated_time: 45,
-          submitter: '王医生',
-        },
-        {
-          report_id: 'RPT_003',
-          title: '头部CT检查报告',
-          patient_name: '王五',
-          patient_id: 'PAT_003',
-          report_type: 'CT',
-          current_level: ReviewLevel.PRIMARY,
-          submitted_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          priority: 'urgent',
-          estimated_time: 20,
-          submitter: '赵医生',
-        },
-      ];
-
-      const mockStatistics: ReviewStatistics = {
-        total_pending: mockReports.length,
-        high_priority: mockReports.filter(
-          r => r.priority === 'high' || r.priority === 'urgent'
-        ).length,
-        overdue: 1,
-        avg_wait_time: 45,
-      };
-
-      setPendingReports(mockReports);
-      setStatistics(mockStatistics);
-    } catch (error) {
-      console.error('获取待审核报告失败:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 获取优先级颜色
   const getPriorityColor = (priority: string): string => {
@@ -166,16 +157,12 @@ const ReportReviewPage: React.FC = () => {
 
   // 处理审核完成
   const handleReviewComplete = (result: any) => {
-    console.log('审核完成:', result);
+    logger.debug('审核完成:', result);
     // 刷新列表
-    fetchPendingReports();
+    setPendingReports(createMockPendingReports());
     setCurrentView('list');
     setSelectedReport(null);
   };
-
-  useEffect(() => {
-    fetchPendingReports();
-  }, []);
 
   return (
     <AppShell mainClassName="p-6 pt-16">
@@ -354,12 +341,7 @@ const ReportReviewPage: React.FC = () => {
                   </h3>
                 </div>
 
-                {loading ? (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-2 text-gray-600">加载中...</span>
-                  </div>
-                ) : filteredReports.length === 0 ? (
+                {filteredReports.length === 0 ? (
                   <div className="text-center p-8 text-gray-500">
                     <i className="ri-file-list-3-line text-4xl mb-4"></i>
                     <p>暂无待审核报告</p>
@@ -478,7 +460,7 @@ const ReportReviewPage: React.FC = () => {
               signatureReason="医疗报告审核签名"
               signatureLocation="协和医院"
               onSignatureComplete={signature => {
-                console.log('签名完成:', signature);
+                logger.debug('签名完成:', signature);
                 setCurrentView('review');
               }}
               onSignatureCancel={() => setCurrentView('review')}

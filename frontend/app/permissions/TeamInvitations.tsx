@@ -6,6 +6,9 @@ import {
   respondToInvitation,
   TeamInvitationItem,
 } from '@/services/teamService';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('permissions.team-invitations');
 
 export default function TeamInvitations() {
   const [invitations, setInvitations] = useState<TeamInvitationItem[]>([]);
@@ -26,7 +29,7 @@ export default function TeamInvitations() {
       const response = await getMyInvitations();
       setInvitations(response.items);
     } catch (err: any) {
-      console.error('加载邀请失败:', err);
+      logger.error('加载邀请失败:', err);
       setError(err.response?.data?.detail || '加载邀请失败');
     } finally {
       setLoading(false);
@@ -34,7 +37,24 @@ export default function TeamInvitations() {
   };
 
   useEffect(() => {
-    loadInvitations();
+    let isCurrent = true;
+
+    getMyInvitations()
+      .then(response => {
+        if (isCurrent) setInvitations(response.items);
+      })
+      .catch(err => {
+        if (!isCurrent) return;
+        logger.error('加载邀请失败:', err);
+        setError(err.response?.data?.detail || '加载邀请失败');
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const handleRespond = async (invitationId: number, accept: boolean) => {
@@ -55,7 +75,7 @@ export default function TeamInvitations() {
       // 3秒后清除成功消息
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      console.error('处理邀请失败:', err);
+      logger.error('处理邀请失败:', err);
       setError(err.response?.data?.detail || '处理邀请失败');
     } finally {
       setProcessing(null);
@@ -287,4 +307,3 @@ export default function TeamInvitations() {
     </div>
   );
 }
-

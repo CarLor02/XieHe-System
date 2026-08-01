@@ -17,6 +17,17 @@ jest.mock('@/services/imageServices', () => ({
   updateImageAnnotation: jest.fn(),
 }));
 
+jest.mock('@/lib/logger', () => ({
+  createLogger: () => ({
+    trace: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    child: jest.fn(),
+  }),
+}));
+
 const mockedImageServices = jest.requireMock('@/services/imageServices') as {
   saveMeasurementRecord: jest.MockedFunction<typeof saveMeasurementRecord>;
   updateImageAnnotation: jest.MockedFunction<typeof updateImageAnnotation>;
@@ -36,9 +47,6 @@ beforeEach(() => {
     savedAt: '2026-06-10T10:00:00Z',
   });
   mockedUpdateImageAnnotation.mockResolvedValue({ message: 'ok' });
-  jest.spyOn(console, 'log').mockImplementation(() => undefined);
-  jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-  jest.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 
 afterEach(() => {

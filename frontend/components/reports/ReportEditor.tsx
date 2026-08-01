@@ -11,6 +11,9 @@
 
 import React, { useState, useRef, useCallback } from 'react'
 import { Button } from '../ui/Button'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('components.reports.editor')
 
 interface ReportSection {
   id: string
@@ -118,12 +121,12 @@ export default function ReportEditor({
 
   // 格式化工具栏按钮
   const formatButtons = [
-    { label: '粗体', action: () => insertTextAtCursor('**粗体文本**') },
-    { label: '斜体', action: () => insertTextAtCursor('*斜体文本*') },
-    { label: '下划线', action: () => insertTextAtCursor('__下划线文本__') },
-    { label: '标题', action: () => insertTextAtCursor('\n## 标题\n') },
-    { label: '列表', action: () => insertTextAtCursor('\n- 列表项\n- 列表项\n') },
-    { label: '编号', action: () => insertTextAtCursor('\n1. 编号项\n2. 编号项\n') }
+    { label: '粗体', text: '**粗体文本**' },
+    { label: '斜体', text: '*斜体文本*' },
+    { label: '下划线', text: '__下划线文本__' },
+    { label: '标题', text: '\n## 标题\n' },
+    { label: '列表', text: '\n- 列表项\n- 列表项\n' },
+    { label: '编号', text: '\n1. 编号项\n2. 编号项\n' }
   ]
 
   // 常用医学术语
@@ -150,7 +153,7 @@ export default function ReportEditor({
     try {
       await onSave?.(reportData)
     } catch (error) {
-      console.error('保存报告失败:', error)
+      logger.error('保存报告失败:', error)
     } finally {
       setIsSaving(false)
     }
@@ -172,7 +175,7 @@ export default function ReportEditor({
   }
 
   // 渲染编辑器工具栏
-  const renderToolbar = () => (
+  const toolbar = (
     <div className="border-b border-gray-200 p-4 bg-gray-50">
       <div className="flex flex-wrap gap-2 mb-4">
         {/* 格式化按钮 */}
@@ -182,7 +185,7 @@ export default function ReportEditor({
               key={index}
               variant="outline"
               size="sm"
-              onClick={btn.action}
+              onClick={() => insertTextAtCursor(btn.text)}
               disabled={readOnly}
               className="text-xs"
             >
@@ -357,7 +360,7 @@ export default function ReportEditor({
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
       {/* 工具栏 */}
-      {renderToolbar()}
+      {toolbar}
       
       {/* 报告内容 */}
       <div className="p-6">

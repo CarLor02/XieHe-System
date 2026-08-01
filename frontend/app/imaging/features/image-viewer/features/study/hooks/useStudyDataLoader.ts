@@ -4,6 +4,9 @@ import {getImageFile} from "@/services/imageServices/imageFileService"
 import {AnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
 import {StudyData} from "@/app/imaging/features/image-viewer/shared/types";
 import {getAnnotationTypeId} from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config";
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.study.hooks.useStudyDataLoader');
 
 export function useStudyDataLoader(
     imageId: string,
@@ -64,7 +67,7 @@ export function useStudyDataLoader(
                         setMeasurements(restoredMeasurements);
                         // 标记 DB 数据已加载，阻止 localStorage 后续覆盖
                         dbAnnotationLoadedRef.current = true;
-                        console.log(
+                        logger.debug(
                             `从数据库加载了 ${annotationData.measurements.length} 个标注`
                         );
                     }
@@ -99,7 +102,7 @@ export function useStudyDataLoader(
                             ? annotationData.vertebraeLayer
                             : [];
                     if (restoredVertebraeLayer.length > 0) {
-                        console.log(`从数据库恢复了 ${restoredVertebraeLayer.length} 节椎体角点`);
+                        logger.debug(`从数据库恢复了 ${restoredVertebraeLayer.length} 节椎体角点`);
                     }
                     restorePersistedKeypointState({
                         examType:
@@ -109,11 +112,11 @@ export function useStudyDataLoader(
                         cfhAnnotation: annotationData.cfhAnnotation ?? null,
                     });
                 } catch (e) {
-                    console.error('解析标注数据失败:', e);
+                    logger.error('解析标注数据失败:', e);
                 }
             }
         } catch (error) {
-            console.error('获取影像数据失败:', error);
+            logger.error('获取影像数据失败:', error);
             // 如果API失败，使用默认数据 TODO 是不是应该弹报错. 填充假数据合理吗?
             const studyData: StudyData = {
                 id: parseInt(imageId.replace('IMG', '').replace(/^0+/, '') || '0'),

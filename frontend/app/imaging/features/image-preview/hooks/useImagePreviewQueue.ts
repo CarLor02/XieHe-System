@@ -4,6 +4,9 @@ import {
   getImageFileAccessUrls,
 } from '@/services/imageServices/imageFileAccessUrlService';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.preview.hooks.useImagePreviewQueue');
 
 const PREVIEW_REQUEST_TIMEOUT_MS = 60_000;
 const PREVIEW_RETRY_ATTEMPTS = 3;
@@ -209,7 +212,7 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
           }
 
           const isLastAttempt = attempt === PREVIEW_RETRY_ATTEMPTS;
-          console.warn(
+          logger.warn(
             `Preview URL batch load attempt ${attempt}/${PREVIEW_RETRY_ATTEMPTS} failed:`,
             error
           );

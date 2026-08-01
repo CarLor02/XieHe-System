@@ -12,6 +12,10 @@ import {
   getModelStats,
   getModels,
 } from '@/services/modelServices';
+import type { ModelStats } from '@/services/modelServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('model-center.page');
 
 interface ModelData {
   id: string;
@@ -26,6 +30,43 @@ interface ModelData {
   icon: string;
 }
 
+async function fetchModelCenterData(): Promise<{
+  models: ModelData[];
+  stats: ModelStats | null;
+}> {
+  const response = await getModels({ page_size: 100 });
+  let stats: ModelStats | null = null;
+
+  try {
+    stats = await getModelStats();
+  } catch (error) {
+    logger.error('Stats fetch failed', error);
+  }
+
+  return {
+    stats,
+    models: (response.items || []).map(model => ({
+      id: model.id,
+      title: model.name,
+      view_type: model.view_type,
+      status: model.status || 'ready',
+      isActive: model.is_active,
+      is_system_default: model.is_system_default,
+      accuracy: '0%',
+      lastUpdated: model.updated_at
+        ? new Date(model.updated_at).toLocaleDateString('zh-CN')
+        : '',
+      category:
+        model.view_type === 'front'
+          ? '正面'
+          : model.view_type === 'side'
+            ? '侧面'
+            : '其他',
+      icon: 'ri-cpu-line',
+    })),
+  };
+}
+
 export default function ModelCenter() {
   const router = useRouter();
   const { user, isAuthenticated, isLoggingOut } = useUser();
@@ -36,7 +77,7 @@ export default function ModelCenter() {
   const [activeTab, setActiveTab] = useState('all');
   const [models, setModels] = useState<ModelData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<ModelStats | null>(null);
 
   // 认证检查
   useEffect(() => {
@@ -49,42 +90,35 @@ export default function ModelCenter() {
   const loadModels = async () => {
     try {
       setLoading(true);
-
-      const response = await getModels({
-        page_size: 100,
-      });
-
-      try {
-        const statsRes = await getModelStats();
-        setStats(statsRes);
-      } catch (e) {
-        console.error("Stats fetch failed", e);
-      }
-
-      const apiModels = response.items || [];
-      const convertedModels: ModelData[] = apiModels.map((model: any) => ({
-        id: model.id,
-        title: model.name,
-        view_type: model.view_type,
-        status: model.status || 'ready',
-        isActive: model.is_active,
-        is_system_default: model.is_system_default,
-        accuracy: '0%',
-        lastUpdated: new Date(model.updated_at).toLocaleDateString('zh-CN'),
-        category: model.view_type === 'front' ? '正面' : model.view_type === 'side' ? '侧面' : '其他',
-        icon: 'ri-cpu-line'
-      }));
-
-      setModels(convertedModels);
-    } catch (err: any) {
-      console.error('Failed to load models:', err);
+      const data = await fetchModelCenterData();
+      setStats(data.stats);
+      setModels(data.models);
+    } catch (err) {
+      logger.error('Failed to load models:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadModels();
+    let isCurrent = true;
+
+    fetchModelCenterData()
+      .then(data => {
+        if (!isCurrent) return;
+        setStats(data.stats);
+        setModels(data.models);
+      })
+      .catch(error => {
+        if (isCurrent) logger.error('Failed to load models:', error);
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const filteredModels = models.filter(m => {
@@ -103,7 +137,7 @@ export default function ModelCenter() {
       // 显示成功提示（可选）
       alert(`已切换到模型: ${model.title}`);
     } catch (err: any) {
-      console.error('Failed to activate model:', err);
+      logger.error('Failed to activate model:', err);
       alert(err.response?.data?.detail || '激活模型失败');
     }
   };

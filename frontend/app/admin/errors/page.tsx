@@ -31,6 +31,12 @@ interface ErrorStats {
   timeRange: string;
 }
 
+function fetchErrorStats(timeRange: number): Promise<ErrorStats> {
+  return authenticatedJsonFetch<ErrorStats>(
+    `/api/v1/errors/stats?hours=${timeRange}`
+  );
+}
+
 const ErrorMonitoringPage: React.FC = () => {
   const [errorStats, setErrorStats] = useState<ErrorStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,9 +47,7 @@ const ErrorMonitoringPage: React.FC = () => {
   const loadErrorStats = async () => {
     setIsLoading(true);
     try {
-      const data = await authenticatedJsonFetch<ErrorStats>(
-        `/api/v1/errors/stats?hours=${timeRange}`
-      );
+      const data = await fetchErrorStats(timeRange);
       setErrorStats(data);
     } catch (error) {
       handleApiError(error, 'load_error_stats');
@@ -71,8 +75,23 @@ const ErrorMonitoringPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadErrorStats();
-  }, [timeRange]);
+    let isCurrent = true;
+
+    fetchErrorStats(timeRange)
+      .then(data => {
+        if (isCurrent) setErrorStats(data);
+      })
+      .catch(error => {
+        if (isCurrent) handleApiError(error, 'load_error_stats');
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [handleApiError, timeRange]);
 
   // 获取严重程度颜色
   const getSeverityColor = (severity: string) => {
@@ -133,7 +152,10 @@ const ErrorMonitoringPage: React.FC = () => {
               {/* 时间范围选择 */}
               <select
                 value={timeRange}
-                onChange={e => setTimeRange(Number(e.target.value))}
+                onChange={e => {
+                  setIsLoading(true);
+                  setTimeRange(Number(e.target.value));
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value={1}>最近1小时</option>

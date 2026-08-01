@@ -5,6 +5,9 @@ import {
   getPermissionRoles,
   type PermissionRole,
 } from '@/services/permissionServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.permissions.roles.page');
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<PermissionRole[]>([]);
@@ -19,7 +22,7 @@ export default function RolesPage() {
       setRoles(response.items);
       setError(null);
     } catch (err: any) {
-      console.error('获取角色列表失败:', err);
+      logger.error('获取角色列表失败:', err);
       setError(err.response?.data?.message || '获取角色列表失败');
     } finally {
       setLoading(false);
@@ -37,7 +40,7 @@ export default function RolesPage() {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        console.error('获取角色列表失败:', error);
+        logger.error('获取角色列表失败:', error);
         setError('获取角色列表失败');
       })
       .finally(() => {

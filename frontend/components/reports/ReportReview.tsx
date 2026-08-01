@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('components.reports.review');
 
 // 审核状态枚举
 enum ReviewStatus {
@@ -109,28 +112,15 @@ const ReportReview: React.FC<ReportReviewProps> = ({
   reportId,
   onReviewComplete
 }) => {
-  const [reviewStatus, setReviewStatus] = useState<ReviewStatusData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const reviewStatus = useMemo(
+    () => createMockReviewStatus(reportId),
+    [reportId]
+  );
   const [actionLoading, setActionLoading] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
   const [selectedAction, setSelectedAction] = useState<ReviewAction | null>(null);
   const [comments, setComments] = useState('');
   const [signatureData, setSignatureData] = useState('');
-
-  // 获取审核状态
-  const fetchReviewStatus = async () => {
-    try {
-      setLoading(true);
-      // 模拟API调用
-      const mockData = createMockReviewStatus(reportId);
-      
-      setReviewStatus(mockData);
-    } catch (error) {
-      console.error('获取审核状态失败:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 执行审核动作
   const performAction = async (action: ReviewAction) => {
@@ -152,8 +142,6 @@ const ReportReview: React.FC<ReportReviewProps> = ({
       };
       
       if (response.success) {
-        // 更新状态
-        await fetchReviewStatus();
         setShowActionModal(false);
         setComments('');
         setSignatureData('');
@@ -166,7 +154,7 @@ const ReportReview: React.FC<ReportReviewProps> = ({
         alert(response.message);
       }
     } catch (error) {
-      console.error('执行审核动作失败:', error);
+      logger.error('执行审核动作失败:', error);
       alert('操作失败，请重试');
     } finally {
       setActionLoading(false);
@@ -229,27 +217,6 @@ const ReportReview: React.FC<ReportReviewProps> = ({
     setSelectedAction(action);
     setShowActionModal(true);
   };
-
-  useEffect(() => {
-    fetchReviewStatus();
-  }, [reportId]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">加载审核状态...</span>
-      </div>
-    );
-  }
-
-  if (!reviewStatus) {
-    return (
-      <div className="text-center p-8 text-gray-500">
-        无法获取审核状态
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">

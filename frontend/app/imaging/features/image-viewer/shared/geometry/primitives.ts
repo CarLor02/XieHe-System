@@ -1,3 +1,9 @@
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger(
+  'app.imaging.features.image.viewer.shared.geometry.primitives'
+);
+
 /**
  * 几何计算工具函数
  * 提供点、线、图形等几何计算功能
@@ -192,7 +198,7 @@ export function isPointNearEllipse(
  */
 export function calculateQuadrilateralCenter(points: Point[]): Point {
   if (points.length !== 4) {
-    console.warn('calculateQuadrilateralCenter: 需要4个点，当前有', points.length, '个点');
+    logger.warn('calculateQuadrilateralCenter: 需要4个点，当前有', points.length, '个点');
     // 如果点数不足4个，返回已有点的平均值
     if (points.length === 0) return { x: 0, y: 0 };
     const sumX = points.reduce((sum, p) => sum + p.x, 0);
@@ -209,4 +215,3 @@ export function calculateQuadrilateralCenter(points: Point[]): Point {
 
   return { x: centerX, y: centerY };
 }
-

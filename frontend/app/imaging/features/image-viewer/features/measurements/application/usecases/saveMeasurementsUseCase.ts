@@ -5,6 +5,9 @@ import {
     updateImageAnnotation,
 } from '@/services/imageServices';
 import {saveLocalAnnotationBackup} from './localAnnotationStorage';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.measurements.application.usecases.saveMeasurementsUseCase');
 
 export async function saveMeasurements(
     imageId: string,
@@ -94,11 +97,11 @@ export async function saveMeasurements(
         };
         const localBackupResult = saveLocalAnnotationBackup(imageId, localData);
         if (localBackupResult.saved) {
-            console.log(
+            logger.debug(
                 `已保存 ${measurements.length} 个标注到本地，标准距离: ${standardDistance}mm`
             );
         } else {
-            console.warn(
+            logger.warn(
                 '本地标注缓存保存失败，继续保存服务器:',
                 localBackupResult.reason
             );
@@ -137,7 +140,7 @@ export async function saveMeasurements(
                 cfhAnnotation: cfhAnnotation ?? undefined,
             };
             await updateImageAnnotation(Number(numericId), annotationData);
-            console.log('绑定数据已同步至 annotation 字段');
+            logger.debug('绑定数据已同步至 annotation 字段');
             setSaveMessage(
                 measurements.length > 0
                     ? '标注已保存到本地和服务器'
@@ -148,7 +151,7 @@ export async function saveMeasurements(
             setTimeout(() => setSaveMessage(''), 3000);
         } catch (annotationErr) {
             // 不阻断主保存流程
-            console.warn(
+            logger.warn(
                 '更新 annotation 字段失败（不影响主保存）:',
                 annotationErr
             );
@@ -162,7 +165,7 @@ export async function saveMeasurements(
             setTimeout(() => setSaveMessage(''), 3000);
         }
     } catch (error: any) {
-        console.error('保存测量数据失败:', error);
+        logger.error('保存测量数据失败:', error);
         const errorMessage =
             error.response?.data?.message ||
             error.response?.data?.detail ||

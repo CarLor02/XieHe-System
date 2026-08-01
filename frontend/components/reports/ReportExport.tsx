@@ -12,6 +12,9 @@
 import React, { useState, useEffect } from 'react'
 import { Button } from '../ui/Button'
 import { authenticatedJsonFetch } from '@/lib/api'
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('components.reports.ReportExport');
 
 interface ExportOptions {
   format: 'pdf' | 'word' | 'image' | 'html'
@@ -76,7 +79,7 @@ export default function ReportExport({
               onExportError?.(updatedTask.message)
             }
           } catch (error) {
-            console.error('检查导出状态失败:', error)
+            logger.error('检查导出状态失败:', error)
           }
         }
       }, 2000)
@@ -126,7 +129,7 @@ export default function ReportExport({
       }
 
     } catch (error) {
-      console.error('导出失败:', error)
+      logger.error('导出失败:', error)
       onExportError?.('导出失败，请重试')
     } finally {
       setIsExporting(false)
@@ -170,7 +173,7 @@ export default function ReportExport({
       setExportTasks(prev => [newTask, ...prev])
 
     } catch (error) {
-      console.error('批量导出失败:', error)
+      logger.error('批量导出失败:', error)
       onExportError?.('批量导出失败，请重试')
     } finally {
       setIsExporting(false)

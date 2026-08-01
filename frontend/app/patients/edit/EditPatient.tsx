@@ -10,6 +10,9 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { getPatientDetail, updatePatient } from '@/services/patientServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.patients.edit.EditPatient');
 
 interface PatientForm {
   patient_id: string;
@@ -69,7 +72,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
           insurance_number: patient.insurance_number || '',
         });
       } catch (err: any) {
-        console.error('Failed to fetch patient data:', err);
+        logger.error('Failed to fetch patient data:', err);
         setError(err.response?.data?.message || '加载患者信息失败');
       } finally {
         setLoading(false);
@@ -147,7 +150,7 @@ export default function EditPatient({ patientId }: { patientId: string }) {
         router.push('/patients');
       }, 2000);
     } catch (err: any) {
-      console.error('Failed to update patient:', err);
+      logger.error('Failed to update patient:', err);
       setError(err.response?.data?.message || '更新患者信息失败');
     } finally {
       setSaving(false);

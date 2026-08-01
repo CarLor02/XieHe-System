@@ -8,6 +8,9 @@
 import {apiClient} from '@/lib/api';
 import {extractData, extractPaginatedData} from '@/lib/api/types';
 import type { TeamSummary } from '@/services/teamService';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('services.imageServices.imageFileService');
 
 export type ImageAnnotationJson = Record<string, unknown>;
 
@@ -400,7 +403,7 @@ export async function getImagePreviewUrl(fileId: number): Promise<string> {
     }
     return URL.createObjectURL(blob);
   } catch (error) {
-    console.warn(`[Preview] file ${fileId} 加载失败，使用占位图:`, error);
+    logger.warn(`[Preview] file ${fileId} 加载失败，使用占位图:`, error);
     // 返回一个占位图片（灰色背景 + "暂无图片"文字）
     return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7ml6Dlh7rliqDovb08L3RleHQ+PC9zdmc+';
   } finally {

@@ -4,6 +4,9 @@ import {
   Point,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { getImageFile, getImageFileAccessUrl } from '@/services/imageServices';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.viewer.features.annotation.canvas.presentation.hooks.useCanvasViewport');
 
 interface UseCanvasViewportOptions {
   imageId: string;
@@ -136,7 +139,7 @@ export function useCanvasViewport({
           setImageUrl(imageAccessUrl);
         }
       } catch (error) {
-        console.error('获取图像失败:', error);
+        logger.error('获取图像失败:', error);
         if (!cancelled) {
           setImageUrl(null);
         }
@@ -165,7 +168,7 @@ export function useCanvasViewport({
       };
       setImageNaturalSize(size);
       onImageSizeChange(size);
-      console.log('图像加载完成，原始尺寸:', {
+      logger.debug('图像加载完成，原始尺寸:', {
         naturalWidth: image.naturalWidth,
         naturalHeight: image.naturalHeight,
         displayWidth: image.width,

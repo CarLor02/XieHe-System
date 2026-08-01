@@ -3,6 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { MeasurementData } from '@/app/imaging/features/image-viewer/public';
 import { renderMeasurement } from '@/app/imaging/features/image-viewer/public';
 import type { AnnotatedImageExportFormat } from '../domain';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.batch.export.usecases.create.annotated.image.export');
 
 // ── 内部工具函数 ────────────────────────────────────────────────────────────
 
@@ -86,7 +89,7 @@ function loadSVGAsImage(svgString: string, width: number, height: number): Promi
     };
     image.onerror = (error) => {
       URL.revokeObjectURL(url);
-      console.error('SVG 加载失败:', error);
+      logger.error('SVG 加载失败:', error);
       reject(new Error('SVG 无法作为图片加载'));
     };
     image.src = url;
@@ -295,8 +298,8 @@ export async function createAnnotatedImageBlob({
     const svgImage = await loadSVGAsImage(svgString, canvas.width, canvas.height);
     ctx.drawImage(svgImage, 0, 0);
   } catch (error) {
-    console.error('SVG 渲染失败:', error);
-    console.log('SVG 内容:', svgString.substring(0, 500)); // 输出前500字符用于调试
+    logger.error('SVG 渲染失败:', error);
+    logger.debug('SVG 内容:', svgString.substring(0, 500)); // 输出前500字符用于调试
     throw error;
   }
 

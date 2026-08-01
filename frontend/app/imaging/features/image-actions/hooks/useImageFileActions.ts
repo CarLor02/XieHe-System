@@ -11,6 +11,9 @@ import {
   splitImageFilename,
   validateImageBasename,
 } from '../domain/imageFilename';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.image.actions.hooks.useImageFileActions');
 
 interface UseImageFileActionsOptions {
   imageFiles: ImageFile[];
@@ -119,7 +122,7 @@ export function useImageFileActions({
             document.body.removeChild(anchor);
             URL.revokeObjectURL(url);
           } catch (error: unknown) {
-            console.error('下载失败:', error);
+            logger.error('下载失败:', error);
             alert(getErrorMessage(error, '下载失败，请重试'));
           }
           break;
@@ -133,13 +136,13 @@ export function useImageFileActions({
               reloadImages();
               alert('影像删除成功');
             } catch (error: unknown) {
-              console.error('删除影像失败:', error);
+              logger.error('删除影像失败:', error);
               alert(getErrorMessage(error, '删除失败，请重试'));
             }
           }
           break;
         default:
-          console.warn(`未知的操作 "${action}"`);
+          logger.warn(`未知的操作 "${action}"`);
       }
     },
     [imageFiles, openRenameDialog, reloadImages]

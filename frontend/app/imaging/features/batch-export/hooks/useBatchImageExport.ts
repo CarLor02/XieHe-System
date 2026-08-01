@@ -5,6 +5,9 @@ import type { ImageFile } from '@/services/imageServices/imageFileService';
 import { type ExportContentType } from '../domain';
 import { buildBatchExportFiles, downloadExportFiles } from '../usecases';
 import { useExportContentOptions } from './use-export-content-options';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('app.imaging.features.batch.export.hooks.useBatchImageExport');
 
 function canExportPrivilegedData(user: ReturnType<typeof useUser>['user']) {
   return Boolean(
@@ -124,7 +127,7 @@ export function useBatchImageExport(imageFiles: ImageFile[]) {
       setExportProgress(100);
       setExportMessage(`成功导出 ${files.length} 个文件！`);
     } catch (error: unknown) {
-      console.error('导出失败:', error);
+      logger.error('导出失败:', error);
       const message =
         error && typeof error === 'object' && 'response' in error
           ? (error as { response?: { data?: { detail?: string } } }).response?.data

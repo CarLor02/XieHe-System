@@ -23,6 +23,9 @@ import {
   isTimeoutError,
   getStatusCode,
 } from '@/lib/api/types';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('services.errorService');
 
 // 错误类型枚举
 export enum ErrorType {
@@ -74,7 +77,7 @@ export interface ClientErrorReportPayload {
 interface ErrorHandlerConfig {
   enableReporting: boolean;
   enableToast: boolean;
-  enableConsoleLog: boolean;
+  enableLogging: boolean;
   reportEndpoint: string;
   maxRetries: number;
   retryDelay: number;
@@ -86,7 +89,7 @@ class ErrorService {
     // 若需启用，须确保后端正常运行，且路径须加上后端 URL 前缀
     enableReporting: false,
     enableToast: true,
-    enableConsoleLog: true,
+    enableLogging: true,
     reportEndpoint: `${typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL ?? '') : ''}/api/v1/errors/report`,
     maxRetries: 1,
     retryDelay: 1000,
@@ -167,8 +170,8 @@ class ErrorService {
       sessionId: this.getSessionId(),
     };
 
-    // 控制台日志
-    if (this.config.enableConsoleLog) {
+    // 应用日志
+    if (this.config.enableLogging) {
       this.logError(errorInfo);
     }
 
@@ -470,7 +473,7 @@ class ErrorService {
     }
   }
 
-  // 控制台日志
+  // 应用日志
   private logError(errorInfo: ErrorInfo) {
     const logMethod = this.getLogMethod(errorInfo.severity);
     logMethod(
@@ -484,13 +487,13 @@ class ErrorService {
     switch (severity) {
       case ErrorSeverity.CRITICAL:
       case ErrorSeverity.HIGH:
-        return console.error;
+        return logger.error;
       case ErrorSeverity.MEDIUM:
-        return console.warn;
+        return logger.warn;
       case ErrorSeverity.LOW:
-        return console.info;
+        return logger.info;
       default:
-        return console.log;
+        return logger.debug;
     }
   }
 
@@ -523,7 +526,7 @@ class ErrorService {
           body: JSON.stringify(errorInfo),
         });
       } catch (reportError) {
-        console.error('Failed to report error:', reportError);
+        logger.error('Failed to report error:', reportError);
         // 重新加入队列，但限制重试次数
         if (
           !errorInfo.details.retryCount ||
