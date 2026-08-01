@@ -3,6 +3,7 @@ import pytest
 from app.core.config import (
     CONFIG_REGISTRY,
     AppSettings,
+    CacheSettings,
     DatabaseSettings,
     RedisSettings,
     database_settings,
@@ -62,10 +63,16 @@ def test_database_settings_keep_mysql_aliases(monkeypatch: pytest.MonkeyPatch) -
     assert database_settings.ASYNC_DATABASE_URL == "mysql+asyncmy://user:pass@db:3306/medical?charset=utf8mb4"
 
 
-def test_redis_url_uses_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/2")
+def test_redis_state_url_uses_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("REDIS_STATE_URL", "redis://redis:6379/2")
 
-    assert RedisSettings().REDIS_URL == "redis://redis:6379/2"
+    assert RedisSettings().REDIS_STATE_URL == "redis://redis:6379/2"
+
+
+def test_query_cache_url_uses_separate_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("REDIS_CACHE_URL", "redis://redis-cache:6379/3")
+
+    assert CacheSettings().REDIS_CACHE_URL == "redis://redis-cache:6379/3"
 
 
 def test_app_settings_parse_comma_separated_lists() -> None:

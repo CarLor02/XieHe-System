@@ -35,6 +35,26 @@ async def test_cpu_health_check_does_not_block_for_sampling(
 
 
 @pytest.mark.asyncio
+async def test_redis_health_reports_state_and_query_cache_independently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def state_unavailable() -> bool:
+        return False
+
+    async def cache_healthy() -> bool:
+        return True
+
+    monkeypatch.setattr(health.state_redis, "ping", state_unavailable)
+    monkeypatch.setattr(health.query_cache, "ping", cache_healthy)
+
+    result = await health.check_redis_health()
+
+    assert result.status == "unhealthy"
+    assert result.details["state"] == "unhealthy"
+    assert result.details["query_cache"] == "healthy"
+
+
+@pytest.mark.asyncio
 async def test_management_health_endpoints_do_not_block_for_cpu_sampling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

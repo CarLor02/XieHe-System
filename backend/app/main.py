@@ -25,13 +25,17 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
-from app.api.v1.endpoints.imaging.handlers.files import start_ai_object_client, stop_ai_object_client
+from app.api.v1.endpoints.imaging.handlers.files import (
+    start_ai_object_client,
+    stop_ai_object_client,
+)
 from app.core.config import settings
 from app.core.system.exceptions import (
     CustomHTTPException,
     ValidationException,
     custom_http_exception_handler,
     http_exception_handler,
+    redis_state_unavailable_handler,
     validation_exception_handler,
 )
 from app.core.system.logger import LogLevel, logger
@@ -42,7 +46,9 @@ from app.services.ai_task_queue import (
     start_ai_task_publisher,
     stop_ai_task_publisher,
 )
-from app.tasks.object_cleanup import start_object_cleanup_scheduler
+from app.shared.cache.aiocache import query_cache
+from app.shared.redis import RedisStateUnavailable, state_redis
+from app.tasks.object_cleanup import start_object_cleanup_scheduler, stop_object_cleanup_scheduler
 
 
 @asynccontextmanager
@@ -59,6 +65,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.emit_event(LogLevel.INFO, message="✅ 数据库连接初始化成功")
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"❌ 数据库连接初始化失败: {e}")
+
+    try:
+        await state_redis.start()
+        logger.emit_event(LogLevel.INFO, message="✅ Redis状态存储连接成功")
+    except Exception as e:
+        # Security-state operations fail closed until the state instance recovers.
+        logger.emit_event(LogLevel.ERROR, message=f"❌ Redis状态存储连接失败: {e}")
+
+    try:
+        await query_cache.start()
+        logger.emit_event(LogLevel.INFO, message="✅ Redis查询缓存连接成功")
+    except Exception as e:
+        # Query services remain available and fall back to MySQL.
+        logger.emit_event(LogLevel.WARNING, message=f"Redis查询缓存不可用，将回退数据库: {e}")
 
     # 启动实时数据推送服务
     try:
@@ -86,6 +106,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 停止实时数据推送服务
     try:
         await stop_realtime_service()
+        await stop_object_cleanup_scheduler()
         logger.emit_event(LogLevel.INFO, message="✅ 实时数据推送服务停止成功")
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"❌ 实时数据推送服务停止失败: {e}")
@@ -105,6 +126,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.emit_event(LogLevel.INFO, message="✅ 数据库连接清理完成")
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"❌ 数据库连接清理失败: {e}")
+
+    try:
+        await query_cache.stop()
+        await state_redis.stop()
+        logger.emit_event(LogLevel.INFO, message="✅ Redis连接清理完成")
+    except Exception as e:
+        logger.emit_event(LogLevel.ERROR, message=f"❌ Redis连接清理失败: {e}")
 
 
 # 创建 FastAPI 应用实例
@@ -141,6 +169,7 @@ app.add_exception_handler(CustomHTTPException, custom_http_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(ValidationException, validation_exception_handler)
+app.add_exception_handler(RedisStateUnavailable, redis_state_unavailable_handler)
 
 
 @app.middleware("http")

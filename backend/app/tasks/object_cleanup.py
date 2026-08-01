@@ -3,26 +3,28 @@
 from __future__ import annotations
 
 import asyncio
-import os
-import socket
 from datetime import datetime, timedelta
-from typing import Any, Optional
-from uuid import uuid4
+from typing import Optional
 
 from app.core.database.session import SessionLocal
-from app.core.system.cache import get_cache_manager
 from app.core.system.logger import LogLevel, logger
 from app.models.image_file import ImageFile
 from app.models.user import User
 from app.services.storage_gateway import StorageServiceError, storage_gateway
+from app.shared.redis import RedisDistributedLock, RedisStateUnavailable
 
 
 OBJECT_CLEANUP_LEADER_LOCK_KEY = "locks:medical_backend:object_cleanup"
 OBJECT_CLEANUP_LEADER_LOCK_TTL_SECONDS = 90
 OBJECT_CLEANUP_LEADER_REFRESH_INTERVAL_SECONDS = 30
-OBJECT_CLEANUP_LEADER_TOKEN = f"{socket.gethostname()}:{os.getpid()}:{uuid4().hex}"
+OBJECT_CLEANUP_LEADER_RETRY_SECONDS = 5
 _object_cleanup_leader_refresh_task: Optional[asyncio.Task] = None
 _object_cleanup_scheduler_task: Optional[asyncio.Task] = None
+_object_cleanup_stopping = False
+_object_cleanup_lock = RedisDistributedLock(
+    OBJECT_CLEANUP_LEADER_LOCK_KEY,
+    ttl_seconds=OBJECT_CLEANUP_LEADER_LOCK_TTL_SECONDS,
+)
 
 
 def _seconds_until_next_midnight() -> float:
@@ -83,37 +85,20 @@ async def cleanup_soft_deleted_objects() -> None:
         db.close()
 
 
-def _normalize_lock_value(value: Any) -> str:
-    """Normalize Redis lock values returned as bytes or strings."""
-    if isinstance(value, bytes):
-        return value.decode()
-    return str(value) if value is not None else ""
-
-
-def _try_acquire_object_cleanup_leader() -> bool:
+async def _try_acquire_object_cleanup_leader() -> bool:
     """Acquire the cross-worker object cleanup leader lock in Redis."""
     try:
-        redis_client = get_cache_manager().redis_client
-        return bool(
-            redis_client.set(
-                OBJECT_CLEANUP_LEADER_LOCK_KEY,
-                OBJECT_CLEANUP_LEADER_TOKEN,
-                nx=True,
-                ex=OBJECT_CLEANUP_LEADER_LOCK_TTL_SECONDS,
-            )
-        )
-    except Exception as exc:
+        return await _object_cleanup_lock.acquire()
+    except RedisStateUnavailable as exc:
         logger.emit_event(LogLevel.ERROR, message=f"获取对象清理 leader 锁失败: {exc}")
         return False
 
 
-def _release_object_cleanup_leader() -> None:
+async def _release_object_cleanup_leader() -> None:
     """Release the object cleanup leader lock only when this process still owns it."""
     try:
-        redis_client = get_cache_manager().redis_client
-        if _normalize_lock_value(redis_client.get(OBJECT_CLEANUP_LEADER_LOCK_KEY)) == OBJECT_CLEANUP_LEADER_TOKEN:
-            redis_client.delete(OBJECT_CLEANUP_LEADER_LOCK_KEY)
-    except Exception as exc:
+        await _object_cleanup_lock.release()
+    except RedisStateUnavailable as exc:
         logger.emit_event(LogLevel.ERROR, message=f"释放对象清理 leader 锁失败: {exc}")
 
 
@@ -122,13 +107,11 @@ async def _refresh_object_cleanup_leader() -> None:
     while True:
         await asyncio.sleep(OBJECT_CLEANUP_LEADER_REFRESH_INTERVAL_SECONDS)
         try:
-            redis_client = get_cache_manager().redis_client
-            if _normalize_lock_value(redis_client.get(OBJECT_CLEANUP_LEADER_LOCK_KEY)) != OBJECT_CLEANUP_LEADER_TOKEN:
+            if not await _object_cleanup_lock.renew():
                 logger.emit_event(LogLevel.WARNING, message="对象清理 leader 锁已丢失，停止当前 worker 的清理任务")
                 if _object_cleanup_scheduler_task is not None and not _object_cleanup_scheduler_task.done():
                     _object_cleanup_scheduler_task.cancel()
                 return
-            redis_client.expire(OBJECT_CLEANUP_LEADER_LOCK_KEY, OBJECT_CLEANUP_LEADER_LOCK_TTL_SECONDS)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -157,19 +140,34 @@ async def _stop_object_cleanup_leader_refresh() -> None:
 async def start_object_cleanup_scheduler() -> None:
     """Run cleanup every day at local midnight."""
 
-    global _object_cleanup_scheduler_task
-    if not _try_acquire_object_cleanup_leader():
-        logger.emit_event(LogLevel.INFO, message="对象存储清理任务已由其他 worker 运行，当前 worker 跳过启动")
-        return
-
+    global _object_cleanup_scheduler_task, _object_cleanup_stopping
+    _object_cleanup_stopping = False
     _object_cleanup_scheduler_task = asyncio.current_task()
-    _start_object_cleanup_leader_refresh()
     try:
-        while True:
-            await asyncio.sleep(_seconds_until_next_midnight())
-            await cleanup_soft_deleted_objects()
+        while not _object_cleanup_stopping:
+            if not await _try_acquire_object_cleanup_leader():
+                await asyncio.sleep(OBJECT_CLEANUP_LEADER_RETRY_SECONDS)
+                continue
+
+            _start_object_cleanup_leader_refresh()
+            try:
+                while not _object_cleanup_stopping:
+                    await asyncio.sleep(_seconds_until_next_midnight())
+                    await cleanup_soft_deleted_objects()
+            finally:
+                await _stop_object_cleanup_leader_refresh()
+                await _release_object_cleanup_leader()
     finally:
-        await _stop_object_cleanup_leader_refresh()
-        _release_object_cleanup_leader()
         if _object_cleanup_scheduler_task is asyncio.current_task():
             _object_cleanup_scheduler_task = None
+
+
+async def stop_object_cleanup_scheduler() -> None:
+    """Stop this worker's scheduler and release its lease."""
+
+    global _object_cleanup_stopping
+    _object_cleanup_stopping = True
+    task = _object_cleanup_scheduler_task
+    if task is not None and not task.done():
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)

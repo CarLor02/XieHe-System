@@ -1,4 +1,4 @@
-from app.api.v1.endpoints.patients.schemas.management import (
+from app.contexts.patients.interface.schemas.management import (
     PatientCreate,
     PatientUpdate,
 )

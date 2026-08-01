@@ -19,9 +19,9 @@ from app.core.database.session import get_db
 from app.core.access.security import security_manager, hash_password_async, verify_password_async
 from app.core.access.auth import get_current_active_user, get_current_user, security
 from app.core.system.exceptions import AuthenticationException, BusinessLogicException
-from app.core.system.cache import get_cache_manager
 from app.core.system.response import success_response
 from app.core.system.errors import ErrorCode
+from app.shared.redis import RedisStateUnavailable
 
 from app.core.system.logger import LogLevel, logger
 
@@ -144,7 +144,7 @@ from ..schemas.auth import (
     UserResponse,
 )
 
-def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> TokenResponse:
+async def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> TokenResponse:
     """
     为用户创建访问令牌和刷新令牌
 
@@ -175,7 +175,7 @@ def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> Token
 
     # 创建令牌
     access_token = security_manager.create_access_token(token_data, access_expires)
-    refresh_token = security_manager.create_refresh_token(token_data, refresh_expires)
+    refresh_token = await security_manager.create_refresh_token(token_data, refresh_expires)
 
     return TokenResponse(
         access_token=access_token,
@@ -269,7 +269,7 @@ async def login(
             raise AuthenticationException("用户账户已被禁用")
 
         # 创建令牌
-        tokens = create_user_tokens(user, login_data.remember_me)
+        tokens = await create_user_tokens(user, login_data.remember_me)
 
         # 记录登录日志
         logger.emit_event(LogLevel.INFO, message=f"用户登录成功: {user['username']} ({user['email']})")
@@ -300,6 +300,8 @@ async def login(
         )
 
     except AuthenticationException:
+        raise
+    except RedisStateUnavailable:
         raise
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"登录失败: {e}")
@@ -430,7 +432,7 @@ async def refresh_token(
     - **refresh_token**: 刷新令牌
     """
     try:
-        payload = security_manager.verify_token(refresh_data.refresh_token, "refresh")
+        payload = await security_manager.verify_token(refresh_data.refresh_token, "refresh")
         if not payload:
             raise AuthenticationException("刷新令牌无效或已过期")
 
@@ -450,7 +452,7 @@ async def refresh_token(
         if not user:
             raise AuthenticationException("刷新令牌对应用户不存在或已禁用")
 
-        token_response = create_user_tokens(user)
+        token_response = await create_user_tokens(user)
         new_tokens = token_response.model_dump()
 
         logger.emit_event(LogLevel.INFO, message="令牌刷新成功")
@@ -461,6 +463,8 @@ async def refresh_token(
         )
 
     except AuthenticationException:
+        raise
+    except RedisStateUnavailable:
         raise
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"令牌刷新失败: {e}")
@@ -484,7 +488,7 @@ async def logout(
     try:
         # 将当前令牌加入黑名单
         if credentials:
-            security_manager.blacklist_token(credentials.credentials)
+            await security_manager.blacklist_token(credentials.credentials)
 
         logger.emit_event(LogLevel.INFO, message=f"用户登出成功: {current_user['username']}")
 
@@ -493,6 +497,8 @@ async def logout(
             message="登出成功"
         )
 
+    except RedisStateUnavailable:
+        raise
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"登出失败: {e}")
         raise HTTPException(
@@ -521,7 +527,7 @@ async def request_password_reset(
             }
 
         # 生成重置令牌
-        reset_token = security_manager.generate_api_key(str(user["id"]), "password_reset")
+        reset_token = await security_manager.generate_api_key(str(user["id"]), "password_reset")
 
         # 这里应该发送重置邮件
         # send_password_reset_email(user["email"], reset_token)
@@ -533,6 +539,8 @@ async def request_password_reset(
             message="如果邮箱存在，重置链接已发送到您的邮箱"
         )
 
+    except RedisStateUnavailable:
+        raise
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"密码重置请求失败: {e}")
         raise HTTPException(
@@ -559,7 +567,7 @@ async def confirm_password_reset(
             raise BusinessLogicException("密码和确认密码不匹配")
 
         # 验证重置令牌
-        token_info = security_manager.verify_api_key(reset_confirm.token)
+        token_info = await security_manager.verify_api_key(reset_confirm.token)
         if not token_info or token_info.get("name") != "password_reset":
             raise AuthenticationException("重置令牌无效或已过期")
 
@@ -571,9 +579,7 @@ async def confirm_password_reset(
         new_password_hash = await hash_password_async(reset_confirm.new_password)
 
         # 撤销重置令牌
-        cache_key = f"api_key:{reset_confirm.token}"
-        cache_manager = get_cache_manager()
-        cache_manager.delete(cache_key)
+        await security_manager.revoke_api_key(reset_confirm.token)
 
         logger.emit_event(LogLevel.INFO, message=f"密码重置成功: 用户ID {user_id}")
 
@@ -583,6 +589,8 @@ async def confirm_password_reset(
         )
 
     except (AuthenticationException, BusinessLogicException):
+        raise
+    except RedisStateUnavailable:
         raise
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"密码重置确认失败: {e}")

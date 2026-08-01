@@ -178,6 +178,16 @@ generate_dotenv_files() {
         print_success "已生成: dotenv/$1"
     }
 
+    ensure_env_value() {
+        local file="$DOTENV_DIR/$1"
+        local key="$2"
+        local value="$3"
+        if ! grep -q "^${key}=" "$file"; then
+            printf '\n%s=%s\n' "$key" "$value" >> "$file"
+            print_info "已补充: dotenv/$1 -> $key"
+        fi
+    }
+
     # --- 生成各类密钥 ---
     # MySQL 密码：优先使用固定密码，否则检测容器或生成随机密码
     if [ -n "$FIXED_MYSQL_PASSWORD" ]; then
@@ -262,6 +272,7 @@ BACKEND_PORT_BIND=0.0.0.0:8080:8080
 FRONTEND_PORT_BIND=0.0.0.0:3030:3000
 MYSQL_PORT_BIND=127.0.0.1:3306:3306
 REDIS_PORT_BIND=127.0.0.1:6380:6379
+REDIS_CACHE_PORT_BIND=127.0.0.1:6381:6379
 MINIO_API_PORT_BIND=0.0.0.0:9000:9000
 MINIO_CONSOLE_PORT_BIND=127.0.0.1:9001:9001
 STORAGE_SERVICE_PORT_BIND=127.0.0.1:8090:8090
@@ -284,7 +295,22 @@ EOF
 
     # --- .env.redis ---
     write_if_missing ".env.redis" <<EOF
-REDIS_URL=redis://redis:6379/0
+REDIS_STATE_URL=redis://redis:6379/0
+REDIS_TIMEOUT=5
+REDIS_STATE_POOL_SIZE=20
+EOF
+    ensure_env_value ".env.redis" "REDIS_STATE_URL" "redis://redis:6379/0"
+    ensure_env_value ".env.ports" "REDIS_CACHE_PORT_BIND" "127.0.0.1:6381:6379"
+
+    # --- .env.cache ---
+    write_if_missing ".env.cache" <<EOF
+REDIS_CACHE_URL=redis://redis-cache:6379/0
+CACHE_ENABLED=true
+CACHE_NAMESPACE=xiehe:cache:v1
+CACHE_OPERATION_TIMEOUT_SECONDS=1
+CACHE_POOL_SIZE=20
+PATIENT_LIST_CACHE_TTL_SECONDS=60
+PATIENT_DETAIL_CACHE_TTL_SECONDS=300
 EOF
 
     # --- .env.minio ---

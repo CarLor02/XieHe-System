@@ -12,26 +12,22 @@
 """
 
 import asyncio
-import json
-import os
-import socket
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass
-from uuid import uuid4
 
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database.session import get_db
-from app.core.system.cache import get_cache_manager
 from app.core.system.logger import LogLevel, logger
+from app.shared.redis import RedisDistributedLock, RedisStateUnavailable
 
 
 REALTIME_LEADER_LOCK_KEY = "locks:medical_backend:realtime_service"
 REALTIME_LEADER_LOCK_TTL_SECONDS = 45
 REALTIME_LEADER_REFRESH_INTERVAL_SECONDS = 15
-REALTIME_LEADER_TOKEN = f"{socket.gethostname()}:{os.getpid()}:{uuid4().hex}"
+REALTIME_LEADER_RETRY_SECONDS = 5
 
 
 @dataclass
@@ -47,7 +43,6 @@ class RealtimeDataService:
     """实时数据缓存刷新服务"""
     
     def __init__(self):
-        self.cache_manager = get_cache_manager()
         self.is_running = False
         self.push_tasks = {}
         
@@ -293,24 +288,8 @@ class RealtimeDataService:
         return []
     
     async def _broadcast_data(self, data: RealtimeData):
-        """写入最新实时数据缓存"""
+        """Record an emitted snapshot until a real transport is connected."""
         logger.emit_event(LogLevel.INFO, message=f"广播数据到频道 {data.channel}: {data.type}")
-        
-        # 将最新数据存储到缓存中，供 HTTP 查询接口或后台任务复用
-        cache_key = f"realtime_data:{data.channel}:latest"
-        cache_data = {
-            "type": data.type,
-            "data": data.data,
-            "timestamp": data.timestamp.isoformat(),
-            "channel": data.channel,
-            "priority": data.priority
-        }
-        
-        self.cache_manager.set(
-            cache_key,
-            json.dumps(cache_data, default=str),
-            ttl=300  # 5分钟过期
-        )
     
     async def send_user_notification(self, user_id: str, notification: Dict[str, Any]):
         """发送用户通知"""
@@ -341,39 +320,27 @@ class RealtimeDataService:
 # 全局实时数据服务实例（延迟初始化）
 realtime_service = None
 _realtime_leader_refresh_task: Optional[asyncio.Task] = None
+_realtime_stopping = False
+_realtime_lock = RedisDistributedLock(
+    REALTIME_LEADER_LOCK_KEY,
+    ttl_seconds=REALTIME_LEADER_LOCK_TTL_SECONDS,
+)
 
 
-def _normalize_lock_value(value: Any) -> str:
-    """Normalize Redis lock values returned as bytes or strings."""
-    if isinstance(value, bytes):
-        return value.decode()
-    return str(value) if value is not None else ""
-
-
-def _try_acquire_realtime_leader() -> bool:
+async def _try_acquire_realtime_leader() -> bool:
     """Acquire the cross-worker realtime leader lock in Redis."""
     try:
-        redis_client = get_cache_manager().redis_client
-        return bool(
-            redis_client.set(
-                REALTIME_LEADER_LOCK_KEY,
-                REALTIME_LEADER_TOKEN,
-                nx=True,
-                ex=REALTIME_LEADER_LOCK_TTL_SECONDS,
-            )
-        )
-    except Exception as exc:
+        return await _realtime_lock.acquire()
+    except RedisStateUnavailable as exc:
         logger.emit_event(LogLevel.ERROR, message=f"获取实时推送 leader 锁失败: {exc}")
         return False
 
 
-def _release_realtime_leader() -> None:
+async def _release_realtime_leader() -> None:
     """Release the realtime leader lock only when this process still owns it."""
     try:
-        redis_client = get_cache_manager().redis_client
-        if _normalize_lock_value(redis_client.get(REALTIME_LEADER_LOCK_KEY)) == REALTIME_LEADER_TOKEN:
-            redis_client.delete(REALTIME_LEADER_LOCK_KEY)
-    except Exception as exc:
+        await _realtime_lock.release()
+    except RedisStateUnavailable as exc:
         logger.emit_event(LogLevel.ERROR, message=f"释放实时推送 leader 锁失败: {exc}")
 
 
@@ -382,13 +349,11 @@ async def _refresh_realtime_leader() -> None:
     while True:
         await asyncio.sleep(REALTIME_LEADER_REFRESH_INTERVAL_SECONDS)
         try:
-            redis_client = get_cache_manager().redis_client
-            if _normalize_lock_value(redis_client.get(REALTIME_LEADER_LOCK_KEY)) != REALTIME_LEADER_TOKEN:
+            if not await _realtime_lock.renew():
                 logger.emit_event(LogLevel.WARNING, message="实时推送 leader 锁已丢失，停止当前 worker 的推送任务")
                 if realtime_service is not None:
                     await realtime_service.stop_service()
                 return
-            redis_client.expire(REALTIME_LEADER_LOCK_KEY, REALTIME_LEADER_LOCK_TTL_SECONDS)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -415,23 +380,29 @@ async def _stop_realtime_leader_refresh() -> None:
 
 async def start_realtime_service():
     """启动实时数据推送服务"""
-    global realtime_service
-    if not _try_acquire_realtime_leader():
-        logger.emit_event(LogLevel.INFO, message="实时数据推送服务已由其他 worker 运行，当前 worker 跳过启动")
-        return
+    global realtime_service, _realtime_stopping
+    _realtime_stopping = False
+    while not _realtime_stopping:
+        if not await _try_acquire_realtime_leader():
+            await asyncio.sleep(REALTIME_LEADER_RETRY_SECONDS)
+            continue
 
-    _start_realtime_leader_refresh()
-    if realtime_service is None:
-        realtime_service = RealtimeDataService()
-    try:
-        await realtime_service.start_service()
-    finally:
-        await _stop_realtime_leader_refresh()
-        _release_realtime_leader()
+        _start_realtime_leader_refresh()
+        if realtime_service is None:
+            realtime_service = RealtimeDataService()
+        try:
+            await realtime_service.start_service()
+        finally:
+            await _stop_realtime_leader_refresh()
+            await _release_realtime_leader()
+        if not _realtime_stopping:
+            await asyncio.sleep(REALTIME_LEADER_RETRY_SECONDS)
 
 async def stop_realtime_service():
     """停止实时数据推送服务"""
-    global realtime_service
+    global realtime_service, _realtime_stopping
+    _realtime_stopping = True
+    await _stop_realtime_leader_refresh()
     if realtime_service is not None:
         await realtime_service.stop_service()
 

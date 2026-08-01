@@ -10,6 +10,7 @@ DOTENV_FILES = (
     "dotenv/.env.ports",
     "dotenv/.env.database",
     "dotenv/.env.redis",
+    "dotenv/.env.cache",
     "dotenv/.env.minio",
     "dotenv/.env.storage",
     "dotenv/.env.backend",

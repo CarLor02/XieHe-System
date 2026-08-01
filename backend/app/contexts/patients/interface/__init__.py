@@ -1,4 +1,4 @@
-"""API endpoints grouped by business domain."""
+"""Patient HTTP interface."""
 
 from .router import router
 

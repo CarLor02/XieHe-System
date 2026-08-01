@@ -14,12 +14,12 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import psutil
-from redis import asyncio as aioredis
 from sqlalchemy import text
 
 from app.core.database.session import get_db
-from app.core.config import settings
 from app.core.system.response import success_response
+from app.shared.cache.aiocache import query_cache
+from app.shared.redis import state_redis
 from ..schemas.health import (
     HealthStatus,
     ComponentHealth,
@@ -63,36 +63,37 @@ async def check_database_health() -> ComponentHealth:
 
 
 async def check_redis_health() -> ComponentHealth:
-    """检查Redis健康状态"""
+    """分别检查强一致状态实例和可丢弃查询缓存实例。"""
     start_time = time.time()
-    try:
-        redis = aioredis.from_url(settings.REDIS_URL)
-        await redis.ping()
-        response_time = time.time() - start_time
-        await redis.close()
-        
-        return ComponentHealth(
-            name="redis",
-            status="healthy",
-            response_time=response_time * 1000,
-            details={
-                "connection": "active",
-                "ping_test": "passed"
-            },
-            last_check=datetime.now().isoformat()
-        )
-    except Exception as e:
-        response_time = time.time() - start_time
-        return ComponentHealth(
-            name="redis",
-            status="unhealthy",
-            response_time=response_time * 1000,
-            details={
-                "error": str(e),
-                "connection": "failed"
-            },
-            last_check=datetime.now().isoformat()
-        )
+    state_ok, cache_ok = await asyncio.gather(
+        state_redis.ping(),
+        query_cache.ping() if query_cache.enabled else asyncio.sleep(0, result=True),
+    )
+    response_time = time.time() - start_time
+    status_value = (
+        "healthy"
+        if state_ok and cache_ok
+        else "unhealthy"
+        if not state_ok
+        else "warning"
+    )
+    return ComponentHealth(
+        name="redis",
+        status=status_value,
+        response_time=response_time * 1000,
+        details={
+            "state": "healthy" if state_ok else "unhealthy",
+            "query_cache": (
+                "disabled"
+                if not query_cache.enabled
+                else "healthy"
+                if cache_ok
+                else "unavailable"
+            ),
+            "query_cache_fallback": not query_cache.enabled or not cache_ok,
+        },
+        last_check=datetime.now().isoformat(),
+    )
 
 
 async def check_file_system_health() -> ComponentHealth:
@@ -395,32 +396,31 @@ async def test_component(component_name: str):
             )
 
     elif component_name == "redis":
-        try:
-            redis = aioredis.from_url(settings.REDIS_URL)
-            # 测试写入和读取
-            await redis.set("health_test", "ok", ex=60)
-            value = await redis.get("health_test")
-            await redis.delete("health_test")
-            await redis.close()
-
-            return success_response(
-                data={
-                    "component": component_name,
-                    "test_result": "passed" if value == b"ok" else "failed",
-                    "details": {"read_write_test": "ok"}
+        state_ok, cache_ok = await asyncio.gather(
+            state_redis.ping(),
+            query_cache.ping()
+            if query_cache.enabled
+            else asyncio.sleep(0, result=True),
+        )
+        passed = state_ok and cache_ok
+        return success_response(
+            data={
+                "component": component_name,
+                "test_result": "passed" if passed else "failed",
+                "details": {
+                    "state": "ok" if state_ok else "failed",
+                    "query_cache": (
+                        "disabled"
+                        if not query_cache.enabled
+                        else "ok"
+                        if cache_ok
+                        else "failed"
+                    ),
                 },
-                message="Redis测试通过"
-            )
-        except Exception as e:
-            return success_response(
-                data={
-                    "component": component_name,
-                    "test_result": "failed",
-                    "error": str(e)
-                },
-                message="Redis测试失败",
-                code=500
-            )
+            },
+            message="Redis测试通过" if passed else "Redis测试失败",
+            code=200 if passed else 500,
+        )
 
     else:
         raise HTTPException(status_code=404, detail=f"Test not available for component: {component_name}")

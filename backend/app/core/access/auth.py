@@ -51,7 +51,7 @@ class AuthManager:
             return None
         
         # 验证访问令牌
-        payload = self.security_manager.verify_token(credentials.credentials, "access")
+        payload = await self.security_manager.verify_token(credentials.credentials, "access")
         if not payload:
             return None
         
@@ -105,7 +105,7 @@ class AuthManager:
             return None
         
         # 验证API密钥
-        api_info = self.security_manager.verify_api_key(api_key)
+        api_info = await self.security_manager.verify_api_key(api_key)
         if not api_info:
             return None
         

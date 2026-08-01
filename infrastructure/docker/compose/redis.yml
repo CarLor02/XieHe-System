@@ -16,3 +16,19 @@ services:
       test: ['CMD', 'redis-cli', 'ping']
       timeout: 10s
       retries: 5
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: medical_redis_cache
+    restart: unless-stopped
+    ports:
+      - '${REDIS_CACHE_PORT_BIND}'
+    volumes:
+      - ../../redis/cache.conf:/usr/local/etc/redis/cache.conf:ro
+    command: redis-server /usr/local/etc/redis/cache.conf
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      timeout: 10s
+      retries: 5

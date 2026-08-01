@@ -17,6 +17,7 @@ from app.core.system.logger import LogLevel, logger
 
 from app.core.system.response import error_response
 from app.core.system.errors import ErrorCode
+from app.shared.redis import RedisStateUnavailable
 
 
 
@@ -203,5 +204,26 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
             error_code=ErrorCode.INTERNAL_ERROR,
             code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             path=str(request.url.path)
+        ),
+    )
+
+
+async def redis_state_unavailable_handler(
+    request: Request,
+    exc: RedisStateUnavailable,
+) -> JSONResponse:
+    """Fail closed when authentication or coordination state is unavailable."""
+
+    logger.emit_event(
+        LogLevel.ERROR,
+        message=f"Redis state unavailable - Path: {request.url.path} - Error: {exc}",
+    )
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content=error_response(
+            message="认证状态服务暂时不可用",
+            error_code=ErrorCode.SERVICE_UNAVAILABLE,
+            code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            path=str(request.url.path),
         ),
     )

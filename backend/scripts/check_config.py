@@ -151,8 +151,8 @@ def check_redis():
     print_section("Redis配置检查")
     
     # 检查配置参数
-    print_result("Redis主机", "INFO", f"{settings.REDIS_HOST}:{settings.REDIS_PORT}")
-    print_result("Redis数据库", "INFO", str(settings.REDIS_DB))
+    print_result("Redis状态实例", "INFO", settings.REDIS_STATE_URL)
+    print_result("Redis查询缓存实例", "INFO", settings.REDIS_CACHE_URL)
     print_result("连接池大小", "INFO", str(setting_value("REDIS_POOL_SIZE", default=10)))
     
     # 检查Redis连接

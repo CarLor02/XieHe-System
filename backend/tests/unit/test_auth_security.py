@@ -11,41 +11,42 @@ from app.api.v1.endpoints.access.schemas.auth import (
 )
 from app.core.access import security as security_module
 from app.core.access.security import (
+    SecurityManager,
     hash_password,
     hash_password_async,
     security_manager,
     verify_password,
     verify_password_async,
 )
+from app.shared.redis import RedisStateUnavailable
 
 
-class InMemoryCache:
+class InMemoryStateStore:
     def __init__(self):
         self.values = {}
 
-    def set(self, key, value, ttl=None, serialize="json"):
+    async def set(self, key, value, *, ttl):
         self.values[key] = value
         return True
 
-    def get(self, key, serialize="json"):
+    async def get(self, key):
         return self.values.get(key)
 
-    def exists(self, key):
+    async def exists(self, key):
         return key in self.values
 
-    def delete(self, *keys):
+    async def delete(self, key):
         deleted = 0
-        for key in keys:
-            if key in self.values:
-                del self.values[key]
-                deleted += 1
+        if key in self.values:
+            del self.values[key]
+            deleted += 1
         return deleted
 
 
 @pytest.fixture(autouse=True)
 def fake_security_cache(monkeypatch):
-    cache = InMemoryCache()
-    monkeypatch.setattr(security_manager, "cache_manager", cache)
+    cache = InMemoryStateStore()
+    monkeypatch.setattr(security_manager, "state_store", cache)
     return cache
 
 
@@ -183,16 +184,14 @@ async def test_refresh_token_reloads_active_user_and_preserves_admin_claims(monk
     }
     db = FakeRefreshDb()
 
-    monkeypatch.setattr(
-        auth_handlers.security_manager,
-        "verify_token",
-        lambda token, token_type="access": refresh_payload if token_type == "refresh" else None,
-    )
-    monkeypatch.setattr(
-        auth_handlers.security_manager,
-        "create_refresh_token",
-        lambda data, expires_delta=None: "new-refresh-token",
-    )
+    async def fake_verify_token(token, token_type="access"):
+        return refresh_payload if token_type == "refresh" else None
+
+    async def fake_create_refresh_token(data, expires_delta=None):
+        return "new-refresh-token"
+
+    monkeypatch.setattr(auth_handlers.security_manager, "verify_token", fake_verify_token)
+    monkeypatch.setattr(auth_handlers.security_manager, "create_refresh_token", fake_create_refresh_token)
 
     response = await auth_handlers.refresh_token(
         TokenRefresh(refresh_token="old-refresh-token"),
@@ -314,61 +313,80 @@ class TestJWTTokens:
         assert isinstance(token, str)
         assert len(token.split(".")) == 3
 
-    def test_refresh_token_creation(self):
-        token = security_manager.create_refresh_token(user_data())
+    @pytest.mark.asyncio
+    async def test_refresh_token_creation(self):
+        token = await security_manager.create_refresh_token(user_data())
 
         assert isinstance(token, str)
         assert len(token.split(".")) == 3
 
-    def test_token_verification(self):
+    @pytest.mark.asyncio
+    async def test_token_verification(self):
         access_token = security_manager.create_access_token(user_data())
-        refresh_token = security_manager.create_refresh_token(user_data())
+        refresh_token = await security_manager.create_refresh_token(user_data())
 
-        access_payload = security_manager.verify_token(access_token)
+        access_payload = await security_manager.verify_token(access_token)
         assert access_payload is not None
         assert access_payload["username"] == "testuser"
         assert access_payload["type"] == "access"
 
-        refresh_payload = security_manager.verify_token(refresh_token, "refresh")
+        refresh_payload = await security_manager.verify_token(refresh_token, "refresh")
         assert refresh_payload is not None
         assert refresh_payload["username"] == "testuser"
         assert refresh_payload["type"] == "refresh"
 
-    def test_invalid_token_verification(self):
-        assert security_manager.verify_token("invalid.token.here") is None
-        assert security_manager.verify_token("") is None
-        assert security_manager.verify_token(None) is None
+    @pytest.mark.asyncio
+    async def test_invalid_token_verification(self):
+        assert await security_manager.verify_token("invalid.token.here") is None
+        assert await security_manager.verify_token("") is None
+        assert await security_manager.verify_token(None) is None
+
+    @pytest.mark.asyncio
+    async def test_state_store_failure_is_not_treated_as_a_valid_stateless_token(self):
+        class FailingStateStore(InMemoryStateStore):
+            async def exists(self, key):
+                raise RedisStateUnavailable("state unavailable")
+
+        manager = SecurityManager(FailingStateStore())
+        token = manager.create_access_token(user_data())
+
+        with pytest.raises(RedisStateUnavailable):
+            await manager.verify_token(token)
 
 
 class TestTokenBlacklist:
-    def test_token_blacklist_functionality(self):
+    @pytest.mark.asyncio
+    async def test_token_blacklist_functionality(self):
         token = security_manager.create_access_token(user_data())
 
-        assert security_manager.verify_token(token) is not None
-        assert security_manager.blacklist_token(token) is True
-        assert security_manager.is_token_blacklisted(token) is True
-        assert security_manager.verify_token(token) is None
+        assert await security_manager.verify_token(token) is not None
+        assert await security_manager.blacklist_token(token) is True
+        assert await security_manager.is_token_blacklisted(token) is True
+        assert await security_manager.verify_token(token) is None
 
 
 class TestAPIKeySecurity:
-    def test_api_key_generation(self):
-        api_key = security_manager.generate_api_key("test_user", "test_purpose")
+    @pytest.mark.asyncio
+    async def test_api_key_generation(self):
+        api_key = await security_manager.generate_api_key("test_user", "test_purpose")
 
         assert isinstance(api_key, str)
         assert len(api_key) > 20
 
-    def test_api_key_verification(self):
-        api_key = security_manager.generate_api_key("test_user", "test_purpose")
+    @pytest.mark.asyncio
+    async def test_api_key_verification(self):
+        api_key = await security_manager.generate_api_key("test_user", "test_purpose")
 
-        key_info = security_manager.verify_api_key(api_key)
+        key_info = await security_manager.verify_api_key(api_key)
 
         assert key_info is not None
         assert key_info["user_id"] == "test_user"
         assert key_info["name"] == "test_purpose"
 
-    def test_invalid_api_key_verification(self):
-        assert security_manager.verify_api_key("invalid_api_key") is None
-        assert security_manager.verify_api_key("") is None
+    @pytest.mark.asyncio
+    async def test_invalid_api_key_verification(self):
+        assert await security_manager.verify_api_key("invalid_api_key") is None
+        assert await security_manager.verify_api_key("") is None
 
 
 def user_data():

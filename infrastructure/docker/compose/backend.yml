@@ -26,7 +26,14 @@ services:
       PYTHONPATH: ${PYTHONPATH}
       ENVIRONMENT: ${ENVIRONMENT}
       DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
+      REDIS_STATE_URL: ${REDIS_STATE_URL}
+      REDIS_CACHE_URL: ${REDIS_CACHE_URL}
+      CACHE_ENABLED: ${CACHE_ENABLED:-true}
+      CACHE_NAMESPACE: ${CACHE_NAMESPACE:-xiehe:cache:v1}
+      CACHE_OPERATION_TIMEOUT_SECONDS: ${CACHE_OPERATION_TIMEOUT_SECONDS:-1}
+      CACHE_POOL_SIZE: ${CACHE_POOL_SIZE:-20}
+      PATIENT_LIST_CACHE_TTL_SECONDS: ${PATIENT_LIST_CACHE_TTL_SECONDS:-60}
+      PATIENT_DETAIL_CACHE_TTL_SECONDS: ${PATIENT_DETAIL_CACHE_TTL_SECONDS:-300}
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
@@ -51,8 +58,8 @@ services:
       REPORT_EXPORT_CONCURRENCY_LIMIT: ${REPORT_EXPORT_CONCURRENCY_LIMIT:-100}
       IMAGE_FILE_BUCKET: ${IMAGE_FILE_BUCKET:-medical-image-files}
       USER_AVATAR_BUCKET: ${USER_AVATAR_BUCKET:-medical-user-avatars}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,minio,kafka,storage-service,logging-service,backend,frontend,medical_mysql,medical_redis,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend,medical_frontend
-      no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,redis,minio,kafka,storage-service,logging-service,backend,frontend,medical_mysql,medical_redis,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend,medical_frontend
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,redis-cache,minio,kafka,storage-service,logging-service,backend,frontend,medical_mysql,medical_redis,medical_redis_cache,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend,medical_frontend
+      no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,redis,redis-cache,minio,kafka,storage-service,logging-service,backend,frontend,medical_mysql,medical_redis,medical_redis_cache,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend,medical_frontend
     ports:
       - '${BACKEND_PORT_BIND}'
     volumes:
@@ -61,6 +68,8 @@ services:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redis-cache:
         condition: service_healthy
       storage-service:
         condition: service_healthy
@@ -92,7 +101,8 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-      REDIS_URL: ${REDIS_URL}
+      REDIS_STATE_URL: ${REDIS_STATE_URL}
+      REDIS_CACHE_URL: ${REDIS_CACHE_URL}
       LOGGING_SERVICE_URL: ${LOGGING_SERVICE_URL:-http://logging-service:8091}
       LOGGING_SERVICE_TOKEN: ${LOGGING_SERVICE_TOKEN:-dev-logging-service-token}
       AI_AP_MEASUREMENT_OBJECT_URL: ${AI_AP_MEASUREMENT_OBJECT_URL:-}
@@ -103,8 +113,8 @@ services:
       AI_TASK_KAFKA_TOPIC: ${AI_TASK_KAFKA_TOPIC:-medical.image-ai.predict.v1}
       AI_TASK_KAFKA_GROUP_ID: ${AI_TASK_KAFKA_GROUP_ID:-medical-image-ai-worker-v1}
       AI_WORKER_CONCURRENCY: ${AI_WORKER_CONCURRENCY:-2}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,minio,kafka,storage-service,logging-service,backend,medical_mysql,medical_redis,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend
-      no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,redis,minio,kafka,storage-service,logging-service,backend,medical_mysql,medical_redis,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,redis-cache,minio,kafka,storage-service,logging-service,backend,medical_mysql,medical_redis,medical_redis_cache,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend
+      no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,redis,redis-cache,minio,kafka,storage-service,logging-service,backend,medical_mysql,medical_redis,medical_redis_cache,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend
     depends_on:
       backend:
         condition: service_healthy

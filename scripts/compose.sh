@@ -32,6 +32,7 @@ ENV_FILES=(
   "dotenv/.env.ports"
   "dotenv/.env.database"
   "dotenv/.env.redis"
+  "dotenv/.env.cache"
   "dotenv/.env.minio"
   "dotenv/.env.kafka"
   "dotenv/.env.storage"

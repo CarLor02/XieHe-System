@@ -18,6 +18,7 @@ def test_compose_wrapper_loads_all_required_dotenv_files() -> None:
         "dotenv/.env.ports",
         "dotenv/.env.database",
         "dotenv/.env.redis",
+        "dotenv/.env.cache",
         "dotenv/.env.minio",
         "dotenv/.env.kafka",
         "dotenv/.env.storage",
@@ -34,6 +35,8 @@ def test_python_settings_load_concurrency_dotenv_files() -> None:
 
     assert '"dotenv/.env.concurrency"' in base_settings
     assert '"../dotenv/.env.concurrency"' in base_settings
+    assert '"dotenv/.env.cache"' in base_settings
+    assert '"../dotenv/.env.cache"' in base_settings
 
 
 def test_backend_compose_injects_python_settings_env_names() -> None:
@@ -48,6 +51,8 @@ def test_backend_compose_injects_python_settings_env_names() -> None:
         "BATCH_IMPORT_MAX_FILES",
         "KAFKA_BOOTSTRAP_SERVERS",
         "AI_TASK_KAFKA_TOPIC",
+        "REDIS_STATE_URL",
+        "REDIS_CACHE_URL",
     ):
         assert f"{name}:" in backend_compose
 
@@ -59,9 +64,13 @@ def test_backend_compose_injects_python_settings_env_names() -> None:
 def test_redis_compose_mounts_existing_config_file() -> None:
     redis_compose = read("infrastructure/docker/compose/redis.yml")
     redis_config = REPO_ROOT / "infrastructure" / "redis" / "redis.conf"
+    cache_config = REPO_ROOT / "infrastructure" / "redis" / "cache.conf"
 
     assert "../../redis/redis.conf:/usr/local/etc/redis/redis.conf:ro" in redis_compose
     assert redis_config.is_file()
+    assert "redis-cache:" in redis_compose
+    assert "../../redis/cache.conf:/usr/local/etc/redis/cache.conf:ro" in redis_compose
+    assert cache_config.is_file()
 
 
 def test_pc_deploy_generates_required_dotenv_files() -> None:
@@ -71,5 +80,6 @@ def test_pc_deploy_generates_required_dotenv_files() -> None:
         ".env.kafka",
         ".env.logging",
         ".env.concurrency",
+        ".env.cache",
     ):
         assert f'write_if_missing "{env_file}"' in deploy_script

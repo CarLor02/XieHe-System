@@ -6,9 +6,10 @@ API v1 主路由配置
 
 from fastapi import APIRouter
 
+from app.contexts.patients.interface import router as patients_router
+
 from .endpoints.access import router as access_router
 from .endpoints.imaging import router as imaging_router
-from .endpoints.patients import router as patients_router
 from .endpoints.reports import router as reports_router
 from .endpoints.system import router as system_router
 

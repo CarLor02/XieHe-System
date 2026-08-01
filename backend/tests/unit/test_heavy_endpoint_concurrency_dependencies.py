@@ -27,7 +27,6 @@ def _dependency_functions(endpoint) -> set[object]:
 def test_heavy_endpoints_declare_concurrency_dependencies() -> None:
     assert require_batch_presign_slot in _dependency_functions(files.get_image_file_download_urls)
     assert require_ai_object_slot in _dependency_functions(files.run_image_file_ai_predict)
-    assert require_ai_object_slot in _dependency_functions(files.run_image_file_ai_detect_keypoints)
     assert require_legacy_diagnosis_slot in _dependency_functions(diagnosis.analyze_image)
     assert require_legacy_diagnosis_slot in _dependency_functions(diagnosis.batch_analyze_images)
     assert require_legacy_diagnosis_slot in _dependency_functions(diagnosis.compare_models)

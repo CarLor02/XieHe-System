@@ -1,11 +1,17 @@
 from __future__ import annotations
 
-import redis.asyncio as async_redis
+import pytest
 
-from app.core.database.session import get_async_redis
+from app.shared.redis.client import RedisStateClientManager
+from app.shared.redis.exceptions import RedisStateUnavailable
 
 
-def test_get_async_redis_returns_async_client() -> None:
-    client = get_async_redis()
+def test_state_redis_requires_lifecycle_or_lazy_start() -> None:
+    manager = RedisStateClientManager(
+        url="redis://127.0.0.1:6379/0",
+        timeout=0.1,
+        pool_size=1,
+    )
 
-    assert isinstance(client, async_redis.Redis)
+    with pytest.raises(RedisStateUnavailable):
+        manager.get()

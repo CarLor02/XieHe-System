@@ -1,8 +1,8 @@
-"""Patient-domain API router."""
+"""Mounted patient-context routes."""
 
 from fastapi import APIRouter
 
-from .handlers import management
+from . import management
 
 router = APIRouter()
 router.include_router(management.router, prefix="/patients", tags=["患者管理"])
