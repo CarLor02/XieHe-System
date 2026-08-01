@@ -144,8 +144,3 @@ class PermissionMatrix(BaseModel):
     permissions: List[str]
     roles: List[str]
     matrix: Dict[str, Dict[str, Dict[str, bool]]]  # role -> resource -> permission -> allowed
-
-
-class MemberRoleUpdateRequest(BaseModel):
-    """更新成员角色请求"""
-    role: str = Field(..., description="新角色（ADMIN/MEMBER/GUEST）")

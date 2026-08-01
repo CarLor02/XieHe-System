@@ -16,6 +16,7 @@ class CacheSettings(BaseAppSettings):
     CACHE_POOL_SIZE: int = 20
     PATIENT_LIST_CACHE_TTL_SECONDS: int = 60
     PATIENT_DETAIL_CACHE_TTL_SECONDS: int = 300
+    TEAM_QUERY_CACHE_TTL_SECONDS: int = 60
 
 
 cache_settings = CacheSettings()

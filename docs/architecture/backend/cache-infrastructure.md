@@ -43,6 +43,16 @@ app/shared/
 | 患者详情 | 300 秒 | `patients:detail:{id}` |
 | 患者档案读取 | 300 秒 | `patients:archive:{id}` |
 
+团队 context 当前使用：
+
+| 数据 | 默认 TTL | 失效命名空间 |
+| --- | ---: | --- |
+| 团队搜索 | 60 秒 | `teams:queries` |
+| 我的团队 | 60 秒 | `teams:queries` |
+| 团队成员列表 | 60 秒 | `teams:queries` |
+
+团队加入申请和邀请属于时效性工作流，不读取查询缓存。团队创建、编辑、申请、审核、撤销、成员角色调整、成员移除、邀请和邀请响应在数据库提交成功后统一递增 `teams:queries` generation。当前用户规模较小，统一命名空间比按团队和用户维护失效扇出更稳妥。
+
 TTL 可通过 `dotenv/.env.cache` 调整。`CACHE_NAMESPACE` 不应包含末尾冒号，aiocache 的 Redis 后端会自动插入 namespace 分隔符。
 
 ## 状态 Redis 规则

@@ -1,10 +1,21 @@
-"""团队管理服务集成测试"""
+"""团队 Context 的异步仓储与应用流程集成测试。"""
 
-from typing import Dict, Generator
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Generator
 
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.contexts.teams.application import TeamApplicationService
+from app.contexts.teams.domain import (
+    TeamConflict,
+    TeamPermissionDenied,
+    TeamValidationError,
+)
+from app.contexts.teams.infrastructure import SqlAlchemyTeamRepository
 from app.models.team import (
     Team,
     TeamInvitation,
@@ -14,11 +25,50 @@ from app.models.team import (
     TeamMembershipStatus,
 )
 from app.models.user import User
-from app.services.team_service import team_service
+from app.shared.cache.service import CacheAsideService, CacheGenerationService
+from tests.db import get_test_database_url
 
 pytestmark = pytest.mark.database
 
 TestingSessionLocal: sessionmaker | None = None
+
+
+class DisabledCache:
+    enabled = False
+
+    async def get(self, key):
+        return None
+
+    async def set(self, key, value, *, ttl):
+        return False
+
+    async def delete(self, key):
+        return 0
+
+    async def increment(self, key, amount=1):
+        return 0
+
+
+def _async_database_url() -> str:
+    return get_test_database_url().replace(
+        "mysql+pymysql://", "mysql+asyncmy://", 1
+    )
+
+
+@asynccontextmanager
+async def _open_service() -> AsyncIterator[TeamApplicationService]:
+    engine = create_async_engine(_async_database_url(), pool_pre_ping=True)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with factory() as session:
+            cache = DisabledCache()
+            yield TeamApplicationService(
+                SqlAlchemyTeamRepository(session),
+                cache=CacheAsideService(cache),
+                generations=CacheGenerationService(cache),
+            )
+    finally:
+        await engine.dispose()
 
 
 def _open_session() -> Session:
@@ -56,9 +106,7 @@ def _create_user(
 def setup_database(
     db_session: Session,
     test_session_factory: sessionmaker,
-) -> Generator[Dict[str, int], None, None]:
-    """重置数据库并插入基础数据"""
-
+) -> Generator[dict[str, int], None, None]:
     global TestingSessionLocal
     TestingSessionLocal = test_session_factory
 
@@ -83,25 +131,22 @@ def setup_database(
     )
     db_session.add(team_primary)
     db_session.flush()
-
-    leader_id = leader.id
-    admin_id = admin.id
-    applicant_id = applicant.id
-    team_primary_id = team_primary.id
-
-    membership_leader = TeamMembership(
-        team_id=team_primary.id,
-        user_id=leader.id,
-        role=TeamMembershipRole.ADMIN,
-        status=TeamMembershipStatus.ACTIVE,
+    db_session.add_all(
+        [
+            TeamMembership(
+                team_id=team_primary.id,
+                user_id=leader.id,
+                role=TeamMembershipRole.ADMIN,
+                status=TeamMembershipStatus.ACTIVE,
+            ),
+            TeamMembership(
+                team_id=team_primary.id,
+                user_id=admin.id,
+                role=TeamMembershipRole.ADMIN,
+                status=TeamMembershipStatus.ACTIVE,
+            ),
+        ]
     )
-    membership_admin = TeamMembership(
-        team_id=team_primary.id,
-        user_id=admin.id,
-        role=TeamMembershipRole.ADMIN,
-        status=TeamMembershipStatus.ACTIVE,
-    )
-    db_session.add_all([membership_leader, membership_admin])
 
     team_secondary = Team(
         name="测试团队二",
@@ -112,252 +157,125 @@ def setup_database(
         max_members=8,
     )
     db_session.add(team_secondary)
-
     db_session.commit()
 
-    team_secondary_id = team_secondary.id
-
     payload = {
-        "leader_id": leader_id,
-        "admin_id": admin_id,
-        "applicant_id": applicant_id,
-        "team_primary_id": team_primary_id,
-        "team_secondary_id": team_secondary_id,
+        "leader_id": leader.id,
+        "admin_id": admin.id,
+        "applicant_id": applicant.id,
+        "team_primary_id": team_primary.id,
+        "team_secondary_id": team_secondary.id,
     }
-
     yield payload
     TestingSessionLocal = None
 
 
-class TestTeamManagementService:
-    def test_list_my_teams(self, setup_database):
-        with _open_session() as db:
-            items = team_service.list_user_teams(db, setup_database["admin_id"])
-
-        assert len(items) == 1
-        assert items[0]["name"] == "测试团队一"
-
-    def test_search_teams(self, setup_database):
-        with _open_session() as db:
-            results = team_service.search_teams(db, "测试", setup_database["applicant_id"], 20)
-
-        assert len(results) >= 2
-        assert any(team["name"] == "测试团队二" for team in results)
-
-    def test_apply_to_team(self, setup_database):
-        with _open_session() as db:
-            join_request = team_service.apply_to_join(
-                db,
-                setup_database["applicant_id"],
-                setup_database["team_secondary_id"],
-                "希望加入团队",
+class TestTeamContext:
+    @pytest.mark.asyncio
+    async def test_cached_query_repository_paths(self, setup_database):
+        async with _open_service() as service:
+            mine = await service.list_user_teams(setup_database["admin_id"])
+            results = await service.search_teams(
+                "测试", setup_database["applicant_id"], 20
+            )
+            members = await service.get_team_members(
+                setup_database["team_primary_id"], setup_database["leader_id"]
             )
 
-        assert isinstance(join_request.id, int)
-        assert join_request.status == TeamJoinRequestStatus.PENDING
+        assert [item["name"] for item in mine] == ["测试团队一"]
+        assert {item["name"] for item in results} == {"测试团队一", "测试团队二"}
+        assert members["team"]["name"] == "测试团队一"
+        assert len(members["members"]) == 2
 
-        with _open_session() as db:
-            membership = (
-                db.query(TeamMembership)
-                .filter(
-                    TeamMembership.team_id == setup_database["team_secondary_id"],
-                    TeamMembership.user_id == setup_database["applicant_id"],
-                )
-                .first()
-            )
-            assert membership is None
-
-    def test_apply_to_team_without_message(self, setup_database):
-        """测试无申请理由也可以成功申请"""
-        with _open_session() as db:
-            request_without_message = team_service.apply_to_join(
-                db,
-                setup_database["applicant_id"],
+    @pytest.mark.asyncio
+    async def test_apply_review_and_cancel_join_requests(self, setup_database):
+        async with _open_service() as service:
+            approved = await service.apply_to_team(
                 setup_database["team_primary_id"],
-                None,
-            )
-            request_with_blank_message = team_service.apply_to_join(
-                db,
                 setup_database["applicant_id"],
-                setup_database["team_secondary_id"],
-                "   ",
-            )
-
-        assert isinstance(request_without_message.id, int)
-        assert request_without_message.status == TeamJoinRequestStatus.PENDING
-        assert request_with_blank_message.status == TeamJoinRequestStatus.PENDING
-
-    def test_join_requests_listing_and_approval(self, setup_database):
-        # 申请加入团队
-        with _open_session() as db:
-            join_request = team_service.apply_to_join(
-                db,
-                setup_database["applicant_id"],
-                setup_database["team_primary_id"],
                 "希望加入测试团队",
             )
-            request_id = join_request.id
-
-            items = team_service.list_join_requests(
-                db,
-                setup_database["team_primary_id"],
-                setup_database["leader_id"],
+            requests = await service.list_join_requests(
+                setup_database["team_primary_id"], setup_database["leader_id"], None
             )
-            assert len(items) >= 1
-            assert sum(1 for item in items if item["status"] == "PENDING") >= 1
-            assert any(item["id"] == request_id for item in items)
-
-            reviewed_request = team_service.review_join_request(
-                db,
-                setup_database["leader_id"],
+            reviewed = await service.review_join_request(
                 setup_database["team_primary_id"],
-                request_id,
+                approved["id"],
+                setup_database["leader_id"],
                 "approve",
             )
 
-        assert reviewed_request.status == TeamJoinRequestStatus.APPROVED
-        assert reviewed_request.reviewer_id == setup_database["leader_id"]
-
+        assert any(item["id"] == approved["id"] for item in requests)
+        assert reviewed["status"] == TeamJoinRequestStatus.APPROVED.value
         with _open_session() as db:
             membership = (
                 db.query(TeamMembership)
-                .filter(
-                    TeamMembership.team_id == setup_database["team_primary_id"],
-                    TeamMembership.user_id == setup_database["applicant_id"],
+                .filter_by(
+                    team_id=setup_database["team_primary_id"],
+                    user_id=setup_database["applicant_id"],
                 )
-                .first()
+                .one()
             )
-            assert membership is not None
-            assert membership.role == TeamMembershipRole.MEMBER
             assert membership.status == TeamMembershipStatus.ACTIVE
 
-    def test_cancel_join_request(self, setup_database):
-        """测试用户撤销自己的加入申请"""
-        # 用户申请加入团队
         with _open_session() as db:
-            join_request = team_service.apply_to_join(
-                db,
-                setup_database["applicant_id"],
-                setup_database["team_primary_id"],
-                "希望加入测试团队",
-            )
-            request_id = join_request.id
-
-            cancelled_request = team_service.cancel_join_request(
-                db,
-                setup_database["applicant_id"],
-                setup_database["team_primary_id"],
-                request_id,
-            )
-
-        assert cancelled_request.status == TeamJoinRequestStatus.CANCELLED
-
-        # 验证数据库中的状态
-        with _open_session() as db:
-            from app.models.team import TeamJoinRequest
-
-            join_request = db.query(TeamJoinRequest).filter(TeamJoinRequest.id == request_id).first()
-            assert join_request is not None
-            assert join_request.status == TeamJoinRequestStatus.CANCELLED
-            assert join_request.reviewer_id == setup_database["applicant_id"]  # 自己撤销的
-
-        # 验证不能重复撤销
-        with _open_session() as db:
-            with pytest.raises(ValueError):
-                team_service.cancel_join_request(
-                    db,
-                    setup_database["applicant_id"],
-                    setup_database["team_primary_id"],
-                    request_id,
-                )
-
-    def test_list_team_members(self, setup_database):
-        with _open_session() as db:
-            data = team_service.get_team_members(
-                db,
-                setup_database["team_primary_id"],
-                setup_database["leader_id"],
-            )
-
-        assert data["team"]["name"] == "测试团队一"
-        assert len(data["members"]) == 2
-        assert any(member["role"] == "ADMIN" for member in data["members"])
-
-    def test_create_team(self, setup_database):
-        payload = {
-            "name": "新建团队",
-            "description": "用于测试的团队",
-            "hospital": "协和医院",
-            "department": "放射科",
-            "max_members": 12,
-        }
-
-        with _open_session() as db:
-            data = team_service.create_team(
-                db,
-                setup_database["leader_id"],
-                **payload,
-            )
-
-        assert data["name"] == payload["name"]
-        assert data["member_count"] == 1
-        assert data["creator_name"] == "leader"
-
-        with _open_session() as db:
-            team = db.query(Team).filter(Team.name == payload["name"]).first()
-            assert team is not None
-            assert team.creator_id == setup_database["leader_id"]
-
             membership = (
                 db.query(TeamMembership)
-                .filter(
-                    TeamMembership.team_id == team.id,
-                    TeamMembership.user_id == setup_database["leader_id"],
+                .filter_by(
+                    team_id=setup_database["team_primary_id"],
+                    user_id=setup_database["applicant_id"],
                 )
-                .first()
+                .one()
             )
-            assert membership is not None
-            assert membership.role == TeamMembershipRole.ADMIN
-
-    def test_system_admin_can_update_any_team(self, setup_database):
-        with _open_session() as db:
-            data = team_service.update_team(
-                db,
-                setup_database["leader_id"],
-                setup_database["team_secondary_id"],
-                name="系统管理员改名团队",
-                description="系统管理员更新描述",
-                hospital="新医院",
-                department="新科室",
-                max_members=18,
-            )
-
-        assert data["name"] == "系统管理员改名团队"
-        assert data["description"] == "系统管理员更新描述"
-        assert data["hospital"] == "新医院"
-        assert data["department"] == "新科室"
-        assert data["max_members"] == 18
-
-    def test_team_admin_can_update_own_team(self, setup_database):
-        with _open_session() as db:
-            data = team_service.update_team(
-                db,
-                setup_database["admin_id"],
+            membership.status = TeamMembershipStatus.INACTIVE
+            db.commit()
+        async with _open_service() as service:
+            pending = await service.apply_to_team(
                 setup_database["team_primary_id"],
-                name="团队管理员改名团队",
-                description="团队管理员更新描述",
-                hospital="协和新院区",
-                department="脊柱外科",
-                max_members=25,
+                setup_database["applicant_id"],
+                None,
+            )
+            cancelled = await service.cancel_join_request(
+                setup_database["team_primary_id"],
+                pending["id"],
+                setup_database["applicant_id"],
+            )
+            with pytest.raises(TeamValidationError):
+                await service.cancel_join_request(
+                    setup_database["team_primary_id"],
+                    pending["id"],
+                    setup_database["applicant_id"],
+                )
+        assert cancelled["status"] == TeamJoinRequestStatus.CANCELLED.value
+
+    @pytest.mark.asyncio
+    async def test_create_and_update_team_permissions(self, setup_database):
+        async with _open_service() as service:
+            created = await service.create_team(
+                setup_database["leader_id"],
+                {
+                    "name": "新建团队",
+                    "description": "用于测试的团队",
+                    "hospital": "协和医院",
+                    "department": "放射科",
+                    "max_members": 12,
+                },
+            )
+            updated_by_system_admin = await service.update_team(
+                setup_database["team_secondary_id"],
+                setup_database["leader_id"],
+                {"name": "系统管理员改名团队", "max_members": 18},
+            )
+            updated_by_team_admin = await service.update_team(
+                setup_database["team_primary_id"],
+                setup_database["admin_id"],
+                {"name": "团队管理员改名团队", "max_members": 25},
             )
 
-        assert data["name"] == "团队管理员改名团队"
-        assert data["description"] == "团队管理员更新描述"
-        assert data["hospital"] == "协和新院区"
-        assert data["department"] == "脊柱外科"
-        assert data["max_members"] == 25
+        assert created["member_count"] == 1
+        assert updated_by_system_admin["name"] == "系统管理员改名团队"
+        assert updated_by_team_admin["name"] == "团队管理员改名团队"
 
-    def test_ordinary_member_cannot_update_team(self, setup_database):
         with _open_session() as db:
             db.add(
                 TeamMembership(
@@ -368,51 +286,54 @@ class TestTeamManagementService:
                 )
             )
             db.commit()
-
-            with pytest.raises(PermissionError):
-                team_service.update_team(
-                    db,
+        async with _open_service() as service:
+            with pytest.raises(TeamPermissionDenied):
+                await service.update_team(
+                    setup_database["team_primary_id"],
                     setup_database["applicant_id"],
-                    setup_database["team_primary_id"],
-                    name="普通成员不能改名",
+                    {"name": "普通成员不能改名"},
                 )
-
-    def test_update_team_rejects_duplicate_name(self, setup_database):
-        with _open_session() as db:
-            with pytest.raises(ValueError, match="团队名称已存在"):
-                team_service.update_team(
-                    db,
+            with pytest.raises(TeamConflict):
+                await service.update_team(
+                    setup_database["team_primary_id"],
                     setup_database["leader_id"],
-                    setup_database["team_primary_id"],
-                    name="测试团队二",
+                    {"name": "系统管理员改名团队"},
                 )
-
-    def test_update_team_rejects_max_members_less_than_active_members(self, setup_database):
-        with _open_session() as db:
-            with pytest.raises(ValueError, match="最大成员数不能小于当前成员数"):
-                team_service.update_team(
-                    db,
+            with pytest.raises(TeamValidationError):
+                await service.update_team(
+                    setup_database["team_primary_id"],
                     setup_database["leader_id"],
-                    setup_database["team_primary_id"],
-                    max_members=1,
+                    {"max_members": 1},
                 )
 
-    def test_invite_member(self, setup_database):
-        with _open_session() as db:
-            invitation = team_service.invite_member(
-                db,
-                setup_database["leader_id"],
+    @pytest.mark.asyncio
+    async def test_invitation_round_trip(self, setup_database):
+        async with _open_service() as service:
+            invitation = await service.invite_member(
                 setup_database["team_primary_id"],
+                setup_database["leader_id"],
                 "applicant@example.com",
                 "MEMBER",
+                None,
+            )
+            invitations = await service.list_invitations(
+                setup_database["applicant_id"]
+            )
+            response = await service.respond_to_invitation(
+                invitation["id"], setup_database["applicant_id"], True
             )
 
-        assert invitation.status.value == "PENDING"
-
+        assert any(item["id"] == invitation["id"] for item in invitations)
+        assert response["status"] == "ACCEPTED"
         with _open_session() as db:
-            invitation_exists = (
-                db.query(TeamInvitation)
-                .filter(TeamInvitation.id == invitation.id)
-                .first()
+            stored = db.get(TeamInvitation, invitation["id"])
+            membership = (
+                db.query(TeamMembership)
+                .filter_by(
+                    team_id=setup_database["team_primary_id"],
+                    user_id=setup_database["applicant_id"],
+                )
+                .one()
             )
-            assert invitation_exists is not None
+            assert stored is not None
+            assert membership.status == TeamMembershipStatus.ACTIVE

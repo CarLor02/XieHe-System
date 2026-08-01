@@ -1,4 +1,4 @@
-from app.schemas.team import TeamSummary
+from app.contexts.teams.interface.schemas import TeamSummary
 
 
 def test_team_summary_preserves_current_user_membership_fields() -> None:
