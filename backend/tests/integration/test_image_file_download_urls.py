@@ -93,7 +93,9 @@ async def test_batch_download_urls_presigns_visible_ready_files_and_sets_cache_h
         presigned_calls.append((bucket, object_key, expires_in))
         return f"/{bucket}/{object_key}?signature={len(presigned_calls)}"
 
-    monkeypatch.setattr(file_handlers.storage_gateway, "presign_get", fake_presign_get)
+    monkeypatch.setattr(
+        file_handlers.storage_service_client, "presign_get", fake_presign_get
+    )
     monkeypatch.setattr(
         file_handlers,
         "get_visible_image_file",
@@ -135,7 +137,9 @@ async def test_single_download_url_sets_private_cache_headers(
     async def fake_presign_get(bucket: str, object_key: str, expires_in: int) -> str:
         return f"/{bucket}/{object_key}?signature=single"
 
-    monkeypatch.setattr(file_handlers.storage_gateway, "presign_get", fake_presign_get)
+    monkeypatch.setattr(
+        file_handlers.storage_service_client, "presign_get", fake_presign_get
+    )
 
     response = Response()
     result = await file_handlers.get_image_file_download_url(

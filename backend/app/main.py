@@ -45,9 +45,9 @@ from app.services.ai_task_queue import (
     stop_ai_task_publisher,
 )
 from app.services.realtime_service import start_realtime_service, stop_realtime_service
-from app.services.storage_gateway import storage_gateway
 from app.shared.cache.aiocache import query_cache
 from app.shared.redis import RedisStateUnavailable, state_redis
+from app.shared.storage import storage_service_client
 from app.tasks.object_cleanup import (
     start_object_cleanup_scheduler,
     stop_object_cleanup_scheduler,
@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         import asyncio
 
-        await storage_gateway.start()
+        await storage_service_client.start()
         await start_ai_object_client()
         asyncio.create_task(start_realtime_service())
         asyncio.create_task(start_object_cleanup_scheduler())
@@ -122,7 +122,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         await stop_ai_task_publisher()
         await stop_ai_object_client()
-        await storage_gateway.stop()
+        await storage_service_client.stop()
         logger.emit_event(LogLevel.INFO, message="✅ 内部HTTP客户端已关闭")
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"❌ 内部HTTP客户端关闭失败: {e}")

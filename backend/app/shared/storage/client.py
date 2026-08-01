@@ -3,31 +3,19 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Optional
 from urllib.parse import quote
 
 import httpx
 
-from app.core.config import settings
+from app.core.config import storage_settings
+
+from .exceptions import StorageServiceError
+from .models import StorageObjectStat
 
 
-@dataclass(frozen=True)
-class StorageObjectStat:
-    bucket: str
-    object_key: str
-    size: int
-    etag: Optional[str]
-    content_type: Optional[str]
-    metadata: Dict[str, str]
-
-
-class StorageServiceError(RuntimeError):
-    """Raised when the storage service rejects a request."""
-
-
-class StorageGateway:
-    """Small async wrapper around the internal object-storage service."""
+class StorageServiceClient:
+    """Async client for the internal object-storage service."""
 
     def __init__(
         self,
@@ -37,14 +25,14 @@ class StorageGateway:
         timeout: Optional[float] = None,
         async_transport: Optional[httpx.AsyncBaseTransport] = None,
     ) -> None:
-        self.base_url = (base_url or settings.STORAGE_SERVICE_URL).rstrip("/")
+        self.base_url = (base_url or storage_settings.STORAGE_SERVICE_URL).rstrip("/")
         self.timeout = (
-            timeout if timeout is not None else settings.STORAGE_SERVICE_TIMEOUT
+            timeout if timeout is not None else storage_settings.STORAGE_SERVICE_TIMEOUT
         )
         self.headers = {
             "X-Storage-Service-Token": token
             if token is not None
-            else settings.STORAGE_SERVICE_TOKEN
+            else storage_settings.STORAGE_SERVICE_TOKEN
         }
         self.async_transport = async_transport
         self._client: Optional[httpx.AsyncClient] = None
@@ -55,9 +43,7 @@ class StorageGateway:
         async with self._client_lock:
             if self._client is not None and not self._client.is_closed:
                 return
-            # Use retries=0 to avoid connection-pool reuse of stale / failed
-            # connections (e.g. when localhost resolves to IPv6 ::1 first on
-            # macOS and the port is only bound on 127.0.0.1).
+            # Avoid connection-pool reuse after localhost IPv6/IPv4 failures.
             transport = self.async_transport or httpx.AsyncHTTPTransport(retries=0)
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
@@ -212,4 +198,4 @@ class StorageGateway:
         )
 
 
-storage_gateway = StorageGateway()
+storage_service_client = StorageServiceClient()

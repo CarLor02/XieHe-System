@@ -68,7 +68,7 @@ from app.services.image_file_visibility import (
     replace_image_team_visibility,
     validate_assignable_team_ids,
 )
-from app.services.storage_gateway import StorageServiceError, storage_gateway
+from app.shared.storage import StorageServiceError, storage_service_client
 
 from ..schemas.files import (
     BatchDownloadUrlsRequest,
@@ -952,7 +952,7 @@ async def get_image_file_download_url(
             )
 
         expires_in = settings.STORAGE_PRESIGN_EXPIRES_SECONDS
-        url = await storage_gateway.presign_get(
+        url = await storage_service_client.presign_get(
             bucket=image.storage_bucket,
             object_key=image.object_key,
             expires_in=expires_in,
@@ -1027,7 +1027,7 @@ async def get_image_file_download_urls(
             continue
 
         try:
-            url = await storage_gateway.presign_get(
+            url = await storage_service_client.presign_get(
                 bucket=image.storage_bucket,
                 object_key=image.object_key,
                 expires_in=expires_in,
@@ -1174,7 +1174,7 @@ async def replace_image_file_content(
                 detail="替换文件不能为空",
             )
 
-        upload_result = await storage_gateway.put_object(
+        upload_result = await storage_service_client.put_object(
             bucket=image.storage_bucket,
             object_key=image.object_key,
             data=content,

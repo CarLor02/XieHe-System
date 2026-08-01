@@ -26,8 +26,8 @@ from app.core.database.session import get_db
 from app.core.system.exceptions import AuthenticationException, BusinessLogicException
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
-from app.services.storage_gateway import StorageServiceError, storage_gateway
 from app.shared.redis import RedisStateUnavailable
+from app.shared.storage import StorageServiceError, storage_service_client
 
 from ..schemas.auth import (
     AvatarUploadCompleteRequest,
@@ -206,7 +206,7 @@ async def get_active_avatar_url(user: typing.Any) -> str | None:
     ):
         return None
     try:
-        return await storage_gateway.presign_get(
+        return await storage_service_client.presign_get(
             bucket=user.avatar_storage_bucket,
             object_key=user.avatar_object_key,
             expires_in=config_settings.STORAGE_PRESIGN_EXPIRES_SECONDS,
@@ -815,8 +815,8 @@ async def create_avatar_upload_session(
     part_count = max(1, math.ceil(request.size / part_size))
 
     try:
-        await storage_gateway.ensure_bucket(bucket)
-        upload_session = await storage_gateway.create_multipart_upload(
+        await storage_service_client.ensure_bucket(bucket)
+        upload_session = await storage_service_client.create_multipart_upload(
             bucket=bucket,
             object_key=object_key,
             content_type=request.mime_type,
@@ -864,7 +864,7 @@ async def complete_avatar_upload(
     bucket = config_settings.USER_AVATAR_BUCKET
     object_key = f"users/{current_user['id']}/avatar"
     try:
-        result = await storage_gateway.complete_multipart_upload(
+        result = await storage_service_client.complete_multipart_upload(
             bucket=bucket,
             object_key=object_key,
             upload_id=request.upload_id,
@@ -873,7 +873,7 @@ async def complete_avatar_upload(
                 for part in request.parts
             ],
         )
-        stat_result = await storage_gateway.stat_object(
+        stat_result = await storage_service_client.stat_object(
             bucket=bucket, object_key=object_key
         )
         user.avatar_storage_bucket = bucket

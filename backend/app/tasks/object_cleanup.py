@@ -10,8 +10,8 @@ from app.core.database.session import SessionLocal
 from app.core.system.logger import LogLevel, logger
 from app.models.image_file import ImageFile
 from app.models.user import User
-from app.services.storage_gateway import StorageServiceError, storage_gateway
 from app.shared.redis import RedisDistributedLock, RedisStateUnavailable
+from app.shared.storage import StorageServiceError, storage_service_client
 
 OBJECT_CLEANUP_LEADER_LOCK_KEY = "locks:medical_backend:object_cleanup"
 OBJECT_CLEANUP_LEADER_LOCK_TTL_SECONDS = 90
@@ -52,7 +52,7 @@ async def cleanup_soft_deleted_objects() -> None:
             if not image.storage_bucket or not image.object_key:
                 continue
             try:
-                await storage_gateway.delete_object(
+                await storage_service_client.delete_object(
                     bucket=image.storage_bucket,
                     object_key=image.object_key,
                 )
@@ -77,7 +77,7 @@ async def cleanup_soft_deleted_objects() -> None:
         )
         for user in users:
             try:
-                await storage_gateway.delete_object(
+                await storage_service_client.delete_object(
                     bucket=user.avatar_storage_bucket,
                     object_key=user.avatar_object_key,
                 )

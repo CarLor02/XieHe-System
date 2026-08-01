@@ -113,7 +113,9 @@ async def test_replace_image_content_keeps_id_and_clears_annotations(
         )
         return {"etag": "new-etag"}
 
-    monkeypatch.setattr(file_handlers.storage_gateway, "put_object", fake_put_object)
+    monkeypatch.setattr(
+        file_handlers.storage_service_client, "put_object", fake_put_object
+    )
     monkeypatch.setattr(
         file_handlers,
         "get_visible_image_file",

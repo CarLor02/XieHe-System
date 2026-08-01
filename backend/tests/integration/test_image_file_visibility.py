@@ -447,7 +447,9 @@ async def test_team_admin_can_replace_visible_team_member_image(
         )
         return {"etag": "team-admin-etag"}
 
-    monkeypatch.setattr(file_handlers.storage_gateway, "put_object", fake_put_object)
+    monkeypatch.setattr(
+        file_handlers.storage_service_client, "put_object", fake_put_object
+    )
 
     result = await file_handlers.replace_image_file_content(
         2,
@@ -476,7 +478,9 @@ async def test_system_admin_can_replace_any_image(
     ) -> dict[str, str]:
         return {"etag": "system-admin-etag"}
 
-    monkeypatch.setattr(file_handlers.storage_gateway, "put_object", fake_put_object)
+    monkeypatch.setattr(
+        file_handlers.storage_service_client, "put_object", fake_put_object
+    )
 
     result = await file_handlers.replace_image_file_content(
         4,

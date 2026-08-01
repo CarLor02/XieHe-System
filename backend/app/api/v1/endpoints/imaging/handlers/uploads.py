@@ -40,7 +40,7 @@ from app.services.image_import_service import (
     serialize_import_batch,
     serialize_import_item,
 )
-from app.services.storage_gateway import StorageServiceError, storage_gateway
+from app.shared.storage import StorageServiceError, storage_service_client
 
 from ..schemas.uploads import (
     CompleteImageImportItemRequest,
@@ -202,8 +202,8 @@ async def create_upload_session(
     )
 
     try:
-        await storage_gateway.ensure_bucket(bucket)
-        upload_session = await storage_gateway.create_multipart_upload(
+        await storage_service_client.ensure_bucket(bucket)
+        upload_session = await storage_service_client.create_multipart_upload(
             bucket=bucket,
             object_key=object_key,
             content_type=request.mime_type,
@@ -357,13 +357,13 @@ async def create_image_import_sessions(
     part_size = settings.STORAGE_MULTIPART_PART_SIZE
     sessions: list[dict[str, Any]] = []
     try:
-        await storage_gateway.ensure_bucket(bucket)
+        await storage_service_client.ensure_bucket(bucket)
         for item in items:
             if item.upload_status == ImageImportUploadStatus.UPLOADED.value:
                 continue
             file_uuid = str(uuid.uuid4())
             object_key = _build_object_key(file_uuid, item.filename)
-            upload_session = await storage_gateway.create_multipart_upload(
+            upload_session = await storage_service_client.create_multipart_upload(
                 bucket=bucket,
                 object_key=object_key,
                 content_type=item.mime_type,
@@ -453,7 +453,7 @@ async def complete_image_import_item(
         if item.upload_status != ImageImportUploadStatus.UPLOADED.value:
             if request.upload_id != item.upload_id:
                 raise HTTPException(status_code=409, detail="上传会话已失效")
-            complete_result = await storage_gateway.complete_multipart_upload(
+            complete_result = await storage_service_client.complete_multipart_upload(
                 bucket=image.storage_bucket,
                 object_key=image.object_key,
                 upload_id=request.upload_id,
@@ -462,7 +462,7 @@ async def complete_image_import_item(
                     for part in request.parts
                 ],
             )
-            stat_result = await storage_gateway.stat_object(
+            stat_result = await storage_service_client.stat_object(
                 bucket=image.storage_bucket,
                 object_key=image.object_key,
             )
@@ -681,7 +681,7 @@ async def complete_upload_session(
         raise HTTPException(status_code=400, detail="当前影像状态不允许完成上传")
 
     try:
-        complete_result = await storage_gateway.complete_multipart_upload(
+        complete_result = await storage_service_client.complete_multipart_upload(
             bucket=image.storage_bucket,
             object_key=image.object_key,
             upload_id=request.upload_id,
@@ -690,7 +690,7 @@ async def complete_upload_session(
                 for part in request.parts
             ],
         )
-        stat_result = await storage_gateway.stat_object(
+        stat_result = await storage_service_client.stat_object(
             bucket=image.storage_bucket,
             object_key=image.object_key,
         )

@@ -37,13 +37,13 @@ backend/
 │   ├── core/
 │   │   ├── config/              # 分域配置（ai_settings, storage_settings …）
 │   │   ├── database/            # SQLAlchemy session 管理
-│   │   ├── imaging/             # AI 诊断引擎（diagnosis.py）
 │   │   └── system/              # logger、异常、并发控制
 │   ├── models/                  # SQLAlchemy ORM 模型
 │   ├── services/
-│   │   ├── storage_gateway.py   # storage-service HTTP 客户端
 │   │   ├── storage-service/     # Go 对象存储网关（独立微服务）
 │   │   └── realtime_service.py  # WebSocket 实时推送
+│   ├── shared/
+│   │   └── storage/             # storage-service 客户端、模型与异常
 │   └── contracts/               # 与其他服务的接口契约（logging service 等）
 ├── alembic/versions/            # 数据库迁移脚本（0001 → 0004）
 └── tests/
