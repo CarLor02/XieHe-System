@@ -3,13 +3,16 @@
 支持MySQL同步与异步连接管理
 """
 
-from app.core.system.logger import LogLevel, logger
+import typing
 from collections.abc import AsyncGenerator, Generator
+
 from sqlalchemy import create_engine, event, text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
+
 from app.core.config import settings
+from app.core.system.logger import LogLevel, logger
 from app.models.base import Base
 
 # 配置日志
@@ -34,7 +37,7 @@ sync_engine = create_engine(
         "connect_timeout": 60,
         "read_timeout": 30,
         "write_timeout": 30,
-    }
+    },
 )
 
 async_engine = create_async_engine(
@@ -52,11 +55,7 @@ async_engine = create_async_engine(
 )
 
 # 会话工厂
-SessionLocal = sessionmaker(
-    bind=sync_engine,
-    autocommit=False,
-    autoflush=True
-)
+SessionLocal = sessionmaker(bind=sync_engine, autocommit=False, autoflush=True)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
@@ -64,13 +63,14 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
+
 class DatabaseManager:
     """MySQL database manager; Redis owns a separate application lifecycle."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.sync_engine = sync_engine
 
-    def connect(self):
+    def connect(self) -> None:
         """连接数据库"""
         try:
             # 测试MySQL连接
@@ -82,7 +82,7 @@ class DatabaseManager:
             logger.emit_event(LogLevel.ERROR, message=f"❌ 数据库连接失败: {e}")
             raise
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """断开数据库连接"""
         try:
             # 关闭同步引擎
@@ -92,28 +92,24 @@ class DatabaseManager:
         except Exception as e:
             logger.emit_event(LogLevel.ERROR, message=f"❌ 关闭数据库连接失败: {e}")
 
-    def health_check(self) -> dict:
+    def health_check(self) -> dict[str, typing.Any]:
         """健康检查"""
-        health_status = {
-            "mysql": {"status": "unknown", "response_time": None}
-        }
+        health_status = {"mysql": {"status": "unknown", "response_time": None}}
 
         # MySQL健康检查
         try:
             import time
+
             start_time = time.time()
             with self.sync_engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             response_time = round((time.time() - start_time) * 1000, 2)
             health_status["mysql"] = {
                 "status": "healthy",
-                "response_time": f"{response_time}ms"
+                "response_time": f"{response_time}ms",
             }
         except Exception as e:
-            health_status["mysql"] = {
-                "status": "unhealthy",
-                "error": str(e)
-            }
+            health_status["mysql"] = {"status": "unhealthy", "error": str(e)}
 
         return health_status
 
@@ -123,7 +119,7 @@ db_manager = DatabaseManager()
 
 
 # 依赖注入：获取数据库会话
-def get_db() -> Generator:
+def get_db() -> Generator[Session, None, None]:
     """获取数据库会话"""
     db = SessionLocal()
     try:
@@ -135,7 +131,7 @@ def get_db() -> Generator:
         db.close()
 
 
-async def get_async_db() -> AsyncGenerator:
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """获取异步数据库会话"""
     async with AsyncSessionLocal() as db:
         try:
@@ -147,7 +143,9 @@ async def get_async_db() -> AsyncGenerator:
 
 # 数据库事件监听器
 @event.listens_for(sync_engine, "connect")
-def set_mysql_pragma(dbapi_connection, connection_record):
+def set_mysql_pragma(
+    dbapi_connection: typing.Any, connection_record: typing.Any
+) -> None:
     """设置MySQL连接参数"""
     with dbapi_connection.cursor() as cursor:
         # 设置字符集
@@ -155,17 +153,25 @@ def set_mysql_pragma(dbapi_connection, connection_record):
         # 设置时区
         cursor.execute("SET time_zone = '+00:00'")
         # 设置SQL模式
-        cursor.execute("SET sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO'")
+        cursor.execute(
+            "SET sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO'"
+        )
 
 
 @event.listens_for(sync_engine, "checkout")
-def receive_checkout(dbapi_connection, connection_record, connection_proxy):
+def receive_checkout(
+    dbapi_connection: typing.Any,
+    connection_record: typing.Any,
+    connection_proxy: typing.Any,
+) -> None:
     """连接检出时的处理"""
     logger.emit_event(LogLevel.DEBUG, message="数据库连接已检出")
 
 
 @event.listens_for(sync_engine, "checkin")
-def receive_checkin(dbapi_connection, connection_record):
+def receive_checkin(
+    dbapi_connection: typing.Any, connection_record: typing.Any
+) -> None:
     """连接检入时的处理"""
     logger.emit_event(LogLevel.DEBUG, message="数据库连接已检入")
 

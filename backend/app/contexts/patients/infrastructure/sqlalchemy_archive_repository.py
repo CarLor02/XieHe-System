@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+import typing
+from typing import Any, cast
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,11 +17,11 @@ from app.models.patient import (
 )
 
 
-def _enum_value(value):
+def _enum_value(value: typing.Any) -> typing.Any:
     return value.value if value is not None else None
 
 
-def _iso(value):
+def _iso(value: typing.Any) -> typing.Any:
     return value.isoformat() if value is not None else None
 
 
@@ -31,8 +32,13 @@ class SqlAlchemyPatientArchiveRepository:
         self._session = session
 
     async def _patient(self, patient_id: int) -> Patient | None:
-        return await self._session.scalar(
-            select(Patient).where(Patient.id == patient_id, Patient.is_deleted.is_(False))
+        return cast(
+            Patient | None,
+            await self._session.scalar(
+                select(Patient).where(
+                    Patient.id == patient_id, Patient.is_deleted.is_(False)
+                )
+            ),
         )
 
     async def get_summary(self, patient_id: int) -> dict[str, Any] | None:
@@ -41,7 +47,9 @@ class SqlAlchemyPatientArchiveRepository:
             return None
         total_visits, last_visit = (
             await self._session.execute(
-                select(func.count(PatientVisit.id), func.max(PatientVisit.visit_date)).where(
+                select(
+                    func.count(PatientVisit.id), func.max(PatientVisit.visit_date)
+                ).where(
                     PatientVisit.patient_id == patient_id,
                     PatientVisit.is_deleted.is_(False),
                 )
@@ -62,7 +70,9 @@ class SqlAlchemyPatientArchiveRepository:
             await self._session.execute(
                 select(
                     func.count(PatientMedicalHistory.id),
-                    func.sum(func.if_(PatientMedicalHistory.is_chronic.is_(True), 1, 0)),
+                    func.sum(
+                        func.if_(PatientMedicalHistory.is_chronic.is_(True), 1, 0)
+                    ),
                     func.sum(
                         func.if_(
                             PatientMedicalHistory.severity.in_(
@@ -97,7 +107,10 @@ class SqlAlchemyPatientArchiveRepository:
         visits = (
             await self._session.scalars(
                 select(PatientVisit)
-                .where(PatientVisit.patient_id == patient_id, PatientVisit.is_deleted.is_(False))
+                .where(
+                    PatientVisit.patient_id == patient_id,
+                    PatientVisit.is_deleted.is_(False),
+                )
                 .order_by(PatientVisit.visit_date.desc())
             )
         ).all()

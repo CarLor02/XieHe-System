@@ -16,15 +16,16 @@
 @created 2025-10-14
 """
 
-import sys
 import os
+import sys
+
 from sqlalchemy import text
 
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from app.core.database.session import get_db, sync_engine, Base
 from app.core.config import settings
+from app.core.database.session import Base, get_db, sync_engine
 
 
 def import_all_models():
@@ -32,25 +33,56 @@ def import_all_models():
     print("📦 导入所有数据模型...")
 
     # 导入所有模型
-    from app.models.patient import Patient, PatientVisit, PatientAllergy, PatientMedicalHistory
-    from app.models.image import ImageAnnotation, AITask
+    from app.models.image import AITask, ImageAnnotation
     from app.models.image_file import ImageFile
-    from app.models.report import ReportTemplate, DiagnosticReport, ReportFinding, ReportRevision
-    from app.models.user import User, Role, Permission, Department
-    from app.models.system import SystemConfig, SystemLog, SystemMonitor, SystemAlert, Notification
+    from app.models.patient import (
+        Patient,
+        PatientAllergy,
+        PatientMedicalHistory,
+        PatientVisit,
+    )
+    from app.models.report import (
+        DiagnosticReport,
+        ReportFinding,
+        ReportRevision,
+        ReportTemplate,
+    )
+    from app.models.system import (
+        Notification,
+        SystemAlert,
+        SystemConfig,
+        SystemLog,
+        SystemMonitor,
+    )
+    from app.models.user import Department, Permission, Role, User
 
     # 验证模型导入
     models = [
-        Patient, PatientVisit, PatientAllergy, PatientMedicalHistory,
-        ImageFile, ImageAnnotation, AITask,
-        ReportTemplate, DiagnosticReport, ReportFinding, ReportRevision,
-        User, Role, Permission, Department,
-        SystemConfig, SystemLog, SystemMonitor, SystemAlert, Notification
+        Patient,
+        PatientVisit,
+        PatientAllergy,
+        PatientMedicalHistory,
+        ImageFile,
+        ImageAnnotation,
+        AITask,
+        ReportTemplate,
+        DiagnosticReport,
+        ReportFinding,
+        ReportRevision,
+        User,
+        Role,
+        Permission,
+        Department,
+        SystemConfig,
+        SystemLog,
+        SystemMonitor,
+        SystemAlert,
+        Notification,
     ]
 
     print(f"  导入了 {len(models)} 个模型")
     for model in models:
-        if hasattr(model, '__tablename__'):
+        if hasattr(model, "__tablename__"):
             print(f"    - {model.__name__} -> {model.__tablename__}")
 
     print("✅ 所有模型导入完成")
@@ -60,17 +92,17 @@ def import_all_models():
 def drop_all_tables():
     """删除所有现有表"""
     print("🗑️  删除现有表...")
-    
+
     db = next(get_db())
-    
+
     try:
         # 禁用外键检查
         db.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-        
+
         # 获取所有表名
         result = db.execute(text("SHOW TABLES"))
         tables = [row[0] for row in result.fetchall()]
-        
+
         if tables:
             print(f"  发现 {len(tables)} 个现有表")
             # 删除所有表
@@ -79,13 +111,13 @@ def drop_all_tables():
                 db.execute(text(f"DROP TABLE IF EXISTS {table}"))
         else:
             print("  没有发现现有表")
-        
+
         # 重新启用外键检查
         db.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
-        
+
         db.commit()
         print("✅ 所有表删除完成")
-        
+
     except Exception as e:
         print(f"❌ 删除表时发生错误: {e}")
         db.rollback()
@@ -97,12 +129,12 @@ def drop_all_tables():
 def create_all_tables():
     """创建所有表结构"""
     print("🏗️  创建新表结构...")
-    
+
     try:
         # 创建所有表
         Base.metadata.create_all(bind=sync_engine)
         print("✅ 所有表创建完成")
-        
+
         # 验证表创建
         db = next(get_db())
         try:
@@ -113,7 +145,7 @@ def create_all_tables():
                 print(f"  - {table}")
         finally:
             db.close()
-            
+
     except Exception as e:
         print(f"❌ 创建表时发生错误: {e}")
         raise
@@ -122,9 +154,9 @@ def create_all_tables():
 def insert_initial_data():
     """插入初始数据"""
     print("\n📝 插入初始数据...")
-    
+
     db = next(get_db())
-    
+
     try:
         # 1. 创建默认管理员用户
         print("  创建默认管理员用户...")
@@ -134,7 +166,7 @@ def insert_initial_data():
         ON DUPLICATE KEY UPDATE username=username
         """
         db.execute(text(user_sql))
-        
+
         # 2. 创建默认角色
         print("  创建默认角色...")
         roles_sql = """
@@ -146,7 +178,7 @@ def insert_initial_data():
         ON DUPLICATE KEY UPDATE code=code
         """
         db.execute(text(roles_sql))
-        
+
         # 3. 创建基本权限
         print("  创建基本权限...")
         permissions_sql = """
@@ -166,7 +198,7 @@ def insert_initial_data():
         ON DUPLICATE KEY UPDATE code=code
         """
         db.execute(text(permissions_sql))
-        
+
         # 4. 创建默认部门
         print("  创建默认部门...")
         departments_sql = """
@@ -178,10 +210,10 @@ def insert_initial_data():
         ON DUPLICATE KEY UPDATE code=code
         """
         db.execute(text(departments_sql))
-        
+
         db.commit()
         print("✅ 初始数据插入完成")
-        
+
     except Exception as e:
         print(f"❌ 插入初始数据时发生错误: {e}")
         db.rollback()
@@ -193,37 +225,37 @@ def insert_initial_data():
 def verify_database():
     """验证数据库创建结果"""
     print("\n🔍 验证数据库创建结果...")
-    
+
     db = next(get_db())
-    
+
     try:
         # 检查表数量
         result = db.execute(text("SHOW TABLES"))
         table_count = len(result.fetchall())
         print(f"  表数量: {table_count}")
-        
+
         # 检查用户数量
         result = db.execute(text("SELECT COUNT(*) FROM users"))
         user_count = result.scalar()
         print(f"  用户数量: {user_count}")
-        
+
         # 检查角色数量
         result = db.execute(text("SELECT COUNT(*) FROM roles"))
         role_count = result.scalar()
         print(f"  角色数量: {role_count}")
-        
+
         # 检查权限数量
         result = db.execute(text("SELECT COUNT(*) FROM permissions"))
         permission_count = result.scalar()
         print(f"  权限数量: {permission_count}")
-        
+
         # 检查部门数量
         result = db.execute(text("SELECT COUNT(*) FROM departments"))
         dept_count = result.scalar()
         print(f"  部门数量: {dept_count}")
-        
+
         print("✅ 数据库验证完成")
-        
+
     except Exception as e:
         print(f"❌ 验证数据库时发生错误: {e}")
     finally:
@@ -236,47 +268,47 @@ def main():
     print("=" * 60)
     print(f"数据库: {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
     print("=" * 60)
-    
+
     # 检查是否强制执行
-    force = '--force' in sys.argv
-    
+    force = "--force" in sys.argv
+
     if not force:
         # 确认操作
         print("\n⚠️  警告: 这将删除所有现有数据！")
         confirm = input("是否继续？(输入 'yes' 确认): ")
-        if confirm.lower() != 'yes':
+        if confirm.lower() != "yes":
             print("❌ 操作已取消")
             return
-    
+
     try:
         # 1. 导入所有模型
         import_all_models()
-        
+
         # 2. 删除现有表
         drop_all_tables()
-        
+
         # 3. 创建所有表
         create_all_tables()
-        
+
         # 4. 插入初始数据
         insert_initial_data()
-        
+
         # 5. 验证结果
         verify_database()
-        
+
         print("\n🎉 数据库重建完成！")
         print("\n📋 默认登录信息:")
         print("  用户名: admin")
         print("  密码: admin123")
         print("  邮箱: admin@xiehe.com")
-        
+
     except Exception as e:
         print(f"\n❌ 数据库重建失败: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
-

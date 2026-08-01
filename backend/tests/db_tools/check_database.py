@@ -4,19 +4,20 @@
 测试MySQL和Redis连接是否正常工作
 """
 
-import sys
 import os
+import sys
 import time
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 # 添加 backend 项目根目录到 Python 路径
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from app.core.database.session import db_manager, SessionLocal, redis_pool
-from app.core.config import settings
 import redis
 from sqlalchemy import text
+
+from app.core.config import settings
+from app.core.database.session import SessionLocal, db_manager, redis_pool
 
 
 def setting_value(*names: str, default=None):
@@ -28,14 +29,14 @@ def setting_value(*names: str, default=None):
 
 class DatabaseTester:
     """数据库连接测试器"""
-    
+
     def __init__(self):
         self.results = {
             "mysql": {"status": "未测试", "details": {}},
             "redis": {"status": "未测试", "details": {}},
-            "overall": {"status": "未测试", "start_time": None, "end_time": None}
+            "overall": {"status": "未测试", "start_time": None, "end_time": None},
         }
-    
+
     def test_mysql_connection(self) -> Dict[str, Any]:
         """测试MySQL连接"""
         print("📊 测试MySQL数据库连接...")
@@ -62,7 +63,9 @@ class DatabaseTester:
                 db_name = result.scalar()
 
                 # 测试字符集
-                result = session.execute(text("SHOW VARIABLES LIKE 'character_set_database'"))
+                result = session.execute(
+                    text("SHOW VARIABLES LIKE 'character_set_database'")
+                )
                 charset_row = result.fetchone()
                 charset = charset_row[1] if charset_row else "unknown"
 
@@ -70,9 +73,9 @@ class DatabaseTester:
                 result = session.execute(text("SHOW STATUS LIKE 'Threads_connected'"))
                 connections_row = result.fetchone()
                 connections = connections_row[1] if connections_row else "unknown"
-            
+
             response_time = round((time.time() - start_time) * 1000, 2)
-            
+
             details = {
                 "host": f"{setting_value('DB_HOST', 'MYSQL_HOST')}:{setting_value('DB_PORT', 'MYSQL_PORT')}",
                 "database": db_name,
@@ -81,10 +84,10 @@ class DatabaseTester:
                 "current_time": str(current_time),
                 "connections": connections,
                 "response_time": f"{response_time}ms",
-                "test_value": test_value
+                "test_value": test_value,
             }
-            
-            print(f"✅ MySQL连接成功!")
+
+            print("✅ MySQL连接成功!")
             print(f"   主机: {details['host']}")
             print(f"   数据库: {details['database']}")
             print(f"   版本: {details['version']}")
@@ -92,23 +95,23 @@ class DatabaseTester:
             print(f"   当前时间: {details['current_time']}")
             print(f"   活跃连接数: {details['connections']}")
             print(f"   响应时间: {details['response_time']}")
-            
+
             return {"status": "成功", "details": details}
-            
+
         except Exception as e:
             error_details = {
                 "host": f"{setting_value('DB_HOST', 'MYSQL_HOST')}:{setting_value('DB_PORT', 'MYSQL_PORT')}",
                 "database": setting_value("DB_NAME", "MYSQL_DATABASE"),
                 "error": str(e),
-                "error_type": type(e).__name__
+                "error_type": type(e).__name__,
             }
-            
-            print(f"❌ MySQL连接失败!")
+
+            print("❌ MySQL连接失败!")
             print(f"   错误: {error_details['error']}")
             print(f"   错误类型: {error_details['error_type']}")
-            
+
             return {"status": "失败", "details": error_details}
-    
+
     def test_redis_connection(self) -> Dict[str, Any]:
         """测试Redis连接"""
         print("\n🔴 测试Redis缓存连接...")
@@ -142,9 +145,9 @@ class DatabaseTester:
             redis_client.incr("test_counter")
             counter_value = redis_client.get("test_counter")
             redis_client.delete("test_counter")
-            
+
             response_time = round((time.time() - start_time) * 1000, 2)
-            
+
             details = {
                 "host": f"{settings.REDIS_HOST}:{settings.REDIS_PORT}",
                 "database": settings.REDIS_DB,
@@ -156,10 +159,10 @@ class DatabaseTester:
                 "response_time": f"{response_time}ms",
                 "ping_result": pong,
                 "read_write_test": retrieved_value == test_value,
-                "counter_test": int(counter_value) == 1 if counter_value else False
+                "counter_test": int(counter_value) == 1 if counter_value else False,
             }
-            
-            print(f"✅ Redis连接成功!")
+
+            print("✅ Redis连接成功!")
             print(f"   主机: {details['host']}")
             print(f"   数据库: {details['database']}")
             print(f"   版本: {details['version']}")
@@ -170,26 +173,26 @@ class DatabaseTester:
             print(f"   响应时间: {details['response_time']}")
             print(f"   读写测试: {'通过' if details['read_write_test'] else '失败'}")
             print(f"   计数器测试: {'通过' if details['counter_test'] else '失败'}")
-            
+
             # 关闭连接
             redis_client.close()
-            
+
             return {"status": "成功", "details": details}
-            
+
         except Exception as e:
             error_details = {
                 "host": f"{settings.REDIS_HOST}:{settings.REDIS_PORT}",
                 "database": settings.REDIS_DB,
                 "error": str(e),
-                "error_type": type(e).__name__
+                "error_type": type(e).__name__,
             }
-            
-            print(f"❌ Redis连接失败!")
+
+            print("❌ Redis连接失败!")
             print(f"   错误: {error_details['error']}")
             print(f"   错误类型: {error_details['error_type']}")
-            
+
             return {"status": "失败", "details": error_details}
-    
+
     def test_database_manager(self) -> Dict[str, Any]:
         """测试数据库管理器"""
         print("\n🔧 测试数据库管理器...")
@@ -201,11 +204,15 @@ class DatabaseTester:
             # 健康检查
             health_status = db_manager.health_check()
 
-            print(f"✅ 数据库管理器测试成功!")
+            print("✅ 数据库管理器测试成功!")
             print(f"   MySQL状态: {health_status['mysql']['status']}")
-            print(f"   MySQL响应时间: {health_status['mysql'].get('response_time', 'N/A')}")
+            print(
+                f"   MySQL响应时间: {health_status['mysql'].get('response_time', 'N/A')}"
+            )
             print(f"   Redis状态: {health_status['redis']['status']}")
-            print(f"   Redis响应时间: {health_status['redis'].get('response_time', 'N/A')}")
+            print(
+                f"   Redis响应时间: {health_status['redis'].get('response_time', 'N/A')}"
+            )
 
             # 断开连接
             db_manager.disconnect()
@@ -213,16 +220,13 @@ class DatabaseTester:
             return {"status": "成功", "details": health_status}
 
         except Exception as e:
-            error_details = {
-                "error": str(e),
-                "error_type": type(e).__name__
-            }
+            error_details = {"error": str(e), "error_type": type(e).__name__}
 
-            print(f"❌ 数据库管理器测试失败!")
+            print("❌ 数据库管理器测试失败!")
             print(f"   错误: {error_details['error']}")
 
             return {"status": "失败", "details": error_details}
-    
+
     def run_all_tests(self) -> Dict[str, Any]:
         """运行所有测试"""
         print("🚀 开始数据库连接测试...")
@@ -262,6 +266,7 @@ class DatabaseTester:
 
         return self.results
 
+
 def main():
     """主函数"""
     tester = DatabaseTester()
@@ -272,6 +277,7 @@ def main():
         sys.exit(0)
     else:
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

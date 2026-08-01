@@ -7,9 +7,9 @@ Create Date: 2026-07-17 00:00:00
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "0005_image_import_pipeline"
 down_revision = "0004_image_file_team_visibility"
@@ -37,11 +37,25 @@ def upgrade() -> None:
             sa.Column("team_ids", sa.JSON(), nullable=False),
             sa.Column("status", sa.String(length=32), nullable=False),
             sa.Column("total_items", sa.Integer(), nullable=False, server_default="0"),
-            sa.Column("uploaded_items", sa.Integer(), nullable=False, server_default="0"),
-            sa.Column("succeeded_items", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column(
+                "uploaded_items", sa.Integer(), nullable=False, server_default="0"
+            ),
+            sa.Column(
+                "succeeded_items", sa.Integer(), nullable=False, server_default="0"
+            ),
             sa.Column("failed_items", sa.Integer(), nullable=False, server_default="0"),
-            sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-            sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.Column(
+                "created_at",
+                sa.DateTime(),
+                nullable=False,
+                server_default=sa.func.now(),
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(),
+                nullable=False,
+                server_default=sa.func.now(),
+            ),
             sa.Column("completed_at", sa.DateTime(), nullable=True),
             sa.ForeignKeyConstraint(["patient_id"], ["patients.id"]),
             sa.ForeignKeyConstraint(["uploaded_by"], ["users.id"]),
@@ -70,8 +84,18 @@ def upgrade() -> None:
             sa.Column("upload_status", sa.String(length=32), nullable=False),
             sa.Column("ai_status", sa.String(length=32), nullable=False),
             sa.Column("error_message", sa.Text(), nullable=True),
-            sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-            sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.Column(
+                "created_at",
+                sa.DateTime(),
+                nullable=False,
+                server_default=sa.func.now(),
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(),
+                nullable=False,
+                server_default=sa.func.now(),
+            ),
             sa.ForeignKeyConstraint(["batch_id"], ["image_import_batches.id"]),
             sa.ForeignKeyConstraint(["image_file_id"], ["image_files.id"]),
             sa.PrimaryKeyConstraint("id"),
@@ -90,7 +114,9 @@ def upgrade() -> None:
     inspector = sa.inspect(bind)
     ai_columns = _columns(inspector, "ai_tasks")
     if "image_file_id" not in ai_columns:
-        op.add_column("ai_tasks", sa.Column("image_file_id", sa.Integer(), nullable=True))
+        op.add_column(
+            "ai_tasks", sa.Column("image_file_id", sa.Integer(), nullable=True)
+        )
         op.create_foreign_key(
             "fk_ai_tasks_image_file_id",
             "ai_tasks",
@@ -99,7 +125,9 @@ def upgrade() -> None:
             ["id"],
         )
     if "batch_item_id" not in ai_columns:
-        op.add_column("ai_tasks", sa.Column("batch_item_id", sa.Integer(), nullable=True))
+        op.add_column(
+            "ai_tasks", sa.Column("batch_item_id", sa.Integer(), nullable=True)
+        )
         op.create_foreign_key(
             "fk_ai_tasks_batch_item_id",
             "ai_tasks",
@@ -111,7 +139,9 @@ def upgrade() -> None:
     if "attempt_count" not in ai_columns:
         op.add_column(
             "ai_tasks",
-            sa.Column("attempt_count", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column(
+                "attempt_count", sa.Integer(), nullable=False, server_default="0"
+            ),
         )
 
     # Historical baselines created study_id as NOT NULL. Keep the legacy column
@@ -148,7 +178,11 @@ def downgrade() -> None:
                 type_="foreignkey",
             )
         op.drop_column("ai_tasks", "batch_item_id")
-    op.drop_index("idx_image_import_items_batch_status", table_name="image_import_items")
+    op.drop_index(
+        "idx_image_import_items_batch_status", table_name="image_import_items"
+    )
     op.drop_table("image_import_items")
-    op.drop_index("idx_image_import_batches_owner_created", table_name="image_import_batches")
+    op.drop_index(
+        "idx_image_import_batches_owner_created", table_name="image_import_batches"
+    )
     op.drop_table("image_import_batches")

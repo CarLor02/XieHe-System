@@ -9,7 +9,6 @@ from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeE
 from app.models.patient import GenderEnum, Patient, PatientStatusEnum
 from app.models.user import User
 
-
 pytestmark = pytest.mark.database
 
 
@@ -98,7 +97,9 @@ async def test_batch_download_urls_presigns_visible_ready_files_and_sets_cache_h
     monkeypatch.setattr(
         file_handlers,
         "get_visible_image_file",
-        lambda *args, **kwargs: pytest.fail("batch endpoint must not query files one by one"),
+        lambda *args, **kwargs: pytest.fail(
+            "batch endpoint must not query files one by one"
+        ),
     )
 
     response = Response()

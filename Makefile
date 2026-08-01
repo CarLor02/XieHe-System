@@ -36,9 +36,8 @@ help:
 # 🚀 开发环境管理
 setup:
 	@echo "🔧 初始化项目环境..."
-	@npm install
-	@cd frontend && npm install
-	@cd backend && pip install -r requirements.txt
+	@npm --prefix frontend install
+	@cd backend && uv sync
 	@echo "✅ 环境初始化完成"
 
 start:
@@ -65,32 +64,38 @@ logs:
 # 🧪 测试相关
 test:
 	@echo "🧪 运行所有测试..."
-	@npm run test
+	@npm --prefix frontend test
+	@cd backend && uv run pytest
 
 test-frontend:
 	@echo "🧪 运行前端测试..."
-	@npm run test:frontend
+	@npm --prefix frontend test
 
 test-backend:
 	@echo "🧪 运行后端测试..."
-	@npm run test:backend
+	@cd backend && uv run pytest
 
 test-e2e:
 	@echo "🧪 运行端到端测试..."
-	@npm run test:e2e
+	@npm --prefix frontend run test:e2e
 
 # 🔧 代码质量
 format:
 	@echo "🎨 格式化代码..."
-	@npm run format
+	@npm --prefix frontend run format
+	@cd backend && uv run ruff check --fix .
+	@cd backend && uv run ruff format .
 
 lint:
 	@echo "🔍 代码检查..."
-	@npm run lint
+	@npm --prefix frontend run lint
+	@cd backend && uv run ruff check .
+	@cd backend && uv run ruff format --check .
 
 type-check:
 	@echo "🔍 类型检查..."
-	@cd frontend && npm run type-check
+	@npm --prefix frontend run type-check
+	@cd backend && uv run mypy
 
 # 🗄️ 数据管理
 backup:
@@ -140,11 +145,11 @@ clean:
 # 🔧 开发工具
 dev:
 	@echo "🚀 启动开发环境..."
-	@npm run dev
+	@npm --prefix frontend run dev
 
 build:
 	@echo "🏗️ 构建项目..."
-	@npm run build
+	@npm --prefix frontend run build
 
 deploy:
 	@echo "🚀 部署项目..."
@@ -160,6 +165,6 @@ info:
 	@echo "  名称: 医疗影像诊断系统"
 	@echo "  技术栈: Next.js + FastAPI + MySQL + Redis"
 	@echo "  前端端口: 3000"
-	@echo "  后端端口: 8000"
+	@echo "  后端端口: 8080"
 	@echo "  数据库: MySQL (3306)"
 	@echo "  缓存: Redis (6379)"

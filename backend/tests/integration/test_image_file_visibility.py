@@ -12,14 +12,18 @@ from app.models.image_file import (
     ImageFileTypeEnum,
 )
 from app.models.patient import GenderEnum, Patient, PatientStatusEnum
-from app.models.team import Team, TeamMembership, TeamMembershipRole, TeamMembershipStatus
+from app.models.team import (
+    Team,
+    TeamMembership,
+    TeamMembershipRole,
+    TeamMembershipStatus,
+)
 from app.models.user import User
 from app.services.image_file_visibility import (
     apply_image_visibility_filter,
     get_visible_image_file,
     get_visible_image_uploader_ids,
 )
-
 
 pytestmark = pytest.mark.database
 
@@ -83,7 +87,8 @@ def seed_visibility_data(session: Session) -> None:
         make_image(5, "deleted.png", 11, is_deleted=True),
     ]
 
-    session.add_all(users + [patient, team] + memberships + images)
+    entities: list[object] = [*users, patient, team, *memberships, *images]
+    session.add_all(entities)
     session.add_all(
         [
             Team(id=2, name="康复团队", creator_id=13),
@@ -164,7 +169,7 @@ def current_user(
 def visible_patient_image_ids(session, user: dict) -> list[int]:
     query = session.query(ImageFile).filter(
         ImageFile.patient_id == 100,
-        ImageFile.is_deleted == False,
+        ImageFile.is_deleted.is_(False),
     )
     return [
         image.id
@@ -194,7 +199,9 @@ def test_team_admin_sees_team_owned_member_images(db_session):
     assign_image_to_team(db_session, 2)
 
     assert visible_patient_image_ids(db_session, current_user(10)) == [1, 2]
-    assert get_visible_image_file(db_session, 2, current_user(10)).id == 2
+    image = get_visible_image_file(db_session, 2, current_user(10))
+    assert image is not None
+    assert image.id == 2
 
 
 def test_non_team_member_cannot_see_other_uploaders(db_session):
@@ -203,24 +210,32 @@ def test_non_team_member_cannot_see_other_uploaders(db_session):
 
 
 def test_superuser_can_see_all_non_deleted_images(db_session):
-    assert get_visible_image_uploader_ids(
-        db_session,
-        current_user(99, superuser=True),
-    ) is None
+    assert (
+        get_visible_image_uploader_ids(
+            db_session,
+            current_user(99, superuser=True),
+        )
+        is None
+    )
     assert visible_patient_image_ids(db_session, current_user(99, superuser=True)) == [
         1,
         2,
         3,
         4,
     ]
-    assert get_visible_image_file(db_session, 5, current_user(99, superuser=True)) is None
+    assert (
+        get_visible_image_file(db_session, 5, current_user(99, superuser=True)) is None
+    )
 
 
 def test_system_admin_can_see_all_non_deleted_images(db_session):
-    assert get_visible_image_uploader_ids(
-        db_session,
-        current_user(99, system_admin=True),
-    ) is None
+    assert (
+        get_visible_image_uploader_ids(
+            db_session,
+            current_user(99, system_admin=True),
+        )
+        is None
+    )
     assert visible_patient_image_ids(
         db_session,
         current_user(99, system_admin=True),
@@ -261,7 +276,9 @@ async def test_regular_member_cannot_list_uploaders(db_session):
 
 
 @pytest.mark.asyncio
-async def test_assignable_teams_are_paginated_and_scoped_to_user_memberships(db_session):
+async def test_assignable_teams_are_paginated_and_scoped_to_user_memberships(
+    db_session,
+):
     result = await file_handlers.list_assignable_image_teams(
         page=1,
         page_size=1,

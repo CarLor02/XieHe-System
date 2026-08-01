@@ -1,6 +1,6 @@
 """Patient application services."""
 
-from .patient_service import PatientApplicationService
 from .archive_service import PatientArchiveApplicationService
+from .patient_service import PatientApplicationService
 
 __all__ = ["PatientApplicationService", "PatientArchiveApplicationService"]

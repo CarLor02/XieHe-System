@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, Optional
 from urllib.parse import quote
 
 import httpx
@@ -38,8 +38,14 @@ class StorageGateway:
         async_transport: Optional[httpx.AsyncBaseTransport] = None,
     ) -> None:
         self.base_url = (base_url or settings.STORAGE_SERVICE_URL).rstrip("/")
-        self.timeout = timeout if timeout is not None else settings.STORAGE_SERVICE_TIMEOUT
-        self.headers = {"X-Storage-Service-Token": token if token is not None else settings.STORAGE_SERVICE_TOKEN}
+        self.timeout = (
+            timeout if timeout is not None else settings.STORAGE_SERVICE_TIMEOUT
+        )
+        self.headers = {
+            "X-Storage-Service-Token": token
+            if token is not None
+            else settings.STORAGE_SERVICE_TOKEN
+        }
         self.async_transport = async_transport
         self._client: Optional[httpx.AsyncClient] = None
         self._client_lock = asyncio.Lock()
@@ -86,7 +92,12 @@ class StorageGateway:
             return {}
         payload = response.json()
         if isinstance(payload, dict) and "code" in payload and "data" in payload:
-            return payload.get("data") or {}
+            data = payload.get("data") or {}
+            if not isinstance(data, dict):
+                raise StorageServiceError("storage service data must be a JSON object")
+            return data
+        if not isinstance(payload, dict):
+            raise StorageServiceError("storage service response must be a JSON object")
         return payload
 
     async def ensure_bucket(self, bucket: str) -> None:

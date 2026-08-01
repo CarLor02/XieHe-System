@@ -10,7 +10,6 @@ from app.api.v1.endpoints.imaging.schemas.files import (
 )
 from app.models.image_file import ImageFile
 
-
 ANNOTATION_PAYLOAD = {
     "measurements": [],
     "standardDistance": 10,

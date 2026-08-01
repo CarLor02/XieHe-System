@@ -3,13 +3,30 @@
 from . import patient as _patient_models  # noqa: F401
 from . import report as _report_models  # noqa: F401
 from . import system as _system_models  # noqa: F401
-from .user import (
-    Department,
-    Permission,
-    Role,
-    RolePermission,
-    User,
-    UserRole,
+from .image import (
+    AITask,
+    AITaskStatusEnum,
+    AnnotationTypeEnum,
+    BodyPartEnum,
+    # 模型
+    ImageAnnotation,
+    ImageViewType,
+    # 枚举
+    ModalityEnum,
+    QualityEnum,
+)
+from .image_file import (
+    ImageFile,
+    ImageFileStatusEnum,
+    ImageFileTeamVisibility,
+    ImageFileTypeEnum,
+)
+from .image_import import (
+    ImageImportAiStatus,
+    ImageImportBatch,
+    ImageImportBatchStatus,
+    ImageImportItem,
+    ImageImportUploadStatus,
 )
 from .team import (
     Team,
@@ -21,30 +38,13 @@ from .team import (
     TeamMembershipRole,
     TeamMembershipStatus,
 )
-from .image_file import (
-    ImageFile,
-    ImageFileTeamVisibility,
-    ImageFileTypeEnum,
-    ImageFileStatusEnum,
-)
-from .image import (
-    # 枚举
-    ModalityEnum,
-    BodyPartEnum,
-    ImageViewType,
-    QualityEnum,
-    AnnotationTypeEnum,
-    AITaskStatusEnum,
-    # 模型
-    ImageAnnotation,
-    AITask,
-)
-from .image_import import (
-    ImageImportAiStatus,
-    ImageImportBatch,
-    ImageImportBatchStatus,
-    ImageImportItem,
-    ImageImportUploadStatus,
+from .user import (
+    Department,
+    Permission,
+    Role,
+    RolePermission,
+    User,
+    UserRole,
 )
 
 __all__ = [

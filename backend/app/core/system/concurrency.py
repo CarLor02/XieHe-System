@@ -87,13 +87,17 @@ async def require_ai_object_slot() -> AsyncIterator[None]:
 
 async def require_batch_presign_slot() -> AsyncIterator[None]:
     """Limit concurrent batch presign requests."""
-    async for item in _require_slot(batch_presign_gate, "批量影像访问地址请求繁忙，请稍后重试"):
+    async for item in _require_slot(
+        batch_presign_gate, "批量影像访问地址请求繁忙，请稍后重试"
+    ):
         yield item
 
 
 async def require_legacy_diagnosis_slot() -> AsyncIterator[None]:
     """Limit concurrent legacy diagnosis requests."""
-    async for item in _require_slot(legacy_diagnosis_gate, "AI诊断请求繁忙，请稍后重试"):
+    async for item in _require_slot(
+        legacy_diagnosis_gate, "AI诊断请求繁忙，请稍后重试"
+    ):
         yield item
 
 

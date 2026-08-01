@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List
@@ -50,7 +49,5 @@ class LogEventIngestResult(BaseModel):
 
 
 def model_to_json_dict(model: BaseModel) -> Dict[str, Any]:
-    """Return a JSON-ready dict on both Pydantic v1 and v2."""
-    if hasattr(model, "model_dump"):
-        return model.model_dump(mode="json")  # type: ignore[attr-defined]
-    return json.loads(model.model_dump_json())
+    """Return a JSON-ready dictionary from the pinned Pydantic v2 runtime."""
+    return model.model_dump(mode="json")

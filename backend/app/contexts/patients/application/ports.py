@@ -8,11 +8,15 @@ from app.contexts.patients.domain import PatientListQuery, PatientSnapshot
 
 
 class PatientRepository(Protocol):
-    async def list(self, query: PatientListQuery) -> tuple[list[PatientSnapshot], int]: ...
+    async def list(
+        self, query: PatientListQuery
+    ) -> tuple[list[PatientSnapshot], int]: ...
 
     async def get(self, patient_id: int) -> PatientSnapshot | None: ...
 
-    async def create(self, data: dict[str, Any], *, actor_id: int | None) -> PatientSnapshot: ...
+    async def create(
+        self, data: dict[str, Any], *, actor_id: int | None
+    ) -> PatientSnapshot: ...
 
     async def update(
         self,

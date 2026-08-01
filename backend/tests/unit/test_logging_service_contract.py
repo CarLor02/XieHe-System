@@ -23,7 +23,9 @@ def test_log_event_accepts_expected_json_shape() -> None:
     )
 
     assert event.level is LogLevel.INFO
-    assert event.timestamp == datetime(2026, 5, 12, 10, 20, 30, 123000, tzinfo=timezone.utc)
+    assert event.timestamp == datetime(
+        2026, 5, 12, 10, 20, 30, 123000, tzinfo=timezone.utc
+    )
     assert event.metadata["amount"] == 100
 
 

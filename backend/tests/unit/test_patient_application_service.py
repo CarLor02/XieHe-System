@@ -55,7 +55,7 @@ class MemoryCache:
     enabled = True
 
     def __init__(self) -> None:
-        self.values = {}
+        self.values: dict[str, object] = {}
 
     async def get(self, key):
         return self.values.get(key)
@@ -68,7 +68,8 @@ class MemoryCache:
         return int(self.values.pop(key, None) is not None)
 
     async def increment(self, key, amount=1):
-        self.values[key] = int(self.values.get(key, 0)) + amount
+        current = self.values.get(key, 0)
+        self.values[key] = (current if isinstance(current, int) else 0) + amount
         return self.values[key]
 
 

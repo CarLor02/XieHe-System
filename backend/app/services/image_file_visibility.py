@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import typing
 from typing import Any, Optional
 
 from sqlalchemy import and_, exists, false, or_
 from sqlalchemy.orm import Query, Session
 
 from app.models.image_file import ImageFile, ImageFileTeamVisibility
-from app.models.team import Team, TeamMembership, TeamMembershipRole, TeamMembershipStatus
+from app.models.team import (
+    Team,
+    TeamMembership,
+    TeamMembershipRole,
+    TeamMembershipStatus,
+)
 
 
 def _extract_user_id(current_user: dict[str, Any]) -> Optional[int]:
@@ -55,12 +61,16 @@ def get_visible_image_uploader_ids(
 
     uploader_ids = [
         uploader_id
-        for (uploader_id,) in query.filter(ImageFile.is_deleted == False).distinct().all()
+        for (uploader_id,) in query.filter(ImageFile.is_deleted.is_(False))
+        .distinct()
+        .all()
     ]
     return sorted(uploader_ids)
 
 
-def build_image_visibility_filter(db: Session, current_user: dict[str, Any]):
+def build_image_visibility_filter(
+    db: Session, current_user: dict[str, Any]
+) -> typing.Any:
     """Build a SQLAlchemy filter condition for visible image files."""
 
     if current_user.get("is_superuser", False) or current_user.get(
@@ -90,10 +100,10 @@ def build_image_visibility_filter(db: Session, current_user: dict[str, Any]):
 
 
 def apply_image_visibility_filter(
-    query: Query,
+    query: Query[typing.Any],
     db: Session,
     current_user: dict[str, Any],
-) -> Query:
+) -> Query[typing.Any]:
     """Apply the shared image visibility filter to an ImageFile query."""
 
     visibility_filter = build_image_visibility_filter(db, current_user)
@@ -112,7 +122,7 @@ def get_visible_image_file(
 
     query = db.query(ImageFile).filter(
         ImageFile.id == file_id,
-        ImageFile.is_deleted == False,
+        ImageFile.is_deleted.is_(False),
     )
     return apply_image_visibility_filter(query, db, current_user).first()
 
@@ -136,7 +146,9 @@ def validate_assignable_team_ids(
     if not normalized_ids:
         return []
 
-    query = db.query(Team.id).filter(Team.id.in_(normalized_ids), Team.is_active.is_(True))
+    query = db.query(Team.id).filter(
+        Team.id.in_(normalized_ids), Team.is_active.is_(True)
+    )
 
     if not (
         current_user.get("is_superuser", False)

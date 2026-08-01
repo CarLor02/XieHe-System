@@ -20,7 +20,6 @@ from .redis_settings import RedisSettings, redis_settings
 from .security_settings import SecuritySettings, security_settings
 from .storage_settings import StorageSettings, storage_settings
 
-
 CONFIG_REGISTRY = OrderedDict(
     [
         ("app", app_settings),

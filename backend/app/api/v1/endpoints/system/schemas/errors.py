@@ -1,10 +1,13 @@
 """Schemas for the errors API endpoints."""
 
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
+
 
 class ErrorReport(BaseModel):
     """前端错误报告模型"""
+
     message: str = Field(..., description="错误消息")
     stack: Optional[str] = Field(None, description="错误堆栈")
     componentStack: Optional[str] = Field(None, description="组件堆栈")
@@ -21,6 +24,7 @@ class ErrorReport(BaseModel):
 
 class ErrorReportResponse(BaseModel):
     """错误报告响应模型"""
+
     success: bool = Field(..., description="是否成功")
     errorId: str = Field(..., description="错误ID")
     message: str = Field(..., description="响应消息")
@@ -28,6 +32,7 @@ class ErrorReportResponse(BaseModel):
 
 class ErrorStats(BaseModel):
     """错误统计模型"""
+
     totalErrors: int = Field(..., description="总错误数")
     errorsByType: Dict[str, int] = Field(..., description="按类型分组的错误数")
     errorsBySeverity: Dict[str, int] = Field(..., description="按严重程度分组的错误数")

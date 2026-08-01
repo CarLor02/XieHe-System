@@ -89,7 +89,6 @@ ERROR_CODE_HTTP_STATUS_MAP: Dict[str, int] = {
     ErrorCode.RESOURCE_NOT_FOUND: 404,
     ErrorCode.INVALID_REQUEST: 400,
     ErrorCode.OPERATION_FAILED: 400,
-
     # 2xxx - 认证授权错误
     ErrorCode.AUTH_FAILED: 401,
     ErrorCode.AUTH_CREDENTIALS_INVALID: 401,
@@ -98,7 +97,6 @@ ERROR_CODE_HTTP_STATUS_MAP: Dict[str, int] = {
     ErrorCode.AUTH_TOKEN_MISSING: 401,
     ErrorCode.PERMISSION_DENIED: 403,
     ErrorCode.INSUFFICIENT_PERMISSIONS: 403,
-
     # 3xxx - 用户相关错误
     ErrorCode.USER_NOT_FOUND: 404,
     ErrorCode.USER_ALREADY_EXISTS: 409,
@@ -108,33 +106,27 @@ ERROR_CODE_HTTP_STATUS_MAP: Dict[str, int] = {
     ErrorCode.EMAIL_TAKEN: 409,
     ErrorCode.PASSWORD_INCORRECT: 401,
     ErrorCode.PASSWORD_TOO_WEAK: 400,
-
     # 3xxx - 患者相关错误
     ErrorCode.PATIENT_NOT_FOUND: 404,
     ErrorCode.PATIENT_ALREADY_EXISTS: 409,
     ErrorCode.PATIENT_ID_NUMBER_EXISTS: 409,
-
     # 3xxx - 影像相关错误
     ErrorCode.IMAGE_NOT_FOUND: 404,
     ErrorCode.IMAGE_UPLOAD_FAILED: 500,
     ErrorCode.IMAGE_PROCESSING_FAILED: 500,
     ErrorCode.IMAGE_FORMAT_INVALID: 400,
     ErrorCode.IMAGE_SIZE_EXCEEDED: 413,
-
     # 3xxx - 报告相关错误
     ErrorCode.REPORT_NOT_FOUND: 404,
     ErrorCode.REPORT_GENERATION_FAILED: 500,
     ErrorCode.REPORT_ALREADY_EXISTS: 409,
-
     # 3xxx - 标注相关错误
     ErrorCode.ANNOTATION_NOT_FOUND: 404,
     ErrorCode.ANNOTATION_INVALID: 400,
-
     # 3xxx - AI诊断相关错误
     ErrorCode.AI_DIAGNOSIS_FAILED: 500,
     ErrorCode.AI_MODEL_NOT_AVAILABLE: 503,
     ErrorCode.AI_PROCESSING_TIMEOUT: 504,
-
     # 4xxx - 数据验证错误
     ErrorCode.VALIDATION_ERROR: 422,
     ErrorCode.VALIDATION_EMAIL_INVALID: 422,
@@ -142,7 +134,6 @@ ERROR_CODE_HTTP_STATUS_MAP: Dict[str, int] = {
     ErrorCode.VALIDATION_ID_NUMBER_INVALID: 422,
     ErrorCode.VALIDATION_DATE_INVALID: 422,
     ErrorCode.VALIDATION_REQUIRED_FIELD_MISSING: 422,
-
     # 5xxx - 系统错误
     ErrorCode.INTERNAL_ERROR: 500,
     ErrorCode.DATABASE_ERROR: 500,
@@ -162,7 +153,6 @@ ERROR_CODE_MESSAGE_MAP: Dict[str, str] = {
     ErrorCode.RESOURCE_NOT_FOUND: "资源不存在",
     ErrorCode.INVALID_REQUEST: "无效的请求",
     ErrorCode.OPERATION_FAILED: "操作失败",
-
     # 2xxx - 认证授权错误
     ErrorCode.AUTH_FAILED: "认证失败",
     ErrorCode.AUTH_CREDENTIALS_INVALID: "用户名或密码错误",
@@ -171,7 +161,6 @@ ERROR_CODE_MESSAGE_MAP: Dict[str, str] = {
     ErrorCode.AUTH_TOKEN_MISSING: "缺少认证令牌",
     ErrorCode.PERMISSION_DENIED: "权限不足",
     ErrorCode.INSUFFICIENT_PERMISSIONS: "权限不足，无法执行此操作",
-
     # 3xxx - 用户相关错误
     ErrorCode.USER_NOT_FOUND: "用户不存在",
     ErrorCode.USER_ALREADY_EXISTS: "用户已存在",
@@ -181,33 +170,27 @@ ERROR_CODE_MESSAGE_MAP: Dict[str, str] = {
     ErrorCode.EMAIL_TAKEN: "邮箱已被使用",
     ErrorCode.PASSWORD_INCORRECT: "密码错误",
     ErrorCode.PASSWORD_TOO_WEAK: "密码强度不足",
-
     # 3xxx - 患者相关错误
     ErrorCode.PATIENT_NOT_FOUND: "患者不存在",
     ErrorCode.PATIENT_ALREADY_EXISTS: "患者已存在",
     ErrorCode.PATIENT_ID_NUMBER_EXISTS: "身份证号已存在",
-
     # 3xxx - 影像相关错误
     ErrorCode.IMAGE_NOT_FOUND: "影像不存在",
     ErrorCode.IMAGE_UPLOAD_FAILED: "影像上传失败",
     ErrorCode.IMAGE_PROCESSING_FAILED: "影像处理失败",
     ErrorCode.IMAGE_FORMAT_INVALID: "影像格式不支持",
     ErrorCode.IMAGE_SIZE_EXCEEDED: "影像文件过大",
-
     # 3xxx - 报告相关错误
     ErrorCode.REPORT_NOT_FOUND: "报告不存在",
     ErrorCode.REPORT_GENERATION_FAILED: "报告生成失败",
     ErrorCode.REPORT_ALREADY_EXISTS: "报告已存在",
-
     # 3xxx - 标注相关错误
     ErrorCode.ANNOTATION_NOT_FOUND: "标注不存在",
     ErrorCode.ANNOTATION_INVALID: "标注数据无效",
-
     # 3xxx - AI诊断相关错误
     ErrorCode.AI_DIAGNOSIS_FAILED: "AI诊断失败",
     ErrorCode.AI_MODEL_NOT_AVAILABLE: "AI模型不可用",
     ErrorCode.AI_PROCESSING_TIMEOUT: "AI处理超时",
-
     # 4xxx - 数据验证错误
     ErrorCode.VALIDATION_ERROR: "数据验证失败",
     ErrorCode.VALIDATION_EMAIL_INVALID: "邮箱格式不正确",
@@ -215,7 +198,6 @@ ERROR_CODE_MESSAGE_MAP: Dict[str, str] = {
     ErrorCode.VALIDATION_ID_NUMBER_INVALID: "身份证号格式不正确",
     ErrorCode.VALIDATION_DATE_INVALID: "日期格式不正确",
     ErrorCode.VALIDATION_REQUIRED_FIELD_MISSING: "必填字段缺失",
-
     # 5xxx - 系统错误
     ErrorCode.INTERNAL_ERROR: "系统内部错误",
     ErrorCode.DATABASE_ERROR: "数据库错误",

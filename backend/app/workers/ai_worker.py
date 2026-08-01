@@ -44,29 +44,24 @@ class AiTaskProcessor:
             int(payload["requested_by"]),
         )
 
-    async def __call__(self, message: ReceivedMessage) -> SubscriberDecision:
-        try:
-            task_id, item_id, image_file_id, requested_by = self._event_ids(
-                dict(message.payload)
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            logger.emit_event(LogLevel.ERROR, message=f"AI任务事件格式错误: {exc}")
-            return SubscriberDecision.ACK
-
+    @staticmethod
+    def _claim_task(task_id: str, item_id: int, image_file_id: int) -> Any | None:
         db = SessionLocal()
         try:
             task = (
                 db.query(AITask)
-                .filter(AITask.task_id == task_id, AITask.is_deleted == False)
+                .filter(AITask.task_id == task_id, AITask.is_deleted.is_(False))
                 .with_for_update()
                 .first()
             )
-            item = db.query(ImageImportItem).filter(ImageImportItem.id == item_id).first()
+            item = (
+                db.query(ImageImportItem).filter(ImageImportItem.id == item_id).first()
+            )
             image = (
                 db.query(ImageFile)
                 .filter(
                     ImageFile.id == image_file_id,
-                    ImageFile.is_deleted == False,
+                    ImageFile.is_deleted.is_(False),
                 )
                 .first()
             )
@@ -76,13 +71,15 @@ class AiTaskProcessor:
                     message=f"AI任务关联数据不存在: task={task_id}",
                 )
                 db.rollback()
-                return SubscriberDecision.ACK
-            if task.status in {AITaskStatusEnum.COMPLETED, AITaskStatusEnum.CANCELLED}:
+                return None
+            terminal_statuses = {
+                AITaskStatusEnum.COMPLETED,
+                AITaskStatusEnum.CANCELLED,
+                AITaskStatusEnum.FAILED,
+            }
+            if task.status in terminal_statuses:
                 db.rollback()
-                return SubscriberDecision.ACK
-            if task.status == AITaskStatusEnum.FAILED:
-                db.rollback()
-                return SubscriberDecision.ACK
+                return None
 
             task.status = AITaskStatusEnum.RUNNING
             task.started_at = task.started_at or datetime.now()
@@ -91,12 +88,16 @@ class AiTaskProcessor:
             item.ai_status = ImageImportAiStatus.RUNNING.value
             item.error_message = None
             image.status = ImageFileStatusEnum.PROCESSING
-            batch = db.query(ImageImportBatch).filter(ImageImportBatch.id == item.batch_id).first()
+            batch = (
+                db.query(ImageImportBatch)
+                .filter(ImageImportBatch.id == item.batch_id)
+                .first()
+            )
             if batch is not None:
                 refresh_batch_status(db, batch)
             db.commit()
             db.refresh(image)
-            image_ref = SimpleNamespace(
+            return SimpleNamespace(
                 id=image.id,
                 storage_bucket=image.storage_bucket,
                 object_key=image.object_key,
@@ -107,6 +108,61 @@ class AiTaskProcessor:
             raise
         finally:
             db.close()
+
+    @staticmethod
+    def _persist_success(
+        task_id: str,
+        item_id: int,
+        image_file_id: int,
+        requested_by: int,
+        response: dict[str, Any],
+    ) -> None:
+        db = SessionLocal()
+        try:
+            task = db.query(AITask).filter(AITask.task_id == task_id).first()
+            item = (
+                db.query(ImageImportItem).filter(ImageImportItem.id == item_id).first()
+            )
+            image = db.query(ImageFile).filter(ImageFile.id == image_file_id).first()
+            if task is None or item is None or image is None:
+                db.rollback()
+                return
+
+            persist_ai_annotation(db, image, ai_response=response, user_id=requested_by)
+            task.status = AITaskStatusEnum.COMPLETED
+            task.progress = 100
+            task.result = response
+            task.completed_at = datetime.now()
+            task.error_message = None
+            item.ai_status = ImageImportAiStatus.SUCCEEDED.value
+            item.error_message = None
+            item.updated_at = datetime.now()
+            batch = (
+                db.query(ImageImportBatch)
+                .filter(ImageImportBatch.id == item.batch_id)
+                .first()
+            )
+            if batch is not None:
+                refresh_batch_status(db, batch)
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    async def __call__(self, message: ReceivedMessage) -> SubscriberDecision:
+        try:
+            task_id, item_id, image_file_id, requested_by = self._event_ids(
+                dict(message.payload)
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            logger.emit_event(LogLevel.ERROR, message=f"AI任务事件格式错误: {exc}")
+            return SubscriberDecision.ACK
+
+        image_ref = self._claim_task(task_id, item_id, image_file_id)
+        if image_ref is None:
+            return SubscriberDecision.ACK
 
         try:
             response = await self._predict_with_retries(image_ref)
@@ -120,39 +176,14 @@ class AiTaskProcessor:
             self._mark_retry(task_id, item_id, image_file_id, str(exc))
             return SubscriberDecision.RETRY
 
-        db = SessionLocal()
-        try:
-            task = db.query(AITask).filter(AITask.task_id == task_id).first()
-            item = db.query(ImageImportItem).filter(ImageImportItem.id == item_id).first()
-            image = db.query(ImageFile).filter(ImageFile.id == image_file_id).first()
-            if task is None or item is None or image is None:
-                db.rollback()
-                return SubscriberDecision.ACK
-
-            persist_ai_annotation(
-                db,
-                image,
-                ai_response=response,
-                user_id=requested_by,
-            )
-            task.status = AITaskStatusEnum.COMPLETED
-            task.progress = 100
-            task.result = response
-            task.completed_at = datetime.now()
-            task.error_message = None
-            item.ai_status = ImageImportAiStatus.SUCCEEDED.value
-            item.error_message = None
-            item.updated_at = datetime.now()
-            batch = db.query(ImageImportBatch).filter(ImageImportBatch.id == item.batch_id).first()
-            if batch is not None:
-                refresh_batch_status(db, batch)
-            db.commit()
-            return SubscriberDecision.ACK
-        except Exception:
-            db.rollback()
-            raise
-        finally:
-            db.close()
+        self._persist_success(
+            task_id,
+            item_id,
+            image_file_id,
+            requested_by,
+            response,
+        )
+        return SubscriberDecision.ACK
 
     async def _predict_with_retries(self, image: Any) -> dict[str, Any]:
         attempts = max(1, settings.AI_MODEL_MAX_RETRIES)
@@ -164,7 +195,7 @@ class AiTaskProcessor:
                 last_error = exc
                 if not exc.transient or attempt + 1 >= attempts:
                     raise
-                await asyncio.sleep(min(2 ** attempt, 5))
+                await asyncio.sleep(min(2**attempt, 5))
         assert last_error is not None
         raise last_error
 
@@ -173,7 +204,9 @@ class AiTaskProcessor:
         db = SessionLocal()
         try:
             task = db.query(AITask).filter(AITask.task_id == task_id).first()
-            item = db.query(ImageImportItem).filter(ImageImportItem.id == item_id).first()
+            item = (
+                db.query(ImageImportItem).filter(ImageImportItem.id == item_id).first()
+            )
             image = db.query(ImageFile).filter(ImageFile.id == image_file_id).first()
             if task is not None:
                 task.status = AITaskStatusEnum.PENDING
@@ -181,7 +214,11 @@ class AiTaskProcessor:
             if item is not None:
                 item.ai_status = ImageImportAiStatus.QUEUED.value
                 item.error_message = error
-                batch = db.query(ImageImportBatch).filter(ImageImportBatch.id == item.batch_id).first()
+                batch = (
+                    db.query(ImageImportBatch)
+                    .filter(ImageImportBatch.id == item.batch_id)
+                    .first()
+                )
                 if batch is not None:
                     refresh_batch_status(db, batch)
             if image is not None:
@@ -194,12 +231,16 @@ class AiTaskProcessor:
             db.close()
 
     @staticmethod
-    def _mark_failed(task_id: str, item_id: int, image_file_id: int, error: str) -> None:
+    def _mark_failed(
+        task_id: str, item_id: int, image_file_id: int, error: str
+    ) -> None:
         db = SessionLocal()
         try:
             now = datetime.now()
             task = db.query(AITask).filter(AITask.task_id == task_id).first()
-            item = db.query(ImageImportItem).filter(ImageImportItem.id == item_id).first()
+            item = (
+                db.query(ImageImportItem).filter(ImageImportItem.id == item_id).first()
+            )
             image = db.query(ImageFile).filter(ImageFile.id == image_file_id).first()
             if task is not None:
                 task.status = AITaskStatusEnum.FAILED
@@ -208,7 +249,11 @@ class AiTaskProcessor:
             if item is not None:
                 item.ai_status = ImageImportAiStatus.FAILED.value
                 item.error_message = error
-                batch = db.query(ImageImportBatch).filter(ImageImportBatch.id == item.batch_id).first()
+                batch = (
+                    db.query(ImageImportBatch)
+                    .filter(ImageImportBatch.id == item.batch_id)
+                    .first()
+                )
                 if batch is not None:
                     refresh_batch_status(db, batch)
             if image is not None:

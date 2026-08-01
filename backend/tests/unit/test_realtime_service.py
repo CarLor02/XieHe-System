@@ -1,10 +1,12 @@
+from collections.abc import Iterator
+
 import pytest
 
 from app.services import realtime_service as realtime_module
 
 
 @pytest.fixture(autouse=True)
-def reset_realtime_globals() -> None:
+def reset_realtime_globals() -> Iterator[None]:
     realtime_module.realtime_service = None
     realtime_module._realtime_leader_refresh_task = None
     realtime_module._realtime_stopping = False
@@ -57,13 +59,17 @@ async def test_start_realtime_service_releases_leader_after_service_stops(
         return True
 
     monkeypatch.setattr(realtime_module, "_try_acquire_realtime_leader", acquire)
-    monkeypatch.setattr(realtime_module, "_start_realtime_leader_refresh", lambda: None, raising=False)
+    monkeypatch.setattr(
+        realtime_module, "_start_realtime_leader_refresh", lambda: None, raising=False
+    )
     monkeypatch.setattr(realtime_module, "RealtimeDataService", FakeRealtimeDataService)
 
     async def release() -> None:
         calls.append("release")
 
-    monkeypatch.setattr(realtime_module, "_release_realtime_leader", release, raising=False)
+    monkeypatch.setattr(
+        realtime_module, "_release_realtime_leader", release, raising=False
+    )
 
     await realtime_module.start_realtime_service()
 

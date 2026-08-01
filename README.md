@@ -28,7 +28,7 @@
 │   ├── 标注画布 (Fabric.js + Konva)
 │   ├── 数据可视化 (Chart.js + Recharts)
 │   └── 状态管理 (Redux Toolkit + Zustand + TanStack Query)
-├── 后端 (Python 3.12 + FastAPI)
+├── 后端 (Python 3.11 + FastAPI)
 │   ├── REST API 服务
 │   ├── 对象存储网关 (调用 storage-service)
 │   └── AI 推理代理 (调用 ap / lat 服务)
@@ -74,7 +74,7 @@ XieHe-System/
 │   ├── types/           # TypeScript 类型定义
 │   ├── i18n/            # 国际化
 │   └── docs/            # 前端专项文档
-├── 📁 backend/           # 后端服务 (Python 3.12 + FastAPI)
+├── 📁 backend/           # 后端服务 (Python 3.11 + FastAPI)
 │   ├── app/
 │   │   ├── api/v1/      # REST API 路由与处理器
 │   │   ├── core/        # 配置、数据库、AI 引擎、日志
@@ -103,7 +103,8 @@ XieHe-System/
 | 工具 | 版本 | 用途 |
 |---|---|---|
 | Node.js | 18+ | 前端 |
-| Python (conda) | 3.12+ | 后端 |
+| Python | 3.11 | 后端 |
+| uv | 0.12+ | 后端依赖与工具管理 |
 | Docker | 20.10+ | 基础设施服务 |
 
 ### 步骤一：启动基础设施（Docker）
@@ -138,19 +139,17 @@ docker run -d --name xiehe-storage \
 ```bash
 cd XieHe-System/backend
 
-# 创建 conda 环境（首次）
-conda create -n xiehe python=3.12
-conda activate xiehe
-pip install -r requirements.txt
+# 按锁文件创建并同步后端环境
+uv sync --frozen
 
 # 配置环境变量（复制模板后按需修改）
 cp ../dotenv/.env.backend .env
 
 # 运行数据库迁移（Alembic）
-alembic upgrade head
+uv run alembic upgrade head
 
 # 启动后端
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
 ### 步骤三：启动 AI 推理服务（可选）
@@ -188,8 +187,8 @@ npm run dev
 | 服务 | 地址 |
 |---|---|
 | 前端 | http://localhost:3000 |
-| 后端 API | http://localhost:8000 |
-| API 文档 | http://localhost:8000/api/v1/docs |
+| 后端 API | http://localhost:8080 |
+| API 文档 | http://localhost:8080/api/v1/docs |
 | MinIO 控制台 | http://localhost:9001 |
 
 ### 默认测试账号
@@ -204,7 +203,7 @@ npm run dev
 | 层 | 技术 |
 |---|---|
 | 前端 | Next.js 15.5 + React 19 + TypeScript + Tailwind CSS v4 |
-| 后端 | Python 3.12 + FastAPI + SQLAlchemy 2.0 + Alembic |
+| 后端 | Python 3.11 + FastAPI + SQLAlchemy 2.0 + Alembic + uv |
 | 对象存储 | MinIO（通过 storage-service Go 网关访问）|
 | AI 推理 | Python + YOLO（正面 :8001 / 侧面 :8002）|
 | 数据库 | MySQL 8.0+ |
@@ -231,9 +230,11 @@ npm run test
 
 # 后端
 cd backend
-conda activate xiehe
-pytest
-pytest --cov=app          # 覆盖率报告
+uv sync --frozen
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
 ```
 
 ## 📊 核心功能

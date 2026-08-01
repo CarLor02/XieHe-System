@@ -10,19 +10,18 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 BACKEND_ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from scripts.env_loader import load_project_env
+from scripts.env_loader import load_project_env  # noqa: E402 - path bootstrap above.
 
 load_project_env()
 
-from openpyxl import Workbook
-from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from openpyxl import Workbook  # noqa: E402 - environment must load before app imports.
+from sqlalchemy import select  # noqa: E402
+from sqlalchemy.exc import SQLAlchemyError  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
-from app.core.database.session import SessionLocal
-from app.models.image_file import ImageFile
-from app.models.patient import Patient
-
+from app.core.database.session import SessionLocal  # noqa: E402
+from app.models.image_file import ImageFile  # noqa: E402
+from app.models.patient import Patient  # noqa: E402
 
 DEFAULT_PATIENT_NAME = "中国青少年标准脊柱序列研究"
 DEFAULT_OUTPUT_NAME = f"{DEFAULT_PATIENT_NAME}_影像名.xlsx"
@@ -60,6 +59,8 @@ def write_filenames_excel(
 
     workbook = Workbook()
     worksheet = workbook.active
+    if worksheet is None:
+        raise RuntimeError("无法创建 Excel 工作表")
     worksheet.title = "影像名"
     worksheet.column_dimensions["A"].width = 48
     worksheet.cell(row=1, column=1, value="影像名")
@@ -113,7 +114,7 @@ def main() -> int:
         return 2
 
     if not filenames:
-        print(f'未找到患者名称为“{args.patient_name}”的关联影像。')
+        print(f"未找到患者名称为“{args.patient_name}”的关联影像。")
         return 1
 
     output_path = args.output.expanduser().resolve()

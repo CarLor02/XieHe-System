@@ -1,8 +1,11 @@
 """Schemas for the models API endpoints."""
 
-from typing import List, Optional, Dict, Any
+from typing import Dict, List, Optional
+
 from pydantic import BaseModel
-from app.services.model_manager import ModelManager, AIModel, ModelViewType, ModelConfiguration, ModelStatus
+
+from app.services.model_manager import AIModel, ModelViewType
+
 
 class CreateModelRequest(BaseModel):
     name: str

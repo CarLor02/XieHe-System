@@ -13,13 +13,12 @@ from app.models.user import User
 from app.services.storage_gateway import StorageServiceError, storage_gateway
 from app.shared.redis import RedisDistributedLock, RedisStateUnavailable
 
-
 OBJECT_CLEANUP_LEADER_LOCK_KEY = "locks:medical_backend:object_cleanup"
 OBJECT_CLEANUP_LEADER_LOCK_TTL_SECONDS = 90
 OBJECT_CLEANUP_LEADER_REFRESH_INTERVAL_SECONDS = 30
 OBJECT_CLEANUP_LEADER_RETRY_SECONDS = 5
-_object_cleanup_leader_refresh_task: Optional[asyncio.Task] = None
-_object_cleanup_scheduler_task: Optional[asyncio.Task] = None
+_object_cleanup_leader_refresh_task: Optional[asyncio.Task[None]] = None
+_object_cleanup_scheduler_task: Optional[asyncio.Task[None]] = None
 _object_cleanup_stopping = False
 _object_cleanup_lock = RedisDistributedLock(
     OBJECT_CLEANUP_LEADER_LOCK_KEY,
@@ -40,11 +39,15 @@ async def cleanup_soft_deleted_objects() -> None:
     cutoff = datetime.now() - timedelta(days=30)
     db = SessionLocal()
     try:
-        images = db.query(ImageFile).filter(
-            ImageFile.is_deleted == True,
-            ImageFile.deleted_at.isnot(None),
-            ImageFile.deleted_at < cutoff,
-        ).all()
+        images = (
+            db.query(ImageFile)
+            .filter(
+                ImageFile.is_deleted.is_(True),
+                ImageFile.deleted_at.isnot(None),
+                ImageFile.deleted_at < cutoff,
+            )
+            .all()
+        )
         for image in images:
             if not image.storage_bucket or not image.object_key:
                 continue
@@ -53,16 +56,25 @@ async def cleanup_soft_deleted_objects() -> None:
                     bucket=image.storage_bucket,
                     object_key=image.object_key,
                 )
-                logger.emit_event(LogLevel.INFO, message=f"已物理删除影像对象: {image.storage_bucket}/{image.object_key}")
+                logger.emit_event(
+                    LogLevel.INFO,
+                    message=f"已物理删除影像对象: {image.storage_bucket}/{image.object_key}",
+                )
             except StorageServiceError as exc:
-                logger.emit_event(LogLevel.WARNING, message=f"物理删除影像对象失败，将下次重试: {exc}")
+                logger.emit_event(
+                    LogLevel.WARNING, message=f"物理删除影像对象失败，将下次重试: {exc}"
+                )
 
-        users = db.query(User).filter(
-            User.avatar_deleted_at.isnot(None),
-            User.avatar_deleted_at < cutoff,
-            User.avatar_storage_bucket.isnot(None),
-            User.avatar_object_key.isnot(None),
-        ).all()
+        users = (
+            db.query(User)
+            .filter(
+                User.avatar_deleted_at.isnot(None),
+                User.avatar_deleted_at < cutoff,
+                User.avatar_storage_bucket.isnot(None),
+                User.avatar_object_key.isnot(None),
+            )
+            .all()
+        )
         for user in users:
             try:
                 await storage_gateway.delete_object(
@@ -73,9 +85,13 @@ async def cleanup_soft_deleted_objects() -> None:
                 user.avatar_object_key = None
                 user.avatar_storage_etag = None
                 user.avatar_deleted_at = None
-                logger.emit_event(LogLevel.INFO, message=f"已物理删除用户头像对象: user={user.id}")
+                logger.emit_event(
+                    LogLevel.INFO, message=f"已物理删除用户头像对象: user={user.id}"
+                )
             except StorageServiceError as exc:
-                logger.emit_event(LogLevel.WARNING, message=f"物理删除用户头像失败，将下次重试: {exc}")
+                logger.emit_event(
+                    LogLevel.WARNING, message=f"物理删除用户头像失败，将下次重试: {exc}"
+                )
 
         db.commit()
     except Exception as exc:
@@ -108,21 +124,34 @@ async def _refresh_object_cleanup_leader() -> None:
         await asyncio.sleep(OBJECT_CLEANUP_LEADER_REFRESH_INTERVAL_SECONDS)
         try:
             if not await _object_cleanup_lock.renew():
-                logger.emit_event(LogLevel.WARNING, message="对象清理 leader 锁已丢失，停止当前 worker 的清理任务")
-                if _object_cleanup_scheduler_task is not None and not _object_cleanup_scheduler_task.done():
+                logger.emit_event(
+                    LogLevel.WARNING,
+                    message="对象清理 leader 锁已丢失，停止当前 worker 的清理任务",
+                )
+                if (
+                    _object_cleanup_scheduler_task is not None
+                    and not _object_cleanup_scheduler_task.done()
+                ):
                     _object_cleanup_scheduler_task.cancel()
                 return
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.emit_event(LogLevel.ERROR, message=f"刷新对象清理 leader 锁失败: {exc}")
+            logger.emit_event(
+                LogLevel.ERROR, message=f"刷新对象清理 leader 锁失败: {exc}"
+            )
 
 
 def _start_object_cleanup_leader_refresh() -> None:
     """Start a local task that refreshes the Redis object cleanup leader lock."""
     global _object_cleanup_leader_refresh_task
-    if _object_cleanup_leader_refresh_task is None or _object_cleanup_leader_refresh_task.done():
-        _object_cleanup_leader_refresh_task = asyncio.create_task(_refresh_object_cleanup_leader())
+    if (
+        _object_cleanup_leader_refresh_task is None
+        or _object_cleanup_leader_refresh_task.done()
+    ):
+        _object_cleanup_leader_refresh_task = asyncio.create_task(
+            _refresh_object_cleanup_leader()
+        )
 
 
 async def _stop_object_cleanup_leader_refresh() -> None:

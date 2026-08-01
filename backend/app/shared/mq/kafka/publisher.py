@@ -31,7 +31,6 @@ class KafkaPublisher:
                 separators=(",", ":"),
             ).encode("utf-8"),
             headers=[
-                (name, value.encode("utf-8"))
-                for name, value in message.headers.items()
+                (name, value.encode("utf-8")) for name, value in message.headers.items()
             ],
         )

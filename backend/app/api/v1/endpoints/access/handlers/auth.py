@@ -6,24 +6,44 @@
 创建时间: 2025-09-24
 """
 
-from typing import Dict, Any
-from datetime import datetime, timedelta
 import math
+import typing
+from datetime import datetime, timedelta
+from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr, Field
 
+from app.core.access.auth import get_current_active_user, security
+from app.core.access.security import (
+    hash_password_async,
+    security_manager,
+    verify_password_async,
+)
+from app.core.config import settings as config_settings
 from app.core.database.session import get_db
-from app.core.access.security import security_manager, hash_password_async, verify_password_async
-from app.core.access.auth import get_current_active_user, get_current_user, security
 from app.core.system.exceptions import AuthenticationException, BusinessLogicException
+from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
-from app.core.system.errors import ErrorCode
+from app.services.storage_gateway import StorageServiceError, storage_gateway
 from app.shared.redis import RedisStateUnavailable
 
-from app.core.system.logger import LogLevel, logger
+from ..schemas.auth import (
+    AvatarUploadCompleteRequest,
+    AvatarUploadPart,
+    AvatarUploadSessionRequest,
+    AvatarUploadSessionResponse,
+    PasswordChange,
+    PasswordReset,
+    PasswordResetConfirm,
+    TokenRefresh,
+    TokenResponse,
+    UserLogin,
+    UserRegister,
+    UserResponse,
+    UserUpdate,
+)
 
 router = APIRouter()
 
@@ -37,7 +57,8 @@ router = APIRouter()
 # 辅助函数
 # ==========================================
 
-def _user_auth_dict(user_row) -> Dict[str, Any]:
+
+def _user_auth_dict(user_row: typing.Any) -> Dict[str, Any]:
     is_superuser = bool(user_row[6])
     return {
         "id": user_row[0],
@@ -46,7 +67,7 @@ def _user_auth_dict(user_row) -> Dict[str, Any]:
         "full_name": user_row[3] or user_row[1],
         "password_hash": user_row[4],
         "status": user_row[5],
-        "is_active": user_row[5] == 'active',
+        "is_active": user_row[5] == "active",
         "is_superuser": is_superuser,
         "role": "admin" if is_superuser else "doctor",
         "roles": ["admin"] if is_superuser else ["doctor"],
@@ -56,11 +77,13 @@ def _user_auth_dict(user_row) -> Dict[str, Any]:
             else ["patient_manage", "image_manage"]
         ),
         "is_system_admin": bool(user_row[7]) if len(user_row) > 7 else False,
-        "system_admin_level": int(user_row[8]) if len(user_row) > 8 and user_row[8] is not None else 0,
+        "system_admin_level": int(user_row[8])
+        if len(user_row) > 8 and user_row[8] is not None
+        else 0,
     }
 
 
-def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
+def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any] | None:
     """
     根据用户名或邮箱获取用户信息
 
@@ -97,7 +120,7 @@ def get_user_by_username_or_email(db: Session, username: str) -> Dict[str, Any]:
         return None
 
 
-def get_user_by_id(db: Session, user_id: int) -> Dict[str, Any]:
+def get_user_by_id(db: Session, user_id: int) -> Dict[str, Any] | None:
     """根据用户ID获取当前有效用户信息，用于刷新令牌时重建完整 claims。"""
 
     try:
@@ -126,25 +149,9 @@ def get_user_by_id(db: Session, user_id: int) -> Dict[str, Any]:
         return None
 
 
-from app.core.config import settings as config_settings
-from app.services.storage_gateway import StorageServiceError, storage_gateway
-from ..schemas.auth import (
-    AvatarUploadCompleteRequest,
-    AvatarUploadPart,
-    AvatarUploadSessionRequest,
-    AvatarUploadSessionResponse,
-    UserLogin,
-    UserRegister,
-    TokenRefresh,
-    PasswordReset,
-    PasswordResetConfirm,
-    PasswordChange,
-    UserUpdate,
-    TokenResponse,
-    UserResponse,
-)
-
-async def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) -> TokenResponse:
+async def create_user_tokens(
+    user: Dict[str, Any], remember_me: bool = False
+) -> TokenResponse:
     """
     为用户创建访问令牌和刷新令牌
 
@@ -166,29 +173,37 @@ async def create_user_tokens(user: Dict[str, Any], remember_me: bool = False) ->
         "is_active": user["is_active"],
         "is_superuser": user.get("is_superuser", False),
         "is_system_admin": user.get("is_system_admin", False),  # 添加系统管理员标志
-        "system_admin_level": user.get("system_admin_level", 0)  # 添加系统管理员级别
+        "system_admin_level": user.get("system_admin_level", 0),  # 添加系统管理员级别
     }
 
     # 设置过期时间（使用默认配置）
-    access_expires = timedelta(minutes=config_settings.ACCESS_TOKEN_EXPIRE_MINUTES)  # 12小时
+    access_expires = timedelta(
+        minutes=config_settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )  # 12小时
     refresh_expires = timedelta(days=config_settings.REFRESH_TOKEN_EXPIRE_DAYS)  # 7天
 
     # 创建令牌
     access_token = security_manager.create_access_token(token_data, access_expires)
-    refresh_token = await security_manager.create_refresh_token(token_data, refresh_expires)
+    refresh_token = await security_manager.create_refresh_token(
+        token_data, refresh_expires
+    )
 
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
-        expires_in=int(access_expires.total_seconds())
+        expires_in=int(access_expires.total_seconds()),
     )
 
 
-async def get_active_avatar_url(user) -> str | None:
+async def get_active_avatar_url(user: typing.Any) -> str | None:
     """Return a short-lived avatar URL if the user has an active avatar."""
 
-    if not user.avatar_storage_bucket or not user.avatar_object_key or user.avatar_deleted_at:
+    if (
+        not user.avatar_storage_bucket
+        or not user.avatar_object_key
+        or user.avatar_deleted_at
+    ):
         return None
     try:
         return await storage_gateway.presign_get(
@@ -201,12 +216,16 @@ async def get_active_avatar_url(user) -> str | None:
         return None
 
 
-async def build_user_response(user, current_user: Dict[str, Any], db: Session) -> UserResponse:
+async def build_user_response(
+    user: typing.Any, current_user: Dict[str, Any], db: Session
+) -> UserResponse:
     from app.models.user import Department
 
     department_name = None
     if user.department_id:
-        department = db.query(Department).filter(Department.id == user.department_id).first()
+        department = (
+            db.query(Department).filter(Department.id == user.department_id).first()
+        )
         if department:
             department_name = department.name
 
@@ -231,8 +250,12 @@ async def build_user_response(user, current_user: Dict[str, Any], db: Session) -
         is_system_admin=user.is_system_admin or False,
         system_admin_level=user.system_admin_level or 0,
         avatar_url=avatar_url,
-        avatar_storage_bucket=user.avatar_storage_bucket if not user.avatar_deleted_at else None,
-        avatar_object_key=user.avatar_object_key if not user.avatar_deleted_at else None,
+        avatar_storage_bucket=user.avatar_storage_bucket
+        if not user.avatar_deleted_at
+        else None,
+        avatar_object_key=user.avatar_object_key
+        if not user.avatar_deleted_at
+        else None,
         created_at=user.created_at.isoformat() if user.created_at else None,
         updated_at=user.updated_at.isoformat() if user.updated_at else None,
     )
@@ -242,11 +265,11 @@ async def build_user_response(user, current_user: Dict[str, Any], db: Session) -
 # API端点
 # ==========================================
 
+
 @router.post("/login", response_model=Dict[str, Any], summary="用户登录")
 async def login(
-    login_data: UserLogin,
-    db: Session = Depends(get_db)
-):
+    login_data: UserLogin, db: Session = Depends(get_db)
+) -> dict[str, typing.Any]:
     """
     用户登录
 
@@ -272,7 +295,9 @@ async def login(
         tokens = await create_user_tokens(user, login_data.remember_me)
 
         # 记录登录日志
-        logger.emit_event(LogLevel.INFO, message=f"用户登录成功: {user['username']} ({user['email']})")
+        logger.emit_event(
+            LogLevel.INFO, message=f"用户登录成功: {user['username']} ({user['email']})"
+        )
 
         # 返回前端期望的格式
         tokens_dict = tokens.dict()
@@ -285,7 +310,7 @@ async def login(
             roles=user.get("roles", []),
             is_superuser=user.get("is_superuser", False),  # 添加超级管理员标志
             is_system_admin=user.get("is_system_admin", False),  # 添加系统管理员标志
-            system_admin_level=user.get("system_admin_level", 0)  # 添加系统管理员级别
+            system_admin_level=user.get("system_admin_level", 0),  # 添加系统管理员级别
         ).dict()
 
         return success_response(
@@ -294,9 +319,9 @@ async def login(
                 "refresh_token": tokens_dict["refresh_token"],
                 "token_type": tokens_dict["token_type"],
                 "expires_in": tokens_dict["expires_in"],
-                "user": user_dict
+                "user": user_dict,
             },
-            message="登录成功"
+            message="登录成功",
         )
 
     except AuthenticationException:
@@ -307,15 +332,14 @@ async def login(
         logger.emit_event(LogLevel.ERROR, message=f"登录失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="登录过程中发生错误"
+            detail="登录过程中发生错误",
         )
 
 
 @router.post("/register", response_model=Dict[str, Any], summary="用户注册")
 async def register(
-    register_data: UserRegister,
-    db: Session = Depends(get_db)
-):
+    register_data: UserRegister, db: Session = Depends(get_db)
+) -> dict[str, typing.Any]:
     """
     用户注册
 
@@ -342,16 +366,13 @@ async def register(
             raise BusinessLogicException("邮箱已被注册")
 
         # 创建新用户并保存到数据库
-        from sqlalchemy import text
         from datetime import datetime
-        import uuid
-        import secrets
+
+        from sqlalchemy import text
 
         # 使用 bcrypt 加密密码（自动包含盐值）
         password_hash = await hash_password_async(register_data.password)
-        normalized_phone = (
-            register_data.phone.strip() if register_data.phone else None
-        )
+        normalized_phone = register_data.phone.strip() if register_data.phone else None
         if normalized_phone == "":
             normalized_phone = None
 
@@ -368,14 +389,17 @@ async def register(
         )
         """
 
-        db.execute(text(insert_sql), {
-            "username": register_data.username,
-            "email": register_data.email,
-            "phone": normalized_phone,
-            "real_name": register_data.full_name,
-            "password_hash": password_hash,
-            "created_at": datetime.now()
-        })
+        db.execute(
+            text(insert_sql),
+            {
+                "username": register_data.username,
+                "email": register_data.email,
+                "phone": normalized_phone,
+                "real_name": register_data.full_name,
+                "password_hash": password_hash,
+                "created_at": datetime.now(),
+            },
+        )
         db.commit()
 
         # 获取新创建的用户ID
@@ -391,11 +415,14 @@ async def register(
             "is_active": True,
             "is_superuser": False,
             "roles": ["doctor"],
-            "permissions": ["patient_manage", "image_view"]
+            "permissions": ["patient_manage", "image_view"],
         }
 
         # 记录注册日志
-        logger.emit_event(LogLevel.INFO, message=f"用户注册成功: {new_user['username']} ({new_user['email']})")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"用户注册成功: {new_user['username']} ({new_user['email']})",
+        )
 
         return success_response(
             data={
@@ -405,10 +432,10 @@ async def register(
                     email=new_user["email"],
                     full_name=new_user["full_name"],
                     is_active=new_user["is_active"],
-                    roles=new_user.get("roles", [])
+                    roles=new_user.get("roles", []),
                 ).dict()
             },
-            message="注册成功"
+            message="注册成功",
         )
 
     except (AuthenticationException, BusinessLogicException):
@@ -417,22 +444,23 @@ async def register(
         logger.emit_event(LogLevel.ERROR, message=f"注册失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="注册过程中发生错误"
+            detail="注册过程中发生错误",
         )
 
 
 @router.post("/refresh", response_model=Dict[str, Any], summary="刷新令牌")
 async def refresh_token(
-    refresh_data: TokenRefresh,
-    db: Session = Depends(get_db)
-):
+    refresh_data: TokenRefresh, db: Session = Depends(get_db)
+) -> dict[str, typing.Any]:
     """
     刷新访问令牌
 
     - **refresh_token**: 刷新令牌
     """
     try:
-        payload = await security_manager.verify_token(refresh_data.refresh_token, "refresh")
+        payload = await security_manager.verify_token(
+            refresh_data.refresh_token, "refresh"
+        )
         if not payload:
             raise AuthenticationException("刷新令牌无效或已过期")
 
@@ -457,10 +485,7 @@ async def refresh_token(
 
         logger.emit_event(LogLevel.INFO, message="令牌刷新成功")
 
-        return success_response(
-            data={"tokens": new_tokens},
-            message="令牌刷新成功"
-        )
+        return success_response(data={"tokens": new_tokens}, message="令牌刷新成功")
 
     except AuthenticationException:
         raise
@@ -470,7 +495,7 @@ async def refresh_token(
         logger.emit_event(LogLevel.ERROR, message=f"令牌刷新失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="令牌刷新过程中发生错误"
+            detail="令牌刷新过程中发生错误",
         )
 
 
@@ -478,8 +503,8 @@ async def refresh_token(
 async def logout(
     request: Request,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict[str, typing.Any]:
     """
     用户登出
 
@@ -490,12 +515,11 @@ async def logout(
         if credentials:
             await security_manager.blacklist_token(credentials.credentials)
 
-        logger.emit_event(LogLevel.INFO, message=f"用户登出成功: {current_user['username']}")
-
-        return success_response(
-            data=None,
-            message="登出成功"
+        logger.emit_event(
+            LogLevel.INFO, message=f"用户登出成功: {current_user['username']}"
         )
+
+        return success_response(data=None, message="登出成功")
 
     except RedisStateUnavailable:
         raise
@@ -503,15 +527,14 @@ async def logout(
         logger.emit_event(LogLevel.ERROR, message=f"登出失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="登出过程中发生错误"
+            detail="登出过程中发生错误",
         )
 
 
 @router.post("/password/reset", response_model=Dict[str, Any], summary="请求密码重置")
 async def request_password_reset(
-    reset_data: PasswordReset,
-    db: Session = Depends(get_db)
-):
+    reset_data: PasswordReset, db: Session = Depends(get_db)
+) -> dict[str, typing.Any]:
     """
     请求密码重置
 
@@ -522,12 +545,12 @@ async def request_password_reset(
         user = get_user_by_username_or_email(db, reset_data.email)
         if not user:
             # 为了安全，即使用户不存在也返回成功消息
-            return {
-                "message": "如果邮箱存在，重置链接已发送到您的邮箱"
-            }
+            return {"message": "如果邮箱存在，重置链接已发送到您的邮箱"}
 
         # 生成重置令牌
-        reset_token = await security_manager.generate_api_key(str(user["id"]), "password_reset")
+        reset_token = await security_manager.generate_api_key(
+            str(user["id"]), "password_reset"
+        )
 
         # 这里应该发送重置邮件
         # send_password_reset_email(user["email"], reset_token)
@@ -536,7 +559,7 @@ async def request_password_reset(
 
         return success_response(
             data={"reset_token": reset_token},  # 仅用于测试，生产环境不应返回
-            message="如果邮箱存在，重置链接已发送到您的邮箱"
+            message="如果邮箱存在，重置链接已发送到您的邮箱",
         )
 
     except RedisStateUnavailable:
@@ -545,15 +568,16 @@ async def request_password_reset(
         logger.emit_event(LogLevel.ERROR, message=f"密码重置请求失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="密码重置请求过程中发生错误"
+            detail="密码重置请求过程中发生错误",
         )
 
 
-@router.post("/password/reset/confirm", response_model=Dict[str, Any], summary="确认密码重置")
+@router.post(
+    "/password/reset/confirm", response_model=Dict[str, Any], summary="确认密码重置"
+)
 async def confirm_password_reset(
-    reset_confirm: PasswordResetConfirm,
-    db: Session = Depends(get_db)
-):
+    reset_confirm: PasswordResetConfirm, db: Session = Depends(get_db)
+) -> dict[str, typing.Any]:
     """
     确认密码重置
 
@@ -576,17 +600,14 @@ async def confirm_password_reset(
             raise AuthenticationException("重置令牌无效")
 
         # 这里应该更新数据库中的密码
-        new_password_hash = await hash_password_async(reset_confirm.new_password)
+        await hash_password_async(reset_confirm.new_password)
 
         # 撤销重置令牌
         await security_manager.revoke_api_key(reset_confirm.token)
 
         logger.emit_event(LogLevel.INFO, message=f"密码重置成功: 用户ID {user_id}")
 
-        return success_response(
-            data=None,
-            message="密码重置成功"
-        )
+        return success_response(data=None, message="密码重置成功")
 
     except (AuthenticationException, BusinessLogicException):
         raise
@@ -596,7 +617,7 @@ async def confirm_password_reset(
         logger.emit_event(LogLevel.ERROR, message=f"密码重置确认失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="密码重置确认过程中发生错误"
+            detail="密码重置确认过程中发生错误",
         )
 
 
@@ -604,8 +625,8 @@ async def confirm_password_reset(
 async def change_password(
     password_change: PasswordChange,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     修改密码
 
@@ -624,7 +645,9 @@ async def change_password(
             raise AuthenticationException("用户不存在")
 
         # 验证当前密码
-        if not await verify_password_async(password_change.current_password, user["password_hash"]):
+        if not await verify_password_async(
+            password_change.current_password, user["password_hash"]
+        ):
             raise AuthenticationException("当前密码错误")
 
         from sqlalchemy import text
@@ -645,12 +668,11 @@ async def change_password(
         )
         db.commit()
 
-        logger.emit_event(LogLevel.INFO, message=f"密码修改成功: {current_user['username']}")
-
-        return success_response(
-            data=None,
-            message="密码修改成功"
+        logger.emit_event(
+            LogLevel.INFO, message=f"密码修改成功: {current_user['username']}"
         )
+
+        return success_response(data=None, message="密码修改成功")
 
     except (AuthenticationException, BusinessLogicException):
         raise
@@ -658,41 +680,39 @@ async def change_password(
         logger.emit_event(LogLevel.ERROR, message=f"密码修改失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="密码修改过程中发生错误"
+            detail="密码修改过程中发生错误",
         )
 
 
 @router.get("/me", response_model=Dict[str, Any], summary="获取当前用户信息")
 async def get_current_user_info(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取当前用户完整信息
     """
     try:
-        from app.models.user import User, Department
+        from app.models.user import User
 
         # 从数据库获取完整用户信息
         user = db.query(User).filter(User.id == current_user["id"]).first()
 
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用户不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在"
             )
 
         return success_response(
             data=(await build_user_response(user, current_user, db)).dict(),
-            message="获取用户信息成功"
+            message="获取用户信息成功",
         )
     except HTTPException:
         raise
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取用户信息失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取用户信息失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取用户信息失败"
         )
 
 
@@ -700,41 +720,46 @@ async def get_current_user_info(
 async def update_current_user_info(
     user_data: UserUpdate,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     更新当前用户信息
     """
     try:
-        from app.models.user import User, Department
+        from app.models.user import User
 
         # 从数据库获取用户
         user = db.query(User).filter(User.id == current_user["id"]).first()
 
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用户不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在"
             )
 
         # 更新用户信息
         update_data = user_data.dict(exclude_unset=True)
-        logger.emit_event(LogLevel.INFO, message=f"收到更新请求，用户ID: {current_user['id']}, 更新数据: {update_data}")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"收到更新请求，用户ID: {current_user['id']}, 更新数据: {update_data}",
+        )
 
         # 如果更新手机号，检查是否已存在
-        if 'phone' in update_data and update_data['phone']:
-            existing_user = db.query(User).filter(
-                User.phone == update_data['phone'],
-                User.id != user.id
-            ).first()
+        if "phone" in update_data and update_data["phone"]:
+            existing_user = (
+                db.query(User)
+                .filter(User.phone == update_data["phone"], User.id != user.id)
+                .first()
+            )
             if existing_user:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="该手机号已被使用"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="该手机号已被使用"
                 )
 
         # 记录更新前的值
-        logger.emit_event(LogLevel.INFO, message=f"更新前的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"更新前的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}",
+        )
 
         # 更新字段
         for field, value in update_data.items():
@@ -742,19 +767,25 @@ async def update_current_user_info(
             setattr(user, field, value)
 
         # 记录更新后的值
-        logger.emit_event(LogLevel.INFO, message=f"更新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"更新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}",
+        )
 
         db.commit()
         logger.emit_event(LogLevel.INFO, message="数据库提交成功")
 
         db.refresh(user)
-        logger.emit_event(LogLevel.INFO, message=f"刷新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"刷新后的值 - phone: {user.phone}, real_name: {user.real_name}, position: {user.position}, title: {user.title}",
+        )
 
         logger.emit_event(LogLevel.INFO, message=f"用户信息更新成功: {user.username}")
 
         return success_response(
             data=(await build_user_response(user, current_user, db)).dict(),
-            message="用户信息更新成功"
+            message="用户信息更新成功",
         )
     except HTTPException:
         raise
@@ -762,16 +793,19 @@ async def update_current_user_info(
         logger.emit_event(LogLevel.ERROR, message=f"更新用户信息失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="更新用户信息失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新用户信息失败"
         )
 
 
-@router.post("/me/avatar/upload-session", response_model=Dict[str, Any], summary="创建头像上传会话")
+@router.post(
+    "/me/avatar/upload-session",
+    response_model=Dict[str, Any],
+    summary="创建头像上传会话",
+)
 async def create_avatar_upload_session(
     request: AvatarUploadSessionRequest,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-):
+) -> dict[str, typing.Any]:
     if request.mime_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(status_code=400, detail="不支持的头像文件类型")
 
@@ -813,12 +847,14 @@ async def create_avatar_upload_session(
         raise HTTPException(status_code=502, detail="对象存储服务不可用")
 
 
-@router.post("/me/avatar/complete", response_model=Dict[str, Any], summary="完成头像上传")
+@router.post(
+    "/me/avatar/complete", response_model=Dict[str, Any], summary="完成头像上传"
+)
 async def complete_avatar_upload(
     request: AvatarUploadCompleteRequest,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     from app.models.user import User
 
     user = db.query(User).filter(User.id == current_user["id"]).first()
@@ -837,7 +873,9 @@ async def complete_avatar_upload(
                 for part in request.parts
             ],
         )
-        stat_result = await storage_gateway.stat_object(bucket=bucket, object_key=object_key)
+        stat_result = await storage_gateway.stat_object(
+            bucket=bucket, object_key=object_key
+        )
         user.avatar_storage_bucket = bucket
         user.avatar_object_key = object_key
         user.avatar_storage_etag = result.get("etag") or stat_result.etag
@@ -863,7 +901,7 @@ async def complete_avatar_upload(
 async def delete_current_user_avatar(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     from app.models.user import User
 
     user = db.query(User).filter(User.id == current_user["id"]).first()

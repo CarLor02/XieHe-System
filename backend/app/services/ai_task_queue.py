@@ -6,12 +6,9 @@ from typing import Any
 
 from app.core.config import settings
 from app.shared.mq.kafka import KafkaProducer, KafkaPublisher
-from app.shared.mq.publisher import PublishMessage, Publisher
+from app.shared.mq.publisher import Publisher, PublishMessage
 
-
-_publisher: Publisher = KafkaPublisher(
-    KafkaProducer(settings.KAFKA_BOOTSTRAP_SERVERS)
-)
+_publisher: Publisher = KafkaPublisher(KafkaProducer(settings.KAFKA_BOOTSTRAP_SERVERS))
 
 
 def get_ai_task_publisher() -> Publisher:

@@ -11,12 +11,12 @@ import sys
 from functools import lru_cache
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import Engine, URL, make_url
+from sqlalchemy.engine import URL, Engine, make_url
 from sqlalchemy.orm import sessionmaker
 
+from alembic import command
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
@@ -60,7 +60,9 @@ def _base_database_url() -> URL:
 def get_test_database_url() -> str:
     url = _base_database_url()
     if url.get_backend_name() not in {"mysql", "mariadb"}:
-        raise RuntimeError("Backend tests require a MySQL-compatible TEST_DATABASE_URL.")
+        raise RuntimeError(
+            "Backend tests require a MySQL-compatible TEST_DATABASE_URL."
+        )
     if url.database != TEST_DATABASE_NAME:
         raise RuntimeError(
             f"TEST_DATABASE_URL must point to {TEST_DATABASE_NAME!r}; got {url.database!r}."
@@ -136,7 +138,9 @@ def truncate_test_database(engine: Engine | None = None) -> None:
             for table_name in tables:
                 if table_name == "alembic_version":
                     continue
-                connection.execute(text(f"TRUNCATE TABLE {_quote_identifier(table_name)}"))
+                connection.execute(
+                    text(f"TRUNCATE TABLE {_quote_identifier(table_name)}")
+                )
         finally:
             connection.execute(text("SET FOREIGN_KEY_CHECKS=1"))
             connection.commit()

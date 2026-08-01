@@ -64,7 +64,9 @@ class RedisStateClientManager:
         except RedisStateUnavailable:
             raise
         except Exception as exc:
-            raise RedisStateUnavailable(f"Redis state client is not available: {exc}") from exc
+            raise RedisStateUnavailable(
+                f"Redis state client is not available: {exc}"
+            ) from exc
 
     async def ping(self) -> bool:
         try:

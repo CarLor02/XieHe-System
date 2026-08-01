@@ -8,13 +8,28 @@
 """
 
 import enum
-from sqlalchemy import Column, Integer, String, Date, DateTime, Text, Boolean, Enum, Float, JSON, func
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    Integer,
+    String,
+    Text,
+    func,
+)
+
 from .base import Base
 
 
 # 枚举定义
 class LogLevelEnum(str, enum.Enum):
     """日志级别枚举"""
+
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -24,6 +39,7 @@ class LogLevelEnum(str, enum.Enum):
 
 class LogCategoryEnum(str, enum.Enum):
     """日志分类枚举"""
+
     USER = "USER"
     SYSTEM = "SYSTEM"
     DATABASE = "DATABASE"
@@ -37,6 +53,7 @@ class LogCategoryEnum(str, enum.Enum):
 
 class AlertLevelEnum(str, enum.Enum):
     """告警级别枚举"""
+
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -46,6 +63,7 @@ class AlertLevelEnum(str, enum.Enum):
 
 class NotificationTypeEnum(str, enum.Enum):
     """通知类型枚举"""
+
     INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
@@ -56,6 +74,7 @@ class NotificationTypeEnum(str, enum.Enum):
 
 class NotificationStatusEnum(str, enum.Enum):
     """通知状态枚举"""
+
     PENDING = "PENDING"
     SENT = "SENT"
     READ = "READ"
@@ -65,6 +84,7 @@ class NotificationStatusEnum(str, enum.Enum):
 
 class ConfigTypeEnum(str, enum.Enum):
     """配置类型枚举"""
+
     SYSTEM = "SYSTEM"
     DATABASE = "DATABASE"
     SECURITY = "SECURITY"
@@ -79,6 +99,7 @@ class ConfigTypeEnum(str, enum.Enum):
 
 class DataTypeEnum(str, enum.Enum):
     """数据类型枚举"""
+
     STRING = "STRING"
     INTEGER = "INTEGER"
     FLOAT = "FLOAT"
@@ -91,8 +112,9 @@ class DataTypeEnum(str, enum.Enum):
 
 class SystemConfig(Base):
     """系统配置表"""
+
     __tablename__ = "system_configs"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True, comment="配置ID")
     config_key = Column(String(100), unique=True, nullable=False, comment="配置键")
     config_name = Column(String(200), nullable=False, comment="配置名称")
@@ -115,7 +137,9 @@ class SystemConfig(Base):
     last_modified_at = Column(DateTime, comment="最后修改时间")
     last_modified_by = Column(Integer, comment="最后修改人ID")
     created_at = Column(DateTime, default=func.now(), comment="创建时间")
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), comment="更新时间")
+    updated_at = Column(
+        DateTime, default=func.now(), onupdate=func.now(), comment="更新时间"
+    )
     created_by = Column(Integer, comment="创建人ID")
     updated_by = Column(Integer, comment="更新人ID")
     is_deleted = Column(Boolean, default=False, comment="是否删除")
@@ -125,8 +149,9 @@ class SystemConfig(Base):
 
 class SystemLog(Base):
     """系统日志表"""
+
     __tablename__ = "system_logs"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True, comment="日志ID")
     log_level = Column(Enum(LogLevelEnum), nullable=False, comment="日志级别")
     log_category = Column(Enum(LogCategoryEnum), nullable=False, comment="日志分类")
@@ -154,8 +179,9 @@ class SystemLog(Base):
 
 class SystemMonitor(Base):
     """系统监控表"""
+
     __tablename__ = "system_monitors"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True, comment="监控ID")
     monitor_time = Column(DateTime, nullable=False, comment="监控时间")
     server_name = Column(String(100), nullable=False, comment="服务器名称")
@@ -189,8 +215,9 @@ class SystemMonitor(Base):
 
 class SystemAlert(Base):
     """系统告警表"""
+
     __tablename__ = "system_alerts"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True, comment="告警ID")
     alert_type = Column(String(50), nullable=False, comment="告警类型")
     alert_level = Column(Enum(AlertLevelEnum), nullable=False, comment="告警级别")
@@ -210,7 +237,9 @@ class SystemAlert(Base):
     notification_count = Column(Integer, default=0, comment="通知次数")
     last_notification_at = Column(DateTime, comment="最后通知时间")
     created_at = Column(DateTime, default=func.now(), comment="创建时间")
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), comment="更新时间")
+    updated_at = Column(
+        DateTime, default=func.now(), onupdate=func.now(), comment="更新时间"
+    )
     created_by = Column(Integer, comment="创建人ID")
     updated_by = Column(Integer, comment="更新人ID")
     is_deleted = Column(Boolean, default=False, comment="是否删除")
@@ -220,13 +249,20 @@ class SystemAlert(Base):
 
 class Notification(Base):
     """通知消息表"""
+
     __tablename__ = "notifications"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True, comment="通知ID")
-    notification_type = Column(Enum(NotificationTypeEnum), nullable=False, comment="通知类型")
+    notification_type = Column(
+        Enum(NotificationTypeEnum), nullable=False, comment="通知类型"
+    )
     title = Column(String(200), nullable=False, comment="标题")
     content = Column(Text, nullable=False, comment="内容")
-    status = Column(Enum(NotificationStatusEnum), default=NotificationStatusEnum.PENDING, comment="状态")
+    status = Column(
+        Enum(NotificationStatusEnum),
+        default=NotificationStatusEnum.PENDING,
+        comment="状态",
+    )
     recipient_id = Column(Integer, comment="接收人ID")
     recipient_type = Column(String(50), comment="接收人类型")
     recipient_email = Column(String(200), comment="接收人邮箱")
@@ -247,10 +283,11 @@ class Notification(Base):
     priority = Column(Integer, default=0, comment="优先级")
     tags = Column(JSON, comment="标签")
     created_at = Column(DateTime, default=func.now(), comment="创建时间")
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), comment="更新时间")
+    updated_at = Column(
+        DateTime, default=func.now(), onupdate=func.now(), comment="更新时间"
+    )
     created_by = Column(Integer, comment="创建人ID")
     updated_by = Column(Integer, comment="更新人ID")
     is_deleted = Column(Boolean, default=False, comment="是否删除")
     deleted_at = Column(DateTime, comment="删除时间")
     deleted_by = Column(Integer, comment="删除人ID")
-

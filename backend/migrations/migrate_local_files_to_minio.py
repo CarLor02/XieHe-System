@@ -20,12 +20,26 @@ from sqlalchemy import create_engine, text
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Migrate local uploads to MinIO")
-    parser.add_argument("--database-url", default=os.getenv("DATABASE_URL"), required=not os.getenv("DATABASE_URL"))
-    parser.add_argument("--uploads-dir", default=os.getenv("LEGACY_UPLOADS_DIR", "/app/uploads"))
+    parser.add_argument(
+        "--database-url",
+        default=os.getenv("DATABASE_URL"),
+        required=not os.getenv("DATABASE_URL"),
+    )
+    parser.add_argument(
+        "--uploads-dir", default=os.getenv("LEGACY_UPLOADS_DIR", "/app/uploads")
+    )
     parser.add_argument("--backup-dir", required=True)
-    parser.add_argument("--storage-service-url", default=os.getenv("STORAGE_SERVICE_URL", "http://storage-service:8090"))
-    parser.add_argument("--storage-service-token", default=os.getenv("STORAGE_SERVICE_TOKEN", "dev-storage-service-token"))
-    parser.add_argument("--bucket", default=os.getenv("IMAGE_FILE_BUCKET", "medical-image-files"))
+    parser.add_argument(
+        "--storage-service-url",
+        default=os.getenv("STORAGE_SERVICE_URL", "http://storage-service:8090"),
+    )
+    parser.add_argument(
+        "--storage-service-token",
+        default=os.getenv("STORAGE_SERVICE_TOKEN", "dev-storage-service-token"),
+    )
+    parser.add_argument(
+        "--bucket", default=os.getenv("IMAGE_FILE_BUCKET", "medical-image-files")
+    )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -50,11 +64,15 @@ def storage_headers(token: str) -> dict[str, str]:
     return {"X-Storage-Service-Token": token}
 
 
-def upload_file(service_url: str, token: str, bucket: str, object_key: str, file_path: Path) -> dict:
+def upload_file(
+    service_url: str, token: str, bucket: str, object_key: str, file_path: Path
+) -> dict:
     encoded_key = quote(object_key, safe="/")
     url = f"{service_url.rstrip('/')}/objects/{bucket}/{encoded_key}"
     with file_path.open("rb") as handle:
-        response = requests.put(url, headers=storage_headers(token), data=handle, timeout=300)
+        response = requests.put(
+            url, headers=storage_headers(token), data=handle, timeout=300
+        )
     response.raise_for_status()
     payload = response.json()
     if isinstance(payload, dict) and "code" in payload and "data" in payload:
@@ -81,16 +99,20 @@ def main() -> int:
 
     engine = create_engine(args.database_url)
     with engine.begin() as conn:
-        rows = conn.execute(
-            text(
-                """
+        rows = (
+            conn.execute(
+                text(
+                    """
                 SELECT id, object_key, storage_bucket, storage_etag
                 FROM image_files
                 WHERE is_deleted = 0
                 ORDER BY id
                 """
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
 
         migrated = 0
         missing = 0

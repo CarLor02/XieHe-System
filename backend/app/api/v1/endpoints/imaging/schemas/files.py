@@ -1,11 +1,15 @@
 """Schemas for the files API endpoints."""
 
+import typing
+from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
-from datetime import datetime, date
+
 from pydantic import BaseModel, Field, field_validator
+
 
 class ImageFileResponse(BaseModel):
     """影像文件响应模型"""
+
     id: int
     file_uuid: str
     original_filename: str
@@ -39,6 +43,7 @@ class ImageFileResponse(BaseModel):
 
 class ImageFileListResponse(BaseModel):
     """影像文件列表响应"""
+
     total: int
     page: int
     page_size: int
@@ -47,6 +52,7 @@ class ImageFileListResponse(BaseModel):
 
 class ImageUploaderResponse(BaseModel):
     """影像上传者选择列表响应模型"""
+
     id: int
     username: str
     email: Optional[str] = None
@@ -60,14 +66,16 @@ class ImageUploaderResponse(BaseModel):
 
 class ImageFileStatsResponse(BaseModel):
     """影像文件统计响应"""
+
     total_files: int
     total_size: int
-    by_type: dict
-    by_status: dict
+    by_type: dict[str, typing.Any]
+    by_status: dict[str, typing.Any]
 
 
 class UpdateExamTypeRequest(BaseModel):
     """修改检查类型请求模型"""
+
     description: str = Field(..., description="检查类型（正位X光片/侧位X光片等）")
 
 
@@ -90,7 +98,7 @@ class RenameImageFileRequest(BaseModel):
 
     @field_validator("basename", mode="before")
     @classmethod
-    def validate_basename(cls, value):
+    def validate_basename(cls, value: typing.Any) -> typing.Any:
         if not isinstance(value, str):
             return value
 
@@ -106,10 +114,14 @@ class RenameImageFileRequest(BaseModel):
 
 class UpdateAnnotationRequest(BaseModel):
     """更新标注数据请求模型"""
+
     annotation: Dict[str, Any] = Field(..., description="标注数据(JSON对象)")
 
 
 class BatchDownloadUrlsRequest(BaseModel):
     """批量获取影像访问地址请求"""
-    ids: List[int] = Field(..., min_length=1, max_length=100, description="影像文件ID列表")
+
+    ids: List[int] = Field(
+        ..., min_length=1, max_length=100, description="影像文件ID列表"
+    )
     variant: Literal["original"] = Field(default="original", description="访问对象类型")

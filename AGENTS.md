@@ -18,3 +18,10 @@
 - 跨 feature 复用能力应通过明确的公开出口或 service 层依赖，避免随意深层 import 其他 feature 的内部实现；只有真正稳定、无业务归属争议的代码才放入 `shared/`。
 - 前端开发完成后至少运行 `npm --prefix frontend run type-check`、`npm --prefix frontend run lint` 和 `npm --prefix frontend test`；涉及路由、静态导出、Next 配置或大范围架构调整时额外运行 `npm --prefix frontend run build`。
 - 如果 lint/test/type-check 因现有脚本、缺失测试环境或外部依赖失败，不要静默跳过；需要记录失败命令和关键错误，并优先在本轮修复可控的前端问题。
+
+# Python后端开发规则
+
+- Python 后端代码位于 `backend/`，依赖与工具配置统一维护在 `backend/pyproject.toml`，使用 uv 同步 `backend/uv.lock`，不要新增 `requirements.txt` 或独立的 Black、isort、Flake8 配置。
+- 每次修改 Python 代码后，必须在仓库根目录运行 `cd backend && uv run ruff check .`、`cd backend && uv run ruff format --check .` 和 `cd backend && uv run mypy`。
+- 修改后端依赖后运行 `cd backend && uv lock`，提交更新后的 `backend/uv.lock`；安装或同步环境使用 `cd backend && uv sync --frozen`。
+- Ruff 与 mypy 失败时不得静默跳过；应修复本轮引入的问题，并记录无法在本轮解决的既有问题和具体命令输出。

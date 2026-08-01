@@ -1,22 +1,24 @@
 """Schemas for the signature API endpoints."""
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
 
 class SignatureType(str, Enum):
-    HANDWRITTEN = "handwritten"     # 手写签名
-    DIGITAL = "digital"             # 数字签名
-    BIOMETRIC = "biometric"         # 生物识别签名
-    PIN = "pin"                     # PIN码签名
+    HANDWRITTEN = "handwritten"  # 手写签名
+    DIGITAL = "digital"  # 数字签名
+    BIOMETRIC = "biometric"  # 生物识别签名
+    PIN = "pin"  # PIN码签名
 
 
 class SignatureStatus(str, Enum):
-    VALID = "valid"                 # 有效
-    INVALID = "invalid"             # 无效
-    EXPIRED = "expired"             # 已过期
-    REVOKED = "revoked"             # 已撤销
+    VALID = "valid"  # 有效
+    INVALID = "invalid"  # 无效
+    EXPIRED = "expired"  # 已过期
+    REVOKED = "revoked"  # 已撤销
 
 
 class CreateSignatureRequest(BaseModel):

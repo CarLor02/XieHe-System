@@ -74,9 +74,7 @@ class TeamApplicationService:
             loader=load,
         )
 
-    async def get_team_members(
-        self, team_id: int, viewer_id: int
-    ) -> dict[str, Any]:
+    async def get_team_members(self, team_id: int, viewer_id: int) -> dict[str, Any]:
         generation = await self._query_generation()
         key = build_cache_key(
             "teams", "members", team_id, "viewer", viewer_id, f"v{generation}"

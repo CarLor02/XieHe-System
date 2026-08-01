@@ -8,11 +8,9 @@
 创建时间: 2025-09-24
 """
 
-import os
 import sys
-import asyncio
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict
 
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -38,11 +36,13 @@ def validate_runtime_config() -> Dict[str, Any]:
         "checks": {},
     }
 
-    if not all([
-        setting_value("DB_HOST", "MYSQL_HOST"),
-        setting_value("DB_USER", "MYSQL_USER"),
-        setting_value("DB_NAME", "MYSQL_DATABASE"),
-    ]):
+    if not all(
+        [
+            setting_value("DB_HOST", "MYSQL_HOST"),
+            setting_value("DB_USER", "MYSQL_USER"),
+            setting_value("DB_NAME", "MYSQL_DATABASE"),
+        ]
+    ):
         result["valid"] = False
         result["errors"].append("数据库配置不完整")
     else:
@@ -87,13 +87,8 @@ def print_section(title: str):
 
 def print_result(item: str, status: str, details: str = ""):
     """打印检查结果"""
-    status_icons = {
-        "OK": "✅",
-        "FAILED": "❌",
-        "WARNING": "⚠️",
-        "INFO": "ℹ️"
-    }
-    
+    status_icons = {"OK": "✅", "FAILED": "❌", "WARNING": "⚠️", "INFO": "ℹ️"}
+
     icon = status_icons.get(status, "❓")
     print(f"{icon} {item}: {status}")
     if details:
@@ -103,7 +98,7 @@ def print_result(item: str, status: str, details: str = ""):
 def check_environment():
     """检查环境配置"""
     print_section("环境配置检查")
-    
+
     # 检查环境变量文件
     dotenv_dir = Path(__file__).resolve().parents[3] / "dotenv"
     env_files = sorted(dotenv_dir.glob(".env.*"))
@@ -111,20 +106,22 @@ def check_environment():
     if env_files:
         print_result("dotenv环境文件", "OK", f"已加载候选文件: {len(env_files)} 个")
     else:
-        print_result("dotenv环境文件", "WARNING", "未找到dotenv/.env.*文件，使用默认配置")
-    
+        print_result(
+            "dotenv环境文件", "WARNING", "未找到dotenv/.env.*文件，使用默认配置"
+        )
+
     # 检查环境类型
     print_result("环境类型", "INFO", settings.ENVIRONMENT)
     print_result("调试模式", "INFO", str(settings.DEBUG))
     print_result("项目版本", "INFO", settings.VERSION)
-    
+
     # 检查密钥配置
     if settings.ENVIRONMENT == "production":
         if len(settings.SECRET_KEY) >= 32:
             print_result("SECRET_KEY", "OK", "密钥长度符合要求")
         else:
             print_result("SECRET_KEY", "FAILED", "生产环境密钥长度不足")
-        
+
         if len(settings.JWT_SECRET_KEY) >= 32:
             print_result("JWT_SECRET_KEY", "OK", "JWT密钥长度符合要求")
         else:
@@ -136,16 +133,20 @@ def check_environment():
 def check_database():
     """检查数据库配置"""
     print_section("数据库配置检查")
-    
+
     # 检查配置参数
-    print_result("数据库主机", "INFO", f"{setting_value('DB_HOST', 'MYSQL_HOST')}:{setting_value('DB_PORT', 'MYSQL_PORT')}")
+    print_result(
+        "数据库主机",
+        "INFO",
+        f"{setting_value('DB_HOST', 'MYSQL_HOST')}:{setting_value('DB_PORT', 'MYSQL_PORT')}",
+    )
     print_result("数据库名称", "INFO", setting_value("DB_NAME", "MYSQL_DATABASE"))
     print_result("数据库用户", "INFO", setting_value("DB_USER", "MYSQL_USER"))
     print_result("连接池大小", "INFO", str(settings.DB_POOL_SIZE))
-    
+
     # 检查数据库连接
     try:
-        db_manager = DatabaseManager()
+        DatabaseManager()
         # 这里可以添加实际的数据库连接测试
         print_result("数据库连接", "OK", "配置参数完整")
     except Exception as e:
@@ -155,12 +156,14 @@ def check_database():
 def check_redis():
     """检查Redis配置"""
     print_section("Redis配置检查")
-    
+
     # 检查配置参数
     print_result("Redis主机", "INFO", f"{settings.REDIS_HOST}:{settings.REDIS_PORT}")
     print_result("Redis数据库", "INFO", str(settings.REDIS_DB))
-    print_result("连接池大小", "INFO", str(setting_value("REDIS_POOL_SIZE", default=10)))
-    
+    print_result(
+        "连接池大小", "INFO", str(setting_value("REDIS_POOL_SIZE", default=10))
+    )
+
     # 检查Redis连接
     try:
         # 这里可以添加实际的Redis连接测试
@@ -172,7 +175,7 @@ def check_redis():
 def check_security():
     """检查安全配置"""
     print_section("安全配置检查")
-    
+
     # 检查CORS配置
     cors_origins = settings.BACKEND_CORS_ORIGINS
     if cors_origins:
@@ -181,18 +184,26 @@ def check_security():
             print(f"   - {origin}")
     else:
         print_result("CORS配置", "WARNING", "未配置CORS源")
-    
+
     # 检查允许的主机
     allowed_hosts = settings.ALLOWED_HOSTS
     if "*" in allowed_hosts and settings.ENVIRONMENT == "production":
         print_result("允许主机", "WARNING", "生产环境不建议使用通配符")
     else:
         print_result("允许主机", "OK", f"配置了{len(allowed_hosts)}个主机")
-    
+
     # 检查JWT配置
     print_result("JWT算法", "INFO", settings.JWT_ALGORITHM)
-    print_result("访问令牌过期时间", "INFO", f"{setting_value('ACCESS_TOKEN_EXPIRE_MINUTES', 'JWT_ACCESS_TOKEN_EXPIRE_MINUTES')}分钟")
-    print_result("刷新令牌过期时间", "INFO", f"{setting_value('REFRESH_TOKEN_EXPIRE_DAYS', 'JWT_REFRESH_TOKEN_EXPIRE_DAYS')}天")
+    print_result(
+        "访问令牌过期时间",
+        "INFO",
+        f"{setting_value('ACCESS_TOKEN_EXPIRE_MINUTES', 'JWT_ACCESS_TOKEN_EXPIRE_MINUTES')}分钟",
+    )
+    print_result(
+        "刷新令牌过期时间",
+        "INFO",
+        f"{setting_value('REFRESH_TOKEN_EXPIRE_DAYS', 'JWT_REFRESH_TOKEN_EXPIRE_DAYS')}天",
+    )
 
 
 def check_storage():
@@ -202,18 +213,24 @@ def check_storage():
     print_result("Storage Service", "INFO", settings.STORAGE_SERVICE_URL)
     print_result("影像Bucket", "INFO", settings.IMAGE_FILE_BUCKET)
     print_result("头像Bucket", "INFO", settings.USER_AVATAR_BUCKET)
-    print_result("Presign过期时间", "INFO", f"{settings.STORAGE_PRESIGN_EXPIRES_SECONDS}秒")
-    
+    print_result(
+        "Presign过期时间", "INFO", f"{settings.STORAGE_PRESIGN_EXPIRES_SECONDS}秒"
+    )
+
     # 检查文件配置
-    print_result("最大文件大小", "INFO", f"{settings.MAX_FILE_SIZE / 1024 / 1024:.1f}MB")
-    allowed_types = setting_value("ALLOWED_FILE_TYPES", "ALLOWED_IMAGE_TYPES", default=[])
+    print_result(
+        "最大文件大小", "INFO", f"{settings.MAX_FILE_SIZE / 1024 / 1024:.1f}MB"
+    )
+    allowed_types = setting_value(
+        "ALLOWED_FILE_TYPES", "ALLOWED_IMAGE_TYPES", default=[]
+    )
     print_result("允许文件类型", "INFO", ", ".join(allowed_types))
 
 
 def check_logging():
     """检查日志配置"""
     print_section("日志配置检查")
-    
+
     # 检查日志目录
     log_dir = Path(setting_value("LOG_DIR", default="logs"))
     if log_dir.exists():
@@ -225,7 +242,7 @@ def check_logging():
             print_result("创建日志目录", "OK", "目录创建成功")
         except Exception as e:
             print_result("创建日志目录", "FAILED", str(e))
-    
+
     # 检查日志配置
     print_result("日志级别", "INFO", settings.LOG_LEVEL)
     print_result("日志文件", "INFO", settings.LOG_FILE)
@@ -236,13 +253,21 @@ def check_logging():
 def check_ai_config():
     """检查AI配置"""
     print_section("AI模型配置检查")
-    
-    print_result("模型服务器", "INFO", setting_value("AI_MODEL_SERVICE_URL", "AI_MODEL_SERVER_URL"))
+
+    print_result(
+        "模型服务器",
+        "INFO",
+        setting_value("AI_MODEL_SERVICE_URL", "AI_MODEL_SERVER_URL"),
+    )
     print_result("模型超时时间", "INFO", f"{settings.AI_MODEL_TIMEOUT}秒")
-    print_result("最大并发数", "INFO", str(setting_value("AI_MODEL_MAX_CONCURRENT", default=1)))
-    
+    print_result(
+        "最大并发数", "INFO", str(setting_value("AI_MODEL_MAX_CONCURRENT", default=1))
+    )
+
     # 检查模型存储目录
-    model_dir = Path(setting_value("AI_MODELS_DIR", "AI_MODEL_STORAGE_DIR", default="./models"))
+    model_dir = Path(
+        setting_value("AI_MODELS_DIR", "AI_MODEL_STORAGE_DIR", default="./models")
+    )
     if model_dir.exists():
         print_result("模型存储目录", "OK", f"路径: {model_dir.absolute()}")
     else:
@@ -252,26 +277,26 @@ def check_ai_config():
 def generate_config_report():
     """生成配置报告"""
     print_section("配置验证报告")
-    
+
     validation_result = validate_runtime_config()
-    
+
     if validation_result["valid"]:
         print_result("整体配置", "OK", "所有配置项验证通过")
     else:
         print_result("整体配置", "FAILED", "存在配置错误")
-    
+
     # 显示错误
     if validation_result["errors"]:
         print("\n❌ 配置错误:")
         for error in validation_result["errors"]:
             print(f"   - {error}")
-    
+
     # 显示警告
     if validation_result["warnings"]:
         print("\n⚠️ 配置警告:")
         for warning in validation_result["warnings"]:
             print(f"   - {warning}")
-    
+
     # 显示检查结果
     if validation_result["checks"]:
         print("\n📊 检查结果:")
@@ -282,12 +307,12 @@ def generate_config_report():
 def main():
     """主函数"""
     print_header("协和医疗影像诊断系统 - 配置检查")
-    
+
     print(f"🏥 项目名称: {settings.PROJECT_NAME}")
     print(f"📊 版本: {settings.VERSION}")
     print(f"🌍 环境: {settings.ENVIRONMENT}")
     print(f"🔧 调试模式: {settings.DEBUG}")
-    
+
     # 执行各项检查
     check_environment()
     check_database()
@@ -297,7 +322,7 @@ def main():
     check_logging()
     check_ai_config()
     generate_config_report()
-    
+
     print_header("配置检查完成")
     print("💡 如有配置问题，请参考 dotenv/.env.*.example 文件进行修正")
     print("📚 详细配置说明请查看项目文档")

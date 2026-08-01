@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+import typing
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -163,9 +164,9 @@ def _upload_session_payload(
 @router.post("/sessions", response_model=Dict[str, Any], summary="创建影像上传会话")
 async def create_upload_session(
     request: CreateUploadSessionRequest,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     """Create an ImageFile row and return MinIO multipart presigned URLs."""
 
     _validate_upload_request(request)
@@ -173,6 +174,10 @@ async def create_upload_session(
         team_ids = validate_assignable_team_ids(db, current_user, request.team_ids)
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    uploader_id = current_user.get("id")
+    if not isinstance(uploader_id, int):
+        raise HTTPException(status_code=401, detail="当前用户ID无效")
 
     file_uuid = str(uuid.uuid4())
     object_key = _build_object_key(file_uuid, request.filename)
@@ -188,7 +193,7 @@ async def create_upload_session(
         object_key=object_key,
         file_size=request.size,
         file_hash=request.file_hash,
-        uploaded_by=current_user.get("id"),
+        uploaded_by=uploader_id,
         patient_id=request.patient_id,
         study_date=datetime.now(),
         description=request.description,
@@ -243,10 +248,12 @@ async def create_upload_session(
         raise HTTPException(status_code=500, detail="创建上传会话失败") from exc
 
 
-@router.get("/batches/config", response_model=Dict[str, Any], summary="获取批量导入配置")
+@router.get(
+    "/batches/config", response_model=Dict[str, Any], summary="获取批量导入配置"
+)
 async def get_image_import_config(
-    _: dict = Depends(get_current_active_user),
-):
+    _: dict[str, typing.Any] = Depends(get_current_active_user),
+) -> dict[str, typing.Any]:
     return success_response(
         data={
             "max_files": settings.BATCH_IMPORT_MAX_FILES,
@@ -259,9 +266,9 @@ async def get_image_import_config(
 @router.post("/batches", response_model=Dict[str, Any], summary="创建批量导入任务")
 async def create_image_import_batch(
     request: CreateImageImportBatchRequest,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     if len(request.files) > settings.BATCH_IMPORT_MAX_FILES:
         raise HTTPException(
             status_code=400,
@@ -330,9 +337,9 @@ async def create_image_import_batch(
 async def create_image_import_sessions(
     batch_id: str,
     request: CreateImageImportSessionsRequest,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     batch = _owned_batch(db, batch_id, current_user["id"])
     items = (
         db.query(ImageImportItem)
@@ -392,7 +399,9 @@ async def create_image_import_sessions(
             item.upload_id = upload_session["upload_id"]
             item.upload_status = ImageImportUploadStatus.SESSION_CREATED.value
             item.error_message = None
-            sessions.append(_upload_session_payload(item, image, upload_session, part_size))
+            sessions.append(
+                _upload_session_payload(item, image, upload_session, part_size)
+            )
 
         refresh_batch_status(db, batch)
         db.commit()
@@ -402,7 +411,9 @@ async def create_image_import_sessions(
         )
     except StorageServiceError as exc:
         db.rollback()
-        logger.emit_event(LogLevel.ERROR, message=f"批量创建对象存储上传会话失败: {exc}")
+        logger.emit_event(
+            LogLevel.ERROR, message=f"批量创建对象存储上传会话失败: {exc}"
+        )
         raise HTTPException(status_code=502, detail="对象存储服务不可用") from exc
     except HTTPException:
         db.rollback()
@@ -422,16 +433,16 @@ async def complete_image_import_item(
     batch_id: str,
     item_id: int,
     request: CompleteImageImportItemRequest,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     batch = _owned_batch(db, batch_id, current_user["id"])
     item = _owned_item(db, batch, item_id)
     image = (
         db.query(ImageFile)
         .filter(
             ImageFile.id == item.image_file_id,
-            ImageFile.is_deleted == False,
+            ImageFile.is_deleted.is_(False),
         )
         .first()
     )
@@ -458,10 +469,9 @@ async def complete_image_import_item(
             if stat_result.size != image.file_size:
                 raise HTTPException(status_code=400, detail="对象大小校验失败")
             expected_hash = request.file_hash or image.file_hash
-            stored_hash = (
-                stat_result.metadata.get("file-hash")
-                or stat_result.metadata.get("File-Hash")
-            )
+            stored_hash = stat_result.metadata.get(
+                "file-hash"
+            ) or stat_result.metadata.get("File-Hash")
             if expected_hash and stored_hash and expected_hash != stored_hash:
                 raise HTTPException(status_code=400, detail="对象哈希校验失败")
             image.storage_etag = complete_result.get("etag") or stat_result.etag
@@ -515,9 +525,9 @@ async def mark_image_import_upload_failed(
     batch_id: str,
     item_id: int,
     request: MarkImageImportUploadFailedRequest,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     batch = _owned_batch(db, batch_id, current_user["id"])
     item = _owned_item(db, batch, item_id)
     if item.upload_status == ImageImportUploadStatus.UPLOADED.value:
@@ -548,9 +558,9 @@ async def mark_image_import_upload_failed(
 async def enqueue_image_import_item(
     batch_id: str,
     item_id: int,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     batch = _owned_batch(db, batch_id, current_user["id"])
     item = _owned_item(db, batch, item_id)
     if item.upload_status != ImageImportUploadStatus.UPLOADED.value:
@@ -561,7 +571,10 @@ async def enqueue_image_import_item(
             data=serialize_import_item(item),
             message="AI任务已经完成",
         )
-    if item.image_file is not None and item.image_file.status == ImageFileStatusEnum.FAILED:
+    if (
+        item.image_file is not None
+        and item.image_file.status == ImageFileStatusEnum.FAILED
+    ):
         item.image_file.status = ImageFileStatusEnum.UPLOADED
     refresh_batch_status(db, batch)
     event = ai_task_event(task, item, batch)
@@ -575,7 +588,9 @@ async def enqueue_image_import_item(
         db.commit()
         raise HTTPException(status_code=503, detail="AI任务队列暂不可用") from exc
     db.refresh(item)
-    return success_response(data=serialize_import_item(item), message="AI任务已重新提交")
+    return success_response(
+        data=serialize_import_item(item), message="AI任务已重新提交"
+    )
 
 
 @router.get("/batches", response_model=Dict[str, Any], summary="查询批量导入任务")
@@ -583,9 +598,9 @@ async def list_image_import_batches(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
     batch_status: Optional[str] = Query(None, alias="status"),
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> typing.Any:
     query = db.query(ImageImportBatch).filter(
         ImageImportBatch.uploaded_by == current_user["id"]
     )
@@ -616,9 +631,9 @@ async def list_image_import_items(
     batch_id: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> typing.Any:
     batch = _owned_batch(db, batch_id, current_user["id"])
     query = db.query(ImageImportItem).filter(ImageImportItem.batch_id == batch.id)
     total = query.count()
@@ -645,15 +660,19 @@ async def list_image_import_items(
 async def complete_upload_session(
     image_file_id: int,
     request: CompleteUploadSessionRequest,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     """Complete multipart upload and mark the ImageFile as uploaded."""
 
-    image = db.query(ImageFile).filter(
-        ImageFile.id == image_file_id,
-        ImageFile.is_deleted == False,
-    ).first()
+    image = (
+        db.query(ImageFile)
+        .filter(
+            ImageFile.id == image_file_id,
+            ImageFile.is_deleted.is_(False),
+        )
+        .first()
+    )
     if not image:
         raise HTTPException(status_code=404, detail="影像文件不存在")
     if image.uploaded_by != current_user.get("id"):
@@ -681,9 +700,8 @@ async def complete_upload_session(
             db.commit()
             raise HTTPException(status_code=400, detail="对象大小校验失败")
         expected_hash = request.file_hash or image.file_hash
-        stored_hash = (
-            stat_result.metadata.get("file-hash")
-            or stat_result.metadata.get("File-Hash")
+        stored_hash = stat_result.metadata.get("file-hash") or stat_result.metadata.get(
+            "File-Hash"
         )
         if expected_hash and stored_hash and expected_hash != stored_hash:
             image.status = ImageFileStatusEnum.FAILED
@@ -717,16 +735,22 @@ async def complete_upload_session(
         raise HTTPException(status_code=500, detail="完成上传失败") from exc
 
 
-@router.get("/status/{image_file_id}", response_model=Dict[str, Any], summary="获取上传状态")
+@router.get(
+    "/status/{image_file_id}", response_model=Dict[str, Any], summary="获取上传状态"
+)
 async def get_upload_status(
     image_file_id: int,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
-    image = db.query(ImageFile).filter(
-        ImageFile.id == image_file_id,
-        ImageFile.is_deleted == False,
-    ).first()
+) -> dict[str, typing.Any]:
+    image = (
+        db.query(ImageFile)
+        .filter(
+            ImageFile.id == image_file_id,
+            ImageFile.is_deleted.is_(False),
+        )
+        .first()
+    )
     if not image:
         raise HTTPException(status_code=404, detail="未找到上传记录")
     if image.uploaded_by != current_user.get("id"):
@@ -747,11 +771,11 @@ async def get_upload_records(
     page: int = 1,
     page_size: int = 20,
     patient_id: Optional[int] = None,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> typing.Any:
     query = db.query(ImageFile).filter(
-        ImageFile.is_deleted == False,
+        ImageFile.is_deleted.is_(False),
         ImageFile.uploaded_by == current_user.get("id"),
     )
     if patient_id:

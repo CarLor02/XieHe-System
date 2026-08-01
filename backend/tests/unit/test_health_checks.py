@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.api.v1.endpoints.system.handlers import health
-from app.api.v1.endpoints.system.handlers import management
+from app.api.v1.endpoints.system.handlers import health, management
 
 
 class _FakeDB:
@@ -26,7 +25,9 @@ async def test_cpu_health_check_does_not_block_for_sampling(
 
     monkeypatch.setattr(health.psutil, "cpu_percent", fake_cpu_percent)
     monkeypatch.setattr(health.psutil, "cpu_count", lambda: 4)
-    monkeypatch.setattr(health.psutil, "getloadavg", lambda: (0.1, 0.2, 0.3), raising=False)
+    monkeypatch.setattr(
+        health.psutil, "getloadavg", lambda: (0.1, 0.2, 0.3), raising=False
+    )
 
     result = await health.check_cpu_health()
 

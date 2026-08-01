@@ -22,17 +22,14 @@ if (-not (Test-Path "app/main.py")) {
 Write-Host "✅ 当前目录正确" -ForegroundColor Green
 Write-Host ""
 
-# 激活 conda 环境
-Write-Host "📦 激活 conda 环境: xiehe" -ForegroundColor Yellow
-$env:CONDA_DEFAULT_ENV = "xiehe"
-
-# 检查 uvicorn 是否安装
-Write-Host "🔍 检查依赖..." -ForegroundColor Yellow
-$uvicornCheck = & conda run -n xiehe python -c "import uvicorn; print('ok')" 2>&1
-if ($uvicornCheck -notmatch "ok") {
-    Write-Host "❌ uvicorn 未安装，正在安装..." -ForegroundColor Red
-    conda run -n xiehe pip install uvicorn
+# 检查 uv 并按锁文件同步依赖
+Write-Host "🔍 检查 uv 与后端依赖..." -ForegroundColor Yellow
+if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    Write-Host "❌ 未找到 uv，请先安装: https://docs.astral.sh/uv/" -ForegroundColor Red
+    exit 1
 }
+uv sync --frozen
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "✅ 依赖检查完成" -ForegroundColor Green
 Write-Host ""
@@ -49,7 +46,7 @@ Write-Host "   - 健康检查:    http://localhost:8080/health" -ForegroundColor
 Write-Host "   - 根路径:      http://localhost:8080/" -ForegroundColor White
 Write-Host ""
 Write-Host "⚙️  配置信息:" -ForegroundColor Yellow
-Write-Host "   - 环境: xiehe" -ForegroundColor White
+Write-Host "   - 环境: backend/.venv (uv)" -ForegroundColor White
 Write-Host "   - 端口: 8080" -ForegroundColor White
 Write-Host "   - 热重载: 启用" -ForegroundColor White
 Write-Host ""
@@ -59,4 +56,4 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # 启动应用
-conda run -n xiehe uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080

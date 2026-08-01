@@ -7,28 +7,26 @@
 @created 2025-09-24
 """
 
-from typing import List, Optional, Dict, Any
+import typing
 from datetime import datetime
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import and_, asc, desc, or_
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, asc
-from pydantic import BaseModel, Field
 
-from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
-from app.models.report import ReportTemplate, TemplateTypeEnum, ReportTypeEnum
+from app.core.database.session import get_db
 from app.core.system.logger import LogLevel, logger
+from app.models.report import ReportTemplate, ReportTypeEnum, TemplateTypeEnum
+
 from ..schemas.templates import (
-    TemplateContentSection,
-    TemplateContent,
     ReportTemplateCreate,
-    ReportTemplateUpdate,
     ReportTemplateResponse,
+    ReportTemplateUpdate,
     TemplateListResponse,
     TemplateVersionCreate,
 )
-
 
 router = APIRouter()
 
@@ -45,16 +43,16 @@ async def get_templates(
     search: Optional[str] = Query(None, description="搜索关键词"),
     sort_by: str = Query("updated_at", description="排序字段"),
     sort_order: str = Query("desc", description="排序方向: asc, desc"),
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> TemplateListResponse:
     """
     获取报告模板列表
     """
     try:
         # 构建查询条件
-        query = db.query(ReportTemplate).filter(ReportTemplate.is_deleted == False)
-        
+        query = db.query(ReportTemplate).filter(ReportTemplate.is_deleted.is_(False))
+
         # 筛选条件
         if template_type:
             query = query.filter(ReportTemplate.template_type == template_type)
@@ -66,7 +64,7 @@ async def get_templates(
             query = query.filter(ReportTemplate.body_part == body_part)
         if is_active is not None:
             query = query.filter(ReportTemplate.is_active == is_active)
-        
+
         # 搜索条件
         if search:
             search_pattern = f"%{search}%"
@@ -74,10 +72,10 @@ async def get_templates(
                 or_(
                     ReportTemplate.template_name.like(search_pattern),
                     ReportTemplate.template_code.like(search_pattern),
-                    ReportTemplate.description.like(search_pattern)
+                    ReportTemplate.description.like(search_pattern),
                 )
             )
-        
+
         # 排序
         if hasattr(ReportTemplate, sort_by):
             order_column = getattr(ReportTemplate, sort_by)
@@ -85,90 +83,102 @@ async def get_templates(
                 query = query.order_by(desc(order_column))
             else:
                 query = query.order_by(asc(order_column))
-        
+
         # 分页
         total = query.count()
         offset = (page - 1) * page_size
         templates = query.offset(offset).limit(page_size).all()
-        
+
         total_pages = (total + page_size - 1) // page_size
-        
-        logger.emit_event(LogLevel.INFO, message=f"获取报告模板列表: {len(templates)} 个模板")
-        
+
+        logger.emit_event(
+            LogLevel.INFO, message=f"获取报告模板列表: {len(templates)} 个模板"
+        )
+
         return TemplateListResponse(
             templates=templates,
             total=total,
             page=page,
             page_size=page_size,
-            total_pages=total_pages
+            total_pages=total_pages,
         )
-        
+
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取报告模板列表失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取报告模板列表失败"
+            detail="获取报告模板列表失败",
         )
+
 
 @router.get("/templates/{template_id}", response_model=ReportTemplateResponse)
 async def get_template(
     template_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     获取指定报告模板详情
     """
     try:
-        template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == template_id,
-                ReportTemplate.is_deleted == False
+        template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.id == template_id,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
-        
+            .first()
+        )
+
         if not template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告模板不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="报告模板不存在"
             )
-        
-        logger.emit_event(LogLevel.INFO, message=f"获取报告模板详情: {template.template_name}")
+
+        logger.emit_event(
+            LogLevel.INFO, message=f"获取报告模板详情: {template.template_name}"
+        )
         return template
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取报告模板详情失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取报告模板详情失败"
+            detail="获取报告模板详情失败",
         )
+
 
 @router.post("/templates", response_model=ReportTemplateResponse)
 async def create_template(
     template_data: ReportTemplateCreate,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     创建新的报告模板
     """
     try:
         # 检查模板编码是否已存在
-        existing_template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.template_code == template_data.template_code,
-                ReportTemplate.is_deleted == False
+        existing_template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.template_code == template_data.template_code,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
-        
+            .first()
+        )
+
         if existing_template:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="模板编码已存在"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="模板编码已存在"
             )
-        
+
         # 如果设置为默认模板，需要取消其他同类型的默认模板
         if template_data.is_default:
             db.query(ReportTemplate).filter(
@@ -176,10 +186,10 @@ async def create_template(
                     ReportTemplate.report_type == template_data.report_type,
                     ReportTemplate.modality == template_data.modality,
                     ReportTemplate.body_part == template_data.body_part,
-                    ReportTemplate.is_deleted == False
+                    ReportTemplate.is_deleted.is_(False),
                 )
             ).update({"is_default": False})
-        
+
         # 创建新模板
         template = ReportTemplate(
             template_name=template_data.template_name,
@@ -195,80 +205,88 @@ async def create_template(
             is_active=template_data.is_active,
             is_default=template_data.is_default,
             version="1.0",
-            created_by=current_user.get("user_id")
+            created_by=current_user.get("user_id"),
         )
-        
+
         db.add(template)
         db.commit()
         db.refresh(template)
-        
-        logger.emit_event(LogLevel.INFO, message=f"创建报告模板成功: {template.template_name} ({template.template_code})")
+
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"创建报告模板成功: {template.template_name} ({template.template_code})",
+        )
         return template
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"创建报告模板失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="创建报告模板失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建报告模板失败"
         )
+
 
 @router.put("/templates/{template_id}", response_model=ReportTemplateResponse)
 async def update_template(
     template_id: int,
     template_data: ReportTemplateUpdate,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     更新报告模板
     """
     try:
-        template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == template_id,
-                ReportTemplate.is_deleted == False
+        template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.id == template_id,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
-        
+            .first()
+        )
+
         if not template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告模板不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="报告模板不存在"
             )
-        
+
         # 如果设置为默认模板，需要取消其他同类型的默认模板
         if template_data.is_default:
             report_type = template_data.report_type or template.report_type
             modality = template_data.modality or template.modality
             body_part = template_data.body_part or template.body_part
-            
+
             db.query(ReportTemplate).filter(
                 and_(
                     ReportTemplate.id != template_id,
                     ReportTemplate.report_type == report_type,
                     ReportTemplate.modality == modality,
                     ReportTemplate.body_part == body_part,
-                    ReportTemplate.is_deleted == False
+                    ReportTemplate.is_deleted.is_(False),
                 )
             ).update({"is_default": False})
-        
+
         # 更新模板字段
         update_data = template_data.dict(exclude_unset=True)
         if "template_content" in update_data:
             update_data["template_content"] = update_data["template_content"].dict()
-        
+
         update_data["updated_by"] = current_user.get("user_id")
-        
+
         for field, value in update_data.items():
             setattr(template, field, value)
-        
+
         db.commit()
         db.refresh(template)
-        
-        logger.emit_event(LogLevel.INFO, message=f"更新报告模板成功: {template.template_name}")
+
+        logger.emit_event(
+            LogLevel.INFO, message=f"更新报告模板成功: {template.template_name}"
+        )
         return template
 
     except HTTPException:
@@ -277,46 +295,54 @@ async def update_template(
         logger.emit_event(LogLevel.ERROR, message=f"更新报告模板失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="更新报告模板失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新报告模板失败"
         )
+
 
 @router.delete("/templates/{template_id}")
 async def delete_template(
     template_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     删除报告模板（软删除）
     """
     try:
-        template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == template_id,
-                ReportTemplate.is_deleted == False
+        template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.id == template_id,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告模板不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="报告模板不存在"
             )
 
         # 检查是否有报告在使用此模板
         from app.models.report import DiagnosticReport
-        reports_using_template = db.query(DiagnosticReport).filter(
-            and_(
-                DiagnosticReport.template_id == template_id,
-                DiagnosticReport.is_deleted == False
+
+        reports_using_template = (
+            db.query(DiagnosticReport)
+            .filter(
+                and_(
+                    DiagnosticReport.template_id == template_id,
+                    DiagnosticReport.is_deleted.is_(False),
+                )
             )
-        ).count()
+            .count()
+        )
 
         if reports_using_template > 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"无法删除模板，有 {reports_using_template} 个报告正在使用此模板"
+                detail=f"无法删除模板，有 {reports_using_template} 个报告正在使用此模板",
             )
 
         # 软删除
@@ -326,7 +352,9 @@ async def delete_template(
 
         db.commit()
 
-        logger.emit_event(LogLevel.INFO, message=f"删除报告模板成功: {template.template_name}")
+        logger.emit_event(
+            LogLevel.INFO, message=f"删除报告模板成功: {template.template_name}"
+        )
         return {"message": "报告模板删除成功"}
 
     except HTTPException:
@@ -335,48 +363,56 @@ async def delete_template(
         logger.emit_event(LogLevel.ERROR, message=f"删除报告模板失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="删除报告模板失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="删除报告模板失败"
         )
 
-@router.post("/templates/{template_id}/duplicate", response_model=ReportTemplateResponse)
+
+@router.post(
+    "/templates/{template_id}/duplicate", response_model=ReportTemplateResponse
+)
 async def duplicate_template(
     template_id: int,
     new_name: str = Query(..., description="新模板名称"),
     new_code: str = Query(..., description="新模板编码"),
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     复制报告模板
     """
     try:
         # 获取原模板
-        original_template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == template_id,
-                ReportTemplate.is_deleted == False
+        original_template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.id == template_id,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not original_template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="原报告模板不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="原报告模板不存在"
             )
 
         # 检查新编码是否已存在
-        existing_template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.template_code == new_code,
-                ReportTemplate.is_deleted == False
+        existing_template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.template_code == new_code,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
+            .first()
+        )
 
         if existing_template:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="新模板编码已存在"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="新模板编码已存在"
             )
 
         # 创建新模板
@@ -394,14 +430,16 @@ async def duplicate_template(
             is_active=True,
             is_default=False,  # 复制的模板不设为默认
             version="1.0",
-            created_by=current_user.get("user_id")
+            created_by=current_user.get("user_id"),
         )
 
         db.add(new_template)
         db.commit()
         db.refresh(new_template)
 
-        logger.emit_event(LogLevel.INFO, message=f"复制报告模板成功: {new_template.template_name}")
+        logger.emit_event(
+            LogLevel.INFO, message=f"复制报告模板成功: {new_template.template_name}"
+        )
         return new_template
 
     except HTTPException:
@@ -410,32 +448,35 @@ async def duplicate_template(
         logger.emit_event(LogLevel.ERROR, message=f"复制报告模板失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="复制报告模板失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="复制报告模板失败"
         )
+
 
 @router.post("/templates/{template_id}/version", response_model=ReportTemplateResponse)
 async def create_template_version(
     template_id: int,
     version_data: TemplateVersionCreate,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     创建模板新版本
     """
     try:
-        template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == template_id,
-                ReportTemplate.is_deleted == False
+        template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.id == template_id,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告模板不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="报告模板不存在"
             )
 
         # 生成新版本号
@@ -460,7 +501,10 @@ async def create_template_version(
         db.commit()
         db.refresh(template)
 
-        logger.emit_event(LogLevel.INFO, message=f"创建模板版本成功: {template.template_name} v{new_version}")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"创建模板版本成功: {template.template_name} v{new_version}",
+        )
         return template
 
     except HTTPException:
@@ -469,15 +513,15 @@ async def create_template_version(
         logger.emit_event(LogLevel.ERROR, message=f"创建模板版本失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="创建模板版本失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建模板版本失败"
         )
+
 
 @router.get("/templates/categories")
 async def get_template_categories(
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     获取模板分类统计
     """
@@ -485,56 +529,85 @@ async def get_template_categories(
         from sqlalchemy import func
 
         # 按报告类型分组统计
-        report_type_stats = db.query(
-            ReportTemplate.report_type,
-            func.count(ReportTemplate.id).label('count')
-        ).filter(
-            and_(
-                ReportTemplate.is_deleted == False,
-                ReportTemplate.is_active == True
+        report_type_stats = (
+            db.query(
+                ReportTemplate.report_type, func.count(ReportTemplate.id).label("count")
             )
-        ).group_by(ReportTemplate.report_type).all()
+            .filter(
+                and_(
+                    ReportTemplate.is_deleted.is_(False),
+                    ReportTemplate.is_active.is_(True),
+                )
+            )
+            .group_by(ReportTemplate.report_type)
+            .all()
+        )
 
         # 按模态分组统计
-        modality_stats = db.query(
-            ReportTemplate.modality,
-            func.count(ReportTemplate.id).label('count')
-        ).filter(
-            and_(
-                ReportTemplate.is_deleted == False,
-                ReportTemplate.is_active == True,
-                ReportTemplate.modality.isnot(None)
+        modality_stats = (
+            db.query(
+                ReportTemplate.modality, func.count(ReportTemplate.id).label("count")
             )
-        ).group_by(ReportTemplate.modality).all()
+            .filter(
+                and_(
+                    ReportTemplate.is_deleted.is_(False),
+                    ReportTemplate.is_active.is_(True),
+                    ReportTemplate.modality.isnot(None),
+                )
+            )
+            .group_by(ReportTemplate.modality)
+            .all()
+        )
 
         # 按部位分组统计
-        body_part_stats = db.query(
-            ReportTemplate.body_part,
-            func.count(ReportTemplate.id).label('count')
-        ).filter(
-            and_(
-                ReportTemplate.is_deleted == False,
-                ReportTemplate.is_active == True,
-                ReportTemplate.body_part.isnot(None)
+        body_part_stats = (
+            db.query(
+                ReportTemplate.body_part, func.count(ReportTemplate.id).label("count")
             )
-        ).group_by(ReportTemplate.body_part).all()
+            .filter(
+                and_(
+                    ReportTemplate.is_deleted.is_(False),
+                    ReportTemplate.is_active.is_(True),
+                    ReportTemplate.body_part.isnot(None),
+                )
+            )
+            .group_by(ReportTemplate.body_part)
+            .all()
+        )
 
         # 按模板类型分组统计
-        template_type_stats = db.query(
-            ReportTemplate.template_type,
-            func.count(ReportTemplate.id).label('count')
-        ).filter(
-            and_(
-                ReportTemplate.is_deleted == False,
-                ReportTemplate.is_active == True
+        template_type_stats = (
+            db.query(
+                ReportTemplate.template_type,
+                func.count(ReportTemplate.id).label("count"),
             )
-        ).group_by(ReportTemplate.template_type).all()
+            .filter(
+                and_(
+                    ReportTemplate.is_deleted.is_(False),
+                    ReportTemplate.is_active.is_(True),
+                )
+            )
+            .group_by(ReportTemplate.template_type)
+            .all()
+        )
 
         result = {
-            "report_types": [{"type": item.report_type.value, "count": item.count} for item in report_type_stats],
-            "modalities": [{"modality": item.modality, "count": item.count} for item in modality_stats],
-            "body_parts": [{"body_part": item.body_part, "count": item.count} for item in body_part_stats],
-            "template_types": [{"type": item.template_type.value, "count": item.count} for item in template_type_stats]
+            "report_types": [
+                {"type": item.report_type.value, "count": item.count}
+                for item in report_type_stats
+            ],
+            "modalities": [
+                {"modality": item.modality, "count": item.count}
+                for item in modality_stats
+            ],
+            "body_parts": [
+                {"body_part": item.body_part, "count": item.count}
+                for item in body_part_stats
+            ],
+            "template_types": [
+                {"type": item.template_type.value, "count": item.count}
+                for item in template_type_stats
+            ],
         }
 
         logger.emit_event(LogLevel.INFO, message="获取模板分类统计成功")
@@ -544,26 +617,27 @@ async def get_template_categories(
         logger.emit_event(LogLevel.ERROR, message=f"获取模板分类统计失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取模板分类统计失败"
+            detail="获取模板分类统计失败",
         )
+
 
 @router.get("/templates/default")
 async def get_default_templates(
     report_type: Optional[ReportTypeEnum] = Query(None, description="报告类型"),
     modality: Optional[str] = Query(None, description="模态"),
     body_part: Optional[str] = Query(None, description="部位"),
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取默认模板
     """
     try:
         query = db.query(ReportTemplate).filter(
             and_(
-                ReportTemplate.is_deleted == False,
-                ReportTemplate.is_active == True,
-                ReportTemplate.is_default == True
+                ReportTemplate.is_deleted.is_(False),
+                ReportTemplate.is_active.is_(True),
+                ReportTemplate.is_default.is_(True),
             )
         )
 
@@ -582,31 +656,34 @@ async def get_default_templates(
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取默认模板失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取默认模板失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取默认模板失败"
         )
+
 
 @router.post("/templates/{template_id}/set-default")
 async def set_default_template(
     template_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     设置默认模板
     """
     try:
-        template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == template_id,
-                ReportTemplate.is_deleted == False
+        template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.id == template_id,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告模板不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="报告模板不存在"
             )
 
         # 取消同类型的其他默认模板
@@ -616,7 +693,7 @@ async def set_default_template(
                 ReportTemplate.report_type == template.report_type,
                 ReportTemplate.modality == template.modality,
                 ReportTemplate.body_part == template.body_part,
-                ReportTemplate.is_deleted == False
+                ReportTemplate.is_deleted.is_(False),
             )
         ).update({"is_default": False})
 
@@ -626,7 +703,9 @@ async def set_default_template(
 
         db.commit()
 
-        logger.emit_event(LogLevel.INFO, message=f"设置默认模板成功: {template.template_name}")
+        logger.emit_event(
+            LogLevel.INFO, message=f"设置默认模板成功: {template.template_name}"
+        )
         return {"message": "设置默认模板成功"}
 
     except HTTPException:
@@ -635,31 +714,34 @@ async def set_default_template(
         logger.emit_event(LogLevel.ERROR, message=f"设置默认模板失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="设置默认模板失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="设置默认模板失败"
         )
+
 
 @router.post("/templates/{template_id}/activate")
 async def activate_template(
     template_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     激活模板
     """
     try:
-        template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == template_id,
-                ReportTemplate.is_deleted == False
+        template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.id == template_id,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告模板不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="报告模板不存在"
             )
 
         template.is_active = True
@@ -667,7 +749,9 @@ async def activate_template(
 
         db.commit()
 
-        logger.emit_event(LogLevel.INFO, message=f"激活模板成功: {template.template_name}")
+        logger.emit_event(
+            LogLevel.INFO, message=f"激活模板成功: {template.template_name}"
+        )
         return {"message": "激活模板成功"}
 
     except HTTPException:
@@ -676,31 +760,34 @@ async def activate_template(
         logger.emit_event(LogLevel.ERROR, message=f"激活模板失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="激活模板失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="激活模板失败"
         )
+
 
 @router.post("/templates/{template_id}/deactivate")
 async def deactivate_template(
     template_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     停用模板
     """
     try:
-        template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == template_id,
-                ReportTemplate.is_deleted == False
+        template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.id == template_id,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告模板不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="报告模板不存在"
             )
 
         template.is_active = False
@@ -709,7 +796,9 @@ async def deactivate_template(
 
         db.commit()
 
-        logger.emit_event(LogLevel.INFO, message=f"停用模板成功: {template.template_name}")
+        logger.emit_event(
+            LogLevel.INFO, message=f"停用模板成功: {template.template_name}"
+        )
         return {"message": "停用模板成功"}
 
     except HTTPException:
@@ -718,83 +807,106 @@ async def deactivate_template(
         logger.emit_event(LogLevel.ERROR, message=f"停用模板失败: {e}")
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="停用模板失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="停用模板失败"
         )
+
 
 @router.get("/templates/{template_id}/usage-stats")
 async def get_template_usage_stats(
     template_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     获取模板使用统计
     """
     try:
-        template = db.query(ReportTemplate).filter(
-            and_(
-                ReportTemplate.id == template_id,
-                ReportTemplate.is_deleted == False
+        template = (
+            db.query(ReportTemplate)
+            .filter(
+                and_(
+                    ReportTemplate.id == template_id,
+                    ReportTemplate.is_deleted.is_(False),
+                )
             )
-        ).first()
+            .first()
+        )
 
         if not template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="报告模板不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="报告模板不存在"
             )
+
+        from sqlalchemy import extract, func
 
         from app.models.report import DiagnosticReport
-        from sqlalchemy import func, extract
 
         # 总使用次数
-        total_usage = db.query(func.count(DiagnosticReport.id)).filter(
-            and_(
-                DiagnosticReport.template_id == template_id,
-                DiagnosticReport.is_deleted == False
+        total_usage = (
+            db.query(func.count(DiagnosticReport.id))
+            .filter(
+                and_(
+                    DiagnosticReport.template_id == template_id,
+                    DiagnosticReport.is_deleted.is_(False),
+                )
             )
-        ).scalar()
+            .scalar()
+        )
 
         # 最近30天使用次数
         from datetime import datetime, timedelta
+
         thirty_days_ago = datetime.now() - timedelta(days=30)
-        recent_usage = db.query(func.count(DiagnosticReport.id)).filter(
-            and_(
-                DiagnosticReport.template_id == template_id,
-                DiagnosticReport.created_at >= thirty_days_ago,
-                DiagnosticReport.is_deleted == False
+        recent_usage = (
+            db.query(func.count(DiagnosticReport.id))
+            .filter(
+                and_(
+                    DiagnosticReport.template_id == template_id,
+                    DiagnosticReport.created_at >= thirty_days_ago,
+                    DiagnosticReport.is_deleted.is_(False),
+                )
             )
-        ).scalar()
+            .scalar()
+        )
 
         # 按月统计使用次数（最近12个月）
-        monthly_usage = db.query(
-            extract('year', DiagnosticReport.created_at).label('year'),
-            extract('month', DiagnosticReport.created_at).label('month'),
-            func.count(DiagnosticReport.id).label('count')
-        ).filter(
-            and_(
-                DiagnosticReport.template_id == template_id,
-                DiagnosticReport.created_at >= datetime.now() - timedelta(days=365),
-                DiagnosticReport.is_deleted == False
+        monthly_usage = (
+            db.query(
+                extract("year", DiagnosticReport.created_at).label("year"),
+                extract("month", DiagnosticReport.created_at).label("month"),
+                func.count(DiagnosticReport.id).label("count"),
             )
-        ).group_by(
-            extract('year', DiagnosticReport.created_at),
-            extract('month', DiagnosticReport.created_at)
-        ).order_by(
-            extract('year', DiagnosticReport.created_at),
-            extract('month', DiagnosticReport.created_at)
-        ).all()
+            .filter(
+                and_(
+                    DiagnosticReport.template_id == template_id,
+                    DiagnosticReport.created_at >= datetime.now() - timedelta(days=365),
+                    DiagnosticReport.is_deleted.is_(False),
+                )
+            )
+            .group_by(
+                extract("year", DiagnosticReport.created_at),
+                extract("month", DiagnosticReport.created_at),
+            )
+            .order_by(
+                extract("year", DiagnosticReport.created_at),
+                extract("month", DiagnosticReport.created_at),
+            )
+            .all()
+        )
 
         # 更新模板使用统计
         template.usage_count = total_usage
         if total_usage > 0:
-            template.last_used_at = db.query(func.max(DiagnosticReport.created_at)).filter(
-                and_(
-                    DiagnosticReport.template_id == template_id,
-                    DiagnosticReport.is_deleted == False
+            template.last_used_at = (
+                db.query(func.max(DiagnosticReport.created_at))
+                .filter(
+                    and_(
+                        DiagnosticReport.template_id == template_id,
+                        DiagnosticReport.is_deleted.is_(False),
+                    )
                 )
-            ).scalar()
+                .scalar()
+            )
 
         db.commit()
 
@@ -805,15 +917,14 @@ async def get_template_usage_stats(
             "recent_usage": recent_usage,
             "last_used_at": template.last_used_at,
             "monthly_usage": [
-                {
-                    "year": int(item.year),
-                    "month": int(item.month),
-                    "count": item.count
-                } for item in monthly_usage
-            ]
+                {"year": int(item.year), "month": int(item.month), "count": item.count}
+                for item in monthly_usage
+            ],
         }
 
-        logger.emit_event(LogLevel.INFO, message=f"获取模板使用统计成功: {template.template_name}")
+        logger.emit_event(
+            LogLevel.INFO, message=f"获取模板使用统计成功: {template.template_name}"
+        )
         return result
 
     except HTTPException:
@@ -822,5 +933,5 @@ async def get_template_usage_stats(
         logger.emit_event(LogLevel.ERROR, message=f"获取模板使用统计失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取模板使用统计失败"
+            detail="获取模板使用统计失败",
         )

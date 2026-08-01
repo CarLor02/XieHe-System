@@ -1,5 +1,6 @@
 import json
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -12,7 +13,7 @@ from app.shared.mq.subscriber import SubscriberDecision
 class FakeProducer:
     def __init__(self) -> None:
         self.started = False
-        self.sent = []
+        self.sent: list[dict[str, Any]] = []
 
     async def start(self) -> None:
         self.started = True
@@ -48,8 +49,8 @@ async def test_kafka_publisher_serializes_application_message() -> None:
 class FakeConsumer:
     def __init__(self, records) -> None:
         self.records = iter(records)
-        self.committed = []
-        self.retried = []
+        self.committed: list[int] = []
+        self.retried: list[int] = []
 
     async def start(self) -> None:
         return None

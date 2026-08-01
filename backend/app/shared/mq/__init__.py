@@ -1,6 +1,6 @@
 """Transport-independent message queue contracts."""
 
-from .publisher import PublishMessage, Publisher
+from .publisher import Publisher, PublishMessage
 from .subscriber import MessageHandler, ReceivedMessage, Subscriber, SubscriberDecision
 
 __all__ = [

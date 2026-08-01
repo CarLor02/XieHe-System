@@ -2,34 +2,27 @@
 # 在提交代码前自动运行代码质量检查和格式化
 
 repos:
-  # Python 代码格式化和检查
-  - repo: https://github.com/psf/black
-    rev: 23.9.1
+  # Python 代码格式化和检查（仅 backend，配置见 backend/pyproject.toml）
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
     hooks:
-      - id: black
-        language_version: python3
+      - id: ruff-check
+        args: ["--fix"]
         files: ^backend/.*\.py$
+        exclude: ^backend/tests/legacy/
+      - id: ruff-format
+        files: ^backend/.*\.py$
+        exclude: ^backend/tests/legacy/
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+  - repo: local
     hooks:
-      - id: isort
-        args: ["--profile", "black"]
-        files: ^backend/.*\.py$
-
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.1.0
-    hooks:
-      - id: flake8
-        files: ^backend/.*\.py$
-        additional_dependencies: [flake8-docstrings]
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.5.1
-    hooks:
-      - id: mypy
-        files: ^backend/.*\.py$
-        additional_dependencies: [types-all]
+      - id: backend-mypy
+        name: backend mypy
+        entry: bash -c 'cd backend && uv run mypy'
+        language: system
+        files: ^backend/(.*\.py|pyproject\.toml|uv\.lock)$
+        exclude: ^backend/tests/legacy/
+        pass_filenames: false
 
   # JavaScript/TypeScript 格式化和检查
   - repo: https://github.com/pre-commit/mirrors-prettier
@@ -97,7 +90,7 @@ repos:
 
 # 配置选项
 default_language_version:
-  python: python3.9
+  python: python3.11
   node: 18.17.0
 
 # 排除文件

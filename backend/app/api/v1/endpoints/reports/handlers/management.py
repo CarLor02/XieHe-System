@@ -7,26 +7,27 @@
 @created 2025-09-28
 """
 
-from typing import List, Dict, Any, Optional
-from datetime import datetime, date
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, func
-from pydantic import BaseModel, Field
+import typing
 import uuid
+from datetime import datetime
+from typing import Any, Dict, Optional
 
-from app.core.database.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
+
 from app.core.access.auth import get_current_active_user
+from app.core.database.session import get_db
 from app.core.system.exceptions import BusinessLogicException, ResourceNotFoundException
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import success_response, paginated_response
-from app.models.report import DiagnosticReport, ReportTemplate, ReportStatusEnum, PriorityEnum, ReportTypeEnum
+from app.core.system.response import paginated_response, success_response
 from app.models.patient import Patient
+from app.models.report import DiagnosticReport, PriorityEnum, ReportStatusEnum
+
 from ..schemas.management import (
     ReportCreate,
-    ReportUpdate,
     ReportResponse,
-    ReportListResponse,
+    ReportUpdate,
 )
 
 router = APIRouter()
@@ -40,9 +41,10 @@ def convert_priority_to_enum(priority_str: str) -> PriorityEnum:
         "normal": PriorityEnum.NORMAL,
         "high": PriorityEnum.HIGH,
         "urgent": PriorityEnum.URGENT,
-        "stat": PriorityEnum.STAT
+        "stat": PriorityEnum.STAT,
     }
     return priority_map.get(priority_str.lower(), PriorityEnum.NORMAL)
+
 
 def convert_enum_to_priority(priority_enum: PriorityEnum) -> str:
     """转换优先级枚举为字符串"""
@@ -51,31 +53,39 @@ def convert_enum_to_priority(priority_enum: PriorityEnum) -> str:
         PriorityEnum.NORMAL: "normal",
         PriorityEnum.HIGH: "high",
         PriorityEnum.URGENT: "urgent",
-        PriorityEnum.STAT: "stat"
+        PriorityEnum.STAT: "stat",
     }
     return priority_map.get(priority_enum, "normal")
+
 
 def generate_report_number() -> str:
     """生成报告编号"""
     today = datetime.now()
     return f"RPT{today.strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
 
+
 # API端点
 @router.post("/", response_model=Dict[str, Any], summary="创建报告")
 async def create_report(
     report_data: ReportCreate,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     创建新报告
     """
     try:
         # 验证患者是否存在
-        patient = db.query(Patient).filter(
-            and_(Patient.id == report_data.patient_id, Patient.is_deleted == False)
-        ).first()
-        
+        patient = (
+            db.query(Patient)
+            .filter(
+                and_(
+                    Patient.id == report_data.patient_id, Patient.is_deleted.is_(False)
+                )
+            )
+            .first()
+        )
+
         if not patient:
             raise ResourceNotFoundException(f"患者 ID {report_data.patient_id} 不存在")
 
@@ -86,27 +96,30 @@ async def create_report(
         new_report = DiagnosticReport(
             report_number=generate_report_number(),
             patient_id=report_data.patient_id,
-            study_id=report_data.study_id,
+            study_id=report_data.study_id or 0,
             template_id=report_data.template_id,
             report_title=report_data.report_title,
             clinical_history=report_data.clinical_history,
             examination_technique=report_data.examination_technique,
-            findings=report_data.findings,
-            impression=report_data.impression,
+            findings=report_data.findings or "",
+            impression=report_data.impression or "",
             recommendations=report_data.recommendations,
             primary_diagnosis=report_data.primary_diagnosis,
             secondary_diagnosis=report_data.secondary_diagnosis,
-            priority=convert_priority_to_enum(report_data.priority),
+            priority=convert_priority_to_enum(report_data.priority or "normal"),
             status=ReportStatusEnum.DRAFT,
             ai_assisted=False,
-            created_by=current_user.get("id")
+            created_by=current_user.get("id"),
         )
 
         db.add(new_report)
         db.commit()
         db.refresh(new_report)
 
-        logger.emit_event(LogLevel.INFO, message=f"报告创建成功: {new_report.report_number} - {report_data.report_title}")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"报告创建成功: {new_report.report_number} - {report_data.report_title}",
+        )
 
         # 转换为响应模型
         response_data = {
@@ -124,21 +137,25 @@ async def create_report(
             "recommendations": new_report.recommendations,
             "primary_diagnosis": new_report.primary_diagnosis,
             "secondary_diagnosis": new_report.secondary_diagnosis,
-            "priority": convert_enum_to_priority(new_report.priority),
+            "priority": convert_enum_to_priority(
+                new_report.priority or PriorityEnum.NORMAL
+            ),
             "status": new_report.status.value,
             "ai_assisted": new_report.ai_assisted,
-            "ai_confidence": float(new_report.ai_confidence) if new_report.ai_confidence else None,
+            "ai_confidence": float(new_report.ai_confidence)
+            if new_report.ai_confidence
+            else None,
             "created_at": new_report.created_at,
             "updated_at": new_report.updated_at,
             "created_by": new_report.created_by,
-            "reviewed_by": new_report.reviewed_by,
-            "reviewed_at": new_report.reviewed_at
+            "reviewed_by": new_report.reviewing_physician,
+            "reviewed_at": new_report.reviewed_date,
         }
 
         return success_response(
             data=ReportResponse(**response_data).dict(),
             message="报告创建成功",
-            code=201
+            code=201,
         )
 
     except (ResourceNotFoundException, BusinessLogicException):
@@ -148,8 +165,9 @@ async def create_report(
         logger.emit_event(LogLevel.ERROR, message=f"报告创建失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="报告创建过程中发生错误"
+            detail="报告创建过程中发生错误",
         )
+
 
 @router.get("/", summary="获取报告列表")
 async def get_reports(
@@ -160,8 +178,8 @@ async def get_reports(
     priority: Optional[str] = Query(None, description="优先级筛选"),
     search: Optional[str] = Query(None, description="搜索关键词"),
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     获取报告列表（简化版本）
 
@@ -194,7 +212,7 @@ async def get_reports(
 
         # 添加筛选条件
         conditions = []
-        params = {}
+        params: Dict[str, Any] = {}
 
         if patient_id:
             conditions.append("dr.patient_id = :patient_id")
@@ -209,7 +227,9 @@ async def get_reports(
             params["priority"] = priority.upper()
 
         if search:
-            conditions.append("(p.name LIKE :search OR dr.report_title LIKE :search OR dr.primary_diagnosis LIKE :search)")
+            conditions.append(
+                "(p.name LIKE :search OR dr.report_title LIKE :search OR dr.primary_diagnosis LIKE :search)"
+            )
             params["search"] = f"%{search}%"
 
         if conditions:
@@ -242,9 +262,9 @@ async def get_reports(
                 "priority": row[7] or "normal",
                 "primary_diagnosis": row[8] or "",
                 "reporting_physician": row[9] or "未指定医生",
-                "report_date": row[10].strftime('%Y-%m-%d') if row[10] else "",
+                "report_date": row[10].strftime("%Y-%m-%d") if row[10] else "",
                 "created_at": row[11].isoformat() if row[11] else "",
-                "updated_at": row[12].isoformat() if row[12] else ""
+                "updated_at": row[12].isoformat() if row[12] else "",
             }
             reports.append(report_data)
 
@@ -253,7 +273,7 @@ async def get_reports(
             total=total,
             page=page,
             page_size=page_size,
-            message="报告列表查询成功"
+            message="报告列表查询成功",
         )
 
     except Exception as e:
@@ -263,25 +283,32 @@ async def get_reports(
             total=0,
             page=page,
             page_size=page_size,
-            message="获取报告列表失败"
+            message="获取报告列表失败",
         )
+
 
 @router.get("/{report_id}", response_model=Dict[str, Any], summary="获取报告详情")
 async def get_report(
     report_id: int,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取指定报告的详细信息
     """
     try:
         # 查询报告信息，关联患者表
-        result = db.query(DiagnosticReport, Patient.name.label('patient_name')).join(
-            Patient, DiagnosticReport.patient_id == Patient.id
-        ).filter(
-            and_(DiagnosticReport.id == report_id, or_(Patient.is_deleted == False, Patient.is_deleted.is_(None)))
-        ).first()
+        result = (
+            db.query(DiagnosticReport, Patient.name.label("patient_name"))
+            .join(Patient, DiagnosticReport.patient_id == Patient.id)
+            .filter(
+                and_(
+                    DiagnosticReport.id == report_id,
+                    or_(Patient.is_deleted.is_(False), Patient.is_deleted.is_(None)),
+                )
+            )
+            .first()
+        )
 
         if not result:
             raise ResourceNotFoundException(f"报告 ID {report_id} 不存在")
@@ -307,17 +334,18 @@ async def get_report(
             "priority": convert_enum_to_priority(report.priority),
             "status": report.status.value,
             "ai_assisted": report.ai_assisted,
-            "ai_confidence": float(report.ai_confidence) if report.ai_confidence else None,
+            "ai_confidence": float(report.ai_confidence)
+            if report.ai_confidence
+            else None,
             "created_at": report.created_at,
             "updated_at": report.updated_at,
             "created_by": report.created_by,
             "reviewed_by": report.reviewing_physician,
-            "reviewed_at": report.reviewed_date
+            "reviewed_at": report.reviewed_date,
         }
 
         return success_response(
-            data=ReportResponse(**response_data).dict(),
-            message="报告详情查询成功"
+            data=ReportResponse(**response_data).dict(), message="报告详情查询成功"
         )
 
     except ResourceNotFoundException:
@@ -326,26 +354,30 @@ async def get_report(
         logger.emit_event(LogLevel.ERROR, message=f"获取报告详情失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取报告详情过程中发生错误"
+            detail="获取报告详情过程中发生错误",
         )
+
 
 @router.put("/{report_id}", response_model=Dict[str, Any], summary="更新报告")
 async def update_report(
     report_id: int,
     report_data: ReportUpdate,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     更新报告信息
     """
     try:
         # 查询报告信息，关联患者表
-        result = db.query(DiagnosticReport, Patient.name.label('patient_name')).join(
-            Patient, DiagnosticReport.patient_id == Patient.id
-        ).filter(
-            and_(DiagnosticReport.id == report_id, Patient.is_deleted == False)
-        ).first()
+        result = (
+            db.query(DiagnosticReport, Patient.name.label("patient_name"))
+            .join(Patient, DiagnosticReport.patient_id == Patient.id)
+            .filter(
+                and_(DiagnosticReport.id == report_id, Patient.is_deleted.is_(False))
+            )
+            .first()
+        )
 
         if not result:
             raise ResourceNotFoundException(f"报告 ID {report_id} 不存在")
@@ -370,7 +402,10 @@ async def update_report(
         db.commit()
         db.refresh(report)
 
-        logger.emit_event(LogLevel.INFO, message=f"报告更新成功: {report.report_number} - {report.report_title}")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"报告更新成功: {report.report_number} - {report.report_title}",
+        )
 
         # 转换为响应格式
         response_data = {
@@ -391,17 +426,18 @@ async def update_report(
             "priority": convert_enum_to_priority(report.priority),
             "status": report.status.value,
             "ai_assisted": report.ai_assisted,
-            "ai_confidence": float(report.ai_confidence) if report.ai_confidence else None,
+            "ai_confidence": float(report.ai_confidence)
+            if report.ai_confidence
+            else None,
             "created_at": report.created_at,
             "updated_at": report.updated_at,
             "created_by": report.created_by,
             "reviewed_by": report.reviewed_by,
-            "reviewed_at": report.reviewed_at
+            "reviewed_at": report.reviewed_at,
         }
 
         return success_response(
-            data=ReportResponse(**response_data).dict(),
-            message="报告更新成功"
+            data=ReportResponse(**response_data).dict(), message="报告更新成功"
         )
 
     except (ResourceNotFoundException, BusinessLogicException):
@@ -411,20 +447,23 @@ async def update_report(
         logger.emit_event(LogLevel.ERROR, message=f"报告更新失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="报告更新过程中发生错误"
+            detail="报告更新过程中发生错误",
         )
+
 
 @router.delete("/{report_id}", summary="删除报告")
 async def delete_report(
     report_id: int,
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     删除报告（软删除）
     """
     try:
-        report = db.query(DiagnosticReport).filter(DiagnosticReport.id == report_id).first()
+        report = (
+            db.query(DiagnosticReport).filter(DiagnosticReport.id == report_id).first()
+        )
 
         if not report:
             raise ResourceNotFoundException(f"报告 ID {report_id} 不存在")
@@ -440,12 +479,11 @@ async def delete_report(
 
         db.commit()
 
-        logger.emit_event(LogLevel.INFO, message=f"报告删除成功: {report.report_number}")
-
-        return success_response(
-            data=None,
-            message="报告删除成功"
+        logger.emit_event(
+            LogLevel.INFO, message=f"报告删除成功: {report.report_number}"
         )
+
+        return success_response(data=None, message="报告删除成功")
 
     except (ResourceNotFoundException, BusinessLogicException):
         raise
@@ -454,5 +492,5 @@ async def delete_report(
         logger.emit_event(LogLevel.ERROR, message=f"报告删除失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="报告删除过程中发生错误"
+            detail="报告删除过程中发生错误",
         )

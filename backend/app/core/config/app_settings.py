@@ -13,7 +13,9 @@ class AppSettings(BaseAppSettings):
     """Settings for application metadata, runtime mode, and HTTP boundaries."""
 
     PROJECT_NAME: str = "医疗影像诊断系统"
-    PROJECT_DESCRIPTION: str = "基于AI的医疗影像诊断系统，支持DICOM影像处理、智能诊断、报告生成等功能"
+    PROJECT_DESCRIPTION: str = (
+        "基于AI的医疗影像诊断系统，支持DICOM影像处理、智能诊断、报告生成等功能"
+    )
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
 

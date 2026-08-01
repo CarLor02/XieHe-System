@@ -77,10 +77,11 @@ python backend/scripts/init_database.py
 
 ### 依赖要求
 
-确保已安装 `python-dotenv` 包：
+后端依赖由 `pyproject.toml` 和 `uv.lock` 统一管理：
 
 ```bash
-pip install python-dotenv
+cd backend
+uv sync --frozen
 ```
 
 ### 注意事项
@@ -170,18 +171,18 @@ id = Column(BigInteger, primary_key=True)
 使用 Alembic 进行版本化的数据库迁移管理：
 
 ```bash
-# 安装 Alembic
-pip install alembic
+# 同步包含 Alembic 的锁定依赖
+uv sync --frozen
 
 # 初始化 Alembic
 cd backend
-alembic init alembic
+uv run alembic init alembic
 
 # 配置并生成迁移脚本
-alembic revision --autogenerate -m "Initial migration"
+uv run alembic revision --autogenerate -m "Initial migration"
 
 # 应用迁移
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ### 建议

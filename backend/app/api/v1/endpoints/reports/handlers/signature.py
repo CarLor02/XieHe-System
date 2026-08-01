@@ -4,43 +4,38 @@
 提供电子签名创建、验证、管理等功能的API接口
 """
 
-from datetime import datetime
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
-from pydantic import BaseModel, Field
-import base64
 import hashlib
-import json
+import typing
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-router = APIRouter()
+from fastapi import APIRouter, HTTPException, Query
 
-# 签名类型枚举
-from enum import Enum
 from ..schemas.signature import (
-    SignatureType,
-    SignatureStatus,
     CreateSignatureRequest,
-    VerifySignatureRequest,
-    SignatureTemplateRequest,
     SignatureInfo,
-    SignatureVerificationResult,
-    SignatureTemplate,
     SignatureStatistics,
+    SignatureStatus,
+    SignatureTemplate,
+    SignatureTemplateRequest,
+    SignatureType,
+    SignatureVerificationResult,
+    VerifySignatureRequest,
 )
 
-
+router = APIRouter()
 
 
 # API端点
 @router.post("/create", response_model=SignatureInfo)
-async def create_signature(request: CreateSignatureRequest):
+async def create_signature(request: CreateSignatureRequest) -> typing.Any:
     """创建电子签名"""
     try:
         # 生成签名哈希
         signature_hash = hashlib.sha256(
             f"{request.signature_data}{request.signer_id}{datetime.now().isoformat()}".encode()
         ).hexdigest()
-        
+
         # 创建签名记录
         signature_info = SignatureInfo(
             id=f"SIG_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{signature_hash[:8]}",
@@ -55,17 +50,20 @@ async def create_signature(request: CreateSignatureRequest):
             signature_location=request.signature_location,
             status=SignatureStatus.VALID,
             created_at=datetime.now(),
-            expires_at=datetime.now().replace(year=datetime.now().year + 1),  # 1年有效期
+            expires_at=datetime.now().replace(
+                year=datetime.now().year + 1
+            ),  # 1年有效期
             verification_count=0,
-            last_verified_at=None
+            last_verified_at=None,
         )
-        
+
         return signature_info
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建签名失败: {str(e)}")
 
+
 @router.post("/verify", response_model=SignatureVerificationResult)
-async def verify_signature(request: VerifySignatureRequest):
+async def verify_signature(request: VerifySignatureRequest) -> typing.Any:
     """验证电子签名"""
     try:
         # 模拟签名验证逻辑
@@ -75,12 +73,12 @@ async def verify_signature(request: VerifySignatureRequest):
             "document_integrity": True,
             "timestamp_valid": True,
             "certificate_valid": True,
-            "revocation_status": "not_revoked"
+            "revocation_status": "not_revoked",
         }
-        
+
         # 判断签名是否有效
         is_valid = all(verification_details.values())
-        
+
         result = SignatureVerificationResult(
             signature_id=request.signature_id,
             is_valid=is_valid,
@@ -90,16 +88,17 @@ async def verify_signature(request: VerifySignatureRequest):
             verifier_info={
                 "verifier_id": "system",
                 "verifier_name": "系统自动验证",
-                "verification_method": "digital_certificate"
-            }
+                "verification_method": "digital_certificate",
+            },
         )
-        
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"验证签名失败: {str(e)}")
 
+
 @router.get("/info/{signature_id}", response_model=SignatureInfo)
-async def get_signature_info(signature_id: str):
+async def get_signature_info(signature_id: str) -> typing.Any:
     """获取签名信息"""
     try:
         # 模拟签名信息
@@ -118,44 +117,50 @@ async def get_signature_info(signature_id: str):
             created_at=datetime.now().replace(hour=datetime.now().hour - 2),
             expires_at=datetime.now().replace(year=datetime.now().year + 1),
             verification_count=3,
-            last_verified_at=datetime.now().replace(minute=datetime.now().minute - 30)
+            last_verified_at=datetime.now().replace(minute=datetime.now().minute - 30),
         )
-        
+
         return signature_info
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取签名信息失败: {str(e)}")
 
+
 @router.get("/document/{document_id}", response_model=List[SignatureInfo])
-async def get_document_signatures(document_id: str):
+async def get_document_signatures(document_id: str) -> typing.Any:
     """获取文档的所有签名"""
     try:
         # 模拟文档签名列表
         signatures = []
         for i in range(1, 4):
-            signatures.append(SignatureInfo(
-                id=f"SIG_{i:03d}",
-                document_id=document_id,
-                document_type="medical_report",
-                signature_type=SignatureType.HANDWRITTEN,
-                signer_id=f"doctor_{i:03d}",
-                signer_name=f"医生{i}",
-                signature_data=f"signature_data_{i}",
-                signature_hash=f"hash_{i}",
-                signature_reason=f"审核签名 - 级别{i}",
-                signature_location="协和医院",
-                status=SignatureStatus.VALID,
-                created_at=datetime.now().replace(hour=datetime.now().hour - i),
-                expires_at=datetime.now().replace(year=datetime.now().year + 1),
-                verification_count=i * 2,
-                last_verified_at=datetime.now().replace(minute=datetime.now().minute - i * 10)
-            ))
-        
+            signatures.append(
+                SignatureInfo(
+                    id=f"SIG_{i:03d}",
+                    document_id=document_id,
+                    document_type="medical_report",
+                    signature_type=SignatureType.HANDWRITTEN,
+                    signer_id=f"doctor_{i:03d}",
+                    signer_name=f"医生{i}",
+                    signature_data=f"signature_data_{i}",
+                    signature_hash=f"hash_{i}",
+                    signature_reason=f"审核签名 - 级别{i}",
+                    signature_location="协和医院",
+                    status=SignatureStatus.VALID,
+                    created_at=datetime.now().replace(hour=datetime.now().hour - i),
+                    expires_at=datetime.now().replace(year=datetime.now().year + 1),
+                    verification_count=i * 2,
+                    last_verified_at=datetime.now().replace(
+                        minute=datetime.now().minute - i * 10
+                    ),
+                )
+            )
+
         return signatures
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取文档签名失败: {str(e)}")
 
+
 @router.post("/template", response_model=SignatureTemplate)
-async def create_signature_template(request: SignatureTemplateRequest):
+async def create_signature_template(request: SignatureTemplateRequest) -> typing.Any:
     """创建签名模板"""
     try:
         template = SignatureTemplate(
@@ -166,37 +171,43 @@ async def create_signature_template(request: SignatureTemplateRequest):
             is_default=request.is_default,
             created_at=datetime.now(),
             updated_at=datetime.now(),
-            usage_count=0
+            usage_count=0,
         )
-        
+
         return template
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建签名模板失败: {str(e)}")
 
+
 @router.get("/templates/{user_id}", response_model=List[SignatureTemplate])
-async def get_user_signature_templates(user_id: str):
+async def get_user_signature_templates(user_id: str) -> typing.Any:
     """获取用户签名模板"""
     try:
         # 模拟用户签名模板
         templates = []
         for i in range(1, 4):
-            templates.append(SignatureTemplate(
-                id=f"TPL_{i:03d}",
-                template_name=f"签名模板{i}",
-                template_data=f"template_data_{i}",
-                user_id=user_id,
-                is_default=i == 1,
-                created_at=datetime.now().replace(day=datetime.now().day - i),
-                updated_at=datetime.now().replace(day=datetime.now().day - i),
-                usage_count=i * 10
-            ))
-        
+            templates.append(
+                SignatureTemplate(
+                    id=f"TPL_{i:03d}",
+                    template_name=f"签名模板{i}",
+                    template_data=f"template_data_{i}",
+                    user_id=user_id,
+                    is_default=i == 1,
+                    created_at=datetime.now().replace(day=datetime.now().day - i),
+                    updated_at=datetime.now().replace(day=datetime.now().day - i),
+                    usage_count=i * 10,
+                )
+            )
+
         return templates
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取签名模板失败: {str(e)}")
 
+
 @router.delete("/revoke/{signature_id}", response_model=Dict[str, Any])
-async def revoke_signature(signature_id: str, reason: str = Query(..., description="撤销原因")):
+async def revoke_signature(
+    signature_id: str, reason: str = Query(..., description="撤销原因")
+) -> dict[str, typing.Any]:
     """撤销签名"""
     try:
         revocation_info = {
@@ -204,23 +215,20 @@ async def revoke_signature(signature_id: str, reason: str = Query(..., descripti
             "revoked_at": datetime.now(),
             "revocation_reason": reason,
             "revoked_by": "current_user",  # 模拟当前用户
-            "new_status": SignatureStatus.REVOKED
+            "new_status": SignatureStatus.REVOKED,
         }
-        
-        return {
-            "success": True,
-            "message": "签名已成功撤销",
-            "data": revocation_info
-        }
+
+        return {"success": True, "message": "签名已成功撤销", "data": revocation_info}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"撤销签名失败: {str(e)}")
+
 
 @router.get("/statistics", response_model=SignatureStatistics)
 async def get_signature_statistics(
     start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
-    user_id: Optional[str] = Query(None, description="用户ID")
-):
+    user_id: Optional[str] = Query(None, description="用户ID"),
+) -> SignatureStatistics:
     """获取签名统计数据"""
     try:
         # 模拟统计数据
@@ -233,28 +241,29 @@ async def get_signature_statistics(
                 "handwritten": 856,
                 "digital": 298,
                 "biometric": 67,
-                "pin": 24
+                "pin": 24,
             },
             signatures_by_user={
                 "doctor_001": 234,
                 "doctor_002": 198,
                 "doctor_003": 167,
-                "doctor_004": 145
+                "doctor_004": 145,
             },
             daily_signature_count=[
                 {"date": "2025-09-20", "count": 45},
                 {"date": "2025-09-21", "count": 52},
                 {"date": "2025-09-22", "count": 38},
                 {"date": "2025-09-23", "count": 61},
-                {"date": "2025-09-24", "count": 47}
+                {"date": "2025-09-24", "count": 47},
             ],
-            verification_success_rate=98.7
+            verification_success_rate=98.7,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取签名统计失败: {str(e)}")
 
+
 @router.post("/batch-verify", response_model=List[SignatureVerificationResult])
-async def batch_verify_signatures(signature_ids: List[str]):
+async def batch_verify_signatures(signature_ids: List[str]) -> typing.Any:
     """批量验证签名"""
     try:
         results = []
@@ -268,16 +277,16 @@ async def batch_verify_signatures(signature_ids: List[str]):
                     "signature_integrity": True,
                     "signer_identity": True,
                     "document_integrity": True,
-                    "timestamp_valid": True
+                    "timestamp_valid": True,
                 },
                 verified_at=datetime.now(),
                 verifier_info={
                     "verifier_id": "system",
-                    "verifier_name": "批量验证系统"
-                }
+                    "verifier_name": "批量验证系统",
+                },
             )
             results.append(result)
-        
+
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量验证签名失败: {str(e)}")

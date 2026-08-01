@@ -7,60 +7,64 @@ AI辅助诊断API端点
 @created 2025-09-24
 """
 
-from typing import List, Optional, Dict, Any
+import typing
 from pathlib import Path
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
 
-from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
-from app.core.imaging.storage import storage_manager
+from app.core.database.session import get_db
 from app.core.imaging.diagnosis import ai_diagnosis_engine
+from app.core.imaging.storage import storage_manager
 from app.core.system.concurrency import require_legacy_diagnosis_slot
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import success_response, paginated_response
+from app.core.system.response import success_response
+
 from ..schemas.diagnosis import (
-    AIModelInfo,
     AIAnalysisRequest,
     BatchAnalysisRequest,
     ModelComparisonRequest,
-    AIAnalysisResult,
-    BatchAnalysisResult,
 )
-
 
 router = APIRouter()
 
 
+def _current_user_id(current_user: dict[str, Any]) -> int:
+    user_id = current_user.get("user_id") or current_user.get("id")
+    if not isinstance(user_id, int):
+        raise HTTPException(status_code=401, detail="当前用户ID无效")
+    return user_id
+
+
 @router.get("/ai/models", response_model=Dict[str, Any])
 async def get_available_models(
-    current_user: dict = Depends(get_current_active_user)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+) -> dict[str, typing.Any]:
     """
     获取可用的AI模型列表
     """
     try:
         models = ai_diagnosis_engine.get_available_models()
-        logger.emit_event(LogLevel.INFO, message=f"获取AI模型列表: {len(models)} 个模型")
-        return success_response(
-            data=models,
-            message=f"成功获取 {len(models)} 个AI模型"
+        logger.emit_event(
+            LogLevel.INFO, message=f"获取AI模型列表: {len(models)} 个模型"
         )
+        return success_response(data=models, message=f"成功获取 {len(models)} 个AI模型")
 
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取AI模型列表失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取AI模型列表失败"
+            detail="获取AI模型列表失败",
         )
+
 
 @router.get("/ai/models/{model_name}", response_model=Dict[str, Any])
 async def get_model_info(
     model_name: str,
-    current_user: dict = Depends(get_current_active_user)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+) -> dict[str, typing.Any]:
     """
     获取指定AI模型的详细信息
     """
@@ -69,13 +73,11 @@ async def get_model_info(
 
         if "error" in model_info:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=model_info["error"]
+                status_code=status.HTTP_404_NOT_FOUND, detail=model_info["error"]
             )
 
         return success_response(
-            data=model_info,
-            message=f"成功获取模型 {model_name} 的信息"
+            data=model_info, message=f"成功获取模型 {model_name} 的信息"
         )
 
     except HTTPException:
@@ -83,45 +85,47 @@ async def get_model_info(
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取模型信息失败 {model_name}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取模型信息失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取模型信息失败"
         )
+
 
 @router.get("/ai/models/suggest/{modality}", response_model=Dict[str, Any])
 async def suggest_models_for_modality(
     modality: str,
-    current_user: dict = Depends(get_current_active_user)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+) -> dict[str, typing.Any]:
     """
     根据影像模态推荐合适的AI模型
     """
     try:
-        suggested_models = ai_diagnosis_engine.suggest_models_for_modality(modality.upper())
+        suggested_models = ai_diagnosis_engine.suggest_models_for_modality(
+            modality.upper()
+        )
 
         return success_response(
             data={
                 "modality": modality,
                 "suggested_models": suggested_models,
-                "model_count": len(suggested_models)
+                "model_count": len(suggested_models),
             },
-            message=f"成功为 {modality} 推荐 {len(suggested_models)} 个模型"
+            message=f"成功为 {modality} 推荐 {len(suggested_models)} 个模型",
         )
 
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"推荐AI模型失败 {modality}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="推荐AI模型失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="推荐AI模型失败"
         )
+
 
 @router.post("/ai/analyze", response_model=Dict[str, Any])
 async def analyze_image(
     request: AIAnalysisRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     _slot: None = Depends(require_legacy_diagnosis_slot),
-):
+) -> dict[str, typing.Any]:
     """
     使用AI模型分析单张图像
     """
@@ -130,8 +134,7 @@ async def analyze_image(
         image_path = f"images/{request.image_id}"
         if not storage_manager.file_exists(image_path):
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="图像文件不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="图像文件不存在"
             )
 
         # 获取图像文件到临时路径
@@ -139,25 +142,21 @@ async def analyze_image(
         if not image_content:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="无法加载图像文件"
+                detail="无法加载图像文件",
             )
 
         # 保存到临时文件
         temp_path = Path(f"/tmp/{request.image_id}")
-        with open(temp_path, 'wb') as f:
+        with open(temp_path, "wb") as f:
             f.write(image_content)
 
         try:
             # 执行AI分析
-            result = ai_diagnosis_engine.analyze_image(
-                temp_path,
-                request.model_name
-            )
+            result = ai_diagnosis_engine.analyze_image(temp_path, request.model_name)
 
             if "error" in result:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=result["error"]
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"]
                 )
 
             # 生成分析ID
@@ -174,7 +173,7 @@ async def analyze_image(
                 "suggestions": result.get("suggestions", []),
                 "processing_time": result.get("processing_time", 0.0),
                 "timestamp": result.get("timestamp", ""),
-                "status": "completed"
+                "status": "completed",
             }
 
             # 后台任务：保存分析结果到数据库
@@ -182,14 +181,14 @@ async def analyze_image(
                 save_analysis_result,
                 analysis_result,
                 request.patient_id,
-                current_user.get("user_id")
+                _current_user_id(current_user),
             )
 
-            logger.emit_event(LogLevel.INFO, message=f"AI分析完成: {request.image_id} -> {request.model_name}")
-            return success_response(
-                data=analysis_result,
-                message="AI图像分析完成"
+            logger.emit_event(
+                LogLevel.INFO,
+                message=f"AI分析完成: {request.image_id} -> {request.model_name}",
             )
+            return success_response(data=analysis_result, message="AI图像分析完成")
 
         finally:
             # 清理临时文件
@@ -201,18 +200,18 @@ async def analyze_image(
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"AI图像分析失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="AI图像分析失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI图像分析失败"
         )
+
 
 @router.post("/ai/batch-analyze", response_model=Dict[str, Any])
 async def batch_analyze_images(
     request: BatchAnalysisRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     _slot: None = Depends(require_legacy_diagnosis_slot),
-):
+) -> dict[str, typing.Any]:
     """
     批量AI图像分析
     """
@@ -220,7 +219,7 @@ async def batch_analyze_images(
         if len(request.image_ids) > 50:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="批量分析最多支持50张图像"
+                detail="批量分析最多支持50张图像",
             )
 
         # 准备图像文件路径
@@ -228,28 +227,28 @@ async def batch_analyze_images(
         for image_id in request.image_ids:
             image_path = f"images/{image_id}"
             if not storage_manager.file_exists(image_path):
-                logger.emit_event(LogLevel.WARNING, message=f"图像文件不存在: {image_id}")
+                logger.emit_event(
+                    LogLevel.WARNING, message=f"图像文件不存在: {image_id}"
+                )
                 continue
 
             # 获取图像内容并保存到临时文件
             image_content = storage_manager.load_file(image_path)
             if image_content:
                 temp_path = Path(f"/tmp/{image_id}")
-                with open(temp_path, 'wb') as f:
+                with open(temp_path, "wb") as f:
                     f.write(image_content)
                 image_paths.append(temp_path)
 
         if not image_paths:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="没有找到有效的图像文件"
+                status_code=status.HTTP_404_NOT_FOUND, detail="没有找到有效的图像文件"
             )
 
         try:
             # 执行批量分析
             batch_result = ai_diagnosis_engine.batch_analyze(
-                image_paths,
-                request.model_name
+                image_paths, request.model_name
             )
 
             # 生成批次ID
@@ -262,7 +261,7 @@ async def batch_analyze_images(
                 "success_count": batch_result["summary"]["success_count"],
                 "error_count": batch_result["summary"]["error_count"],
                 "results": batch_result["results"],
-                "status": "completed"
+                "status": "completed",
             }
 
             # 后台任务：保存批量分析结果
@@ -270,13 +269,16 @@ async def batch_analyze_images(
                 save_batch_analysis_result,
                 result,
                 request.patient_id,
-                current_user.get("user_id")
+                _current_user_id(current_user),
             )
 
-            logger.emit_event(LogLevel.INFO, message=f"批量AI分析完成: {len(request.image_ids)} 张图像")
+            logger.emit_event(
+                LogLevel.INFO,
+                message=f"批量AI分析完成: {len(request.image_ids)} 张图像",
+            )
             return success_response(
                 data=result,
-                message=f"批量AI分析完成，成功 {result['success_count']} 张，失败 {result['error_count']} 张"
+                message=f"批量AI分析完成，成功 {result['success_count']} 张，失败 {result['error_count']} 张",
             )
 
         finally:
@@ -290,17 +292,17 @@ async def batch_analyze_images(
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"批量AI分析失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="批量AI分析失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="批量AI分析失败"
         )
+
 
 @router.post("/ai/compare-models", response_model=Dict[str, Any])
 async def compare_models(
     request: ModelComparisonRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     _slot: None = Depends(require_legacy_diagnosis_slot),
-):
+) -> dict[str, typing.Any]:
     """
     使用多个AI模型分析同一图像并比较结果
     """
@@ -309,8 +311,7 @@ async def compare_models(
         image_path = f"images/{request.image_id}"
         if not storage_manager.file_exists(image_path):
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="图像文件不存在"
+                status_code=status.HTTP_404_NOT_FOUND, detail="图像文件不存在"
             )
 
         # 获取图像文件到临时路径
@@ -318,18 +319,17 @@ async def compare_models(
         if not image_content:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="无法加载图像文件"
+                detail="无法加载图像文件",
             )
 
         temp_path = Path(f"/tmp/{request.image_id}")
-        with open(temp_path, 'wb') as f:
+        with open(temp_path, "wb") as f:
             f.write(image_content)
 
         try:
             # 执行模型比较
             comparison_result = ai_diagnosis_engine.compare_models(
-                temp_path,
-                request.model_names
+                temp_path, request.model_names
             )
 
             # 生成比较ID
@@ -340,13 +340,16 @@ async def compare_models(
             background_tasks.add_task(
                 save_comparison_result,
                 comparison_result,
-                current_user.get("user_id")
+                _current_user_id(current_user),
             )
 
-            logger.emit_event(LogLevel.INFO, message=f"AI模型比较完成: {request.image_id} -> {request.model_names}")
+            logger.emit_event(
+                LogLevel.INFO,
+                message=f"AI模型比较完成: {request.image_id} -> {request.model_names}",
+            )
             return success_response(
                 data=comparison_result,
-                message=f"成功比较 {len(request.model_names)} 个AI模型"
+                message=f"成功比较 {len(request.model_names)} 个AI模型",
             )
 
         finally:
@@ -359,16 +362,16 @@ async def compare_models(
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"AI模型比较失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="AI模型比较失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI模型比较失败"
         )
+
 
 @router.get("/ai/analysis/{analysis_id}", response_model=Dict[str, Any])
 async def get_analysis_result(
     analysis_id: str,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取AI分析结果
     """
@@ -376,41 +379,52 @@ async def get_analysis_result(
         # 这里应该从数据库查询分析结果
         # 暂时返回模拟数据
         return success_response(
-            data={
-                "analysis_id": analysis_id,
-                "status": "completed"
-            },
-            message="分析结果查询功能开发中"
+            data={"analysis_id": analysis_id, "status": "completed"},
+            message="分析结果查询功能开发中",
         )
 
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取分析结果失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取分析结果失败"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取分析结果失败"
         )
 
+
 # 后台任务函数
-async def save_analysis_result(result_data: dict, patient_id: Optional[str], user_id: int):
+async def save_analysis_result(
+    result_data: dict[str, typing.Any], patient_id: Optional[str], user_id: int
+) -> None:
     """保存AI分析结果到数据库"""
     try:
         # 这里应该保存到数据库
-        logger.emit_event(LogLevel.INFO, message=f"保存AI分析结果: {result_data['analysis_id']}")
+        logger.emit_event(
+            LogLevel.INFO, message=f"保存AI分析结果: {result_data['analysis_id']}"
+        )
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"保存AI分析结果失败: {e}")
 
-async def save_batch_analysis_result(result_data: dict, patient_id: Optional[str], user_id: int):
+
+async def save_batch_analysis_result(
+    result_data: dict[str, typing.Any], patient_id: Optional[str], user_id: int
+) -> None:
     """保存批量AI分析结果到数据库"""
     try:
         # 这里应该保存到数据库
-        logger.emit_event(LogLevel.INFO, message=f"保存批量AI分析结果: {result_data['batch_id']}")
+        logger.emit_event(
+            LogLevel.INFO, message=f"保存批量AI分析结果: {result_data['batch_id']}"
+        )
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"保存批量AI分析结果失败: {e}")
 
-async def save_comparison_result(result_data: dict, user_id: int):
+
+async def save_comparison_result(
+    result_data: dict[str, typing.Any], user_id: int
+) -> None:
     """保存AI模型比较结果到数据库"""
     try:
         # 这里应该保存到数据库
-        logger.emit_event(LogLevel.INFO, message=f"保存AI模型比较结果: {result_data['comparison_id']}")
+        logger.emit_event(
+            LogLevel.INFO, message=f"保存AI模型比较结果: {result_data['comparison_id']}"
+        )
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"保存AI模型比较结果失败: {e}")

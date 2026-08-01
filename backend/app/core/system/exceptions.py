@@ -9,21 +9,21 @@
 
 import traceback
 from typing import Any, Dict, Optional
+
 from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from app.core.system.logger import LogLevel, logger
 
-from app.core.system.response import error_response
 from app.core.system.errors import ErrorCode
+from app.core.system.logger import LogLevel, logger
+from app.core.system.response import error_response
 from app.shared.redis import RedisStateUnavailable
-
 
 
 class CustomHTTPException(HTTPException):
     """自定义HTTP异常类"""
-    
+
     def __init__(
         self,
         status_code: int,
@@ -39,8 +39,8 @@ class CustomHTTPException(HTTPException):
 
 class ValidationException(Exception):
     """数据验证异常"""
-    
-    def __init__(self, message: str, field: Optional[str] = None):
+
+    def __init__(self, message: str, field: Optional[str] = None) -> None:
         self.message = message
         self.field = field
         super().__init__(self.message)
@@ -48,8 +48,8 @@ class ValidationException(Exception):
 
 class DatabaseException(Exception):
     """数据库操作异常"""
-    
-    def __init__(self, message: str, operation: Optional[str] = None):
+
+    def __init__(self, message: str, operation: Optional[str] = None) -> None:
         self.message = message
         self.operation = operation
         super().__init__(self.message)
@@ -57,53 +57,53 @@ class DatabaseException(Exception):
 
 class AuthenticationException(CustomHTTPException):
     """认证异常"""
-    
-    def __init__(self, detail: str = "认证失败"):
+
+    def __init__(self, detail: str = "认证失败") -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
             error_code="AUTH_FAILED",
-            error_type="authentication"
+            error_type="authentication",
         )
 
 
 class AuthorizationException(CustomHTTPException):
     """授权异常"""
-    
-    def __init__(self, detail: str = "权限不足"):
+
+    def __init__(self, detail: str = "权限不足") -> None:
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=detail,
             error_code="PERMISSION_DENIED",
-            error_type="authorization"
+            error_type="authorization",
         )
 
 
 class ResourceNotFoundException(CustomHTTPException):
     """资源未找到异常"""
-    
-    def __init__(self, resource: str = "资源", resource_id: Any = None):
+
+    def __init__(self, resource: str = "资源", resource_id: Any = None) -> None:
         detail = f"{resource}未找到"
         if resource_id:
             detail += f" (ID: {resource_id})"
-        
+
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=detail,
             error_code="RESOURCE_NOT_FOUND",
-            error_type="not_found"
+            error_type="not_found",
         )
 
 
 class BusinessLogicException(CustomHTTPException):
     """业务逻辑异常"""
-    
-    def __init__(self, detail: str, error_code: str = "BUSINESS_ERROR"):
+
+    def __init__(self, detail: str, error_code: str = "BUSINESS_ERROR") -> None:
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=detail,
             error_code=error_code,
-            error_type="business_logic"
+            error_type="business_logic",
         )
 
 
@@ -133,7 +133,7 @@ async def custom_http_exception_handler(
             message=exc.detail,
             error_code=exc.error_code or ErrorCode.UNKNOWN_ERROR,
             code=exc.status_code,
-            path=str(request.url.path)
+            path=str(request.url.path),
         ),
         headers=exc.headers,
     )
@@ -156,7 +156,7 @@ async def http_exception_handler(
             message=str(exc.detail),
             error_code=ErrorCode.UNKNOWN_ERROR,
             code=exc.status_code,
-            path=str(request.url.path)
+            path=str(request.url.path),
         ),
     )
 
@@ -166,18 +166,17 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     """请求验证异常处理器"""
 
-    logger.emit_event(LogLevel.WARNING, message=f"Validation Exception: {exc.errors()} "
-        f"- Path: {request.url.path} - Method: {request.method}")
+    logger.emit_event(
+        LogLevel.WARNING,
+        message=f"Validation Exception: {exc.errors()} "
+        f"- Path: {request.url.path} - Method: {request.method}",
+    )
 
     # 格式化验证错误信息
     errors = []
     for error in exc.errors():
         field = ".".join(str(loc) for loc in error["loc"])
-        errors.append({
-            "field": field,
-            "message": error["msg"],
-            "type": error["type"]
-        })
+        errors.append({"field": field, "message": error["msg"], "type": error["type"]})
 
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -186,7 +185,7 @@ async def validation_exception_handler(
             error_code=ErrorCode.VALIDATION_ERROR,
             code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             details=errors,
-            path=str(request.url.path)
+            path=str(request.url.path),
         ),
     )
 
@@ -194,8 +193,12 @@ async def validation_exception_handler(
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """通用异常处理器"""
 
-    logger.emit_event(LogLevel.ERROR, message=f"Unhandled Exception: {type(exc).__name__}: {str(exc)} "
-        f"- Path: {request.url.path} - Method: {request.method}", metadata={"stack_trace": traceback.format_exc()})
+    logger.emit_event(
+        LogLevel.ERROR,
+        message=f"Unhandled Exception: {type(exc).__name__}: {str(exc)} "
+        f"- Path: {request.url.path} - Method: {request.method}",
+        metadata={"stack_trace": traceback.format_exc()},
+    )
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -203,7 +206,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
             message="内部服务器错误",
             error_code=ErrorCode.INTERNAL_ERROR,
             code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            path=str(request.url.path)
+            path=str(request.url.path),
         ),
     )
 

@@ -30,10 +30,14 @@ class PatientArchiveApplicationService:
         self._generations = generations or CacheGenerationService(query_cache)
 
     async def get_summary(self, patient_id: int) -> dict[str, Any]:
-        return await self._get_cached(patient_id, "summary", self._repository.get_summary)
+        return await self._get_cached(
+            patient_id, "summary", self._repository.get_summary
+        )
 
     async def get_full_archive(self, patient_id: int) -> dict[str, Any]:
-        return await self._get_cached(patient_id, "full", self._repository.get_full_archive)
+        return await self._get_cached(
+            patient_id, "full", self._repository.get_full_archive
+        )
 
     async def export_full_archive(self, patient_id: int) -> dict[str, Any]:
         """Exports always read the database and never reuse a query-cache snapshot."""

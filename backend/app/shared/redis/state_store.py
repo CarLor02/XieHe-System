@@ -43,7 +43,9 @@ class RedisJsonStateStore:
     async def set(self, key: str, value: Any, *, ttl: int) -> bool:
         try:
             payload = json.dumps(value, ensure_ascii=False, default=str)
-            return bool(await (await self._manager.get_or_start()).set(key, payload, ex=ttl))
+            return bool(
+                await (await self._manager.get_or_start()).set(key, payload, ex=ttl)
+            )
         except (RedisError, OSError, RuntimeError, TypeError) as exc:
             raise self._unavailable(exc) from exc
 

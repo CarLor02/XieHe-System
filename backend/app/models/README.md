@@ -80,11 +80,19 @@ models/
 ```python
 # 导入所有模型
 from app.models import (
-    User, Role, Permission, Department,
-    Patient, PatientVisit,
-    ImageFile, ImageAnnotation, AITask,  # 新的影像管理模型
-    DiagnosticReport, ReportTemplate,
-    SystemConfig, SystemLog
+    User,
+    Role,
+    Permission,
+    Department,
+    Patient,
+    PatientVisit,
+    ImageFile,
+    ImageAnnotation,
+    AITask,  # 新的影像管理模型
+    DiagnosticReport,
+    ReportTemplate,
+    SystemConfig,
+    SystemLog,
 )
 
 # 或者按模块导入
@@ -113,7 +121,7 @@ patient = Patient(
     gender=GenderEnum.MALE,
     birth_date=date(1980, 1, 1),
     phone="13800138000",
-    status=PatientStatusEnum.ACTIVE
+    status=PatientStatusEnum.ACTIVE,
 )
 
 # 保存到数据库
@@ -135,10 +143,11 @@ db = next(get_db())
 patient = db.query(Patient).filter(Patient.patient_id == "P20251013001").first()
 
 # 查询所有活跃患者
-active_patients = db.query(Patient).filter(
-    Patient.status == PatientStatusEnum.ACTIVE,
-    Patient.is_deleted == False
-).all()
+active_patients = (
+    db.query(Patient)
+    .filter(Patient.status == PatientStatusEnum.ACTIVE, Patient.is_deleted.is_(False))
+    .all()
+)
 
 # 分页查询
 page = 1
@@ -218,6 +227,7 @@ db.commit()
 # 患者与就诊记录的一对多关系
 class Patient(Base):
     visits = relationship("PatientVisit", back_populates="patient")
+
 
 class PatientVisit(Base):
     patient = relationship("Patient", back_populates="visits")

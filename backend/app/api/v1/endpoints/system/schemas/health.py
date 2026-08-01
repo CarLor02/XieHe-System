@@ -1,7 +1,9 @@
 """Schemas for the health API endpoints."""
 
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 from pydantic import BaseModel
+
 
 class HealthStatus(BaseModel):
     status: str

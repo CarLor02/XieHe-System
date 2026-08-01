@@ -1,7 +1,9 @@
 """Schemas for the generation API endpoints."""
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
+
 from pydantic import BaseModel
+
 
 class MeasurementItem(BaseModel):
     type: str

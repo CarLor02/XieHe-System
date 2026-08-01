@@ -1,11 +1,12 @@
 """Schemas for the patient management HTTP interface."""
 
+import typing
 from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
 
-def _blank_string_to_none(value):
+def _blank_string_to_none(value: typing.Any) -> typing.Any:
     if isinstance(value, str):
         value = value.strip()
         return value or None
@@ -32,14 +33,18 @@ class PatientBase(BaseModel):
     phone: str | None = Field(None, description="联系电话", max_length=20)
     email: str | None = Field(None, description="邮箱地址", max_length=100)
     address: str | None = Field(None, description="联系地址", max_length=500)
-    emergency_contact_name: str | None = Field(None, description="紧急联系人", max_length=100)
-    emergency_contact_phone: str | None = Field(None, description="紧急联系电话", max_length=20)
+    emergency_contact_name: str | None = Field(
+        None, description="紧急联系人", max_length=100
+    )
+    emergency_contact_phone: str | None = Field(
+        None, description="紧急联系电话", max_length=20
+    )
     id_card: str | None = Field(None, description="身份证号", max_length=18)
     insurance_number: str | None = Field(None, description="医保号", max_length=50)
 
     @field_validator(*OPTIONAL_PATIENT_FIELDS, mode="before")
     @classmethod
-    def normalize_blank_optional_values(cls, value):
+    def normalize_blank_optional_values(cls, value: typing.Any) -> typing.Any:
         return _blank_string_to_none(value)
 
 
@@ -54,14 +59,18 @@ class PatientUpdate(BaseModel):
     phone: str | None = Field(None, description="联系电话", max_length=20)
     email: str | None = Field(None, description="邮箱地址", max_length=100)
     address: str | None = Field(None, description="联系地址", max_length=500)
-    emergency_contact_name: str | None = Field(None, description="紧急联系人", max_length=100)
-    emergency_contact_phone: str | None = Field(None, description="紧急联系电话", max_length=20)
+    emergency_contact_name: str | None = Field(
+        None, description="紧急联系人", max_length=100
+    )
+    emergency_contact_phone: str | None = Field(
+        None, description="紧急联系电话", max_length=20
+    )
     id_card: str | None = Field(None, description="身份证号", max_length=18)
     insurance_number: str | None = Field(None, description="医保号", max_length=50)
 
     @field_validator(*OPTIONAL_PATIENT_FIELDS, mode="before")
     @classmethod
-    def normalize_blank_optional_values(cls, value):
+    def normalize_blank_optional_values(cls, value: typing.Any) -> typing.Any:
         return _blank_string_to_none(value)
 
 

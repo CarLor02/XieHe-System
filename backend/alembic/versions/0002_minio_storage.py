@@ -7,8 +7,9 @@ Create Date: 2026-05-08 00:10:00
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0002_minio_storage"
 down_revision = "0001_initial_schema"
@@ -17,7 +18,9 @@ depends_on = None
 
 
 def _columns(table_name: str) -> set[str]:
-    return {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)}
+    return {
+        column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)
+    }
 
 
 def _tables() -> set[str]:
@@ -57,7 +60,12 @@ def upgrade() -> None:
         )
         _add_column_if_missing(
             "image_files",
-            sa.Column("storage_etag", sa.String(length=128), nullable=True, comment="对象存储ETag"),
+            sa.Column(
+                "storage_etag",
+                sa.String(length=128),
+                nullable=True,
+                comment="对象存储ETag",
+            ),
         )
 
         columns = _columns("image_files")
@@ -89,8 +97,18 @@ def upgrade() -> None:
                 """
             )
 
-        op.alter_column("image_files", "storage_bucket", existing_type=sa.String(length=128), nullable=False)
-        op.alter_column("image_files", "object_key", existing_type=sa.String(length=500), nullable=False)
+        op.alter_column(
+            "image_files",
+            "storage_bucket",
+            existing_type=sa.String(length=128),
+            nullable=False,
+        )
+        op.alter_column(
+            "image_files",
+            "object_key",
+            existing_type=sa.String(length=500),
+            nullable=False,
+        )
 
         for column_name in (
             "storage_path",
@@ -113,19 +131,39 @@ def upgrade() -> None:
     if "users" in tables:
         _add_column_if_missing(
             "users",
-            sa.Column("avatar_storage_bucket", sa.String(length=128), nullable=True, comment="头像对象存储桶"),
+            sa.Column(
+                "avatar_storage_bucket",
+                sa.String(length=128),
+                nullable=True,
+                comment="头像对象存储桶",
+            ),
         )
         _add_column_if_missing(
             "users",
-            sa.Column("avatar_object_key", sa.String(length=500), nullable=True, comment="头像对象Key"),
+            sa.Column(
+                "avatar_object_key",
+                sa.String(length=500),
+                nullable=True,
+                comment="头像对象Key",
+            ),
         )
         _add_column_if_missing(
             "users",
-            sa.Column("avatar_storage_etag", sa.String(length=128), nullable=True, comment="头像对象ETag"),
+            sa.Column(
+                "avatar_storage_etag",
+                sa.String(length=128),
+                nullable=True,
+                comment="头像对象ETag",
+            ),
         )
         _add_column_if_missing(
             "users",
-            sa.Column("avatar_deleted_at", sa.DateTime(), nullable=True, comment="头像软删除时间"),
+            sa.Column(
+                "avatar_deleted_at",
+                sa.DateTime(),
+                nullable=True,
+                comment="头像软删除时间",
+            ),
         )
         op.execute(
             """
@@ -140,9 +178,16 @@ def downgrade() -> None:
     if "image_files" in _tables():
         _add_column_if_missing(
             "image_files",
-            sa.Column("storage_path", sa.String(length=500), nullable=True, comment="文件存储路径(相对路径)"),
+            sa.Column(
+                "storage_path",
+                sa.String(length=500),
+                nullable=True,
+                comment="文件存储路径(相对路径)",
+            ),
         )
-        op.execute("UPDATE image_files SET storage_path = object_key WHERE storage_path IS NULL")
+        op.execute(
+            "UPDATE image_files SET storage_path = object_key WHERE storage_path IS NULL"
+        )
         for column_name in ("storage_bucket", "object_key", "storage_etag"):
             _drop_column_if_present("image_files", column_name)
 

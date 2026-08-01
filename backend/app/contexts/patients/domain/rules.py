@@ -10,6 +10,7 @@ class PatientGender(str, Enum):
     OTHER = "OTHER"
     UNKNOWN = "UNKNOWN"
 
+
 _GENDER_INPUT_MAP = {
     "男": PatientGender.MALE,
     "女": PatientGender.FEMALE,
@@ -33,8 +34,10 @@ def calculate_age(birth_date: date | None, *, today: date | None = None) -> int 
     if birth_date is None:
         return None
     current = today or date.today()
-    return current.year - birth_date.year - (
-        (current.month, current.day) < (birth_date.month, birth_date.day)
+    return (
+        current.year
+        - birth_date.year
+        - ((current.month, current.day) < (birth_date.month, birth_date.day))
     )
 
 
@@ -43,4 +46,6 @@ def gender_from_input(value: str) -> PatientGender:
 
 
 def gender_to_display(value: PatientGender | None) -> str:
+    if value is None:
+        return "未知"
     return _GENDER_DISPLAY_MAP.get(value, "未知")

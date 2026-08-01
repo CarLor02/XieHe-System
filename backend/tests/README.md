@@ -14,7 +14,7 @@ tests/
 └── legacy/           # 历史测试脚本，仅作重写参考，不直接被 pytest 收集
 ```
 
-pytest 当前只收集 `unit/` 和 `integration/` 中符合 `test_*.py` / `*_test.py` 规则的文件。`legacy`、`manual`、`db_tools`、`fixtures` 已在 `backend/pytest.ini` 中通过 `norecursedirs` 排除。
+pytest 当前只收集 `unit/` 和 `integration/` 中符合 `test_*.py` / `*_test.py` 规则的文件。`legacy`、`manual`、`db_tools`、`fixtures` 已在 `backend/pyproject.toml` 的 pytest 配置中通过 `norecursedirs` 排除。
 
 ## 测试数据库
 
@@ -48,14 +48,14 @@ TEST_DATABASE_URL=mysql+pymysql://root:<password>@127.0.0.1:3306/medical_imaging
 
 ```bash
 cd backend
-PYTHONPATH=. .venv/bin/python -m pytest tests/unit tests/integration --no-cov
+uv run pytest tests/unit tests/integration --no-cov
 ```
 
 如果只需要确认测试发现是否正常：
 
 ```bash
 cd backend
-PYTHONPATH=. .venv/bin/python -m pytest --collect-only tests --no-cov -q
+uv run pytest --collect-only tests --no-cov -q
 ```
 
 ## FastAPI TestClient

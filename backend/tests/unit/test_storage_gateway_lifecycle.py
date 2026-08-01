@@ -12,7 +12,9 @@ async def test_storage_gateway_reuses_lifecycle_client() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json={"code": 200, "data": {"url": "http://files/image.png"}})
+        return httpx.Response(
+            200, json={"code": 200, "data": {"url": "http://files/image.png"}}
+        )
 
     gateway = StorageGateway(
         base_url="http://storage-service",
@@ -24,8 +26,12 @@ async def test_storage_gateway_reuses_lifecycle_client() -> None:
     await gateway.start()
     first_client = gateway._client
 
-    first_url = await gateway.presign_get(bucket="bucket", object_key="a.png", expires_in=60)
-    second_url = await gateway.presign_get(bucket="bucket", object_key="b.png", expires_in=60)
+    first_url = await gateway.presign_get(
+        bucket="bucket", object_key="a.png", expires_in=60
+    )
+    second_url = await gateway.presign_get(
+        bucket="bucket", object_key="b.png", expires_in=60
+    )
 
     assert first_url == "http://files/image.png"
     assert second_url == "http://files/image.png"

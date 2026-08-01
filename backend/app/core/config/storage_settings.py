@@ -22,7 +22,15 @@ class StorageSettings(BaseAppSettings):
     MAX_FILE_SIZE: int = 100 * 1024 * 1024
     MAX_IMAGE_SIZE: int = 50 * 1024 * 1024
 
-    ALLOWED_IMAGE_TYPES: List[str] = [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".dcm", ".dicom"]
+    ALLOWED_IMAGE_TYPES: List[str] = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".bmp",
+        ".tiff",
+        ".dcm",
+        ".dicom",
+    ]
     ALLOWED_DOCUMENT_TYPES: List[str] = [".pdf", ".doc", ".docx", ".txt"]
 
 

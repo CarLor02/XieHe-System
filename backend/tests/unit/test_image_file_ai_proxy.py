@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -37,8 +38,12 @@ async def test_ai_object_request_reuses_lifecycle_client() -> None:
     first_client = file_handlers.ai_model_client._client
 
     try:
-        first = await file_handlers._post_ai_object_request("http://ai/predict", {"image_id": "IMG1"})
-        second = await file_handlers._post_ai_object_request("http://ai/predict", {"image_id": "IMG2"})
+        first = await file_handlers._post_ai_object_request(
+            "http://ai/predict", {"image_id": "IMG1"}
+        )
+        second = await file_handlers._post_ai_object_request(
+            "http://ai/predict", {"image_id": "IMG2"}
+        )
         assert file_handlers.ai_model_client._client is first_client
     finally:
         await file_handlers.stop_ai_object_client()
@@ -66,7 +71,7 @@ async def test_ai_object_request_preserves_model_error_detail() -> None:
         await file_handlers.stop_ai_object_client()
 
     assert error.value.status_code == 422
-    assert error.value.detail == {"detail": "invalid image"}
+    assert cast(Any, error.value.detail) == {"detail": "invalid image"}
 
 
 @pytest.mark.asyncio

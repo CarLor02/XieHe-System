@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from app.shared.cache.service import CacheAsideService, CacheGenerationService
@@ -9,7 +11,7 @@ class FakeCache:
     enabled = True
 
     def __init__(self) -> None:
-        self.values = {}
+        self.values: dict[str, Any] = {}
         self.fail_reads = False
         self.fail_writes = False
 

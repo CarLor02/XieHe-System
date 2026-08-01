@@ -1,9 +1,11 @@
 """Schemas for the permissions API endpoints."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
+
 
 class PermissionType(str, Enum):
     READ = "read"
@@ -143,4 +145,6 @@ class PermissionMatrix(BaseModel):
     resources: List[str]
     permissions: List[str]
     roles: List[str]
-    matrix: Dict[str, Dict[str, Dict[str, bool]]]  # role -> resource -> permission -> allowed
+    matrix: Dict[
+        str, Dict[str, Dict[str, bool]]
+    ]  # role -> resource -> permission -> allowed

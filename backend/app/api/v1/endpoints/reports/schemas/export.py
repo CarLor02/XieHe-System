@@ -1,12 +1,14 @@
 """Schemas for the export API endpoints."""
 
-from typing import List, Optional, Dict, Any
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
+
 
 class ExportRequest(BaseModel):
     """导出请求"""
+
     report_ids: List[int] = Field(..., description="报告ID列表")
     format: str = Field(..., description="导出格式", pattern="^(pdf|word|image|html)$")
     template: Optional[str] = Field(None, description="导出模板")
@@ -16,6 +18,7 @@ class ExportRequest(BaseModel):
 
 class BatchExportRequest(BaseModel):
     """批量导出请求"""
+
     filters: Dict[str, Any] = Field({}, description="筛选条件")
     format: str = Field(..., description="导出格式", pattern="^(pdf|word|image|html)$")
     template: Optional[str] = Field(None, description="导出模板")
@@ -26,6 +29,7 @@ class BatchExportRequest(BaseModel):
 
 class ExportResponse(BaseModel):
     """导出响应"""
+
     task_id: str
     status: str
     message: str

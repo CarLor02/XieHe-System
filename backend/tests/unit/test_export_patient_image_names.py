@@ -23,9 +23,7 @@ class RecordingSession:
         self.sql = ""
 
     def execute(self, statement: object) -> ExecuteResult:
-        self.sql = str(
-            statement.compile(compile_kwargs={"literal_binds": True})
-        )
+        self.sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
         return ExecuteResult()
 
 

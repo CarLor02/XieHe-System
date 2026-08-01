@@ -9,9 +9,10 @@
 """
 
 import json
-from typing import Any, NamedTuple, Optional
-from datetime import datetime, date, timedelta, timezone
+import typing
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, NamedTuple, Optional
 
 from fastapi import (
     APIRouter,
@@ -22,24 +23,38 @@ from fastapi import (
     Query,
     Response,
     UploadFile,
+)
+from fastapi import (
     status as http_status,
 )
 from fastapi.responses import RedirectResponse
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import or_, func
 
-from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
 from app.core.config import settings
-from app.core.system.concurrency import require_ai_object_slot, require_batch_presign_slot
+from app.core.database.session import get_db
+from app.core.system.concurrency import (
+    require_ai_object_slot,
+    require_batch_presign_slot,
+)
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import success_response, paginated_response
-from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTeamVisibility, ImageFileTypeEnum
-from app.models.patient import Patient
-from app.models.user import User
+from app.core.system.response import paginated_response, success_response
 from app.models.image import ImageAnnotation
-from app.models.team import Team, TeamMembership, TeamMembershipRole, TeamMembershipStatus
-from app.services.storage_gateway import StorageServiceError, storage_gateway
+from app.models.image_file import (
+    ImageFile,
+    ImageFileStatusEnum,
+    ImageFileTeamVisibility,
+    ImageFileTypeEnum,
+)
+from app.models.patient import Patient
+from app.models.team import (
+    Team,
+    TeamMembership,
+    TeamMembershipRole,
+    TeamMembershipStatus,
+)
+from app.models.user import User
 from app.services.ai_model_client import (
     AiModelClient,
     AiModelRequestError,
@@ -53,15 +68,17 @@ from app.services.image_file_visibility import (
     replace_image_team_visibility,
     validate_assignable_team_ids,
 )
+from app.services.storage_gateway import StorageServiceError, storage_gateway
+
 from ..schemas.files import (
     BatchDownloadUrlsRequest,
     ImageFileResponse,
-    ImageUploaderResponse,
     ImageFileStatsResponse,
+    ImageUploaderResponse,
     RenameImageFileRequest,
-    UpdateImageInfoRequest,
-    UpdateExamTypeRequest,
     UpdateAnnotationRequest,
+    UpdateExamTypeRequest,
+    UpdateImageInfoRequest,
 )
 
 router = APIRouter()
@@ -89,7 +106,7 @@ class ImageFileRelatedMetadata(NamedTuple):
 
 
 async def start_ai_object_client(
-    async_transport=None,
+    async_transport: typing.Any = None,
 ) -> None:
     global ai_model_client
     if async_transport is not None:
@@ -160,7 +177,9 @@ def _extract_current_user_id(current_user: dict[str, Any]) -> Optional[int]:
 
 
 def _can_choose_image_uploader(db: Session, current_user: dict[str, Any]) -> bool:
-    if current_user.get("is_superuser", False) or current_user.get("is_system_admin", False):
+    if current_user.get("is_superuser", False) or current_user.get(
+        "is_system_admin", False
+    ):
         return True
 
     user_id = _extract_current_user_id(current_user)
@@ -205,7 +224,9 @@ def _image_file_related_metadata(
     patient_age = None
 
     if image.uploaded_by:
-        uploader_name = db.query(User.real_name).filter(User.id == image.uploaded_by).scalar()
+        uploader_name = (
+            db.query(User.real_name).filter(User.id == image.uploaded_by).scalar()
+        )
 
     if image.patient_id:
         patient_row = (
@@ -238,7 +259,9 @@ def _parse_team_ids_param(value: Optional[str]) -> list[int]:
     if not value:
         return []
     try:
-        return normalize_team_ids([int(item) for item in value.split(",") if item.strip()])
+        return normalize_team_ids(
+            [int(item) for item in value.split(",") if item.strip()]
+        )
     except ValueError:
         raise HTTPException(
             status_code=http_status.HTTP_400_BAD_REQUEST,
@@ -298,11 +321,13 @@ def _download_url_payload(
     image: ImageFile,
     url: str,
     expires_in: int,
-) -> dict:
+) -> dict[str, typing.Any]:
     return {
         "url": url,
         "expires_in": expires_in,
-        "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=expires_in)).isoformat(),
+        "expires_at": (
+            datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+        ).isoformat(),
         "filename": image.original_filename,
         "mime_type": image.mime_type,
         "etag": image.storage_etag,
@@ -332,14 +357,14 @@ def _get_visible_image_files_by_ids(
 
     query = db.query(ImageFile).filter(
         ImageFile.id.in_(file_ids),
-        ImageFile.is_deleted == False,
+        ImageFile.is_deleted.is_(False),
     )
     visible_query = apply_image_visibility_filter(query, db, current_user)
     return {image.id: image for image in visible_query.all()}
 
 
 def _enum_value(value: Any) -> str:
-    return value.value if hasattr(value, "value") else str(value)
+    return str(value.value) if hasattr(value, "value") else str(value)
 
 
 def _team_to_assignable_response(
@@ -348,18 +373,12 @@ def _team_to_assignable_response(
     membership: Optional[TeamMembership] = None,
 ) -> dict[str, Any]:
     active_memberships = [
-        item
-        for item in team.memberships
-        if item.status == TeamMembershipStatus.ACTIVE
+        item for item in team.memberships if item.status == TeamMembershipStatus.ACTIVE
     ]
     current_membership = membership
     if current_membership is None and current_user_id is not None:
         current_membership = next(
-            (
-                item
-                for item in active_memberships
-                if item.user_id == current_user_id
-            ),
+            (item for item in active_memberships if item.user_id == current_user_id),
             None,
         )
 
@@ -374,8 +393,11 @@ def _team_to_assignable_response(
         "max_members": team.max_members,
         "is_member": current_membership is not None,
         "my_role": _enum_value(current_membership.role) if current_membership else None,
-        "my_status": _enum_value(current_membership.status) if current_membership else None,
-        "is_creator": current_user_id is not None and team.creator_id == current_user_id,
+        "my_status": _enum_value(current_membership.status)
+        if current_membership
+        else None,
+        "is_creator": current_user_id is not None
+        and team.creator_id == current_user_id,
         "join_status": None,
         "join_request_id": None,
         "created_at": team.created_at,
@@ -453,25 +475,111 @@ async def _post_ai_object_request(url: str, payload: dict[str, str]) -> dict[str
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
+def _apply_processing_status_filter(
+    query: Any,
+    db: Session,
+    status: str | None,
+    pending_only: bool | None,
+    review_status: str | None,
+    file_status: ImageFileStatusEnum | None,
+) -> Any:
+    if status == "pending" or pending_only:
+        annotation_files = db.query(ImageAnnotation.image_file_id).distinct().subquery()
+        return query.outerjoin(
+            annotation_files,
+            ImageFile.id == annotation_files.c.image_file_id,
+        ).filter(
+            or_(
+                ImageFile.status != ImageFileStatusEnum.PROCESSED,
+                annotation_files.c.image_file_id.is_(None),
+            )
+        )
+    if review_status:
+        annotation_files = db.query(ImageAnnotation.image_file_id).distinct().subquery()
+        if review_status == "reviewed":
+            return query.join(
+                annotation_files,
+                ImageFile.id == annotation_files.c.image_file_id,
+            )
+        if review_status == "unreviewed":
+            return query.outerjoin(
+                annotation_files,
+                ImageFile.id == annotation_files.c.image_file_id,
+            ).filter(annotation_files.c.image_file_id.is_(None))
+    if file_status:
+        return query.filter(ImageFile.status == file_status)
+    return query
+
+
+def _apply_image_file_filters(
+    query: Any,
+    db: Session,
+    *,
+    file_type: ImageFileTypeEnum | None,
+    description: str | None,
+    start_date: date | None,
+    end_date: date | None,
+    search: str | None,
+    uploaded_by: int | None,
+    selected_team_ids: list[int],
+) -> Any:
+    if file_type:
+        query = query.filter(ImageFile.file_type == file_type)
+    if description:
+        query = query.filter(ImageFile.description == description)
+    if start_date:
+        query = query.filter(ImageFile.created_at >= start_date)
+    if end_date:
+        query = query.filter(ImageFile.created_at <= end_date)
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                ImageFile.original_filename.ilike(search_pattern),
+                ImageFile.description.ilike(search_pattern),
+                Patient.name.ilike(search_pattern),
+            )
+        )
+    if uploaded_by is not None:
+        query = query.filter(ImageFile.uploaded_by == uploaded_by)
+    if selected_team_ids:
+        team_visibility_exists = (
+            db.query(ImageFileTeamVisibility.image_file_id)
+            .filter(
+                ImageFileTeamVisibility.image_file_id == ImageFile.id,
+                ImageFileTeamVisibility.team_id.in_(selected_team_ids),
+            )
+            .exists()
+        )
+        query = query.filter(team_visibility_exists)
+    return query
+
+
 # API 端点
 @router.get("", response_model=dict, summary="获取影像文件列表")
 async def get_image_files_list(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     file_type: Optional[ImageFileTypeEnum] = Query(None, description="文件类型"),
-    file_status: Optional[ImageFileStatusEnum] = Query(None, description="文件状态（UPLOADED/PROCESSING/PROCESSED/FAILED）"),
+    file_status: Optional[ImageFileStatusEnum] = Query(
+        None, description="文件状态（UPLOADED/PROCESSING/PROCESSED/FAILED）"
+    ),
     status: Optional[str] = Query(None, description="兼容参数：pending=待处理"),
-    pending_only: Optional[bool] = Query(None, description="仅显示待处理（状态不是PROCESSED 或 没有测量数据）"),
-    review_status: Optional[str] = Query(None, description="审核状态(reviewed/unreviewed)"),
+    pending_only: Optional[bool] = Query(
+        None, description="仅显示待处理（状态不是PROCESSED 或 没有测量数据）"
+    ),
+    review_status: Optional[str] = Query(
+        None, description="审核状态(reviewed/unreviewed)"
+    ),
     description: Optional[str] = Query(None, description="检查类型"),
     start_date: Optional[date] = Query(None, description="开始日期"),
     end_date: Optional[date] = Query(None, description="结束日期"),
     search: Optional[str] = Query(None, description="搜索关键词"),
     uploaded_by: Optional[int] = Query(None, description="上传者用户ID"),
     team_ids: Optional[str] = Query(None, description="团队ID筛选，逗号分隔"),
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     获取影像文件列表
 
@@ -492,97 +600,52 @@ async def get_image_files_list(
         selected_team_ids = _parse_team_ids_param(team_ids)
 
         # 构建查询
-        query = db.query(
-            ImageFile,
-            Patient.name.label("patient_name"),
-            Patient.patient_id.label("patient_identifier"),
-            User.real_name.label("uploader_name"),
-        ).outerjoin(
-            Patient, ImageFile.patient_id == Patient.id
-        ).outerjoin(
-            User, ImageFile.uploaded_by == User.id
-        ).options(
-            selectinload(ImageFile.team_visibilities).selectinload(
-                ImageFileTeamVisibility.team
+        query = (
+            db.query(
+                ImageFile,
+                Patient.name.label("patient_name"),
+                Patient.patient_id.label("patient_identifier"),
+                User.real_name.label("uploader_name"),
             )
-        ).filter(ImageFile.is_deleted == False)
+            .outerjoin(Patient, ImageFile.patient_id == Patient.id)
+            .outerjoin(User, ImageFile.uploaded_by == User.id)
+            .options(
+                selectinload(ImageFile.team_visibilities).selectinload(
+                    ImageFileTeamVisibility.team
+                )
+            )
+            .filter(ImageFile.is_deleted.is_(False))
+        )
         query = apply_image_visibility_filter(query, db, current_user)
 
-        # 待处理筛选 - 优先级最高
-        # 支持 status=pending（兼容旧接口）或 pending_only=true
-        if status == 'pending' or pending_only:
-            # 待处理 = 状态不是PROCESSED 或 没有ImageAnnotation
-            # 使用子查询避免 JOIN 导致的重复
-            subquery = db.query(ImageAnnotation.image_file_id).distinct().subquery()
-            query = query.outerjoin(
-                subquery,
-                ImageFile.id == subquery.c.image_file_id
-            ).filter(
-                or_(
-                    ImageFile.status != ImageFileStatusEnum.PROCESSED,
-                    subquery.c.image_file_id == None
-                )
-            )
-        elif review_status:
-            # 审核状态筛选
-            subquery = db.query(ImageAnnotation.image_file_id).distinct().subquery()
-            if review_status == 'reviewed':
-                # 已审核：有ImageAnnotation记录
-                query = query.join(
-                    subquery,
-                    ImageFile.id == subquery.c.image_file_id
-                )
-            elif review_status == 'unreviewed':
-                # 未审核：没有ImageAnnotation记录
-                query = query.outerjoin(
-                    subquery,
-                    ImageFile.id == subquery.c.image_file_id
-                ).filter(subquery.c.image_file_id == None)
-        elif file_status:
-            # 按具体状态筛选
-            query = query.filter(ImageFile.status == file_status)
-
-        # 其他筛选条件
-        if file_type:
-            query = query.filter(ImageFile.file_type == file_type)
-
-        if description:
-            query = query.filter(ImageFile.description == description)
-
-        if start_date:
-            query = query.filter(ImageFile.created_at >= start_date)
-
-        if end_date:
-            query = query.filter(ImageFile.created_at <= end_date)
-
-        # 搜索
-        if search:
-            search_pattern = f"%{search}%"
-            query = query.filter(
-                or_(
-                    ImageFile.original_filename.ilike(search_pattern),
-                    ImageFile.description.ilike(search_pattern),
-                    Patient.name.ilike(search_pattern)
-                )
-            )
-
-        if uploaded_by is not None:
-            query = query.filter(ImageFile.uploaded_by == uploaded_by)
-
-        if selected_team_ids:
-            team_visibility_exists = (
-                db.query(ImageFileTeamVisibility.image_file_id)
-                .filter(
-                    ImageFileTeamVisibility.image_file_id == ImageFile.id,
-                    ImageFileTeamVisibility.team_id.in_(selected_team_ids),
-                )
-                .exists()
-            )
-            query = query.filter(team_visibility_exists)
+        query = _apply_processing_status_filter(
+            query,
+            db,
+            status,
+            pending_only,
+            review_status,
+            file_status,
+        )
+        query = _apply_image_file_filters(
+            query,
+            db,
+            file_type=file_type,
+            description=description,
+            start_date=start_date,
+            end_date=end_date,
+            search=search,
+            uploaded_by=uploaded_by,
+            selected_team_ids=selected_team_ids,
+        )
 
         # 分页
         total = query.count()
-        image_rows = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        image_rows = (
+            query.order_by(ImageFile.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
 
         items = [
             _image_file_response(
@@ -599,7 +662,7 @@ async def get_image_files_list(
             total=total,
             page=page,
             page_size=page_size,
-            message="影像文件列表查询成功"
+            message="影像文件列表查询成功",
         )
 
     except HTTPException:
@@ -608,7 +671,7 @@ async def get_image_files_list(
         logger.emit_event(LogLevel.ERROR, message=f"获取影像列表失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取影像列表失败: {str(e)}"
+            detail=f"获取影像列表失败: {str(e)}",
         )
 
 
@@ -617,36 +680,40 @@ async def get_patient_images(
     patient_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> typing.Any:
     """
     获取指定患者的所有影像文件
     """
     try:
         # 构建查询
-        query = db.query(
-            ImageFile,
-            Patient.name.label("patient_name"),
-            Patient.patient_id.label("patient_identifier"),
-            User.real_name.label("uploader_name"),
-        ).outerjoin(
-            Patient, ImageFile.patient_id == Patient.id
-        ).outerjoin(
-            User, ImageFile.uploaded_by == User.id
-        ).options(
-            selectinload(ImageFile.team_visibilities).selectinload(
-                ImageFileTeamVisibility.team
+        query = (
+            db.query(
+                ImageFile,
+                Patient.name.label("patient_name"),
+                Patient.patient_id.label("patient_identifier"),
+                User.real_name.label("uploader_name"),
             )
-        ).filter(
-            ImageFile.patient_id == patient_id,
-            ImageFile.is_deleted == False
+            .outerjoin(Patient, ImageFile.patient_id == Patient.id)
+            .outerjoin(User, ImageFile.uploaded_by == User.id)
+            .options(
+                selectinload(ImageFile.team_visibilities).selectinload(
+                    ImageFileTeamVisibility.team
+                )
+            )
+            .filter(ImageFile.patient_id == patient_id, ImageFile.is_deleted.is_(False))
         )
         query = apply_image_visibility_filter(query, db, current_user)
 
         total = query.count()
-        image_rows = query.order_by(ImageFile.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-        
+        image_rows = (
+            query.order_by(ImageFile.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+
         items = [
             _image_file_response(
                 image,
@@ -662,14 +729,14 @@ async def get_patient_images(
             total=total,
             page=page,
             page_size=page_size,
-            message="患者影像文件查询成功"
+            message="患者影像文件查询成功",
         )
-        
+
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取患者影像文件失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取患者影像文件失败"
+            detail="获取患者影像文件失败",
         )
 
 
@@ -678,9 +745,9 @@ async def list_visible_image_uploaders(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     search: Optional[str] = Query(None, description="搜索姓名、用户名或邮箱"),
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> typing.Any:
     """获取“上传者视角”可选择的用户列表。"""
     if not _can_choose_image_uploader(db, current_user):
         raise HTTPException(
@@ -690,7 +757,7 @@ async def list_visible_image_uploaders(
 
     visible_uploader_ids = get_visible_image_uploader_ids(db, current_user)
     query = db.query(User).filter(
-        User.is_deleted == False,
+        User.is_deleted.is_(False),
         User.status == "active",
     )
 
@@ -724,14 +791,16 @@ async def list_visible_image_uploaders(
     )
 
 
-@router.get("/assignable-teams", response_model=dict, summary="获取可设置为影像归属的团队")
+@router.get(
+    "/assignable-teams", response_model=dict, summary="获取可设置为影像归属的团队"
+)
 async def list_assignable_image_teams(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=50, description="每页数量"),
     search: Optional[str] = Query(None, description="搜索团队名、医院、科室或描述"),
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> typing.Any:
     """获取上传或编辑影像时可选择的归属团队。"""
     user_id = _extract_current_user_id(current_user)
     can_manage_all = current_user.get("is_superuser", False) or current_user.get(
@@ -739,8 +808,9 @@ async def list_assignable_image_teams(
         False,
     )
 
+    query: Any
     if can_manage_all:
-        query = db.query(Team).filter(Team.is_active == True)
+        query = db.query(Team).filter(Team.is_active.is_(True))
     else:
         if user_id is None:
             return paginated_response(
@@ -754,7 +824,7 @@ async def list_assignable_image_teams(
             db.query(Team, TeamMembership)
             .join(TeamMembership, TeamMembership.team_id == Team.id)
             .filter(
-                Team.is_active == True,
+                Team.is_active.is_(True),
                 TeamMembership.user_id == user_id,
                 TeamMembership.status == TeamMembershipStatus.ACTIVE,
             )
@@ -780,10 +850,7 @@ async def list_assignable_image_teams(
     )
 
     if can_manage_all:
-        items = [
-            _team_to_assignable_response(team, user_id)
-            for team in rows
-        ]
+        items = [_team_to_assignable_response(team, user_id) for team in rows]
     else:
         items = [
             _team_to_assignable_response(team, user_id, membership)
@@ -802,10 +869,10 @@ async def list_assignable_image_teams(
 @router.post("/{file_id}/ai/predict", summary="使用对象存储影像执行AI测量")
 async def run_image_file_ai_predict(
     file_id: int,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     _slot: None = Depends(require_ai_object_slot),
-):
+) -> typing.Any:
     image = _get_ai_ready_visible_image(db, file_id, current_user)
     return await _post_ai_object_request(
         _get_ai_object_url(image, "predict"),
@@ -816,9 +883,9 @@ async def run_image_file_ai_predict(
 @router.get("/{file_id}", response_model=dict, summary="获取影像文件详情")
 async def get_image_file(
     file_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取指定影像文件的详细信息
     """
@@ -827,10 +894,9 @@ async def get_image_file(
 
         if not image:
             raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="影像文件不存在"
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="影像文件不存在"
             )
-        
+
         related_metadata = _image_file_related_metadata(
             db,
             image,
@@ -845,7 +911,7 @@ async def get_image_file(
                 patient_gender=related_metadata.patient_gender,
                 patient_age=related_metadata.patient_age,
             ).dict(),
-            message="影像文件详情查询成功"
+            message="影像文件详情查询成功",
         )
 
     except HTTPException:
@@ -854,7 +920,7 @@ async def get_image_file(
         logger.emit_event(LogLevel.ERROR, message=f"获取影像文件详情失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取影像文件详情失败"
+            detail="获取影像文件详情失败",
         )
 
 
@@ -862,22 +928,24 @@ async def get_image_file(
 async def get_image_file_download_url(
     file_id: int,
     response: Response,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取经 Nginx 代理的 MinIO presigned URL。
     """
     try:
         image = get_visible_image_file(db, file_id, current_user)
-        
+
         if not image:
             raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="影像文件不存在"
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="影像文件不存在"
             )
 
-        if image.status not in {ImageFileStatusEnum.UPLOADED, ImageFileStatusEnum.PROCESSED}:
+        if image.status not in {
+            ImageFileStatusEnum.UPLOADED,
+            ImageFileStatusEnum.PROCESSED,
+        }:
             raise HTTPException(
                 status_code=http_status.HTTP_409_CONFLICT,
                 detail="影像文件尚未完成上传",
@@ -908,7 +976,7 @@ async def get_image_file_download_url(
         logger.emit_event(LogLevel.ERROR, message=f"获取影像访问地址失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取影像访问地址失败"
+            detail="获取影像访问地址失败",
         )
 
 
@@ -916,17 +984,17 @@ async def get_image_file_download_url(
 async def get_image_file_download_urls(
     request: BatchDownloadUrlsRequest,
     response: Response,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     _slot: None = Depends(require_batch_presign_slot),
-):
+) -> dict[str, typing.Any]:
     """
     批量获取经 Nginx 代理的 MinIO presigned URL。
     """
     expires_in = settings.STORAGE_PRESIGN_EXPIRES_SECONDS
     _set_presign_cache_headers(response, expires_in)
 
-    items: dict[int, dict] = {}
+    items: dict[int, dict[str, typing.Any]] = {}
     errors: dict[int, dict[str, str]] = {}
     seen_ids: set[int] = set()
     ordered_ids: list[int] = []
@@ -948,7 +1016,10 @@ async def get_image_file_download_urls(
             }
             continue
 
-        if image.status not in {ImageFileStatusEnum.UPLOADED, ImageFileStatusEnum.PROCESSED}:
+        if image.status not in {
+            ImageFileStatusEnum.UPLOADED,
+            ImageFileStatusEnum.PROCESSED,
+        }:
             errors[file_id] = {
                 "code": "not_ready",
                 "message": "影像文件尚未完成上传",
@@ -962,7 +1033,9 @@ async def get_image_file_download_urls(
                 expires_in=expires_in,
             )
         except StorageServiceError as exc:
-            logger.emit_event(LogLevel.ERROR, message=f"批量获取影像访问地址失败: {exc}")
+            logger.emit_event(
+                LogLevel.ERROR, message=f"批量获取影像访问地址失败: {exc}"
+            )
             errors[file_id] = {
                 "code": "storage_error",
                 "message": "对象存储服务不可用",
@@ -983,9 +1056,9 @@ async def get_image_file_download_urls(
 @router.get("/{file_id}/download", summary="下载影像文件")
 async def download_image_file(
     file_id: int,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> RedirectResponse:
     """Compatibility endpoint: authorize in FastAPI, then redirect to MinIO via Nginx."""
 
     envelope = await get_image_file_download_url(
@@ -1000,44 +1073,40 @@ async def download_image_file(
 @router.delete("/{file_id}", summary="删除影像文件")
 async def delete_image_file(
     file_id: int,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     软删除指定的影像文件
     """
     try:
-        image = db.query(ImageFile).filter(
-            ImageFile.id == file_id,
-            ImageFile.is_deleted == False
-        ).first()
-        
+        image = (
+            db.query(ImageFile)
+            .filter(ImageFile.id == file_id, ImageFile.is_deleted.is_(False))
+            .first()
+        )
+
         if not image:
             raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="影像文件不存在"
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="影像文件不存在"
             )
 
         # 删除权限与影像可见性保持一致：系统管理员可操作全部，
         # 团队管理员可操作团队内影像，普通成员只能操作自己上传的影像。
         if get_visible_image_file(db, file_id, current_user) is None:
             raise HTTPException(
-                status_code=http_status.HTTP_403_FORBIDDEN,
-                detail="无权删除此文件"
+                status_code=http_status.HTTP_403_FORBIDDEN, detail="无权删除此文件"
             )
-        
+
         # 软删除
         image.is_deleted = True
         image.deleted_at = datetime.now()
-        image.deleted_by = current_user.get('id')
+        image.deleted_by = current_user.get("id")
 
         db.commit()
 
-        return success_response(
-            data={"file_id": file_id},
-            message="影像文件已删除"
-        )
-        
+        return success_response(data={"file_id": file_id}, message="影像文件已删除")
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1045,7 +1114,7 @@ async def delete_image_file(
         db.rollback()
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="删除影像文件失败"
+            detail="删除影像文件失败",
         )
 
 
@@ -1055,9 +1124,9 @@ async def replace_image_file_content(
     file: UploadFile = File(...),
     description: Optional[str] = Form(None),
     team_ids: Optional[str] = Form(None),
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     """
     使用新的图片内容覆盖当前影像对象，保持 image_files.id 不变。
 
@@ -1065,10 +1134,14 @@ async def replace_image_file_content(
     以及旧的 image_annotations 记录，避免旧标注坐标继续显示在新图上。
     """
     try:
-        image = db.query(ImageFile).filter(
-            ImageFile.id == file_id,
-            ImageFile.is_deleted == False,
-        ).first()
+        image = (
+            db.query(ImageFile)
+            .filter(
+                ImageFile.id == file_id,
+                ImageFile.is_deleted.is_(False),
+            )
+            .first()
+        )
 
         if not image:
             raise HTTPException(
@@ -1090,9 +1163,7 @@ async def replace_image_file_content(
 
         filename = file.filename or image.original_filename
         content_type = (
-            file.content_type
-            or image.mime_type
-            or "application/octet-stream"
+            file.content_type or image.mime_type or "application/octet-stream"
         )
         _validate_replacement_file(filename, content_type)
 
@@ -1180,17 +1251,15 @@ async def replace_image_file_content(
 
 @router.get("/stats/summary", response_model=dict, summary="获取影像文件统计")
 async def get_image_stats(
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取当前用户可见范围内的影像文件统计信息
     """
     try:
         # 总文件数和总大小
-        query = db.query(ImageFile).filter(
-            ImageFile.is_deleted == False
-        )
+        query = db.query(ImageFile).filter(ImageFile.is_deleted.is_(False))
         visible_query = apply_image_visibility_filter(query, db, current_user)
 
         total_files, total_size = visible_query.with_entities(
@@ -1203,7 +1272,9 @@ async def get_image_stats(
             for file_type, count in visible_query.with_entities(
                 ImageFile.file_type,
                 func.count(ImageFile.id),
-            ).group_by(ImageFile.file_type).all()
+            )
+            .group_by(ImageFile.file_type)
+            .all()
         }
 
         by_status = {
@@ -1211,9 +1282,11 @@ async def get_image_stats(
             for file_status, count in visible_query.with_entities(
                 ImageFile.status,
                 func.count(ImageFile.id),
-            ).group_by(ImageFile.status).all()
+            )
+            .group_by(ImageFile.status)
+            .all()
         }
-        
+
         return success_response(
             data=ImageFileStatsResponse(
                 total_files=total_files,
@@ -1221,14 +1294,14 @@ async def get_image_stats(
                 by_type=by_type,
                 by_status=by_status,
             ).dict(),
-            message="影像统计查询成功"
+            message="影像统计查询成功",
         )
-        
+
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取影像统计失败: {e}")
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取影像统计失败"
+            detail="获取影像统计失败",
         )
 
 
@@ -1236,9 +1309,9 @@ async def get_image_stats(
 async def update_image_info(
     file_id: int,
     request: UpdateImageInfoRequest,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     """修改影像检查类型和团队归属。"""
     try:
         image = get_visible_image_file(db, file_id, current_user)
@@ -1290,9 +1363,9 @@ async def update_image_info(
 async def rename_image_file(
     file_id: int,
     request: RenameImageFileRequest,
-    current_user: dict = Depends(get_current_active_user),
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, typing.Any]:
     """只修改用户可见文件名；对象存储 Key、文件内容和标注数据保持不变。"""
 
     try:
@@ -1338,9 +1411,9 @@ async def rename_image_file(
 async def update_exam_type(
     file_id: int,
     request: UpdateExamTypeRequest,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     修改影像检查类型（description 字段，如正位/侧位）。
     已处理或有标注的影像仍可修改，但会在响应中附带警告提示。
@@ -1366,10 +1439,13 @@ async def update_exam_type(
         db.commit()
         db.refresh(image)
 
-        logger.emit_event(LogLevel.INFO, message=f"用户 {current_user.get('username')} 将影像 {file_id} 检查类型修改为 {request.description}")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"用户 {current_user.get('username')} 将影像 {file_id} 检查类型修改为 {request.description}",
+        )
         return success_response(
             data={"id": image.id, "description": image.description, "warning": warning},
-            message="检查类型修改成功"
+            message="检查类型修改成功",
         )
 
     except HTTPException:
@@ -1380,39 +1456,44 @@ async def update_exam_type(
         raise HTTPException(status_code=500, detail="修改检查类型失败")
 
 
-@router.patch("/{file_id}/annotation", response_model=dict, summary="更新影像文件的标注数据")
+@router.patch(
+    "/{file_id}/annotation", response_model=dict, summary="更新影像文件的标注数据"
+)
 async def update_annotation(
     file_id: int,
     request: UpdateAnnotationRequest,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     更新指定影像文件的标注数据
-    
+
     标注数据以 JSON 对象格式存储
     """
     try:
         # 查询影像文件
-        image = db.query(ImageFile).filter(
-            ImageFile.id == file_id,
-            ImageFile.is_deleted == False
-        ).first()
-        
+        image = (
+            db.query(ImageFile)
+            .filter(ImageFile.id == file_id, ImageFile.is_deleted.is_(False))
+            .first()
+        )
+
         if not image:
             raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="影像文件不存在"
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="影像文件不存在"
             )
-        
+
         # 更新标注数据
         image.annotation = request.annotation
         image.updated_at = func.now()
         db.commit()
         db.refresh(image)
-        
-        logger.emit_event(LogLevel.INFO, message=f"用户 {current_user.get('username')} 更新了影像文件 {file_id} 的标注数据")
-        
+
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"用户 {current_user.get('username')} 更新了影像文件 {file_id} 的标注数据",
+        )
+
         related_metadata = _image_file_related_metadata(
             db,
             image,
@@ -1427,9 +1508,9 @@ async def update_annotation(
                 patient_gender=related_metadata.patient_gender,
                 patient_age=related_metadata.patient_age,
             ).dict(),
-            message="标注数据更新成功"
+            message="标注数据更新成功",
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1437,5 +1518,5 @@ async def update_annotation(
         db.rollback()
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="更新标注数据失败"
+            detail="更新标注数据失败",
         )

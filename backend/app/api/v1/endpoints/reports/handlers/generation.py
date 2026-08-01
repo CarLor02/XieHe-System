@@ -7,29 +7,24 @@
 @created 2026-01-12
 """
 
-from typing import List, Optional, Dict, Any
+import typing
 from datetime import datetime
-from pydantic import BaseModel
+from typing import Any, Dict
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.database.session import get_db
 from app.core.access.auth import get_current_active_user
+from app.core.database.session import get_db
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import success_response, paginated_response
-from app.models.image import ImageAnnotation
-from app.models.patient import Patient
+from app.core.system.response import success_response
 from app.services.template_service import TemplateService
+
 from ..schemas.generation import (
-    MeasurementItem,
     GenerateReportRequest,
-    GenerateReportResponse,
 )
 
-
 router = APIRouter()
-
-
 
 
 # 正位X光片报告模板
@@ -121,41 +116,43 @@ LATERAL_XRAY_TEMPLATE = """# 脊柱X光侧位影像分析报告
 @router.post("/generate", response_model=Dict[str, Any], summary="生成分析报告")
 async def generate_report(
     request: GenerateReportRequest,
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     基于测量数据和模板生成分析报告
     """
     try:
         # 从measurements中提取数据
-        data = TemplateService._extract_measurement_data(request.measurements, request.examType)
+        data = TemplateService._extract_measurement_data(
+            request.measurements, request.examType
+        )
 
         # 添加生成时间
-        data['Generated_Time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        data["Generated_Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # 选择模板
-        if request.examType == '正位X光片':
+        if request.examType == "正位X光片":
             template = FRONTAL_XRAY_TEMPLATE
-        elif request.examType == '侧位X光片':
+        elif request.examType == "侧位X光片":
             template = LATERAL_XRAY_TEMPLATE
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"不支持的影像类型: {request.examType}"
+                detail=f"不支持的影像类型: {request.examType}",
             )
 
         # 渲染报告
         report = TemplateService.render_template(template, data)
 
-        logger.emit_event(LogLevel.INFO, message=f"成功生成报告: {request.imageId}, 类型: {request.examType}")
+        logger.emit_event(
+            LogLevel.INFO,
+            message=f"成功生成报告: {request.imageId}, 类型: {request.examType}",
+        )
 
         return success_response(
-            data={
-                "report": report,
-                "generatedAt": data['Generated_Time']
-            },
-            message="报告生成成功"
+            data={"report": report, "generatedAt": data["Generated_Time"]},
+            message="报告生成成功",
         )
 
     except HTTPException:
@@ -164,6 +161,5 @@ async def generate_report(
         logger.emit_event(LogLevel.ERROR, message=f"生成报告失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"生成报告失败: {str(e)}"
+            detail=f"生成报告失败: {str(e)}",
         )
-

@@ -76,7 +76,7 @@ class AiModelClient:
         )
         if not url:
             raise AiModelRequestError("AI模型 object 接口未配置", status_code=503)
-        return url
+        return str(url)
 
     async def post(self, url: str, payload: dict[str, str]) -> dict[str, Any]:
         await self.start()
@@ -84,7 +84,9 @@ class AiModelClient:
         try:
             response = await self._client.post(url, json=payload)
         except httpx.HTTPError as exc:
-            raise AiModelRequestError(f"AI模型服务不可用: {exc}", status_code=502) from exc
+            raise AiModelRequestError(
+                f"AI模型服务不可用: {exc}", status_code=502
+            ) from exc
 
         if response.status_code >= 400:
             try:

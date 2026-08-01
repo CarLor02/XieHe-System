@@ -1,7 +1,7 @@
 # 🏥 协和医疗影像诊断系统 - 后端服务
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
-[![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://python.org)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0+-orange.svg)](https://mysql.com)
 
 ## 📋 项目概述
@@ -22,9 +22,9 @@
 ```
 backend/
 ├── .env                         # 本地环境变量（不提交 Git）
-├── requirements.txt             # Python 依赖
+├── pyproject.toml               # Python 依赖与工具配置
+├── uv.lock                      # 可复现依赖锁文件
 ├── alembic.ini                  # 数据库迁移配置
-├── pytest.ini                   # 测试配置
 ├── app/
 │   ├── main.py                  # FastAPI 应用入口 & 生命周期
 │   ├── api/v1/
@@ -57,7 +57,8 @@ backend/
 
 | 依赖 | 说明 |
 |---|---|
-| Python 3.12+ | 推荐使用 conda 管理环境 |
+| Python 3.11 | 后端运行时版本 |
+| uv 0.12+ | 依赖、虚拟环境与开发工具管理 |
 | MySQL 8.0+ | 主数据库 |
 | Docker | 运行 MinIO、storage-service、AI 服务 |
 
@@ -66,9 +67,7 @@ backend/
 ```bash
 cd XieHe-System/backend
 
-conda create -n xiehe python=3.12
-conda activate xiehe
-pip install -r requirements.txt
+uv sync --frozen
 ```
 
 ### 第二步：依赖服务（Docker）
@@ -156,17 +155,17 @@ cd XieHe-System/backend
 conda activate xiehe
 
 # 如果本地开启了 HTTP 代理，需要排除 localhost
-NO_PROXY=localhost,127.0.0.1 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+NO_PROXY=localhost,127.0.0.1 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
 **访问地址**
 
 | 地址 | 说明 |
 |---|---|
-| http://localhost:8000 | API 服务 |
-| http://localhost:8000/api/v1/docs | Swagger UI |
-| http://localhost:8000/api/v1/redoc | ReDoc |
-| http://localhost:8000/health | 健康检查 |
+| http://localhost:8080 | API 服务 |
+| http://localhost:8080/api/v1/docs | Swagger UI |
+| http://localhost:8080/api/v1/redoc | ReDoc |
+| http://localhost:8080/health | 健康检查 |
 
 ## 🔧 技术栈
 
@@ -199,29 +198,33 @@ NO_PROXY=localhost,127.0.0.1 uvicorn app.main:app --reload --host 0.0.0.0 --port
 
 ```bash
 cd XieHe-System/backend
-conda activate xiehe
 
 # 全部测试
-pytest
+uv run pytest
 
 # 单元测试
-pytest tests/unit/
+uv run pytest tests/unit/
 
 # 集成测试
-pytest tests/integration/
+uv run pytest tests/integration/
 
 # 覆盖率报告
-pytest --cov=app --cov-report=html
+uv run pytest --cov=app --cov-report=html
+
+# 代码质量与类型检查
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
 ```
 
 ##  生产部署
 
 ```bash
 # 使用 Gunicorn + Uvicorn workers
-gunicorn app.main:app \
+uv run gunicorn app.main:app \
   -w 4 \
   -k uvicorn.workers.UvicornWorker \
-  --bind 0.0.0.0:8000 \
+  --bind 0.0.0.0:8080 \
   --timeout 60
 ```
 
@@ -242,7 +245,7 @@ gunicorn app.main:app \
 执行迁移使表结构与代码对齐：
 ```bash
 cd XieHe-System/backend
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ### 影像上传 502

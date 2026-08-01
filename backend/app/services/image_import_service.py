@@ -17,7 +17,6 @@ from app.models.image_import import (
     ImageImportUploadStatus,
 )
 
-
 TERMINAL_AI_STATUSES = {
     ImageImportAiStatus.SUCCEEDED.value,
     ImageImportAiStatus.FAILED.value,
@@ -27,19 +26,13 @@ TERMINAL_AI_STATUSES = {
 def refresh_batch_status(db: Session, batch: ImageImportBatch) -> None:
     """Recalculate summary counters and terminal batch status."""
 
-    items = (
-        db.query(ImageImportItem)
-        .filter(ImageImportItem.batch_id == batch.id)
-        .all()
-    )
+    items = db.query(ImageImportItem).filter(ImageImportItem.batch_id == batch.id).all()
     batch.total_items = len(items)
     batch.uploaded_items = sum(
-        item.upload_status == ImageImportUploadStatus.UPLOADED.value
-        for item in items
+        item.upload_status == ImageImportUploadStatus.UPLOADED.value for item in items
     )
     batch.succeeded_items = sum(
-        item.ai_status == ImageImportAiStatus.SUCCEEDED.value
-        for item in items
+        item.ai_status == ImageImportAiStatus.SUCCEEDED.value for item in items
     )
     batch.failed_items = sum(
         item.upload_status == ImageImportUploadStatus.FAILED.value
@@ -57,8 +50,7 @@ def refresh_batch_status(db: Session, batch: ImageImportBatch) -> None:
             batch.status = ImageImportBatchStatus.PARTIAL_FAILED.value
         batch.completed_at = batch.completed_at or datetime.now()
     elif any(
-        item.upload_status != ImageImportUploadStatus.PENDING.value
-        for item in items
+        item.upload_status != ImageImportUploadStatus.PENDING.value for item in items
     ):
         batch.status = ImageImportBatchStatus.PROCESSING.value
         batch.completed_at = None
@@ -80,7 +72,7 @@ def ensure_ai_task(
         db.query(AITask)
         .filter(
             AITask.batch_item_id == item.id,
-            AITask.is_deleted == False,
+            AITask.is_deleted.is_(False),
         )
         .order_by(AITask.id.desc())
         .first()

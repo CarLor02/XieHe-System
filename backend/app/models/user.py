@@ -7,108 +7,205 @@
 创建时间: 2025-10-13
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, func
-from sqlalchemy.orm import relationship
+from __future__ import annotations
+
+import datetime as datetime_types
+import typing
+from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.orm import Mapped, relationship
+
 from .base import Base
+
+if TYPE_CHECKING:
+    from .team import TeamMembership
 
 
 class Department(Base):
     """部门表"""
+
     __tablename__ = "departments"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True, comment="部门ID")
-    code = Column(String(50), unique=True, nullable=False, comment="部门代码")
-    name = Column(String(100), nullable=False, comment="部门名称")
-    full_name = Column(String(200), comment="部门全称")
-    description = Column(Text, comment="部门描述")
-    parent_id = Column(Integer, ForeignKey('departments.id'), comment="上级部门ID")
-    level = Column(Integer, comment="部门层级")
-    path = Column(String(500), comment="部门路径")
-    sort_order = Column(Integer, comment="排序")
-    status = Column(String(20), nullable=False, comment="状态")
-    created_at = Column(DateTime, default=func.now(), comment="创建时间")
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), comment="更新时间")
-    is_deleted = Column(Boolean, default=False, comment="是否删除")
-    
+
+    id: Mapped[int] = Column(
+        Integer, primary_key=True, autoincrement=True, comment="部门ID"
+    )
+    code: Mapped[typing.Any] = Column(
+        String(50), unique=True, nullable=False, comment="部门代码"
+    )
+    name: Mapped[typing.Any] = Column(String(100), nullable=False, comment="部门名称")
+    full_name: Mapped[typing.Any] = Column(String(200), comment="部门全称")
+    description: Mapped[str | None] = Column(Text, comment="部门描述")
+    parent_id: Mapped[int | None] = Column(
+        Integer, ForeignKey("departments.id"), comment="上级部门ID"
+    )
+    level: Mapped[int | None] = Column(Integer, comment="部门层级")
+    path: Mapped[typing.Any] = Column(String(500), comment="部门路径")
+    sort_order: Mapped[int | None] = Column(Integer, comment="排序")
+    status: Mapped[typing.Any] = Column(String(20), nullable=False, comment="状态")
+    created_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), comment="创建时间"
+    )
+    updated_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), onupdate=func.now(), comment="更新时间"
+    )
+    is_deleted: Mapped[bool | None] = Column(Boolean, default=False, comment="是否删除")
+
     # 关系
-    parent = relationship("Department", remote_side=[id], backref="children")
-    users = relationship("User", back_populates="department")
+    parent: Mapped[Department | None] = relationship(
+        "Department", remote_side=[id], backref="children"
+    )
+    users: Mapped[list[User]] = relationship("User", back_populates="department")
 
 
 class Role(Base):
     """角色表"""
+
     __tablename__ = "roles"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True, comment="角色ID")
-    code = Column(String(50), unique=True, nullable=False, comment="角色代码")
-    name = Column(String(50), nullable=False, comment="角色名称")
-    description = Column(Text, comment="角色描述")
-    level = Column(Integer, comment="角色级别")
-    status = Column(String(20), nullable=False, comment="状态")
-    is_system = Column(Boolean, default=False, comment="是否系统角色")
-    is_default = Column(Boolean, default=False, comment="是否默认角色")
-    created_at = Column(DateTime, default=func.now(), comment="创建时间")
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), comment="更新时间")
-    is_deleted = Column(Boolean, default=False, comment="是否删除")
-    
+
+    id: Mapped[int] = Column(
+        Integer, primary_key=True, autoincrement=True, comment="角色ID"
+    )
+    code: Mapped[typing.Any] = Column(
+        String(50), unique=True, nullable=False, comment="角色代码"
+    )
+    name: Mapped[typing.Any] = Column(String(50), nullable=False, comment="角色名称")
+    description: Mapped[str | None] = Column(Text, comment="角色描述")
+    level: Mapped[int | None] = Column(Integer, comment="角色级别")
+    status: Mapped[typing.Any] = Column(String(20), nullable=False, comment="状态")
+    is_system: Mapped[bool | None] = Column(
+        Boolean, default=False, comment="是否系统角色"
+    )
+    is_default: Mapped[bool | None] = Column(
+        Boolean, default=False, comment="是否默认角色"
+    )
+    created_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), comment="创建时间"
+    )
+    updated_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), onupdate=func.now(), comment="更新时间"
+    )
+    is_deleted: Mapped[bool | None] = Column(Boolean, default=False, comment="是否删除")
+
     # 关系
-    permissions = relationship("RolePermission", back_populates="role")
-    users = relationship("UserRole", back_populates="role")
+    permissions: Mapped[list[RolePermission]] = relationship(
+        "RolePermission", back_populates="role"
+    )
+    users: Mapped[list[UserRole]] = relationship("UserRole", back_populates="role")
 
 
 class Permission(Base):
     """权限表"""
+
     __tablename__ = "permissions"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True, comment="权限ID")
-    code = Column(String(100), unique=True, nullable=False, comment="权限代码")
-    name = Column(String(50), nullable=False, comment="权限名称")
-    description = Column(Text, comment="权限描述")
-    module = Column(String(50), nullable=False, comment="所属模块")
-    resource = Column(String(50), nullable=False, comment="资源")
-    action = Column(String(50), nullable=False, comment="操作")
-    status = Column(String(20), nullable=False, comment="状态")
-    is_system = Column(Boolean, default=False, comment="是否系统权限")
-    created_at = Column(DateTime, default=func.now(), comment="创建时间")
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), comment="更新时间")
-    is_deleted = Column(Boolean, default=False, comment="是否删除")
-    
+
+    id: Mapped[int] = Column(
+        Integer, primary_key=True, autoincrement=True, comment="权限ID"
+    )
+    code: Mapped[typing.Any] = Column(
+        String(100), unique=True, nullable=False, comment="权限代码"
+    )
+    name: Mapped[typing.Any] = Column(String(50), nullable=False, comment="权限名称")
+    description: Mapped[str | None] = Column(Text, comment="权限描述")
+    module: Mapped[typing.Any] = Column(String(50), nullable=False, comment="所属模块")
+    resource: Mapped[typing.Any] = Column(String(50), nullable=False, comment="资源")
+    action: Mapped[typing.Any] = Column(String(50), nullable=False, comment="操作")
+    status: Mapped[typing.Any] = Column(String(20), nullable=False, comment="状态")
+    is_system: Mapped[bool | None] = Column(
+        Boolean, default=False, comment="是否系统权限"
+    )
+    created_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), comment="创建时间"
+    )
+    updated_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), onupdate=func.now(), comment="更新时间"
+    )
+    is_deleted: Mapped[bool | None] = Column(Boolean, default=False, comment="是否删除")
+
     # 关系
-    roles = relationship("RolePermission", back_populates="permission")
+    roles: Mapped[list[RolePermission]] = relationship(
+        "RolePermission", back_populates="permission"
+    )
 
 
 class User(Base):
     """用户表"""
+
     __tablename__ = "users"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True, comment="用户ID")
-    username = Column(String(50), unique=True, nullable=False, comment="用户名")
-    email = Column(String(100), unique=True, nullable=False, comment="邮箱")
-    phone = Column(String(20), unique=True, comment="手机号")
-    password_hash = Column(String(255), nullable=False, comment="密码哈希")
-    salt = Column(String(32), nullable=False, comment="密码盐")
-    real_name = Column(String(50), nullable=False, comment="真实姓名")
-    employee_id = Column(String(20), unique=True, comment="员工编号")
-    department_id = Column(Integer, ForeignKey('departments.id'), comment="部门ID")
-    position = Column(String(50), comment="职位")
-    title = Column(String(50), comment="职称")
-    status = Column(String(20), nullable=False, comment="状态")
-    is_verified = Column(Boolean, default=False, comment="是否验证")
-    is_superuser = Column(Boolean, default=False, comment="是否超级管理员")
-    is_system_admin = Column(Boolean, default=False, comment="是否系统管理员（可创建团队）")
-    system_admin_level = Column(Integer, default=0, comment="系统管理员级别：0-非系统管理员，1-超级系统管理员（可看所有团队），2-二级系统管理员（只看自己创建的团队）")
-    avatar_storage_bucket = Column(String(128), comment="头像对象存储桶")
-    avatar_object_key = Column(String(500), comment="头像对象Key")
-    avatar_storage_etag = Column(String(128), comment="头像对象ETag")
-    avatar_deleted_at = Column(DateTime, comment="头像软删除时间")
-    created_at = Column(DateTime, default=func.now(), comment="创建时间")
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), comment="更新时间")
-    is_deleted = Column(Boolean, default=False, comment="是否删除")
-    
+
+    id: Mapped[int] = Column(
+        Integer, primary_key=True, autoincrement=True, comment="用户ID"
+    )
+    username: Mapped[typing.Any] = Column(
+        String(50), unique=True, nullable=False, comment="用户名"
+    )
+    email: Mapped[typing.Any] = Column(
+        String(100), unique=True, nullable=False, comment="邮箱"
+    )
+    phone: Mapped[typing.Any] = Column(String(20), unique=True, comment="手机号")
+    password_hash: Mapped[typing.Any] = Column(
+        String(255), nullable=False, comment="密码哈希"
+    )
+    salt: Mapped[typing.Any] = Column(String(32), nullable=False, comment="密码盐")
+    real_name: Mapped[typing.Any] = Column(
+        String(50), nullable=False, comment="真实姓名"
+    )
+    employee_id: Mapped[typing.Any] = Column(
+        String(20), unique=True, comment="员工编号"
+    )
+    department_id: Mapped[int | None] = Column(
+        Integer, ForeignKey("departments.id"), comment="部门ID"
+    )
+    position: Mapped[typing.Any] = Column(String(50), comment="职位")
+    title: Mapped[typing.Any] = Column(String(50), comment="职称")
+    status: Mapped[typing.Any] = Column(String(20), nullable=False, comment="状态")
+    is_verified: Mapped[bool | None] = Column(
+        Boolean, default=False, comment="是否验证"
+    )
+    is_superuser: Mapped[bool | None] = Column(
+        Boolean, default=False, comment="是否超级管理员"
+    )
+    is_system_admin: Mapped[bool | None] = Column(
+        Boolean, default=False, comment="是否系统管理员（可创建团队）"
+    )
+    system_admin_level: Mapped[int | None] = Column(
+        Integer,
+        default=0,
+        comment="系统管理员级别：0-非系统管理员，1-超级系统管理员（可看所有团队），2-二级系统管理员（只看自己创建的团队）",
+    )
+    avatar_storage_bucket: Mapped[typing.Any] = Column(
+        String(128), comment="头像对象存储桶"
+    )
+    avatar_object_key: Mapped[typing.Any] = Column(String(500), comment="头像对象Key")
+    avatar_storage_etag: Mapped[typing.Any] = Column(
+        String(128), comment="头像对象ETag"
+    )
+    avatar_deleted_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, comment="头像软删除时间"
+    )
+    created_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), comment="创建时间"
+    )
+    updated_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), onupdate=func.now(), comment="更新时间"
+    )
+    is_deleted: Mapped[bool | None] = Column(Boolean, default=False, comment="是否删除")
+
     # 关系
-    department = relationship("Department", back_populates="users")
-    roles = relationship("UserRole", back_populates="user")
-    team_memberships = relationship(
+    department: Mapped[Department | None] = relationship(
+        "Department", back_populates="users"
+    )
+    roles: Mapped[list[UserRole]] = relationship("UserRole", back_populates="user")
+    team_memberships: Mapped[list[TeamMembership]] = relationship(
         "TeamMembership",
         back_populates="user",
         cascade="all, delete-orphan",
@@ -117,29 +214,47 @@ class User(Base):
 
 class UserRole(Base):
     """用户角色关联表"""
+
     __tablename__ = "user_roles"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True, comment="ID")
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment="用户ID")
-    role_id = Column(Integer, ForeignKey('roles.id'), nullable=False, comment="角色ID")
-    assigned_at = Column(DateTime, default=func.now(), comment="分配时间")
-    is_active = Column(Boolean, default=True, comment="是否激活")
-    
+
+    id: Mapped[int] = Column(
+        Integer, primary_key=True, autoincrement=True, comment="ID"
+    )
+    user_id: Mapped[int] = Column(
+        Integer, ForeignKey("users.id"), nullable=False, comment="用户ID"
+    )
+    role_id: Mapped[int] = Column(
+        Integer, ForeignKey("roles.id"), nullable=False, comment="角色ID"
+    )
+    assigned_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), comment="分配时间"
+    )
+    is_active: Mapped[bool | None] = Column(Boolean, default=True, comment="是否激活")
+
     # 关系
-    user = relationship("User", back_populates="roles")
-    role = relationship("Role", back_populates="users")
+    user: Mapped[User] = relationship("User", back_populates="roles")
+    role: Mapped[Role] = relationship("Role", back_populates="users")
 
 
 class RolePermission(Base):
     """角色权限关联表"""
+
     __tablename__ = "role_permissions"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True, comment="ID")
-    role_id = Column(Integer, ForeignKey('roles.id'), nullable=False, comment="角色ID")
-    permission_id = Column(Integer, ForeignKey('permissions.id'), nullable=False, comment="权限ID")
-    granted_at = Column(DateTime, default=func.now(), comment="授权时间")
-    is_active = Column(Boolean, default=True, comment="是否激活")
-    
+
+    id: Mapped[int] = Column(
+        Integer, primary_key=True, autoincrement=True, comment="ID"
+    )
+    role_id: Mapped[int] = Column(
+        Integer, ForeignKey("roles.id"), nullable=False, comment="角色ID"
+    )
+    permission_id: Mapped[int] = Column(
+        Integer, ForeignKey("permissions.id"), nullable=False, comment="权限ID"
+    )
+    granted_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, default=func.now(), comment="授权时间"
+    )
+    is_active: Mapped[bool | None] = Column(Boolean, default=True, comment="是否激活")
+
     # 关系
-    role = relationship("Role", back_populates="permissions")
-    permission = relationship("Permission", back_populates="roles")
+    role: Mapped[Role] = relationship("Role", back_populates="permissions")
+    permission: Mapped[Permission] = relationship("Permission", back_populates="roles")

@@ -4,7 +4,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
 DOTENV_FILES = (
     "dotenv/.env.runtime",
     "dotenv/.env.ports",

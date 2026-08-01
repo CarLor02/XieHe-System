@@ -32,6 +32,7 @@ def _birth_date_for_age(years: int, *, extra_year: int = 0) -> date:
 
 
 def _snapshot(patient: Patient) -> PatientSnapshot:
+    assert patient.created_at is not None
     return PatientSnapshot(
         id=patient.id,
         patient_id=patient.patient_id,
@@ -80,8 +81,7 @@ class SqlAlchemyPatientRepository:
             )
         if query.age_max is not None:
             statement = statement.where(
-                Patient.birth_date
-                >= _birth_date_for_age(query.age_max, extra_year=1)
+                Patient.birth_date >= _birth_date_for_age(query.age_max, extra_year=1)
             )
         if query.status:
             status_map = {
@@ -95,7 +95,9 @@ class SqlAlchemyPatientRepository:
                 ImageFile.patient_id == Patient.id,
                 ImageFile.is_deleted.is_(False),
             )
-            statement = statement.where(image_exists if query.has_images else ~image_exists)
+            statement = statement.where(
+                image_exists if query.has_images else ~image_exists
+            )
         return statement
 
     async def list(self, query: PatientListQuery) -> tuple[list[PatientSnapshot], int]:
@@ -128,7 +130,9 @@ class SqlAlchemyPatientRepository:
         )
         return _snapshot(patient) if patient else None
 
-    async def create(self, data: dict[str, Any], *, actor_id: int | None) -> PatientSnapshot:
+    async def create(
+        self, data: dict[str, Any], *, actor_id: int | None
+    ) -> PatientSnapshot:
         external_id = str(data["patient_id"])
         duplicate = await self._session.scalar(
             select(Patient.id).where(

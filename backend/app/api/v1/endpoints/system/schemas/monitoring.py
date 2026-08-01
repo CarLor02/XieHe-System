@@ -1,8 +1,10 @@
 """Schemas for the monitoring API endpoints."""
 
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
+
 
 class ThresholdUpdate(BaseModel):
     api_response_time: Optional[float] = None

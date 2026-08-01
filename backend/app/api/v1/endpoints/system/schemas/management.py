@@ -1,9 +1,11 @@
 """Schemas for the management API endpoints."""
 
-from fastapi import APIRouter, HTTPException, status, Depends, Query
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+import typing
+from datetime import datetime
+from typing import Optional
+
 from pydantic import BaseModel
+
 
 class SystemConfigResponse(BaseModel):
     config_key: str
@@ -27,5 +29,5 @@ class SystemStatsResponse(BaseModel):
 
 class SystemHealthResponse(BaseModel):
     status: str
-    components: dict
+    components: dict[str, typing.Any]
     timestamp: datetime

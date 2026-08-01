@@ -35,7 +35,9 @@ class PatientApplicationService:
         self._cache = cache or CacheAsideService(query_cache)
         self._generations = generations or CacheGenerationService(query_cache)
 
-    async def list_patients(self, query: PatientListQuery) -> tuple[list[dict[str, Any]], int]:
+    async def list_patients(
+        self, query: PatientListQuery
+    ) -> tuple[list[dict[str, Any]], int]:
         async def load() -> dict[str, Any]:
             patients, total = await self._repository.list(query)
             return {
@@ -79,7 +81,9 @@ class PatientApplicationService:
             raise PatientNotFound(patient_id)
         return result
 
-    async def create_patient(self, data: dict[str, Any], *, actor_id: int | None) -> dict[str, Any]:
+    async def create_patient(
+        self, data: dict[str, Any], *, actor_id: int | None
+    ) -> dict[str, Any]:
         patient = await self._repository.create(data, actor_id=actor_id)
         await self._generations.bump_best_effort(PATIENT_LIST_NAMESPACE)
         return patient.to_json_dict()

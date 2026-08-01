@@ -33,7 +33,9 @@ def hash_cache_parameters(parameters: Mapping[str, Any] | Sequence[Any]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def build_cache_key(*parts: str | int, parameters: Mapping[str, Any] | None = None) -> str:
+def build_cache_key(
+    *parts: str | int, parameters: Mapping[str, Any] | None = None
+) -> str:
     """Build a namespaced logical key; the adapter adds the global namespace."""
 
     key = ":".join(str(part) for part in parts)

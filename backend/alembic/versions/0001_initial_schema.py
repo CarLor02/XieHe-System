@@ -37,7 +37,6 @@ CREATE TABLE IF NOT EXISTS `departments` (
   CONSTRAINT `departments_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `departments` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `notifications` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -74,7 +73,6 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `patients` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -126,7 +124,6 @@ CREATE TABLE IF NOT EXISTS `patients` (
   UNIQUE KEY `passport` (`passport`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `permissions` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -145,7 +142,6 @@ CREATE TABLE IF NOT EXISTS `permissions` (
   UNIQUE KEY `code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `report_templates` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -175,7 +171,6 @@ CREATE TABLE IF NOT EXISTS `report_templates` (
   UNIQUE KEY `template_code` (`template_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `roles` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -193,7 +188,6 @@ CREATE TABLE IF NOT EXISTS `roles` (
   UNIQUE KEY `code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `studies` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -232,7 +226,6 @@ CREATE TABLE IF NOT EXISTS `studies` (
   UNIQUE KEY `study_instance_uid` (`study_instance_uid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `system_alerts` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -263,7 +256,6 @@ CREATE TABLE IF NOT EXISTS `system_alerts` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `system_configs` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -298,7 +290,6 @@ CREATE TABLE IF NOT EXISTS `system_configs` (
   UNIQUE KEY `config_key` (`config_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `system_logs` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -327,7 +318,6 @@ CREATE TABLE IF NOT EXISTS `system_logs` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `system_monitors` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -362,7 +352,6 @@ CREATE TABLE IF NOT EXISTS `system_monitors` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `series` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -399,7 +388,6 @@ CREATE TABLE IF NOT EXISTS `series` (
   CONSTRAINT `series_ibfk_1` FOREIGN KEY (`study_id`) REFERENCES `studies` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `instances` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -440,7 +428,6 @@ CREATE TABLE IF NOT EXISTS `instances` (
   CONSTRAINT `instances_ibfk_1` FOREIGN KEY (`series_id`) REFERENCES `series` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -471,7 +458,6 @@ CREATE TABLE IF NOT EXISTS `users` (
   CONSTRAINT `users_ibfk_1` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `diagnostic_reports` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -527,7 +513,6 @@ CREATE TABLE IF NOT EXISTS `diagnostic_reports` (
   CONSTRAINT `diagnostic_reports_ibfk_1` FOREIGN KEY (`template_id`) REFERENCES `report_templates` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `image_files` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -575,7 +560,6 @@ CREATE TABLE IF NOT EXISTS `image_files` (
   CONSTRAINT `image_files_ibfk_3` FOREIGN KEY (`series_id`) REFERENCES `series` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='å½±åƒæ–‡ä»¶è¡¨';
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `patient_allergies` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -601,7 +585,6 @@ CREATE TABLE IF NOT EXISTS `patient_allergies` (
   CONSTRAINT `patient_allergies_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `patient_medical_history` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -631,7 +614,6 @@ CREATE TABLE IF NOT EXISTS `patient_medical_history` (
   CONSTRAINT `patient_medical_history_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `patient_visits` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -671,7 +653,6 @@ CREATE TABLE IF NOT EXISTS `patient_visits` (
   CONSTRAINT `patient_visits_ibfk_1` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `report_findings` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -698,7 +679,6 @@ CREATE TABLE IF NOT EXISTS `report_findings` (
   CONSTRAINT `report_findings_ibfk_1` FOREIGN KEY (`report_id`) REFERENCES `diagnostic_reports` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `report_revisions` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -722,7 +702,6 @@ CREATE TABLE IF NOT EXISTS `report_revisions` (
   CONSTRAINT `report_revisions_ibfk_1` FOREIGN KEY (`report_id`) REFERENCES `diagnostic_reports` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `role_permissions` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -737,7 +716,6 @@ CREATE TABLE IF NOT EXISTS `role_permissions` (
   CONSTRAINT `role_permissions_ibfk_2` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `teams` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -756,7 +734,6 @@ CREATE TABLE IF NOT EXISTS `teams` (
   CONSTRAINT `teams_ibfk_1` FOREIGN KEY (`creator_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `user_roles` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -771,7 +748,6 @@ CREATE TABLE IF NOT EXISTS `user_roles` (
   CONSTRAINT `user_roles_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `image_annotations` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -800,7 +776,6 @@ CREATE TABLE IF NOT EXISTS `image_annotations` (
   CONSTRAINT `fk_image_annotations_image_file` FOREIGN KEY (`image_file_id`) REFERENCES `image_files` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `ai_tasks` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -833,7 +808,6 @@ CREATE TABLE IF NOT EXISTS `ai_tasks` (
   CONSTRAINT `ai_tasks_ibfk_1` FOREIGN KEY (`study_id`) REFERENCES `studies` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `team_invitations` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -858,7 +832,6 @@ CREATE TABLE IF NOT EXISTS `team_invitations` (
   CONSTRAINT `team_invitations_ibfk_3` FOREIGN KEY (`invitee_user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `team_join_requests` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -878,7 +851,6 @@ CREATE TABLE IF NOT EXISTS `team_join_requests` (
   CONSTRAINT `team_join_requests_ibfk_3` FOREIGN KEY (`reviewer_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
-
     """\
 CREATE TABLE IF NOT EXISTS `team_memberships` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -896,6 +868,7 @@ CREATE TABLE IF NOT EXISTS `team_memberships` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
     """,
 )
+
 
 def upgrade() -> None:
     for statement in CREATE_TABLE_STATEMENTS:

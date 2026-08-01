@@ -19,7 +19,9 @@ from .consumer import KafkaConsumer
 class KafkaSubscriber:
     """Decode Kafka records and apply explicit ACK/RETRY semantics."""
 
-    def __init__(self, consumer: KafkaConsumer, *, retry_delay_seconds: float = 2.0) -> None:
+    def __init__(
+        self, consumer: KafkaConsumer, *, retry_delay_seconds: float = 2.0
+    ) -> None:
         self._consumer = consumer
         self._retry_delay_seconds = retry_delay_seconds
         self._stopping = False
@@ -57,8 +59,7 @@ class KafkaSubscriber:
                 offset=record.offset,
                 key=record.key.decode("utf-8") if record.key else None,
                 headers={
-                    key: value.decode("utf-8")
-                    for key, value in (record.headers or [])
+                    key: value.decode("utf-8") for key, value in (record.headers or [])
                 },
                 payload=payload,
             )

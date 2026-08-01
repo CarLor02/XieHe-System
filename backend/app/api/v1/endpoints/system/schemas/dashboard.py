@@ -1,12 +1,14 @@
 """Schemas for the dashboard API endpoints."""
 
-from typing import List, Dict, Any, Optional
-from datetime import datetime, date, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from datetime import datetime
+from typing import List
+
 from pydantic import BaseModel, Field
+
 
 class DashboardOverview(BaseModel):
     """仪表板概览数据"""
+
     # 患者统计
     total_patients: int = Field(..., description="总患者数")
     new_patients_today: int = Field(..., description="今日新增患者")
@@ -31,6 +33,7 @@ class DashboardOverview(BaseModel):
 
 class RecentActivity(BaseModel):
     """最近活动"""
+
     id: int
     type: str  # patient, study, report
     title: str
@@ -41,6 +44,7 @@ class RecentActivity(BaseModel):
 
 class SystemMetric(BaseModel):
     """系统指标"""
+
     name: str
     value: float
     unit: str
@@ -50,6 +54,7 @@ class SystemMetric(BaseModel):
 
 class DashboardStats(BaseModel):
     """仪表板统计数据"""
+
     overview: DashboardOverview
     recent_activities: List[RecentActivity]
     system_metrics: List[SystemMetric]

@@ -18,7 +18,6 @@ from tests.db import (
     truncate_test_database,
 )
 
-
 # Keep application imports in tests pointed at the isolated test database.
 os.environ["DATABASE_URL"] = get_test_database_url()
 

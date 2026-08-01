@@ -120,10 +120,7 @@ def test_register_phone_is_optional_and_nullable():
     assert UserRegister(**{**payload, "phone": None}).phone is None
 
     phone_schema = UserRegister.model_json_schema()["properties"]["phone"]
-    phone_types = {
-        option.get("type")
-        for option in phone_schema.get("anyOf", [])
-    }
+    phone_types = {option.get("type") for option in phone_schema.get("anyOf", [])}
     assert phone_types == {"string", "null"}
 
 
@@ -137,7 +134,9 @@ def test_register_phone_is_optional_and_nullable():
         ("13800138000", "13800138000"),
     ],
 )
-async def test_register_normalizes_empty_phone_to_null(monkeypatch, phone, expected_phone):
+async def test_register_normalizes_empty_phone_to_null(
+    monkeypatch, phone, expected_phone
+):
     db = FakeRegisterDb()
 
     monkeypatch.setattr(
@@ -174,7 +173,9 @@ async def test_register_normalizes_empty_phone_to_null(monkeypatch, phone, expec
 
 
 @pytest.mark.asyncio
-async def test_refresh_token_reloads_active_user_and_preserves_admin_claims(monkeypatch):
+async def test_refresh_token_reloads_active_user_and_preserves_admin_claims(
+    monkeypatch,
+):
     refresh_payload = {
         "sub": "admin",
         "username": "admin",
@@ -190,8 +191,14 @@ async def test_refresh_token_reloads_active_user_and_preserves_admin_claims(monk
     async def fake_create_refresh_token(data, expires_delta=None):
         return "new-refresh-token"
 
-    monkeypatch.setattr(auth_handlers.security_manager, "verify_token", fake_verify_token)
-    monkeypatch.setattr(auth_handlers.security_manager, "create_refresh_token", fake_create_refresh_token)
+    monkeypatch.setattr(
+        auth_handlers.security_manager, "verify_token", fake_verify_token
+    )
+    monkeypatch.setattr(
+        auth_handlers.security_manager,
+        "create_refresh_token",
+        fake_create_refresh_token,
+    )
 
     response = await auth_handlers.refresh_token(
         TokenRefresh(refresh_token="old-refresh-token"),
@@ -230,6 +237,7 @@ async def test_change_password_updates_current_user_password_hash(monkeypatch):
             "password_hash": "old-hash",
         },
     )
+
     async def fake_verify_password(plain_password, hashed_password):
         return plain_password == "old-password" and hashed_password == "old-hash"
 

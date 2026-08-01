@@ -120,17 +120,13 @@ class FakeTeamRepository:
         self.join_request_list_calls += 1
         return [_join_request()]
 
-    async def review_join_request(
-        self, team_id, request_id, reviewer_id, decision
-    ):
+    async def review_join_request(self, team_id, request_id, reviewer_id, decision):
         return _join_request(request_id)
 
     async def cancel_join_request(self, team_id, request_id, user_id):
         return _join_request(request_id)
 
-    async def update_member_role(
-        self, team_id, operator_id, target_user_id, role
-    ):
+    async def update_member_role(self, team_id, operator_id, target_user_id, role):
         return None
 
     async def remove_member(self, team_id, operator_id, target_user_id):
@@ -177,7 +173,8 @@ class MemoryCache:
     async def increment(self, key, amount=1):
         if self.fail_writes:
             raise ConnectionError("cache unavailable")
-        self.values[key] = int(self.values.get(key, 0)) + amount
+        current = self.values.get(key, 0)
+        self.values[key] = (current if isinstance(current, int) else 0) + amount
         return self.values[key]
 
 

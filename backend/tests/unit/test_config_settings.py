@@ -37,11 +37,19 @@ def test_config_registry_contains_expected_domains() -> None:
     ]
 
 
-def test_database_url_uses_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_database_url_uses_environment_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("DATABASE_URL", "mysql://user:pass@db:3306/app")
 
-    assert DatabaseSettings().DATABASE_URL == "mysql+pymysql://user:pass@db:3306/app?charset=utf8mb4"
-    assert DatabaseSettings().ASYNC_DATABASE_URL == "mysql+asyncmy://user:pass@db:3306/app?charset=utf8mb4"
+    assert (
+        DatabaseSettings().DATABASE_URL
+        == "mysql+pymysql://user:pass@db:3306/app?charset=utf8mb4"
+    )
+    assert (
+        DatabaseSettings().ASYNC_DATABASE_URL
+        == "mysql+asyncmy://user:pass@db:3306/app?charset=utf8mb4"
+    )
 
 
 def test_database_settings_keep_mysql_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -60,16 +68,23 @@ def test_database_settings_keep_mysql_aliases(monkeypatch: pytest.MonkeyPatch) -
     assert database_settings.MYSQL_USER == "user"
     assert database_settings.MYSQL_PASSWORD == "pass"
     assert database_settings.MYSQL_DATABASE == "medical"
-    assert database_settings.ASYNC_DATABASE_URL == "mysql+asyncmy://user:pass@db:3306/medical?charset=utf8mb4"
+    assert (
+        database_settings.ASYNC_DATABASE_URL
+        == "mysql+asyncmy://user:pass@db:3306/medical?charset=utf8mb4"
+    )
 
 
-def test_redis_state_url_uses_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_redis_state_url_uses_environment_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("REDIS_STATE_URL", "redis://redis:6379/2")
 
     assert RedisSettings().REDIS_STATE_URL == "redis://redis:6379/2"
 
 
-def test_query_cache_url_uses_separate_environment_override(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_query_cache_url_uses_separate_environment_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("REDIS_CACHE_URL", "redis://redis-cache:6379/3")
 
     assert CacheSettings().REDIS_CACHE_URL == "redis://redis-cache:6379/3"
@@ -85,7 +100,9 @@ def test_app_settings_parse_comma_separated_lists() -> None:
     assert app_settings.ALLOWED_HOSTS == ["a.example", "b.example"]
 
 
-def test_app_settings_parse_comma_separated_lists_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_app_settings_parse_comma_separated_lists_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("BACKEND_CORS_ORIGINS", "http://a.example,http://b.example")
     monkeypatch.setenv("ALLOWED_HOSTS", "a.example,b.example")
 

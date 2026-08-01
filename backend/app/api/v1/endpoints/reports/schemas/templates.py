@@ -1,14 +1,20 @@
 """Schemas for the templates API endpoints."""
 
-from typing import List, Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
-from app.models.report import ReportTemplate, TemplateTypeEnum, ReportTypeEnum
+
+from app.models.report import ReportTypeEnum, TemplateTypeEnum
+
 
 class TemplateContentSection(BaseModel):
     """模板内容段落"""
+
     name: str = Field(..., description="段落名称")
-    type: str = Field(..., description="段落类型: textarea, select, checklist, structured")
+    type: str = Field(
+        ..., description="段落类型: textarea, select, checklist, structured"
+    )
     required: bool = Field(False, description="是否必填")
     placeholder: Optional[str] = Field(None, description="占位符文本")
     options: Optional[List[str]] = Field(None, description="选项列表")
@@ -17,12 +23,16 @@ class TemplateContentSection(BaseModel):
 
 class TemplateContent(BaseModel):
     """模板内容"""
+
     sections: List[TemplateContentSection] = Field(..., description="模板段落列表")
 
 
 class ReportTemplateCreate(BaseModel):
     """创建报告模板请求"""
-    template_name: str = Field(..., min_length=1, max_length=100, description="模板名称")
+
+    template_name: str = Field(
+        ..., min_length=1, max_length=100, description="模板名称"
+    )
     template_code: str = Field(..., min_length=1, max_length=50, description="模板编码")
     template_type: TemplateTypeEnum = Field(..., description="模板类型")
     report_type: ReportTypeEnum = Field(..., description="报告类型")
@@ -38,7 +48,10 @@ class ReportTemplateCreate(BaseModel):
 
 class ReportTemplateUpdate(BaseModel):
     """更新报告模板请求"""
-    template_name: Optional[str] = Field(None, min_length=1, max_length=100, description="模板名称")
+
+    template_name: Optional[str] = Field(
+        None, min_length=1, max_length=100, description="模板名称"
+    )
     template_type: Optional[TemplateTypeEnum] = Field(None, description="模板类型")
     report_type: Optional[ReportTypeEnum] = Field(None, description="报告类型")
     modality: Optional[str] = Field(None, max_length=20, description="适用模态")
@@ -53,6 +66,7 @@ class ReportTemplateUpdate(BaseModel):
 
 class ReportTemplateResponse(BaseModel):
     """报告模板响应"""
+
     id: int
     template_name: str
     template_code: str
@@ -80,6 +94,7 @@ class ReportTemplateResponse(BaseModel):
 
 class TemplateListResponse(BaseModel):
     """模板列表响应"""
+
     templates: List[ReportTemplateResponse]
     total: int
     page: int
@@ -89,6 +104,7 @@ class TemplateListResponse(BaseModel):
 
 class TemplateVersionCreate(BaseModel):
     """创建模板版本请求"""
+
     version_notes: str = Field(..., description="版本说明")
     template_content: TemplateContent = Field(..., description="模板内容")
     default_values: Optional[Dict[str, Any]] = Field(None, description="默认值")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+import typing
 from datetime import datetime
 from typing import Any
 
@@ -78,9 +79,7 @@ def _summary(team: Team, current_user_id: int | None) -> TeamSummarySnapshot:
         creator_name=creator_name,
         member_count=len(active_members),
         max_members=team.max_members,
-        is_member=bool(
-            membership and membership.status == TeamMembershipStatus.ACTIVE
-        ),
+        is_member=bool(membership and membership.status == TeamMembershipStatus.ACTIVE),
         my_role=membership.role.value if membership else None,
         my_status=membership.status.value if membership else None,
         is_creator=bool(current_user_id and team.creator_id == current_user_id),
@@ -130,7 +129,7 @@ def _invitation_snapshot(invitation: TeamInvitation) -> InvitationSnapshot:
     )
 
 
-def _team_options():
+def _team_options() -> tuple[typing.Any, ...]:
     return (
         selectinload(Team.memberships),
         selectinload(Team.join_requests),
@@ -213,21 +212,29 @@ class SqlAlchemyTeamRepository:
             return [_summary(team, user_id) for team in teams]
 
         member_teams = (
-            await self._session.scalars(
-                base.join(TeamMembership).where(
-                    TeamMembership.user_id == user_id,
-                    TeamMembership.status == TeamMembershipStatus.ACTIVE,
+            (
+                await self._session.scalars(
+                    base.join(TeamMembership).where(
+                        TeamMembership.user_id == user_id,
+                        TeamMembership.status == TeamMembershipStatus.ACTIVE,
+                    )
                 )
             )
-        ).unique().all()
+            .unique()
+            .all()
+        )
         pending_teams = (
-            await self._session.scalars(
-                base.join(TeamJoinRequest).where(
-                    TeamJoinRequest.user_id == user_id,
-                    TeamJoinRequest.status == TeamJoinRequestStatus.PENDING,
+            (
+                await self._session.scalars(
+                    base.join(TeamJoinRequest).where(
+                        TeamJoinRequest.user_id == user_id,
+                        TeamJoinRequest.status == TeamJoinRequestStatus.PENDING,
+                    )
                 )
             )
-        ).unique().all()
+            .unique()
+            .all()
+        )
         result = [_summary(team, user_id) for team in member_teams]
         existing_ids = {team.id for team in member_teams}
         result.extend(
@@ -501,9 +508,7 @@ class SqlAlchemyTeamRepository:
         await self._session.commit()
         return _join_request_snapshot(await self._reload_join_request(request_id))
 
-    async def _require_admin(
-        self, team_id: int, operator_id: int
-    ) -> tuple[Team, User]:
+    async def _require_admin(self, team_id: int, operator_id: int) -> tuple[Team, User]:
         team = await self._get_team(team_id)
         membership = next(
             (

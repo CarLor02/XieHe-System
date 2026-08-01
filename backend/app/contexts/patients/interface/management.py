@@ -1,5 +1,6 @@
 """Thin FastAPI adapter for patient management use cases."""
 
+import typing
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -32,7 +33,7 @@ async def create_patient(
     patient_data: PatientCreate,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-):
+) -> dict[str, typing.Any]:
     try:
         patient = await service.create_patient(
             patient_data.model_dump(),
@@ -68,7 +69,7 @@ async def get_patients(
     sort_order: str = Query("desc"),
     _current_user: dict[str, Any] = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-):
+) -> typing.Any:
     query = PatientListQuery(
         page=page,
         page_size=page_size,
@@ -85,7 +86,9 @@ async def get_patients(
         patients, total = await service.list_patients(query)
     except Exception as exc:
         logger.emit_event(LogLevel.ERROR, message=f"获取患者列表失败: {exc}")
-        raise HTTPException(status_code=500, detail="获取患者列表过程中发生错误") from exc
+        raise HTTPException(
+            status_code=500, detail="获取患者列表过程中发生错误"
+        ) from exc
     return paginated_response(
         items=[
             PatientResponse.model_validate(item).model_dump(mode="json")
@@ -103,14 +106,16 @@ async def get_patient(
     patient_id: int,
     _current_user: dict[str, Any] = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-):
+) -> dict[str, typing.Any]:
     try:
         patient = await service.get_patient(patient_id)
     except PatientNotFound as exc:
         raise ResourceNotFoundException(str(exc)) from exc
     except Exception as exc:
         logger.emit_event(LogLevel.ERROR, message=f"获取患者详情失败: {exc}")
-        raise HTTPException(status_code=500, detail="获取患者详情过程中发生错误") from exc
+        raise HTTPException(
+            status_code=500, detail="获取患者详情过程中发生错误"
+        ) from exc
     return success_response(
         data=PatientResponse.model_validate(patient).model_dump(mode="json"),
         message="患者详情查询成功",
@@ -123,7 +128,7 @@ async def update_patient(
     patient_data: PatientUpdate,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-):
+) -> dict[str, typing.Any]:
     try:
         patient = await service.update_patient(
             patient_id,
@@ -134,7 +139,9 @@ async def update_patient(
         raise ResourceNotFoundException(str(exc)) from exc
     except Exception as exc:
         logger.emit_event(LogLevel.ERROR, message=f"患者信息更新失败: {exc}")
-        raise HTTPException(status_code=500, detail="患者信息更新过程中发生错误") from exc
+        raise HTTPException(
+            status_code=500, detail="患者信息更新过程中发生错误"
+        ) from exc
     return success_response(
         data=PatientResponse.model_validate(patient).model_dump(mode="json"),
         message="患者信息更新成功",
@@ -146,7 +153,7 @@ async def delete_patient(
     patient_id: int,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-):
+) -> dict[str, typing.Any]:
     try:
         await service.delete_patient(patient_id, actor_id=_actor_id(current_user))
     except PatientNotFound as exc:

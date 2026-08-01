@@ -7,23 +7,27 @@
 @created 2025-09-28
 """
 
-from typing import Dict, Any
-from datetime import datetime, date, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, func
+import typing
+from datetime import date, datetime, timedelta
+from typing import Any, Dict
 
-from app.core.database.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import and_, desc, func, or_
+from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
+
 from app.core.access.auth import get_current_active_user
+from app.core.database.session import get_db
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
-from app.models.patient import Patient, PatientStatusEnum
 from app.models.image_file import ImageFile, ImageFileStatusEnum
+from app.models.patient import Patient, PatientStatusEnum
 from app.models.report import DiagnosticReport
 from app.services.image_file_visibility import (
     apply_image_visibility_filter,
     build_image_visibility_filter,
 )
+
 from ..schemas.dashboard import (
     DashboardOverview,
     RecentActivity,
@@ -37,8 +41,8 @@ router = APIRouter()
 @router.get("/overview", response_model=Dict[str, Any], summary="获取仪表板概览")
 async def get_dashboard_overview(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取仪表板概览数据
 
@@ -60,70 +64,93 @@ async def get_dashboard_overview(
         image_permission_filter = build_image_visibility_filter(db, current_user)
 
         # 患者统计（不受权限限制，显示全部患者）
-        total_patients = db.query(func.count(Patient.id)).filter(Patient.is_deleted == False).scalar() or 0
+        total_patients = (
+            db.query(func.count(Patient.id))
+            .filter(Patient.is_deleted.is_(False))
+            .scalar()
+            or 0
+        )
 
-        new_patients_today = db.query(func.count(Patient.id)).filter(
-            and_(
-                Patient.is_deleted == False,
-                Patient.created_at >= today_start
+        new_patients_today = (
+            db.query(func.count(Patient.id))
+            .filter(
+                and_(Patient.is_deleted.is_(False), Patient.created_at >= today_start)
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
-        new_patients_week = db.query(func.count(Patient.id)).filter(
-            and_(
-                Patient.is_deleted == False,
-                Patient.created_at >= week_start_dt
+        new_patients_week = (
+            db.query(func.count(Patient.id))
+            .filter(
+                and_(Patient.is_deleted.is_(False), Patient.created_at >= week_start_dt)
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
-        active_patients = db.query(func.count(Patient.id)).filter(
-            and_(
-                Patient.is_deleted == False,
-                Patient.status == PatientStatusEnum.ACTIVE
+        active_patients = (
+            db.query(func.count(Patient.id))
+            .filter(
+                and_(
+                    Patient.is_deleted.is_(False),
+                    Patient.status == PatientStatusEnum.ACTIVE,
+                )
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
         # 影像文件统计（应用权限过滤）
-        base_image_filter = ImageFile.is_deleted == False
+        base_image_filter: ColumnElement[bool] = ImageFile.is_deleted.is_(False)
         if image_permission_filter is not None:
             base_image_filter = and_(base_image_filter, image_permission_filter)
 
-        total_studies = db.query(func.count(ImageFile.id)).filter(
-            base_image_filter
-        ).scalar() or 0
+        total_studies = (
+            db.query(func.count(ImageFile.id)).filter(base_image_filter).scalar() or 0
+        )
 
-        studies_today = db.query(func.count(ImageFile.id)).filter(
-            and_(
-                ImageFile.created_at >= today_start,
-                base_image_filter
-            )
-        ).scalar() or 0
+        studies_today = (
+            db.query(func.count(ImageFile.id))
+            .filter(and_(ImageFile.created_at >= today_start, base_image_filter))
+            .scalar()
+            or 0
+        )
 
-        studies_week = db.query(func.count(ImageFile.id)).filter(
-            and_(
-                ImageFile.created_at >= week_start_dt,
-                base_image_filter
-            )
-        ).scalar() or 0
+        studies_week = (
+            db.query(func.count(ImageFile.id))
+            .filter(and_(ImageFile.created_at >= week_start_dt, base_image_filter))
+            .scalar()
+            or 0
+        )
 
         # 待处理影像 = 状态为 UPLOADED 或 PROCESSING 的影像文件
-        pending_images = db.query(func.count(ImageFile.id)).filter(
-            and_(
-                base_image_filter,
-                or_(
-                    ImageFile.status == ImageFileStatusEnum.UPLOADED,
-                    ImageFile.status == ImageFileStatusEnum.PROCESSING
+        pending_images = (
+            db.query(func.count(ImageFile.id))
+            .filter(
+                and_(
+                    base_image_filter,
+                    or_(
+                        ImageFile.status == ImageFileStatusEnum.UPLOADED,
+                        ImageFile.status == ImageFileStatusEnum.PROCESSING,
+                    ),
                 )
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
         # 已处理影像 = 状态为 PROCESSED 的影像文件
-        processed_images = db.query(func.count(ImageFile.id)).filter(
-            and_(
-                base_image_filter,
-                ImageFile.status == ImageFileStatusEnum.PROCESSED
+        processed_images = (
+            db.query(func.count(ImageFile.id))
+            .filter(
+                and_(
+                    base_image_filter, ImageFile.status == ImageFileStatusEnum.PROCESSED
+                )
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
         # 计算完成率
         completion_rate = 0.0
@@ -147,24 +174,27 @@ async def get_dashboard_overview(
             completion_rate=completion_rate,
             average_processing_time=avg_processing_time,
             system_alerts=pending_images,  # 待处理影像数作为系统警告
-            generated_at=datetime.now()
+            generated_at=datetime.now(),
         )
 
-        return success_response(data=overview.model_dump(), message="获取仪表板概览成功")
+        return success_response(
+            data=overview.model_dump(), message="获取仪表板概览成功"
+        )
 
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取仪表板概览失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取仪表板概览过程中发生错误"
+            detail="获取仪表板概览过程中发生错误",
         )
+
 
 @router.get("/recent-activities", response_model=Dict[str, Any], summary="获取最近活动")
 async def get_recent_activities(
     limit: int = Query(10, ge=1, le=50, description="返回数量限制"),
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取最近活动列表
     """
@@ -172,76 +202,101 @@ async def get_recent_activities(
         activities = []
 
         # 获取最近的患者
-        recent_patients = db.query(Patient).filter(
-            Patient.is_deleted == False
-        ).order_by(desc(Patient.created_at)).limit(limit // 3).all()
+        recent_patients = (
+            db.query(Patient)
+            .filter(Patient.is_deleted.is_(False))
+            .order_by(desc(Patient.created_at))
+            .limit(limit // 3)
+            .all()
+        )
 
         for patient in recent_patients:
-            activities.append(RecentActivity(
-                id=patient.id,
-                type="patient",
-                title=f"新患者: {patient.name}",
-                description=f"患者ID: {patient.patient_id}",
-                timestamp=patient.created_at,
-                status="new"
-            ))
+            activities.append(
+                RecentActivity(
+                    id=patient.id,
+                    type="patient",
+                    title=f"新患者: {patient.name}",
+                    description=f"患者ID: {patient.patient_id}",
+                    timestamp=patient.created_at,
+                    status="new",
+                )
+            )
 
         # 获取最近的影像文件
-        recent_files_query = db.query(ImageFile).filter(
-            ImageFile.is_deleted == False
+        recent_files_query = db.query(ImageFile).filter(ImageFile.is_deleted.is_(False))
+        recent_files = (
+            apply_image_visibility_filter(
+                recent_files_query,
+                db,
+                current_user,
+            )
+            .order_by(desc(ImageFile.created_at))
+            .limit(limit // 3)
+            .all()
         )
-        recent_files = apply_image_visibility_filter(
-            recent_files_query,
-            db,
-            current_user,
-        ).order_by(desc(ImageFile.created_at)).limit(limit // 3).all()
 
         for file in recent_files:
-            activities.append(RecentActivity(
-                id=file.id,
-                type="image",
-                title=f"新影像: {file.original_filename or '影像文件'}",
-                description=f"文件ID: {file.id}",
-                timestamp=file.created_at,
-                status=file.status.value if hasattr(file.status, 'value') else str(file.status)
-            ))
+            activities.append(
+                RecentActivity(
+                    id=file.id,
+                    type="image",
+                    title=f"新影像: {file.original_filename or '影像文件'}",
+                    description=f"文件ID: {file.id}",
+                    timestamp=file.created_at,
+                    status=file.status.value
+                    if hasattr(file.status, "value")
+                    else str(file.status),
+                )
+            )
 
         # 获取最近的报告
-        recent_reports = db.query(DiagnosticReport).filter(
-            DiagnosticReport.is_deleted == False
-        ).order_by(desc(DiagnosticReport.created_at)).limit(limit // 3).all()
+        recent_reports = (
+            db.query(DiagnosticReport)
+            .filter(DiagnosticReport.is_deleted.is_(False))
+            .order_by(desc(DiagnosticReport.created_at))
+            .limit(limit // 3)
+            .all()
+        )
 
         for report in recent_reports:
-            activities.append(RecentActivity(
-                id=report.id,
-                type="report",
-                title=f"新报告: {report.report_title}",
-                description=f"报告编号: {report.report_number}",
-                timestamp=report.created_at,
-                status=report.status.value if hasattr(report.status, 'value') else str(report.status)
-            ))
+            activities.append(
+                RecentActivity(
+                    id=report.id,
+                    type="report",
+                    title=f"新报告: {report.report_title}",
+                    description=f"报告编号: {report.report_number}",
+                    timestamp=report.created_at,
+                    status=report.status.value
+                    if hasattr(report.status, "value")
+                    else str(report.status),
+                )
+            )
 
         # 按时间排序并限制数量
         activities.sort(key=lambda x: x.timestamp, reverse=True)
         activities = activities[:limit]
 
         return success_response(
-            data={"activities": [activity.model_dump() for activity in activities], "total": len(activities)},
-            message="获取最近活动成功"
+            data={
+                "activities": [activity.model_dump() for activity in activities],
+                "total": len(activities),
+            },
+            message="获取最近活动成功",
         )
 
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取最近活动失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取最近活动过程中发生错误"
+            detail="获取最近活动过程中发生错误",
         )
+
 
 @router.get("/system-metrics", response_model=Dict[str, Any], summary="获取系统指标")
 async def get_system_metrics(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取系统性能指标
     """
@@ -249,59 +304,55 @@ async def get_system_metrics(
         metrics = []
 
         # 数据库连接数（模拟）
-        metrics.append(SystemMetric(
-            name="数据库连接数",
-            value=15.0,
-            unit="个",
-            status="normal",
-            trend="stable"
-        ))
+        metrics.append(
+            SystemMetric(
+                name="数据库连接数",
+                value=15.0,
+                unit="个",
+                status="normal",
+                trend="stable",
+            )
+        )
 
         # 内存使用率（模拟）
-        metrics.append(SystemMetric(
-            name="内存使用率",
-            value=68.5,
-            unit="%",
-            status="normal",
-            trend="up"
-        ))
+        metrics.append(
+            SystemMetric(
+                name="内存使用率", value=68.5, unit="%", status="normal", trend="up"
+            )
+        )
 
         # CPU使用率（模拟）
-        metrics.append(SystemMetric(
-            name="CPU使用率",
-            value=45.2,
-            unit="%",
-            status="normal",
-            trend="stable"
-        ))
+        metrics.append(
+            SystemMetric(
+                name="CPU使用率", value=45.2, unit="%", status="normal", trend="stable"
+            )
+        )
 
         # 磁盘使用率（模拟）
-        metrics.append(SystemMetric(
-            name="磁盘使用率",
-            value=72.8,
-            unit="%",
-            status="warning",
-            trend="up"
-        ))
+        metrics.append(
+            SystemMetric(
+                name="磁盘使用率", value=72.8, unit="%", status="warning", trend="up"
+            )
+        )
 
         return success_response(
             data={"metrics": [metric.model_dump() for metric in metrics]},
-            message="获取系统指标成功"
+            message="获取系统指标成功",
         )
 
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取系统指标失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取系统指标过程中发生错误"
+            detail="获取系统指标过程中发生错误",
         )
 
 
 @router.get("/stats", response_model=Dict[str, Any], summary="获取仪表板统计数据")
 async def get_dashboard_stats(
     current_user: Dict[str, Any] = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """
     获取仪表板统计数据
 
@@ -323,70 +374,93 @@ async def get_dashboard_stats(
         image_permission_filter = build_image_visibility_filter(db, current_user)
 
         # 患者统计（不受权限限制，显示全部患者）
-        total_patients = db.query(func.count(Patient.id)).filter(Patient.is_deleted == False).scalar() or 0
+        total_patients = (
+            db.query(func.count(Patient.id))
+            .filter(Patient.is_deleted.is_(False))
+            .scalar()
+            or 0
+        )
 
-        new_patients_today = db.query(func.count(Patient.id)).filter(
-            and_(
-                Patient.is_deleted == False,
-                Patient.created_at >= today_start
+        new_patients_today = (
+            db.query(func.count(Patient.id))
+            .filter(
+                and_(Patient.is_deleted.is_(False), Patient.created_at >= today_start)
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
-        new_patients_week = db.query(func.count(Patient.id)).filter(
-            and_(
-                Patient.is_deleted == False,
-                Patient.created_at >= week_start_dt
+        new_patients_week = (
+            db.query(func.count(Patient.id))
+            .filter(
+                and_(Patient.is_deleted.is_(False), Patient.created_at >= week_start_dt)
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
-        active_patients = db.query(func.count(Patient.id)).filter(
-            and_(
-                Patient.is_deleted == False,
-                Patient.status == PatientStatusEnum.ACTIVE
+        active_patients = (
+            db.query(func.count(Patient.id))
+            .filter(
+                and_(
+                    Patient.is_deleted.is_(False),
+                    Patient.status == PatientStatusEnum.ACTIVE,
+                )
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
         # 影像统计（应用权限过滤）
-        base_image_filter = ImageFile.is_deleted == False
+        base_image_filter: ColumnElement[bool] = ImageFile.is_deleted.is_(False)
         if image_permission_filter is not None:
             base_image_filter = and_(base_image_filter, image_permission_filter)
 
-        total_studies = db.query(func.count(ImageFile.id)).filter(
-            base_image_filter
-        ).scalar() or 0
+        total_studies = (
+            db.query(func.count(ImageFile.id)).filter(base_image_filter).scalar() or 0
+        )
 
-        studies_today = db.query(func.count(ImageFile.id)).filter(
-            and_(
-                ImageFile.created_at >= today_start,
-                base_image_filter
-            )
-        ).scalar() or 0
+        studies_today = (
+            db.query(func.count(ImageFile.id))
+            .filter(and_(ImageFile.created_at >= today_start, base_image_filter))
+            .scalar()
+            or 0
+        )
 
-        studies_week = db.query(func.count(ImageFile.id)).filter(
-            and_(
-                ImageFile.created_at >= week_start_dt,
-                base_image_filter
-            )
-        ).scalar() or 0
+        studies_week = (
+            db.query(func.count(ImageFile.id))
+            .filter(and_(ImageFile.created_at >= week_start_dt, base_image_filter))
+            .scalar()
+            or 0
+        )
 
         # 待处理影像 = 状态为 UPLOADED 或 PROCESSING 的影像文件
-        pending_images = db.query(func.count(ImageFile.id)).filter(
-            and_(
-                base_image_filter,
-                or_(
-                    ImageFile.status == ImageFileStatusEnum.UPLOADED,
-                    ImageFile.status == ImageFileStatusEnum.PROCESSING
+        pending_images = (
+            db.query(func.count(ImageFile.id))
+            .filter(
+                and_(
+                    base_image_filter,
+                    or_(
+                        ImageFile.status == ImageFileStatusEnum.UPLOADED,
+                        ImageFile.status == ImageFileStatusEnum.PROCESSING,
+                    ),
                 )
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
         # 已处理影像 = 状态为 PROCESSED 的影像文件
-        processed_images = db.query(func.count(ImageFile.id)).filter(
-            and_(
-                base_image_filter,
-                ImageFile.status == ImageFileStatusEnum.PROCESSED
+        processed_images = (
+            db.query(func.count(ImageFile.id))
+            .filter(
+                and_(
+                    base_image_filter, ImageFile.status == ImageFileStatusEnum.PROCESSED
+                )
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
         # 计算完成率
         completion_rate = 0.0
@@ -410,24 +484,26 @@ async def get_dashboard_stats(
             completion_rate=completion_rate,
             average_processing_time=avg_processing_time,
             system_alerts=pending_images,  # 待处理影像数作为系统警告
-            generated_at=datetime.now()
+            generated_at=datetime.now(),
         )
 
-        return success_response(data=overview.model_dump(), message="获取仪表板统计数据成功")
+        return success_response(
+            data=overview.model_dump(), message="获取仪表板统计数据成功"
+        )
 
     except Exception as e:
         logger.emit_event(LogLevel.ERROR, message=f"获取仪表板统计数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取仪表板统计数据过程中发生错误"
+            detail="获取仪表板统计数据过程中发生错误",
         )
 
 
 @router.get("/tasks", response_model=Dict[str, Any])
 async def get_dashboard_tasks(
-    current_user: dict = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
+    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> dict[str, typing.Any]:
     """获取仪表板任务列表"""
     try:
         # 模拟任务数据，实际应该从任务表获取
@@ -444,7 +520,7 @@ async def get_dashboard_tasks(
                 "due_date": (datetime.now() + timedelta(days=1)).isoformat(),
                 "progress": 0,
                 "tags": ["紧急", "审核"],
-                "estimated_hours": 2.0
+                "estimated_hours": 2.0,
             },
             {
                 "task_id": "TASK_002",
@@ -458,7 +534,7 @@ async def get_dashboard_tasks(
                 "progress": 65,
                 "tags": ["影像", "处理"],
                 "estimated_hours": 3.0,
-                "actual_hours": 2.0
+                "actual_hours": 2.0,
             },
             {
                 "task_id": "TASK_003",
@@ -472,8 +548,8 @@ async def get_dashboard_tasks(
                 "progress": 100,
                 "tags": ["档案", "更新"],
                 "estimated_hours": 1.0,
-                "actual_hours": 0.8
-            }
+                "actual_hours": 0.8,
+            },
         ]
 
         return success_response(data={"tasks": tasks}, message="获取任务列表成功")

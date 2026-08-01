@@ -1,11 +1,14 @@
 import json
 import os
+import typing
 import uuid
-import httpx
-from typing import List, Optional, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+import httpx
+from pydantic import BaseModel
+
 
 # 定义数据模型
 class ModelViewType(str, Enum):
@@ -13,12 +16,14 @@ class ModelViewType(str, Enum):
     SIDE = "side"
     OTHER = "other"
 
+
 class ModelStatus(str, Enum):
     TRAINING = "training"
     READY = "ready"
     DEPLOYED = "deployed"
     STOPPED = "stopped"
     ERROR = "error"
+
 
 class AIModel(BaseModel):
     id: str
@@ -38,43 +43,46 @@ class AIModel(BaseModel):
     class Config:
         use_enum_values = True
 
+
 class ModelConfiguration(BaseModel):
     front_model_id: Optional[str] = None
     side_model_id: Optional[str] = None
+
 
 class ModelData(BaseModel):
     models: List[AIModel] = []
     configuration: ModelConfiguration = ModelConfiguration()
 
+
 class ModelManager:
-    def __init__(self, data_file: str = "data/models.json"):
+    def __init__(self, data_file: str = "data/models.json") -> None:
         # Ensure path is absolute or relative to project root
         # __file__ is backend/app/services/model_manager.py
         # dirname -> services
         # dirname -> app
         # dirname -> backend
-        base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        base_path = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
         self.data_file = os.path.join(base_path, data_file)
-        
 
         self._ensure_data_file()
 
-    def _ensure_data_file(self):
+    def _ensure_data_file(self) -> None:
         if not os.path.exists(self.data_file):
-
             os.makedirs(os.path.dirname(self.data_file), exist_ok=True)
             self._save_data(ModelData())
 
     def _load_data(self) -> ModelData:
         try:
-            with open(self.data_file, 'r', encoding='utf-8') as f:
+            with open(self.data_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 return ModelData(**data)
         except Exception:
             return ModelData()
 
-    def _save_data(self, data: ModelData):
-        with open(self.data_file, 'w', encoding='utf-8') as f:
+    def _save_data(self, data: ModelData) -> None:
+        with open(self.data_file, "w", encoding="utf-8") as f:
             json.dump(data.dict(), f, indent=2, ensure_ascii=False)
 
     def get_models(self) -> List[AIModel]:
@@ -123,7 +131,11 @@ class ModelManager:
 
         # 检查模型健康状态
         endpoint_url = model_data.get("endpoint_url", "")
-        status = await self.check_model_health(endpoint_url) if endpoint_url else ModelStatus.STOPPED
+        status = (
+            await self.check_model_health(endpoint_url)
+            if endpoint_url
+            else ModelStatus.STOPPED
+        )
 
         new_model = AIModel(
             id=f"MODEL_{uuid.uuid4().hex[:8].upper()}",
@@ -138,7 +150,7 @@ class ModelManager:
             created_at=datetime.now().isoformat(),
             updated_at=datetime.now().isoformat(),
             creator=model_data.get("creator", "User"),
-            tags=model_data.get("tags", [])
+            tags=model_data.get("tags", []),
         )
 
         data.models.append(new_model)
@@ -165,7 +177,9 @@ class ModelManager:
                 return m
         return None
 
-    def update_model(self, model_id: str, update_data: Dict[str, Any]) -> Optional[AIModel]:
+    def update_model(
+        self, model_id: str, update_data: Dict[str, Any]
+    ) -> Optional[AIModel]:
         data = self._load_data()
         for i, model in enumerate(data.models):
             if model.id == model_id:
@@ -264,7 +278,7 @@ class ModelManager:
             return {
                 "success": True,
                 "fallback_to_default": fallback_to_default,
-                "default_model_id": default_model_id
+                "default_model_id": default_model_id,
             }
 
         return {"success": False, "message": "模型删除失败"}
@@ -275,32 +289,34 @@ class ModelManager:
 
     def update_configuration(self, config_update: Dict[str, str]) -> ModelConfiguration:
         data = self._load_data()
-        
+
         if "front_model_id" in config_update:
             data.configuration.front_model_id = config_update["front_model_id"]
             # Update models is_active status
             for m in data.models:
                 if m.view_type == ModelViewType.FRONT:
-                    m.is_active = (m.id == data.configuration.front_model_id)
+                    m.is_active = m.id == data.configuration.front_model_id
 
         if "side_model_id" in config_update:
             data.configuration.side_model_id = config_update["side_model_id"]
             # Update models is_active status
             for m in data.models:
                 if m.view_type == ModelViewType.SIDE:
-                    m.is_active = (m.id == data.configuration.side_model_id)
-        
+                    m.is_active = m.id == data.configuration.side_model_id
+
         self._save_data(data)
         return data.configuration
 
-    async def test_model(self, model_id: str, files: List[tuple]) -> Dict[str, Any]:
+    async def test_model(
+        self, model_id: str, files: List[tuple[typing.Any, ...]]
+    ) -> Dict[str, Any]:
         """
         Proxy request to external model service
         """
         model = self.get_model(model_id)
         if not model:
             raise ValueError("Model not found")
-        
+
         if not model.endpoint_url:
             raise ValueError("Model endpoint not configured")
 
@@ -308,45 +324,47 @@ class ModelManager:
         # In a real scenario, we would use httpx to forward the request
         # For now, if the user mentioned they have an API, we try to call it.
         # However, without the exact API spec, making a generic POST request with multipart/form-data
-        
+
         try:
             async with httpx.AsyncClient() as client:
                 # Forward files to the external service
                 # Note: files argument structure from FastAPI UploadFile needs adapting
                 # Here we assume files are passed as list of ('file', (filename, file_content, content_type))
-                
+
                 # Check if this is a 'mock' internal test loop for UI dev
                 if "mock" in model.endpoint_url.lower():
-                     # Return a dummy image (placeholder) if it's a mock url
-                     return {
-                         "success": True,
-                         "result_image": "https://via.placeholder.com/512?text=Processed+Result"
-                     }
+                    # Return a dummy image (placeholder) if it's a mock url
+                    return {
+                        "success": True,
+                        "result_image": "https://via.placeholder.com/512?text=Processed+Result",
+                    }
 
                 response = await client.post(
-                    model.endpoint_url,
-                    files=files,
-                    timeout=30.0
+                    model.endpoint_url, files=files, timeout=30.0
                 )
-                
+
                 if response.status_code != 200:
                     raise Exception(f"External API error: {response.text}")
-                
+
                 # Assume external API returns JSON with image url or base64
                 # Or if it returns raw image bytes, we need to handle that.
                 # Let's assume it returns JSON with 'scan_id' or 'image_url' or similar
-                
+
                 # If content-type is image, convert to base64
                 if "image" in response.headers.get("content-type", ""):
-                     import base64
-                     b64_img = base64.b64encode(response.content).decode('utf-8')
-                     return {
-                         "success": True, 
-                         "result_image": f"data:{response.headers['content-type']};base64,{b64_img}"
-                     }
-                
-                return response.json()
-                
+                    import base64
+
+                    b64_img = base64.b64encode(response.content).decode("utf-8")
+                    return {
+                        "success": True,
+                        "result_image": f"data:{response.headers['content-type']};base64,{b64_img}",
+                    }
+
+                payload = response.json()
+                if not isinstance(payload, dict):
+                    raise ValueError("Model response must be a JSON object")
+                return typing.cast(dict[str, Any], payload)
+
         except Exception as e:
             # Fallback for now to not break UI if endpoint is unreachable
             print(f"Model test failed: {e}")

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Generator
+from typing import AsyncIterator, Generator, cast
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -50,9 +50,7 @@ class DisabledCache:
 
 
 def _async_database_url() -> str:
-    return get_test_database_url().replace(
-        "mysql+pymysql://", "mysql+asyncmy://", 1
-    )
+    return get_test_database_url().replace("mysql+pymysql://", "mysql+asyncmy://", 1)
 
 
 @asynccontextmanager
@@ -74,7 +72,7 @@ async def _open_service() -> AsyncIterator[TeamApplicationService]:
 def _open_session() -> Session:
     if TestingSessionLocal is None:
         raise RuntimeError("Test database session factory has not been initialized.")
-    return TestingSessionLocal()
+    return cast(Session, TestingSessionLocal())
 
 
 def _create_user(
@@ -316,9 +314,7 @@ class TestTeamContext:
                 "MEMBER",
                 None,
             )
-            invitations = await service.list_invitations(
-                setup_database["applicant_id"]
-            )
+            invitations = await service.list_invitations(setup_database["applicant_id"])
             response = await service.respond_to_invitation(
                 invitation["id"], setup_database["applicant_id"], True
             )

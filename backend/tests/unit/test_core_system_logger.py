@@ -1,7 +1,8 @@
 import queue
+import time
+
 import httpx
 import pytest
-import time
 
 from app.contracts.logging_service.v1 import LogLevel
 from app.core.system.logger import Logger
@@ -65,16 +66,22 @@ def test_emit_event_sends_api_envelope_payload_in_background() -> None:
 def test_emit_event_uses_caller_module_as_default_service(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    captured = []
+    captured: list[object] = []
     gateway = Logger(base_url="http://logging-service:8091", token="secret")
 
-    monkeypatch.setattr(gateway, "_enqueue_event", lambda event: captured.append(event) or True)
+    def capture(event: object) -> bool:
+        captured.append(event)
+        return True
+
+    monkeypatch.setattr(gateway, "_enqueue_event", capture)
 
     assert gateway.emit_event(LogLevel.INFO, message="payment succeeded")
     assert captured[0].service == f"medical_backend:{__name__}"
 
 
-def test_emit_event_returns_false_when_queue_is_full(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_emit_event_returns_false_when_queue_is_full(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     gateway = Logger(base_url="http://logging-service:8091", token="secret")
     gateway._queue = queue.Queue(maxsize=1)
 

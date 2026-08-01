@@ -34,7 +34,9 @@ TYPE_ALIASES = {
 }
 
 
-def _normalize_measurement_type(raw_type: str, cobb_index: int) -> tuple[str, str | None]:
+def _normalize_measurement_type(
+    raw_type: str, cobb_index: int
+) -> tuple[str, str | None]:
     if raw_type.startswith("Cobb-"):
         return f"cobb{cobb_index}", raw_type
     if re.match(r"^Cobb\d+$", raw_type, re.IGNORECASE):
@@ -98,7 +100,8 @@ def build_annotation_from_ai_response(
         "standardDistancePoints": [],
         "pointBindings": {"syncGroups": []},
         "imageWidth": ai_response.get("imageWidth") or ai_response.get("image_width"),
-        "imageHeight": ai_response.get("imageHeight") or ai_response.get("image_height"),
+        "imageHeight": ai_response.get("imageHeight")
+        or ai_response.get("image_height"),
         "savedAt": datetime.now().isoformat(),
     }
 
@@ -147,8 +150,7 @@ def persist_ai_annotation(
                 image_file_id=image.id,
                 annotation_type=AnnotationTypeEnum.MEASUREMENT,
                 coordinates=[
-                    [point["x"], point["y"]]
-                    for point in measurement.get("points", [])
+                    [point["x"], point["y"]] for point in measurement.get("points", [])
                 ],
                 label=measurement["type"],
                 description=measurement.get("description") or measurement["type"],

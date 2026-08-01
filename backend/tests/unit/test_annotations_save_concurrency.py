@@ -67,7 +67,9 @@ class _FakeAsyncSession:
     async def execute(self, statement):
         self.execute_count += 1
         if self.execute_count == 1:
-            self.image_select_for_update = getattr(statement, "_for_update_arg", None) is not None
+            self.image_select_for_update = (
+                getattr(statement, "_for_update_arg", None) is not None
+            )
             return _FakeScalarResult(self.image)
         self.delete_count += 1
         return _FakeScalarResult()
@@ -103,7 +105,9 @@ def _save_request() -> SaveMeasurementsRequest:
 async def test_save_measurements_locks_image_and_commits_one_transaction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(annotation_handlers.logger, "emit_event", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        annotation_handlers.logger, "emit_event", lambda *args, **kwargs: True
+    )
     db = _FakeAsyncSession()
 
     result = await annotation_handlers.save_measurements(

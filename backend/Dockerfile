@@ -8,6 +8,8 @@
 
 FROM python:3.11-slim
 
+COPY --from=ghcr.io/astral-sh/uv:0.12.1 /uv /uvx /bin/
+
 # 设置工作目录
 WORKDIR /app
 
@@ -29,8 +31,9 @@ ARG APT_MIRROR=
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PATH="/app/.venv/bin:$PATH" \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
 # 安装系统依赖（编译和运行时都需要）
 RUN if [ -n "$APT_MIRROR" ]; then \
@@ -47,15 +50,13 @@ RUN if [ -n "$APT_MIRROR" ]; then \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制依赖文件并安装（先安装依赖以利用Docker缓存）
-COPY backend/requirements.txt .
-RUN python -m pip install --upgrade pip \
-        ${PIP_INDEX_URL:+--index-url "$PIP_INDEX_URL"} \
-        ${PIP_TRUSTED_HOST:+--trusted-host "$PIP_TRUSTED_HOST"} && \
-    python -m pip install --no-cache-dir -r requirements.txt \
-        ${PIP_INDEX_URL:+--index-url "$PIP_INDEX_URL"} \
-        ${PIP_TRUSTED_HOST:+--trusted-host "$PIP_TRUSTED_HOST"} \
-        ${PIP_TIMEOUT:+--timeout "$PIP_TIMEOUT"}
+# 先按锁文件安装运行时依赖，以保持本地和镜像环境一致并复用构建缓存。
+COPY backend/pyproject.toml backend/uv.lock ./
+RUN UV_INDEX_URL="${PIP_INDEX_URL:-https://pypi.org/simple}" \
+    UV_EXTRA_INDEX_URL="$PIP_EXTRA_INDEX_URL" \
+    UV_INSECURE_HOST="$PIP_TRUSTED_HOST" \
+    UV_HTTP_TIMEOUT="$PIP_TIMEOUT" \
+    uv sync --frozen --no-dev --no-install-project
 
 # 复制应用代码
 COPY backend/ .

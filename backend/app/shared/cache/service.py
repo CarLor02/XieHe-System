@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from typing import TypeVar, cast
 
 from app.core.system.logger import LogLevel, logger
 
@@ -31,9 +31,11 @@ class CacheAsideService:
             try:
                 cached_value = await self._cache.get(key)
                 if cached_value is not None:
-                    return cached_value
+                    return cast(T, cached_value)
             except Exception as exc:  # noqa: BLE001 - cache failure must fall back to DB.
-                logger.emit_event(LogLevel.WARNING, message=f"查询缓存读取失败，回退数据库: {exc}")
+                logger.emit_event(
+                    LogLevel.WARNING, message=f"查询缓存读取失败，回退数据库: {exc}"
+                )
 
         value = await loader()
         should_cache = cache_if(value) if cache_if is not None else value is not None
@@ -58,7 +60,9 @@ class CacheGenerationService:
             value = await self._cache.get(build_cache_key("generation", namespace))
             return int(value) if value is not None else 0
         except Exception as exc:  # noqa: BLE001 - generation lookup must also fall back.
-            logger.emit_event(LogLevel.WARNING, message=f"缓存代际读取失败，回退数据库: {exc}")
+            logger.emit_event(
+                LogLevel.WARNING, message=f"缓存代际读取失败，回退数据库: {exc}"
+            )
             return 0
 
     async def bump(self, namespace: str) -> int:

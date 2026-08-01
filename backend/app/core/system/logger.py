@@ -21,8 +21,9 @@ from app.contracts.logging_service.v1 import (
 from app.core.config import settings
 from app.core.system.request_context import get_request_id
 
-
 SERVICE_NAME_PREFIX = "medical_backend"
+
+__all__ = ["LogLevel", "Logger", "logger"]
 
 
 class Logger:
@@ -39,8 +40,12 @@ class Logger:
     ) -> None:
         """Configure the logging-service endpoint and local non-blocking queue."""
         self.base_url = (base_url or settings.LOGGING_SERVICE_URL).rstrip("/")
-        self.logging_service_token = token if token is not None else settings.LOGGING_SERVICE_TOKEN
-        self.timeout = timeout if timeout is not None else settings.LOGGING_SERVICE_TIMEOUT
+        self.logging_service_token = (
+            token if token is not None else settings.LOGGING_SERVICE_TOKEN
+        )
+        self.timeout = (
+            timeout if timeout is not None else settings.LOGGING_SERVICE_TIMEOUT
+        )
         self.sync_transport = sync_transport
         self._queue: queue.Queue[LogEvent] = queue.Queue(maxsize=queue_size)
         self._worker_started = False
@@ -129,7 +134,9 @@ class Logger:
     def _get_client(self) -> httpx.Client:
         """Return the reusable sync HTTP client for the logging worker."""
         if self._client is None or self._client.is_closed:
-            self._client = httpx.Client(timeout=self.timeout, transport=self.sync_transport)
+            self._client = httpx.Client(
+                timeout=self.timeout, transport=self.sync_transport
+            )
         return self._client
 
     def _ensure_worker(self) -> None:

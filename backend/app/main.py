@@ -13,15 +13,15 @@
 版本: 1.0.0
 """
 
+import typing
 from contextlib import asynccontextmanager
-from uuid import uuid4
 from typing import AsyncGenerator
+from uuid import uuid4
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
@@ -40,26 +40,30 @@ from app.core.system.exceptions import (
 )
 from app.core.system.logger import LogLevel, logger
 from app.core.system.request_context import request_id_var
-from app.services.realtime_service import start_realtime_service, stop_realtime_service
-from app.services.storage_gateway import storage_gateway
 from app.services.ai_task_queue import (
     start_ai_task_publisher,
     stop_ai_task_publisher,
 )
+from app.services.realtime_service import start_realtime_service, stop_realtime_service
+from app.services.storage_gateway import storage_gateway
 from app.shared.cache.aiocache import query_cache
 from app.shared.redis import RedisStateUnavailable, state_redis
-from app.tasks.object_cleanup import start_object_cleanup_scheduler, stop_object_cleanup_scheduler
+from app.tasks.object_cleanup import (
+    start_object_cleanup_scheduler,
+    stop_object_cleanup_scheduler,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     应用生命周期管理
-    
+
     在应用启动和关闭时执行必要的初始化和清理工作。
     """
     # 初始化数据库连接
     from app.core.database.session import db_manager
+
     try:
         db_manager.connect()
         logger.emit_event(LogLevel.INFO, message="✅ 数据库连接初始化成功")
@@ -78,11 +82,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.emit_event(LogLevel.INFO, message="✅ Redis查询缓存连接成功")
     except Exception as e:
         # Query services remain available and fall back to MySQL.
-        logger.emit_event(LogLevel.WARNING, message=f"Redis查询缓存不可用，将回退数据库: {e}")
+        logger.emit_event(
+            LogLevel.WARNING, message=f"Redis查询缓存不可用，将回退数据库: {e}"
+        )
 
     # 启动实时数据推送服务
     try:
         import asyncio
+
         await storage_gateway.start()
         await start_ai_object_client()
         asyncio.create_task(start_realtime_service())
@@ -101,7 +108,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 例如：缓存预热、AI模型加载等
 
     yield
-    
+
     # 关闭时执行
     # 停止实时数据推送服务
     try:
@@ -140,9 +147,15 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.PROJECT_DESCRIPTION,
     version=settings.VERSION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.ENVIRONMENT != "production" else None,
-    docs_url=f"{settings.API_V1_STR}/docs" if settings.ENVIRONMENT != "production" else None,
-    redoc_url=f"{settings.API_V1_STR}/redoc" if settings.ENVIRONMENT != "production" else None,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    if settings.ENVIRONMENT != "production"
+    else None,
+    docs_url=f"{settings.API_V1_STR}/docs"
+    if settings.ENVIRONMENT != "production"
+    else None,
+    redoc_url=f"{settings.API_V1_STR}/redoc"
+    if settings.ENVIRONMENT != "production"
+    else None,
     lifespan=lifespan,
     redirect_slashes=False,  # 禁用自动重定向斜杠，避免认证头丢失
 )
@@ -173,7 +186,7 @@ app.add_exception_handler(RedisStateUnavailable, redis_state_unavailable_handler
 
 
 @app.middleware("http")
-async def add_request_id_header(request: Request, call_next):
+async def add_request_id_header(request: Request, call_next: typing.Any) -> typing.Any:
     request_id = request.headers.get("X-Request-ID") or uuid4().hex
     token = request_id_var.set(request_id)
     try:
@@ -185,41 +198,45 @@ async def add_request_id_header(request: Request, call_next):
 
 
 @app.middleware("http")
-async def add_security_headers(request: Request, call_next):
+async def add_security_headers(request: Request, call_next: typing.Any) -> typing.Any:
     """
     添加安全头部中间件
-    
+
     为所有响应添加安全相关的 HTTP 头部。
     """
     response = await call_next(request)
-    
+
     # 安全头部
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    
+
     # 如果是 HTTPS，添加 HSTS 头部
     if request.url.scheme == "https":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+
     return response
 
 
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
+async def add_process_time_header(
+    request: Request, call_next: typing.Any
+) -> typing.Any:
     """
     添加处理时间头部中间件
-    
+
     记录请求处理时间并添加到响应头部。
     """
     import time
-    
+
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
-    
+
     return response
 
 
@@ -228,10 +245,10 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/", tags=["Root"])
-async def root():
+async def root() -> dict[str, typing.Any]:
     """
     根路径端点
-    
+
     返回应用基本信息。
     """
     return {
@@ -243,24 +260,22 @@ async def root():
 
 
 @app.get("/health", tags=["Health"])
-async def health_check():
+async def health_check() -> dict[str, typing.Any]:
     """
     健康检查端点
 
     用于容器健康检查和负载均衡器探测。
     """
-    return {
-        "status": "healthy",
-        "message": "XieHe医疗影像诊断系统运行正常"
-    }
+    return {"status": "healthy", "message": "XieHe医疗影像诊断系统运行正常"}
 
 
 @app.get("/dashboard/overview", tags=["Dashboard"])
-async def simple_dashboard_overview():
+async def simple_dashboard_overview() -> dict[str, typing.Any]:
     """
     简单仪表盘概览端点
     """
     from datetime import datetime
+
     return {
         "total_patients": 3,
         "new_patients_today": 1,
@@ -277,12 +292,12 @@ async def simple_dashboard_overview():
         "completion_rate": 75.0,
         "average_processing_time": 2.5,
         "system_alerts": 0,
-        "generated_at": datetime.now().isoformat()
+        "generated_at": datetime.now().isoformat(),
     }
 
 
 @app.get("/info", tags=["Info"])
-async def app_info():
+async def app_info() -> dict[str, typing.Any]:
     """
     应用信息端点
 
@@ -300,13 +315,14 @@ async def app_info():
 
 # 临时仪表盘端点
 @app.get("/api/v1/dashboard/overview", tags=["Dashboard"])
-async def dashboard_overview():
+async def dashboard_overview() -> dict[str, typing.Any]:
     """
     仪表盘概览端点
 
     返回系统概览统计信息。
     """
     from datetime import datetime
+
     return {
         "total_patients": 3,
         "new_patients_today": 1,
@@ -323,14 +339,14 @@ async def dashboard_overview():
         "completion_rate": 75.0,
         "average_processing_time": 2.5,
         "system_alerts": 0,
-        "generated_at": datetime.now().isoformat()
+        "generated_at": datetime.now().isoformat(),
     }
 
 
 # 如果直接运行此文件，启动开发服务器
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

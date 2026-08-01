@@ -23,12 +23,13 @@ fi
 echo "✅ 当前目录正确"
 echo ""
 
-# 检查 uvicorn 是否安装
+# 检查 uv 与锁定环境
 echo "🔍 检查依赖..."
-if ! python -c "import uvicorn" 2>/dev/null; then
-    echo "❌ uvicorn 未安装，正在安装..."
-    pip install uvicorn
+if ! command -v uv >/dev/null 2>&1; then
+    echo "❌ 未安装 uv，请先安装 uv 并执行: uv sync --frozen"
+    exit 1
 fi
+uv sync --frozen
 
 echo "✅ 依赖检查完成"
 echo ""
@@ -39,14 +40,14 @@ echo "🚀 启动应用..."
 echo "========================================"
 echo ""
 echo "📍 访问地址:"
-echo "   - API 文档:    http://localhost:8000/api/v1/docs"
-echo "   - ReDoc 文档:  http://localhost:8000/api/v1/redoc"
-echo "   - 健康检查:    http://localhost:8000/health"
-echo "   - 根路径:      http://localhost:8000/"
+echo "   - API 文档:    http://localhost:8080/api/v1/docs"
+echo "   - ReDoc 文档:  http://localhost:8080/api/v1/redoc"
+echo "   - 健康检查:    http://localhost:8080/health"
+echo "   - 根路径:      http://localhost:8080/"
 echo ""
 echo "⚙️  配置信息:"
-echo "   - 环境: xiehe"
-echo "   - 端口: 8000"
+echo "   - 环境: backend/.venv (uv)"
+echo "   - 端口: 8080"
 echo "   - 热重载: 启用"
 echo ""
 echo "💡 提示: 按 Ctrl+C 停止服务器"
@@ -55,4 +56,4 @@ echo "========================================"
 echo ""
 
 # 启动应用
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080

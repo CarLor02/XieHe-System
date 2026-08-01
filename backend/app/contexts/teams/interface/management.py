@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import typing
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -63,16 +64,16 @@ def _log_failure(operation: str, exc: Exception) -> None:
     logger.emit_event(LogLevel.ERROR, message=f"{operation}失败: {exc}")
 
 
-@router.post("/teams", response_model=dict[str, Any], status_code=201, summary="创建团队")
+@router.post(
+    "/teams", response_model=dict[str, Any], status_code=201, summary="创建团队"
+)
 async def create_team(
     request: TeamCreateRequest,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
-        data = await service.create_team(
-            _actor_id(current_user), request.model_dump()
-        )
+        data = await service.create_team(_actor_id(current_user), request.model_dump())
     except TeamDomainError as exc:
         raise _domain_http_error(exc) from exc
     except Exception as exc:
@@ -90,7 +91,7 @@ async def update_team(
     request: TeamUpdateRequest,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         data = await service.update_team(
             team_id,
@@ -114,11 +115,9 @@ async def search_teams(
     limit: int = Query(20, ge=1, le=50),
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
-        results = await service.search_teams(
-            keyword, _actor_id(current_user), limit
-        )
+        results = await service.search_teams(keyword, _actor_id(current_user), limit)
     except TeamDomainError as exc:
         raise _domain_http_error(exc) from exc
     except Exception as exc:
@@ -140,14 +139,16 @@ async def search_teams(
 async def list_my_teams(
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         items = await service.list_user_teams(_actor_id(current_user))
     except TeamDomainError as exc:
         raise _domain_http_error(exc) from exc
     except Exception as exc:
         _log_failure("获取我的团队", exc)
-        raise HTTPException(status_code=500, detail="获取团队信息失败，请稍后重试") from exc
+        raise HTTPException(
+            status_code=500, detail="获取团队信息失败，请稍后重试"
+        ) from exc
     return success_response(
         data={
             "items": [
@@ -160,13 +161,15 @@ async def list_my_teams(
     )
 
 
-@router.post("/teams/{team_id}/apply", response_model=dict[str, Any], summary="申请加入团队")
+@router.post(
+    "/teams/{team_id}/apply", response_model=dict[str, Any], summary="申请加入团队"
+)
 async def apply_to_team(
     team_id: int,
     request: TeamJoinRequestCreate,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         item = await service.apply_to_team(
             team_id, _actor_id(current_user), request.message
@@ -196,7 +199,7 @@ async def list_team_join_requests(
     status: str | None = Query(None),
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     status_value = None
     if status:
         try:
@@ -211,7 +214,9 @@ async def list_team_join_requests(
         raise _domain_http_error(exc) from exc
     except Exception as exc:
         _log_failure("获取团队加入申请", exc)
-        raise HTTPException(status_code=500, detail="获取加入申请失败，请稍后重试") from exc
+        raise HTTPException(
+            status_code=500, detail="获取加入申请失败，请稍后重试"
+        ) from exc
     serialized = [
         TeamJoinRequestItem.model_validate(item).model_dump(mode="json")
         for item in items
@@ -237,7 +242,7 @@ async def review_team_join_request(
     request: TeamJoinRequestReviewRequest,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         item = await service.review_join_request(
             team_id, request_id, _actor_id(current_user), request.decision
@@ -250,7 +255,9 @@ async def review_team_join_request(
     serialized = TeamJoinRequestItem.model_validate(item).model_dump(mode="json")
     return success_response(
         data={"status": serialized["status"], "request": serialized},
-        message=("加入申请已通过" if serialized["status"] == "APPROVED" else "加入申请已拒绝"),
+        message=(
+            "加入申请已通过" if serialized["status"] == "APPROVED" else "加入申请已拒绝"
+        ),
     )
 
 
@@ -264,7 +271,7 @@ async def cancel_team_join_request(
     request_id: int,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         item = await service.cancel_join_request(
             team_id, request_id, _actor_id(current_user)
@@ -281,19 +288,23 @@ async def cancel_team_join_request(
     )
 
 
-@router.get("/teams/{team_id}/members", response_model=dict[str, Any], summary="查看团队成员")
+@router.get(
+    "/teams/{team_id}/members", response_model=dict[str, Any], summary="查看团队成员"
+)
 async def list_team_members(
     team_id: int,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         data = await service.get_team_members(team_id, _actor_id(current_user))
     except TeamDomainError as exc:
         raise _domain_http_error(exc) from exc
     except Exception as exc:
         _log_failure("获取团队成员", exc)
-        raise HTTPException(status_code=500, detail="获取团队成员失败，请稍后重试") from exc
+        raise HTTPException(
+            status_code=500, detail="获取团队成员失败，请稍后重试"
+        ) from exc
     return success_response(
         data={
             "team": TeamSummary.model_validate(data["team"]).model_dump(mode="json"),
@@ -317,7 +328,7 @@ async def update_team_member_role(
     request: MemberRoleUpdateRequest,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         await service.update_member_role(
             team_id, _actor_id(current_user), user_id, request.role
@@ -340,7 +351,7 @@ async def remove_team_member(
     user_id: int,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         await service.remove_member(team_id, _actor_id(current_user), user_id)
     except TeamDomainError as exc:
@@ -361,7 +372,7 @@ async def invite_team_member(
     request: TeamInviteRequest,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         item = await service.invite_member(
             team_id,
@@ -386,18 +397,22 @@ async def invite_team_member(
     )
 
 
-@router.get("/invitations/my", response_model=dict[str, Any], summary="获取我的团队邀请")
+@router.get(
+    "/invitations/my", response_model=dict[str, Any], summary="获取我的团队邀请"
+)
 async def get_my_invitations(
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         items = await service.list_invitations(_actor_id(current_user))
     except TeamDomainError as exc:
         raise _domain_http_error(exc) from exc
     except Exception as exc:
         _log_failure("获取团队邀请", exc)
-        raise HTTPException(status_code=500, detail="获取邀请列表失败，请稍后重试") from exc
+        raise HTTPException(
+            status_code=500, detail="获取邀请列表失败，请稍后重试"
+        ) from exc
     serialized = [
         TeamInvitationItem.model_validate(item).model_dump(mode="json")
         for item in items
@@ -418,7 +433,7 @@ async def respond_to_invitation(
     request: TeamInvitationRespondRequest,
     current_user: dict[str, Any] = Depends(get_current_active_user),
     service: TeamApplicationService = Depends(get_team_service),
-):
+) -> dict[str, typing.Any]:
     try:
         data = await service.respond_to_invitation(
             invitation_id, _actor_id(current_user), request.accept

@@ -1,12 +1,14 @@
 """Schemas for the management API endpoints."""
 
-from typing import List, Dict, Any, Optional
-from datetime import datetime, date
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from datetime import date, datetime
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
+
 
 class ReportCreate(BaseModel):
     """创建报告模型"""
+
     patient_id: int = Field(..., description="患者ID")
     study_id: Optional[int] = Field(None, description="检查ID")
     template_id: Optional[int] = Field(None, description="模板ID")
@@ -23,6 +25,7 @@ class ReportCreate(BaseModel):
 
 class ReportUpdate(BaseModel):
     """更新报告模型"""
+
     report_title: Optional[str] = Field(None, description="报告标题", max_length=200)
     clinical_history: Optional[str] = Field(None, description="临床病史")
     examination_technique: Optional[str] = Field(None, description="检查技术")
@@ -36,6 +39,7 @@ class ReportUpdate(BaseModel):
 
 class ReportResponse(BaseModel):
     """报告响应模型"""
+
     id: int
     report_number: str
     patient_id: int
@@ -66,6 +70,7 @@ class ReportResponse(BaseModel):
 
 class ReportListResponse(BaseModel):
     """报告列表响应模型"""
+
     reports: List[ReportResponse]
     total: int
     page: int

@@ -7,8 +7,9 @@ Create Date: 2026-05-10 00:30:00
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0003_image_file_annotation_json"
 down_revision = "0002_minio_storage"
@@ -20,7 +21,9 @@ def _has_annotation_column() -> bool:
     inspector = sa.inspect(op.get_bind())
     if "image_files" not in set(inspector.get_table_names()):
         return False
-    return "annotation" in {column["name"] for column in inspector.get_columns("image_files")}
+    return "annotation" in {
+        column["name"] for column in inspector.get_columns("image_files")
+    }
 
 
 def upgrade() -> None:
@@ -40,9 +43,10 @@ def upgrade() -> None:
     ).scalar_one()
 
     if invalid_total:
-        invalid_ids = bind.execute(
-            sa.text(
-                """
+        invalid_ids = (
+            bind.execute(
+                sa.text(
+                    """
                 SELECT id
                 FROM image_files
                 WHERE annotation IS NOT NULL
@@ -50,8 +54,11 @@ def upgrade() -> None:
                 ORDER BY id
                 LIMIT 20
                 """
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         raise RuntimeError(
             "image_files.annotation contains invalid JSON; "
             f"refusing migration. invalid_count={invalid_total}, sample_ids={invalid_ids}"

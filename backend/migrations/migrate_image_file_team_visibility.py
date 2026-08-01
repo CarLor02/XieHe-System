@@ -16,9 +16,13 @@ sys.path.insert(0, str(BACKEND_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
-    from backend.scripts.env_loader import load_project_env  # type: ignore[import-not-found] # noqa: E402
+    from backend.scripts.env_loader import (
+        load_project_env,  # type: ignore[import-not-found] # noqa: E402
+    )
 except ModuleNotFoundError:
-    from scripts.env_loader import load_project_env  # type: ignore[import-not-found] # noqa: E402
+    from scripts.env_loader import (
+        load_project_env,  # type: ignore[import-not-found] # noqa: E402
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,7 +35,9 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("DATABASE_URL"),
         required=not os.getenv("DATABASE_URL"),
     )
-    parser.add_argument("--apply", action="store_true", help="write rows instead of dry-run")
+    parser.add_argument(
+        "--apply", action="store_true", help="write rows instead of dry-run"
+    )
     parser.add_argument("--sample-limit", type=int, default=20)
     return parser.parse_args()
 
@@ -39,6 +45,62 @@ def parse_args() -> argparse.Namespace:
 def user_team_ids(row: dict) -> list[int]:
     value = row["team_ids"] or ""
     return [int(item) for item in value.split(",") if item]
+
+
+def migrate_row(
+    conn: object,
+    row: dict,
+    stats: dict[str, int],
+    samples: list[dict],
+    *,
+    dry_run: bool,
+    sample_limit: int,
+) -> None:
+    image_id = row["image_id"]
+    existing = conn.execute(
+        text(
+            """
+            SELECT COUNT(*)
+            FROM image_file_team_visibility
+            WHERE image_file_id = :image_id
+            """
+        ),
+        {"image_id": image_id},
+    ).scalar_one()
+    if existing:
+        stats["already_assigned"] += 1
+        return
+    if row["is_superuser"] or row["is_system_admin"]:
+        stats["personal_system_admin"] += 1
+        return
+
+    team_ids = user_team_ids(row)
+    if not team_ids:
+        stats["personal_no_team"] += 1
+        return
+    if len(team_ids) > 1:
+        stats["personal_multi_team"] += 1
+        if len(samples) < sample_limit:
+            samples.append(
+                {
+                    "image_id": image_id,
+                    "uploader_id": row["uploader_id"],
+                    "candidate_team_ids": team_ids,
+                }
+            )
+        return
+
+    stats["auto_assigned"] += 1
+    if not dry_run:
+        conn.execute(
+            text(
+                """
+                INSERT INTO image_file_team_visibility (image_file_id, team_id)
+                VALUES (:image_id, :team_id)
+                """
+            ),
+            {"image_id": image_id, "team_id": team_ids[0]},
+        )
 
 
 def main() -> int:
@@ -56,9 +118,10 @@ def main() -> int:
     samples: list[dict] = []
 
     with engine.begin() as conn:
-        rows = conn.execute(
-            text(
-                """
+        rows = (
+            conn.execute(
+                text(
+                    """
                 SELECT
                     image_files.id AS image_id,
                     image_files.uploaded_by AS uploader_id,
@@ -79,57 +142,20 @@ def main() -> int:
                     users.is_system_admin
                 ORDER BY image_files.id
                 """
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
 
         for row in rows:
-            image_id = row["image_id"]
-            existing = conn.execute(
-                text(
-                    """
-                    SELECT COUNT(*)
-                    FROM image_file_team_visibility
-                    WHERE image_file_id = :image_id
-                    """
-                ),
-                {"image_id": image_id},
-            ).scalar_one()
-            if existing:
-                stats["already_assigned"] += 1
-                continue
-
-            if row["is_superuser"] or row["is_system_admin"]:
-                stats["personal_system_admin"] += 1
-                continue
-
-            team_ids = user_team_ids(row)
-            if len(team_ids) == 0:
-                stats["personal_no_team"] += 1
-                continue
-            if len(team_ids) > 1:
-                stats["personal_multi_team"] += 1
-                if len(samples) < args.sample_limit:
-                    samples.append(
-                        {
-                            "image_id": image_id,
-                            "uploader_id": row["uploader_id"],
-                            "candidate_team_ids": team_ids,
-                        }
-                    )
-                continue
-
-            stats["auto_assigned"] += 1
-            if dry_run:
-                continue
-
-            conn.execute(
-                text(
-                    """
-                    INSERT INTO image_file_team_visibility (image_file_id, team_id)
-                    VALUES (:image_id, :team_id)
-                    """
-                ),
-                {"image_id": image_id, "team_id": team_ids[0]},
+            migrate_row(
+                conn,
+                dict(row),
+                stats,
+                samples,
+                dry_run=dry_run,
+                sample_limit=args.sample_limit,
             )
 
     mode = "dry-run" if dry_run else "apply"
