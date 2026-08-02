@@ -24,12 +24,10 @@ export function parseAnnotationData(image: AnnotatedImageFile): ParsedAnnotation
   }
 
   const parsed = image.annotation;
-  if (!Array.isArray(parsed.measurements)) {
-    return null;
-  }
-
   return {
-    measurements: parsed.measurements as MeasurementData[],
+    measurements: Array.isArray(parsed.measurements)
+      ? parsed.measurements as MeasurementData[]
+      : [],
     imageWidth: Number(parsed.imageWidth) || undefined,
     imageHeight: Number(parsed.imageHeight) || undefined,
     vertebraeLayer: Array.isArray(parsed.vertebraeLayer)
@@ -112,12 +110,6 @@ export function isAiDetectionMeasurement(measurement: MeasurementData): boolean 
     const normalized = text.trim().toLowerCase();
     return normalized.startsWith('ai-detection') || text.startsWith('AI检测-');
   });
-}
-
-export function getAiDetectionMeasurements(
-  measurements: MeasurementData[]
-): MeasurementData[] {
-  return measurements.filter(isAiDetectionMeasurement);
 }
 
 export function isParameterMeasurement(measurement: MeasurementData): boolean {

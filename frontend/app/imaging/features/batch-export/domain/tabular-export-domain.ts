@@ -1,4 +1,7 @@
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/public';
+import type {
+  KeypointAnnotation,
+  MeasurementData,
+} from '@/app/imaging/features/image-viewer/public';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 
 import type { ExportContentType, TabularExportFormat } from './export-types';
@@ -21,10 +24,9 @@ const ANNOTATION_POINT_HEADERS = [
   '患者ID',
   '检查类型',
   '上传日期',
-  '标注ID',
-  '标注类型',
-  '标注值',
-  '点位序号',
+  '检测点名称',
+  '来源',
+  '置信度',
   'X',
   'Y',
 ];
@@ -67,23 +69,20 @@ export function buildMeasurementRows(
 
 export function buildAnnotationPointRows(
   image: ImageFile,
-  measurements: MeasurementData[]
+  keypoints: KeypointAnnotation[]
 ): Record<string, string | number>[] {
-  return measurements.flatMap(measurement =>
-    (measurement.points || []).map((point, index) => ({
-      文件名: image.original_filename || '',
-      影像ID: image.id,
-      患者ID: image.patient_id || '',
-      检查类型: image.description || '',
-      上传日期: formatDate(image.created_at),
-      标注ID: measurement.id || '',
-      标注类型: measurement.type || '',
-      标注值: measurement.value || '',
-      点位序号: index + 1,
-      X: point.x,
-      Y: point.y,
-    }))
-  );
+  return keypoints.map(keypoint => ({
+    文件名: image.original_filename || '',
+    影像ID: image.id,
+    患者ID: image.patient_id || '',
+    检查类型: image.description || '',
+    上传日期: formatDate(image.created_at),
+    检测点名称: keypoint.id,
+    来源: keypoint.source,
+    置信度: keypoint.confidence,
+    X: keypoint.point.x,
+    Y: keypoint.point.y,
+  }));
 }
 
 function escapeCsvCell(value: unknown): string {

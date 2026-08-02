@@ -9,6 +9,8 @@ export type {
   Tool,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
+export type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint';
+export { vertebraeLayerToKeypoints } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-layer-mapper';
 export { renderMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas';
 export {
   getAnnotationConfig,

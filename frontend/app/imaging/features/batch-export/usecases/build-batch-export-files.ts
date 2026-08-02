@@ -18,7 +18,7 @@ import {
   createTabularBlob,
   type ExportContentType,
   type ExportFile,
-  getAiDetectionMeasurements,
+  getDetectionLayerKeypoints,
   getMeasurementsForImage,
   getParameterMeasurements,
   parseAnnotationData,
@@ -55,7 +55,6 @@ export async function buildBatchExportFiles({
     const annotationData = parseAnnotationData(image);
     const needsMeasurements =
       exportContent === 'annotated-image' ||
-      exportContent === 'annotation-points' ||
       exportContent === 'measurement-parameters';
     const measurements = needsMeasurements ? getMeasurementsForImage(image) : [];
 
@@ -88,7 +87,11 @@ export async function buildBatchExportFiles({
     } else if (exportContent === 'annotation-points') {
       const rows = buildAnnotationPointRows(
         image,
-        getAiDetectionMeasurements(measurements)
+        getDetectionLayerKeypoints({
+          vertebraeLayer: annotationData?.vertebraeLayer ?? [],
+          cfhAnnotation: annotationData?.cfhAnnotation,
+          examType: image.description ?? '',
+        })
       );
       files.push({
         filename: buildExportFilename(image, exportContent, TABULAR_EXPORT_FORMAT),
