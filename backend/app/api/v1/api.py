@@ -22,10 +22,6 @@ api_router.include_router(patients_router)
 api_router.include_router(teams_router)
 api_router.include_router(report_generation_router)
 api_router.include_router(imaging_router)
-api_router.include_router(
-    imaging_context_router,
-    prefix="/image-files",
-    tags=["影像文件管理"],
-)
+api_router.include_router(imaging_context_router)
 api_router.include_router(reports_router)
 api_router.include_router(system_router)

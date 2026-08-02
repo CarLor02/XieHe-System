@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Mapping, cast
 
 from app.contexts.imaging.application.ports import (
     AnnotationRepository,
@@ -16,6 +16,8 @@ from app.contexts.imaging.domain import (
     AnnotationVersionConflictError,
     ImageAccessActor,
     ImageFileNotFoundError,
+    JsonObject,
+    JsonValue,
     canonicalize_annotation,
     diff_annotation_items,
     has_annotation_content,
@@ -47,31 +49,37 @@ class AnnotationApplicationService:
         image_file_id: int,
         actor: ImageAccessActor,
         expected_version: int,
-        annotation: Mapping[str, Any] | None,
+        annotation: Mapping[str, JsonValue] | None,
         source: AnnotationSource = AnnotationSource.MANUAL,
         reason: AnnotationMutationReason = AnnotationMutationReason.SAVE,
     ) -> AnnotationSaveResult:
-        image = self._repository.get_visible_for_update(
-            image_file_id,
-            self._visibility.resolve_scope(actor),
-        )
-        if image is None:
-            raise ImageFileNotFoundError
-        return self.save_locked_image(
-            image=image,
-            actor_id=actor.user_id,
-            expected_version=expected_version,
-            annotation=annotation,
-            source=source,
-            reason=reason,
-        )
+        try:
+            image = self._repository.get_visible_for_update(
+                image_file_id,
+                self._visibility.resolve_scope(actor),
+            )
+            if image is None:
+                raise ImageFileNotFoundError
+            result = self.save_locked_image(
+                image=image,
+                actor_id=actor.user_id,
+                expected_version=expected_version,
+                annotation=annotation,
+                source=source,
+                reason=reason,
+            )
+            self._repository.commit()
+            return result
+        except Exception:
+            self._repository.rollback()
+            raise
 
     def save_locked_image(
         self,
         *,
         image: ImageFile,
         actor_id: int | None,
-        annotation: Mapping[str, Any] | None,
+        annotation: Mapping[str, JsonValue] | None,
         source: AnnotationSource,
         reason: AnnotationMutationReason,
         expected_version: int | None = None,
@@ -82,7 +90,7 @@ class AnnotationApplicationService:
             raise AnnotationVersionConflictError(current_version)
 
         now = datetime.now()
-        snapshot = canonicalize_annotation(annotation, saved_at=now)
+        snapshot = cast(JsonObject, canonicalize_annotation(annotation, saved_at=now))
         if not force_revision and snapshots_equal(image.annotation, snapshot):
             return AnnotationSaveResult(image_file=image, changed=False)
 

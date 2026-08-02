@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime as datetime_types
-from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -19,6 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import func
 
+from app.contexts.imaging.domain import JsonObject
 from app.models.base import Base
 
 
@@ -44,7 +44,7 @@ class ImageAnnotationRevision(Base):
         Integer, ForeignKey("image_files.id"), nullable=False
     )
     version: Mapped[int] = Column(BigInteger, nullable=False)
-    snapshot: Mapped[dict[str, Any]] = Column(JSON, nullable=False)
+    snapshot: Mapped[JsonObject] = Column(JSON, nullable=False)
     source: Mapped[str] = Column(String(32), nullable=False)
     reason: Mapped[str] = Column(String(32), nullable=False)
     actor_id: Mapped[int | None] = Column(Integer, ForeignKey("users.id"))
@@ -85,8 +85,8 @@ class ImageAnnotationItemEvent(Base):
     item_kind: Mapped[str] = Column(String(32), nullable=False)
     item_id: Mapped[str] = Column(String(128), nullable=False)
     action: Mapped[str] = Column(String(16), nullable=False)
-    before_payload: Mapped[dict[str, Any] | None] = Column(JSON)
-    after_payload: Mapped[dict[str, Any] | None] = Column(JSON)
+    before_payload: Mapped[JsonObject | None] = Column(JSON)
+    after_payload: Mapped[JsonObject | None] = Column(JSON)
     created_at: Mapped[datetime_types.datetime] = Column(
         DateTime, nullable=False, default=func.now()
     )

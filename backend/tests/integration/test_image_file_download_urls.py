@@ -1,15 +1,63 @@
 from datetime import datetime
+from typing import Any, cast
 
 import pytest
 from fastapi import Response
 from sqlalchemy.orm import Session
 
-from app.api.v1.endpoints.imaging.handlers import files as file_handlers
+from app.contexts.imaging.application import (
+    ImageDeliveryService,
+    ImageVisibilityApplicationService,
+)
+from app.contexts.imaging.infrastructure.persistence import (
+    SqlAlchemyImageFileRepository,
+    SqlAlchemyImageVisibilityRepository,
+)
+from app.contexts.imaging.interface.http.v1.dependencies import (
+    build_imaging_query_service,
+)
+from app.contexts.imaging.interface.http.v1.routes.delivery import (
+    get_image_file_download_url,
+    get_image_file_download_urls,
+)
+from app.contexts.imaging.interface.http.v1.routes.queries import get_image_stats
+from app.contexts.imaging.interface.http.v1.schemas import BatchDownloadUrlsRequest
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 from app.models.patient import GenderEnum, Patient, PatientStatusEnum
 from app.models.user import User
 
 pytestmark = pytest.mark.database
+
+
+def response_data(response: dict[str, object]) -> dict[str, Any]:
+    return cast(dict[str, Any], response["data"])
+
+
+class FakeStorage:
+    def __init__(self) -> None:
+        self.presigned_calls: list[tuple[str, str, int]] = []
+
+    async def presign_get(
+        self,
+        *,
+        bucket: str,
+        object_key: str,
+        expires_in: int,
+    ) -> str:
+        self.presigned_calls.append((bucket, object_key, expires_in))
+        return f"/{bucket}/{object_key}?signature={len(self.presigned_calls)}"
+
+
+def delivery_service(db_session: Session, storage: FakeStorage) -> ImageDeliveryService:
+    visibility = ImageVisibilityApplicationService(
+        SqlAlchemyImageVisibilityRepository(db_session)
+    )
+    return ImageDeliveryService(
+        SqlAlchemyImageFileRepository(db_session),
+        visibility,
+        storage,
+        expires_in=900,
+    )
 
 
 @pytest.fixture()
@@ -82,37 +130,19 @@ def make_image(
 async def test_batch_download_urls_presigns_visible_ready_files_and_sets_cache_headers(
     db_session: Session,
     image_file_download_url_data: None,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    request_cls = getattr(file_handlers, "BatchDownloadUrlsRequest", None)
-    assert request_cls is not None
-
-    presigned_calls: list[tuple[str, str, int]] = []
-
-    async def fake_presign_get(bucket: str, object_key: str, expires_in: int) -> str:
-        presigned_calls.append((bucket, object_key, expires_in))
-        return f"/{bucket}/{object_key}?signature={len(presigned_calls)}"
-
-    monkeypatch.setattr(
-        file_handlers.storage_service_client, "presign_get", fake_presign_get
-    )
-    monkeypatch.setattr(
-        file_handlers,
-        "get_visible_image_file",
-        lambda *args, **kwargs: pytest.fail(
-            "batch endpoint must not query files one by one"
-        ),
-    )
+    storage = FakeStorage()
 
     response = Response()
-    result = await file_handlers.get_image_file_download_urls(
-        request_cls(ids=[101, 102, 101, 103, 104, 999]),
+    result = await get_image_file_download_urls(
+        BatchDownloadUrlsRequest(ids=[101, 102, 101, 103, 104, 999]),
         response=response,
         current_user={"id": 21},
-        db=db_session,
+        service=delivery_service(db_session, storage),
+        _slot=None,
     )
 
-    data = result["data"]
+    data = response_data(result)
     assert sorted(data["items"]) == [101, 102]
     assert data["items"][101]["url"].endswith("signature=1")
     assert data["items"][101]["etag"] == "etag-101"
@@ -120,7 +150,7 @@ async def test_batch_download_urls_presigns_visible_ready_files_and_sets_cache_h
     assert data["errors"][103]["code"] == "not_ready"
     assert data["errors"][104]["code"] == "not_found"
     assert data["errors"][999]["code"] == "not_found"
-    assert presigned_calls == [
+    assert storage.presigned_calls == [
         ("medical-image-files", "objects/ready-a.png", 900),
         ("medical-image-files", "objects/ready-b.png", 900),
     ]
@@ -132,25 +162,20 @@ async def test_batch_download_urls_presigns_visible_ready_files_and_sets_cache_h
 async def test_single_download_url_sets_private_cache_headers(
     db_session: Session,
     image_file_download_url_data: None,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_presign_get(bucket: str, object_key: str, expires_in: int) -> str:
-        return f"/{bucket}/{object_key}?signature=single"
-
-    monkeypatch.setattr(
-        file_handlers.storage_service_client, "presign_get", fake_presign_get
-    )
+    storage = FakeStorage()
 
     response = Response()
-    result = await file_handlers.get_image_file_download_url(
+    result = await get_image_file_download_url(
         101,
         response=response,
         current_user={"id": 21},
-        db=db_session,
+        service=delivery_service(db_session, storage),
     )
 
-    assert result["data"]["url"].endswith("signature=single")
-    assert result["data"]["etag"] == "etag-101"
+    data = response_data(result)
+    assert data["url"].endswith("signature=1")
+    assert data["etag"] == "etag-101"
     assert response.headers["Cache-Control"] == "private, max-age=840"
     assert response.headers["Vary"] == "Authorization"
 
@@ -160,12 +185,12 @@ async def test_image_stats_aggregates_visible_files(
     db_session: Session,
     image_file_download_url_data: None,
 ) -> None:
-    result = await file_handlers.get_image_stats(
+    result = get_image_stats(
         current_user={"id": 21},
-        db=db_session,
+        service=build_imaging_query_service(db_session),
     )
 
-    data = result["data"]
+    data = response_data(result)
     assert data["total_files"] == 3
     assert data["total_size"] == 6144
     assert data["by_type"] == {"PNG": 3}

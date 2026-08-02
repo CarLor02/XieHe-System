@@ -25,9 +25,9 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
-from app.api.v1.endpoints.imaging.handlers.files import (
-    start_ai_object_client,
-    stop_ai_object_client,
+from app.contexts.imaging.infrastructure.ai import (
+    start_ai_measurement_client,
+    stop_ai_measurement_client,
 )
 from app.core.config import settings
 from app.core.system.exceptions import (
@@ -91,7 +91,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         import asyncio
 
         await storage_service_client.start()
-        await start_ai_object_client()
+        await start_ai_measurement_client()
         asyncio.create_task(start_realtime_service())
         asyncio.create_task(start_object_cleanup_scheduler())
     except Exception as e:
@@ -121,7 +121,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 清理数据库连接
     try:
         await stop_ai_task_publisher()
-        await stop_ai_object_client()
+        await stop_ai_measurement_client()
         await storage_service_client.stop()
         logger.emit_event(LogLevel.INFO, message="✅ 内部HTTP客户端已关闭")
     except Exception as e:

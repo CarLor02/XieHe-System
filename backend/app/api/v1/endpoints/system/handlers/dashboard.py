@@ -15,8 +15,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
 
-from app.contexts.imaging.interface.actor import image_access_actor
-from app.contexts.imaging.interface.dependencies import build_imaging_query_service
+from app.contexts.imaging.interface.http.v1.actor import (
+    CurrentUserPayload,
+    image_access_actor,
+)
+from app.contexts.imaging.interface.http.v1.dependencies import (
+    build_imaging_query_service,
+)
 from app.core.access.auth import get_current_active_user
 from app.core.database.session import get_db
 from app.core.system.logger import LogLevel, logger
@@ -36,7 +41,7 @@ router = APIRouter()
 # API端点
 @router.get("/overview", response_model=Dict[str, Any], summary="获取仪表板概览")
 async def get_dashboard_overview(
-    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    current_user: CurrentUserPayload = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ) -> dict[str, typing.Any]:
     """
@@ -100,11 +105,11 @@ async def get_dashboard_overview(
             or 0
         )
 
-        total_studies = image_counts["total"]
-        studies_today = image_counts["today"]
-        studies_week = image_counts["week"]
-        pending_images = image_counts["pending"]
-        processed_images = image_counts["processed"]
+        total_studies = image_counts.total
+        studies_today = image_counts.today
+        studies_week = image_counts.week
+        pending_images = image_counts.pending
+        processed_images = image_counts.processed
 
         # 计算完成率
         completion_rate = 0.0
@@ -146,7 +151,7 @@ async def get_dashboard_overview(
 @router.get("/recent-activities", response_model=Dict[str, Any], summary="获取最近活动")
 async def get_recent_activities(
     limit: int = Query(10, ge=1, le=50, description="返回数量限制"),
-    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    current_user: CurrentUserPayload = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ) -> dict[str, typing.Any]:
     """
@@ -181,15 +186,15 @@ async def get_recent_activities(
             limit=limit // 3,
         )
 
-        for file in recent_files:
+        for image_file in recent_files:
             activities.append(
                 RecentActivity(
-                    id=file["id"],
+                    id=image_file.id,
                     type="image",
-                    title=f"新影像: {file['original_filename'] or '影像文件'}",
-                    description=f"文件ID: {file['id']}",
-                    timestamp=file["created_at"],
-                    status=file["status"],
+                    title=f"新影像: {image_file.original_filename or '影像文件'}",
+                    description=f"文件ID: {image_file.id}",
+                    timestamp=image_file.created_at,
+                    status=image_file.status,
                 )
             )
 
@@ -238,7 +243,7 @@ async def get_recent_activities(
 
 @router.get("/system-metrics", response_model=Dict[str, Any], summary="获取系统指标")
 async def get_system_metrics(
-    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    current_user: CurrentUserPayload = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ) -> dict[str, typing.Any]:
     """
@@ -294,7 +299,7 @@ async def get_system_metrics(
 
 @router.get("/stats", response_model=Dict[str, Any], summary="获取仪表板统计数据")
 async def get_dashboard_stats(
-    current_user: Dict[str, Any] = Depends(get_current_active_user),
+    current_user: CurrentUserPayload = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ) -> dict[str, typing.Any]:
     """
@@ -358,11 +363,11 @@ async def get_dashboard_stats(
             or 0
         )
 
-        total_studies = image_counts["total"]
-        studies_today = image_counts["today"]
-        studies_week = image_counts["week"]
-        pending_images = image_counts["pending"]
-        processed_images = image_counts["processed"]
+        total_studies = image_counts.total
+        studies_today = image_counts.today
+        studies_week = image_counts.week
+        pending_images = image_counts.pending
+        processed_images = image_counts.processed
 
         # 计算完成率
         completion_rate = 0.0

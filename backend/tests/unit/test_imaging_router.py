@@ -1,5 +1,5 @@
 from app.api.v1.api import api_router
-from app.api.v1.endpoints.imaging.router import router
+from app.contexts.imaging.interface import router
 
 
 def test_legacy_diagnosis_routes_are_not_registered() -> None:

@@ -2,9 +2,8 @@
 
 from fastapi import APIRouter
 
-from .handlers import files, models, uploads
+from .handlers import models
 
 router = APIRouter()
-router.include_router(uploads.router, prefix="/upload", tags=["文件上传"])
-router.include_router(files.router, prefix="/image-files", tags=["影像文件管理"])
+# 文件、标注和上传接口已迁入 contexts/imaging/interface/http/v1。
 router.include_router(models.router, prefix="/models", tags=["模型管理"])

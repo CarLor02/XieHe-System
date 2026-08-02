@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from sqlalchemy.orm import Session
 
-from app.contexts.imaging.domain import AnnotationItemChange, ImageAccessScope
-from app.contexts.imaging.infrastructure.models import (
-    ImageAnnotationItemEvent,
-    ImageAnnotationRevision,
+from app.contexts.imaging.domain import (
+    AnnotationItemChange,
+    ImageAccessScope,
+    JsonObject,
 )
 from app.models.image_file import ImageFile
 
-from .access_repository import apply_image_access_scope
+from .access_scope import apply_image_access_scope
+from .models import ImageAnnotationItemEvent, ImageAnnotationRevision
 
 
 class SqlAlchemyAnnotationRepository:
@@ -48,7 +47,7 @@ class SqlAlchemyAnnotationRepository:
         *,
         image_file_id: int,
         version: int,
-        snapshot: dict[str, Any],
+        snapshot: JsonObject,
         source: str,
         reason: str,
         actor_id: int | None,
@@ -81,3 +80,9 @@ class SqlAlchemyAnnotationRepository:
 
     def flush(self) -> None:
         self._session.flush()
+
+    def commit(self) -> None:
+        self._session.commit()
+
+    def rollback(self) -> None:
+        self._session.rollback()

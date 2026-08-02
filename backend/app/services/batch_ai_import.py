@@ -13,7 +13,7 @@ from app.contexts.imaging.application import (
     ImageVisibilityApplicationService,
 )
 from app.contexts.imaging.domain import AnnotationMutationReason, AnnotationSource
-from app.contexts.imaging.infrastructure import (
+from app.contexts.imaging.infrastructure.persistence import (
     SqlAlchemyAnnotationRepository,
     SqlAlchemyImageVisibilityRepository,
 )

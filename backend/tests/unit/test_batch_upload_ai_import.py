@@ -1,8 +1,8 @@
-from app.api.v1.endpoints.imaging.handlers import uploads
+from app.contexts.imaging.interface.http.v1.routes.imports import router
 
 
 def test_batch_upload_routes_are_registered() -> None:
-    paths = {route.path for route in uploads.router.routes}
+    paths = {route.path for route in router.routes}
 
     assert "/batches/config" in paths
     assert "/batches" in paths

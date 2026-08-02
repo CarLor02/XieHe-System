@@ -1,16 +1,15 @@
-"""影像 context 的 HTTP schema。"""
+"""影像标注 HTTP v1 schema。"""
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, JsonValue, field_validator
 
 
 class SaveAnnotationRequest(BaseModel):
     expected_version: int = Field(ge=0)
-    annotation: dict[str, Any]
+    annotation: dict[str, JsonValue]
 
 
 class AnnotationBatchRequest(BaseModel):

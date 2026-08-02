@@ -1,18 +1,33 @@
 from datetime import datetime
+from typing import Any, cast
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.v1.endpoints.imaging.handlers import files as file_handlers
 from app.api.v1.endpoints.system.handlers import dashboard as dashboard_handlers
 from app.contexts.imaging.application import ImageVisibilityApplicationService
-from app.contexts.imaging.infrastructure import (
+from app.contexts.imaging.application.dto import ImageListFilters
+from app.contexts.imaging.infrastructure.persistence import (
     SqlAlchemyImageQueryRepository,
     SqlAlchemyImageVisibilityRepository,
     apply_image_access_scope,
 )
-from app.contexts.imaging.interface.actor import image_access_actor
+from app.contexts.imaging.interface.http.v1.actor import image_access_actor
+from app.contexts.imaging.interface.http.v1.dependencies import (
+    get_image_file_command_service,
+    get_image_selection_service,
+)
+from app.contexts.imaging.interface.http.v1.routes.mutations import (
+    delete_image_file,
+    rename_image_file,
+    replace_image_file_content,
+)
+from app.contexts.imaging.interface.http.v1.routes.selectors import (
+    list_assignable_image_teams,
+    list_visible_image_uploaders,
+)
+from app.contexts.imaging.interface.http.v1.schemas import RenameImageFileRequest
 from app.models.image_file import (
     ImageFile,
     ImageFileStatusEnum,
@@ -27,8 +42,13 @@ from app.models.team import (
     TeamMembershipStatus,
 )
 from app.models.user import User
+from app.shared.storage import storage_service_client
 
 pytestmark = pytest.mark.database
+
+
+def response_data(response: dict[str, object]) -> dict[str, Any]:
+    return cast(dict[str, Any], response["data"])
 
 
 @pytest.fixture(autouse=True)
@@ -315,30 +335,31 @@ def test_system_admin_can_see_all_non_deleted_images(db_session):
 async def test_team_admin_lists_visible_team_uploaders(db_session):
     assign_image_to_team(db_session, 2)
 
-    result = await file_handlers.list_visible_image_uploaders(
+    result = list_visible_image_uploaders(
         page=1,
         page_size=10,
         search=None,
         current_user=current_user(10),
-        db=db_session,
+        service=get_image_selection_service(db_session),
     )
 
-    items = result["data"]["items"]
+    data = response_data(result)
+    items = data["items"]
 
     assert [item["id"] for item in items] == [10, 11]
     assert [item["real_name"] for item in items] == ["admin", "member"]
-    assert result["data"]["pagination"]["total"] == 2
+    assert data["pagination"]["total"] == 2
 
 
 @pytest.mark.asyncio
 async def test_regular_member_cannot_list_uploaders(db_session):
     with pytest.raises(HTTPException) as exc_info:
-        await file_handlers.list_visible_image_uploaders(
+        list_visible_image_uploaders(
             page=1,
             page_size=10,
             search=None,
             current_user=current_user(11),
-            db=db_session,
+            service=get_image_selection_service(db_session),
         )
 
     assert exc_info.value.status_code == 403
@@ -378,35 +399,37 @@ async def test_dashboard_recent_images_respect_visibility(db_session):
 async def test_assignable_teams_are_paginated_and_scoped_to_user_memberships(
     db_session,
 ):
-    result = await file_handlers.list_assignable_image_teams(
+    result = list_assignable_image_teams(
         page=1,
         page_size=1,
         search=None,
         current_user=current_user(10),
-        db=db_session,
+        service=get_image_selection_service(db_session),
     )
 
-    items = result["data"]["items"]
+    data = response_data(result)
+    items = data["items"]
 
     assert [item["id"] for item in items] == [3]
-    assert result["data"]["pagination"]["total"] == 2
-    assert result["data"]["pagination"]["total_pages"] == 2
+    assert data["pagination"]["total"] == 2
+    assert data["pagination"]["total_pages"] == 2
 
 
 @pytest.mark.asyncio
 async def test_system_admin_can_page_all_active_assignable_teams(db_session):
-    result = await file_handlers.list_assignable_image_teams(
+    result = list_assignable_image_teams(
         page=1,
         page_size=10,
         search="团队",
         current_user=current_user(99, system_admin=True),
-        db=db_session,
+        service=get_image_selection_service(db_session),
     )
 
-    items = result["data"]["items"]
+    data = response_data(result)
+    items = data["items"]
 
     assert [item["id"] for item in items] == [3, 2, 1]
-    assert result["data"]["pagination"]["total"] == 3
+    assert data["pagination"]["total"] == 3
 
 
 def query_image_list(
@@ -414,16 +437,16 @@ def query_image_list(
     *,
     user: dict,
     uploaded_by: int,
-) -> list[dict]:
-    items, _ = SqlAlchemyImageQueryRepository(db_session).list_images(
+) -> list:
+    result = SqlAlchemyImageQueryRepository(db_session).list_images(
         scope=ImageVisibilityApplicationService(
             SqlAlchemyImageVisibilityRepository(db_session)
         ).resolve_scope(image_access_actor(user)),
         page=1,
         page_size=20,
-        filters={"uploaded_by": uploaded_by},
+        filters=ImageListFilters(uploaded_by=uploaded_by),
     )
-    return items
+    return result.items
 
 
 def test_image_list_filters_by_visible_uploader(db_session):
@@ -435,8 +458,8 @@ def test_image_list_filters_by_visible_uploader(db_session):
         uploaded_by=11,
     )
 
-    assert [item["id"] for item in items] == [2]
-    assert items[0]["uploaded_by"] == 11
+    assert [item.id for item in items] == [2]
+    assert items[0].uploaded_by == 11
 
 
 def test_image_list_includes_team_names(db_session):
@@ -449,8 +472,8 @@ def test_image_list_includes_team_names(db_session):
         uploaded_by=11,
     )
 
-    assert items[0]["team_ids"] == [1, 3]
-    assert items[0]["team_names"] == ["脊柱团队", "影像团队"]
+    assert items[0].team_ids == [1, 3]
+    assert items[0].team_names == ["脊柱团队", "影像团队"]
 
 
 def test_personal_image_list_returns_empty_team_names(db_session):
@@ -460,18 +483,18 @@ def test_personal_image_list_returns_empty_team_names(db_session):
         uploaded_by=10,
     )
 
-    assert items[0]["team_ids"] == []
-    assert items[0]["team_names"] == []
+    assert items[0].team_ids == []
+    assert items[0].team_names == []
 
 
 @pytest.mark.asyncio
 async def test_team_admin_can_delete_visible_team_member_image(db_session):
     assign_image_to_team(db_session, 2)
 
-    result = await file_handlers.delete_image_file(
+    result = delete_image_file(
         2,
         current_user=current_user(10),
-        db=db_session,
+        service=get_image_file_command_service(db_session),
     )
 
     assert result["data"] == {"file_id": 2}
@@ -482,10 +505,10 @@ async def test_team_admin_can_delete_visible_team_member_image(db_session):
 @pytest.mark.asyncio
 async def test_regular_member_cannot_delete_other_uploader_image(db_session):
     with pytest.raises(HTTPException) as exc_info:
-        await file_handlers.delete_image_file(
+        delete_image_file(
             1,
             current_user=current_user(11),
-            db=db_session,
+            service=get_image_file_command_service(db_session),
         )
 
     assert exc_info.value.status_code == 403
@@ -518,19 +541,20 @@ async def test_team_admin_can_replace_visible_team_member_image(
         )
         return {"etag": "team-admin-etag"}
 
-    monkeypatch.setattr(
-        file_handlers.storage_service_client, "put_object", fake_put_object
-    )
+    monkeypatch.setattr(storage_service_client, "put_object", fake_put_object)
 
-    result = await file_handlers.replace_image_file_content(
+    result = await replace_image_file_content(
         2,
         file=FakeUploadFile(content=b"team-admin-edited"),
+        description=None,
+        team_ids=None,
         current_user=current_user(10),
-        db=db_session,
+        service=get_image_file_command_service(db_session),
     )
 
-    assert result["data"]["id"] == 2
-    assert result["data"]["storage_etag"] == "team-admin-etag"
+    data = response_data(result)
+    assert data["id"] == 2
+    assert data["storage_etag"] == "team-admin-etag"
     assert db_session.get(ImageFile, 2).file_size == len(b"team-admin-edited")
     assert put_calls[0]["object_key"] == "member.png"
 
@@ -549,19 +573,20 @@ async def test_system_admin_can_replace_any_image(
     ) -> dict[str, str]:
         return {"etag": "system-admin-etag"}
 
-    monkeypatch.setattr(
-        file_handlers.storage_service_client, "put_object", fake_put_object
-    )
+    monkeypatch.setattr(storage_service_client, "put_object", fake_put_object)
 
-    result = await file_handlers.replace_image_file_content(
+    result = await replace_image_file_content(
         4,
         file=FakeUploadFile(content=b"system-admin-edited"),
+        description=None,
+        team_ids=None,
         current_user=current_user(99, system_admin=True),
-        db=db_session,
+        service=get_image_file_command_service(db_session),
     )
 
-    assert result["data"]["id"] == 4
-    assert result["data"]["storage_etag"] == "system-admin-etag"
+    data = response_data(result)
+    assert data["id"] == 4
+    assert data["storage_etag"] == "system-admin-etag"
     assert db_session.get(ImageFile, 4).file_size == len(b"system-admin-edited")
 
 
@@ -574,15 +599,15 @@ async def test_owner_can_rename_image_without_changing_storage_or_annotations(
     original_object_key = image.object_key
     db_session.commit()
 
-    result = await file_handlers.rename_image_file(
+    result = rename_image_file(
         1,
-        request=file_handlers.RenameImageFileRequest(basename="  renamed-image  "),
+        request=RenameImageFileRequest(basename="  renamed-image  "),
         current_user=current_user(10),
-        db=db_session,
+        service=get_image_file_command_service(db_session),
     )
 
     renamed_image = db_session.get(ImageFile, 1)
-    assert result["data"]["original_filename"] == "renamed-image.png"
+    assert response_data(result)["original_filename"] == "renamed-image.png"
     assert renamed_image.original_filename == "renamed-image.png"
     assert renamed_image.object_key == original_object_key
     assert renamed_image.annotation == {"measurements": [{"id": "m1"}]}
@@ -592,25 +617,25 @@ async def test_owner_can_rename_image_without_changing_storage_or_annotations(
 async def test_team_admin_can_rename_visible_team_member_image(db_session):
     assign_image_to_team(db_session, 2)
 
-    result = await file_handlers.rename_image_file(
+    result = rename_image_file(
         2,
-        request=file_handlers.RenameImageFileRequest(basename="team-image"),
+        request=RenameImageFileRequest(basename="team-image"),
         current_user=current_user(10),
-        db=db_session,
+        service=get_image_file_command_service(db_session),
     )
 
-    assert result["data"]["original_filename"] == "team-image.png"
+    assert response_data(result)["original_filename"] == "team-image.png"
     assert db_session.get(ImageFile, 2).original_filename == "team-image.png"
 
 
 @pytest.mark.asyncio
 async def test_regular_member_cannot_rename_other_uploader_image(db_session):
     with pytest.raises(HTTPException) as exc_info:
-        await file_handlers.rename_image_file(
+        rename_image_file(
             1,
-            request=file_handlers.RenameImageFileRequest(basename="forbidden"),
+            request=RenameImageFileRequest(basename="forbidden"),
             current_user=current_user(11),
-            db=db_session,
+            service=get_image_file_command_service(db_session),
         )
 
     assert exc_info.value.status_code == 404
@@ -619,11 +644,11 @@ async def test_regular_member_cannot_rename_other_uploader_image(db_session):
 
 @pytest.mark.asyncio
 async def test_system_admin_can_rename_any_image(db_session):
-    result = await file_handlers.rename_image_file(
+    result = rename_image_file(
         4,
-        request=file_handlers.RenameImageFileRequest(basename="system-renamed"),
+        request=RenameImageFileRequest(basename="system-renamed"),
         current_user=current_user(99, system_admin=True),
-        db=db_session,
+        service=get_image_file_command_service(db_session),
     )
 
-    assert result["data"]["original_filename"] == "system-renamed.png"
+    assert response_data(result)["original_filename"] == "system-renamed.png"

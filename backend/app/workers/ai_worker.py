@@ -8,6 +8,9 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import Any
 
+from app.contexts.imaging.infrastructure.persistence import (
+    SqlAlchemyImageImportRepository,
+)
 from app.core.config import settings
 from app.core.database.session import SessionLocal
 from app.core.system.logger import LogLevel, logger
@@ -20,7 +23,6 @@ from app.models.image_import import (
 )
 from app.services.ai_model_client import AiModelClient, AiModelRequestError
 from app.services.batch_ai_import import persist_ai_annotation
-from app.services.image_import_service import refresh_batch_status
 from app.shared.mq.kafka import KafkaConsumer, KafkaSubscriber
 from app.shared.mq.subscriber import ReceivedMessage, SubscriberDecision
 
@@ -94,7 +96,7 @@ class AiTaskProcessor:
                 .first()
             )
             if batch is not None:
-                refresh_batch_status(db, batch)
+                SqlAlchemyImageImportRepository(db).refresh_batch_status(batch)
             db.commit()
             db.refresh(image)
             return SimpleNamespace(
@@ -143,7 +145,7 @@ class AiTaskProcessor:
                 .first()
             )
             if batch is not None:
-                refresh_batch_status(db, batch)
+                SqlAlchemyImageImportRepository(db).refresh_batch_status(batch)
             db.commit()
         except Exception:
             db.rollback()
@@ -220,7 +222,7 @@ class AiTaskProcessor:
                     .first()
                 )
                 if batch is not None:
-                    refresh_batch_status(db, batch)
+                    SqlAlchemyImageImportRepository(db).refresh_batch_status(batch)
             if image is not None:
                 image.status = ImageFileStatusEnum.UPLOADED
             db.commit()
@@ -255,7 +257,7 @@ class AiTaskProcessor:
                     .first()
                 )
                 if batch is not None:
-                    refresh_batch_status(db, batch)
+                    SqlAlchemyImageImportRepository(db).refresh_batch_status(batch)
             if image is not None:
                 image.status = ImageFileStatusEnum.FAILED
             db.commit()

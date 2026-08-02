@@ -3,63 +3,15 @@ from typing import Any
 
 import pytest
 
-from app.api.v1.endpoints.imaging.handlers import files as file_handlers
+from app.contexts.imaging.application import ImageFileCommandService
+from app.contexts.imaging.application.dto import (
+    ImageContentReplacement,
+    ImageDetail,
+    ImageSummary,
+    ObjectWriteResult,
+)
+from app.contexts.imaging.domain import ImageAccessActor
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
-
-
-class FakeQuery:
-    def __init__(self, db: "FakeSession", model: Any) -> None:
-        self.db = db
-        self.model = model
-
-    def filter(self, *args: Any, **kwargs: Any) -> "FakeQuery":
-        return self
-
-    def populate_existing(self) -> "FakeQuery":
-        return self
-
-    def with_for_update(self) -> "FakeQuery":
-        return self
-
-    def first(self) -> ImageFile | None:
-        if self.model is ImageFile:
-            return self.db.image
-        return None
-
-
-class FakeSession:
-    def __init__(self, image: ImageFile) -> None:
-        self.image = image
-        self.committed = False
-        self.rolled_back = False
-
-    def query(self, model: Any) -> FakeQuery:
-        return FakeQuery(self, model)
-
-    def commit(self) -> None:
-        self.committed = True
-
-    def rollback(self) -> None:
-        self.rolled_back = True
-
-    def refresh(self, image: ImageFile) -> None:
-        self.image = image
-
-
-class FakeUploadFile:
-    def __init__(
-        self,
-        *,
-        filename: str,
-        content_type: str,
-        content: bytes,
-    ) -> None:
-        self.filename = filename
-        self.content_type = content_type
-        self._content = content
-
-    async def read(self) -> bytes:
-        return self._content
 
 
 def make_image() -> ImageFile:
@@ -83,47 +35,95 @@ def make_image() -> ImageFile:
         has_annotation=True,
         status=ImageFileStatusEnum.PROCESSED,
         upload_progress=100,
-        created_at=datetime(2026, 6, 10, 9, 0, 0),
-        uploaded_at=datetime(2026, 6, 10, 10, 0, 0),
+        created_at=datetime(2026, 6, 10, 9),
+        uploaded_at=datetime(2026, 6, 10, 10),
     )
 
 
-@pytest.mark.asyncio
-async def test_replace_image_content_keeps_id_and_clears_annotations(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    uploaded_bytes = b"edited-image"
-    put_calls: list[dict[str, object]] = []
+def image_detail(image: ImageFile) -> ImageDetail:
+    return ImageDetail(
+        summary=ImageSummary(
+            id=image.id,
+            file_uuid=str(image.file_uuid),
+            original_filename=str(image.original_filename),
+            file_type=image.file_type.value,
+            mime_type=image.mime_type,
+            file_size=image.file_size,
+            storage_bucket=str(image.storage_bucket),
+            object_key=str(image.object_key),
+            storage_etag=image.storage_etag,
+            thumbnail_path=image.thumbnail_path,
+            uploaded_by=image.uploaded_by,
+            uploader_name="替换用户",
+            patient_id=image.patient_id,
+            patient_name="替换患者",
+            patient_identifier="P301",
+            team_ids=[],
+            team_names=[],
+            study_date=image.study_date,
+            description=image.description,
+            status=image.status.value,
+            upload_progress=int(image.upload_progress or 0),
+            created_at=image.created_at,
+            uploaded_at=image.uploaded_at,
+            has_annotation=bool(image.has_annotation),
+        ),
+        patient_gender="FEMALE",
+        patient_age=35,
+        annotation=image.annotation,
+        annotation_version=int(image.annotation_version or 0),
+        annotation_created_at=image.annotation_created_at,
+        annotation_created_by=image.annotation_created_by,
+        annotation_updated_at=image.annotation_updated_at,
+        annotation_updated_by=image.annotation_updated_by,
+    )
 
-    async def fake_put_object(
+
+class FakeRepository:
+    def __init__(self, image: ImageFile) -> None:
+        self.image = image
+        self.committed = False
+        self.rolled_back = False
+
+    def get_active(
+        self,
+        image_file_id: int,
         *,
-        bucket: str,
-        object_key: str,
-        data: bytes,
-        content_type: str,
-    ) -> dict[str, str]:
-        put_calls.append(
-            {
-                "bucket": bucket,
-                "object_key": object_key,
-                "data": data,
-                "content_type": content_type,
-            }
-        )
-        return {"etag": "new-etag"}
+        for_update: bool = False,
+    ) -> ImageFile | None:
+        return self.image if image_file_id == self.image.id else None
 
-    monkeypatch.setattr(
-        file_handlers.storage_service_client, "put_object", fake_put_object
-    )
-    monkeypatch.setattr(
-        file_handlers,
-        "get_visible_image_file",
-        lambda db, file_id, current_user: db.image,
-    )
-    annotation_save_calls: list[dict[str, Any]] = []
+    def get_detail(self, image: ImageFile) -> ImageDetail:
+        return image_detail(image)
 
-    def fake_save_locked_image(service: Any, **kwargs: Any) -> Any:
-        annotation_save_calls.append(kwargs)
+    def commit(self) -> None:
+        self.committed = True
+
+    def rollback(self) -> None:
+        self.rolled_back = True
+
+    def refresh(self, image: ImageFile) -> None:
+        self.image = image
+
+
+class FakeVisibility:
+    def __init__(self, image: ImageFile) -> None:
+        self.image = image
+
+    def get_visible_image(
+        self,
+        image_file_id: int,
+        actor: ImageAccessActor,
+    ) -> ImageFile | None:
+        return self.image if image_file_id == self.image.id else None
+
+
+class FakeAnnotationService:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    def save_locked_image(self, **kwargs: Any) -> None:
+        self.calls.append(kwargs)
         image = kwargs["image"]
         image.annotation = {
             "schemaVersion": 1,
@@ -135,49 +135,58 @@ async def test_replace_image_content_keeps_id_and_clears_annotations(
         image.has_annotation = False
         image.status = ImageFileStatusEnum.UPLOADED
 
-    monkeypatch.setattr(
-        file_handlers.AnnotationApplicationService,
-        "save_locked_image",
-        fake_save_locked_image,
+
+class FakeStorage:
+    def __init__(self) -> None:
+        self.put_calls: list[dict[str, object]] = []
+
+    async def put_object(self, **kwargs: Any) -> ObjectWriteResult:
+        self.put_calls.append(kwargs)
+        return ObjectWriteResult(etag="new-etag")
+
+
+@pytest.mark.asyncio
+async def test_replace_image_content_keeps_id_and_clears_annotations() -> None:
+    uploaded_bytes = b"edited-image"
+    image = make_image()
+    repository = FakeRepository(image)
+    annotation = FakeAnnotationService()
+    storage = FakeStorage()
+    service = ImageFileCommandService(
+        repository,
+        FakeVisibility(image),
+        annotation,
+        storage,
     )
-    monkeypatch.setattr(
-        file_handlers,
-        "_image_file_related_metadata",
-        lambda *args, **kwargs: file_handlers.ImageFileRelatedMetadata(
-            uploader_name="替换用户",
-            patient_name="替换患者",
-            patient_identifier="P301",
-            patient_gender="FEMALE",
-            patient_age=35,
+
+    result = await service.replace_content(
+        301,
+        ImageAccessActor(user_id=31),
+        ImageContentReplacement(
+            filename="edited.png",
+            content_type="image/png",
+            content=uploaded_bytes,
+            description="侧位X光片",
+            team_ids=None,
         ),
     )
 
-    db = FakeSession(make_image())
-    upload = FakeUploadFile(
-        filename="edited.png",
-        content_type="image/png",
-        content=uploaded_bytes,
-    )
-
-    result = await file_handlers.replace_image_file_content(
-        301,
-        file=upload,
-        description="侧位X光片",
-        current_user={"id": 31, "username": "replace-owner"},
-        db=db,
-    )
-
-    data = result["data"]
-    assert data["id"] == 301
-    assert data["object_key"] == "file-301/original.png"
-    assert data["file_size"] == len(uploaded_bytes)
-    assert data["storage_etag"] == "new-etag"
-    assert data["thumbnail_path"] is None
-    assert data["description"] == "侧位X光片"
-    assert data["annotation"]["measurements"] == []
-    assert data["annotation_version"] == 2
-    assert data["status"] == "UPLOADED"
-    assert put_calls == [
+    detail = result.image
+    assert detail.summary.id == 301
+    assert detail.summary.object_key == "file-301/original.png"
+    assert detail.summary.file_size == len(uploaded_bytes)
+    assert detail.summary.storage_etag == "new-etag"
+    assert detail.summary.thumbnail_path is None
+    assert detail.summary.description == "侧位X光片"
+    assert detail.annotation == {
+        "schemaVersion": 1,
+        "measurements": [],
+        "pointBindings": {"syncGroups": []},
+        "vertebraeLayer": [],
+    }
+    assert detail.annotation_version == 2
+    assert detail.summary.status == "UPLOADED"
+    assert storage.put_calls == [
         {
             "bucket": "medical-image-files",
             "object_key": "file-301/original.png",
@@ -185,14 +194,9 @@ async def test_replace_image_content_keeps_id_and_clears_annotations(
             "content_type": "image/png",
         }
     ]
-    assert db.image.id == 301
-    assert db.image.object_key == "file-301/original.png"
-    assert db.image.file_size == len(uploaded_bytes)
-    assert db.image.file_hash is None
-    assert db.image.thumbnail_path is None
-    assert db.image.annotation is not None
-    assert db.image.annotation["measurements"] == []
-    assert db.image.status == ImageFileStatusEnum.UPLOADED
-    assert annotation_save_calls[0]["reason"].value == "CONTENT_REPLACEMENT"
-    assert annotation_save_calls[0]["force_revision"] is True
-    assert db.committed is True
+    assert image.id == 301
+    assert image.file_hash is None
+    assert image.thumbnail_path is None
+    assert annotation.calls[0]["reason"].value == "CONTENT_REPLACEMENT"
+    assert annotation.calls[0]["force_revision"] is True
+    assert repository.committed

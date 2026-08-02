@@ -22,6 +22,11 @@
 # Python后端开发规则
 
 - Python 后端代码位于 `backend/`，依赖与工具配置统一维护在 `backend/pyproject.toml`，使用 uv 同步 `backend/uv.lock`，不要新增 `requirements.txt` 或独立的 Black、isort、Flake8 配置。
+- 后端业务按 context-first DDD 组织：`domain/` 承载实体、值对象、纯业务规则和领域错误；`application/` 承载用例、DTO 与端口；`infrastructure/` 承载数据库、消息队列、对象存储和外部服务适配；`interface/` 承载 FastAPI router、schema 与协议转换。
+- `application/ports/` 应按依赖职责拆成独立文件；`infrastructure/persistence/` 放 ORM model 与仓储实现；HTTP v1 接口放在 `interface/http/v1/`，按 routes、schemas 和依赖装配继续拆包。
+- Router 只处理鉴权依赖、请求解析、响应映射与 HTTP 错误转换；事务、权限规则和跨仓储/外部服务编排必须下沉到 application 用例。
+- 不把多个独立职责持续堆入单一 `ports.py`、`repository.py`、`router.py` 或 `schemas.py`；职责出现稳定边界时及时拆成包和独立文件，而不是等待文件达到固定行数。
+- 包级 `__init__.py` 只暴露稳定公开入口；完成迁移后应更新调用方并删除旧模块，不保留仅为兼容深层导入的 re-export。
 - 每次修改 Python 代码后，必须在仓库根目录运行 `cd backend && uv run ruff check .`、`cd backend && uv run ruff format --check .` 和 `cd backend && uv run mypy`。
 - 修改后端依赖后运行 `cd backend && uv lock`，提交更新后的 `backend/uv.lock`；安装或同步环境使用 `cd backend && uv sync --frozen`。
 - Ruff 与 mypy 失败时不得静默跳过；应修复本轮引入的问题，并记录无法在本轮解决的既有问题和具体命令输出。

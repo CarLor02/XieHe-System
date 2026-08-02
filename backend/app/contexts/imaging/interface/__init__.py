@@ -1,6 +1,5 @@
-"""影像 HTTP 接口。"""
+"""影像接口层公开入口。"""
 
-from .actor import image_access_actor
-from .router import router
+from .http.v1 import image_access_actor, router
 
 __all__ = ["image_access_actor", "router"]

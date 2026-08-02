@@ -18,6 +18,8 @@ class FakeRepository:
     def __init__(self, image: ImageFile) -> None:
         self.image = image
         self.revisions: list[dict[str, Any]] = []
+        self.committed = False
+        self.rolled_back = False
 
     def get_for_update(self, image_file_id: int) -> ImageFile | None:
         return self.image if image_file_id == self.image.id else None
@@ -32,6 +34,12 @@ class FakeRepository:
 
     def flush(self) -> None:
         return None
+
+    def commit(self) -> None:
+        self.committed = True
+
+    def rollback(self) -> None:
+        self.rolled_back = True
 
 
 class FakeScopeResolver:
@@ -80,6 +88,7 @@ def test_save_updates_current_state_and_appends_audit_revision() -> None:
     assert image.annotation_created_by == 9
     assert repository.revisions[0]["version"] == 1
     assert repository.revisions[0]["changes"][0].item_id == "m1"
+    assert repository.committed
 
 
 def test_noop_save_does_not_increment_version() -> None:
@@ -117,6 +126,7 @@ def test_stale_version_is_rejected_before_overwrite() -> None:
 
     assert error.value.current_version == 3
     assert repository.revisions == []
+    assert repository.rolled_back
 
 
 def test_explicit_clear_keeps_versioned_empty_snapshot() -> None:

@@ -4,7 +4,12 @@ import inspect
 
 from fastapi.params import Depends
 
-from app.api.v1.endpoints.imaging.handlers import files
+from app.contexts.imaging.interface.http.v1.routes.delivery import (
+    get_image_file_download_urls,
+)
+from app.contexts.imaging.interface.http.v1.routes.predictions import (
+    run_image_file_ai_predict,
+)
 from app.core.system.concurrency import (
     require_ai_object_slot,
     require_batch_presign_slot,
@@ -21,8 +26,6 @@ def _dependency_functions(endpoint) -> set[object]:
 
 def test_heavy_endpoints_declare_concurrency_dependencies() -> None:
     assert require_batch_presign_slot in _dependency_functions(
-        files.get_image_file_download_urls
+        get_image_file_download_urls
     )
-    assert require_ai_object_slot in _dependency_functions(
-        files.run_image_file_ai_predict
-    )
+    assert require_ai_object_slot in _dependency_functions(run_image_file_ai_predict)

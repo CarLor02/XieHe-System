@@ -1,12 +1,14 @@
 from types import SimpleNamespace
 
+from app.contexts.imaging.infrastructure.persistence import (
+    SqlAlchemyImageImportRepository,
+)
 from app.models.image import AITaskStatusEnum
 from app.models.image_import import (
     ImageImportAiStatus,
     ImageImportBatchStatus,
     ImageImportUploadStatus,
 )
-from app.services.image_import_service import ai_task_event, refresh_batch_status
 
 
 class FakeQuery:
@@ -45,7 +47,7 @@ def test_refresh_batch_status_marks_partial_failure() -> None:
         ),
     ]
 
-    refresh_batch_status(FakeDb(items), batch)
+    SqlAlchemyImageImportRepository(FakeDb(items)).refresh_batch_status(batch)
 
     assert batch.status == ImageImportBatchStatus.PARTIAL_FAILED.value
     assert batch.total_items == 2
@@ -63,12 +65,16 @@ def test_ai_task_event_uses_stable_versioned_shape() -> None:
     item = SimpleNamespace(id=3, image_file_id=11)
     batch = SimpleNamespace(batch_id="batch-1")
 
-    assert ai_task_event(task, item, batch) == {
-        "event_type": "image.ai.predict.requested",
-        "version": 1,
-        "task_id": "task-1",
-        "batch_id": "batch-1",
-        "batch_item_id": 3,
-        "image_file_id": 11,
-        "requested_by": 5,
-    }
+    event = SqlAlchemyImageImportRepository(FakeDb([])).ai_task_event(
+        task,
+        item,
+        batch,
+    )
+
+    assert event.event_type == "image.ai.predict.requested"
+    assert event.version == 1
+    assert event.task_id == "task-1"
+    assert event.batch_id == "batch-1"
+    assert event.batch_item_id == 3
+    assert event.image_file_id == 11
+    assert event.requested_by == 5
