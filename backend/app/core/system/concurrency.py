@@ -57,10 +57,6 @@ batch_presign_gate = ConcurrencyGate(
     name="batch_presign",
     limit=settings.BATCH_PRESIGN_CONCURRENCY_LIMIT,
 )
-report_export_gate = ConcurrencyGate(
-    name="report_export",
-    limit=settings.REPORT_EXPORT_CONCURRENCY_LIMIT,
-)
 
 
 async def _require_slot(gate: ConcurrencyGate, detail: str) -> AsyncIterator[None]:
@@ -86,10 +82,4 @@ async def require_batch_presign_slot() -> AsyncIterator[None]:
     async for item in _require_slot(
         batch_presign_gate, "批量影像访问地址请求繁忙，请稍后重试"
     ):
-        yield item
-
-
-async def require_report_export_slot() -> AsyncIterator[None]:
-    """Limit concurrent report export requests."""
-    async for item in _require_slot(report_export_gate, "报告导出请求繁忙，请稍后重试"):
         yield item

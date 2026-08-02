@@ -45,7 +45,6 @@ def test_backend_compose_injects_python_settings_env_names() -> None:
         "BACKEND_CORS_ORIGINS",
         "AI_OBJECT_CONCURRENCY_LIMIT",
         "BATCH_PRESIGN_CONCURRENCY_LIMIT",
-        "REPORT_EXPORT_CONCURRENCY_LIMIT",
         "BATCH_IMPORT_MAX_FILES",
         "KAFKA_BOOTSTRAP_SERVERS",
         "AI_TASK_KAFKA_TOPIC",

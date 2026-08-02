@@ -54,7 +54,6 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
       AI_TASK_KAFKA_TOPIC: ${AI_TASK_KAFKA_TOPIC:-medical.image-ai.predict.v1}
       BATCH_PRESIGN_CONCURRENCY_LIMIT: ${BATCH_PRESIGN_CONCURRENCY_LIMIT:-100}
-      REPORT_EXPORT_CONCURRENCY_LIMIT: ${REPORT_EXPORT_CONCURRENCY_LIMIT:-100}
       IMAGE_FILE_BUCKET: ${IMAGE_FILE_BUCKET:-medical-image-files}
       USER_AVATAR_BUCKET: ${USER_AVATAR_BUCKET:-medical-user-avatars}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,redis,redis-cache,minio,kafka,storage-service,logging-service,backend,frontend,medical_mysql,medical_redis,medical_redis_cache,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend,medical_frontend

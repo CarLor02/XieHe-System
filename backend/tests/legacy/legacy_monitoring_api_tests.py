@@ -14,7 +14,6 @@ from unittest.mock import Mock, patch
 
 from app.main import app
 from app.services.monitoring_service import monitoring_service
-from app.services.log_analysis_service import log_analysis_service
 
 client = TestClient(app)
 
@@ -163,70 +162,6 @@ class TestMonitoringSystem:
         
         # 停止监控服务
         await monitoring_service.stop()
-
-
-class TestLogAnalysis:
-    """日志分析测试类"""
-    
-    @pytest.fixture
-    def auth_headers(self):
-        """获取认证头"""
-        login_data = {
-            "username": "test_user",
-            "password": "test_password"
-        }
-        response = client.post("/api/v1/auth/login", data=login_data)
-        if response.status_code == 200:
-            token = response.json().get("access_token")
-            return {"Authorization": f"Bearer {token}"}
-        return {}
-    
-    @pytest.mark.asyncio
-    async def test_log_analysis_service(self):
-        """测试日志分析服务"""
-        # 创建测试日志文件
-        import tempfile
-        import os
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.log', delete=False) as f:
-            f.write("2025-09-25 10:00:00,000 - test_logger - INFO - Test log message\n")
-            f.write("2025-09-25 10:01:00,000 - test_logger - ERROR - Test error message\n")
-            f.write("2025-09-25 10:02:00,000 - test_logger - WARNING - Test warning message\n")
-            temp_log_file = f.name
-        
-        try:
-            # 设置日志目录
-            log_analysis_service.log_directory = os.path.dirname(temp_log_file)
-            
-            # 加载日志
-            loaded_count = await log_analysis_service.load_logs(
-                log_files=[os.path.basename(temp_log_file)]
-            )
-            
-            assert loaded_count > 0
-            
-            # 分析日志
-            analysis_result = await log_analysis_service.analyze_logs()
-            assert analysis_result.total_entries > 0
-            assert isinstance(analysis_result.level_distribution, dict)
-            
-            # 搜索日志
-            search_results = await log_analysis_service.search_logs("error")
-            assert isinstance(search_results, list)
-            
-            # 获取统计信息
-            stats = await log_analysis_service.get_log_statistics()
-            assert "total" in stats
-            
-        finally:
-            # 清理临时文件
-            os.unlink(temp_log_file)
-    
-    def test_log_search_api(self, auth_headers):
-        """测试日志搜索API"""
-        # 这里需要实际的日志搜索API端点
-        # 由于我们还没有创建，这里做基本测试
-        pass
 
 
 class TestHealthCheck:
