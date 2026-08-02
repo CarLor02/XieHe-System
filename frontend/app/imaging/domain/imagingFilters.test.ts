@@ -10,7 +10,7 @@ describe('imaging filters', () => {
         pageSize: 20,
         searchTerm: '张三',
         examType: '正位X光片',
-        reviewStatus: 'reviewed',
+        processingStatus: 'PROCESSED',
         dateFrom: '2026-06-01',
         dateTo: '2026-06-12',
         uploadedBy: 7,
@@ -21,7 +21,7 @@ describe('imaging filters', () => {
       page_size: 20,
       search: '张三',
       description: '正位X光片',
-      review_status: 'reviewed',
+      file_status: 'PROCESSED',
       start_date: '2026-06-01',
       end_date: '2026-06-12',
       uploaded_by: 7,
@@ -35,7 +35,7 @@ describe('imaging filters', () => {
         page: 3,
         searchTerm: '张三',
         examType: '正位X光片',
-        reviewStatus: 'reviewed',
+        processingStatus: 'PROCESSED',
         dateFrom: '2026-06-01',
         dateTo: '2026-06-12',
         viewMode: 'list',
@@ -44,7 +44,7 @@ describe('imaging filters', () => {
         teamIds: [11, 12],
       })
     ).toBe(
-      '/imaging?page=3&search=%E5%BC%A0%E4%B8%89&description=%E6%AD%A3%E4%BD%8DX%E5%85%89%E7%89%87&review_status=reviewed&start_date=2026-06-01&end_date=2026-06-12&view=list&uploaded_by=7&uploader_name=%E7%8E%8B%E5%8C%BB%E7%94%9F&team_ids=11%2C12'
+      '/imaging?page=3&search=%E5%BC%A0%E4%B8%89&description=%E6%AD%A3%E4%BD%8DX%E5%85%89%E7%89%87&file_status=PROCESSED&start_date=2026-06-01&end_date=2026-06-12&view=list&uploaded_by=7&uploader_name=%E7%8E%8B%E5%8C%BB%E7%94%9F&team_ids=11%2C12'
     );
   });
 });

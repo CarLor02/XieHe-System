@@ -3,18 +3,13 @@ import { afterEach, beforeEach, expect, it, jest } from '@jest/globals';
 import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
   Point,
-  StudyData,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import type {
-  saveMeasurementRecord,
-  updateImageAnnotation,
-} from '@/services/imageServices';
+import type { saveImageAnnotation } from '@/services/imageServices';
 
 jest.mock('@/services/imageServices', () => ({
   __esModule: true,
-  saveMeasurementRecord: jest.fn(),
-  updateImageAnnotation: jest.fn(),
+  saveImageAnnotation: jest.fn(),
 }));
 
 jest.mock('@/lib/logger', () => ({
@@ -29,24 +24,24 @@ jest.mock('@/lib/logger', () => ({
 }));
 
 const mockedImageServices = jest.requireMock('@/services/imageServices') as {
-  saveMeasurementRecord: jest.MockedFunction<typeof saveMeasurementRecord>;
-  updateImageAnnotation: jest.MockedFunction<typeof updateImageAnnotation>;
+  saveImageAnnotation: jest.MockedFunction<typeof saveImageAnnotation>;
 };
 
-const mockedSaveMeasurementRecord = mockedImageServices.saveMeasurementRecord;
-const mockedUpdateImageAnnotation = mockedImageServices.updateImageAnnotation;
+const mockedSaveImageAnnotation = mockedImageServices.saveImageAnnotation;
 
 const { saveMeasurements } = jest.requireActual<
   typeof import('./saveMeasurementsUseCase')
 >('./saveMeasurementsUseCase');
 
 beforeEach(() => {
-  mockedSaveMeasurementRecord.mockResolvedValue({
-    measurements: [],
-    reportText: '',
-    savedAt: '2026-06-10T10:00:00Z',
+  mockedSaveImageAnnotation.mockResolvedValue({
+    annotation_version: 1,
+    annotation_updated_at: '2026-06-10T10:00:00Z',
+    annotation_updated_by: 1,
+    has_annotation: true,
+    status: 'PROCESSED',
+    changed: true,
   });
-  mockedUpdateImageAnnotation.mockResolvedValue({ message: 'ok' });
 });
 
 afterEach(() => {
@@ -71,14 +66,8 @@ it('continues saving annotations to the server when localStorage backup exceeds 
 
   await saveMeasurements(
     '898',
-    {
-      patient_id: 1,
-      patient_name: '张三',
-      study_description: '正位X光片',
-      modality: 'DX',
-      study_date: '2026-06-10',
-      created_at: '2026-06-10T10:00:00Z',
-    } as StudyData,
+    0,
+    jest.fn(),
     { width: 100, height: 100 },
     null,
     null,
@@ -110,8 +99,7 @@ it('continues saving annotations to the server when localStorage backup exceeds 
     null
   );
 
-  expect(mockedSaveMeasurementRecord).toHaveBeenCalledTimes(1);
-  expect(mockedUpdateImageAnnotation).toHaveBeenCalledTimes(1);
+  expect(mockedSaveImageAnnotation).toHaveBeenCalledTimes(1);
   expect(setSaveMessage).not.toHaveBeenCalledWith(
     expect.stringContaining('quota exceeded')
   );
@@ -121,14 +109,8 @@ it('continues saving annotations to the server when localStorage backup exceeds 
 it('keeps AVT metadata and binding fields in the local maintenance backup', async () => {
   await saveMeasurements(
     '899',
-    {
-      patient_id: 1,
-      patient_name: '张三',
-      study_description: '正位X光片',
-      modality: 'DX',
-      study_date: '2026-06-10',
-      created_at: '2026-06-10T10:00:00Z',
-    } as StudyData,
+    0,
+    jest.fn(),
     { width: 100, height: 100 },
     100,
     [

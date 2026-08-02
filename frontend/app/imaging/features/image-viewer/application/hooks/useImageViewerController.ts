@@ -118,7 +118,12 @@ export function useImageViewerController({
 }: UseImageViewerControllerOptions) {
   const measurementsState = useMeasurements();
   const canvasState = useCanvasInteraction();
-  const { saveMessage, setSaveMessage } = useAnnotationPersistence();
+  const {
+    saveMessage,
+    setSaveMessage,
+    annotationConflictMessage,
+    setAnnotationConflictMessage,
+  } = useAnnotationPersistence();
   const studyState = useImageStudy();
   const lastSaveTriggeredAtRef = useRef<number | null>(null);
 
@@ -178,6 +183,8 @@ export function useImageViewerController({
     setStudyLoading,
     imageList,
     setImageList,
+    annotationVersion,
+    setAnnotationVersion,
     imageNaturalSize,
     setImageNaturalSize,
   } = studyState;
@@ -293,6 +300,7 @@ export function useImageViewerController({
     imageId,
     setStudyData,
     setStudyLoading,
+    setAnnotationVersion,
     setMeasurements,
     setStandardDistance,
     setStandardDistancePoints,
@@ -457,7 +465,8 @@ export function useImageViewerController({
   const studyHeaderActions = useStudyHeaderActions({
     imageId,
     imageData,
-    studyData,
+    annotationVersion,
+    setAnnotationVersion,
     imageNaturalSize,
     setImageNaturalSize,
     standardDistance,
@@ -480,6 +489,7 @@ export function useImageViewerController({
     lateralDetectionResultRef: keypointWorkflow.lateralDetectionResultRef,
     aiMeasurementIdsRef: keypointWorkflow.aiMeasurementIdsRef,
     setSaveMessage,
+    onAnnotationConflict: setAnnotationConflictMessage,
   });
 
   const handleDebouncedSaveMeasurements = useCallback(() => {
@@ -881,6 +891,11 @@ export function useImageViewerController({
   });
 
   return {
+    annotationConflictDialogProps: {
+      open: annotationConflictMessage !== null,
+      message: annotationConflictMessage ?? '',
+      onClose: () => setAnnotationConflictMessage(null),
+    },
     headerProps: {
       imageData,
       saveMessage,

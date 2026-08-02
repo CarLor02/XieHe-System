@@ -7,11 +7,18 @@ import {
   getAnnotationConfig,
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/public';
-import type { ImageFile } from '@/services/imageServices/imageFileService';
+import type {
+  ImageAnnotationJson,
+  ImageFile,
+} from '@/services/imageServices/imageFileService';
 
 import type { ParsedAnnotationData } from './export-types';
 
-export function parseAnnotationData(image: ImageFile): ParsedAnnotationData | null {
+type AnnotatedImageFile = ImageFile & {
+  annotation: ImageAnnotationJson | null;
+};
+
+export function parseAnnotationData(image: AnnotatedImageFile): ParsedAnnotationData | null {
   if (!image.annotation) {
     return null;
   }
@@ -87,11 +94,10 @@ export function buildTrainingLabelBlob(
 }
 
 export function getMeasurementsForImage(
-  image: ImageFile,
-  fallbackMeasurements: MeasurementData[] = []
+  image: AnnotatedImageFile,
 ): MeasurementData[] {
   const annotation = parseAnnotationData(image);
-  return annotation?.measurements ?? fallbackMeasurements;
+  return annotation?.measurements ?? [];
 }
 
 export function isAiDetectionMeasurement(measurement: MeasurementData): boolean {

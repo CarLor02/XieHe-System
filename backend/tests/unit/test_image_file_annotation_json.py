@@ -6,8 +6,8 @@ from sqlalchemy import JSON
 
 from app.api.v1.endpoints.imaging.schemas.files import (
     ImageFileResponse,
-    UpdateAnnotationRequest,
 )
+from app.contexts.imaging.interface.schemas import SaveAnnotationRequest
 from app.models.image_file import ImageFile
 
 ANNOTATION_PAYLOAD = {
@@ -22,7 +22,10 @@ def test_image_file_annotation_column_uses_json_type() -> None:
 
 
 def test_image_file_annotation_schemas_use_json_objects() -> None:
-    request = UpdateAnnotationRequest(annotation=ANNOTATION_PAYLOAD)
+    request = SaveAnnotationRequest(
+        expected_version=0,
+        annotation=ANNOTATION_PAYLOAD,
+    )
     assert request.annotation == ANNOTATION_PAYLOAD
 
     response = ImageFileResponse(
@@ -52,7 +55,10 @@ def test_image_file_annotation_schemas_use_json_objects() -> None:
 
 def test_image_file_annotation_schemas_reject_json_strings() -> None:
     with pytest.raises(ValidationError):
-        UpdateAnnotationRequest(annotation='{"measurements":[]}')
+        SaveAnnotationRequest(
+            expected_version=0,
+            annotation='{"measurements":[]}',
+        )
 
 
 def test_0003_migration_validates_json_before_altering_column() -> None:

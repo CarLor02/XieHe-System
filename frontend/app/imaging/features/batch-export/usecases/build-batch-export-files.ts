@@ -1,8 +1,8 @@
-import { downloadImageFile, type ImageFile } from '@/services/imageServices/imageFileService';
 import {
-  getMeasurementRecord,
-  type MeasurementRecord,
-} from '@/services/imageServices/measurementService';
+  downloadImageFile,
+  type ImageAnnotationJson,
+  type ImageFile,
+} from '@/services/imageServices/imageFileService';
 
 import {
   buildAnnotationPointRows,
@@ -34,29 +34,20 @@ const logger = createLogger('app.imaging.features.batch.export.usecases.build.ba
 const TABULAR_EXPORT_FORMAT = 'csv' as const;
 const ANNOTATED_IMAGE_FORMAT = 'png' as const;
 
-async function getFallbackMeasurements(
-  image: ImageFile,
-  cache: Map<number, MeasurementRecord | null>
-) {
-  if (!cache.has(image.id)) {
-    const record = await getMeasurementRecord(image.id).catch(() => null);
-    cache.set(image.id, record);
-  }
-
-  return cache.get(image.id)?.measurements ?? [];
-}
+export type ExportImageFile = ImageFile & {
+  annotation: ImageAnnotationJson | null;
+};
 
 export async function buildBatchExportFiles({
   images,
   exportContent,
   onProgress,
 }: {
-  images: ImageFile[];
+  images: ExportImageFile[];
   exportContent: ExportContentType;
   onProgress?: (progress: number) => void;
 }): Promise<ExportFile[]> {
   const files: ExportFile[] = [];
-  const measurementRecordCache = new Map<number, MeasurementRecord | null>();
   const total = Math.max(images.length, 1);
 
   for (let index = 0; index < images.length; index += 1) {
@@ -66,12 +57,7 @@ export async function buildBatchExportFiles({
       exportContent === 'annotated-image' ||
       exportContent === 'annotation-points' ||
       exportContent === 'measurement-parameters';
-    const measurements = needsMeasurements
-      ? getMeasurementsForImage(
-          image,
-          await getFallbackMeasurements(image, measurementRecordCache)
-        )
-      : [];
+    const measurements = needsMeasurements ? getMeasurementsForImage(image) : [];
 
     if (exportContent === 'original-image') {
       const originalImageBlob = await downloadImageFile(image.id);

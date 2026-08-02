@@ -30,6 +30,7 @@ function makeImageFile(overrides: Partial<ImageFile> = {}): ImageFile {
     patient_name: '李老先生',
     status: 'UPLOADED',
     upload_progress: 100,
+    has_annotation: false,
     created_at: '2026-06-11T16:05:00',
     description: '正位X光片',
     ...overrides,

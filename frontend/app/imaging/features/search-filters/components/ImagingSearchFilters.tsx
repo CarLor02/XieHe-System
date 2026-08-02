@@ -14,14 +14,14 @@ import type { ExportContentOption } from '@/app/imaging/features/batch-export/ho
 import {
   EXAM_TYPES,
   type ImagingViewMode,
-  type ReviewStatusFilter,
+  type ProcessingStatusFilter,
 } from '@/app/imaging/domain/imagingFilters';
 
 interface ImagingSearchFiltersProps {
   searchTerm: string;
   showFilters: boolean;
   selectedExamType: string;
-  selectedReviewStatus: ReviewStatusFilter;
+  selectedProcessingStatus: ProcessingStatusFilter;
   dateFrom: string;
   dateTo: string;
   viewMode: ImagingViewMode;
@@ -42,7 +42,7 @@ interface ImagingSearchFiltersProps {
   onSearch: () => void;
   onToggleFilters: () => void;
   onChangeExamType: (value: string) => void;
-  onChangeReviewStatus: (value: ReviewStatusFilter) => void;
+  onChangeProcessingStatus: (value: ProcessingStatusFilter) => void;
   onChangeDateFrom: (value: string) => void;
   onChangeDateTo: (value: string) => void;
   onChangeViewMode: (value: ImagingViewMode) => void;
@@ -69,7 +69,7 @@ export default function ImagingSearchFilters({
   searchTerm,
   showFilters,
   selectedExamType,
-  selectedReviewStatus,
+  selectedProcessingStatus,
   dateFrom,
   dateTo,
   viewMode,
@@ -90,7 +90,7 @@ export default function ImagingSearchFilters({
   onSearch,
   onToggleFilters,
   onChangeExamType,
-  onChangeReviewStatus,
+  onChangeProcessingStatus,
   onChangeDateFrom,
   onChangeDateTo,
   onChangeViewMode,
@@ -276,18 +276,20 @@ export default function ImagingSearchFilters({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              审核状态
+              处理状态
             </label>
             <select
-              value={selectedReviewStatus}
+              value={selectedProcessingStatus}
               onChange={event =>
-                onChangeReviewStatus(event.target.value as ReviewStatusFilter)
+                onChangeProcessingStatus(event.target.value as ProcessingStatusFilter)
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">全部状态</option>
-              <option value="reviewed">已审核</option>
-              <option value="unreviewed">未审核</option>
+              <option value="UPLOADED">待处理</option>
+              <option value="PROCESSING">处理中</option>
+              <option value="PROCESSED">已处理</option>
+              <option value="FAILED">处理失败</option>
             </select>
           </div>
 

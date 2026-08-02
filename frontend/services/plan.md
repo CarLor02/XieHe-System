@@ -100,7 +100,7 @@
 
 - `frontend/app/imaging/viewer/image-viewer/usecase/saveMeasurementsUseCase.ts`
   - 状态：已完成
-  - 动作：改为 `measurementService` + `imageFileService.updateImageAnnotation`
+  - 动作：改为 `imageFileService.saveImageAnnotation` 的版本化单写流程
 
 - `frontend/app/imaging/viewer/image-viewer/usecase/generateReportUseCase.ts`
   - 状态：已完成

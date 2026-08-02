@@ -35,6 +35,7 @@ function makeImageFile(overrides: Partial<ImageFile> = {}): ImageFile {
     patient_name: '张三',
     status: 'UPLOADED',
     upload_progress: 100,
+    has_annotation: false,
     created_at: '2026-06-01T13:25:00',
     ...overrides,
   };

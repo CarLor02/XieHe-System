@@ -11,7 +11,6 @@ import {
   ImageSize,
   MeasurementData,
   Point,
-  StudyData,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
@@ -23,7 +22,8 @@ import type { LateralDetectionCache } from '@/app/imaging/features/image-viewer/
 interface UseStudyHeaderActionsOptions {
   imageId: string;
   imageData: ImageData;
-  studyData: StudyData | null;
+  annotationVersion: number;
+  setAnnotationVersion: (version: number) => void;
   imageNaturalSize: ImageSize | null;
   setImageNaturalSize: (imageSize: ImageSize) => void;
   standardDistance: number | null;
@@ -48,12 +48,14 @@ interface UseStudyHeaderActionsOptions {
   lateralDetectionResultRef: MutableRefObject<LateralDetectionCache | null>;
   aiMeasurementIdsRef: MutableRefObject<Set<string>>;
   setSaveMessage: (message: string) => void;
+  onAnnotationConflict?: (message: string) => void;
 }
 
 export function useStudyHeaderActions({
   imageId,
   imageData,
-  studyData,
+  annotationVersion,
+  setAnnotationVersion,
   imageNaturalSize,
   setImageNaturalSize,
   standardDistance,
@@ -75,6 +77,7 @@ export function useStudyHeaderActions({
   lateralDetectionResultRef,
   aiMeasurementIdsRef,
   setSaveMessage,
+  onAnnotationConflict,
 }: UseStudyHeaderActionsOptions) {
   const [isSaving, setIsSaving] = useState(false);
   const [isAIDetecting, setIsAIDetecting] = useState(false);
@@ -123,7 +126,8 @@ export function useStudyHeaderActions({
   const handleSaveMeasurements = useCallback(() => {
     void saveMeasurements(
       imageId,
-      studyData,
+      annotationVersion,
+      setAnnotationVersion,
       imageNaturalSize,
       standardDistance,
       standardDistancePoints,
@@ -133,7 +137,8 @@ export function useStudyHeaderActions({
       setIsSaving,
       setSaveMessage,
       activeVertebraeLayer,
-      cfhAnnotation
+      cfhAnnotation,
+      onAnnotationConflict
     );
   }, [
     activeVertebraeLayer,
@@ -146,7 +151,9 @@ export function useStudyHeaderActions({
     setSaveMessage,
     standardDistance,
     standardDistancePoints,
-    studyData,
+    annotationVersion,
+    onAnnotationConflict,
+    setAnnotationVersion,
   ]);
 
   return {

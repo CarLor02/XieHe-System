@@ -23,6 +23,7 @@ function makeImageFile(id: number): ImageFile {
     uploaded_by: 1,
     status: 'UPLOADED',
     upload_progress: 100,
+    has_annotation: false,
     created_at: '2026-05-10T00:00:00',
   };
 }

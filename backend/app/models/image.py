@@ -110,7 +110,7 @@ class AITaskStatusEnum(str, enum.Enum):
 
 
 class ImageAnnotation(Base):
-    """影像标注表"""
+    """冻结的旧标注表映射，仅供迁移和历史数据核对，运行时禁止读写。"""
 
     __tablename__ = "image_annotations"
 

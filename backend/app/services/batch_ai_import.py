@@ -6,11 +6,12 @@ import re
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from app.models.image import AnnotationTypeEnum, ImageAnnotation
-from app.models.image_file import ImageFile, ImageFileStatusEnum
+from app.contexts.imaging.application import AnnotationApplicationService
+from app.contexts.imaging.domain import AnnotationMutationReason, AnnotationSource
+from app.contexts.imaging.infrastructure import SqlAlchemyAnnotationRepository
+from app.models.image_file import ImageFile
 
 TYPE_ALIASES = {
     "T1 Tilt": "t1-tilt",
@@ -116,17 +117,6 @@ def build_annotation_from_ai_response(
     return annotation
 
 
-def _parse_measurement_value(value: str) -> tuple[float | None, str | None]:
-    if not value:
-        return None, None
-    unit = "°" if "°" in value else "mm" if "mm" in value else None
-    numeric = value.replace("°", "").replace("mm", "").strip()
-    try:
-        return float(numeric), unit
-    except (TypeError, ValueError):
-        return None, unit
-
-
 def persist_ai_annotation(
     db: Session,
     image: ImageFile,
@@ -134,32 +124,20 @@ def persist_ai_annotation(
     ai_response: dict[str, Any],
     user_id: int | None,
 ) -> None:
+    repository = SqlAlchemyAnnotationRepository(db)
+    locked_image = repository.get_for_update(image.id)
+    if locked_image is None:
+        raise ValueError(f"影像文件不存在: {image.id}")
     annotation = build_annotation_from_ai_response(
-        image_file_id=image.id,
-        patient_id=image.patient_id,
-        exam_type=image.description,
+        image_file_id=locked_image.id,
+        patient_id=locked_image.patient_id,
+        exam_type=locked_image.description,
         ai_response=ai_response,
     )
-    image.annotation = annotation
-
-    db.execute(delete(ImageAnnotation).where(ImageAnnotation.image_file_id == image.id))
-    for measurement in annotation["measurements"]:
-        value, unit = _parse_measurement_value(str(measurement.get("value") or ""))
-        db.add(
-            ImageAnnotation(
-                image_file_id=image.id,
-                annotation_type=AnnotationTypeEnum.MEASUREMENT,
-                coordinates=[
-                    [point["x"], point["y"]] for point in measurement.get("points", [])
-                ],
-                label=measurement["type"],
-                description=measurement.get("description") or measurement["type"],
-                measurement_value=value,
-                measurement_unit=unit,
-                created_by=user_id,
-            )
-        )
-
-    now = datetime.now()
-    image.status = ImageFileStatusEnum.PROCESSED
-    image.updated_at = now
+    AnnotationApplicationService(repository).save_locked_image(
+        image=locked_image,
+        actor_id=user_id,
+        annotation=annotation,
+        source=AnnotationSource.AI,
+        reason=AnnotationMutationReason.AI_IMPORT,
+    )

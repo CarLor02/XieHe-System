@@ -12,6 +12,7 @@ export function useStudyDataLoader(
     imageId: string,
     setStudyData: (studyData: StudyData | null) => void,
     setStudyLoading: (isLoading: boolean) => void,
+    setAnnotationVersion: (version: number) => void,
     setMeasurements: (measurements: MeasurementData[]) => void,
     setStandardDistance: (distance: number | null) => void,
     setStandardDistancePoints: (distancePoints: Point[]) => void,
@@ -31,6 +32,7 @@ export function useStudyDataLoader(
             // 直接使用imageId作为image_files表的ID
             const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
             const imageFile = await getImageFile(Number(numericId));
+            setAnnotationVersion(imageFile.annotation_version);
 
             // 将ImageFile数据转换为StudyData格式
             const studyData: StudyData = {

@@ -45,14 +45,16 @@ models/
 | 模型名 | 表名 | 说明 | 状态 |
 |--------|------|------|------|
 | `ImageFile` | `image_files` | 影像文件表 | ✅ 活跃 |
-| `ImageAnnotation` | `image_annotations` | 影像标注表 | ✅ 活跃 |
+| `ImageAnnotation` | `image_annotations` | 旧影像标注表 | ⚠️ 已冻结，待后续删表 |
 | `AITask` | `ai_tasks` | AI 任务表 | ✅ 活跃 |
 | `Study` | `studies` | 检查表 | ⚠️ 已废弃 |
 | `Series` | `series` | 序列表 | ⚠️ 已废弃 |
 | `Instance` | `instances` | 实例表 | ⚠️ 已废弃 |
 
 > **注意**：Study/Series/Instance 模型已废弃，保留用于数据迁移和向后兼容。
-> 新功能请使用 `ImageFile` 模型。详见 [数据模型简化重构文档](../../../docs/refactoring/simplified-model-migration.md)
+> `ImageAnnotation` 同样只保留为冻结的旧表映射，当前标注使用
+> `ImageFile.annotation`。详见 [数据模型简化重构文档](../../../docs/refactoring/simplified-model-migration.md)
+> 和 [标注单一事实源迁移](../../../docs/migration/0005-image-annotation-single-source.md)。
 
 ### 4. 报告管理模块 (4 个表)
 
@@ -87,7 +89,6 @@ from app.models import (
     Patient,
     PatientVisit,
     ImageFile,
-    ImageAnnotation,
     AITask,  # 新的影像管理模型
     DiagnosticReport,
     ReportTemplate,
@@ -99,12 +100,12 @@ from app.models import (
 from app.models.user import User, Role
 from app.models.patient import Patient
 from app.models.image_file import ImageFile  # 新模型
-from app.models.image import ImageAnnotation, AITask  # 活跃模型
+from app.models.image import AITask
 from app.models.report import DiagnosticReport
 from app.models.system import SystemConfig
 
-# 废弃的模型（仅用于数据迁移）
-from app.models.image import Study, Series, Instance  # ⚠️ 已废弃
+# 废弃或冻结的模型（仅用于数据迁移、核对）
+from app.models.image import ImageAnnotation, Study, Series, Instance
 ```
 
 ### 创建数据
@@ -280,4 +281,3 @@ alembic downgrade -1
 ## 📄 许可证
 
 Copyright © 2025 XieHe Medical System. All rights reserved.
-

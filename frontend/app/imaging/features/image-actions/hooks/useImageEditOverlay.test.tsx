@@ -44,6 +44,7 @@ function makeImageFile(overrides: Partial<ImageFile> = {}): ImageFile {
     team_ids: [11],
     status: 'UPLOADED',
     upload_progress: 100,
+    has_annotation: false,
     created_at: '2026-06-10T10:00:00',
     ...overrides,
   };

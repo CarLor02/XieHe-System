@@ -31,6 +31,7 @@ const imageFile: ImageFile = {
   uploaded_by: 7,
   status: 'UPLOADED',
   upload_progress: 100,
+  has_annotation: false,
   created_at: '2026-07-29T10:00:00',
 };
 

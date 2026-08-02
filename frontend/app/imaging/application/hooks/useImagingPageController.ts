@@ -13,9 +13,9 @@ import { getMyTeams, type TeamSummary } from '@/services/teamService';
 import {
   buildImagingListHref,
   buildImageFileFilters,
-  getReviewStatusFilterFromUrl,
+  getProcessingStatusFilterFromUrl,
   type ImagingViewMode,
-  type ReviewStatusFilter,
+  type ProcessingStatusFilter,
 } from '@/app/imaging/domain/imagingFilters';
 import { canUseUploaderView } from '@/app/imaging/domain/uploaderViewPermission';
 import { useImagePreviewQueue } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
@@ -70,7 +70,8 @@ export function useImagingPageController() {
   const { isAuthenticated, user } = useUser();
   const userId = user?.id ?? null;
 
-  const urlReviewStatusFilter = getReviewStatusFilterFromUrl(
+  const urlProcessingStatusFilter = getProcessingStatusFilterFromUrl(
+    searchParams.get('file_status'),
     searchParams.get('review_status'),
     searchParams.get('status')
   );
@@ -91,13 +92,13 @@ export function useImagingPageController() {
     () => searchParams.get('search') || ''
   );
   const [showFilters, setShowFilters] = useState(
-    urlReviewStatusFilter !== 'all'
+    urlProcessingStatusFilter !== 'all'
   );
   const [selectedExamType, setSelectedExamType] = useState<string>(
     () => searchParams.get('description') || 'all'
   );
-  const [selectedReviewStatus, setSelectedReviewStatus] =
-    useState<ReviewStatusFilter>(urlReviewStatusFilter);
+  const [selectedProcessingStatus, setSelectedProcessingStatus] =
+    useState<ProcessingStatusFilter>(urlProcessingStatusFilter);
   const [dateFrom, setDateFrom] = useState(
     () => searchParams.get('start_date') || ''
   );
@@ -125,7 +126,7 @@ export function useImagingPageController() {
     () =>
       searchTerm.trim() !== '' ||
       selectedExamType !== 'all' ||
-      selectedReviewStatus !== 'all' ||
+      selectedProcessingStatus !== 'all' ||
       dateFrom !== '' ||
       dateTo !== '' ||
       selectedUploader !== null ||
@@ -135,7 +136,7 @@ export function useImagingPageController() {
       dateTo,
       searchTerm,
       selectedExamType,
-      selectedReviewStatus,
+      selectedProcessingStatus,
       selectedTeamIds.length,
       selectedUploader,
     ]
@@ -157,7 +158,7 @@ export function useImagingPageController() {
           pageSize,
           searchTerm: debouncedSearchTerm,
           examType: selectedExamType,
-          reviewStatus: selectedReviewStatus,
+          processingStatus: selectedProcessingStatus,
           dateFrom,
           dateTo,
           uploadedBy: selectedUploader?.id ?? null,
@@ -190,7 +191,7 @@ export function useImagingPageController() {
     pageSize,
     resetPreviewQueue,
     selectedExamType,
-    selectedReviewStatus,
+    selectedProcessingStatus,
     selectedTeamIds,
     selectedUploader,
   ]);
@@ -223,8 +224,8 @@ export function useImagingPageController() {
     setCurrentPage(1);
   }, []);
 
-  const handleChangeReviewStatus = useCallback((value: ReviewStatusFilter) => {
-    setSelectedReviewStatus(value);
+  const handleChangeProcessingStatus = useCallback((value: ProcessingStatusFilter) => {
+    setSelectedProcessingStatus(value);
     setCurrentPage(1);
   }, []);
 
@@ -275,7 +276,7 @@ export function useImagingPageController() {
     setSearchTerm('');
     setDebouncedSearchTerm('');
     setSelectedExamType('all');
-    setSelectedReviewStatus('all');
+    setSelectedProcessingStatus('all');
     setDateFrom('');
     setDateTo('');
     setSelectedUploader(null);
@@ -341,7 +342,7 @@ export function useImagingPageController() {
         page: currentPage,
         searchTerm: debouncedSearchTerm,
         examType: selectedExamType,
-        reviewStatus: selectedReviewStatus,
+        processingStatus: selectedProcessingStatus,
         dateFrom,
         dateTo,
         viewMode,
@@ -355,7 +356,7 @@ export function useImagingPageController() {
       dateTo,
       debouncedSearchTerm,
       selectedExamType,
-      selectedReviewStatus,
+      selectedProcessingStatus,
       selectedTeamIds,
       selectedUploader,
       viewMode,
@@ -387,7 +388,7 @@ export function useImagingPageController() {
     searchTerm,
     showFilters,
     selectedExamType,
-    selectedReviewStatus,
+    selectedProcessingStatus,
     dateFrom,
     dateTo,
     viewMode,
@@ -414,7 +415,7 @@ export function useImagingPageController() {
     setSearchTerm,
     setShowFilters,
     setSelectedExamType: handleChangeExamType,
-    setSelectedReviewStatus: handleChangeReviewStatus,
+    setSelectedProcessingStatus: handleChangeProcessingStatus,
     setDateFrom: handleChangeDateFrom,
     setDateTo: handleChangeDateTo,
     setViewMode,

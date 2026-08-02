@@ -62,6 +62,7 @@ describe('image file list filters', () => {
     const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
       data: {
         code: 200,
+        message: '影像文件列表查询成功',
         data: {
           items: [],
           pagination: {
@@ -87,6 +88,133 @@ describe('image file list filters', () => {
         uploaded_by: 7,
       },
     });
+
+    jest.dontMock('@/lib/api');
+  });
+
+  it('sends the explicit file type and processing status filters', async () => {
+    const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
+      data: {
+        code: 200,
+        message: '影像文件列表查询成功',
+        data: {
+          items: [],
+          pagination: {
+            total: 0,
+            page: 1,
+            page_size: 20,
+            total_pages: 0,
+          },
+        },
+      },
+    }));
+
+    jest.resetModules();
+    jest.doMock('@/lib/api', () => ({ apiClient: { get } }));
+    const { getImageFiles } = await import('../imageFileService');
+
+    await getImageFiles({ file_type: 'PNG', file_status: 'PROCESSED' });
+
+    expect(get).toHaveBeenCalledWith('/api/v1/image-files', {
+      params: {
+        page: 1,
+        page_size: 20,
+        file_type: 'PNG',
+        file_status: 'PROCESSED',
+      },
+    });
+
+    jest.dontMock('@/lib/api');
+  });
+
+  it('saves a versioned annotation snapshot', async () => {
+    const put = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
+      data: {
+        code: 200,
+        message: '标注保存成功',
+        data: {
+          annotation_version: 4,
+          annotation_updated_at: '2026-08-02T12:00:00',
+          annotation_updated_by: 9,
+          has_annotation: true,
+          status: 'PROCESSED',
+          changed: true,
+        },
+      },
+    }));
+
+    jest.resetModules();
+    jest.doMock('@/lib/api', () => ({ apiClient: { put } }));
+    const { saveImageAnnotation } = await import('../imageFileService');
+
+    const result = await saveImageAnnotation(8, 3, {
+      measurements: [{ id: 'm1' }],
+    });
+
+    expect(put).toHaveBeenCalledWith('/api/v1/image-files/8/annotation', {
+      expected_version: 3,
+      annotation: { measurements: [{ id: 'm1' }] },
+    });
+    expect(result.annotation_version).toBe(4);
+
+    jest.dontMock('@/lib/api');
+  });
+
+  it('loads annotations in a dedicated batch request', async () => {
+    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
+      data: {
+        code: 200,
+        message: '标注批量查询成功',
+        data: {
+          items: [{ id: 3, annotation: { measurements: [] }, annotation_version: 2 }],
+        },
+      },
+    }));
+
+    jest.resetModules();
+    jest.doMock('@/lib/api', () => ({ apiClient: { post } }));
+    const { getImageAnnotations } = await import('../imageFileService');
+
+    const result = await getImageAnnotations([3]);
+
+    expect(post).toHaveBeenCalledWith('/api/v1/image-files/annotations/batch', {
+      ids: [3],
+    });
+    expect(result[0].annotation_version).toBe(2);
+
+    jest.dontMock('@/lib/api');
+  });
+
+  it('chunks annotation requests at the API limit', async () => {
+    const post = jest.fn<
+      (path: string, body: { ids: number[] }) => Promise<unknown>
+    >(
+      async (_path: string, body: { ids: number[] }) => ({
+        data: {
+          code: 200,
+          message: '标注批量查询成功',
+          data: {
+            items: body.ids.map(id => ({
+              id,
+              annotation: null,
+              annotation_version: 0,
+            })),
+          },
+        },
+      })
+    );
+
+    jest.resetModules();
+    jest.doMock('@/lib/api', () => ({ apiClient: { post } }));
+    const { getImageAnnotations } = await import('../imageFileService');
+    const ids = Array.from({ length: 101 }, (_, index) => index + 1);
+
+    const result = await getImageAnnotations(ids);
+
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post.mock.calls[0][1]).toEqual({ ids: ids.slice(0, 100) });
+    expect(post.mock.calls[1][1]).toEqual({ ids: [101] });
+    expect(result).toHaveLength(101);
 
     jest.dontMock('@/lib/api');
   });

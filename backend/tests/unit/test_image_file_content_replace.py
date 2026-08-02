@@ -4,7 +4,6 @@ from typing import Any
 import pytest
 
 from app.api.v1.endpoints.imaging.handlers import files as file_handlers
-from app.models.image import ImageAnnotation
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 
 
@@ -16,23 +15,21 @@ class FakeQuery:
     def filter(self, *args: Any, **kwargs: Any) -> "FakeQuery":
         return self
 
+    def populate_existing(self) -> "FakeQuery":
+        return self
+
+    def with_for_update(self) -> "FakeQuery":
+        return self
+
     def first(self) -> ImageFile | None:
         if self.model is ImageFile:
             return self.db.image
         return None
 
-    def delete(self, synchronize_session: bool = False) -> int:
-        if self.model is ImageAnnotation:
-            self.db.annotation_delete_called = True
-            return self.db.annotation_delete_count
-        return 0
-
 
 class FakeSession:
     def __init__(self, image: ImageFile) -> None:
         self.image = image
-        self.annotation_delete_count = 1
-        self.annotation_delete_called = False
         self.committed = False
         self.rolled_back = False
 
@@ -82,6 +79,8 @@ def make_image() -> ImageFile:
         patient_id=310,
         description="正位X光片",
         annotation={"measurements": [{"id": "m1"}]},
+        annotation_version=1,
+        has_annotation=True,
         status=ImageFileStatusEnum.PROCESSED,
         upload_progress=100,
         created_at=datetime(2026, 6, 10, 9, 0, 0),
@@ -121,6 +120,26 @@ async def test_replace_image_content_keeps_id_and_clears_annotations(
         "get_visible_image_file",
         lambda db, file_id, current_user: db.image,
     )
+    annotation_save_calls: list[dict[str, Any]] = []
+
+    def fake_save_locked_image(service: Any, **kwargs: Any) -> Any:
+        annotation_save_calls.append(kwargs)
+        image = kwargs["image"]
+        image.annotation = {
+            "schemaVersion": 1,
+            "measurements": [],
+            "pointBindings": {"syncGroups": []},
+            "vertebraeLayer": [],
+        }
+        image.annotation_version = 2
+        image.has_annotation = False
+        image.status = ImageFileStatusEnum.UPLOADED
+
+    monkeypatch.setattr(
+        file_handlers.AnnotationApplicationService,
+        "save_locked_image",
+        fake_save_locked_image,
+    )
     monkeypatch.setattr(
         file_handlers,
         "_image_file_related_metadata",
@@ -155,7 +174,8 @@ async def test_replace_image_content_keeps_id_and_clears_annotations(
     assert data["storage_etag"] == "new-etag"
     assert data["thumbnail_path"] is None
     assert data["description"] == "侧位X光片"
-    assert data["annotation"] is None
+    assert data["annotation"]["measurements"] == []
+    assert data["annotation_version"] == 2
     assert data["status"] == "UPLOADED"
     assert put_calls == [
         {
@@ -170,7 +190,9 @@ async def test_replace_image_content_keeps_id_and_clears_annotations(
     assert db.image.file_size == len(uploaded_bytes)
     assert db.image.file_hash is None
     assert db.image.thumbnail_path is None
-    assert db.image.annotation is None
+    assert db.image.annotation is not None
+    assert db.image.annotation["measurements"] == []
     assert db.image.status == ImageFileStatusEnum.UPLOADED
-    assert db.annotation_delete_called is True
+    assert annotation_save_calls[0]["reason"].value == "CONTENT_REPLACEMENT"
+    assert annotation_save_calls[0]["force_revision"] is True
     assert db.committed is True

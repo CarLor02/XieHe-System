@@ -15,13 +15,8 @@ export interface ImageSize {
 }
 
 /*
-* Measurement 部分的数据，现在存在一个和老版本兼容的问题
-* 在 api/v1/image-files/{id} 这个接口中, annotation 字段是直接写在 ImageFile 这个结构体上的 JSON 对象,
-* 能直接拿到 measurements 数据, 且字段更多更详细
-* 对于测量数据(比如 T1 Tilt, CA), 比关键点数据多三个字段 upperVertebra, lowerVertebra, apexVertebra, 均为 string 类型
-* 这三个字段只给 Cobb 类的数据用, 其他测量数据的这三个字段都是 null
-* 但是如果用 api/v1/measurements/{id} 接口单独拿 measurement，就没有那三个字段的数据
-* 目前我选择用 api/v1/image-files/{id} 这个接口里面的 annotation 字段直接拿标注信息
+* Measurement 是 image_files.annotation 当前快照的一部分。
+* Cobb 类测量会额外保存 upperVertebra、lowerVertebra 和 apexVertebra。
 * */
 
 /*
@@ -43,19 +38,17 @@ export enum AnnotationSource {
   MANUAL = 'manual',
 }
 
-/*
-* 测量数据结构体, api/v1/measurements/{image_id} 和 api/v1/image-files/{image_id} 这两个接口都能用
-* */
+/* 测量数据结构体，对应 image_files.annotation.measurements。 */
 export interface MeasurementData {
   id: string;
   type: string;
-  originalType?: string // api/v1/measurements/{image_id} 接口不提供此字段, api/v1/image-files/{image_id} 的 annotation 部分反序列化后的 measurements 字段提供此字段
+  originalType?: string
   value: string;
   points: Point[];
   description?: string | null; // 这个 description 字段描述的是一个测量项做什么
-  upperVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
-  lowerVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
-  apexVertebra?: string | null; // api/v1/measurements/{image_id} 接口不提供此字段, 这里做兼容考虑
+  upperVertebra?: string | null;
+  lowerVertebra?: string | null;
+  apexVertebra?: string | null;
   avtMetadata?: AvtMetadata; // AVT v2: 椎体/椎间盘目标、参考线与点位布局
   keypointSynced?: boolean; // 测量项已绑定关键点；后续关键点移动或缺失时应重算或移除
 }
@@ -113,24 +106,6 @@ export interface AnnotationData {
   vertebraeLayer?: VertebraAnnotation[];
   /** 股骨头标注（侧位专用） */
   cfhAnnotation?: CfhAnnotation | null;
-}
-
-/*
-* 这个只给 api/v1/measurements/{image_id} 这个接口用
-* */
-export interface MeasurementRecord {
-  measurements: MeasurementData[];
-  reportText?: string | null;
-  savedAt: string;
-}
-
-export interface SaveMeasurementRecordRequest {
-  imageId: string;
-  patientId: number;
-  examType: string;
-  measurements: MeasurementData[];
-  reportText?: string | null;
-  savedAt: string;
 }
 
 /**

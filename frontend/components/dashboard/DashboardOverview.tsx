@@ -385,14 +385,14 @@ const DashboardOverviewComponent: React.FC<DashboardOverviewProps> = ({
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">待处理影像</p>
                 <Link
-                  href="/imaging?status=pending"
+                  href="/imaging?file_status=UPLOADED"
                   className="text-2xl font-bold text-gray-900 hover:text-orange-600 transition-colors cursor-pointer"
                 >
                   {overview.pending_images}
                 </Link>
                 <p className="text-xs text-green-500 mt-1">
                   已完成: <Link
-                    href="/imaging?review_status=reviewed"
+                    href="/imaging?file_status=PROCESSED"
                     className="hover:text-green-700 transition-colors cursor-pointer underline"
                   >
                     {overview.processed_images}

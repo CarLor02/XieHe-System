@@ -9,6 +9,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas';
 import { StudyHeader } from '@/app/imaging/features/image-viewer/features/study';
 import { AnnotationToolbar } from '@/app/imaging/features/image-viewer/features/toolbar';
+import { AppMessageDialog } from '@/components/overlay/overlay-components';
 
 interface ImageViewerProps {
   imageId: string;
@@ -21,6 +22,7 @@ function ImageViewer({ imageId, returnTo }: ImageViewerProps) {
     canvasProps,
     toolbarProps,
     standardDistanceWarningProps,
+    annotationConflictDialogProps,
   } = useImageViewerController({ imageId });
 
   return (
@@ -40,6 +42,10 @@ function ImageViewer({ imageId, returnTo }: ImageViewerProps) {
       </div>
 
       <StandardDistanceWarningDialog {...standardDistanceWarningProps} />
+      <AppMessageDialog
+        {...annotationConflictDialogProps}
+        buttonLabel="知道了"
+      />
     </>
   );
 }

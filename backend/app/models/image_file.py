@@ -109,6 +109,32 @@ class ImageFile(Base):
 
     # 标注数据
     annotation: Mapped[typing.Any] = Column(JSON, comment="标注数据(JSON格式)")
+    annotation_version: Mapped[int] = Column(
+        BigInteger,
+        nullable=False,
+        default=0,
+        server_default="0",
+        comment="标注快照乐观锁版本",
+    )
+    has_annotation: Mapped[bool] = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0",
+        comment="当前是否包含用户可见标注",
+    )
+    annotation_created_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, comment="首次建立标注时间"
+    )
+    annotation_created_by: Mapped[int | None] = Column(
+        Integer, ForeignKey("users.id"), comment="首次建立标注用户ID"
+    )
+    annotation_updated_at: Mapped[datetime_types.datetime | None] = Column(
+        DateTime, comment="最近修改标注时间"
+    )
+    annotation_updated_by: Mapped[int | None] = Column(
+        Integer, ForeignKey("users.id"), comment="最近修改标注用户ID"
+    )
 
     # 状态信息
     status: Mapped[ImageFileStatusEnum] = Column(
@@ -147,6 +173,12 @@ class ImageFile(Base):
     )
     deleter: Mapped[User | None] = relationship(
         "User", foreign_keys=[deleted_by], backref="deleted_images"
+    )
+    annotation_creator: Mapped[User | None] = relationship(
+        "User", foreign_keys=[annotation_created_by]
+    )
+    annotation_updater: Mapped[User | None] = relationship(
+        "User", foreign_keys=[annotation_updated_by]
     )
     team_visibilities: Mapped[list[ImageFileTeamVisibility]] = relationship(
         "ImageFileTeamVisibility",

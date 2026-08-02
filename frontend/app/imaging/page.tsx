@@ -43,7 +43,7 @@ function ImagingPageContent() {
         searchTerm={controller.searchTerm}
         showFilters={controller.showFilters}
         selectedExamType={controller.selectedExamType}
-        selectedReviewStatus={controller.selectedReviewStatus}
+        selectedProcessingStatus={controller.selectedProcessingStatus}
         dateFrom={controller.dateFrom}
         dateTo={controller.dateTo}
         viewMode={controller.viewMode}
@@ -66,7 +66,7 @@ function ImagingPageContent() {
           controller.setShowFilters(!controller.showFilters)
         }
         onChangeExamType={controller.setSelectedExamType}
-        onChangeReviewStatus={controller.setSelectedReviewStatus}
+        onChangeProcessingStatus={controller.setSelectedProcessingStatus}
         onChangeDateFrom={controller.setDateFrom}
         onChangeDateTo={controller.setDateTo}
         onChangeViewMode={controller.setViewMode}

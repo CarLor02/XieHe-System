@@ -14,7 +14,7 @@ const logger = createLogger('services.imageServices.imageFileService');
 
 export type ImageAnnotationJson = Record<string, unknown>;
 
-export interface ImageFile {
+export interface ImageFileSummary {
   id: number;
   file_uuid: string;
   original_filename: string;
@@ -37,7 +37,7 @@ export interface ImageFile {
   description?: string;
   team_ids?: number[];
   team_names?: string[];
-  annotation?: ImageAnnotationJson | null;
+  has_annotation: boolean;
   status:
     | 'UPLOADING'
     | 'UPLOADED'
@@ -50,6 +50,18 @@ export interface ImageFile {
   created_at: string;
   uploaded_at?: string;
 }
+
+export interface ImageFileDetail extends ImageFileSummary {
+  annotation: ImageAnnotationJson | null;
+  annotation_version: number;
+  annotation_created_at?: string | null;
+  annotation_created_by?: number | null;
+  annotation_updated_at?: string | null;
+  annotation_updated_by?: number | null;
+}
+
+/** 兼容既有卡片与操作组件；影像列表实际只返回 summary 字段。 */
+export type ImageFile = ImageFileSummary;
 
 export interface ImageFileListResponse {
   total: number;
@@ -87,12 +99,12 @@ export interface ImageFileDownloadUrlsResponse {
 export interface ImageFileFilters {
   page?: number;
   page_size?: number;
+  file_type?: ImageFileSummary['file_type'];
   description?: string; // 检查类型筛选
-  status?: string;
+  file_status?: ImageFileSummary['status'];
   start_date?: string;
   end_date?: string;
   search?: string;
-  review_status?: 'reviewed' | 'unreviewed'; // 审核状态筛选
   uploaded_by?: number;
   team_ids?: number[];
 }
@@ -130,8 +142,7 @@ export interface AssignableImageTeamFilters {
  * - 普通用户：只看自己上传的影像
  *
  * 支持筛选：
- * - status: 'pending' (待处理)
- * - review_status: 'reviewed' (已审核) / 'unreviewed' (未审核)
+ * - file_status: 影像处理状态
  * - description: 检查类型
  * - search: 搜索关键词
  * - start_date / end_date: 日期范围
@@ -146,11 +157,11 @@ export async function getImageFiles(
   };
 
   if (filters.description) params.description = filters.description;
-  if (filters.status) params.status = filters.status;
+  if (filters.file_type) params.file_type = filters.file_type;
+  if (filters.file_status) params.file_status = filters.file_status;
   if (filters.start_date) params.start_date = filters.start_date;
   if (filters.end_date) params.end_date = filters.end_date;
   if (filters.search) params.search = filters.search;
-  if (filters.review_status) params.review_status = filters.review_status;
   if (filters.uploaded_by !== undefined) params.uploaded_by = filters.uploaded_by;
   if (filters.team_ids?.length) params.team_ids = filters.team_ids.join(',');
 
@@ -252,9 +263,38 @@ export async function getPatientImages(
 /**
  * 获取影像文件详情
  */
-export async function getImageFile(fileId: number): Promise<ImageFile> {
+export async function getImageFile(fileId: number): Promise<ImageFileDetail> {
   const response = await apiClient.get(`/api/v1/image-files/${fileId}`);
-  return extractData<ImageFile>(response);
+  return extractData<ImageFileDetail>(response);
+}
+
+export async function getImageNavigationIds(): Promise<number[]> {
+  const response = await apiClient.get('/api/v1/image-files/navigation');
+  return extractData<{ ids: number[] }>(response).ids;
+}
+
+export interface ImageAnnotationBatchItem {
+  id: number;
+  annotation: ImageAnnotationJson | null;
+  annotation_version: number;
+}
+
+export async function getImageAnnotations(
+  ids: number[]
+): Promise<ImageAnnotationBatchItem[]> {
+  if (ids.length === 0) return [];
+  const uniqueIds = Array.from(new Set(ids));
+  const items: ImageAnnotationBatchItem[] = [];
+  for (let offset = 0; offset < uniqueIds.length; offset += 100) {
+    const response = await apiClient.post(
+      '/api/v1/image-files/annotations/batch',
+      { ids: uniqueIds.slice(offset, offset + 100) }
+    );
+    items.push(
+      ...extractData<{ items: ImageAnnotationBatchItem[] }>(response).items
+    );
+  }
+  return items;
 }
 
 /**
@@ -367,14 +407,25 @@ export async function replaceImageFileContent(
   return extractData<ImageFile>(response);
 }
 
-export async function updateImageAnnotation(
+export interface AnnotationSaveResult {
+  annotation_version: number;
+  annotation_updated_at: string | null;
+  annotation_updated_by: number | null;
+  has_annotation: boolean;
+  status: ImageFileSummary['status'];
+  changed: boolean;
+}
+
+export async function saveImageAnnotation(
   fileId: number,
+  expectedVersion: number,
   annotation: ImageAnnotationJson
-): Promise<{ message?: string }> {
-  const response = await apiClient.patch(`/api/v1/image-files/${fileId}/annotation`, {
+): Promise<AnnotationSaveResult> {
+  const response = await apiClient.put(`/api/v1/image-files/${fileId}/annotation`, {
+    expected_version: expectedVersion,
     annotation,
   });
-  return extractData<{ message?: string }>(response);
+  return extractData<AnnotationSaveResult>(response);
 }
 
 /**

@@ -8,6 +8,7 @@ export function useImageStudy() {
   const [studyData, setStudyData] = useState<StudyData | null>(null);
   const [studyLoading, setStudyLoading] = useState(true);
   const [imageList, setImageList] = useState<string[]>([]);
+  const [annotationVersion, setAnnotationVersion] = useState(0);
   const [imageNaturalSize, setImageNaturalSize] = useState<
     {
       width: number;
@@ -22,6 +23,8 @@ export function useImageStudy() {
     setStudyLoading,
     imageList,
     setImageList,
+    annotationVersion,
+    setAnnotationVersion,
     imageNaturalSize,
     setImageNaturalSize,
   };

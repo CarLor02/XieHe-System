@@ -8,20 +8,29 @@ export const EXAM_TYPES = [
   '体态照片',
 ] as const;
 
-export type ReviewStatusFilter = 'all' | 'reviewed' | 'unreviewed';
+export type ProcessingStatusFilter =
+  | 'all'
+  | 'UPLOADED'
+  | 'PROCESSING'
+  | 'PROCESSED'
+  | 'FAILED';
 export type ImagingViewMode = 'grid' | 'list';
 
-export function getReviewStatusFilterFromUrl(
+export function getProcessingStatusFilterFromUrl(
+  fileStatus: string | null,
   reviewStatus: string | null,
   legacyStatus: string | null
-): ReviewStatusFilter {
-  if (reviewStatus === 'reviewed' || reviewStatus === 'unreviewed') {
-    return reviewStatus;
+): ProcessingStatusFilter {
+  if (
+    fileStatus === 'UPLOADED' ||
+    fileStatus === 'PROCESSING' ||
+    fileStatus === 'PROCESSED' ||
+    fileStatus === 'FAILED'
+  ) {
+    return fileStatus;
   }
-
-  if (legacyStatus === 'pending') {
-    return 'unreviewed';
-  }
+  if (reviewStatus === 'reviewed') return 'PROCESSED';
+  if (reviewStatus === 'unreviewed' || legacyStatus === 'pending') return 'UPLOADED';
 
   return 'all';
 }
@@ -31,7 +40,7 @@ export function buildImageFileFilters({
   pageSize,
   searchTerm,
   examType,
-  reviewStatus,
+  processingStatus,
   dateFrom,
   dateTo,
   uploadedBy,
@@ -41,7 +50,7 @@ export function buildImageFileFilters({
   pageSize: number;
   searchTerm: string;
   examType: string;
-  reviewStatus: ReviewStatusFilter;
+  processingStatus: ProcessingStatusFilter;
   dateFrom: string;
   dateTo: string;
   uploadedBy?: number | null;
@@ -54,7 +63,7 @@ export function buildImageFileFilters({
 
   if (searchTerm) filters.search = searchTerm;
   if (examType !== 'all') filters.description = examType;
-  if (reviewStatus !== 'all') filters.review_status = reviewStatus;
+  if (processingStatus !== 'all') filters.file_status = processingStatus;
   if (dateFrom) filters.start_date = dateFrom;
   if (dateTo) filters.end_date = dateTo;
   if (uploadedBy !== null && uploadedBy !== undefined) {
@@ -71,7 +80,7 @@ export function buildImagingListHref({
   page,
   searchTerm,
   examType,
-  reviewStatus,
+  processingStatus,
   dateFrom,
   dateTo,
   viewMode,
@@ -82,7 +91,7 @@ export function buildImagingListHref({
   page: number;
   searchTerm: string;
   examType: string;
-  reviewStatus: ReviewStatusFilter;
+  processingStatus: ProcessingStatusFilter;
   dateFrom: string;
   dateTo: string;
   viewMode: ImagingViewMode;
@@ -95,7 +104,7 @@ export function buildImagingListHref({
   if (page > 1) params.set('page', String(page));
   if (searchTerm) params.set('search', searchTerm);
   if (examType !== 'all') params.set('description', examType);
-  if (reviewStatus !== 'all') params.set('review_status', reviewStatus);
+  if (processingStatus !== 'all') params.set('file_status', processingStatus);
   if (dateFrom) params.set('start_date', dateFrom);
   if (dateTo) params.set('end_date', dateTo);
   if (viewMode !== 'grid') params.set('view', viewMode);

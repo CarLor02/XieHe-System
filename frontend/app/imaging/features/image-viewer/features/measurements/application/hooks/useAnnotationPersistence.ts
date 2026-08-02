@@ -8,6 +8,7 @@ export function useAnnotationPersistence() {
   const [isSaving, setIsSaving] = useState(false);
   const [isMeasurementsLoading, setIsMeasurementsLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [annotationConflictMessage, setAnnotationConflictMessage] = useState<string | null>(null);
 
   return {
     isSaving,
@@ -16,6 +17,7 @@ export function useAnnotationPersistence() {
     setIsMeasurementsLoading,
     saveMessage,
     setSaveMessage,
+    annotationConflictMessage,
+    setAnnotationConflictMessage,
   };
 }
-

@@ -32,6 +32,12 @@ class ImageFileResponse(BaseModel):
     study_date: Optional[datetime]
     description: Optional[str]
     annotation: Optional[Dict[str, Any]] = None
+    annotation_version: int = 0
+    has_annotation: bool = False
+    annotation_created_at: Optional[datetime] = None
+    annotation_created_by: Optional[int] = None
+    annotation_updated_at: Optional[datetime] = None
+    annotation_updated_by: Optional[int] = None
     status: str
     upload_progress: int
     created_at: datetime
@@ -110,12 +116,6 @@ class RenameImageFileRequest(BaseModel):
         if any(ord(character) < 32 for character in normalized):
             raise ValueError("新影像名不能包含控制字符")
         return normalized
-
-
-class UpdateAnnotationRequest(BaseModel):
-    """更新标注数据请求模型"""
-
-    annotation: Dict[str, Any] = Field(..., description="标注数据(JSON对象)")
 
 
 class BatchDownloadUrlsRequest(BaseModel):

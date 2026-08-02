@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useUser } from '@/lib/api';
-import type { ImageFile } from '@/services/imageServices/imageFileService';
+import {
+  getImageAnnotations,
+  type ImageFile,
+} from '@/services/imageServices/imageFileService';
 
 import { type ExportContentType } from '../domain';
 import { buildBatchExportFiles, downloadExportFiles } from '../usecases';
@@ -117,8 +120,19 @@ export function useBatchImageExport(imageFiles: ImageFile[]) {
     setExportMessage('');
 
     try {
+      const annotationItems =
+        effectiveExportContent === 'original-image'
+          ? []
+          : await getImageAnnotations(selectedImages.map(image => image.id));
+      const annotationsById = new Map(
+        annotationItems.map(item => [item.id, item])
+      );
       const files = await buildBatchExportFiles({
-        images: selectedImages,
+        images: selectedImages.map(image => ({
+          ...image,
+          annotation:
+            annotationsById.get(image.id)?.annotation ?? null,
+        })),
         exportContent: effectiveExportContent,
         onProgress: setExportProgress,
       });

@@ -703,51 +703,43 @@ POST /api/v1/upload/image
 
 ---
 
-### 5. 影像标注 (`/measurements`)
+### 5. 影像标注 (`/image-files`)
 
-#### 5.1 获取影像测量数据
+当前标注以 `image_files.annotation` 为唯一事实源；详情返回完整快照，列表接口不返回
+标注大 JSON。
+
+#### 5.1 获取影像详情和当前标注
 ```http
-GET /api/v1/measurements/{image_id}
+GET /api/v1/image-files/{file_id}
 ```
 
 **Headers**: `Authorization: Bearer <token>`
-
-**路径参数**:
-- `image_id`: 影像ID
 
 **响应**:
 ```json
 {
   "code": 200,
-  "message": "获取成功",
+  "message": "影像文件详情查询成功",
   "data": {
-    "measurements": [
-      {
-        "type": "Cobb-Thoracic",
-        "angle": 25.3,
-        "upper_vertebra": "T5",
-        "lower_vertebra": "T11",
-        "apex_vertebra": "T7",
-        "points": [
-          {"x": 790.98, "y": 932.38},
-          {"x": 903.99, "y": 940.12},
-          {"x": 805.32, "y": 498.03},
-          {"x": 895.67, "y": 502.15}
-        ]
-      }
-    ],
-    "reportText": "胸弯Cobb角25.3度，左凸畸形",
-    "savedAt": "2025-01-30T10:00:00Z"
+    "id": 1,
+    "annotation_version": 3,
+    "has_annotation": true,
+    "annotation": {
+      "schemaVersion": 1,
+      "measurements": [],
+      "vertebraeLayer": [],
+      "pointBindings": {"syncGroups": []}
+    }
   },
-  "timestamp": "2025-01-30T10:00:00Z"
+  "timestamp": "2026-08-02T10:00:00Z"
 }
 ```
 
 ---
 
-#### 5.2 保存测量数据
+#### 5.2 版本化保存标注
 ```http
-POST /api/v1/measurements/
+PUT /api/v1/image-files/{file_id}/annotation
 ```
 
 **Headers**: `Authorization: Bearer <token>`
@@ -755,38 +747,32 @@ POST /api/v1/measurements/
 **请求体**:
 ```json
 {
-  "imageId": "IMG001",
-  "patientId": 1,
-  "examType": "ap",
-  "measurements": [
-    {
-      "type": "Cobb-Thoracic",
-      "angle": 25.3,
-      "upper_vertebra": "T5",
-      "lower_vertebra": "T11",
-      "apex_vertebra": "T7",
-      "points": [
-        {"x": 790.98, "y": 932.38},
-        {"x": 903.99, "y": 940.12}
-      ]
-    }
-  ],
-  "reportText": "胸弯Cobb角25.3度",
-  "savedAt": "2025-01-30T10:00:00Z"
+  "expected_version": 3,
+  "annotation": {
+    "measurements": [],
+    "vertebraeLayer": [],
+    "pointBindings": {"syncGroups": []}
+  }
 }
 ```
 
 **响应**:
 ```json
 {
-  "code": 201,
-  "message": "测量数据保存成功",
+  "code": 200,
+  "message": "标注保存成功",
   "data": {
-    "measurement_id": 1
+    "annotation_version": 4,
+    "has_annotation": false,
+    "status": "UPLOADED",
+    "changed": true
   },
-  "timestamp": "2025-01-30T10:00:00Z"
+  "timestamp": "2026-08-02T10:00:00Z"
 }
 ```
+
+`expected_version` 与当前版本不一致时返回 `409`，客户端必须重新加载详情后再保存。
+历史版本通过 `GET /api/v1/image-files/{file_id}/annotation-history` 查询。
 
 ---
 

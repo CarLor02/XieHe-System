@@ -32,7 +32,7 @@ function comparePendingTasks(
 export async function getDashboardPendingTasks(): Promise<DashboardPendingTask[]> {
   const [patients, imageFiles] = await Promise.all([
     getAllPatients(),
-    getAllImageFiles({ status: 'pending' }),
+    getAllImageFiles({ file_status: 'UPLOADED' }),
   ]);
 
   const patientsById = new Map<number, Patient>(

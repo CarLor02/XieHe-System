@@ -3,7 +3,7 @@ import {
   AdjustMode,
   Point,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import { getImageFile, getImageFileAccessUrl } from '@/services/imageServices';
+import { getImageFileDownloadUrl } from '@/services/imageServices';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('app.imaging.features.image.viewer.features.annotation.canvas.presentation.hooks.useCanvasViewport');
@@ -133,8 +133,9 @@ export function useCanvasViewport({
       try {
         setImageLoading(true);
         const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
-        const imageFile = await getImageFile(Number(numericId));
-        const imageAccessUrl = await getImageFileAccessUrl(imageFile);
+        const imageAccessUrl = (
+          await getImageFileDownloadUrl(Number(numericId))
+        ).url;
         if (!cancelled) {
           setImageUrl(imageAccessUrl);
         }

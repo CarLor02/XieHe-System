@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.imaging.handlers import files as file_handlers
+from app.contexts.imaging.infrastructure import SqlAlchemyImageQueryRepository
 from app.models.image_file import (
     ImageFile,
     ImageFileStatusEnum,
@@ -49,6 +50,7 @@ def seed_visibility_data(session: Session) -> None:
             (11, "member"),
             (12, "inactive"),
             (13, "outside"),
+            (99, "system-admin"),
         )
     ]
     patient = Patient(
@@ -310,84 +312,54 @@ async def test_system_admin_can_page_all_active_assignable_teams(db_session):
     assert result["data"]["pagination"]["total"] == 3
 
 
-@pytest.mark.asyncio
-async def test_image_list_filters_by_visible_uploader(db_session):
-    assign_image_to_team(db_session, 2)
-
-    result = await file_handlers.get_image_files_list(
+def query_image_list(
+    db_session: Session,
+    *,
+    user: dict,
+    uploaded_by: int,
+) -> list[dict]:
+    items, _ = SqlAlchemyImageQueryRepository(db_session).list_images(
+        current_user=user,
         page=1,
         page_size=20,
-        file_type=None,
-        file_status=None,
-        status=None,
-        pending_only=None,
-        review_status=None,
-        description=None,
-        start_date=None,
-        end_date=None,
-        search=None,
-        uploaded_by=11,
-        team_ids=None,
-        current_user=current_user(10),
-        db=db_session,
+        filters={"uploaded_by": uploaded_by},
     )
+    return items
 
-    items = result["data"]["items"]
+
+def test_image_list_filters_by_visible_uploader(db_session):
+    assign_image_to_team(db_session, 2)
+
+    items = query_image_list(
+        db_session,
+        user=current_user(10),
+        uploaded_by=11,
+    )
 
     assert [item["id"] for item in items] == [2]
     assert items[0]["uploaded_by"] == 11
 
 
-@pytest.mark.asyncio
-async def test_image_list_includes_team_names(db_session):
+def test_image_list_includes_team_names(db_session):
     assign_image_to_team(db_session, 2, 1)
     assign_image_to_team(db_session, 2, 3)
 
-    result = await file_handlers.get_image_files_list(
-        page=1,
-        page_size=20,
-        file_type=None,
-        file_status=None,
-        status=None,
-        pending_only=None,
-        review_status=None,
-        description=None,
-        start_date=None,
-        end_date=None,
-        search=None,
+    items = query_image_list(
+        db_session,
+        user=current_user(10),
         uploaded_by=11,
-        team_ids=None,
-        current_user=current_user(10),
-        db=db_session,
     )
-
-    items = result["data"]["items"]
 
     assert items[0]["team_ids"] == [1, 3]
     assert items[0]["team_names"] == ["脊柱团队", "影像团队"]
 
 
-@pytest.mark.asyncio
-async def test_personal_image_list_returns_empty_team_names(db_session):
-    result = await file_handlers.get_image_files_list(
-        page=1,
-        page_size=20,
-        file_type=None,
-        file_status=None,
-        status=None,
-        pending_only=None,
-        review_status=None,
-        description=None,
-        start_date=None,
-        end_date=None,
-        search=None,
+def test_personal_image_list_returns_empty_team_names(db_session):
+    items = query_image_list(
+        db_session,
+        user=current_user(10),
         uploaded_by=10,
-        team_ids=None,
-        current_user=current_user(10),
-        db=db_session,
     )
-
-    items = result["data"]["items"]
 
     assert items[0]["team_ids"] == []
     assert items[0]["team_names"] == []
