@@ -2,26 +2,26 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, load_only, selectinload
 
+from app.contexts.imaging.domain import ImageAccessScope
 from app.contexts.imaging.infrastructure.models import (
     ImageAnnotationItemEvent,
     ImageAnnotationRevision,
 )
 from app.models.image_file import (
     ImageFile,
+    ImageFileStatusEnum,
     ImageFileTeamVisibility,
 )
 from app.models.patient import Patient
 from app.models.user import User
-from app.services.image_file_visibility import (
-    apply_image_visibility_filter,
-    get_visible_image_file,
-)
+
+from .access_repository import apply_image_access_scope
 
 _SUMMARY_COLUMNS = (
     ImageFile.id,
@@ -90,7 +90,7 @@ class SqlAlchemyImageQueryRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def _base_summary_query(self, current_user: dict[str, Any]) -> Any:
+    def _base_summary_query(self, scope: ImageAccessScope) -> Any:
         query = (
             self._session.query(
                 ImageFile,
@@ -108,17 +108,20 @@ class SqlAlchemyImageQueryRepository:
             )
             .filter(ImageFile.is_deleted.is_(False))
         )
-        return apply_image_visibility_filter(query, self._session, current_user)
+        return apply_image_access_scope(query, scope)
 
     def list_images(
         self,
         *,
-        current_user: dict[str, Any],
+        scope: ImageAccessScope,
         page: int,
         page_size: int,
         filters: dict[str, Any],
     ) -> tuple[list[dict[str, Any]], int]:
-        query = self._base_summary_query(current_user)
+        query = self._base_summary_query(scope)
+        patient_id = filters.get("patient_id")
+        if patient_id is not None:
+            query = query.filter(ImageFile.patient_id == patient_id)
         file_type = filters.get("file_type")
         if file_type is not None:
             query = query.filter(ImageFile.file_type == file_type)
@@ -182,9 +185,9 @@ class SqlAlchemyImageQueryRepository:
     def get_detail(
         self,
         image_file_id: int,
-        current_user: dict[str, Any],
+        scope: ImageAccessScope,
     ) -> dict[str, Any] | None:
-        image = get_visible_image_file(self._session, image_file_id, current_user)
+        image = self._visible_image(image_file_id, scope)
         if image is None:
             return None
         patient = (
@@ -217,11 +220,11 @@ class SqlAlchemyImageQueryRepository:
         )
         return data
 
-    def list_navigation_ids(self, current_user: dict[str, Any]) -> list[int]:
+    def list_navigation_ids(self, scope: ImageAccessScope) -> list[int]:
         query: Any = self._session.query(ImageFile.id).filter(
             ImageFile.is_deleted.is_(False)
         )
-        query = apply_image_visibility_filter(query, self._session, current_user)
+        query = apply_image_access_scope(query, scope)
         return [
             image_file_id
             for (image_file_id,) in query.order_by(ImageFile.created_at.desc()).all()
@@ -230,7 +233,7 @@ class SqlAlchemyImageQueryRepository:
     def get_annotation_batch(
         self,
         image_file_ids: list[int],
-        current_user: dict[str, Any],
+        scope: ImageAccessScope,
     ) -> list[dict[str, Any]]:
         query = self._session.query(
             ImageFile.id,
@@ -240,7 +243,7 @@ class SqlAlchemyImageQueryRepository:
             ImageFile.id.in_(image_file_ids),
             ImageFile.is_deleted.is_(False),
         )
-        query = apply_image_visibility_filter(query, self._session, current_user)
+        query = apply_image_access_scope(query, scope)
         return [
             {
                 "id": image_file_id,
@@ -250,23 +253,28 @@ class SqlAlchemyImageQueryRepository:
             for image_file_id, annotation, version in query.all()
         ]
 
-    def _visible(self, image_file_id: int, current_user: dict[str, Any]) -> bool:
-        return (
-            get_visible_image_file(self._session, image_file_id, current_user)
-            is not None
+    def _visible_image(
+        self,
+        image_file_id: int,
+        scope: ImageAccessScope,
+    ) -> ImageFile | None:
+        query = self._session.query(ImageFile).filter(
+            ImageFile.id == image_file_id,
+            ImageFile.is_deleted.is_(False),
         )
+        return apply_image_access_scope(query, scope).first()
 
     def list_history(
         self,
         *,
         image_file_id: int,
-        current_user: dict[str, Any],
+        scope: ImageAccessScope,
         page: int,
         page_size: int,
         item_kind: str | None,
         item_id: str | None,
     ) -> tuple[list[dict[str, Any]], int] | None:
-        if not self._visible(image_file_id, current_user):
+        if self._visible_image(image_file_id, scope) is None:
             return None
         query = self._session.query(ImageAnnotationRevision).filter(
             ImageAnnotationRevision.image_file_id == image_file_id
@@ -305,9 +313,9 @@ class SqlAlchemyImageQueryRepository:
         *,
         image_file_id: int,
         version: int,
-        current_user: dict[str, Any],
+        scope: ImageAccessScope,
     ) -> dict[str, Any] | None:
-        if not self._visible(image_file_id, current_user):
+        if self._visible_image(image_file_id, scope) is None:
             return None
         revision = (
             self._session.query(ImageAnnotationRevision)
@@ -337,3 +345,87 @@ class SqlAlchemyImageQueryRepository:
                 for event in revision.item_events
             ],
         }
+
+    def _visible_image_query(self, scope: ImageAccessScope) -> Any:
+        query = self._session.query(ImageFile).filter(ImageFile.is_deleted.is_(False))
+        return apply_image_access_scope(query, scope)
+
+    def get_image_stats(self, scope: ImageAccessScope) -> dict[str, Any]:
+        query = self._visible_image_query(scope)
+        total_files, total_size = query.with_entities(
+            func.count(ImageFile.id),
+            func.coalesce(func.sum(ImageFile.file_size), 0),
+        ).one()
+        by_type = {
+            str(file_type.value): count
+            for file_type, count in query.with_entities(
+                ImageFile.file_type,
+                func.count(ImageFile.id),
+            )
+            .group_by(ImageFile.file_type)
+            .all()
+        }
+        by_status = {
+            str(file_status.value): count
+            for file_status, count in query.with_entities(
+                ImageFile.status,
+                func.count(ImageFile.id),
+            )
+            .group_by(ImageFile.status)
+            .all()
+        }
+        return {
+            "total_files": total_files,
+            "total_size": total_size,
+            "by_type": by_type,
+            "by_status": by_status,
+        }
+
+    def get_dashboard_counts(
+        self,
+        *,
+        scope: ImageAccessScope,
+        today_start: datetime,
+        week_start: datetime,
+    ) -> dict[str, int]:
+        query = self._visible_image_query(scope)
+        total = query.count()
+        today = query.filter(ImageFile.created_at >= today_start).count()
+        week = query.filter(ImageFile.created_at >= week_start).count()
+        pending = query.filter(
+            ImageFile.status.in_(
+                [ImageFileStatusEnum.UPLOADED, ImageFileStatusEnum.PROCESSING]
+            )
+        ).count()
+        processed = query.filter(
+            ImageFile.status == ImageFileStatusEnum.PROCESSED
+        ).count()
+        return {
+            "total": total,
+            "today": today,
+            "week": week,
+            "pending": pending,
+            "processed": processed,
+        }
+
+    def list_recent_images(
+        self,
+        *,
+        scope: ImageAccessScope,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        images = (
+            self._visible_image_query(scope)
+            .order_by(ImageFile.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id": image.id,
+                "original_filename": image.original_filename,
+                "created_at": image.created_at,
+                "status": image.status.value,
+            }
+            for image in images
+        ]

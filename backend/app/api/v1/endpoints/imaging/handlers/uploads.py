@@ -13,6 +13,8 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.contexts.imaging.interface.actor import image_access_actor
+from app.contexts.imaging.interface.dependencies import build_image_visibility_service
 from app.core.access.auth import get_current_active_user
 from app.core.config import settings
 from app.core.database.session import get_db
@@ -29,10 +31,6 @@ from app.models.image_import import (
 )
 from app.models.patient import Patient
 from app.services.ai_task_queue import publish_ai_task_event
-from app.services.image_file_visibility import (
-    replace_image_team_visibility,
-    validate_assignable_team_ids,
-)
 from app.services.image_import_service import (
     ai_task_event,
     ensure_ai_task,
@@ -65,6 +63,25 @@ ALLOWED_MIME_TYPES = {
     "image/tiff",
     "image/x-tiff",
 }
+
+
+def _validate_assignable_team_ids(
+    db: Session,
+    current_user: dict[str, Any],
+    team_ids: list[int] | None,
+) -> list[int]:
+    return build_image_visibility_service(db).validate_assignable_team_ids(
+        image_access_actor(current_user),
+        team_ids,
+    )
+
+
+def _replace_image_team_visibility(
+    db: Session,
+    image: ImageFile,
+    team_ids: list[int],
+) -> None:
+    build_image_visibility_service(db).replace_team_visibility(image, team_ids)
 
 
 def _sanitize_filename(filename: str) -> str:
@@ -171,7 +188,7 @@ async def create_upload_session(
 
     _validate_upload_request(request)
     try:
-        team_ids = validate_assignable_team_ids(db, current_user, request.team_ids)
+        team_ids = _validate_assignable_team_ids(db, current_user, request.team_ids)
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
@@ -218,7 +235,7 @@ async def create_upload_session(
         )
         db.add(image_file)
         db.flush()
-        replace_image_team_visibility(db, image_file, team_ids)
+        _replace_image_team_visibility(db, image_file, team_ids)
         db.commit()
         db.refresh(image_file)
         response = CreateUploadSessionResponse(
@@ -289,7 +306,7 @@ async def create_image_import_batch(
     if db.query(Patient.id).filter(Patient.id == request.patient_id).first() is None:
         raise HTTPException(status_code=404, detail="患者不存在")
     try:
-        team_ids = validate_assignable_team_ids(db, current_user, request.team_ids)
+        team_ids = _validate_assignable_team_ids(db, current_user, request.team_ids)
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
@@ -394,7 +411,7 @@ async def create_image_import_sessions(
             )
             db.add(image)
             db.flush()
-            replace_image_team_visibility(db, image, batch.team_ids or [])
+            _replace_image_team_visibility(db, image, batch.team_ids or [])
             item.image_file_id = image.id
             item.upload_id = upload_session["upload_id"]
             item.upload_status = ImageImportUploadStatus.SESSION_CREATED.value

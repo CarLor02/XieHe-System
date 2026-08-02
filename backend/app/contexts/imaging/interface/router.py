@@ -24,6 +24,7 @@ from app.core.database.session import get_db
 from app.core.system.response import paginated_response, success_response
 from app.models.image_file import ImageFileStatusEnum, ImageFileTypeEnum
 
+from .actor import image_access_actor
 from .dependencies import get_annotation_service, get_imaging_query_service
 from .schemas import (
     AnnotationBatchRequest,
@@ -90,7 +91,7 @@ def list_image_files(
     service: ImagingQueryService = Depends(get_imaging_query_service),
 ) -> dict[str, Any]:
     items, total = service.list_images(
-        current_user=current_user,
+        actor=image_access_actor(current_user),
         page=page,
         page_size=page_size,
         filters={
@@ -124,7 +125,7 @@ def list_navigation_ids(
     service: ImagingQueryService = Depends(get_imaging_query_service),
 ) -> dict[str, Any]:
     return success_response(
-        data={"ids": service.list_navigation_ids(current_user)},
+        data={"ids": service.list_navigation_ids(image_access_actor(current_user))},
         message="影像导航列表查询成功",
     )
 
@@ -137,7 +138,7 @@ def get_annotation_batch(
 ) -> dict[str, Any]:
     items = service.get_annotation_batch(
         image_file_ids=request.ids,
-        current_user=current_user,
+        actor=image_access_actor(current_user),
     )
     returned_ids = {item["id"] for item in items}
     if returned_ids != set(request.ids):
@@ -159,7 +160,7 @@ def list_annotation_history(
 ) -> dict[str, Any]:
     result = service.list_history(
         image_file_id=file_id,
-        current_user=current_user,
+        actor=image_access_actor(current_user),
         page=page,
         page_size=page_size,
         item_kind=item_kind,
@@ -192,7 +193,7 @@ def get_annotation_history_version(
     result = service.get_history_version(
         image_file_id=file_id,
         version=version,
-        current_user=current_user,
+        actor=image_access_actor(current_user),
     )
     if result is None:
         raise HTTPException(
@@ -217,7 +218,7 @@ def save_annotation(
     try:
         result = service.save_visible_image(
             image_file_id=file_id,
-            current_user=current_user,
+            actor=image_access_actor(current_user),
             expected_version=request.expected_version,
             annotation=request.annotation,
             source=AnnotationSource.MANUAL,
@@ -262,7 +263,7 @@ def get_image_file_detail(
 ) -> dict[str, Any]:
     detail = service.get_detail(
         image_file_id=file_id,
-        current_user=current_user,
+        actor=image_access_actor(current_user),
     )
     if detail is None:
         raise HTTPException(

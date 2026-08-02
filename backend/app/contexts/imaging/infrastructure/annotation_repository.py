@@ -6,13 +6,14 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.contexts.imaging.domain import AnnotationItemChange
+from app.contexts.imaging.domain import AnnotationItemChange, ImageAccessScope
 from app.contexts.imaging.infrastructure.models import (
     ImageAnnotationItemEvent,
     ImageAnnotationRevision,
 )
 from app.models.image_file import ImageFile
-from app.services.image_file_visibility import apply_image_visibility_filter
+
+from .access_repository import apply_image_access_scope
 
 
 class SqlAlchemyAnnotationRepository:
@@ -34,21 +35,13 @@ class SqlAlchemyAnnotationRepository:
     def get_visible_for_update(
         self,
         image_file_id: int,
-        current_user: dict[str, Any],
+        scope: ImageAccessScope,
     ) -> ImageFile | None:
         query = self._session.query(ImageFile).filter(
             ImageFile.id == image_file_id,
             ImageFile.is_deleted.is_(False),
         )
-        return (
-            apply_image_visibility_filter(
-                query,
-                self._session,
-                current_user,
-            )
-            .with_for_update()
-            .first()
-        )
+        return apply_image_access_scope(query, scope).with_for_update().first()
 
     def append_revision(
         self,

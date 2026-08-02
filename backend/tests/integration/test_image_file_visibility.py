@@ -5,7 +5,14 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.imaging.handlers import files as file_handlers
-from app.contexts.imaging.infrastructure import SqlAlchemyImageQueryRepository
+from app.api.v1.endpoints.system.handlers import dashboard as dashboard_handlers
+from app.contexts.imaging.application import ImageVisibilityApplicationService
+from app.contexts.imaging.infrastructure import (
+    SqlAlchemyImageQueryRepository,
+    SqlAlchemyImageVisibilityRepository,
+    apply_image_access_scope,
+)
+from app.contexts.imaging.interface.actor import image_access_actor
 from app.models.image_file import (
     ImageFile,
     ImageFileStatusEnum,
@@ -20,11 +27,6 @@ from app.models.team import (
     TeamMembershipStatus,
 )
 from app.models.user import User
-from app.services.image_file_visibility import (
-    apply_image_visibility_filter,
-    get_visible_image_file,
-    get_visible_image_uploader_ids,
-)
 
 pytestmark = pytest.mark.database
 
@@ -168,16 +170,41 @@ def current_user(
     }
 
 
+def visibility_service(session: Session) -> ImageVisibilityApplicationService:
+    return ImageVisibilityApplicationService(
+        SqlAlchemyImageVisibilityRepository(session)
+    )
+
+
+def get_visible_image_file(
+    session: Session,
+    image_id: int,
+    user: dict,
+) -> ImageFile | None:
+    return visibility_service(session).get_visible_image(
+        image_id,
+        image_access_actor(user),
+    )
+
+
+def get_visible_image_uploader_ids(
+    session: Session,
+    user: dict,
+) -> list[int] | None:
+    return visibility_service(session).list_visible_uploader_ids(
+        image_access_actor(user)
+    )
+
+
 def visible_patient_image_ids(session, user: dict) -> list[int]:
     query = session.query(ImageFile).filter(
         ImageFile.patient_id == 100,
         ImageFile.is_deleted.is_(False),
     )
+    scope = visibility_service(session).resolve_scope(image_access_actor(user))
     return [
         image.id
-        for image in apply_image_visibility_filter(query, session, user)
-        .order_by(ImageFile.id)
-        .all()
+        for image in apply_image_access_scope(query, scope).order_by(ImageFile.id).all()
     ]
 
 
@@ -209,6 +236,46 @@ def test_team_admin_sees_team_owned_member_images(db_session):
 def test_non_team_member_cannot_see_other_uploaders(db_session):
     assert visible_patient_image_ids(db_session, current_user(13)) == [4]
     assert get_visible_image_file(db_session, 2, current_user(13)) is None
+
+
+def test_inactive_team_does_not_grant_admin_visibility(db_session):
+    db_session.add_all(
+        [
+            TeamMembership(
+                team_id=4,
+                user_id=10,
+                role=TeamMembershipRole.ADMIN,
+                status=TeamMembershipStatus.ACTIVE,
+            ),
+            ImageFileTeamVisibility(image_file_id=4, team_id=4),
+        ]
+    )
+    db_session.commit()
+
+    assert get_visible_image_file(db_session, 4, current_user(10)) is None
+
+
+def test_active_member_can_assign_joined_team_only(db_session):
+    service = visibility_service(db_session)
+
+    assert service.validate_assignable_team_ids(
+        image_access_actor(current_user(11)),
+        [1],
+    ) == [1]
+    with pytest.raises(PermissionError):
+        service.validate_assignable_team_ids(
+            image_access_actor(current_user(11)),
+            [2],
+        )
+
+
+def test_system_admin_can_assign_any_active_team(db_session):
+    service = visibility_service(db_session)
+    actor = image_access_actor(current_user(99, system_admin=True))
+
+    assert service.validate_assignable_team_ids(actor, [2, 1]) == [1, 2]
+    with pytest.raises(PermissionError):
+        service.validate_assignable_team_ids(actor, [4])
 
 
 def test_superuser_can_see_all_non_deleted_images(db_session):
@@ -278,6 +345,36 @@ async def test_regular_member_cannot_list_uploaders(db_session):
 
 
 @pytest.mark.asyncio
+async def test_dashboard_counts_only_explicit_team_images(db_session):
+    before = await dashboard_handlers.get_dashboard_stats(
+        current_user=current_user(10),
+        db=db_session,
+    )
+    assert before["data"]["total_images"] == 1
+
+    assign_image_to_team(db_session, 2)
+    after = await dashboard_handlers.get_dashboard_stats(
+        current_user=current_user(10),
+        db=db_session,
+    )
+    assert after["data"]["total_images"] == 2
+
+
+@pytest.mark.asyncio
+async def test_dashboard_recent_images_respect_visibility(db_session):
+    result = await dashboard_handlers.get_recent_activities(
+        limit=6,
+        current_user=current_user(10),
+        db=db_session,
+    )
+    image_activities = [
+        item for item in result["data"]["activities"] if item["type"] == "image"
+    ]
+
+    assert [item["id"] for item in image_activities] == [1]
+
+
+@pytest.mark.asyncio
 async def test_assignable_teams_are_paginated_and_scoped_to_user_memberships(
     db_session,
 ):
@@ -319,7 +416,9 @@ def query_image_list(
     uploaded_by: int,
 ) -> list[dict]:
     items, _ = SqlAlchemyImageQueryRepository(db_session).list_images(
-        current_user=user,
+        scope=ImageVisibilityApplicationService(
+            SqlAlchemyImageVisibilityRepository(db_session)
+        ).resolve_scope(image_access_actor(user)),
         page=1,
         page_size=20,
         filters={"uploaded_by": uploaded_by},

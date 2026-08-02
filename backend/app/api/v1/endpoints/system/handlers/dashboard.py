@@ -12,21 +12,17 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, desc, func, or_
+from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.elements import ColumnElement
 
+from app.contexts.imaging.interface.actor import image_access_actor
+from app.contexts.imaging.interface.dependencies import build_imaging_query_service
 from app.core.access.auth import get_current_active_user
 from app.core.database.session import get_db
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
-from app.models.image_file import ImageFile, ImageFileStatusEnum
 from app.models.patient import Patient, PatientStatusEnum
 from app.models.report import DiagnosticReport
-from app.services.image_file_visibility import (
-    apply_image_visibility_filter,
-    build_image_visibility_filter,
-)
 
 from ..schemas.dashboard import (
     DashboardOverview,
@@ -50,7 +46,7 @@ async def get_dashboard_overview(
 
     权限控制：
     - 普通用户：只统计自己上传的影像
-    - 团队负责人(ADMIN)：统计团队所有成员上传的影像
+    - 团队负责人(ADMIN)：统计本人影像和明确归属其管理团队的影像
     - 超级管理员(is_superuser)：统计全部影像
     """
     try:
@@ -60,8 +56,11 @@ async def get_dashboard_overview(
         today_start = datetime.combine(today, datetime.min.time())
         week_start_dt = datetime.combine(week_start, datetime.min.time())
 
-        # 构建影像文件的权限过滤条件
-        image_permission_filter = build_image_visibility_filter(db, current_user)
+        image_counts = build_imaging_query_service(db).get_dashboard_counts(
+            actor=image_access_actor(current_user),
+            today_start=today_start,
+            week_start=week_start_dt,
+        )
 
         # 患者统计（不受权限限制，显示全部患者）
         total_patients = (
@@ -101,56 +100,11 @@ async def get_dashboard_overview(
             or 0
         )
 
-        # 影像文件统计（应用权限过滤）
-        base_image_filter: ColumnElement[bool] = ImageFile.is_deleted.is_(False)
-        if image_permission_filter is not None:
-            base_image_filter = and_(base_image_filter, image_permission_filter)
-
-        total_studies = (
-            db.query(func.count(ImageFile.id)).filter(base_image_filter).scalar() or 0
-        )
-
-        studies_today = (
-            db.query(func.count(ImageFile.id))
-            .filter(and_(ImageFile.created_at >= today_start, base_image_filter))
-            .scalar()
-            or 0
-        )
-
-        studies_week = (
-            db.query(func.count(ImageFile.id))
-            .filter(and_(ImageFile.created_at >= week_start_dt, base_image_filter))
-            .scalar()
-            or 0
-        )
-
-        # 待处理影像 = 状态为 UPLOADED 或 PROCESSING 的影像文件
-        pending_images = (
-            db.query(func.count(ImageFile.id))
-            .filter(
-                and_(
-                    base_image_filter,
-                    or_(
-                        ImageFile.status == ImageFileStatusEnum.UPLOADED,
-                        ImageFile.status == ImageFileStatusEnum.PROCESSING,
-                    ),
-                )
-            )
-            .scalar()
-            or 0
-        )
-
-        # 已处理影像 = 状态为 PROCESSED 的影像文件
-        processed_images = (
-            db.query(func.count(ImageFile.id))
-            .filter(
-                and_(
-                    base_image_filter, ImageFile.status == ImageFileStatusEnum.PROCESSED
-                )
-            )
-            .scalar()
-            or 0
-        )
+        total_studies = image_counts["total"]
+        studies_today = image_counts["today"]
+        studies_week = image_counts["week"]
+        pending_images = image_counts["pending"]
+        processed_images = image_counts["processed"]
 
         # 计算完成率
         completion_rate = 0.0
@@ -222,30 +176,20 @@ async def get_recent_activities(
                 )
             )
 
-        # 获取最近的影像文件
-        recent_files_query = db.query(ImageFile).filter(ImageFile.is_deleted.is_(False))
-        recent_files = (
-            apply_image_visibility_filter(
-                recent_files_query,
-                db,
-                current_user,
-            )
-            .order_by(desc(ImageFile.created_at))
-            .limit(limit // 3)
-            .all()
+        recent_files = build_imaging_query_service(db).list_recent_images(
+            actor=image_access_actor(current_user),
+            limit=limit // 3,
         )
 
         for file in recent_files:
             activities.append(
                 RecentActivity(
-                    id=file.id,
+                    id=file["id"],
                     type="image",
-                    title=f"新影像: {file.original_filename or '影像文件'}",
-                    description=f"文件ID: {file.id}",
-                    timestamp=file.created_at,
-                    status=file.status.value
-                    if hasattr(file.status, "value")
-                    else str(file.status),
+                    title=f"新影像: {file['original_filename'] or '影像文件'}",
+                    description=f"文件ID: {file['id']}",
+                    timestamp=file["created_at"],
+                    status=file["status"],
                 )
             )
 
@@ -360,7 +304,7 @@ async def get_dashboard_stats(
 
     权限控制：
     - 普通用户：只统计自己上传的影像
-    - 团队负责人(ADMIN)：统计团队所有成员上传的影像
+    - 团队负责人(ADMIN)：统计本人影像和明确归属其管理团队的影像
     - 超级管理员(is_superuser)：统计全部影像
     """
     try:
@@ -370,8 +314,11 @@ async def get_dashboard_stats(
         today_start = datetime.combine(today, datetime.min.time())
         week_start_dt = datetime.combine(week_start, datetime.min.time())
 
-        # 构建影像文件的权限过滤条件
-        image_permission_filter = build_image_visibility_filter(db, current_user)
+        image_counts = build_imaging_query_service(db).get_dashboard_counts(
+            actor=image_access_actor(current_user),
+            today_start=today_start,
+            week_start=week_start_dt,
+        )
 
         # 患者统计（不受权限限制，显示全部患者）
         total_patients = (
@@ -411,56 +358,11 @@ async def get_dashboard_stats(
             or 0
         )
 
-        # 影像统计（应用权限过滤）
-        base_image_filter: ColumnElement[bool] = ImageFile.is_deleted.is_(False)
-        if image_permission_filter is not None:
-            base_image_filter = and_(base_image_filter, image_permission_filter)
-
-        total_studies = (
-            db.query(func.count(ImageFile.id)).filter(base_image_filter).scalar() or 0
-        )
-
-        studies_today = (
-            db.query(func.count(ImageFile.id))
-            .filter(and_(ImageFile.created_at >= today_start, base_image_filter))
-            .scalar()
-            or 0
-        )
-
-        studies_week = (
-            db.query(func.count(ImageFile.id))
-            .filter(and_(ImageFile.created_at >= week_start_dt, base_image_filter))
-            .scalar()
-            or 0
-        )
-
-        # 待处理影像 = 状态为 UPLOADED 或 PROCESSING 的影像文件
-        pending_images = (
-            db.query(func.count(ImageFile.id))
-            .filter(
-                and_(
-                    base_image_filter,
-                    or_(
-                        ImageFile.status == ImageFileStatusEnum.UPLOADED,
-                        ImageFile.status == ImageFileStatusEnum.PROCESSING,
-                    ),
-                )
-            )
-            .scalar()
-            or 0
-        )
-
-        # 已处理影像 = 状态为 PROCESSED 的影像文件
-        processed_images = (
-            db.query(func.count(ImageFile.id))
-            .filter(
-                and_(
-                    base_image_filter, ImageFile.status == ImageFileStatusEnum.PROCESSED
-                )
-            )
-            .scalar()
-            or 0
-        )
+        total_studies = image_counts["total"]
+        studies_today = image_counts["today"]
+        studies_week = image_counts["week"]
+        pending_images = image_counts["pending"]
+        processed_images = image_counts["processed"]
 
         # 计算完成率
         completion_rate = 0.0

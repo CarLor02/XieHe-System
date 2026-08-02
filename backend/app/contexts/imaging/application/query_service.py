@@ -2,29 +2,106 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
-from .ports import ImageQueryRepository
+from app.contexts.imaging.domain import ImageAccessActor
+
+from .ports import ImageAccessScopeResolver, ImageQueryRepository
 
 
 class ImagingQueryService:
-    def __init__(self, repository: ImageQueryRepository) -> None:
+    def __init__(
+        self,
+        repository: ImageQueryRepository,
+        visibility: ImageAccessScopeResolver,
+    ) -> None:
         self._repository = repository
+        self._visibility = visibility
 
-    def list_images(self, **kwargs: Any) -> tuple[list[dict[str, Any]], int]:
-        return self._repository.list_images(**kwargs)
+    def list_images(
+        self,
+        *,
+        actor: ImageAccessActor,
+        **kwargs: Any,
+    ) -> tuple[list[dict[str, Any]], int]:
+        return self._repository.list_images(
+            scope=self._visibility.resolve_scope(actor),
+            **kwargs,
+        )
 
-    def get_detail(self, **kwargs: Any) -> dict[str, Any] | None:
-        return self._repository.get_detail(**kwargs)
+    def get_detail(
+        self,
+        *,
+        actor: ImageAccessActor,
+        **kwargs: Any,
+    ) -> dict[str, Any] | None:
+        return self._repository.get_detail(
+            scope=self._visibility.resolve_scope(actor),
+            **kwargs,
+        )
 
-    def list_navigation_ids(self, current_user: dict[str, Any]) -> list[int]:
-        return self._repository.list_navigation_ids(current_user)
+    def list_navigation_ids(self, actor: ImageAccessActor) -> list[int]:
+        return self._repository.list_navigation_ids(
+            self._visibility.resolve_scope(actor)
+        )
 
-    def get_annotation_batch(self, **kwargs: Any) -> list[dict[str, Any]]:
-        return self._repository.get_annotation_batch(**kwargs)
+    def get_annotation_batch(
+        self,
+        *,
+        actor: ImageAccessActor,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        return self._repository.get_annotation_batch(
+            scope=self._visibility.resolve_scope(actor),
+            **kwargs,
+        )
 
-    def list_history(self, **kwargs: Any) -> tuple[list[dict[str, Any]], int] | None:
-        return self._repository.list_history(**kwargs)
+    def list_history(
+        self,
+        *,
+        actor: ImageAccessActor,
+        **kwargs: Any,
+    ) -> tuple[list[dict[str, Any]], int] | None:
+        return self._repository.list_history(
+            scope=self._visibility.resolve_scope(actor),
+            **kwargs,
+        )
 
-    def get_history_version(self, **kwargs: Any) -> dict[str, Any] | None:
-        return self._repository.get_history_version(**kwargs)
+    def get_history_version(
+        self,
+        *,
+        actor: ImageAccessActor,
+        **kwargs: Any,
+    ) -> dict[str, Any] | None:
+        return self._repository.get_history_version(
+            scope=self._visibility.resolve_scope(actor),
+            **kwargs,
+        )
+
+    def get_image_stats(self, actor: ImageAccessActor) -> dict[str, Any]:
+        return self._repository.get_image_stats(self._visibility.resolve_scope(actor))
+
+    def get_dashboard_counts(
+        self,
+        *,
+        actor: ImageAccessActor,
+        today_start: datetime,
+        week_start: datetime,
+    ) -> dict[str, int]:
+        return self._repository.get_dashboard_counts(
+            scope=self._visibility.resolve_scope(actor),
+            today_start=today_start,
+            week_start=week_start,
+        )
+
+    def list_recent_images(
+        self,
+        *,
+        actor: ImageAccessActor,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        return self._repository.list_recent_images(
+            scope=self._visibility.resolve_scope(actor),
+            limit=limit,
+        )

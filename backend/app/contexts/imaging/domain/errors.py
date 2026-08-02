@@ -5,6 +5,10 @@ class ImageFileNotFoundError(LookupError):
     """当前用户不可见的影像也按不存在处理。"""
 
 
+class ImageTeamAssignmentDeniedError(PermissionError):
+    """当前操作人不能把影像归属到请求中的团队。"""
+
+
 class AnnotationVersionConflictError(RuntimeError):
     """客户端保存基于过期的标注版本。"""
 

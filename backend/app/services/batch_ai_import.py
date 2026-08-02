@@ -8,9 +8,15 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.contexts.imaging.application import AnnotationApplicationService
+from app.contexts.imaging.application import (
+    AnnotationApplicationService,
+    ImageVisibilityApplicationService,
+)
 from app.contexts.imaging.domain import AnnotationMutationReason, AnnotationSource
-from app.contexts.imaging.infrastructure import SqlAlchemyAnnotationRepository
+from app.contexts.imaging.infrastructure import (
+    SqlAlchemyAnnotationRepository,
+    SqlAlchemyImageVisibilityRepository,
+)
 from app.models.image_file import ImageFile
 
 TYPE_ALIASES = {
@@ -134,7 +140,10 @@ def persist_ai_annotation(
         exam_type=locked_image.description,
         ai_response=ai_response,
     )
-    AnnotationApplicationService(repository).save_locked_image(
+    AnnotationApplicationService(
+        repository,
+        ImageVisibilityApplicationService(SqlAlchemyImageVisibilityRepository(db)),
+    ).save_locked_image(
         image=locked_image,
         actor_id=user_id,
         annotation=annotation,

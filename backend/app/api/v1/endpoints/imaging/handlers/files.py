@@ -28,12 +28,27 @@ from fastapi import (
     status as http_status,
 )
 from fastapi.responses import RedirectResponse
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, defer, selectinload
 
-from app.contexts.imaging.application import AnnotationApplicationService
-from app.contexts.imaging.domain import AnnotationMutationReason, AnnotationSource
-from app.contexts.imaging.infrastructure import SqlAlchemyAnnotationRepository
+from app.contexts.imaging.application import (
+    AnnotationApplicationService,
+    ImageVisibilityApplicationService,
+)
+from app.contexts.imaging.domain import (
+    AnnotationMutationReason,
+    AnnotationSource,
+    normalize_team_ids,
+)
+from app.contexts.imaging.infrastructure import (
+    SqlAlchemyAnnotationRepository,
+    apply_image_access_scope,
+)
+from app.contexts.imaging.interface.actor import image_access_actor
+from app.contexts.imaging.interface.dependencies import (
+    build_image_visibility_service,
+    build_imaging_query_service,
+)
 from app.core.access.auth import get_current_active_user
 from app.core.config import settings
 from app.core.database.session import get_db
@@ -53,7 +68,6 @@ from app.models.patient import Patient
 from app.models.team import (
     Team,
     TeamMembership,
-    TeamMembershipRole,
     TeamMembershipStatus,
 )
 from app.models.user import User
@@ -61,14 +75,6 @@ from app.services.ai_model_client import (
     AiModelClient,
     AiModelRequestError,
     ai_model_client,
-)
-from app.services.image_file_visibility import (
-    apply_image_visibility_filter,
-    get_visible_image_file,
-    get_visible_image_uploader_ids,
-    normalize_team_ids,
-    replace_image_team_visibility,
-    validate_assignable_team_ids,
 )
 from app.shared.storage import StorageServiceError, storage_service_client
 
@@ -96,6 +102,64 @@ REPLACE_CONTENT_ALLOWED_MIME_TYPES = {
     "image/tiff",
     "image/x-tiff",
 }
+
+
+def _visibility_service(db: Session) -> ImageVisibilityApplicationService:
+    """旧路由迁移期间统一从 imaging context 获取可见性应用服务。"""
+
+    return build_image_visibility_service(db)
+
+
+def get_visible_image_file(
+    db: Session,
+    file_id: int,
+    current_user: dict[str, Any],
+) -> ImageFile | None:
+    """兼容旧路由内部调用；访问规则由 imaging application 执行。"""
+
+    return _visibility_service(db).get_visible_image(
+        file_id,
+        image_access_actor(current_user),
+    )
+
+
+def get_visible_image_uploader_ids(
+    db: Session,
+    current_user: dict[str, Any],
+) -> list[int] | None:
+    return _visibility_service(db).list_visible_uploader_ids(
+        image_access_actor(current_user)
+    )
+
+
+def validate_assignable_team_ids(
+    db: Session,
+    current_user: dict[str, Any],
+    team_ids: list[int] | None,
+) -> list[int]:
+    return _visibility_service(db).validate_assignable_team_ids(
+        image_access_actor(current_user),
+        team_ids,
+    )
+
+
+def replace_image_team_visibility(
+    db: Session,
+    image: ImageFile,
+    team_ids: list[int],
+) -> None:
+    _visibility_service(db).replace_team_visibility(image, team_ids)
+
+
+def _apply_visibility_to_legacy_query(
+    query: typing.Any,
+    db: Session,
+    current_user: dict[str, Any],
+) -> typing.Any:
+    """仅供尚未迁出旧文件的复合查询使用，不承载领域规则。"""
+
+    scope = _visibility_service(db).resolve_scope(image_access_actor(current_user))
+    return apply_image_access_scope(query, scope)
 
 
 class ImageFileRelatedMetadata(NamedTuple):
@@ -185,25 +249,7 @@ def _extract_current_user_id(current_user: dict[str, Any]) -> Optional[int]:
 
 
 def _can_choose_image_uploader(db: Session, current_user: dict[str, Any]) -> bool:
-    if current_user.get("is_superuser", False) or current_user.get(
-        "is_system_admin", False
-    ):
-        return True
-
-    user_id = _extract_current_user_id(current_user)
-    if user_id is None:
-        return False
-
-    return (
-        db.query(TeamMembership.id)
-        .filter(
-            TeamMembership.user_id == user_id,
-            TeamMembership.role == TeamMembershipRole.ADMIN,
-            TeamMembership.status == TeamMembershipStatus.ACTIVE,
-        )
-        .first()
-        is not None
-    )
+    return _visibility_service(db).can_choose_uploader(image_access_actor(current_user))
 
 
 def _user_to_uploader_response(user: User) -> ImageUploaderResponse:
@@ -360,15 +406,10 @@ def _get_visible_image_files_by_ids(
     file_ids: list[int],
     current_user: dict[str, Any],
 ) -> dict[int, ImageFile]:
-    if not file_ids:
-        return {}
-
-    query = db.query(ImageFile).filter(
-        ImageFile.id.in_(file_ids),
-        ImageFile.is_deleted.is_(False),
+    return _visibility_service(db).get_visible_images_by_ids(
+        file_ids,
+        image_access_actor(current_user),
     )
-    visible_query = apply_image_visibility_filter(query, db, current_user)
-    return {image.id: image for image in visible_query.all()}
 
 
 def _enum_value(value: Any) -> str:
@@ -514,7 +555,7 @@ async def get_patient_images(
             )
             .filter(ImageFile.patient_id == patient_id, ImageFile.is_deleted.is_(False))
         )
-        query = apply_image_visibility_filter(query, db, current_user)
+        query = _apply_visibility_to_legacy_query(query, db, current_user)
 
         total = query.count()
         image_rows = (
@@ -973,7 +1014,10 @@ async def replace_image_file_content(
         )
         image.upload_progress = 100
         image.uploaded_at = datetime.now()
-        AnnotationApplicationService(annotation_repository).save_locked_image(
+        AnnotationApplicationService(
+            annotation_repository,
+            _visibility_service(db),
+        ).save_locked_image(
             image=image,
             actor_id=_extract_current_user_id(current_user),
             annotation={},
@@ -1036,42 +1080,12 @@ async def get_image_stats(
     获取当前用户可见范围内的影像文件统计信息
     """
     try:
-        # 总文件数和总大小
-        query = db.query(ImageFile).filter(ImageFile.is_deleted.is_(False))
-        visible_query = apply_image_visibility_filter(query, db, current_user)
-
-        total_files, total_size = visible_query.with_entities(
-            func.count(ImageFile.id),
-            func.coalesce(func.sum(ImageFile.file_size), 0),
-        ).one()
-
-        by_type = {
-            _enum_value(file_type): count
-            for file_type, count in visible_query.with_entities(
-                ImageFile.file_type,
-                func.count(ImageFile.id),
-            )
-            .group_by(ImageFile.file_type)
-            .all()
-        }
-
-        by_status = {
-            _enum_value(file_status): count
-            for file_status, count in visible_query.with_entities(
-                ImageFile.status,
-                func.count(ImageFile.id),
-            )
-            .group_by(ImageFile.status)
-            .all()
-        }
+        stats = build_imaging_query_service(db).get_image_stats(
+            image_access_actor(current_user)
+        )
 
         return success_response(
-            data=ImageFileStatsResponse(
-                total_files=total_files,
-                total_size=total_size,
-                by_type=by_type,
-                by_status=by_status,
-            ).dict(),
+            data=ImageFileStatsResponse(**stats).dict(),
             message="影像统计查询成功",
         )
 

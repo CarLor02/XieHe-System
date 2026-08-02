@@ -8,6 +8,8 @@ from app.contexts.imaging.domain import (
     AnnotationMutationReason,
     AnnotationSource,
     AnnotationVersionConflictError,
+    ImageAccessActor,
+    ImageAccessScope,
 )
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 
@@ -21,7 +23,7 @@ class FakeRepository:
         return self.image if image_file_id == self.image.id else None
 
     def get_visible_for_update(
-        self, image_file_id: int, current_user: dict[str, Any]
+        self, image_file_id: int, scope: ImageAccessScope
     ) -> ImageFile | None:
         return self.image if image_file_id == self.image.id else None
 
@@ -30,6 +32,15 @@ class FakeRepository:
 
     def flush(self) -> None:
         return None
+
+
+class FakeScopeResolver:
+    def resolve_scope(self, actor: ImageAccessActor) -> ImageAccessScope:
+        return ImageAccessScope(actor.user_id, actor.unrestricted, frozenset())
+
+
+def create_service(repository: FakeRepository) -> AnnotationApplicationService:
+    return AnnotationApplicationService(repository, FakeScopeResolver())
 
 
 def create_image() -> ImageFile:
@@ -53,11 +64,11 @@ def create_image() -> ImageFile:
 def test_save_updates_current_state_and_appends_audit_revision() -> None:
     image = create_image()
     repository = FakeRepository(image)
-    service = AnnotationApplicationService(repository)
+    service = create_service(repository)
 
     result = service.save_visible_image(
         image_file_id=1,
-        current_user={"id": 9},
+        actor=ImageAccessActor(user_id=9),
         expected_version=0,
         annotation={"measurements": [{"id": "m1", "type": "ca"}]},
     )
@@ -77,7 +88,7 @@ def test_noop_save_does_not_increment_version() -> None:
     image.annotation_version = 2
     repository = FakeRepository(image)
 
-    result = AnnotationApplicationService(repository).save_locked_image(
+    result = create_service(repository).save_locked_image(
         image=image,
         actor_id=1,
         expected_version=2,
@@ -97,9 +108,9 @@ def test_stale_version_is_rejected_before_overwrite() -> None:
     repository = FakeRepository(image)
 
     with pytest.raises(AnnotationVersionConflictError) as error:
-        AnnotationApplicationService(repository).save_visible_image(
+        create_service(repository).save_visible_image(
             image_file_id=1,
-            current_user={"id": 9},
+            actor=ImageAccessActor(user_id=9),
             expected_version=2,
             annotation={},
         )
@@ -114,7 +125,7 @@ def test_explicit_clear_keeps_versioned_empty_snapshot() -> None:
     image.annotation_version = 1
     repository = FakeRepository(image)
 
-    AnnotationApplicationService(repository).save_locked_image(
+    create_service(repository).save_locked_image(
         image=image,
         actor_id=2,
         expected_version=1,

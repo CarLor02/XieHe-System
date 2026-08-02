@@ -6,11 +6,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping
 
-from app.contexts.imaging.application.ports import AnnotationRepository
+from app.contexts.imaging.application.ports import (
+    AnnotationRepository,
+    ImageAccessScopeResolver,
+)
 from app.contexts.imaging.domain import (
     AnnotationMutationReason,
     AnnotationSource,
     AnnotationVersionConflictError,
+    ImageAccessActor,
     ImageFileNotFoundError,
     canonicalize_annotation,
     diff_annotation_items,
@@ -29,25 +33,33 @@ class AnnotationSaveResult:
 class AnnotationApplicationService:
     """协调乐观锁、当前快照和 append-only 审计。"""
 
-    def __init__(self, repository: AnnotationRepository) -> None:
+    def __init__(
+        self,
+        repository: AnnotationRepository,
+        visibility: ImageAccessScopeResolver,
+    ) -> None:
         self._repository = repository
+        self._visibility = visibility
 
     def save_visible_image(
         self,
         *,
         image_file_id: int,
-        current_user: dict[str, Any],
+        actor: ImageAccessActor,
         expected_version: int,
         annotation: Mapping[str, Any] | None,
         source: AnnotationSource = AnnotationSource.MANUAL,
         reason: AnnotationMutationReason = AnnotationMutationReason.SAVE,
     ) -> AnnotationSaveResult:
-        image = self._repository.get_visible_for_update(image_file_id, current_user)
+        image = self._repository.get_visible_for_update(
+            image_file_id,
+            self._visibility.resolve_scope(actor),
+        )
         if image is None:
             raise ImageFileNotFoundError
         return self.save_locked_image(
             image=image,
-            actor_id=_user_id(current_user),
+            actor_id=actor.user_id,
             expected_version=expected_version,
             annotation=annotation,
             source=source,
@@ -104,11 +116,3 @@ class AnnotationApplicationService:
         )
         self._repository.flush()
         return AnnotationSaveResult(image_file=image, changed=True)
-
-
-def _user_id(current_user: dict[str, Any]) -> int | None:
-    value = current_user.get("id") or current_user.get("user_id")
-    try:
-        return int(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
