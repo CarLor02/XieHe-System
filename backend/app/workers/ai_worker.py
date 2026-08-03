@@ -12,7 +12,6 @@ from app.contexts.imaging.infrastructure.persistence import (
     SqlAlchemyImageImportRepository,
 )
 from app.core.config import settings
-from app.core.database.session import SessionLocal
 from app.core.system.logger import LogLevel, logger
 from app.models.image import AITask, AITaskStatusEnum
 from app.models.image_file import ImageFile, ImageFileStatusEnum
@@ -23,6 +22,7 @@ from app.models.image_import import (
 )
 from app.services.ai_model_client import AiModelClient, AiModelRequestError
 from app.services.batch_ai_import import persist_ai_annotation
+from app.shared.database import SessionLocal
 from app.shared.mq.kafka import KafkaConsumer, KafkaSubscriber
 from app.shared.mq.subscriber import ReceivedMessage, SubscriberDecision
 

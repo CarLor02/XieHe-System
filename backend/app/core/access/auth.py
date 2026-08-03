@@ -17,9 +17,9 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app.core.database.session import get_db
 from app.core.system.exceptions import AuthenticationException, AuthorizationException
 from app.core.system.logger import LogLevel, logger
+from app.shared.database import get_db
 
 from .security import security_manager
 

@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.core.database.session import get_db
+from app.shared.database import get_db
 from app.core.access.security import security_manager, hash_password, verify_password
 from app.core.system.cache import get_cache_manager
 from app.api.v1.endpoints.access.handlers import auth as auth_handlers

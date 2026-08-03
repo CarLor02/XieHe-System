@@ -19,9 +19,9 @@ from sqlalchemy import select  # noqa: E402
 from sqlalchemy.exc import SQLAlchemyError  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
-from app.core.database.session import SessionLocal  # noqa: E402
 from app.models.image_file import ImageFile  # noqa: E402
 from app.models.patient import Patient  # noqa: E402
+from app.shared.database import SessionLocal  # noqa: E402
 
 DEFAULT_PATIENT_NAME = "中国青少年标准脊柱序列研究"
 DEFAULT_OUTPUT_NAME = f"{DEFAULT_PATIENT_NAME}_影像名.xlsx"

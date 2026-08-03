@@ -17,7 +17,7 @@ import redis
 from sqlalchemy import text
 
 from app.core.config import settings
-from app.core.database.session import SessionLocal, db_manager, redis_pool
+from app.shared.database import SessionLocal, db_manager
 
 
 def setting_value(*names: str, default=None):
@@ -120,7 +120,10 @@ class DatabaseTester:
             start_time = time.time()
 
             # 创建Redis客户端
-            redis_client = redis.Redis(connection_pool=redis_pool)
+            redis_client = redis.Redis.from_url(
+                settings.REDIS_STATE_URL,
+                decode_responses=True,
+            )
 
             # 基本连接测试
             pong = redis_client.ping()
@@ -149,8 +152,7 @@ class DatabaseTester:
             response_time = round((time.time() - start_time) * 1000, 2)
 
             details = {
-                "host": f"{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                "database": settings.REDIS_DB,
+                "endpoint": settings.REDIS_STATE_URL,
                 "version": info.get("redis_version", "unknown"),
                 "mode": info.get("redis_mode", "unknown"),
                 "connected_clients": info.get("connected_clients", "unknown"),
@@ -163,8 +165,7 @@ class DatabaseTester:
             }
 
             print("✅ Redis连接成功!")
-            print(f"   主机: {details['host']}")
-            print(f"   数据库: {details['database']}")
+            print(f"   连接地址: {details['endpoint']}")
             print(f"   版本: {details['version']}")
             print(f"   模式: {details['mode']}")
             print(f"   客户端连接数: {details['connected_clients']}")
@@ -181,8 +182,7 @@ class DatabaseTester:
 
         except Exception as e:
             error_details = {
-                "host": f"{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                "database": settings.REDIS_DB,
+                "endpoint": settings.REDIS_STATE_URL,
                 "error": str(e),
                 "error_type": type(e).__name__,
             }
@@ -209,11 +209,6 @@ class DatabaseTester:
             print(
                 f"   MySQL响应时间: {health_status['mysql'].get('response_time', 'N/A')}"
             )
-            print(f"   Redis状态: {health_status['redis']['status']}")
-            print(
-                f"   Redis响应时间: {health_status['redis'].get('response_time', 'N/A')}"
-            )
-
             # 断开连接
             db_manager.disconnect()
 

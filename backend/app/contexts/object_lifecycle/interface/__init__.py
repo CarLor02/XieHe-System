@@ -1,0 +1,1 @@
+"""Object lifecycle driving adapters."""

@@ -30,7 +30,7 @@ from app.contexts.imaging.infrastructure.persistence import (
 )
 from app.contexts.imaging.infrastructure.storage import StorageServiceObjectStorage
 from app.core.config import settings
-from app.core.database.session import get_db
+from app.shared.database import get_db
 
 
 def build_image_visibility_service(

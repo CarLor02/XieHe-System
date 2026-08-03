@@ -16,7 +16,8 @@ from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timedelta
 
 from app.main import app
-from app.core.database.session import get_db, Base
+from app.models.base import Base
+from app.shared.database import get_db
 from app.core.config import settings
 from app.models.user import User
 from app.models.patient import Patient

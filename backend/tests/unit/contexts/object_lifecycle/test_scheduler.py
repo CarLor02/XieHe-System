@@ -1,8 +1,10 @@
+"""Scheduler coordination tests for the object lifecycle context."""
+
 from __future__ import annotations
 
 import pytest
 
-from app.tasks import object_cleanup
+from app.contexts.object_lifecycle.interface.scheduler import object_cleanup
 
 
 class FakeLock:

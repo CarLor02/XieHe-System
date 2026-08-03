@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database.session import AsyncSessionLocal, get_async_db
+from app.shared.database import AsyncSessionLocal, get_async_db
 
 
 @pytest.mark.asyncio

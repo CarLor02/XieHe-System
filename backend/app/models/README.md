@@ -112,7 +112,7 @@ from app.models.image import ImageAnnotation, Study, Series, Instance
 
 ```python
 from app.models.patient import Patient, GenderEnum, PatientStatusEnum
-from app.core.database.session import get_db
+from app.shared.database import get_db
 from datetime import date
 
 # 创建患者
@@ -136,7 +136,7 @@ db.refresh(patient)
 
 ```python
 from app.models.patient import Patient
-from app.core.database.session import get_db
+from app.shared.database import get_db
 
 db = next(get_db())
 
@@ -160,7 +160,7 @@ patients = db.query(Patient).offset((page - 1) * page_size).limit(page_size).all
 
 ```python
 from app.models.patient import Patient
-from app.core.database.session import get_db
+from app.shared.database import get_db
 
 db = next(get_db())
 
@@ -179,7 +179,7 @@ db.commit()
 
 ```python
 from app.models.patient import Patient
-from app.core.database.session import get_db
+from app.shared.database import get_db
 from datetime import datetime
 
 db = next(get_db())

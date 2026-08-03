@@ -17,7 +17,7 @@ from typing import TypedDict
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.config import settings
-from app.core.database.session import DatabaseManager
+from app.shared.database import DatabaseManager
 
 
 def setting_value(*names: str, default: typing.Any = None) -> typing.Any:

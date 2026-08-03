@@ -22,10 +22,10 @@ from app.core.access.security import (
     verify_password_async,
 )
 from app.core.config import settings as config_settings
-from app.core.database.session import get_db
 from app.core.system.exceptions import AuthenticationException, BusinessLogicException
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
+from app.shared.database import get_db
 from app.shared.redis import RedisStateUnavailable
 from app.shared.storage import StorageServiceError, storage_service_client
 

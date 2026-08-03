@@ -29,6 +29,10 @@ from app.contexts.imaging.infrastructure.ai import (
     start_ai_measurement_client,
     stop_ai_measurement_client,
 )
+from app.contexts.object_lifecycle.interface.scheduler import (
+    start_object_cleanup_scheduler,
+    stop_object_cleanup_scheduler,
+)
 from app.core.config import settings
 from app.core.system.exceptions import (
     CustomHTTPException,
@@ -48,10 +52,6 @@ from app.services.realtime_service import start_realtime_service, stop_realtime_
 from app.shared.cache.aiocache import query_cache
 from app.shared.redis import RedisStateUnavailable, state_redis
 from app.shared.storage import storage_service_client
-from app.tasks.object_cleanup import (
-    start_object_cleanup_scheduler,
-    stop_object_cleanup_scheduler,
-)
 
 
 @asynccontextmanager
@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     在应用启动和关闭时执行必要的初始化和清理工作。
     """
     # 初始化数据库连接
-    from app.core.database.session import db_manager
+    from app.shared.database import db_manager
 
     try:
         db_manager.connect()

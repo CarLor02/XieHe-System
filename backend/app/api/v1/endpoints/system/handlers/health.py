@@ -18,9 +18,9 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 
 from app.core.config import settings
-from app.core.database.session import get_db
 from app.core.system.response import success_response
 from app.shared.cache.aiocache import query_cache
+from app.shared.database import get_db
 from app.shared.redis import state_redis
 
 from ..schemas.health import (

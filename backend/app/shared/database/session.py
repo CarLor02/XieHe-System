@@ -1,7 +1,4 @@
-"""
-数据库连接配置模块
-支持MySQL同步与异步连接管理
-"""
+"""Shared SQLAlchemy engines, session factories, and lifecycle management."""
 
 import typing
 from collections.abc import AsyncGenerator, Generator
@@ -13,7 +10,6 @@ from sqlalchemy.pool import QueuePool
 
 from app.core.config import settings
 from app.core.system.logger import LogLevel, logger
-from app.models.base import Base
 
 # 配置日志
 
@@ -178,7 +174,7 @@ def receive_checkin(
 
 # 导出主要组件
 __all__ = [
-    "Base",
+    "DatabaseManager",
     "sync_engine",
     "async_engine",
     "SessionLocal",

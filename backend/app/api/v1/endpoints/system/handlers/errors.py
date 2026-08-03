@@ -15,9 +15,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from sqlalchemy.orm import Session
 
 from app.core.access.auth import get_current_active_user
-from app.core.database.session import get_db
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
+from app.shared.database import get_db
 
 from ..schemas.errors import (
     ErrorReport,

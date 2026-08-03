@@ -23,8 +23,8 @@ from datetime import date
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from app.core.database.session import get_db
 from app.models.patient import GenderEnum, Patient, PatientStatusEnum
+from app.shared.database import get_db
 
 # 测试患者数据
 TEST_PATIENTS_DATA = [

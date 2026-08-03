@@ -19,8 +19,8 @@ from typing import Any, Dict, List
 import psutil
 from sqlalchemy import text
 
-from app.core.database.session import get_db
 from app.core.system.logger import LogLevel, logger
+from app.shared.database import get_db
 
 
 @dataclass
