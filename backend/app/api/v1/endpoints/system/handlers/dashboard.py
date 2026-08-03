@@ -22,11 +22,14 @@ from app.contexts.imaging.interface.http.v1.actor import (
 from app.contexts.imaging.interface.http.v1.dependencies import (
     build_imaging_query_service,
 )
+from app.contexts.patients.infrastructure.persistence.models import (
+    Patient,
+    PatientStatusEnum,
+)
+from app.contexts.reports.infrastructure.persistence import DiagnosticReport
 from app.core.access.auth import get_current_active_user
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
-from app.models.patient import Patient, PatientStatusEnum
-from app.models.report import DiagnosticReport
 from app.shared.database import get_db
 
 from ..schemas.dashboard import (

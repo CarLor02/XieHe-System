@@ -19,7 +19,7 @@ from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import func
 
 from app.contexts.imaging.domain import JsonObject
-from app.models.base import Base
+from app.shared.database.sqlalchemy import Base
 
 
 class ImageAnnotationRevision(Base):

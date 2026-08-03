@@ -28,13 +28,17 @@ from app.contexts.imaging.interface.http.v1.routes.selectors import (
     list_visible_image_uploaders,
 )
 from app.contexts.imaging.interface.http.v1.schemas import RenameImageFileRequest
+from app.contexts.patients.infrastructure.persistence.models import (
+    GenderEnum,
+    Patient,
+    PatientStatusEnum,
+)
 from app.models.image_file import (
     ImageFile,
     ImageFileStatusEnum,
     ImageFileTeamVisibility,
     ImageFileTypeEnum,
 )
-from app.models.patient import GenderEnum, Patient, PatientStatusEnum
 from app.models.team import (
     Team,
     TeamMembership,

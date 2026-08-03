@@ -2,10 +2,9 @@
 
 from fastapi import APIRouter
 
-from .handlers import dashboard, errors, health, management, monitoring, notifications
+from .handlers import dashboard, errors, health, monitoring, notifications
 
 router = APIRouter()
-router.include_router(management.router, prefix="/system", tags=["系统管理"])
 router.include_router(dashboard.router, prefix="/dashboard", tags=["工作台仪表板"])
 
 router.include_router(errors.router, prefix="/errors", tags=["错误报告与监控"])

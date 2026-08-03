@@ -22,8 +22,12 @@ from app.contexts.imaging.interface.http.v1.routes.delivery import (
 )
 from app.contexts.imaging.interface.http.v1.routes.queries import get_image_stats
 from app.contexts.imaging.interface.http.v1.schemas import BatchDownloadUrlsRequest
+from app.contexts.patients.infrastructure.persistence.models import (
+    GenderEnum,
+    Patient,
+    PatientStatusEnum,
+)
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
-from app.models.patient import GenderEnum, Patient, PatientStatusEnum
 from app.models.user import User
 
 pytestmark = pytest.mark.database

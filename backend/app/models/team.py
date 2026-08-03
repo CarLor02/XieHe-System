@@ -26,7 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, relationship
 
-from .base import Base
+from app.shared.database.sqlalchemy import Base
 
 if TYPE_CHECKING:
     from .user import User

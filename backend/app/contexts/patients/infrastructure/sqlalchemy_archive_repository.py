@@ -8,7 +8,7 @@ from typing import Any, cast
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.patient import (
+from .persistence.models import (
     Patient,
     PatientAllergy,
     PatientMedicalHistory,

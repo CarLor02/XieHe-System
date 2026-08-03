@@ -23,7 +23,11 @@ from datetime import date
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from app.models.patient import GenderEnum, Patient, PatientStatusEnum
+from app.contexts.patients.infrastructure.persistence.models import (
+    GenderEnum,
+    Patient,
+    PatientStatusEnum,
+)
 from app.shared.database import get_db
 
 # 测试患者数据

@@ -15,6 +15,7 @@ from app.contexts.imaging.application.dto import (
     ImportItem,
     PageResult,
 )
+from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.models.image import AITask, AITaskStatusEnum
 from app.models.image_file import ImageFile
 from app.models.image_import import (
@@ -24,7 +25,6 @@ from app.models.image_import import (
     ImageImportItem,
     ImageImportUploadStatus,
 )
-from app.models.patient import Patient
 
 TERMINAL_AI_STATUSES = {
     ImageImportAiStatus.SUCCEEDED.value,

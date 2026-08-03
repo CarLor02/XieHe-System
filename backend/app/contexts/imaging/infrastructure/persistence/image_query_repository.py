@@ -15,13 +15,13 @@ from app.contexts.imaging.application.dto import (
     PageResult,
 )
 from app.contexts.imaging.domain import ImageAccessScope, JsonObject
+from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.models.image_file import (
     ImageFile,
     ImageFileStatusEnum,
     ImageFileTeamVisibility,
     ImageFileTypeEnum,
 )
-from app.models.patient import Patient
 from app.models.user import User
 
 from .access_scope import apply_image_access_scope

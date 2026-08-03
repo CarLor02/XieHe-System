@@ -1,5 +1,5 @@
 """Report context HTTP interface."""
 
-from .router import router
+from .http.v1.router import router
 
 __all__ = ["router"]

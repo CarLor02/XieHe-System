@@ -19,7 +19,7 @@ import io
 from app.main import app
 from app.shared.database import get_db
 from app.models.user import User
-from app.models.patient import Patient
+from app.contexts.patients.infrastructure.persistence.models import Patient
 
 client = TestClient(app)
 

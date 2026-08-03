@@ -19,7 +19,8 @@ from app.contexts.patients.domain import (
     gender_to_display,
 )
 from app.models.image_file import ImageFile
-from app.models.patient import GenderEnum, Patient, PatientStatusEnum
+
+from .persistence.models import GenderEnum, Patient, PatientStatusEnum
 
 
 def _birth_date_for_age(years: int, *, extra_year: int = 0) -> date:

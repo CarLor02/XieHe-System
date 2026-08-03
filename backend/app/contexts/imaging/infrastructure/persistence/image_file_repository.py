@@ -14,8 +14,8 @@ from app.contexts.imaging.application.dto import (
     PageResult,
 )
 from app.contexts.imaging.domain import ImageAccessActor, ImageAccessScope, JsonObject
+from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.models.image_file import ImageFile
-from app.models.patient import Patient
 from app.models.team import (
     Team,
     TeamMembership,

@@ -1,7 +1,5 @@
 """模型模块导出"""
 
-from . import patient as _patient_models  # noqa: F401
-from . import report as _report_models  # noqa: F401
 from . import system as _system_models  # noqa: F401
 from .image import (
     AITask,

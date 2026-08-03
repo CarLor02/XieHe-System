@@ -2,15 +2,23 @@ from __future__ import annotations
 
 import pytest
 
-from app.api.v1.endpoints.system.handlers import health, management
+from app.api.v1.endpoints.system.handlers import health
+from app.contexts.system_management.application.dto import SystemCounts
+from app.contexts.system_management.application.system_management_service import (
+    SystemManagementApplicationService,
+)
+from app.contexts.system_management.infrastructure.probes import psutil_resource_probe
 
 
-class _FakeDB:
-    def execute(self, *_args, **_kwargs):
-        return self
+class _FakeSystemRepository:
+    def list_configs(self, **_kwargs):
+        return []
 
-    def scalar(self) -> int:
-        return 0
+    def get_counts(self) -> SystemCounts:
+        return SystemCounts(0, 0, 0, 0)
+
+    def database_is_healthy(self) -> bool:
+        return True
 
 
 @pytest.mark.asyncio
@@ -55,8 +63,7 @@ async def test_redis_health_reports_state_and_query_cache_independently(
     assert result.details["query_cache"] == "healthy"
 
 
-@pytest.mark.asyncio
-async def test_management_health_endpoints_do_not_block_for_cpu_sampling(
+def test_system_management_probe_does_not_block_for_cpu_sampling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     intervals: list[float | None] = []
@@ -65,20 +72,26 @@ async def test_management_health_endpoints_do_not_block_for_cpu_sampling(
         intervals.append(interval)
         return 12.5
 
-    monkeypatch.setattr(management.psutil, "cpu_percent", fake_cpu_percent)
-    monkeypatch.setattr(management.psutil, "boot_time", lambda: 0)
+    monkeypatch.setattr(psutil_resource_probe.psutil, "cpu_percent", fake_cpu_percent)
+    monkeypatch.setattr(psutil_resource_probe.psutil, "boot_time", lambda: 0)
     monkeypatch.setattr(
-        management.psutil,
+        psutil_resource_probe.psutil,
         "virtual_memory",
         lambda: type("Memory", (), {"percent": 20.0})(),
     )
     monkeypatch.setattr(
-        management.psutil,
+        psutil_resource_probe.psutil,
         "disk_usage",
         lambda _path: type("Disk", (), {"percent": 30.0})(),
     )
 
-    await management.get_system_stats(db=_FakeDB(), current_user={"id": 1})
-    await management.system_health(db=_FakeDB())
+    repository = _FakeSystemRepository()
+    service = SystemManagementApplicationService(
+        repository,
+        repository,
+        psutil_resource_probe.PsutilResourceProbe(),
+    )
+    service.get_stats()
+    service.get_health()
 
     assert intervals == [None, None]

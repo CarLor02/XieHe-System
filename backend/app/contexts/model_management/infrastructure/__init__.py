@@ -1,0 +1,1 @@
+"""Model-management infrastructure adapters."""

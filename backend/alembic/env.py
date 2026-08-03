@@ -19,8 +19,17 @@ from app import models  # noqa: F401,E402
 from app.contexts.imaging.infrastructure.persistence import (  # noqa: E402
     models as imaging_models,  # noqa: F401
 )
+from app.contexts.patients.infrastructure.persistence import (  # noqa: E402
+    models as patient_models,  # noqa: F401
+)
+from app.contexts.reports.infrastructure.persistence import (  # noqa: E402
+    models as report_models,  # noqa: F401
+)
+from app.contexts.system_management.infrastructure.persistence import (  # noqa: E402
+    models as system_management_models,  # noqa: F401
+)
 from app.core.config import settings  # noqa: E402
-from app.models.base import Base  # noqa: E402
+from app.shared.database.sqlalchemy import Base  # noqa: E402
 
 config = context.config
 if config.config_file_name is not None:

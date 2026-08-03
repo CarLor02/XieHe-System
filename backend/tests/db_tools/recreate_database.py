@@ -25,8 +25,8 @@ from sqlalchemy import text
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from app.core.config import settings
-from app.models.base import Base
 from app.shared.database import get_db, sync_engine
+from app.shared.database.sqlalchemy import Base
 
 
 def import_all_models():
@@ -34,27 +34,22 @@ def import_all_models():
     print("📦 导入所有数据模型...")
 
     # 导入所有模型
-    from app.models.image import AITask, ImageAnnotation
-    from app.models.image_file import ImageFile
-    from app.models.patient import (
+    from app.contexts.patients.infrastructure.persistence.models import (
         Patient,
         PatientAllergy,
         PatientMedicalHistory,
         PatientVisit,
     )
-    from app.models.report import (
+    from app.contexts.reports.infrastructure.persistence import (
         DiagnosticReport,
         ReportFinding,
         ReportRevision,
         ReportTemplate,
     )
-    from app.models.system import (
-        Notification,
-        SystemAlert,
-        SystemConfig,
-        SystemLog,
-        SystemMonitor,
-    )
+    from app.contexts.system_management.infrastructure.persistence import SystemConfig
+    from app.models.image import AITask, ImageAnnotation
+    from app.models.image_file import ImageFile
+    from app.models.system import Notification, SystemAlert, SystemLog, SystemMonitor
     from app.models.user import Department, Permission, Role, User
 
     # 验证模型导入

@@ -80,29 +80,25 @@ models/
 ### 导入模型
 
 ```python
-# 导入所有模型
+# 仍由旧 models 包拥有的模型
 from app.models import (
     User,
     Role,
     Permission,
     Department,
-    Patient,
-    PatientVisit,
     ImageFile,
     AITask,  # 新的影像管理模型
-    DiagnosticReport,
-    ReportTemplate,
-    SystemConfig,
-    SystemLog,
 )
 
-# 或者按模块导入
+# 已迁入业务上下文的持久化模型
+from app.contexts.patients.infrastructure.persistence.models import Patient
+from app.contexts.reports.infrastructure.persistence import DiagnosticReport
+from app.contexts.system_management.infrastructure.persistence import SystemConfig
+
+# 旧 models 包按模块导入
 from app.models.user import User, Role
-from app.models.patient import Patient
 from app.models.image_file import ImageFile  # 新模型
 from app.models.image import AITask
-from app.models.report import DiagnosticReport
-from app.models.system import SystemConfig
 
 # 废弃或冻结的模型（仅用于数据迁移、核对）
 from app.models.image import ImageAnnotation, Study, Series, Instance
@@ -111,7 +107,11 @@ from app.models.image import ImageAnnotation, Study, Series, Instance
 ### 创建数据
 
 ```python
-from app.models.patient import Patient, GenderEnum, PatientStatusEnum
+from app.contexts.patients.infrastructure.persistence.models import (
+    GenderEnum,
+    Patient,
+    PatientStatusEnum,
+)
 from app.shared.database import get_db
 from datetime import date
 
@@ -135,7 +135,7 @@ db.refresh(patient)
 ### 查询数据
 
 ```python
-from app.models.patient import Patient
+from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.shared.database import get_db
 
 db = next(get_db())
@@ -159,7 +159,7 @@ patients = db.query(Patient).offset((page - 1) * page_size).limit(page_size).all
 ### 更新数据
 
 ```python
-from app.models.patient import Patient
+from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.shared.database import get_db
 
 db = next(get_db())
@@ -178,7 +178,7 @@ db.commit()
 ### 软删除
 
 ```python
-from app.models.patient import Patient
+from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.shared.database import get_db
 from datetime import datetime
 

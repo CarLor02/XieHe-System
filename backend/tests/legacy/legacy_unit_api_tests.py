@@ -16,13 +16,13 @@ from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timedelta
 
 from app.main import app
-from app.models.base import Base
+from app.shared.database.sqlalchemy import Base
 from app.shared.database import get_db
 from app.core.config import settings
 from app.models.user import User
-from app.models.patient import Patient
+from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.models.image import Image
-from app.models.report import Report
+from app.contexts.reports.infrastructure.persistence import DiagnosticReport as Report
 from app.services.ai_diagnosis_service import ai_diagnosis_service
 from app.services.email_service import email_service
 
