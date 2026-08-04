@@ -62,7 +62,7 @@ export function getToolsForExamType(examType: string): Tool[] {
     return getLateralTools();
   }
   if (isBendingExamType(examType)) {
-    return mapToolIdsToCatalog(['cobb']);
+    return [...mapToolIdsToCatalog(['cobb']), ...getAuxiliaryTools()];
   }
   return getGenericTools();
 }

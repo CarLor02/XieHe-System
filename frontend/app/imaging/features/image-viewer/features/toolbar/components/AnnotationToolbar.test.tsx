@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react';
 import AnnotationToolbar from './AnnotationToolbar';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { getAuxiliaryTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
+import { getToolsForExamType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/exam-tool-catalog';
 import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
   KeypointSequenceSession,
@@ -540,18 +541,25 @@ it('shows only Cobb without auxiliary shapes in anterior measurement derive mode
 });
 
 it.each(['左侧曲位', '右侧曲位'])(
-  'uses the AP Cobb workflow without pose keypoints for %s',
+  'uses AP Cobb and auxiliary tools without pose keypoints for %s',
   examType => {
-    renderToolbar({ examType, tools: [tools[0]] });
+    renderToolbar({ examType, tools: getToolsForExamType(examType) });
 
     expect(screen.getByRole('button', { name: '测量项派生' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Cobb/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Arrow/ })).toBeNull();
+    expect(screen.getByText('辅助图形')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Arrow/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '关键点' }));
 
     expect(screen.getByRole('button', { name: /^C7 0$/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^姿态点/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+
+    expect(screen.getByRole('button', { name: /Cobb/ })).toBeTruthy();
+    expect(screen.queryByText('辅助图形')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Arrow/ })).toBeNull();
   }
 );
 
