@@ -16,9 +16,7 @@ import {
   KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
-  canSyncCobbMeasurementToKeypoints,
   getMeasurementDeriveVertebraOrder,
-  hasSameCobbEndpointVertebrae,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 import {
@@ -69,7 +67,6 @@ interface MeasurementResultsPanelProps {
     measurementId: string,
     updates: Partial<MeasurementData>
   ) => void;
-  onCobbKeypointsSync?: (measurementId: string) => void;
 }
 
 /**
@@ -104,7 +101,6 @@ export default function MeasurementResultsPanel({
   onToggleKeypointVisibility,
   onKeypointDelete,
   onMeasurementUpdate,
-  onCobbKeypointsSync,
 }: MeasurementResultsPanelProps) {
   const [activeTab, setActiveTab] = useState<ResultsTab>('measurements');
   const [editingAuxiliaryName, setEditingAuxiliaryName] = useState<
@@ -413,46 +409,6 @@ export default function MeasurementResultsPanel({
       >
         {displayName}
       </span>
-    );
-  };
-
-  const renderCobbSyncButton = (measurement: MeasurementData) => {
-    if (!isNumberedCobbMeasurement(measurement.type)) return null;
-
-    const canSync =
-      Boolean(onCobbKeypointsSync) &&
-      canSyncCobbMeasurementToKeypoints(measurement);
-    const disabledTitle = hasSameCobbEndpointVertebrae(measurement)
-      ? 'Cobb 上端椎和下端椎不能相同'
-      : '填写 Cobb 上下端椎后可同步检测层';
-    return (
-      <button
-        type="button"
-        disabled={!canSync}
-        aria-label="同步检测层"
-        onClick={event => {
-          event.stopPropagation();
-          if (!canSync) return;
-          onCobbKeypointsSync?.(measurement.id);
-        }}
-        className={`inline-flex h-5 flex-shrink-0 items-center gap-1 rounded border px-1.5 text-[10px] transition-colors ${
-          canSync
-            ? 'border-blue-300/50 bg-blue-500/20 text-blue-100 hover:border-blue-200 hover:bg-blue-500/30'
-            : 'cursor-not-allowed border-white/10 bg-white/5 text-white/35'
-        }`}
-        title={canSync ? '同步检测层' : disabledTitle}
-      >
-        <span
-          aria-hidden="true"
-          className="h-3 w-3 bg-current"
-          style={{
-            WebkitMask:
-              "url('/icons/icon_sync.svg') center / contain no-repeat",
-            mask: "url('/icons/icon_sync.svg') center / contain no-repeat",
-          }}
-        />
-        <span className="whitespace-nowrap">同步检测层</span>
-      </button>
     );
   };
 
@@ -777,7 +733,6 @@ export default function MeasurementResultsPanel({
                               isEditingThisAuxName
                             )}
                             <div className="ml-2 flex flex-shrink-0 items-center gap-2">
-                              {renderCobbSyncButton(measurement)}
                               <span
                                 className={`font-mono whitespace-nowrap ${
                                   isSelected

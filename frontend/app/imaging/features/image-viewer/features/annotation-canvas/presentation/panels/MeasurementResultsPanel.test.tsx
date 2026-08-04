@@ -7,7 +7,6 @@ import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/type
 
 function renderPanel(
   measurements: MeasurementData[],
-  onCobbKeypointsSync = jest.fn(),
   overrides: Partial<ComponentProps<typeof MeasurementResultsPanel>> = {}
 ) {
   return render(
@@ -50,7 +49,6 @@ function renderPanel(
       onToggleKeypointVisibility={jest.fn()}
       onKeypointDelete={jest.fn()}
       onMeasurementUpdate={jest.fn()}
-      onCobbKeypointsSync={onCobbKeypointsSync}
       {...overrides}
     />
   );
@@ -197,7 +195,6 @@ it('sorts lateral numbered Cobb measurements by the same upper vertebra order', 
         lowerVertebra: 'C7',
       },
     ],
-    jest.fn(),
     { examType: '侧位X光片' }
   );
 
@@ -256,7 +253,7 @@ it('shows lateral numbered Cobb measurements with the same visible Cobb label', 
   ).toBeTruthy();
 });
 
-it('shows a disabled Cobb sync button until both endpoint vertebrae are filled', () => {
+it('does not render the retired manual Cobb sync action', () => {
   renderPanel([
     {
       id: 'cobb-1',
@@ -269,46 +266,11 @@ it('shows a disabled Cobb sync button until both endpoint vertebrae are filled',
         { x: 2, y: 2 },
       ],
       upperVertebra: 'T5',
-      lowerVertebra: null,
+      lowerVertebra: 'T12',
     },
   ]);
 
-  expect(
-    (
-      screen.getByRole('button', {
-        name: '同步检测层',
-      }) as HTMLButtonElement
-    ).disabled
-  ).toBe(true);
-});
-
-it('disables Cobb sync when endpoint vertebrae are the same', () => {
-  const onCobbKeypointsSync = jest.fn();
-  renderPanel(
-    [
-      {
-        id: 'cobb-1',
-        type: 'cobb1',
-        value: '18.20°',
-        points: [
-          { x: 1, y: 1 },
-          { x: 2, y: 1 },
-          { x: 1, y: 2 },
-          { x: 2, y: 2 },
-        ],
-        upperVertebra: 'T5',
-        lowerVertebra: 'T5',
-      },
-    ],
-    onCobbKeypointsSync
-  );
-
-  const syncButton = screen.getByRole('button', { name: '同步检测层' });
-  expect((syncButton as HTMLButtonElement).disabled).toBe(true);
-
-  fireEvent.click(syncButton);
-
-  expect(onCobbKeypointsSync).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: '同步检测层' })).toBeNull();
 });
 
 it('selects Cobb endpoints from current exam vertebra options instead of free text input', () => {
@@ -327,7 +289,6 @@ it('selects Cobb endpoints from current exam vertebra options instead of free te
         ],
       },
     ],
-    jest.fn(),
     {
       onMeasurementUpdate,
     }
@@ -390,7 +351,6 @@ it('disables the opposite endpoint vertebra in the Cobb endpoint option list', (
         lowerVertebra: null,
       },
     ],
-    jest.fn(),
     {
       onMeasurementUpdate,
     }
@@ -440,7 +400,6 @@ it('disables the opposite endpoint vertebra in lateral Cobb endpoint options', (
         lowerVertebra: null,
       },
     ],
-    jest.fn(),
     {
       examType: '侧位X光片',
       onMeasurementUpdate,
@@ -502,64 +461,6 @@ it('keeps measurement and keypoint tabs outside the scrollable results content',
   ).toBe(false);
 });
 
-it('syncs a completed Cobb measurement to the detection layer from the measurement list', () => {
-  const onCobbKeypointsSync = jest.fn();
-  renderPanel(
-    [
-      {
-        id: 'cobb-1',
-        type: 'cobb1',
-        value: '18.20°',
-        points: [
-          { x: 1, y: 1 },
-          { x: 2, y: 1 },
-          { x: 1, y: 2 },
-          { x: 2, y: 2 },
-        ],
-        upperVertebra: 'T5',
-        lowerVertebra: 'T12',
-      },
-    ],
-    onCobbKeypointsSync
-  );
-
-  const syncButton = screen.getByRole('button', { name: '同步检测层' });
-  expect((syncButton as HTMLButtonElement).disabled).toBe(false);
-
-  fireEvent.click(syncButton);
-
-  expect(onCobbKeypointsSync).toHaveBeenCalledWith('cobb-1');
-});
-
-it('syncs a completed lateral Cobb measurement to the detection layer from the measurement list', () => {
-  const onCobbKeypointsSync = jest.fn();
-  renderPanel(
-    [
-      {
-        id: 'lateral-cobb-1',
-        type: 'lateral-cobb1',
-        value: '18.20°',
-        points: [
-          { x: 1, y: 1 },
-          { x: 2, y: 1 },
-          { x: 1, y: 2 },
-          { x: 2, y: 2 },
-        ],
-        upperVertebra: 'T5',
-        lowerVertebra: 'T12',
-      },
-    ],
-    onCobbKeypointsSync
-  );
-
-  const syncButton = screen.getByRole('button', { name: '同步检测层' });
-  expect((syncButton as HTMLButtonElement).disabled).toBe(false);
-
-  fireEvent.click(syncButton);
-
-  expect(onCobbKeypointsSync).toHaveBeenCalledWith('lateral-cobb-1');
-});
-
 it('blocks editing lateral Cobb endpoints when they match a named lateral Cobb measurement', () => {
   const onMeasurementUpdate = jest.fn();
   renderPanel(
@@ -578,7 +479,6 @@ it('blocks editing lateral Cobb endpoints when they match a named lateral Cobb m
         lowerVertebra: null,
       },
     ],
-    jest.fn(),
     {
       examType: '侧位X光片',
       onMeasurementUpdate,

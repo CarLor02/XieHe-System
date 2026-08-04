@@ -85,6 +85,5 @@ export interface AnnotationCanvasProps {
     measurementId?: string,
     updatedPoints?: Point[]
   ) => void;
-  onCobbKeypointsSync?: (measurementId: string) => void;
   onAnnotationDataDragStart?: () => void;
 }

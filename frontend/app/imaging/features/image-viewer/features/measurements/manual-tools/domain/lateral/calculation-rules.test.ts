@@ -17,12 +17,18 @@ const context = {
 };
 
 describe('lateral manual tool calculations', () => {
-  it('keeps T1 Slope signed while SS is absolute', () => {
+  it('uses the clinical T1 Slope sign while SS remains absolute', () => {
     const descendingLine = [
       { x: 0, y: 10 },
       { x: 10, y: 0 },
     ];
-    expect(calculateT1SlopeResults(descendingLine)[0].value).toBe('-45.00');
+    const posteriorTilt = [
+      { x: 0, y: 0 },
+      { x: 10, y: 10 },
+    ];
+
+    expect(calculateT1SlopeResults(descendingLine)[0].value).toBe('45.00');
+    expect(calculateT1SlopeResults(posteriorTilt)[0].value).toBe('-45.00');
     expect(calculateSsResults(descendingLine)[0].value).toBe('45.00');
   });
 

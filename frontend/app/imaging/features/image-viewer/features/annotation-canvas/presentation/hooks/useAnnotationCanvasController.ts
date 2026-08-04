@@ -161,7 +161,6 @@ export function useAnnotationCanvasController({
   onKeypointDelete,
   onKeypointGroupDelete,
   onMeasurementWriteback,
-  onCobbKeypointsSync,
   onAnnotationDataDragStart,
 }: AnnotationCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -858,7 +857,6 @@ export function useAnnotationCanvasController({
       onToggleKeypointVisibility: handleToggleKeypointVisibility,
       onKeypointDelete: handleKeypointDelete,
       onMeasurementUpdate: handlePanelMeasurementUpdate,
-      onCobbKeypointsSync,
     },
     controlsPanel: {
       imageScale,

@@ -758,6 +758,11 @@ export function useImageViewerController({
   const handleMeasurementUpdateWithHistory = useCallback(
     (measurementId: string, updates: Partial<MeasurementData>) => {
       beginHistoryAction('measurement-update');
+      if (
+        keypointWorkflow.handleCobbEndpointUpdate(measurementId, updates)
+      ) {
+        return;
+      }
       setMeasurements(previous =>
         previous.map(measurement =>
           measurement.id === measurementId
@@ -766,7 +771,7 @@ export function useImageViewerController({
         )
       );
     },
-    [beginHistoryAction, setMeasurements]
+    [beginHistoryAction, keypointWorkflow, setMeasurements]
   );
 
   const handleRectifyVertebraCornerOrderWithHistory = useCallback(
@@ -968,7 +973,6 @@ export function useImageViewerController({
       onKeypointDelete: handleKeypointDeleteWithHistory,
       onKeypointGroupDelete: handleKeypointGroupDeleteWithHistory,
       onMeasurementWriteback: keypointWorkflow.handleMeasurementWriteback,
-      onCobbKeypointsSync: keypointWorkflow.handleCobbKeypointsSync,
       onAnnotationDataDragStart: handleAnnotationDataDragStart,
     },
     toolbarProps: {

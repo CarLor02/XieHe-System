@@ -16,6 +16,11 @@ const handleToggleVertebraeLayerMock = jest.fn();
 const setSelectedToolMock = jest.fn();
 const activateHandModeMock = jest.fn();
 const handleApplyVertebraLabelOffsetMock = jest.fn();
+const handleCobbEndpointUpdateMock = jest
+  .fn<
+    (measurementId: string, updates: Record<string, unknown>) => boolean
+  >()
+  .mockReturnValue(false);
 const handleSaveMeasurementsMock = jest.fn();
 let activeVertebraeLayerMock: Array<Record<string, unknown>> = [];
 let annotationHistoryOptions:
@@ -236,7 +241,7 @@ jest.mock(
       handleVertebraeUpdate: jest.fn(),
       handleVertebraePreviewUpdate: jest.fn(),
       handleMeasurementWriteback: jest.fn(),
-      handleCobbKeypointsSync: jest.fn(),
+      handleCobbEndpointUpdate: handleCobbEndpointUpdateMock,
       handleToggleVertebraeLayer: handleToggleVertebraeLayerMock,
     }),
   })
@@ -281,6 +286,8 @@ beforeEach(() => {
   setSelectedToolMock.mockClear();
   activateHandModeMock.mockClear();
   handleApplyVertebraLabelOffsetMock.mockClear();
+  handleCobbEndpointUpdateMock.mockReset();
+  handleCobbEndpointUpdateMock.mockReturnValue(false);
   handleSaveMeasurementsMock.mockClear();
   activeVertebraeLayerMock = [];
   annotationHistoryOptions = null;
@@ -355,6 +362,41 @@ it('starts annotation history before updating a measurement from the results lis
 
   expect(beginHistoryActionMock).toHaveBeenCalledWith('measurement-update');
   expect(setMeasurementsMock).toHaveBeenCalledWith(expect.any(Function));
+});
+
+it('records one history action before delegating a Cobb endpoint update', async () => {
+  handleCobbEndpointUpdateMock.mockReturnValueOnce(true);
+  let latest: Controller | null = null;
+
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+
+  await waitFor(() => {
+    expect(latest).not.toBeNull();
+  });
+
+  const onMeasurementUpdate = (
+    latest!.canvasProps as {
+      onMeasurementUpdate?: (
+        measurementId: string,
+        updates: Record<string, unknown>
+      ) => void;
+    }
+  ).onMeasurementUpdate;
+
+  onMeasurementUpdate?.('measurement-1', { lowerVertebra: 'T12' });
+
+  expect(beginHistoryActionMock).toHaveBeenCalledTimes(1);
+  expect(beginHistoryActionMock).toHaveBeenCalledWith('measurement-update');
+  expect(handleCobbEndpointUpdateMock).toHaveBeenCalledWith('measurement-1', {
+    lowerVertebra: 'T12',
+  });
+  expect(setMeasurementsMock).not.toHaveBeenCalled();
 });
 
 it('starts annotation history before clearing all annotations', async () => {

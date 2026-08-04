@@ -31,6 +31,7 @@ import {
 import {
   hasAvtMeasurementForTarget,
   hasCobbMeasurementForEndpoints,
+  isCobbMeasurement,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-query';
 import {
   createAvtPlacementSession,
@@ -771,11 +772,7 @@ export function useMeasurementKeypointWorkflow({
           pointIndex
         );
         if (!areKeypointsEqual(keypoints, nextKeypoints)) {
-          setKeypoints(nextKeypoints);
-          setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
-          setMeasurements(previous =>
-            recalculateExistingMeasurements(previous, nextKeypoints)
-          );
+          applyKeypoints(nextKeypoints);
         }
         return;
       }
@@ -801,45 +798,72 @@ export function useMeasurementKeypointWorkflow({
     },
     [
       activeVertebraeLayer,
+      applyKeypoints,
       cfhAnnotation,
       examType,
       isKeypointExam,
       keypoints,
       measurements,
-      recalculateExistingMeasurements,
       setCfhAnnotation,
       setKeypoints,
-      setMeasurements,
       setVertebraeLayer,
     ]
   );
 
-  const handleCobbKeypointsSync = useCallback(
-    (measurementId: string) => {
-      if (!isKeypointExam) return;
+  const handleCobbEndpointUpdate = useCallback(
+    (
+      measurementId: string,
+      updates: Partial<MeasurementData>
+    ): boolean => {
       const measurement = measurements.find(item => item.id === measurementId);
-      if (!measurement) return;
+      const updatesEndpoint =
+        Object.prototype.hasOwnProperty.call(updates, 'upperVertebra') ||
+        Object.prototype.hasOwnProperty.call(updates, 'lowerVertebra');
+      if (!measurement || !updatesEndpoint || !isCobbMeasurement(measurement)) {
+        return false;
+      }
+
+      const updatedMeasurement = { ...measurement, ...updates };
+      if (!isKeypointExam) {
+        setMeasurements(previous =>
+          previous.map(item =>
+            item.id === measurementId ? updatedMeasurement : item
+          )
+        );
+        return true;
+      }
 
       const nextKeypoints = syncCobbMeasurementToKeypoints(
         keypoints,
-        measurement,
+        updatedMeasurement,
         examType
       );
       if (!nextKeypoints) {
-        flashMessage(setSaveMessage, '请先填写 Cobb 上下端椎');
-        return;
+        setMeasurements(previous =>
+          previous.map(item =>
+            item.id === measurementId ? updatedMeasurement : item
+          )
+        );
+        return true;
       }
 
-      const upperVertebra = measurement.upperVertebra!.trim().toUpperCase();
-      const lowerVertebra = measurement.lowerVertebra!.trim().toUpperCase();
+      const upperVertebra = updatedMeasurement.upperVertebra!
+        .trim()
+        .toUpperCase();
+      const lowerVertebra = updatedMeasurement.lowerVertebra!
+        .trim()
+        .toUpperCase();
       setKeypoints(nextKeypoints);
       setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+      if (isLateralView) {
+        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+      }
       setMeasurements(previous =>
         recalculateExistingMeasurements(
           previous.map(item =>
             item.id === measurementId
               ? {
-                  ...item,
+                  ...updatedMeasurement,
                   upperVertebra,
                   lowerVertebra,
                   keypointSynced: true,
@@ -849,19 +873,18 @@ export function useMeasurementKeypointWorkflow({
           nextKeypoints
         )
       );
-      setShowVertebraeLayer(true);
-      flashMessage(setSaveMessage, '已同步 Cobb 端椎到检测层');
+      return true;
     },
     [
       examType,
       isKeypointExam,
+      isLateralView,
       keypoints,
       measurements,
       recalculateExistingMeasurements,
+      setCfhAnnotation,
       setKeypoints,
-      setSaveMessage,
       setMeasurements,
-      setShowVertebraeLayer,
       setVertebraeLayer,
     ]
   );
@@ -941,7 +964,7 @@ export function useMeasurementKeypointWorkflow({
     handleVertebraeUpdate,
     handleVertebraePreviewUpdate,
     handleMeasurementWriteback,
-    handleCobbKeypointsSync,
+    handleCobbEndpointUpdate,
     handleToggleVertebraeLayer,
   };
 }
