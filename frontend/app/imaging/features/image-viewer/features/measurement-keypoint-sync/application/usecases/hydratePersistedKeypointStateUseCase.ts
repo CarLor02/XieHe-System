@@ -1,9 +1,9 @@
 import {
-  isKeypointSupportedExamType,
   keypointsToPersistedLayer,
   type KeypointAnnotation,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { isKeypointSupportedExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import type {
   CfhAnnotation,
   MeasurementData,

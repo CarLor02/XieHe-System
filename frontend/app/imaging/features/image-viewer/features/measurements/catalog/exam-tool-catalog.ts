@@ -8,6 +8,7 @@ import { getApMeasurementTools } from '@/app/imaging/features/image-viewer/featu
 import { getAuxiliaryTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
 import { getLateralMeasurementTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements';
 import { ANNOTATION_CONFIGS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { isBendingExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 
 function mapToolIdsToCatalog(toolIds: string[]): Tool[] {
   return toolIds
@@ -59,6 +60,9 @@ export function getToolsForExamType(examType: string): Tool[] {
   }
   if (examType === '侧位X光片') {
     return getLateralTools();
+  }
+  if (isBendingExamType(examType)) {
+    return mapToolIdsToCatalog(['cobb']);
   }
   return getGenericTools();
 }

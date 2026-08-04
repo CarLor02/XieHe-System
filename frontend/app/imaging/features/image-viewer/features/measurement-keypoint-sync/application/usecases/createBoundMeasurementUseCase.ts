@@ -13,10 +13,10 @@ import {
 import { getLateralCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 import { getNextCobbType } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
 import {
-  isLateralExamType,
   keypointsToDerivedLayer,
   type KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { isLateralExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import type {
   MeasurementData,
   Point,

@@ -193,3 +193,109 @@ it('hydrates keypoint layer from the AI measurement response', async () => {
   );
   expect(setShowVertebraeLayer).toHaveBeenCalledWith(true);
 });
+
+it.each(['左侧曲位', '右侧曲位'])(
+  'keeps only Cobb measurements and vertebra corners for %s AI results',
+  async examType => {
+    const t1Layer = {
+      label: 'T1',
+      corners: [
+        { x: 10, y: 10 },
+        { x: 20, y: 10 },
+        { x: 10, y: 30 },
+        { x: 20, y: 30 },
+      ] as [
+        { x: number; y: number },
+        { x: number; y: number },
+        { x: number; y: number },
+        { x: number; y: number },
+      ],
+      confidence: 0.9,
+      source: AnnotationSource.AI,
+    };
+    const poseLayer = {
+      label: 'CL',
+      corners: [
+        { x: 5, y: 5 },
+        { x: 5, y: 5 },
+        { x: 5, y: 5 },
+        { x: 5, y: 5 },
+      ] as [
+        { x: number; y: number },
+        { x: number; y: number },
+        { x: number; y: number },
+        { x: number; y: number },
+      ],
+      confidence: 0.8,
+      source: AnnotationSource.AI,
+    };
+    mockedGetAiMeasurementsResponse.mockResolvedValue({
+      imageId: 'image-1',
+      imageWidth: 1000,
+      imageHeight: 1000,
+      measurements: [
+        cobbAiMeasurement('Cobb-Auto1', 'T1', 'T12'),
+        {
+          type: 'ca',
+          points: [
+            { x: 5, y: 5 },
+            { x: 25, y: 10 },
+          ],
+        },
+      ],
+      vertebrae: [t1Layer, poseLayer],
+      cfh: null,
+    });
+    let capturedMeasurements: MeasurementData[] = [];
+    const setVertebraeLayer = jest.fn();
+    const setKeypoints = jest.fn();
+
+    await runAiMeasurementWorkflow({
+      imageId: 'image-1',
+      imageData: {
+        id: 'image-1',
+        patientName: 'test',
+        patientId: 'p1',
+        examType,
+        studyDate: '2026-05-11',
+        captureTime: '09:00',
+        seriesCount: 1,
+        status: 'completed',
+      },
+      imageNaturalSize: { width: 1000, height: 1000 },
+      setImageNaturalSize: jest.fn(),
+      setMeasurements: next => {
+        capturedMeasurements =
+          typeof next === 'function' ? next(capturedMeasurements) : next;
+      },
+      setPointBindings: jest.fn(),
+      setSaveMessage: jest.fn(),
+      setIsAIMeasuring: jest.fn(),
+      setIsAIDetecting: jest.fn(),
+      canUseKeypoints: true,
+      isLateralView: false,
+      setVertebraeLayer,
+      setKeypoints,
+      setShowVertebraeLayer: jest.fn(),
+      setCfhAnnotation: jest.fn(),
+      deriveInitialMeasurementsFromKeypoints: (_, previousMeasurements) =>
+        previousMeasurements,
+      lateralDetectionResultRef: { current: null },
+      aiMeasurementIdsRef: { current: new Set<string>() },
+    });
+
+    expect(capturedMeasurements.map(measurement => measurement.type)).toEqual([
+      'cobb1',
+    ]);
+    expect(setVertebraeLayer).toHaveBeenCalledWith([t1Layer]);
+    expect(setKeypoints).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'T1-1' }),
+        expect.objectContaining({ id: 'T1-4' }),
+      ])
+    );
+    expect(setKeypoints.mock.calls[0][0]).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'CL' })])
+    );
+  }
+);

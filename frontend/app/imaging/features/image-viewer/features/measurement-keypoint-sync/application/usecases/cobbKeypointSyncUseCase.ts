@@ -4,10 +4,8 @@ import {
   type MeasurementData,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
-import {
-  isLateralExamType,
-  upsertKeypoint,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+import { upsertKeypoint } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { isLateralExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import {
   getLateralCobbEndpointPointIds,
   getLateralNamedCobbMeasurementRuleByEndpoints,

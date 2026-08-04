@@ -12,9 +12,9 @@ import {
 import {
   compareAnatomicalKeypointIds,
   getKeypointGroupsForExamType,
-  isLateralExamType,
   KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { isLateralExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import {
   getMeasurementDeriveVertebraOrder,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';

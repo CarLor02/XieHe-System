@@ -1,10 +1,12 @@
 import {
-  getApKeypointGroups,
+  getApVertebraKeypointGroups,
   getLateralKeypointGroups,
-  isAnteriorExamType,
-  isLateralExamType,
   type KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import {
+  isApProjectionExamType,
+  isLateralExamType,
+} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import {
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,
   getMeasurementDeriveVertebraOrder,
@@ -27,8 +29,8 @@ export function getCompleteMeasurementDeriveEndpointGroups(
 ): string[] {
   const groups = isLateralExamType(examType)
     ? getLateralKeypointGroups()
-    : isAnteriorExamType(examType)
-      ? getApKeypointGroups()
+    : isApProjectionExamType(examType)
+      ? getApVertebraKeypointGroups()
       : [];
   const keypointIds = new Set(keypoints.map(keypoint => keypoint.id));
 

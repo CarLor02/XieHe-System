@@ -11,8 +11,6 @@ import { isLateralRestorableMeasurementTool } from '@/app/imaging/features/image
 import { isUniqueAnnotationTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
   getKeypointGroupsForExamType,
-  isAnteriorExamType,
-  isLateralExamType,
   shiftVertebraLabels,
   type KeypointAnnotation,
   type VertebraLabelOffsetDirection,
@@ -20,6 +18,10 @@ import {
   type VertebraCornerOrderMapping,
   type VertebraCornerSequenceNumber,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import {
+  isApProjectionExamType,
+  isLateralExamType,
+} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import {
   KeypointSequenceSession,
   MeasurementData,
@@ -248,7 +250,7 @@ export default function AnnotationToolbar({
     null
   );
 
-  const isAnteriorView = isAnteriorExamType(examType);
+  const isAnteriorView = isApProjectionExamType(examType);
   const isLateralView = isLateralExamType(examType);
   const canUseMeasurementDeriveMode = isAnteriorView || isLateralView;
   const availableBasicModes = useMemo(

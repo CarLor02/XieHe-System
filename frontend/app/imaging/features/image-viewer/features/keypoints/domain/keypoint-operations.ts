@@ -1,9 +1,9 @@
 import { AP_VERTEBRA_GROUPS } from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/ap';
 import { LATERAL_CENTER_VERTEBRA_GROUPS } from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
 import {
-  isAnteriorExamType,
+  isApProjectionExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/exam-type';
+} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import {
   type KeypointAnnotation,
   sortKeypoints,
@@ -127,7 +127,7 @@ export function getCompleteSelectableVertebraGroups(
   if (isLateralExamType(examType)) {
     return getCompleteGroups(keypoints, LATERAL_CENTER_VERTEBRA_GROUPS);
   }
-  if (isAnteriorExamType(examType)) {
+  if (isApProjectionExamType(examType)) {
     return getCompleteApVertebraGroups(keypoints);
   }
   return [];

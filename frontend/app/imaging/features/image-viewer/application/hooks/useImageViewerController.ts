@@ -21,10 +21,10 @@ import { useReportActions } from '@/app/imaging/features/image-viewer/features/r
 import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import { useAnnotationHistory } from '@/app/imaging/features/image-viewer/application/hooks/useAnnotationHistory';
 import {
-  isAnteriorExamType,
+  isApProjectionExamType,
   isKeypointSupportedExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   useMeasurementKeypointWorkflow,
@@ -228,7 +228,7 @@ export function useImageViewerController({
     [imageData.examType]
   );
   const canUseKeypoints = canUseKeypointTools();
-  const isAnteriorView = isAnteriorExamType(imageData.examType);
+  const isAnteriorView = isApProjectionExamType(imageData.examType);
   const isLateralView = isLateralExamType(imageData.examType);
   const isKeypointExam = isKeypointSupportedExamType(imageData.examType);
 

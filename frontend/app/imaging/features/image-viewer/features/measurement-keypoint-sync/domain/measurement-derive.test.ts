@@ -32,3 +32,19 @@ it('uses C3-C6 in lateral Cobb derivation endpoint order', () => {
     )
   ).toEqual(['C3', 'C6', 'C7']);
 });
+
+it.each(['左侧曲位', '右侧曲位'])(
+  'uses AP vertebrae as complete Cobb endpoints for %s',
+  examType => {
+    expect(
+      getCompleteMeasurementDeriveEndpointGroups(
+        [
+          ...completeKeypoints('C7'),
+          ...completeKeypoints('T1'),
+          ...completeKeypoints('L5'),
+        ],
+        examType
+      )
+    ).toEqual(['C7', 'T1', 'L5']);
+  }
+);

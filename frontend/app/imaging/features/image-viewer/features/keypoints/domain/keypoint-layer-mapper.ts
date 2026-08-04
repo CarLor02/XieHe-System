@@ -12,8 +12,10 @@ import {
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
 import {
   isAnteriorExamType,
+  isApProjectionExamType,
+  isBendingExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/exam-type';
+} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import {
   type KeypointAnnotation,
   type KeypointSource,
@@ -165,8 +167,13 @@ export function vertebraeLayerToKeypoints(
   if (isLateralExamType(examType)) {
     return vertebraeLayerToLateralKeypoints(vertebraeLayer, cfhAnnotation);
   }
-  if (isAnteriorExamType(examType)) {
-    return vertebraeLayerToAnteriorKeypoints(vertebraeLayer);
+  if (isApProjectionExamType(examType)) {
+    const keypoints = vertebraeLayerToAnteriorKeypoints(vertebraeLayer);
+    return isBendingExamType(examType)
+      ? keypoints.filter(
+          keypoint => parseApVertebraKeypointId(keypoint.id) !== null
+        )
+      : keypoints;
   }
   return [];
 }
@@ -213,9 +220,13 @@ export function keypointsToRenderLayer(
   examType: string,
   hiddenKeypointIds: Set<string> = new Set()
 ): VertebraAnnotation[] {
-  const visibleKeypoints = keypoints.filter(
-    keypoint => !hiddenKeypointIds.has(keypoint.id)
-  );
+  const visibleKeypoints = keypoints.filter(keypoint => {
+    if (hiddenKeypointIds.has(keypoint.id)) return false;
+    return (
+      !isBendingExamType(examType) ||
+      parseApVertebraKeypointId(keypoint.id) !== null
+    );
+  });
   const byId = new Map(
     visibleKeypoints.map(keypoint => [keypoint.id, keypoint])
   );
@@ -241,7 +252,7 @@ export function keypointsToRenderLayer(
         source: groupSource([s1p1, s1p2]),
       });
     }
-  } else if (isAnteriorExamType(examType)) {
+  } else if (isApProjectionExamType(examType)) {
     layer.push(...completeVertebraLayers(AP_VERTEBRA_GROUPS, byId, consumed));
   }
 
@@ -282,13 +293,21 @@ export function keypointsToDerivedLayer(
     return keypointsToRenderLayer(keypoints, examType);
   }
 
-  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
+  if (!isApProjectionExamType(examType)) return [];
+
+  const apKeypoints = isBendingExamType(examType)
+    ? keypoints.filter(
+        keypoint => parseApVertebraKeypointId(keypoint.id) !== null
+      )
+    : keypoints;
+
+  const byId = new Map(apKeypoints.map(keypoint => [keypoint.id, keypoint]));
   const consumed = new Set<string>();
   const layer = completeVertebraLayers(AP_VERTEBRA_GROUPS, byId, consumed);
 
-  keypoints.forEach(keypoint => {
+  apKeypoints.forEach(keypoint => {
     if (consumed.has(keypoint.id)) return;
-    if (AP_POSE_KEYPOINT_SET.has(keypoint.id)) {
+    if (isAnteriorExamType(examType) && AP_POSE_KEYPOINT_SET.has(keypoint.id)) {
       layer.push(
         pointLayer(
           keypoint.id,

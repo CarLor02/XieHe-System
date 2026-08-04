@@ -872,6 +872,31 @@ it('derives T1 Tilt from its two-point minimum dependency', () => {
   );
 });
 
+it.each(['左侧曲位', '右侧曲位'])(
+  'does not auto-derive AP fixed measurements for %s',
+  examType => {
+    const measurements = deriveKeypointMeasurements({
+      keypoints: [
+        apCorner('T1-1', 100, 100),
+        apCorner('T1-2', 200, 110),
+        apCorner('T1-3', 100, 140),
+        apCorner('T1-4', 200, 150),
+        apCorner('T2-1', 110, 180),
+        apCorner('T2-2', 210, 190),
+        apCorner('T2-3', 110, 220),
+        apCorner('T2-4', 210, 230),
+        apCorner('CL', 100, 80),
+        apCorner('CR', 240, 120),
+      ],
+      cfhAnnotation: null,
+      examType,
+      calculationContext,
+    });
+
+    expect(measurements).toEqual([]);
+  }
+);
+
 it('derives PO and CSS with stable domain types from their minimum points', () => {
   const measurements = deriveKeypointMeasurements({
     keypoints: [

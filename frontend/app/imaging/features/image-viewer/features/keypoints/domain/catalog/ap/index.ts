@@ -71,15 +71,19 @@ export const AP_KEYPOINT_CONFIG_BY_ID = new Map(
   AP_KEYPOINT_CONFIGS.map(config => [config.id, config])
 );
 
+export function getApVertebraKeypointGroups(): ApKeypointGroup[] {
+  return AP_VERTEBRA_GROUPS.map(group => ({
+    id: group,
+    name: group,
+    keypoints: AP_VERTEBRA_KEYPOINTS.filter(
+      keypoint => keypoint.group === group
+    ),
+  }));
+}
+
 export function getApKeypointGroups(): ApKeypointGroup[] {
   return [
-    ...AP_VERTEBRA_GROUPS.map(group => ({
-      id: group,
-      name: group,
-      keypoints: AP_VERTEBRA_KEYPOINTS.filter(
-        keypoint => keypoint.group === group
-      ),
-    })),
+    ...getApVertebraKeypointGroups(),
     {
       id: 'pose',
       name: '姿态点',

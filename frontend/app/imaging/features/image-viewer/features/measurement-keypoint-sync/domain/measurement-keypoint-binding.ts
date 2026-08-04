@@ -1,9 +1,12 @@
 import {
-  isAnteriorExamType,
-  isLateralExamType,
   type KeypointAnnotation,
   upsertKeypoint,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import {
+  isAnteriorExamType,
+  isBendingExamType,
+  isLateralExamType,
+} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   AnnotationSource,
@@ -61,6 +64,9 @@ export function getMeasurementKeypointBindingRuleForMeasurement(
 export function getAutoDeriveMeasurementKeypointBindingRules(
   examType: string
 ): MeasurementKeypointBindingRule[] {
+  // 曲位只允许显式创建 Cobb，不能因复用 AP 角点而派生 T1 Tilt、CA 等正位测量。
+  if (isBendingExamType(examType)) return [];
+
   const examView = isLateralExamType(examType)
     ? 'lateral'
     : isAnteriorExamType(examType)

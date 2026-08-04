@@ -21,9 +21,12 @@ import {
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
+  isApVertebraGroup,
   KeypointAnnotation,
+  parseApVertebraKeypointId,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { isBendingExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import { detectLateralVertebrae } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
 import { createLogger } from '@/lib/logger';
 
@@ -38,6 +41,20 @@ const S1_RELATED_TYPES = new Set([
   'tpa',
   'sva',
 ]);
+
+function isCobbAiMeasurementType(type: string): boolean {
+  return /^cobb(?:-auto)?\d*$/i.test(getAnnotationTypeId(type));
+}
+
+function filterBendingVertebraeLayer(
+  vertebraeLayer: VertebraAnnotation[]
+): VertebraAnnotation[] {
+  return vertebraeLayer.filter(
+    annotation =>
+      isApVertebraGroup(annotation.label) ||
+      parseApVertebraKeypointId(annotation.label) !== null
+  );
+}
 
 export async function runLateralDetectionCache({
   imageId,
@@ -111,6 +128,7 @@ export async function runAiMeasurementWorkflow({
 
   try {
     const aiData = await getAiMeasurementsResponse(imageId, imageData.examType);
+    const isBendingView = isBendingExamType(imageData.examType);
 
     if (aiData.measurements && Array.isArray(aiData.measurements)) {
       const aiImageWidth = aiData.imageWidth || aiData.image_width;
@@ -148,6 +166,9 @@ export async function runAiMeasurementWorkflow({
       const aiMeasurements = filterUniqueAnnotationDuplicates(
         aiData.measurements
           .filter((measurement: any) => {
+            if (isBendingView && !isCobbAiMeasurementType(measurement.type)) {
+              return false;
+            }
             const incomingTypeId = getAnnotationTypeId(measurement.type);
             const tool =
               getAnnotationConfig(measurement.type) ??
@@ -247,21 +268,24 @@ export async function runAiMeasurementWorkflow({
       setTimeout(() => setSaveMessage(''), 3000);
 
       if (Array.isArray(aiData.vertebrae) && aiData.vertebrae.length > 0) {
-        setVertebraeLayer(aiData.vertebrae);
+        const vertebraeLayer = isBendingView
+          ? filterBendingVertebraeLayer(aiData.vertebrae)
+          : aiData.vertebrae;
+        setVertebraeLayer(vertebraeLayer);
         setKeypoints(
           vertebraeLayerToKeypoints(
-            aiData.vertebrae,
+            vertebraeLayer,
             imageData.examType,
-            aiData.cfh ?? null
+            isBendingView ? null : (aiData.cfh ?? null)
           )
         );
-        setShowVertebraeLayer(true);
+        setShowVertebraeLayer(vertebraeLayer.length > 0);
       } else {
         setVertebraeLayer([]);
         setKeypoints([]);
         setShowVertebraeLayer(false);
       }
-      setCfhAnnotation(aiData.cfh ?? null);
+      setCfhAnnotation(isBendingView ? null : (aiData.cfh ?? null));
       setIsAIDetecting(false);
     } else {
       setSaveMessage('AI测量完成，但未返回有效数据');

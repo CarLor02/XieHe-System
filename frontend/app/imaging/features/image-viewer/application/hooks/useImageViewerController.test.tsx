@@ -187,8 +187,8 @@ jest.mock('@/app/imaging/features/image-viewer/features/report', () => ({
   }),
 }));
 
-jest.mock('@/app/imaging/features/image-viewer/features/keypoints', () => ({
-  isAnteriorExamType: () => true,
+jest.mock('@/app/imaging/features/image-viewer/shared/domain/exam-type', () => ({
+  isApProjectionExamType: () => true,
   isKeypointSupportedExamType: () => true,
   isLateralExamType: () => false,
 }));

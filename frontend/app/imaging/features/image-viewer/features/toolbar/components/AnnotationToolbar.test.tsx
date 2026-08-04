@@ -497,6 +497,22 @@ it('shows only Cobb without auxiliary shapes in anterior measurement derive mode
   expect(screen.queryByRole('button', { name: /Arrow/ })).toBeNull();
 });
 
+it.each(['左侧曲位', '右侧曲位'])(
+  'uses the AP Cobb workflow without pose keypoints for %s',
+  examType => {
+    renderToolbar({ examType, tools: [tools[0]] });
+
+    expect(screen.getByRole('button', { name: '测量项派生' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Cobb/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Arrow/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+
+    expect(screen.getByRole('button', { name: /^C7 0$/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^姿态点/ })).toBeNull();
+  }
+);
+
 it('shows only Cobb without auxiliary shapes in lateral measurement derive mode', () => {
   renderToolbar({
     examType: '侧位X光片',

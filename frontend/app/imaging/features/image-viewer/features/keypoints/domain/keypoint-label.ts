@@ -2,6 +2,7 @@ import {
   AP_POSE_KEYPOINTS,
   AP_VERTEBRA_GROUPS,
   getApKeypointGroups,
+  getApVertebraKeypointGroups,
   parseApVertebraKeypointId,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/ap';
 import {
@@ -14,8 +15,9 @@ import {
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
 import {
   isAnteriorExamType,
+  isBendingExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/exam-type';
+} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 
 export interface KeypointGroup {
   id: string;
@@ -38,6 +40,7 @@ export function getKeypointGroupsForExamType(
   examType: string
 ): KeypointGroup[] {
   if (isAnteriorExamType(examType)) return getApKeypointGroups();
+  if (isBendingExamType(examType)) return getApVertebraKeypointGroups();
   if (isLateralExamType(examType)) return getLateralKeypointGroups();
   return [];
 }

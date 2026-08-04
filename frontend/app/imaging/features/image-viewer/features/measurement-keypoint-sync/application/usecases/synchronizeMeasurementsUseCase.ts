@@ -10,6 +10,7 @@ import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { isBendingExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import type {
   CfhAnnotation,
   MeasurementData,
@@ -114,20 +115,18 @@ export function deriveKeypointMeasurements({
   calculationContext: CalculationContext;
 }): MeasurementData[] {
   const derivedLayer = keypointsToDerivedLayer(keypoints, examType);
-  const autoCobbMeasurements = deriveAllMeasurements(
-    derivedLayer,
-    cfhAnnotation,
-    examType
-  )
-    .filter(isCobbMeasurement)
-    .map(measurement => ({
-      ...measurement,
-      value: calculateMeasurementValue(
-        measurement.type,
-        measurement.points,
-        calculationContext
-      ),
-    }));
+  const autoCobbMeasurements = isBendingExamType(examType)
+    ? []
+    : deriveAllMeasurements(derivedLayer, cfhAnnotation, examType)
+        .filter(isCobbMeasurement)
+        .map(measurement => ({
+          ...measurement,
+          value: calculateMeasurementValue(
+            measurement.type,
+            measurement.points,
+            calculationContext
+          ),
+        }));
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
   const fixedMeasurements = getAutoDeriveMeasurementKeypointBindingRules(
     examType

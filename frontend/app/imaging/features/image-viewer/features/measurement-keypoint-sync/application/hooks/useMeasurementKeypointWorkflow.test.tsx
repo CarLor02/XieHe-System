@@ -187,72 +187,79 @@ it('keeps CFH and PI/PT synchronized after dragging the bound measurement point'
   });
 });
 
-it('automatically binds completed Cobb endpoints without opening the detection layer', async () => {
-  let latest: WorkflowHarnessValue | null = null;
-  const measurement: MeasurementData = {
-    id: 'manual-cobb-1',
-    type: 'cobb1',
-    value: '12.00°',
-    points: [
-      { x: 100, y: 100 },
-      { x: 200, y: 110 },
-      { x: 120, y: 300 },
-      { x: 220, y: 280 },
-    ],
-    upperVertebra: 'T5',
-    lowerVertebra: null,
-  };
+it.each(['正位X光片', '左侧曲位', '右侧曲位'])(
+  'automatically binds completed Cobb endpoints without opening the detection layer for %s',
+  async examType => {
+    let latest: WorkflowHarnessValue | null = null;
+    const measurement: MeasurementData = {
+      id: 'manual-cobb-1',
+      type: 'cobb1',
+      value: '12.00°',
+      points: [
+        { x: 100, y: 100 },
+        { x: 200, y: 110 },
+        { x: 120, y: 300 },
+        { x: 220, y: 280 },
+      ],
+      upperVertebra: 'T5',
+      lowerVertebra: null,
+    };
 
-  render(
-    <WorkflowHarness
-      onValue={value => {
-        latest = value;
-      }}
-    />
-  );
-
-  await waitFor(() => {
-    expect(latest).not.toBeNull();
-  });
-
-  act(() => {
-    latest!.setMeasurements([measurement]);
-  });
-
-  await waitFor(() => {
-    expect(latest!.measurements).toHaveLength(1);
-  });
-
-  act(() => {
-    expect(
-      latest!.workflow.handleCobbEndpointUpdate('manual-cobb-1', {
-        lowerVertebra: 'T12',
-      })
-    ).toBe(true);
-  });
-
-  await waitFor(() => {
-    expect(latest!.workflow.showVertebraeLayer).toBe(false);
-    expect(
-      Object.fromEntries(
-        latest!.workflow.keypoints.map(keypoint => [keypoint.id, keypoint.point])
-      )
-    ).toEqual({
-      'T5-1': measurement.points[0],
-      'T5-2': measurement.points[1],
-      'T12-3': measurement.points[2],
-      'T12-4': measurement.points[3],
-    });
-    expect(latest!.measurements[0]).toEqual(
-      expect.objectContaining({
-        id: 'manual-cobb-1',
-        upperVertebra: 'T5',
-        lowerVertebra: 'T12',
-        keypointSynced: true,
-      })
+    render(
+      <WorkflowHarness
+        examType={examType}
+        onValue={value => {
+          latest = value;
+        }}
+      />
     );
-  });
-});
+
+    await waitFor(() => {
+      expect(latest).not.toBeNull();
+    });
+
+    act(() => {
+      latest!.setMeasurements([measurement]);
+    });
+
+    await waitFor(() => {
+      expect(latest!.measurements).toHaveLength(1);
+    });
+
+    act(() => {
+      expect(
+        latest!.workflow.handleCobbEndpointUpdate('manual-cobb-1', {
+          lowerVertebra: 'T12',
+        })
+      ).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(latest!.workflow.showVertebraeLayer).toBe(false);
+      expect(
+        Object.fromEntries(
+          latest!.workflow.keypoints.map(keypoint => [
+            keypoint.id,
+            keypoint.point,
+          ])
+        )
+      ).toEqual({
+        'T5-1': measurement.points[0],
+        'T5-2': measurement.points[1],
+        'T12-3': measurement.points[2],
+        'T12-4': measurement.points[3],
+      });
+      expect(latest!.measurements[0]).toEqual(
+        expect.objectContaining({
+          id: 'manual-cobb-1',
+          upperVertebra: 'T5',
+          lowerVertebra: 'T12',
+          keypointSynced: true,
+        })
+      );
+    });
+  }
+);
 
 it('keeps a manually drawn CA and CL/CR keypoints synchronized both ways', async () => {
   let latest: WorkflowHarnessValue | null = null;
