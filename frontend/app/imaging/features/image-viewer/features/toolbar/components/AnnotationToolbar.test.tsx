@@ -224,6 +224,18 @@ it('uses compact labels, smaller status badges, and directional auxiliary line i
   );
 });
 
+it('keeps the measurement point count badge aligned with the status badge size', () => {
+  renderToolbar();
+
+  const cobbButton = screen.getByRole('button', { name: /Cobb/ });
+  const pointCountBadge = cobbButton.querySelector('.bg-gray-600');
+
+  expect(pointCountBadge?.textContent).toBe('4');
+  expect(pointCountBadge?.className).toContain('w-3');
+  expect(pointCountBadge?.className).toContain('h-3');
+  expect(pointCountBadge?.className).toContain('text-[8px]');
+});
+
 it('selects a measurement tool when it is not already active', () => {
   const onSelectTool = jest.fn();
   const onActivateHandMode = jest.fn();

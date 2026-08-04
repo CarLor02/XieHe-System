@@ -916,7 +916,7 @@ export default function AnnotationToolbar({
                             {!isSelectionTool &&
                               tool.pointsNeeded != null &&
                               tool.pointsNeeded > 0 && (
-                                <div className="absolute -bottom-1 -left-1 bg-gray-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                                <div className="absolute -bottom-1 -left-1 bg-gray-600 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center leading-none">
                                   {tool.pointsNeeded}
                                 </div>
                               )}
