@@ -217,7 +217,7 @@ export default function MeasurementResultsPanel({
             nextLower.toUpperCase()
           );
         if (namedLateralCobbRule) {
-          setPanelOverlayMessage(`${namedLateralCobbRule.name}已存在!`);
+          setPanelOverlayMessage('请使用专用工具创建此测量项!');
           setEditingCobbEndpoint(null);
           return;
         }

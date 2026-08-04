@@ -489,7 +489,7 @@ it('blocks editing lateral Cobb endpoints when they match a named lateral Cobb m
   const listbox = screen.getByRole('listbox', { name: '选择下端椎' });
   fireEvent.click(within(listbox).getByRole('option', { name: 'T5' }));
 
-  expect(screen.getByText('TK T2-T5已存在!')).toBeTruthy();
+  expect(screen.getByText('请使用专用工具创建此测量项!')).toBeTruthy();
   expect(screen.getByRole('button', { name: '知道了' })).toBeTruthy();
   expect(onMeasurementUpdate).not.toHaveBeenCalled();
 });

@@ -561,7 +561,7 @@ export default function AnnotationToolbar({
         )
       : null;
     if (namedLateralCobbRule) {
-      setToolbarOverlayMessage(`${namedLateralCobbRule.name}已存在!`);
+      setToolbarOverlayMessage('请使用专用工具创建此测量项!');
       return;
     }
 

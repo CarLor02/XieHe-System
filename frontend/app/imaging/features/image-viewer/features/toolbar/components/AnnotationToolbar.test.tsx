@@ -641,7 +641,7 @@ it('blocks lateral Cobb derivation when the selected endpoints match a named lat
   fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
   fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
 
-  expect(screen.getByText('TK T2-T5已存在!')).toBeTruthy();
+  expect(screen.getByText('请使用专用工具创建此测量项!')).toBeTruthy();
   expect(screen.getByRole('button', { name: '知道了' })).toBeTruthy();
   expect(onCreateCobb).not.toHaveBeenCalled();
 });
@@ -659,7 +659,7 @@ it('blocks C2-C7 lateral Cobb derivation because it matches C2-C7 CL', () => {
   fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
   fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
 
-  expect(screen.getByText('C2-C7 CL已存在!')).toBeTruthy();
+  expect(screen.getByText('请使用专用工具创建此测量项!')).toBeTruthy();
   expect(onCreateCobb).not.toHaveBeenCalled();
 });
 
