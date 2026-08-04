@@ -10,7 +10,7 @@ import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 export const AUX_HORIZONTAL_LINE_CONFIG: AnnotationConfig = {
   id: 'aux-horizontal-line',
   name: '辅助水平线',
-  icon: 'ri-minus-line',
+  icon: 'lucide-move-horizontal',
   description: '辅助水平线段长度测量',
   pointsNeeded: 2,
   category: 'auxiliary',

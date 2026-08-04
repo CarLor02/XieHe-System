@@ -57,6 +57,15 @@ import {
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
+function getToolLabelClassName(label: string): string {
+  const fontSize = Array.from(label).length >= 5 ? 'text-[10px]' : 'text-xs';
+  return `${fontSize} text-center whitespace-nowrap max-w-full`;
+}
+
+function getAuxiliaryToolDisplayName(name: string): string {
+  return name.replace('Auxiliary ', '').replace('Polygons', '多边形');
+}
+
 const VERTEBRA_CORNER_SEQUENCE_NUMBERS = [1, 2, 3, 4] as const;
 const DERIVE_COBB_TOOL: Tool = {
   id: 'cobb',
@@ -401,12 +410,12 @@ export default function AnnotationToolbar({
 
   const renderAvailabilityBadge = (isAvailable: boolean) => (
     <div
-      className={`absolute -bottom-1 -right-1 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center ${
+      className={`absolute -bottom-1 -right-1 text-white rounded-full w-3 h-3 flex items-center justify-center ${
         isAvailable ? 'bg-emerald-500' : 'bg-gray-600'
       }`}
     >
       <i
-        className={`${isAvailable ? 'ri-check-line' : 'ri-subtract-line'} text-[10px]`}
+        className={`${isAvailable ? 'ri-check-line' : 'ri-subtract-line'} text-[8px] leading-none`}
       ></i>
     </div>
   );
@@ -896,7 +905,7 @@ export default function AnnotationToolbar({
                                 }}
                               />
                               <span
-                                className="text-xs text-center"
+                                className={getToolLabelClassName(tool.name)}
                                 style={{ lineHeight: '1' }}
                               >
                                 {tool.name}
@@ -1150,58 +1159,61 @@ export default function AnnotationToolbar({
                       <span className="leading-none">辅助图形</span>
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {auxiliaryTools.map(tool => (
-                        <button
-                          key={tool.id}
-                          onClick={() => {
-                            handleManualToolSelect(tool.id);
-                          }}
-                          className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
-                            selectedTool === tool.id
-                              ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
-                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                          }`}
-                          title={`${tool.description} (拖拽绘制)`}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <div
-                            className="flex flex-col text-center"
+                      {auxiliaryTools.map(tool => {
+                        const displayName = getAuxiliaryToolDisplayName(
+                          tool.name
+                        );
+                        return (
+                          <button
+                            key={tool.id}
+                            onClick={() => {
+                              handleManualToolSelect(tool.id);
+                            }}
+                            className={`rounded-lg min-w-[60px] h-12 transition-all relative flex flex-col ${
+                              selectedTool === tool.id
+                                ? 'bg-blue-600 text-white ring-2 ring-blue-400 shadow-lg'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                            title={`${tool.description} (拖拽绘制)`}
                             style={{
-                              transform: 'translateY(0)',
+                              display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              height: '100%',
-                              display: 'flex',
                             }}
                           >
-                            <IconMapper
-                              iconId={tool.icon}
-                              className="text-lg mb-1"
+                            <div
+                              className="flex flex-col text-center"
                               style={{
-                                lineHeight: '1',
-                                width: '1.25rem',
-                                height: '1.25rem',
+                                transform: 'translateY(0)',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                height: '100%',
+                                display: 'flex',
                               }}
-                            />
-                            <span
-                              className="text-xs text-center"
-                              style={{ lineHeight: '1' }}
                             >
-                              {tool.name
-                                .replace('Auxiliary ', '')
-                                .replace('Polygons', '多边形')}
-                            </span>
-                          </div>
-                          {renderAvailabilityBadge(true)}
-                          {selectedTool === tool.id && (
-                            <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
-                          )}
-                        </button>
-                      ))}
+                              <IconMapper
+                                iconId={tool.icon}
+                                className="text-lg mb-1"
+                                style={{
+                                  lineHeight: '1',
+                                  width: '1.25rem',
+                                  height: '1.25rem',
+                                }}
+                              />
+                              <span
+                                className={getToolLabelClassName(displayName)}
+                                style={{ lineHeight: '1' }}
+                              >
+                                {displayName}
+                              </span>
+                            </div>
+                            {renderAvailabilityBadge(true)}
+                            {selectedTool === tool.id && (
+                              <i className="ri-check-line w-3 h-3 flex items-center justify-center text-blue-200 absolute -top-1 -left-1 bg-blue-500 rounded-full"></i>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

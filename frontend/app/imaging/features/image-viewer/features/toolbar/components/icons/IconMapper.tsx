@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { MoveHorizontal, MoveVertical } from 'lucide-react';
 import * as MedicalIcons from '@/app/imaging/features/image-viewer/features/toolbar/components/icons/MedicalIcons';
 
 interface IconMapperProps {
@@ -31,6 +32,8 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?:
   'medical-aux-length': MedicalIcons.IconAuxLength,
   'medical-aux-angle-3': MedicalIcons.IconAuxAngle3,
   'medical-aux-angle-4': MedicalIcons.IconAuxAngle4,
+  'lucide-move-horizontal': MoveHorizontal,
+  'lucide-move-vertical': MoveVertical,
 };
 
 /**
@@ -38,12 +41,9 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?:
  * 支持自定义医学图标和RemixIcon后备
  */
 export const IconMapper: React.FC<IconMapperProps> = ({ iconId, className = '', style }) => {
-  // 如果是医学图标
-  if (iconId.startsWith('medical-')) {
-    const IconComponent = ICON_MAP[iconId];
-    if (IconComponent) {
-      return <IconComponent className={className} style={style} />;
-    }
+  const IconComponent = ICON_MAP[iconId];
+  if (IconComponent) {
+    return <IconComponent className={className} style={style} />;
   }
 
   // 后备使用RemixIcon

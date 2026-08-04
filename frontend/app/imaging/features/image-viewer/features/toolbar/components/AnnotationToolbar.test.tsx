@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react';
 
 import AnnotationToolbar from './AnnotationToolbar';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { getAuxiliaryTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
 import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
   KeypointSequenceSession,
@@ -192,6 +193,35 @@ it('renders anterior basic modes and keeps the default manual annotation content
   expect(screen.getByText('测量标注')).toBeTruthy();
   expect(screen.getByText('辅助图形')).toBeTruthy();
   expect(screen.getByRole('button', { name: /Arrow/ })).toBeTruthy();
+});
+
+it('uses compact labels, smaller status badges, and directional auxiliary line icons', () => {
+  renderToolbar({ tools: getAuxiliaryTools() });
+
+  const horizontalButton = screen.getByRole('button', {
+    name: /辅助水平线/,
+  });
+  const verticalButton = screen.getByRole('button', {
+    name: /辅助垂直线/,
+  });
+  const horizontalLabel = screen.getByText('辅助水平线');
+  const shortLabel = screen.getByText('Box');
+  const availabilityBadge = horizontalButton.querySelector('.bg-emerald-500');
+
+  expect(horizontalLabel.className).toContain('text-[10px]');
+  expect(horizontalLabel.className).toContain('whitespace-nowrap');
+  expect(shortLabel.className).toContain('text-xs');
+  expect(
+    horizontalButton.querySelector('.lucide-move-horizontal')
+  ).not.toBeNull();
+  expect(
+    verticalButton.querySelector('.lucide-move-vertical')
+  ).not.toBeNull();
+  expect(availabilityBadge?.className).toContain('w-3');
+  expect(availabilityBadge?.className).toContain('h-3');
+  expect(availabilityBadge?.querySelector('i')?.className).toContain(
+    'text-[8px]'
+  );
 });
 
 it('selects a measurement tool when it is not already active', () => {

@@ -10,7 +10,7 @@ import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 export const AUX_VERTICAL_LINE_CONFIG: AnnotationConfig = {
   id: 'aux-vertical-line',
   name: '辅助垂直线',
-  icon: 'ri-sep-line',
+  icon: 'lucide-move-vertical',
   description: '辅助垂直线段长度测量',
   pointsNeeded: 2,
   category: 'auxiliary',
