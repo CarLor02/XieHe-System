@@ -63,7 +63,6 @@ function WorkflowHarness({
   examType?: string;
 }) {
   const [measurements, setMeasurements] = useState<MeasurementData[]>([]);
-  const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
   const [standardDistance] = useState<number | null>(null);
   const [standardDistancePoints] = useState<Point[]>([]);
   const isLateralView = examType === '侧位X光片';
@@ -86,16 +85,10 @@ function WorkflowHarness({
     tools: [],
     measurements,
     setMeasurements,
-    selectedTool: 'hand',
-    clickedPoints,
-    setClickedPoints,
     standardDistance,
     standardDistancePoints,
     imageNaturalSize: { width: 1000, height: 1000 },
-    calculationContext,
-    setSaveMessage: jest.fn(),
     canUseKeypoints: true,
-    isAnteriorView: !isLateralView,
     isLateralView,
     isKeypointExam: true,
     keypoints: workflow.keypoints,
@@ -104,8 +97,7 @@ function WorkflowHarness({
     setVertebraeLayer: workflow.setVertebraeLayer,
     cfhAnnotation: workflow.cfhAnnotation,
     setCfhAnnotation: workflow.setCfhAnnotation,
-    syncUniqueKeypointMeasurements: workflow.syncUniqueMeasurements,
-    deriveKeypointMeasurements: workflow.deriveKeypointMeasurements,
+    recalculateKeypointMeasurements: workflow.recalculateExistingMeasurements,
   });
 
   useEffect(() => {
@@ -115,7 +107,7 @@ function WorkflowHarness({
   return null;
 }
 
-it('keeps CFH and PI/PT synchronized after dragging the bound measurement point', async () => {
+it('keeps CFH synchronized without automatically creating PT after drawing PI', async () => {
   let latest: WorkflowHarnessValue | null = null;
 
   render(
@@ -176,7 +168,7 @@ it('keeps CFH and PI/PT synchronized after dragging the bound measurement point'
       synchronizedPelvicMeasurements.map(measurement =>
         measurement.type.toLowerCase()
       )
-    ).toEqual(expect.arrayContaining(['pi', 'pt']));
+    ).toEqual(['pi']);
     expect(
       synchronizedPelvicMeasurements.every(
         measurement =>
@@ -184,6 +176,62 @@ it('keeps CFH and PI/PT synchronized after dragging the bound measurement point'
           measurement.points[0].y === movedPoint.y
       )
     ).toBe(true);
+  });
+});
+
+it('deletes PI and PT together while preserving S1 points used by SS', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      examType="侧位X光片"
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+  await waitFor(() => expect(latest).not.toBeNull());
+
+  act(() => {
+    latest!.workflow.setKeypoints([
+      apKeypoint('CFH', 150, 80),
+      apKeypoint('S1-1', 100, 220),
+      apKeypoint('S1-2', 220, 210),
+    ]);
+    latest!.setMeasurements([
+      {
+        id: 'pi',
+        type: 'pi',
+        value: '1°',
+        points: [],
+        keypointSynced: true,
+      },
+      {
+        id: 'pt',
+        type: 'pt',
+        value: '1°',
+        points: [],
+        keypointSynced: true,
+      },
+      {
+        id: 'ss',
+        type: 'ss',
+        value: '1°',
+        points: [],
+        keypointSynced: true,
+      },
+    ]);
+  });
+
+  await waitFor(() => expect(latest!.measurements).toHaveLength(3));
+  act(() => latest!.workflow.handleMeasurementDelete('pi'));
+
+  await waitFor(() => {
+    expect(latest!.measurements.map(item => item.type)).toEqual(['ss']);
+    expect(latest!.workflow.keypoints.map(item => item.id)).toEqual([
+      'S1-1',
+      'S1-2',
+    ]);
   });
 });
 
@@ -579,13 +627,14 @@ it('does not rebuild deleted AP Cobb measurements when hiding the detection laye
     expect(latest!.workflow.showVertebraeLayer).toBe(true);
   });
 
-  act(() => {
-    latest!.measurements
-      .filter(isNumberedCobb)
-      .forEach(measurement =>
-        latest!.measurementWorkflow.handleMeasurementDelete(measurement.id)
-      );
-  });
+  for (const measurement of latest!.measurements.filter(isNumberedCobb)) {
+    act(() => latest!.workflow.handleMeasurementDelete(measurement.id));
+    await waitFor(() =>
+      expect(latest!.measurements.some(item => item.id === measurement.id)).toBe(
+        false
+      )
+    );
+  }
 
   await waitFor(() => {
     expect(latest!.measurements.some(isNumberedCobb)).toBe(false);
@@ -628,13 +677,14 @@ it('does not rebuild deleted AP Cobb measurements when keypoints are updated', a
     expect(latest!.measurements.some(isNumberedCobb)).toBe(true);
   });
 
-  act(() => {
-    latest!.measurements
-      .filter(isNumberedCobb)
-      .forEach(measurement =>
-        latest!.measurementWorkflow.handleMeasurementDelete(measurement.id)
-      );
-  });
+  for (const measurement of latest!.measurements.filter(isNumberedCobb)) {
+    act(() => latest!.workflow.handleMeasurementDelete(measurement.id));
+    await waitFor(() =>
+      expect(latest!.measurements.some(item => item.id === measurement.id)).toBe(
+        false
+      )
+    );
+  }
 
   await waitFor(() => {
     expect(latest!.measurements.some(isNumberedCobb)).toBe(false);

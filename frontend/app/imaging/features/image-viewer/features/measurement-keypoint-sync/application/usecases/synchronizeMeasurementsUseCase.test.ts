@@ -9,7 +9,6 @@ import {
   hasAvtMeasurementForApex,
   hasCobbMeasurementForEndpoints,
   recalculateExistingMeasurementsFromKeypoints,
-  syncUniqueMeasurementsAfterKeypointChange,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import {
   AnnotationSource,
@@ -170,8 +169,8 @@ it('recalculates a manual CA from CL and CR without relying on its id source', (
   ]);
 });
 
-it('automatically derives one L/R measurement when all four pose keypoints exist', () => {
-  const synced = syncUniqueMeasurementsAfterKeypointChange({
+it('does not derive L/R when all four pose keypoints are added manually', () => {
+  const synced = recalculateExistingMeasurementsFromKeypoints({
     previousMeasurements: [],
     keypoints: [
       apCorner('ASIS_L', 100, 100),
@@ -186,17 +185,7 @@ it('automatically derives one L/R measurement when all four pose keypoints exist
     aiMeasurementIds: new Set(),
   });
 
-  expect(synced).toEqual([
-    expect.objectContaining({
-      type: 'hemipelvic-width-ratio',
-      keypointSynced: true,
-      points: expect.arrayContaining([
-        { x: 100, y: 100 },
-        { x: 400, y: 100 },
-      ]),
-    }),
-  ]);
-  expect(synced[0].points).toHaveLength(12);
+  expect(synced).toEqual([]);
 });
 
 it('removes a keypoint-bound L/R measurement when one dependency is deleted', () => {
@@ -206,17 +195,14 @@ it('removes a keypoint-bound L/R measurement when one dependency is deleted', ()
     apCorner('SI_R', 300, 100),
     apCorner('ASIS_R', 400, 100),
   ];
-  const [derived] = syncUniqueMeasurementsAfterKeypointChange({
-    previousMeasurements: [],
+  const [derived] = deriveKeypointMeasurements({
     keypoints: completeKeypoints,
     cfhAnnotation: null,
     examType: '正位X光片',
-    isLateralView: false,
     calculationContext,
-    aiMeasurementIds: new Set(),
   });
 
-  const synced = syncUniqueMeasurementsAfterKeypointChange({
+  const synced = recalculateExistingMeasurementsFromKeypoints({
     previousMeasurements: [derived],
     keypoints: completeKeypoints.filter(item => item.id !== 'SI_R'),
     cfhAnnotation: null,
@@ -1021,8 +1007,8 @@ it('replaces first-pass AI Cobb measurements with numbered initial keypoint-deri
   expect(cobb?.lowerVertebra).toBe('L5');
 });
 
-it('syncs globally unique measurements after keypoint changes without adding Cobb', () => {
-  const synced = syncUniqueMeasurementsAfterKeypointChange({
+it('does not add globally unique measurements after keypoint changes', () => {
+  const synced = recalculateExistingMeasurementsFromKeypoints({
     previousMeasurements: [],
     keypoints: t1L5GlobalCobbKeypoints(),
     cfhAnnotation: null,
@@ -1032,18 +1018,11 @@ it('syncs globally unique measurements after keypoint changes without adding Cob
     aiMeasurementIds: new Set(),
   });
 
-  expect(synced.find(measurement => measurement.type === 'T1 Tilt')).toEqual(
-    expect.objectContaining({
-      type: 'T1 Tilt',
-    })
-  );
-  expect(synced.some(measurement => /^cobb\d*$/i.test(measurement.type))).toBe(
-    false
-  );
+  expect(synced).toEqual([]);
 });
 
 it('removes globally unique measurements when keypoint dependencies are missing', () => {
-  const synced = syncUniqueMeasurementsAfterKeypointChange({
+  const synced = recalculateExistingMeasurementsFromKeypoints({
     previousMeasurements: [
       {
         id: 'vertebrae-derived-t1-tilt',

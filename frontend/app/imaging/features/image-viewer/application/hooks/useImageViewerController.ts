@@ -21,7 +21,6 @@ import { useReportActions } from '@/app/imaging/features/image-viewer/features/r
 import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import { useAnnotationHistory } from '@/app/imaging/features/image-viewer/application/hooks/useAnnotationHistory';
 import {
-  isApProjectionExamType,
   isKeypointSupportedExamType,
   isLateralExamType,
 } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
@@ -228,7 +227,6 @@ export function useImageViewerController({
     [imageData.examType]
   );
   const canUseKeypoints = canUseKeypointTools();
-  const isAnteriorView = isApProjectionExamType(imageData.examType);
   const isLateralView = isLateralExamType(imageData.examType);
   const isKeypointExam = isKeypointSupportedExamType(imageData.examType);
 
@@ -425,16 +423,10 @@ export function useImageViewerController({
     tools,
     measurements,
     setMeasurements,
-    selectedTool,
-    clickedPoints,
-    setClickedPoints,
     standardDistance,
     standardDistancePoints,
     imageNaturalSize,
-    calculationContext,
-    setSaveMessage,
     canUseKeypoints,
-    isAnteriorView,
     isLateralView,
     isKeypointExam,
     keypoints: keypointWorkflow.keypoints,
@@ -443,8 +435,8 @@ export function useImageViewerController({
     setVertebraeLayer: keypointWorkflow.setVertebraeLayer,
     cfhAnnotation: keypointWorkflow.cfhAnnotation,
     setCfhAnnotation: keypointWorkflow.setCfhAnnotation,
-    syncUniqueKeypointMeasurements: keypointWorkflow.syncUniqueMeasurements,
-    deriveKeypointMeasurements: keypointWorkflow.deriveKeypointMeasurements,
+    recalculateKeypointMeasurements:
+      keypointWorkflow.recalculateExistingMeasurements,
   });
 
   const standardDistanceActions = useStandardDistanceActions({
@@ -734,9 +726,9 @@ export function useImageViewerController({
   const handleMeasurementDeleteWithHistory = useCallback(
     (measurementId: string) => {
       beginHistoryAction('measurement-delete');
-      measurementWorkflow.handleMeasurementDelete(measurementId);
+      keypointWorkflow.handleMeasurementDelete(measurementId);
     },
-    [beginHistoryAction, measurementWorkflow]
+    [beginHistoryAction, keypointWorkflow]
   );
 
   const handleKeypointDeleteWithHistory = useCallback(
@@ -999,14 +991,11 @@ export function useImageViewerController({
       newTag,
       showAdvicePanel,
       treatmentAdvice,
-      automaticToolStatus: measurementWorkflow.automaticToolStatus,
       keypointSequenceSession,
       keypointSequenceClosedGroupName,
       onSelectTool: handleToolbarToolSelect,
       onStartKeypointSequence: handleStartKeypointSequence,
       onCancelKeypointSequence: handleCancelKeypointSequence,
-      onRestoreAutomaticMeasurement:
-        measurementWorkflow.handleRestoreAutomaticMeasurement,
       onCreateAvt: handleSelectAvtTarget,
       onCreateVertebraCenter: keypointWorkflow.handleCreateVertebraCenter,
       onCreateCobb: handleCreateCobbWithHistory,

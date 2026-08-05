@@ -1,6 +1,5 @@
 'use client';
 
-import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
 import ImageLayer from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/layers/ImageLayer';
 import MeasurementLayer from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/layers/MeasurementLayer';
 import OverlayLayer from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/layers/OverlayLayer';
@@ -115,17 +114,11 @@ function AnnotationCanvasView({
 
           {vertebrae.visible && <VertebraeLayer {...vertebrae} />}
           <MeasurementLayer {...measurementLayer} />
-          <PreviewLayer
-            {...previewLayer}
-            getInheritedPoints={getInheritedPoints}
-          />
+          <PreviewLayer {...previewLayer} />
           <SelectionOverlayLayer {...selectionLayer} />
         </svg>
 
-        <CanvasHintPanel
-          {...hintPanel}
-          getInheritedPoints={getInheritedPoints}
-        />
+        <CanvasHintPanel {...hintPanel} />
       </div>
 
       <OverlayLayer {...overlayLayer} />

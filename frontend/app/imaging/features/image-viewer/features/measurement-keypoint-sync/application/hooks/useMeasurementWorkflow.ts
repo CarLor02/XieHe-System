@@ -2,8 +2,6 @@ import {
   Dispatch,
   SetStateAction,
   useCallback,
-  useEffect,
-  useMemo,
 } from 'react';
 import {
   CfhAnnotation,
@@ -13,28 +11,10 @@ import {
   Tool,
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import {
-  getAnnotationConfig,
-  getAnnotationTypeId,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { AP_AUTOMATIC_MEASUREMENT_TOOL_IDS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements';
-import { LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements';
-import { getInheritedPoints } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
-import { getCobbSequenceNumber } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
-import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/renumberCobbMeasurementsAfterDelete';
-import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
+import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/addMeasurementUseCase';
 import {
-  extractCfhAnnotationFromMeasurements,
-  LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES,
-  LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES,
-  measurementTypeInSet,
-  restorePiPtFromSsAndCfh,
-} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/measurementDependencyUseCase';
-import { calculateMeasurementValue as calcMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import {
   KeypointAnnotation,
-  deleteKeypoints,
   keypointsToCfhAnnotation,
   keypointsToPersistedLayer,
   vertebraeLayerToKeypoints,
@@ -45,25 +25,16 @@ import {
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
-
-type AutomaticToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
 interface UseMeasurementWorkflowOptions {
   examType: string;
   tools: Tool[];
   measurements: MeasurementData[];
   setMeasurements: Dispatch<SetStateAction<MeasurementData[]>>;
-  selectedTool: string;
-  clickedPoints: Point[];
-  setClickedPoints: (points: Point[]) => void;
   standardDistance: number | null;
   standardDistancePoints: Point[];
   imageNaturalSize: ImageSize | null;
-  calculationContext: CalculationContext;
-  setSaveMessage: (message: string) => void;
   canUseKeypoints: boolean;
-  isAnteriorView: boolean;
   isLateralView: boolean;
   isKeypointExam: boolean;
   keypoints: KeypointAnnotation[];
@@ -72,22 +43,10 @@ interface UseMeasurementWorkflowOptions {
   setVertebraeLayer: Dispatch<SetStateAction<VertebraAnnotation[]>>;
   cfhAnnotation: CfhAnnotation | null;
   setCfhAnnotation: Dispatch<SetStateAction<CfhAnnotation | null>>;
-  syncUniqueKeypointMeasurements: (
+  recalculateKeypointMeasurements: (
     previousMeasurements: MeasurementData[],
     nextKeypoints: KeypointAnnotation[]
   ) => MeasurementData[];
-  deriveKeypointMeasurements: (
-    nextKeypoints: KeypointAnnotation[]
-  ) => MeasurementData[];
-}
-
-function flashMessage(
-  setSaveMessage: (message: string) => void,
-  message: string,
-  delay = 3000
-) {
-  setSaveMessage(message);
-  setTimeout(() => setSaveMessage(''), delay);
 }
 
 export function useMeasurementWorkflow({
@@ -95,16 +54,10 @@ export function useMeasurementWorkflow({
   tools,
   measurements,
   setMeasurements,
-  selectedTool,
-  clickedPoints,
-  setClickedPoints,
   standardDistance,
   standardDistancePoints,
   imageNaturalSize,
-  calculationContext,
-  setSaveMessage,
   canUseKeypoints,
-  isAnteriorView,
   isLateralView,
   isKeypointExam,
   keypoints,
@@ -113,54 +66,8 @@ export function useMeasurementWorkflow({
   setVertebraeLayer,
   cfhAnnotation,
   setCfhAnnotation,
-  syncUniqueKeypointMeasurements,
-  deriveKeypointMeasurements,
+  recalculateKeypointMeasurements,
 }: UseMeasurementWorkflowOptions) {
-  useEffect(() => {
-    if (!selectedTool || selectedTool === 'hand' || clickedPoints.length > 0) {
-      return;
-    }
-
-    const currentTool = tools.find(tool => tool.id === selectedTool);
-    if (
-      !currentTool ||
-      !currentTool.pointsNeeded ||
-      currentTool.pointsNeeded <= 0
-    ) {
-      return;
-    }
-
-    if (
-      currentTool.id === 'sva' ||
-      currentTool.id === 'ss' ||
-      currentTool.id === 'cl' ||
-      currentTool.id === 'll-l1-s1' ||
-      currentTool.id === 'll-l1-l4' ||
-      currentTool.id === 'll-l4-s1' ||
-      currentTool.id === 'pi' ||
-      currentTool.id === 'pt' ||
-      currentTool.id === 'tpa' ||
-      currentTool.id === 'ts' ||
-      currentTool.id === 'tts'
-    ) {
-      return;
-    }
-
-    const { points: inheritedPoints } = getInheritedPoints(
-      currentTool.id,
-      measurements
-    );
-    if (inheritedPoints.length > 0) {
-      setClickedPoints(inheritedPoints);
-    }
-  }, [
-    selectedTool,
-    measurements,
-    clickedPoints.length,
-    tools,
-    setClickedPoints,
-  ]);
-
   const handleAddMeasurement = useCallback(
     (toolType: string, points: Point[]) => {
       const typeId = getAnnotationTypeId(toolType);
@@ -201,25 +108,10 @@ export function useMeasurementWorkflow({
             );
           }
           setMeasurements(previous =>
-            syncUniqueKeypointMeasurements(previous, nextKeypoints)
+            recalculateKeypointMeasurements(previous, nextKeypoints)
           );
         }
         return;
-      }
-
-      if (isLateralView && typeId === 'ss' && cfhAnnotation) {
-        setMeasurements(previous =>
-          restorePiPtFromSsAndCfh(
-            previous,
-            cfhAnnotation,
-            (nextType, nextPoints) =>
-              calcMeasurementValue(nextType, nextPoints, {
-                standardDistance,
-                standardDistancePoints,
-                imageNaturalSize,
-              })
-          )
-        );
       }
 
       if (canUseKeypoints && isLateralView && typeId !== 'ss') {
@@ -263,229 +155,10 @@ export function useMeasurementWorkflow({
       setVertebraeLayer,
       standardDistance,
       standardDistancePoints,
-      syncUniqueKeypointMeasurements,
+      recalculateKeypointMeasurements,
       tools,
     ]
   );
 
-  const handleMeasurementDelete = useCallback(
-    (measurementId: string) => {
-      const target = measurements.find(item => item.id === measurementId);
-      if (!target) {
-        setMeasurements(previous =>
-          previous.filter(item => item.id !== measurementId)
-        );
-        return;
-      }
-
-      const typeId = getAnnotationTypeId(target.type);
-      if (isLateralView && isKeypointExam && keypoints.length > 0) {
-        if (typeId === 'pi' || typeId === 'pt') {
-          const nextKeypoints = deleteKeypoints(keypoints, ['CFH']);
-          setKeypoints(nextKeypoints);
-          setCfhAnnotation(null);
-          setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
-          setMeasurements(previous =>
-            syncUniqueKeypointMeasurements(
-              previous.filter(
-                measurement =>
-                  !measurementTypeInSet(
-                    measurement,
-                    LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES
-                  )
-              ),
-              nextKeypoints
-            )
-          );
-          return;
-        }
-
-        if (typeId === 'ss') {
-          const preservedCfh =
-            cfhAnnotation ??
-            keypointsToCfhAnnotation(keypoints) ??
-            extractCfhAnnotationFromMeasurements(measurements);
-          const nextKeypoints = deleteKeypoints(keypoints, ['S1-1', 'S1-2']);
-          setKeypoints(nextKeypoints);
-          if (preservedCfh) setCfhAnnotation(preservedCfh);
-          setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
-          setMeasurements(previous =>
-            syncUniqueKeypointMeasurements(
-              previous.filter(
-                measurement =>
-                  !measurementTypeInSet(
-                    measurement,
-                    LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES
-                  )
-              ),
-              nextKeypoints
-            )
-          );
-          return;
-        }
-      }
-
-      if (isLateralView && (typeId === 'pi' || typeId === 'pt')) {
-        setCfhAnnotation(null);
-        setMeasurements(previous =>
-          previous.filter(
-            measurement =>
-              !measurementTypeInSet(
-                measurement,
-                LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES
-              )
-          )
-        );
-        return;
-      }
-
-      if (isLateralView && typeId === 'ss') {
-        const preservedCfh =
-          cfhAnnotation ?? extractCfhAnnotationFromMeasurements(measurements);
-        if (preservedCfh) setCfhAnnotation(preservedCfh);
-        setMeasurements(previous =>
-          previous.filter(
-            measurement =>
-              !measurementTypeInSet(
-                measurement,
-                LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES
-              )
-          )
-        );
-        return;
-      }
-
-      if (getCobbSequenceNumber(typeId) !== null) {
-        setMeasurements(previous =>
-          renumberCobbMeasurementsAfterDelete(
-            previous.filter(item => item.id !== measurementId),
-            calculationContext
-          )
-        );
-        return;
-      }
-
-      setMeasurements(previous =>
-        previous.filter(item => item.id !== measurementId)
-      );
-    },
-    [
-      calculationContext,
-      cfhAnnotation,
-      isKeypointExam,
-      isLateralView,
-      keypoints,
-      measurements,
-      setCfhAnnotation,
-      setKeypoints,
-      setMeasurements,
-      setVertebraeLayer,
-      syncUniqueKeypointMeasurements,
-    ]
-  );
-
-  const measurementMatchesTool = useCallback(
-    (measurement: MeasurementData, toolId: string): boolean =>
-      getAnnotationTypeId(measurement.type) === getAnnotationTypeId(toolId),
-    []
-  );
-
-  const derivedMeasurementExists = useCallback(
-    (
-      currentMeasurements: MeasurementData[],
-      candidate: MeasurementData,
-      toolId: string
-    ): boolean => {
-      if (getAnnotationTypeId(toolId) === 'cobb') {
-        return currentMeasurements.some(item => item.id === candidate.id);
-      }
-      return currentMeasurements.some(item =>
-        measurementMatchesTool(item, toolId)
-      );
-    },
-    [measurementMatchesTool]
-  );
-
-  const getDerivedMeasurementsForTool = useCallback(
-    (toolId: string): MeasurementData[] => {
-      if (!isKeypointExam) return [];
-      return deriveKeypointMeasurements(keypoints).filter(measurement =>
-        measurementMatchesTool(measurement, toolId)
-      );
-    },
-    [
-      deriveKeypointMeasurements,
-      isKeypointExam,
-      keypoints,
-      measurementMatchesTool,
-    ]
-  );
-
-  const automaticToolStatus = useMemo(() => {
-    const status: Record<string, AutomaticToolStatus> = {};
-    const restorableToolIds = isLateralView
-      ? LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS
-      : isAnteriorView
-        ? AP_AUTOMATIC_MEASUREMENT_TOOL_IDS
-        : [];
-    restorableToolIds.forEach(toolId => {
-      const candidates = getDerivedMeasurementsForTool(toolId);
-      const hasRestorableCandidate = candidates.some(
-        candidate => !derivedMeasurementExists(measurements, candidate, toolId)
-      );
-      if (hasRestorableCandidate) {
-        status[toolId] = 'available';
-      } else if (candidates.length > 0) {
-        status[toolId] = 'exists';
-      } else {
-        status[toolId] = 'missing-keypoints';
-      }
-    });
-    return status;
-  }, [
-    derivedMeasurementExists,
-    getDerivedMeasurementsForTool,
-    isAnteriorView,
-    isLateralView,
-    measurements,
-  ]);
-
-  const handleRestoreAutomaticMeasurement = useCallback(
-    (toolId: string) => {
-      const candidates = getDerivedMeasurementsForTool(toolId);
-      const missing = candidates.filter(
-        candidate => !derivedMeasurementExists(measurements, candidate, toolId)
-      );
-      if (missing.length === 0) {
-        const toolName = getAnnotationConfig(toolId)?.name ?? toolId;
-        flashMessage(setSaveMessage, `${toolName} 当前不可恢复`);
-        return;
-      }
-
-      setMeasurements(previous => {
-        const additions = missing.filter(
-          candidate => !derivedMeasurementExists(previous, candidate, toolId)
-        );
-        return filterUniqueAnnotationDuplicates([...previous, ...additions]);
-      });
-
-      const toolName = getAnnotationConfig(toolId)?.name ?? toolId;
-      flashMessage(setSaveMessage, `已恢复 ${toolName}`);
-    },
-    [
-      derivedMeasurementExists,
-      getDerivedMeasurementsForTool,
-      measurements,
-      setMeasurements,
-      setSaveMessage,
-    ]
-  );
-
-  return {
-    handleAddMeasurement,
-    handleMeasurementDelete,
-    automaticToolStatus,
-    handleRestoreAutomaticMeasurement,
-    calculationContext,
-  };
+  return { handleAddMeasurement };
 }

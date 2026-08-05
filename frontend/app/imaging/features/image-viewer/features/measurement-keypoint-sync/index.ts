@@ -3,6 +3,7 @@ export * from '@/app/imaging/features/image-viewer/features/measurement-keypoint
 export * from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-query';
 export * from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-selection';
 export * from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
+export * from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/deletion';
 export * from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/vertebrae-derive';
 export * from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useMeasurementKeypointWorkflow';
 export * from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useMeasurementWorkflow';

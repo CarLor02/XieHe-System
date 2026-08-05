@@ -198,9 +198,6 @@ jest.mock(
   () => ({
     useMeasurementWorkflow: () => ({
       handleAddMeasurement: jest.fn(),
-      handleMeasurementDelete: handleMeasurementDeleteMock,
-      automaticToolStatus: {},
-      handleRestoreAutomaticMeasurement: jest.fn(),
     }),
     useMeasurementKeypointWorkflow: () => ({
       vertebraeLayer: [],
@@ -223,15 +220,14 @@ jest.mock(
       aiMeasurementIdsRef: { current: new Set() },
       lateralDetectionResultRef: { current: null },
       deriveInitialMeasurementsFromKeypoints: jest.fn(),
-      deriveKeypointMeasurements: jest.fn(),
       recalculateExistingMeasurements: jest.fn(),
-      syncUniqueMeasurements: jest.fn(previous => previous),
       clearKeypointState: jest.fn(),
       restoreAiMeasurementIds: jest.fn(),
       getAiMeasurementIdsSnapshot: jest.fn(() => []),
       handleKeypointAdd: handleKeypointAddMock,
       handleKeypointDelete: handleKeypointDeleteMock,
       handleKeypointGroupDelete: handleKeypointGroupDeleteMock,
+      handleMeasurementDelete: handleMeasurementDeleteMock,
       handleCreateVertebraCenter: jest.fn(),
       handleCreateCobb: jest.fn(),
       handleRectifyVertebraCornerOrder: jest.fn(),

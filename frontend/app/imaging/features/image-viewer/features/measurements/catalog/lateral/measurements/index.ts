@@ -51,11 +51,6 @@ export const LATERAL_MANUAL_MEASUREMENT_TOOL_IDS = ['lateral-cobb'] as const;
 
 export const LATERAL_SELECTION_MEASUREMENT_TOOL_IDS = [] as const;
 
-export const LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS = [
-  ...LATERAL_AUTOMATIC_MEASUREMENT_TOOL_IDS,
-  ...LATERAL_DEPENDENT_MEASUREMENT_TOOL_IDS,
-] as const;
-
 const LATERAL_MEASUREMENT_TOOL_IDS = [
   ...LATERAL_AUTOMATIC_MEASUREMENT_TOOL_IDS,
   ...LATERAL_DEPENDENT_MEASUREMENT_TOOL_IDS,
@@ -106,12 +101,6 @@ export function getLateralMeasurementTools(): Tool[] {
 export function isLateralMeasurementTool(toolId: string): boolean {
   return LATERAL_MEASUREMENT_TOOL_IDS.includes(
     toolId as (typeof LATERAL_MEASUREMENT_TOOL_IDS)[number]
-  );
-}
-
-export function isLateralRestorableMeasurementTool(toolId: string): boolean {
-  return LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS.includes(
-    toolId as (typeof LATERAL_RESTORABLE_MEASUREMENT_TOOL_IDS)[number]
   );
 }
 

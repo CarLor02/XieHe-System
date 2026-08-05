@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import {
-  getInheritedPointMap,
-  getInheritedPoints,
+  getManualMeasurementInheritedPointMap,
+  getManualMeasurementInheritedPoints,
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
 import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import { Point, Tool } from '@/app/imaging/features/image-viewer/shared/types';
@@ -332,7 +332,11 @@ export function useCanvasDrawingTool({
         selectedTool.includes('sva') ||
         selectedTool === 'ts'
       ) {
-        const inheritedMap = getInheritedPointMap(currentTool.id, measurements);
+        const inheritedMap = getManualMeasurementInheritedPointMap(
+          currentTool.id,
+          currentTool.pointsNeeded,
+          measurements
+        );
         const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
 
         if (newPoints.length === 1) {
@@ -386,7 +390,7 @@ export function useCanvasDrawingTool({
 
       if (selectedTool === 'ts') {
         const { points: inheritedPoints, count: inheritedCount } =
-          getInheritedPoints('ts', measurements);
+          getManualMeasurementInheritedPoints('ts', 6, measurements);
         const effectiveNeeded = 6 - inheritedCount;
         if (newPoints.length === effectiveNeeded) {
           addMeasurement(currentTool.id, [...newPoints, ...inheritedPoints]);
@@ -395,7 +399,11 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      const inheritedMap = getInheritedPointMap(currentTool.id, measurements);
+      const inheritedMap = getManualMeasurementInheritedPointMap(
+        currentTool.id,
+        currentTool.pointsNeeded,
+        measurements
+      );
       const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
       if (newPoints.length === effectiveNeeded) {
         const allPoints = assembleInheritedPoints(

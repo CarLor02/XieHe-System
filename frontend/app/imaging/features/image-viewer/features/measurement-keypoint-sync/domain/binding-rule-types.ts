@@ -14,7 +14,7 @@ export interface MeasurementKeypointBindingRule {
   typeId: string;
   examView: MeasurementKeypointExamView;
   requiredKeypointIds: readonly string[];
-  /** 是否允许关键点满足最小依赖后自动创建全局唯一测量项。 */
+  /** 是否允许 AI 初次检测按关键点创建该测量项；手工补点不读取此字段。 */
   autoDerive: boolean;
   normalizePoints: (points: Point[]) => NormalizedMeasurementPoints;
   getKeypointUpdates: (

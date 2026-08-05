@@ -5,9 +5,7 @@ import BindingPanel from '@/app/imaging/features/image-viewer/features/bindings/
 import ReportPanel from '@/app/imaging/features/image-viewer/features/report/components/ReportPanel';
 import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { isApAutomaticMeasurementTool } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements';
 import { isAuxiliaryTool } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
-import { isLateralRestorableMeasurementTool } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements';
 import { isUniqueAnnotationTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
   getKeypointGroupsForExamType,
@@ -129,13 +127,11 @@ interface AnnotationToolbarProps {
   newTag: string;
   showAdvicePanel: boolean;
   treatmentAdvice: string;
-  automaticToolStatus: Record<string, ToolStatus>;
   keypointSequenceSession: KeypointSequenceSession | null;
   keypointSequenceClosedGroupName: string | null;
   onSelectTool: (toolId: string) => void;
   onStartKeypointSequence: (groupName: string, keypointIds: string[]) => void;
   onCancelKeypointSequence: () => void;
-  onRestoreAutomaticMeasurement: (toolId: string) => void;
   onCreateAvt: (target: AvtTarget) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
   onCreateCobb: (upperVertebra: string, lowerVertebra: string) => void;
@@ -197,13 +193,11 @@ export default function AnnotationToolbar({
   newTag,
   showAdvicePanel,
   treatmentAdvice,
-  automaticToolStatus,
   keypointSequenceSession,
   keypointSequenceClosedGroupName,
   onSelectTool,
   onStartKeypointSequence,
   onCancelKeypointSequence,
-  onRestoreAutomaticMeasurement,
   onCreateAvt,
   onCreateVertebraCenter,
   onCreateCobb,
@@ -765,14 +759,6 @@ export default function AnnotationToolbar({
                         const isUniquenessBlocked =
                           isUniqueAnnotationTool(tool.id) &&
                           measurementTypeIds.has(getAnnotationTypeId(tool.id));
-                        const isCobbTool = isAnteriorView && tool.id === 'cobb';
-                        // 可推导工具走自动恢复路径；Cobb 始终走手动放点路径，
-                        // 端椎在结果列表中后置填写。
-                        const isAutomaticTool =
-                          canUseKeypointTools &&
-                          !isCobbTool &&
-                          (isApAutomaticMeasurementTool(tool.id) ||
-                            isLateralRestorableMeasurementTool(tool.id));
                         // AVT 走目标类型/层级选择面板，参考点要求由 AVT domain 决定。
                         // TTS 走直接放点路径（画水平线，骶骨参考继承自 CSS/SL/SR），不走椎体选择面板。
                         const isSelectionTool =
@@ -783,67 +769,41 @@ export default function AnnotationToolbar({
                         const isCobbDeriveTool =
                           effectiveBasicMode === BasicMode.MeasurementDerive &&
                           tool.id === 'cobb';
-                        const automaticStatus =
-                          automaticToolStatus[tool.id] ?? 'missing-keypoints';
                         const missingKeypoints = getMissingKeypointsForTool(
                           tool.id
                         );
-                        // 仅当 AI 推导数据确实可恢复时才走自动路径；
-                        // missing-keypoints 时回退为手动放点，允许补充标注。
-                        // exists 状态（测量已存在）保持禁用，用户应直接拖拽现有端点调整。
-                        const isLockedByExistingMeasurement =
-                          isUniquenessBlocked ||
-                          (isAutomaticTool && automaticStatus === 'exists');
-                        const isEffectivelyAutomaticTool =
-                          isAutomaticTool &&
-                          automaticStatus === 'available' &&
-                          !isLockedByExistingMeasurement;
-                        // 手动放点回退模式：仅在无 AI 数据时生效
-                        const isInManualFallbackMode =
-                          isAutomaticTool &&
-                          automaticStatus === 'missing-keypoints' &&
-                          !isLockedByExistingMeasurement;
                         const selectionStatus =
                           tool.id === 'avt' ? avtStatus : 'available';
                         const unavailableStatus = isSelectionTool
                           ? selectionStatus
-                          : isLockedByExistingMeasurement
+                          : isUniquenessBlocked
                             ? 'exists'
                             : 'missing-keypoints';
-                        // 手动回退模式：始终可用（允许重新放置或补充放置）。
-                        // 其他工具（含 Cobb、TTS）按唯一性规则判断。
+                        // 关键点完整也不能自动恢复测量项；不存在的工具统一进入手工流程。
                         const isToolAvailable = isCobbDeriveTool
                           ? canOpenCobbDerivePanel
-                          : isLockedByExistingMeasurement
+                          : isUniquenessBlocked
                             ? false
-                            : isEffectivelyAutomaticTool
-                              ? true
-                              : isInManualFallbackMode
-                                ? true
-                                : tool.id === 'avt'
-                                  ? canUseKeypointTools
-                                    ? canCreateAvt
-                                    : !isUniquenessBlocked
-                                  : !isUniquenessBlocked;
+                            : tool.id === 'avt'
+                              ? canUseKeypointTools
+                                ? canCreateAvt
+                                : true
+                              : true;
                         const toolTitle = isCobbDeriveTool
                           ? canOpenCobbDerivePanel
                             ? '选择 Cobb 上下端椎'
                             : 'Cobb至少需要2个完整椎体'
-                          : isEffectivelyAutomaticTool
-                            ? `${tool.name} 可恢复，点击自动生成`
-                            : isInManualFallbackMode
-                              ? tool.description
-                              : !isToolAvailable &&
-                                  (isUniqueAnnotationTool(tool.id) ||
-                                    isSelectionTool)
-                                ? getUnavailableTitle(
-                                    tool.name,
-                                    unavailableStatus,
-                                    missingKeypoints
-                                  )
-                                : isSelectionTool
-                                  ? '点击选择可用对象'
-                                  : tool.description;
+                          : !isToolAvailable &&
+                              (isUniqueAnnotationTool(tool.id) ||
+                                isSelectionTool)
+                            ? getUnavailableTitle(
+                                tool.name,
+                                unavailableStatus,
+                                missingKeypoints
+                              )
+                            : isSelectionTool
+                              ? '点击选择可用对象'
+                              : tool.description;
 
                         return (
                           <button
@@ -852,12 +812,6 @@ export default function AnnotationToolbar({
                               if (!isToolAvailable) return;
                               if (isCobbDeriveTool) {
                                 openCobbDerivePanel(isOpen);
-                                return;
-                              }
-                              // 仅在 AI 数据真正可恢复时走自动路径；否则手动放点。
-                              if (isEffectivelyAutomaticTool) {
-                                setOpenMeasurementTool(null);
-                                onRestoreAutomaticMeasurement(tool.id);
                                 return;
                               }
                               if (isSelectionTool) {

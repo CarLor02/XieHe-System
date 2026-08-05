@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { expect, it, jest } from '@jest/globals';
+import { expect, it } from '@jest/globals';
 
 import CanvasHintPanel from './CanvasHintPanel';
 import type { KeypointSequenceSession } from '@/app/imaging/features/image-viewer/shared/types';
@@ -20,7 +20,6 @@ it('shows progress for sequential keypoint placement', () => {
       pointsNeeded={0}
       currentTool={null}
       measurements={[]}
-      getInheritedPoints={jest.fn(() => ({ points: [], count: 0 }))}
       keypointSequenceSession={keypointSequenceSession}
     />
   );
@@ -45,7 +44,6 @@ it('shows the bound keypoint group for a manual CSS measurement', () => {
         pointsNeeded: 2,
       }}
       measurements={[]}
-      getInheritedPoints={jest.fn(() => ({ points: [], count: 0 }))}
     />
   );
 
@@ -62,7 +60,6 @@ it('shows AVT reference placement progress before disc anchors', () => {
       pointsNeeded={0}
       currentTool={null}
       measurements={[]}
-      getInheritedPoints={jest.fn(() => ({ points: [], count: 0 }))}
       avtPlacementSession={{
         target: {
           type: 'disc',

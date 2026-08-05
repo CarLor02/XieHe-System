@@ -17,10 +17,8 @@ import {
 import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import {
   buildDerivedMeasurementsFromLayer,
-  deriveKeypointMeasurements as deriveKeypointMeasurementsUseCase,
   deriveInitialMeasurementsFromKeypoints as deriveInitialMeasurementsFromKeypointsUseCase,
   recalculateExistingMeasurementsFromKeypoints,
-  syncUniqueMeasurementsAfterKeypointChange,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/synchronizeMeasurementsUseCase';
 import {
   createAvtMeasurement,
@@ -41,8 +39,6 @@ import {
 import { DERIVED_ID_PREFIX } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/vertebrae-derive';
 import {
   areKeypointsEqual,
-  deleteKeypoint,
-  deleteKeypoints,
   hasKeypoint,
   KeypointAnnotation,
   keypointsToCfhAnnotation,
@@ -69,6 +65,7 @@ import {
   hydratePersistedKeypointState,
   type PersistedKeypointStateInput,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/hydratePersistedKeypointStateUseCase';
+import { useAnnotationDeletionWorkflow } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useAnnotationDeletionWorkflow';
 
 interface UseMeasurementKeypointWorkflowOptions {
   imageId: string;
@@ -141,17 +138,6 @@ export function useMeasurementKeypointWorkflow({
   const aiMeasurementIdsRef = useRef<Set<string>>(new Set());
   const lateralDetectionResultRef = useRef<LateralDetectionCache | null>(null);
 
-  const deriveKeypointMeasurements = useCallback(
-    (nextKeypoints: KeypointAnnotation[]): MeasurementData[] =>
-      deriveKeypointMeasurementsUseCase({
-        keypoints: nextKeypoints,
-        cfhAnnotation,
-        examType,
-        calculationContext,
-      }),
-    [calculationContext, cfhAnnotation, examType]
-  );
-
   const deriveInitialMeasurementsFromKeypoints = useCallback(
     (
       nextKeypoints: KeypointAnnotation[],
@@ -186,22 +172,18 @@ export function useMeasurementKeypointWorkflow({
     [calculationContext, cfhAnnotation, examType, isLateralView]
   );
 
-  const syncUniqueMeasurements = useCallback(
-    (
-      previousMeasurements: MeasurementData[],
-      nextKeypoints: KeypointAnnotation[]
-    ): MeasurementData[] =>
-      syncUniqueMeasurementsAfterKeypointChange({
-        previousMeasurements,
-        keypoints: nextKeypoints,
-        cfhAnnotation,
-        examType,
-        isLateralView,
-        calculationContext,
-        aiMeasurementIds: aiMeasurementIdsRef.current,
-      }),
-    [calculationContext, cfhAnnotation, examType, isLateralView]
-  );
+  const annotationDeletion = useAnnotationDeletionWorkflow({
+    examType,
+    measurements,
+    setMeasurements,
+    keypoints,
+    setKeypoints,
+    setVertebraeLayer,
+    isLateralView,
+    setCfhAnnotation,
+    calculationContext,
+    aiMeasurementIdsRef,
+  });
 
   const clearKeypointState = useCallback(() => {
     clearKeypointLayer();
@@ -310,7 +292,7 @@ export function useMeasurementKeypointWorkflow({
         setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
       }
       setMeasurements(previous =>
-        syncUniqueMeasurements(previous, nextKeypoints)
+        recalculateExistingMeasurements(previous, nextKeypoints)
       );
       setShowVertebraeLayer(true);
     },
@@ -324,51 +306,23 @@ export function useMeasurementKeypointWorkflow({
       setSaveMessage,
       setShowVertebraeLayer,
       setVertebraeLayer,
-      syncUniqueMeasurements,
+      recalculateExistingMeasurements,
     ]
   );
 
   const handleKeypointDelete = useCallback(
     (keypointId: string) => {
       if (!isKeypointExam) return;
-      const nextKeypoints = deleteKeypoint(keypoints, keypointId);
-      const nextMeasurements = syncUniqueMeasurements(
-        measurements,
-        nextKeypoints
-      );
-      const nextMeasurementIds = new Set(
-        nextMeasurements.map(measurement => measurement.id)
-      );
-      const removedMeasurements = measurements.filter(
-        measurement => !nextMeasurementIds.has(measurement.id)
-      );
-
-      setKeypoints(nextKeypoints);
-      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
-      if (isLateralView) {
-        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
-      }
-      setMeasurements(nextMeasurements);
+      const result = annotationDeletion.deleteSelectedKeypoints([keypointId]);
 
       flashMessage(
         setSaveMessage,
-        removedMeasurements.length > 0
-          ? `已删除 ${keypointId}，并移除 ${removedMeasurements.length} 个关联测量项`
+        result.removedMeasurementCount > 0
+          ? `已删除 ${keypointId}，并移除 ${result.removedMeasurementCount} 个关联测量项`
           : `已删除 ${keypointId}`
       );
     },
-    [
-      isKeypointExam,
-      isLateralView,
-      keypoints,
-      measurements,
-      setCfhAnnotation,
-      setKeypoints,
-      setMeasurements,
-      setSaveMessage,
-      setVertebraeLayer,
-      syncUniqueMeasurements,
-    ]
+    [annotationDeletion, isKeypointExam, setSaveMessage]
   );
 
   const handleKeypointGroupDelete = useCallback(
@@ -376,45 +330,23 @@ export function useMeasurementKeypointWorkflow({
       if (!isKeypointExam) return;
       const keypointIds = getKeypointIdsForLabelGroup(keypoints, label);
       if (keypointIds.length === 0) return;
-
-      const nextKeypoints = deleteKeypoints(keypoints, keypointIds);
-      const nextMeasurements = syncUniqueMeasurements(
-        measurements,
-        nextKeypoints
-      );
-      const nextMeasurementIds = new Set(
-        nextMeasurements.map(measurement => measurement.id)
-      );
-      const removedMeasurements = measurements.filter(
-        measurement => !nextMeasurementIds.has(measurement.id)
-      );
-
-      setKeypoints(nextKeypoints);
-      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
-      if (isLateralView) {
-        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
-      }
-      setMeasurements(nextMeasurements);
+      const result = annotationDeletion.deleteSelectedKeypoints(keypointIds);
 
       flashMessage(
         setSaveMessage,
-        removedMeasurements.length > 0
-          ? `已删除 ${label} 的 ${keypointIds.length} 个关键点，并移除 ${removedMeasurements.length} 个关联测量项`
+        result.removedMeasurementCount > 0
+          ? `已删除 ${label} 的 ${keypointIds.length} 个关键点，并移除 ${result.removedMeasurementCount} 个关联测量项`
           : `已删除 ${label} 的 ${keypointIds.length} 个关键点`
       );
     },
-    [
-      isKeypointExam,
-      isLateralView,
-      keypoints,
-      measurements,
-      setCfhAnnotation,
-      setKeypoints,
-      setMeasurements,
-      setSaveMessage,
-      setVertebraeLayer,
-      syncUniqueMeasurements,
-    ]
+    [annotationDeletion, isKeypointExam, keypoints, setSaveMessage]
+  );
+
+  const handleMeasurementDelete = useCallback(
+    (measurementId: string) => {
+      annotationDeletion.deleteMeasurement(measurementId);
+    },
+    [annotationDeletion]
   );
 
   const handleCreateVertebraCenter = useCallback(
@@ -612,7 +544,10 @@ export function useMeasurementKeypointWorkflow({
       setKeypoints(nextKeypoints);
       setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
       setMeasurements(previous => {
-        const synchronized = syncUniqueMeasurements(previous, nextKeypoints);
+        const synchronized = recalculateExistingMeasurements(
+          previous,
+          nextKeypoints
+        );
         if (
           !completedMeasurement ||
           hasAvtMeasurementForTarget(synchronized, target)
@@ -632,7 +567,7 @@ export function useMeasurementKeypointWorkflow({
       setMeasurements,
       setShowVertebraeLayer,
       setVertebraeLayer,
-      syncUniqueMeasurements,
+      recalculateExistingMeasurements,
     ]
   );
 
@@ -944,9 +879,7 @@ export function useMeasurementKeypointWorkflow({
     lateralDetectionResultRef:
       lateralDetectionResultRef as MutableRefObject<LateralDetectionCache | null>,
     deriveInitialMeasurementsFromKeypoints,
-    deriveKeypointMeasurements,
     recalculateExistingMeasurements,
-    syncUniqueMeasurements,
     restorePersistedKeypointState,
     clearKeypointState,
     restoreAiMeasurementIds,
@@ -954,6 +887,7 @@ export function useMeasurementKeypointWorkflow({
     handleKeypointAdd,
     handleKeypointDelete,
     handleKeypointGroupDelete,
+    handleMeasurementDelete,
     handleCreateVertebraCenter,
     handleCreateCobb,
     handleRectifyVertebraCornerOrder,

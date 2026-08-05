@@ -3,10 +3,8 @@ import {
     calculateMeasurementValue as calcMeasurementValue
 } from "@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue";
 import {getDescriptionForType as getDesc} from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata";
-import {getInheritedPoints} from "@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase";
 import {getAnnotationTypeId} from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config";
 import {
-    hasAnnotationForTool,
     hasUniqueAnnotationForTool,
     measurementMatchesTool,
 } from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness";
@@ -134,7 +132,7 @@ export function addMeasurement(
 
         // 将本次新增标注加入列表，并同步共享 S1 点到现有 S1 相关测量。
         // 删除 SS 后重新绘制 SS 时，PI/PT 保留 CFH，同时 S1 端点应跟随新的 SS。
-        const accumulated: MeasurementData[] = syncS1PointsAfterReplace(
+        return syncS1PointsAfterReplace(
             [...prev, newMeasurement],
             newMeasurement,
             {
@@ -144,35 +142,5 @@ export function addMeasurement(
             }
         );
 
-        // 如果新增点位已经满足其他测量工具的全部需求，则自动补出对应测量项。
-        // 例如先画 SS，再用 PI/PT 工具补 CFH 后，PI 与 PT 应同时成立。
-        for (const tool of tools) {
-            if (!tool.pointsNeeded || tool.pointsNeeded <= 0) continue;
-            if (hasAnnotationForTool(accumulated, tool)) continue;
-
-            const { points: inheritedPts, count } = getInheritedPoints(
-                tool.id,
-                accumulated
-            );
-            if (count >= tool.pointsNeeded) {
-                const autoPoints = inheritedPts.slice(0, tool.pointsNeeded);
-                const autoValue =
-                    calcMeasurementValue(tool.id, autoPoints, {
-                        standardDistance,
-                        standardDistancePoints,
-                        imageNaturalSize,
-                    }) || '0.0°';
-                const autoMeasurement: MeasurementData = {
-                    id: `${Date.now()}-auto-${tool.id}-${accumulated.length}`,
-                    type: tool.id,
-                    value: autoValue,
-                    points: autoPoints,
-                    description: getDesc(tool.id),
-                };
-                accumulated.push(autoMeasurement);
-            }
-        }
-
-        return accumulated;
     });
 }

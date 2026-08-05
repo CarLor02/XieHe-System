@@ -7,7 +7,6 @@ describe('lateral measurement catalog', () => {
       LATERAL_COBB_CONFIG,
       getLateralMeasurementTools,
       isLateralMeasurementTool,
-      isLateralRestorableMeasurementTool,
     } = jest.requireActual<
       typeof import('@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements')
     >(
@@ -41,6 +40,5 @@ describe('lateral measurement catalog', () => {
       )
     ).toEqual({ x: 10, y: 20 });
     expect(isLateralMeasurementTool('lateral-cobb')).toBe(true);
-    expect(isLateralRestorableMeasurementTool('lateral-cobb')).toBe(false);
   });
 });

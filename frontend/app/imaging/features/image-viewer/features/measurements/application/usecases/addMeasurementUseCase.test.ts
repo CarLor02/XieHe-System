@@ -131,3 +131,60 @@ it('marks a newly added bound measurement as keypoint-synced', () => {
 
   expect(measurements[0]?.keypointSynced).toBe(true);
 });
+
+it('does not create another measurement when the new points satisfy it', () => {
+  let measurements: MeasurementData[] = [
+    {
+      id: 'ss-existing',
+      type: 'ss',
+      value: '0.00°',
+      points: [
+        { x: 100, y: 220 },
+        { x: 220, y: 210 },
+      ],
+    },
+  ];
+  const setMeasurements: Dispatch<SetStateAction<MeasurementData[]>> = next => {
+    measurements =
+      typeof next === 'function'
+        ? next(measurements)
+        : (next as MeasurementData[]);
+  };
+  const tools: Tool[] = [
+    {
+      id: 'pi',
+      name: 'PI',
+      icon: 'test',
+      description: 'PI',
+      pointsNeeded: 3,
+    },
+    {
+      id: 'pt',
+      name: 'PT',
+      icon: 'test',
+      description: 'PT',
+      pointsNeeded: 3,
+    },
+  ];
+
+  addMeasurement(
+    'pi',
+    [
+      { x: 150, y: 80 },
+      { x: 100, y: 220 },
+      { x: 220, y: 210 },
+    ],
+    measurements,
+    setMeasurements,
+    tools,
+    null,
+    [],
+    imageNaturalSize,
+    { keypointSynced: true }
+  );
+
+  expect(measurements.map(measurement => measurement.type)).toEqual([
+    'ss',
+    'pi',
+  ]);
+});

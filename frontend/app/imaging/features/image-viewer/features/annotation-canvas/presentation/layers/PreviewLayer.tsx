@@ -37,10 +37,6 @@ interface PreviewLayerProps {
     rawPoint: Point
   ) => Point;
   workingPointHoverIndex: number | null;
-  getInheritedPoints: (
-    toolId: string,
-    measurements: { type: string; points: Point[] }[]
-  ) => { points: Point[]; count: number };
 }
 
 function ReferenceLinePreview({
@@ -556,7 +552,6 @@ export default function PreviewLayer({
   imageToScreen,
   constrainAuxLinePoint,
   workingPointHoverIndex,
-  getInheritedPoints,
 }: PreviewLayerProps) {
   return (
     <>
@@ -648,7 +643,6 @@ export default function PreviewLayer({
           measurements,
           imageScale,
           imageToScreen,
-          getInheritedPoints,
         })}
 
       {renderDynamicShapePreview(selectedTool, drawingState, imageToScreen)}

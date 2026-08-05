@@ -449,53 +449,6 @@ export function recalculateExistingMeasurementsFromKeypoints({
   return filterUniqueAnnotationDuplicates(recalculated);
 }
 
-/**
- * 单点增删后的唯一测量项同步入口。
- *
- * 该流程可补齐全局唯一测量项，但明确排除 Cobb，避免恢复用户删除的 Cobb。
- */
-export function syncUniqueMeasurementsAfterKeypointChange({
-  previousMeasurements,
-  keypoints,
-  cfhAnnotation,
-  examType,
-  isLateralView,
-  calculationContext,
-  aiMeasurementIds,
-}: {
-  previousMeasurements: MeasurementData[];
-  keypoints: KeypointAnnotation[];
-  cfhAnnotation: CfhAnnotation | null;
-  examType: string;
-  isLateralView: boolean;
-  calculationContext: CalculationContext;
-  aiMeasurementIds: Set<string>;
-}): MeasurementData[] {
-  const recalculated = recalculateExistingMeasurementsFromKeypoints({
-    previousMeasurements,
-    keypoints,
-    cfhAnnotation,
-    examType,
-    isLateralView,
-    calculationContext,
-    aiMeasurementIds,
-  });
-  const existingTypes = new Set(
-    recalculated.map(measurement => getDerivedCandidateKey(measurement))
-  );
-  const additions = deriveKeypointMeasurements({
-    keypoints,
-    cfhAnnotation,
-    examType,
-    calculationContext,
-  }).filter(measurement => {
-    const key = getDerivedCandidateKey(measurement);
-    return !isCobbMeasurement(measurement) && !existingTypes.has(key);
-  });
-
-  return filterUniqueAnnotationDuplicates([...recalculated, ...additions]);
-}
-
 export function buildDerivedMeasurementsFromLayer({
   layer,
   cfhAnnotation,

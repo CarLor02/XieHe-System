@@ -4,10 +4,9 @@ import {
   MeasurementData,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
-  POINT_INHERITANCE_RULES,
-  SHARED_ANATOMICAL_POINT_GROUPS,
+  getManualMeasurementInheritedPointMap,
+  getManualMeasurementInheritedPoints,
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { HEMIPELVIC_WIDTH_RATIO_TOOL_ID } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
 
@@ -18,10 +17,6 @@ interface RenderPreviewProps {
   measurements: MeasurementData[];
   imageScale: number;
   imageToScreen: (point: Point) => Point;
-  getInheritedPoints: (
-    toolId: string,
-    measurements: { type: string; points: Point[] }[]
-  ) => { points: Point[]; count: number };
 }
 
 /**
@@ -35,7 +30,6 @@ export default function renderPreview({
   measurements,
   imageScale,
   imageToScreen,
-  getInheritedPoints,
 }: RenderPreviewProps): JSX.Element | null {
   if (selectedTool === HEMIPELVIC_WIDTH_RATIO_TOOL_ID) {
     return null;
@@ -60,7 +54,11 @@ export default function renderPreview({
     selectedTool.includes('pi') || selectedTool.includes('pt');
   const currentToolId = currentTool?.id || selectedTool;
   const { count: inheritedPreviewCount } = isPelvicIncidenceTool
-    ? getInheritedPoints(currentToolId, measurements)
+    ? getManualMeasurementInheritedPoints(
+        currentToolId,
+        currentTool?.pointsNeeded ?? 0,
+        measurements
+      )
     : { count: 0 };
 
   if (!isPelvicIncidenceTool && clickedPoints.length < 2) {
@@ -75,45 +73,11 @@ export default function renderPreview({
 
   let previewPoints = clickedPoints;
   if (isPelvicIncidenceTool) {
-    const inheritedMap = new Map<number, Point>();
-
-    const asymRules = POINT_INHERITANCE_RULES[currentToolId] || [];
-    for (const rule of asymRules) {
-      const source = measurements.find(
-        measurement => getAnnotationTypeId(measurement.type) === rule.fromType
-      );
-      if (!source) continue;
-
-      for (let index = 0; index < rule.sourcePointIndices.length; index += 1) {
-        const srcIdx = rule.sourcePointIndices[index];
-        const dstIdx = rule.destinationPointIndices[index];
-        if (srcIdx < source.points.length) {
-          inheritedMap.set(dstIdx, source.points[srcIdx]);
-        }
-      }
-    }
-
-    for (const group of SHARED_ANATOMICAL_POINT_GROUPS) {
-      const mine = group.participants.find(
-        participant => participant.toolId === currentToolId
-      );
-      if (!mine || inheritedMap.has(mine.pointIndex)) continue;
-
-      for (const participant of group.participants) {
-        if (participant.toolId === currentToolId) continue;
-        const source = measurements.find(
-          measurement =>
-            getAnnotationTypeId(measurement.type) === participant.typeName
-        );
-        if (source && participant.pointIndex < source.points.length) {
-          inheritedMap.set(
-            mine.pointIndex,
-            source.points[participant.pointIndex]
-          );
-          break;
-        }
-      }
-    }
+    const inheritedMap = getManualMeasurementInheritedPointMap(
+      currentToolId,
+      currentTool?.pointsNeeded ?? 0,
+      measurements
+    );
 
     const sacralLeft = inheritedMap.get(1);
     const sacralRight = inheritedMap.get(2);

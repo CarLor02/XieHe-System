@@ -4,13 +4,6 @@ export { useMeasurementCalculation } from '@/app/imaging/features/image-viewer/f
 export { useMeasurements } from '@/app/imaging/features/image-viewer/features/measurements/application/hooks/useMeasurements';
 export { useStandardDistanceActions } from '@/app/imaging/features/image-viewer/features/measurements/application/hooks/useStandardDistanceActions';
 export { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/addMeasurementUseCase';
-export {
-  extractCfhAnnotationFromMeasurements,
-  LATERAL_CFH_DEPENDENT_MEASUREMENT_TYPES,
-  LATERAL_S1_DEPENDENT_MEASUREMENT_TYPES,
-  measurementTypeInSet,
-  restorePiPtFromSsAndCfh,
-} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/measurementDependencyUseCase';
 export { saveMeasurements } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/saveMeasurementsUseCase';
 export * from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 export * from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';

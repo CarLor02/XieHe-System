@@ -32,15 +32,6 @@ export { T1_TILT_CONFIG } from '@/app/imaging/features/image-viewer/features/mea
 export { TS_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/ts';
 export { TTS_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/tts';
 
-export const AP_AUTOMATIC_MEASUREMENT_TOOL_IDS = [
-  't1-tilt',
-  'cobb',
-  'ca',
-  'po',
-  'css',
-  'ts',
-] as const;
-
 export const AP_SELECTION_MEASUREMENT_TOOL_IDS = ['avt', 'tts'] as const;
 
 const AP_MEASUREMENT_TOOL_IDS = [
@@ -104,12 +95,6 @@ export function getApMeasurementTools(): Tool[] {
 export function isApMeasurementTool(toolId: string): boolean {
   return AP_MEASUREMENT_TOOL_IDS.includes(
     toolId as (typeof AP_MEASUREMENT_TOOL_IDS)[number]
-  );
-}
-
-export function isApAutomaticMeasurementTool(toolId: string): boolean {
-  return AP_AUTOMATIC_MEASUREMENT_TOOL_IDS.includes(
-    toolId as (typeof AP_AUTOMATIC_MEASUREMENT_TOOL_IDS)[number]
   );
 }
 

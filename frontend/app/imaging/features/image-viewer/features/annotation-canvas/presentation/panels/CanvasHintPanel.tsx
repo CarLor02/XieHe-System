@@ -7,7 +7,10 @@ import {
   getAvtTargetLabel,
   type AvtPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
-import { getNextManualMeasurementPointIndex } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
+import {
+  getManualMeasurementInheritedPoints,
+  getNextManualMeasurementPointIndex,
+} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
 import { getMeasurementKeypointDrawingHint } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 
 interface CanvasHintPanelProps {
@@ -18,10 +21,6 @@ interface CanvasHintPanelProps {
   pointsNeeded: number;
   currentTool: Tool | null;
   measurements: MeasurementData[];
-  getInheritedPoints: (
-    toolId: string,
-    measurements: { type: string; points: { x: number; y: number }[] }[]
-  ) => { points: { x: number; y: number }[]; count: number };
   keypointSequenceSession?: KeypointSequenceSession | null;
   avtPlacementSession?: AvtPlacementSession | null;
 }
@@ -37,7 +36,6 @@ export default function CanvasHintPanel({
   pointsNeeded,
   currentTool,
   measurements,
-  getInheritedPoints,
   keypointSequenceSession = null,
   avtPlacementSession = null,
 }: CanvasHintPanelProps) {
@@ -49,7 +47,7 @@ export default function CanvasHintPanel({
     ? getNextManualMeasurementPointIndex(
         currentTool.id,
         measurements,
-        pointsNeeded,
+        currentTool.pointsNeeded,
         clickedPointsCount
       )
     : null;
@@ -60,6 +58,13 @@ export default function CanvasHintPanel({
           nextMeasurementPointIndex
         )
       : null;
+  const inheritedPointCount = currentTool
+    ? getManualMeasurementInheritedPoints(
+        currentTool.id,
+        currentTool.pointsNeeded,
+        measurements
+      ).count
+    : 0;
 
   return (
     <div className="absolute bottom-4 left-4 flex flex-col gap-2 max-w-md">
@@ -246,11 +251,9 @@ export default function CanvasHintPanel({
             <p className="font-medium">测量模式: {currentTool?.name}</p>
             <p>
               已标注 {clickedPointsCount}/{pointsNeeded} 个点
-              {currentTool &&
-                getInheritedPoints(currentTool.id, measurements).count > 0 && (
+              {inheritedPointCount > 0 && (
                   <span className="text-cyan-400 ml-2 text-xs">
-                    (+{getInheritedPoints(currentTool.id, measurements).count}
-                    个点已自动继承)
+                    (+{inheritedPointCount} 个点已自动继承)
                   </span>
                 )}
             </p>
