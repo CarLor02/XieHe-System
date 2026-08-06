@@ -79,6 +79,35 @@ it('keeps corner labels when vertebrae bounding boxes are hidden', () => {
   expect(rendered.container.querySelectorAll('circle')).toHaveLength(4);
 });
 
+it('renders both S1 endpoint labels instead of a merged S1 label', () => {
+  const s1p1 = { x: 10, y: 20 };
+  const s1p2 = { x: 30, y: 24 };
+  const vertebraeLayer: VertebraAnnotation[] = [
+    {
+      label: 'S1',
+      corners: [s1p1, s1p2, s1p1, s1p2],
+      confidence: 1,
+      source: AnnotationSource.AI,
+    },
+  ];
+
+  const rendered = render(
+    <svg>
+      <VertebraeLayer
+        vertebraeLayer={vertebraeLayer}
+        cfhAnnotation={null}
+        imageToScreen={point => point}
+      />
+    </svg>
+  );
+
+  expect(screen.getByText('S1-1')).toBeTruthy();
+  expect(screen.getByText('S1-2')).toBeTruthy();
+  expect(screen.queryByText('S1')).toBeNull();
+  expect(rendered.container.querySelectorAll('circle')).toHaveLength(2);
+  expect(rendered.container.querySelector('line')).toBeTruthy();
+});
+
 it('places the ASIS_R pose label inside the L/R measurement', () => {
   const point = { x: 100, y: 50 };
   const vertebraeLayer: VertebraAnnotation[] = [
