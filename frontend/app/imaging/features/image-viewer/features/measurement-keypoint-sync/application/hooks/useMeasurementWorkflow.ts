@@ -1,8 +1,4 @@
-import {
-  Dispatch,
-  SetStateAction,
-  useCallback,
-} from 'react';
+import { Dispatch, SetStateAction, useCallback } from 'react';
 import {
   CfhAnnotation,
   ImageSize,
@@ -25,6 +21,7 @@ import {
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
+import { deriveMeasurementsAfterToolCompletion } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMeasurementsAfterToolCompletionUseCase';
 
 interface UseMeasurementWorkflowOptions {
   examType: string;
@@ -107,9 +104,23 @@ export function useMeasurementWorkflow({
               keypointsToCfhAnnotation(nextKeypoints) ?? cfhAnnotation
             );
           }
-          setMeasurements(previous =>
-            recalculateKeypointMeasurements(previous, nextKeypoints)
-          );
+          setMeasurements(previous => {
+            const recalculated = recalculateKeypointMeasurements(
+              previous,
+              nextKeypoints
+            );
+            return deriveMeasurementsAfterToolCompletion({
+              previousMeasurements: recalculated,
+              completedToolType: toolType,
+              keypoints: nextKeypoints,
+              examType,
+              calculationContext: {
+                standardDistance,
+                standardDistancePoints,
+                imageNaturalSize: imageNaturalSize ?? { width: 0, height: 0 },
+              },
+            });
+          });
         }
         return;
       }

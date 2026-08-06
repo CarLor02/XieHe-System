@@ -107,7 +107,7 @@ function WorkflowHarness({
   return null;
 }
 
-it('keeps CFH synchronized without automatically creating PT after drawing PI', async () => {
+it('derives PT and SS from the keypoints confirmed by a completed PI tool', async () => {
   let latest: WorkflowHarnessValue | null = null;
 
   render(
@@ -134,10 +134,8 @@ it('keeps CFH synchronized without automatically creating PT after drawing PI', 
   await waitFor(() => {
     expect(latest!.workflow.cfhAnnotation?.center).toEqual({ x: 150, y: 80 });
     expect(
-      latest!.measurements.find(
-        measurement => measurement.type.toLowerCase() === 'pi'
-      )
-    ).toBeDefined();
+      latest!.measurements.map(measurement => measurement.type.toLowerCase())
+    ).toEqual(['pi', 'pt', 'ss']);
   });
 
   const pi = latest!.measurements.find(
@@ -168,7 +166,7 @@ it('keeps CFH synchronized without automatically creating PT after drawing PI', 
       synchronizedPelvicMeasurements.map(measurement =>
         measurement.type.toLowerCase()
       )
-    ).toEqual(['pi']);
+    ).toEqual(['pi', 'pt']);
     expect(
       synchronizedPelvicMeasurements.every(
         measurement =>
@@ -177,6 +175,72 @@ it('keeps CFH synchronized without automatically creating PT after drawing PI', 
       )
     ).toBe(true);
   });
+});
+
+it('does not use unrelated existing keypoints when deriving after tool completion', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      examType="侧位X光片"
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+  await waitFor(() => expect(latest).not.toBeNull());
+
+  act(() => {
+    latest!.workflow.setKeypoints([
+      apKeypoint('T1-1', 100, 100),
+      apKeypoint('T1-2', 200, 100),
+    ]);
+  });
+  await waitFor(() => expect(latest!.workflow.keypoints).toHaveLength(2));
+
+  act(() => {
+    latest!.measurementWorkflow.handleAddMeasurement('pi', [
+      { x: 150, y: 80 },
+      { x: 100, y: 220 },
+      { x: 220, y: 210 },
+    ]);
+  });
+
+  await waitFor(() => {
+    expect(
+      latest!.measurements.map(measurement => measurement.type.toLowerCase())
+    ).toEqual(['pi', 'pt', 'ss']);
+  });
+  expect(
+    latest!.measurements.some(
+      measurement => measurement.type.toLowerCase() === 't1 slope'
+    )
+  ).toBe(false);
+});
+
+it('does not derive measurements when keypoints are added directly', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      examType="侧位X光片"
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+  await waitFor(() => expect(latest).not.toBeNull());
+
+  act(() => {
+    latest!.workflow.setKeypoints([
+      apKeypoint('CFH', 150, 80),
+      apKeypoint('S1-1', 100, 220),
+      apKeypoint('S1-2', 220, 210),
+    ]);
+  });
+
+  await waitFor(() => expect(latest!.workflow.keypoints).toHaveLength(3));
+  expect(latest!.measurements).toEqual([]);
 });
 
 it('deletes PI and PT together while preserving S1 points used by SS', async () => {
@@ -630,9 +694,9 @@ it('does not rebuild deleted AP Cobb measurements when hiding the detection laye
   for (const measurement of latest!.measurements.filter(isNumberedCobb)) {
     act(() => latest!.workflow.handleMeasurementDelete(measurement.id));
     await waitFor(() =>
-      expect(latest!.measurements.some(item => item.id === measurement.id)).toBe(
-        false
-      )
+      expect(
+        latest!.measurements.some(item => item.id === measurement.id)
+      ).toBe(false)
     );
   }
 
@@ -680,9 +744,9 @@ it('does not rebuild deleted AP Cobb measurements when keypoints are updated', a
   for (const measurement of latest!.measurements.filter(isNumberedCobb)) {
     act(() => latest!.workflow.handleMeasurementDelete(measurement.id));
     await waitFor(() =>
-      expect(latest!.measurements.some(item => item.id === measurement.id)).toBe(
-        false
-      )
+      expect(
+        latest!.measurements.some(item => item.id === measurement.id)
+      ).toBe(false)
     );
   }
 
