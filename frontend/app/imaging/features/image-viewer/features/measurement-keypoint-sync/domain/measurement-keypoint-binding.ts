@@ -113,6 +113,28 @@ export function buildBoundMeasurementPoints(
   );
 }
 
+/** 返回手动工具可从当前关键点继承的 measurement 点位。 */
+export function getAvailableBoundMeasurementPointMap(
+  measurementType: string,
+  keypoints: KeypointAnnotation[]
+): Map<number, Point> {
+  const rule = getMeasurementKeypointBindingRule(measurementType);
+  if (!rule) return new Map();
+  return rule.getAvailableMeasurementPointMap(
+    new Map(keypoints.map(keypoint => [keypoint.id, keypoint]))
+  );
+}
+
+export function getMissingBoundKeypointIds(
+  measurementType: string,
+  keypoints: KeypointAnnotation[]
+): string[] {
+  const rule = getMeasurementKeypointBindingRule(measurementType);
+  if (!rule) return [];
+  const existingIds = new Set(keypoints.map(keypoint => keypoint.id));
+  return rule.requiredKeypointIds.filter(keypointId => !existingIds.has(keypointId));
+}
+
 export function writeMeasurementPointsToKeypoints(
   keypoints: KeypointAnnotation[],
   measurementType: string,

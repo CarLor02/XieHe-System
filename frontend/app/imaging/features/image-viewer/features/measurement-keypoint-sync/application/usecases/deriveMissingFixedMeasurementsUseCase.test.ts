@@ -1,0 +1,58 @@
+import { expect, it } from '@jest/globals';
+
+import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+
+import { deriveMissingFixedMeasurementsFromKeypoints } from './deriveMissingFixedMeasurementsUseCase';
+
+const calculationContext = {
+  standardDistance: null,
+  standardDistancePoints: [],
+  imageNaturalSize: { width: 1000, height: 1000 },
+};
+
+function keypoint(id: string, x: number, y: number): KeypointAnnotation {
+  return {
+    id,
+    point: { x, y },
+    source: AnnotationSource.MANUAL,
+    confidence: 1,
+  };
+}
+
+it('derives every satisfiable fixed measurement after a keypoint confirmation', () => {
+  const measurements = deriveMissingFixedMeasurementsFromKeypoints({
+    previousMeasurements: [],
+    keypoints: [
+      keypoint('CL', 10, 10),
+      keypoint('CR', 30, 12),
+      keypoint('SL', 15, 50),
+      keypoint('SR', 35, 52),
+    ],
+    examType: '正位X光片',
+    calculationContext,
+  });
+
+  expect(measurements.map(item => item.type)).toEqual(['CA', 'CSS']);
+});
+
+it('does not derive Cobb from otherwise complete vertebra keypoints', () => {
+  const measurements = deriveMissingFixedMeasurementsFromKeypoints({
+    previousMeasurements: [],
+    keypoints: [
+      keypoint('T1-1', 10, 10),
+      keypoint('T1-2', 30, 10),
+      keypoint('T1-3', 10, 20),
+      keypoint('T1-4', 30, 20),
+      keypoint('T2-1', 10, 30),
+      keypoint('T2-2', 30, 30),
+      keypoint('T2-3', 10, 40),
+      keypoint('T2-4', 30, 40),
+    ],
+    examType: '正位X光片',
+    calculationContext,
+  });
+
+  expect(measurements.map(item => item.type)).toEqual(['T1 Tilt']);
+  expect(measurements.some(item => /^cobb\d+$/i.test(item.type))).toBe(false);
+});

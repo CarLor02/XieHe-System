@@ -66,6 +66,7 @@ import {
   type PersistedKeypointStateInput,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/hydratePersistedKeypointStateUseCase';
 import { useAnnotationDeletionWorkflow } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useAnnotationDeletionWorkflow';
+import { deriveMissingFixedMeasurementsFromKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMissingFixedMeasurementsUseCase';
 
 interface UseMeasurementKeypointWorkflowOptions {
   imageId: string;
@@ -172,6 +173,20 @@ export function useMeasurementKeypointWorkflow({
     [calculationContext, cfhAnnotation, examType, isLateralView]
   );
 
+  const deriveMissingFixedMeasurements = useCallback(
+    (
+      previousMeasurements: MeasurementData[],
+      nextKeypoints: KeypointAnnotation[]
+    ): MeasurementData[] =>
+      deriveMissingFixedMeasurementsFromKeypoints({
+        previousMeasurements,
+        keypoints: nextKeypoints,
+        examType,
+        calculationContext,
+      }),
+    [calculationContext, examType]
+  );
+
   const annotationDeletion = useAnnotationDeletionWorkflow({
     examType,
     measurements,
@@ -199,7 +214,8 @@ export function useMeasurementKeypointWorkflow({
     []
   );
 
-  const applyKeypoints = useCallback(
+  /** 拖动/预览只更新点位并重算已有测量项，禁止恢复缺失测量项。 */
+  const applyMovedKeypoints = useCallback(
     (nextKeypoints: KeypointAnnotation[]) => {
       setKeypoints(nextKeypoints);
       setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
@@ -219,6 +235,46 @@ export function useMeasurementKeypointWorkflow({
       setVertebraeLayer,
     ]
   );
+
+  /** 显式确认关键点后，重算已有项并补齐所有当前可确定的固定测量项。 */
+  const applyConfirmedKeypoints = useCallback(
+    (nextKeypoints: KeypointAnnotation[]) => {
+      setKeypoints(nextKeypoints);
+      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+      if (isLateralView) {
+        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
+      }
+      setMeasurements(previous =>
+        deriveMissingFixedMeasurements(
+          recalculateExistingMeasurements(previous, nextKeypoints),
+          nextKeypoints
+        )
+      );
+    },
+    [
+      deriveMissingFixedMeasurements,
+      isLateralView,
+      recalculateExistingMeasurements,
+      setCfhAnnotation,
+      setKeypoints,
+      setMeasurements,
+      setVertebraeLayer,
+    ]
+  );
+
+  const restoreFixedMeasurementsFromKeypoints = useCallback(() => {
+    setMeasurements(previous =>
+      deriveMissingFixedMeasurements(
+        recalculateExistingMeasurements(previous, keypoints),
+        keypoints
+      )
+    );
+  }, [
+    deriveMissingFixedMeasurements,
+    keypoints,
+    recalculateExistingMeasurements,
+    setMeasurements,
+  ]);
 
   const restorePersistedKeypointState = useCallback(
     (input: PersistedKeypointStateInput) => {
@@ -286,27 +342,15 @@ export function useMeasurementKeypointWorkflow({
         source: AnnotationSource.MANUAL,
         confidence: 1,
       });
-      setKeypoints(nextKeypoints);
-      setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
-      if (isLateralView) {
-        setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
-      }
-      setMeasurements(previous =>
-        recalculateExistingMeasurements(previous, nextKeypoints)
-      );
+      applyConfirmedKeypoints(nextKeypoints);
       setShowVertebraeLayer(true);
     },
     [
       isKeypointExam,
-      isLateralView,
       keypoints,
-      setCfhAnnotation,
-      setKeypoints,
-      setMeasurements,
+      applyConfirmedKeypoints,
       setSaveMessage,
       setShowVertebraeLayer,
-      setVertebraeLayer,
-      recalculateExistingMeasurements,
     ]
   );
 
@@ -399,10 +443,10 @@ export function useMeasurementKeypointWorkflow({
         return;
       }
 
-      applyKeypoints(result.keypoints);
+      applyConfirmedKeypoints(result.keypoints);
       setShowVertebraeLayer(true);
     },
-    [applyKeypoints, isKeypointExam, keypoints, setShowVertebraeLayer]
+    [applyConfirmedKeypoints, isKeypointExam, keypoints, setShowVertebraeLayer]
   );
 
   const handleApplyVertebraLabelOffset = useCallback(
@@ -423,12 +467,13 @@ export function useMeasurementKeypointWorkflow({
       if (isLateralView) {
         setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
       }
-      setMeasurements(previous =>
-        recalculateExistingMeasurements(
+      setMeasurements(previous => {
+        const recalculated = recalculateExistingMeasurements(
           shiftMeasurementVertebraLabels(previous, result.vertebraLabelMap),
           nextKeypoints
-        )
-      );
+        );
+        return deriveMissingFixedMeasurements(recalculated, nextKeypoints);
+      });
       setShowVertebraeLayer(true);
     },
     [
@@ -436,6 +481,7 @@ export function useMeasurementKeypointWorkflow({
       isKeypointExam,
       isLateralView,
       keypoints,
+      deriveMissingFixedMeasurements,
       recalculateExistingMeasurements,
       setCfhAnnotation,
       setKeypoints,
@@ -544,8 +590,11 @@ export function useMeasurementKeypointWorkflow({
       setKeypoints(nextKeypoints);
       setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
       setMeasurements(previous => {
-        const synchronized = recalculateExistingMeasurements(
-          previous,
+        const synchronized = deriveMissingFixedMeasurements(
+          recalculateExistingMeasurements(
+            previous,
+            nextKeypoints
+          ),
           nextKeypoints
         );
         if (
@@ -561,6 +610,7 @@ export function useMeasurementKeypointWorkflow({
     },
     [
       calculationContext,
+      deriveMissingFixedMeasurements,
       isKeypointExam,
       keypoints,
       setKeypoints,
@@ -636,7 +686,7 @@ export function useMeasurementKeypointWorkflow({
           keypoints,
           vertebraeLayerToKeypoints(updated, examType)
         );
-        applyKeypoints(nextKeypoints);
+        applyMovedKeypoints(nextKeypoints);
         return;
       }
       setVertebraeLayer(updated);
@@ -656,7 +706,7 @@ export function useMeasurementKeypointWorkflow({
       ]);
     },
     [
-      applyKeypoints,
+      applyMovedKeypoints,
       calculationContext,
       cfhAnnotation,
       examType,
@@ -707,7 +757,7 @@ export function useMeasurementKeypointWorkflow({
           pointIndex
         );
         if (!areKeypointsEqual(keypoints, nextKeypoints)) {
-          applyKeypoints(nextKeypoints);
+          applyMovedKeypoints(nextKeypoints);
         }
         return;
       }
@@ -733,7 +783,7 @@ export function useMeasurementKeypointWorkflow({
     },
     [
       activeVertebraeLayer,
-      applyKeypoints,
+      applyMovedKeypoints,
       cfhAnnotation,
       examType,
       isKeypointExam,
@@ -793,8 +843,8 @@ export function useMeasurementKeypointWorkflow({
       if (isLateralView) {
         setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
       }
-      setMeasurements(previous =>
-        recalculateExistingMeasurements(
+      setMeasurements(previous => {
+        const recalculated = recalculateExistingMeasurements(
           previous.map(item =>
             item.id === measurementId
               ? {
@@ -806,12 +856,14 @@ export function useMeasurementKeypointWorkflow({
               : item
           ),
           nextKeypoints
-        )
-      );
+        );
+        return deriveMissingFixedMeasurements(recalculated, nextKeypoints);
+      });
       return true;
     },
     [
       examType,
+      deriveMissingFixedMeasurements,
       isKeypointExam,
       isLateralView,
       keypoints,
@@ -880,6 +932,7 @@ export function useMeasurementKeypointWorkflow({
       lateralDetectionResultRef as MutableRefObject<LateralDetectionCache | null>,
     deriveInitialMeasurementsFromKeypoints,
     recalculateExistingMeasurements,
+    restoreFixedMeasurementsFromKeypoints,
     restorePersistedKeypointState,
     clearKeypointState,
     restoreAiMeasurementIds,

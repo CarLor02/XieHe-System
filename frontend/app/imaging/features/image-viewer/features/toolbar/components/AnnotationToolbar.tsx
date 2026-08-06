@@ -39,6 +39,9 @@ import ToolbarToolPanel, {
 } from '@/app/imaging/features/image-viewer/features/toolbar/components/ToolbarToolPanel';
 import {
   getCompleteMeasurementDeriveEndpointGroups,
+  getAutoDeriveMeasurementKeypointBindingRules,
+  getMeasurementKeypointBindingRule,
+  getMissingBoundKeypointIds,
   getMeasurementDeriveVertebraOrder,
   hasCobbMeasurementForEndpoints,
   isValidMeasurementDeriveEndpointOrder,
@@ -135,6 +138,7 @@ interface AnnotationToolbarProps {
   onCreateAvt: (target: AvtTarget) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
   onCreateCobb: (upperVertebra: string, lowerVertebra: string) => void;
+  onRestoreFixedMeasurements: () => void;
   onRectifyVertebraCornerOrder: (
     vertebra: string,
     mapping: VertebraCornerOrderMapping[]
@@ -201,6 +205,7 @@ export default function AnnotationToolbar({
   onCreateAvt,
   onCreateVertebraCenter,
   onCreateCobb,
+  onRestoreFixedMeasurements,
   onRectifyVertebraCornerOrder,
   onApplyVertebraLabelOffset,
   onActivateHandMode,
@@ -387,6 +392,17 @@ export default function AnnotationToolbar({
       return;
     }
     onSelectTool(toolId);
+  };
+
+  const canRestoreFixedToolFromKeypoints = (toolId: string): boolean => {
+    if (!canUseKeypointTools) return false;
+    const rule = getMeasurementKeypointBindingRule(toolId);
+    if (!rule) return false;
+    return (
+      getAutoDeriveMeasurementKeypointBindingRules(examType).some(
+        candidate => candidate.typeId === rule.typeId
+      ) && getMissingBoundKeypointIds(toolId, keypoints).length === 0
+    );
   };
 
   const handleBasicModeSelect = (mode: BasicMode) => {
@@ -605,26 +621,18 @@ export default function AnnotationToolbar({
   const getMissingPointIds = (ids: string[]) =>
     ids.filter(id => !keypointIds.has(id));
 
-  const getMissingVertebraPointIds = (vertebra: string) =>
-    getMissingPointIds([1, 2, 3, 4].map(index => `${vertebra}-${index}`));
-
   const getMissingAnyCompleteVertebra = (minimumCount: number) =>
     completeVertebraGroups.length >= minimumCount
       ? []
       : [`至少${minimumCount}个完整椎体`];
 
   const getMissingKeypointsForTool = (toolId: string): string[] => {
+    const bindingRule = getMeasurementKeypointBindingRule(toolId);
+    if (bindingRule) {
+      return getMissingBoundKeypointIds(toolId, keypoints);
+    }
+
     if (isAnteriorView) {
-      if (toolId === 't1-tilt') return getMissingVertebraPointIds('T1');
-      if (toolId === 'ca') return getMissingPointIds(['CL', 'CR']);
-      if (toolId === 'po') return getMissingPointIds(['IL', 'IR']);
-      if (toolId === 'css') return getMissingPointIds(['SL', 'SR']);
-      if (toolId === 'ts') {
-        return [
-          ...getMissingVertebraPointIds('C7'),
-          ...getMissingPointIds(['SL', 'SR']),
-        ];
-      }
       if (toolId === 'cobb') return getMissingAnyCompleteVertebra(2);
       if (toolId === 'vertebra-center') return getMissingAnyCompleteVertebra(1);
       if (toolId === 'avt') {
@@ -633,74 +641,9 @@ export default function AnnotationToolbar({
           ...getMissingAnyCompleteVertebra(1),
         ];
       }
-      if (toolId === 'tts') {
-        return [
-          ...getMissingPointIds(['SL', 'SR']),
-          ...getMissingAnyCompleteVertebra(2),
-        ];
-      }
       return [];
     }
 
-    if (toolId === 't1-slope') return getMissingVertebraPointIds('T1');
-    if (toolId === 'cl') {
-      return [
-        ...getMissingVertebraPointIds('C2'),
-        ...getMissingVertebraPointIds('C7'),
-      ];
-    }
-    if (toolId === 'tk-t2-t5') {
-      return [
-        ...getMissingVertebraPointIds('T2'),
-        ...getMissingVertebraPointIds('T5'),
-      ];
-    }
-    if (toolId === 'tk-t5-t12') {
-      return [
-        ...getMissingVertebraPointIds('T5'),
-        ...getMissingVertebraPointIds('T12'),
-      ];
-    }
-    if (toolId === 't10-l2') {
-      return [
-        ...getMissingVertebraPointIds('T10'),
-        ...getMissingVertebraPointIds('L2'),
-      ];
-    }
-    if (toolId === 'll-l1-s1') {
-      return [
-        ...getMissingVertebraPointIds('L1'),
-        ...getMissingPointIds(['S1-1', 'S1-2']),
-      ];
-    }
-    if (toolId === 'll-l1-l4') {
-      return [
-        ...getMissingVertebraPointIds('L1'),
-        ...getMissingVertebraPointIds('L4'),
-      ];
-    }
-    if (toolId === 'll-l4-s1') {
-      return [
-        ...getMissingVertebraPointIds('L4'),
-        ...getMissingPointIds(['S1-1', 'S1-2']),
-      ];
-    }
-    if (toolId === 'sva') {
-      return [
-        ...getMissingVertebraPointIds('C7'),
-        ...getMissingPointIds(['S1-2']),
-      ];
-    }
-    if (toolId === 'tpa') {
-      return [
-        ...getMissingVertebraPointIds('T1'),
-        ...getMissingPointIds(['CFH', 'S1-1', 'S1-2']),
-      ];
-    }
-    if (toolId === 'pi' || toolId === 'pt') {
-      return getMissingPointIds(['CFH', 'S1-1', 'S1-2']);
-    }
-    if (toolId === 'ss') return getMissingPointIds(['S1-1', 'S1-2']);
     if (toolId === 'vertebra-center') return getMissingAnyCompleteVertebra(1);
 
     return [];
@@ -779,7 +722,6 @@ export default function AnnotationToolbar({
                           : isUniquenessBlocked
                             ? 'exists'
                             : 'missing-keypoints';
-                        // 关键点完整也不能自动恢复测量项；不存在的工具统一进入手工流程。
                         const isToolAvailable = isCobbDeriveTool
                           ? canOpenCobbDerivePanel
                           : isUniquenessBlocked
@@ -818,6 +760,15 @@ export default function AnnotationToolbar({
                                 setOpenMeasurementTool(isOpen ? null : tool.id);
                                 setAvtTargetType(null);
                                 setOpenKeypointGroup(null);
+                                return;
+                              }
+                              if (
+                                canRestoreFixedToolFromKeypoints(tool.id)
+                              ) {
+                                closeToolPopovers();
+                                onCancelKeypointSequence();
+                                onRestoreFixedMeasurements();
+                                onActivateHandMode();
                                 return;
                               }
                               handleManualToolSelect(tool.id);

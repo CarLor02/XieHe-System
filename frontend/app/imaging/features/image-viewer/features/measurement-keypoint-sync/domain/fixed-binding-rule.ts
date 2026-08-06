@@ -94,6 +94,15 @@ export function createFixedBindingRule({
 
       return normalizePoints(nextPoints).points;
     },
+    getAvailableMeasurementPointMap: byId =>
+      new Map(
+        slots.flatMap(slot => {
+          const keypoint = byId.get(slot.keypointId);
+          return keypoint
+            ? ([[slot.pointIndex, { ...keypoint.point }]] as const)
+            : [];
+        })
+      ),
     getDrawingHint,
   };
 }

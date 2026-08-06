@@ -177,7 +177,7 @@ it('derives PT and SS from the keypoints confirmed by a completed PI tool', asyn
   });
 });
 
-it('does not use unrelated existing keypoints when deriving after tool completion', async () => {
+it('derives every fixed measurement satisfied after tool completion', async () => {
   let latest: WorkflowHarnessValue | null = null;
 
   render(
@@ -209,16 +209,11 @@ it('does not use unrelated existing keypoints when deriving after tool completio
   await waitFor(() => {
     expect(
       latest!.measurements.map(measurement => measurement.type.toLowerCase())
-    ).toEqual(['pi', 'pt', 'ss']);
+    ).toEqual(['pi', 't1 slope', 'pt', 'ss']);
   });
-  expect(
-    latest!.measurements.some(
-      measurement => measurement.type.toLowerCase() === 't1 slope'
-    )
-  ).toBe(false);
 });
 
-it('does not derive measurements when keypoints are added directly', async () => {
+it('does not derive measurements from internal state hydration alone', async () => {
   let latest: WorkflowHarnessValue | null = null;
 
   render(
@@ -241,6 +236,90 @@ it('does not derive measurements when keypoints are added directly', async () =>
 
   await waitFor(() => expect(latest!.workflow.keypoints).toHaveLength(3));
   expect(latest!.measurements).toEqual([]);
+});
+
+it('restores all fixed measurements after an explicitly confirmed missing keypoint', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      examType="侧位X光片"
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+  await waitFor(() => expect(latest).not.toBeNull());
+
+  act(() => {
+    latest!.workflow.setKeypoints([
+      apKeypoint('CFH', 150, 80),
+      apKeypoint('S1-1', 100, 220),
+      apKeypoint('S1-2', 220, 210),
+      ...[1, 2, 3, 4].map(index =>
+        apKeypoint(`C7-${index}`, 50 + index * 20, 40 + index * 5)
+      ),
+    ]);
+  });
+  await waitFor(() => expect(latest!.workflow.keypoints).toHaveLength(7));
+
+  act(() => {
+    latest!.workflow.restoreFixedMeasurementsFromKeypoints();
+  });
+
+  await waitFor(() => {
+    expect(
+      latest!.measurements.map(measurement => measurement.type.toLowerCase())
+    ).toEqual(expect.arrayContaining(['sva', 'pi', 'pt', 'ss']));
+  });
+
+  act(() => latest!.workflow.handleKeypointDelete('S1-2'));
+  await waitFor(() => {
+    expect(latest!.measurements).toEqual([]);
+    expect(latest!.workflow.keypoints.map(item => item.id)).not.toContain(
+      'S1-2'
+    );
+  });
+
+  act(() => {
+    latest!.workflow.handleKeypointAdd('S1-2', { x: 220, y: 210 });
+  });
+
+  await waitFor(() => {
+    expect(
+      latest!.measurements.map(measurement => measurement.type.toLowerCase())
+    ).toEqual(expect.arrayContaining(['sva', 'pi', 'pt', 'ss']));
+  });
+});
+
+it('does not restore deleted measurements while a keypoint is dragged', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+
+  render(
+    <WorkflowHarness
+      examType="侧位X光片"
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+  await waitFor(() => expect(latest).not.toBeNull());
+
+  act(() => {
+    latest!.workflow.setKeypoints([
+      apKeypoint('S1-1', 100, 220),
+      apKeypoint('S1-2', 220, 210),
+    ]);
+  });
+  await waitFor(() => expect(latest!.workflow.keypoints).toHaveLength(2));
+
+  act(() => {
+    latest!.workflow.handleVertebraeUpdate(
+      latest!.workflow.activeVertebraeLayer
+    );
+  });
+
+  await waitFor(() => expect(latest!.measurements).toEqual([]));
 });
 
 it('deletes PI and PT together while preserving S1 points used by SS', async () => {

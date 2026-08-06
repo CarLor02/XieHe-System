@@ -21,7 +21,7 @@ import {
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
-import { deriveMeasurementsAfterToolCompletion } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMeasurementsAfterToolCompletionUseCase';
+import { deriveMissingFixedMeasurementsFromKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMissingFixedMeasurementsUseCase';
 
 interface UseMeasurementWorkflowOptions {
   examType: string;
@@ -109,9 +109,8 @@ export function useMeasurementWorkflow({
               previous,
               nextKeypoints
             );
-            return deriveMeasurementsAfterToolCompletion({
+            return deriveMissingFixedMeasurementsFromKeypoints({
               previousMeasurements: recalculated,
-              completedToolType: toolType,
               keypoints: nextKeypoints,
               examType,
               calculationContext: {

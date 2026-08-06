@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
 import {
   getManualMeasurementInheritedPointMap,
-  getManualMeasurementInheritedPoints,
-} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
+  getNextManualMeasurementPointIndex,
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
 import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import { Point, Tool } from '@/app/imaging/features/image-viewer/shared/types';
+import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   DrawingState,
   ReferenceLines,
@@ -24,6 +25,7 @@ interface UseCanvasDrawingToolOptions {
   selectedTool: string;
   tools: Tool[];
   measurements: { type: string; points: Point[] }[];
+  keypoints: KeypointAnnotation[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
   imageScale: number;
@@ -70,6 +72,7 @@ export function useCanvasDrawingTool({
   selectedTool,
   tools,
   measurements,
+  keypoints,
   clickedPoints,
   setClickedPoints,
   imageScale,
@@ -260,15 +263,48 @@ export function useCanvasDrawingTool({
         return true;
       }
 
+      const inheritedMap = getManualMeasurementInheritedPointMap(
+        currentTool.id,
+        currentTool.pointsNeeded,
+        keypoints
+      );
+      const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
+      const nextMeasurementPointIndex = getNextManualMeasurementPointIndex(
+        currentTool.id,
+        keypoints,
+        currentTool.pointsNeeded,
+        clickedPoints.length
+      );
+
+      if (effectiveNeeded === 0) {
+        addMeasurement(
+          currentTool.id,
+          assembleInheritedPoints(
+            currentTool.pointsNeeded,
+            inheritedMap,
+            []
+          )
+        );
+        setClickedPoints([]);
+        return true;
+      }
+
       let finalPoint = imagePoint;
       if (selectedTool === 'ts' && clickedPoints.length === 1) {
         finalPoint = { x: imagePoint.x, y: clickedPoints[0].y };
       }
       // TTS：每对点（0-1 躯干线，2-3 骶骨线）强制水平（Y 与前一点相同）
-      if (selectedTool === 'tts' && clickedPoints.length % 2 === 1) {
+      if (
+        selectedTool === 'tts' &&
+        nextMeasurementPointIndex !== null &&
+        nextMeasurementPointIndex % 2 === 1
+      ) {
+        const previousPoint =
+          inheritedMap.get(nextMeasurementPointIndex - 1) ??
+          clickedPoints[clickedPoints.length - 1];
         finalPoint = {
           x: imagePoint.x,
-          y: clickedPoints[clickedPoints.length - 1].y,
+          y: previousPoint.y,
         };
       }
 
@@ -276,10 +312,15 @@ export function useCanvasDrawingTool({
       setClickedPoints(newPoints);
 
       if (selectedTool === HEMIPELVIC_WIDTH_RATIO_TOOL_ID) {
-        if (newPoints.length === 4) {
+        if (newPoints.length === effectiveNeeded) {
+          const anchors = assembleInheritedPoints(
+            currentTool.pointsNeeded,
+            inheritedMap,
+            newPoints
+          );
           addMeasurement(
             currentTool.id,
-            createHemipelvicWidthRatioPoints(newPoints)
+            createHemipelvicWidthRatioPoints(anchors)
           );
           setClickedPoints([]);
         }
@@ -290,10 +331,18 @@ export function useCanvasDrawingTool({
         selectedTool.includes('t1-tilt') ||
         selectedTool.includes('t1-slope')
       ) {
-        if (newPoints.length === 1) {
+        if (newPoints.length === 1 && effectiveNeeded > 1) {
           setReferenceLines(previous => ({ ...previous, t1Tilt: imagePoint }));
-        } else if (newPoints.length === 2) {
-          addMeasurement(currentTool.id, newPoints);
+        }
+        if (newPoints.length === effectiveNeeded) {
+          addMeasurement(
+            currentTool.id,
+            assembleInheritedPoints(
+              currentTool.pointsNeeded,
+              inheritedMap,
+              newPoints
+            )
+          );
           setClickedPoints([]);
           setReferenceLines(previous => ({ ...previous, t1Tilt: null }));
         }
@@ -311,13 +360,21 @@ export function useCanvasDrawingTool({
             ? 'po'
             : 'css';
 
-        if (newPoints.length === 1) {
+        if (newPoints.length === 1 && effectiveNeeded > 1) {
           setReferenceLines(previous => ({
             ...previous,
             [referenceKey]: imagePoint,
           }));
-        } else if (newPoints.length === 2) {
-          addMeasurement(currentTool.id, newPoints);
+        }
+        if (newPoints.length === effectiveNeeded) {
+          addMeasurement(
+            currentTool.id,
+            assembleInheritedPoints(
+              currentTool.pointsNeeded,
+              inheritedMap,
+              newPoints
+            )
+          );
           setClickedPoints([]);
           setReferenceLines(previous => ({
             ...previous,
@@ -332,13 +389,6 @@ export function useCanvasDrawingTool({
         selectedTool.includes('sva') ||
         selectedTool === 'ts'
       ) {
-        const inheritedMap = getManualMeasurementInheritedPointMap(
-          currentTool.id,
-          currentTool.pointsNeeded,
-          measurements
-        );
-        const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
-
         if (newPoints.length === 1) {
           const referenceKey = selectedTool.includes('ss')
             ? 'ss'
@@ -388,23 +438,6 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      if (selectedTool === 'ts') {
-        const { points: inheritedPoints, count: inheritedCount } =
-          getManualMeasurementInheritedPoints('ts', 6, measurements);
-        const effectiveNeeded = 6 - inheritedCount;
-        if (newPoints.length === effectiveNeeded) {
-          addMeasurement(currentTool.id, [...newPoints, ...inheritedPoints]);
-          setClickedPoints([]);
-        }
-        return true;
-      }
-
-      const inheritedMap = getManualMeasurementInheritedPointMap(
-        currentTool.id,
-        currentTool.pointsNeeded,
-        measurements
-      );
-      const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
       if (newPoints.length === effectiveNeeded) {
         const allPoints = assembleInheritedPoints(
           currentTool.pointsNeeded,
@@ -422,6 +455,7 @@ export function useCanvasDrawingTool({
       clickedPoints,
       getCurrentTool,
       imageScale,
+      keypoints,
       measurements,
       onAvtDiscPlacementComplete,
       screenToImage,

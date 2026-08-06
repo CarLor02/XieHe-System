@@ -121,6 +121,15 @@ const HEMIPELVIC_WIDTH_RATIO_BINDING_RULE: MeasurementKeypointBindingRule = {
       existingPoints
     );
   },
+  getAvailableMeasurementPointMap: byId =>
+    new Map(
+      HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS.flatMap((keypointId, pointIndex) => {
+        const keypoint = byId.get(keypointId);
+        return keypoint
+          ? ([[pointIndex, { ...keypoint.point }]] as const)
+          : [];
+      })
+    ),
   getDrawingHint: pendingGroupHint('半骨盆锚点', 0, 4),
 };
 

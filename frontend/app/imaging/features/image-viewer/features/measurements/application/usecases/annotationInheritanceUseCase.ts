@@ -236,55 +236,6 @@ export function getInheritedPointMap(
 }
 
 /**
- * 手工测量允许复用部分共享点；若全部点都能继承，则要求用户重新绘制全部点。
- * 这条边界防止已删除测量项因关键点齐全而零点击恢复。
- */
-export function getManualMeasurementInheritedPointMap(
-  toolId: string,
-  pointsNeeded: number,
-  measurements: { type: string; points: Point[] }[]
-): Map<number, Point> {
-  const inherited = getInheritedPointMap(toolId, measurements);
-  return pointsNeeded > 0 && inherited.size >= pointsNeeded
-    ? new Map<number, Point>()
-    : inherited;
-}
-
-export function getManualMeasurementInheritedPoints(
-  toolId: string,
-  pointsNeeded: number,
-  measurements: { type: string; points: Point[] }[]
-): { points: Point[]; count: number } {
-  const inherited = getManualMeasurementInheritedPointMap(
-    toolId,
-    pointsNeeded,
-    measurements
-  );
-  const sorted = Array.from(inherited.entries()).sort(
-    (left, right) => left[0] - right[0]
-  );
-  return { points: sorted.map(([, point]) => point), count: sorted.length };
-}
-
-/** 返回本次第 currentManualPointIndex 个手动点击最终填入的 measurement.points 索引。 */
-export function getNextManualMeasurementPointIndex(
-  toolId: string,
-  measurements: { type: string; points: Point[] }[],
-  pointsNeeded: number,
-  currentManualPointIndex: number
-): number | null {
-  const inherited = getManualMeasurementInheritedPointMap(
-    toolId,
-    pointsNeeded,
-    measurements
-  );
-  const missingIndices = Array.from({ length: pointsNeeded }, (_, index) =>
-    inherited.has(index) ? null : index
-  ).filter((index): index is number => index !== null);
-  return missingIndices[currentManualPointIndex] ?? null;
-}
-
-/**
  * 对所有标注自动创建继承点的同步绑定组。
  * 处理两类来源：
  *   1. POINT_INHERITANCE_RULES  — 非对称（单向）继承
@@ -428,20 +379,4 @@ export function autoCreateInheritanceBindings(
   }
 
   return { syncGroups: groups };
-}
-
-/**
- * 获取工具的实际所需点击次数（扣除可继承点位后的净需求）
- */
-export function getEffectivePointsNeeded(
-  toolId: string,
-  totalPointsNeeded: number,
-  measurements: { type: string; points: Point[] }[]
-): number {
-  const { count } = getManualMeasurementInheritedPoints(
-    toolId,
-    totalPointsNeeded,
-    measurements
-  );
-  return Math.max(0, totalPointsNeeded - count);
 }

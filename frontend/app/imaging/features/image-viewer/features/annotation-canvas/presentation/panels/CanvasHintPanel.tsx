@@ -1,6 +1,5 @@
 import {
   KeypointSequenceSession,
-  MeasurementData,
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
@@ -10,8 +9,9 @@ import {
 import {
   getManualMeasurementInheritedPoints,
   getNextManualMeasurementPointIndex,
-} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
 import { getMeasurementKeypointDrawingHint } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
+import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 
 interface CanvasHintPanelProps {
   selectedTool: string;
@@ -20,7 +20,7 @@ interface CanvasHintPanelProps {
   clickedPointsCount: number;
   pointsNeeded: number;
   currentTool: Tool | null;
-  measurements: MeasurementData[];
+  keypoints: KeypointAnnotation[];
   keypointSequenceSession?: KeypointSequenceSession | null;
   avtPlacementSession?: AvtPlacementSession | null;
 }
@@ -35,7 +35,7 @@ export default function CanvasHintPanel({
   clickedPointsCount,
   pointsNeeded,
   currentTool,
-  measurements,
+  keypoints,
   keypointSequenceSession = null,
   avtPlacementSession = null,
 }: CanvasHintPanelProps) {
@@ -46,7 +46,7 @@ export default function CanvasHintPanel({
   const nextMeasurementPointIndex = currentTool
     ? getNextManualMeasurementPointIndex(
         currentTool.id,
-        measurements,
+        keypoints,
         currentTool.pointsNeeded,
         clickedPointsCount
       )
@@ -62,9 +62,12 @@ export default function CanvasHintPanel({
     ? getManualMeasurementInheritedPoints(
         currentTool.id,
         currentTool.pointsNeeded,
-        measurements
+        keypoints
       ).count
     : 0;
+  const completedMeasurementPointCount =
+    clickedPointsCount + inheritedPointCount;
+  const totalMeasurementPointCount = currentTool?.pointsNeeded ?? pointsNeeded;
 
   return (
     <div className="absolute bottom-4 left-4 flex flex-col gap-2 max-w-md">
@@ -230,32 +233,33 @@ export default function CanvasHintPanel({
         ) : selectedTool.includes('t1-tilt') ? (
           <div>
             <p className="font-medium">T1 Tilt 测量模式</p>
-            <p>已标注 {clickedPointsCount}/2 个点</p>
-            {clickedPointsCount === 0 && (
+            <p>
+              已标注 {completedMeasurementPointCount}/
+              {totalMeasurementPointCount} 个点
+            </p>
+            {clickedPointsCount < pointsNeeded && (
               <p className="text-yellow-400 mt-1">
                 {measurementKeypointHint ?? '点击T1椎体上终板起点'}
               </p>
             )}
-            {clickedPointsCount === 1 && (
+            {clickedPointsCount === 1 && pointsNeeded > 1 && (
               <>
                 <p className="text-green-400 mt-1">水平参考线已显示</p>
                 <p className="text-yellow-400 mt-1">点击上终板终点完成测量</p>
               </>
-            )}
-            {clickedPointsCount === 2 && (
-              <p className="text-green-400 mt-1">T1 Tilt角度已计算</p>
             )}
           </div>
         ) : (
           <div>
             <p className="font-medium">测量模式: {currentTool?.name}</p>
             <p>
-              已标注 {clickedPointsCount}/{pointsNeeded} 个点
+              已标注 {completedMeasurementPointCount}/
+              {totalMeasurementPointCount} 个点
               {inheritedPointCount > 0 && (
-                  <span className="text-cyan-400 ml-2 text-xs">
-                    (+{inheritedPointCount} 个点已自动继承)
-                  </span>
-                )}
+                <span className="text-cyan-400 ml-2 text-xs">
+                  (+{inheritedPointCount} 个点已自动继承)
+                </span>
+              )}
             </p>
             {clickedPointsCount < pointsNeeded && (
               <p className="text-yellow-400 mt-1">

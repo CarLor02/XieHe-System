@@ -799,6 +799,11 @@ export function useImageViewerController({
     [beginHistoryAction, keypointWorkflow]
   );
 
+  const handleRestoreFixedMeasurementsWithHistory = useCallback(() => {
+    beginHistoryAction('fixed-measurement-restore');
+    keypointWorkflow.restoreFixedMeasurementsFromKeypoints();
+  }, [beginHistoryAction, keypointWorkflow]);
+
   const handleAIMeasurementWithHistory = useCallback(() => {
     beginHistoryAction('ai-measurement', {
       persistAcrossUnchangedRenders: true,
@@ -999,6 +1004,7 @@ export function useImageViewerController({
       onCreateAvt: handleSelectAvtTarget,
       onCreateVertebraCenter: keypointWorkflow.handleCreateVertebraCenter,
       onCreateCobb: handleCreateCobbWithHistory,
+      onRestoreFixedMeasurements: handleRestoreFixedMeasurementsWithHistory,
       onRectifyVertebraCornerOrder: handleRectifyVertebraCornerOrderWithHistory,
       onApplyVertebraLabelOffset: handleApplyVertebraLabelOffsetWithHistory,
       onActivateHandMode: handleActivateHandMode,

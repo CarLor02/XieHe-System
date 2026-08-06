@@ -1,4 +1,5 @@
-import { getEffectivePointsNeeded } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
+import { getEffectiveManualMeasurementPointsNeeded } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
+import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   MeasurementData,
   Tool,
@@ -9,6 +10,7 @@ interface BuildCanvasDerivedStateOptions {
   selectedTool: string;
   tools: Tool[];
   measurements: MeasurementData[];
+  keypoints: KeypointAnnotation[];
   hideAllAnnotations: boolean;
   hiddenAnnotationIds: Set<string>;
   hoverState: HoverState;
@@ -22,16 +24,17 @@ export function buildCanvasDerivedState({
   selectedTool,
   tools,
   measurements,
+  keypoints,
   hideAllAnnotations,
   hiddenAnnotationIds,
   hoverState,
 }: BuildCanvasDerivedStateOptions) {
   const currentTool = tools.find(tool => tool.id === selectedTool) ?? null;
   const pointsNeeded = currentTool
-    ? getEffectivePointsNeeded(
+    ? getEffectiveManualMeasurementPointsNeeded(
         currentTool.id,
         currentTool.pointsNeeded,
-        measurements
+        keypoints
       )
     : 2;
   const visibleMeasurements = measurements.filter(

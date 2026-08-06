@@ -1,12 +1,10 @@
 import type { JSX } from 'react';
-import {
-  Point,
-  MeasurementData,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@/app/imaging/features/image-viewer/shared/types';
 import {
   getManualMeasurementInheritedPointMap,
   getManualMeasurementInheritedPoints,
-} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/annotationInheritanceUseCase';
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
+import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { HEMIPELVIC_WIDTH_RATIO_TOOL_ID } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
 
@@ -14,7 +12,7 @@ interface RenderPreviewProps {
   selectedTool: string;
   currentTool: { id: string; name: string; pointsNeeded: number } | null;
   clickedPoints: Point[];
-  measurements: MeasurementData[];
+  keypoints: KeypointAnnotation[];
   imageScale: number;
   imageToScreen: (point: Point) => Point;
 }
@@ -27,7 +25,7 @@ export default function renderPreview({
   selectedTool,
   currentTool,
   clickedPoints,
-  measurements,
+  keypoints,
   imageScale,
   imageToScreen,
 }: RenderPreviewProps): JSX.Element | null {
@@ -57,7 +55,7 @@ export default function renderPreview({
     ? getManualMeasurementInheritedPoints(
         currentToolId,
         currentTool?.pointsNeeded ?? 0,
-        measurements
+        keypoints
       )
     : { count: 0 };
 
@@ -76,7 +74,7 @@ export default function renderPreview({
     const inheritedMap = getManualMeasurementInheritedPointMap(
       currentToolId,
       currentTool?.pointsNeeded ?? 0,
-      measurements
+      keypoints
     );
 
     const sacralLeft = inheritedMap.get(1);

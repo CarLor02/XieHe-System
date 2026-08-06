@@ -8,6 +8,7 @@ import type {
   ReferenceLines,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
 
 const emptyReferenceLines: ReferenceLines = {
   t1Tilt: null,
@@ -50,6 +51,7 @@ it('creates a twelve-point L/R measurement after four anatomical clicks', () => 
           },
         ],
         measurements: [],
+        keypoints: [],
         clickedPoints,
         setClickedPoints,
         imageScale: 1,
@@ -117,6 +119,7 @@ it('completes a manual AVT disc line with two horizontal sorted anchors', () => 
           },
         ],
         measurements: [],
+        keypoints: [],
         clickedPoints,
         setClickedPoints,
         imageScale: 1,
@@ -156,4 +159,65 @@ it('completes a manual AVT disc line with two horizontal sorted anchors', () => 
   ]);
   expect(onMeasurementAdd).not.toHaveBeenCalled();
   expect(result.current.clickedPoints).toEqual([]);
+});
+
+it('only asks for the missing PI keypoint and assembles inherited points by slot', () => {
+  const onMeasurementAdd = jest.fn();
+
+  const { result } = renderHook(() => {
+    const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
+    const [drawingState, setDrawingState] = useState<DrawingState>({
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null,
+    });
+    const [, setReferenceLines] = useState(emptyReferenceLines);
+
+    return useCanvasDrawingTool({
+      selectedTool: 'pi',
+      tools: [
+        {
+          id: 'pi',
+          name: 'PI',
+          icon: 'test',
+          description: 'test',
+          pointsNeeded: 3,
+        },
+      ],
+      measurements: [],
+      keypoints: [
+        {
+          id: 'CFH',
+          point: { x: 50, y: 60 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+        {
+          id: 'S1-1',
+          point: { x: 100, y: 200 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+      ],
+      clickedPoints,
+      setClickedPoints,
+      imageScale: 1,
+      onMeasurementAdd,
+      drawingState,
+      setDrawingState,
+      setReferenceLines,
+      constrainAuxLinePoint: (_toolId, _anchor, point) => point,
+      screenToImage: (x, y) => ({ x, y }),
+    });
+  });
+
+  act(() => {
+    expect(result.current.beginInteraction(220, 210)).toBe(true);
+  });
+
+  expect(onMeasurementAdd).toHaveBeenCalledWith('pi', [
+    { x: 50, y: 60 },
+    { x: 100, y: 200 },
+    { x: 220, y: 210 },
+  ]);
 });

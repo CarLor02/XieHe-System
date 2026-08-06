@@ -2,7 +2,9 @@ import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/fea
 import {
   buildAvtPoints,
   getAvtPointKeypointId,
+  getAvtReferencePointCount,
   getAvtRequiredKeypointIds,
+  getAvtTargetPointCount,
   isAvtMetadata,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import type {
@@ -64,6 +66,19 @@ export function getAvtMeasurementKeypointBindingRule(
         ),
         discAnchors
       );
+    },
+    getAvailableMeasurementPointMap: byId => {
+      const available = new Map<number, Point>();
+      const pointCount =
+        getAvtTargetPointCount(metadata) + getAvtReferencePointCount(metadata);
+      for (let pointIndex = 0; pointIndex < pointCount; pointIndex += 1) {
+        const keypointId = getAvtPointKeypointId(metadata, pointIndex);
+        const keypoint = keypointId ? byId.get(keypointId) : undefined;
+        if (keypoint) {
+          available.set(pointIndex, { ...keypoint.point });
+        }
+      }
+      return available;
     },
   };
 }

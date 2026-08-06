@@ -19,7 +19,7 @@ it('shows progress for sequential keypoint placement', () => {
       clickedPointsCount={0}
       pointsNeeded={0}
       currentTool={null}
-      measurements={[]}
+      keypoints={[]}
       keypointSequenceSession={keypointSequenceSession}
     />
   );
@@ -43,7 +43,7 @@ it('shows the bound keypoint group for a manual CSS measurement', () => {
         description: 'test',
         pointsNeeded: 2,
       }}
-      measurements={[]}
+      keypoints={[]}
     />
   );
 
@@ -59,7 +59,7 @@ it('shows AVT reference placement progress before disc anchors', () => {
       clickedPointsCount={0}
       pointsNeeded={0}
       currentTool={null}
-      measurements={[]}
+      keypoints={[]}
       avtPlacementSession={{
         target: {
           type: 'disc',

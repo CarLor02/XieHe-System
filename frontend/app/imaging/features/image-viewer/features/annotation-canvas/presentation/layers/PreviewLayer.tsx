@@ -1,9 +1,7 @@
 import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateQuadrilateralCenter } from '@/app/imaging/features/image-viewer/shared/geometry';
-import {
-  MeasurementData,
-  Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import renderPreview from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/renderPreview';
 import {
   DrawingState,
@@ -19,7 +17,7 @@ interface PreviewLayerProps {
   selectedTool: string;
   currentTool: { id: string; name: string; pointsNeeded: number } | null;
   clickedPoints: Point[];
-  measurements: MeasurementData[];
+  keypoints: KeypointAnnotation[];
   referenceLines: ReferenceLines;
   standardDistance: number | null;
   standardDistancePoints: Point[];
@@ -538,7 +536,7 @@ export default function PreviewLayer({
   selectedTool,
   currentTool,
   clickedPoints,
-  measurements,
+  keypoints,
   referenceLines,
   standardDistance,
   standardDistancePoints,
@@ -640,7 +638,7 @@ export default function PreviewLayer({
           selectedTool,
           currentTool,
           clickedPoints,
-          measurements,
+          keypoints,
           imageScale,
           imageToScreen,
         })}

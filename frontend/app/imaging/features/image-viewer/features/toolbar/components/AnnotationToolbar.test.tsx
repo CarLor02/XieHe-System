@@ -142,6 +142,7 @@ function createBaseToolbarProps(): AnnotationToolbarProps {
     onCreateAvt: jest.fn(),
     onCreateVertebraCenter: jest.fn(),
     onCreateCobb: jest.fn(),
+    onRestoreFixedMeasurements: jest.fn(),
     onActivateHandMode: jest.fn(),
     onToggleImagePanLocked: jest.fn(),
     isImagePanLocked: false,
@@ -180,6 +181,74 @@ function renderToolbar(overrides: Partial<AnnotationToolbarProps> = {}) {
     props,
   };
 }
+
+it('restores a missing fixed measurement without entering point placement', () => {
+  const onRestoreFixedMeasurements = jest.fn();
+  const onSelectTool = jest.fn();
+  renderToolbar({
+    tools: [
+      {
+        id: 'css',
+        name: 'CSS',
+        icon: 'test',
+        description: 'test',
+        pointsNeeded: 2,
+      },
+    ],
+    keypoints: [
+      {
+        id: 'SL',
+        point: { x: 10, y: 20 },
+        source: AnnotationSource.MANUAL,
+        confidence: 1,
+      },
+      {
+        id: 'SR',
+        point: { x: 30, y: 20 },
+        source: AnnotationSource.MANUAL,
+        confidence: 1,
+      },
+    ],
+    onRestoreFixedMeasurements,
+    onSelectTool,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: /CSS/ }));
+
+  expect(onRestoreFixedMeasurements).toHaveBeenCalledTimes(1);
+  expect(onSelectTool).not.toHaveBeenCalled();
+});
+
+it('enters point placement when a fixed measurement still lacks keypoints', () => {
+  const onRestoreFixedMeasurements = jest.fn();
+  const onSelectTool = jest.fn();
+  renderToolbar({
+    tools: [
+      {
+        id: 'css',
+        name: 'CSS',
+        icon: 'test',
+        description: 'test',
+        pointsNeeded: 2,
+      },
+    ],
+    keypoints: [
+      {
+        id: 'SL',
+        point: { x: 10, y: 20 },
+        source: AnnotationSource.MANUAL,
+        confidence: 1,
+      },
+    ],
+    onRestoreFixedMeasurements,
+    onSelectTool,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: /CSS/ }));
+
+  expect(onRestoreFixedMeasurements).not.toHaveBeenCalled();
+  expect(onSelectTool).toHaveBeenCalledWith('css');
+});
 
 it('renders anterior basic modes and keeps the default manual annotation content', () => {
   renderToolbar();

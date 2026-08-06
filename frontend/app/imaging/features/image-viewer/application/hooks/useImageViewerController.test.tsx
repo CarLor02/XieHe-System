@@ -10,6 +10,7 @@ const handleMeasurementDeleteMock = jest.fn();
 const handleKeypointAddMock = jest.fn();
 const handleKeypointDeleteMock = jest.fn();
 const handleKeypointGroupDeleteMock = jest.fn();
+const restoreFixedMeasurementsMock = jest.fn();
 const setMeasurementsMock = jest.fn();
 const setShowVertebraeLayerMock = jest.fn();
 const handleToggleVertebraeLayerMock = jest.fn();
@@ -221,6 +222,7 @@ jest.mock(
       lateralDetectionResultRef: { current: null },
       deriveInitialMeasurementsFromKeypoints: jest.fn(),
       recalculateExistingMeasurements: jest.fn(),
+      restoreFixedMeasurementsFromKeypoints: restoreFixedMeasurementsMock,
       clearKeypointState: jest.fn(),
       restoreAiMeasurementIds: jest.fn(),
       getAiMeasurementIdsSnapshot: jest.fn(() => []),
@@ -276,6 +278,7 @@ beforeEach(() => {
   handleKeypointAddMock.mockClear();
   handleKeypointDeleteMock.mockClear();
   handleKeypointGroupDeleteMock.mockClear();
+  restoreFixedMeasurementsMock.mockClear();
   setMeasurementsMock.mockClear();
   setShowVertebraeLayerMock.mockClear();
   handleToggleVertebraeLayerMock.mockClear();
@@ -287,6 +290,27 @@ beforeEach(() => {
   handleSaveMeasurementsMock.mockClear();
   activeVertebraeLayerMock = [];
   annotationHistoryOptions = null;
+});
+
+it('records one history action for zero-click fixed measurement restoration', async () => {
+  let latest: Controller | null = null;
+  render(
+    <ControllerHarness
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+  await waitFor(() => expect(latest).not.toBeNull());
+
+  act(() => {
+    latest!.toolbarProps.onRestoreFixedMeasurements();
+  });
+
+  expect(beginHistoryActionMock).toHaveBeenCalledWith(
+    'fixed-measurement-restore'
+  );
+  expect(restoreFixedMeasurementsMock).toHaveBeenCalledTimes(1);
 });
 
 afterEach(() => {
