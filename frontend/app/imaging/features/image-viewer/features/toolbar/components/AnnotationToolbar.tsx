@@ -41,6 +41,7 @@ import {
   getCompleteMeasurementDeriveEndpointGroups,
   getAutoDeriveMeasurementKeypointBindingRules,
   getMeasurementKeypointBindingRule,
+  getMeasurementKeypointBindingRuleForMeasurement,
   getMissingBoundKeypointIds,
   getMeasurementDeriveVertebraOrder,
   hasCobbMeasurementForEndpoints,
@@ -55,6 +56,7 @@ import {
   isSameAvtTarget,
   type AvtTarget,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import type { FemoralHeadMode } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
@@ -136,6 +138,10 @@ interface AnnotationToolbarProps {
   onStartKeypointSequence: (groupName: string, keypointIds: string[]) => void;
   onCancelKeypointSequence: () => void;
   onCreateAvt: (target: AvtTarget) => void;
+  onSelectPelvicTool: (
+    toolId: 'pi' | 'pt',
+    mode: FemoralHeadMode
+  ) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
   onCreateCobb: (upperVertebra: string, lowerVertebra: string) => void;
   onRestoreFixedMeasurements: () => void;
@@ -203,6 +209,7 @@ export default function AnnotationToolbar({
   onStartKeypointSequence,
   onCancelKeypointSequence,
   onCreateAvt,
+  onSelectPelvicTool,
   onCreateVertebraCenter,
   onCreateCobb,
   onRestoreFixedMeasurements,
@@ -275,6 +282,13 @@ export default function AnnotationToolbar({
   const auxiliaryTools = tools.filter(tool => isAuxiliaryTool(tool.id));
   const keypointGroups = getKeypointGroupsForExamType(examType);
   const keypointIds = new Set(keypoints.map(keypoint => keypoint.id));
+  const hasSingleFemoralHead = keypointIds.has('CFH');
+  const hasAnyBilateralFemoralHead =
+    keypointIds.has('FH-1') || keypointIds.has('FH-2');
+  const hasCompleteBilateralFemoralHead =
+    keypointIds.has('FH-1') && keypointIds.has('FH-2');
+  const hasPartialBilateralFemoralHead =
+    hasAnyBilateralFemoralHead && !hasCompleteBilateralFemoralHead;
   const measurementTypeIds = new Set(
     measurements.map(measurement => getAnnotationTypeId(measurement.type))
   );
@@ -396,12 +410,32 @@ export default function AnnotationToolbar({
 
   const canRestoreFixedToolFromKeypoints = (toolId: string): boolean => {
     if (!canUseKeypointTools) return false;
-    const rule = getMeasurementKeypointBindingRule(toolId);
+    const rule =
+      toolId === 'tpa'
+        ? getMeasurementKeypointBindingRuleForMeasurement({
+            id: 'toolbar-tpa-binding-probe',
+            type: 'tpa',
+            value: '',
+            points: [],
+            pelvicMetadata: {
+              schemaVersion: 2,
+              femoralHeadMode: hasCompleteBilateralFemoralHead
+                ? 'bilateral'
+                : 'single',
+            },
+          })
+        : getMeasurementKeypointBindingRule(toolId);
     if (!rule) return false;
+    const existingKeypointIds = new Set(
+      keypoints.map(keypoint => keypoint.id)
+    );
     return (
       getAutoDeriveMeasurementKeypointBindingRules(examType).some(
         candidate => candidate.typeId === rule.typeId
-      ) && getMissingBoundKeypointIds(toolId, keypoints).length === 0
+      ) &&
+      rule.requiredKeypointIds.every(keypointId =>
+        existingKeypointIds.has(keypointId)
+      )
     );
   };
 
@@ -438,6 +472,7 @@ export default function AnnotationToolbar({
     if (group.id === 'pose') return '选择姿态关键点';
     if (group.id === 'S1') return '选择S1上终板关键点';
     if (group.id === 'CFH') return '选择股骨头中心关键点';
+    if (group.id === 'FH') return '选择双侧股骨头中心关键点';
     return `选择${group.name}椎体的关键点`;
   };
 
@@ -627,6 +662,30 @@ export default function AnnotationToolbar({
       : [`至少${minimumCount}个完整椎体`];
 
   const getMissingKeypointsForTool = (toolId: string): string[] => {
+    if (toolId === 'tpa') {
+      if (hasPartialBilateralFemoralHead) {
+        return ['FH-1', 'FH-2'].filter(
+          keypointId => !keypointIds.has(keypointId)
+        );
+      }
+      const rule = getMeasurementKeypointBindingRuleForMeasurement({
+        id: 'toolbar-tpa-missing-keypoints-probe',
+        type: 'tpa',
+        value: '',
+        points: [],
+        pelvicMetadata: {
+          schemaVersion: 2,
+          femoralHeadMode: hasCompleteBilateralFemoralHead
+            ? 'bilateral'
+            : 'single',
+        },
+      });
+      return (
+        rule?.requiredKeypointIds.filter(
+          keypointId => !keypointIds.has(keypointId)
+        ) ?? []
+      );
+    }
     const bindingRule = getMeasurementKeypointBindingRule(toolId);
     if (bindingRule) {
       return getMissingBoundKeypointIds(toolId, keypoints);
@@ -704,10 +763,15 @@ export default function AnnotationToolbar({
                           measurementTypeIds.has(getAnnotationTypeId(tool.id));
                         // AVT 走目标类型/层级选择面板，参考点要求由 AVT domain 决定。
                         // TTS 走直接放点路径（画水平线，骶骨参考继承自 CSS/SL/SR），不走椎体选择面板。
-                        const isSelectionTool =
+                        const isPelvicSelectionTool =
                           canUseKeypointTools &&
-                          isAnteriorView &&
-                          tool.id === 'avt';
+                          isLateralView &&
+                          (tool.id === 'pi' || tool.id === 'pt');
+                        const isSelectionTool =
+                          (canUseKeypointTools &&
+                            isAnteriorView &&
+                            tool.id === 'avt') ||
+                          isPelvicSelectionTool;
                         const isOpen = openMeasurementTool === tool.id;
                         const isCobbDeriveTool =
                           effectiveBasicMode === BasicMode.MeasurementDerive &&
@@ -730,14 +794,15 @@ export default function AnnotationToolbar({
                               ? canUseKeypointTools
                                 ? canCreateAvt
                                 : true
-                              : true;
+                              : tool.id === 'tpa' &&
+                                  hasPartialBilateralFemoralHead
+                                ? false
+                                : true;
                         const toolTitle = isCobbDeriveTool
                           ? canOpenCobbDerivePanel
                             ? '选择 Cobb 上下端椎'
                             : 'Cobb至少需要2个完整椎体'
-                          : !isToolAvailable &&
-                              (isUniqueAnnotationTool(tool.id) ||
-                                isSelectionTool)
+                          : !isToolAvailable
                             ? getUnavailableTitle(
                                 tool.name,
                                 unavailableStatus,
@@ -1054,6 +1119,51 @@ export default function AnnotationToolbar({
                         )}
                       </div>
                     )}
+
+                    {(openMeasurementTool === 'pi' ||
+                      openMeasurementTool === 'pt') &&
+                      isLateralView && (
+                        <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
+                          <div className="text-xs text-gray-300 mb-2">
+                            选择股骨头标注方式
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {(
+                              [
+                                ['single', '单FH', hasAnyBilateralFemoralHead],
+                                ['bilateral', '双FH', hasSingleFemoralHead],
+                              ] as const
+                            ).map(([mode, label, disabled]) => (
+                              <button
+                                key={mode}
+                                type="button"
+                                disabled={disabled}
+                                title={
+                                  disabled
+                                    ? mode === 'single'
+                                      ? 'FH-1/FH-2 已存在，不能与 CFH 同时标注'
+                                      : 'CFH 已存在，不能与 FH-1/FH-2 同时标注'
+                                    : undefined
+                                }
+                                onClick={() => {
+                                  onSelectPelvicTool(
+                                    openMeasurementTool as 'pi' | 'pt',
+                                    mode
+                                  );
+                                  setOpenMeasurementTool(null);
+                                }}
+                                className={`h-9 rounded text-xs ${
+                                  disabled
+                                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                    : 'bg-gray-800 text-white hover:bg-gray-700'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                   </div>
                 )}
 
@@ -1138,11 +1248,15 @@ export default function AnnotationToolbar({
                       .map(keypoint => keypoint.id);
                     const isCompleteKeypointGroup =
                       existingCount === group.keypoints.length;
+                    const hasFemoralHeadModeConflict =
+                      (group.id === 'CFH' && hasAnyBilateralFemoralHead) ||
+                      (group.id === 'FH' && hasSingleFemoralHead);
                     const isRectifiableGroup =
                       isRectifiableKeypointGroup(group);
                     const isGroupAvailable = isRectifyMode
                       ? isRectifiableGroup && isCompleteKeypointGroup
-                      : !isCompleteKeypointGroup;
+                      : !isCompleteKeypointGroup &&
+                        !hasFemoralHeadModeConflict;
                     const canStartKeypointSequence =
                       !isRectifyMode && canStartSequentialKeypointGroup(group);
                     const isSequenceGroup =
@@ -1188,7 +1302,11 @@ export default function AnnotationToolbar({
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                           title={
-                            isRectifyMode
+                            hasFemoralHeadModeConflict
+                              ? group.id === 'CFH'
+                                ? 'FH-1/FH-2 已存在，不能再标注 CFH'
+                                : 'CFH 已存在，不能再标注 FH-1/FH-2'
+                              : isRectifyMode
                               ? getRectifyKeypointGroupTitle(
                                   group,
                                   isCompleteKeypointGroup

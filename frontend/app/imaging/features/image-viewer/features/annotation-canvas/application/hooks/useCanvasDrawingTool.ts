@@ -6,6 +6,12 @@ import {
 import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import { Point, Tool } from '@/app/imaging/features/image-viewer/shared/types';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import {
+  getNextPelvicPlacementPointIndex,
+  getPelvicPlacementInheritedPointMap,
+  getPelvicPlacementPointCount,
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
 import {
   DrawingState,
   ReferenceLines,
@@ -18,6 +24,11 @@ import {
   createHorizontalDiscAnchors,
   type AvtPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import {
+  circleGeometryToPoints,
+  createCircleGeometry,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+import { getPelvicMeasurementKeypointBindingRule } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/pelvic-binding-rule';
 
 const POLYGON_CLOSE_TOLERANCE_PX = 18;
 
@@ -33,6 +44,7 @@ interface UseCanvasDrawingToolOptions {
   /** 测量放置完成后回调，用于自动切换工具（如切回 hand 模式） */
   onMeasurementComplete?: () => void;
   avtPlacementSession?: AvtPlacementSession | null;
+  pelvicPlacementSession?: PelvicPlacementSession | null;
   onAvtDiscPlacementComplete?: (anchors: readonly [Point, Point]) => void;
   drawingState: DrawingState;
   setDrawingState: React.Dispatch<React.SetStateAction<DrawingState>>;
@@ -79,6 +91,7 @@ export function useCanvasDrawingTool({
   onMeasurementAdd,
   onMeasurementComplete,
   avtPlacementSession,
+  pelvicPlacementSession,
   onAvtDiscPlacementComplete,
   drawingState,
   setDrawingState,
@@ -263,16 +276,82 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      const inheritedMap = getManualMeasurementInheritedPointMap(
-        currentTool.id,
-        currentTool.pointsNeeded,
-        keypoints
-      );
-      const effectiveNeeded = currentTool.pointsNeeded - inheritedMap.size;
+      if (
+        pelvicPlacementSession &&
+        pelvicPlacementSession.toolId === selectedTool
+      ) {
+        const inheritedMap = getPelvicPlacementInheritedPointMap({
+          mode: pelvicPlacementSession.mode,
+          keypoints,
+          measurements,
+        });
+        const pointsNeeded = getPelvicPlacementPointCount(
+          pelvicPlacementSession.mode
+        );
+        const nextPointIndex = getNextPelvicPlacementPointIndex(
+          pelvicPlacementSession.mode,
+          inheritedMap,
+          clickedPoints.length
+        );
+        if (nextPointIndex === null) {
+          addMeasurement(
+            currentTool.id,
+            assembleInheritedPoints(pointsNeeded, inheritedMap, [])
+          );
+          setClickedPoints([]);
+          return true;
+        }
+
+        const newPoints = [...clickedPoints, imagePoint];
+        setClickedPoints(newPoints);
+        if (newPoints.length === pointsNeeded - inheritedMap.size) {
+          addMeasurement(
+            currentTool.id,
+            assembleInheritedPoints(pointsNeeded, inheritedMap, newPoints)
+          );
+          setClickedPoints([]);
+        }
+        return true;
+      }
+
+      const hasFh1 = keypoints.some(keypoint => keypoint.id === 'FH-1');
+      const hasFh2 = keypoints.some(keypoint => keypoint.id === 'FH-2');
+      if (selectedTool === 'tpa' && hasFh1 !== hasFh2) {
+        setClickedPoints([]);
+        return true;
+      }
+      const tpaMode =
+        selectedTool === 'tpa' && hasFh1 && hasFh2
+          ? 'bilateral'
+          : 'single';
+      const tpaBindingRule =
+        selectedTool === 'tpa'
+          ? getPelvicMeasurementKeypointBindingRule({
+              id: 'manual-tpa-binding-probe',
+              type: 'tpa',
+              value: '',
+              points: [],
+              pelvicMetadata: {
+                schemaVersion: 2,
+                femoralHeadMode: tpaMode,
+              },
+            })
+          : null;
+      const measurementPointsNeeded = currentTool.pointsNeeded;
+      const inheritedMap = tpaBindingRule
+        ? tpaBindingRule.getAvailableMeasurementPointMap(
+            new Map(keypoints.map(keypoint => [keypoint.id, keypoint]))
+          )
+        : getManualMeasurementInheritedPointMap(
+            currentTool.id,
+            measurementPointsNeeded,
+            keypoints
+          );
+      const effectiveNeeded = measurementPointsNeeded - inheritedMap.size;
       const nextMeasurementPointIndex = getNextManualMeasurementPointIndex(
         currentTool.id,
         keypoints,
-        currentTool.pointsNeeded,
+        measurementPointsNeeded,
         clickedPoints.length
       );
 
@@ -280,7 +359,7 @@ export function useCanvasDrawingTool({
         addMeasurement(
           currentTool.id,
           assembleInheritedPoints(
-            currentTool.pointsNeeded,
+            measurementPointsNeeded,
             inheritedMap,
             []
           )
@@ -314,7 +393,7 @@ export function useCanvasDrawingTool({
       if (selectedTool === HEMIPELVIC_WIDTH_RATIO_TOOL_ID) {
         if (newPoints.length === effectiveNeeded) {
           const anchors = assembleInheritedPoints(
-            currentTool.pointsNeeded,
+            measurementPointsNeeded,
             inheritedMap,
             newPoints
           );
@@ -338,7 +417,7 @@ export function useCanvasDrawingTool({
           addMeasurement(
             currentTool.id,
             assembleInheritedPoints(
-              currentTool.pointsNeeded,
+              measurementPointsNeeded,
               inheritedMap,
               newPoints
             )
@@ -370,7 +449,7 @@ export function useCanvasDrawingTool({
           addMeasurement(
             currentTool.id,
             assembleInheritedPoints(
-              currentTool.pointsNeeded,
+              measurementPointsNeeded,
               inheritedMap,
               newPoints
             )
@@ -403,7 +482,7 @@ export function useCanvasDrawingTool({
 
         if (newPoints.length === effectiveNeeded) {
           const allPoints = assembleInheritedPoints(
-            currentTool.pointsNeeded,
+            measurementPointsNeeded,
             inheritedMap,
             newPoints
           );
@@ -440,7 +519,7 @@ export function useCanvasDrawingTool({
 
       if (newPoints.length === effectiveNeeded) {
         const allPoints = assembleInheritedPoints(
-          currentTool.pointsNeeded,
+          measurementPointsNeeded,
           inheritedMap,
           newPoints
         );
@@ -458,6 +537,7 @@ export function useCanvasDrawingTool({
       keypoints,
       measurements,
       onAvtDiscPlacementComplete,
+      pelvicPlacementSession,
       screenToImage,
       selectedTool,
       setClickedPoints,
@@ -504,7 +584,10 @@ export function useCanvasDrawingTool({
     ) {
       const { startPoint, currentPoint } = drawingState;
       if (selectedTool === 'circle') {
-        addMeasurement('circle', [startPoint, currentPoint]);
+        addMeasurement(
+          'circle',
+          circleGeometryToPoints(createCircleGeometry(startPoint, currentPoint))
+        );
       } else if (selectedTool === 'ellipse') {
         addMeasurement('ellipse', [startPoint, currentPoint]);
       } else if (selectedTool === 'rectangle') {

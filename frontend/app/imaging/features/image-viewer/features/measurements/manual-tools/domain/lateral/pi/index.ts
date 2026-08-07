@@ -4,13 +4,14 @@ import {
   toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
 import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
-import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/pelvic';
+import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**
  * PI 计算“股骨头中心到 S1 中点连线”与“S1 终板法线”的锐角。
  *
- * 点序为 [股骨头中心, S1端点1, S1端点2]。
+ * 历史/单 FH 点序为 [CFH,S1-1,S1-2]；双 FH 六点布局由 pelvic domain
+ * 解析，并使用两个圆心的中点作为 effectiveCFH。
  */
 export function calculatePiResults(points: Point[]): MeasurementResult[] {
   if (points.length < 3) return [];

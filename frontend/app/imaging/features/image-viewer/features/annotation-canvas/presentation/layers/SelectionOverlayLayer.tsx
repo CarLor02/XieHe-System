@@ -5,6 +5,10 @@ import {
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import {
+  circleGeometryFromPoints,
+  getCircleBounds,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
 
 interface SelectionOverlayLayerProps {
   selectionState: SelectionState;
@@ -68,19 +72,19 @@ export default function SelectionOverlayLayer({
   if (selectedMeasurement && selectionState.type === 'whole') {
     const typeId = getAnnotationTypeId(selectedMeasurement.type);
     if (typeId === 'circle' && selectedMeasurement.points.length >= 2) {
-      const center = selectedMeasurement.points[0];
-      const edge = selectedMeasurement.points[1];
-      const screenCenter = imageToScreen(center);
-      const screenEdge = imageToScreen(edge);
-      const screenRadius = Math.hypot(
-        screenEdge.x - screenCenter.x,
-        screenEdge.y - screenCenter.y
+      const circle = circleGeometryFromPoints(selectedMeasurement.points)!;
+      const bounds = getCircleBounds(
+        {
+          center: imageToScreen(circle.center),
+          radiusHandle: imageToScreen(circle.radiusHandle),
+        },
+        15
       );
 
-      minX = screenCenter.x - screenRadius - 15;
-      maxX = screenCenter.x + screenRadius + 15;
-      minY = screenCenter.y - screenRadius - 15;
-      maxY = screenCenter.y + screenRadius + 15;
+      minX = bounds.minX;
+      maxX = bounds.maxX;
+      minY = bounds.minY;
+      maxY = bounds.maxY;
     } else if (typeId === 'ellipse' && selectedMeasurement.points.length >= 2) {
       const center = selectedMeasurement.points[0];
       const edge = selectedMeasurement.points[1];

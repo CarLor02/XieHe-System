@@ -9,6 +9,10 @@ import {
   getMeasurementKeypointBindingRule,
 } from '../../domain/measurement-keypoint-binding';
 import { deriveFixedMeasurements } from './deriveFixedMeasurementsUseCase';
+import { derivePelvicMeasurements } from './derivePelvicMeasurementsUseCase';
+import { orderDerivedMeasurementsByBindingRules } from './orderDerivedMeasurementsByBindingRules';
+
+const DYNAMIC_PELVIC_RULE_IDS = new Set(['pi', 'pt', 'tpa']);
 
 function getCanonicalBindingType(measurement: MeasurementData): string {
   return (
@@ -37,11 +41,24 @@ export function deriveMissingFixedMeasurementsFromKeypoints({
   const existingTypes = new Set(
     previousMeasurements.map(getCanonicalBindingType)
   );
-  const candidates = deriveFixedMeasurements({
-    rules: getAutoDeriveMeasurementKeypointBindingRules(examType),
+  const autoDeriveRules =
+    getAutoDeriveMeasurementKeypointBindingRules(examType);
+  const fixedCandidates = deriveFixedMeasurements({
+    rules: autoDeriveRules.filter(
+      rule => !DYNAMIC_PELVIC_RULE_IDS.has(rule.typeId)
+    ),
     keypoints,
     calculationContext,
-  }).filter(candidate => !existingTypes.has(getCanonicalBindingType(candidate)));
+  });
+  const pelvicCandidates = derivePelvicMeasurements({
+    keypoints,
+    previousMeasurements,
+    calculationContext,
+  });
+  const candidates = orderDerivedMeasurementsByBindingRules(
+    autoDeriveRules,
+    [...fixedCandidates, ...pelvicCandidates]
+  ).filter(candidate => !existingTypes.has(getCanonicalBindingType(candidate)));
 
   return candidates.length === 0
     ? previousMeasurements

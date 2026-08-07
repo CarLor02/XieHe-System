@@ -1,4 +1,5 @@
 import {ImageSize, MeasurementData, Point, Tool} from "@/app/imaging/features/image-viewer/shared/types";
+import type { PelvicMeasurementMetadata } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import {
     calculateMeasurementValue as calcMeasurementValue
 } from "@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue";
@@ -9,7 +10,7 @@ import {
     measurementMatchesTool,
 } from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness";
 import {getNextCobbType} from "@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb";
-import {S1_BINDING_POINT_MAP} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
+import {getS1BindingPointMap} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
 import {Dispatch, SetStateAction} from "react";
 
 /**
@@ -22,14 +23,13 @@ function syncS1PointsAfterReplace(
     newMeasurement: MeasurementData,
     context: { standardDistance: number | null; standardDistancePoints: Point[]; imageNaturalSize: ImageSize }
 ): MeasurementData[] {
-    const sourceTypeId = getAnnotationTypeId(newMeasurement.type);
-    const sourceMap = S1_BINDING_POINT_MAP[sourceTypeId];
+    const sourceMap = getS1BindingPointMap(newMeasurement);
     if (!sourceMap) return measurements;
 
     return measurements.map(m => {
         if (m.id === newMeasurement.id) return m;
         const mTypeId = getAnnotationTypeId(m.type);
-        const targetMap = S1_BINDING_POINT_MAP[mTypeId];
+        const targetMap = getS1BindingPointMap(m);
         if (!targetMap) return m;
 
         const newPoints = [...m.points];
@@ -74,9 +74,11 @@ export function addMeasurement(
         allowReplace?: boolean;
         /** 标记该测量项由统一关键点绑定规则维护。 */
         keypointSynced?: boolean;
+        /** PI/PT v2 的单/双股骨头模式；旧数据没有该字段时按单 FH 兼容。 */
+        pelvicMetadata?: PelvicMeasurementMetadata;
     } = {}
 ){
-    const {allowReplace = false, keypointSynced = false} = options;
+    const {allowReplace = false, keypointSynced = false, pelvicMetadata} = options;
     // 如果是Cobb工具，自动编号（统一处理 'cobb' 和 'Cobb'）
     const requestedToolId = getAnnotationTypeId(type);
     let finalType = requestedToolId;
@@ -107,6 +109,7 @@ export function addMeasurement(
         points: points,
         description,
         ...(keypointSynced ? {keypointSynced: true} : {}),
+        ...(pelvicMetadata ? {pelvicMetadata} : {}),
     };
 
     setMeasurements(prev => {

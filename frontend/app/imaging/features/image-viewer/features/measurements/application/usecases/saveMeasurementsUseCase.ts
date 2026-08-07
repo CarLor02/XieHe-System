@@ -59,6 +59,7 @@ export async function saveMeasurements(
                     apexVertebra: m.apexVertebra,
                     keypointSynced: m.keypointSynced,
                     avtMetadata: m.avtMetadata,
+                    pelvicMetadata: m.pelvicMetadata,
                 };
             }
         });

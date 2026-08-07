@@ -2,14 +2,10 @@ import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/types';
 
 export * from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/shared/rendererUtils';
-
-export type PelvicMeasurementGeometry = {
-  femoralHeadCenter: Point | null;
-  sacralLeft: Point;
-  sacralRight: Point;
-  sacralMidpoint: Point;
-  sacralNormal: Point;
-};
+export {
+  getPelvicMeasurementGeometry,
+  type PelvicMeasurementGeometry,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 export const RENDER_SCREEN_LENGTHS = {
   t1TiltArcRadius: 30,
@@ -50,39 +46,6 @@ export function projectSpecialRenderPoints(
   context?: SpecialElementRenderContext
 ): Point[] {
   return points.map(point => projectSpecialRenderPoint(point, context));
-}
-
-export function getPelvicMeasurementGeometry(
-  screenPoints: Point[]
-): PelvicMeasurementGeometry | null {
-  if (screenPoints.length < 2) return null;
-
-  const femoralHeadCenter = screenPoints.length >= 3 ? screenPoints[0] : null;
-  const sacralLeft =
-    screenPoints.length >= 3 ? screenPoints[1] : screenPoints[0];
-  const sacralRight =
-    screenPoints.length >= 3 ? screenPoints[2] : screenPoints[1];
-  const endplateDx = sacralRight.x - sacralLeft.x;
-  const endplateDy = sacralRight.y - sacralLeft.y;
-  const endplateLength = Math.sqrt(
-    endplateDx * endplateDx + endplateDy * endplateDy
-  );
-
-  if (endplateLength === 0) return null;
-
-  return {
-    femoralHeadCenter,
-    sacralLeft,
-    sacralRight,
-    sacralMidpoint: {
-      x: (sacralLeft.x + sacralRight.x) / 2,
-      y: (sacralLeft.y + sacralRight.y) / 2,
-    },
-    sacralNormal: {
-      x: -endplateDy / endplateLength,
-      y: endplateDx / endplateLength,
-    },
-  };
 }
 
 export function normalizeAngle(angle: number): number {

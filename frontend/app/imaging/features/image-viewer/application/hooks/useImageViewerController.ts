@@ -41,6 +41,14 @@ import type {
   AvtTarget,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import { createAvtPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import type {
+  FemoralHeadMode,
+  PelvicPlacementSession,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import {
+  getPelvicPlacementInheritedPointMap,
+  getPelvicPlacementPointCount,
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
 
 interface UseImageViewerControllerOptions {
   imageId: string;
@@ -174,6 +182,8 @@ export function useImageViewerController({
     useState<string | null>(null);
   const [avtPlacementSession, setAvtPlacementSession] =
     useState<AvtPlacementSession | null>(null);
+  const [pelvicPlacementSession, setPelvicPlacementSession] =
+    useState<PelvicPlacementSession | null>(null);
 
   const {
     studyData,
@@ -412,8 +422,15 @@ export function useImageViewerController({
     activateHandMode();
   }, [activateHandMode, setClickedPoints]);
 
+  const handleCancelPelvicPlacement = useCallback(() => {
+    setPelvicPlacementSession(null);
+    setClickedPoints([]);
+    activateHandMode();
+  }, [activateHandMode, setClickedPoints]);
+
   const handleActivateHandMode = useCallback(() => {
     setAvtPlacementSession(null);
+    setPelvicPlacementSession(null);
     setClickedPoints([]);
     activateHandMode();
   }, [activateHandMode, setClickedPoints]);
@@ -516,6 +533,12 @@ export function useImageViewerController({
         return;
       }
 
+      if (isEscapeShortcut(event) && pelvicPlacementSession) {
+        event.preventDefault();
+        handleCancelPelvicPlacement();
+        return;
+      }
+
       if (isDetectionLayerToggleShortcut(event)) {
         if (!hasVertebraeLayer) return;
         event.preventDefault();
@@ -551,11 +574,13 @@ export function useImageViewerController({
     canUndoAnnotationHistory,
     avtPlacementSession,
     handleCancelAvtPlacement,
+    handleCancelPelvicPlacement,
     handleCloseKeypointSequence,
     handleDebouncedSaveMeasurements,
     handleToggleVertebraeLayer,
     hasVertebraeLayer,
     keypointSequenceSession,
+    pelvicPlacementSession,
     redoAnnotationHistory,
     undoAnnotationHistory,
   ]);
@@ -563,9 +588,30 @@ export function useImageViewerController({
   const handleMeasurementAddWithHistory = useCallback(
     (toolType: string, points: Point[]) => {
       beginHistoryAction('manual-measurement');
-      measurementWorkflow.handleAddMeasurement(toolType, points);
+      const keypointIds = new Set(
+        keypointWorkflow.keypoints.map(keypoint => keypoint.id)
+      );
+      const inferredTpaMode: FemoralHeadMode | undefined =
+        toolType === 'tpa'
+          ? keypointIds.has('FH-1') && keypointIds.has('FH-2')
+            ? 'bilateral'
+            : 'single'
+          : undefined;
+      const pelvicMode =
+        pelvicPlacementSession?.toolId === toolType
+          ? pelvicPlacementSession.mode
+          : inferredTpaMode;
+      measurementWorkflow.handleAddMeasurement(toolType, points, {
+        pelvicMode,
+      });
+      if (pelvicMode) setPelvicPlacementSession(null);
     },
-    [beginHistoryAction, measurementWorkflow]
+    [
+      beginHistoryAction,
+      keypointWorkflow.keypoints,
+      measurementWorkflow,
+      pelvicPlacementSession,
+    ]
   );
 
   const handleSelectAvtTarget = useCallback(
@@ -605,9 +651,50 @@ export function useImageViewerController({
   const handleToolbarToolSelect = useCallback(
     (toolId: string) => {
       setAvtPlacementSession(null);
+      setPelvicPlacementSession(null);
       standardDistanceActions.handleSelectTool(toolId);
     },
     [standardDistanceActions]
+  );
+
+  const handleSelectPelvicTool = useCallback(
+    (toolId: 'pi' | 'pt', mode: FemoralHeadMode) => {
+      setAvtPlacementSession(null);
+      setClickedPoints([]);
+      const inherited = getPelvicPlacementInheritedPointMap({
+        mode,
+        keypoints: keypointWorkflow.keypoints,
+        measurements,
+      });
+      const pointCount = getPelvicPlacementPointCount(mode);
+
+      if (inherited.size === pointCount) {
+        beginHistoryAction('manual-measurement-pelvic');
+        const points = Array.from({ length: pointCount }, (_, pointIndex) =>
+          inherited.get(pointIndex)
+        );
+        if (points.every((point): point is Point => Boolean(point))) {
+          measurementWorkflow.handleAddMeasurement(toolId, points, {
+            pelvicMode: mode,
+          });
+        }
+        setPelvicPlacementSession(null);
+        activateHandMode();
+        return;
+      }
+
+      setPelvicPlacementSession({ toolId, mode });
+      setSelectedTool(toolId);
+    },
+    [
+      activateHandMode,
+      beginHistoryAction,
+      keypointWorkflow.keypoints,
+      measurementWorkflow,
+      measurements,
+      setClickedPoints,
+      setSelectedTool,
+    ]
   );
 
   const handleCompleteAvtDiscPlacement = useCallback(
@@ -930,6 +1017,7 @@ export function useImageViewerController({
       clickedPoints,
       setClickedPoints,
       avtPlacementSession,
+      pelvicPlacementSession,
       onAvtKeypointPlacement: handleAvtKeypointPlacement,
       onAvtDiscPlacementComplete: handleCompleteAvtDiscPlacement,
       imageId,
@@ -1002,6 +1090,7 @@ export function useImageViewerController({
       onStartKeypointSequence: handleStartKeypointSequence,
       onCancelKeypointSequence: handleCancelKeypointSequence,
       onCreateAvt: handleSelectAvtTarget,
+      onSelectPelvicTool: handleSelectPelvicTool,
       onCreateVertebraCenter: keypointWorkflow.handleCreateVertebraCenter,
       onCreateCobb: handleCreateCobbWithHistory,
       onRestoreFixedMeasurements: handleRestoreFixedMeasurementsWithHistory,

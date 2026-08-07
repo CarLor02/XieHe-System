@@ -7,6 +7,7 @@ import {
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { HEMIPELVIC_WIDTH_RATIO_TOOL_ID } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
+import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 interface RenderPreviewProps {
   selectedTool: string;
@@ -15,6 +16,7 @@ interface RenderPreviewProps {
   keypoints: KeypointAnnotation[];
   imageScale: number;
   imageToScreen: (point: Point) => Point;
+  pelvicPlacementSession?: PelvicPlacementSession | null;
 }
 
 /**
@@ -28,10 +30,15 @@ export default function renderPreview({
   keypoints,
   imageScale,
   imageToScreen,
+  pelvicPlacementSession = null,
 }: RenderPreviewProps): JSX.Element | null {
   if (selectedTool === HEMIPELVIC_WIDTH_RATIO_TOOL_ID) {
     return null;
   }
+
+  // 双 FH 的 6 点中包含两个测量项自有半径点，不能套用旧三点 PI/PT 预览，
+  // 否则前 3 个落点会被错误解释为 CFH 与 S1。落点进度由工作点和提示面板展示。
+  if (pelvicPlacementSession?.mode === 'bilateral') return null;
 
   if (
     selectedTool === 'circle' ||

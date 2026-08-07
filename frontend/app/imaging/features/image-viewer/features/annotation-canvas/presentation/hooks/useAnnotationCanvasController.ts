@@ -41,6 +41,7 @@ import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/fea
 export function getAnnotationCanvasCursorClass({
   keypointSequenceSession,
   avtPlacementSession = null,
+  pelvicPlacementSession = null,
   showVertebraeLayer,
   isVertebradDragging,
   selectedTool,
@@ -49,13 +50,16 @@ export function getAnnotationCanvasCursorClass({
 }: {
   keypointSequenceSession: KeypointSequenceSession | null;
   avtPlacementSession?: AnnotationCanvasProps['avtPlacementSession'];
+  pelvicPlacementSession?: AnnotationCanvasProps['pelvicPlacementSession'];
   showVertebraeLayer: boolean;
   isVertebradDragging: boolean;
   selectedTool: string;
   hasActiveOrHoveredCorner: boolean;
   fallbackCursorClass: string;
 }): string {
-  if (keypointSequenceSession || avtPlacementSession) return 'cursor-crosshair';
+  if (keypointSequenceSession || avtPlacementSession || pelvicPlacementSession) {
+    return 'cursor-crosshair';
+  }
 
   if (
     (showVertebraeLayer || isVertebradDragging) &&
@@ -124,6 +128,7 @@ export function useAnnotationCanvasController({
   clickedPoints,
   setClickedPoints,
   avtPlacementSession = null,
+  pelvicPlacementSession = null,
   onAvtKeypointPlacement,
   onAvtDiscPlacementComplete,
   imageId,
@@ -572,6 +577,7 @@ export function useAnnotationCanvasController({
     onMeasurementAdd,
     onMeasurementComplete: () => setSelectedTool('hand'),
     avtPlacementSession,
+    pelvicPlacementSession,
     onAvtDiscPlacementComplete,
     drawingState,
     setDrawingState,
@@ -816,6 +822,7 @@ export function useAnnotationCanvasController({
         {
           keypointSequenceSession,
           avtPlacementSession,
+          pelvicPlacementSession,
           showVertebraeLayer,
           isVertebradDragging: vertebradDrag.isDragging,
           selectedTool,
@@ -923,6 +930,7 @@ export function useAnnotationCanvasController({
       imageToScreen,
       constrainAuxLinePoint,
       workingPointHoverIndex,
+      pelvicPlacementSession,
     },
     selectionLayer: {
       selectionState,
@@ -938,8 +946,10 @@ export function useAnnotationCanvasController({
       pointsNeeded,
       currentTool,
       keypoints,
+      measurements,
       keypointSequenceSession,
       avtPlacementSession,
+      pelvicPlacementSession,
     },
     overlayLayer: {
       editLabelDialog,

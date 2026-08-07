@@ -7,10 +7,23 @@ import {
   type AvtPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import {
+  BILATERAL_PELVIC_POINT_LABELS,
+  type PelvicPlacementSession,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import {
   getManualMeasurementInheritedPoints,
   getNextManualMeasurementPointIndex,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
-import { getMeasurementKeypointDrawingHint } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
+import {
+  getNextPelvicPlacementPointIndex,
+  getPelvicPlacementInheritedPointMap,
+  getPelvicPlacementPointCount,
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
+import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  getMeasurementKeypointBindingRuleForMeasurement,
+  getMeasurementKeypointDrawingHint,
+} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 
 interface CanvasHintPanelProps {
@@ -23,6 +36,8 @@ interface CanvasHintPanelProps {
   keypoints: KeypointAnnotation[];
   keypointSequenceSession?: KeypointSequenceSession | null;
   avtPlacementSession?: AvtPlacementSession | null;
+  pelvicPlacementSession?: PelvicPlacementSession | null;
+  measurements?: MeasurementData[];
 }
 
 /**
@@ -38,36 +53,92 @@ export default function CanvasHintPanel({
   keypoints,
   keypointSequenceSession = null,
   avtPlacementSession = null,
+  pelvicPlacementSession = null,
+  measurements = [],
 }: CanvasHintPanelProps) {
   const currentSequenceKeypoint =
     keypointSequenceSession?.keypointIds[keypointSequenceSession.currentIndex];
   const completedSequenceCount = keypointSequenceSession?.currentIndex ?? 0;
   const sequenceTotal = keypointSequenceSession?.keypointIds.length ?? 0;
-  const nextMeasurementPointIndex = currentTool
-    ? getNextManualMeasurementPointIndex(
-        currentTool.id,
-        keypoints,
-        currentTool.pointsNeeded,
-        clickedPointsCount
+  const hasFh1 = keypoints.some(keypoint => keypoint.id === 'FH-1');
+  const hasFh2 = keypoints.some(keypoint => keypoint.id === 'FH-2');
+  const tpaBindingRule =
+    currentTool?.id === 'tpa' && hasFh1 === hasFh2
+      ? getMeasurementKeypointBindingRuleForMeasurement({
+          id: 'canvas-hint-tpa-binding-probe',
+          type: 'tpa',
+          value: '',
+          points: [],
+          pelvicMetadata: {
+            schemaVersion: 2,
+            femoralHeadMode: hasFh1 ? 'bilateral' : 'single',
+          },
+        })
+      : null;
+  const tpaInheritedPointMap = tpaBindingRule
+    ? tpaBindingRule.getAvailableMeasurementPointMap(
+        new Map(keypoints.map(keypoint => [keypoint.id, keypoint]))
       )
     : null;
-  const measurementKeypointHint =
-    currentTool && nextMeasurementPointIndex !== null
-      ? getMeasurementKeypointDrawingHint(
+  const nextTpaPointIndex = tpaInheritedPointMap
+    ? Array.from(
+        { length: currentTool?.pointsNeeded ?? 0 },
+        (_, pointIndex) => pointIndex
+      ).filter(pointIndex => !tpaInheritedPointMap.has(pointIndex))[
+        clickedPointsCount
+      ] ?? null
+    : null;
+  const nextMeasurementPointIndex = tpaBindingRule
+    ? nextTpaPointIndex
+    : currentTool
+      ? getNextManualMeasurementPointIndex(
           currentTool.id,
-          nextMeasurementPointIndex
+          keypoints,
+          currentTool.pointsNeeded,
+          clickedPointsCount
         )
       : null;
-  const inheritedPointCount = currentTool
-    ? getManualMeasurementInheritedPoints(
-        currentTool.id,
-        currentTool.pointsNeeded,
-        keypoints
-      ).count
-    : 0;
+  const measurementKeypointHint =
+    currentTool && nextMeasurementPointIndex !== null
+      ? (tpaBindingRule?.getDrawingHint?.(nextMeasurementPointIndex) ??
+        getMeasurementKeypointDrawingHint(
+          currentTool.id,
+          nextMeasurementPointIndex
+        ))
+      : null;
+  const inheritedPointCount = tpaInheritedPointMap
+    ? tpaInheritedPointMap.size
+    : currentTool
+      ? getManualMeasurementInheritedPoints(
+          currentTool.id,
+          currentTool.pointsNeeded,
+          keypoints
+        ).count
+      : 0;
   const completedMeasurementPointCount =
     clickedPointsCount + inheritedPointCount;
   const totalMeasurementPointCount = currentTool?.pointsNeeded ?? pointsNeeded;
+  const pelvicInherited = pelvicPlacementSession
+    ? getPelvicPlacementInheritedPointMap({
+        mode: pelvicPlacementSession.mode,
+        keypoints,
+        measurements,
+      })
+    : new Map();
+  const pelvicNextPointIndex = pelvicPlacementSession
+    ? getNextPelvicPlacementPointIndex(
+        pelvicPlacementSession.mode,
+        pelvicInherited,
+        clickedPointsCount
+      )
+    : null;
+  const pelvicTotal = pelvicPlacementSession
+    ? getPelvicPlacementPointCount(pelvicPlacementSession.mode)
+    : 0;
+  const pelvicLabels =
+    pelvicPlacementSession?.mode === 'bilateral'
+      ? BILATERAL_PELVIC_POINT_LABELS
+      : (['CFH', 'S1-1', 'S1-2'] as const);
 
   return (
     <div className="absolute bottom-4 left-4 flex flex-col gap-2 max-w-md">
@@ -81,7 +152,22 @@ export default function CanvasHintPanel({
       )}
 
       <div className="bg-black/70 text-white text-xs px-3 py-2 rounded">
-        {avtPlacementSession ? (
+        {pelvicPlacementSession ? (
+          <div>
+            <p className="font-medium text-yellow-300">
+              正在标注 {pelvicPlacementSession.toolId.toUpperCase()}（
+              {pelvicPlacementSession.mode === 'bilateral' ? '双FH' : '单FH'}）
+            </p>
+            <p className="mt-1">
+              {pelvicNextPointIndex === null
+                ? '所需点已完整，点击画布完成恢复'
+                : `下一点 ${pelvicLabels[pelvicNextPointIndex]}`}
+              ，已标注 {clickedPointsCount + pelvicInherited.size}/{pelvicTotal}{' '}
+              个点
+            </p>
+            <p className="text-gray-300 mt-1">按 Esc 取消</p>
+          </div>
+        ) : avtPlacementSession ? (
           <div>
             {avtPlacementSession.step.kind === 'keypoint' ? (
               <>

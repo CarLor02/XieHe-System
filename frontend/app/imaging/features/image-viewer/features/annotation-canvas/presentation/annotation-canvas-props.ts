@@ -4,6 +4,7 @@ import type {
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import type { AvtPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type {
   CfhAnnotation,
   ImageData,
@@ -39,6 +40,7 @@ export interface AnnotationCanvasProps {
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
   avtPlacementSession?: AvtPlacementSession | null;
+  pelvicPlacementSession?: PelvicPlacementSession | null;
   onAvtKeypointPlacement?: (point: Point) => void;
   onAvtDiscPlacementComplete?: (anchors: readonly [Point, Point]) => void;
   imageId: string;

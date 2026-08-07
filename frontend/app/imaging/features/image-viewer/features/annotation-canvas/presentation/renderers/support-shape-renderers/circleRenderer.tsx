@@ -1,16 +1,33 @@
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  circleGeometryFromPoints,
+  getCircleRadius,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
-export function circleRenderer([center, edge]: Point[], color: string) {
-  if (!center || !edge) return null;
-  const radius = Math.hypot(edge.x - center.x, edge.y - center.y);
+interface CircleRendererOptions {
+  fill?: string;
+  fillOpacity?: number | string;
+  opacity?: number | string;
+  strokeWidth?: number | string;
+}
+
+export function circleRenderer(
+  points: Point[],
+  color: string,
+  options: CircleRendererOptions = {}
+) {
+  const circle = circleGeometryFromPoints(points);
+  if (!circle) return null;
   return (
     <circle
-      cx={center.x}
-      cy={center.y}
-      r={radius}
-      fill="none"
+      cx={circle.center.x}
+      cy={circle.center.y}
+      r={getCircleRadius(circle)}
+      fill={options.fill ?? 'none'}
+      fillOpacity={options.fillOpacity}
       stroke={color}
-      strokeWidth="2"
+      strokeWidth={options.strokeWidth ?? 2}
+      opacity={options.opacity}
     />
   );
 }

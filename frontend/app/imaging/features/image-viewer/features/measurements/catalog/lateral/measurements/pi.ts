@@ -3,7 +3,7 @@ import {
   calculatePiResults,
   isPiInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pi';
-import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/pelvic';
+import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const PI_CONFIG: AnnotationConfig = {

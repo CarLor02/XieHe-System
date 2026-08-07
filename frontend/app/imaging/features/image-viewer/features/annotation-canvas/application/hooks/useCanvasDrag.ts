@@ -9,6 +9,11 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
+  circleGeometryFromPoints,
+  getCircleBounds,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+import { normalizePelvicDraggedMeasurementPoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/pelvic-binding-rule';
+import {
   MeasurementData,
   Point,
 } from '@/app/imaging/features/image-viewer/shared/types';
@@ -149,17 +154,18 @@ export function useCanvasDrag({
 
           if (selectionState.type === 'whole') {
             if (typeId === 'circle' && measurement.points.length >= 2) {
-              const center = measurement.points[0];
-              const edge = measurement.points[1];
-              const radius = Math.sqrt(
-                Math.pow(edge.x - center.x, 2) + Math.pow(edge.y - center.y, 2)
+              const circle = circleGeometryFromPoints(measurement.points)!;
+              const bounds = getCircleBounds(
+                {
+                  center: imageToScreen(circle.center),
+                  radiusHandle: imageToScreen(circle.radiusHandle),
+                },
+                15
               );
-              const screenCenter = imageToScreen(center);
-              const screenRadius = radius * imageScale;
-              minX = screenCenter.x - screenRadius - 15;
-              maxX = screenCenter.x + screenRadius + 15;
-              minY = screenCenter.y - screenRadius - 15;
-              maxY = screenCenter.y + screenRadius + 15;
+              minX = bounds.minX;
+              maxX = bounds.maxX;
+              minY = bounds.minY;
+              maxY = bounds.maxY;
             } else if (typeId === 'ellipse' && measurement.points.length >= 2) {
               const center = measurement.points[0];
               const edge = measurement.points[1];
@@ -391,22 +397,30 @@ export function useCanvasDrag({
           }
         }
 
+        const requestedPoints = measurement.points.map((point, index) =>
+          index === selectionState.pointIndex
+            ? { x: newPointX, y: newPointY }
+            : point
+        );
+        const selectedMeasurementPoints = normalizePelvicDraggedMeasurementPoints(
+          measurement,
+          requestedPoints,
+          selectionState.pointIndex
+        );
+        const selectedPoint =
+          selectedMeasurementPoints[selectionState.pointIndex];
         const bindingPropagated = applyPointBindings(
           measurements,
           selectionState.measurementId,
           selectionState.pointIndex,
-          newPointX,
-          newPointY,
+          selectedPoint.x,
+          selectedPoint.y,
           pointBindings
         );
 
-        const updatedMeasurements = bindingPropagated.map(item => {
+        let updatedMeasurements = bindingPropagated.map(item => {
           if (item.id === selectionState.measurementId) {
-            const points = item.points.map((point, index) =>
-              index === selectionState.pointIndex
-                ? { x: newPointX, y: newPointY }
-                : point
-            );
+            const points = selectedMeasurementPoints;
             return {
               ...item,
               points,
@@ -451,6 +465,39 @@ export function useCanvasDrag({
           return item;
         });
 
+        if (
+          (typeId === 'pi' || typeId === 'pt') &&
+          measurement.pelvicMetadata?.femoralHeadMode === 'bilateral' &&
+          selectedMeasurementPoints.length === 6
+        ) {
+          // PI 与 PT 共用同一组双侧股骨头圆及 S1 端点。半径控制点不是全局关键点，
+          // 因此必须在测量层内显式同步，避免只调整 PI 圆而 PT 仍保留旧半径。
+          updatedMeasurements = updatedMeasurements.map(item => {
+            const itemTypeId = getAnnotationTypeId(item.type);
+            if (
+              item.id === measurement.id ||
+              (itemTypeId !== 'pi' && itemTypeId !== 'pt') ||
+              item.pelvicMetadata?.femoralHeadMode !== 'bilateral'
+            ) {
+              return item;
+            }
+            const points = selectedMeasurementPoints.map(point => ({ ...point }));
+            return {
+              ...item,
+              points,
+              value:
+                calculateMeasurementDataValue(
+                  { ...item, points },
+                  {
+                    standardDistance,
+                    standardDistancePoints,
+                    imageNaturalSize,
+                  }
+                ) || item.value,
+            };
+          });
+        }
+
         onMeasurementsUpdate(updatedMeasurements);
 
         // 将被拖拽的测量点同步写回 vertebraeLayer（Cobb 及辅助图形无映射，自动跳过）
@@ -461,7 +508,7 @@ export function useCanvasDrag({
           onMeasurementWriteback(
             measurement.type,
             selectionState.pointIndex,
-            { x: newPointX, y: newPointY },
+            selectedPoint,
             measurement.id,
             updatedMeasurement?.points
           );

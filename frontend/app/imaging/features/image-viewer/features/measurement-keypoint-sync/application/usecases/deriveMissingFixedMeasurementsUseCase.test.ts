@@ -56,3 +56,55 @@ it('does not derive Cobb from otherwise complete vertebra keypoints', () => {
   expect(measurements.map(item => item.type)).toEqual(['T1 Tilt']);
   expect(measurements.some(item => /^cobb\d+$/i.test(item.type))).toBe(false);
 });
+
+it('derives bilateral PI, PT and TPA from effective CFH dependencies', () => {
+  const measurements = deriveMissingFixedMeasurementsFromKeypoints({
+    previousMeasurements: [],
+    keypoints: [
+      keypoint('FH-1', 100, 400),
+      keypoint('FH-2', 200, 400),
+      keypoint('S1-1', 120, 300),
+      keypoint('S1-2', 180, 300),
+      keypoint('T1-1', 100, 100),
+      keypoint('T1-2', 180, 100),
+      keypoint('T1-3', 100, 140),
+      keypoint('T1-4', 180, 140),
+    ],
+    examType: '侧位X光片',
+    calculationContext,
+  });
+
+  const pelvicMeasurements = measurements.filter(item =>
+    ['PI', 'PT', 'TPA'].includes(item.type)
+  );
+  expect(pelvicMeasurements.map(item => item.type)).toEqual(['TPA', 'PI', 'PT']);
+  expect(
+    pelvicMeasurements.every(
+      item => item.pelvicMetadata?.femoralHeadMode === 'bilateral'
+    )
+  ).toBe(true);
+  expect(measurements.find(item => item.type === 'PI')?.points).toHaveLength(6);
+  expect(measurements.find(item => item.type === 'TPA')?.points[4]).toEqual({
+    x: 150,
+    y: 400,
+  });
+});
+
+it('does not derive pelvic measurements from conflicting CFH sources', () => {
+  const measurements = deriveMissingFixedMeasurementsFromKeypoints({
+    previousMeasurements: [],
+    keypoints: [
+      keypoint('CFH', 150, 400),
+      keypoint('FH-1', 100, 400),
+      keypoint('FH-2', 200, 400),
+      keypoint('S1-1', 120, 300),
+      keypoint('S1-2', 180, 300),
+    ],
+    examType: '侧位X光片',
+    calculationContext,
+  });
+
+  expect(
+    measurements.filter(item => ['PI', 'PT', 'TPA'].includes(item.type))
+  ).toEqual([]);
+});

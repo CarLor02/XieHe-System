@@ -1,12 +1,13 @@
 import type { MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
-import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/pelvic';
+import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**
  * PT 计算股骨头中心到 S1 中点连线相对垂线的有符号角。
  *
- * 点序为 [股骨头中心, S1端点1, S1端点2]，水平偏移方向决定正负。
+ * 历史/单 FH 点序为 [CFH,S1-1,S1-2]；双 FH 六点布局由 pelvic domain
+ * 解析，并使用两个圆心的中点作为 effectiveCFH。水平偏移方向决定正负。
  */
 export function calculatePtResults(points: Point[]): MeasurementResult[] {
   if (points.length < 3) return [];

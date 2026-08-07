@@ -140,6 +140,7 @@ function createBaseToolbarProps(): AnnotationToolbarProps {
     onStartKeypointSequence: jest.fn(),
     onCancelKeypointSequence: jest.fn(),
     onCreateAvt: jest.fn(),
+    onSelectPelvicTool: jest.fn(),
     onCreateVertebraCenter: jest.fn(),
     onCreateCobb: jest.fn(),
     onRestoreFixedMeasurements: jest.fn(),
@@ -491,6 +492,39 @@ it('does not start sequential placement for lateral CFH', () => {
 
   expect(onStartKeypointSequence).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'CFH' })).toBeTruthy();
+});
+
+it('selects single or bilateral FH mode before starting PI', () => {
+  const onSelectPelvicTool = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    tools: getToolsForExamType('侧位X光片'),
+    onSelectPelvicTool,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: 'PI' }));
+  fireEvent.click(screen.getByRole('button', { name: '双FH' }));
+
+  expect(onSelectPelvicTool).toHaveBeenCalledWith('pi', 'bilateral');
+});
+
+it('prevents CFH and bilateral FH keypoints from coexisting', () => {
+  renderToolbar({
+    examType: '侧位X光片',
+    keypoints: [
+      {
+        id: 'CFH',
+        point: { x: 10, y: 20 },
+        source: AnnotationSource.MANUAL,
+        confidence: 1,
+      },
+    ],
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '关键点' }));
+  const fhButton = screen.getByRole('button', { name: /^FH 0$/ });
+  expect(fhButton.hasAttribute('disabled')).toBe(true);
+  expect(fhButton.getAttribute('title')).toContain('CFH 已存在');
 });
 
 it('highlights the keypoint group during sequential keypoint placement', () => {

@@ -44,7 +44,7 @@ export interface AnnotationBindings {
  *   left  = S1上缘左端点在 points[] 中的索引（null 表示无）
  *   right = S1上缘右端点在 points[] 中的索引（null 表示无）
  */
-export const S1_BINDING_POINT_MAP: Record<
+const S1_BINDING_POINT_MAP: Record<
   string,
   { left: number | null; right: number | null }
 > = {
@@ -56,6 +56,31 @@ export const S1_BINDING_POINT_MAP: Record<
   tpa: { left: 5, right: 6 },  // TPA：points[5],points[6] = S1上缘左右端点
   sva: { left: null, right: 4 },  // SVA：points[4] = 骶椎后缘参考点 = S1上缘右端点（后缘）
 };
+
+interface S1BindableMeasurement {
+  type: string;
+  points: readonly unknown[];
+  pelvicMetadata?: { femoralHeadMode?: string };
+}
+
+/**
+ * 返回某条测量中 S1 上终板的真实槽位。
+ *
+ * 历史 PI/PT 没有 pelvicMetadata，固定按三点布局读取 1、2；只有明确保存为
+ * bilateral 的新六点数据才使用 4、5，防止把双 FH 半径点和圆心误当成 S1。
+ */
+export function getS1BindingPointMap(
+  measurement: S1BindableMeasurement
+): { left: number | null; right: number | null } | null {
+  const typeId = getAnnotationTypeId(measurement.type);
+  if (
+    (typeId === 'pi' || typeId === 'pt') &&
+    measurement.pelvicMetadata?.femoralHeadMode === 'bilateral'
+  ) {
+    return { left: 4, right: 5 };
+  }
+  return S1_BINDING_POINT_MAP[typeId] ?? null;
+}
 
 // ==================== 工厂函数 ====================
 
@@ -75,7 +100,7 @@ export function autoCreateS1Bindings(
   const rightMembers: PointRef[] = [];
 
   for (const m of measurements) {
-    const mapping = S1_BINDING_POINT_MAP[getAnnotationTypeId(m.type)];
+    const mapping = getS1BindingPointMap(m);
     if (!mapping) continue;
 
     if (mapping.left !== null && m.points.length > mapping.left) {

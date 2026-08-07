@@ -65,7 +65,7 @@ export const LATERAL_CENTER_VERTEBRA_GROUPS = [
 
 export const LATERAL_SACRAL_GROUP = 'S1';
 export const LATERAL_SACRAL_KEYPOINTS = ['S1-1', 'S1-2'] as const;
-export const LATERAL_ANATOMICAL_KEYPOINTS = ['CFH'] as const;
+export const LATERAL_ANATOMICAL_KEYPOINTS = ['CFH', 'FH-1', 'FH-2'] as const;
 
 export const LATERAL_VERTEBRA_KEYPOINTS: LateralKeypointConfig[] =
   LATERAL_VERTEBRA_GROUPS.flatMap(group =>
@@ -119,7 +119,14 @@ export function getLateralKeypointGroups(): LateralKeypointGroup[] {
       id: 'CFH',
       name: 'CFH',
       keypoints: LATERAL_KEYPOINT_CONFIGS.filter(
-        keypoint => keypoint.kind === 'anatomical-point'
+        keypoint => keypoint.id === 'CFH'
+      ),
+    },
+    {
+      id: 'FH',
+      name: 'FH',
+      keypoints: LATERAL_KEYPOINT_CONFIGS.filter(
+        keypoint => keypoint.id === 'FH-1' || keypoint.id === 'FH-2'
       ),
     },
   ];

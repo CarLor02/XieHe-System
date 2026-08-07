@@ -106,7 +106,7 @@ it('continues saving annotations to the server when localStorage backup exceeds 
   expect(setIsSaving).toHaveBeenLastCalledWith(false);
 });
 
-it('keeps AVT metadata and binding fields in the local maintenance backup', async () => {
+it('keeps dynamic measurement metadata in the local maintenance backup', async () => {
   await saveMeasurements(
     '899',
     0,
@@ -141,6 +141,20 @@ it('keeps AVT metadata and binding fields in the local maintenance backup', asyn
           referenceLine: 'csvl',
         },
       },
+      {
+        id: 'lateral-pi-bilateral',
+        type: 'pi',
+        points: Array.from({ length: 6 }, (_, index) => ({
+          x: index * 10,
+          y: index * 20,
+        })),
+        value: '40.00°',
+        keypointSynced: true,
+        pelvicMetadata: {
+          schemaVersion: 2,
+          femoralHeadMode: 'bilateral',
+        },
+      },
     ],
     '',
     jest.fn(),
@@ -160,6 +174,14 @@ it('keeps AVT metadata and binding fields in the local maintenance backup', asyn
         lowerVertebra: 'L1',
       },
       referenceLine: 'csvl',
+    },
+  });
+  expect(backup.measurements[1]).toMatchObject({
+    id: 'lateral-pi-bilateral',
+    keypointSynced: true,
+    pelvicMetadata: {
+      schemaVersion: 2,
+      femoralHeadMode: 'bilateral',
     },
   });
 });

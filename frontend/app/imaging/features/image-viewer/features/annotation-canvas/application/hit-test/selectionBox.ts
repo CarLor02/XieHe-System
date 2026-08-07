@@ -5,6 +5,10 @@ import {
 import { getBoundingBox } from '@/app/imaging/features/image-viewer/shared/geometry';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import {
+  circleGeometryFromPoints,
+  getCircleBounds,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
 
 /**
  * 计算标注的选择边界框，供选中态与 hover 态复用。
@@ -43,15 +47,14 @@ export function getMeasurementSelectionBoxInScreen(
   const typeId = getAnnotationTypeId(measurement.type);
 
   if (typeId === 'circle' && measurement.points.length >= 2) {
-    const center = imageToScreen(measurement.points[0]);
-    const edge = imageToScreen(measurement.points[1]);
-    const radius = Math.hypot(edge.x - center.x, edge.y - center.y);
-    return {
-      minX: center.x - radius - padding,
-      maxX: center.x + radius + padding,
-      minY: center.y - radius - padding,
-      maxY: center.y + radius + padding,
-    };
+    const imageCircle = circleGeometryFromPoints(measurement.points)!;
+    return getCircleBounds(
+      {
+        center: imageToScreen(imageCircle.center),
+        radiusHandle: imageToScreen(imageCircle.radiusHandle),
+      },
+      padding
+    );
   }
 
   if (typeId === 'ellipse' && measurement.points.length >= 2) {

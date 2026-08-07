@@ -5,6 +5,7 @@
 
 import {AnnotationBindings} from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import type { AvtMetadata } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt/types';
+import type { PelvicMeasurementMetadata } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic/types';
 
 /**
  * 图像尺寸
@@ -50,6 +51,7 @@ export interface MeasurementData {
   lowerVertebra?: string | null;
   apexVertebra?: string | null;
   avtMetadata?: AvtMetadata; // AVT v2: 椎体/椎间盘目标、参考线与点位布局
+  pelvicMetadata?: PelvicMeasurementMetadata; // PI/PT/TPA v2: 单 FH 或双 FH 的真实关键点依赖
   keypointSynced?: boolean; // 测量项已绑定关键点；后续关键点移动或缺失时应重算或移除
 }
 

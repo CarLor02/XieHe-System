@@ -13,6 +13,10 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/geometry';
 import { INTERACTION_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 import { imageToScreen } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
+import {
+  createCircleGeometry,
+  getCircleRadius,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
 
 /**
  * 检查是否点击了某个点
@@ -73,7 +77,9 @@ export function isCircleClicked(
 ): boolean {
   const centerScreen = imageToScreen(center, context);
   const edgeScreen = imageToScreen(edge, context);
-  const screenRadius = calculateDistance(centerScreen, edgeScreen);
+  const screenRadius = getCircleRadius(
+    createCircleGeometry(centerScreen, edgeScreen)
+  );
 
   return isPointNearCircle(clickPoint, centerScreen, screenRadius, tolerance);
 }

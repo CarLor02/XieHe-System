@@ -1,0 +1,176 @@
+import {
+  circleGeometryFromPoints,
+  createCircleGeometry,
+  moveCircleCenter,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+import type { CircleGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+
+import type {
+  PelvicMeasurementGeometry,
+  PelvicMeasurementMetadata,
+} from './types';
+
+export const SINGLE_PELVIC_POINT_COUNT = 3;
+export const BILATERAL_PELVIC_POINT_COUNT = 6;
+
+export const BILATERAL_PELVIC_POINT_LABELS = [
+  'FH-1圆心',
+  'FH-1半径点',
+  'FH-2圆心',
+  'FH-2半径点',
+  'S1-1',
+  'S1-2',
+] as const;
+
+export function createPelvicMeasurementMetadata(
+  femoralHeadMode: PelvicMeasurementMetadata['femoralHeadMode']
+): PelvicMeasurementMetadata {
+  return { schemaVersion: 2, femoralHeadMode };
+}
+
+export function isPelvicMeasurementMetadata(
+  value: unknown
+): value is PelvicMeasurementMetadata {
+  if (!value || typeof value !== 'object') return false;
+  const metadata = value as Partial<PelvicMeasurementMetadata>;
+  return (
+    metadata.schemaVersion === 2 &&
+    (metadata.femoralHeadMode === 'single' ||
+      metadata.femoralHeadMode === 'bilateral')
+  );
+}
+
+export function getDefaultFemoralHeadRadius(
+  imageSize: { width: number; height: number } | null
+): number {
+  const shortestSide = imageSize
+    ? Math.min(imageSize.width, imageSize.height)
+    : 0;
+  return shortestSide > 0 ? Math.max(1, shortestSide * 0.03) : 20;
+}
+
+export function createDefaultBilateralPelvicPoints({
+  fh1,
+  fh2,
+  s1First,
+  s1Second,
+  imageSize,
+}: {
+  fh1: Point;
+  fh2: Point;
+  s1First: Point;
+  s1Second: Point;
+  imageSize: { width: number; height: number } | null;
+}): Point[] {
+  const radius = getDefaultFemoralHeadRadius(imageSize);
+  return [
+    { ...fh1 },
+    { x: fh1.x + radius, y: fh1.y },
+    { ...fh2 },
+    { x: fh2.x + radius, y: fh2.y },
+    { ...s1First },
+    { ...s1Second },
+  ];
+}
+
+/**
+ * 解析 PI/PT/SS 的领域几何。
+ *
+ * 历史 PI/PT 没有 metadata，且固定保存为 [CFH,S1-1,S1-2]；该三点
+ * 分支必须永久保留，不能按新六点布局重排。新双 FH 严格使用用户落点顺序
+ * [FH-1圆心,FH-1半径点,FH-2圆心,FH-2半径点,S1-1,S1-2]，不按 X 排序。
+ */
+export function getPelvicMeasurementGeometry(
+  points: Point[]
+): PelvicMeasurementGeometry | null {
+  let femoralHeadCenter: Point | null = null;
+  let femoralHeadCircles: CircleGeometry[] = [];
+  let sacralLeft: Point;
+  let sacralRight: Point;
+  let mode: PelvicMeasurementGeometry['mode'];
+
+  if (points.length === BILATERAL_PELVIC_POINT_COUNT) {
+    const firstCircle = circleGeometryFromPoints(points, 0, 1);
+    const secondCircle = circleGeometryFromPoints(points, 2, 3);
+    if (!firstCircle || !secondCircle) return null;
+    femoralHeadCircles = [firstCircle, secondCircle];
+    femoralHeadCenter = {
+      x: (firstCircle.center.x + secondCircle.center.x) / 2,
+      y: (firstCircle.center.y + secondCircle.center.y) / 2,
+    };
+    sacralLeft = points[4];
+    sacralRight = points[5];
+    mode = 'bilateral';
+  } else if (points.length >= SINGLE_PELVIC_POINT_COUNT) {
+    femoralHeadCenter = points[0];
+    sacralLeft = points[1];
+    sacralRight = points[2];
+    mode = 'single';
+  } else if (points.length === 2) {
+    sacralLeft = points[0];
+    sacralRight = points[1];
+    mode = 'sacral-only';
+  } else {
+    return null;
+  }
+
+  const dx = sacralRight.x - sacralLeft.x;
+  const dy = sacralRight.y - sacralLeft.y;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return null;
+
+  return {
+    mode,
+    femoralHeadCenter,
+    femoralHeadCircles,
+    sacralLeft,
+    sacralRight,
+    sacralMidpoint: {
+      x: (sacralLeft.x + sacralRight.x) / 2,
+      y: (sacralLeft.y + sacralRight.y) / 2,
+    },
+    sacralNormal: {
+      x: -dy / length,
+      y: dx / length,
+    },
+  };
+}
+
+/**
+ * 更新 PI/PT 的交互点。双 FH 模式移动圆心时，半径控制点必须同步平移；
+ * 移动半径控制点则只改变对应圆的半径。
+ */
+export function updatePelvicMeasurementPoint(
+  points: Point[],
+  pointIndex: number,
+  nextPoint: Point
+): Point[] {
+  const nextPoints = points.map(point => ({ ...point }));
+  if (points.length !== BILATERAL_PELVIC_POINT_COUNT) {
+    if (nextPoints[pointIndex]) nextPoints[pointIndex] = { ...nextPoint };
+    return nextPoints;
+  }
+
+  if (pointIndex === 0 || pointIndex === 2) {
+    const handleIndex = pointIndex + 1;
+    const movedCircle = moveCircleCenter(
+      createCircleGeometry(points[pointIndex], points[handleIndex]),
+      nextPoint
+    );
+    nextPoints[pointIndex] = movedCircle.center;
+    nextPoints[handleIndex] = movedCircle.radiusHandle;
+    return nextPoints;
+  }
+
+  if (nextPoints[pointIndex]) nextPoints[pointIndex] = { ...nextPoint };
+  return nextPoints;
+}
+
+export function createCircleFromPelvicPoints(
+  points: Point[],
+  circleIndex: 0 | 1
+) {
+  const centerIndex = circleIndex === 0 ? 0 : 2;
+  return createCircleGeometry(points[centerIndex], points[centerIndex + 1]);
+}

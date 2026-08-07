@@ -1,7 +1,10 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import { calculateActualDistance } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/calibration';
-import { calculateDistance2D } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
+import {
+  circleGeometryFromPoints,
+  getCircleRadius,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export const CIRCLE_CONFIG: AnnotationConfig = {
@@ -14,18 +17,21 @@ export const CIRCLE_CONFIG: AnnotationConfig = {
   color: '#10b981',
 
   calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 2) return [];
-    const pixelRadius = calculateDistance2D(points[0], points[1]);
+    const circle = circleGeometryFromPoints(points);
+    if (!circle) return [];
+    const pixelRadius = getCircleRadius(circle);
     const actualRadius = calculateActualDistance(pixelRadius, context);
     return [{ name: '半径', value: actualRadius.toFixed(1), unit: 'mm' }];
   },
 
   getLabelPosition: (points: Point[]) => {
     // label 放在圆的左侧，水平对齐圆心
-    if (points.length < 2) return points[0] || { x: 0, y: 0 };
-    const center = points[0];
-    const radius = calculateDistance2D(center, points[1]);
-    return { x: center.x - radius, y: center.y };
+    const circle = circleGeometryFromPoints(points);
+    if (!circle) return points[0] || { x: 0, y: 0 };
+    return {
+      x: circle.center.x - getCircleRadius(circle),
+      y: circle.center.y,
+    };
   },
 
   // 圆形命中由画布图形命中模块处理，catalog 不重复实现。

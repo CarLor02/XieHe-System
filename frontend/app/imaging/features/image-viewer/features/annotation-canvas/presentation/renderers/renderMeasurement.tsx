@@ -45,6 +45,7 @@ import {
   SelectionState,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { renderAuxiliaryTag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/support-shape-renderers/auxiliaryTagRenderer';
+import { circleRenderer } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/support-shape-renderers/circleRenderer';
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/shared/rendererUtils';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
 
@@ -92,6 +93,10 @@ function getPointDisplayLabel(
 
   const typeId = getAnnotationTypeId(measurement.type);
   if ((typeId === 'pi' || typeId === 'pt') && measurement.points.length >= 3) {
+    if (measurement.points.length === 6) {
+      return ['FH-1', 'R1', 'FH-2', 'R2', 'S1-1', 'S1-2'][pointIndex] ??
+        pointIndex + 1;
+    }
     if (pointIndex === 0) return 3;
     if (pointIndex === 1) return 1;
     if (pointIndex === 2) return 2;
@@ -112,6 +117,14 @@ function getPelvicSharedPointLabelKey(
   }
 
   if (typeId === 'pi' || typeId === 'pt') {
+    if (measurement.points.length === 6) {
+      if (pointIndex === 0) return 'pelvic-fh-1';
+      if (pointIndex === 1) return 'pelvic-fh-radius-1';
+      if (pointIndex === 2) return 'pelvic-fh-2';
+      if (pointIndex === 3) return 'pelvic-fh-radius-2';
+      if (pointIndex === 4) return 'pelvic-s1-1';
+      if (pointIndex === 5) return 'pelvic-s1-2';
+    }
     if (pointIndex === 0) return 'pelvic-cfh';
     if (pointIndex === 1) return 'pelvic-s1-1';
     if (pointIndex === 2) return 'pelvic-s1-2';
@@ -291,26 +304,13 @@ function renderAuxiliaryShape(
   const typeId = getAnnotationTypeId(measurement.type);
 
   if (typeId === 'circle' && screenPoints.length >= 2) {
-    const radius = Math.hypot(
-      screenPoints[1].x - screenPoints[0].x,
-      screenPoints[1].y - screenPoints[0].y
-    );
-    return (
-      <circle
-        cx={screenPoints[0].x}
-        cy={screenPoints[0].y}
-        r={radius}
-        fill={
-          isMeasurementSelected || isMeasurementHovered ? displayColor : 'none'
-        }
-        fillOpacity={
-          isMeasurementSelected || isMeasurementHovered ? '0.1' : '0'
-        }
-        stroke={displayColor}
-        strokeWidth={isMeasurementSelected || isMeasurementHovered ? '3' : '2'}
-        opacity={isMeasurementSelected || isMeasurementHovered ? '1' : '0.6'}
-      />
-    );
+    const isActive = isMeasurementSelected || isMeasurementHovered;
+    return circleRenderer(screenPoints, displayColor, {
+      fill: isActive ? displayColor : 'none',
+      fillOpacity: isActive ? 0.1 : 0,
+      strokeWidth: isActive ? 3 : 2,
+      opacity: isActive ? 1 : 0.6,
+    });
   }
 
   if (typeId === 'ellipse' && screenPoints.length >= 2) {
@@ -560,6 +560,17 @@ export default function renderMeasurement({
   const screenPoints = measurement.points.map(point =>
     imageToScreen(point, context)
   );
+  const measurementTypeId = getAnnotationTypeId(measurement.type);
+  const renderPelvicCircles =
+    (measurementTypeId === 'pi' || measurementTypeId === 'pt') &&
+    measurement.points.length === 6 &&
+    !allMeasurements.slice(0, measurementIndex).some(previous => {
+      const previousTypeId = getAnnotationTypeId(previous.type);
+      return (
+        (previousTypeId === 'pi' || previousTypeId === 'pt') &&
+        previous.points.length === 6
+      );
+    });
   const specialElementContext = {
     imagePoints: measurement.points,
     screenPoints,
@@ -569,6 +580,7 @@ export default function renderMeasurement({
       standardDistancePoints,
       imageNaturalSize,
     },
+    renderPelvicCircles,
   };
   const displayName = getAnnotationDisplayName(measurement.type);
   const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);

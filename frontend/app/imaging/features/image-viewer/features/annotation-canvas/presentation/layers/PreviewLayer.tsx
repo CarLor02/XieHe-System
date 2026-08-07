@@ -12,6 +12,11 @@ import {
   HEMIPELVIC_WIDTH_RATIO_INITIAL_LINE_LENGTH,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+import {
+  createCircleGeometry,
+  getCircleRadius,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 interface PreviewLayerProps {
   selectedTool: string;
@@ -35,6 +40,7 @@ interface PreviewLayerProps {
     rawPoint: Point
   ) => Point;
   workingPointHoverIndex: number | null;
+  pelvicPlacementSession?: PelvicPlacementSession | null;
 }
 
 function ReferenceLinePreview({
@@ -138,9 +144,8 @@ function renderDynamicShapePreview(
   const endScreen = imageToScreen(drawingState.currentPoint);
 
   if (selectedTool === 'circle') {
-    const radius = Math.hypot(
-      endScreen.x - startScreen.x,
-      endScreen.y - startScreen.y
+    const radius = getCircleRadius(
+      createCircleGeometry(startScreen, endScreen)
     );
     return (
       <circle
@@ -550,6 +555,7 @@ export default function PreviewLayer({
   imageToScreen,
   constrainAuxLinePoint,
   workingPointHoverIndex,
+  pelvicPlacementSession = null,
 }: PreviewLayerProps) {
   return (
     <>
@@ -641,6 +647,7 @@ export default function PreviewLayer({
           keypoints,
           imageScale,
           imageToScreen,
+          pelvicPlacementSession,
         })}
 
       {renderDynamicShapePreview(selectedTool, drawingState, imageToScreen)}

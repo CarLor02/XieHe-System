@@ -221,3 +221,75 @@ it('only asks for the missing PI keypoint and assembles inherited points by slot
     { x: 220, y: 210 },
   ]);
 });
+
+it('places bilateral PI in the stable six-point order while inheriting S1', () => {
+  const onMeasurementAdd = jest.fn();
+
+  const { result } = renderHook(() => {
+    const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
+    const [drawingState, setDrawingState] = useState<DrawingState>({
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null,
+    });
+    const [, setReferenceLines] = useState(emptyReferenceLines);
+
+    return useCanvasDrawingTool({
+      selectedTool: 'pi',
+      tools: [
+        {
+          id: 'pi',
+          name: 'PI',
+          icon: 'test',
+          description: 'test',
+          pointsNeeded: 3,
+        },
+      ],
+      measurements: [],
+      keypoints: [
+        {
+          id: 'S1-1',
+          point: { x: 100, y: 200 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+        {
+          id: 'S1-2',
+          point: { x: 200, y: 200 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+      ],
+      clickedPoints,
+      setClickedPoints,
+      imageScale: 1,
+      onMeasurementAdd,
+      pelvicPlacementSession: { toolId: 'pi', mode: 'bilateral' },
+      drawingState,
+      setDrawingState,
+      setReferenceLines,
+      constrainAuxLinePoint: (_toolId, _anchor, point) => point,
+      screenToImage: (x, y) => ({ x, y }),
+    });
+  });
+
+  for (const point of [
+    [20, 30],
+    [30, 30],
+    [60, 30],
+    [75, 30],
+  ] as const) {
+    act(() => {
+      result.current.beginInteraction(point[0], point[1]);
+    });
+  }
+
+  expect(onMeasurementAdd).toHaveBeenCalledWith('pi', [
+    { x: 20, y: 30 },
+    { x: 30, y: 30 },
+    { x: 60, y: 30 },
+    { x: 75, y: 30 },
+    { x: 100, y: 200 },
+    { x: 200, y: 200 },
+  ]);
+});

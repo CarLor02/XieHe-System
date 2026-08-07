@@ -13,6 +13,10 @@ import {
   type MeasurementData,
   type Point,
 } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  getPelvicMeasurementMode,
+} from './pelvic-binding-rule';
+import { resolveEffectiveCfh } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 import {
   AP_MEASUREMENT_KEYPOINT_BINDING_RULES,
@@ -21,6 +25,7 @@ import {
 import { getAvtMeasurementKeypointBindingRule } from './avt-binding-rule';
 import type { MeasurementKeypointBindingRule } from './binding-rule-types';
 import { LATERAL_MEASUREMENT_KEYPOINT_BINDING_RULES } from './lateral-binding-rules';
+import { getPelvicMeasurementKeypointBindingRule } from './pelvic-binding-rule';
 
 export { HEMIPELVIC_WIDTH_RATIO_KEYPOINT_IDS };
 export type { MeasurementKeypointBindingRule };
@@ -57,7 +62,20 @@ export function getMeasurementKeypointBindingRuleForMeasurement(
 ): MeasurementKeypointBindingRule | null {
   return (
     getAvtMeasurementKeypointBindingRule(measurement) ??
+    getPelvicMeasurementKeypointBindingRule(measurement) ??
     getMeasurementKeypointBindingRule(measurement.type)
+  );
+}
+
+export function buildBoundMeasurementPointsForMeasurement(
+  measurement: MeasurementData,
+  keypoints: KeypointAnnotation[]
+): Point[] | null {
+  const rule = getMeasurementKeypointBindingRuleForMeasurement(measurement);
+  if (!rule) return null;
+  return rule.buildMeasurementPoints(
+    new Map(keypoints.map(keypoint => [keypoint.id, keypoint])),
+    measurement.points
   );
 }
 
@@ -165,6 +183,37 @@ export function writeMeasurementToKeypoints(
   const rule = getMeasurementKeypointBindingRuleForMeasurement(measurement);
   if (!rule) return keypoints;
 
+  let currentKeypoints = keypoints;
+  if (
+    getAnnotationTypeId(measurement.type) === 'tpa' &&
+    getPelvicMeasurementMode(measurement) === 'bilateral' &&
+    changedPointIndex === 4 &&
+    points[4]
+  ) {
+    const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint.point]));
+    const effective = resolveEffectiveCfh(byId, 'bilateral');
+    if (effective.status === 'ready') {
+      const delta = {
+        x: points[4].x - effective.point.x,
+        y: points[4].y - effective.point.y,
+      };
+      // 双 FH 的 TPA 只保存 effectiveCFH 中点。拖动该点时必须平移两个真实圆心，
+      // 不能创建一个虚假的 CFH 关键点，否则会破坏单/双 FH 互斥契约。
+      for (const keypointId of effective.dependencyIds) {
+        const keypoint = keypoints.find(item => item.id === keypointId);
+        if (!keypoint) continue;
+        currentKeypoints = upsertKeypoint(currentKeypoints, {
+          ...keypoint,
+          point: {
+            x: keypoint.point.x + delta.x,
+            y: keypoint.point.y + delta.y,
+          },
+          source: AnnotationSource.MANUAL,
+        });
+      }
+    }
+  }
+
   return rule.getKeypointUpdates(points, changedPointIndex).reduce(
     (current, update) =>
       upsertKeypoint(current, {
@@ -173,7 +222,7 @@ export function writeMeasurementToKeypoints(
         source: AnnotationSource.MANUAL,
         confidence: 1,
       }),
-    keypoints
+    currentKeypoints
   );
 }
 

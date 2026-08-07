@@ -51,6 +51,23 @@ describe('annotation deletion planner', () => {
     ).toEqual([]);
   });
 
+  test('bilateral PI and PT own FH centers while SS preserves S1 points', () => {
+    const pelvicMetadata = {
+      schemaVersion: 2 as const,
+      femoralHeadMode: 'bilateral' as const,
+    };
+    const measurements = [
+      measurement('pi', 'pi', { pelvicMetadata }),
+      measurement('pt', 'pt', { pelvicMetadata }),
+      measurement('ss', 'ss'),
+    ];
+
+    expect(planMeasurementDeletion(measurements, 'pi', '侧位X光片')).toEqual({
+      measurementIdsToDelete: ['pi', 'pt'],
+      keypointIdsToDelete: ['FH-1', 'FH-2'],
+    });
+  });
+
   test('interconnected LL measurements only release points with no owner', () => {
     const firstState = [
       measurement('l1-s1', 'll-l1-s1'),

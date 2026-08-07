@@ -28,17 +28,21 @@
 
 C2 不由未来 AI 检测提供。C2-C7 CL 只需要 C2 的目标终板两点参与计算，但系统仍按 C2 四角点进行手工标注，便于统一椎体数据结构和后续扩展。
 
-### 2.3 CFH 规则
+手工标注还可选择双 FH 模式，增加 `FH-1`、`FH-2` 两个股骨头圆心关键点；
+两个辅助圆的半径控制点只保存在 PI/PT measurement 中。
 
-CFH 是单点坐标，直接作为股骨头中心参与计算。系统禁止把 CFH 按两侧股骨头点的中点重新计算。
+### 2.3 effectiveCFH 规则
+
+依赖股骨头中心的工具统一读取 `effectiveCFH`：单 FH 使用 `CFH`，双 FH 使用
+`midpoint(FH-1,FH-2)`。两种关键点来源互斥，历史无 metadata 数据按单 FH 读取。
 
 依赖 CFH 的测量项包括：
 
 | 测量项 | CFH 用途 |
 |---|---|
-| TPA | 构成 T1、S1、CFH 之间的角度关系 |
-| PI | 构成 S1 上终板中点到 CFH 的连线 |
-| PT | 构成 S1 上终板中点到 CFH 的连线 |
+| TPA | 构成 T1、S1、effectiveCFH 之间的角度关系 |
+| PI | 构成 S1 上终板中点到 effectiveCFH 的连线 |
+| PT | 构成 S1 上终板中点到 effectiveCFH 的连线 |
 
 ### 2.4 S1 规则
 

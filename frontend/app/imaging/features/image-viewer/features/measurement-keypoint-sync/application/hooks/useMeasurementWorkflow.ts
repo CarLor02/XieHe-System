@@ -17,9 +17,13 @@ import {
 } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   getMeasurementKeypointBindingRule,
-  normalizeBoundMeasurementPoints,
-  writeMeasurementPointsToKeypoints,
+  getMeasurementKeypointBindingRuleForMeasurement,
+  writeMeasurementToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
+import {
+  createPelvicMeasurementMetadata,
+  type FemoralHeadMode,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
 import { deriveMissingFixedMeasurementsFromKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMissingFixedMeasurementsUseCase';
 
@@ -66,14 +70,30 @@ export function useMeasurementWorkflow({
   recalculateKeypointMeasurements,
 }: UseMeasurementWorkflowOptions) {
   const handleAddMeasurement = useCallback(
-    (toolType: string, points: Point[]) => {
+    (
+      toolType: string,
+      points: Point[],
+      options: { pelvicMode?: FemoralHeadMode } = {}
+    ) => {
       const typeId = getAnnotationTypeId(toolType);
       const allowReplace = !canUseKeypoints || isLateralView;
+      const pelvicMetadata = options.pelvicMode
+        ? createPelvicMeasurementMetadata(options.pelvicMode)
+        : undefined;
+      const bindingMeasurement: MeasurementData = {
+        id: 'manual-binding-probe',
+        type: toolType,
+        value: '',
+        points,
+        pelvicMetadata,
+      };
       const bindingRule = canUseKeypoints
-        ? getMeasurementKeypointBindingRule(toolType)
+        ? pelvicMetadata
+          ? getMeasurementKeypointBindingRuleForMeasurement(bindingMeasurement)
+          : getMeasurementKeypointBindingRule(toolType)
         : null;
       const normalizedPoints = bindingRule
-        ? normalizeBoundMeasurementPoints(toolType, points)
+        ? bindingRule.normalizePoints(points).points
         : points;
       addMeasurement(
         toolType,
@@ -87,22 +107,23 @@ export function useMeasurementWorkflow({
         {
           allowReplace,
           keypointSynced: bindingRule !== null,
+          pelvicMetadata,
         }
       );
 
       if (bindingRule) {
-        const nextKeypoints = writeMeasurementPointsToKeypoints(
+        const nextKeypoints = writeMeasurementToKeypoints(
           keypoints,
-          toolType,
+          { ...bindingMeasurement, points: normalizedPoints },
           normalizedPoints
         );
         if (nextKeypoints !== keypoints) {
           setKeypoints(nextKeypoints);
           setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
           if (isLateralView) {
-            setCfhAnnotation(
-              keypointsToCfhAnnotation(nextKeypoints) ?? cfhAnnotation
-            );
+            // 双 FH 与 CFH 互斥；切到双 FH 时必须允许清空旧 cfhAnnotation，
+            // 不能用旧值回退，否则重新加载后会形成冲突状态。
+            setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
           }
           setMeasurements(previous => {
             const recalculated = recalculateKeypointMeasurements(

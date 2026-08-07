@@ -145,6 +145,9 @@ export function useLocalAnnotationsDataLoader(
                             apexVertebra: m.apexVertebra,
                             keypointSynced: m.keypointSynced,
                             avtMetadata: m.avtMetadata,
+                            // 历史 PI/PT/TPA 没有该字段时仍由领域层按单 FH 解释；
+                            // 新双 FH 数据必须原样恢复，不能在本地备份链路中裁掉模式。
+                            pelvicMetadata: m.pelvicMetadata,
                         };
                         restoredMeasurement.value = isAIDetection
                             ? m.value || ''

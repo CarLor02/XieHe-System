@@ -18,6 +18,8 @@ export interface SpecialElementRenderContext {
   screenPoints: Point[];
   imageToScreen: (point: Point) => Point;
   calculationContext?: CalculationContext;
+  /** PI/PT 共享双股骨头圆时，仅由列表中第一个可见测量项绘制一次。 */
+  renderPelvicCircles?: boolean;
 }
 
 export interface AnnotationRendererRequest {

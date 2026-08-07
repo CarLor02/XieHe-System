@@ -10,7 +10,10 @@ import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { isBendingExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+import {
+  isBendingExamType,
+  isLateralExamType,
+} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
 import type {
   CfhAnnotation,
   MeasurementData,
@@ -18,9 +21,9 @@ import type {
 } from '@/app/imaging/features/image-viewer/shared/types';
 
 import {
-  buildBoundMeasurementPoints,
+  buildBoundMeasurementPointsForMeasurement,
   getAutoDeriveMeasurementKeypointBindingRules,
-  getMeasurementKeypointBindingRule,
+  getMeasurementKeypointBindingRuleForMeasurement,
 } from '../../domain/measurement-keypoint-binding';
 import {
   isBoundAvtMeasurement,
@@ -38,6 +41,10 @@ import {
   rebuildAvtMeasurement,
 } from './createBoundMeasurementUseCase';
 import { deriveFixedMeasurements } from './deriveFixedMeasurementsUseCase';
+import { derivePelvicMeasurements } from './derivePelvicMeasurementsUseCase';
+import { orderDerivedMeasurementsByBindingRules } from './orderDerivedMeasurementsByBindingRules';
+
+const DYNAMIC_PELVIC_RULE_IDS = new Set(['pi', 'pt', 'tpa']);
 
 function applyCobbSequenceTypes(
   measurements: MeasurementData[],
@@ -87,11 +94,13 @@ export function deriveKeypointMeasurements({
   cfhAnnotation,
   examType,
   calculationContext,
+  previousMeasurements = [],
 }: {
   keypoints: KeypointAnnotation[];
   cfhAnnotation: CfhAnnotation | null;
   examType: string;
   calculationContext: CalculationContext;
+  previousMeasurements?: readonly MeasurementData[];
 }): MeasurementData[] {
   const derivedLayer = keypointsToDerivedLayer(keypoints, examType);
   const autoCobbMeasurements = isBendingExamType(examType)
@@ -106,13 +115,28 @@ export function deriveKeypointMeasurements({
             calculationContext
           ),
         }));
+  const autoDeriveRules =
+    getAutoDeriveMeasurementKeypointBindingRules(examType);
   const fixedMeasurements = deriveFixedMeasurements({
-    rules: getAutoDeriveMeasurementKeypointBindingRules(examType),
+    rules: autoDeriveRules.filter(
+      rule => !DYNAMIC_PELVIC_RULE_IDS.has(rule.typeId)
+    ),
     keypoints,
     calculationContext,
   });
+  const pelvicMeasurements = isLateralExamType(examType)
+    ? derivePelvicMeasurements({
+        keypoints,
+        previousMeasurements,
+        calculationContext,
+      })
+    : [];
+  const orderedMeasurements = orderDerivedMeasurementsByBindingRules(
+    autoDeriveRules,
+    [...fixedMeasurements, ...pelvicMeasurements]
+  );
 
-  return [...fixedMeasurements, ...autoCobbMeasurements];
+  return [...orderedMeasurements, ...autoCobbMeasurements];
 }
 
 function getDerivedCandidateKey(measurement: MeasurementData): string {
@@ -165,6 +189,7 @@ function recalculateDerivedCandidateMeasurement({
     upperVertebra: measurement.upperVertebra ?? candidate.upperVertebra,
     lowerVertebra: measurement.lowerVertebra ?? candidate.lowerVertebra,
     apexVertebra: measurement.apexVertebra ?? candidate.apexVertebra,
+    pelvicMetadata: measurement.pelvicMetadata ?? candidate.pelvicMetadata,
   };
 }
 
@@ -201,6 +226,7 @@ export function deriveInitialMeasurementsFromKeypoints({
     cfhAnnotation,
     examType,
     calculationContext,
+    previousMeasurements,
   }).filter(
     measurement =>
       !isDerivedCobbMeasurement(measurement) ||
@@ -312,6 +338,7 @@ export function recalculateExistingMeasurementsFromKeypoints({
     cfhAnnotation,
     examType,
     calculationContext,
+    previousMeasurements,
   }).filter(measurement => !isCobbMeasurement(measurement));
   const candidateMaps = buildDerivedCandidateMaps(derivedCandidates);
 
@@ -355,12 +382,12 @@ export function recalculateExistingMeasurementsFromKeypoints({
         });
       }
 
-      const bindingRule = getMeasurementKeypointBindingRule(measurement.type);
+      const bindingRule =
+        getMeasurementKeypointBindingRuleForMeasurement(measurement);
       if (bindingRule) {
-        const points = buildBoundMeasurementPoints(
-          measurement.type,
-          keypoints,
-          measurement.points
+        const points = buildBoundMeasurementPointsForMeasurement(
+          measurement,
+          keypoints
         );
         if (!points) {
           return measurement.keypointSynced === true ||
@@ -378,6 +405,9 @@ export function recalculateExistingMeasurementsFromKeypoints({
             calculationContext
           ),
           keypointSynced: true,
+          pelvicMetadata:
+            measurement.pelvicMetadata ??
+            candidateMaps.byType.get(bindingRule.typeId)?.pelvicMetadata,
         };
       }
 

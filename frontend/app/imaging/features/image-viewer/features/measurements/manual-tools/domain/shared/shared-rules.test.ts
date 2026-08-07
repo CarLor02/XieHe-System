@@ -6,7 +6,7 @@ import {
   calculateAngleToHorizontal,
   pointToLineDistance,
 } from './geometry';
-import { getPelvicMeasurementGeometry } from './pelvic';
+import { getPelvicMeasurementGeometry } from '../lateral/pelvic';
 
 const calibratedContext = {
   standardDistance: 100,
@@ -54,7 +54,9 @@ describe('manual tool shared domain rules', () => {
       { x: 5, y: 0 },
     ]);
     expect(geometry).toEqual({
+      mode: 'single',
       femoralHeadCenter: { x: 10, y: 10 },
+      femoralHeadCircles: [],
       sacralLeft: { x: -5, y: 0 },
       sacralRight: { x: 5, y: 0 },
       sacralMidpoint: { x: 0, y: 0 },
