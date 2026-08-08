@@ -84,8 +84,13 @@ it('derives bilateral PI, PT and TPA from effective CFH dependencies', () => {
     )
   ).toBe(true);
   expect(measurements.find(item => item.type === 'PI')?.points).toHaveLength(6);
+  expect(measurements.find(item => item.type === 'TPA')?.points).toHaveLength(10);
   expect(measurements.find(item => item.type === 'TPA')?.points[4]).toEqual({
-    x: 150,
+    x: 100,
+    y: 400,
+  });
+  expect(measurements.find(item => item.type === 'TPA')?.points[6]).toEqual({
+    x: 200,
     y: 400,
   });
 });

@@ -4,7 +4,9 @@ import type { CalculationContext } from '@/app/imaging/features/image-viewer/fea
 import {
   createDefaultBilateralPelvicPoints,
   createPelvicMeasurementMetadata,
+  extractBilateralPelvicPoints,
   resolveEffectiveCfh,
+  type PelvicToolId,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import type {
@@ -18,13 +20,17 @@ function findExistingBilateralPelvicPoints(
   const measurement = measurements.find(item => {
     const typeId = getAnnotationTypeId(item.type);
     return (
-      (typeId === 'pi' || typeId === 'pt') &&
+      (typeId === 'pi' || typeId === 'pt' || typeId === 'tpa') &&
       item.pelvicMetadata?.schemaVersion === 2 &&
       item.pelvicMetadata.femoralHeadMode === 'bilateral' &&
-      item.points.length === 6
+      extractBilateralPelvicPoints(typeId, item.points) !== null
     );
   });
-  return measurement?.points.map(point => ({ ...point })) ?? null;
+  if (!measurement) return null;
+  return extractBilateralPelvicPoints(
+    getAnnotationTypeId(measurement.type) as PelvicToolId,
+    measurement.points
+  );
 }
 
 /**
@@ -70,12 +76,17 @@ export function derivePelvicMeasurements({
 
   const t1Points = ['T1-1', 'T1-2', 'T1-3', 'T1-4'].map(id => byId.get(id));
   if (t1Points.every((point): point is Point => Boolean(point))) {
-    const tpaPoints = [
-      ...t1Points,
-      effective.point,
-      { ...s1First },
-      { ...s1Second },
-    ];
+    // 创建双 FH TPA 时保留完整六点骨盆片段，使其与 PI/PT 共享圆心、半径和
+    // S1 点；单 FH 及历史 TPA 继续使用原七点结构。
+    const tpaPoints =
+      effective.mode === 'bilateral'
+        ? [...t1Points, ...pelvicPoints.map(point => ({ ...point }))]
+        : [
+            ...t1Points,
+            effective.point,
+            { ...s1First },
+            { ...s1Second },
+          ];
     candidates.push({
       id: 'vertebrae-derived-tpa',
       type: 'TPA',

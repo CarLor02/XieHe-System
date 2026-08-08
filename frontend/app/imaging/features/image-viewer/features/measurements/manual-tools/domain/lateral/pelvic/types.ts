@@ -2,6 +2,7 @@ import type { CircleGeometry } from '@/app/imaging/features/image-viewer/feature
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 export type FemoralHeadMode = 'single' | 'bilateral';
+export type PelvicToolId = 'pi' | 'pt' | 'tpa';
 
 export interface PelvicMeasurementMetadata {
   schemaVersion: 2;
@@ -35,6 +36,6 @@ export interface PelvicMeasurementGeometry {
 }
 
 export interface PelvicPlacementSession {
-  toolId: 'pi' | 'pt';
+  toolId: PelvicToolId;
   mode: FemoralHeadMode;
 }

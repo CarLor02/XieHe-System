@@ -1,23 +1,47 @@
 import type { MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import { calculateAngleBetweenVectors } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
 import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+import {
+  extractBilateralPelvicPoints,
+  getPelvicMeasurementGeometry,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**
- * TPA 点序固定为 [T1四角点, 股骨头中心, S1端点1, S1端点2]。
- * 领域计算先解析 T1 与 S1 中点，再计算两条股骨头中心射线的夹角。
+ * 单 FH 与无 metadata 的历史 TPA 固定为七点
+ * [T1四角点,CFH,S1-1,S1-2]。新双 FH TPA 固定为十点
+ * [T1四角点,FH-1圆心/半径点,FH-2圆心/半径点,S1-1,S1-2]。
  */
-function getTpaGeometry(points: Point[]) {
+export function getTpaGeometry(points: Point[]) {
   if (points.length < 7) return null;
   const t1Center = {
     x: points.slice(0, 4).reduce((sum, point) => sum + point.x, 0) / 4,
     y: points.slice(0, 4).reduce((sum, point) => sum + point.y, 0) / 4,
   };
+  const bilateralPelvicPoints = extractBilateralPelvicPoints('tpa', points);
+  if (bilateralPelvicPoints) {
+    const pelvicGeometry = getPelvicMeasurementGeometry(
+      bilateralPelvicPoints
+    );
+    if (!pelvicGeometry?.femoralHeadCenter) return null;
+    return {
+      t1Center,
+      femoralHeadCenter: pelvicGeometry.femoralHeadCenter,
+      sacralMidpoint: pelvicGeometry.sacralMidpoint,
+      pelvicPoints: bilateralPelvicPoints,
+    };
+  }
+
   const sacralMidpoint = {
     x: (points[5].x + points[6].x) / 2,
     y: (points[5].y + points[6].y) / 2,
   };
-  return { t1Center, femoralHeadCenter: points[4], sacralMidpoint };
+  return {
+    t1Center,
+    femoralHeadCenter: points[4],
+    sacralMidpoint,
+    pelvicPoints: points.slice(4, 7),
+  };
 }
 
 /** 计算股骨头中心指向 T1 中心和 S1 中点两向量的夹角。 */

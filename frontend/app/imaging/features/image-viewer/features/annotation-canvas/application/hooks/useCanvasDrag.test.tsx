@@ -249,16 +249,34 @@ function EffectiveCfhDragHarness({
     { x: 80, y: 100 },
   ];
   const [measurements, setMeasurements] = useState<MeasurementData[]>(
-    (['PI', 'PT'] as const).map(type => ({
-      id: type.toLowerCase(),
-      type,
-      value: '0.00°',
-      points: initialPoints.map(point => ({ ...point })),
-      pelvicMetadata: {
-        schemaVersion: 2,
-        femoralHeadMode: 'bilateral',
+    [
+      ...(['PI', 'PT'] as const).map(type => ({
+        id: type.toLowerCase(),
+        type,
+        value: '0.00°',
+        points: initialPoints.map(point => ({ ...point })),
+        pelvicMetadata: {
+          schemaVersion: 2 as const,
+          femoralHeadMode: 'bilateral' as const,
+        },
+      })),
+      {
+        id: 'tpa',
+        type: 'TPA',
+        value: '0.00°',
+        points: [
+          { x: 10, y: 0 },
+          { x: 20, y: 0 },
+          { x: 10, y: 10 },
+          { x: 20, y: 10 },
+          ...initialPoints.map(point => ({ ...point })),
+        ],
+        pelvicMetadata: {
+          schemaVersion: 2 as const,
+          femoralHeadMode: 'bilateral' as const,
+        },
       },
-    }))
+    ]
   );
   const [selectionState, setSelectionState] = useState<SelectionState>({
     measurementId: 'pi',
@@ -331,6 +349,15 @@ it('moves both bilateral FH circles through the derived CFH handle', async () =>
     ]);
   });
   expect(latestMeasurements[1].points).toEqual(latestMeasurements[0].points);
+  expect(latestMeasurements[2].points.slice(4)).toEqual(
+    latestMeasurements[0].points
+  );
+  expect(latestMeasurements[2].points.slice(0, 4)).toEqual([
+    { x: 10, y: 0 },
+    { x: 20, y: 0 },
+    { x: 10, y: 10 },
+    { x: 20, y: 10 },
+  ]);
   expect(onMeasurementWriteback).toHaveBeenLastCalledWith(
     'PI',
     [0, 2],

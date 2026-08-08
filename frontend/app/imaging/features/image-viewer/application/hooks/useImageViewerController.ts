@@ -44,10 +44,11 @@ import { createAvtPlacementSession } from '@/app/imaging/features/image-viewer/f
 import type {
   FemoralHeadMode,
   PelvicPlacementSession,
+  PelvicToolId,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { getPelvicToolPointCount } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import {
   getPelvicPlacementInheritedPointMap,
-  getPelvicPlacementPointCount,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
 
 interface UseImageViewerControllerOptions {
@@ -658,15 +659,16 @@ export function useImageViewerController({
   );
 
   const handleSelectPelvicTool = useCallback(
-    (toolId: 'pi' | 'pt', mode: FemoralHeadMode) => {
+    (toolId: PelvicToolId, mode: FemoralHeadMode) => {
       setAvtPlacementSession(null);
       setClickedPoints([]);
       const inherited = getPelvicPlacementInheritedPointMap({
+        toolId,
         mode,
         keypoints: keypointWorkflow.keypoints,
         measurements,
       });
-      const pointCount = getPelvicPlacementPointCount(mode);
+      const pointCount = getPelvicToolPointCount(toolId, mode);
 
       if (inherited.size === pointCount) {
         beginHistoryAction('manual-measurement-pelvic');

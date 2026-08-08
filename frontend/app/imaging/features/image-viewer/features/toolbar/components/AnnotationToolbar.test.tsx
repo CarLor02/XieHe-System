@@ -508,6 +508,35 @@ it('selects single or bilateral FH mode before starting PI', () => {
   expect(onSelectPelvicTool).toHaveBeenCalledWith('pi', 'bilateral');
 });
 
+it('selects single or bilateral FH mode before starting TPA', () => {
+  const onSelectPelvicTool = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    tools: getToolsForExamType('侧位X光片'),
+    onSelectPelvicTool,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: 'TPA' }));
+  fireEvent.click(screen.getByRole('button', { name: '双FH' }));
+
+  expect(onSelectPelvicTool).toHaveBeenCalledWith('tpa', 'bilateral');
+});
+
+it('deactivates the previous drawing tool before opening an option panel', () => {
+  const onActivateHandMode = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    tools: getToolsForExamType('侧位X光片'),
+    selectedTool: 'ss',
+    onActivateHandMode,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: 'PT' }));
+
+  expect(onActivateHandMode).toHaveBeenCalledTimes(1);
+  expect(screen.getByText('选择股骨头标注方式')).toBeTruthy();
+});
+
 it('prevents CFH and bilateral FH keypoints from coexisting', () => {
   renderToolbar({
     examType: '侧位X光片',
@@ -680,7 +709,7 @@ it('shows only Cobb without auxiliary shapes in lateral measurement derive mode'
   expect(screen.queryByRole('button', { name: /Arrow/ })).toBeNull();
 });
 
-it('keeps Cobb derivation panel behavior even when Cobb is the active tool', () => {
+it('deactivates the active Cobb drawing tool before opening derivation', () => {
   const onActivateHandMode = jest.fn();
   renderToolbar({
     selectedTool: 'cobb',
@@ -694,7 +723,7 @@ it('keeps Cobb derivation panel behavior even when Cobb is the active tool', () 
   fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
 
   expect(screen.getByText('派生Cobb')).toBeTruthy();
-  expect(onActivateHandMode).not.toHaveBeenCalled();
+  expect(onActivateHandMode).toHaveBeenCalledTimes(1);
 });
 
 it('derives Cobb from selected complete endpoint vertebrae', () => {

@@ -10,6 +10,7 @@ import {
   writeMeasurementToKeypoints,
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
+import { normalizePelvicDraggedMeasurementPoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/pelvic-binding-rule';
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   createHemipelvicWidthRatioPoints,
@@ -358,6 +359,83 @@ it('moves both FH centers when bilateral TPA effective CFH is dragged', () => {
     y: 45,
   });
   expect(written.some(item => item.id === 'CFH')).toBe(false);
+});
+
+it('writes new ten-point bilateral TPA centers without creating CFH', () => {
+  const measurement: MeasurementData = {
+    id: 'tpa-bilateral-v2',
+    type: 'TPA',
+    value: '0.00°',
+    points: [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 0, y: 2 },
+      { x: 2, y: 2 },
+      { x: 10, y: 20 },
+      { x: 25, y: 20 },
+      { x: 50, y: 30 },
+      { x: 70, y: 30 },
+      { x: 20, y: 100 },
+      { x: 80, y: 100 },
+    ],
+    pelvicMetadata: {
+      schemaVersion: 2,
+      femoralHeadMode: 'bilateral',
+    },
+  };
+
+  const written = writeMeasurementToKeypoints([], measurement, measurement.points);
+
+  expect(written.find(item => item.id === 'FH-1')?.point).toEqual({
+    x: 10,
+    y: 20,
+  });
+  expect(written.find(item => item.id === 'FH-2')?.point).toEqual({
+    x: 50,
+    y: 30,
+  });
+  expect(written.find(item => item.id === 'S1-2')?.point).toEqual({
+    x: 80,
+    y: 100,
+  });
+  expect(written.some(item => item.id === 'CFH')).toBe(false);
+});
+
+it('moves a bilateral TPA radius handle with its FH center', () => {
+  const measurement: MeasurementData = {
+    id: 'tpa-bilateral-v2',
+    type: 'TPA',
+    value: '0.00°',
+    points: [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 0, y: 2 },
+      { x: 2, y: 2 },
+      { x: 10, y: 20 },
+      { x: 25, y: 20 },
+      { x: 50, y: 30 },
+      { x: 70, y: 30 },
+      { x: 20, y: 100 },
+      { x: 80, y: 100 },
+    ],
+    pelvicMetadata: {
+      schemaVersion: 2,
+      femoralHeadMode: 'bilateral',
+    },
+  };
+  const requested = measurement.points.map((point, index) =>
+    index === 4 ? { x: 20, y: 30 } : point
+  );
+
+  const normalized = normalizePelvicDraggedMeasurementPoints(
+    measurement,
+    requested,
+    4
+  );
+
+  expect(normalized[4]).toEqual({ x: 20, y: 30 });
+  expect(normalized[5]).toEqual({ x: 35, y: 30 });
+  expect(normalized.slice(0, 4)).toEqual(measurement.points.slice(0, 4));
 });
 
 it('sorts TS C7 corners and sacral points before writing all six keypoints', () => {

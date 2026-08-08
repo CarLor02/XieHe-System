@@ -7,6 +7,9 @@ import {
   projectSpecialRenderPoints,
   RENDER_SCREEN_LENGTHS,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/annotationToolRendererUtils';
+import { getTpaGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/tpa';
+import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { renderPelvicSharedGeometry } from './renderPelvicSharedGeometry';
 
 /**
  * TPA渲染器：点1、点2、点3-4中点形成夹角
@@ -20,24 +23,33 @@ export function renderTPA(
   if (screenPoints.length < 7) return null;
 
   const imagePoints = getSpecialRenderImagePoints(screenPoints, context);
-  const projectedPoints = projectSpecialRenderPoints(imagePoints, context);
-  const centerX =
-    (imagePoints[0].x +
-      imagePoints[1].x +
-      imagePoints[2].x +
-      imagePoints[3].x) /
-    4;
-  const centerY =
-    (imagePoints[0].y +
-      imagePoints[1].y +
-      imagePoints[2].y +
-      imagePoints[3].y) /
-    4;
-  const midX = (imagePoints[5].x + imagePoints[6].x) / 2;
-  const midY = (imagePoints[5].y + imagePoints[6].y) / 2;
-  const center = projectSpecialRenderPoint({ x: centerX, y: centerY }, context);
-  const midpoint = projectSpecialRenderPoint({ x: midX, y: midY }, context);
-  const vertex = projectedPoints[4];
+  const geometry = getTpaGeometry(imagePoints);
+  const pelvicGeometry = geometry
+    ? getPelvicMeasurementGeometry(geometry.pelvicPoints)
+    : null;
+  if (!geometry || !pelvicGeometry) return null;
+  const t1Points = projectSpecialRenderPoints(imagePoints.slice(0, 4), context);
+  const pelvicScreenPoints = projectSpecialRenderPoints(
+    geometry.pelvicPoints,
+    context
+  );
+  const center = projectSpecialRenderPoint(geometry.t1Center, context);
+  const midpoint = projectSpecialRenderPoint(
+    geometry.sacralMidpoint,
+    context
+  );
+  const vertex = projectSpecialRenderPoint(
+    geometry.femoralHeadCenter,
+    context
+  );
+  const sacralLeft = projectSpecialRenderPoint(
+    pelvicGeometry.sacralLeft,
+    context
+  );
+  const sacralRight = projectSpecialRenderPoint(
+    pelvicGeometry.sacralRight,
+    context
+  );
 
   const dx1 = center.x - vertex.x;
   const dy1 = center.y - vertex.y;
@@ -60,41 +72,47 @@ export function renderTPA(
 
   return (
     <>
+      {renderPelvicSharedGeometry(
+        pelvicScreenPoints,
+        pelvicGeometry,
+        displayColor,
+        context
+      )}
       <line
-        x1={projectedPoints[0].x}
-        y1={projectedPoints[0].y}
-        x2={projectedPoints[1].x}
-        y2={projectedPoints[1].y}
+        x1={t1Points[0].x}
+        y1={t1Points[0].y}
+        x2={t1Points[1].x}
+        y2={t1Points[1].y}
         stroke={displayColor}
         strokeWidth="1"
         strokeDasharray="5,5"
         opacity="0.3"
       />
       <line
-        x1={projectedPoints[1].x}
-        y1={projectedPoints[1].y}
-        x2={projectedPoints[2].x}
-        y2={projectedPoints[2].y}
+        x1={t1Points[1].x}
+        y1={t1Points[1].y}
+        x2={t1Points[2].x}
+        y2={t1Points[2].y}
         stroke={displayColor}
         strokeWidth="1"
         strokeDasharray="5,5"
         opacity="0.3"
       />
       <line
-        x1={projectedPoints[2].x}
-        y1={projectedPoints[2].y}
-        x2={projectedPoints[3].x}
-        y2={projectedPoints[3].y}
+        x1={t1Points[2].x}
+        y1={t1Points[2].y}
+        x2={t1Points[3].x}
+        y2={t1Points[3].y}
         stroke={displayColor}
         strokeWidth="1"
         strokeDasharray="5,5"
         opacity="0.3"
       />
       <line
-        x1={projectedPoints[3].x}
-        y1={projectedPoints[3].y}
-        x2={projectedPoints[0].x}
-        y2={projectedPoints[0].y}
+        x1={t1Points[3].x}
+        y1={t1Points[3].y}
+        x2={t1Points[0].x}
+        y2={t1Points[0].y}
         stroke={displayColor}
         strokeWidth="1"
         strokeDasharray="5,5"
@@ -119,10 +137,10 @@ export function renderTPA(
         strokeDasharray="3,3"
       />
       <line
-        x1={projectedPoints[5].x}
-        y1={projectedPoints[5].y}
-        x2={projectedPoints[6].x}
-        y2={projectedPoints[6].y}
+        x1={sacralLeft.x}
+        y1={sacralLeft.y}
+        x2={sacralRight.x}
+        y2={sacralRight.y}
         stroke={displayColor}
         strokeWidth="1"
         strokeDasharray="5,5"

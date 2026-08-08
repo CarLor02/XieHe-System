@@ -16,10 +16,21 @@ export {
   SINGLE_PELVIC_POINT_COUNT,
   updatePelvicMeasurementPoint,
 } from './point-layout';
+export {
+  BILATERAL_TPA_POINT_COUNT,
+  extractBilateralPelvicPoints,
+  getBilateralFemoralCenterPointIndices,
+  getBilateralPelvicPointIndex,
+  getPelvicToolPointCount,
+  getPelvicToolPointLabels,
+  replaceBilateralPelvicPoints,
+  SINGLE_TPA_POINT_COUNT,
+} from './tool-point-layout';
 export type {
   EffectiveCfhResolution,
   FemoralHeadMode,
   PelvicMeasurementGeometry,
   PelvicMeasurementMetadata,
   PelvicPlacementSession,
+  PelvicToolId,
 } from './types';

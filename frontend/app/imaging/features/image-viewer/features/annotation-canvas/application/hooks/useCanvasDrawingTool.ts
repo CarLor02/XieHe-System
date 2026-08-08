@@ -4,14 +4,18 @@ import {
   getNextManualMeasurementPointIndex,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
 import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
-import { Point, Tool } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Point,
+  Tool,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import {
   getNextPelvicPlacementPointIndex,
   getPelvicPlacementInheritedPointMap,
-  getPelvicPlacementPointCount,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
+import { getPelvicToolPointCount } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import {
   DrawingState,
   ReferenceLines,
@@ -35,7 +39,10 @@ const POLYGON_CLOSE_TOLERANCE_PX = 18;
 interface UseCanvasDrawingToolOptions {
   selectedTool: string;
   tools: Tool[];
-  measurements: { type: string; points: Point[] }[];
+  measurements: Pick<
+    MeasurementData,
+    'type' | 'points' | 'pelvicMetadata'
+  >[];
   keypoints: KeypointAnnotation[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
@@ -281,14 +288,17 @@ export function useCanvasDrawingTool({
         pelvicPlacementSession.toolId === selectedTool
       ) {
         const inheritedMap = getPelvicPlacementInheritedPointMap({
+          toolId: pelvicPlacementSession.toolId,
           mode: pelvicPlacementSession.mode,
           keypoints,
           measurements,
         });
-        const pointsNeeded = getPelvicPlacementPointCount(
+        const pointsNeeded = getPelvicToolPointCount(
+          pelvicPlacementSession.toolId,
           pelvicPlacementSession.mode
         );
         const nextPointIndex = getNextPelvicPlacementPointIndex(
+          pelvicPlacementSession.toolId,
           pelvicPlacementSession.mode,
           inheritedMap,
           clickedPoints.length

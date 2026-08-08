@@ -293,3 +293,106 @@ it('places bilateral PI in the stable six-point order while inheriting S1', () =
     { x: 200, y: 200 },
   ]);
 });
+
+it('inherits bilateral pelvic geometry and only collects T1 points for TPA', () => {
+  const onMeasurementAdd = jest.fn();
+  const { result } = renderHook(() => {
+    const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
+    const [drawingState, setDrawingState] = useState<DrawingState>({
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null,
+    });
+    const [, setReferenceLines] = useState(emptyReferenceLines);
+
+    return useCanvasDrawingTool({
+      selectedTool: 'tpa',
+      tools: [
+        {
+          id: 'tpa',
+          name: 'TPA',
+          icon: 'test',
+          description: 'test',
+          pointsNeeded: 7,
+        },
+      ],
+      measurements: [
+        {
+          type: 'PI',
+          points: [
+            { x: 10, y: 100 },
+            { x: 20, y: 100 },
+            { x: 50, y: 100 },
+            { x: 65, y: 100 },
+            { x: 20, y: 200 },
+            { x: 80, y: 200 },
+          ],
+          pelvicMetadata: {
+            schemaVersion: 2,
+            femoralHeadMode: 'bilateral',
+          },
+        },
+      ],
+      keypoints: [
+        {
+          id: 'FH-1',
+          point: { x: 10, y: 100 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+        {
+          id: 'FH-2',
+          point: { x: 50, y: 100 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+        {
+          id: 'S1-1',
+          point: { x: 20, y: 200 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+        {
+          id: 'S1-2',
+          point: { x: 80, y: 200 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+      ],
+      clickedPoints,
+      setClickedPoints,
+      imageScale: 1,
+      onMeasurementAdd,
+      pelvicPlacementSession: { toolId: 'tpa', mode: 'bilateral' },
+      drawingState,
+      setDrawingState,
+      setReferenceLines,
+      constrainAuxLinePoint: (_toolId, _anchor, point) => point,
+      screenToImage: (x, y) => ({ x, y }),
+    });
+  });
+
+  for (const [x, y] of [
+    [1, 1],
+    [20, 1],
+    [1, 20],
+    [20, 20],
+  ]) {
+    act(() => {
+      result.current.beginInteraction(x, y);
+    });
+  }
+
+  expect(onMeasurementAdd).toHaveBeenCalledWith('tpa', [
+    { x: 1, y: 1 },
+    { x: 20, y: 1 },
+    { x: 1, y: 20 },
+    { x: 20, y: 20 },
+    { x: 10, y: 100 },
+    { x: 20, y: 100 },
+    { x: 50, y: 100 },
+    { x: 65, y: 100 },
+    { x: 20, y: 200 },
+    { x: 80, y: 200 },
+  ]);
+});

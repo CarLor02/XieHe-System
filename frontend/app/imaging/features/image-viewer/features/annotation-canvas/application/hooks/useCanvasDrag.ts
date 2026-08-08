@@ -32,8 +32,16 @@ import {
   isManualTtsMeasurement,
   moveManualTtsTrunkLineVertically,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
-import { moveBilateralPelvicEffectiveCfh } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
-import { isBilateralPelvicMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
+import {
+  getBilateralFemoralCenterPointIndices,
+  moveBilateralPelvicEffectiveCfh,
+  type PelvicToolId,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import {
+  getBilateralPelvicPointsForMeasurement,
+  isBilateralPelvicMeasurement,
+  replaceBilateralPelvicPointsForMeasurement,
+} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
 
 interface UseCanvasDragOptions {
   selectedTool: string;
@@ -340,15 +348,22 @@ export function useCanvasDrag({
           x: imagePoint.x - selectionState.dragOffset.x,
           y: imagePoint.y - selectionState.dragOffset.y,
         };
-        const selectedMeasurementPoints = moveBilateralPelvicEffectiveCfh(
-          measurement.points,
+        const sourcePelvicPoints = getBilateralPelvicPointsForMeasurement(
+          measurement
+        );
+        if (!sourcePelvicPoints) return false;
+        const movedPelvicPoints = moveBilateralPelvicEffectiveCfh(
+          sourcePelvicPoints,
           nextEffectiveCfh
         );
-        // PI/PT 共享同一组双 FH 几何。拖动派生中点时同时平移两圆，
+        // PI/PT/TPA 共享同一组双 FH 几何。拖动派生中点时同时平移两圆，
         // 但保留每个圆半径、圆心间距和 S1 两点。
         const updatedMeasurements = measurements.map(item => {
           if (!isBilateralPelvicMeasurement(item)) return item;
-          const points = selectedMeasurementPoints.map(point => ({ ...point }));
+          const points = replaceBilateralPelvicPointsForMeasurement(
+            item,
+            movedPelvicPoints
+          );
           return {
             ...item,
             points,
@@ -364,14 +379,19 @@ export function useCanvasDrag({
           };
         });
 
-        // 双 FH 圆心分别位于点 0、2；一次写回可避免两个状态更新相互覆盖。
+        const selectedPoints = updatedMeasurements.find(
+          item => item.id === measurement.id
+        )?.points;
+        if (!selectedPoints) return false;
+        const toolId = getAnnotationTypeId(measurement.type) as PelvicToolId;
+        // 一次写回两个真实 FH 圆心，避免两个状态更新相互覆盖。
         commitMeasurementDrag(
           updatedMeasurements,
           measurement.type,
-          [0, 2],
+          getBilateralFemoralCenterPointIndices(toolId),
           nextEffectiveCfh,
           measurement.id,
-          selectedMeasurementPoints
+          selectedPoints
         );
         return true;
       }
@@ -538,23 +558,24 @@ export function useCanvasDrag({
           return item;
         });
 
-        if (
-          (typeId === 'pi' || typeId === 'pt') &&
-          measurement.pelvicMetadata?.femoralHeadMode === 'bilateral' &&
-          selectedMeasurementPoints.length === 6
-        ) {
-          // PI 与 PT 共用同一组双侧股骨头圆及 S1 端点。半径控制点不是全局关键点，
-          // 因此必须在测量层内显式同步，避免只调整 PI 圆而 PT 仍保留旧半径。
+        const selectedPelvicPoints = getBilateralPelvicPointsForMeasurement({
+          ...measurement,
+          points: selectedMeasurementPoints,
+        });
+        if (selectedPelvicPoints) {
+          // PI、PT 与 TPA 共用双 FH 圆和 S1 端点。半径点不是全局关键点，
+          // 因此必须在测量层同步，不能只依靠关键点写回。
           updatedMeasurements = updatedMeasurements.map(item => {
-            const itemTypeId = getAnnotationTypeId(item.type);
             if (
               item.id === measurement.id ||
-              (itemTypeId !== 'pi' && itemTypeId !== 'pt') ||
-              item.pelvicMetadata?.femoralHeadMode !== 'bilateral'
+              !isBilateralPelvicMeasurement(item)
             ) {
               return item;
             }
-            const points = selectedMeasurementPoints.map(point => ({ ...point }));
+            const points = replaceBilateralPelvicPointsForMeasurement(
+              item,
+              selectedPelvicPoints
+            );
             return {
               ...item,
               points,

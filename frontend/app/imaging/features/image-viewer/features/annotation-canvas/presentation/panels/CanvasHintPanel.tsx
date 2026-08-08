@@ -7,7 +7,8 @@ import {
   type AvtPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import {
-  BILATERAL_PELVIC_POINT_LABELS,
+  getPelvicToolPointCount,
+  getPelvicToolPointLabels,
   type PelvicPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import {
@@ -17,7 +18,6 @@ import {
 import {
   getNextPelvicPlacementPointIndex,
   getPelvicPlacementInheritedPointMap,
-  getPelvicPlacementPointCount,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
 import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 import {
@@ -120,6 +120,7 @@ export default function CanvasHintPanel({
   const totalMeasurementPointCount = currentTool?.pointsNeeded ?? pointsNeeded;
   const pelvicInherited = pelvicPlacementSession
     ? getPelvicPlacementInheritedPointMap({
+        toolId: pelvicPlacementSession.toolId,
         mode: pelvicPlacementSession.mode,
         keypoints,
         measurements,
@@ -127,18 +128,25 @@ export default function CanvasHintPanel({
     : new Map();
   const pelvicNextPointIndex = pelvicPlacementSession
     ? getNextPelvicPlacementPointIndex(
+        pelvicPlacementSession.toolId,
         pelvicPlacementSession.mode,
         pelvicInherited,
         clickedPointsCount
       )
     : null;
   const pelvicTotal = pelvicPlacementSession
-    ? getPelvicPlacementPointCount(pelvicPlacementSession.mode)
+    ? getPelvicToolPointCount(
+        pelvicPlacementSession.toolId,
+        pelvicPlacementSession.mode
+      )
     : 0;
   const pelvicLabels =
-    pelvicPlacementSession?.mode === 'bilateral'
-      ? BILATERAL_PELVIC_POINT_LABELS
-      : (['CFH', 'S1-1', 'S1-2'] as const);
+    pelvicPlacementSession
+      ? getPelvicToolPointLabels(
+          pelvicPlacementSession.toolId,
+          pelvicPlacementSession.mode
+        )
+      : [];
 
   return (
     <div className="absolute bottom-4 left-4 flex flex-col gap-2 max-w-md">

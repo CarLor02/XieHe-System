@@ -18,7 +18,7 @@ export interface SpecialElementRenderContext {
   screenPoints: Point[];
   imageToScreen: (point: Point) => Point;
   calculationContext?: CalculationContext;
-  /** PI/PT 共享双 FH 圆、圆心连线和 effectiveCFH 时，仅由首个可见项绘制一次。 */
+  /** PI/PT/TPA 共享双 FH 圆、圆心连线和 effectiveCFH 时，仅由首个可见项绘制一次。 */
   renderPelvicSharedGeometry?: boolean;
   effectiveCfhInteractionState?: 'idle' | 'hovered' | 'selected';
 }

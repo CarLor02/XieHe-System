@@ -56,7 +56,10 @@ import {
   isSameAvtTarget,
   type AvtTarget,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
-import type { FemoralHeadMode } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import type {
+  FemoralHeadMode,
+  PelvicToolId,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
@@ -139,7 +142,7 @@ interface AnnotationToolbarProps {
   onCancelKeypointSequence: () => void;
   onCreateAvt: (target: AvtTarget) => void;
   onSelectPelvicTool: (
-    toolId: 'pi' | 'pt',
+    toolId: PelvicToolId,
     mode: FemoralHeadMode
   ) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
@@ -408,6 +411,21 @@ export default function AnnotationToolbar({
     onSelectTool(toolId);
   };
 
+  const deactivateCurrentDrawingTool = () => {
+    if (keypointSequenceSession) {
+      onCancelKeypointSequence();
+      return;
+    }
+    onActivateHandMode();
+  };
+
+  const toggleMeasurementToolPanel = (toolId: string, isOpen: boolean) => {
+    if (!isOpen) deactivateCurrentDrawingTool();
+    setOpenMeasurementTool(isOpen ? null : toolId);
+    setAvtTargetType(null);
+    setOpenKeypointGroup(null);
+  };
+
   const canRestoreFixedToolFromKeypoints = (toolId: string): boolean => {
     if (!canUseKeypointTools) return false;
     const rule =
@@ -576,8 +594,7 @@ export default function AnnotationToolbar({
   };
 
   const openCobbDerivePanel = (isOpen: boolean) => {
-    setOpenMeasurementTool(isOpen ? null : 'cobb');
-    setOpenKeypointGroup(null);
+    toggleMeasurementToolPanel('cobb', isOpen);
     setToolbarOverlayMessage(null);
     setCobbUpperVertebra(selectedCobbUpper);
     setCobbLowerVertebra(selectedCobbLower);
@@ -766,7 +783,9 @@ export default function AnnotationToolbar({
                         const isPelvicSelectionTool =
                           canUseKeypointTools &&
                           isLateralView &&
-                          (tool.id === 'pi' || tool.id === 'pt');
+                          (tool.id === 'pi' ||
+                            tool.id === 'pt' ||
+                            tool.id === 'tpa');
                         const isSelectionTool =
                           (canUseKeypointTools &&
                             isAnteriorView &&
@@ -794,10 +813,7 @@ export default function AnnotationToolbar({
                               ? canUseKeypointTools
                                 ? canCreateAvt
                                 : true
-                              : tool.id === 'tpa' &&
-                                  hasPartialBilateralFemoralHead
-                                ? false
-                                : true;
+                              : true;
                         const toolTitle = isCobbDeriveTool
                           ? canOpenCobbDerivePanel
                             ? '选择 Cobb 上下端椎'
@@ -822,9 +838,7 @@ export default function AnnotationToolbar({
                                 return;
                               }
                               if (isSelectionTool) {
-                                setOpenMeasurementTool(isOpen ? null : tool.id);
-                                setAvtTargetType(null);
-                                setOpenKeypointGroup(null);
+                                toggleMeasurementToolPanel(tool.id, isOpen);
                                 return;
                               }
                               if (
@@ -1121,7 +1135,8 @@ export default function AnnotationToolbar({
                     )}
 
                     {(openMeasurementTool === 'pi' ||
-                      openMeasurementTool === 'pt') &&
+                      openMeasurementTool === 'pt' ||
+                      openMeasurementTool === 'tpa') &&
                       isLateralView && (
                         <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3">
                           <div className="text-xs text-gray-300 mb-2">
@@ -1147,7 +1162,7 @@ export default function AnnotationToolbar({
                                 }
                                 onClick={() => {
                                   onSelectPelvicTool(
-                                    openMeasurementTool as 'pi' | 'pt',
+                                    openMeasurementTool as PelvicToolId,
                                     mode
                                   );
                                   setOpenMeasurementTool(null);

@@ -187,6 +187,7 @@ export function writeMeasurementToKeypoints(
   if (
     getAnnotationTypeId(measurement.type) === 'tpa' &&
     getPelvicMeasurementMode(measurement) === 'bilateral' &&
+    measurement.points.length === 7 &&
     changedPointIndex === 4 &&
     points[4]
   ) {
@@ -197,8 +198,8 @@ export function writeMeasurementToKeypoints(
         x: points[4].x - effective.point.x,
         y: points[4].y - effective.point.y,
       };
-      // 双 FH 的 TPA 只保存 effectiveCFH 中点。拖动该点时必须平移两个真实圆心，
-      // 不能创建一个虚假的 CFH 关键点，否则会破坏单/双 FH 互斥契约。
+      // 历史双 FH 七点 TPA 只保存 effectiveCFH 中点。拖动该点时必须平移两个
+      // 真实圆心，不能创建虚假的 CFH；新十点 TPA 直接写回 FH-1/FH-2。
       for (const keypointId of effective.dependencyIds) {
         const keypoint = keypoints.find(item => item.id === keypointId);
         if (!keypoint) continue;

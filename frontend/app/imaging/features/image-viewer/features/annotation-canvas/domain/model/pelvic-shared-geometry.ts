@@ -1,18 +1,42 @@
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import {
+  extractBilateralPelvicPoints,
+  replaceBilateralPelvicPoints,
+  type PelvicToolId,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+
+export function getBilateralPelvicPointsForMeasurement(
+  measurement: MeasurementData
+) {
+  const typeId = getAnnotationTypeId(measurement.type);
+  if (typeId !== 'pi' && typeId !== 'pt' && typeId !== 'tpa') return null;
+  if (measurement.pelvicMetadata?.femoralHeadMode !== 'bilateral') return null;
+  return extractBilateralPelvicPoints(typeId, measurement.points);
+}
+
+export function replaceBilateralPelvicPointsForMeasurement(
+  measurement: MeasurementData,
+  pelvicPoints: MeasurementData['points']
+): MeasurementData['points'] {
+  const typeId = getAnnotationTypeId(measurement.type);
+  if (typeId !== 'pi' && typeId !== 'pt' && typeId !== 'tpa') {
+    return measurement.points.map(point => ({ ...point }));
+  }
+  return replaceBilateralPelvicPoints(
+    typeId as PelvicToolId,
+    measurement.points,
+    pelvicPoints
+  );
+}
 
 export function isBilateralPelvicMeasurement(
   measurement: MeasurementData
 ): boolean {
-  const typeId = getAnnotationTypeId(measurement.type);
-  return (
-    (typeId === 'pi' || typeId === 'pt') &&
-    measurement.pelvicMetadata?.femoralHeadMode === 'bilateral' &&
-    measurement.points.length === 6
-  );
+  return getBilateralPelvicPointsForMeasurement(measurement) !== null;
 }
 
-/** PI/PT 共享同一组双 FH 几何，只允许首个可见测量项拥有显示和命中。 */
+/** PI/PT/TPA 共享同一组双 FH 几何，只允许首个可见测量项拥有显示和命中。 */
 export function getBilateralPelvicGeometryOwnerId(
   measurements: readonly MeasurementData[],
   isHidden: (measurement: MeasurementData) => boolean = () => false

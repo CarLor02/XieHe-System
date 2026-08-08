@@ -23,6 +23,7 @@ import {
 import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import {
   getBilateralPelvicGeometryOwnerId,
+  getBilateralPelvicPointsForMeasurement,
   isBilateralPelvicMeasurement,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
 import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
@@ -195,7 +196,10 @@ export function hitTestMeasurement({
       measurement.id === pelvicGeometryOwnerId &&
       isBilateralPelvicMeasurement(measurement)
     ) {
-      const geometry = getPelvicMeasurementGeometry(measurement.points);
+      const pelvicPoints = getBilateralPelvicPointsForMeasurement(measurement);
+      const geometry = pelvicPoints
+        ? getPelvicMeasurementGeometry(pelvicPoints)
+        : null;
       if (geometry?.femoralHeadCenter) {
         const center = imageToScreen(geometry.femoralHeadCenter);
         if (

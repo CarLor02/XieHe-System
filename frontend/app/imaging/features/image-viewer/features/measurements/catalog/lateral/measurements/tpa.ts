@@ -2,6 +2,7 @@ import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/featu
 import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
 import {
   calculateTpaResults,
+  getTpaGeometry,
   isTpaInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/tpa';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
@@ -19,27 +20,16 @@ export const TPA_CONFIG: AnnotationConfig = {
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 7) return points[0] || { x: 0, y: 0 };
-
-    // 计算前4个点的中心作为实际的第1个点
-    const centerPoint = {
-      x: (points[0].x + points[1].x + points[2].x + points[3].x) / 4,
-      y: (points[0].y + points[1].y + points[2].y + points[3].y) / 4,
-    };
-
-    // 第6和第7个点的中点
-    const midY = (points[5].y + points[6].y) / 2;
+    const geometry = getTpaGeometry(points);
+    if (!geometry) return points[0];
 
     // 标签放在所有点的右上方，避免遮挡角度线
-    const maxX = Math.max(
-      points[0].x,
-      points[1].x,
-      points[2].x,
-      points[3].x,
-      points[4].x,
-      points[5].x,
-      points[6].x
+    const maxX = Math.max(...points.map(point => point.x));
+    const topY = Math.min(
+      geometry.t1Center.y,
+      geometry.femoralHeadCenter.y,
+      geometry.sacralMidpoint.y
     );
-    const topY = Math.min(centerPoint.y, points[4].y, midY);
 
     return {
       x: maxX + LABEL_OFFSET.RIGHT / imageScale,

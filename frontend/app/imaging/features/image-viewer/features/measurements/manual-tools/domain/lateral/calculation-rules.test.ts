@@ -62,5 +62,16 @@ describe('lateral manual tool calculations', () => {
       { x: 11, y: 0 },
     ];
     expect(calculateTpaResults(tpaPoints)[0].value).toBe('90.00');
+
+    const bilateralTpaPoints = [
+      ...tpaPoints.slice(0, 4),
+      { x: -5, y: 0 },
+      { x: -3, y: 0 },
+      { x: 5, y: 0 },
+      { x: 8, y: 0 },
+      { x: 9, y: 0 },
+      { x: 11, y: 0 },
+    ];
+    expect(calculateTpaResults(bilateralTpaPoints)[0].value).toBe('90.00');
   });
 });
