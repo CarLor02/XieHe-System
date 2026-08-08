@@ -1,6 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { getBilateralPelvicGeometryOwnerId } from './pelvic-shared-geometry';
+import {
+  getBilateralPelvicGeometryForMeasurement,
+  getBilateralPelvicGeometryOwnerId,
+} from './pelvic-shared-geometry';
 import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 
 function bilateralMeasurement(
@@ -59,5 +62,15 @@ describe('bilateral pelvic shared geometry ownership', () => {
     ];
 
     expect(getBilateralPelvicGeometryOwnerId(measurements)).toBe('tpa');
+  });
+
+  it('extracts the pelvic suffix before resolving bilateral TPA geometry', () => {
+    const geometry = getBilateralPelvicGeometryForMeasurement(
+      bilateralMeasurement('tpa', 'TPA')
+    );
+
+    expect(geometry?.mode).toBe('bilateral');
+    expect(geometry?.femoralHeadCenter).toEqual({ x: 30, y: 20 });
+    expect(geometry?.sacralMidpoint).toEqual({ x: 35, y: 100 });
   });
 });

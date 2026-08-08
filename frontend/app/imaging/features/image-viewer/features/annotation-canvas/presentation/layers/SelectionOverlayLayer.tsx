@@ -9,7 +9,7 @@ import {
   circleGeometryFromPoints,
   getCircleBounds,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
-import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
 
 interface SelectionOverlayLayerProps {
   selectionState: SelectionState;
@@ -52,7 +52,7 @@ export default function SelectionOverlayLayer({
           firstEndpointIndex + 2
         );
       } else if (selectionState.type === 'effective-cfh') {
-        const geometry = getPelvicMeasurementGeometry(measurement.points);
+        const geometry = getBilateralPelvicGeometryForMeasurement(measurement);
         if (geometry?.mode === 'bilateral' && geometry.femoralHeadCenter) {
           selectedPoints = [geometry.femoralHeadCenter];
         }

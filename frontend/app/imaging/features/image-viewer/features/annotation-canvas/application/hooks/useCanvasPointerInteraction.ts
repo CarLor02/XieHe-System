@@ -17,7 +17,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { getManualTtsTrunkCenter } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
-import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
 
 function getMeasurementDragCenter(measurement: MeasurementData): Point {
   const ttsTrunkCenter = getManualTtsTrunkCenter(measurement);
@@ -234,8 +234,8 @@ export function useCanvasPointerInteraction({
               },
             });
           } else if (selectionHit.kind === 'effective-cfh') {
-            const effectiveCfh = getPelvicMeasurementGeometry(
-              selectedMeasurement.points
+            const effectiveCfh = getBilateralPelvicGeometryForMeasurement(
+              selectedMeasurement
             )?.femoralHeadCenter;
             if (!effectiveCfh) return true;
             onDisplayMeasurementSelect(null);
@@ -336,8 +336,8 @@ export function useCanvasPointerInteraction({
           }
 
           if (selectionState.type === 'effective-cfh') {
-            const effectiveCfh = getPelvicMeasurementGeometry(
-              measurement.points
+            const effectiveCfh = getBilateralPelvicGeometryForMeasurement(
+              measurement
             )?.femoralHeadCenter;
             if (effectiveCfh) {
               const effectiveCfhScreen = imageToScreen(effectiveCfh);

@@ -22,11 +22,10 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import {
+  getBilateralPelvicGeometryForMeasurement,
   getBilateralPelvicGeometryOwnerId,
-  getBilateralPelvicPointsForMeasurement,
   isBilateralPelvicMeasurement,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
-import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 export type HitResult =
   | { kind: 'point'; measurementId: string; pointIndex: number }
@@ -196,10 +195,7 @@ export function hitTestMeasurement({
       measurement.id === pelvicGeometryOwnerId &&
       isBilateralPelvicMeasurement(measurement)
     ) {
-      const pelvicPoints = getBilateralPelvicPointsForMeasurement(measurement);
-      const geometry = pelvicPoints
-        ? getPelvicMeasurementGeometry(pelvicPoints)
-        : null;
+      const geometry = getBilateralPelvicGeometryForMeasurement(measurement);
       if (geometry?.femoralHeadCenter) {
         const center = imageToScreen(geometry.femoralHeadCenter);
         if (
