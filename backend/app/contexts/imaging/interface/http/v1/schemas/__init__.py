@@ -7,6 +7,7 @@ from .annotations import (
 )
 from .image_files import (
     BatchDownloadUrlsRequest,
+    BatchUpdateExamTypeRequest,
     ImageFileResponse,
     RenameImageFileRequest,
     UpdateExamTypeRequest,
@@ -27,6 +28,7 @@ __all__ = [
     "AnnotationBatchRequest",
     "AnnotationSaveResponse",
     "BatchDownloadUrlsRequest",
+    "BatchUpdateExamTypeRequest",
     "BatchCreateUploadFileRequest",
     "CompleteImageImportItemRequest",
     "CompleteUploadPart",

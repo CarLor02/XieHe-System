@@ -6,6 +6,7 @@ import ImageGrid from './ImageGrid';
 import ImageListRows from './ImageListRows';
 import ImagePagination from './ImagePagination';
 import type { ImageFileAction } from '@/app/imaging/features/image-actions/domain/imageFileAction';
+import type { BatchSelectionMode } from '@/app/imaging/features/batch-operations/domain/batch-operation';
 
 interface ImageListPanelProps {
   imageFiles: ImageFile[];
@@ -20,9 +21,9 @@ interface ImageListPanelProps {
   onPreviewError: (fileId: number) => void;
   onMoreAction: (fileId: number, action: ImageFileAction) => void;
   onCropEdit: (imageFile: ImageFile) => void;
-  isBatchExportMode?: boolean;
-  selectedExportIds?: Set<number>;
-  onToggleExportSelection?: (fileId: number) => void;
+  batchSelectionMode?: BatchSelectionMode | null;
+  selectedBatchIds?: Set<number>;
+  onToggleBatchSelection?: (fileId: number) => void;
   onClearResultFilters: () => void;
   onChangePage: (updater: (page: number) => number) => void;
 }
@@ -40,9 +41,9 @@ export default function ImageListPanel({
   onPreviewError,
   onMoreAction,
   onCropEdit,
-  isBatchExportMode = false,
-  selectedExportIds = new Set<number>(),
-  onToggleExportSelection,
+  batchSelectionMode = null,
+  selectedBatchIds = new Set<number>(),
+  onToggleBatchSelection,
   onClearResultFilters,
   onChangePage,
 }: ImageListPanelProps) {
@@ -58,9 +59,9 @@ export default function ImageListPanel({
             onPreviewError={onPreviewError}
             onMoreAction={onMoreAction}
             onCropEdit={onCropEdit}
-            isBatchExportMode={isBatchExportMode}
-            selectedExportIds={selectedExportIds}
-            onToggleExportSelection={onToggleExportSelection}
+            batchSelectionMode={batchSelectionMode}
+            selectedBatchIds={selectedBatchIds}
+            onToggleBatchSelection={onToggleBatchSelection}
           />
         ) : (
           <ImageListRows
@@ -71,9 +72,9 @@ export default function ImageListPanel({
             onPreviewError={onPreviewError}
             onMoreAction={onMoreAction}
             onCropEdit={onCropEdit}
-            isBatchExportMode={isBatchExportMode}
-            selectedExportIds={selectedExportIds}
-            onToggleExportSelection={onToggleExportSelection}
+            batchSelectionMode={batchSelectionMode}
+            selectedBatchIds={selectedBatchIds}
+            onToggleBatchSelection={onToggleBatchSelection}
           />
         )
       ) : (

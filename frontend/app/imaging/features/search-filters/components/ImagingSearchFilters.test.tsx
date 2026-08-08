@@ -34,11 +34,15 @@ function renderFilters(
     total: 2,
     exportContent: 'original-image',
     exportContentOptions: [{ value: 'original-image', label: '原图影像' }],
-    isBatchExportMode: false,
-    selectedExportCount: 0,
+    activeBatchMode: null,
+    selectedBatchCount: 0,
     isExporting: false,
     exportProgress: 0,
     exportMessage: '',
+    batchExamType: '',
+    isSettingBatchExamType: false,
+    batchExamTypeMessage: '',
+    isBatchOperationBusy: false,
     onChangeSearchTerm: jest.fn(),
     onSearch: jest.fn(),
     onToggleFilters: jest.fn(),
@@ -64,12 +68,13 @@ function renderFilters(
       totalPages: 1,
     })),
     onClearFilters: jest.fn(),
-    onToggleBatchExportMode: jest.fn(),
-    onExitBatchExportMode: jest.fn(),
+    onSelectBatchOperation: jest.fn(),
+    onExitBatchMode: jest.fn(),
     onChangeExportContent: jest.fn(),
-    onClearExportSelection: jest.fn(),
+    onClearBatchSelection: jest.fn(),
     onStartBatchExport: jest.fn(),
-    onStartBatchImport: jest.fn(),
+    onChangeBatchExamType: jest.fn(),
+    onRequestBatchExamTypeUpdate: jest.fn(),
     ...overrides,
   };
 
@@ -80,27 +85,37 @@ function renderFilters(
 }
 
 it('opens batch export controls from the imaging center toolbar', async () => {
-  const onToggleBatchExportMode = jest.fn();
-  renderFilters({ onToggleBatchExportMode });
+  const onSelectBatchOperation = jest.fn();
+  renderFilters({ onSelectBatchOperation });
 
-  await userEvent.click(screen.getByRole('button', { name: /批量导出/ }));
+  await userEvent.click(screen.getByRole('button', { name: '批量操作' }));
+  await userEvent.click(screen.getByRole('button', { name: '批量导出' }));
 
-  expect(onToggleBatchExportMode).toHaveBeenCalledTimes(1);
+  expect(onSelectBatchOperation).toHaveBeenCalledWith('export');
 });
 
 it('opens batch import file selection from the imaging center toolbar', async () => {
-  const onStartBatchImport = jest.fn();
-  renderFilters({ onStartBatchImport });
+  const onSelectBatchOperation = jest.fn();
+  renderFilters({ onSelectBatchOperation });
 
-  await userEvent.click(screen.getByRole('button', { name: /批量导入/ }));
+  await userEvent.click(screen.getByRole('button', { name: '批量操作' }));
+  await userEvent.click(screen.getByRole('button', { name: '批量导入' }));
 
-  expect(onStartBatchImport).toHaveBeenCalledTimes(1);
+  expect(onSelectBatchOperation).toHaveBeenCalledWith('import');
+});
+
+it('disables switching batch operations while an operation is running', () => {
+  renderFilters({ isBatchOperationBusy: true });
+
+  expect(
+    screen.getByRole('button', { name: '批量操作' }).hasAttribute('disabled')
+  ).toBe(true);
 });
 
 it('shows export content selection and export action in batch export mode', () => {
   renderFilters({
-    isBatchExportMode: true,
-    selectedExportCount: 2,
+    activeBatchMode: 'export',
+    selectedBatchCount: 2,
     exportContentOptions: [
       { value: 'original-image', label: '原图影像' },
       { value: 'measurement-parameters', label: '参数测量' },
@@ -111,4 +126,18 @@ it('shows export content selection and export action in batch export mode', () =
   expect(screen.getByRole('combobox')).toBeTruthy();
   expect(screen.getByRole('button', { name: /进行导出/ })).toBeTruthy();
   expect(screen.getByText('已选 2 张影像')).toBeTruthy();
+});
+
+it('shows exam type selection and setting actions in batch setting mode', () => {
+  renderFilters({
+    activeBatchMode: 'set-exam-type',
+    selectedBatchCount: 3,
+    batchExamType: '侧位X光片',
+  });
+
+  expect(screen.getByText('类型设置为')).toBeTruthy();
+  expect(screen.getByDisplayValue('侧位X光片')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '退出设置' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: '进行设置' })).toBeTruthy();
+  expect(screen.getByText('已选 3 张影像')).toBeTruthy();
 });

@@ -81,3 +81,10 @@ class ImageContentReplacement:
 class ImageMutationResult:
     image: ImageDetail
     warning: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BatchExamTypeMutationResult:
+    updated_ids: tuple[int, ...]
+    unchanged_ids: tuple[int, ...]
+    exam_type: str

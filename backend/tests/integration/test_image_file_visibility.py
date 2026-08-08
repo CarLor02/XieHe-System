@@ -9,6 +9,7 @@ from app.api.v1.endpoints.system.handlers import dashboard as dashboard_handlers
 from app.contexts.imaging.application import ImageVisibilityApplicationService
 from app.contexts.imaging.application.dto import ImageListFilters
 from app.contexts.imaging.infrastructure.persistence import (
+    ImageAnnotationRevision,
     SqlAlchemyImageQueryRepository,
     SqlAlchemyImageVisibilityRepository,
     apply_image_access_scope,
@@ -19,6 +20,7 @@ from app.contexts.imaging.interface.http.v1.dependencies import (
     get_image_selection_service,
 )
 from app.contexts.imaging.interface.http.v1.routes.mutations import (
+    batch_update_exam_type,
     delete_image_file,
     rename_image_file,
     replace_image_file_content,
@@ -27,7 +29,10 @@ from app.contexts.imaging.interface.http.v1.routes.selectors import (
     list_assignable_image_teams,
     list_visible_image_uploaders,
 )
-from app.contexts.imaging.interface.http.v1.schemas import RenameImageFileRequest
+from app.contexts.imaging.interface.http.v1.schemas import (
+    BatchUpdateExamTypeRequest,
+    RenameImageFileRequest,
+)
 from app.contexts.patients.infrastructure.persistence.models import (
     GenderEnum,
     Patient,
@@ -656,3 +661,95 @@ async def test_system_admin_can_rename_any_image(db_session):
     )
 
     assert response_data(result)["original_filename"] == "system-renamed.png"
+
+
+def test_batch_exam_type_update_clears_changed_annotations_and_skips_same_type(
+    db_session: Session,
+) -> None:
+    assign_image_to_team(db_session, 2)
+    changed_image = db_session.get(ImageFile, 1)
+    unchanged_image = db_session.get(ImageFile, 2)
+    assert changed_image is not None
+    assert unchanged_image is not None
+    changed_image.description = "侧位X光片"
+    changed_image.annotation = {"measurements": [{"id": "changed-measurement"}]}
+    changed_image.has_annotation = True
+    changed_image.status = ImageFileStatusEnum.PROCESSED
+    unchanged_image.description = "正位X光片"
+    unchanged_image.annotation = {"measurements": [{"id": "kept-measurement"}]}
+    unchanged_image.has_annotation = True
+    unchanged_image.status = ImageFileStatusEnum.PROCESSED
+    db_session.commit()
+
+    result = batch_update_exam_type(
+        request=BatchUpdateExamTypeRequest(
+            ids=[2, 1, 1],
+            exam_type="正位X光片",
+        ),
+        current_user=current_user(10),
+        service=get_image_file_command_service(db_session),
+    )
+
+    assert response_data(result) == {
+        "updated_ids": [1],
+        "unchanged_ids": [2],
+        "updated_count": 1,
+        "unchanged_count": 1,
+        "exam_type": "正位X光片",
+    }
+    db_session.expire_all()
+    changed_image = db_session.get(ImageFile, 1)
+    unchanged_image = db_session.get(ImageFile, 2)
+    assert changed_image is not None
+    assert unchanged_image is not None
+    assert changed_image.description == "正位X光片"
+    assert changed_image.annotation["measurements"] == []
+    assert changed_image.annotation["vertebraeLayer"] == []
+    assert changed_image.has_annotation is False
+    assert changed_image.status == ImageFileStatusEnum.UPLOADED
+    assert unchanged_image.annotation == {"measurements": [{"id": "kept-measurement"}]}
+    assert unchanged_image.status == ImageFileStatusEnum.PROCESSED
+
+    revision = (
+        db_session.query(ImageAnnotationRevision)
+        .filter(ImageAnnotationRevision.image_file_id == 1)
+        .one()
+    )
+    assert revision.reason == "EXAM_TYPE_CHANGE"
+    assert revision.source == "SYSTEM"
+
+
+def test_batch_exam_type_update_rolls_back_when_any_image_is_not_visible(
+    db_session: Session,
+) -> None:
+    image = db_session.get(ImageFile, 1)
+    assert image is not None
+    image.description = "侧位X光片"
+    image.annotation = {"measurements": [{"id": "must-remain"}]}
+    image.has_annotation = True
+    image.status = ImageFileStatusEnum.PROCESSED
+    db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        batch_update_exam_type(
+            request=BatchUpdateExamTypeRequest(
+                ids=[1, 2],
+                exam_type="正位X光片",
+            ),
+            current_user=current_user(10),
+            service=get_image_file_command_service(db_session),
+        )
+
+    assert exc_info.value.status_code == 404
+    db_session.expire_all()
+    image = db_session.get(ImageFile, 1)
+    assert image is not None
+    assert image.description == "侧位X光片"
+    assert image.annotation == {"measurements": [{"id": "must-remain"}]}
+    assert image.status == ImageFileStatusEnum.PROCESSED
+    assert (
+        db_session.query(ImageAnnotationRevision)
+        .filter(ImageAnnotationRevision.image_file_id == 1)
+        .count()
+        == 0
+    )

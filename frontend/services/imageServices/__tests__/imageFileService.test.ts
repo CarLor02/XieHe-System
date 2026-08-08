@@ -29,6 +29,39 @@ it('does not apply an extra offset to timestamps that already include a timezone
 });
 
 describe('image file list filters', () => {
+  it('updates image exam types through the atomic batch endpoint', async () => {
+    const patch = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => ({
+        data: {
+          code: 200,
+          message: '影像检查类型批量更新成功',
+          data: {
+            updated_ids: [3],
+            unchanged_ids: [4],
+            updated_count: 1,
+            unchanged_count: 1,
+            exam_type: '侧位X光片',
+          },
+        },
+      })
+    );
+
+    jest.resetModules();
+    jest.doMock('@/lib/api', () => ({ apiClient: { patch } }));
+    const { batchUpdateImageExamType } = await import('../imageFileService');
+
+    const result = await batchUpdateImageExamType([3, 4], '侧位X光片');
+
+    expect(patch).toHaveBeenCalledWith('/api/v1/image-files/batch/exam-type', {
+      ids: [3, 4],
+      exam_type: '侧位X光片',
+    });
+    expect(result.updated_ids).toEqual([3]);
+    expect(result.unchanged_count).toBe(1);
+
+    jest.dontMock('@/lib/api');
+  });
+
   it('renames an image through the filename endpoint', async () => {
     const patch = jest.fn<(...args: unknown[]) => Promise<unknown>>(
       async () => ({

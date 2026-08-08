@@ -126,9 +126,9 @@ it('keeps the image preview linked to the viewer outside batch export mode', () 
 it('replaces card actions with an export checkbox in batch export mode', async () => {
   const onToggleExportSelection = jest.fn();
   renderImageGrid(makeImageFile(), {
-    isBatchExportMode: true,
-    selectedExportIds: new Set<number>([1]),
-    onToggleExportSelection,
+    batchSelectionMode: 'export',
+    selectedBatchIds: new Set<number>([1]),
+    onToggleBatchSelection: onToggleExportSelection,
   });
 
   expect(screen.queryByRole('link', { name: /标注分析/ })).not.toBeTruthy();
@@ -144,9 +144,9 @@ it('replaces card actions with an export checkbox in batch export mode', async (
 it('selects the image instead of opening the viewer when clicking the preview in batch export mode', async () => {
   const onToggleExportSelection = jest.fn();
   renderImageGrid(makeImageFile(), {
-    isBatchExportMode: true,
-    selectedExportIds: new Set<number>(),
-    onToggleExportSelection,
+    batchSelectionMode: 'export',
+    selectedBatchIds: new Set<number>(),
+    onToggleBatchSelection: onToggleExportSelection,
   });
 
   const viewerHref =
@@ -161,4 +161,20 @@ it('selects the image instead of opening the viewer when clicking the preview in
   );
 
   expect(onToggleExportSelection).toHaveBeenCalledWith(1);
+});
+
+it('uses setting labels and blocks viewer navigation in batch type mode', () => {
+  renderImageGrid(makeImageFile(), {
+    batchSelectionMode: 'set-exam-type',
+    selectedBatchIds: new Set<number>(),
+    onToggleBatchSelection: jest.fn(),
+  });
+
+  expect(screen.queryByRole('link', { name: /标注分析/ })).not.toBeTruthy();
+  expect(
+    screen.getByRole('checkbox', { name: /选择设置 xray\.png/ })
+  ).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: /选择设置图像 xray\.png/ })
+  ).toBeTruthy();
 });

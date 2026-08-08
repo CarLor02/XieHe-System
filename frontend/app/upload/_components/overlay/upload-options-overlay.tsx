@@ -31,7 +31,7 @@ export interface UploadOptionsConfirmOptions {
 
 interface UploadOptionsOverlayProps {
   file: UploadOptionsFile;
-  examTypes: string[];
+  examTypes: readonly string[];
   onExamTypeChange: (fileId: string, examType: string) => void;
   onFlip: (fileId: string) => void;
   onCrop: (fileId: string, crop: CropArea) => void | Promise<void>;

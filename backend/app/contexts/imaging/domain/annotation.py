@@ -28,6 +28,7 @@ class AnnotationMutationReason(str, enum.Enum):
     CLEAR_ALL = "CLEAR_ALL"
     AI_IMPORT = "AI_IMPORT"
     CONTENT_REPLACEMENT = "CONTENT_REPLACEMENT"
+    EXAM_TYPE_CHANGE = "EXAM_TYPE_CHANGE"
     BASELINE = "BASELINE"
 
 

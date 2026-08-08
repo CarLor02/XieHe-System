@@ -10,13 +10,21 @@ import ImagingSearchFilters from './features/search-filters/components/ImagingSe
 import ImagingConfirmDialog from './shared/components/ImagingConfirmDialog';
 import UploadOptionsOverlay from '@/app/upload/_components/overlay/upload-options-overlay';
 import BatchImportOverlay from '@/app/imaging/features/batch-import/components/BatchImportOverlay';
-import { EXAM_TYPES } from './features/image-actions/hooks/useImageEditOverlay';
+import { EXAM_TYPES } from './domain/imagingFilters';
 import { AppModal } from '@/components/overlay/overlay-components';
 import ImageRenameDialog from './features/image-actions/components/ImageRenameDialog';
 
 function ImagingPageContent() {
   const controller = useImagingPageController();
-  const { preview, actions, editOverlay, batchExport, batchImport } = controller;
+  const {
+    preview,
+    actions,
+    editOverlay,
+    batchSelection,
+    batchExport,
+    batchExamType,
+    batchImport,
+  } = controller;
   const isBlockingError =
     Boolean(controller.error) && controller.imageFiles.length === 0;
 
@@ -53,13 +61,19 @@ function ImagingPageContent() {
         selectedTeamIds={controller.selectedTeamIds}
         visibleCount={controller.imageFiles.length}
         total={controller.total}
-        isBatchExportMode={batchExport.isBatchExportMode}
-        selectedExportCount={batchExport.selectedExportCount}
+        activeBatchMode={batchSelection.activeMode}
+        selectedBatchCount={batchSelection.selectedCount}
         exportContent={batchExport.exportContent}
         exportContentOptions={batchExport.exportContentOptions}
         isExporting={batchExport.isExporting}
         exportProgress={batchExport.exportProgress}
         exportMessage={batchExport.exportMessage}
+        batchExamType={batchExamType.examType}
+        isSettingBatchExamType={batchExamType.isSetting}
+        batchExamTypeMessage={batchExamType.message}
+        isBatchOperationBusy={
+          batchExport.isExporting || batchExamType.isSetting
+        }
         onChangeSearchTerm={controller.setSearchTerm}
         onSearch={controller.handleSearch}
         onToggleFilters={() =>
@@ -75,12 +89,13 @@ function ImagingPageContent() {
         onLoadUploaders={controller.loadUploaders}
         onLoadTeams={controller.loadAssignableTeams}
         onClearFilters={controller.clearFilters}
-        onToggleBatchExportMode={batchExport.toggleBatchExportMode}
-        onExitBatchExportMode={batchExport.exitBatchExportMode}
+        onSelectBatchOperation={controller.handleSelectBatchOperation}
+        onExitBatchMode={controller.exitBatchMode}
         onChangeExportContent={batchExport.setExportContent}
-        onClearExportSelection={batchExport.clearExportSelection}
+        onClearBatchSelection={batchSelection.clearSelection}
         onStartBatchExport={batchExport.startBatchExport}
-        onStartBatchImport={batchImport.openOverlay}
+        onChangeBatchExamType={batchExamType.setExamType}
+        onRequestBatchExamTypeUpdate={batchExamType.requestSet}
       />
 
       <ImageListPanel
@@ -96,9 +111,9 @@ function ImagingPageContent() {
         onPreviewError={preview.handlePreviewError}
         onMoreAction={actions.handleMoreAction}
         onCropEdit={editOverlay.openEditOverlay}
-        isBatchExportMode={batchExport.isBatchExportMode}
-        selectedExportIds={batchExport.selectedExportIds}
-        onToggleExportSelection={batchExport.toggleExportSelection}
+        batchSelectionMode={batchSelection.activeMode}
+        selectedBatchIds={batchSelection.selectedIds}
+        onToggleBatchSelection={batchSelection.toggleSelection}
         onClearResultFilters={controller.clearEmptyResultFilters}
         onChangePage={controller.setCurrentPage}
       />
@@ -175,6 +190,14 @@ function ImagingPageContent() {
         confirmDisabled={editOverlay.saving}
         onCancel={editOverlay.cancelContentReplacement}
         onConfirm={editOverlay.confirmContentReplacement}
+      />
+
+      <ImagingConfirmDialog
+        open={batchExamType.confirmOpen}
+        message="修改影像类型后，类型实际发生变化的影像标注内容会被清空，是否继续?"
+        confirmDisabled={batchExamType.isSetting}
+        onCancel={batchExamType.cancelSet}
+        onConfirm={batchExamType.confirmSet}
       />
 
       <ImageRenameDialog

@@ -29,6 +29,7 @@ from ..actor import CurrentUserPayload, image_access_actor
 from ..dependencies import get_image_file_command_service
 from ..errors import raise_http_error
 from ..schemas import (
+    BatchUpdateExamTypeRequest,
     ImageFileResponse,
     RenameImageFileRequest,
     UpdateExamTypeRequest,
@@ -52,6 +53,32 @@ def _parse_team_ids_form(value: str | None) -> list[int] | None:
 
 def _mutation_payload(result_image: ImageDetail) -> dict[str, object]:
     return ImageFileResponse.from_detail(result_image).model_dump()
+
+
+@router.patch("/batch/exam-type", summary="批量修改影像检查类型")
+def batch_update_exam_type(
+    request: BatchUpdateExamTypeRequest,
+    current_user: CurrentUserPayload = Depends(get_current_active_user),
+    service: ImageFileCommandService = Depends(get_image_file_command_service),
+) -> dict[str, object]:
+    try:
+        result = service.update_exam_types(
+            request.ids,
+            image_access_actor(current_user),
+            request.exam_type,
+        )
+    except (ImageFileNotFoundError, InvalidImageOperationError) as exc:
+        raise_http_error(exc)
+    return success_response(
+        data={
+            "updated_ids": list(result.updated_ids),
+            "unchanged_ids": list(result.unchanged_ids),
+            "updated_count": len(result.updated_ids),
+            "unchanged_count": len(result.unchanged_ids),
+            "exam_type": result.exam_type,
+        },
+        message="影像检查类型批量更新成功",
+    )
 
 
 @router.delete("/{file_id}", summary="删除影像文件")

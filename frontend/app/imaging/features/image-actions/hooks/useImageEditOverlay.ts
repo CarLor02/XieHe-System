@@ -10,16 +10,9 @@ import {
   type ImageFile,
 } from '@/services/imageServices/imageFileService';
 import { createLogger } from '@/lib/logger';
+import { EXAM_TYPES } from '@/app/imaging/domain/imagingFilters';
 
 const logger = createLogger('app.imaging.features.image.actions.hooks.useImageEditOverlay');
-
-export const EXAM_TYPES = [
-  '正位X光片',
-  '侧位X光片',
-  '左侧曲位',
-  '右侧曲位',
-  '体态照片',
-];
 
 export interface EditImageState {
   imageFile: ImageFile;

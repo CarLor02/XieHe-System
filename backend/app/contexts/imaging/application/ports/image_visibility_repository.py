@@ -29,6 +29,8 @@ class ImageVisibilityRepository(Protocol):
         self,
         image_file_ids: list[int],
         scope: ImageAccessScope,
+        *,
+        for_update: bool = False,
     ) -> dict[int, ImageFile]: ...
 
     def list_visible_uploader_ids(

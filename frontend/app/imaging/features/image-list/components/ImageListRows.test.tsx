@@ -147,9 +147,9 @@ it('replaces row actions with an export checkbox in batch export mode', async ()
     onPreviewError: jest.fn(),
     onMoreAction: jest.fn(),
     onCropEdit: jest.fn(),
-    isBatchExportMode: true,
-    selectedExportIds: new Set<number>(),
-    onToggleExportSelection,
+    batchSelectionMode: 'export',
+    selectedBatchIds: new Set<number>(),
+    onToggleBatchSelection: onToggleExportSelection,
   };
 
   render(<ImageListRows {...props} />);
@@ -176,9 +176,9 @@ it('selects the row image instead of opening the viewer when clicking the thumbn
       onPreviewError={jest.fn()}
       onMoreAction={jest.fn()}
       onCropEdit={jest.fn()}
-      isBatchExportMode
-      selectedExportIds={new Set<number>()}
-      onToggleExportSelection={onToggleExportSelection}
+      batchSelectionMode="export"
+      selectedBatchIds={new Set<number>()}
+      onToggleBatchSelection={onToggleExportSelection}
     />
   );
 

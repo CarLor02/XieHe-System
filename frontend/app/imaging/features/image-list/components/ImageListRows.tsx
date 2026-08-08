@@ -10,6 +10,10 @@ import ImageStatusBadge from './ImageStatusBadge';
 import ImageOwnershipTeamRow from './ImageOwnershipTeamRow';
 import type { ImageFileAction } from '@/app/imaging/features/image-actions/domain/imageFileAction';
 import ImageActionMenu from '@/app/imaging/features/image-actions/components/ImageActionMenu';
+import {
+  getBatchSelectionLabel,
+  type BatchSelectionMode,
+} from '@/app/imaging/features/batch-operations/domain/batch-operation';
 
 interface ImageListRowsProps {
   imageFiles: ImageFile[];
@@ -19,9 +23,9 @@ interface ImageListRowsProps {
   onPreviewError: (fileId: number) => void;
   onMoreAction: (fileId: number, action: ImageFileAction) => void;
   onCropEdit: (imageFile: ImageFile) => void;
-  isBatchExportMode?: boolean;
-  selectedExportIds?: Set<number>;
-  onToggleExportSelection?: (fileId: number) => void;
+  batchSelectionMode?: BatchSelectionMode | null;
+  selectedBatchIds?: Set<number>;
+  onToggleBatchSelection?: (fileId: number) => void;
 }
 
 export default function ImageListRows({
@@ -32,28 +36,32 @@ export default function ImageListRows({
   onPreviewError,
   onMoreAction,
   onCropEdit,
-  isBatchExportMode = false,
-  selectedExportIds = new Set<number>(),
-  onToggleExportSelection,
+  batchSelectionMode = null,
+  selectedBatchIds = new Set<number>(),
+  onToggleBatchSelection,
 }: ImageListRowsProps) {
+  const selectionLabel = batchSelectionMode
+    ? getBatchSelectionLabel(batchSelectionMode)
+    : '';
+
   return (
     <div className="divide-y divide-gray-200">
       {imageFiles.map(imageFile => {
         const patientName = imageFile.patient_name || '未知患者';
         const uploaderName = imageFile.uploader_name || '未知用户';
         const viewerHref = `/imaging/viewer?id=${imageFile.id}&returnTo=${encodeURIComponent(viewerReturnTo)}`;
-        const isSelectedForExport = selectedExportIds.has(imageFile.id);
+        const isSelectedForBatch = selectedBatchIds.has(imageFile.id);
 
         return (
           <div key={imageFile.id} className="p-4 hover:bg-gray-50 sm:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start">
-              {isBatchExportMode ? (
+              {batchSelectionMode ? (
                 <button
                   type="button"
-                  aria-label={`选择导出图像 ${imageFile.original_filename}`}
-                  onClick={() => onToggleExportSelection?.(imageFile.id)}
+                  aria-label={`${selectionLabel}图像 ${imageFile.original_filename}`}
+                  onClick={() => onToggleBatchSelection?.(imageFile.id)}
                   className={`self-start rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    isSelectedForExport ? 'ring-2 ring-blue-500' : ''
+                    isSelectedForBatch ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
                   <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
@@ -134,20 +142,20 @@ export default function ImageListRows({
                   </div>
                 </div>
 
-                {isBatchExportMode ? (
+                {batchSelectionMode ? (
                   <label
                     className={`flex max-w-xs cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
-                      isSelectedForExport
+                      isSelectedForBatch
                         ? 'border-blue-300 bg-blue-50 text-blue-700'
                         : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <span className="font-medium">选择导出</span>
+                    <span className="font-medium">{selectionLabel}</span>
                     <input
                       type="checkbox"
-                      aria-label={`选择导出 ${imageFile.original_filename}`}
-                      checked={isSelectedForExport}
-                      onChange={() => onToggleExportSelection?.(imageFile.id)}
+                      aria-label={`${selectionLabel} ${imageFile.original_filename}`}
+                      checked={isSelectedForBatch}
+                      onChange={() => onToggleBatchSelection?.(imageFile.id)}
                       className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </label>

@@ -10,6 +10,10 @@ import ImageActionMenu from '@/app/imaging/features/image-actions/components/Ima
 import ImageOwnershipTeamRow from './ImageOwnershipTeamRow';
 import ImageStatusBadge from './ImageStatusBadge';
 import type { ImageFileAction } from '@/app/imaging/features/image-actions/domain/imageFileAction';
+import {
+  getBatchSelectionLabel,
+  type BatchSelectionMode,
+} from '@/app/imaging/features/batch-operations/domain/batch-operation';
 
 interface ImageGridProps {
   imageFiles: ImageFile[];
@@ -19,9 +23,9 @@ interface ImageGridProps {
   onPreviewError: (fileId: number) => void;
   onMoreAction: (fileId: number, action: ImageFileAction) => void;
   onCropEdit: (imageFile: ImageFile) => void;
-  isBatchExportMode?: boolean;
-  selectedExportIds?: Set<number>;
-  onToggleExportSelection?: (fileId: number) => void;
+  batchSelectionMode?: BatchSelectionMode | null;
+  selectedBatchIds?: Set<number>;
+  onToggleBatchSelection?: (fileId: number) => void;
 }
 
 export default function ImageGrid({
@@ -32,30 +36,34 @@ export default function ImageGrid({
   onPreviewError,
   onMoreAction,
   onCropEdit,
-  isBatchExportMode = false,
-  selectedExportIds = new Set<number>(),
-  onToggleExportSelection,
+  batchSelectionMode = null,
+  selectedBatchIds = new Set<number>(),
+  onToggleBatchSelection,
 }: ImageGridProps) {
+  const selectionLabel = batchSelectionMode
+    ? getBatchSelectionLabel(batchSelectionMode)
+    : '';
+
   return (
     <div className="grid grid-cols-1 gap-6 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
       {imageFiles.map(imageFile => {
         const patientName = imageFile.patient_name || '未知患者';
         const uploaderName = imageFile.uploader_name || '未知用户';
         const viewerHref = `/imaging/viewer?id=${imageFile.id}&returnTo=${encodeURIComponent(viewerReturnTo)}`;
-        const isSelectedForExport = selectedExportIds.has(imageFile.id);
+        const isSelectedForBatch = selectedBatchIds.has(imageFile.id);
 
         return (
           <div
             key={imageFile.id}
             className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
           >
-            {isBatchExportMode ? (
+            {batchSelectionMode ? (
               <button
                 type="button"
-                aria-label={`选择导出图像 ${imageFile.original_filename}`}
-                onClick={() => onToggleExportSelection?.(imageFile.id)}
+                aria-label={`${selectionLabel}图像 ${imageFile.original_filename}`}
+                onClick={() => onToggleBatchSelection?.(imageFile.id)}
                 className={`block w-full rounded-t-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  isSelectedForExport ? 'ring-2 ring-blue-500' : ''
+                  isSelectedForBatch ? 'ring-2 ring-blue-500' : ''
                 }`}
               >
                 <div className="aspect-[3/4] bg-black rounded-t-lg overflow-hidden relative cursor-pointer flex items-center justify-center">
@@ -136,20 +144,20 @@ export default function ImageGrid({
                 </div>
               </div>
 
-              {isBatchExportMode ? (
+              {batchSelectionMode ? (
                 <label
                   className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
-                    isSelectedForExport
+                    isSelectedForBatch
                       ? 'border-blue-300 bg-blue-50 text-blue-700'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <span className="font-medium">选择导出</span>
+                  <span className="font-medium">{selectionLabel}</span>
                   <input
                     type="checkbox"
-                    aria-label={`选择导出 ${imageFile.original_filename}`}
-                    checked={isSelectedForExport}
-                    onChange={() => onToggleExportSelection?.(imageFile.id)}
+                    aria-label={`${selectionLabel} ${imageFile.original_filename}`}
+                    checked={isSelectedForBatch}
+                    onChange={() => onToggleBatchSelection?.(imageFile.id)}
                     className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </label>

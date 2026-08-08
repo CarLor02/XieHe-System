@@ -27,6 +27,7 @@ from .errors import (
     ImageFileNotFoundError,
     ImageTeamAssignmentDeniedError,
 )
+from .exam_type import SUPPORTED_EXAM_TYPES, normalize_exam_type
 from .file_rules import (
     build_renamed_filename,
     determine_image_file_type,
@@ -51,6 +52,7 @@ __all__ = [
     "JsonObject",
     "JsonScalar",
     "JsonValue",
+    "SUPPORTED_EXAM_TYPES",
     "build_image_access_scope",
     "build_renamed_filename",
     "build_storage_object_key",
@@ -63,6 +65,7 @@ __all__ = [
     "extract_annotation_items",
     "has_annotation_content",
     "normalize_audit_item_id",
+    "normalize_exam_type",
     "normalize_team_ids",
     "require_all_teams_assignable",
     "snapshots_equal",

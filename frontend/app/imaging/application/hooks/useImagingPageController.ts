@@ -23,6 +23,9 @@ import { useImageFileActions } from '@/app/imaging/features/image-actions/hooks/
 import { useImageEditOverlay } from '@/app/imaging/features/image-actions/hooks/useImageEditOverlay';
 import { useBatchImageExport } from '@/app/imaging/features/batch-export/hooks';
 import { useBatchImageImport } from '@/app/imaging/features/batch-import/hooks/useBatchImageImport';
+import { useBatchImageSelection } from '@/app/imaging/features/batch-operations/hooks/useBatchImageSelection';
+import type { BatchOperation } from '@/app/imaging/features/batch-operations/domain/batch-operation';
+import { useBatchExamTypeUpdate } from '@/app/imaging/features/batch-exam-type/hooks/useBatchExamTypeUpdate';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -144,7 +147,8 @@ export function useImagingPageController() {
 
   const preview = useImagePreviewQueue(imageFiles);
   const { resetPreviewQueue } = preview;
-  const batchExport = useBatchImageExport(imageFiles);
+  const batchSelection = useBatchImageSelection(imageFiles);
+  const batchExport = useBatchImageExport(batchSelection.selectedImages);
 
   const loadImages = useCallback(async () => {
     try {
@@ -212,6 +216,12 @@ export function useImagingPageController() {
 
   const editOverlay = useImageEditOverlay({
     reloadImages: loadImages,
+  });
+
+  const batchExamType = useBatchExamTypeUpdate({
+    selectedImages: batchSelection.selectedImages,
+    reloadImages: loadImages,
+    onUpdated: batchSelection.applyExamTypeResult,
   });
 
   const handleSearch = useCallback(() => {
@@ -377,6 +387,32 @@ export function useImagingPageController() {
     loadTeams: loadAssignableTeams,
   });
 
+  const handleSelectBatchOperation = useCallback(
+    (operation: BatchOperation) => {
+      if (operation === 'import') {
+        batchSelection.exitMode();
+        batchExport.reset();
+        batchExamType.reset();
+        batchImport.openOverlay();
+        return;
+      }
+
+      batchSelection.activateMode(operation);
+      if (operation === 'export') {
+        batchExamType.reset();
+      } else {
+        batchExport.reset();
+      }
+    },
+    [batchExamType, batchExport, batchImport, batchSelection]
+  );
+
+  const exitBatchMode = useCallback(() => {
+    batchSelection.exitMode();
+    batchExport.reset();
+    batchExamType.reset();
+  }, [batchExamType, batchExport, batchSelection]);
+
   return {
     imageFiles,
     total,
@@ -400,11 +436,15 @@ export function useImagingPageController() {
     currentImagingHref,
     hasActiveFilters,
     preview,
+    batchSelection,
     batchExport,
+    batchExamType,
     batchImport,
     actions,
     editOverlay,
     loadImages,
+    handleSelectBatchOperation,
+    exitBatchMode,
     handleSearch,
     clearFilters,
     clearEmptyResultFilters,

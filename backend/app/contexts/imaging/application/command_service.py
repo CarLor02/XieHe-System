@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from app.contexts.imaging.application.dto import (
+    BatchExamTypeMutationResult,
     ImageContentReplacement,
     ImageInfoUpdate,
     ImageMutationResult,
@@ -18,6 +19,7 @@ from app.contexts.imaging.domain import (
     ImageFileNotFoundError,
     build_renamed_filename,
     determine_image_file_type,
+    normalize_exam_type,
     validate_replacement_file,
 )
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
@@ -94,11 +96,68 @@ class ImageFileCommandService:
         description: str,
     ) -> ImageMutationResult:
         image = self._visible_image(image_file_id, actor)
-        image.description = description
+        try:
+            image.description = normalize_exam_type(description)
+        except ValueError as exc:
+            raise InvalidImageOperationError(str(exc), status_code=422) from exc
         image.updated_at = datetime.now()
         self._commit()
         self._repository.refresh(image)
         return ImageMutationResult(self._repository.get_detail(image))
+
+    def update_exam_types(
+        self,
+        image_file_ids: list[int],
+        actor: ImageAccessActor,
+        exam_type: str,
+    ) -> BatchExamTypeMutationResult:
+        try:
+            normalized_exam_type = normalize_exam_type(exam_type)
+        except ValueError as exc:
+            raise InvalidImageOperationError(str(exc), status_code=422) from exc
+
+        normalized_ids = sorted(set(image_file_ids))
+        try:
+            images = self._visibility.get_visible_images_by_ids(
+                normalized_ids,
+                actor,
+                for_update=True,
+            )
+            if len(images) != len(normalized_ids):
+                # 不区分不存在与无权限，避免通过批量接口探测不可见影像。
+                raise ImageFileNotFoundError
+
+            updated_ids: list[int] = []
+            unchanged_ids: list[int] = []
+            for image_file_id in normalized_ids:
+                image = images[image_file_id]
+                if image.description == normalized_exam_type:
+                    unchanged_ids.append(image_file_id)
+                    continue
+
+                image.description = normalized_exam_type
+                # 影像类型决定可用标注工具和领域规则；类型变化后旧标注不可继续解释，
+                # 必须通过统一标注写入流程清空，以保留版本和逐项删除审计。
+                self._annotation_service.save_locked_image(
+                    image=image,
+                    actor_id=actor.user_id,
+                    annotation={},
+                    source=AnnotationSource.SYSTEM,
+                    reason=AnnotationMutationReason.EXAM_TYPE_CHANGE,
+                )
+                image.status = ImageFileStatusEnum.UPLOADED
+                image.updated_at = datetime.now()
+                updated_ids.append(image_file_id)
+
+            self._commit()
+            return BatchExamTypeMutationResult(
+                updated_ids=tuple(updated_ids),
+                unchanged_ids=tuple(unchanged_ids),
+                exam_type=normalized_exam_type,
+            )
+        except Exception:
+            self._repository.rollback()
+            raise
 
     async def replace_content(
         self,

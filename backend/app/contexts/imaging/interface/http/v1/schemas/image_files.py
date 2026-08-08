@@ -68,6 +68,23 @@ class UpdateExamTypeRequest(BaseModel):
     description: str = Field(description="检查类型（正位X光片/侧位X光片等）")
 
 
+class BatchUpdateExamTypeRequest(BaseModel):
+    ids: list[int] = Field(
+        min_length=1,
+        max_length=1000,
+        description="待修改的影像文件ID列表",
+    )
+    exam_type: str = Field(min_length=1, description="目标影像检查类型")
+
+    @field_validator("ids")
+    @classmethod
+    def normalize_ids(cls, value: list[int]) -> list[int]:
+        normalized = list(dict.fromkeys(value))
+        if any(image_file_id <= 0 for image_file_id in normalized):
+            raise ValueError("影像ID必须为正整数")
+        return normalized
+
+
 class UpdateImageInfoRequest(BaseModel):
     description: str = Field(description="检查类型（正位X光片/侧位X光片等）")
     team_ids: list[int] = Field(default_factory=list, description="影像归属团队ID")

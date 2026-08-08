@@ -31,30 +31,17 @@ function isPrivilegedExportContent(exportContent: ExportContentType): boolean {
   );
 }
 
-export function useBatchImageExport(imageFiles: ImageFile[]) {
+export function useBatchImageExport(selectedImages: ImageFile[]) {
   const { user } = useUser();
   const canExportAnnotationPoints = canExportPrivilegedData(user);
   const exportContentOptions = useExportContentOptions(canExportAnnotationPoints);
 
-  const [isBatchExportMode, setIsBatchExportMode] = useState(false);
-  const [selectedExportImages, setSelectedExportImages] = useState<
-    Map<number, ImageFile>
-  >(new Map());
   const [exportContent, setExportContent] =
     useState<ExportContentType>('original-image');
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportMessage, setExportMessage] = useState('');
 
-  const selectedExportIds = useMemo(
-    () => new Set(selectedExportImages.keys()),
-    [selectedExportImages]
-  );
-  const selectedExportCount = selectedExportImages.size;
-  const selectedImages = useMemo(
-    () => Array.from(selectedExportImages.values()),
-    [selectedExportImages]
-  );
   const effectiveExportContent = useMemo(
     () =>
       isPrivilegedExportContent(exportContent) && !canExportAnnotationPoints
@@ -63,43 +50,10 @@ export function useBatchImageExport(imageFiles: ImageFile[]) {
     [canExportAnnotationPoints, exportContent]
   );
 
-  const clearExportSelection = useCallback(() => {
-    setSelectedExportImages(new Map());
-  }, []);
-
-  const exitBatchExportMode = useCallback(() => {
-    setIsBatchExportMode(false);
-    setSelectedExportImages(new Map());
+  const reset = useCallback(() => {
     setExportMessage('');
     setExportProgress(0);
   }, []);
-
-  const toggleBatchExportMode = useCallback(() => {
-    setIsBatchExportMode(current => {
-      if (current) {
-        setSelectedExportImages(new Map());
-        setExportMessage('');
-        setExportProgress(0);
-      }
-      return !current;
-    });
-  }, []);
-
-  const toggleExportSelection = useCallback(
-    (imageId: number) => {
-      const imageFile = imageFiles.find(image => image.id === imageId);
-      setSelectedExportImages(current => {
-        const next = new Map(current);
-        if (next.has(imageId)) {
-          next.delete(imageId);
-        } else if (imageFile) {
-          next.set(imageId, imageFile);
-        }
-        return next;
-      });
-    },
-    [imageFiles]
-  );
 
   const startBatchExport = useCallback(async () => {
     if (selectedImages.length === 0) {
@@ -154,19 +108,13 @@ export function useBatchImageExport(imageFiles: ImageFile[]) {
   }, [canExportAnnotationPoints, effectiveExportContent, selectedImages]);
 
   return {
-    isBatchExportMode,
-    selectedExportIds,
-    selectedExportCount,
     exportContent: effectiveExportContent,
     exportContentOptions,
     isExporting,
     exportProgress,
     exportMessage,
     setExportContent,
-    toggleBatchExportMode,
-    exitBatchExportMode,
-    clearExportSelection,
-    toggleExportSelection,
+    reset,
     startBatchExport,
   };
 }

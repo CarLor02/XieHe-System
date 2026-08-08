@@ -4,6 +4,7 @@ from .common import PageResult
 from .files import (
     AssignableTeam,
     BatchDownloadUrls,
+    BatchExamTypeMutationResult,
     DownloadError,
     DownloadUrl,
     ImageContentReplacement,
@@ -53,6 +54,7 @@ __all__ = [
     "AnnotationHistoryItem",
     "AnnotationHistoryVersion",
     "AssignableTeam",
+    "BatchExamTypeMutationResult",
     "BatchDownloadUrls",
     "CompleteUpload",
     "CreateImportBatch",

@@ -9,6 +9,12 @@ import TeamMultiSelect, {
 } from '@/components/common/TeamMultiSelect';
 import type { ImageUploader } from '@/services/imageServices/imageFileService';
 import BatchExportControls from '@/app/imaging/features/batch-export/components/BatchExportControls';
+import BatchExamTypeControls from '@/app/imaging/features/batch-exam-type/components/BatchExamTypeControls';
+import BatchOperationMenu from '@/app/imaging/features/batch-operations/components/BatchOperationMenu';
+import type {
+  BatchOperation,
+  BatchSelectionMode,
+} from '@/app/imaging/features/batch-operations/domain/batch-operation';
 import type { ExportContentType } from '@/app/imaging/features/batch-export/domain';
 import type { ExportContentOption } from '@/app/imaging/features/batch-export/hooks/use-export-content-options';
 import {
@@ -31,13 +37,17 @@ interface ImagingSearchFiltersProps {
   selectedTeamIds: number[];
   visibleCount: number;
   total: number;
-  isBatchExportMode: boolean;
-  selectedExportCount: number;
+  activeBatchMode: BatchSelectionMode | null;
+  selectedBatchCount: number;
   exportContent: ExportContentType;
   exportContentOptions: ExportContentOption[];
   isExporting: boolean;
   exportProgress: number;
   exportMessage: string;
+  batchExamType: string;
+  isSettingBatchExamType: boolean;
+  batchExamTypeMessage: string;
+  isBatchOperationBusy: boolean;
   onChangeSearchTerm: (value: string) => void;
   onSearch: () => void;
   onToggleFilters: () => void;
@@ -57,12 +67,13 @@ interface ImagingSearchFiltersProps {
   }>;
   onLoadTeams: (params: TeamMultiSelectLoadParams) => Promise<TeamMultiSelectPage>;
   onClearFilters: () => void;
-  onToggleBatchExportMode: () => void;
-  onExitBatchExportMode: () => void;
+  onSelectBatchOperation: (operation: BatchOperation) => void;
+  onExitBatchMode: () => void;
   onChangeExportContent: (value: ExportContentType) => void;
-  onClearExportSelection: () => void;
+  onClearBatchSelection: () => void;
   onStartBatchExport: () => void;
-  onStartBatchImport: () => void;
+  onChangeBatchExamType: (value: string) => void;
+  onRequestBatchExamTypeUpdate: () => void;
 }
 
 export default function ImagingSearchFilters({
@@ -79,13 +90,17 @@ export default function ImagingSearchFilters({
   selectedTeamIds,
   visibleCount,
   total,
-  isBatchExportMode,
-  selectedExportCount,
+  activeBatchMode,
+  selectedBatchCount,
   exportContent,
   exportContentOptions,
   isExporting,
   exportProgress,
   exportMessage,
+  batchExamType,
+  isSettingBatchExamType,
+  batchExamTypeMessage,
+  isBatchOperationBusy,
   onChangeSearchTerm,
   onSearch,
   onToggleFilters,
@@ -99,12 +114,13 @@ export default function ImagingSearchFilters({
   onLoadUploaders,
   onLoadTeams,
   onClearFilters,
-  onToggleBatchExportMode,
-  onExitBatchExportMode,
+  onSelectBatchOperation,
+  onExitBatchMode,
   onChangeExportContent,
-  onClearExportSelection,
+  onClearBatchSelection,
   onStartBatchExport,
-  onStartBatchImport,
+  onChangeBatchExamType,
+  onRequestBatchExamTypeUpdate,
 }: ImagingSearchFiltersProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
@@ -124,30 +140,11 @@ export default function ImagingSearchFilters({
               上传影像
             </Link>
           </Tooltip>
-          <Tooltip content="批量导入影像并自动进行AI测量" position="bottom">
-            <button
-              type="button"
-              onClick={onStartBatchImport}
-              className="px-4 py-2 rounded-lg whitespace-nowrap inline-flex items-center bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              <i className="ri-folder-upload-line mr-1"></i>
-              批量导入
-            </button>
-          </Tooltip>
-          <Tooltip content="批量导出选中的影像文件" position="bottom">
-            <button
-              type="button"
-              onClick={onToggleBatchExportMode}
-              className={`px-4 py-2 rounded-lg whitespace-nowrap inline-flex items-center ${
-                isBatchExportMode
-                  ? 'bg-blue-50 border border-blue-300 text-blue-700 hover:bg-blue-100'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <i className="ri-download-line mr-1"></i>
-              批量导出
-            </button>
-          </Tooltip>
+          <BatchOperationMenu
+            activeMode={activeBatchMode}
+            disabled={isBatchOperationBusy}
+            onSelect={onSelectBatchOperation}
+          />
         </div>
       </div>
 
@@ -328,18 +325,31 @@ export default function ImagingSearchFilters({
         </div>
       )}
 
-      {isBatchExportMode && (
+      {activeBatchMode === 'export' && (
         <BatchExportControls
           exportContent={exportContent}
           exportContentOptions={exportContentOptions}
-          selectedCount={selectedExportCount}
+          selectedCount={selectedBatchCount}
           isExporting={isExporting}
           exportProgress={exportProgress}
           exportMessage={exportMessage}
           onChangeExportContent={onChangeExportContent}
-          onClearSelection={onClearExportSelection}
-          onExit={onExitBatchExportMode}
+          onClearSelection={onClearBatchSelection}
+          onExit={onExitBatchMode}
           onStartExport={onStartBatchExport}
+        />
+      )}
+
+      {activeBatchMode === 'set-exam-type' && (
+        <BatchExamTypeControls
+          examType={batchExamType}
+          selectedCount={selectedBatchCount}
+          isSetting={isSettingBatchExamType}
+          message={batchExamTypeMessage}
+          onChangeExamType={onChangeBatchExamType}
+          onClearSelection={onClearBatchSelection}
+          onExit={onExitBatchMode}
+          onRequestSet={onRequestBatchExamTypeUpdate}
         />
       )}
     </div>

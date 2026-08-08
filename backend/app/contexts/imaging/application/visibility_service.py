@@ -49,12 +49,15 @@ class ImageVisibilityApplicationService:
         self,
         image_file_ids: list[int],
         actor: ImageAccessActor,
+        *,
+        for_update: bool = False,
     ) -> dict[int, ImageFile]:
         if not image_file_ids:
             return {}
         return self._repository.get_visible_images_by_ids(
             image_file_ids,
             self.resolve_scope(actor),
+            for_update=for_update,
         )
 
     def list_visible_uploader_ids(

@@ -107,14 +107,17 @@ class SqlAlchemyImageVisibilityRepository:
         self,
         image_file_ids: list[int],
         scope: ImageAccessScope,
+        *,
+        for_update: bool = False,
     ) -> dict[int, ImageFile]:
         query = self._session.query(ImageFile).filter(
             ImageFile.id.in_(image_file_ids),
             ImageFile.is_deleted.is_(False),
         )
-        return {
-            image.id: image for image in apply_image_access_scope(query, scope).all()
-        }
+        query = apply_image_access_scope(query, scope).order_by(ImageFile.id.asc())
+        if for_update:
+            query = query.populate_existing().with_for_update()
+        return {image.id: image for image in query.all()}
 
     def list_visible_uploader_ids(
         self,

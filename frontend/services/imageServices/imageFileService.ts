@@ -367,6 +367,25 @@ export async function updateImageExamType(
   return extractData<{ id: number; description: string; warning: string | null }>(response);
 }
 
+export interface BatchUpdateImageExamTypeResult {
+  updated_ids: number[];
+  unchanged_ids: number[];
+  updated_count: number;
+  unchanged_count: number;
+  exam_type: string;
+}
+
+export async function batchUpdateImageExamType(
+  ids: number[],
+  examType: string
+): Promise<BatchUpdateImageExamTypeResult> {
+  const response = await apiClient.patch('/api/v1/image-files/batch/exam-type', {
+    ids,
+    exam_type: examType,
+  });
+  return extractData<BatchUpdateImageExamTypeResult>(response);
+}
+
 export async function updateImageInfo(
   fileId: number,
   payload: { description: string; team_ids: number[] }
