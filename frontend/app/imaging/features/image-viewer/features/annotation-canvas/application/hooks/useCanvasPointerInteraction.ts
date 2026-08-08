@@ -17,6 +17,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { getManualTtsTrunkCenter } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
+import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 function getMeasurementDragCenter(measurement: MeasurementData): Point {
   const ttsTrunkCenter = getManualTtsTrunkCenter(measurement);
@@ -232,6 +233,22 @@ export function useCanvasPointerInteraction({
                 y: imagePoint.y - point.y,
               },
             });
+          } else if (selectionHit.kind === 'effective-cfh') {
+            const effectiveCfh = getPelvicMeasurementGeometry(
+              selectedMeasurement.points
+            )?.femoralHeadCenter;
+            if (!effectiveCfh) return true;
+            onDisplayMeasurementSelect(null);
+            setSelectionState({
+              measurementId: selectedMeasurement.id,
+              pointIndex: null,
+              type: 'effective-cfh',
+              isDragging: false,
+              dragOffset: {
+                x: imagePoint.x - effectiveCfh.x,
+                y: imagePoint.y - effectiveCfh.y,
+              },
+            });
           } else if (selectionHit.kind === 'line') {
             onDisplayMeasurementSelect(null);
             const anchor = selectedMeasurement.points[selectionHit.lineIndex];
@@ -318,6 +335,31 @@ export function useCanvasPointerInteraction({
             }
           }
 
+          if (selectionState.type === 'effective-cfh') {
+            const effectiveCfh = getPelvicMeasurementGeometry(
+              measurement.points
+            )?.femoralHeadCenter;
+            if (effectiveCfh) {
+              const effectiveCfhScreen = imageToScreen(effectiveCfh);
+              const pointBox = {
+                minX: effectiveCfhScreen.x - input.policy.selectionPadding,
+                maxX: effectiveCfhScreen.x + input.policy.selectionPadding,
+                minY: effectiveCfhScreen.y - input.policy.selectionPadding,
+                maxY: effectiveCfhScreen.y + input.policy.selectionPadding,
+              };
+              if (isPointInSelectionBox(screenPoint, pointBox)) {
+                setSelectionState(previous => ({
+                  ...previous,
+                  dragOffset: {
+                    x: imagePoint.x - effectiveCfh.x,
+                    y: imagePoint.y - effectiveCfh.y,
+                  },
+                }));
+                return true;
+              }
+            }
+          }
+
           if (selectionState.type === 'whole') {
             const box = getMeasurementSelectionBoxInScreen(
               measurement,
@@ -401,6 +443,16 @@ export function useCanvasPointerInteraction({
           keypointId: null,
           pointIndex: hoverHit.pointIndex,
           elementType: 'point',
+        });
+        return;
+      }
+
+      if (hoverHit.kind === 'effective-cfh') {
+        setHoverState({
+          measurementId: hoverHit.measurementId,
+          keypointId: null,
+          pointIndex: null,
+          elementType: 'effective-cfh',
         });
         return;
       }

@@ -48,6 +48,7 @@ import { renderAuxiliaryTag } from '@/app/imaging/features/image-viewer/features
 import { circleRenderer } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/support-shape-renderers/circleRenderer';
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/shared/rendererUtils';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
+import { getBilateralPelvicGeometryOwnerId } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
 
 interface RenderMeasurementProps {
   measurement: MeasurementData;
@@ -560,17 +561,21 @@ export default function renderMeasurement({
   const screenPoints = measurement.points.map(point =>
     imageToScreen(point, context)
   );
-  const measurementTypeId = getAnnotationTypeId(measurement.type);
-  const renderPelvicCircles =
-    (measurementTypeId === 'pi' || measurementTypeId === 'pt') &&
-    measurement.points.length === 6 &&
-    !allMeasurements.slice(0, measurementIndex).some(previous => {
-      const previousTypeId = getAnnotationTypeId(previous.type);
-      return (
-        (previousTypeId === 'pi' || previousTypeId === 'pt') &&
-        previous.points.length === 6
-      );
-    });
+  const pelvicGeometryOwnerId = getBilateralPelvicGeometryOwnerId(
+    allMeasurements.length > 0 ? allMeasurements : [measurement],
+    item => hiddenMeasurementIds.has(item.id)
+  );
+  const renderPelvicSharedGeometry =
+    measurement.id === pelvicGeometryOwnerId &&
+    !hiddenMeasurementIds.has(measurement.id);
+  const effectiveCfhInteractionState: 'idle' | 'hovered' | 'selected' =
+    selectionState.measurementId === measurement.id &&
+    selectionState.type === 'effective-cfh'
+      ? 'selected'
+      : hoverState.measurementId === measurement.id &&
+          hoverState.elementType === 'effective-cfh'
+        ? 'hovered'
+        : 'idle';
   const specialElementContext = {
     imagePoints: measurement.points,
     screenPoints,
@@ -580,7 +585,8 @@ export default function renderMeasurement({
       standardDistancePoints,
       imageNaturalSize,
     },
-    renderPelvicCircles,
+    renderPelvicSharedGeometry,
+    effectiveCfhInteractionState,
   };
   const displayName = getAnnotationDisplayName(measurement.type);
   const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);

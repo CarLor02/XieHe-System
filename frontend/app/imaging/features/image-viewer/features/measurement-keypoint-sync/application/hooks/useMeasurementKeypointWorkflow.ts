@@ -731,7 +731,7 @@ export function useMeasurementKeypointWorkflow({
   const handleMeasurementWriteback = useCallback(
     (
       measurementType: string,
-      pointIndex: number,
+      pointIndex: number | readonly number[],
       newPoint: Point,
       measurementId?: string,
       updatedPoints?: Point[]
@@ -745,16 +745,22 @@ export function useMeasurementKeypointWorkflow({
         : getMeasurementKeypointBindingRule(measurementType);
 
       if (bindingRule && sourceMeasurement) {
+        const changedPointIndices =
+          typeof pointIndex === 'number' ? [pointIndex] : [...pointIndex];
         const measurementPoints =
           updatedPoints ??
           sourceMeasurement.points.map((point, index) =>
-            index === pointIndex ? newPoint : point
+            changedPointIndices.includes(index) ? newPoint : point
           );
-        const nextKeypoints = writeMeasurementToKeypoints(
-          keypoints,
-          sourceMeasurement,
-          measurementPoints,
-          pointIndex
+        const nextKeypoints = changedPointIndices.reduce(
+          (current, changedPointIndex) =>
+            writeMeasurementToKeypoints(
+              current,
+              sourceMeasurement,
+              measurementPoints,
+              changedPointIndex
+            ),
+          keypoints
         );
         if (!areKeypointsEqual(keypoints, nextKeypoints)) {
           applyMovedKeypoints(nextKeypoints);
@@ -762,15 +768,25 @@ export function useMeasurementKeypointWorkflow({
         return;
       }
 
-      const { vertebraeLayer: nextLayer, cfhAnnotation: nextCfh } =
-        applyMeasurementPointToVertebrae(
-          activeVertebraeLayer,
+      const changedPointIndices =
+        typeof pointIndex === 'number' ? [pointIndex] : [...pointIndex];
+      const fallbackResult = changedPointIndices.reduce(
+        (current, changedPointIndex) =>
+          applyMeasurementPointToVertebrae(
+            current.vertebraeLayer,
+            current.cfhAnnotation,
+            measurementType,
+            changedPointIndex,
+            updatedPoints?.[changedPointIndex] ?? newPoint,
+            dynamicVertebraLabel
+          ),
+        {
+          vertebraeLayer: activeVertebraeLayer,
           cfhAnnotation,
-          measurementType,
-          pointIndex,
-          newPoint,
-          dynamicVertebraLabel
-        );
+        }
+      );
+      const { vertebraeLayer: nextLayer, cfhAnnotation: nextCfh } =
+        fallbackResult;
       if (nextLayer !== activeVertebraeLayer) {
         setVertebraeLayer(nextLayer);
         if (isKeypointExam) {

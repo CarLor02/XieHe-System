@@ -158,3 +158,73 @@ describe('manual TTS measurement hit testing', () => {
     ).toEqual({ kind: 'none' });
   });
 });
+
+describe('bilateral FH effective CFH hit testing', () => {
+  const bilateralPi = {
+    id: 'pi-bilateral',
+    type: 'PI',
+    value: '45.00°',
+    points: [
+      { x: 10, y: 10 },
+      { x: 20, y: 10 },
+      { x: 50, y: 30 },
+      { x: 50, y: 40 },
+      { x: 10, y: 100 },
+      { x: 60, y: 100 },
+    ],
+    pelvicMetadata: {
+      schemaVersion: 2 as const,
+      femoralHeadMode: 'bilateral' as const,
+    },
+  };
+  const options = {
+    measurements: [bilateralPi],
+    imageScale: 1,
+    imageToScreen: (point: { x: number; y: number }) => point,
+    pointRadius: 8,
+    context: {
+      imageNaturalSize: null,
+      imagePosition: { x: 0, y: 0 },
+      imageScale: 1,
+      containerSize: null,
+    },
+  };
+
+  it('returns a dedicated hit for the derived center midpoint', () => {
+    expect(
+      hitTestMeasurement({
+        ...options,
+        screenPoint: { x: 30, y: 20 },
+      })
+    ).toEqual({ kind: 'effective-cfh', measurementId: 'pi-bilateral' });
+  });
+
+  it('does not make the solid center line draggable', () => {
+    expect(
+      hitTestMeasurement({
+        ...options,
+        screenPoint: { x: 40, y: 25 },
+      })
+    ).toEqual({ kind: 'none' });
+  });
+
+  it('keeps persisted points ahead of the derived handle', () => {
+    const overlapping = {
+      ...bilateralPi,
+      points: bilateralPi.points.map((point, index) =>
+        index === 2 ? { x: 10, y: 10 } : point
+      ),
+    };
+    expect(
+      hitTestMeasurement({
+        ...options,
+        measurements: [overlapping],
+        screenPoint: { x: 10, y: 10 },
+      })
+    ).toEqual({
+      kind: 'point',
+      measurementId: 'pi-bilateral',
+      pointIndex: 0,
+    });
+  });
+});

@@ -82,7 +82,7 @@ export interface AnnotationCanvasProps {
   onKeypointGroupDelete?: (vertebraLabel: string) => void;
   onMeasurementWriteback?: (
     measurementType: string,
-    pointIndex: number,
+    pointIndex: number | readonly number[],
     newPoint: Point,
     measurementId?: string,
     updatedPoints?: Point[]

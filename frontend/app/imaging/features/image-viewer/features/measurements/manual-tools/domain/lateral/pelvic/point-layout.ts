@@ -1,5 +1,6 @@
 import {
   circleGeometryFromPoints,
+  circleGeometryToPoints,
   createCircleGeometry,
   moveCircleCenter,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
@@ -165,6 +166,46 @@ export function updatePelvicMeasurementPoint(
 
   if (nextPoints[pointIndex]) nextPoints[pointIndex] = { ...nextPoint };
   return nextPoints;
+}
+
+/**
+ * 将双 FH 的派生中心 effectiveCFH 移动到指定位置。
+ *
+ * effectiveCFH 不单独持久化，它始终是 FH-1/FH-2 两个圆心的中点。拖动该
+ * 交互句柄时，通过同一位移平移两个圆心及各自半径控制点，从而保持圆心间距、
+ * 圆半径和 S1 终板不变。历史单 FH/非六点数据不适用该交互，原样克隆返回。
+ */
+export function moveBilateralPelvicEffectiveCfh(
+  points: Point[],
+  nextEffectiveCfh: Point
+): Point[] {
+  const geometry = getPelvicMeasurementGeometry(points);
+  if (
+    geometry?.mode !== 'bilateral' ||
+    !geometry.femoralHeadCenter ||
+    geometry.femoralHeadCircles.length !== 2
+  ) {
+    return points.map(point => ({ ...point }));
+  }
+
+  const delta = {
+    x: nextEffectiveCfh.x - geometry.femoralHeadCenter.x,
+    y: nextEffectiveCfh.y - geometry.femoralHeadCenter.y,
+  };
+  const movedCircles = geometry.femoralHeadCircles.flatMap(circle =>
+    circleGeometryToPoints(
+      moveCircleCenter(circle, {
+        x: circle.center.x + delta.x,
+        y: circle.center.y + delta.y,
+      })
+    )
+  );
+
+  return [
+    ...movedCircles,
+    { ...geometry.sacralLeft },
+    { ...geometry.sacralRight },
+  ];
 }
 
 export function createCircleFromPelvicPoints(

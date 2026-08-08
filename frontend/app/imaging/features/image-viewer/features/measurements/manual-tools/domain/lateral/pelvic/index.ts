@@ -12,6 +12,7 @@ export {
   getDefaultFemoralHeadRadius,
   getPelvicMeasurementGeometry,
   isPelvicMeasurementMetadata,
+  moveBilateralPelvicEffectiveCfh,
   SINGLE_PELVIC_POINT_COUNT,
   updatePelvicMeasurementPoint,
 } from './point-layout';

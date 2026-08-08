@@ -21,10 +21,16 @@ import {
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import {
+  getBilateralPelvicGeometryOwnerId,
+  isBilateralPelvicMeasurement,
+} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
+import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 export type HitResult =
   | { kind: 'point'; measurementId: string; pointIndex: number }
   | { kind: 'line'; measurementId: string; lineIndex: number }
+  | { kind: 'effective-cfh'; measurementId: string }
   | { kind: 'whole'; measurementId: string }
   | { kind: 'label'; measurementId: string }
   | { kind: 'none' };
@@ -146,7 +152,8 @@ function hitTestMeasurementShape(
 
 /**
  * 统一 measurement 命中检测。
- * 入口组件只关心 point / whole / label / none，不再直接了解几何细节。
+ * 入口组件只消费明确的命中类型，不再直接了解各工具的几何细节。
+ * effective-cfh 专门表示不占用持久化 pointIndex 的双 FH 派生句柄。
  */
 export function hitTestMeasurement({
   measurements,
@@ -158,6 +165,11 @@ export function hitTestMeasurement({
   pointRadius,
   lineRadius = 8,
 }: HitTestMeasurementOptions): HitResult {
+  const pelvicGeometryOwnerId = getBilateralPelvicGeometryOwnerId(
+    measurements,
+    measurement => isMeasurementHidden?.(measurement) ?? false
+  );
+
   for (const measurement of measurements) {
     if (isMeasurementHidden?.(measurement)) {
       continue;
@@ -175,6 +187,27 @@ export function hitTestMeasurement({
         measurementId: measurement.id,
         pointIndex,
       };
+    }
+
+    // effectiveCFH 是双 FH 两圆心的派生中点，不占用持久化点下标。
+    // 真实测量点优先命中，避免中点与圆心靠近时抢占已有点的拖动行为。
+    if (
+      measurement.id === pelvicGeometryOwnerId &&
+      isBilateralPelvicMeasurement(measurement)
+    ) {
+      const geometry = getPelvicMeasurementGeometry(measurement.points);
+      if (geometry?.femoralHeadCenter) {
+        const center = imageToScreen(geometry.femoralHeadCenter);
+        if (
+          Math.hypot(screenPoint.x - center.x, screenPoint.y - center.y) <
+          (pointRadius ?? 12)
+        ) {
+          return {
+            kind: 'effective-cfh',
+            measurementId: measurement.id,
+          };
+        }
+      }
     }
 
     const ttsTrunkPoints = getManualTtsTrunkPoints(measurement);

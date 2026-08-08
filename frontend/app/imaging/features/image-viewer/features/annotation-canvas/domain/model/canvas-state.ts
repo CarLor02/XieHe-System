@@ -12,7 +12,7 @@ export interface DrawingState {
 export interface SelectionState {
   measurementId: string | null;
   pointIndex: number | null;
-  type: 'point' | 'line' | 'whole' | null;
+  type: 'point' | 'line' | 'whole' | 'effective-cfh' | null;
   isDragging: boolean;
   dragOffset: Point;
 }
@@ -21,7 +21,7 @@ export interface HoverState {
   measurementId: string | null;
   keypointId: string | null;
   pointIndex: number | null;
-  elementType: 'point' | 'whole' | 'keypoint' | null;
+  elementType: 'point' | 'whole' | 'keypoint' | 'effective-cfh' | null;
 }
 
 export interface ReferenceLines {

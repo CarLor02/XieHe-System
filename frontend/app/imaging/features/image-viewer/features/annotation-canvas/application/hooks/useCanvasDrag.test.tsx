@@ -226,6 +226,112 @@ it('moves one L/R line horizontally and recalculates the ratio', async () => {
   );
 });
 
+function EffectiveCfhDragHarness({
+  onValue,
+  onMeasurementsChange,
+  onMeasurementWriteback,
+}: {
+  onValue: (value: CanvasDragHook) => void;
+  onMeasurementsChange: (measurements: MeasurementData[]) => void;
+  onMeasurementWriteback: jest.Mock;
+}) {
+  const initialPoints = [
+    { x: 10, y: 20 },
+    { x: 30, y: 20 },
+    { x: 70, y: 40 },
+    { x: 70, y: 70 },
+    { x: 20, y: 100 },
+    { x: 80, y: 100 },
+  ];
+  const [measurements, setMeasurements] = useState<MeasurementData[]>(
+    (['PI', 'PT'] as const).map(type => ({
+      id: type.toLowerCase(),
+      type,
+      value: '0.00°',
+      points: initialPoints.map(point => ({ ...point })),
+      pelvicMetadata: {
+        schemaVersion: 2,
+        femoralHeadMode: 'bilateral',
+      },
+    }))
+  );
+  const [selectionState, setSelectionState] = useState<SelectionState>({
+    measurementId: 'pi',
+    pointIndex: null,
+    type: 'effective-cfh',
+    isDragging: false,
+    dragOffset: { x: 0, y: 0 },
+  });
+  const value = useCanvasDrag({
+    selectedTool: 'hand',
+    selectionState,
+    setSelectionState,
+    measurements,
+    clickedPoints: [],
+    setClickedPoints: jest.fn(),
+    pointBindings: { syncGroups: [] },
+    standardDistance: null,
+    standardDistancePoints: [],
+    imageNaturalSize: { width: 1000, height: 1000 },
+    imageScale: 1,
+    onMeasurementsUpdate: setMeasurements,
+    onMeasurementWriteback,
+    imageToScreen: point => point,
+    screenToImage: (screenX, screenY) => ({ x: screenX, y: screenY }),
+    referenceLines: { t1Tilt: null },
+    setReferenceLines: jest.fn(),
+  });
+
+  useEffect(() => {
+    onValue(value);
+    onMeasurementsChange(measurements);
+  }, [measurements, onMeasurementsChange, onValue, value]);
+
+  return null;
+}
+
+it('moves both bilateral FH circles through the derived CFH handle', async () => {
+  let latest: CanvasDragHook | null = null;
+  let latestMeasurements: MeasurementData[] = [];
+  const onMeasurementWriteback = jest.fn();
+
+  render(
+    <EffectiveCfhDragHarness
+      onValue={value => {
+        latest = value;
+      }}
+      onMeasurementsChange={measurements => {
+        latestMeasurements = measurements;
+      }}
+      onMeasurementWriteback={onMeasurementWriteback}
+    />
+  );
+  await waitFor(() => expect(latest).not.toBeNull());
+
+  act(() => {
+    expect(latest!.updateInteraction(50, 40, true, 0)).toBe(true);
+  });
+
+  await waitFor(() => {
+    expect(latestMeasurements[0].points).toEqual([
+      { x: 20, y: 30 },
+      { x: 40, y: 30 },
+      { x: 80, y: 50 },
+      { x: 80, y: 80 },
+      { x: 20, y: 100 },
+      { x: 80, y: 100 },
+    ]);
+  });
+  expect(latestMeasurements[1].points).toEqual(latestMeasurements[0].points);
+  expect(onMeasurementWriteback).toHaveBeenLastCalledWith(
+    'PI',
+    [0, 2],
+    { x: 50, y: 40 },
+    'pi',
+    latestMeasurements[0].points
+  );
+});
+
 function TtsLineDragHarness({
   onValue,
   onMeasurementsChange,

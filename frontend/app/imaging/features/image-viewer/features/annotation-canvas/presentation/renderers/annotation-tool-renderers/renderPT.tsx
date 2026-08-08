@@ -10,7 +10,7 @@ import {
   projectSpecialRenderPoint,
   RENDER_IMAGE_LENGTHS,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/annotationToolRendererUtils';
-import { circleRenderer } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/support-shape-renderers/circleRenderer';
+import { renderPelvicSharedGeometry } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/renderPelvicSharedGeometry';
 
 /**
  * PT（骨盆倾斜角）渲染器：CFH、骶骨中点、过CFH垂直参考线
@@ -78,17 +78,11 @@ export function renderPT(
 
   return (
     <>
-      {context?.renderPelvicCircles && geometry.mode === 'bilateral' && (
-        <>
-          {circleRenderer(screenPoints.slice(0, 2), displayColor, {
-            strokeWidth: 2,
-            opacity: 0.9,
-          })}
-          {circleRenderer(screenPoints.slice(2, 4), displayColor, {
-            strokeWidth: 2,
-            opacity: 0.9,
-          })}
-        </>
+      {renderPelvicSharedGeometry(
+        screenPoints,
+        geometry,
+        displayColor,
+        context
       )}
       {femoralHeadCenter && verticalStart && verticalEnd && (
         <>

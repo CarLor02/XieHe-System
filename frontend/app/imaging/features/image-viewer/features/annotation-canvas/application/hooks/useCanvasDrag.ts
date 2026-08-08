@@ -32,6 +32,8 @@ import {
   isManualTtsMeasurement,
   moveManualTtsTrunkLineVertically,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import { moveBilateralPelvicEffectiveCfh } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { isBilateralPelvicMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
 
 interface UseCanvasDragOptions {
   selectedTool: string;
@@ -51,10 +53,10 @@ interface UseCanvasDragOptions {
    * 侧位关键点模式下启用，防止测量层与关键点层拖分离。
    */
   disableWholeDrag?: boolean;
-  /** 可选：测量点拖动后将新坐标写回 vertebraeLayer（Cobb/辅助图形自动跳过） */
+  /** 可选：测量交互点拖动后将一项或多项新坐标写回关键点层。 */
   onMeasurementWriteback?: (
     measurementType: string,
-    pointIndex: number,
+    pointIndex: number | readonly number[],
     newPoint: Point,
     measurementId?: string,
     updatedPoints?: Point[]
@@ -300,6 +302,50 @@ export function useCanvasDrag({
         !isManualTtsMeasurement(measurement)
       ) {
         return false;
+      }
+
+      if (
+        selectionState.type === 'effective-cfh' &&
+        isBilateralPelvicMeasurement(measurement)
+      ) {
+        const nextEffectiveCfh = {
+          x: imagePoint.x - selectionState.dragOffset.x,
+          y: imagePoint.y - selectionState.dragOffset.y,
+        };
+        const selectedMeasurementPoints = moveBilateralPelvicEffectiveCfh(
+          measurement.points,
+          nextEffectiveCfh
+        );
+        // PI/PT 共享同一组双 FH 几何。拖动派生中点时同时平移两圆，
+        // 但保留每个圆半径、圆心间距和 S1 两点。
+        const updatedMeasurements = measurements.map(item => {
+          if (!isBilateralPelvicMeasurement(item)) return item;
+          const points = selectedMeasurementPoints.map(point => ({ ...point }));
+          return {
+            ...item,
+            points,
+            value:
+              calculateMeasurementDataValue(
+                { ...item, points },
+                {
+                  standardDistance,
+                  standardDistancePoints,
+                  imageNaturalSize,
+                }
+              ) || item.value,
+          };
+        });
+
+        onMeasurementsUpdate(updatedMeasurements);
+        // 双 FH 圆心分别位于点 0、2；一次写回可避免两个状态更新相互覆盖。
+        onMeasurementWriteback?.(
+          measurement.type,
+          [0, 2],
+          nextEffectiveCfh,
+          measurement.id,
+          selectedMeasurementPoints
+        );
+        return true;
       }
 
       if (

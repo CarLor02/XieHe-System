@@ -177,6 +177,122 @@ it('derives PT and SS from the keypoints confirmed by a completed PI tool', asyn
   });
 });
 
+it('writes both bilateral FH centers atomically without creating CFH', async () => {
+  let latest: WorkflowHarnessValue | null = null;
+  const initialPoints = [
+    { x: 10, y: 20 },
+    { x: 30, y: 20 },
+    { x: 70, y: 40 },
+    { x: 70, y: 70 },
+    { x: 20, y: 100 },
+    { x: 80, y: 100 },
+  ];
+  const movedPoints = [
+    { x: 20, y: 30 },
+    { x: 40, y: 30 },
+    { x: 80, y: 50 },
+    { x: 80, y: 80 },
+    { x: 20, y: 100 },
+    { x: 80, y: 100 },
+  ];
+
+  render(
+    <WorkflowHarness
+      examType="侧位X光片"
+      onValue={value => {
+        latest = value;
+      }}
+    />
+  );
+  await waitFor(() => expect(latest).not.toBeNull());
+
+  act(() => {
+    latest!.workflow.setKeypoints([
+      apKeypoint('FH-1', 10, 20),
+      apKeypoint('FH-2', 70, 40),
+      apKeypoint('S1-1', 20, 100),
+      apKeypoint('S1-2', 80, 100),
+      apKeypoint('T1-1', 20, 10),
+      apKeypoint('T1-2', 40, 10),
+      apKeypoint('T1-3', 20, 20),
+      apKeypoint('T1-4', 40, 20),
+    ]);
+    latest!.setMeasurements([
+      ...(['PI', 'PT'] as const).map(type => ({
+        id: type.toLowerCase(),
+        type,
+        value: '0.00°',
+        points: initialPoints.map(point => ({ ...point })),
+        pelvicMetadata: {
+          schemaVersion: 2 as const,
+          femoralHeadMode: 'bilateral' as const,
+        },
+      })),
+      {
+        id: 'tpa',
+        type: 'TPA',
+        value: '0.00°',
+        points: [
+          { x: 20, y: 10 },
+          { x: 40, y: 10 },
+          { x: 20, y: 20 },
+          { x: 40, y: 20 },
+          { x: 40, y: 30 },
+          { x: 20, y: 100 },
+          { x: 80, y: 100 },
+        ],
+        pelvicMetadata: {
+          schemaVersion: 2 as const,
+          femoralHeadMode: 'bilateral' as const,
+        },
+      },
+    ]);
+  });
+  await waitFor(() => {
+    expect(latest!.workflow.keypoints).toHaveLength(8);
+    expect(latest!.measurements).toHaveLength(3);
+  });
+
+  act(() => {
+    latest!.workflow.handleMeasurementWriteback(
+      'PI',
+      [0, 2],
+      { x: 50, y: 40 },
+      'pi',
+      movedPoints
+    );
+  });
+
+  await waitFor(() => {
+    expect(
+      latest!.workflow.keypoints.find(keypoint => keypoint.id === 'FH-1')?.point
+    ).toEqual({ x: 20, y: 30 });
+    expect(
+      latest!.workflow.keypoints.find(keypoint => keypoint.id === 'FH-2')?.point
+    ).toEqual({ x: 80, y: 50 });
+    expect(
+      latest!.workflow.keypoints.some(keypoint => keypoint.id === 'CFH')
+    ).toBe(false);
+    expect(
+      latest!.measurements
+        .filter(measurement =>
+          ['pi', 'pt'].includes(measurement.type.toLowerCase())
+        )
+        .every(
+          measurement =>
+            measurement.points[0].x === 20 &&
+            measurement.points[0].y === 30 &&
+            measurement.points[2].x === 80 &&
+            measurement.points[2].y === 50
+        )
+    ).toBe(true);
+    expect(
+      latest!.measurements.find(measurement => measurement.id === 'tpa')
+        ?.points[4]
+    ).toEqual({ x: 50, y: 40 });
+  });
+});
+
 it('derives every fixed measurement satisfied after tool completion', async () => {
   let latest: WorkflowHarnessValue | null = null;
 
