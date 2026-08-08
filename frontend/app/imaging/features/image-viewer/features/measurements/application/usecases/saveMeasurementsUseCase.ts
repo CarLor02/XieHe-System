@@ -1,5 +1,8 @@
 import {MeasurementData, Point, ImageSize, VertebraAnnotation, CfhAnnotation} from '@/app/imaging/features/image-viewer/shared/types';
-import {AnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
+import {
+    AnnotationBindings,
+    validateAnnotationBindings,
+} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
 import { saveImageAnnotation } from '@/services/imageServices';
 import {saveLocalAnnotationBackup} from './localAnnotationStorage';
 import { createLogger } from '@/lib/logger';
@@ -33,6 +36,12 @@ export async function saveMeasurements(
     setIsSaving(true);
     setSaveMessage('');
     try {
+        // 持久化边界再次过滤布局已失效的成员。自动医学同步关系不属于用户
+        // 标注状态，只能由关键点依赖图重建，因此不会写入 pointBindings。
+        const validatedPointBindings = validateAnnotationBindings(
+            pointBindings,
+            measurements
+        );
         // 1. 先写本地维护缓存；失败不能阻断后续服务器保存。
         // 对于AI检测标注，需要保存value和description；其他标注只保存type和points
         // 同时保存id，确保加载时绑定数据中的annotationId引用仍然有效
@@ -70,7 +79,7 @@ export async function saveMeasurements(
             measurements: simplifiedMeasurements,
             standardDistance: standardDistance,
             standardDistancePoints: standardDistancePoints,
-            pointBindings: pointBindings,
+            pointBindings: validatedPointBindings,
             vertebraeLayer: vertebraeLayer.length > 0 ? vertebraeLayer : undefined,
             cfhAnnotation: cfhAnnotation ?? undefined,
         };
@@ -93,7 +102,7 @@ export async function saveMeasurements(
             measurements: measurements,
             standardDistance: standardDistance,
             standardDistancePoints: standardDistancePoints,
-            pointBindings: pointBindings,
+            pointBindings: validatedPointBindings,
             imageWidth: imageNaturalSize?.width,
             imageHeight: imageNaturalSize?.height,
             reportText,

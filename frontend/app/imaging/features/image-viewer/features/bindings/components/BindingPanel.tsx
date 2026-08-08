@@ -49,7 +49,7 @@ export default function BindingPanel({
       >
         <span className="flex items-center gap-1">
           <i className="ri-links-line text-sm"></i>
-          共享点位绑定面板
+          手动点位绑定面板
           {pointBindings.syncGroups.length > 0 && (
             <span className="ml-1 bg-amber-700/60 text-amber-300 rounded-full px-1.5 py-0 text-xs">
               {pointBindings.syncGroups.length}
@@ -66,7 +66,7 @@ export default function BindingPanel({
         <button
           onClick={onClearBindings}
           className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-1.5 px-2 rounded flex items-center justify-center gap-1 transition-colors"
-          title="临时清除所有绑定（增减标注时将自动重建）"
+          title="清除所有手动点位绑定"
         >
           <i className="ri-scissors-line text-xs"></i>
           解除全部绑定
@@ -200,7 +200,7 @@ export default function BindingPanel({
             </div>
           ) : (
             <p className="text-xs text-gray-500 italic mt-1">
-              当前无共享点位绑定
+              当前无手动点位绑定
             </p>
           )}
         </div>
@@ -208,4 +208,3 @@ export default function BindingPanel({
     </div>
   );
 }
-

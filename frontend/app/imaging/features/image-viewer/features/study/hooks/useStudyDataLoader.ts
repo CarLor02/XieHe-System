@@ -1,7 +1,11 @@
 import {RefObject, useEffect} from "react";
 import {Point, MeasurementData, AnnotationData, VertebraAnnotation, CfhAnnotation} from '@/app/imaging/features/image-viewer/shared/types';
 import {getImageFile} from "@/services/imageServices/imageFileService"
-import {AnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
+import {
+    AnnotationBindings,
+    createEmptyBindings,
+} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
+import {migrateAnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding-migration";
 import {StudyData} from "@/app/imaging/features/image-viewer/shared/types";
 import {getAnnotationTypeId} from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config";
 import { createLogger } from '@/lib/logger';
@@ -33,6 +37,9 @@ export function useStudyDataLoader(
             const numericId = imageId.replace('IMG', '').replace(/^0+/, '') || '0';
             const imageFile = await getImageFile(Number(numericId));
             setAnnotationVersion(imageFile.annotation_version);
+            // 每次切换影像先清空上一张图的手动绑定；有标注数据时再通过
+            // 统一迁移入口恢复，避免无 annotation 的影像继承旧状态。
+            setPointBindings(createEmptyBindings());
 
             // 将ImageFile数据转换为StudyData格式
             const studyData: StudyData = {
@@ -79,25 +86,12 @@ export function useStudyDataLoader(
                     if (annotationData.standardDistancePoints) {
                         setStandardDistancePoints(annotationData.standardDistancePoints);
                     }
-                    // 加载点绑定配置：同步校验成员 annotationId 是否存在于当前标注列表
-                    if (annotationData.pointBindings && annotationData.measurements) {
-                        const validIds = new Set<string>(
-                            (annotationData.measurements as any[])
-                                .map((m: any) => m.id)
-                                .filter(Boolean)
-                        );
-                        const validated = {
-                            syncGroups: (annotationData.pointBindings.syncGroups)
-                                .map((g: any) => ({
-                                    ...g,
-                                    members: g.members.filter((mbr: any) =>
-                                        validIds.has(mbr.annotationId)
-                                    ),
-                                }))
-                                .filter((g: any) => g.members.length >= 2),
-                        };
-                        setPointBindings(validated);
-                    }
+                    setPointBindings(
+                        migrateAnnotationBindings(
+                            annotationData.pointBindings,
+                            restoredMeasurements
+                        )
+                    );
                     const restoredVertebraeLayer =
                         annotationData.vertebraeLayer &&
                         Array.isArray(annotationData.vertebraeLayer)

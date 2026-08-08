@@ -124,7 +124,7 @@ function createBaseToolbarProps(): AnnotationToolbarProps {
     standardDistanceValue: '',
     reportText: '',
     saveMessage: '',
-    pointBindings: { syncGroups: [] },
+    pointBindings: { schemaVersion: 2, syncGroups: [] },
     selectedBindingGroupId: null,
     isBindingPanelOpen: false,
     isManualBindingMode: false,

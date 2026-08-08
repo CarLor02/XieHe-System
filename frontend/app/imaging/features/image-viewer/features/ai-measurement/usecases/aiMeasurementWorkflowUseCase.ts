@@ -1,11 +1,6 @@
 import { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { getAiMeasurementsResponse } from '@/services/imageServices';
-import {
-  autoCreatePositionBindings,
-  autoCreateS1Bindings,
-  createEmptyBindings,
-  mergeBindings,
-} from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import {
   getAnnotationConfig,
   getAnnotationTypeId,
@@ -31,16 +26,6 @@ import { detectLateralVertebrae } from '@/app/imaging/features/image-viewer/feat
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('app.imaging.features.image.viewer.features.ai.measurement.usecases.aiMeasurementWorkflowUseCase');
-
-const S1_RELATED_TYPES = new Set([
-  'ss',
-  'll-l1-s1',
-  'll-l4-s1',
-  'pi',
-  'pt',
-  'tpa',
-  'sva',
-]);
 
 function isCobbAiMeasurementType(type: string): boolean {
   return /^cobb(?:-auto)?\d*$/i.test(getAnnotationTypeId(type));
@@ -255,15 +240,10 @@ export async function runAiMeasurementWorkflow({
         aiMeasurements.map((measurement: MeasurementData) => measurement.id)
       );
 
-      const s1Count = aiMeasurements.filter((measurement: any) =>
-        S1_RELATED_TYPES.has(getAnnotationTypeId(measurement.type))
-      ).length;
-      const s1Bindings =
-        s1Count >= 2
-          ? autoCreateS1Bindings(aiMeasurements)
-          : createEmptyBindings();
-      const posBindings = autoCreatePositionBindings(aiMeasurements);
-      setPointBindings(mergeBindings(s1Bindings, posBindings));
+      // AI 替换整份标注快照时清空用户手动绑定。医学测量间的共享点位
+      // 由 measurement-keypoint-sync 根据解剖关键点实时同步，禁止再根据
+      // 坐标重合生成会跨点位布局持久化的 pos-* 原始下标绑定。
+      setPointBindings(createEmptyBindings());
       setSaveMessage(`AI测量完成，已加载 ${aiMeasurements.length} 个标注`);
       setTimeout(() => setSaveMessage(''), 3000);
 

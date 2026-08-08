@@ -4,6 +4,7 @@ import {
   LOCAL_ANNOTATION_CACHE_INDEX_KEY,
   saveLocalAnnotationBackup,
 } from './localAnnotationStorage';
+import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 
 afterEach(() => {
   localStorage.clear();
@@ -18,7 +19,7 @@ function makeBackupPayload(imageId: string, text = imageId) {
     measurements: [{ id: `measurement-${imageId}`, type: 'cobb1', text }],
     standardDistance: null,
     standardDistancePoints: null,
-    pointBindings: { syncGroups: [] },
+    pointBindings: createEmptyBindings(),
   };
 }
 

@@ -85,7 +85,8 @@ export interface AnnotationCanvasProps {
     pointIndex: number | readonly number[],
     newPoint: Point,
     measurementId?: string,
-    updatedPoints?: Point[]
-  ) => void;
+    updatedPoints?: Point[],
+    updatedMeasurements?: MeasurementData[]
+  ) => boolean;
   onAnnotationDataDragStart?: () => void;
 }

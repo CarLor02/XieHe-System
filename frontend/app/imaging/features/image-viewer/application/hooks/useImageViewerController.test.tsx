@@ -51,9 +51,9 @@ jest.mock('@/app/imaging/features/image-viewer/application/hooks/useAnnotationHi
 }));
 
 jest.mock('@/app/imaging/features/image-viewer/features/bindings', () => ({
-  createEmptyBindings: () => ({ syncGroups: [] }),
+  createEmptyBindings: () => ({ schemaVersion: 2, syncGroups: [] }),
   useAnnotationEngine: () => ({
-    pointBindings: { syncGroups: [] },
+    pointBindings: { schemaVersion: 2, syncGroups: [] },
     setPointBindings: jest.fn(),
     selectedBindingGroupId: null,
     setSelectedBindingGroupId: jest.fn(),
@@ -542,7 +542,7 @@ it('does not include detection-layer visibility in annotation history', async ()
     standardDistance: null,
     standardDistanceValue: '',
     standardDistancePoints: [],
-    pointBindings: { syncGroups: [] },
+    pointBindings: { schemaVersion: 2, syncGroups: [] },
     keypoints: [],
     vertebraeLayer: [],
     cfhAnnotation: null,

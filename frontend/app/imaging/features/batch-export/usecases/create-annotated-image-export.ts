@@ -4,6 +4,7 @@ import type { MeasurementData } from '@/app/imaging/features/image-viewer/public
 import { renderMeasurement } from '@/app/imaging/features/image-viewer/public';
 import type { AnnotatedImageExportFormat } from '../domain';
 import { createLogger } from '@/lib/logger';
+import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 
 const logger = createLogger('app.imaging.features.batch.export.usecases.create.annotated.image.export');
 
@@ -120,7 +121,7 @@ function renderMeasurementsToSVG(
     elementType: null,
   };
   const hiddenMeasurementIds = new Set<string>();
-  const pointBindings = { groups: [], syncGroups: [] };
+  const pointBindings = createEmptyBindings();
 
   // ── 核心思路 ──────────────────────────────────────────────────────────────
   // renderMeasurement 内部调用 imageToScreen，后者依赖：

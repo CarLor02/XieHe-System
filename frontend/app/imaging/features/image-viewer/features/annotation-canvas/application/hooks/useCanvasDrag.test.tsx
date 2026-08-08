@@ -6,6 +6,7 @@ import { useCanvasDrag } from '@/app/imaging/features/image-viewer/features/anno
 import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 
 type CanvasDragHook = ReturnType<typeof useCanvasDrag>;
 
@@ -41,7 +42,7 @@ function DragHarness({
     measurements,
     clickedPoints: [],
     setClickedPoints: jest.fn(),
-    pointBindings: { syncGroups: [] },
+    pointBindings: createEmptyBindings(),
     standardDistance: null,
     standardDistancePoints: [],
     imageNaturalSize: { width: 1000, height: 1000 },
@@ -161,13 +162,16 @@ function HemipelvicLineDragHarness({
     measurements,
     clickedPoints: [],
     setClickedPoints: jest.fn(),
-    pointBindings: { syncGroups: [] },
+    pointBindings: createEmptyBindings(),
     standardDistance: null,
     standardDistancePoints: [],
     imageNaturalSize: { width: 1000, height: 1000 },
     imageScale: 1,
     onMeasurementsUpdate: setMeasurements,
-    onMeasurementWriteback,
+    onMeasurementWriteback: (...args) => {
+      onMeasurementWriteback(...args);
+      return false;
+    },
     imageToScreen: point => point,
     screenToImage: (screenX, screenY) => ({ x: screenX, y: screenY }),
     referenceLines: { t1Tilt: null },
@@ -222,7 +226,8 @@ it('moves one L/R line horizontally and recalculates the ratio', async () => {
     0,
     { x: 5, y: 100 },
     'lr-1',
-    latestMeasurements[0].points
+    latestMeasurements[0].points,
+    expect.any(Array)
   );
 });
 
@@ -269,13 +274,16 @@ function EffectiveCfhDragHarness({
     measurements,
     clickedPoints: [],
     setClickedPoints: jest.fn(),
-    pointBindings: { syncGroups: [] },
+    pointBindings: createEmptyBindings(),
     standardDistance: null,
     standardDistancePoints: [],
     imageNaturalSize: { width: 1000, height: 1000 },
     imageScale: 1,
     onMeasurementsUpdate: setMeasurements,
-    onMeasurementWriteback,
+    onMeasurementWriteback: (...args) => {
+      onMeasurementWriteback(...args);
+      return false;
+    },
     imageToScreen: point => point,
     screenToImage: (screenX, screenY) => ({ x: screenX, y: screenY }),
     referenceLines: { t1Tilt: null },
@@ -328,7 +336,8 @@ it('moves both bilateral FH circles through the derived CFH handle', async () =>
     [0, 2],
     { x: 50, y: 40 },
     'pi',
-    latestMeasurements[0].points
+    latestMeasurements[0].points,
+    expect.any(Array)
   );
 });
 
@@ -369,7 +378,7 @@ function TtsLineDragHarness({
     measurements,
     clickedPoints: [],
     setClickedPoints: jest.fn(),
-    pointBindings: { syncGroups: [] },
+    pointBindings: createEmptyBindings(),
     standardDistance: null,
     standardDistancePoints: [],
     imageNaturalSize: { width: 1000, height: 1000 },

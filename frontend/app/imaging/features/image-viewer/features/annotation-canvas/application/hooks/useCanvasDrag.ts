@@ -59,8 +59,9 @@ interface UseCanvasDragOptions {
     pointIndex: number | readonly number[],
     newPoint: Point,
     measurementId?: string,
-    updatedPoints?: Point[]
-  ) => void;
+    updatedPoints?: Point[],
+    updatedMeasurements?: MeasurementData[]
+  ) => boolean;
   imageToScreen: (point: Point) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
   referenceLines: {
@@ -110,6 +111,33 @@ export function useCanvasDrag({
   onAnnotationDragStart,
 }: UseCanvasDragOptions) {
   const dragStartRef = useRef<Point | null>(null);
+
+  /**
+   * 一次性提交拖拽结果。关键点工作流接管时，它会以画布已经计算好的
+   * measurements 为基线写回关键点并重算依赖项；没有关键点更新时则由
+   * 画布直接提交，避免同一次 pointermove 连续写两次 measurements。
+   */
+  const commitMeasurementDrag = (
+    updatedMeasurements: MeasurementData[],
+    measurementType: string,
+    pointIndex: number | readonly number[],
+    newPoint: Point,
+    measurementId: string,
+    updatedPoints: Point[]
+  ) => {
+    const handledByKeypoints =
+      onMeasurementWriteback?.(
+        measurementType,
+        pointIndex,
+        newPoint,
+        measurementId,
+        updatedPoints,
+        updatedMeasurements
+      ) ?? false;
+    if (!handledByKeypoints) {
+      onMeasurementsUpdate(updatedMeasurements);
+    }
+  };
 
   const beginInteraction = (x: number, y: number) => {
     dragStartRef.current = { x, y };
@@ -336,9 +364,9 @@ export function useCanvasDrag({
           };
         });
 
-        onMeasurementsUpdate(updatedMeasurements);
         // 双 FH 圆心分别位于点 0、2；一次写回可避免两个状态更新相互覆盖。
-        onMeasurementWriteback?.(
+        commitMeasurementDrag(
+          updatedMeasurements,
           measurement.type,
           [0, 2],
           nextEffectiveCfh,
@@ -362,23 +390,22 @@ export function useCanvasDrag({
             selectionState.pointIndex,
             { x: newPointX, y: newPointY }
           );
-          onMeasurementsUpdate(
-            measurements.map(item =>
-              item.id === measurement.id
-                ? {
-                    ...item,
-                    points,
-                    value:
-                      calculateMeasurementValue(item.type, points, {
-                        standardDistance,
-                        standardDistancePoints,
-                        imageNaturalSize,
-                      }) || item.value,
-                  }
-                : item
-            )
+          const updatedMeasurements = measurements.map(item =>
+            item.id === measurement.id
+              ? {
+                  ...item,
+                  points,
+                  value:
+                    calculateMeasurementValue(item.type, points, {
+                      standardDistance,
+                      standardDistancePoints,
+                      imageNaturalSize,
+                    }) || item.value,
+                }
+              : item
           );
-          onMeasurementWriteback?.(
+          commitMeasurementDrag(
+            updatedMeasurements,
             measurement.type,
             selectionState.pointIndex,
             points[selectionState.pointIndex],
@@ -544,20 +571,20 @@ export function useCanvasDrag({
           });
         }
 
-        onMeasurementsUpdate(updatedMeasurements);
-
-        // 将被拖拽的测量点同步写回 vertebraeLayer（Cobb 及辅助图形无映射，自动跳过）
-        if (onMeasurementWriteback && selectionState.pointIndex !== null) {
-          const updatedMeasurement = updatedMeasurements.find(
-            item => item.id === measurement.id
-          );
-          onMeasurementWriteback(
+        const updatedMeasurement = updatedMeasurements.find(
+          item => item.id === measurement.id
+        );
+        if (updatedMeasurement) {
+          commitMeasurementDrag(
+            updatedMeasurements,
             measurement.type,
             selectionState.pointIndex,
             selectedPoint,
             measurement.id,
-            updatedMeasurement?.points
+            updatedMeasurement.points
           );
+        } else {
+          onMeasurementsUpdate(updatedMeasurements);
         }
 
         return true;
@@ -573,23 +600,22 @@ export function useCanvasDrag({
           selectionState.pointIndex,
           imagePoint.x - selectionState.dragOffset.x
         );
-        onMeasurementsUpdate(
-          measurements.map(item =>
-            item.id === measurement.id
-              ? {
-                  ...item,
-                  points,
-                  value:
-                    calculateMeasurementValue(item.type, points, {
-                      standardDistance,
-                      standardDistancePoints,
-                      imageNaturalSize,
-                    }) || item.value,
-                }
-              : item
-          )
+        const updatedMeasurements = measurements.map(item =>
+          item.id === measurement.id
+            ? {
+                ...item,
+                points,
+                value:
+                  calculateMeasurementValue(item.type, points, {
+                    standardDistance,
+                    standardDistancePoints,
+                    imageNaturalSize,
+                  }) || item.value,
+              }
+            : item
         );
-        onMeasurementWriteback?.(
+        commitMeasurementDrag(
+          updatedMeasurements,
           measurement.type,
           selectionState.pointIndex,
           points[selectionState.pointIndex],

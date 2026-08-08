@@ -210,26 +210,6 @@
 //                 );
 //
 //             setMeasurements(aiMeasurements);
-//             // AI 返回后执行一次基于坐标重合的自动绑定
-//             const S1_RELATED_TYPES = new Set(
-//                 [
-//                     'SS',
-//                     'LL L1-S1',
-//                     'LL L4-S1',
-//                     'PI',
-//                     'PT',
-//                     'TPA',
-//                 ]
-//             );
-//             const s1Count = aiMeasurements.filter((m: any) =>
-//                 S1_RELATED_TYPES.has(m.type)
-//             ).length;
-//             const s1Bindings =
-//                 s1Count >= 2
-//                     ? autoCreateS1Bindings(aiMeasurements)
-//                     : createEmptyBindings();
-//             const posBindings = autoCreatePositionBindings(aiMeasurements);
-//             setPointBindings(mergeBindings(s1Bindings, posBindings));
 //             setSaveMessage(`AI测量完成，已加载 ${aiMeasurements.length} 个标注`);
 //             setTimeout(() => setSaveMessage(''), 3000);
 //         } else {

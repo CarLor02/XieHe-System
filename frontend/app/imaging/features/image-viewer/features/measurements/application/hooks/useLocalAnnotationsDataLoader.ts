@@ -1,5 +1,6 @@
 import {ImageSize, MeasurementData, Point, VertebraAnnotation, CfhAnnotation} from '@/app/imaging/features/image-viewer/shared/types';
 import {AnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
+import {migrateAnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding-migration";
 import {RefObject, useEffect} from "react";
 import {
     getAnnotationTypeId,
@@ -170,33 +171,14 @@ export function useLocalAnnotationsDataLoader(
                     setMeasurements(restoredMeasurements);
                     logger.debug(`已从本地加载 ${restoredMeasurements.length} 个标注`);
                 }
-                // 与已恢复的 measurements ids 同步校验绑定配置
-                // 无论曾设置过什么绑定（包括从 DB 加载的），都必须在此更新为与当前 measurements 匹配的版本
-                if (data.measurements && Array.isArray(data.measurements)) {
-                    const validIds = new Set<string>(
-                        data.measurements.map((m: any) => m.id).filter(Boolean)
-                    );
-                    if (validIds.size > 0 && data.pointBindings) {
-                        // localStorage 有 id 且有绑定数据：校验后设置
-                        const validated = {
-                            syncGroups: (data.pointBindings.syncGroups as any[])
-                                .map((g: any) => ({
-                                    ...g,
-                                    members: g.members.filter((mbr: any) =>
-                                        validIds.has(mbr.annotationId)
-                                    ),
-                                }))
-                                .filter((g: any) => g.members.length >= 2),
-                        };
-                        setPointBindings(validated);
-                    } else {
-                        // 旧格式无 id 或无绑定数据：清空绑定，避免 DB 界面的旧绑定残留；useEffect 将自动重建 S1 绑定
-                        setPointBindings({ syncGroups: [] });
-                    }
-                } else {
-                    // localStorage 无 measurements 数据，同样清空绑定
-                    setPointBindings({ syncGroups: [] });
-                }
+                // localStorage 与服务器读取使用同一迁移策略：自动生成的历史绑定
+                // 一律不恢复，只有显式手动组能够升级为带布局指纹的 v2 数据。
+                setPointBindings(
+                    migrateAnnotationBindings(
+                        data.pointBindings,
+                        restoredMeasurements
+                    )
+                );
                 // 恢复椎体角点层（image 坐标，无需缩放）
                 const restoredVertebraeLayer =
                     data.vertebraeLayer && Array.isArray(data.vertebraeLayer)

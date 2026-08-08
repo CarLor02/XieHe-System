@@ -6,6 +6,7 @@ import type {
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import type { saveImageAnnotation } from '@/services/imageServices';
+import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 
 jest.mock('@/services/imageServices', () => ({
   __esModule: true,
@@ -71,7 +72,7 @@ it('continues saving annotations to the server when localStorage backup exceeds 
     { width: 100, height: 100 },
     null,
     null,
-    { syncGroups: [] },
+    createEmptyBindings(),
     [
       {
         id: 'measurement-1',
@@ -117,7 +118,7 @@ it('keeps dynamic measurement metadata in the local maintenance backup', async (
       { x: 0, y: 0 },
       { x: 100, y: 0 },
     ],
-    { syncGroups: [] },
+    createEmptyBindings(),
     [
       {
         id: 'ap-keypoint-avt-disc-t12-l1',

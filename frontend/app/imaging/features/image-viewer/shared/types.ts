@@ -3,7 +3,6 @@
  * 统一管理所有相关的 TypeScript 类型和接口
  */
 
-import {AnnotationBindings} from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import type { AvtMetadata } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt/types';
 import type { PelvicMeasurementMetadata } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic/types';
 
@@ -100,7 +99,8 @@ export interface AnnotationData {
   measurements: MeasurementData[];
   standardDistance: number;
   standardDistancePoints: Point[];
-  pointBindings: AnnotationBindings;
+  /** v2 仅保存用户显式创建的手动绑定；读取边界负责迁移历史结构。 */
+  pointBindings?: unknown;
   imageWidth: number;
   imageHeight: number;
   savedAt: string;

@@ -216,14 +216,20 @@ export function useMeasurementKeypointWorkflow({
 
   /** 拖动/预览只更新点位并重算已有测量项，禁止恢复缺失测量项。 */
   const applyMovedKeypoints = useCallback(
-    (nextKeypoints: KeypointAnnotation[]) => {
+    (
+      nextKeypoints: KeypointAnnotation[],
+      baseMeasurements?: MeasurementData[]
+    ) => {
       setKeypoints(nextKeypoints);
       setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
       if (isLateralView) {
         setCfhAnnotation(keypointsToCfhAnnotation(nextKeypoints));
       }
       setMeasurements(previous =>
-        recalculateExistingMeasurements(previous, nextKeypoints)
+        recalculateExistingMeasurements(
+          baseMeasurements ?? previous,
+          nextKeypoints
+        )
       );
     },
     [
@@ -734,10 +740,13 @@ export function useMeasurementKeypointWorkflow({
       pointIndex: number | readonly number[],
       newPoint: Point,
       measurementId?: string,
-      updatedPoints?: Point[]
+      updatedPoints?: Point[],
+      updatedMeasurements?: MeasurementData[]
     ) => {
       const sourceMeasurement = measurementId
-        ? measurements.find(measurement => measurement.id === measurementId)
+        ? (updatedMeasurements ?? measurements).find(
+            measurement => measurement.id === measurementId
+          )
         : null;
       const dynamicVertebraLabel = sourceMeasurement?.apexVertebra ?? undefined;
       const bindingRule = sourceMeasurement
@@ -763,9 +772,10 @@ export function useMeasurementKeypointWorkflow({
           keypoints
         );
         if (!areKeypointsEqual(keypoints, nextKeypoints)) {
-          applyMovedKeypoints(nextKeypoints);
+          applyMovedKeypoints(nextKeypoints, updatedMeasurements);
+          return true;
         }
-        return;
+        return false;
       }
 
       const changedPointIndices =
@@ -796,6 +806,7 @@ export function useMeasurementKeypointWorkflow({
       if (nextCfh !== cfhAnnotation) {
         setCfhAnnotation(nextCfh);
       }
+      return false;
     },
     [
       activeVertebraeLayer,
