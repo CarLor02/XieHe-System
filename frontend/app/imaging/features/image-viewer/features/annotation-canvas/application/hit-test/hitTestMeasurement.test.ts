@@ -99,6 +99,7 @@ describe('manual TTS measurement hit testing', () => {
   };
   const options = {
     measurements: [measurement],
+    examType: '正位X光片',
     imageScale: 1,
     imageToScreen: (point: { x: number; y: number }) => point,
     context: {
@@ -154,6 +155,37 @@ describe('manual TTS measurement hit testing', () => {
           },
         ],
         screenPoint: { x: 20, y: 20 },
+      })
+    ).toEqual({ kind: 'none' });
+  });
+});
+
+describe('invalid variable measurement hit testing', () => {
+  it('keeps malformed Cobb outside canvas interaction', () => {
+    expect(
+      hitTestMeasurement({
+        measurements: [
+          {
+            id: 'malformed-cobb',
+            type: 'cobb1',
+            value: '20.00°',
+            points: [
+              { x: 10, y: 10 },
+              { x: 30, y: 10 },
+              { x: 10, y: 40 },
+            ],
+          },
+        ],
+        examType: '正位X光片',
+        screenPoint: { x: 10, y: 10 },
+        imageScale: 1,
+        imageToScreen: point => point,
+        context: {
+          imageNaturalSize: null,
+          imagePosition: { x: 0, y: 0 },
+          imageScale: 1,
+          containerSize: null,
+        },
       })
     ).toEqual({ kind: 'none' });
   });

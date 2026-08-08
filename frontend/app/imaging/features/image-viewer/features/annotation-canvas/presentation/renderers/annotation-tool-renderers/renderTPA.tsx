@@ -23,23 +23,41 @@ export function renderTPA(
   if (screenPoints.length < 7) return null;
 
   const imagePoints = getSpecialRenderImagePoints(screenPoints, context);
-  const geometry = getTpaGeometry(imagePoints);
-  const pelvicGeometry = geometry
-    ? getPelvicMeasurementGeometry(geometry.pelvicPoints)
-    : null;
-  if (!geometry || !pelvicGeometry) return null;
-  const t1Points = projectSpecialRenderPoints(imagePoints.slice(0, 4), context);
+  const resolvedPelvic =
+    context?.resolvedMeasurement?.kind === 'pelvic' &&
+    context.resolvedMeasurement.toolId === 'tpa'
+      ? context.resolvedMeasurement
+      : null;
+  const fallbackGeometry = resolvedPelvic ? null : getTpaGeometry(imagePoints);
+  const pelvicGeometry =
+    resolvedPelvic?.geometry ??
+    (fallbackGeometry
+      ? getPelvicMeasurementGeometry(fallbackGeometry.pelvicPoints)
+      : null);
+  const t1ImagePoints = resolvedPelvic?.t1Points ?? imagePoints.slice(0, 4);
+  const t1PointList: Point[] = [...t1ImagePoints];
+  const t1Center =
+    t1ImagePoints.length === 4
+      ? {
+          x: t1PointList.reduce((sum, point) => sum + point.x, 0) / 4,
+          y: t1PointList.reduce((sum, point) => sum + point.y, 0) / 4,
+        }
+      : null;
+  const pelvicImagePoints =
+    resolvedPelvic?.pelvicPoints ?? fallbackGeometry?.pelvicPoints;
+  if (!t1Center || !pelvicGeometry || !pelvicImagePoints) return null;
+  const t1Points = projectSpecialRenderPoints(t1PointList, context);
   const pelvicScreenPoints = projectSpecialRenderPoints(
-    geometry.pelvicPoints,
+    [...pelvicImagePoints],
     context
   );
-  const center = projectSpecialRenderPoint(geometry.t1Center, context);
+  const center = projectSpecialRenderPoint(t1Center, context);
   const midpoint = projectSpecialRenderPoint(
-    geometry.sacralMidpoint,
+    pelvicGeometry.sacralMidpoint,
     context
   );
   const vertex = projectSpecialRenderPoint(
-    geometry.femoralHeadCenter,
+    pelvicGeometry.femoralHeadCenter!,
     context
   );
   const sacralLeft = projectSpecialRenderPoint(

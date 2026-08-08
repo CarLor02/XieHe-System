@@ -39,10 +39,7 @@ const POLYGON_CLOSE_TOLERANCE_PX = 18;
 interface UseCanvasDrawingToolOptions {
   selectedTool: string;
   tools: Tool[];
-  measurements: Pick<
-    MeasurementData,
-    'type' | 'points' | 'pelvicMetadata'
-  >[];
+  measurements: MeasurementData[];
   keypoints: KeypointAnnotation[];
   clickedPoints: Point[];
   setClickedPoints: (points: Point[]) => void;
@@ -331,9 +328,7 @@ export function useCanvasDrawingTool({
         return true;
       }
       const tpaMode =
-        selectedTool === 'tpa' && hasFh1 && hasFh2
-          ? 'bilateral'
-          : 'single';
+        selectedTool === 'tpa' && hasFh1 && hasFh2 ? 'bilateral' : 'single';
       const tpaBindingRule =
         selectedTool === 'tpa'
           ? getPelvicMeasurementKeypointBindingRule({
@@ -368,11 +363,7 @@ export function useCanvasDrawingTool({
       if (effectiveNeeded === 0) {
         addMeasurement(
           currentTool.id,
-          assembleInheritedPoints(
-            measurementPointsNeeded,
-            inheritedMap,
-            []
-          )
+          assembleInheritedPoints(measurementPointsNeeded, inheritedMap, [])
         );
         setClickedPoints([]);
         return true;

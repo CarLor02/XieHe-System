@@ -150,7 +150,7 @@ it('syncs lateral C2-C7 Cobb to lower endplate keypoints', () => {
   });
 });
 
-it('infers C2-C7 lateral Cobb endpoint keypoints even when exam type is omitted', () => {
+it('defaults missing exam context to AP instead of inferring view from endpoints', () => {
   const measurement: MeasurementData = {
     id: 'cobb-1',
     type: 'cobb1',
@@ -163,8 +163,8 @@ it('infers C2-C7 lateral Cobb endpoint keypoints even when exam type is omitted'
   const synced = syncCobbMeasurementToKeypoints([], measurement);
 
   expect(pointByKeypointId(synced)).toEqual({
-    'C2-3': points[0],
-    'C2-4': points[1],
+    'C2-1': points[0],
+    'C2-2': points[1],
     'C7-3': points[2],
     'C7-4': points[3],
   });

@@ -4,7 +4,7 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { getBoundingBox } from '@/app/imaging/features/image-viewer/shared/geometry';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import { resolveTtsMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import {
   circleGeometryFromPoints,
   getCircleBounds,
@@ -70,8 +70,11 @@ export function getMeasurementSelectionBoxInScreen(
     };
   }
 
+  const resolvedTts = resolveTtsMeasurement(measurement);
   const interactionPoints =
-    getManualTtsTrunkPoints(measurement) ?? measurement.points;
+    resolvedTts?.layout === 'manual'
+      ? resolvedTts.trunkPoints
+      : measurement.points;
   const screenBounds = getBoundingBox(
     interactionPoints.map(point => imageToScreen(point))
   );

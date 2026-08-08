@@ -51,45 +51,6 @@ export const LATERAL_NAMED_COBB_MEASUREMENT_RULES: LateralNamedCobbMeasurementRu
     },
   ];
 
-function areEndpointPointIdsEqual(
-  left: readonly string[],
-  right: readonly string[]
-): boolean {
-  return (
-    left.length === right.length &&
-    left.every((pointId, index) => pointId === right[index])
-  );
-}
-
-export function getLateralCobbEndpointPointIds(
-  upperVertebra: string,
-  lowerVertebra: string
-): [string, string, string, string] {
-  const namedRule = getLateralNamedCobbMeasurementRuleByEndpoints(
-    upperVertebra,
-    lowerVertebra
-  );
-  if (namedRule) {
-    return namedRule.endpointPointIds;
-  }
-
-  if (lowerVertebra === 'S1') {
-    return [
-      `${upperVertebra}-1`,
-      `${upperVertebra}-2`,
-      'S1-1',
-      'S1-2',
-    ];
-  }
-
-  return [
-    `${upperVertebra}-1`,
-    `${upperVertebra}-2`,
-    `${lowerVertebra}-3`,
-    `${lowerVertebra}-4`,
-  ];
-}
-
 export function getLateralNamedCobbMeasurementRuleByEndpoints(
   upperVertebra: string,
   lowerVertebra: string
@@ -99,16 +60,6 @@ export function getLateralNamedCobbMeasurementRuleByEndpoints(
       rule =>
         rule.upperVertebra === upperVertebra &&
         rule.lowerVertebra === lowerVertebra
-    ) ?? null
-  );
-}
-
-export function getLateralNamedCobbMeasurementRuleByEndpointPointIds(
-  endpointPointIds: readonly string[]
-): LateralNamedCobbMeasurementRule | null {
-  return (
-    LATERAL_NAMED_COBB_MEASUREMENT_RULES.find(rule =>
-      areEndpointPointIdsEqual(rule.endpointPointIds, endpointPointIds)
     ) ?? null
   );
 }

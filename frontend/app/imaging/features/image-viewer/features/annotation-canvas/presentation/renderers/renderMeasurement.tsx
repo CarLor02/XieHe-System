@@ -27,10 +27,7 @@ import {
   shouldPreserveCanvasValue,
   shouldShowPointLabels,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import {
-  getAvtLabelPosition,
-  isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import { getAvtLabelPosition } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import { renderAvtMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-interaction-policy';
 import { imageToScreen } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
@@ -49,9 +46,15 @@ import { circleRenderer } from '@/app/imaging/features/image-viewer/features/ann
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/shared/rendererUtils';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
 import { getBilateralPelvicGeometryOwnerId } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
+import { resolveVariableMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
+import {
+  getPelvicPointDisplayLabel,
+  getPelvicSharedPointLabelKey as getResolvedPelvicSharedPointLabelKey,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 interface RenderMeasurementProps {
   measurement: MeasurementData;
+  examType?: string;
   imageScale: number;
   imagePosition: { x: number; y: number };
   imageNaturalSize: { width: number; height: number } | null;
@@ -92,16 +95,8 @@ function getPointDisplayLabel(
     return measurement.value;
   }
 
-  const typeId = getAnnotationTypeId(measurement.type);
-  if ((typeId === 'pi' || typeId === 'pt') && measurement.points.length >= 3) {
-    if (measurement.points.length === 6) {
-      return ['FH-1', 'R1', 'FH-2', 'R2', 'S1-1', 'S1-2'][pointIndex] ??
-        pointIndex + 1;
-    }
-    if (pointIndex === 0) return 3;
-    if (pointIndex === 1) return 1;
-    if (pointIndex === 2) return 2;
-  }
+  const pelvicLabel = getPelvicPointDisplayLabel(measurement, pointIndex);
+  if (pelvicLabel !== null) return pelvicLabel;
 
   return pointIndex + 1;
 }
@@ -117,21 +112,7 @@ function getPelvicSharedPointLabelKey(
     if (pointIndex === 1) return 'pelvic-s1-2';
   }
 
-  if (typeId === 'pi' || typeId === 'pt') {
-    if (measurement.points.length === 6) {
-      if (pointIndex === 0) return 'pelvic-fh-1';
-      if (pointIndex === 1) return 'pelvic-fh-radius-1';
-      if (pointIndex === 2) return 'pelvic-fh-2';
-      if (pointIndex === 3) return 'pelvic-fh-radius-2';
-      if (pointIndex === 4) return 'pelvic-s1-1';
-      if (pointIndex === 5) return 'pelvic-s1-2';
-    }
-    if (pointIndex === 0) return 'pelvic-cfh';
-    if (pointIndex === 1) return 'pelvic-s1-1';
-    if (pointIndex === 2) return 'pelvic-s1-2';
-  }
-
-  return null;
+  return getResolvedPelvicSharedPointLabelKey(measurement, pointIndex);
 }
 
 function ownsSharedPointLabel(
@@ -534,6 +515,7 @@ function renderAuxiliaryShape(
  */
 export default function renderMeasurement({
   measurement,
+  examType,
   imageScale,
   imagePosition,
   imageNaturalSize,
@@ -550,7 +532,17 @@ export default function renderMeasurement({
   manualBindingSelectedPoints,
   allMeasurements = [],
   measurementIndex = 0,
-}: RenderMeasurementProps): JSX.Element {
+}: RenderMeasurementProps): JSX.Element | null {
+  const variableResolution = examType
+    ? resolveVariableMeasurement(measurement, { examType })
+    : { status: 'not-applicable' as const };
+  if (variableResolution.status === 'invalid') {
+    return null;
+  }
+  const resolvedMeasurement =
+    variableResolution.status === 'resolved'
+      ? variableResolution.value
+      : undefined;
   const context = {
     imageNaturalSize,
     imagePosition,
@@ -587,6 +579,7 @@ export default function renderMeasurement({
     },
     renderPelvicSharedGeometry,
     effectiveCfhInteractionState,
+    resolvedMeasurement,
   };
   const displayName = getAnnotationDisplayName(measurement.type);
   const isAuxiliaryShape = checkIsAuxiliaryShape(measurement.type);
@@ -618,8 +611,7 @@ export default function renderMeasurement({
     isMeasurementHovered
   );
   const avtShapeNode =
-    isAvtMetadata(measurement.avtMetadata) &&
-    getAnnotationTypeId(measurement.type) === 'avt'
+    resolvedMeasurement?.kind === 'avt'
       ? renderAvtMeasurement({
           measurement,
           displayColor,
@@ -629,9 +621,14 @@ export default function renderMeasurement({
   const specialShapeNode = auxiliaryShapeNode ?? avtShapeNode;
 
   // 获取基础标签位置
-  const baseLabelPosition = isAvtMetadata(measurement.avtMetadata)
-    ? getAvtLabelPosition(measurement)
-    : getLabelPositionForType(measurement.type, measurement.points, imageScale);
+  const baseLabelPosition =
+    resolvedMeasurement?.kind === 'avt'
+      ? getAvtLabelPosition(measurement)
+      : getLabelPositionForType(
+          measurement.type,
+          measurement.points,
+          imageScale
+        );
 
   // 固定标签位置的类型（PI、PT等骨盆测量）跳过智能避让，直接使用 getLabelPosition 结果
   const isFixedLabel = isFixedLabelPositionType(measurement.type);
@@ -641,7 +638,7 @@ export default function renderMeasurement({
     .slice(0, measurementIndex)
     .filter(m => !hiddenMeasurementIds.has(m.id))
     .map(m =>
-      isAvtMetadata(m.avtMetadata)
+      getAnnotationTypeId(m.type) === 'avt'
         ? getAvtLabelPosition(m)
         : getLabelPositionForType(m.type, m.points, imageScale)
     );

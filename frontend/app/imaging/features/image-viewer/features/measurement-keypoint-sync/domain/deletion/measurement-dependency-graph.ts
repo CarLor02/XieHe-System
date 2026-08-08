@@ -1,5 +1,5 @@
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { getLateralCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
+import { resolveCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 import {
   isApProjectionExamType,
   isLateralExamType,
@@ -33,23 +33,10 @@ function getCobbKeypointIds(
     return [];
   }
 
-  const upperVertebra = measurement.upperVertebra.trim().toUpperCase();
-  const lowerVertebra = measurement.lowerVertebra.trim().toUpperCase();
-  if (!upperVertebra || !lowerVertebra || upperVertebra === lowerVertebra) {
-    return [];
-  }
-
-  if (isLateralExamType(examType)) {
-    return getLateralCobbEndpointPointIds(upperVertebra, lowerVertebra);
-  }
-
-  if (!isApProjectionExamType(examType)) return [];
-  return [
-    `${upperVertebra}-1`,
-    `${upperVertebra}-2`,
-    `${lowerVertebra}-3`,
-    `${lowerVertebra}-4`,
-  ];
+  const endpointPointIds = resolveCobbEndpointPointIds(measurement, {
+    examType,
+  });
+  return endpointPointIds ? [...endpointPointIds] : [];
 }
 
 /**

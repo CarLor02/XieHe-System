@@ -5,11 +5,7 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { upsertKeypoint } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { isLateralExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
-import {
-  getLateralCobbEndpointPointIds,
-  getLateralNamedCobbMeasurementRuleByEndpoints,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
+import { resolveCobbMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 
 function normalizeCobbEndpoint(value: string | null | undefined): string {
   return value?.trim().toUpperCase() ?? '';
@@ -36,12 +32,22 @@ function hasCompletedDistinctCobbEndpoints(
 }
 
 export function canSyncCobbMeasurementToKeypoints(
-  measurement: MeasurementData
+  measurement: MeasurementData,
+  examType?: string
 ): boolean {
-  return (
-    /^(?:lateral-)?cobb\d*$/i.test(getAnnotationTypeId(measurement.type)) &&
-    hasCompletedDistinctCobbEndpoints(measurement) &&
-    measurement.points.length >= 4
+  if (
+    !/^(?:lateral-)?cobb\d*$/i.test(getAnnotationTypeId(measurement.type)) ||
+    !hasCompletedDistinctCobbEndpoints(measurement)
+  ) {
+    return false;
+  }
+  const resolvedExamType =
+    examType?.trim() ||
+    (/^lateral-cobb/i.test(getAnnotationTypeId(measurement.type))
+      ? '侧位X光片'
+      : '正位X光片');
+  return Boolean(
+    resolveCobbMeasurement(measurement, { examType: resolvedExamType })
   );
 }
 
@@ -50,32 +56,18 @@ export function syncCobbMeasurementToKeypoints(
   measurement: MeasurementData,
   examType?: string
 ): KeypointAnnotation[] | null {
-  if (!canSyncCobbMeasurementToKeypoints(measurement)) return null;
+  if (!canSyncCobbMeasurementToKeypoints(measurement, examType)) return null;
 
-  const upperVertebra = normalizeCobbEndpoint(measurement.upperVertebra);
-  const lowerVertebra = normalizeCobbEndpoint(measurement.lowerVertebra);
-  const hasExplicitExamType =
-    typeof examType === 'string' && examType.trim().length > 0;
-  const shouldInferLateralEndpointRules =
-    !hasExplicitExamType &&
-    (lowerVertebra === 'S1' ||
-      Boolean(
-        getLateralNamedCobbMeasurementRuleByEndpoints(
-          upperVertebra,
-          lowerVertebra
-        )
-      ));
-  const shouldUseLateralEndpointRules =
-    (hasExplicitExamType && isLateralExamType(examType)) ||
-    shouldInferLateralEndpointRules;
-  const replacementIds = shouldUseLateralEndpointRules
-    ? getLateralCobbEndpointPointIds(upperVertebra, lowerVertebra)
-    : [
-        `${upperVertebra}-1`,
-        `${upperVertebra}-2`,
-        `${lowerVertebra}-3`,
-        `${lowerVertebra}-4`,
-      ];
+  const resolvedExamType =
+    examType?.trim() ||
+    (/^lateral-cobb/i.test(getAnnotationTypeId(measurement.type))
+      ? '侧位X光片'
+      : '正位X光片');
+  const resolvedMeasurement = resolveCobbMeasurement(measurement, {
+    examType: resolvedExamType,
+  });
+  const replacementIds = resolvedMeasurement?.endpointPointIds;
+  if (!replacementIds) return null;
   const replacementIdSet = new Set(replacementIds);
   const retainedKeypoints = keypoints.filter(
     keypoint => !replacementIdSet.has(keypoint.id)

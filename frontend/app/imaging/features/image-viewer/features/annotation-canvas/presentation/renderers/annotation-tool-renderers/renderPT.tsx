@@ -22,8 +22,18 @@ export function renderPT(
   context?: SpecialElementRenderContext
 ): JSX.Element | null {
   const imagePoints = getSpecialRenderImagePoints(screenPoints, context);
-  const geometry = getPelvicMeasurementGeometry(imagePoints);
+  const resolvedPelvic =
+    context?.resolvedMeasurement?.kind === 'pelvic'
+      ? context.resolvedMeasurement
+      : null;
+  const geometry =
+    resolvedPelvic?.geometry ?? getPelvicMeasurementGeometry(imagePoints);
   if (!geometry) return null;
+  const pelvicScreenPoints = resolvedPelvic
+    ? resolvedPelvic.pelvicPoints.map(project =>
+        projectSpecialRenderPoint(project, context)
+      )
+    : screenPoints;
 
   const verticalLength = RENDER_IMAGE_LENGTHS.pelvicVerticalHalfLength;
   let path: string | null = null;
@@ -79,7 +89,7 @@ export function renderPT(
   return (
     <>
       {renderPelvicSharedGeometry(
-        screenPoints,
+        pelvicScreenPoints,
         geometry,
         displayColor,
         context

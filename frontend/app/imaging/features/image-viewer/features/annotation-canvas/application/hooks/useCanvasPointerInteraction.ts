@@ -15,13 +15,13 @@ import {
   HoverState,
   SelectionState,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
-import { getManualTtsTrunkCenter } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import { resolveTtsMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
-import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
+import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 function getMeasurementDragCenter(measurement: MeasurementData): Point {
-  const ttsTrunkCenter = getManualTtsTrunkCenter(measurement);
-  if (ttsTrunkCenter) return ttsTrunkCenter;
+  const resolvedTts = resolveTtsMeasurement(measurement);
+  if (resolvedTts?.layout === 'manual') return resolvedTts.trunkCenter;
 
   const xs = measurement.points.map(point => point.x);
   const ys = measurement.points.map(point => point.y);
@@ -33,6 +33,7 @@ function getMeasurementDragCenter(measurement: MeasurementData): Point {
 
 interface UseCanvasPointerInteractionOptions {
   imageNaturalSize: { width: number; height: number } | null;
+  examType?: string;
   selectedTool: string;
   isManualBindingMode: boolean;
   measurements: MeasurementData[];
@@ -106,6 +107,7 @@ interface UseCanvasPointerInteractionOptions {
  */
 export function useCanvasPointerInteraction({
   imageNaturalSize,
+  examType,
   selectedTool,
   isManualBindingMode,
   measurements,
@@ -204,6 +206,7 @@ export function useCanvasPointerInteraction({
       const screenPoint = { x, y };
       const selectionHit = hitTestMeasurement({
         measurements,
+        examType,
         screenPoint,
         imageScale,
         imageToScreen,
@@ -234,9 +237,10 @@ export function useCanvasPointerInteraction({
               },
             });
           } else if (selectionHit.kind === 'effective-cfh') {
-            const effectiveCfh = getBilateralPelvicGeometryForMeasurement(
-              selectedMeasurement
-            )?.femoralHeadCenter;
+            const effectiveCfh =
+              getBilateralPelvicGeometryForMeasurement(
+                selectedMeasurement
+              )?.femoralHeadCenter;
             if (!effectiveCfh) return true;
             onDisplayMeasurementSelect(null);
             setSelectionState({
@@ -336,9 +340,10 @@ export function useCanvasPointerInteraction({
           }
 
           if (selectionState.type === 'effective-cfh') {
-            const effectiveCfh = getBilateralPelvicGeometryForMeasurement(
-              measurement
-            )?.femoralHeadCenter;
+            const effectiveCfh =
+              getBilateralPelvicGeometryForMeasurement(
+                measurement
+              )?.femoralHeadCenter;
             if (effectiveCfh) {
               const effectiveCfhScreen = imageToScreen(effectiveCfh);
               const pointBox = {
@@ -386,6 +391,7 @@ export function useCanvasPointerInteraction({
     [
       clickedPoints,
       canvasDrag,
+      examType,
       getTransformContext,
       beginViewportInteraction,
       hideAllAnnotations,
@@ -427,6 +433,7 @@ export function useCanvasPointerInteraction({
       const screenPoint = { x, y };
       const hoverHit = hitTestMeasurement({
         measurements,
+        examType,
         screenPoint,
         imageScale,
         imageToScreen,
@@ -487,6 +494,7 @@ export function useCanvasPointerInteraction({
     [
       clickedPoints,
       drawingState.isDrawing,
+      examType,
       getTransformContext,
       hideAllAnnotations,
       hiddenAnnotationIds,

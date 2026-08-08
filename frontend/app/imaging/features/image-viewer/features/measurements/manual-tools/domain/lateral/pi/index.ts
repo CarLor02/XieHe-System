@@ -3,8 +3,12 @@ import {
   calculateAngleBetweenVectors,
   toAcuteAngle,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
-import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+import {
+  isPointNearLine,
+  isPointNearPoint,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
 import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import type { PelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**
@@ -16,7 +20,13 @@ import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 export function calculatePiResults(points: Point[]): MeasurementResult[] {
   if (points.length < 3) return [];
   const geometry = getPelvicMeasurementGeometry(points);
-  if (!geometry?.femoralHeadCenter) return [];
+  return geometry ? calculatePiResultsFromGeometry(geometry) : [];
+}
+
+export function calculatePiResultsFromGeometry(
+  geometry: PelvicMeasurementGeometry
+): MeasurementResult[] {
+  if (!geometry.femoralHeadCenter) return [];
   const centerToSacrum = {
     x: geometry.sacralMidpoint.x - geometry.femoralHeadCenter.x,
     y: geometry.sacralMidpoint.y - geometry.femoralHeadCenter.y,

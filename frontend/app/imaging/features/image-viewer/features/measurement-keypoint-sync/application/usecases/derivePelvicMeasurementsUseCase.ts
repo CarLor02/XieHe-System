@@ -4,11 +4,9 @@ import type { CalculationContext } from '@/app/imaging/features/image-viewer/fea
 import {
   createDefaultBilateralPelvicPoints,
   createPelvicMeasurementMetadata,
-  extractBilateralPelvicPoints,
+  resolvePelvicMeasurement,
   resolveEffectiveCfh,
-  type PelvicToolId,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import type {
   MeasurementData,
   Point,
@@ -17,20 +15,13 @@ import type {
 function findExistingBilateralPelvicPoints(
   measurements: readonly MeasurementData[]
 ): Point[] | null {
-  const measurement = measurements.find(item => {
-    const typeId = getAnnotationTypeId(item.type);
-    return (
-      (typeId === 'pi' || typeId === 'pt' || typeId === 'tpa') &&
-      item.pelvicMetadata?.schemaVersion === 2 &&
-      item.pelvicMetadata.femoralHeadMode === 'bilateral' &&
-      extractBilateralPelvicPoints(typeId, item.points) !== null
-    );
-  });
-  if (!measurement) return null;
-  return extractBilateralPelvicPoints(
-    getAnnotationTypeId(measurement.type) as PelvicToolId,
-    measurement.points
-  );
+  for (const measurement of measurements) {
+    const resolvedMeasurement = resolvePelvicMeasurement(measurement);
+    if (resolvedMeasurement?.layout === 'bilateral') {
+      return resolvedMeasurement.pelvicPoints.map(point => ({ ...point }));
+    }
+  }
+  return null;
 }
 
 /**
@@ -46,7 +37,9 @@ export function derivePelvicMeasurements({
   previousMeasurements?: readonly MeasurementData[];
   calculationContext: CalculationContext;
 }): MeasurementData[] {
-  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint.point]));
+  const byId = new Map(
+    keypoints.map(keypoint => [keypoint.id, keypoint.point])
+  );
   const effective = resolveEffectiveCfh(byId);
   const s1First = byId.get('S1-1');
   const s1Second = byId.get('S1-2');
@@ -81,12 +74,7 @@ export function derivePelvicMeasurements({
     const tpaPoints =
       effective.mode === 'bilateral'
         ? [...t1Points, ...pelvicPoints.map(point => ({ ...point }))]
-        : [
-            ...t1Points,
-            effective.point,
-            { ...s1First },
-            { ...s1Second },
-          ];
+        : [...t1Points, effective.point, { ...s1First }, { ...s1Second }];
     candidates.push({
       id: 'vertebrae-derived-tpa',
       type: 'TPA',

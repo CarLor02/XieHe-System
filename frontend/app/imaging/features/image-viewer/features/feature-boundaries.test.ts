@@ -92,3 +92,21 @@ it('prevents annotation canvas application from importing presentation', () => {
     ])
   ).toEqual([]);
 });
+
+it('keeps variable measurement layout parsing out of canvas domain and application', () => {
+  const forbiddenParsers = [
+    'extractBilateralPelvicPoints',
+    'getPelvicMeasurementGeometry',
+    'getTpaGeometry',
+    'isPelvicMeasurementMetadata',
+  ];
+  expect(
+    findForbiddenSourcePatterns('annotation-canvas/domain', forbiddenParsers)
+  ).toEqual([]);
+  expect(
+    findForbiddenSourcePatterns(
+      'annotation-canvas/application',
+      forbiddenParsers
+    )
+  ).toEqual([]);
+});

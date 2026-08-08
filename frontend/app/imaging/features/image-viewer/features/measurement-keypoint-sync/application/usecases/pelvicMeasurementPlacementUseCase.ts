@@ -1,8 +1,7 @@
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
-  extractBilateralPelvicPoints,
   getPelvicToolPointCount,
+  resolvePelvicMeasurement,
   type FemoralHeadMode,
   type PelvicToolId,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
@@ -24,21 +23,21 @@ export function getPelvicPlacementInheritedPointMap({
   toolId: PelvicToolId;
   mode: FemoralHeadMode;
   keypoints: readonly KeypointAnnotation[];
-  measurements: readonly Pick<
-    MeasurementData,
-    'type' | 'points' | 'pelvicMetadata'
-  >[];
+  measurements: readonly MeasurementData[];
 }): Map<number, Point> {
-  const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint.point]));
+  const byId = new Map(
+    keypoints.map(keypoint => [keypoint.id, keypoint.point])
+  );
   const inherited = new Map<number, Point>();
-  const t1Slots = toolId === 'tpa'
-    ? ([
-        [0, 'T1-1'],
-        [1, 'T1-2'],
-        [2, 'T1-3'],
-        [3, 'T1-4'],
-      ] as const)
-    : [];
+  const t1Slots =
+    toolId === 'tpa'
+      ? ([
+          [0, 'T1-1'],
+          [1, 'T1-2'],
+          [2, 'T1-3'],
+          [3, 'T1-4'],
+        ] as const)
+      : [];
   const pelvicOffset = toolId === 'tpa' ? 4 : 0;
   const pelvicSlots =
     mode === 'bilateral'
@@ -61,24 +60,12 @@ export function getPelvicPlacementInheritedPointMap({
   });
 
   if (mode === 'bilateral') {
-    const existing = measurements.find(measurement => {
-      const typeId = getAnnotationTypeId(measurement.type);
-      return (
-        (typeId === 'pi' || typeId === 'pt' || typeId === 'tpa') &&
-        measurement.pelvicMetadata?.femoralHeadMode === 'bilateral' &&
-        extractBilateralPelvicPoints(typeId, measurement.points) !== null
-      );
-    });
-    if (existing) {
-      const typeId = getAnnotationTypeId(existing.type) as PelvicToolId;
-      const pelvicPoints = extractBilateralPelvicPoints(
-        typeId,
-        existing.points
-      );
-      if (pelvicPoints) {
-        inherited.set(pelvicOffset + 1, { ...pelvicPoints[1] });
-        inherited.set(pelvicOffset + 3, { ...pelvicPoints[3] });
-      }
+    const existing = measurements
+      .map(resolvePelvicMeasurement)
+      .find(measurement => measurement?.layout === 'bilateral');
+    if (existing?.layout === 'bilateral') {
+      inherited.set(pelvicOffset + 1, { ...existing.pelvicPoints[1] });
+      inherited.set(pelvicOffset + 3, { ...existing.pelvicPoints[3] });
     }
   }
 

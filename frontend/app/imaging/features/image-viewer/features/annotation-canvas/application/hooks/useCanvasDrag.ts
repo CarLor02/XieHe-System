@@ -8,6 +8,7 @@ import {
   calculateMeasurementValue,
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { resolveVariableMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 import {
   circleGeometryFromPoints,
   getCircleBounds,
@@ -28,9 +29,8 @@ import {
   updateHorizontalDiscAnchors,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import {
-  getManualTtsTrunkPoints,
-  isManualTtsMeasurement,
   moveManualTtsTrunkLineVertically,
+  resolveTtsMeasurement,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import {
   getBilateralFemoralCenterPointIndices,
@@ -41,9 +41,10 @@ import {
   getBilateralPelvicPointsForMeasurement,
   isBilateralPelvicMeasurement,
   replaceBilateralPelvicPointsForMeasurement,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 interface UseCanvasDragOptions {
+  examType?: string;
   selectedTool: string;
   selectionState: SelectionState;
   setSelectionState: React.Dispatch<React.SetStateAction<SelectionState>>;
@@ -98,6 +99,7 @@ interface UseCanvasDragOptions {
  * 负责单点拖拽、整体拖拽、绑定传播以及测量值重算。
  */
 export function useCanvasDrag({
+  examType,
   selectedTool,
   selectionState,
   setSelectionState,
@@ -119,6 +121,8 @@ export function useCanvasDrag({
   onAnnotationDragStart,
 }: UseCanvasDragOptions) {
   const dragStartRef = useRef<Point | null>(null);
+  const isManualTts = (measurement: MeasurementData) =>
+    resolveTtsMeasurement(measurement)?.layout === 'manual';
 
   /**
    * 一次性提交拖拽结果。关键点工作流接管时，它会以画布已经计算好的
@@ -184,6 +188,13 @@ export function useCanvasDrag({
           item => item.id === selectionState.measurementId
         );
         if (measurement && measurement.points.length > 0) {
+          if (
+            examType &&
+            resolveVariableMeasurement(measurement, { examType }).status ===
+              'invalid'
+          ) {
+            return false;
+          }
           const typeId = getAnnotationTypeId(measurement.type);
           let minX: number;
           let maxX: number;
@@ -227,8 +238,11 @@ export function useCanvasDrag({
               minY = Math.min(startScreen.y, endScreen.y) - 15;
               maxY = Math.max(startScreen.y, endScreen.y) + 15;
             } else {
+              const resolvedTts = resolveTtsMeasurement(measurement);
               const interactionPoints =
-                getManualTtsTrunkPoints(measurement) ?? measurement.points;
+                resolvedTts?.layout === 'manual'
+                  ? resolvedTts.trunkPoints
+                  : measurement.points;
               const screenPoints = interactionPoints.map(point =>
                 imageToScreen(point)
               );
@@ -282,7 +296,7 @@ export function useCanvasDrag({
         selectedTypeId === 'tts' &&
         selectionState.type === 'whole' &&
         selectedMeasurement &&
-        !isManualTtsMeasurement(selectedMeasurement)
+        !isManualTts(selectedMeasurement)
       ) {
         return false;
       }
@@ -291,7 +305,7 @@ export function useCanvasDrag({
         disableWholeDrag &&
         selectionState.type === 'whole' &&
         selectedMeasurement &&
-        !isManualTtsMeasurement(selectedMeasurement)
+        !isManualTts(selectedMeasurement)
       ) {
         return false;
       }
@@ -319,6 +333,13 @@ export function useCanvasDrag({
       if (!measurement || measurement.points.length === 0) {
         return false;
       }
+      if (
+        examType &&
+        resolveVariableMeasurement(measurement, { examType }).status ===
+          'invalid'
+      ) {
+        return false;
+      }
       const activeTypeId = getAnnotationTypeId(measurement.type);
       // AVT 整体拖拽禁止；TTS 允许整体拖拽（只移动躯干线，见下方）；逐点拖拽正常通过
       if (activeTypeId === 'avt' && selectionState.type === 'whole') {
@@ -327,7 +348,7 @@ export function useCanvasDrag({
       if (
         activeTypeId === 'tts' &&
         selectionState.type === 'whole' &&
-        !isManualTtsMeasurement(measurement)
+        !isManualTts(measurement)
       ) {
         return false;
       }
@@ -335,7 +356,7 @@ export function useCanvasDrag({
       if (
         disableWholeDrag &&
         selectionState.type === 'whole' &&
-        !isManualTtsMeasurement(measurement)
+        !isManualTts(measurement)
       ) {
         return false;
       }
@@ -348,9 +369,8 @@ export function useCanvasDrag({
           x: imagePoint.x - selectionState.dragOffset.x,
           y: imagePoint.y - selectionState.dragOffset.y,
         };
-        const sourcePelvicPoints = getBilateralPelvicPointsForMeasurement(
-          measurement
-        );
+        const sourcePelvicPoints =
+          getBilateralPelvicPointsForMeasurement(measurement);
         if (!sourcePelvicPoints) return false;
         const movedPelvicPoints = moveBilateralPelvicEffectiveCfh(
           sourcePelvicPoints,
@@ -374,6 +394,7 @@ export function useCanvasDrag({
                   standardDistance,
                   standardDistancePoints,
                   imageNaturalSize,
+                  examType,
                 }
               ) || item.value,
           };
@@ -457,6 +478,7 @@ export function useCanvasDrag({
               standardDistance,
               standardDistancePoints,
               imageNaturalSize,
+              examType,
             }
           );
           onMeasurementsUpdate(
@@ -495,11 +517,12 @@ export function useCanvasDrag({
             ? { x: newPointX, y: newPointY }
             : point
         );
-        const selectedMeasurementPoints = normalizePelvicDraggedMeasurementPoints(
-          measurement,
-          requestedPoints,
-          selectionState.pointIndex
-        );
+        const selectedMeasurementPoints =
+          normalizePelvicDraggedMeasurementPoints(
+            measurement,
+            requestedPoints,
+            selectionState.pointIndex
+          );
         const selectedPoint =
           selectedMeasurementPoints[selectionState.pointIndex];
         const bindingPropagated = applyPointBindings(
@@ -524,6 +547,7 @@ export function useCanvasDrag({
                     standardDistance,
                     standardDistancePoints,
                     imageNaturalSize,
+                    examType,
                   }
                 ) || item.value,
             };
@@ -551,6 +575,7 @@ export function useCanvasDrag({
                   standardDistance,
                   standardDistancePoints,
                   imageNaturalSize,
+                  examType,
                 }) || item.value,
             };
           }
@@ -586,6 +611,7 @@ export function useCanvasDrag({
                     standardDistance,
                     standardDistancePoints,
                     imageNaturalSize,
+                    examType,
                   }
                 ) || item.value,
             };
@@ -651,7 +677,7 @@ export function useCanvasDrag({
       }
 
       // 手工 TTS 整体拖拽只移动躯干线（点0-1），且只允许垂直位移。
-      const isManualTtsDrag = isManualTtsMeasurement(measurement);
+      const isManualTtsDrag = isManualTts(measurement);
       const centerPoints = isManualTtsDrag
         ? measurement.points.slice(0, 2)
         : measurement.points;
@@ -717,6 +743,7 @@ export function useCanvasDrag({
                 standardDistance,
                 standardDistancePoints,
                 imageNaturalSize,
+                examType,
               }) || item.value,
           };
         }

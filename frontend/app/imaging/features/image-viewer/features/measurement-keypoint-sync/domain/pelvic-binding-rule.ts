@@ -3,18 +3,17 @@ import {
   BILATERAL_PELVIC_POINT_COUNT,
   createDefaultBilateralPelvicPoints,
   createPelvicMeasurementMetadata,
-  extractBilateralPelvicPoints,
   getBilateralPelvicPointIndex,
   getPelvicToolPointLabels,
   isPelvicMeasurementMetadata,
   replaceBilateralPelvicPoints,
+  resolvePelvicMeasurement,
   resolveEffectiveCfh,
   updatePelvicMeasurementPoint,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type {
   FemoralHeadMode,
   PelvicMeasurementMetadata,
-  PelvicToolId,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import {
   circleGeometryFromPoints,
@@ -40,25 +39,15 @@ const SINGLE_REQUIRED_IDS = ['CFH', 'S1-1', 'S1-2'] as const;
 const BILATERAL_REQUIRED_IDS = ['FH-1', 'FH-2', 'S1-1', 'S1-2'] as const;
 const T1_IDS = ['T1-1', 'T1-2', 'T1-3', 'T1-4'] as const;
 
-function clonePointMap(byId: Map<string, KeypointAnnotation>): Map<string, Point> {
+function clonePointMap(
+  byId: Map<string, KeypointAnnotation>
+): Map<string, Point> {
   return new Map(
     Array.from(byId, ([keypointId, keypoint]) => [
       keypointId,
       { ...keypoint.point },
     ])
   );
-}
-
-/**
- * 历史 PI/PT/TPA 没有 pelvicMetadata，且其 CFH 一定来自旧三点契约。
- * 因此无 metadata 时必须固定按单 FH 读取，不能根据当前关键点集合猜测模式。
- */
-export function getPelvicMeasurementMode(
-  measurement: MeasurementData
-): FemoralHeadMode {
-  return isPelvicMeasurementMetadata(measurement.pelvicMetadata)
-    ? measurement.pelvicMetadata.femoralHeadMode
-    : 'single';
 }
 
 export function getPelvicMetadataForMode(
@@ -74,7 +63,10 @@ function normalizePelvicPoints(mode: FemoralHeadMode, points: Point[]) {
   return normalizePointPairs(points, [[1, 2]]);
 }
 
-function pelvicDrawingHint(mode: FemoralHeadMode, pointIndex: number): string | null {
+function pelvicDrawingHint(
+  mode: FemoralHeadMode,
+  pointIndex: number
+): string | null {
   const labels =
     mode === 'bilateral'
       ? ['FH-1圆心', 'FH-1半径点', 'FH-2圆心', 'FH-2半径点', 'S1-1', 'S1-2']
@@ -90,22 +82,25 @@ function getPelvicUpdates(
   const normalized = normalizePelvicPoints(mode, points);
   const slots =
     mode === 'bilateral'
-      ? [
+      ? ([
           [0, 'FH-1'],
           [2, 'FH-2'],
           [4, 'S1-1'],
           [5, 'S1-2'],
-        ] as const
-      : [
+        ] as const)
+      : ([
           [0, 'CFH'],
           [1, 'S1-1'],
           [2, 'S1-2'],
-        ] as const;
+        ] as const);
 
   return slots.flatMap(([pointIndex, keypointId]) => {
     const sourceIndex = normalized.sourceIndices[pointIndex];
     const point = normalized.points[pointIndex];
-    if (!point || (changedPointIndex !== undefined && sourceIndex !== changedPointIndex)) {
+    if (
+      !point ||
+      (changedPointIndex !== undefined && sourceIndex !== changedPointIndex)
+    ) {
       return [];
     }
     return [{ keypointId, point: { ...point } }];
@@ -124,11 +119,8 @@ function buildPelvicPoints(
   if (effective.status !== 'ready' || !s1First || !s1Second) return null;
 
   if (mode === 'single') {
-    return normalizePelvicPoints(mode, [
-      effective.point,
-      s1First,
-      s1Second,
-    ]).points;
+    return normalizePelvicPoints(mode, [effective.point, s1First, s1Second])
+      .points;
   }
 
   const fh1 = pointsById.get('FH-1')!;
@@ -166,6 +158,11 @@ function createPelvicBindingRule(
   measurement: MeasurementData,
   mode: FemoralHeadMode
 ): MeasurementKeypointBindingRule {
+  const resolvedMeasurement = resolvePelvicMeasurement(measurement);
+  const existingPelvicPoints =
+    resolvedMeasurement?.layout === 'bilateral'
+      ? resolvedMeasurement.pelvicPoints.map(point => ({ ...point }))
+      : undefined;
   return {
     typeId: getAnnotationTypeId(measurement.type),
     examView: 'lateral',
@@ -175,23 +172,23 @@ function createPelvicBindingRule(
     normalizePoints: points => normalizePelvicPoints(mode, points),
     getKeypointUpdates: (points, changedPointIndex) =>
       getPelvicUpdates(mode, points, changedPointIndex),
-    buildMeasurementPoints: (byId, existingPoints) =>
-      buildPelvicPoints(mode, byId, existingPoints),
+    buildMeasurementPoints: byId =>
+      buildPelvicPoints(mode, byId, existingPelvicPoints),
     getAvailableMeasurementPointMap: byId => {
       const available = new Map<number, Point>();
       const slots =
         mode === 'bilateral'
-          ? [
+          ? ([
               [0, 'FH-1'],
               [2, 'FH-2'],
               [4, 'S1-1'],
               [5, 'S1-2'],
-            ] as const
-          : [
+            ] as const)
+          : ([
               [0, 'CFH'],
               [1, 'S1-1'],
               [2, 'S1-2'],
-            ] as const;
+            ] as const);
       slots.forEach(([pointIndex, keypointId]) => {
         const keypoint = byId.get(keypointId);
         if (keypoint) available.set(pointIndex, { ...keypoint.point });
@@ -208,8 +205,9 @@ function createTpaBindingRule(
 ): MeasurementKeypointBindingRule {
   // 旧版本曾保存带 bilateral metadata 的七点 TPA，其中点 4 是 effectiveCFH。
   // 新双 FH TPA 使用十点结构；旧记录必须保持七点解释，不能迁移下标。
+  const resolvedMeasurement = resolvePelvicMeasurement(measurement);
   const isLegacyBilateralLayout =
-    mode === 'bilateral' && measurement.points.length === 7;
+    resolvedMeasurement?.layout === 'legacy-bilateral-effective-cfh';
   const normalizePoints = composePointNormalizers(
     points => normalizeCornerGroups(points, [[0, 1, 2, 3]]),
     points =>
@@ -236,21 +234,36 @@ function createTpaBindingRule(
         [2, 'T1-3'],
         [3, 'T1-4'],
         ...(mode === 'single'
-          ? ([[4, 'CFH'], [5, 'S1-1'], [6, 'S1-2']] as const)
+          ? ([
+              [4, 'CFH'],
+              [5, 'S1-1'],
+              [6, 'S1-2'],
+            ] as const)
           : isLegacyBilateralLayout
-            ? ([[5, 'S1-1'], [6, 'S1-2']] as const)
-            : ([[4, 'FH-1'], [6, 'FH-2'], [8, 'S1-1'], [9, 'S1-2']] as const)),
+            ? ([
+                [5, 'S1-1'],
+                [6, 'S1-2'],
+              ] as const)
+            : ([
+                [4, 'FH-1'],
+                [6, 'FH-2'],
+                [8, 'S1-1'],
+                [9, 'S1-2'],
+              ] as const)),
       ] as const;
       return slots.flatMap(([pointIndex, keypointId]) => {
         const sourceIndex = normalized.sourceIndices[pointIndex];
         const point = normalized.points[pointIndex];
-        if (!point || (changedPointIndex !== undefined && sourceIndex !== changedPointIndex)) {
+        if (
+          !point ||
+          (changedPointIndex !== undefined && sourceIndex !== changedPointIndex)
+        ) {
           return [];
         }
         return [{ keypointId, point: { ...point } }];
       });
     },
-    buildMeasurementPoints: (byId, existingPoints) => {
+    buildMeasurementPoints: byId => {
       const pointsById = clonePointMap(byId);
       const t1Points = T1_IDS.map(id => pointsById.get(id));
       if (t1Points.some(point => !point)) return null;
@@ -266,19 +279,14 @@ function createTpaBindingRule(
           s1Second,
         ]).points;
       }
-      const existingPelvicPoints = existingPoints
-        ? (extractBilateralPelvicPoints('tpa', existingPoints) ?? undefined)
-        : undefined;
-      const pelvicPoints = buildPelvicPoints(
-        mode,
-        byId,
-        existingPelvicPoints
-      );
+      const existingPelvicPoints =
+        resolvedMeasurement?.layout === 'bilateral'
+          ? resolvedMeasurement.pelvicPoints.map(point => ({ ...point }))
+          : undefined;
+      const pelvicPoints = buildPelvicPoints(mode, byId, existingPelvicPoints);
       if (!pelvicPoints) return null;
-      return normalizePoints([
-        ...(t1Points as Point[]),
-        ...pelvicPoints,
-      ]).points;
+      return normalizePoints([...(t1Points as Point[]), ...pelvicPoints])
+        .points;
     },
     getAvailableMeasurementPointMap: byId => {
       const available = new Map<number, Point>();
@@ -309,28 +317,26 @@ function createTpaBindingRule(
         if (keypoint) available.set(pointIndex, { ...keypoint.point });
       });
       if (mode === 'bilateral' && !isLegacyBilateralLayout) {
-        const existingPelvicPoints = extractBilateralPelvicPoints(
-          'tpa',
-          measurement.points
-        );
-        if (existingPelvicPoints) {
-          available.set(5, { ...existingPelvicPoints[1] });
-          available.set(7, { ...existingPelvicPoints[3] });
+        if (resolvedMeasurement?.layout === 'bilateral') {
+          available.set(5, { ...resolvedMeasurement.pelvicPoints[1] });
+          available.set(7, { ...resolvedMeasurement.pelvicPoints[3] });
         }
       }
       return available;
     },
     getDrawingHint: pointIndex => {
       if (isLegacyBilateralLayout) {
-        return [
-          'T1-1',
-          'T1-2',
-          'T1-3',
-          'T1-4',
-          'effectiveCFH（由FH-1/FH-2确定）',
-          'S1-1',
-          'S1-2',
-        ][pointIndex] ?? null;
+        return (
+          [
+            'T1-1',
+            'T1-2',
+            'T1-3',
+            'T1-4',
+            'effectiveCFH（由FH-1/FH-2确定）',
+            'S1-1',
+            'S1-2',
+          ][pointIndex] ?? null
+        );
       }
       return getPelvicToolPointLabels('tpa', mode)[pointIndex] ?? null;
     },
@@ -342,7 +348,17 @@ export function getPelvicMeasurementKeypointBindingRule(
 ): MeasurementKeypointBindingRule | null {
   const typeId = getAnnotationTypeId(measurement.type);
   if (typeId !== 'pi' && typeId !== 'pt' && typeId !== 'tpa') return null;
-  const mode = getPelvicMeasurementMode(measurement);
+  const resolvedMeasurement = resolvePelvicMeasurement(measurement);
+  // 绘制状态机会用空 points 的临时 measurement 探针传递用户选择的 FH 模式；
+  // 它尚未进入持久化协议，可以读取 metadata。非空历史记录则必须由 resolver
+  // 成功解析，避免损坏布局重新进入关键点同步链路。
+  const placementProbeMode =
+    measurement.points.length === 0 &&
+    isPelvicMeasurementMetadata(measurement.pelvicMetadata)
+      ? measurement.pelvicMetadata.femoralHeadMode
+      : null;
+  const mode = resolvedMeasurement?.mode ?? placementProbeMode;
+  if (!mode) return null;
   return typeId === 'tpa'
     ? createTpaBindingRule(measurement, mode)
     : createPelvicBindingRule(measurement, mode);
@@ -354,15 +370,12 @@ export function normalizePelvicDraggedMeasurementPoints(
   points: Point[],
   changedPointIndex: number
 ): Point[] {
-  const typeId = getAnnotationTypeId(measurement.type);
-  if (
-    (typeId !== 'pi' && typeId !== 'pt' && typeId !== 'tpa') ||
-    getPelvicMeasurementMode(measurement) !== 'bilateral'
-  ) {
+  const resolvedMeasurement = resolvePelvicMeasurement(measurement);
+  if (!resolvedMeasurement || resolvedMeasurement.layout !== 'bilateral') {
     return points;
   }
-  const toolId = typeId as PelvicToolId;
-  const pelvicPoints = extractBilateralPelvicPoints(toolId, measurement.points);
+  const toolId = resolvedMeasurement.toolId;
+  const pelvicPoints = [...resolvedMeasurement.pelvicPoints];
   const pelvicPointIndex = getBilateralPelvicPointIndex(
     toolId,
     changedPointIndex

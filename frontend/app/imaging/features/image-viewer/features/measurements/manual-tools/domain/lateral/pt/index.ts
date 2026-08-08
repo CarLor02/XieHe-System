@@ -1,6 +1,10 @@
 import type { MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
-import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+import {
+  isPointNearLine,
+  isPointNearPoint,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
 import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import type { PelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**
@@ -12,7 +16,13 @@ import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 export function calculatePtResults(points: Point[]): MeasurementResult[] {
   if (points.length < 3) return [];
   const geometry = getPelvicMeasurementGeometry(points);
-  if (!geometry?.femoralHeadCenter) return [];
+  return geometry ? calculatePtResultsFromGeometry(geometry) : [];
+}
+
+export function calculatePtResultsFromGeometry(
+  geometry: PelvicMeasurementGeometry
+): MeasurementResult[] {
+  if (!geometry.femoralHeadCenter) return [];
   const dx = geometry.sacralMidpoint.x - geometry.femoralHeadCenter.x;
   const dy = geometry.sacralMidpoint.y - geometry.femoralHeadCenter.y;
   const magnitude = Math.atan2(Math.abs(dx), Math.abs(dy)) * (180 / Math.PI);

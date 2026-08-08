@@ -34,3 +34,4 @@ export type {
   PelvicPlacementSession,
   PelvicToolId,
 } from './types';
+export * from './measurement-resolver';

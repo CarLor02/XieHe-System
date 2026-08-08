@@ -10,7 +10,99 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import { calculateAvtValue } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
-import type { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { calculateTtsResults } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import {
+  resolveVariableMeasurement,
+  type ResolvedVariableMeasurement,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
+import { calculatePiResultsFromGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pi';
+import { calculatePtResultsFromGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pt';
+import { calculateTpaResultsFromGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/tpa';
+import { calculateCobbResults } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
+import type {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
+
+function inferResolverExamType(measurement: MeasurementData): string {
+  const typeId = getAnnotationTypeId(measurement.type);
+  if (
+    typeId.startsWith('lateral-cobb') ||
+    [
+      'cl',
+      'c2-c7-cl',
+      'tk-t2-t5',
+      'tk-t5-t12',
+      't10-l2',
+      'll-l1-s1',
+      'll-l1-l4',
+      'll-l4-s1',
+      'pi',
+      'pt',
+      'tpa',
+    ].includes(typeId)
+  ) {
+    return '侧位X光片';
+  }
+  return '正位X光片';
+}
+
+function formatFirstResult(
+  results: ReturnType<typeof calculateCobbResults>,
+  fallback: string
+): string {
+  return results[0] ? `${results[0].value}${results[0].unit}` : fallback;
+}
+
+function calculateResolvedMeasurementValue(
+  resolvedMeasurement: ResolvedVariableMeasurement,
+  context: CalculationContext
+): string {
+  switch (resolvedMeasurement.kind) {
+    case 'avt':
+      return (
+        calculateAvtValue(resolvedMeasurement.measurement, context) ??
+        resolvedMeasurement.measurement.value
+      );
+    case 'cobb':
+      return formatFirstResult(
+        calculateCobbResults([...resolvedMeasurement.points]),
+        resolvedMeasurement.measurement.value
+      );
+    case 'tts':
+      return formatFirstResult(
+        calculateTtsResults(
+          [...resolvedMeasurement.interactivePoints],
+          context
+        ),
+        resolvedMeasurement.measurement.value
+      );
+    case 'pelvic': {
+      if (resolvedMeasurement.toolId === 'pi') {
+        return formatFirstResult(
+          calculatePiResultsFromGeometry(resolvedMeasurement.geometry),
+          resolvedMeasurement.measurement.value
+        );
+      }
+      if (resolvedMeasurement.toolId === 'pt') {
+        return formatFirstResult(
+          calculatePtResultsFromGeometry(resolvedMeasurement.geometry),
+          resolvedMeasurement.measurement.value
+        );
+      }
+      const t1Points = resolvedMeasurement.t1Points;
+      if (!t1Points) return resolvedMeasurement.measurement.value;
+      const t1Center = {
+        x: t1Points.reduce((sum, point) => sum + point.x, 0) / 4,
+        y: t1Points.reduce((sum, point) => sum + point.y, 0) / 4,
+      };
+      return formatFirstResult(
+        calculateTpaResultsFromGeometry(t1Center, resolvedMeasurement.geometry),
+        resolvedMeasurement.measurement.value
+      );
+    }
+  }
+}
 
 /**
  * 根据标注类型和点位计算测量值
@@ -58,8 +150,14 @@ export function calculateMeasurementDataValue(
   measurement: MeasurementData,
   context: CalculationContext
 ): string {
-  if (getAnnotationTypeId(measurement.type) === 'avt') {
-    return calculateAvtValue(measurement, context) ?? measurement.value;
+  const resolution = resolveVariableMeasurement(measurement, {
+    examType: context.examType ?? inferResolverExamType(measurement),
+  });
+  if (resolution.status === 'resolved') {
+    return calculateResolvedMeasurementValue(resolution.value, context);
+  }
+  if (resolution.status === 'invalid') {
+    return measurement.value;
   }
   return calculateMeasurementValue(
     measurement.type,

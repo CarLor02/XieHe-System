@@ -75,10 +75,25 @@ measurements catalog <---------------- annotation-canvas presentation
 renderer ID 如果没有对应实现，TypeScript 必须报错。正式标注和绘制预览都通过
 该注册表分发，禁止重新从 catalog import canvas renderer。
 
+## Measurement 解析边界
+
+Canvas 不解释持久化 measurement 的点位版本。Cobb 端椎、AVT metadata、
+TTS 手工/派生布局以及 PI/PT/TPA 单双 FH 布局都由 measurements domain 的
+resolver 解析。Canvas 只消费解析后的领域几何，并继续负责：
+
+- 图像坐标到屏幕坐标的投影。
+- 命中结果、选择状态和拖拽状态机。
+- SVG 展示，以及共享双 FH 圆由哪个可见测量项负责绘制。
+
+Resolver 返回 `invalid` 时，结果列表仍保留该记录，canvas 的 renderer、
+hit-test 和 drag 必须跳过它。绘制中的临时点尚未形成 `MeasurementData`，可以由
+工具领域函数按当前 placement session 生成预览，但不得借此实现历史格式兼容。
+
 ## 边界约束
 
 - domain 不得依赖 React、DOM、application 或 presentation。
 - application 不得依赖 presentation。
 - 原始 Pointer Events、Pointer Capture 和 DOM 尺寸读取只能出现在 presentation。
 - measurements 不得依赖 annotation-canvas。
+- annotation-canvas 不得根据 `points.length` 或固定下标识别可变 measurement 的历史布局。
 - viewer 外部只能通过 `annotation-canvas/index.ts` 使用公开入口。

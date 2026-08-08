@@ -14,9 +14,9 @@ import {
   type Point,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
-  getPelvicMeasurementMode,
-} from './pelvic-binding-rule';
-import { resolveEffectiveCfh } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+  resolveEffectiveCfh,
+  resolvePelvicMeasurement,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 import {
   AP_MEASUREMENT_KEYPOINT_BINDING_RULES,
@@ -150,7 +150,9 @@ export function getMissingBoundKeypointIds(
   const rule = getMeasurementKeypointBindingRule(measurementType);
   if (!rule) return [];
   const existingIds = new Set(keypoints.map(keypoint => keypoint.id));
-  return rule.requiredKeypointIds.filter(keypointId => !existingIds.has(keypointId));
+  return rule.requiredKeypointIds.filter(
+    keypointId => !existingIds.has(keypointId)
+  );
 }
 
 export function writeMeasurementPointsToKeypoints(
@@ -184,14 +186,16 @@ export function writeMeasurementToKeypoints(
   if (!rule) return keypoints;
 
   let currentKeypoints = keypoints;
+  const resolvedPelvicMeasurement = resolvePelvicMeasurement(measurement);
   if (
-    getAnnotationTypeId(measurement.type) === 'tpa' &&
-    getPelvicMeasurementMode(measurement) === 'bilateral' &&
-    measurement.points.length === 7 &&
+    resolvedPelvicMeasurement?.toolId === 'tpa' &&
+    resolvedPelvicMeasurement.layout === 'legacy-bilateral-effective-cfh' &&
     changedPointIndex === 4 &&
     points[4]
   ) {
-    const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint.point]));
+    const byId = new Map(
+      keypoints.map(keypoint => [keypoint.id, keypoint.point])
+    );
     const effective = resolveEffectiveCfh(byId, 'bilateral');
     if (effective.status === 'ready') {
       const delta = {

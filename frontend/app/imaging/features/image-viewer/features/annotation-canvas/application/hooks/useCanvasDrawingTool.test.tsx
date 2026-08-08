@@ -318,7 +318,9 @@ it('inherits bilateral pelvic geometry and only collects T1 points for TPA', () 
       ],
       measurements: [
         {
+          id: 'pi-bilateral',
           type: 'PI',
+          value: '20.00°',
           points: [
             { x: 10, y: 100 },
             { x: 20, y: 100 },

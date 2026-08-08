@@ -1,4 +1,5 @@
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { resolveCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 
 import type { MeasurementKeypointBindingRule } from './binding-rule-types';
 import { createFixedBindingRule } from './fixed-binding-rule';
@@ -37,10 +38,16 @@ function groupedHint(
 
 function createTwoEndplateRule(
   typeId: string,
-  keypointIds: readonly [string, string, string, string],
   firstLabel: string,
   secondLabel: string
 ): MeasurementKeypointBindingRule {
+  const keypointIds = resolveCobbEndpointPointIds(
+    { type: typeId },
+    { examType: '侧位X光片' }
+  );
+  if (!keypointIds) {
+    throw new Error(`侧位命名 Cobb 缺少 resolver: ${typeId}`);
+  }
   return createFixedBindingRule({
     typeId,
     examView: 'lateral',
@@ -66,52 +73,15 @@ export const LATERAL_MEASUREMENT_KEYPOINT_BINDING_RULES: MeasurementKeypointBind
         { pointIndex: 1, keypointId: 'T1-2' },
       ],
       normalizePoints: pair([0, 1]),
-      getDrawingHint: groupedHint([
-        { label: 'T1 上终板', start: 0, count: 2 },
-      ]),
+      getDrawingHint: groupedHint([{ label: 'T1 上终板', start: 0, count: 2 }]),
     }),
-    createTwoEndplateRule(
-      'cl',
-      ['C2-3', 'C2-4', 'C7-3', 'C7-4'],
-      'C2 下终板',
-      'C7 下终板'
-    ),
-    createTwoEndplateRule(
-      'tk-t2-t5',
-      ['T2-1', 'T2-2', 'T5-3', 'T5-4'],
-      'T2 上终板',
-      'T5 下终板'
-    ),
-    createTwoEndplateRule(
-      'tk-t5-t12',
-      ['T5-1', 'T5-2', 'T12-3', 'T12-4'],
-      'T5 上终板',
-      'T12 下终板'
-    ),
-    createTwoEndplateRule(
-      't10-l2',
-      ['T10-1', 'T10-2', 'L2-3', 'L2-4'],
-      'T10 上终板',
-      'L2 下终板'
-    ),
-    createTwoEndplateRule(
-      'll-l1-s1',
-      ['L1-1', 'L1-2', 'S1-1', 'S1-2'],
-      'L1 上终板',
-      'S1 终板'
-    ),
-    createTwoEndplateRule(
-      'll-l1-l4',
-      ['L1-1', 'L1-2', 'L4-3', 'L4-4'],
-      'L1 上终板',
-      'L4 下终板'
-    ),
-    createTwoEndplateRule(
-      'll-l4-s1',
-      ['L4-1', 'L4-2', 'S1-1', 'S1-2'],
-      'L4 上终板',
-      'S1 终板'
-    ),
+    createTwoEndplateRule('cl', 'C2 下终板', 'C7 下终板'),
+    createTwoEndplateRule('tk-t2-t5', 'T2 上终板', 'T5 下终板'),
+    createTwoEndplateRule('tk-t5-t12', 'T5 上终板', 'T12 下终板'),
+    createTwoEndplateRule('t10-l2', 'T10 上终板', 'L2 下终板'),
+    createTwoEndplateRule('ll-l1-s1', 'L1 上终板', 'S1 终板'),
+    createTwoEndplateRule('ll-l1-l4', 'L1 上终板', 'L4 下终板'),
+    createTwoEndplateRule('ll-l4-s1', 'L4 上终板', 'S1 终板'),
     createFixedBindingRule({
       typeId: 'sva',
       examView: 'lateral',
@@ -186,8 +156,6 @@ export const LATERAL_MEASUREMENT_KEYPOINT_BINDING_RULES: MeasurementKeypointBind
         { pointIndex: 1, keypointId: 'S1-2' },
       ],
       normalizePoints: pair([0, 1]),
-      getDrawingHint: groupedHint([
-        { label: 'S1 终板', start: 0, count: 2 },
-      ]),
+      getDrawingHint: groupedHint([{ label: 'S1 终板', start: 0, count: 2 }]),
     }),
   ];

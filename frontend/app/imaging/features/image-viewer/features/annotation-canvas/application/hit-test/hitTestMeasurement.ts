@@ -20,12 +20,12 @@ import {
   getHemipelvicVerticalLines,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
-import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import { resolveVariableMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 import {
   getBilateralPelvicGeometryForMeasurement,
-  getBilateralPelvicGeometryOwnerId,
   isBilateralPelvicMeasurement,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { getBilateralPelvicGeometryOwnerId } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
 
 export type HitResult =
   | { kind: 'point'; measurementId: string; pointIndex: number }
@@ -37,6 +37,7 @@ export type HitResult =
 
 interface HitTestMeasurementOptions {
   measurements: MeasurementData[];
+  examType?: string;
   screenPoint: Point;
   imageScale: number;
   imageToScreen: (point: Point) => Point;
@@ -157,6 +158,7 @@ function hitTestMeasurementShape(
  */
 export function hitTestMeasurement({
   measurements,
+  examType,
   screenPoint,
   imageScale,
   imageToScreen,
@@ -174,6 +176,11 @@ export function hitTestMeasurement({
     if (isMeasurementHidden?.(measurement)) {
       continue;
     }
+
+    const variableResolution = examType
+      ? resolveVariableMeasurement(measurement, { examType })
+      : { status: 'not-applicable' as const };
+    if (variableResolution.status === 'invalid') continue;
 
     const pointIndex = hitTestMeasurementPoint({
       measurement,
@@ -210,7 +217,12 @@ export function hitTestMeasurement({
       }
     }
 
-    const ttsTrunkPoints = getManualTtsTrunkPoints(measurement);
+    const ttsTrunkPoints =
+      variableResolution.status === 'resolved' &&
+      variableResolution.value.kind === 'tts' &&
+      variableResolution.value.layout === 'manual'
+        ? variableResolution.value.trunkPoints
+        : null;
     if (
       ttsTrunkPoints &&
       isLineClicked(

@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 
 import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { ResolvedVariableMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 import type {
   MeasurementData,
   Point,
@@ -21,6 +22,8 @@ export interface SpecialElementRenderContext {
   /** PI/PT/TPA 共享双 FH 圆、圆心连线和 effectiveCFH 时，仅由首个可见项绘制一次。 */
   renderPelvicSharedGeometry?: boolean;
   effectiveCfhInteractionState?: 'idle' | 'hovered' | 'selected';
+  /** 已保存的可变布局 measurement 必须由领域 resolver 解析后交给 renderer。 */
+  resolvedMeasurement?: ResolvedVariableMeasurement;
 }
 
 export interface AnnotationRendererRequest {

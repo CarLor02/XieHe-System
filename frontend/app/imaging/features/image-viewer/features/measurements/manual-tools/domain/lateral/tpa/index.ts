@@ -1,10 +1,14 @@
 import type { MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import { calculateAngleBetweenVectors } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
-import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+import {
+  isPointNearLine,
+  isPointNearPoint,
+} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
 import {
   extractBilateralPelvicPoints,
   getPelvicMeasurementGeometry,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import type { PelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**
@@ -20,9 +24,7 @@ export function getTpaGeometry(points: Point[]) {
   };
   const bilateralPelvicPoints = extractBilateralPelvicPoints('tpa', points);
   if (bilateralPelvicPoints) {
-    const pelvicGeometry = getPelvicMeasurementGeometry(
-      bilateralPelvicPoints
-    );
+    const pelvicGeometry = getPelvicMeasurementGeometry(bilateralPelvicPoints);
     if (!pelvicGeometry?.femoralHeadCenter) return null;
     return {
       t1Center,
@@ -48,13 +50,24 @@ export function getTpaGeometry(points: Point[]) {
 export function calculateTpaResults(points: Point[]): MeasurementResult[] {
   const geometry = getTpaGeometry(points);
   if (!geometry) return [];
+  const pelvicGeometry = getPelvicMeasurementGeometry(geometry.pelvicPoints);
+  return pelvicGeometry
+    ? calculateTpaResultsFromGeometry(geometry.t1Center, pelvicGeometry)
+    : [];
+}
+
+export function calculateTpaResultsFromGeometry(
+  t1Center: Point,
+  pelvicGeometry: PelvicMeasurementGeometry
+): MeasurementResult[] {
+  if (!pelvicGeometry.femoralHeadCenter) return [];
   const toT1 = {
-    x: geometry.t1Center.x - geometry.femoralHeadCenter.x,
-    y: geometry.t1Center.y - geometry.femoralHeadCenter.y,
+    x: t1Center.x - pelvicGeometry.femoralHeadCenter.x,
+    y: t1Center.y - pelvicGeometry.femoralHeadCenter.y,
   };
   const toSacrum = {
-    x: geometry.sacralMidpoint.x - geometry.femoralHeadCenter.x,
-    y: geometry.sacralMidpoint.y - geometry.femoralHeadCenter.y,
+    x: pelvicGeometry.sacralMidpoint.x - pelvicGeometry.femoralHeadCenter.x,
+    y: pelvicGeometry.sacralMidpoint.y - pelvicGeometry.femoralHeadCenter.y,
   };
   const angle = calculateAngleBetweenVectors(toT1, toSacrum);
   return [{ name: 'TPA', value: angle.toFixed(2), unit: '°' }];

@@ -21,4 +21,6 @@ export interface CalculationContext {
   standardDistance: number | null;
   standardDistancePoints: Point[];
   imageNaturalSize: { width: number; height: number } | null;
+  /** 可变布局工具必须按当前检查类型选择 AP/侧位 resolver。 */
+  examType?: string;
 }

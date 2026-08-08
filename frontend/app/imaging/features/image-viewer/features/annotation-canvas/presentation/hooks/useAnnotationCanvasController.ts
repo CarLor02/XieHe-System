@@ -57,7 +57,11 @@ export function getAnnotationCanvasCursorClass({
   hasActiveOrHoveredCorner: boolean;
   fallbackCursorClass: string;
 }): string {
-  if (keypointSequenceSession || avtPlacementSession || pelvicPlacementSession) {
+  if (
+    keypointSequenceSession ||
+    avtPlacementSession ||
+    pelvicPlacementSession
+  ) {
     return 'cursor-crosshair';
   }
 
@@ -543,6 +547,7 @@ export function useAnnotationCanvasController({
   }, [selectedTool, showVertebraeLayer]);
 
   const canvasDrag = useCanvasDrag({
+    examType: selectedImage.examType,
     selectedTool,
     selectionState,
     setSelectionState,
@@ -592,6 +597,7 @@ export function useAnnotationCanvasController({
   ) =>
     renderMeasurement({
       measurement,
+      examType: selectedImage.examType,
       imageScale,
       imagePosition,
       imageNaturalSize,
@@ -683,6 +689,7 @@ export function useAnnotationCanvasController({
 
   const pointerInteraction = useCanvasPointerInteraction({
     imageNaturalSize,
+    examType: selectedImage.examType,
     selectedTool,
     isManualBindingMode,
     measurements,

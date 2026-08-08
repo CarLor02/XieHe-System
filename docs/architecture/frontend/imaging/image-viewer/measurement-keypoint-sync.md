@@ -32,6 +32,8 @@ measurement-keypoint-sync/
 - `domain/` 保存不依赖 React 的双领域纯规则，包括绑定表、端椎查询、选择映射、
   点位写回和自动测量候选派生。
 - `createBoundMeasurementUseCase.ts` 只负责从关键点构造或重建绑定测量项。
+- Cobb 的创建、重算、删除依赖和检测层写回统一使用 measurements domain 的
+  `CobbResolver`；本模块不得维护第二份 AP/侧位端椎下标规则。
 - `synchronizeMeasurementsUseCase.ts` 明确区分三个入口：
   - AI 检测后允许执行完整初始派生，包括 Cobb。
   - 点位移动后只重算内存中已有或已绑定的测量项。

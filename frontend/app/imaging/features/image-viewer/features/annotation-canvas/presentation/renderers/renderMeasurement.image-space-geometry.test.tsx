@@ -111,11 +111,13 @@ function transformContext(containerSize: {
 
 function renderMeasurementLines(
   measurement: MeasurementData,
-  containerSize: { width: number; height: number }
+  containerSize: { width: number; height: number },
+  examType?: string
 ): LineProps[] {
   return collectLineProps(
     renderMeasurement({
       measurement,
+      examType,
       imageScale: 1,
       imagePosition,
       imageNaturalSize,
@@ -142,6 +144,25 @@ function renderMeasurementLines(
     })
   );
 }
+
+it('does not render a malformed variable-layout measurement', () => {
+  expect(
+    renderMeasurementLines(
+      {
+        id: 'malformed-cobb',
+        type: 'cobb1',
+        value: '20.00°',
+        points: [
+          { x: 10, y: 10 },
+          { x: 20, y: 10 },
+          { x: 10, y: 30 },
+        ],
+      },
+      desktopContainer,
+      '正位X光片'
+    )
+  ).toEqual([]);
+});
 
 function renderMeasurementTexts(
   measurement: MeasurementData,

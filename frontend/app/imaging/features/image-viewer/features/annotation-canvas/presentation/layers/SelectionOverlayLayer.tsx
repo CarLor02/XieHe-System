@@ -4,12 +4,12 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { getManualTtsTrunkPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import { resolveTtsMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import {
   circleGeometryFromPoints,
   getCircleBounds,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
-import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
+import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 interface SelectionOverlayLayerProps {
   selectionState: SelectionState;
@@ -57,8 +57,11 @@ export default function SelectionOverlayLayer({
           selectedPoints = [geometry.femoralHeadCenter];
         }
       } else if (selectionState.type === 'whole') {
+        const resolvedTts = resolveTtsMeasurement(measurement);
         selectedPoints =
-          getManualTtsTrunkPoints(measurement) ?? measurement.points;
+          resolvedTts?.layout === 'manual'
+            ? [...resolvedTts.trunkPoints]
+            : measurement.points;
       }
     }
   } else if (

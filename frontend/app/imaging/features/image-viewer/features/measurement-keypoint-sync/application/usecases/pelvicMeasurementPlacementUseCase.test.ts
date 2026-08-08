@@ -30,7 +30,9 @@ describe('pelvic measurement placement', () => {
       ],
       measurements: [
         {
+          id: 'pi-bilateral',
           type: 'PI',
+          value: '20.00°',
           points: [
             { x: 10, y: 20 },
             { x: 25, y: 20 },
@@ -52,8 +54,12 @@ describe('pelvic measurement placement', () => {
     ]);
     expect(inherited.get(5)).toEqual({ x: 25, y: 20 });
     expect(inherited.get(7)).toEqual({ x: 70, y: 20 });
-    expect(getNextPelvicPlacementPointIndex('tpa', 'bilateral', inherited, 0)).toBe(0);
-    expect(getNextPelvicPlacementPointIndex('tpa', 'bilateral', inherited, 3)).toBe(3);
+    expect(
+      getNextPelvicPlacementPointIndex('tpa', 'bilateral', inherited, 0)
+    ).toBe(0);
+    expect(
+      getNextPelvicPlacementPointIndex('tpa', 'bilateral', inherited, 3)
+    ).toBe(3);
   });
 
   it('requests the full ten-point contract for bilateral TPA without dependencies', () => {
@@ -65,7 +71,11 @@ describe('pelvic measurement placement', () => {
     });
 
     expect(inherited.size).toBe(0);
-    expect(getNextPelvicPlacementPointIndex('tpa', 'bilateral', inherited, 9)).toBe(9);
-    expect(getNextPelvicPlacementPointIndex('tpa', 'bilateral', inherited, 10)).toBeNull();
+    expect(
+      getNextPelvicPlacementPointIndex('tpa', 'bilateral', inherited, 9)
+    ).toBe(9);
+    expect(
+      getNextPelvicPlacementPointIndex('tpa', 'bilateral', inherited, 10)
+    ).toBeNull();
   });
 });
