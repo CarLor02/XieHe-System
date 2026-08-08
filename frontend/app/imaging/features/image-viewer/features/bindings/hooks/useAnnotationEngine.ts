@@ -40,7 +40,13 @@ export function useAnnotationEngine({
     useState<PointRef[]>([]);
 
   const measurementStructureKey = useMemo(
-    () => measurements.map(measurement => `${measurement.id}:${measurement.type}`).join('|'),
+    () =>
+      measurements
+        .map(
+          measurement =>
+            `${measurement.id}:${measurement.type}:${measurement.pelvicMetadata?.femoralHeadMode ?? 'legacy'}`
+        )
+        .join('|'),
     [measurements]
   );
 

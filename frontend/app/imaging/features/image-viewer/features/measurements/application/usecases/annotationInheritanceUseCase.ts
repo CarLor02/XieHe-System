@@ -8,9 +8,13 @@ import {
   getAnnotationDisplayName,
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+  Point,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import {
   AnnotationBindings,
+  getS1BindingPointMap,
   PointSyncGroup,
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 
@@ -98,6 +102,11 @@ export const POINT_INHERITANCE_RULES: Record<
 export interface SharedAnatomicalPoint {
   /** 解剖结构名称，用于生成绑定组名 */
   name: string;
+  /**
+   * 动态点位语义。PI/PT 的历史单 FH 与新双 FH 使用不同 points[] 槽位，
+   * 不能只依赖 participant.pointIndex 的旧三点默认值。
+   */
+  role?: 's1-left' | 's1-right' | 'effective-cfh';
   /** 绑定组颜色 */
   color: string;
   /** 共享该解剖点的所有工具参与项 */
@@ -114,9 +123,9 @@ export interface SharedAnatomicalPoint {
  * 侧位共享解剖点组
  * - L1上缘左端点:  LL L1-L4[0] / LL L1-S1[0]
  * - L1上缘右端点:  LL L1-L4[1] / LL L1-S1[1]
- * - S1上缘左端点:  LL L1-S1[2] / LL L4-S1[2] / TPA[5] / PI[1] / PT[1] / SS[0]
- * - S1上缘右端点:  LL L1-S1[3] / LL L4-S1[3] / TPA[6] / PI[2] / PT[2] / SS[1] / SVA[4]
- * - T1椎体中心:    TPA[4] / PI[0] / PT[0]
+ * - S1上缘左端点:  LL L1-S1[2] / LL L4-S1[2] / TPA[5] / PI/PT动态槽位 / SS[0]
+ * - S1上缘右端点:  LL L1-S1[3] / LL L4-S1[3] / TPA[6] / PI/PT动态槽位 / SS[1] / SVA[4]
+ * - effectiveCFH:   TPA[4] / 单FH PI[0] / 单FH PT[0]
  *
  * 注：SVA[4] 是骶椎后缘参考点，与 S1上缘右端点（后缘/患者后方）重合，纳入同步组后
  * 拖动 SS/PI/PT 的对应点时 SVA 的骶椎参考点会自动跟随。
@@ -140,6 +149,7 @@ export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
   },
   {
     name: 'S1上缘-左端点',
+    role: 's1-left',
     color: '#f59e0b',
     participants: [
       { toolId: 'll-l1-s1', typeName: 'll-l1-s1', pointIndex: 2 },
@@ -152,6 +162,7 @@ export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
   },
   {
     name: 'S1上缘-右端点',
+    role: 's1-right',
     color: '#f59e0b',
     participants: [
       { toolId: 'll-l1-s1', typeName: 'll-l1-s1', pointIndex: 3 },
@@ -166,6 +177,7 @@ export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
   },
   {
     name: 'S1中心和股骨中心',
+    role: 'effective-cfh',
     color: '#a855f7',
     participants: [
       { toolId: 'tpa', typeName: 'tpa', pointIndex: 4 },
@@ -174,6 +186,43 @@ export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
     ],
   },
 ];
+
+type InheritableMeasurement = Pick<
+  MeasurementData,
+  'id' | 'type' | 'points' | 'pelvicMetadata'
+>;
+
+/**
+ * 将共享解剖点语义解析为某条测量项内的真实槽位。
+ *
+ * 历史 PI/PT 没有 pelvicMetadata，继续按 [CFH,S1-1,S1-2] 的 0/1/2
+ * 槽位兼容；双 FH PI/PT 则必须把 S1 解析到 4/5。双 FH 的 effectiveCFH
+ * 是 FH-1/FH-2 两圆心的派生中点，不对应任何一个可直接绑定的 points[] 槽位，
+ * 因此这里返回 null，由关键点双向同步流程负责更新。
+ */
+function resolveSharedParticipantPointIndex(
+  group: SharedAnatomicalPoint,
+  participant: SharedAnatomicalPoint['participants'][number],
+  measurement: InheritableMeasurement
+): number | null {
+  if (group.role === 's1-left' || group.role === 's1-right') {
+    const s1Slots = getS1BindingPointMap(measurement);
+    if (s1Slots) {
+      return group.role === 's1-left' ? s1Slots.left : s1Slots.right;
+    }
+  }
+
+  if (
+    group.role === 'effective-cfh' &&
+    (getAnnotationTypeId(measurement.type) === 'pi' ||
+      getAnnotationTypeId(measurement.type) === 'pt') &&
+    measurement.pelvicMetadata?.femoralHeadMode === 'bilateral'
+  ) {
+    return null;
+  }
+
+  return participant.pointIndex;
+}
 
 /**
  * 从已有标注中获取某工具可继承的点位。
@@ -185,7 +234,7 @@ export const SHARED_ANATOMICAL_POINT_GROUPS: SharedAnatomicalPoint[] = [
  */
 export function getInheritedPoints(
   toolId: string,
-  measurements: { type: string; points: Point[] }[]
+  measurements: InheritableMeasurement[]
 ): { points: Point[]; count: number } {
   const inherited = getInheritedPointMap(toolId, measurements);
   const sorted = Array.from(inherited.entries()).sort(
@@ -196,7 +245,7 @@ export function getInheritedPoints(
 
 export function getInheritedPointMap(
   toolId: string,
-  measurements: { type: string; points: Point[] }[]
+  measurements: InheritableMeasurement[]
 ): Map<number, Point> {
   const inherited = new Map<number, Point>();
 
@@ -225,8 +274,15 @@ export function getInheritedPointMap(
       const source = measurements.find(
         measurement => getAnnotationTypeId(measurement.type) === participant.typeName
       );
-      if (source && participant.pointIndex < source.points.length) {
-        inherited.set(mine.pointIndex, source.points[participant.pointIndex]);
+      const sourcePointIndex = source
+        ? resolveSharedParticipantPointIndex(group, participant, source)
+        : null;
+      if (
+        source &&
+        sourcePointIndex !== null &&
+        sourcePointIndex < source.points.length
+      ) {
+        inherited.set(mine.pointIndex, source.points[sourcePointIndex]);
         break;
       }
     }
@@ -242,7 +298,7 @@ export function getInheritedPointMap(
  *   2. SHARED_ANATOMICAL_POINT_GROUPS — 对称（N:N）共享解剖点
  */
 export function autoCreateInheritanceBindings(
-  measurements: { id: string; type: string; points: Point[] }[],
+  measurements: InheritableMeasurement[],
   existingBindings: AnnotationBindings = { syncGroups: [] }
 ): AnnotationBindings {
   const groups: PointSyncGroup[] = existingBindings.syncGroups.map(group => ({
@@ -358,8 +414,15 @@ export function autoCreateInheritanceBindings(
       const measurement = measurements.find(
         item => getAnnotationTypeId(item.type) === participant.typeName
       );
-      if (measurement && participant.pointIndex < measurement.points.length) {
-        present.push({ mId: measurement.id, ptIdx: participant.pointIndex });
+      const pointIndex = measurement
+        ? resolveSharedParticipantPointIndex(group, participant, measurement)
+        : null;
+      if (
+        measurement &&
+        pointIndex !== null &&
+        pointIndex < measurement.points.length
+      ) {
+        present.push({ mId: measurement.id, ptIdx: pointIndex });
       }
     }
     if (present.length < 2) continue;
