@@ -40,7 +40,7 @@
 # 实时查看所有服务日志（同时显示两个日志） ./manage_ai.sh logs
 # 查看帮助 ./manage_ai.sh help
 #修改IP
-# 运行脚本，会提示输入新 IP./change_ip.sh
+# 服务器 IP 变更后，运行：./deploy_pc.sh --update-ip
 ################################################################################
 
 set -euo pipefail

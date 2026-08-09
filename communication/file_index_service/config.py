@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # ── 扫描目录 ───────────────────────────────────────────────
     WATCH_PATH: str = "/data/dicom"
 
+    # 允许扫描的图像扩展名（逗号分隔），为空表示不限
+    ALLOWED_EXTENSIONS: str = ".png"
+
     # 扫描时跳过的扩展名（逗号分隔）：非图像辅助文件
     SKIP_EXTENSIONS: str = ".sml,.db,.log,.txt,.json,.xml,.csv"
 
@@ -45,6 +48,11 @@ class Settings(BaseSettings):
     def skip_extensions(self) -> set:
         """返回需要跳过的扩展名集合（小写，含点）"""
         return {e.strip().lower() for e in self.SKIP_EXTENSIONS.split(",") if e.strip()}
+
+    @property
+    def allowed_extensions(self) -> set:
+        """返回允许扫描的扩展名集合（小写，含点）；为空表示不限"""
+        return {e.strip().lower() for e in self.ALLOWED_EXTENSIONS.split(",") if e.strip()}
 
 
 settings = Settings()
