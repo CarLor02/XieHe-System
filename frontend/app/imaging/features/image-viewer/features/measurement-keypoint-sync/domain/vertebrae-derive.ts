@@ -21,7 +21,7 @@ import {
   keypointsToDerivedLayer,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+import { createHemipelvicWidthRatioPoints } from '@xiehe/imaging-core/measurements/ap';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('app.imaging.features.image.viewer.features.measurement.keypoint.sync.domain.vertebrae.derive');

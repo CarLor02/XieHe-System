@@ -4,7 +4,7 @@ import {
   type ResolvedAvtMeasurement,
   TTS_MEASUREMENT_RESOLVER,
   type ResolvedTtsMeasurement,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap';
+} from '@xiehe/imaging-core/measurements/ap';
 import {
   LATERAL_COBB_RESOLVERS,
   PELVIC_MEASUREMENT_RESOLVER,

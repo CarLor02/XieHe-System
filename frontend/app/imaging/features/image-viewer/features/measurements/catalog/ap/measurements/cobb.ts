@@ -3,7 +3,7 @@ import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measu
 import {
   calculateApCobbResults,
   isApCobbInRange,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/cobb';
+} from '@xiehe/imaging-core/measurements/ap';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const COBB_CONFIG: AnnotationConfig = {

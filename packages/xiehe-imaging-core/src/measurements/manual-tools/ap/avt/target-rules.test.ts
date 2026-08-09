@@ -1,4 +1,4 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 import {
   AVT_DISC_TARGETS,
   AVT_VERTEBRA_TARGETS,

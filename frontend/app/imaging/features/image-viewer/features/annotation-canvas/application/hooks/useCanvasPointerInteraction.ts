@@ -15,7 +15,7 @@ import {
   HoverState,
   SelectionState,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
-import { resolveTtsMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import { resolveTtsMeasurement } from '@xiehe/imaging-core/measurements/ap';
 import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
 import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 

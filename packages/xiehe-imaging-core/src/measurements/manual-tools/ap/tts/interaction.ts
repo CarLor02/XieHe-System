@@ -1,14 +1,9 @@
 import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 const DERIVED_TTS_MEASUREMENT_ID = 'ap-keypoint-tts';
 
-export function isManualTtsMeasurement(
-  measurement: MeasurementData
-): boolean {
+export function isManualTtsMeasurement(measurement: MeasurementData): boolean {
   return (
     getAnnotationTypeId(measurement.type) === 'tts' &&
     measurement.points.length >= 2 &&

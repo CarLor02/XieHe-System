@@ -1,4 +1,7 @@
-import type { CalculationContext, MeasurementResult } from '@xiehe/imaging-core/measurements';
+import type {
+  CalculationContext,
+  MeasurementResult,
+} from '@xiehe/imaging-core/measurements';
 import { calculateActualDistance } from '@xiehe/imaging-core/measurements';
 import type { Point } from '@xiehe/imaging-core/contracts';
 

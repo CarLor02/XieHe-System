@@ -1,7 +1,4 @@
-import type {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import {
   getAvtTargetKey,
   getAvtTargetLabel,

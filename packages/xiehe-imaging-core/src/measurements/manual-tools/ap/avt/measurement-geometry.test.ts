@@ -1,4 +1,4 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 import { resolveAvtDefinition } from './measurement-geometry';
 
 it('keeps historical two-point and six-point AVT layouts explicit', () => {

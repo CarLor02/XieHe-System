@@ -1,4 +1,4 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 import { createAvtMetadata } from './target-rules';
 import { getAvtGeometry } from './measurement-geometry';
 import { calculateAvtValue } from './calculation';

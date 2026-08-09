@@ -7,7 +7,7 @@ import {
 } from '@xiehe/imaging-core/contracts';
 import {
   getAvtTargetLabel,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+} from '@xiehe/imaging-core/measurements/ap';
 import {
   getPelvicToolPointCount,
   getPelvicToolPointLabels,

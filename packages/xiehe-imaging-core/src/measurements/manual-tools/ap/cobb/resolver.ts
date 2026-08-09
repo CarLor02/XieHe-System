@@ -5,10 +5,7 @@ import {
   normalizeCobbVertebra,
 } from '@xiehe/imaging-core/measurements';
 import type { CobbResolver } from '@xiehe/imaging-core/measurements';
-import {
-  invalid,
-  resolved,
-} from '@xiehe/imaging-core/measurements';
+import { invalid, resolved } from '@xiehe/imaging-core/measurements';
 import { isApProjectionExamType } from '@xiehe/imaging-core/anatomy';
 
 const AP_COBB_TYPE_PATTERN =

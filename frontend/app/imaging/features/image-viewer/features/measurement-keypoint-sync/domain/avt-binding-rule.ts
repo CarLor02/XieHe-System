@@ -6,7 +6,7 @@ import {
   getAvtRequiredKeypointIds,
   getAvtTargetPointCount,
   isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+} from '@xiehe/imaging-core/measurements/ap';
 import type {
   MeasurementData,
   Point,

@@ -59,7 +59,7 @@ import {
   AVT_VERTEBRA_TARGETS,
   getAvtTargetLabel,
   isSameAvtTarget,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+} from '@xiehe/imaging-core/measurements/ap';
 import type {
   FemoralHeadMode,
   PelvicToolId,

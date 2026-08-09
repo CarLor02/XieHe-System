@@ -24,7 +24,7 @@ import {
   SelectionState,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
-import { resolveAvtDefinition } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import { resolveAvtDefinition } from '@xiehe/imaging-core/measurements/ap';
 
 type ResultsTab = 'measurements' | 'keypoints';
 

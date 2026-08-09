@@ -37,7 +37,7 @@ import {
 } from '@xiehe/imaging-core/contracts';
 import {
   createAvtPlacementSession,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+} from '@xiehe/imaging-core/measurements/ap';
 import { DERIVED_ID_PREFIX } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/vertebrae-derive';
 import {
   areKeypointsEqual,

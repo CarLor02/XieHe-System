@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { expect, it } from '@jest/globals';
 
 import { renderHemipelvicWidthRatio } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/renderHemipelvicWidthRatio';
-import { createHemipelvicWidthRatioPoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+import { createHemipelvicWidthRatioPoints } from '@xiehe/imaging-core/measurements/ap';
 
 it('renders sorted anatomical labels and calibrated dL/dR values', () => {
   const points = createHemipelvicWidthRatioPoints([

@@ -4,7 +4,7 @@ import {
 } from '@xiehe/imaging-core/contracts';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { resolveTtsMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import { resolveTtsMeasurement } from '@xiehe/imaging-core/measurements/ap';
 import {
   circleGeometryFromPoints,
   getCircleBounds,

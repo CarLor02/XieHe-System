@@ -16,7 +16,7 @@ import {
   createHemipelvicWidthRatioPoints,
   getHemipelvicVerticalLines,
   sortHemipelvicVerticalLines,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+} from '@xiehe/imaging-core/measurements/ap';
 import {
   AnnotationSource,
   MeasurementData,

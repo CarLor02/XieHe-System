@@ -2,7 +2,7 @@ import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/featu
 import {
   calculateLldResults,
   isLldInRange,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/lld';
+} from '@xiehe/imaging-core/measurements/ap';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const LLD_CONFIG: AnnotationConfig = {

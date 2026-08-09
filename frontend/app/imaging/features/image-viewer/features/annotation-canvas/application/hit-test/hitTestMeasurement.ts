@@ -19,7 +19,7 @@ import { hitTestMeasurementPoint } from '@/app/imaging/features/image-viewer/fea
 import {
   getHemipelvicVerticalLines,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+} from '@xiehe/imaging-core/measurements/ap';
 import { resolveVariableMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 import {
   getBilateralPelvicGeometryForMeasurement,

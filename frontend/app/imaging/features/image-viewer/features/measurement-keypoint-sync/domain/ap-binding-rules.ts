@@ -4,7 +4,7 @@ import {
   HEMIPELVIC_WIDTH_RATIO_ANCHOR_COUNT,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
   sortHemipelvicVerticalLines,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+} from '@xiehe/imaging-core/measurements/ap';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 import type { MeasurementKeypointBindingRule } from './binding-rule-types';

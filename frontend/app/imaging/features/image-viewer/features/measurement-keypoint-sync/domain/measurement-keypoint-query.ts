@@ -5,7 +5,7 @@ import {
 import {
   isAvtMetadata,
   isSameAvtTarget,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+} from '@xiehe/imaging-core/measurements/ap';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 import { DERIVED_ID_PREFIX } from './vertebrae-derive';

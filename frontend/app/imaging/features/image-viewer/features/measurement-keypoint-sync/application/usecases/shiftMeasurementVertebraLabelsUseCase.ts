@@ -2,7 +2,7 @@ import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 import {
   createAvtMetadata,
   isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+} from '@xiehe/imaging-core/measurements/ap';
 
 /**
  * 将关键点椎体偏移结果同步到测量项端椎和 AVT metadata。

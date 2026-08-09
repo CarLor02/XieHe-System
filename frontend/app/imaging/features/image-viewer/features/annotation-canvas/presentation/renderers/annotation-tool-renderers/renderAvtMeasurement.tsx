@@ -6,7 +6,7 @@ import type {
 import {
   getAvtGeometry,
   isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+} from '@xiehe/imaging-core/measurements/ap';
 
 interface RenderAvtMeasurementOptions {
   measurement: MeasurementData;

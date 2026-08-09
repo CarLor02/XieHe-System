@@ -9,8 +9,8 @@ import {
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import { calculateAvtValue } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
-import { calculateTtsResults } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
+import { calculateAvtValue } from '@xiehe/imaging-core/measurements/ap';
+import { calculateTtsResults } from '@xiehe/imaging-core/measurements/ap';
 import {
   resolveVariableMeasurement,
   type ResolvedVariableMeasurement,

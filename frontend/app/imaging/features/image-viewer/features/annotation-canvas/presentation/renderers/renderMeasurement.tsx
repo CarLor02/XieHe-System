@@ -27,7 +27,7 @@ import {
   shouldPreserveCanvasValue,
   shouldShowPointLabels,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import { getAvtLabelPosition } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import { getAvtLabelPosition } from '@xiehe/imaging-core/measurements/ap';
 import { renderAvtMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-interaction-policy';
 import { imageToScreen } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';

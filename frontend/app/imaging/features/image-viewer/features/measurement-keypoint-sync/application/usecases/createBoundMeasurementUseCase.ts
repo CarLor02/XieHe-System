@@ -13,7 +13,7 @@ import {
   getAvtMeasurementId,
   getAvtTargetLabel,
   isAvtMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+} from '@xiehe/imaging-core/measurements/ap';
 import { resolveCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 import { getNextCobbType } from '@xiehe/imaging-core/measurements';
 import {

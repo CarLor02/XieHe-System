@@ -3,7 +3,7 @@ import type { JSX } from 'react';
 import type { Point } from '@xiehe/imaging-core/contracts';
 import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/types';
 import { calculateActualDistance } from '@xiehe/imaging-core/measurements';
-import { calculateHemipelvicWidthRatioGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
+import { calculateHemipelvicWidthRatioGeometry } from '@xiehe/imaging-core/measurements/ap';
 
 function renderDistanceMarker(
   key: string,

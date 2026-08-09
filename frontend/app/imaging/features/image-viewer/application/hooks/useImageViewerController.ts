@@ -42,7 +42,7 @@ import type {
   AvtPlacementSession,
   AvtTarget,
 } from '@xiehe/imaging-core/contracts';
-import { createAvtPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import { createAvtPlacementSession } from '@xiehe/imaging-core/measurements/ap';
 import type {
   FemoralHeadMode,
   PelvicToolId,

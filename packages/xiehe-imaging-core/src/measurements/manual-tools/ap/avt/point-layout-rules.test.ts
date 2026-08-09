@@ -1,4 +1,4 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 import type { Point } from '@xiehe/imaging-core/contracts';
 import { createAvtMetadata } from './target-rules';
 import { buildAvtPoints, getAvtPointLayout } from './point-layout-rules';
