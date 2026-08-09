@@ -1,6 +1,6 @@
 import {ImageSize, MeasurementData, Point, VertebraAnnotation, CfhAnnotation} from '@xiehe/imaging-core/contracts';
-import {AnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
-import {migrateAnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding-migration";
+import {AnnotationBindings} from "@xiehe/imaging-core/bindings";
+import {migrateAnnotationBindings} from "@xiehe/imaging-core/bindings";
 import {RefObject, useEffect} from "react";
 import {
     getAnnotationTypeId,

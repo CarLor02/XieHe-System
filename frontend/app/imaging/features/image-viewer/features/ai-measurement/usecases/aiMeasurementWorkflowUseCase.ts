@@ -1,6 +1,6 @@
 import { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { getAiMeasurementsResponse } from '@/services/imageServices';
-import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 import {
   getAnnotationConfig,
   getAnnotationTypeId,

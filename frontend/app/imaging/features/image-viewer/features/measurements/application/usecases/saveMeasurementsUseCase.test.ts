@@ -6,7 +6,7 @@ import type {
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
 import type { saveImageAnnotation } from '@/services/imageServices';
-import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 
 jest.mock('@/services/imageServices', () => ({
   __esModule: true,

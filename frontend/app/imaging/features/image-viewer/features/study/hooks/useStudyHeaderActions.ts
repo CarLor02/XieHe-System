@@ -15,7 +15,7 @@ import {
 import {
   ImageData,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { AnnotationBindings } from '@xiehe/imaging-core/bindings';
 import { saveMeasurements } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/saveMeasurementsUseCase';
 import { runAiMeasurementWorkflow } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
 import { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';

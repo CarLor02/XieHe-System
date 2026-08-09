@@ -9,7 +9,7 @@ import {
   getSyncGroupsForPoint,
   ManualPointRef,
   validateAnnotationBindings,
-} from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+} from '@xiehe/imaging-core/bindings';
 import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 /** 用户手动点位绑定的状态与交互编排。 */

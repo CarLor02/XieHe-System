@@ -4,8 +4,8 @@ import {getImageFile} from "@/services/imageServices/imageFileService"
 import {
     AnnotationBindings,
     createEmptyBindings,
-} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
-import {migrateAnnotationBindings} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding-migration";
+} from "@xiehe/imaging-core/bindings";
+import {migrateAnnotationBindings} from "@xiehe/imaging-core/bindings";
 import {StudyData} from "@/app/imaging/features/image-viewer/shared/types";
 import {getAnnotationTypeId} from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config";
 import { createLogger } from '@/lib/logger';

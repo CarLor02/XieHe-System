@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { AnnotationBindings } from '@xiehe/imaging-core/bindings';
 import {
   getEditableAuxiliaryAnnotationLabel,
   isEditableAuxiliaryAnnotationType,

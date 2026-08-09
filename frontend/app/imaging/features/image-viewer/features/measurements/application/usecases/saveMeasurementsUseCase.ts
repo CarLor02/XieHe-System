@@ -2,7 +2,7 @@ import {MeasurementData, Point, ImageSize, VertebraAnnotation, CfhAnnotation} fr
 import {
     AnnotationBindings,
     validateAnnotationBindings,
-} from "@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding";
+} from "@xiehe/imaging-core/bindings";
 import { saveImageAnnotation } from '@/services/imageServices';
 import {saveLocalAnnotationBackup} from './localAnnotationStorage';
 import { createLogger } from '@/lib/logger';

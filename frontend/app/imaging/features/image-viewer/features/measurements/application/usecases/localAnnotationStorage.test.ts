@@ -4,7 +4,7 @@ import {
   LOCAL_ANNOTATION_CACHE_INDEX_KEY,
   saveLocalAnnotationBackup,
 } from './localAnnotationStorage';
-import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 
 afterEach(() => {
   localStorage.clear();

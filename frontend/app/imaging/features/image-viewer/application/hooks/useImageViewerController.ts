@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings';
 import { useAnnotationEngine } from '@/app/imaging/features/image-viewer/features/bindings';
 import { useCanvasInteraction } from '@/app/imaging/features/image-viewer/features/annotation-canvas';
 import { getToolsForExamType as getTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/exam-tool-catalog';
@@ -18,7 +17,10 @@ import {
   useStudyHeaderActions,
 } from '@/app/imaging/features/image-viewer/features/study';
 import { useReportActions } from '@/app/imaging/features/image-viewer/features/report';
-import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import {
+  createEmptyBindings,
+  type AnnotationBindings,
+} from '@xiehe/imaging-core/bindings';
 import { useAnnotationHistory } from '@/app/imaging/features/image-viewer/application/hooks/useAnnotationHistory';
 import {
   isKeypointSupportedExamType,

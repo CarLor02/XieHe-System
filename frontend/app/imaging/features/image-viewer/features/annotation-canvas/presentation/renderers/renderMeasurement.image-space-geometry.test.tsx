@@ -1,7 +1,7 @@
 import { isValidElement, ReactNode } from 'react';
 import { expect, it } from '@jest/globals';
 
-import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 import {
   imageToScreen,
   screenToImage,

@@ -4,7 +4,7 @@ import type { MeasurementData } from '@/app/imaging/features/image-viewer/public
 import { renderMeasurement } from '@/app/imaging/features/image-viewer/public';
 import type { AnnotatedImageExportFormat } from '../domain';
 import { createLogger } from '@/lib/logger';
-import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 
 const logger = createLogger('app.imaging.features.batch.export.usecases.create.annotated.image.export');
 

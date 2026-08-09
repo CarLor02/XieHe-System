@@ -1,6 +1,6 @@
 'use client';
 
-import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { AnnotationBindings } from '@xiehe/imaging-core/bindings';
 import { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 interface BindingPanelProps {

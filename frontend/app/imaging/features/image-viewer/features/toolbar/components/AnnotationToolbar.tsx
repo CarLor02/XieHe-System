@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import BindingPanel from '@/app/imaging/features/image-viewer/features/bindings/components/BindingPanel';
 import ReportPanel from '@/app/imaging/features/image-viewer/features/report/components/ReportPanel';
-import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { AnnotationBindings } from '@xiehe/imaging-core/bindings';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { isAuxiliaryTool } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
 import { isUniqueAnnotationTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';

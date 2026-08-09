@@ -1,7 +1,7 @@
 import type {
   AnnotationBindings,
   PointRef,
-} from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+} from '@xiehe/imaging-core/bindings';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import type {
   AvtPlacementSession,

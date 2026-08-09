@@ -1,4 +1,4 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '../measurements';
 
 export const ANNOTATION_BINDING_SCHEMA_VERSION = 2 as const;
 

@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./contracts": "./src/contracts/index.ts",
     "./anatomy": "./src/anatomy/index.ts",
+    "./bindings": "./src/bindings/index.ts",
     "./geometry": "./src/geometry/index.ts",
     "./measurements": "./src/measurements/index.ts",
     "./measurements/ap": "./src/measurements/manual-tools/ap/index.ts",

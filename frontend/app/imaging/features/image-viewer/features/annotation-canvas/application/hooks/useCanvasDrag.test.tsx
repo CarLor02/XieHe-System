@@ -6,7 +6,7 @@ import { useCanvasDrag } from '@/app/imaging/features/image-viewer/features/anno
 import { MeasurementData } from '@xiehe/imaging-core/contracts';
 import { SelectionState } from '@xiehe/imaging-core/canvas';
 import { createHemipelvicWidthRatioPoints } from '@xiehe/imaging-core/measurements/ap';
-import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 
 type CanvasDragHook = ReturnType<typeof useCanvasDrag>;
 

@@ -10,7 +10,7 @@ import type {
   HoverState,
   SelectionState,
 } from '@xiehe/imaging-core/canvas';
-import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 import type {
   MeasurementData,
   Point,

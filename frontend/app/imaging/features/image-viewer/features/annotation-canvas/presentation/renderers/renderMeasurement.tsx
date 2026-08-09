@@ -4,7 +4,7 @@ import {
   getSyncGroupsForPoint,
   AnnotationBindings,
   PointRef,
-} from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
+} from '@xiehe/imaging-core/bindings';
 import {
   getAnnotationDisplayName,
   getAnnotationTypeId,

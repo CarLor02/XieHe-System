@@ -1,6 +1,6 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import type { MeasurementData } from '../contracts';
 
 import {
   ANNOTATION_BINDING_SCHEMA_VERSION,
