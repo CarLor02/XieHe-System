@@ -1,8 +1,8 @@
 import type {
   CalculationContext,
   MeasurementResult,
-} from '@xiehe/imaging-core/measurements';
-import { calculateActualDistance } from '@xiehe/imaging-core/measurements';
+} from '../../../shared-rules';
+import { calculateActualDistance } from '../../../shared-rules';
 import {
   isPointNearLine,
   isPointNearPoint,

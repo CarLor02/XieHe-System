@@ -4,7 +4,7 @@ import {
   calculateTpaResults,
   getTpaGeometry,
   isTpaInRange,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/tpa';
+} from '@xiehe/imaging-core/measurements/lateral';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const TPA_CONFIG: AnnotationConfig = {

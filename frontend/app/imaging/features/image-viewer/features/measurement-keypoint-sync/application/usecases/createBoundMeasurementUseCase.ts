@@ -14,7 +14,7 @@ import {
   getAvtTargetLabel,
   isAvtMetadata,
 } from '@xiehe/imaging-core/measurements/ap';
-import { resolveCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
+import { resolveCobbEndpointPointIds } from '@xiehe/imaging-core/measurements';
 import { getNextCobbType } from '@xiehe/imaging-core/measurements';
 import {
   keypointsToDerivedLayer,

@@ -9,7 +9,7 @@ import {
   calculateCobbResults,
   isCobbInRange,
 } from '@xiehe/imaging-core/measurements';
-import { getPelvicMeasurementGeometry } from '../lateral/pelvic';
+import { getPelvicMeasurementGeometry } from '@xiehe/imaging-core/measurements/lateral';
 
 const calibratedContext = {
   standardDistance: 100,

@@ -1,6 +1,12 @@
-import type { CalculationContext, MeasurementResult } from '@xiehe/imaging-core/measurements';
-import { calculateActualDistance } from '@xiehe/imaging-core/measurements';
-import { isPointNearLine, isPointNearPoint } from '@xiehe/imaging-core/geometry';
+import type {
+  CalculationContext,
+  MeasurementResult,
+} from '../../../shared-rules';
+import { calculateActualDistance } from '../../../shared-rules';
+import {
+  isPointNearLine,
+  isPointNearPoint,
+} from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**

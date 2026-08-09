@@ -1,10 +1,10 @@
-import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
+import { getAnnotationTypeId } from '../../../shared-rules';
 import {
   invalid,
   resolved,
   type MeasurementResolver,
   type ResolvedVariableMeasurementBase,
-} from '@xiehe/imaging-core/measurements';
+} from '../../../shared-rules';
 import { isApProjectionExamType } from '@xiehe/imaging-core/anatomy';
 import type { Point } from '@xiehe/imaging-core/contracts';
 

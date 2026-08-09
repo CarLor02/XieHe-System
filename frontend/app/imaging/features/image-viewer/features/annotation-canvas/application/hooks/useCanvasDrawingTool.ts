@@ -12,12 +12,12 @@ import {
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
-import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
 import {
   getNextPelvicPlacementPointIndex,
   getPelvicPlacementInheritedPointMap,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
-import { getPelvicToolPointCount } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { getPelvicToolPointCount } from '@xiehe/imaging-core/measurements/lateral';
 import {
   DrawingState,
   ReferenceLines,

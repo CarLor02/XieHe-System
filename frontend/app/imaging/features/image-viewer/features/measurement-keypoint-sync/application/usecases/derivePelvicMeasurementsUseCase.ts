@@ -6,7 +6,7 @@ import {
   createPelvicMeasurementMetadata,
   resolvePelvicMeasurement,
   resolveEffectiveCfh,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/measurements/lateral';
 import type {
   MeasurementData,
   Point,

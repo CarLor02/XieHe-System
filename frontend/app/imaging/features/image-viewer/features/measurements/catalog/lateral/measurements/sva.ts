@@ -3,7 +3,7 @@ import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measu
 import {
   calculateSvaResults,
   isSvaInRange,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/sva';
+} from '@xiehe/imaging-core/measurements/lateral';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const SVA_CONFIG: AnnotationConfig = {

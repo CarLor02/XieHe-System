@@ -1,4 +1,4 @@
-import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
+import { getAnnotationTypeId } from '../../../shared-rules';
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 const DERIVED_TTS_MEASUREMENT_ID = 'ap-keypoint-tts';

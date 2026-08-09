@@ -7,8 +7,8 @@ import {
   projectSpecialRenderPoints,
   RENDER_SCREEN_LENGTHS,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/annotationToolRendererUtils';
-import { getTpaGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/tpa';
-import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { getTpaGeometry } from '@xiehe/imaging-core/measurements/lateral';
+import { getPelvicMeasurementGeometry } from '@xiehe/imaging-core/measurements/lateral';
 import { renderPelvicSharedGeometry } from './renderPelvicSharedGeometry';
 
 /**

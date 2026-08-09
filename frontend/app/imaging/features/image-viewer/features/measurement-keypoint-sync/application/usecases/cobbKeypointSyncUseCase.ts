@@ -5,7 +5,7 @@ import {
 } from '@xiehe/imaging-core/contracts';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { upsertKeypoint } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { resolveCobbMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
+import { resolveCobbMeasurement } from '@xiehe/imaging-core/measurements';
 
 function normalizeCobbEndpoint(value: string | null | undefined): string {
   return value?.trim().toUpperCase() ?? '';

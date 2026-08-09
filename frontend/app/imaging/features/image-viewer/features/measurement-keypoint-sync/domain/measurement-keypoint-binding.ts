@@ -16,7 +16,7 @@ import {
 import {
   resolveEffectiveCfh,
   resolvePelvicMeasurement,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/measurements/lateral';
 
 import {
   AP_MEASUREMENT_KEYPOINT_BINDING_RULES,

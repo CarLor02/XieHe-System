@@ -7,12 +7,8 @@ import {
 import type { CircleGeometry } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
-import type {
-  PelvicMeasurementMetadata,
-} from '@xiehe/imaging-core/contracts';
-import type {
-  PelvicMeasurementGeometry,
-} from './types';
+import type { PelvicMeasurementMetadata } from '@xiehe/imaging-core/contracts';
+import type { PelvicMeasurementGeometry } from './types';
 
 export const SINGLE_PELVIC_POINT_COUNT = 3;
 export const BILATERAL_PELVIC_POINT_COUNT = 6;

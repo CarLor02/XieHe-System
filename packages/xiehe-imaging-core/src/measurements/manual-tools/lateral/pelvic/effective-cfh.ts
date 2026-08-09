@@ -1,11 +1,7 @@
 import type { Point } from '@xiehe/imaging-core/contracts';
 
-import type {
-  FemoralHeadMode,
-} from '@xiehe/imaging-core/contracts';
-import type {
-  EffectiveCfhResolution,
-} from './types';
+import type { FemoralHeadMode } from '@xiehe/imaging-core/contracts';
+import type { EffectiveCfhResolution } from './types';
 
 export const SINGLE_FH_KEYPOINT_IDS = ['CFH'] as const;
 export const BILATERAL_FH_KEYPOINT_IDS = ['FH-1', 'FH-2'] as const;

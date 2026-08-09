@@ -12,7 +12,7 @@ import {
   getPelvicToolPointCount,
   getPelvicToolPointLabels,
   type PelvicPlacementSession,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/measurements/lateral';
 import {
   getManualMeasurementInheritedPoints,
   getNextManualMeasurementPointIndex,

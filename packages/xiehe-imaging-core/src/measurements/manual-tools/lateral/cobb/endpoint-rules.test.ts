@@ -1,10 +1,10 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
 import {
   getLateralNamedCobbMeasurementRuleByEndpoints,
   LATERAL_NAMED_COBB_MEASUREMENT_RULES,
 } from './endpoint-rules';
-import { resolveCobbEndpointPointIds } from '../../measurement-resolver';
+import { resolveLateralCobbEndpointPointIds } from './resolvers';
 
 it('defines named lateral Cobb measurements with their exact endpoint point ids', () => {
   expect(LATERAL_NAMED_COBB_MEASUREMENT_RULES).toEqual([
@@ -55,13 +55,13 @@ it('defines named lateral Cobb measurements with their exact endpoint point ids'
 
 it('uses named endpoint rules before the generic lateral Cobb rule', () => {
   expect(
-    resolveCobbEndpointPointIds(
+    resolveLateralCobbEndpointPointIds(
       { type: 'lateral-cobb1', upperVertebra: 'C2', lowerVertebra: 'C7' },
       { examType: '侧位X光片' }
     )
   ).toEqual(['C2-3', 'C2-4', 'C7-3', 'C7-4']);
   expect(
-    resolveCobbEndpointPointIds(
+    resolveLateralCobbEndpointPointIds(
       { type: 'lateral-cobb1', upperVertebra: 'T3', lowerVertebra: 'T8' },
       { examType: '侧位X光片' }
     )

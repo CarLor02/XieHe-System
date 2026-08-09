@@ -1,14 +1,11 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
-import type {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 import {
   resolveCobbEndpointPointIds,
   resolveVariableMeasurement,
-} from './measurement-resolver';
+} from './registry';
 
 const FOUR_POINTS: Point[] = [
   { x: 10, y: 10 },

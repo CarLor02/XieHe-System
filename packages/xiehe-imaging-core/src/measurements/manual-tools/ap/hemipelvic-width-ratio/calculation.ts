@@ -1,4 +1,4 @@
-import type { MeasurementResult } from '@xiehe/imaging-core/measurements';
+import type { MeasurementResult } from '../../../shared-rules';
 import type { Point } from '@xiehe/imaging-core/contracts';
 import { calculateHemipelvicWidthRatioGeometry } from './geometry';
 

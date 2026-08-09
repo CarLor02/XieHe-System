@@ -7,7 +7,7 @@ import {
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { HEMIPELVIC_WIDTH_RATIO_TOOL_ID } from '@xiehe/imaging-core/measurements/ap';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
-import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
 
 interface RenderPreviewProps {
   selectedTool: string;

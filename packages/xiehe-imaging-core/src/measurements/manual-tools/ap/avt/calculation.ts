@@ -1,7 +1,7 @@
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import type { MeasurementResult } from '@xiehe/imaging-core/measurements';
-import { calculateActualDistance } from '@xiehe/imaging-core/measurements';
+import type { CalculationContext } from '../../../shared-rules';
+import type { MeasurementResult } from '../../../shared-rules';
+import { calculateActualDistance } from '../../../shared-rules';
 import { getAvtGeometry } from './measurement-geometry';
 
 type AvtMeasurementLike = Pick<

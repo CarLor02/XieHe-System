@@ -20,11 +20,11 @@ import {
   getHemipelvicVerticalLines,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
 } from '@xiehe/imaging-core/measurements/ap';
-import { resolveVariableMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
+import { resolveVariableMeasurement } from '@xiehe/imaging-core/measurements';
 import {
   getBilateralPelvicGeometryForMeasurement,
   isBilateralPelvicMeasurement,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/measurements/lateral';
 import { getBilateralPelvicGeometryOwnerId } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
 
 export type HitResult =

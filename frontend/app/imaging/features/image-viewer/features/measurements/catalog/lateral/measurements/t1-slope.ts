@@ -2,7 +2,7 @@ import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/featu
 import {
   calculateT1SlopeResults,
   isT1SlopeInRange,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/t1-slope';
+} from '@xiehe/imaging-core/measurements/lateral';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const T1_SLOPE_CONFIG: AnnotationConfig = {

@@ -1,10 +1,10 @@
-import type { MeasurementResult } from '@xiehe/imaging-core/measurements';
+import type { MeasurementResult } from '../../../shared-rules';
 import {
   isPointNearLine,
   isPointNearPoint,
 } from '@xiehe/imaging-core/geometry';
-import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
-import type { PelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { getPelvicMeasurementGeometry } from '../pelvic';
+import type { PelvicMeasurementGeometry } from '../pelvic';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**

@@ -1,10 +1,10 @@
-import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
+import { getAnnotationTypeId } from '../../../shared-rules';
 import {
   invalid,
   resolved,
   type MeasurementResolver,
   type ResolvedVariableMeasurementBase,
-} from '@xiehe/imaging-core/measurements';
+} from '../../../shared-rules';
 import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
@@ -24,9 +24,7 @@ import type {
   FemoralHeadMode,
   PelvicToolId,
 } from '@xiehe/imaging-core/contracts';
-import type {
-  PelvicMeasurementGeometry,
-} from './types';
+import type { PelvicMeasurementGeometry } from './types';
 
 export interface ResolvedPelvicMeasurement extends ResolvedVariableMeasurementBase {
   kind: 'pelvic';

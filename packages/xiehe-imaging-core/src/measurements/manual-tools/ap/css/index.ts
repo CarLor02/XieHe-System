@@ -1,4 +1,4 @@
-import { calculateHorizontalAngleResults } from '@xiehe/imaging-core/measurements';
+import { calculateHorizontalAngleResults } from '../../../shared-rules';
 import { isTwoPointLineInRange } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 

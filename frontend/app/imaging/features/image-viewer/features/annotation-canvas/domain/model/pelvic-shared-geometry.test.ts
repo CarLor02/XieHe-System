@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { getBilateralPelvicGeometryOwnerId } from './pelvic-shared-geometry';
-import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { getBilateralPelvicGeometryForMeasurement } from '@xiehe/imaging-core/measurements/lateral';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 function bilateralMeasurement(

@@ -9,7 +9,7 @@ import {
   circleGeometryFromPoints,
   getCircleBounds,
 } from '@xiehe/imaging-core/geometry';
-import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import { getBilateralPelvicGeometryForMeasurement } from '@xiehe/imaging-core/measurements/lateral';
 
 interface SelectionOverlayLayerProps {
   selectionState: SelectionState;

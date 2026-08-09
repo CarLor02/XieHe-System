@@ -6,7 +6,7 @@ import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/fea
 import type {
   AvtPlacementSession,
 } from '@xiehe/imaging-core/contracts';
-import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
 import type {
   CfhAnnotation,
   MeasurementData,

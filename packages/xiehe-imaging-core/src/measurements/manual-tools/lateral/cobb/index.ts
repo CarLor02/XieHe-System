@@ -6,4 +6,4 @@ export * from './resolvers';
 export {
   calculateCobbResults as calculateLateralCobbResults,
   isCobbInRange as isLateralCobbInRange,
-} from '@xiehe/imaging-core/measurements';
+} from '../../../shared-rules';

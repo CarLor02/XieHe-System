@@ -4,24 +4,24 @@ import {
   type ResolvedAvtMeasurement,
   TTS_MEASUREMENT_RESOLVER,
   type ResolvedTtsMeasurement,
-} from '@xiehe/imaging-core/measurements/ap';
+} from '../manual-tools/ap';
 import {
   LATERAL_COBB_RESOLVERS,
   PELVIC_MEASUREMENT_RESOLVER,
   type ResolvedPelvicMeasurement,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral';
-import type { ResolvedCobbMeasurement } from '@xiehe/imaging-core/measurements';
+} from '../manual-tools/lateral';
 import type {
   CobbEndpointPointIds,
   CobbMeasurementDescriptor,
   CobbResolver,
-} from '@xiehe/imaging-core/measurements';
+  ResolvedCobbMeasurement,
+} from '../cobb';
 import type {
   MeasurementResolver,
   MeasurementResolverContext,
   VariableMeasurementResolution,
-} from '@xiehe/imaging-core/measurements';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+} from './types';
+import type { MeasurementData } from '../../contracts';
 
 export type ResolvedVariableMeasurement =
   | ResolvedCobbMeasurement

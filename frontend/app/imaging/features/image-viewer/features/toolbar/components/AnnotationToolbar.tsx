@@ -49,7 +49,7 @@ import {
   hasCobbMeasurementForEndpoints,
   isValidMeasurementDeriveEndpointOrder,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
-import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
+import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@xiehe/imaging-core/measurements/lateral';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
 import {
   type AvtTarget,

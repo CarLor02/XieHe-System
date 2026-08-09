@@ -49,8 +49,8 @@ import type {
 } from '@xiehe/imaging-core/contracts';
 import type {
   PelvicPlacementSession,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
-import { getPelvicToolPointCount } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/measurements/lateral';
+import { getPelvicToolPointCount } from '@xiehe/imaging-core/measurements/lateral';
 import {
   getPelvicPlacementInheritedPointMap,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';

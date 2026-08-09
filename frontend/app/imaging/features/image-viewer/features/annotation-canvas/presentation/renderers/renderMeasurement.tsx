@@ -46,12 +46,12 @@ import { circleRenderer } from '@/app/imaging/features/image-viewer/features/ann
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/shared/rendererUtils';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
 import { getBilateralPelvicGeometryOwnerId } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
-import { resolveVariableMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
+import { resolveVariableMeasurement } from '@xiehe/imaging-core/measurements';
 import {
   getPelvicPointDisplayLabel,
   getPelvicSharedPointLabelKey as getResolvedPelvicSharedPointLabelKey,
   shouldShowPelvicPointDisplayLabel,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/measurements/lateral';
 
 interface RenderMeasurementProps {
   measurement: MeasurementData;

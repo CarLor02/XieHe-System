@@ -1,18 +1,18 @@
-import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
+import { getAnnotationTypeId } from '../../../shared-rules';
 import {
   buildResolvedCobbMeasurement,
   normalizeCobbVertebra,
-} from '@xiehe/imaging-core/measurements';
+} from '../../../shared-rules';
 import type {
   CobbEndpointPointIds,
   CobbMeasurementDescriptor,
   CobbResolver,
-} from '@xiehe/imaging-core/measurements';
+} from '../../../shared-rules';
 import {
   invalid,
   resolved,
   type MeasurementResolverContext,
-} from '@xiehe/imaging-core/measurements';
+} from '../../../shared-rules';
 import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
 
 import {

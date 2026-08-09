@@ -1,5 +1,5 @@
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { resolveCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
+import { resolveCobbEndpointPointIds } from '@xiehe/imaging-core/measurements';
 import {
   isApProjectionExamType,
   isLateralExamType,

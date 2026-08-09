@@ -5,7 +5,7 @@ export * from '@/app/imaging/features/image-viewer/features/annotation-canvas/pr
 export {
   getPelvicMeasurementGeometry,
   type PelvicMeasurementGeometry,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/measurements/lateral';
 
 export const RENDER_SCREEN_LENGTHS = {
   t1TiltArcRadius: 30,

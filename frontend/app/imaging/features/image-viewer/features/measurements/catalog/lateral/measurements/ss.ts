@@ -3,7 +3,7 @@ import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measu
 import {
   calculateSsResults,
   isSsInRange,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/ss';
+} from '@xiehe/imaging-core/measurements/lateral';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const SS_CONFIG: AnnotationConfig = {

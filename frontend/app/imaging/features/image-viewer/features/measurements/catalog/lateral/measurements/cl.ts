@@ -2,7 +2,7 @@ import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/featu
 import {
   calculateLateralCobbResults,
   isLateralCobbInRange,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
+} from '@xiehe/imaging-core/measurements/lateral';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const CL_CONFIG: AnnotationConfig = {

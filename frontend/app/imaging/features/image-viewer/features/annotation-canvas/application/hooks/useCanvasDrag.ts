@@ -8,7 +8,7 @@ import {
   calculateMeasurementValue,
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { resolveVariableMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
+import { resolveVariableMeasurement } from '@xiehe/imaging-core/measurements';
 import {
   circleGeometryFromPoints,
   getCircleBounds,
@@ -38,12 +38,12 @@ import {
 import {
   getBilateralFemoralCenterPointIndices,
   moveBilateralPelvicEffectiveCfh,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/measurements/lateral';
 import {
   getBilateralPelvicPointsForMeasurement,
   isBilateralPelvicMeasurement,
   replaceBilateralPelvicPointsForMeasurement,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/measurements/lateral';
 
 interface UseCanvasDragOptions {
   examType?: string;

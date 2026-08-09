@@ -1,4 +1,4 @@
-import type { MeasurementResult } from '@xiehe/imaging-core/measurements';
+import type { MeasurementResult } from '../../../shared-rules';
 import { calculateAngleBetweenVectors } from '@xiehe/imaging-core/geometry';
 import {
   isPointNearLine,
@@ -7,8 +7,8 @@ import {
 import {
   extractBilateralPelvicPoints,
   getPelvicMeasurementGeometry,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
-import type { PelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '../pelvic';
+import type { PelvicMeasurementGeometry } from '../pelvic';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**

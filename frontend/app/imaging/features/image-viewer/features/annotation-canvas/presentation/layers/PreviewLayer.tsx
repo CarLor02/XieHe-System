@@ -16,7 +16,7 @@ import {
   createCircleGeometry,
   getCircleRadius,
 } from '@xiehe/imaging-core/geometry';
-import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
 
 interface PreviewLayerProps {
   selectedTool: string;

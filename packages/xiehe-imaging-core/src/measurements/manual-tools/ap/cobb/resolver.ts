@@ -1,11 +1,11 @@
-import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
+import { getAnnotationTypeId } from '../../../shared-rules';
 import {
   buildCobbEndpointPointIds,
   buildResolvedCobbMeasurement,
   normalizeCobbVertebra,
-} from '@xiehe/imaging-core/measurements';
-import type { CobbResolver } from '@xiehe/imaging-core/measurements';
-import { invalid, resolved } from '@xiehe/imaging-core/measurements';
+} from '../../../shared-rules';
+import type { CobbResolver } from '../../../shared-rules';
+import { invalid, resolved } from '../../../shared-rules';
 import { isApProjectionExamType } from '@xiehe/imaging-core/anatomy';
 
 const AP_COBB_TYPE_PATTERN =
