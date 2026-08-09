@@ -322,6 +322,10 @@ unused/
 backend/venv-demo/
 backend/venv/
 frontend/node_modules/
+mobile-expo/.expo/
+mobile-expo/dist/
+mobile-expo/android/
+mobile-expo/ios/
 
 # 构建输出
 frontend/.next/

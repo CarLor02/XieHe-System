@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['@xiehe/imaging-core'],
+
   // 使用静态导出模式 - 不需要Node.js运行时，更安全
   output: 'export',
   
@@ -10,10 +12,6 @@ const nextConfig = {
 
   typescript: {
     ignoreBuildErrors: true,
-  },
-
-  eslint: {
-    ignoreDuringBuilds: true,
   },
 
   // 禁用遥测

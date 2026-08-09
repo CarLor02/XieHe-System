@@ -177,9 +177,9 @@ curl http://localhost:8002/health
 ### 步骤四：启动前端
 
 ```bash
-cd XieHe-System/frontend
+cd XieHe-System
 npm install
-npm run dev
+npm run dev --workspace medical-imaging-frontend
 ```
 
 ### 访问地址
@@ -222,11 +222,11 @@ npm run dev
 ## 🧪 测试
 
 ```bash
-# 前端
-cd frontend
-npm run type-check
-npm run lint
-npm run test
+# 公共影像规则包与 Web 前端
+npm run verify:core
+npm run type-check:web
+npm run lint:web
+npm run test:web
 
 # 后端
 cd backend

@@ -1,0 +1,26 @@
+{
+  "name": "@xiehe/imaging-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts/index.ts",
+    "./anatomy": "./src/anatomy/index.ts",
+    "./measurements": "./src/measurements/index.ts",
+    "./keypoints": "./src/keypoints/index.ts",
+    "./measurement-keypoint-sync": "./src/measurement-keypoint-sync/index.ts",
+    "./canvas": "./src/canvas/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

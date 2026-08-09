@@ -1,0 +1,31 @@
+{
+  "name": "xiehe-system",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0",
+    "npm": ">=10.9.0"
+  },
+  "workspaces": [
+    "frontend",
+    "mobile-expo",
+    "packages/*"
+  ],
+  "scripts": {
+    "type-check:core": "npm run type-check --workspace @xiehe/imaging-core",
+    "test:core": "npm run test --workspace @xiehe/imaging-core",
+    "type-check:web": "npm run type-check --workspace medical-imaging-frontend",
+    "lint:web": "npm run lint --workspace medical-imaging-frontend",
+    "test:web": "npm run test --workspace medical-imaging-frontend -- --runInBand",
+    "build:web": "npm run build --workspace medical-imaging-frontend",
+    "type-check:mobile": "npm run type-check --workspace @xiehe/mobile-expo",
+    "export:mobile": "npm run export --workspace @xiehe/mobile-expo",
+    "verify:core": "npm run type-check:core && npm run test:core",
+    "verify:web": "npm run type-check:web && npm run test:web && npm run build:web"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  }
+}

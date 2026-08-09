@@ -7,7 +7,7 @@
 # ============================================
 # 阶段1: 构建阶段
 # ============================================
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -34,8 +34,12 @@ RUN --mount=type=cache,id=xiehe-frontend-builder-apk,target=/var/cache/apk,shari
     vips-dev \
     pkgconfig
 
-# 复制前端 package 文件；使用 frontend 自己的 lockfile 固定依赖版本
-COPY frontend/package.json frontend/package-lock.json ./frontend/
+# 根 lockfile 是 npm workspace 的唯一依赖事实源。只复制 workspace manifest，
+# 使依赖安装层在业务源码变化时仍可复用。
+COPY package.json package-lock.json .npmrc ./
+COPY frontend/package.json ./frontend/package.json
+COPY mobile-expo/package.json ./mobile-expo/package.json
+COPY packages/xiehe-imaging-core/package.json ./packages/xiehe-imaging-core/package.json
 
 # 配置 npm 使用国内镜像，并避免构建阶段访问额外下载/审计服务
 ENV CYPRESS_INSTALL_BINARY=0
@@ -52,19 +56,22 @@ ARG NPM_TIMING=false
 
 # 安装前端依赖（使用 --legacy-peer-deps 解决 React 19 兼容性问题）
 # --mount=type=cache 把 npm 缓存留在宿主机，重建时跳过已下载的包
-WORKDIR /app/frontend
 RUN --mount=type=cache,id=xiehe-frontend-npm,target=/root/.npm,sharing=locked \
     if [ "$NPM_FOREGROUND_SCRIPTS" = "true" ]; then \
       npm ci --legacy-peer-deps --no-audit --no-fund \
+        --workspace medical-imaging-frontend \
+        --workspace @xiehe/imaging-core \
         --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING" --foreground-scripts; \
     else \
       npm ci --legacy-peer-deps --no-audit --no-fund \
+        --workspace medical-imaging-frontend \
+        --workspace @xiehe/imaging-core \
         --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING"; \
     fi
-WORKDIR /app
 
 # 复制源代码
 COPY frontend/ ./frontend/
+COPY packages/xiehe-imaging-core/ ./packages/xiehe-imaging-core/
 
 # 设置环境变量
 ENV NEXT_TELEMETRY_DISABLED=1

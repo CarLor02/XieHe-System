@@ -94,20 +94,20 @@ frontend/
 
 ### 前置要求
 
-- **Node.js** 18+（`node -v` 检查）
-- **npm** 8+
+- **Node.js** 22.13+（`node -v` 检查）
+- **npm** 10.9+
 - 后端服务已在 http://localhost:8000 运行（见后端 README）
 
 ### 安装与启动
 
 ```bash
-cd XieHe-System/frontend
+cd XieHe-System
 
 # 安装依赖（首次或 package.json 变动后执行）
 npm install
 
 # 启动开发服务器
-npm run dev
+npm run dev --workspace medical-imaging-frontend
 ```
 
 访问 http://localhost:3000
@@ -146,32 +146,32 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 每次提交前应运行：
 
 ```bash
-cd XieHe-System/frontend
+cd XieHe-System
 
 # TypeScript 类型检查
-npm run type-check
+npm run type-check:web
 
 # ESLint 代码检查
-npm run lint
+npm run lint:web
 
 # 单元测试
-npm run test
+npm run test:web
 
 # 覆盖率报告
-npm run test:coverage
+npm run test:coverage --workspace medical-imaging-frontend
 ```
 
 涉及路由、Next.js 配置或大范围重构时还需执行：
 
 ```bash
-npm run build
+npm run build:web
 ```
 
 ## 🚀 生产部署
 
 ```bash
 # 构建生产镜像（内含 Nginx 静态服务）
-docker build -t xiehe-frontend:local XieHe-System/frontend/
+docker build -f XieHe-System/frontend/Dockerfile -t xiehe-frontend:local XieHe-System/
 
 docker run -d -p 3000:80 xiehe-frontend:local
 ```
@@ -195,7 +195,7 @@ npm run dev
 ### 依赖安装失败
 
 ```bash
-rm -rf node_modules package-lock.json
+rm -rf node_modules
 npm install
 ```
 

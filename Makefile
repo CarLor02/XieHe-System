@@ -36,7 +36,7 @@ help:
 # 🚀 开发环境管理
 setup:
 	@echo "🔧 初始化项目环境..."
-	@npm --prefix frontend install
+	@npm install
 	@cd backend && uv sync
 	@echo "✅ 环境初始化完成"
 
@@ -64,12 +64,13 @@ logs:
 # 🧪 测试相关
 test:
 	@echo "🧪 运行所有测试..."
-	@npm --prefix frontend test
+	@npm run test:core
+	@npm run test:web
 	@cd backend && uv run pytest
 
 test-frontend:
 	@echo "🧪 运行前端测试..."
-	@npm --prefix frontend test
+	@npm run test:web
 
 test-backend:
 	@echo "🧪 运行后端测试..."
@@ -77,24 +78,26 @@ test-backend:
 
 test-e2e:
 	@echo "🧪 运行端到端测试..."
-	@npm --prefix frontend run test:e2e
+	@npm run test:e2e --workspace medical-imaging-frontend
 
 # 🔧 代码质量
 format:
 	@echo "🎨 格式化代码..."
-	@npm --prefix frontend run format
+	@npm run format --workspace medical-imaging-frontend
 	@cd backend && uv run ruff check --fix .
 	@cd backend && uv run ruff format .
 
 lint:
 	@echo "🔍 代码检查..."
-	@npm --prefix frontend run lint
+	@npm run lint:web
 	@cd backend && uv run ruff check .
 	@cd backend && uv run ruff format --check .
 
 type-check:
 	@echo "🔍 类型检查..."
-	@npm --prefix frontend run type-check
+	@npm run type-check:core
+	@npm run type-check:web
+	@npm run type-check:mobile
 	@cd backend && uv run mypy
 
 # 🗄️ 数据管理
@@ -145,11 +148,11 @@ clean:
 # 🔧 开发工具
 dev:
 	@echo "🚀 启动开发环境..."
-	@npm --prefix frontend run dev
+	@npm run dev --workspace medical-imaging-frontend
 
 build:
 	@echo "🏗️ 构建项目..."
-	@npm --prefix frontend run build
+	@npm run build:web
 
 deploy:
 	@echo "🚀 部署项目..."
