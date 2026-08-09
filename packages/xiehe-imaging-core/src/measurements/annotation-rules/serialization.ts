@@ -1,4 +1,4 @@
-import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
+import type { MeasurementData, Point } from '../../contracts';
 
 export interface SerializedAnnotationPayload {
   imageId?: string;
@@ -40,4 +40,3 @@ export function serializeMeasurements(measurements: MeasurementData[]) {
     };
   });
 }
-

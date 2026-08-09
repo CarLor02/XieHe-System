@@ -1,10 +1,10 @@
-import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
-import {
-  MeasurementData,
-} from '@xiehe/imaging-core/contracts';
-import {
-  Tool,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '../../contracts';
+import { getAnnotationTypeId } from '../annotation-type-id';
+
+export interface AnnotationToolIdentity {
+  id: string;
+  name: string;
+}
 
 const UNIQUE_ANNOTATION_TOOL_IDS = new Set([
   // 正位标注：Cobb、椎体中心、AVT 和辅助图形允许多个实例。
@@ -42,7 +42,7 @@ export function isUniqueAnnotationTool(toolId: string): boolean {
 
 export function measurementMatchesTool(
   measurement: Pick<MeasurementData, 'type'>,
-  tool: Pick<Tool, 'id' | 'name'>
+  tool: AnnotationToolIdentity
 ): boolean {
   return (
     getCanonicalAnnotationId(measurement.type) ===
@@ -52,7 +52,7 @@ export function measurementMatchesTool(
 
 export function hasAnnotationForTool(
   measurements: Pick<MeasurementData, 'type'>[],
-  tool: Pick<Tool, 'id' | 'name'>
+  tool: AnnotationToolIdentity
 ): boolean {
   return measurements.some(measurement =>
     measurementMatchesTool(measurement, tool)
@@ -61,7 +61,7 @@ export function hasAnnotationForTool(
 
 export function hasUniqueAnnotationForTool(
   measurements: Pick<MeasurementData, 'type'>[],
-  tool: Pick<Tool, 'id' | 'name'>
+  tool: AnnotationToolIdentity
 ): boolean {
   return (
     isUniqueAnnotationTool(tool.id) && hasAnnotationForTool(measurements, tool)

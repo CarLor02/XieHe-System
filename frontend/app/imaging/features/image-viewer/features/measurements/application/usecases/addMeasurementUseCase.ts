@@ -17,7 +17,7 @@ import {getAnnotationTypeId} from "@/app/imaging/features/image-viewer/features/
 import {
     hasUniqueAnnotationForTool,
     measurementMatchesTool,
-} from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness";
+} from "@xiehe/imaging-core/measurements";
 import {getNextCobbType} from "@xiehe/imaging-core/measurements";
 import {Dispatch, SetStateAction} from "react";
 

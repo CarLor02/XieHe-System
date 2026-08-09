@@ -1,10 +1,10 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
 import {
   filterUniqueAnnotationDuplicates,
   isUniqueAnnotationTool,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+} from './uniqueness';
+import type { MeasurementData } from '../../contracts';
 
 it('treats AVT as globally non-unique', () => {
   const measurements: MeasurementData[] = [

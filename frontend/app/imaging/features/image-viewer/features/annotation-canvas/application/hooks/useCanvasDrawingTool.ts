@@ -3,7 +3,7 @@ import {
   getManualMeasurementInheritedPointMap,
   getNextManualMeasurementPointIndex,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
-import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
+import { hasUniqueAnnotationForTool } from '@xiehe/imaging-core/measurements';
 import {
   MeasurementData,
   Point,

@@ -1,4 +1,4 @@
-import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
+import { getAnnotationTypeId } from '../annotation-type-id';
 
 const DIRECTLY_EDITABLE_ANNOTATION_IDS = new Set([
   'circle',

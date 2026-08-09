@@ -7,7 +7,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getDescriptionForType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
+import { filterUniqueAnnotationDuplicates } from '@xiehe/imaging-core/measurements';
 import {
   CfhAnnotation,
   ImageSize,

@@ -35,7 +35,7 @@ import {
   keypointsToRenderLayer,
   renderCornerToKeypointId,
 } from '@xiehe/imaging-core/keypoints';
-import { isDirectlyEditableAnnotation } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
+import { isDirectlyEditableAnnotation } from '@xiehe/imaging-core/measurements';
 import { resolveMeasurementKeypointIds } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import type { AnnotationCanvasProps } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/annotation-canvas-props';
 import type { CanvasPointerInput } from '@xiehe/imaging-core/canvas';

@@ -1,7 +1,7 @@
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
+import { filterUniqueAnnotationDuplicates } from '@xiehe/imaging-core/measurements';
 import {
   getCobbSequenceNumber,
   getMaxCobbSequenceNumber,
