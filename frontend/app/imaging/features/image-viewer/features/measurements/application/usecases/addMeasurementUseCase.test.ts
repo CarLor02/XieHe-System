@@ -2,13 +2,8 @@ import { expect, it } from '@jest/globals';
 import type { Dispatch, SetStateAction } from 'react';
 
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/addMeasurementUseCase';
-import type {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
-import type {
-  Tool,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
+import type { Tool } from '@/app/imaging/features/image-viewer/shared/types';
 
 const imageNaturalSize = { width: 1000, height: 1000 };
 const cobbPoints: Point[] = [
@@ -45,7 +40,6 @@ it('adds manual Cobb measurements after the current maximum Cobb number', () => 
   addMeasurement(
     'cobb',
     cobbPoints,
-    initialMeasurements,
     setMeasurements,
     tools,
     null,
@@ -81,7 +75,6 @@ it('keeps lateral manual Cobb measurements non-unique and numbered', () => {
   addMeasurement(
     'lateral-cobb',
     cobbPoints,
-    measurements,
     setMeasurements,
     tools,
     null,
@@ -91,7 +84,6 @@ it('keeps lateral manual Cobb measurements non-unique and numbered', () => {
   addMeasurement(
     'lateral-cobb',
     cobbPoints,
-    measurements,
     setMeasurements,
     tools,
     null,
@@ -122,7 +114,6 @@ it('marks a newly added bound measurement as keypoint-synced', () => {
       { x: 300, y: 200 },
       { x: 200, y: 200 },
     ],
-    measurements,
     setMeasurements,
     [],
     null,
@@ -176,7 +167,6 @@ it('does not create another measurement when the new points satisfy it', () => {
       { x: 100, y: 220 },
       { x: 220, y: 210 },
     ],
-    measurements,
     setMeasurements,
     tools,
     null,

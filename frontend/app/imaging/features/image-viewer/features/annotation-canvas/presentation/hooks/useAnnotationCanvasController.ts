@@ -6,9 +6,7 @@ import {
   MeasurementData,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
-import {
-  KeypointSequenceSession,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import { KeypointSequenceSession } from '@/app/imaging/features/image-viewer/shared/types';
 import {
   imageToScreen as utilImageToScreen,
   screenToImage as utilScreenToImage,
@@ -28,7 +26,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useVertebradDrag';
 import { useCanvasDrawing } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useCanvasDrawing';
 import { useCanvasOverlayState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useCanvasOverlayState';
-import { buildCanvasDerivedState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/selectors/buildCanvasDerivedState';
+import { buildCanvasDerivedState } from '@xiehe/imaging-core/canvas';
 import renderMeasurement from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/renderMeasurement';
 import {
   keypointIdToRenderCornerRef,

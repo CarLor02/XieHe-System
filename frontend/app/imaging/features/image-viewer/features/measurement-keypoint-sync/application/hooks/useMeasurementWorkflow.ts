@@ -6,9 +6,7 @@ import {
   Point,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
-import {
-  Tool,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import { Tool } from '@/app/imaging/features/image-viewer/shared/types';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/addMeasurementUseCase';
 import {
@@ -22,12 +20,8 @@ import {
   getMeasurementKeypointBindingRuleForMeasurement,
   writeMeasurementToKeypoints,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
-import {
-  type FemoralHeadMode,
-} from '@xiehe/imaging-core/contracts';
-import {
-  createPelvicMeasurementMetadata,
-} from '@xiehe/imaging-core/measurements/lateral';
+import { type FemoralHeadMode } from '@xiehe/imaging-core/contracts';
+import { createPelvicMeasurementMetadata } from '@xiehe/imaging-core/measurements/lateral';
 import { applyMeasurementPointToVertebrae } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { deriveMissingFixedMeasurementsFromKeypoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { measurementValueCalculator } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
@@ -103,7 +97,6 @@ export function useMeasurementWorkflow({
       addMeasurement(
         toolType,
         normalizedPoints,
-        measurements,
         setMeasurements,
         tools,
         standardDistance,

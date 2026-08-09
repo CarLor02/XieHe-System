@@ -1,16 +1,17 @@
-import { getEffectiveManualMeasurementPointsNeeded } from '@xiehe/imaging-core/measurement-keypoint-sync';
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import {
-  MeasurementData,
-} from '@xiehe/imaging-core/contracts';
-import {
-  Tool,
-} from '@/app/imaging/features/image-viewer/shared/types';
-import { HoverState } from '@xiehe/imaging-core/canvas';
+import { getEffectiveManualMeasurementPointsNeeded } from '../../../measurement-keypoint-sync/application/manualMeasurementKeypointInheritanceUseCase';
+import type { KeypointAnnotation } from '../../../keypoints';
+import type { MeasurementData } from '../../../shared/domain/contracts';
+import type { HoverState } from '../../domain';
 
-interface BuildCanvasDerivedStateOptions {
+/** 画布派生状态只依赖工具的稳定交互字段，不依赖平台图标或展示文案。 */
+export interface CanvasToolDescriptor {
+  id: string;
+  pointsNeeded: number;
+}
+
+interface BuildCanvasDerivedStateOptions<TTool extends CanvasToolDescriptor> {
   selectedTool: string;
-  tools: Tool[];
+  tools: readonly TTool[];
   measurements: MeasurementData[];
   keypoints: KeypointAnnotation[];
   hideAllAnnotations: boolean;
@@ -22,7 +23,7 @@ interface BuildCanvasDerivedStateOptions {
  * 入口组件的轻量派生状态。
  * 这里只做 view model 拼装，不承载副作用。
  */
-export function buildCanvasDerivedState({
+export function buildCanvasDerivedState<TTool extends CanvasToolDescriptor>({
   selectedTool,
   tools,
   measurements,
@@ -30,7 +31,7 @@ export function buildCanvasDerivedState({
   hideAllAnnotations,
   hiddenAnnotationIds,
   hoverState,
-}: BuildCanvasDerivedStateOptions) {
+}: BuildCanvasDerivedStateOptions<TTool>) {
   const currentTool = tools.find(tool => tool.id === selectedTool) ?? null;
   const pointsNeeded = currentTool
     ? getEffectiveManualMeasurementPointsNeeded(
