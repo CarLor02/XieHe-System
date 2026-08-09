@@ -50,6 +50,7 @@ import { resolveVariableMeasurement } from '@/app/imaging/features/image-viewer/
 import {
   getPelvicPointDisplayLabel,
   getPelvicSharedPointLabelKey as getResolvedPelvicSharedPointLabelKey,
+  shouldShowPelvicPointDisplayLabel,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 interface RenderMeasurementProps {
@@ -703,6 +704,7 @@ export default function renderMeasurement({
             pointColor: displayColor,
             showPointLabel:
               shouldShowPointLabels(measurement.type) &&
+              shouldShowPelvicPointDisplayLabel(measurement, pointIndex) &&
               ownsSharedPointLabel(
                 measurement,
                 pointIndex,

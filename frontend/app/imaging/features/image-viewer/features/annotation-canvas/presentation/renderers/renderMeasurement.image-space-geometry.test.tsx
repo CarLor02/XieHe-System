@@ -257,6 +257,35 @@ it('renders Arrow auxiliary annotations with the name but without distance text'
   expect(texts.some(text => text.includes('mm'))).toBe(false);
 });
 
+it('does not duplicate bilateral FH center labels in the measurement layer', () => {
+  const measurement: MeasurementData = {
+    id: 'pi-bilateral',
+    type: 'PI',
+    value: '45.00\u00b0',
+    points: [
+      { x: 100, y: 100 },
+      { x: 120, y: 100 },
+      { x: 200, y: 100 },
+      { x: 220, y: 100 },
+      { x: 140, y: 300 },
+      { x: 180, y: 300 },
+    ],
+    pelvicMetadata: {
+      schemaVersion: 2,
+      femoralHeadMode: 'bilateral',
+    },
+  };
+
+  const texts = renderMeasurementTexts(measurement, desktopContainer);
+
+  expect(texts).not.toContain('FH-1');
+  expect(texts).not.toContain('FH-2');
+  expect(texts).toContain('R1');
+  expect(texts).toContain('R2');
+  expect(texts).toContain('S1-1');
+  expect(texts).toContain('S1-2');
+});
+
 function lineEndToImagePoint(
   line: LineProps,
   containerSize: { width: number; height: number },

@@ -79,7 +79,7 @@ it('keeps corner labels when vertebrae bounding boxes are hidden', () => {
   expect(rendered.container.querySelectorAll('circle')).toHaveLength(4);
 });
 
-it('renders both S1 endpoint labels instead of a merged S1 label', () => {
+it('renders a merged S1 label when both sacral endpoints exist', () => {
   const s1p1 = { x: 10, y: 20 };
   const s1p2 = { x: 30, y: 24 };
   const vertebraeLayer: VertebraAnnotation[] = [
@@ -101,9 +101,9 @@ it('renders both S1 endpoint labels instead of a merged S1 label', () => {
     </svg>
   );
 
-  expect(screen.getByText('S1-1')).toBeTruthy();
-  expect(screen.getByText('S1-2')).toBeTruthy();
-  expect(screen.queryByText('S1')).toBeNull();
+  expect(screen.getByText('S1')).toBeTruthy();
+  expect(screen.queryByText('S1-1')).toBeNull();
+  expect(screen.queryByText('S1-2')).toBeNull();
   expect(rendered.container.querySelectorAll('circle')).toHaveLength(2);
   expect(rendered.container.querySelector('line')).toBeTruthy();
 });

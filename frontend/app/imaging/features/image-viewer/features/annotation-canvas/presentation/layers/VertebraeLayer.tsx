@@ -247,6 +247,8 @@ export default function VertebraeLayer({
               : isAnyCornerSelected
                 ? 'rgba(253, 224, 71, 1)'
                 : 'rgba(147, 197, 253, 1)';
+          const labelX = Math.max(s1p1.x, s1p2.x) + 6;
+          const labelY = (s1p1.y + s1p2.y) / 2 + 4;
           return (
             <g key={vertebra.label} className="sacral-endplate-annotation">
               <line
@@ -277,39 +279,38 @@ export default function VertebraeLayer({
                 const keypointId = renderCornerToKeypointId(vertebra.label, i);
                 const isSelected = selectedKeypointIds.has(keypointId);
                 return (
-                  <g key={keypointId}>
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={isHovered || isActive || isSelected ? 5.5 : 3.5}
-                      fill={
-                        isActive
-                          ? 'rgba(239, 68, 68, 0.95)'
-                          : isHovered
-                            ? 'rgba(96, 165, 250, 1)'
-                            : isSelected
-                              ? 'rgba(250, 204, 21, 0.95)'
-                              : 'rgba(59, 130, 246, 0.9)'
-                      }
-                      stroke="white"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={p.x + 8}
-                      y={p.y + 4}
-                      textAnchor="start"
-                      fontSize={10}
-                      fontWeight="600"
-                      fill={labelFill}
-                      stroke="rgba(0,0,0,0.6)"
-                      strokeWidth={2.5}
-                      paintOrder="stroke"
-                    >
-                      {keypointId}
-                    </text>
-                  </g>
+                  <circle
+                    key={keypointId}
+                    cx={p.x}
+                    cy={p.y}
+                    r={isHovered || isActive || isSelected ? 5.5 : 3.5}
+                    fill={
+                      isActive
+                        ? 'rgba(239, 68, 68, 0.95)'
+                        : isHovered
+                          ? 'rgba(96, 165, 250, 1)'
+                          : isSelected
+                            ? 'rgba(250, 204, 21, 0.95)'
+                            : 'rgba(59, 130, 246, 0.9)'
+                    }
+                    stroke="white"
+                    strokeWidth={1}
+                  />
                 );
               })}
+              <text
+                x={labelX}
+                y={labelY}
+                textAnchor="start"
+                fontSize={10}
+                fontWeight="600"
+                fill={labelFill}
+                stroke="rgba(0,0,0,0.6)"
+                strokeWidth={2.5}
+                paintOrder="stroke"
+              >
+                S1
+              </text>
             </g>
           );
         }

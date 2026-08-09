@@ -202,6 +202,26 @@ export function getPelvicPointDisplayLabel(
   return [3, 1, 2][pointIndex] ?? pointIndex + 1;
 }
 
+export function shouldShowPelvicPointDisplayLabel(
+  measurement: Parameters<typeof resolvePelvicMeasurement>[0],
+  pointIndex: number
+): boolean {
+  const resolvedMeasurement = resolvePelvicMeasurement(measurement);
+  if (
+    !resolvedMeasurement ||
+    (resolvedMeasurement.toolId !== 'pi' && resolvedMeasurement.toolId !== 'pt')
+  ) {
+    return true;
+  }
+
+  // 双 FH 圆心已由检测层以 FH-1/FH-2 标识；测量层仍保留圆心交互，
+  // 但不重复绘制文字。半径控制点和骶骨端点标签继续显示。
+  return !(
+    resolvedMeasurement.layout === 'bilateral' &&
+    (pointIndex === 0 || pointIndex === 2)
+  );
+}
+
 export function getPelvicSharedPointLabelKey(
   measurement: Parameters<typeof resolvePelvicMeasurement>[0],
   pointIndex: number
