@@ -1,6 +1,5 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import { calculateActualDistance } from '@xiehe/imaging-core/measurements';
+import { calculateAuxiliaryVerticalLineResults } from '@xiehe/imaging-core/measurements';
 import {
   isPointNearLine,
   isPointNearPoint,
@@ -16,20 +15,7 @@ export const AUX_VERTICAL_LINE_CONFIG: AnnotationConfig = {
   category: 'auxiliary',
   color: '#00ff00', // 绿色
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 2) return [];
-
-    const pixelDistance = Math.abs(points[1].y - points[0].y);
-    const actualDistance = calculateActualDistance(pixelDistance, context);
-
-    return [
-      {
-        name: '垂直距离',
-        value: actualDistance.toFixed(2),
-        unit: 'mm',
-      },
-    ];
-  },
+  calculateResults: calculateAuxiliaryVerticalLineResults,
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };

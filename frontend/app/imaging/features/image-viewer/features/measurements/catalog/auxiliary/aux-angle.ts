@@ -4,6 +4,7 @@ import {
   isPointNearLine,
   isPointNearPoint,
 } from '@xiehe/imaging-core/geometry';
+import { calculateAuxiliaryAngleResults } from '@xiehe/imaging-core/measurements';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const AUX_ANGLE_CONFIG: AnnotationConfig = {
@@ -15,35 +16,7 @@ export const AUX_ANGLE_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#8b5cf6', // 紫色
 
-  calculateResults: (points: Point[]) => {
-    if (points.length < 4) return [];
-
-    // 计算第一条线的角度（点0到点1）
-    const dx1 = points[1].x - points[0].x;
-    const dy1 = points[1].y - points[0].y;
-    const angle1 = Math.atan2(dy1, dx1);
-
-    // 计算第二条线的角度（点2到点3）
-    const dx2 = points[3].x - points[2].x;
-    const dy2 = points[3].y - points[2].y;
-    const angle2 = Math.atan2(dy2, dx2);
-
-    // 计算两条线的夹角（绝对值）
-    let angleDiff = Math.abs(angle2 - angle1) * (180 / Math.PI);
-
-    // 确保角度在0-180度范围内
-    if (angleDiff > 180) {
-      angleDiff = 360 - angleDiff;
-    }
-
-    return [
-      {
-        name: '角度',
-        value: angleDiff.toFixed(2),
-        unit: '°',
-      },
-    ];
-  },
+  calculateResults: calculateAuxiliaryAngleResults,
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };

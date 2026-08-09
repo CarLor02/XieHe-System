@@ -1,6 +1,5 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import { calculateActualDistance } from '@xiehe/imaging-core/measurements';
+import { calculateCircleResults } from '@xiehe/imaging-core/measurements';
 import {
   circleGeometryFromPoints,
   getCircleRadius,
@@ -16,13 +15,7 @@ export const CIRCLE_CONFIG: AnnotationConfig = {
   category: 'auxiliary',
   color: '#10b981',
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    const circle = circleGeometryFromPoints(points);
-    if (!circle) return [];
-    const pixelRadius = getCircleRadius(circle);
-    const actualRadius = calculateActualDistance(pixelRadius, context);
-    return [{ name: '半径', value: actualRadius.toFixed(1), unit: 'mm' }];
-  },
+  calculateResults: calculateCircleResults,
 
   getLabelPosition: (points: Point[]) => {
     // label 放在圆的左侧，水平对齐圆心

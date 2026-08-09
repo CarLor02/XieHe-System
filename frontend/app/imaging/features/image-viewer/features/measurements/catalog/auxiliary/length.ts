@@ -1,6 +1,6 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
-import { calculateDistance2D } from '@xiehe/imaging-core/geometry';
+import { calculateLengthResults } from '@xiehe/imaging-core/measurements';
 import { isPointNearLine, isPointNearPoint } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
@@ -13,20 +13,7 @@ export const LENGTH_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#6366f1',
 
-  calculateResults: (points: Point[]) => {
-    if (points.length < 2) return [];
-
-    const pixelDistance = calculateDistance2D(points[0], points[1]);
-    const actualDistance = pixelDistance * 0.1; // 默认比例
-
-    return [
-      {
-        name: '长度',
-        value: actualDistance.toFixed(2),
-        unit: 'mm',
-      },
-    ];
-  },
+  calculateResults: calculateLengthResults,
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };

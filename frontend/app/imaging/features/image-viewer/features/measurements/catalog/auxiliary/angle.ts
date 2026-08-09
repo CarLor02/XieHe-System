@@ -1,6 +1,6 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
-import { calculateAngleBetweenVectors } from '@xiehe/imaging-core/geometry';
+import { calculateAngleResults } from '@xiehe/imaging-core/measurements';
 import { isPointNearLine, isPointNearPoint } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
@@ -13,29 +13,7 @@ export const ANGLE_CONFIG: AnnotationConfig = {
   category: 'measurement',
   color: '#8b5cf6',
 
-  calculateResults: (points: Point[]) => {
-    if (points.length < 3) return [];
-
-    const v1 = {
-      x: points[0].x - points[1].x,
-      y: points[0].y - points[1].y,
-    };
-
-    const v2 = {
-      x: points[2].x - points[1].x,
-      y: points[2].y - points[1].y,
-    };
-
-    const angle = calculateAngleBetweenVectors(v1, v2);
-
-    return [
-      {
-        name: '角度',
-        value: angle.toFixed(2),
-        unit: '°',
-      },
-    ];
-  },
+  calculateResults: calculateAngleResults,
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 3) return points[0] || { x: 0, y: 0 };

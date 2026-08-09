@@ -1,7 +1,6 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import { calculateDistance2D } from '@xiehe/imaging-core/geometry';
+import { calculateAuxiliaryLengthResults } from '@xiehe/imaging-core/measurements';
 import { isPointNearLine, isPointNearPoint } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
@@ -14,41 +13,7 @@ export const AUX_LENGTH_CONFIG: AnnotationConfig = {
   category: 'auxiliary',
   color: '#3b82f6', // 蓝色
 
-  calculateResults: (points: Point[], context: CalculationContext) => {
-    if (points.length < 2) return [];
-
-    const pixelDistance = calculateDistance2D(points[0], points[1]);
-
-    // 根据标准距离换算
-    let actualDistance: number;
-    if (
-      context.standardDistance &&
-      context.standardDistancePoints?.length === 2
-    ) {
-      const standardPixelDx =
-        context.standardDistancePoints[1].x -
-        context.standardDistancePoints[0].x;
-      const standardPixelDy =
-        context.standardDistancePoints[1].y -
-        context.standardDistancePoints[0].y;
-      const standardPixelLength = Math.sqrt(
-        standardPixelDx * standardPixelDx + standardPixelDy * standardPixelDy
-      );
-      actualDistance =
-        (pixelDistance / standardPixelLength) * context.standardDistance;
-    } else {
-      // 默认比例
-      actualDistance = pixelDistance * 0.1;
-    }
-
-    return [
-      {
-        name: '距离',
-        value: actualDistance.toFixed(2),
-        unit: 'mm',
-      },
-    ];
-  },
+  calculateResults: calculateAuxiliaryLengthResults,
 
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 2) return points[0] || { x: 0, y: 0 };
