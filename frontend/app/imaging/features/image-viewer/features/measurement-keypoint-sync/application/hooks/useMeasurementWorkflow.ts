@@ -29,7 +29,8 @@ import {
   createPelvicMeasurementMetadata,
 } from '@xiehe/imaging-core/measurements/lateral';
 import { applyMeasurementPointToVertebrae } from '@xiehe/imaging-core/measurement-keypoint-sync';
-import { deriveMissingFixedMeasurementsFromKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMissingFixedMeasurementsUseCase';
+import { deriveMissingFixedMeasurementsFromKeypoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
+import { measurementValueCalculator } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 
 interface UseMeasurementWorkflowOptions {
   examType: string;
@@ -143,6 +144,7 @@ export function useMeasurementWorkflow({
                 standardDistancePoints,
                 imageNaturalSize: imageNaturalSize ?? { width: 0, height: 0 },
               },
+              calculator: measurementValueCalculator,
             });
           });
         }

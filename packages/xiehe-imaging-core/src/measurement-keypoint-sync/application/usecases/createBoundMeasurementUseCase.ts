@@ -1,33 +1,31 @@
-import {
-  calculateMeasurementDataValue,
-  calculateMeasurementValue,
-} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import {
-  type AvtTarget,
-} from '@xiehe/imaging-core/contracts';
+import type {
+  CalculationContext,
+  MeasurementValueCalculator,
+} from '../../../measurements';
+import type { AvtTarget } from '../../../shared/domain/contracts';
 import {
   buildAvtPoints,
-  calculateAvtValue,
   createAvtMetadata,
   getAvtMeasurementId,
   getAvtTargetLabel,
   isAvtMetadata,
-} from '@xiehe/imaging-core/measurements/ap';
-import { resolveCobbEndpointPointIds } from '@xiehe/imaging-core/measurements';
-import { getNextCobbType } from '@xiehe/imaging-core/measurements';
+} from '../../../measurements/domain/manual-tools/ap';
+import {
+  getNextCobbType,
+  resolveCobbEndpointPointIds,
+} from '../../../measurements';
 import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,
-} from '@xiehe/imaging-core/keypoints';
-import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
+} from '../../../keypoints';
+import { isLateralExamType } from '../../../shared/domain/anatomy';
 import type {
   MeasurementData,
   Point,
   VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
+} from '../../../shared/domain/contracts';
 
-import { DERIVED_ID_PREFIX } from '@xiehe/imaging-core/measurement-keypoint-sync';
+import { DERIVED_ID_PREFIX } from '../../domain';
 
 function findDerivedVertebra(
   layer: VertebraAnnotation[],
@@ -54,12 +52,14 @@ export function createVertebraCenterMeasurement({
   examType,
   isLateralView,
   calculationContext,
+  calculator,
 }: {
   vertebra: string;
   keypoints: KeypointAnnotation[];
   examType: string;
   isLateralView: boolean;
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
   const layer = keypointsToDerivedLayer(keypoints, examType);
   const annotation = findDerivedVertebra(layer, vertebra);
@@ -69,7 +69,7 @@ export function createVertebraCenterMeasurement({
   return {
     id: `${prefix}-keypoint-vertebra-center-${vertebra.toLowerCase()}`,
     type: 'vertebra-center',
-    value: calculateMeasurementValue(
+    value: calculator.calculateType(
       'vertebra-center',
       annotation.corners,
       calculationContext
@@ -87,11 +87,13 @@ export function createTtsMeasurement({
   lowerVertebra,
   keypoints,
   calculationContext,
+  calculator,
 }: {
   upperVertebra: string;
   lowerVertebra: string;
   keypoints: KeypointAnnotation[];
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
   const sl = byId.get('SL');
@@ -116,7 +118,7 @@ export function createTtsMeasurement({
   return {
     id: 'ap-keypoint-tts',
     type: 'tts',
-    value: calculateMeasurementValue('tts', points, calculationContext),
+    value: calculator.calculateType('tts', points, calculationContext),
     points,
     description: `TTS ${upperVertebra}-${lowerVertebra}`,
     upperVertebra,
@@ -131,12 +133,14 @@ export function createAvtMeasurement({
   calculationContext,
   existingMeasurement,
   discAnchors,
+  calculator,
 }: {
   target: AvtTarget;
   keypoints: KeypointAnnotation[];
   calculationContext: CalculationContext;
   existingMeasurement?: MeasurementData;
   discAnchors?: readonly [Point, Point];
+  calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
   const byId = new Map(
     keypoints.map(keypoint => [keypoint.id, keypoint.point] as const)
@@ -167,8 +171,10 @@ export function createAvtMeasurement({
     avtMetadata: metadata,
     keypointSynced: true,
   };
-  measurement.value =
-    calculateAvtValue(measurement, calculationContext) ?? measurement.value;
+  measurement.value = calculator.calculateMeasurement(
+    measurement,
+    calculationContext
+  );
   return measurement;
 }
 
@@ -176,10 +182,12 @@ function rebuildLegacyAvtMeasurement({
   measurement,
   keypoints,
   calculationContext,
+  calculator,
 }: {
   measurement: MeasurementData;
   keypoints: KeypointAnnotation[];
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
   if (!measurement.apexVertebra) return null;
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
@@ -193,26 +201,30 @@ function rebuildLegacyAvtMeasurement({
   // 不能按当前层级规则将 T2-T11 静默迁移成 C7PL。
   const points = [...apex.corners, sr.point, sl.point];
   const rebuilt = { ...measurement, points };
-  return {
+  const result = {
     ...rebuilt,
-    value: calculateAvtValue(rebuilt, calculationContext) ?? measurement.value,
+    value: calculator.calculateMeasurement(rebuilt, calculationContext),
   };
+  return result.value ? result : { ...result, value: measurement.value };
 }
 
 export function rebuildAvtMeasurement({
   measurement,
   keypoints,
   calculationContext,
+  calculator,
 }: {
   measurement: MeasurementData;
   keypoints: KeypointAnnotation[];
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
   if (!isAvtMetadata(measurement.avtMetadata)) {
     return rebuildLegacyAvtMeasurement({
       measurement,
       keypoints,
       calculationContext,
+      calculator,
     });
   }
 
@@ -221,6 +233,7 @@ export function rebuildAvtMeasurement({
     keypoints,
     calculationContext,
     existingMeasurement: measurement,
+    calculator,
   });
 }
 
@@ -234,6 +247,7 @@ export function createCobbMeasurement({
   measurementType,
   measurementId,
   keypointSynced,
+  calculator,
 }: {
   upperVertebra: string;
   lowerVertebra: string;
@@ -244,6 +258,7 @@ export function createCobbMeasurement({
   measurementType?: string;
   measurementId?: string;
   keypointSynced?: boolean;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
   if (upperVertebra === lowerVertebra) return null;
 
@@ -290,7 +305,7 @@ export function createCobbMeasurement({
     apexVertebra: existingMeasurement?.apexVertebra ?? null,
     keypointSynced: keypointSynced ?? existingMeasurement?.keypointSynced,
   };
-  measurement.value = calculateMeasurementDataValue(measurement, {
+  measurement.value = calculator.calculateMeasurement(measurement, {
     ...calculationContext,
     examType,
   });
@@ -306,6 +321,7 @@ export function createLateralCobbMeasurement({
   measurementId,
   keypointSynced,
   calculationContext,
+  calculator,
 }: {
   upperVertebra: string;
   lowerVertebra: string;
@@ -315,6 +331,7 @@ export function createLateralCobbMeasurement({
   measurementId?: string;
   keypointSynced?: boolean;
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
   if (upperVertebra === lowerVertebra) return null;
 
@@ -342,7 +359,7 @@ export function createLateralCobbMeasurement({
     apexVertebra: existingMeasurement?.apexVertebra ?? null,
     keypointSynced: keypointSynced ?? existingMeasurement?.keypointSynced,
   };
-  measurement.value = calculateMeasurementDataValue(measurement, {
+  measurement.value = calculator.calculateMeasurement(measurement, {
     ...calculationContext,
     examType: '侧位X光片',
   });
@@ -356,6 +373,7 @@ export function createNextBoundCobbMeasurement({
   examType,
   calculationContext,
   existingMeasurements,
+  calculator,
 }: {
   upperVertebra: string;
   lowerVertebra: string;
@@ -363,6 +381,7 @@ export function createNextBoundCobbMeasurement({
   examType: string;
   calculationContext: CalculationContext;
   existingMeasurements: MeasurementData[];
+  calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
   if (isLateralExamType(examType)) {
     return createLateralCobbMeasurement({
@@ -372,6 +391,7 @@ export function createNextBoundCobbMeasurement({
       calculationContext,
       measurementType: getNextCobbType(existingMeasurements, 'lateral-cobb'),
       keypointSynced: true,
+      calculator,
     });
   }
 
@@ -383,6 +403,7 @@ export function createNextBoundCobbMeasurement({
     calculationContext,
     measurementType: getNextCobbType(existingMeasurements),
     keypointSynced: true,
+    calculator,
   });
 }
 
@@ -391,11 +412,13 @@ export function createBoundCobbMeasurement({
   keypoints,
   examType,
   calculationContext,
+  calculator,
 }: {
   measurement: MeasurementData;
   keypoints: KeypointAnnotation[];
   examType: string;
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
   if (!measurement.upperVertebra || !measurement.lowerVertebra) return null;
   if (isLateralExamType(examType)) {
@@ -405,6 +428,7 @@ export function createBoundCobbMeasurement({
       keypoints,
       calculationContext,
       existingMeasurement: measurement,
+      calculator,
     });
   }
 
@@ -415,5 +439,6 @@ export function createBoundCobbMeasurement({
     examType,
     calculationContext,
     existingMeasurement: measurement,
+    calculator,
   });
 }

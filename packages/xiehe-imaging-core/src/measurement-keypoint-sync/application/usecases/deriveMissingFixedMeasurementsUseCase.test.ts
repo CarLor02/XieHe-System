@@ -1,7 +1,13 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import { AnnotationSource } from '@xiehe/imaging-core/contracts';
+import type { KeypointAnnotation } from '../../../keypoints';
+import { AnnotationSource } from '../../../shared/domain/contracts';
+import {
+  calculateMeasurementResults,
+  calculateMeasurementTypeResults,
+  type MeasurementCalculationOutcome,
+  type MeasurementValueCalculator,
+} from '../../../measurements';
 
 import { deriveMissingFixedMeasurementsFromKeypoints } from './deriveMissingFixedMeasurementsUseCase';
 
@@ -9,6 +15,19 @@ const calculationContext = {
   standardDistance: null,
   standardDistancePoints: [],
   imageNaturalSize: { width: 1000, height: 1000 },
+};
+
+function formatOutcome(outcome: MeasurementCalculationOutcome): string {
+  const result = outcome.status === 'calculated' ? outcome.results[0] : null;
+  return result ? `${result.value}${result.unit}` : '';
+}
+
+const calculator: MeasurementValueCalculator = {
+  calculateType: (type, points, context) =>
+    formatOutcome(calculateMeasurementTypeResults(type, points, context)),
+  calculateMeasurement: (measurement, context) =>
+    formatOutcome(calculateMeasurementResults(measurement, context)) ||
+    measurement.value,
 };
 
 function keypoint(id: string, x: number, y: number): KeypointAnnotation {
@@ -31,6 +50,7 @@ it('derives every satisfiable fixed measurement after a keypoint confirmation', 
     ],
     examType: '正位X光片',
     calculationContext,
+    calculator,
   });
 
   expect(measurements.map(item => item.type)).toEqual(['CA', 'CSS']);
@@ -51,6 +71,7 @@ it('does not derive Cobb from otherwise complete vertebra keypoints', () => {
     ],
     examType: '正位X光片',
     calculationContext,
+    calculator,
   });
 
   expect(measurements.map(item => item.type)).toEqual(['T1 Tilt']);
@@ -72,6 +93,7 @@ it('derives bilateral PI, PT and TPA from effective CFH dependencies', () => {
     ],
     examType: '侧位X光片',
     calculationContext,
+    calculator,
   });
 
   const pelvicMeasurements = measurements.filter(item =>
@@ -107,6 +129,7 @@ it('does not derive pelvic measurements from conflicting CFH sources', () => {
     ],
     examType: '侧位X光片',
     calculationContext,
+    calculator,
   });
 
   expect(

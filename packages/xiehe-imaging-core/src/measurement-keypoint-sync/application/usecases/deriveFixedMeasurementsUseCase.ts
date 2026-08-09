@@ -1,9 +1,11 @@
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import type {
+  CalculationContext,
+  MeasurementValueCalculator,
+} from '../../../measurements';
+import type { KeypointAnnotation } from '../../../keypoints';
+import type { MeasurementData } from '../../../shared/domain/contracts';
 
-import type { MeasurementKeypointBindingRule } from '@xiehe/imaging-core/measurement-keypoint-sync';
+import type { MeasurementKeypointBindingRule } from '../../domain';
 
 const DERIVED_MEASUREMENT_TYPE_BY_RULE_ID: Record<string, string> = {
   't1-tilt': 'T1 Tilt',
@@ -32,10 +34,12 @@ export function deriveFixedMeasurements({
   rules,
   keypoints,
   calculationContext,
+  calculator,
 }: {
   rules: readonly MeasurementKeypointBindingRule[];
   keypoints: KeypointAnnotation[];
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData[] {
   const byId = new Map(keypoints.map(keypoint => [keypoint.id, keypoint]));
 
@@ -53,7 +57,7 @@ export function deriveFixedMeasurements({
       return {
         id: `vertebrae-derived-${legacyIdType}`,
         type: DERIVED_MEASUREMENT_TYPE_BY_RULE_ID[rule.typeId] ?? rule.typeId,
-        value: calculateMeasurementValue(
+        value: calculator.calculateType(
           rule.typeId,
           points,
           calculationContext

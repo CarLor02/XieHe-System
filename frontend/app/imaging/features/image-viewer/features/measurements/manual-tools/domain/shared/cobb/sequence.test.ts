@@ -1,7 +1,10 @@
 import { expect, it } from '@jest/globals';
 
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/renumberCobbMeasurementsAfterDelete';
+import {
+  calculateMeasurementValue,
+  measurementValueCalculator,
+} from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
+import { renumberCobbMeasurementsAfterDelete } from '@xiehe/imaging-core/measurements';
 import type {
   MeasurementData,
   Point,
@@ -51,7 +54,8 @@ it('renumbers remaining Cobb measurements after deletion while preserving ids an
 
   const renumbered = renumberCobbMeasurementsAfterDelete(
     remainingAfterDelete,
-    calculationContext
+    calculationContext,
+    measurementValueCalculator
   );
 
   expect(renumbered.map(measurement => measurement.id)).toEqual([
@@ -102,7 +106,8 @@ it('renumbers lateral Cobb measurements while preserving the lateral type prefix
       cobbMeasurement('lateral-cobb-two', 'lateral-cobb2'),
       cobbMeasurement('lateral-cobb-four', 'lateral-cobb4'),
     ],
-    calculationContext
+    calculationContext,
+    measurementValueCalculator
   );
 
   expect(renumbered.map(measurement => measurement.type)).toEqual([

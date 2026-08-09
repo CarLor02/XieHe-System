@@ -1,16 +1,18 @@
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
+import type { KeypointAnnotation } from '../../../keypoints';
+import type {
+  CalculationContext,
+  MeasurementValueCalculator,
+} from '../../../measurements';
 import {
   createDefaultBilateralPelvicPoints,
   createPelvicMeasurementMetadata,
   resolvePelvicMeasurement,
   resolveEffectiveCfh,
-} from '@xiehe/imaging-core/measurements/lateral';
+} from '../../../measurements/domain/manual-tools/lateral';
 import type {
   MeasurementData,
   Point,
-} from '@xiehe/imaging-core/contracts';
+} from '../../../shared/domain/contracts';
 
 function findExistingBilateralPelvicPoints(
   measurements: readonly MeasurementData[]
@@ -32,10 +34,12 @@ export function derivePelvicMeasurements({
   keypoints,
   previousMeasurements = [],
   calculationContext,
+  calculator,
 }: {
   keypoints: KeypointAnnotation[];
   previousMeasurements?: readonly MeasurementData[];
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData[] {
   const byId = new Map(
     keypoints.map(keypoint => [keypoint.id, keypoint.point])
@@ -60,7 +64,7 @@ export function derivePelvicMeasurements({
   const candidates: MeasurementData[] = (['pi', 'pt'] as const).map(typeId => ({
     id: `vertebrae-derived-${typeId}`,
     type: typeId.toUpperCase(),
-    value: calculateMeasurementValue(typeId, pelvicPoints, calculationContext),
+    value: calculator.calculateType(typeId, pelvicPoints, calculationContext),
     points: pelvicPoints.map(point => ({ ...point })),
     description: `[推导] ${typeId}`,
     keypointSynced: true,
@@ -78,7 +82,7 @@ export function derivePelvicMeasurements({
     candidates.push({
       id: 'vertebrae-derived-tpa',
       type: 'TPA',
-      value: calculateMeasurementValue('tpa', tpaPoints, calculationContext),
+      value: calculator.calculateType('tpa', tpaPoints, calculationContext),
       points: tpaPoints,
       description: '[推导] tpa',
       keypointSynced: true,

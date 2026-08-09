@@ -1,38 +1,37 @@
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import { filterUniqueAnnotationDuplicates } from '@xiehe/imaging-core/measurements';
 import {
+  filterUniqueAnnotationDuplicates,
+  getAnnotationTypeId,
   getCobbSequenceNumber,
   getMaxCobbSequenceNumber,
-} from '@xiehe/imaging-core/measurements';
+  type CalculationContext,
+  type MeasurementValueCalculator,
+} from '../../../measurements';
 import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,
-} from '@xiehe/imaging-core/keypoints';
+} from '../../../keypoints';
 import {
   isBendingExamType,
   isLateralExamType,
-} from '@xiehe/imaging-core/anatomy';
+} from '../../../shared/domain/anatomy';
 import type {
   CfhAnnotation,
   MeasurementData,
   VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
+} from '../../../shared/domain/contracts';
 
 import {
   buildBoundMeasurementPointsForMeasurement,
   getAutoDeriveMeasurementKeypointBindingRules,
   getMeasurementKeypointBindingRuleForMeasurement,
-} from '@xiehe/imaging-core/measurement-keypoint-sync';
+} from '../../domain';
 import {
   isBoundAvtMeasurement,
   isCobbMeasurement,
   isDerivedCobbMeasurement,
   DERIVED_ID_PREFIX,
   deriveAllMeasurements,
-} from '@xiehe/imaging-core/measurement-keypoint-sync';
-import { createLogger } from '@/lib/logger';
+} from '../../domain';
 import {
   createBoundCobbMeasurement,
   createTtsMeasurement,
@@ -41,21 +40,15 @@ import {
 } from './createBoundMeasurementUseCase';
 import { deriveFixedMeasurements } from './deriveFixedMeasurementsUseCase';
 import { derivePelvicMeasurements } from './derivePelvicMeasurementsUseCase';
-import { orderDerivedMeasurementsByBindingRules } from '@xiehe/imaging-core/measurement-keypoint-sync';
+import { orderDerivedMeasurementsByBindingRules } from '../orderDerivedMeasurementsByBindingRules';
 
 const DYNAMIC_PELVIC_RULE_IDS = new Set(['pi', 'pt', 'tpa']);
-const logger = createLogger(
-  'app.imaging.features.image.viewer.measurement.keypoint.sync.synchronize'
-);
-
-function reportMeasurementDerivationError(error: unknown): void {
-  logger.error('[vertebrae-derive] 推导失败:', error);
-}
 
 function applyCobbSequenceTypes(
   measurements: MeasurementData[],
   startingCobbSequenceNumber: number,
-  calculationContext: CalculationContext
+  calculationContext: CalculationContext,
+  calculator: MeasurementValueCalculator
 ): MeasurementData[] {
   let cobbSequenceNumber = Math.max(
     startingCobbSequenceNumber,
@@ -72,7 +65,7 @@ function applyCobbSequenceTypes(
       return {
         ...measurement,
         value:
-          calculateMeasurementValue(
+          calculator.calculateType(
             measurement.type,
             measurement.points,
             calculationContext
@@ -85,7 +78,7 @@ function applyCobbSequenceTypes(
     return {
       ...measurement,
       type,
-      value: calculateMeasurementValue(
+      value: calculator.calculateType(
         type,
         measurement.points,
         calculationContext
@@ -101,12 +94,16 @@ export function deriveKeypointMeasurements({
   examType,
   calculationContext,
   previousMeasurements = [],
+  calculator,
+  onDerivationError,
 }: {
   keypoints: KeypointAnnotation[];
   cfhAnnotation: CfhAnnotation | null;
   examType: string;
   calculationContext: CalculationContext;
   previousMeasurements?: readonly MeasurementData[];
+  calculator: MeasurementValueCalculator;
+  onDerivationError?: (error: unknown) => void;
 }): MeasurementData[] {
   const derivedLayer = keypointsToDerivedLayer(keypoints, examType);
   const autoCobbMeasurements = isBendingExamType(examType)
@@ -115,12 +112,12 @@ export function deriveKeypointMeasurements({
         derivedLayer,
         cfhAnnotation,
         examType,
-        reportMeasurementDerivationError
+        onDerivationError
       )
         .filter(isCobbMeasurement)
         .map(measurement => ({
           ...measurement,
-          value: calculateMeasurementValue(
+          value: calculator.calculateType(
             measurement.type,
             measurement.points,
             calculationContext
@@ -134,12 +131,14 @@ export function deriveKeypointMeasurements({
     ),
     keypoints,
     calculationContext,
+    calculator,
   });
   const pelvicMeasurements = isLateralExamType(examType)
     ? derivePelvicMeasurements({
         keypoints,
         previousMeasurements,
         calculationContext,
+        calculator,
       })
     : [];
   const orderedMeasurements = orderDerivedMeasurementsByBindingRules(
@@ -182,16 +181,18 @@ function recalculateDerivedCandidateMeasurement({
   measurement,
   candidate,
   calculationContext,
+  calculator,
 }: {
   measurement: MeasurementData;
   candidate: MeasurementData;
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData {
   return {
     ...measurement,
     type: measurement.type,
     points: candidate.points,
-    value: calculateMeasurementValue(
+    value: calculator.calculateType(
       measurement.type,
       candidate.points,
       calculationContext
@@ -217,6 +218,8 @@ export function deriveInitialMeasurementsFromKeypoints({
   isLateralView,
   calculationContext,
   aiMeasurementIds,
+  calculator,
+  onDerivationError,
 }: {
   previousMeasurements: MeasurementData[];
   keypoints: KeypointAnnotation[];
@@ -225,6 +228,8 @@ export function deriveInitialMeasurementsFromKeypoints({
   isLateralView: boolean;
   calculationContext: CalculationContext;
   aiMeasurementIds: Set<string>;
+  calculator: MeasurementValueCalculator;
+  onDerivationError?: (error: unknown) => void;
 }): MeasurementData[] {
   const boundCobbIds = new Set(
     previousMeasurements
@@ -238,6 +243,8 @@ export function deriveInitialMeasurementsFromKeypoints({
     examType,
     calculationContext,
     previousMeasurements,
+    calculator,
+    onDerivationError,
   }).filter(
     measurement =>
       !isDerivedCobbMeasurement(measurement) ||
@@ -262,6 +269,7 @@ export function deriveInitialMeasurementsFromKeypoints({
         keypoints,
         examType,
         calculationContext,
+        calculator,
       })
     )
     .filter(
@@ -280,6 +288,7 @@ export function deriveInitialMeasurementsFromKeypoints({
         examType,
         isLateralView,
         calculationContext,
+        calculator,
       })
     )
     .filter(
@@ -296,6 +305,7 @@ export function deriveInitialMeasurementsFromKeypoints({
           lowerVertebra: existingTts.lowerVertebra,
           keypoints,
           calculationContext,
+          calculator,
         })
       : null;
   const avtMeasurements = previousMeasurements
@@ -305,6 +315,7 @@ export function deriveInitialMeasurementsFromKeypoints({
         measurement,
         keypoints,
         calculationContext,
+        calculator,
       })
     )
     .filter(
@@ -314,7 +325,8 @@ export function deriveInitialMeasurementsFromKeypoints({
   const rebuiltDerivedMeasurements = applyCobbSequenceTypes(
     [...derivedWithValues, ...boundCobbMeasurements],
     getMaxCobbSequenceNumber(retainedPreviousMeasurements),
-    calculationContext
+    calculationContext,
+    calculator
   );
 
   return filterUniqueAnnotationDuplicates([
@@ -335,6 +347,8 @@ export function recalculateExistingMeasurementsFromKeypoints({
   isLateralView,
   calculationContext,
   aiMeasurementIds,
+  calculator,
+  onDerivationError,
 }: {
   previousMeasurements: MeasurementData[];
   keypoints: KeypointAnnotation[];
@@ -343,6 +357,8 @@ export function recalculateExistingMeasurementsFromKeypoints({
   isLateralView: boolean;
   calculationContext: CalculationContext;
   aiMeasurementIds: Set<string>;
+  calculator: MeasurementValueCalculator;
+  onDerivationError?: (error: unknown) => void;
 }): MeasurementData[] {
   const derivedCandidates = deriveKeypointMeasurements({
     keypoints,
@@ -350,6 +366,8 @@ export function recalculateExistingMeasurementsFromKeypoints({
     examType,
     calculationContext,
     previousMeasurements,
+    calculator,
+    onDerivationError,
   }).filter(measurement => !isCobbMeasurement(measurement));
   const candidateMaps = buildDerivedCandidateMaps(derivedCandidates);
 
@@ -361,6 +379,7 @@ export function recalculateExistingMeasurementsFromKeypoints({
           keypoints,
           examType,
           calculationContext,
+          calculator,
         });
       }
 
@@ -371,6 +390,7 @@ export function recalculateExistingMeasurementsFromKeypoints({
           examType,
           isLateralView,
           calculationContext,
+          calculator,
         });
       }
 
@@ -381,6 +401,7 @@ export function recalculateExistingMeasurementsFromKeypoints({
               lowerVertebra: measurement.lowerVertebra,
               keypoints,
               calculationContext,
+              calculator,
             })
           : null;
       }
@@ -390,6 +411,7 @@ export function recalculateExistingMeasurementsFromKeypoints({
           measurement,
           keypoints,
           calculationContext,
+          calculator,
         });
       }
 
@@ -410,7 +432,7 @@ export function recalculateExistingMeasurementsFromKeypoints({
         return {
           ...measurement,
           points,
-          value: calculateMeasurementValue(
+          value: calculator.calculateType(
             bindingRule.typeId,
             points,
             calculationContext
@@ -432,6 +454,7 @@ export function recalculateExistingMeasurementsFromKeypoints({
               measurement,
               candidate,
               calculationContext,
+              calculator,
             })
           : null;
       }
@@ -450,20 +473,24 @@ export function buildDerivedMeasurementsFromLayer({
   cfhAnnotation,
   examType,
   calculationContext,
+  calculator,
+  onDerivationError,
 }: {
   layer: VertebraAnnotation[];
   cfhAnnotation: CfhAnnotation | null;
   examType: string;
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
+  onDerivationError?: (error: unknown) => void;
 }): MeasurementData[] {
   return deriveAllMeasurements(
     layer,
     cfhAnnotation,
     examType,
-    reportMeasurementDerivationError
+    onDerivationError
   ).map(measurement => ({
     ...measurement,
-    value: calculateMeasurementValue(
+    value: calculator.calculateType(
       measurement.type,
       measurement.points,
       calculationContext

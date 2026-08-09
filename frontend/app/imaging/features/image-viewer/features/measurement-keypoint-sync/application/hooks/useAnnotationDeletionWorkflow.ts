@@ -6,8 +6,11 @@ import {
   keypointsToCfhAnnotation,
   keypointsToPersistedLayer,
 } from '@xiehe/imaging-core/keypoints';
-import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/renumberCobbMeasurementsAfterDelete';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
+import {
+  renumberCobbMeasurementsAfterDelete,
+  type CalculationContext,
+} from '@xiehe/imaging-core/measurements';
+import { measurementValueCalculator } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import {
   planKeypointDeletion,
   planMeasurementDeletion,
@@ -58,7 +61,8 @@ export function useAnnotationDeletionWorkflow({
       const nextMeasurements = shouldRenumberCobb
         ? renumberCobbMeasurementsAfterDelete(
             retainedMeasurements,
-            calculationContext
+            calculationContext,
+            measurementValueCalculator
           )
         : retainedMeasurements;
       const nextKeypoints = deleteKeypoints(

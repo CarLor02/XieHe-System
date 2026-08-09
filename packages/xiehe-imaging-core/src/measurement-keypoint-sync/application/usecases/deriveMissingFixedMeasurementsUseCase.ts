@@ -1,16 +1,19 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import { filterUniqueAnnotationDuplicates } from '@xiehe/imaging-core/measurements';
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import {
+  filterUniqueAnnotationDuplicates,
+  getAnnotationTypeId,
+  type CalculationContext,
+  type MeasurementValueCalculator,
+} from '../../../measurements';
+import type { KeypointAnnotation } from '../../../keypoints';
+import type { MeasurementData } from '../../../shared/domain/contracts';
 
 import {
   getAutoDeriveMeasurementKeypointBindingRules,
   getMeasurementKeypointBindingRule,
-} from '@xiehe/imaging-core/measurement-keypoint-sync';
+} from '../../domain';
 import { deriveFixedMeasurements } from './deriveFixedMeasurementsUseCase';
 import { derivePelvicMeasurements } from './derivePelvicMeasurementsUseCase';
-import { orderDerivedMeasurementsByBindingRules } from '@xiehe/imaging-core/measurement-keypoint-sync';
+import { orderDerivedMeasurementsByBindingRules } from '../orderDerivedMeasurementsByBindingRules';
 
 const DYNAMIC_PELVIC_RULE_IDS = new Set(['pi', 'pt', 'tpa']);
 
@@ -32,11 +35,13 @@ export function deriveMissingFixedMeasurementsFromKeypoints({
   keypoints,
   examType,
   calculationContext,
+  calculator,
 }: {
   previousMeasurements: MeasurementData[];
   keypoints: KeypointAnnotation[];
   examType: string;
   calculationContext: CalculationContext;
+  calculator: MeasurementValueCalculator;
 }): MeasurementData[] {
   const existingTypes = new Set(
     previousMeasurements.map(getCanonicalBindingType)
@@ -49,11 +54,13 @@ export function deriveMissingFixedMeasurementsFromKeypoints({
     ),
     keypoints,
     calculationContext,
+    calculator,
   });
   const pelvicCandidates = derivePelvicMeasurements({
     keypoints,
     previousMeasurements,
     calculationContext,
+    calculator,
   });
   const candidates = orderDerivedMeasurementsByBindingRules(
     autoDeriveRules,

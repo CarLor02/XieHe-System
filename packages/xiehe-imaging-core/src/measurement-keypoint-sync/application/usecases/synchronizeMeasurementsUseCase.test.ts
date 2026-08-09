@@ -1,26 +1,45 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
-import { getApKeypointGroups } from '@xiehe/imaging-core/keypoints';
+import { getApKeypointGroups } from '../../../keypoints';
 import {
   hasAvtMeasurementForApex,
   hasCobbMeasurementForEndpoints,
-} from '@xiehe/imaging-core/measurement-keypoint-sync';
+} from '../../domain';
 import {
   createAvtMeasurement,
   createNextBoundCobbMeasurement,
+} from './createBoundMeasurementUseCase';
+import {
   deriveKeypointMeasurements,
   deriveInitialMeasurementsFromKeypoints,
   recalculateExistingMeasurementsFromKeypoints,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
-import {
-  AnnotationSource,
-  MeasurementData,
-} from '@xiehe/imaging-core/contracts';
+} from './synchronizeMeasurementsUseCase';
+import { AnnotationSource } from '../../../shared/domain/contracts';
+import type { MeasurementData } from '../../../shared/domain/contracts';
 import {
   getCompleteApVertebraGroups,
   keypointsToRenderLayer,
-  KeypointAnnotation,
-} from '@xiehe/imaging-core/keypoints';
+} from '../../../keypoints';
+import type { KeypointAnnotation } from '../../../keypoints';
+import {
+  calculateMeasurementResults,
+  calculateMeasurementTypeResults,
+  type MeasurementCalculationOutcome,
+  type MeasurementValueCalculator,
+} from '../../../measurements';
+
+function formatOutcome(outcome: MeasurementCalculationOutcome): string {
+  const result = outcome.status === 'calculated' ? outcome.results[0] : null;
+  return result ? `${result.value}${result.unit}` : '';
+}
+
+const calculator: MeasurementValueCalculator = {
+  calculateType: (type, points, context) =>
+    formatOutcome(calculateMeasurementTypeResults(type, points, context)),
+  calculateMeasurement: (measurement, context) =>
+    formatOutcome(calculateMeasurementResults(measurement, context)) ||
+    measurement.value,
+};
 
 function apCorner(id: string, x: number, y: number): KeypointAnnotation {
   return {
@@ -109,6 +128,7 @@ it('derives initial AP Cobb measurements from global endpoint candidates', () =>
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -129,6 +149,7 @@ it('does not create a new Cobb while only recalculating existing measurements', 
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -155,6 +176,7 @@ it('recalculates a manual CA from CL and CR without relying on its id source', (
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -184,6 +206,7 @@ it('does not derive L/R when all four pose keypoints are added manually', () => 
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -202,6 +225,7 @@ it('removes a keypoint-bound L/R measurement when one dependency is deleted', ()
     cfhAnnotation: null,
     examType: '正位X光片',
     calculationContext,
+    calculator,
   });
 
   const synced = recalculateExistingMeasurementsFromKeypoints({
@@ -211,6 +235,7 @@ it('removes a keypoint-bound L/R measurement when one dependency is deleted', ()
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -240,6 +265,7 @@ it('starts keypoint-derived Cobb numbering after the current maximum Cobb number
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -270,6 +296,7 @@ it('creates a numbered keypoint-bound Cobb from selected endpoint vertebrae', ()
     ],
     examType: '正位X光片',
     calculationContext,
+    calculator,
     existingMeasurements: previousMeasurements,
   });
 
@@ -306,6 +333,7 @@ it('creates lateral C2-C7 Cobb from lower endplates', () => {
     ],
     examType: '侧位X光片',
     calculationContext,
+    calculator,
     existingMeasurements: [],
   });
 
@@ -339,6 +367,7 @@ it('creates lateral Cobb to S1 from S1 upper endplate points', () => {
     ],
     examType: '侧位X光片',
     calculationContext,
+    calculator,
     existingMeasurements: [],
   });
 
@@ -384,6 +413,7 @@ it('recalculates a lateral keypoint-synced Cobb with lateral endpoint rules', ()
     examType: '侧位X光片',
     isLateralView: true,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -448,6 +478,7 @@ it('recalculates a keypoint-synced manual Cobb measurement when endpoint keypoin
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -505,6 +536,7 @@ it('preserves an existing keypoint-derived Cobb number when manual Cobb measurem
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -547,6 +579,7 @@ it('derives AP TS measurements from C7 corners', () => {
     cfhAnnotation: null,
     examType: '正位X光片',
     calculationContext,
+    calculator,
   });
 
   const ts = measurements.find(measurement => measurement.type === 'TS');
@@ -565,11 +598,13 @@ it('creates stable AVT ids per vertebra target and preserves a historical id', (
     target: { type: 'vertebra', vertebra: 'T12' },
     keypoints,
     calculationContext,
+    calculator,
   });
   const historical = createAvtMeasurement({
     target: { type: 'vertebra', vertebra: 'L1' },
     keypoints,
     calculationContext,
+    calculator,
     existingMeasurement: {
       id: 'ap-keypoint-avt',
       type: 'avt',
@@ -592,6 +627,7 @@ it('rebuilds multiple AVT measurements without changing their ids', () => {
       target: { type: 'vertebra', vertebra: 'T12' },
       keypoints,
       calculationContext,
+      calculator,
       existingMeasurement: {
         id: 'ap-keypoint-avt',
         type: 'avt',
@@ -604,6 +640,7 @@ it('rebuilds multiple AVT measurements without changing their ids', () => {
       target: { type: 'vertebra', vertebra: 'L1' },
       keypoints,
       calculationContext,
+      calculator,
     })!,
   ];
   const movedKeypoints = keypoints.map(keypoint =>
@@ -617,6 +654,7 @@ it('rebuilds multiple AVT measurements without changing their ids', () => {
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -642,11 +680,13 @@ it('removes only the AVT whose vertebra target keypoints are missing', () => {
       target: { type: 'vertebra', vertebra: 'T12' },
       keypoints,
       calculationContext,
+      calculator,
     })!,
     createAvtMeasurement({
       target: { type: 'vertebra', vertebra: 'L1' },
       keypoints,
       calculationContext,
+      calculator,
     })!,
   ];
   const withoutT12 = keypoints.filter(
@@ -660,6 +700,7 @@ it('removes only the AVT whose vertebra target keypoints are missing', () => {
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -677,11 +718,13 @@ it('removes all AVT measurements when a sacral reference point is missing', () =
       target: { type: 'vertebra', vertebra: 'T12' },
       keypoints,
       calculationContext,
+      calculator,
     })!,
     createAvtMeasurement({
       target: { type: 'vertebra', vertebra: 'L1' },
       keypoints,
       calculationContext,
+      calculator,
     })!,
   ];
 
@@ -692,6 +735,7 @@ it('removes all AVT measurements when a sacral reference point is missing', () =
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -710,6 +754,7 @@ it('preserves manual disc anchors while rebuilding a C7PL AVT reference', () => 
     },
     keypoints,
     calculationContext,
+    calculator,
     discAnchors: [
       { x: 80, y: 240 },
       { x: 140, y: 240 },
@@ -735,6 +780,7 @@ it('preserves manual disc anchors while rebuilding a C7PL AVT reference', () => 
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -766,6 +812,7 @@ it('updates a bound manual TTS from moved SR and SL keypoints', () => {
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -805,6 +852,7 @@ it('removes a bound manual TTS when SR or SL is missing', () => {
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -822,6 +870,7 @@ it('derives lateral vertebra measurements from keypoint label order', () => {
     cfhAnnotation: null,
     examType: '侧位X光片',
     calculationContext,
+    calculator,
   });
 
   expect(
@@ -845,6 +894,7 @@ it('derives T1 Tilt from its two-point minimum dependency', () => {
     cfhAnnotation: null,
     examType: '正位X光片',
     calculationContext,
+    calculator,
   });
 
   expect(
@@ -879,6 +929,7 @@ it.each(['左侧曲位', '右侧曲位'])(
       cfhAnnotation: null,
       examType,
       calculationContext,
+      calculator,
     });
 
     expect(measurements).toEqual([]);
@@ -896,6 +947,7 @@ it('derives PO and CSS with stable domain types from their minimum points', () =
     cfhAnnotation: null,
     examType: '正位X光片',
     calculationContext,
+    calculator,
   });
 
   expect(
@@ -920,6 +972,7 @@ it('derives T1 Slope from its two-point minimum dependency', () => {
     cfhAnnotation: null,
     examType: '侧位X光片',
     calculationContext,
+    calculator,
   });
 
   expect(
@@ -947,6 +1000,7 @@ it('derives lateral LL L1-S1 with vertebra and S1 endpoints left-to-right', () =
     cfhAnnotation: null,
     examType: '侧位X光片',
     calculationContext,
+    calculator,
   });
 
   expect(
@@ -969,6 +1023,7 @@ it('derives lateral SS from S1 keypoints in left-to-right display order', () => 
     cfhAnnotation: null,
     examType: '侧位X光片',
     calculationContext,
+    calculator,
   });
 
   expect(measurements.find(measurement => measurement.type === 'SS')).toEqual(
@@ -1001,6 +1056,7 @@ it('replaces first-pass AI Cobb measurements with numbered initial keypoint-deri
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(['ai-cobb-1']),
   });
 
@@ -1017,6 +1073,7 @@ it('does not add globally unique measurements after keypoint changes', () => {
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 
@@ -1041,6 +1098,7 @@ it('removes globally unique measurements when keypoint dependencies are missing'
     examType: '正位X光片',
     isLateralView: false,
     calculationContext,
+    calculator,
     aiMeasurementIds: new Set(),
   });
 

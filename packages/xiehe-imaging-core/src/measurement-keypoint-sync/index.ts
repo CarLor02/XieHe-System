@@ -5,4 +5,5 @@ export * from './application/manualMeasurementKeypointInheritanceUseCase';
 export * from './application/orderDerivedMeasurementsByBindingRules';
 export * from './application/pelvicMeasurementPlacementUseCase';
 export * from './application/shiftMeasurementVertebraLabelsUseCase';
+export * from './application/usecases';
 export * from './domain';

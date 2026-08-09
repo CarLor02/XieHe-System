@@ -17,15 +17,14 @@ import {
 import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import {
   buildDerivedMeasurementsFromLayer,
-  deriveInitialMeasurementsFromKeypoints as deriveInitialMeasurementsFromKeypointsUseCase,
-  recalculateExistingMeasurementsFromKeypoints,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/synchronizeMeasurementsUseCase';
-import {
   createAvtMeasurement,
   createNextBoundCobbMeasurement,
   createTtsMeasurement,
   createVertebraCenterMeasurement,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/createBoundMeasurementUseCase';
+  deriveMissingFixedMeasurementsFromKeypoints,
+  deriveInitialMeasurementsFromKeypoints as deriveInitialMeasurementsFromKeypointsUseCase,
+  recalculateExistingMeasurementsFromKeypoints,
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   hasAvtMeasurementForTarget,
   hasCobbMeasurementForEndpoints,
@@ -68,7 +67,16 @@ import {
   type PersistedKeypointStateInput,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { useAnnotationDeletionWorkflow } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useAnnotationDeletionWorkflow';
-import { deriveMissingFixedMeasurementsFromKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMissingFixedMeasurementsUseCase';
+import { measurementValueCalculator } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger(
+  'app.imaging.features.image.viewer.measurement.keypoint.sync'
+);
+
+function reportMeasurementDerivationError(error: unknown): void {
+  logger.error('[vertebrae-derive] 推导失败:', error);
+}
 
 interface UseMeasurementKeypointWorkflowOptions {
   imageId: string;
@@ -154,6 +162,8 @@ export function useMeasurementKeypointWorkflow({
         isLateralView,
         calculationContext,
         aiMeasurementIds: aiMeasurementIdsRef.current,
+        calculator: measurementValueCalculator,
+        onDerivationError: reportMeasurementDerivationError,
       }),
     [calculationContext, cfhAnnotation, examType, isLateralView, measurements]
   );
@@ -171,6 +181,8 @@ export function useMeasurementKeypointWorkflow({
         isLateralView,
         calculationContext,
         aiMeasurementIds: aiMeasurementIdsRef.current,
+        calculator: measurementValueCalculator,
+        onDerivationError: reportMeasurementDerivationError,
       }),
     [calculationContext, cfhAnnotation, examType, isLateralView]
   );
@@ -185,6 +197,7 @@ export function useMeasurementKeypointWorkflow({
         keypoints: nextKeypoints,
         examType,
         calculationContext,
+        calculator: measurementValueCalculator,
       }),
     [calculationContext, examType]
   );
@@ -409,6 +422,7 @@ export function useMeasurementKeypointWorkflow({
         examType,
         isLateralView,
         calculationContext,
+        calculator: measurementValueCalculator,
       });
       if (!measurement) {
         flashMessage(
@@ -510,6 +524,7 @@ export function useMeasurementKeypointWorkflow({
         lowerVertebra,
         keypoints,
         calculationContext,
+        calculator: measurementValueCalculator,
       });
       if (!measurement) {
         flashMessage(setSaveMessage, '缺少 TTS 所需关键点，无法创建');
@@ -541,6 +556,7 @@ export function useMeasurementKeypointWorkflow({
         keypoints,
         calculationContext,
         discAnchors,
+        calculator: measurementValueCalculator,
       });
       if (!measurement) {
         flashMessage(setSaveMessage, '缺少 AVT 所需关键点，无法创建');
@@ -592,6 +608,7 @@ export function useMeasurementKeypointWorkflow({
               target,
               keypoints: nextKeypoints,
               calculationContext,
+              calculator: measurementValueCalculator,
             })
           : null;
 
@@ -649,6 +666,7 @@ export function useMeasurementKeypointWorkflow({
         examType,
         calculationContext,
         existingMeasurements: measurements,
+        calculator: measurementValueCalculator,
       });
       if (!probeMeasurement) {
         flashMessage(
@@ -672,6 +690,7 @@ export function useMeasurementKeypointWorkflow({
           examType,
           calculationContext,
           existingMeasurements: previous,
+          calculator: measurementValueCalculator,
         });
 
         return measurement ? [...previous, measurement] : previous;
@@ -703,6 +722,8 @@ export function useMeasurementKeypointWorkflow({
         cfhAnnotation,
         examType,
         calculationContext,
+        calculator: measurementValueCalculator,
+        onDerivationError: reportMeasurementDerivationError,
       });
       setMeasurements(previous => [
         ...previous.filter(
@@ -920,6 +941,8 @@ export function useMeasurementKeypointWorkflow({
             cfhAnnotation,
             examType,
             calculationContext,
+            calculator: measurementValueCalculator,
+            onDerivationError: reportMeasurementDerivationError,
           });
           setMeasurements(previous => [
             ...previous.filter(

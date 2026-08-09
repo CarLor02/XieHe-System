@@ -1,7 +1,7 @@
-import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import { renumberCobbTypesAfterDelete } from '@xiehe/imaging-core/measurements';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import type { MeasurementData } from '../../../shared/domain/contracts';
+import { renumberCobbTypesAfterDelete } from '../../domain';
+import type { CalculationContext } from '../../domain';
+import type { MeasurementValueCalculator } from '../ports';
 
 /**
  * 删除 Cobb 后执行“领域编号 + 应用层数值重算”。
@@ -10,7 +10,8 @@ import type { MeasurementData } from '@xiehe/imaging-core/contracts';
  */
 export function renumberCobbMeasurementsAfterDelete(
   measurements: MeasurementData[],
-  calculationContext: CalculationContext
+  calculationContext: CalculationContext,
+  calculator: MeasurementValueCalculator
 ): MeasurementData[] {
   return renumberCobbTypesAfterDelete(measurements).map(
     (measurement, index) => {
@@ -18,7 +19,7 @@ export function renumberCobbMeasurementsAfterDelete(
       return {
         ...measurement,
         value:
-          calculateMeasurementValue(
+          calculator.calculateType(
             measurement.type,
             measurement.points,
             calculationContext
