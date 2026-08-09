@@ -1,7 +1,7 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import { AnnotationSource } from '@xiehe/imaging-core/contracts';
+import type { KeypointAnnotation } from '../../keypoints';
+import { AnnotationSource } from '../../contracts';
 
 import {
   getNextPelvicPlacementPointIndex,

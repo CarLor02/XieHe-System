@@ -53,7 +53,7 @@ import type {
 import { getPelvicToolPointCount } from '@xiehe/imaging-core/measurements/lateral';
 import {
   getPelvicPlacementInheritedPointMap,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 
 interface UseImageViewerControllerOptions {
   imageId: string;

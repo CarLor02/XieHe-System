@@ -40,7 +40,7 @@ import {
 } from './createBoundMeasurementUseCase';
 import { deriveFixedMeasurements } from './deriveFixedMeasurementsUseCase';
 import { derivePelvicMeasurements } from './derivePelvicMeasurementsUseCase';
-import { orderDerivedMeasurementsByBindingRules } from './orderDerivedMeasurementsByBindingRules';
+import { orderDerivedMeasurementsByBindingRules } from '@xiehe/imaging-core/measurement-keypoint-sync';
 
 const DYNAMIC_PELVIC_RULE_IDS = new Set(['pi', 'pt', 'tpa']);
 

@@ -54,19 +54,19 @@ import {
   vertebraeLayerToKeypoints,
 } from '@xiehe/imaging-core/keypoints';
 import { useKeypointLayerState } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { shiftMeasurementVertebraLabels } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/shiftMeasurementVertebraLabelsUseCase';
+import { shiftMeasurementVertebraLabels } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { applyMeasurementPointToVertebrae } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   getMeasurementKeypointBindingRule,
   getMeasurementKeypointBindingRuleForMeasurement,
   writeMeasurementToKeypoints,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
-import { syncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/cobbKeypointSyncUseCase';
+import { syncCobbMeasurementToKeypoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { runLateralDetectionCache } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
 import {
   hydratePersistedKeypointState,
   type PersistedKeypointStateInput,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/hydratePersistedKeypointStateUseCase';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { useAnnotationDeletionWorkflow } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useAnnotationDeletionWorkflow';
 import { deriveMissingFixedMeasurementsFromKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMissingFixedMeasurementsUseCase';
 

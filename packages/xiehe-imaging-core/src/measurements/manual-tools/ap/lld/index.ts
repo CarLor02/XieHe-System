@@ -3,7 +3,7 @@ import type {
   MeasurementResult,
 } from '../../../shared-rules';
 import { calculateActualDistance } from '../../../shared-rules';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../../../contracts';
 
 /** LLD 取两条水平参考线之间的垂直距离。 */
 export function calculateLldResults(

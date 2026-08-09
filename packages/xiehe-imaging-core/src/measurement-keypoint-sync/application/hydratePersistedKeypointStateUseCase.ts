@@ -2,15 +2,15 @@ import {
   keypointsToPersistedLayer,
   type KeypointAnnotation,
   vertebraeLayerToKeypoints,
-} from '@xiehe/imaging-core/keypoints';
-import { isKeypointSupportedExamType } from '@xiehe/imaging-core/anatomy';
+} from '../../keypoints';
+import { isKeypointSupportedExamType } from '../../anatomy';
 import type {
   CfhAnnotation,
   MeasurementData,
   VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
+} from '../../contracts';
 
-import { backfillMissingBoundKeypoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
+import { backfillMissingBoundKeypoints } from '../measurement-keypoint-binding';
 
 export interface PersistedKeypointStateInput {
   examType: string;

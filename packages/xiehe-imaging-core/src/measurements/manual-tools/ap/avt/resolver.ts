@@ -5,7 +5,7 @@ import {
   type MeasurementResolver,
   type ResolvedVariableMeasurementBase,
 } from '../../../shared-rules';
-import { isApProjectionExamType } from '@xiehe/imaging-core/anatomy';
+import { isApProjectionExamType } from '../../../../anatomy';
 
 import {
   getAvtGeometry,

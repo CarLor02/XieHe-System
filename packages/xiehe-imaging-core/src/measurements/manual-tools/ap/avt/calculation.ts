@@ -1,4 +1,4 @@
-import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
+import type { MeasurementData, Point } from '../../../../contracts';
 import type { CalculationContext } from '../../../shared-rules';
 import type { MeasurementResult } from '../../../shared-rules';
 import { calculateActualDistance } from '../../../shared-rules';

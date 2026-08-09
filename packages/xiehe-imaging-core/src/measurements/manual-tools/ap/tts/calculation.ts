@@ -3,7 +3,7 @@ import type {
   MeasurementResult,
 } from '../../../shared-rules';
 import { calculateActualDistance } from '../../../shared-rules';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../../../contracts';
 
 /** TTS 比较躯干水平线中点与骶骨参考线中点的水平偏移。 */
 export function calculateTtsResults(

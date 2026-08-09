@@ -2,10 +2,10 @@ import type { MeasurementResult } from '../../../shared-rules';
 import {
   isPointNearLine,
   isPointNearPoint,
-} from '@xiehe/imaging-core/geometry';
+} from '../../../../geometry';
 import { getPelvicMeasurementGeometry } from '../pelvic';
 import type { PelvicMeasurementGeometry } from '../pelvic';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../../../contracts';
 
 /**
  * PT 计算股骨头中心到 S1 中点连线相对垂线的有符号角。

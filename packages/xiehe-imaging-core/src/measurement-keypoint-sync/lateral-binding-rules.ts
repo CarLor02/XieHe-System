@@ -1,5 +1,5 @@
 import type { Point } from '../contracts';
-import { resolveCobbEndpointPointIds } from '../measurements';
+import { getLateralNamedCobbMeasurementRuleByTypeId } from '../measurements/manual-tools/lateral';
 
 import type { MeasurementKeypointBindingRule } from './binding-rule-types';
 import { createFixedBindingRule } from './fixed-binding-rule';
@@ -41,17 +41,14 @@ function createTwoEndplateRule(
   firstLabel: string,
   secondLabel: string
 ): MeasurementKeypointBindingRule {
-  const keypointIds = resolveCobbEndpointPointIds(
-    { type: typeId },
-    { examType: '侧位X光片' }
-  );
-  if (!keypointIds) {
-    throw new Error(`侧位命名 Cobb 缺少 resolver: ${typeId}`);
+  const namedRule = getLateralNamedCobbMeasurementRuleByTypeId(typeId);
+  if (!namedRule) {
+    throw new Error(`侧位命名 Cobb 缺少端椎规则: ${typeId}`);
   }
   return createFixedBindingRule({
     typeId,
     examView: 'lateral',
-    slots: keypointIds.map((keypointId, pointIndex) => ({
+    slots: namedRule.endpointPointIds.map((keypointId, pointIndex) => ({
       pointIndex,
       keypointId,
     })),

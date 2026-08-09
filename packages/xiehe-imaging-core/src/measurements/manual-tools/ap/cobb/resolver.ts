@@ -6,7 +6,7 @@ import {
 } from '../../../shared-rules';
 import type { CobbResolver } from '../../../shared-rules';
 import { invalid, resolved } from '../../../shared-rules';
-import { isApProjectionExamType } from '@xiehe/imaging-core/anatomy';
+import { isApProjectionExamType } from '../../../../anatomy';
 
 const AP_COBB_TYPE_PATTERN =
   /^cobb(?:\d+|-thoracic|-lumbar|-thoracolumbar|-auto\d+)?$/;

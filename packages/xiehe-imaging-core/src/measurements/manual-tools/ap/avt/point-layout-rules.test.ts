@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../../../contracts';
 import { createAvtMetadata } from './target-rules';
 import { buildAvtPoints, getAvtPointLayout } from './point-layout-rules';
 

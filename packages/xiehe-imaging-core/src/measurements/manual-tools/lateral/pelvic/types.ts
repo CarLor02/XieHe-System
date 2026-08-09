@@ -1,9 +1,9 @@
-import type { CircleGeometry } from '@xiehe/imaging-core/geometry';
+import type { CircleGeometry } from '../../../../geometry';
 import type {
   FemoralHeadMode,
   PelvicToolId,
   Point,
-} from '@xiehe/imaging-core/contracts';
+} from '../../../../contracts';
 
 export type EffectiveCfhResolution =
   | {

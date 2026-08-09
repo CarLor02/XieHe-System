@@ -16,11 +16,11 @@ import {
 import {
   getManualMeasurementInheritedPoints,
   getNextManualMeasurementPointIndex,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   getNextPelvicPlacementPointIndex,
   getPelvicPlacementInheritedPointMap,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 import {
   getMeasurementKeypointBindingRuleForMeasurement,

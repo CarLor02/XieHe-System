@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 
 import {
   getLateralNamedCobbMeasurementRuleByEndpoints,
+  getLateralNamedCobbMeasurementRuleByTypeId,
   LATERAL_NAMED_COBB_MEASUREMENT_RULES,
 } from './endpoint-rules';
 import { resolveLateralCobbEndpointPointIds } from './resolvers';
@@ -68,5 +69,8 @@ it('uses named endpoint rules before the generic lateral Cobb rule', () => {
   ).toEqual(['T3-1', 'T3-2', 'T8-3', 'T8-4']);
   expect(getLateralNamedCobbMeasurementRuleByEndpoints('T2', 'T5')?.name).toBe(
     'TK T2-T5'
+  );
+  expect(getLateralNamedCobbMeasurementRuleByTypeId('cl')?.name).toBe(
+    'C2-C7 CL'
   );
 });

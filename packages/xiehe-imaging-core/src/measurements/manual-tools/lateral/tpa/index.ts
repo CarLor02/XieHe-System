@@ -1,15 +1,15 @@
 import type { MeasurementResult } from '../../../shared-rules';
-import { calculateAngleBetweenVectors } from '@xiehe/imaging-core/geometry';
+import { calculateAngleBetweenVectors } from '../../../../geometry';
 import {
   isPointNearLine,
   isPointNearPoint,
-} from '@xiehe/imaging-core/geometry';
+} from '../../../../geometry';
 import {
   extractBilateralPelvicPoints,
   getPelvicMeasurementGeometry,
 } from '../pelvic';
 import type { PelvicMeasurementGeometry } from '../pelvic';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../../../contracts';
 
 /**
  * 单 FH 与无 metadata 的历史 TPA 固定为七点

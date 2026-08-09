@@ -5,8 +5,8 @@ import {
   type MeasurementResolver,
   type ResolvedVariableMeasurementBase,
 } from '../../../shared-rules';
-import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import { isLateralExamType } from '../../../../anatomy';
+import type { Point } from '../../../../contracts';
 
 import {
   BILATERAL_PELVIC_POINT_COUNT,
@@ -23,7 +23,7 @@ import { replaceBilateralPelvicPoints } from './tool-point-layout';
 import type {
   FemoralHeadMode,
   PelvicToolId,
-} from '@xiehe/imaging-core/contracts';
+} from '../../../../contracts';
 import type { PelvicMeasurementGeometry } from './types';
 
 export interface ResolvedPelvicMeasurement extends ResolvedVariableMeasurementBase {

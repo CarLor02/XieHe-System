@@ -6,8 +6,8 @@ import { calculateActualDistance } from '../../../shared-rules';
 import {
   isPointNearLine,
   isPointNearPoint,
-} from '@xiehe/imaging-core/geometry';
-import type { Point } from '@xiehe/imaging-core/contracts';
+} from '../../../../geometry';
+import type { Point } from '../../../../contracts';
 
 /**
  * SVA 计算 C7 四角点中心到骶椎后缘参考点的水平距离。

@@ -1,6 +1,6 @@
 import { calculateHorizontalAngleResults } from '../../../shared-rules';
-import { isTwoPointLineInRange } from '@xiehe/imaging-core/geometry';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import { isTwoPointLineInRange } from '../../../../geometry';
+import type { Point } from '../../../../contracts';
 
 /**
  * SS 使用 S1 上终板两端点，只输出与水平线的夹角大小。

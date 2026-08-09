@@ -2,14 +2,14 @@ import type { MeasurementResult } from '../../../shared-rules';
 import {
   calculateAngleBetweenVectors,
   toAcuteAngle,
-} from '@xiehe/imaging-core/geometry';
+} from '../../../../geometry';
 import {
   isPointNearLine,
   isPointNearPoint,
-} from '@xiehe/imaging-core/geometry';
+} from '../../../../geometry';
 import { getPelvicMeasurementGeometry } from '../pelvic';
 import type { PelvicMeasurementGeometry } from '../pelvic';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../../../contracts';
 
 /**
  * PI 计算“股骨头中心到 S1 中点连线”与“S1 终板法线”的锐角。

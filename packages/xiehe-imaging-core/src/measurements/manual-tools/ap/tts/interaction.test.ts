@@ -6,7 +6,7 @@ import {
   isManualTtsMeasurement,
   moveManualTtsTrunkLineVertically,
 } from './interaction';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import type { MeasurementData } from '../../../../contracts';
 
 const manualTts: MeasurementData = {
   id: 'manual-tts',

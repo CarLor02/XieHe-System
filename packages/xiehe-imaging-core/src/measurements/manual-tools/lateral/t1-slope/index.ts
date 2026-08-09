@@ -1,7 +1,7 @@
-import { calculateAngleToHorizontal } from '@xiehe/imaging-core/geometry';
+import { calculateAngleToHorizontal } from '../../../../geometry';
 import type { MeasurementResult } from '../../../shared-rules';
-import { isTwoPointLineInRange } from '@xiehe/imaging-core/geometry';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import { isTwoPointLineInRange } from '../../../../geometry';
+import type { Point } from '../../../../contracts';
 
 /**
  * 侧位片按屏幕左到右排列 T1 上终板点，患者面朝左且图像 Y 轴向下。

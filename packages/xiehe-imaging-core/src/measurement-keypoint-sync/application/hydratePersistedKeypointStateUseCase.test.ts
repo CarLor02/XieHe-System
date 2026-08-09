@@ -1,11 +1,11 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
-import { hydratePersistedKeypointState } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/hydratePersistedKeypointStateUseCase';
+import { hydratePersistedKeypointState } from './hydratePersistedKeypointStateUseCase';
 import {
   AnnotationSource,
   type MeasurementData,
   type VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
+} from '../../contracts';
 
 const unboundVertebra: VertebraAnnotation = {
   label: 'T4',

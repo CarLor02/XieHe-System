@@ -51,6 +51,29 @@ export const LATERAL_NAMED_COBB_MEASUREMENT_RULES: LateralNamedCobbMeasurementRu
     },
   ];
 
+/** 稳定工具 ID 与侧位命名 Cobb 规则的映射，供 resolver 和关键点绑定共用。 */
+export const LATERAL_NAMED_COBB_TYPE_IDS_BY_NAME: Readonly<
+  Record<string, readonly string[]>
+> = {
+  'C2-C7 CL': ['cl', 'c2-c7-cl'],
+  'TK T2-T5': ['tk-t2-t5'],
+  'TK T5-T12': ['tk-t5-t12'],
+  'T10-L2': ['t10-l2'],
+  'LL L1-S1': ['ll-l1-s1'],
+  'LL L1-L4': ['ll-l1-l4'],
+  'LL L4-S1': ['ll-l4-s1'],
+};
+
+export function getLateralNamedCobbMeasurementRuleByTypeId(
+  typeId: string
+): LateralNamedCobbMeasurementRule | null {
+  return (
+    LATERAL_NAMED_COBB_MEASUREMENT_RULES.find(rule =>
+      LATERAL_NAMED_COBB_TYPE_IDS_BY_NAME[rule.name]?.includes(typeId)
+    ) ?? null
+  );
+}
+
 export function getLateralNamedCobbMeasurementRuleByEndpoints(
   upperVertebra: string,
   lowerVertebra: string

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import {
   getManualMeasurementInheritedPointMap,
   getNextManualMeasurementPointIndex,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
 import {
   MeasurementData,
@@ -16,7 +16,7 @@ import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/la
 import {
   getNextPelvicPlacementPointIndex,
   getPelvicPlacementInheritedPointMap,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { getPelvicToolPointCount } from '@xiehe/imaging-core/measurements/lateral';
 import {
   DrawingState,

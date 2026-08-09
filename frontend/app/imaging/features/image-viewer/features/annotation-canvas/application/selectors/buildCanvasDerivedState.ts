@@ -1,4 +1,4 @@
-import { getEffectiveManualMeasurementPointsNeeded } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
+import { getEffectiveManualMeasurementPointsNeeded } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import {
   MeasurementData,

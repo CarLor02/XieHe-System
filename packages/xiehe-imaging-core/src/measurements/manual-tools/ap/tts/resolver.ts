@@ -5,8 +5,8 @@ import {
   type MeasurementResolver,
   type ResolvedVariableMeasurementBase,
 } from '../../../shared-rules';
-import { isApProjectionExamType } from '@xiehe/imaging-core/anatomy';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import { isApProjectionExamType } from '../../../../anatomy';
+import type { Point } from '../../../../contracts';
 
 import { isManualTtsMeasurement } from './interaction';
 

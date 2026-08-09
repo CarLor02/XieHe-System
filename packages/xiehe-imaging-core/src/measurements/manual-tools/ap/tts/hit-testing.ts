@@ -1,5 +1,5 @@
-import { isPointNearPoint } from '@xiehe/imaging-core/geometry';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import { isPointNearPoint } from '../../../../geometry';
+import type { Point } from '../../../../contracts';
 
 /**
  * TTS 命中两组端点及其水平中线。

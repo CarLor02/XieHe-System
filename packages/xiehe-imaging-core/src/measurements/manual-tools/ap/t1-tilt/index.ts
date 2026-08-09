@@ -1,6 +1,6 @@
 import { calculateHorizontalAngleResults } from '../../../shared-rules';
-import { isTwoPointLineInRange } from '@xiehe/imaging-core/geometry';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import { isTwoPointLineInRange } from '../../../../geometry';
+import type { Point } from '../../../../contracts';
 
 /** T1 Tilt 保留点1到点2的有符号水平角。 */
 export const calculateT1TiltResults = (points: Point[]) =>

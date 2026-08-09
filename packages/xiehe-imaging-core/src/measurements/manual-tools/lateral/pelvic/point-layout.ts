@@ -3,11 +3,11 @@ import {
   circleGeometryToPoints,
   createCircleGeometry,
   moveCircleCenter,
-} from '@xiehe/imaging-core/geometry';
-import type { CircleGeometry } from '@xiehe/imaging-core/geometry';
-import type { Point } from '@xiehe/imaging-core/contracts';
+} from '../../../../geometry';
+import type { CircleGeometry } from '../../../../geometry';
+import type { Point } from '../../../../contracts';
 
-import type { PelvicMeasurementMetadata } from '@xiehe/imaging-core/contracts';
+import type { PelvicMeasurementMetadata } from '../../../../contracts';
 import type { PelvicMeasurementGeometry } from './types';
 
 export const SINGLE_PELVIC_POINT_COUNT = 3;

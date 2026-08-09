@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
+import type { MeasurementData, Point } from '../../contracts';
 
 import {
   resolveCobbEndpointPointIds,

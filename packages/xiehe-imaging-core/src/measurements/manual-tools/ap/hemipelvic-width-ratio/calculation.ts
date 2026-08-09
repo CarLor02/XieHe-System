@@ -1,5 +1,5 @@
 import type { MeasurementResult } from '../../../shared-rules';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../../../contracts';
 import { calculateHemipelvicWidthRatioGeometry } from './geometry';
 
 /** L/R 使用按水平方向排序后的第1-2线宽与第3-4线宽之比。 */

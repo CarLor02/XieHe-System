@@ -1,11 +1,11 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '../../measurements';
 import {
   AnnotationSource,
   type MeasurementData,
-} from '@xiehe/imaging-core/contracts';
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import { upsertKeypoint } from '@xiehe/imaging-core/keypoints';
-import { resolveCobbMeasurement } from '@xiehe/imaging-core/measurements';
+} from '../../contracts';
+import type { KeypointAnnotation } from '../../keypoints';
+import { upsertKeypoint } from '../../keypoints';
+import { resolveCobbMeasurement } from '../../measurements';
 
 function normalizeCobbEndpoint(value: string | null | undefined): string {
   return value?.trim().toUpperCase() ?? '';

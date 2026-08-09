@@ -6,8 +6,8 @@ import { calculateActualDistance } from '../../../shared-rules';
 import {
   isPointNearLine,
   isPointNearPoint,
-} from '@xiehe/imaging-core/geometry';
-import type { Point } from '@xiehe/imaging-core/contracts';
+} from '../../../../geometry';
+import type { Point } from '../../../../contracts';
 
 /**
  * TS 计算 C7 中心相对骶骨参考线中点的水平距离。

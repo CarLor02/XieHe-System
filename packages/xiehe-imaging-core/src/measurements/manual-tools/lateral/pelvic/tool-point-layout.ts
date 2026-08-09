@@ -1,4 +1,4 @@
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../../../contracts';
 
 import {
   BILATERAL_PELVIC_POINT_COUNT,
@@ -8,7 +8,7 @@ import {
 import type {
   FemoralHeadMode,
   PelvicToolId,
-} from '@xiehe/imaging-core/contracts';
+} from '../../../../contracts';
 
 export const SINGLE_TPA_POINT_COUNT = 7;
 export const BILATERAL_TPA_POINT_COUNT = 10;

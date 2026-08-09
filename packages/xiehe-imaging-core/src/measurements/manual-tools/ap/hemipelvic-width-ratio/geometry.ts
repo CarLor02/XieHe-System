@@ -1,4 +1,4 @@
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../../../contracts';
 
 export const HEMIPELVIC_WIDTH_RATIO_TOOL_ID = 'hemipelvic-width-ratio';
 export const HEMIPELVIC_WIDTH_RATIO_ANCHOR_COUNT = 4;

@@ -1,7 +1,7 @@
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, test } from 'vitest';
 
-import { AnnotationSource } from '@xiehe/imaging-core/contracts';
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
+import { AnnotationSource } from '../../contracts';
+import type { KeypointAnnotation } from '../../keypoints';
 
 import {
   getEffectiveManualMeasurementPointsNeeded,

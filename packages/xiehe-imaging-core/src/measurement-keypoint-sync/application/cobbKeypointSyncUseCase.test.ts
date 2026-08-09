@@ -1,15 +1,15 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
 import {
   canSyncCobbMeasurementToKeypoints,
   syncCobbMeasurementToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/cobbKeypointSyncUseCase';
-import { AnnotationSource } from '@xiehe/imaging-core/contracts';
+} from './cobbKeypointSyncUseCase';
+import { AnnotationSource } from '../../contracts';
 import type {
   MeasurementData,
   Point,
-} from '@xiehe/imaging-core/contracts';
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
+} from '../../contracts';
+import type { KeypointAnnotation } from '../../keypoints';
 
 const points: Point[] = [
   { x: 10, y: 10 },

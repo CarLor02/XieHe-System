@@ -3,7 +3,7 @@ import { Point } from '@xiehe/imaging-core/contracts';
 import {
   getManualMeasurementInheritedPointMap,
   getManualMeasurementInheritedPoints,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/manualMeasurementKeypointInheritanceUseCase';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import { HEMIPELVIC_WIDTH_RATIO_TOOL_ID } from '@xiehe/imaging-core/measurements/ap';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
