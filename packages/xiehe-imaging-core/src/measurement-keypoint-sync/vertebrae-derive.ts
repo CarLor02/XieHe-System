@@ -10,22 +10,19 @@
  * 坐标系：图像像素坐标（左上角为原点，y 向下）
  */
 
-import {
+import type {
   CfhAnnotation,
   MeasurementData,
   Point,
   VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
-import { isLateralVertebraLabel } from '@xiehe/imaging-core/keypoints';
+} from '../contracts';
+import { isLateralVertebraLabel } from '../keypoints';
 import {
   keypointsToDerivedLayer,
   vertebraeLayerToKeypoints,
-} from '@xiehe/imaging-core/keypoints';
-import { createHemipelvicWidthRatioPoints } from '@xiehe/imaging-core/measurements/ap';
-import { DERIVED_ID_PREFIX } from '@xiehe/imaging-core/measurement-keypoint-sync';
-import { createLogger } from '@/lib/logger';
-
-const logger = createLogger('app.imaging.features.image.viewer.features.measurement.keypoint.sync.domain.vertebrae.derive');
+} from '../keypoints';
+import { createHemipelvicWidthRatioPoints } from '../measurements/manual-tools/ap';
+import { DERIVED_ID_PREFIX } from './derived-measurement';
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────
 
@@ -461,7 +458,8 @@ function deriveAnterior(
 export function deriveAllMeasurements(
   vertebraeLayer: VertebraAnnotation[],
   cfhAnnotation: CfhAnnotation | null,
-  examType: string
+  examType: string,
+  onError?: (error: unknown) => void
 ): MeasurementData[] {
   if (vertebraeLayer.length === 0) return [];
   try {
@@ -476,7 +474,7 @@ export function deriveAllMeasurements(
       );
     }
   } catch (e) {
-    logger.error('[vertebrae-derive] 推导失败:', e);
+    onError?.(e);
     return [];
   }
 }

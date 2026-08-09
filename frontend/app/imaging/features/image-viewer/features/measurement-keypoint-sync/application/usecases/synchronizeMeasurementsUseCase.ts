@@ -30,8 +30,9 @@ import {
   isCobbMeasurement,
   isDerivedCobbMeasurement,
   DERIVED_ID_PREFIX,
+  deriveAllMeasurements,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
-import { deriveAllMeasurements } from '../../domain/vertebrae-derive';
+import { createLogger } from '@/lib/logger';
 import {
   createBoundCobbMeasurement,
   createTtsMeasurement,
@@ -43,6 +44,13 @@ import { derivePelvicMeasurements } from './derivePelvicMeasurementsUseCase';
 import { orderDerivedMeasurementsByBindingRules } from '@xiehe/imaging-core/measurement-keypoint-sync';
 
 const DYNAMIC_PELVIC_RULE_IDS = new Set(['pi', 'pt', 'tpa']);
+const logger = createLogger(
+  'app.imaging.features.image.viewer.measurement.keypoint.sync.synchronize'
+);
+
+function reportMeasurementDerivationError(error: unknown): void {
+  logger.error('[vertebrae-derive] 推导失败:', error);
+}
 
 function applyCobbSequenceTypes(
   measurements: MeasurementData[],
@@ -103,7 +111,12 @@ export function deriveKeypointMeasurements({
   const derivedLayer = keypointsToDerivedLayer(keypoints, examType);
   const autoCobbMeasurements = isBendingExamType(examType)
     ? []
-    : deriveAllMeasurements(derivedLayer, cfhAnnotation, examType)
+    : deriveAllMeasurements(
+        derivedLayer,
+        cfhAnnotation,
+        examType,
+        reportMeasurementDerivationError
+      )
         .filter(isCobbMeasurement)
         .map(measurement => ({
           ...measurement,
@@ -443,14 +456,17 @@ export function buildDerivedMeasurementsFromLayer({
   examType: string;
   calculationContext: CalculationContext;
 }): MeasurementData[] {
-  return deriveAllMeasurements(layer, cfhAnnotation, examType).map(
-    measurement => ({
-      ...measurement,
-      value: calculateMeasurementValue(
-        measurement.type,
-        measurement.points,
-        calculationContext
-      ),
-    })
-  );
+  return deriveAllMeasurements(
+    layer,
+    cfhAnnotation,
+    examType,
+    reportMeasurementDerivationError
+  ).map(measurement => ({
+    ...measurement,
+    value: calculateMeasurementValue(
+      measurement.type,
+      measurement.points,
+      calculationContext
+    ),
+  }));
 }

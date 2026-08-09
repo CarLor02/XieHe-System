@@ -15,3 +15,4 @@ export * from './measurement-keypoint-selection';
 export * from './measurement-keypoint-writeback';
 export * from './pelvic-binding-rule';
 export * from './point-normalization';
+export * from './vertebrae-derive';
