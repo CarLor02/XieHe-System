@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./contracts": "./src/contracts/index.ts",
     "./anatomy": "./src/anatomy/index.ts",
+    "./geometry": "./src/geometry/index.ts",
     "./measurements": "./src/measurements/index.ts",
     "./keypoints": "./src/keypoints/index.ts",
     "./measurement-keypoint-sync": "./src/measurement-keypoint-sync/index.ts",

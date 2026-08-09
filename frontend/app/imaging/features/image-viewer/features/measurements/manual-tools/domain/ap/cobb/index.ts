@@ -4,5 +4,5 @@
 export {
   calculateCobbResults as calculateApCobbResults,
   isCobbInRange as isApCobbInRange,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
+} from '@xiehe/imaging-core/measurements';
 export * from './resolver';

@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import type { ResolvedVariableMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 import type {
   MeasurementData,

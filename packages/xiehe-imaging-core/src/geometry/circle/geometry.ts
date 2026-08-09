@@ -1,4 +1,4 @@
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../contracts';
 
 import type { CircleBounds, CircleGeometry } from './types';
 

@@ -2,7 +2,7 @@ import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/featu
 import {
   calculateDistance2D,
   pointToLineDistance,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
+} from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {

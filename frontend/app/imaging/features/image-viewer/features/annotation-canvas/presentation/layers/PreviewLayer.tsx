@@ -15,7 +15,7 @@ import {
 import {
   createCircleGeometry,
   getCircleRadius,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+} from '@xiehe/imaging-core/geometry';
 import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 interface PreviewLayerProps {

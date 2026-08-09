@@ -8,7 +8,7 @@ import {
   getAnnotationDisplayName,
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import { calculateAvtValue } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import { calculateTtsResults } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import {
@@ -18,7 +18,7 @@ import {
 import { calculatePiResultsFromGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pi';
 import { calculatePtResultsFromGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pt';
 import { calculateTpaResultsFromGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/tpa';
-import { calculateCobbResults } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
+import { calculateCobbResults } from '@xiehe/imaging-core/measurements';
 import type {
   MeasurementData,
   Point,

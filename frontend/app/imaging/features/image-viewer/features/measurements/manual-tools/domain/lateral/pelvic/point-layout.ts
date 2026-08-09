@@ -3,8 +3,8 @@ import {
   circleGeometryToPoints,
   createCircleGeometry,
   moveCircleCenter,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
-import type { CircleGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+} from '@xiehe/imaging-core/geometry';
+import type { CircleGeometry } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 import type {

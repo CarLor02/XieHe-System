@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 import {
   circleGeometryFromPoints,
@@ -6,7 +6,7 @@ import {
   createCircleGeometry,
   getCircleRadius,
   moveCircleCenter,
-} from './index';
+} from '../../src/geometry/circle';
 
 describe('CircleGeometry', () => {
   it('uses center and radius handle as the stable two-point circle contract', () => {

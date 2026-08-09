@@ -1,10 +1,9 @@
-import type { ResolvedVariableMeasurementBase } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
+import type { MeasurementData, Point } from '../../contracts';
 import type {
   MeasurementResolver,
   MeasurementResolverContext,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
-import type { Point } from '@xiehe/imaging-core/contracts';
+  ResolvedVariableMeasurementBase,
+} from '../resolver';
 
 export type CobbPointTuple = readonly [Point, Point, Point, Point];
 export type CobbEndpointPointIds = readonly [string, string, string, string];

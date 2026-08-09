@@ -16,7 +16,7 @@ import { imageToScreen } from '@/app/imaging/features/image-viewer/features/anno
 import {
   createCircleGeometry,
   getCircleRadius,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+} from '@xiehe/imaging-core/geometry';
 
 /**
  * 检查是否点击了某个点

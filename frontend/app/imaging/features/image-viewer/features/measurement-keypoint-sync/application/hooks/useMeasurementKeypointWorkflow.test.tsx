@@ -5,7 +5,7 @@ import { expect, it, jest } from '@jest/globals';
 
 import { useMeasurementKeypointWorkflow } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useMeasurementKeypointWorkflow';
 import { useMeasurementWorkflow } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useMeasurementWorkflow';
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   AnnotationSource,

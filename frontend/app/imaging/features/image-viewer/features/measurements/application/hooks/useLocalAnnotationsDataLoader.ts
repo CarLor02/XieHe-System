@@ -5,7 +5,7 @@ import {RefObject, useEffect} from "react";
 import {
     getAnnotationTypeId,
 } from "@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config";
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import {
     calculateMeasurementDataValue,
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';

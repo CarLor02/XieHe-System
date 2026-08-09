@@ -8,7 +8,7 @@ import { resolveTtsMeasurement } from '@/app/imaging/features/image-viewer/featu
 import {
   circleGeometryFromPoints,
   getCircleBounds,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+} from '@xiehe/imaging-core/geometry';
 import { getBilateralPelvicGeometryForMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 
 interface SelectionOverlayLayerProps {

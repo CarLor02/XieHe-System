@@ -1,6 +1,7 @@
-import type { MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
-import { calculateAngleToHorizontal } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../contracts';
+import { calculateAngleToHorizontal } from '../geometry';
+
+import type { MeasurementResult } from './calculation-types';
 
 /** 两点水平角工具的共享计算模板，工具模块负责传入名称和符号策略。 */
 export function calculateHorizontalAngleResults(

@@ -1,6 +1,6 @@
-import type { CalculationContext, MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
-import { calculateActualDistance } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/calibration';
-import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+import type { CalculationContext, MeasurementResult } from '@xiehe/imaging-core/measurements';
+import { calculateActualDistance } from '@xiehe/imaging-core/measurements';
+import { isPointNearLine, isPointNearPoint } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**

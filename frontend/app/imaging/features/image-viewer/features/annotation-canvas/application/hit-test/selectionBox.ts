@@ -8,7 +8,7 @@ import { resolveTtsMeasurement } from '@/app/imaging/features/image-viewer/featu
 import {
   circleGeometryFromPoints,
   getCircleBounds,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+} from '@xiehe/imaging-core/geometry';
 
 /**
  * 计算标注的选择边界框，供选中态与 hover 态复用。

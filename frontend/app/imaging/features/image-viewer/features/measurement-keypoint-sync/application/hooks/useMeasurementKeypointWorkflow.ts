@@ -14,7 +14,7 @@ import {
   Point,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import {
   buildDerivedMeasurementsFromLayer,
   deriveInitialMeasurementsFromKeypoints as deriveInitialMeasurementsFromKeypointsUseCase,

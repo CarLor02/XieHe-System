@@ -10,17 +10,17 @@ import {
   PELVIC_MEASUREMENT_RESOLVER,
   type ResolvedPelvicMeasurement,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral';
-import type { ResolvedCobbMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
+import type { ResolvedCobbMeasurement } from '@xiehe/imaging-core/measurements';
 import type {
   CobbEndpointPointIds,
   CobbMeasurementDescriptor,
   CobbResolver,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
+} from '@xiehe/imaging-core/measurements';
 import type {
   MeasurementResolver,
   MeasurementResolverContext,
   VariableMeasurementResolution,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
+} from '@xiehe/imaging-core/measurements';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 export type ResolvedVariableMeasurement =

@@ -1,4 +1,4 @@
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from './calculation-types';
 
 /**
  * 将图像像素距离换算为毫米。
@@ -11,10 +11,7 @@ export function calculateActualDistance(
 ): number {
   if (context.standardDistance && context.standardDistancePoints.length === 2) {
     const [start, end] = context.standardDistancePoints;
-    const standardPixelLength = Math.hypot(
-      end.x - start.x,
-      end.y - start.y
-    );
+    const standardPixelLength = Math.hypot(end.x - start.x, end.y - start.y);
     if (standardPixelLength > 0) {
       return (pixelDistance / standardPixelLength) * context.standardDistance;
     }

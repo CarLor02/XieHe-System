@@ -18,7 +18,7 @@ import {
     hasUniqueAnnotationForTool,
     measurementMatchesTool,
 } from "@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness";
-import {getNextCobbType} from "@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb";
+import {getNextCobbType} from "@xiehe/imaging-core/measurements";
 import {Dispatch, SetStateAction} from "react";
 
 export function addMeasurement(

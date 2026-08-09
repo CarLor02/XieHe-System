@@ -4,7 +4,7 @@ import {
   resolved,
   type MeasurementResolver,
   type ResolvedVariableMeasurementBase,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
+} from '@xiehe/imaging-core/measurements';
 import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
 import type { Point } from '@xiehe/imaging-core/contracts';
 

@@ -1,10 +1,10 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
-import { calculateActualDistance } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/calibration';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
+import { calculateActualDistance } from '@xiehe/imaging-core/measurements';
 import {
   isPointNearLine,
   isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+} from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const AUX_HORIZONTAL_LINE_CONFIG: AnnotationConfig = {

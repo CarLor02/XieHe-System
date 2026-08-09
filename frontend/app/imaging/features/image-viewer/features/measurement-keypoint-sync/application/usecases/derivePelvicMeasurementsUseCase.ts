@@ -1,6 +1,6 @@
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import {
   createDefaultBilateralPelvicPoints,
   createPelvicMeasurementMetadata,

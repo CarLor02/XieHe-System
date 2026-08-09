@@ -18,7 +18,7 @@ import type {
 import {
   circleGeometryFromPoints,
   moveCircleCenter,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+} from '@xiehe/imaging-core/geometry';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import type {
   MeasurementData,

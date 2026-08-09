@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { ImageSize, Point } from '@xiehe/imaging-core/contracts';
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import { calculateMeasurementValue as calcMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getDescriptionForType as getDesc } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 

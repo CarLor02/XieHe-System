@@ -3,12 +3,12 @@ import {
   buildCobbEndpointPointIds,
   buildResolvedCobbMeasurement,
   normalizeCobbVertebra,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb/resolver-utils';
-import type { CobbResolver } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb/resolver-types';
+} from '@xiehe/imaging-core/measurements';
+import type { CobbResolver } from '@xiehe/imaging-core/measurements';
 import {
   invalid,
   resolved,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
+} from '@xiehe/imaging-core/measurements';
 import { isApProjectionExamType } from '@xiehe/imaging-core/anatomy';
 
 const AP_COBB_TYPE_PATTERN =

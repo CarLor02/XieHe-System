@@ -3,7 +3,7 @@ import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measu
 import {
   isPointNearLine,
   isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+} from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const AUX_ANGLE_CONFIG: AnnotationConfig = {

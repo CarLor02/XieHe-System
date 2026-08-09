@@ -2,7 +2,7 @@ import {
   calculateMeasurementDataValue,
   calculateMeasurementValue,
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import {
   type AvtTarget,
 } from '@xiehe/imaging-core/contracts';
@@ -15,7 +15,7 @@ import {
   isAvtMetadata,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import { resolveCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
-import { getNextCobbType } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
+import { getNextCobbType } from '@xiehe/imaging-core/measurements';
 import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,

@@ -12,7 +12,7 @@ import { resolveVariableMeasurement } from '@/app/imaging/features/image-viewer/
 import {
   circleGeometryFromPoints,
   getCircleBounds,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+} from '@xiehe/imaging-core/geometry';
 import { normalizePelvicDraggedMeasurementPoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/pelvic-binding-rule';
 import {
   MeasurementData,

@@ -1,6 +1,6 @@
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import { renumberCobbTypesAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
+import { renumberCobbTypesAfterDelete } from '@xiehe/imaging-core/measurements';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 /**

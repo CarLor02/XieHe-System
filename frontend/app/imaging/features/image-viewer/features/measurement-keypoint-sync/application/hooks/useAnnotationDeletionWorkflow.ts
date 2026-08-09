@@ -7,7 +7,7 @@ import {
   keypointsToPersistedLayer,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/renumberCobbMeasurementsAfterDelete';
-import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import {
   planKeypointDeletion,
   planMeasurementDeletion,

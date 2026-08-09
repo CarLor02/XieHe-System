@@ -1,5 +1,6 @@
-import type { MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../contracts';
+
+import type { MeasurementResult } from '../calculation-types';
 
 /**
  * 计算两条终板线之间的 Cobb 角。

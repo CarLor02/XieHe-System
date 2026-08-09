@@ -1,5 +1,5 @@
-import { calculateHorizontalAngleResults } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/line-angle';
-import { isTwoPointLineInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+import { calculateHorizontalAngleResults } from '@xiehe/imaging-core/measurements';
+import { isTwoPointLineInRange } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**

@@ -1,5 +1,5 @@
-import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../contracts';
+import { isPointNearLine, isPointNearPoint } from '../../geometry';
 
 /** Cobb 的两个终板线段及四个端点均可命中。 */
 export function isCobbInRange(

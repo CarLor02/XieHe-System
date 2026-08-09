@@ -35,7 +35,7 @@ import {
 import {
   circleGeometryToPoints,
   createCircleGeometry,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+} from '@xiehe/imaging-core/geometry';
 import { getPelvicMeasurementKeypointBindingRule } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/pelvic-binding-rule';
 
 const POLYGON_CLOSE_TOLERANCE_PX = 18;

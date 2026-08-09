@@ -1,7 +1,7 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import { LABEL_OFFSET } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/label-layout';
-import { calculateDistance2D } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
-import { isPointNearLine, isPointNearPoint } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+import { calculateDistance2D } from '@xiehe/imaging-core/geometry';
+import { isPointNearLine, isPointNearPoint } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const LENGTH_CONFIG: AnnotationConfig = {

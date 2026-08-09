@@ -1,4 +1,4 @@
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../contracts';
 
 /**
  * 手动测量工具共享的纯几何规则。

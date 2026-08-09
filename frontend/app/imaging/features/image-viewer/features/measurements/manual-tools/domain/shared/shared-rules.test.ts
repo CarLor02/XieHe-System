@@ -1,11 +1,14 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { calculateActualDistance } from './calibration';
-import { calculateCobbResults, isCobbInRange } from './cobb';
 import {
   calculateAngleToHorizontal,
   pointToLineDistance,
-} from './geometry';
+} from '@xiehe/imaging-core/geometry';
+import {
+  calculateActualDistance,
+  calculateCobbResults,
+  isCobbInRange,
+} from '@xiehe/imaging-core/measurements';
 import { getPelvicMeasurementGeometry } from '../lateral/pelvic';
 
 const calibratedContext = {

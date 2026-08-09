@@ -1,8 +1,6 @@
-import type { Point } from '@xiehe/imaging-core/contracts';
-import {
-  calculateDistance2D,
-  pointToLineDistance,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
+import type { Point } from '../contracts';
+
+import { calculateDistance2D, pointToLineDistance } from './point';
 
 /** 手动工具共享的点、线命中规则，容差使用图像坐标。 */
 export function isPointNearPoint(

@@ -1,9 +1,9 @@
-import type { MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
-import { calculateAngleBetweenVectors } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
+import type { MeasurementResult } from '@xiehe/imaging-core/measurements';
+import { calculateAngleBetweenVectors } from '@xiehe/imaging-core/geometry';
 import {
   isPointNearLine,
   isPointNearPoint,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
+} from '@xiehe/imaging-core/geometry';
 import {
   extractBilateralPelvicPoints,
   getPelvicMeasurementGeometry,

@@ -1,7 +1,7 @@
 import type {
   CalculationContext,
   MeasurementResult,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
+} from '@xiehe/imaging-core/measurements';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**

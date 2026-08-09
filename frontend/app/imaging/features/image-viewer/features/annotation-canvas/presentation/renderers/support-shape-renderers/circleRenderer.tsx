@@ -1,7 +1,7 @@
 import {
   circleGeometryFromPoints,
   getCircleRadius,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+} from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 interface CircleRendererOptions {

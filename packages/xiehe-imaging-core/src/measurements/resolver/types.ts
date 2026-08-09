@@ -1,7 +1,4 @@
-import type {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import type { MeasurementData, Point } from '../../contracts';
 
 export interface MeasurementResolverContext {
   examType: string;

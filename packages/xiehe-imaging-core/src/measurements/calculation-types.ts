@@ -1,4 +1,4 @@
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../contracts';
 
 /**
  * 测量公式输出的统一结构。

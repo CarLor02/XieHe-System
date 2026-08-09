@@ -1,4 +1,4 @@
-import type { CircleGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
+import type { CircleGeometry } from '@xiehe/imaging-core/geometry';
 import type {
   FemoralHeadMode,
   PelvicToolId,
