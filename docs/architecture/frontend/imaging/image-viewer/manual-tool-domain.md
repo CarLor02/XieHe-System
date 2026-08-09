@@ -1,145 +1,73 @@
-# 影像标注手动测量工具目录与职责
+# 影像标注手动测量工具职责
 
-本文说明
-`frontend/app/imaging/features/image-viewer/features/measurements/`
-中手动测量工具的领域结构。目标是把医学计算规则、应用流程和画布展示分开，
-避免工具公式重新堆积到 catalog 或 React 组件中。
+手动测量工具拆为公共领域规则和 Web 注册/交互两部分。整体 workspace 边界见
+[`shared-imaging-core.md`](./shared-imaging-core.md)。
 
 ## 目录结构
 
 ```text
-measurements/
-├── catalog/
-│   ├── ap/measurements/             # 正位工具注册与展示适配
-│   ├── lateral/measurements/        # 侧位工具注册与展示适配
-│   ├── auxiliary/                   # 辅助图形注册
-│   └── shared/
-│       ├── annotation-config.ts     # 工具注册表与查询
-│       ├── annotation-config-types.ts
-│       ├── annotation-metadata.ts   # 标签、颜色和交互元数据
-│       └── label-layout.ts          # 标签屏幕偏移
-├── domain/
-│   ├── annotation-type-id.ts        # 稳定工具 key 规范化
-│   └── measurement-calculation-types.ts
-├── manual-tools/domain/
-│   ├── ap/                          # 仅正位工具规则
-│   ├── lateral/                     # 仅侧位工具规则
-│   ├── shared/                      # 正侧位真正共用的纯规则
-│   └── measurement-resolver.ts      # 可变点位布局的唯一解析注册表
-└── application/
-    ├── hooks/                       # 测量领域的 React 状态适配
-    └── usecases/                    # 跨工具、状态或 catalog 的应用流程
+packages/xiehe-imaging-core/src/measurements/
+├── manual-tools/
+│   ├── ap/                         # 正位工具规则
+│   └── lateral/                    # 侧位工具规则
+├── cobb/                           # 正侧位共用的 Cobb 基础规则
+├── resolver/                       # 可变 measurement 解析注册表
+├── annotation-rules/               # 唯一性、可编辑性和序列化
+├── calibration.ts
+├── line-angle.ts
+└── shared-rules.ts
+
+frontend/.../features/measurements/
+├── catalog/                        # Web 工具注册与视觉元数据
+└── application/                    # React hooks 和跨状态/API 用例
 ```
 
-`manual-tools/domain/ap` 与 `manual-tools/domain/lateral` 按工具名建目录。
-简单工具可以只使用 `index.ts`；复杂工具按需要拆分
-`calculation.ts`、`geometry.ts`、`hit-testing.ts`、`interaction.ts`、
-`point-layout-rules.ts` 和 `types.ts`，不要求创建空文件凑齐结构。
+## Core 工具规则
 
-## 文件职责
-
-### `manual-tools/domain`
-
-- 保存测量公式、点位布局、正负号、命中范围和医学约束等纯规则。
-- 只能依赖稳定类型、同层领域模块和 `image-viewer/shared`。
-- 不得依赖 catalog、React、SVG renderer、hook、API 或画布状态。
-- 公开函数需要用中文说明输入点序和正负号；历史格式兼容分支必须标明原因。
+- 保存测量公式、固定点序、正负号、医学约束、纯几何和命中规则。
+- 复杂工具按职责拆分 calculation、geometry、hit-testing、interaction、resolver、
+  point-layout 和 types，不为形式统一创建空文件。
+- 公开函数必须说明点序与符号语义；历史格式兼容分支必须用中文注释说明来源。
+- 不得依赖 React、Web catalog、SVG renderer、API、DOM 或画布状态。
 
 ### 可变布局 resolver
 
-Cobb、AVT、TTS、PI/PT/TPA 的持久化点序会受到检查类型、metadata 或历史版本
-影响，必须先通过 `resolveVariableMeasurement(measurement, { examType })`
-解析。该入口返回三态：
+Cobb、AVT、TTS、PI/PT/TPA 的持久化点序受检查类型、metadata 或历史版本影响，
+必须通过 `resolveVariableMeasurement(measurement, { examType })` 解析：
 
-- `not-applicable`：固定布局工具，不需要 resolver。
-- `resolved`：返回工具专用的强类型几何和交互点语义。
-- `invalid`：已识别工具的数据布局损坏；保留原 measurement 和已保存 value，
-  但不得绘制、命中、拖动或自动重算。
+- `not-applicable`：固定布局工具。
+- `resolved`：返回工具专用强类型几何和交互语义。
+- `invalid`：数据布局损坏；保留原记录，但不允许绘制、命中、拖动或自动重算。
 
-Resolver 只在运行时解释现有 `MeasurementData`，不修改 annotation JSON。
-固定两点/四点工具不为形式统一而增加 resolver。
+侧位命名 Cobb、S1 特殊端椎和通用侧位 Cobb 各自拥有 resolver；AP 与侧位先按
+检查类型隔离。创建、重算、删除依赖和关键点同步消费同一个 resolver，不允许在
+调用方重新拼接点下标。
 
-Cobb resolver 先按 `examType` 隔离 AP 与侧位，再按以下优先级匹配侧位规则：
+骨盆 resolver 支持 PI/PT 三点与六点、TPA 七点与十点，以及有注释的历史兼容
+布局。`effectiveCFH` 由单 CFH 或双 FH 几何统一提供。
 
-1. 每个命名 Cobb 的独立 resolver。
-2. 下端椎为 S1 的特殊 resolver。
-3. 普通侧位 Cobb resolver。
+## Web Catalog
 
-因此历史侧位 `cobbN` 也会根据当前检查类型使用侧位规则，而不会误用 AP
-端椎语义。创建、重算、删除依赖和关键点同步必须消费同一 resolver，禁止重新
-拼接端椎关键点 ID。
+Web catalog 只负责：
 
-骨盆 resolver 明确支持 PI/PT 的三点/六点、TPA 的七点/十点，以及历史
-“bilateral metadata + 七点 TPA”。最后一种布局保存的是
-`[T1四角,effectiveCFH,S1-1,S1-2]`，不得静默升级为十点双圆结构。
+- 工具 ID、中文名、图标、描述、点数、颜色和分类。
+- 标签锚点、屏幕偏移、交互点数和 renderer ID。
+- 将 core 计算/命中函数组合为 Web `AnnotationConfig`。
 
-### `manual-tools/domain/shared`
-
-- `geometry/`：向量角、水平角、中心点、点到线段距离。
-- `hit-testing/`：点和线段的通用命中规则。
-- `calibration/`：像素距离到毫米的标定换算。
-- `pelvic/`：股骨头中心、S1 中点和骶骨法线。
-- `cobb/`：双终板夹角、命中和编号规则。
-- `line-angle/`：两点水平角工具的计算模板。
-
-只有正位和侧位语义完全一致的规则才能进入 shared。终板选取、关键点点序、
-特殊端椎和符号约定仍由 AP 或 lateral 工具包装，不能通过复用 catalog config
-来跨检查类型共享。
-
-### `catalog`
-
-Catalog 是工具注册和展示适配层，只负责：
-
-- 工具 ID、名称、图标、描述、点数、颜色和分类。
-- 标签锚点、标签偏移及其他画布展示参数。
-- 将 domain 的计算、命中函数和强类型 `rendererId` 组合为
-  `AnnotationConfig`，但不依赖 React 或具体 canvas renderer。
-
-Catalog 不实现医学公式，不作为其他领域模块的工具函数仓库。新增工具时，
-应先建立 domain 规则，再由 catalog 引用。
-
-### `application/usecases`
-
-需要访问 catalog、多个测量项或 React 状态之外的应用流程放在 use case，例如：
-
-- 根据工具类型分派测量公式。
-- 删除 Cobb 后重编号并重算 value。
-- 创建跨测量项的继承绑定。
-
-领域层只返回确定的规则结果；是否写回列表、如何合并状态和何时调用由 use case
-负责。
-
-### `annotation-canvas`
-
-Canvas renderer 只根据已经确定的点位和测量结果绘制 SVG。渲染器可以读取纯几何
-结果辅助绘制，但不得重新实现测量公式，也不得让 domain 返回 JSX。
+Catalog 不实现医学公式，也不是跨平台工具目录。Expo 应建立符合移动端交互的展示
+catalog，并复用 core 的 ID、规则和契约。
 
 ## 依赖方向
 
 ```text
-application/usecases / application/hooks / annotation-canvas
-                ↓
-              catalog
-                ↓
-manual-tools/domain/ap | lateral
-                ↓
-   manual-tools/domain/shared
-                ↓
-measurements/domain + image-viewer/shared
+Web application / catalog / canvas presentation
+                    |
+                    v
+ @xiehe/imaging-core/measurements/{ap,lateral}
+                    |
+                    v
+       contracts + anatomy + geometry
 ```
 
-禁止 `manual-tools/domain -> catalog`、`manual-tools/domain -> annotation-canvas`
-以及 `manual-tools/domain -> React`。可使用以下命令检查：
-
-```bash
-rg "from .*catalog|from .*annotation-canvas|from 'react'" \
-  frontend/app/imaging/features/image-viewer/features/measurements/manual-tools/domain
-```
-
-## 新工具接入步骤
-
-1. 确定工具属于 AP、lateral 或 shared，并记录固定点序；可变或版本化点序必须建立 resolver。
-2. 在对应工具目录实现纯计算与必要的几何、命中规则。
-3. 为点数不足、符号方向、退化几何和历史格式补单元测试。
-4. 在 catalog 中只添加元数据、标签布局、领域函数引用和 `rendererId`。
-5. 若工具需要关键点绑定或继承，通过 use case 接入，不把状态写回放进计算函数。
+新增工具时先在 core 确定点序、公式、resolver 和测试，再接入 Web/Expo catalog、
+输入流程和 renderer。不得让 core 引用任一平台实现。

@@ -13,12 +13,16 @@ instead of by a single horizontal component tree.
 - `application/hooks/useImageViewerController.ts` is the root application layer:
   it composes feature hooks and maps them into header, canvas, toolbar, and
   dialog props.
-- Business rules live in feature `domain/` and `usecases/`; UI components do not
-  own measurement, keypoint, AI, persistence, or import/export rules.
+- Cross-platform business rules live in `@xiehe/imaging-core`; Web-specific
+  orchestration lives in feature `application/` and `usecases/`. UI components
+  do not own measurement, keypoint, AI, persistence, or import/export rules.
 - Feature internals are not imported from outside the viewer. External modules
   use `viewer/public.ts`.
-- `shared/` is only for cross-feature types, constants, geometry helpers, and
-  text/label helpers.
+- `shared/` only contains Web viewer helpers. Platform-neutral contracts,
+  anatomy and geometry belong to `@xiehe/imaging-core`.
+
+See [`shared-imaging-core.md`](./shared-imaging-core.md) for the workspace and
+cross-platform dependency boundary.
 
 ## Directory Layout
 
@@ -60,21 +64,20 @@ Owns study/image data loading and user capability checks.
 
 ### `features/measurements`
 
-Owns measurement tool registration, pure manual-tool rules, persistence, and
-dependency rules between measurements. See
+Owns Web measurement tool registration, persistence adapters, and React
+workflows. Pure manual-tool and annotation rules live in core. See
 [`manual-tool-domain.md`](./manual-tool-domain.md) for the detailed tool-domain
 layout and dependency constraints.
 
-- `catalog/` registers AP, lateral, and auxiliary tools and exposes typed
-  visual metadata such as `rendererId`; it does not import canvas renderers.
-- `manual-tools/domain/{ap,lateral,shared}` owns pure formulas, medical
-  geometry, point-layout, and hit-testing rules.
-- `domain/` owns stable measurement types, canonical tool IDs, serialization,
-  editability, and uniqueness rules.
+- `catalog/` registers AP, lateral, and auxiliary Web tools and exposes visual
+  metadata such as `rendererId`; it does not import canvas renderers.
+- `@xiehe/imaging-core/measurements/{ap,lateral}` owns formulas, medical
+  geometry, point layouts, resolvers and hit-testing rules.
+- `@xiehe/imaging-core/measurements` owns canonical IDs, serialization,
+  editability and uniqueness rules.
 - `application/usecases/calculateMeasurementValue.ts` dispatches registered tool formulas.
 - `application/usecases/annotationInheritanceUseCase.ts` contains inherited/shared point
   orchestration.
-- `domain/annotation-uniqueness.ts` defines uniqueness and duplicate filtering.
 - `application/usecases/addMeasurementUseCase.ts` creates/replaces measurements.
 - `application/usecases/saveMeasurementsUseCase.ts` persists measurements and annotation
   payloads.
@@ -87,28 +90,20 @@ layout and dependency constraints.
 
 ### `features/keypoints`
 
-Owns keypoint catalog, keypoint entities, layer conversion, vertebra correction,
-and keypoint-only React state.
+Owns keypoint-only React state. Keypoint catalog, entities, layer conversion and
+vertebra correction live in `@xiehe/imaging-core/keypoints`.
 
-- `domain/catalog/{ap,lateral}` defines the keypoint groups available for each
-  exam.
-- `domain/keypoint.ts` defines keypoint entities and anatomical ordering.
-- `domain/keypoint-layer-mapper.ts` converts keypoints and persisted detection
-  layers without knowing about measurements.
-- `domain/vertebra-correction.ts` owns corner-order and vertebra-label
-  correction rules.
 - `application/hooks/useKeypointLayerState.ts` owns keypoint/detection-layer
   state without reading or modifying measurements.
 
 ### `features/measurement-keypoint-sync`
 
-Owns every operation that must know both keypoints and measurements. Detailed
-dependency rules are documented in
+Owns Web orchestration for operations that know both keypoints and measurements;
+the dependency graph and pure workflows live in core. Detailed rules are documented in
 [`measurement-keypoint-sync.md`](./measurement-keypoint-sync.md).
 
-- `domain/measurement-keypoint-binding.ts` defines bidirectional binding rules.
-- `domain/measurement-keypoint-writeback.ts` maps edited measurement points
-  back to keypoints and persisted vertebra layers.
+- `@xiehe/imaging-core/measurement-keypoint-sync` defines bidirectional binding,
+  writeback, deletion plans and measurement derivation.
 - `application/usecases/createBoundMeasurementUseCase.ts` creates bound
   Cobb/AVT/TTS/vertebra-center measurements.
 - `application/usecases/synchronizeMeasurementsUseCase.ts` separates AI initial
@@ -130,9 +125,9 @@ Owns AI measurement and AI keypoint detection workflows.
 
 ### `features/bindings`
 
-Owns point binding state and UI.
+Owns point binding React state and UI. Binding schema, validation, propagation
+and historical migration live in `@xiehe/imaging-core/bindings`.
 
-- `domain/annotation-binding.ts` defines binding groups and cleanup/merge rules.
 - `hooks/useAnnotationEngine.ts` owns automatic and manual binding state.
 - `components/BindingPanel.tsx` renders the binding controls.
 
@@ -145,8 +140,8 @@ Owns the image canvas interaction surface.
   pointer, drag, drawing, selection, and overlay state into layer/panel props.
 - `presentation/components/StandardDistanceWarningDialog.tsx` renders the shared
   standard-distance prerequisite dialog.
-- `domain/` contains canvas-only state models, pure geometric hit testing, tool
-  policies, and DOM-free coordinate transforms.
+- `@xiehe/imaging-core/canvas` contains state models, pure geometric hit testing,
+  input policies and DOM-free coordinate transforms.
 - `application/` owns measurement-aware hit testing and canvas interaction
   state.
 - `presentation/{layers,renderers,panels}` renders the image, SVG annotations,
@@ -178,13 +173,14 @@ Owns report display and report generation.
 - The application controller may compose feature barrels such as
   `./features/measurements`, but feature business rules should stay in their own
   `hooks/`, `domain/`, and `usecases/`.
-- Cross-feature imports target another feature's public `index.ts`.
+- Platform-neutral imports target an `@xiehe/imaging-core/*` public subpath.
+  Web cross-feature UI imports target another feature's public `index.ts`.
 - `keypoints` and `measurements` are sibling features and must not depend on one
   another. Cross-domain logic belongs to `measurement-keypoint-sync`, which may
   depend on both.
 - `measurements` must not import `annotation-canvas`. The canvas presentation
   consumes measurement catalog metadata and resolves renderer IDs locally.
-- `annotation-canvas/domain` must not access React or browser globals, and
+- Core canvas must not access React or browser globals, and Web
   `annotation-canvas/application` must not import presentation.
 - External modules, such as `frontend/app/data-export`, must import viewer
   types/render helpers from `@/app/imaging/viewer/public`.
@@ -193,8 +189,8 @@ Owns report display and report generation.
 
 ## Validation Checklist
 
-- `features/feature-boundaries.test.ts` must pass and keep the keypoint and
-  measurement dependency direction intact.
+- `packages/xiehe-imaging-core/tests/platform-boundaries.test.ts` must reject
+  platform runtime dependencies.
 - `npm --prefix frontend run type-check` should not introduce new
   viewer errors.
 - `npm --prefix frontend run build` should render the viewer route with the new

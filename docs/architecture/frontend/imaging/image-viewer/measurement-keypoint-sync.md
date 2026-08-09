@@ -1,65 +1,43 @@
 # 测量项与关键点同步模块
 
-`measurement-keypoint-sync` 是 `keypoints` 与 `measurements` 两个领域之间的
-防腐层。它负责双向绑定、派生、重算和写回；两个基础 feature 保持同级，且彼此
-不直接依赖。
+`measurement-keypoint-sync` 是关键点与测量项之间的防腐层。纯规则位于 core，
+React 状态编排和依赖 Web 计算 catalog 的流程留在 Web。
 
 ## 目录结构
 
 ```text
-measurement-keypoint-sync/
-├── domain/
-│   ├── measurement-derive.ts
-│   ├── measurement-keypoint-binding.ts
-│   ├── measurement-keypoint-query.ts
-│   ├── measurement-keypoint-selection.ts
-│   ├── measurement-keypoint-writeback.ts
-│   └── vertebrae-derive.ts
-├── application/
-│   ├── hooks/
-│   │   ├── useMeasurementKeypointWorkflow.ts
-│   │   └── useMeasurementWorkflow.ts
-│   └── usecases/
-│       ├── cobbKeypointSyncUseCase.ts
-│       ├── createBoundMeasurementUseCase.ts
-│       ├── shiftMeasurementVertebraLabelsUseCase.ts
-│       └── synchronizeMeasurementsUseCase.ts
-└── index.ts
+packages/xiehe-imaging-core/src/measurement-keypoint-sync/
+├── *-binding-rule.ts             # AP、侧位、AVT、骨盆绑定规则
+├── measurement-keypoint-*.ts     # 查询、选择、写回和双向绑定
+├── deletion/                     # 精确依赖图与纯删除计划器
+├── vertebrae-derive.ts           # AI 椎体层到测量候选项推导
+└── application/                  # 不依赖 React/API 的纯应用流程
+
+frontend/.../features/measurement-keypoint-sync/application/
+├── hooks/                        # React 跨 feature 状态编排
+└── usecases/                     # 依赖 Web 计算 catalog 的创建与同步流程
 ```
 
 ## 职责边界
 
-- `domain/` 保存不依赖 React 的双领域纯规则，包括绑定表、端椎查询、选择映射、
-  点位写回和自动测量候选派生。
-- `createBoundMeasurementUseCase.ts` 只负责从关键点构造或重建绑定测量项。
-- Cobb 的创建、重算、删除依赖和检测层写回统一使用 measurements domain 的
-  `CobbResolver`；本模块不得维护第二份 AP/侧位端椎下标规则。
-- `synchronizeMeasurementsUseCase.ts` 明确区分三个入口：
-  - AI 检测后允许执行完整初始派生，包括 Cobb。
-  - 点位移动后只重算内存中已有或已绑定的测量项。
-  - 关键点增删后可补齐全局唯一测量项，但不会自动恢复 Cobb。
-- `application/hooks/` 负责把上述规则接入 React 状态和用户操作，不重新实现
-  领域映射。
+- Core 定义点位依赖、端椎查询、写回、删除计划、测量候选派生和持久化恢复。
+- Cobb 创建、重算、删除和写回统一消费 AP/侧位 resolver，不维护第二份下标规则。
+- Web `createBoundMeasurementUseCase` 负责调用 Web 计算 catalog 后写入页面状态。
+- Web `synchronizeMeasurementsUseCase` 组合 core 候选项与 Web value 计算、唯一性和
+  React 流程；领域推导失败通过回调交给 Web logger。
+- React hooks 只决定何时执行 AI 初始派生、拖动重算和关键点增删同步。
 
 ## 依赖方向
 
 ```text
-image-viewer application / UI
-             |
-             v
-measurement-keypoint-sync
-        /             \
-       v               v
-  keypoints       measurements
-       \               /
-        v             v
-       image-viewer/shared
+Web hooks/usecases
+       |
+       v
+@xiehe/imaging-core/measurement-keypoint-sync
+       |                         |
+       v                         v
+core keypoints             core measurements
 ```
 
-约束：
-
-1. `keypoints` 不得导入 `measurements` 或 `measurement-keypoint-sync`。
-2. `measurements` 不得导入 `keypoints` 或 `measurement-keypoint-sync`。
-3. 同时需要两类领域数据的代码必须放入本模块。
-4. 模块外调用统一通过各 feature 的 `index.ts`，避免依赖内部目录。
-5. `features/feature-boundaries.test.ts` 自动检查前两条依赖规则。
+关键点和测量项基础模块彼此不直接引用；同时理解两者语义的规则进入 sync。Core
+内部使用相对导入，平台调用方使用公开子路径。
