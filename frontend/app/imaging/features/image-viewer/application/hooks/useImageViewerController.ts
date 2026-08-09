@@ -445,7 +445,6 @@ export function useImageViewerController({
   const measurementWorkflow = useMeasurementWorkflow({
     examType: imageData.examType,
     tools,
-    measurements,
     setMeasurements,
     standardDistance,
     standardDistancePoints,

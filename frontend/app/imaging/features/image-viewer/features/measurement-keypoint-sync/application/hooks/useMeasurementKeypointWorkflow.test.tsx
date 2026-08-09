@@ -83,7 +83,6 @@ function WorkflowHarness({
   const measurementWorkflow = useMeasurementWorkflow({
     examType,
     tools: [],
-    measurements,
     setMeasurements,
     standardDistance,
     standardDistancePoints,

@@ -1,4 +1,4 @@
-import type { KeypointAnnotation } from '../../keypoints';
+import type { KeypointAnnotation } from '../../keypoints/domain';
 import {
   buildAvtPoints,
   getAvtPointKeypointId,
@@ -7,10 +7,7 @@ import {
   getAvtTargetPointCount,
   isAvtMetadata,
 } from '../../measurements/domain/manual-tools/ap';
-import type {
-  MeasurementData,
-  Point,
-} from '../../shared/domain/contracts';
+import type { MeasurementData, Point } from '../../shared/domain/contracts';
 
 import type { MeasurementKeypointBindingRule } from './binding-rule-types';
 

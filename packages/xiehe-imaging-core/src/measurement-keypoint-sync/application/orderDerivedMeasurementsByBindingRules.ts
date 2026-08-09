@@ -1,4 +1,4 @@
-import { getAnnotationTypeId } from '../../measurements';
+import { getAnnotationTypeId } from '../../measurements/domain';
 import type { MeasurementData } from '../../shared/domain/contracts';
 
 import type { MeasurementKeypointBindingRule } from '../domain/binding-rule-types';

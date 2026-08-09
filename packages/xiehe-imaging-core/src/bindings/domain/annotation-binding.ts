@@ -1,4 +1,4 @@
-import { getAnnotationTypeId } from '../../measurements';
+import { getAnnotationTypeId } from '../../measurements/domain';
 
 export const ANNOTATION_BINDING_SCHEMA_VERSION = 2 as const;
 
@@ -97,11 +97,10 @@ function isManualPointRefValid(
 ): boolean {
   return Boolean(
     measurement &&
-      Number.isInteger(member.pointIndex) &&
-      member.pointIndex >= 0 &&
-      member.pointIndex < measurement.points.length &&
-      member.layoutFingerprint ===
-        getMeasurementLayoutFingerprint(measurement)
+    Number.isInteger(member.pointIndex) &&
+    member.pointIndex >= 0 &&
+    member.pointIndex < measurement.points.length &&
+    member.layoutFingerprint === getMeasurementLayoutFingerprint(measurement)
   );
 }
 
@@ -145,8 +144,7 @@ export function getSyncGroupsForPoint(
   return bindings.syncGroups.filter(group =>
     group.members.some(
       member =>
-        member.annotationId === annotationId &&
-        member.pointIndex === pointIndex
+        member.annotationId === annotationId && member.pointIndex === pointIndex
     )
   );
 }

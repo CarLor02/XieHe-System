@@ -3,8 +3,8 @@ import {
   parseLateralSacralKeypointId,
   parseLateralVertebraKeypointId,
   type KeypointAnnotation,
-} from '../../keypoints';
-import { getAnnotationTypeId } from '../../measurements';
+} from '../../keypoints/domain';
+import { getAnnotationTypeId } from '../../measurements/domain';
 import type { MeasurementData, Point } from '../../shared/domain/contracts';
 import { getMeasurementKeypointBindingRuleForMeasurement } from './measurement-keypoint-binding';
 

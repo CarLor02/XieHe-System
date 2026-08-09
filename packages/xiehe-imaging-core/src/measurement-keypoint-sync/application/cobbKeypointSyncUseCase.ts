@@ -1,11 +1,15 @@
-import { getAnnotationTypeId } from '../../measurements';
+import {
+  getAnnotationTypeId,
+  resolveCobbMeasurement,
+} from '../../measurements/domain';
 import {
   AnnotationSource,
   type MeasurementData,
 } from '../../shared/domain/contracts';
-import type { KeypointAnnotation } from '../../keypoints';
-import { upsertKeypoint } from '../../keypoints';
-import { resolveCobbMeasurement } from '../../measurements';
+import {
+  type KeypointAnnotation,
+  upsertKeypoint,
+} from '../../keypoints/domain';
 
 function normalizeCobbEndpoint(value: string | null | undefined): string {
   return value?.trim().toUpperCase() ?? '';

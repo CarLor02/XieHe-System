@@ -1,8 +1,6 @@
-import type {
-  CalculationContext,
-  MeasurementValueCalculator,
-} from '../../../measurements';
-import type { KeypointAnnotation } from '../../../keypoints';
+import type { CalculationContext } from '../../../measurements/domain';
+import type { MeasurementValueCalculator } from '../../../measurements/application/ports';
+import type { KeypointAnnotation } from '../../../keypoints/domain';
 import type { MeasurementData } from '../../../shared/domain/contracts';
 
 import type { MeasurementKeypointBindingRule } from '../../domain';

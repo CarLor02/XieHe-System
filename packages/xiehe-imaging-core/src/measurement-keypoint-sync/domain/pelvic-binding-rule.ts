@@ -1,4 +1,4 @@
-import type { KeypointAnnotation } from '../../keypoints';
+import type { KeypointAnnotation } from '../../keypoints/domain';
 import {
   BILATERAL_PELVIC_POINT_COUNT,
   createDefaultBilateralPelvicPoints,
@@ -19,11 +19,8 @@ import {
   circleGeometryFromPoints,
   moveCircleCenter,
 } from '../../shared/domain/geometry';
-import { getAnnotationTypeId } from '../../measurements';
-import type {
-  MeasurementData,
-  Point,
-} from '../../shared/domain/contracts';
+import { getAnnotationTypeId } from '../../measurements/domain';
+import type { MeasurementData, Point } from '../../shared/domain/contracts';
 
 import type {
   MeasurementKeypointBindingRule,

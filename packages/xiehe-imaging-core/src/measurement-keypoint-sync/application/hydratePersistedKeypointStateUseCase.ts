@@ -2,7 +2,7 @@ import {
   keypointsToPersistedLayer,
   type KeypointAnnotation,
   vertebraeLayerToKeypoints,
-} from '../../keypoints';
+} from '../../keypoints/domain';
 import { isKeypointSupportedExamType } from '../../shared/domain/anatomy';
 import type {
   CfhAnnotation,

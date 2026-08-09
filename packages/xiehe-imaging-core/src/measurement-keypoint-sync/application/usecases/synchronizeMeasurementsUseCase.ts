@@ -4,12 +4,12 @@ import {
   getCobbSequenceNumber,
   getMaxCobbSequenceNumber,
   type CalculationContext,
-  type MeasurementValueCalculator,
-} from '../../../measurements';
+} from '../../../measurements/domain';
+import type { MeasurementValueCalculator } from '../../../measurements/application/ports';
 import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,
-} from '../../../keypoints';
+} from '../../../keypoints/domain';
 import {
   isBendingExamType,
   isLateralExamType,

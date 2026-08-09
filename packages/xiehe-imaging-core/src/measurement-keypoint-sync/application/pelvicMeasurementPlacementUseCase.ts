@@ -1,4 +1,4 @@
-import type { KeypointAnnotation } from '../../keypoints';
+import type { KeypointAnnotation } from '../../keypoints/domain';
 import {
   type FemoralHeadMode,
   type PelvicToolId,
@@ -7,10 +7,7 @@ import {
   getPelvicToolPointCount,
   resolvePelvicMeasurement,
 } from '../../measurements/domain/manual-tools/lateral';
-import type {
-  MeasurementData,
-  Point,
-} from '../../shared/domain/contracts';
+import type { MeasurementData, Point } from '../../shared/domain/contracts';
 
 /**
  * 手动 PI/PT/TPA 只继承真实关键点。双 FH 的半径控制点属于测量项自身；只有

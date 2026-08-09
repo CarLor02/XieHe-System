@@ -16,11 +16,11 @@ import type {
   Point,
   VertebraAnnotation,
 } from '../../shared/domain/contracts';
-import { isLateralVertebraLabel } from '../../keypoints';
+import { isLateralVertebraLabel } from '../../keypoints/domain';
 import {
   keypointsToDerivedLayer,
   vertebraeLayerToKeypoints,
-} from '../../keypoints';
+} from '../../keypoints/domain';
 import { createHemipelvicWidthRatioPoints } from '../../measurements/domain/manual-tools/ap';
 import { DERIVED_ID_PREFIX } from './derived-measurement';
 

@@ -1,5 +1,7 @@
-import { getAnnotationTypeId } from '../../../measurements';
-import { resolveCobbEndpointPointIds } from '../../../measurements';
+import {
+  getAnnotationTypeId,
+  resolveCobbEndpointPointIds,
+} from '../../../measurements/domain';
 import {
   isApProjectionExamType,
   isLateralExamType,

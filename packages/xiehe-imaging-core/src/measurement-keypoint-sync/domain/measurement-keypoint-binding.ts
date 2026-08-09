@@ -1,13 +1,13 @@
 import {
   type KeypointAnnotation,
   upsertKeypoint,
-} from '../../keypoints';
+} from '../../keypoints/domain';
 import {
   isAnteriorExamType,
   isBendingExamType,
   isLateralExamType,
 } from '../../shared/domain/anatomy';
-import { getAnnotationTypeId } from '../../measurements';
+import { getAnnotationTypeId } from '../../measurements/domain';
 import {
   AnnotationSource,
   type MeasurementData,

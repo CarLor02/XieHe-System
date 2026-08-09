@@ -1,13 +1,10 @@
-import type {
-  MeasurementData,
-  Point,
-} from '../../../shared/domain/contracts';
+import type { MeasurementData, Point } from '../../../shared/domain/contracts';
 import {
   circleGeometryFromPoints,
   getCircleBounds,
   getBoundingBox,
 } from '../../../shared/domain/geometry';
-import { getAnnotationTypeId } from '../../../measurements';
+import { getAnnotationTypeId } from '../../../measurements/domain';
 import { resolveTtsMeasurement } from '../../../measurements/domain/manual-tools/ap';
 
 /**

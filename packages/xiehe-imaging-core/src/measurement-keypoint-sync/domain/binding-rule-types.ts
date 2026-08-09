@@ -1,4 +1,4 @@
-import type { KeypointAnnotation } from '../../keypoints';
+import type { KeypointAnnotation } from '../../keypoints/domain';
 import type { Point } from '../../shared/domain/contracts';
 
 import type { NormalizedMeasurementPoints } from './point-normalization';

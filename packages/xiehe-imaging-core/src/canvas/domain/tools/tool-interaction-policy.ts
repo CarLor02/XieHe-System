@@ -10,7 +10,7 @@ import {
   VERTICAL_LINE_TOOLS,
 } from '../constants';
 import type { Point } from '../../../shared/domain/contracts';
-import { getAnnotationTypeId } from '../../../measurements';
+import { getAnnotationTypeId } from '../../../measurements/domain';
 import type { ReferenceLines } from '../model/canvas-state';
 
 function includesToolId(values: readonly string[], toolId: string): boolean {

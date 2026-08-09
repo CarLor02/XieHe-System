@@ -1,5 +1,5 @@
-import { getEffectiveManualMeasurementPointsNeeded } from '../../../measurement-keypoint-sync/application/manualMeasurementKeypointInheritanceUseCase';
-import type { KeypointAnnotation } from '../../../keypoints';
+import { getEffectiveManualMeasurementPointsNeeded } from '../../../measurement-keypoint-sync/domain';
+import type { KeypointAnnotation } from '../../../keypoints/domain';
 import type { MeasurementData } from '../../../shared/domain/contracts';
 import type { HoverState } from '../../domain';
 

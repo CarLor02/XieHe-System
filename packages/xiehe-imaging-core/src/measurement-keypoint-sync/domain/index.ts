@@ -3,6 +3,7 @@ export * from './deletion';
 export * from './derived-measurement';
 export * from './measurement-derive';
 export * from './measurement-keypoint-binding';
+export * from './manual-measurement-inheritance';
 export * from './measurement-keypoint-query';
 export * from './measurement-keypoint-selection';
 export * from './measurement-keypoint-writeback';

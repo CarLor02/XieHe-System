@@ -1,7 +1,5 @@
-import type {
-  CalculationContext,
-  MeasurementValueCalculator,
-} from '../../../measurements';
+import type { CalculationContext } from '../../../measurements/domain';
+import type { MeasurementValueCalculator } from '../../../measurements/application/ports';
 import type { AvtTarget } from '../../../shared/domain/contracts';
 import {
   buildAvtPoints,
@@ -13,11 +11,11 @@ import {
 import {
   getNextCobbType,
   resolveCobbEndpointPointIds,
-} from '../../../measurements';
+} from '../../../measurements/domain';
 import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,
-} from '../../../keypoints';
+} from '../../../keypoints/domain';
 import { isLateralExamType } from '../../../shared/domain/anatomy';
 import type {
   MeasurementData,

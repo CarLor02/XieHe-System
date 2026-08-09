@@ -1,4 +1,4 @@
-import type { KeypointAnnotation } from '../../keypoints';
+import type { KeypointAnnotation } from '../../keypoints/domain';
 import type { Point } from '../../shared/domain/contracts';
 
 import type {
@@ -28,7 +28,9 @@ function findNormalizedPointIndex(
   sourceIndices: number[],
   changedPointIndex: number
 ): number {
-  return sourceIndices.findIndex(sourceIndex => sourceIndex === changedPointIndex);
+  return sourceIndices.findIndex(
+    sourceIndex => sourceIndex === changedPointIndex
+  );
 }
 
 export function createFixedBindingRule({
@@ -78,7 +80,10 @@ export function createFixedBindingRule({
       const pointCount =
         Math.max(...slots.map(slot => slot.pointIndex), -1) + 1;
       const hasInteractionSlots = slots.length < pointCount;
-      if (hasInteractionSlots && (!existingPoints || existingPoints.length < pointCount)) {
+      if (
+        hasInteractionSlots &&
+        (!existingPoints || existingPoints.length < pointCount)
+      ) {
         return null;
       }
 

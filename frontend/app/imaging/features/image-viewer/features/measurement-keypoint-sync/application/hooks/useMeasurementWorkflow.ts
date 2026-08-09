@@ -29,7 +29,6 @@ import { measurementValueCalculator } from '@/app/imaging/features/image-viewer/
 interface UseMeasurementWorkflowOptions {
   examType: string;
   tools: Tool[];
-  measurements: MeasurementData[];
   setMeasurements: Dispatch<SetStateAction<MeasurementData[]>>;
   standardDistance: number | null;
   standardDistancePoints: Point[];
@@ -52,7 +51,6 @@ interface UseMeasurementWorkflowOptions {
 export function useMeasurementWorkflow({
   examType,
   tools,
-  measurements,
   setMeasurements,
   standardDistance,
   standardDistancePoints,
@@ -178,7 +176,6 @@ export function useMeasurementWorkflow({
       isKeypointExam,
       isLateralView,
       keypoints,
-      measurements,
       setCfhAnnotation,
       setKeypoints,
       setMeasurements,

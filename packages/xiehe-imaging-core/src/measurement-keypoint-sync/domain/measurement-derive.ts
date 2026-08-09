@@ -2,7 +2,7 @@ import {
   getApVertebraKeypointGroups,
   getLateralKeypointGroups,
   type KeypointAnnotation,
-} from '../../keypoints';
+} from '../../keypoints/domain';
 import {
   isApProjectionExamType,
   isLateralExamType,

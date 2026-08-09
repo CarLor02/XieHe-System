@@ -1,18 +1,13 @@
-import type { KeypointAnnotation } from '../../../keypoints';
-import type {
-  CalculationContext,
-  MeasurementValueCalculator,
-} from '../../../measurements';
+import type { KeypointAnnotation } from '../../../keypoints/domain';
+import type { CalculationContext } from '../../../measurements/domain';
+import type { MeasurementValueCalculator } from '../../../measurements/application/ports';
 import {
   createDefaultBilateralPelvicPoints,
   createPelvicMeasurementMetadata,
   resolvePelvicMeasurement,
   resolveEffectiveCfh,
 } from '../../../measurements/domain/manual-tools/lateral';
-import type {
-  MeasurementData,
-  Point,
-} from '../../../shared/domain/contracts';
+import type { MeasurementData, Point } from '../../../shared/domain/contracts';
 
 function findExistingBilateralPelvicPoints(
   measurements: readonly MeasurementData[]

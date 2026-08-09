@@ -2,9 +2,9 @@ import {
   filterUniqueAnnotationDuplicates,
   getAnnotationTypeId,
   type CalculationContext,
-  type MeasurementValueCalculator,
-} from '../../../measurements';
-import type { KeypointAnnotation } from '../../../keypoints';
+} from '../../../measurements/domain';
+import type { MeasurementValueCalculator } from '../../../measurements/application/ports';
+import type { KeypointAnnotation } from '../../../keypoints/domain';
 import type { MeasurementData } from '../../../shared/domain/contracts';
 
 import {
@@ -62,12 +62,17 @@ export function deriveMissingFixedMeasurementsFromKeypoints({
     calculationContext,
     calculator,
   });
-  const candidates = orderDerivedMeasurementsByBindingRules(
-    autoDeriveRules,
-    [...fixedCandidates, ...pelvicCandidates]
-  ).filter(candidate => !existingTypes.has(getCanonicalBindingType(candidate)));
+  const candidates = orderDerivedMeasurementsByBindingRules(autoDeriveRules, [
+    ...fixedCandidates,
+    ...pelvicCandidates,
+  ]).filter(
+    candidate => !existingTypes.has(getCanonicalBindingType(candidate))
+  );
 
   return candidates.length === 0
     ? previousMeasurements
-    : filterUniqueAnnotationDuplicates([...previousMeasurements, ...candidates]);
+    : filterUniqueAnnotationDuplicates([
+        ...previousMeasurements,
+        ...candidates,
+      ]);
 }

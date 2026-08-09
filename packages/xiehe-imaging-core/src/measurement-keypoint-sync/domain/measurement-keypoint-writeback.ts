@@ -9,10 +9,8 @@
  * 正位：写回 AP 姿态关键点（ApPoseTarget），如 CL/CR（CA）、IL/IR（PO）、SL/SR（CSS）。
  */
 
-import { getAnnotationTypeId } from '../../measurements';
-import {
-  AnnotationSource,
-} from '../../shared/domain/contracts';
+import { getAnnotationTypeId } from '../../measurements/domain';
+import { AnnotationSource } from '../../shared/domain/contracts';
 import type {
   CfhAnnotation,
   Point,

@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'vitest';
 
 import { AnnotationSource } from '../../shared/domain/contracts';
-import type { KeypointAnnotation } from '../../keypoints';
+import type { KeypointAnnotation } from '../../keypoints/domain';
 
 import {
   getEffectiveManualMeasurementPointsNeeded,
   getManualMeasurementInheritedPointMap,
   getNextManualMeasurementPointIndex,
-} from './manualMeasurementKeypointInheritanceUseCase';
+} from './manual-measurement-inheritance';
 
 function keypoint(id: string, x: number): KeypointAnnotation {
   return {
@@ -21,11 +21,7 @@ function keypoint(id: string, x: number): KeypointAnnotation {
 describe('manual measurement keypoint inheritance', () => {
   test('inherits PI slots and only asks for the missing S1-2 point', () => {
     const keypoints = [keypoint('CFH', 10), keypoint('S1-1', 20)];
-    const inherited = getManualMeasurementInheritedPointMap(
-      'pi',
-      3,
-      keypoints
-    );
+    const inherited = getManualMeasurementInheritedPointMap('pi', 3, keypoints);
 
     expect(Array.from(inherited.keys())).toEqual([0, 1]);
     expect(getEffectiveManualMeasurementPointsNeeded('pi', 3, keypoints)).toBe(
@@ -53,9 +49,9 @@ describe('manual measurement keypoint inheritance', () => {
     expect(
       getManualMeasurementInheritedPointMap('css', 2, keypoints).size
     ).toBe(2);
-    expect(
-      getEffectiveManualMeasurementPointsNeeded('css', 2, keypoints)
-    ).toBe(0);
+    expect(getEffectiveManualMeasurementPointsNeeded('css', 2, keypoints)).toBe(
+      0
+    );
   });
 
   test('inherits only the bound sacral points for TTS', () => {
@@ -66,9 +62,9 @@ describe('manual measurement keypoint inheritance', () => {
         getManualMeasurementInheritedPointMap('tts', 4, keypoints).keys()
       )
     ).toEqual([2, 3]);
-    expect(
-      getEffectiveManualMeasurementPointsNeeded('tts', 4, keypoints)
-    ).toBe(2);
+    expect(getEffectiveManualMeasurementPointsNeeded('tts', 4, keypoints)).toBe(
+      2
+    );
   });
 
   test('inherits the available L/R anchors without creating interaction points', () => {

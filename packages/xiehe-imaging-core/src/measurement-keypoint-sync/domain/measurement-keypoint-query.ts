@@ -1,7 +1,5 @@
-import { getAnnotationTypeId } from '../../measurements';
-import {
-  type AvtTarget,
-} from '../../shared/domain/contracts';
+import { getAnnotationTypeId } from '../../measurements/domain';
+import { type AvtTarget } from '../../shared/domain/contracts';
 import {
   isAvtMetadata,
   isSameAvtTarget,
