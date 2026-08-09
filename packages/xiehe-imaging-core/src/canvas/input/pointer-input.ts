@@ -1,4 +1,4 @@
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../contracts';
 
 export type CanvasPointerType = 'mouse' | 'touch' | 'pen';
 

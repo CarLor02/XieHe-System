@@ -4,13 +4,13 @@ import {
   getCanvasPointerPolicy,
   normalizeCanvasPointerType,
   type CanvasPointerInput,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
+} from '@xiehe/imaging-core/canvas';
 import {
   calculatePinchViewport,
   getPointerDistance,
   getPointerMidpoint,
   type PinchSnapshot,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pinch-zoom';
+} from '@xiehe/imaging-core/canvas';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
 interface PinchState {

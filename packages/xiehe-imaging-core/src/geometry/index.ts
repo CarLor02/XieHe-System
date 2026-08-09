@@ -1,5 +1,7 @@
 export * from './circle';
 export {
+  isPointNearCircle,
+  isPointNearEllipse,
   isPointNearLine,
   isPointNearPoint,
   isTwoPointLineInRange,
@@ -9,6 +11,9 @@ export {
   calculateAngleToHorizontal,
   calculateCenterPoint,
   calculateDistance2D,
+  calculatePointsCentroid,
+  getBoundingBox,
   pointToLineDistance,
   toAcuteAngle,
 } from './point';
+export type { BoundingBox } from './point';

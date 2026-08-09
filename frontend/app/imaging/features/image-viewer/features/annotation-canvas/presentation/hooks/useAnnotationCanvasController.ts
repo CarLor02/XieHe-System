@@ -12,8 +12,8 @@ import {
 import {
   imageToScreen as utilImageToScreen,
   screenToImage as utilScreenToImage,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
-import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
+} from '@xiehe/imaging-core/canvas';
+import type { TransformContext } from '@xiehe/imaging-core/canvas';
 import { useCanvasViewport } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/hooks/useCanvasViewport';
 import { useCanvasSelection } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useCanvasSelection';
 import { useCanvasContextMenu } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/hooks/useCanvasContextMenu';
@@ -38,7 +38,7 @@ import {
 import { isDirectlyEditableAnnotation } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-editability';
 import { resolveMeasurementKeypointIds } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import type { AnnotationCanvasProps } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/annotation-canvas-props';
-import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
+import type { CanvasPointerInput } from '@xiehe/imaging-core/canvas';
 
 export function getAnnotationCanvasCursorClass({
   keypointSequenceSession,

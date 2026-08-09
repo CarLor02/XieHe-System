@@ -1,4 +1,4 @@
-import { INTERACTION_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
+import { CANVAS_INTERACTION_CONSTANTS } from '@xiehe/imaging-core/canvas';
 import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
 import { getInteractivePointsCount } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import {
@@ -17,7 +17,7 @@ export function hitTestMeasurementPoint({
   measurement,
   screenPoint,
   imageToScreen,
-  radius = INTERACTION_CONSTANTS.POINT_CLICK_RADIUS,
+  radius = CANVAS_INTERACTION_CONSTANTS.pointHitRadius,
 }: HitTestMeasurementPointOptions): number | null {
   // 仅命中前 N 个交互点（interactivePointsCount 控制）
   const interactiveCount = getInteractivePointsCount(measurement.type);
@@ -47,7 +47,7 @@ export function hitTestWorkingPoint({
   points,
   screenPoint,
   imageToScreen,
-  radius = INTERACTION_CONSTANTS.POINT_CLICK_RADIUS,
+  radius = CANVAS_INTERACTION_CONSTANTS.pointHitRadius,
 }: HitTestWorkingPointOptions): number | null {
   for (let index = 0; index < points.length; index += 1) {
     const pointScreen = imageToScreen(points[index]);

@@ -1,7 +1,7 @@
 import type {
   ImageSize,
   Point,
-} from '@xiehe/imaging-core/contracts';
+} from '../../contracts';
 
 /**
  * 画布坐标转换所需的完整输入。

@@ -6,7 +6,7 @@ import { useCanvasDrawingTool } from '@/app/imaging/features/image-viewer/featur
 import type {
   DrawingState,
   ReferenceLines,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+} from '@xiehe/imaging-core/canvas';
 import type { Point } from '@xiehe/imaging-core/contracts';
 import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 

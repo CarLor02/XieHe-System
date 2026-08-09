@@ -5,9 +5,9 @@ import { createEmptyBindings } from '@/app/imaging/features/image-viewer/feature
 import {
   imageToScreen,
   screenToImage,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
+} from '@xiehe/imaging-core/canvas';
 import renderMeasurement from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/renderMeasurement';
-import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
+import type { TransformContext } from '@xiehe/imaging-core/canvas';
 import {
   MeasurementData,
   Point,

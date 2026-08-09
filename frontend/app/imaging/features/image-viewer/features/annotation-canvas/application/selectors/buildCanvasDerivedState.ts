@@ -6,7 +6,7 @@ import {
 import {
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import { HoverState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+import { HoverState } from '@xiehe/imaging-core/canvas';
 
 interface BuildCanvasDerivedStateOptions {
   selectedTool: string;

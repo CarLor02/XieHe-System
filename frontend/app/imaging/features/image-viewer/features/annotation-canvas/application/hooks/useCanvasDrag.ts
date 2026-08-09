@@ -18,7 +18,7 @@ import {
   MeasurementData,
   Point,
 } from '@xiehe/imaging-core/contracts';
-import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+import { SelectionState } from '@xiehe/imaging-core/canvas';
 import {
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
   moveHemipelvicVerticalLine,

@@ -1,8 +1,8 @@
-import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
+import type { TransformContext } from '../model/viewport-transform';
 import type {
   ImageSize,
   Point,
-} from '@xiehe/imaging-core/contracts';
+} from '../../contracts';
 
 /**
  * 计算图像在 object-contain 模式下的显示尺寸

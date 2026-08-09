@@ -22,7 +22,7 @@ import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@xiehe/imaging-co
 import {
   HoverState,
   SelectionState,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+} from '@xiehe/imaging-core/canvas';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
 import { resolveAvtDefinition } from '@xiehe/imaging-core/measurements/ap';
 

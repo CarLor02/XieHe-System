@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { shouldClearToolState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-interaction-policy';
+import { shouldClearToolState } from '@xiehe/imaging-core/canvas';
 import { Point } from '@xiehe/imaging-core/contracts';
 
 /**

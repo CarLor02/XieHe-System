@@ -11,9 +11,3 @@ export const STANDARD_DISTANCE_CONSTANTS = {
     { x: 200, y: 0 },
   ],
 } as const;
-
-export const STANDARD_DISTANCE_DEPENDENT_TYPES = [
-  'avt',
-  'tts',
-  'sva',
-] as const;

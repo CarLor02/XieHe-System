@@ -3,20 +3,20 @@
  * 处理点击检测、悬浮检测等选择相关逻辑
  */
 
-import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
-import { Point } from '@xiehe/imaging-core/contracts';
+import type { Point } from '../../contracts';
 import {
-  calculateDistance,
+  calculateDistance2D,
   pointToLineDistance,
   isPointNearCircle,
   isPointNearEllipse,
-} from '@/app/imaging/features/image-viewer/shared/geometry';
-import { INTERACTION_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
-import { imageToScreen } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
+} from '../../geometry';
 import {
   createCircleGeometry,
   getCircleRadius,
-} from '@xiehe/imaging-core/geometry';
+} from '../../geometry';
+import { CANVAS_INTERACTION_CONSTANTS } from '../constants';
+import type { TransformContext } from '../model/viewport-transform';
+import { imageToScreen } from '../transform/coordinate-transform';
 
 /**
  * 检查是否点击了某个点
@@ -30,10 +30,10 @@ export function isPointClicked(
   clickPoint: Point,
   targetPoint: Point,
   context: TransformContext,
-  radius: number = INTERACTION_CONSTANTS.POINT_CLICK_RADIUS
+  radius: number = CANVAS_INTERACTION_CONSTANTS.pointHitRadius
 ): boolean {
   const targetScreen = imageToScreen(targetPoint, context);
-  const distance = calculateDistance(clickPoint, targetScreen);
+  const distance = calculateDistance2D(clickPoint, targetScreen);
   return distance < radius;
 }
 
@@ -51,7 +51,7 @@ export function isLineClicked(
   lineStart: Point,
   lineEnd: Point,
   context: TransformContext,
-  radius: number = INTERACTION_CONSTANTS.LINE_CLICK_RADIUS
+  radius: number = CANVAS_INTERACTION_CONSTANTS.lineHitRadius
 ): boolean {
   const startScreen = imageToScreen(lineStart, context);
   const endScreen = imageToScreen(lineEnd, context);
@@ -73,7 +73,7 @@ export function isCircleClicked(
   center: Point,
   edge: Point,
   context: TransformContext,
-  tolerance: number = INTERACTION_CONSTANTS.LINE_CLICK_RADIUS
+  tolerance: number = CANVAS_INTERACTION_CONSTANTS.lineHitRadius
 ): boolean {
   const centerScreen = imageToScreen(center, context);
   const edgeScreen = imageToScreen(edge, context);
@@ -98,7 +98,7 @@ export function isEllipseClicked(
   center: Point,
   edge: Point,
   context: TransformContext,
-  tolerance: number = INTERACTION_CONSTANTS.LINE_CLICK_RADIUS
+  tolerance: number = CANVAS_INTERACTION_CONSTANTS.lineHitRadius
 ): boolean {
   const centerScreen = imageToScreen(center, context);
   const edgeScreen = imageToScreen(edge, context);
@@ -130,7 +130,7 @@ export function isRectangleClicked(
   rectStart: Point,
   rectEnd: Point,
   context: TransformContext,
-  tolerance: number = INTERACTION_CONSTANTS.LINE_CLICK_RADIUS
+  tolerance: number = CANVAS_INTERACTION_CONSTANTS.lineHitRadius
 ): boolean {
   const p1Screen = imageToScreen(rectStart, context);
   const p2Screen = imageToScreen(rectEnd, context);
@@ -170,7 +170,7 @@ export function isPolygonClicked(
   clickPoint: Point,
   points: Point[],
   context: TransformContext,
-  tolerance: number = INTERACTION_CONSTANTS.LINE_CLICK_RADIUS
+  tolerance: number = CANVAS_INTERACTION_CONSTANTS.lineHitRadius
 ): boolean {
   if (points.length < 3) return false;
 

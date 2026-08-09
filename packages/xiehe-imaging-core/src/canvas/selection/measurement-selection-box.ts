@@ -1,14 +1,14 @@
-import {
+import type {
   MeasurementData,
   Point,
-} from '@xiehe/imaging-core/contracts';
-import { getBoundingBox } from '@/app/imaging/features/image-viewer/shared/geometry';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { resolveTtsMeasurement } from '@xiehe/imaging-core/measurements/ap';
+} from '../../contracts';
 import {
   circleGeometryFromPoints,
   getCircleBounds,
-} from '@xiehe/imaging-core/geometry';
+  getBoundingBox,
+} from '../../geometry';
+import { getAnnotationTypeId } from '../../measurements';
+import { resolveTtsMeasurement } from '../../measurements/manual-tools/ap';
 
 /**
  * 计算标注的选择边界框，供选中态与 hover 态复用。

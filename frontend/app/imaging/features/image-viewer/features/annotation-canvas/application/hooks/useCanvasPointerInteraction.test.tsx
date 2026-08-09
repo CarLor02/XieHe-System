@@ -4,12 +4,12 @@ import { expect, it, jest } from '@jest/globals';
 
 import { useCanvasDrag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useCanvasDrag';
 import { useCanvasPointerInteraction } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useCanvasPointerInteraction';
-import { getCanvasPointerPolicy } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
-import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
+import { getCanvasPointerPolicy } from '@xiehe/imaging-core/canvas';
+import type { CanvasPointerInput } from '@xiehe/imaging-core/canvas';
 import type {
   HoverState,
   SelectionState,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+} from '@xiehe/imaging-core/canvas';
 import { createEmptyBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import type {
   MeasurementData,

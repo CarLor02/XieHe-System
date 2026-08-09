@@ -29,8 +29,8 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { getAvtLabelPosition } from '@xiehe/imaging-core/measurements/ap';
 import { renderAvtMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
-import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-interaction-policy';
-import { imageToScreen } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/transform/coordinate-transform';
+import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@xiehe/imaging-core/canvas';
+import { imageToScreen } from '@xiehe/imaging-core/canvas';
 import { getAdaptiveFontSize } from '@/app/imaging/features/image-viewer/shared/constants';
 import { estimateTextWidth } from '@/app/imaging/features/image-viewer/shared/labels';
 import {
@@ -40,12 +40,12 @@ import {
 import {
   HoverState,
   SelectionState,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+} from '@xiehe/imaging-core/canvas';
 import { renderAuxiliaryTag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/support-shape-renderers/auxiliaryTagRenderer';
 import { circleRenderer } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/support-shape-renderers/circleRenderer';
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/shared/rendererUtils';
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
-import { getBilateralPelvicGeometryOwnerId } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
+import { getBilateralPelvicGeometryOwnerId } from '@xiehe/imaging-core/canvas';
 import { resolveVariableMeasurement } from '@xiehe/imaging-core/measurements';
 import {
   getPelvicPointDisplayLabel,

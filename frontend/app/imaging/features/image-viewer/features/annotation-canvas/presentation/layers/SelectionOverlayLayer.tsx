@@ -2,7 +2,7 @@ import {
   MeasurementData,
   Point,
 } from '@xiehe/imaging-core/contracts';
-import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+import { SelectionState } from '@xiehe/imaging-core/canvas';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { resolveTtsMeasurement } from '@xiehe/imaging-core/measurements/ap';
 import {

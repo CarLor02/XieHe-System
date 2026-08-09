@@ -6,7 +6,7 @@ import renderPreview from '@/app/imaging/features/image-viewer/features/annotati
 import {
   DrawingState,
   ReferenceLines,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+} from '@xiehe/imaging-core/canvas';
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/shared/rendererUtils';
 import {
   HEMIPELVIC_WIDTH_RATIO_INITIAL_LINE_LENGTH,

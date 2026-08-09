@@ -4,8 +4,8 @@ import {
   isLineClicked,
   isPolygonClicked,
   isRectangleClicked,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/hit-test/shape-hit-test';
-import { isAuxiliaryShape } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-interaction-policy';
+} from '@xiehe/imaging-core/canvas';
+import { isAuxiliaryShape } from '@xiehe/imaging-core/canvas';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { isEditableAuxiliaryAnnotationType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { calculateQuadrilateralCenter } from '@/app/imaging/features/image-viewer/shared/geometry';
@@ -13,7 +13,7 @@ import {
   MeasurementData,
   Point,
 } from '@xiehe/imaging-core/contracts';
-import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
+import type { TransformContext } from '@xiehe/imaging-core/canvas';
 import { hitTestMeasurementLabel } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestLabel';
 import { hitTestMeasurementPoint } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestPoint';
 import {
@@ -25,7 +25,7 @@ import {
   getBilateralPelvicGeometryForMeasurement,
   isBilateralPelvicMeasurement,
 } from '@xiehe/imaging-core/measurements/lateral';
-import { getBilateralPelvicGeometryOwnerId } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/pelvic-shared-geometry';
+import { getBilateralPelvicGeometryOwnerId } from '@xiehe/imaging-core/canvas';
 
 export type HitResult =
   | { kind: 'point'; measurementId: string; pointIndex: number }

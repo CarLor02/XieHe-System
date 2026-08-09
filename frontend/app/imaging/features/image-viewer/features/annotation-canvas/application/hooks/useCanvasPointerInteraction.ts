@@ -4,19 +4,19 @@ import {
   MeasurementData,
   Point,
 } from '@xiehe/imaging-core/contracts';
-import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
+import type { TransformContext } from '@xiehe/imaging-core/canvas';
 import { hitTestMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestMeasurement';
 import { hitTestWorkingPoint } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestPoint';
 import {
   getMeasurementSelectionBoxInScreen,
   isPointInSelectionBox,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/selectionBox';
+} from '@xiehe/imaging-core/canvas';
 import {
   HoverState,
   SelectionState,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+} from '@xiehe/imaging-core/canvas';
 import { resolveTtsMeasurement } from '@xiehe/imaging-core/measurements/ap';
-import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
+import type { CanvasPointerInput } from '@xiehe/imaging-core/canvas';
 import { getBilateralPelvicGeometryForMeasurement } from '@xiehe/imaging-core/measurements/lateral';
 
 function getMeasurementDragCenter(measurement: MeasurementData): Point {

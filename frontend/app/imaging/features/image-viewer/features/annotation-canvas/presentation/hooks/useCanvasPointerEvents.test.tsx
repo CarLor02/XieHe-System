@@ -9,7 +9,7 @@ import {
 } from '@jest/globals';
 
 import type { Point } from '@xiehe/imaging-core/contracts';
-import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
+import type { CanvasPointerInput } from '@xiehe/imaging-core/canvas';
 import { useCanvasPointerEvents } from './useCanvasPointerEvents';
 
 class PointerEventMock extends MouseEvent {

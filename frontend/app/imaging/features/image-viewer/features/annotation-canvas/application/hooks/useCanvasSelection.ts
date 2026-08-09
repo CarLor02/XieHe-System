@@ -3,7 +3,7 @@ import { Point } from '@xiehe/imaging-core/contracts';
 import {
   HoverState,
   SelectionState,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+} from '@xiehe/imaging-core/canvas';
 
 /**
  * 画布选中与 hover 局部状态。

@@ -1,5 +1,12 @@
 import type { Point } from '../contracts';
 
+export interface BoundingBox {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
 /**
  * 手动测量工具共享的纯几何规则。
  *
@@ -58,6 +65,37 @@ export function calculateAngleToHorizontal(p1: Point, p2: Point): number {
 
 export function calculateCenterPoint(points: Point[]): Point {
   if (points.length === 0) return { x: 0, y: 0 };
+  return {
+    x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
+    y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
+  };
+}
+
+export function getBoundingBox(points: readonly Point[]): BoundingBox {
+  if (points.length === 0) {
+    return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+  }
+
+  return points.reduce<BoundingBox>(
+    (bounds, point) => ({
+      minX: Math.min(bounds.minX, point.x),
+      maxX: Math.max(bounds.maxX, point.x),
+      minY: Math.min(bounds.minY, point.y),
+      maxY: Math.max(bounds.maxY, point.y),
+    }),
+    {
+      minX: points[0].x,
+      maxX: points[0].x,
+      minY: points[0].y,
+      maxY: points[0].y,
+    }
+  );
+}
+
+/** 返回点集的算术中心；四点椎体中心也遵循同一规则。 */
+export function calculatePointsCentroid(points: readonly Point[]): Point {
+  if (points.length === 0) return { x: 0, y: 0 };
+
   return {
     x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
     y: points.reduce((sum, point) => sum + point.y, 0) / points.length,

@@ -3,11 +3,11 @@ import { Point } from '@xiehe/imaging-core/contracts';
 import {
   DrawingState,
   ReferenceLines,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+} from '@xiehe/imaging-core/canvas';
 import {
   constrainAuxiliaryLinePoint,
   retainReferenceLinesForTool,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-interaction-policy';
+} from '@xiehe/imaging-core/canvas';
 
 const EMPTY_REFERENCE_LINES: ReferenceLines = {
   t1Tilt: null,

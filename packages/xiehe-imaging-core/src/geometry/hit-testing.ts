@@ -31,3 +31,28 @@ export function isTwoPointLineInRange(
     isPointNearLine(mousePoint, points[0], points[1], tolerance)
   );
 }
+
+export function isPointNearCircle(
+  point: Point,
+  center: Point,
+  radius: number,
+  tolerance = 0
+): boolean {
+  return Math.abs(calculateDistance2D(point, center) - radius) <= tolerance;
+}
+
+export function isPointNearEllipse(
+  point: Point,
+  center: Point,
+  radiusX: number,
+  radiusY: number,
+  tolerance = 0
+): boolean {
+  if (radiusX === 0 || radiusY === 0) return false;
+
+  const normalizedDistance = Math.hypot(
+    (point.x - center.x) / radiusX,
+    (point.y - center.y) / radiusY
+  );
+  return Math.abs(normalizedDistance - 1) <= tolerance / Math.min(radiusX, radiusY);
+}

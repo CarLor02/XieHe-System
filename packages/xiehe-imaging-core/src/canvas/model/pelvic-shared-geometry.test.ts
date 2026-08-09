@@ -1,8 +1,8 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
 import { getBilateralPelvicGeometryOwnerId } from './pelvic-shared-geometry';
-import { getBilateralPelvicGeometryForMeasurement } from '@xiehe/imaging-core/measurements/lateral';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import type { MeasurementData } from '../../contracts';
+import { getBilateralPelvicGeometryForMeasurement } from '../../measurements/manual-tools/lateral';
 
 function bilateralMeasurement(
   id: string,

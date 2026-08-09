@@ -21,7 +21,7 @@ import { getPelvicToolPointCount } from '@xiehe/imaging-core/measurements/latera
 import {
   DrawingState,
   ReferenceLines,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
+} from '@xiehe/imaging-core/canvas';
 import {
   createHemipelvicWidthRatioPoints,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,

@@ -1,6 +1,6 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
-import { getMeasurementSelectionBoxInScreen } from './selectionBox';
+import { getMeasurementSelectionBoxInScreen } from './measurement-selection-box';
 
 it('limits a manual TTS selection box to its trunk line', () => {
   expect(
