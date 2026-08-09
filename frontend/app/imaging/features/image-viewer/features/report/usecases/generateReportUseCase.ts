@@ -1,4 +1,9 @@
-import {MeasurementData, ImageData} from "@/app/imaging/features/image-viewer/shared/types";
+import {
+  MeasurementData,
+} from '@xiehe/imaging-core/contracts';
+import {
+  ImageData,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import { generateMeasurementReport } from '@/services/imageServices';
 import { getAnnotationDisplayName, getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { createLogger } from '@/lib/logger';

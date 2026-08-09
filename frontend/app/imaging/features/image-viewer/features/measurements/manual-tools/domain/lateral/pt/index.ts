@@ -5,7 +5,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
 import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type { PelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**
  * PT 计算股骨头中心到 S1 中点连线相对垂线的有符号角。

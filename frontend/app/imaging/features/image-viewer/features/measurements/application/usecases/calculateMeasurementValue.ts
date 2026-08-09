@@ -22,7 +22,7 @@ import { calculateCobbResults } from '@/app/imaging/features/image-viewer/featur
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 function inferResolverExamType(measurement: MeasurementData): string {
   const typeId = getAnnotationTypeId(measurement.type);

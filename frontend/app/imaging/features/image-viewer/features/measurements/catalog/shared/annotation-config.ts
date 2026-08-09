@@ -5,7 +5,7 @@ import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/featu
 import {
   getAnnotationTypeId as getDomainAnnotationTypeId,
   normalizeAnnotationLookupKey,
-} from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
+} from '@xiehe/imaging-core/measurements';
 
 export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   ...AP_MEASUREMENT_CONFIGS,

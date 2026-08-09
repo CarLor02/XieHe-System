@@ -9,9 +9,9 @@ import {
   VERTICAL_LINE_TOOLS,
   STANDARD_DISTANCE_DEPENDENT_TYPES,
 } from '@/app/imaging/features/image-viewer/shared/constants';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
+import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
 import type { ReferenceLines } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 function includesToolId(values: readonly string[], toolId: string): boolean {
   return values.includes(toolId);

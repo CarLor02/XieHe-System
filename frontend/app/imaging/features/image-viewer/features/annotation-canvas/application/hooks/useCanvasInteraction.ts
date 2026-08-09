@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { shouldClearToolState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-interaction-policy';
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
 
 /**
  * 页面级画布工具状态。

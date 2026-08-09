@@ -1,4 +1,4 @@
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 import { calculateHemipelvicWidthRatioGeometry } from './geometry';
 
 /** L/R 的四条纵线均可整体命中，包含少量纵向容差。 */

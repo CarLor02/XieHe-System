@@ -3,8 +3,8 @@ import type {
   MeasurementResolver,
   MeasurementResolverContext,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export type CobbPointTuple = readonly [Point, Point, Point, Point];
 export type CobbEndpointPointIds = readonly [string, string, string, string];

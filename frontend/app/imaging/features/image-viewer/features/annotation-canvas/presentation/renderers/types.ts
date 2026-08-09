@@ -5,7 +5,7 @@ import type { ResolvedVariableMeasurement } from '@/app/imaging/features/image-v
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 export interface MeasurementRendererProps {
   measurement: MeasurementData;

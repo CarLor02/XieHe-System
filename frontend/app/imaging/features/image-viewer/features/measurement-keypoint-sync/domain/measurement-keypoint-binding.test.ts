@@ -20,7 +20,7 @@ import {
 import {
   AnnotationSource,
   MeasurementData,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 function keypoint(id: string, x: number, y: number): KeypointAnnotation {
   return {

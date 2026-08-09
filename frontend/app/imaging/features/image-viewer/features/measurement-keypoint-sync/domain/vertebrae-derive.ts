@@ -15,7 +15,7 @@ import {
   MeasurementData,
   Point,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import { isLateralVertebraLabel } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   keypointsToDerivedLayer,

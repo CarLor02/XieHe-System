@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/types';
 import { calculateActualDistance } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/calibration';
 import { calculateHemipelvicWidthRatioGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';

@@ -3,7 +3,7 @@ import {
   calculateTsResults,
   isTsInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/ts';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const TS_CONFIG: AnnotationConfig = {
   id: 'ts',

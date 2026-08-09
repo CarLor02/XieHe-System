@@ -11,7 +11,7 @@ import {
   getPointerMidpoint,
   type PinchSnapshot,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pinch-zoom';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 interface PinchState {
   pointerIds: readonly [number, number];

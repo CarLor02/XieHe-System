@@ -1,12 +1,12 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
+import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
 import {
   invalid,
   resolved,
   type MeasurementResolver,
   type ResolvedVariableMeasurementBase,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
-import { isApProjectionExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { isApProjectionExamType } from '@xiehe/imaging-core/anatomy';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 import { isManualTtsMeasurement } from './interaction';
 

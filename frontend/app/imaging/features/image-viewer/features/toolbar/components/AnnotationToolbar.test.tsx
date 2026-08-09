@@ -6,7 +6,7 @@ import AnnotationToolbar from './AnnotationToolbar';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { getAuxiliaryTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
 import { getToolsForExamType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/exam-tool-catalog';
-import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 import type {
   KeypointSequenceSession,
   Tool,

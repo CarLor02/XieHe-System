@@ -1,12 +1,12 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
+import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
 import {
   invalid,
   resolved,
   type MeasurementResolver,
   type ResolvedVariableMeasurementBase,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
-import { isLateralExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 import {
   BILATERAL_PELVIC_POINT_COUNT,
@@ -22,8 +22,10 @@ import {
 import { replaceBilateralPelvicPoints } from './tool-point-layout';
 import type {
   FemoralHeadMode,
-  PelvicMeasurementGeometry,
   PelvicToolId,
+} from '@xiehe/imaging-core/contracts';
+import type {
+  PelvicMeasurementGeometry,
 } from './types';
 
 export interface ResolvedPelvicMeasurement extends ResolvedVariableMeasurementBase {

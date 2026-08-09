@@ -6,7 +6,7 @@ import {
 import {
   AnnotationSource,
   type VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 function makeVertebra(
   label: string,

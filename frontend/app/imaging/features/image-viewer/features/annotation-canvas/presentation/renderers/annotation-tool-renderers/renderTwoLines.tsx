@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**
  * Cobb角/CL/TK/LL系列渲染器：两条独立线段

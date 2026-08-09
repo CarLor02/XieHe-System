@@ -1,5 +1,5 @@
 import { isBilateralPelvicMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 /** PI/PT/TPA 共享同一组双 FH 几何，只允许首个可见测量项拥有显示和命中。 */
 export function getBilateralPelvicGeometryOwnerId(

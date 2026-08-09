@@ -3,7 +3,7 @@ import {
   calculatePoResults,
   isPoInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/po';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const PO_CONFIG: AnnotationConfig = {
   id: 'po',

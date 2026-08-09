@@ -13,12 +13,12 @@ import {
 import {
   isBendingExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+} from '@xiehe/imaging-core/anatomy';
 import type {
   CfhAnnotation,
   MeasurementData,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 import {
   buildBoundMeasurementPointsForMeasurement,

@@ -1,14 +1,16 @@
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
-  getPelvicToolPointCount,
-  resolvePelvicMeasurement,
   type FemoralHeadMode,
   type PelvicToolId,
+} from '@xiehe/imaging-core/contracts';
+import {
+  getPelvicToolPointCount,
+  resolvePelvicMeasurement,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 /**
  * 手动 PI/PT/TPA 只继承真实关键点。双 FH 的半径控制点属于测量项自身；只有

@@ -1,5 +1,5 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const ELLIPSE_CONFIG: AnnotationConfig = {
   id: 'ellipse',

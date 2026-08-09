@@ -1,8 +1,8 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
+import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
 import {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 const DERIVED_TTS_MEASUREMENT_ID = 'ap-keypoint-tts';
 

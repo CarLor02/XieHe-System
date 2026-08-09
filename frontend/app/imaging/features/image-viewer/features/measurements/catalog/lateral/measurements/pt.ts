@@ -4,7 +4,7 @@ import {
   isPtInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pt';
 import { getPelvicMeasurementGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const PT_CONFIG: AnnotationConfig = {
   id: 'pt',

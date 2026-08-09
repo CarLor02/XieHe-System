@@ -4,7 +4,7 @@ import {
   getCompleteMeasurementDeriveEndpointGroups,
   getMeasurementDeriveVertebraOrder,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-derive';
-import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 
 const completeKeypoints = (vertebra: string) =>
   [1, 2, 3, 4].map(index => ({

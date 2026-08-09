@@ -17,7 +17,7 @@ import {
   isAnteriorExamType,
   isBendingExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+} from '@xiehe/imaging-core/anatomy';
 
 export interface KeypointGroup {
   id: string;

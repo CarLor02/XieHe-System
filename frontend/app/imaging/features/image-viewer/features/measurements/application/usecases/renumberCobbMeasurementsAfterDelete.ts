@@ -1,7 +1,7 @@
 import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { renumberCobbTypesAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 /**
  * 删除 Cobb 后执行“领域编号 + 应用层数值重算”。

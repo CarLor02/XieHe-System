@@ -8,7 +8,7 @@ import type {
 import type {
   CfhAnnotation,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 export interface PredictMeasurementsResponse {
   imageId: string;

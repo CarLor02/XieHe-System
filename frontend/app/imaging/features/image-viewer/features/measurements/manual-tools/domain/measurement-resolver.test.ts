@@ -3,7 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 import {
   resolveCobbEndpointPointIds,

@@ -1,9 +1,11 @@
 import {
   AnnotationSource,
   CfhAnnotation,
-  ImageData,
   Point,
   VertebraAnnotation,
+} from '@xiehe/imaging-core/contracts';
+import {
+  ImageData,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { Dispatch, SetStateAction } from 'react';
 import { getAiKeypointDetectionResponse } from '@/services/imageServices';

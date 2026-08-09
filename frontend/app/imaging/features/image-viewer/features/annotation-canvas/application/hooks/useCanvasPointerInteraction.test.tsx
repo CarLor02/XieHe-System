@@ -14,7 +14,7 @@ import { createEmptyBindings } from '@/app/imaging/features/image-viewer/feature
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 const INITIAL_TPA_POINTS: Point[] = [
   { x: 10, y: 10 },

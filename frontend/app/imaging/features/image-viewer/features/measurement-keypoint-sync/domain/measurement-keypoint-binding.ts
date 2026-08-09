@@ -6,13 +6,13 @@ import {
   isAnteriorExamType,
   isBendingExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+} from '@xiehe/imaging-core/anatomy';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   AnnotationSource,
   type MeasurementData,
   type Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import {
   resolveEffectiveCfh,
   resolvePelvicMeasurement,

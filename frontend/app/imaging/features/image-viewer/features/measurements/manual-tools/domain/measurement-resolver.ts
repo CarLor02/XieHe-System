@@ -21,7 +21,7 @@ import type {
   MeasurementResolverContext,
   VariableMeasurementResolution,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 export type ResolvedVariableMeasurement =
   | ResolvedCobbMeasurement

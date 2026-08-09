@@ -1,13 +1,9 @@
 import type { CircleGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
-
-export type FemoralHeadMode = 'single' | 'bilateral';
-export type PelvicToolId = 'pi' | 'pt' | 'tpa';
-
-export interface PelvicMeasurementMetadata {
-  schemaVersion: 2;
-  femoralHeadMode: FemoralHeadMode;
-}
+import type {
+  FemoralHeadMode,
+  PelvicToolId,
+  Point,
+} from '@xiehe/imaging-core/contracts';
 
 export type EffectiveCfhResolution =
   | {

@@ -10,7 +10,7 @@ import {
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 import type { MeasurementKeypointBindingRule } from './binding-rule-types';
 

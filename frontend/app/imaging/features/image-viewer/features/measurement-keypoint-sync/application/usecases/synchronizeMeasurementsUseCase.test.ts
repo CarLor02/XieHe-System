@@ -13,7 +13,7 @@ import {
 import {
   AnnotationSource,
   MeasurementData,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import {
   getCompleteApVertebraGroups,
   keypointsToRenderLayer,

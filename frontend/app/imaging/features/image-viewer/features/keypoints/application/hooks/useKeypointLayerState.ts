@@ -6,7 +6,7 @@ import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/fea
 import type {
   CfhAnnotation,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 interface UseKeypointLayerStateOptions {
   examType: string;

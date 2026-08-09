@@ -19,10 +19,12 @@ import {
 import {
   isApProjectionExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+} from '@xiehe/imaging-core/anatomy';
+import {
+  MeasurementData,
+} from '@xiehe/imaging-core/contracts';
 import {
   KeypointSequenceSession,
-  MeasurementData,
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import IconMapper from '@/app/imaging/features/image-viewer/features/toolbar/components/icons/IconMapper';
@@ -50,16 +52,18 @@ import {
 import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
 import {
+  type AvtTarget,
+} from '@xiehe/imaging-core/contracts';
+import {
   AVT_DISC_TARGETS,
   AVT_VERTEBRA_TARGETS,
   getAvtTargetLabel,
   isSameAvtTarget,
-  type AvtTarget,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import type {
   FemoralHeadMode,
   PelvicToolId,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/contracts';
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 

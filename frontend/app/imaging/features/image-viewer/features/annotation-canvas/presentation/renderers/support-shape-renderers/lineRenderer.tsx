@@ -1,4 +1,4 @@
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
 
 export function lineRenderer([start, end]: Point[], color: string) {
   if (!start || !end) return null;

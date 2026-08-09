@@ -1,5 +1,5 @@
 import {RefObject, useEffect} from "react";
-import {Point, MeasurementData, AnnotationData, VertebraAnnotation, CfhAnnotation} from '@/app/imaging/features/image-viewer/shared/types';
+import {Point, MeasurementData, AnnotationData, VertebraAnnotation, CfhAnnotation} from '@xiehe/imaging-core/contracts';
 import {getImageFile} from "@/services/imageServices/imageFileService"
 import {
     AnnotationBindings,

@@ -2,7 +2,7 @@ import type {
   CalculationContext,
   MeasurementResult,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**
  * Catalog 仅声明所需的视觉语义，具体 JSX renderer 由画布 presentation 注册。

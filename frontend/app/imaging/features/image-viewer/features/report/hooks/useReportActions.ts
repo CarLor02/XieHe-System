@@ -1,5 +1,10 @@
 import { useCallback } from 'react';
-import { ImageData, MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import {
+  MeasurementData,
+} from '@xiehe/imaging-core/contracts';
+import {
+  ImageData,
+} from '@/app/imaging/features/image-viewer/shared/types';
 import { generateReport } from '@/app/imaging/features/image-viewer/features/report/usecases/generateReportUseCase';
 
 interface UseReportActionsOptions {

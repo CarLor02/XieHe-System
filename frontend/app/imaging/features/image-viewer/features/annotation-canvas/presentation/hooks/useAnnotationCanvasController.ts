@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Point,
   MeasurementData,
-  KeypointSequenceSession,
   VertebraAnnotation,
+} from '@xiehe/imaging-core/contracts';
+import {
+  KeypointSequenceSession,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
   imageToScreen as utilImageToScreen,

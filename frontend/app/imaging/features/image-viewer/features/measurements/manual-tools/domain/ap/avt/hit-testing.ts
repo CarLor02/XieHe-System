@@ -1,4 +1,4 @@
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**
  * AVT 命中两条垂直参考线。

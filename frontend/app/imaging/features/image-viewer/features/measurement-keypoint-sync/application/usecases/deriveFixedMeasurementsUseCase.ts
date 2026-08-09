@@ -1,7 +1,7 @@
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 import type { MeasurementKeypointBindingRule } from '../../domain/binding-rule-types';
 

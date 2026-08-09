@@ -13,7 +13,7 @@ import {
   MeasurementData,
   Point,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import {
   buildDerivedMeasurementsFromLayer,
@@ -32,9 +32,11 @@ import {
   isCobbMeasurement,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-query';
 import {
-  createAvtPlacementSession,
   type AvtPlacementSession,
   type AvtTarget,
+} from '@xiehe/imaging-core/contracts';
+import {
+  createAvtPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import { DERIVED_ID_PREFIX } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/vertebrae-derive';
 import {

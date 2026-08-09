@@ -3,7 +3,7 @@ import {
   calculateLateralCobbResults,
   isLateralCobbInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/cobb';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const TK_T5_T12_CONFIG: AnnotationConfig = {
   id: 'tk-t5-t12',

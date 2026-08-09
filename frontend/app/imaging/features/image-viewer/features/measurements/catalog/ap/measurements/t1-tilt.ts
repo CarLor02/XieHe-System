@@ -3,7 +3,7 @@ import {
   calculateT1TiltResults,
   isT1TiltInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/t1-tilt';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const T1_TILT_CONFIG: AnnotationConfig = {
   id: 't1-tilt',

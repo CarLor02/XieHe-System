@@ -17,7 +17,7 @@ import { normalizePelvicDraggedMeasurementPoints } from '@/app/imaging/features/
 import {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import {
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
@@ -33,9 +33,11 @@ import {
   resolveTtsMeasurement,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/tts';
 import {
+  type PelvicToolId,
+} from '@xiehe/imaging-core/contracts';
+import {
   getBilateralFemoralCenterPointIndices,
   moveBilateralPelvicEffectiveCfh,
-  type PelvicToolId,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import {
   getBilateralPelvicPointsForMeasurement,

@@ -5,7 +5,7 @@ import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/imag
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 const calculationContext = {
   standardDistance: null,

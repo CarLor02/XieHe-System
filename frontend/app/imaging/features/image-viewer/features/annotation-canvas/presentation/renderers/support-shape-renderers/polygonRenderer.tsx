@@ -1,4 +1,4 @@
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
 
 export function polygonRenderer(points: Point[], color: string) {
   if (points.length < 2) return null;

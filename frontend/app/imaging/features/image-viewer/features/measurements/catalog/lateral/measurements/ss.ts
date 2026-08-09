@@ -4,7 +4,7 @@ import {
   calculateSsResults,
   isSsInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/ss';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const SS_CONFIG: AnnotationConfig = {
   id: 'ss',

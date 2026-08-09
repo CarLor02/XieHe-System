@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { ImageSize, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { ImageSize, Point } from '@xiehe/imaging-core/contracts';
 
 interface UseStandardDistanceActionsOptions {
   standardDistance: number | null;

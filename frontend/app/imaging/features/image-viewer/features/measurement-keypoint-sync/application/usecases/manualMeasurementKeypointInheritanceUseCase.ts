@@ -1,5 +1,5 @@
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 import { getAvailableBoundMeasurementPointMap } from '../../domain/measurement-keypoint-binding';
 

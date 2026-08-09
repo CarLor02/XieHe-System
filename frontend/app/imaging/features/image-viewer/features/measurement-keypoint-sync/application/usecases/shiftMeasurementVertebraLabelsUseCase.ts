@@ -1,4 +1,4 @@
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 import {
   createAvtMetadata,
   isAvtMetadata,

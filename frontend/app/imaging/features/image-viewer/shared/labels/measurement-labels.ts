@@ -9,7 +9,7 @@ import {
   getLabelPositionForType,
   usesAuxiliaryMeasurementValueTag,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import { TEXT_LABEL_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 
 /**

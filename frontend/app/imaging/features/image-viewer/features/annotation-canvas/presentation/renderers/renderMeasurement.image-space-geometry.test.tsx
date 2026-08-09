@@ -11,7 +11,7 @@ import type { TransformContext } from '@/app/imaging/features/image-viewer/featu
 import {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 type LineProps = {
   x1?: number | string;

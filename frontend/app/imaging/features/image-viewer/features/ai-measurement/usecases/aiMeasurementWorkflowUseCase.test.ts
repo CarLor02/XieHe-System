@@ -4,7 +4,7 @@ import { getColorForType } from '@/app/imaging/features/image-viewer/features/me
 import {
   AnnotationSource,
   MeasurementData,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import type { PredictMeasurementsResponse } from '@/services/imageServices/aiMeasurementService';
 
 jest.mock('@/services/imageServices', () => ({

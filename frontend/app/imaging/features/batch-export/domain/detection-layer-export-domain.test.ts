@@ -4,7 +4,7 @@ import {
   AnnotationSource,
   type CfhAnnotation,
   type VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 import { getDetectionLayerKeypoints } from './detection-layer-export-domain';
 

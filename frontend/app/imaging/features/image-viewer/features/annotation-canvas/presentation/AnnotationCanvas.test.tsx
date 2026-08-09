@@ -6,8 +6,10 @@ import {
 } from './AnnotationCanvas';
 import {
   AnnotationSource,
-  type KeypointSequenceSession,
   type VertebraAnnotation,
+} from '@xiehe/imaging-core/contracts';
+import {
+  type KeypointSequenceSession,
 } from '@/app/imaging/features/image-viewer/shared/types';
 
 it('uses a crosshair cursor during sequential keypoint placement', () => {

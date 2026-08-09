@@ -3,8 +3,8 @@ import { resolveCobbEndpointPointIds } from '@/app/imaging/features/image-viewer
 import {
   isApProjectionExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/anatomy';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 import { getMeasurementKeypointBindingRuleForMeasurement } from '../measurement-keypoint-binding';
 import {

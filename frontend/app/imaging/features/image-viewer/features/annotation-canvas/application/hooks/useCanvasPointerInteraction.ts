@@ -3,7 +3,7 @@ import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/ge
 import {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
 import { hitTestMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestMeasurement';
 import { hitTestWorkingPoint } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestPoint';

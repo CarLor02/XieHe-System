@@ -2,11 +2,11 @@ import { render, screen } from '@testing-library/react';
 import { expect, it } from '@jest/globals';
 
 import VertebraeLayer from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/layers/VertebraeLayer';
-import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 import type {
   Point,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 it('renders corner labels instead of the vertebra label for a complete vertebra', () => {
   const vertebraeLayer: VertebraAnnotation[] = [

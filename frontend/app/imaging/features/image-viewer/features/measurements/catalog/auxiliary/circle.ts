@@ -5,7 +5,7 @@ import {
   circleGeometryFromPoints,
   getCircleRadius,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const CIRCLE_CONFIG: AnnotationConfig = {
   id: 'circle',

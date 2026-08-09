@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 export interface MeasurementLayerProps {
   measurements: MeasurementData[];

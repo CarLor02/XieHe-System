@@ -3,16 +3,20 @@ import type {
   PointRef,
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
-import type { AvtPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+import type {
+  AvtPlacementSession,
+} from '@xiehe/imaging-core/contracts';
 import type { PelvicPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import type {
   CfhAnnotation,
-  ImageData,
-  KeypointSequenceSession,
   MeasurementData,
   Point,
-  Tool,
   VertebraAnnotation,
+} from '@xiehe/imaging-core/contracts';
+import type {
+  ImageData,
+  KeypointSequenceSession,
+  Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 
 /**

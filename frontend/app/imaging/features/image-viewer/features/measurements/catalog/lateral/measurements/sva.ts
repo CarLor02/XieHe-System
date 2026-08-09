@@ -4,7 +4,7 @@ import {
   calculateSvaResults,
   isSvaInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/sva';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const SVA_CONFIG: AnnotationConfig = {
   id: 'sva',

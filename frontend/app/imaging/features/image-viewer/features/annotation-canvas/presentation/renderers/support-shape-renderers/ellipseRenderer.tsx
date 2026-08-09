@@ -1,4 +1,4 @@
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
 
 export function ellipseRenderer([center, edge]: Point[], color: string) {
   if (!center || !edge) return null;

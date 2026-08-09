@@ -8,13 +8,13 @@ import {
 import {
   AnnotationSource,
   MeasurementData,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import {
   compareAnatomicalKeypointIds,
   getKeypointGroupsForExamType,
   KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { isLateralExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
 import {
   getMeasurementDeriveVertebraOrder,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';

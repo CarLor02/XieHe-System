@@ -5,11 +5,13 @@ import {
   moveCircleCenter,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
 import type { CircleGeometry } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/circle';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 import type {
-  PelvicMeasurementGeometry,
   PelvicMeasurementMetadata,
+} from '@xiehe/imaging-core/contracts';
+import type {
+  PelvicMeasurementGeometry,
 } from './types';
 
 export const SINGLE_PELVIC_POINT_COUNT = 3;

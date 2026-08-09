@@ -1,10 +1,12 @@
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
+  type AvtTarget,
+} from '@xiehe/imaging-core/contracts';
+import {
   isAvtMetadata,
   isSameAvtTarget,
-  type AvtTarget,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 import { DERIVED_ID_PREFIX } from './vertebrae-derive';
 

@@ -1,4 +1,4 @@
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 import {
   calculateDistance2D,
   pointToLineDistance,

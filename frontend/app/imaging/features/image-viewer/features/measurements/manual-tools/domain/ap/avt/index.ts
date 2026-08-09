@@ -1,4 +1,3 @@
-export * from './types';
 export * from './target-rules';
 export * from './point-layout-rules';
 export * from './placement-rules';

@@ -3,12 +3,12 @@ import {
   type KeypointAnnotation,
   vertebraeLayerToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { isKeypointSupportedExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+import { isKeypointSupportedExamType } from '@xiehe/imaging-core/anatomy';
 import type {
   CfhAnnotation,
   MeasurementData,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 import { backfillMissingBoundKeypoints } from '../../domain/measurement-keypoint-binding';
 

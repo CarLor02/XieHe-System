@@ -23,7 +23,7 @@ import { useAnnotationHistory } from '@/app/imaging/features/image-viewer/applic
 import {
   isKeypointSupportedExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+} from '@xiehe/imaging-core/anatomy';
 import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   useMeasurementKeypointWorkflow,
@@ -31,20 +31,24 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import {
   CfhAnnotation,
-  KeypointSequenceSession,
   MeasurementData,
   Point,
   VertebraAnnotation,
+} from '@xiehe/imaging-core/contracts';
+import {
+  KeypointSequenceSession,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
   AvtPlacementSession,
   AvtTarget,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
+} from '@xiehe/imaging-core/contracts';
 import { createAvtPlacementSession } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import type {
   FemoralHeadMode,
-  PelvicPlacementSession,
   PelvicToolId,
+} from '@xiehe/imaging-core/contracts';
+import type {
+  PelvicPlacementSession,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import { getPelvicToolPointCount } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import {

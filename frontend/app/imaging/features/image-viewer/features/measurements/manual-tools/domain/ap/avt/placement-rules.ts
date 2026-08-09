@@ -1,5 +1,9 @@
 import { createAvtMetadata, getAvtTargetLabel } from './target-rules';
-import type { AvtPlacementSession, AvtPlacementStep, AvtTarget } from './types';
+import type {
+  AvtPlacementSession,
+  AvtPlacementStep,
+  AvtTarget,
+} from '@xiehe/imaging-core/contracts';
 
 const C7PL_PLACEMENT_KEYPOINT_IDS = ['C7-1', 'C7-2', 'C7-3', 'C7-4'] as const;
 const CSVL_PLACEMENT_KEYPOINT_IDS = ['SL', 'SR'] as const;

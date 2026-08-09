@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
 import {
   getManualMeasurementInheritedPointMap,
   getManualMeasurementInheritedPoints,

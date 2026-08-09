@@ -12,7 +12,7 @@ import {
   MeasurementData,
   Point,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 type Workflow = ReturnType<typeof useMeasurementKeypointWorkflow>;
 type MeasurementWorkflow = ReturnType<typeof useMeasurementWorkflow>;

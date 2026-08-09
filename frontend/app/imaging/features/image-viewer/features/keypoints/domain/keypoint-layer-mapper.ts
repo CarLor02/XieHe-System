@@ -15,7 +15,7 @@ import {
   isApProjectionExamType,
   isBendingExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+} from '@xiehe/imaging-core/anatomy';
 import {
   type KeypointAnnotation,
   type KeypointSource,
@@ -31,7 +31,7 @@ import {
   type CfhAnnotation,
   type Point,
   type VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 interface CornerRef {
   label: string;

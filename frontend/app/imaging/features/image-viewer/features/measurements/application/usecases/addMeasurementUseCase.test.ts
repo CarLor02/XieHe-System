@@ -5,6 +5,8 @@ import { addMeasurement } from '@/app/imaging/features/image-viewer/features/mea
 import type {
   MeasurementData,
   Point,
+} from '@xiehe/imaging-core/contracts';
+import type {
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 

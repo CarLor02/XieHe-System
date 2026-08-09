@@ -7,11 +7,13 @@ import {
 } from 'react';
 import {
   CfhAnnotation,
-  ImageData,
   ImageSize,
   MeasurementData,
   Point,
   VertebraAnnotation,
+} from '@xiehe/imaging-core/contracts';
+import {
+  ImageData,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import { saveMeasurements } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/saveMeasurementsUseCase';

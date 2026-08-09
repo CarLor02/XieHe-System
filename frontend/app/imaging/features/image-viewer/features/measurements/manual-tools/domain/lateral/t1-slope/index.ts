@@ -1,7 +1,7 @@
 import { calculateAngleToHorizontal } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/geometry';
 import type { MeasurementResult } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import { isTwoPointLineInRange } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**
  * 侧位片按屏幕左到右排列 T1 上终板点，患者面朝左且图像 Y 轴向下。

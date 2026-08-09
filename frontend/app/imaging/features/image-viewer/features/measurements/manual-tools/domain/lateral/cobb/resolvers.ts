@@ -1,4 +1,4 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
+import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
 import {
   buildResolvedCobbMeasurement,
   normalizeCobbVertebra,
@@ -13,7 +13,7 @@ import {
   resolved,
   type MeasurementResolverContext,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
-import { isLateralExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
 
 import {
   LATERAL_NAMED_COBB_MEASUREMENT_RULES,

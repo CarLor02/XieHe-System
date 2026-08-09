@@ -1,4 +1,4 @@
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 /** 圆形领域模型：圆心与任意一个圆周控制点共同确定圆。 */
 export interface CircleGeometry {

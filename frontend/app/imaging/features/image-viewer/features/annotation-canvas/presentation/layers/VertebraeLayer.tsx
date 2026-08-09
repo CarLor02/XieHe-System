@@ -4,7 +4,7 @@ import {
   CfhAnnotation,
   Point,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import {
   isAnatomicalPointKeypointLabel,
   isPoseKeypointLabel,

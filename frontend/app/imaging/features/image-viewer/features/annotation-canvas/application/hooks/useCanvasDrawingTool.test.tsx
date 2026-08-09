@@ -7,8 +7,8 @@ import type {
   DrawingState,
   ReferenceLines,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
-import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
+import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 
 const emptyReferenceLines: ReferenceLines = {
   t1Tilt: null,

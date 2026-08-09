@@ -1,6 +1,6 @@
 import { expect, it, jest } from '@jest/globals';
 
-import { VertebraAnnotation } from '@/app/imaging/features/image-viewer/shared/types';
+import { VertebraAnnotation } from '@xiehe/imaging-core/contracts';
 import { DetectKeypointsResponse } from '@/services/imageServices/aiAnnotationService';
 
 jest.mock('@/services/imageServices', () => ({

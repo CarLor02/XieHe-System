@@ -4,8 +4,10 @@ import {
   ImageSize,
   MeasurementData,
   Point,
-  Tool,
   VertebraAnnotation,
+} from '@xiehe/imaging-core/contracts';
+import {
+  Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/addMeasurementUseCase';
@@ -21,8 +23,10 @@ import {
   writeMeasurementToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import {
-  createPelvicMeasurementMetadata,
   type FemoralHeadMode,
+} from '@xiehe/imaging-core/contracts';
+import {
+  createPelvicMeasurementMetadata,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
 import { deriveMissingFixedMeasurementsFromKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMissingFixedMeasurementsUseCase';

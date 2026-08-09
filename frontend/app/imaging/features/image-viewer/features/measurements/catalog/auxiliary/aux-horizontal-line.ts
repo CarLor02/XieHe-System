@@ -5,7 +5,7 @@ import {
   isPointNearLine,
   isPointNearPoint,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/hit-testing';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const AUX_HORIZONTAL_LINE_CONFIG: AnnotationConfig = {
   id: 'aux-horizontal-line',

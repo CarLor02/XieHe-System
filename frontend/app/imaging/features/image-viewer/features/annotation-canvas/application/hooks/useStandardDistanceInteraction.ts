@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
 
 interface UseStandardDistanceInteractionOptions {
   isSettingStandardDistance: boolean;

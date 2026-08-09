@@ -2,7 +2,7 @@ import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/feature
 import {
   AnnotationSource,
   type MeasurementData,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { upsertKeypoint } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { resolveCobbMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';

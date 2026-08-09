@@ -11,7 +11,7 @@ import {
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 const EDITABLE_AUXILIARY_CONFIG_IDS = new Set([
   'circle',

@@ -188,11 +188,18 @@ jest.mock('@/app/imaging/features/image-viewer/features/report', () => ({
   }),
 }));
 
-jest.mock('@/app/imaging/features/image-viewer/shared/domain/exam-type', () => ({
-  isApProjectionExamType: () => true,
-  isKeypointSupportedExamType: () => true,
-  isLateralExamType: () => false,
-}));
+jest.mock('@xiehe/imaging-core/anatomy', () => {
+  const actual = jest.requireActual<typeof import('@xiehe/imaging-core/anatomy')>(
+    '@xiehe/imaging-core/anatomy'
+  );
+
+  return {
+    ...actual,
+    isApProjectionExamType: () => true,
+    isKeypointSupportedExamType: () => true,
+    isLateralExamType: () => false,
+  };
+});
 
 jest.mock(
   '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync',

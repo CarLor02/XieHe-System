@@ -1,4 +1,4 @@
-import {MeasurementData, Point, ImageSize, VertebraAnnotation, CfhAnnotation} from '@/app/imaging/features/image-viewer/shared/types';
+import {MeasurementData, Point, ImageSize, VertebraAnnotation, CfhAnnotation} from '@xiehe/imaging-core/contracts';
 import {
     AnnotationBindings,
     validateAnnotationBindings,

@@ -1,8 +1,10 @@
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 import type {
-  EffectiveCfhResolution,
   FemoralHeadMode,
+} from '@xiehe/imaging-core/contracts';
+import type {
+  EffectiveCfhResolution,
 } from './types';
 
 export const SINGLE_FH_KEYPOINT_IDS = ['CFH'] as const;

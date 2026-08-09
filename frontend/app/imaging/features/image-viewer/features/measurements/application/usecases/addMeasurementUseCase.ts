@@ -1,5 +1,14 @@
-import {ImageSize, MeasurementData, Point, Tool} from "@/app/imaging/features/image-viewer/shared/types";
-import type { PelvicMeasurementMetadata } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+import {
+  ImageSize,
+  MeasurementData,
+  Point,
+} from '@xiehe/imaging-core/contracts';
+import {
+  Tool,
+} from '@/app/imaging/features/image-viewer/shared/types';
+import type {
+  PelvicMeasurementMetadata,
+} from '@xiehe/imaging-core/contracts';
 import {
     calculateMeasurementValue as calcMeasurementValue
 } from "@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue";

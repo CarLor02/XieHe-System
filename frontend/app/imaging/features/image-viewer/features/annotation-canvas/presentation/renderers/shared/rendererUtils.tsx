@@ -1,7 +1,7 @@
 import {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import { getDisplayName } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 
 /**

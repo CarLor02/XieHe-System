@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
 import {
   HoverState,
   SelectionState,

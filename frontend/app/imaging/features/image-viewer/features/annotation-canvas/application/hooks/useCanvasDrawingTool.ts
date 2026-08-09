@@ -7,6 +7,8 @@ import { hasUniqueAnnotationForTool } from '@/app/imaging/features/image-viewer/
 import {
   MeasurementData,
   Point,
+} from '@xiehe/imaging-core/contracts';
+import {
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
@@ -25,8 +27,10 @@ import {
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
 import {
-  createHorizontalDiscAnchors,
   type AvtPlacementSession,
+} from '@xiehe/imaging-core/contracts';
+import {
+  createHorizontalDiscAnchors,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import {
   circleGeometryToPoints,

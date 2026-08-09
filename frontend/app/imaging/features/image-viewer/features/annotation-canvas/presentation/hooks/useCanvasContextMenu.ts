@@ -4,7 +4,7 @@ import {
   getEditableAuxiliaryAnnotationLabel,
   isEditableAuxiliaryAnnotationType,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import { MeasurementData } from '@xiehe/imaging-core/contracts';
 import { isAuxiliaryTool } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/tools/tool-interaction-policy';
 import { SelectionState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';
 import { createLogger } from '@/lib/logger';

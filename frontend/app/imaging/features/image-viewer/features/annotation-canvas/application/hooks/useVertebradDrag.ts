@@ -4,7 +4,7 @@ import { useRef, useState, useCallback } from 'react';
 import {
   Point,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import {
   isSinglePointKeypointLabel,
   keypointIdToRenderCornerRef,

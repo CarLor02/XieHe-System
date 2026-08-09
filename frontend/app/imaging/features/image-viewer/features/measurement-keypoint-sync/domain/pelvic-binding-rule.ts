@@ -14,7 +14,7 @@ import {
 import type {
   FemoralHeadMode,
   PelvicMeasurementMetadata,
-} from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/lateral/pelvic';
+} from '@xiehe/imaging-core/contracts';
 import {
   circleGeometryFromPoints,
   moveCircleCenter,
@@ -23,7 +23,7 @@ import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/feature
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 import type {
   MeasurementKeypointBindingRule,

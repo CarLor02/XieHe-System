@@ -1,6 +1,8 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
+import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
 import {
   MeasurementData,
+} from '@xiehe/imaging-core/contracts';
+import {
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 

@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 /**
  * CA/Pelvic/Sacral/SS渲染器：单线（不带水平参考线）

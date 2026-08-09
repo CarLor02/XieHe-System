@@ -10,7 +10,7 @@ import {
   ManualPointRef,
   validateAnnotationBindings,
 } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 /** 用户手动点位绑定的状态与交互编排。 */
 interface UseAnnotationEngineOptions {

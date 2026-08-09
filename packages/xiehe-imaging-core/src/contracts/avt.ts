@@ -11,6 +11,7 @@ export type AvtTarget =
       lowerVertebra: string;
     };
 
+/** AVT v2 持久化元数据，区分椎体/椎间盘目标及参考线。 */
 export interface AvtMetadata {
   schemaVersion: 2;
   target: AvtTarget;

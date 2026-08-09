@@ -15,7 +15,7 @@ import {
   CfhAnnotation,
   Point,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 // ─── 类型定义 ─────────────────────────────────────────────────────────────────
 

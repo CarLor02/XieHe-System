@@ -1,4 +1,4 @@
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
 
 /**
  * 画布局部状态类型，供 AnnotationCanvas 子模块共享。

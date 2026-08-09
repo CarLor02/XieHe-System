@@ -1,11 +1,14 @@
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 import {
   BILATERAL_PELVIC_POINT_COUNT,
   BILATERAL_PELVIC_POINT_LABELS,
   SINGLE_PELVIC_POINT_COUNT,
 } from './point-layout';
-import type { FemoralHeadMode, PelvicToolId } from './types';
+import type {
+  FemoralHeadMode,
+  PelvicToolId,
+} from '@xiehe/imaging-core/contracts';
 
 export const SINGLE_TPA_POINT_COUNT = 7;
 export const BILATERAL_TPA_POINT_COUNT = 10;

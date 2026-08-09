@@ -5,7 +5,7 @@ import {
   AnnotationSource,
   Point,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 function pointLayer(label: string, point: Point): VertebraAnnotation {
   return {

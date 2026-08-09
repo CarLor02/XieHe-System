@@ -3,12 +3,12 @@ import { LATERAL_CENTER_VERTEBRA_GROUPS } from '@/app/imaging/features/image-vie
 import {
   isApProjectionExamType,
   isLateralExamType,
-} from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+} from '@xiehe/imaging-core/anatomy';
 import {
   type KeypointAnnotation,
   sortKeypoints,
 } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint';
-import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 
 export function upsertKeypoint(
   keypoints: KeypointAnnotation[],

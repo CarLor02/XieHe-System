@@ -1,5 +1,8 @@
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
-import type { AvtMetadata, AvtPointLayout } from './types';
+import type { Point } from '@xiehe/imaging-core/contracts';
+import type {
+  AvtMetadata,
+  AvtPointLayout,
+} from '@xiehe/imaging-core/contracts';
 
 export function getAvtReferenceKeypointIds(
   metadata: AvtMetadata

@@ -4,7 +4,7 @@ import {
   calculateHemipelvicWidthRatioResults,
   isHemipelvicWidthRatioInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/hemipelvic-width-ratio';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const HEMIPELVIC_WIDTH_RATIO_CONFIG: AnnotationConfig = {
   id: 'hemipelvic-width-ratio',

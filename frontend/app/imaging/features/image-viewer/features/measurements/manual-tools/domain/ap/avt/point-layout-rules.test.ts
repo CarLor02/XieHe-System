@@ -1,5 +1,5 @@
 import { expect, it } from '@jest/globals';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 import { createAvtMetadata } from './target-rules';
 import { buildAvtPoints, getAvtPointLayout } from './point-layout-rules';
 

@@ -1,7 +1,7 @@
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import {
   getAvtTargetKey,
   getAvtTargetLabel,
@@ -17,7 +17,7 @@ import type {
   AvtPointLayout,
   AvtReferenceLine,
   AvtTarget,
-} from './types';
+} from '@xiehe/imaging-core/contracts';
 
 export interface ResolvedAvtDefinition {
   metadata: AvtMetadata | null;

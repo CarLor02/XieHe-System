@@ -3,8 +3,10 @@ import {
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import {
-  getAvtTargetLabel,
   type AvtPlacementSession,
+} from '@xiehe/imaging-core/contracts';
+import {
+  getAvtTargetLabel,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import {
   getPelvicToolPointCount,
@@ -19,7 +21,7 @@ import {
   getNextPelvicPlacementPointIndex,
   getPelvicPlacementInheritedPointMap,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/pelvicMeasurementPlacementUseCase';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 import {
   getMeasurementKeypointBindingRuleForMeasurement,
   getMeasurementKeypointDrawingHint,

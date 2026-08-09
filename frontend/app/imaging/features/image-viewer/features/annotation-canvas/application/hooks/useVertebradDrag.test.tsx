@@ -5,7 +5,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import {
   AnnotationSource,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import {
   type VertebradDragSelection,
   useVertebradDrag,

@@ -8,7 +8,7 @@ import {
   jest,
 } from '@jest/globals';
 
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 import type { CanvasPointerInput } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/input/pointer-input';
 import { useCanvasPointerEvents } from './useCanvasPointerEvents';
 

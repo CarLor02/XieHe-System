@@ -2,7 +2,7 @@ import type { TransformContext } from '@/app/imaging/features/image-viewer/featu
 import type {
   ImageSize,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 /**
  * 计算图像在 object-contain 模式下的显示尺寸

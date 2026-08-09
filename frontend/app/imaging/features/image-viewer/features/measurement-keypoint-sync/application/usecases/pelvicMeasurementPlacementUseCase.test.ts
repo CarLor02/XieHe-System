@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 
 import {
   getNextPelvicPlacementPointIndex,

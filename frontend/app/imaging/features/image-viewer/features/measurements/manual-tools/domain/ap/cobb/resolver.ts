@@ -1,4 +1,4 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
+import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
 import {
   buildCobbEndpointPointIds,
   buildResolvedCobbMeasurement,
@@ -9,7 +9,7 @@ import {
   invalid,
   resolved,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/resolver';
-import { isApProjectionExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+import { isApProjectionExamType } from '@xiehe/imaging-core/anatomy';
 
 const AP_COBB_TYPE_PATTERN =
   /^cobb(?:\d+|-thoracic|-lumbar|-thoracolumbar|-auto\d+)?$/;

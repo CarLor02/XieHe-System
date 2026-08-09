@@ -3,7 +3,7 @@ import {
   calculateLldResults,
   isLldInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/lld';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const LLD_CONFIG: AnnotationConfig = {
   id: 'lld',

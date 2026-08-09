@@ -3,7 +3,7 @@ import {
   calculateCssResults,
   isCssInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/css';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const CSS_CONFIG: AnnotationConfig = {
   id: 'css',

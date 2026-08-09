@@ -12,7 +12,7 @@ import { calculateQuadrilateralCenter } from '@/app/imaging/features/image-viewe
 import {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
 import { hitTestMeasurementLabel } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestLabel';
 import { hitTestMeasurementPoint } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestPoint';

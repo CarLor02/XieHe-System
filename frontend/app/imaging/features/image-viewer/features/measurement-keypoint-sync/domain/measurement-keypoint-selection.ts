@@ -8,7 +8,7 @@ import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/feature
 import {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import { getMeasurementKeypointBindingRuleForMeasurement } from './measurement-keypoint-binding';
 
 const POINT_MATCH_TOLERANCE = 0.5;

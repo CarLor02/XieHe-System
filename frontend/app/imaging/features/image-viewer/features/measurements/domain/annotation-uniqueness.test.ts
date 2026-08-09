@@ -4,7 +4,7 @@ import {
   filterUniqueAnnotationDuplicates,
   isUniqueAnnotationTool,
 } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 it('treats AVT as globally non-unique', () => {
   const measurements: MeasurementData[] = [

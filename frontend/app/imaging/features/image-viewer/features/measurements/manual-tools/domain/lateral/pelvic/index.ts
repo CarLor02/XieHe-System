@@ -28,10 +28,7 @@ export {
 } from './tool-point-layout';
 export type {
   EffectiveCfhResolution,
-  FemoralHeadMode,
   PelvicMeasurementGeometry,
-  PelvicMeasurementMetadata,
   PelvicPlacementSession,
-  PelvicToolId,
 } from './types';
 export * from './measurement-resolver';

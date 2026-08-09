@@ -4,13 +4,15 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import type { CalculationContext } from '@/app/imaging/features/image-viewer/features/measurements/domain/measurement-calculation-types';
 import {
+  type AvtTarget,
+} from '@xiehe/imaging-core/contracts';
+import {
   buildAvtPoints,
   calculateAvtValue,
   createAvtMetadata,
   getAvtMeasurementId,
   getAvtTargetLabel,
   isAvtMetadata,
-  type AvtTarget,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/avt';
 import { resolveCobbEndpointPointIds } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain';
 import { getNextCobbType } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/shared/cobb';
@@ -18,12 +20,12 @@ import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,
 } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { isLateralExamType } from '@/app/imaging/features/image-viewer/shared/domain/exam-type';
+import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
 import type {
   MeasurementData,
   Point,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 import { DERIVED_ID_PREFIX } from '../../domain/vertebrae-derive';
 

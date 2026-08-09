@@ -1,12 +1,12 @@
 import {
   getMeasurementDeriveVertebraOrder,
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,
-} from '@/app/imaging/features/image-viewer/shared/domain/spine/vertebra-order';
+} from '@xiehe/imaging-core/anatomy';
 import type {
   AvtMetadata,
   AvtReferenceLine,
   AvtTarget,
-} from './types';
+} from '@xiehe/imaging-core/contracts';
 
 const AVT_FIRST_VERTEBRA = 'T2';
 const AVT_C7PL_LAST_VERTEBRA = 'T11';

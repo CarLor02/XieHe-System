@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import {
   getAvtGeometry,
   isAvtMetadata,

@@ -5,7 +5,7 @@ import {
   AnnotationSource,
   type MeasurementData,
   type VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 
 const unboundVertebra: VertebraAnnotation = {
   label: 'T4',

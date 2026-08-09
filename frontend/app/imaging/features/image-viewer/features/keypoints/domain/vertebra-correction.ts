@@ -1,8 +1,8 @@
-import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 import {
   getMeasurementDeriveVertebraOrder,
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,
-} from '@/app/imaging/features/image-viewer/shared/domain/spine/vertebra-order';
+} from '@xiehe/imaging-core/anatomy';
 import {
   type KeypointAnnotation,
   sortKeypoints,

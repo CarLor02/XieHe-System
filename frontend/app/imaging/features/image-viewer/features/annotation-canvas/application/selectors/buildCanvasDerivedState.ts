@@ -2,6 +2,8 @@ import { getEffectiveManualMeasurementPointsNeeded } from '@/app/imaging/feature
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 import {
   MeasurementData,
+} from '@xiehe/imaging-core/contracts';
+import {
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { HoverState } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/canvas-state';

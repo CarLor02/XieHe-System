@@ -4,11 +4,11 @@ import {
   canSyncCobbMeasurementToKeypoints,
   syncCobbMeasurementToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/cobbKeypointSyncUseCase';
-import { AnnotationSource } from '@/app/imaging/features/image-viewer/shared/types';
+import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 import type {
   MeasurementData,
   Point,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
 
 const points: Point[] = [

@@ -4,7 +4,7 @@
  */
 
 import type { TransformContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/domain/model/viewport-transform';
-import { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
 import {
   calculateDistance,
   pointToLineDistance,

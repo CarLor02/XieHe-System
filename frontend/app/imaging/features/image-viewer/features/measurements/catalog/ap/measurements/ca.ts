@@ -3,7 +3,7 @@ import {
   calculateCaResults,
   isCaInRange,
 } from '@/app/imaging/features/image-viewer/features/measurements/manual-tools/domain/ap/ca';
-import type { Point } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Point } from '@xiehe/imaging-core/contracts';
 
 export const CA_CONFIG: AnnotationConfig = {
   id: 'ca',

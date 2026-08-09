@@ -1,14 +1,16 @@
 export type {
   AiMeasurementData,
-  CfhAnnotation,
   ImageData,
+  StudyData,
+  Tool,
+} from '@/app/imaging/features/image-viewer/shared/types';
+export type {
+  CfhAnnotation,
   ImageSize,
   MeasurementData,
   Point,
-  StudyData,
-  Tool,
   VertebraAnnotation,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/contracts';
 export type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint';
 export { vertebraeLayerToKeypoints } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-layer-mapper';
 export { renderMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas';

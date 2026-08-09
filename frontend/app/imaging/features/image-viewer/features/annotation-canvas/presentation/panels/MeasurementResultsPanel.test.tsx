@@ -3,7 +3,7 @@ import { expect, it, jest } from '@jest/globals';
 import type { ComponentProps } from 'react';
 
 import MeasurementResultsPanel from './MeasurementResultsPanel';
-import { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 function renderPanel(
   measurements: MeasurementData[],

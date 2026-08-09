@@ -1,2 +1,4 @@
-// 跨端共享的测量领域入口。
-export {};
+export {
+  getAnnotationTypeId,
+  normalizeAnnotationLookupKey,
+} from './annotation-type-id';

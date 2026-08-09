@@ -1,4 +1,4 @@
-import { MeasurementData, Point } from '@/app/imaging/features/image-viewer/shared/types';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 export interface SerializedAnnotationPayload {
   imageId?: string;

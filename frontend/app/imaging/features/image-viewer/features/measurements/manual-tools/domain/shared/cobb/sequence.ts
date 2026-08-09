@@ -1,5 +1,5 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-type-id';
-import type { MeasurementData } from '@/app/imaging/features/image-viewer/shared/types';
+import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
+import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 type CobbTypePrefix = 'cobb' | 'lateral-cobb';
 

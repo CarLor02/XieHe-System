@@ -1,4 +1,4 @@
-// 编号越小代表生理学位置越靠上。
+/** 编号越小代表生理学位置越靠上。 */
 export const MEASUREMENT_DERIVE_VERTEBRA_ORDER = [
   'C2',
   'C3',
@@ -26,12 +26,14 @@ export const MEASUREMENT_DERIVE_VERTEBRA_ORDER = [
   'S1',
 ] as const;
 
-const measurementDeriveVertebraOrderByLabel: Map<string, number> = new Map(
+export type VertebraLabel = (typeof MEASUREMENT_DERIVE_VERTEBRA_ORDER)[number];
+
+const vertebraOrderByLabel: ReadonlyMap<string, number> = new Map(
   MEASUREMENT_DERIVE_VERTEBRA_ORDER.map((label, index) => [label, index + 1])
 );
 
 export function getMeasurementDeriveVertebraOrder(
   vertebra: string
 ): number | null {
-  return measurementDeriveVertebraOrderByLabel.get(vertebra) ?? null;
+  return vertebraOrderByLabel.get(vertebra) ?? null;
 }
