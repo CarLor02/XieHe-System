@@ -2,7 +2,7 @@ import { getAnnotationTypeId } from '../../measurements';
 import {
   AnnotationSource,
   type MeasurementData,
-} from '../../contracts';
+} from '../../shared/domain/contracts';
 import type { KeypointAnnotation } from '../../keypoints';
 import { upsertKeypoint } from '../../keypoints';
 import { resolveCobbMeasurement } from '../../measurements';

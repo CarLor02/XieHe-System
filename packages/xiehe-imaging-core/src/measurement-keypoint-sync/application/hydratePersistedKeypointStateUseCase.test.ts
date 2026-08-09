@@ -5,7 +5,7 @@ import {
   AnnotationSource,
   type MeasurementData,
   type VertebraAnnotation,
-} from '../../contracts';
+} from '../../shared/domain/contracts';
 
 const unboundVertebra: VertebraAnnotation = {
   label: 'T4',

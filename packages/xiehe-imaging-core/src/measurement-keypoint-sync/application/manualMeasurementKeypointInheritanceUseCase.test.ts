@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { AnnotationSource } from '../../contracts';
+import { AnnotationSource } from '../../shared/domain/contracts';
 import type { KeypointAnnotation } from '../../keypoints';
 
 import {

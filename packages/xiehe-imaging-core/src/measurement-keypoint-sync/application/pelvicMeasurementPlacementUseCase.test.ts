@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { KeypointAnnotation } from '../../keypoints';
-import { AnnotationSource } from '../../contracts';
+import { AnnotationSource } from '../../shared/domain/contracts';
 
 import {
   getNextPelvicPlacementPointIndex,

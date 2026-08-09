@@ -4,11 +4,11 @@ import {
   canSyncCobbMeasurementToKeypoints,
   syncCobbMeasurementToKeypoints,
 } from './cobbKeypointSyncUseCase';
-import { AnnotationSource } from '../../contracts';
+import { AnnotationSource } from '../../shared/domain/contracts';
 import type {
   MeasurementData,
   Point,
-} from '../../contracts';
+} from '../../shared/domain/contracts';
 import type { KeypointAnnotation } from '../../keypoints';
 
 const points: Point[] = [

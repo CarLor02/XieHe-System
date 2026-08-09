@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateAngleToHorizontal,
   pointToLineDistance,
-} from '../../src/geometry';
+} from '../../src/shared/domain/geometry';
 import {
   calculateActualDistance,
   calculateCobbResults,

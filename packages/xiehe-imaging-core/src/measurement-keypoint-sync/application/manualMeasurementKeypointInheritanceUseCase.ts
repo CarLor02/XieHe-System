@@ -1,7 +1,7 @@
 import type { KeypointAnnotation } from '../../keypoints';
-import type { Point } from '../../contracts';
+import type { Point } from '../../shared/domain/contracts';
 
-import { getAvailableBoundMeasurementPointMap } from '../measurement-keypoint-binding';
+import { getAvailableBoundMeasurementPointMap } from '../domain/measurement-keypoint-binding';
 
 export function getManualMeasurementInheritedPointMap(
   toolId: string,

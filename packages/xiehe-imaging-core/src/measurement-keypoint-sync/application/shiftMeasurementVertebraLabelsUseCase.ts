@@ -1,8 +1,8 @@
-import type { MeasurementData } from '../../contracts';
+import type { MeasurementData } from '../../shared/domain/contracts';
 import {
   createAvtMetadata,
   isAvtMetadata,
-} from '../../measurements/manual-tools/ap';
+} from '../../measurements/domain/manual-tools/ap';
 
 /**
  * 将关键点椎体偏移结果同步到测量项端椎和 AVT metadata。

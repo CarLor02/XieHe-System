@@ -1,7 +1,7 @@
 import { getAnnotationTypeId } from '../../measurements';
-import type { MeasurementData } from '../../contracts';
+import type { MeasurementData } from '../../shared/domain/contracts';
 
-import type { MeasurementKeypointBindingRule } from '../binding-rule-types';
+import type { MeasurementKeypointBindingRule } from '../domain/binding-rule-types';
 
 /**
  * 动态规则与固定规则分开计算后，仍按领域 catalog 的声明顺序合并。

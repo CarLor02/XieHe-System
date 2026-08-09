@@ -6,13 +6,13 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./contracts": "./src/contracts/index.ts",
-    "./anatomy": "./src/anatomy/index.ts",
+    "./contracts": "./src/shared/domain/contracts/index.ts",
+    "./anatomy": "./src/shared/domain/anatomy/index.ts",
     "./bindings": "./src/bindings/index.ts",
-    "./geometry": "./src/geometry/index.ts",
+    "./geometry": "./src/shared/domain/geometry/index.ts",
     "./measurements": "./src/measurements/index.ts",
-    "./measurements/ap": "./src/measurements/manual-tools/ap/index.ts",
-    "./measurements/lateral": "./src/measurements/manual-tools/lateral/index.ts",
+    "./measurements/ap": "./src/measurements/domain/manual-tools/ap/index.ts",
+    "./measurements/lateral": "./src/measurements/domain/manual-tools/lateral/index.ts",
     "./keypoints": "./src/keypoints/index.ts",
     "./measurement-keypoint-sync": "./src/measurement-keypoint-sync/index.ts",
     "./canvas": "./src/canvas/index.ts"

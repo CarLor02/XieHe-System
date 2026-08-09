@@ -6,7 +6,7 @@ import {
   isBendingExamType,
   isKeypointSupportedExamType,
   isLateralExamType,
-} from '../../src/anatomy';
+} from '../../src/shared/domain/anatomy';
 
 describe('exam type rules', () => {
   it.each(['左侧曲位', '右侧曲位'])(

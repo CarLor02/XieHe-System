@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getMeasurementDeriveVertebraOrder,
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,
-} from '../../src/anatomy';
+} from '../../src/shared/domain/anatomy';
 
 describe('vertebra physiological order', () => {
   it('orders configured vertebrae from cranial to caudal starting at one', () => {

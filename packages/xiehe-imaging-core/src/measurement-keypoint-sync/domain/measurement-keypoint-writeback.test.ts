@@ -1,0 +1,97 @@
+import { expect, it } from 'vitest';
+
+import { applyMeasurementPointToVertebrae } from './measurement-keypoint-writeback';
+import {
+  AnnotationSource,
+} from '../../shared/domain/contracts';
+import type { Point, VertebraAnnotation } from '../../shared/domain/contracts';
+
+function pointLayer(label: string, point: Point): VertebraAnnotation {
+  return {
+    label,
+    corners: [point, point, point, point],
+    confidence: 1,
+    source: AnnotationSource.AI,
+  };
+}
+
+it('writes TS upper points back to C7 keypoints instead of T1', () => {
+  const t1Point = { x: 100, y: 100 };
+  const c7Point = { x: 10, y: 10 };
+  const nextPoint = { x: 30, y: 40 };
+  const layer = [pointLayer('C7-1', c7Point), pointLayer('T1-1', t1Point)];
+
+  const result = applyMeasurementPointToVertebrae(
+    layer,
+    null,
+    'ts',
+    0,
+    nextPoint
+  );
+
+  expect(
+    result.vertebraeLayer.find(annotation => annotation.label === 'C7-1')
+      ?.corners[0]
+  ).toEqual(nextPoint);
+  expect(
+    result.vertebraeLayer.find(annotation => annotation.label === 'T1-1')
+      ?.corners[0]
+  ).toEqual(t1Point);
+});
+
+it('writes lateral two-point measurements back to left then right vertebra corners', () => {
+  const nextPoint = { x: 12, y: 14 };
+  const layer: VertebraAnnotation[] = [
+    {
+      label: 'T1',
+      corners: [
+        { x: 10, y: 10 },
+        { x: 30, y: 10 },
+        { x: 10, y: 40 },
+        { x: 30, y: 40 },
+      ],
+      confidence: 1,
+      source: AnnotationSource.AI,
+    },
+  ];
+
+  const result = applyMeasurementPointToVertebrae(
+    layer,
+    null,
+    't1-slope',
+    0,
+    nextPoint
+  );
+
+  expect(result.vertebraeLayer[0].corners).toEqual([
+    nextPoint,
+    { x: 30, y: 10 },
+    { x: 10, y: 40 },
+    { x: 30, y: 40 },
+  ]);
+});
+
+it('writes SS points back to S1 left then right endpoints', () => {
+  const nextPoint = { x: 120, y: 240 };
+  const layer = [
+    pointLayer('S1-1', { x: 100, y: 230 }),
+    pointLayer('S1-2', { x: 220, y: 250 }),
+  ];
+
+  const result = applyMeasurementPointToVertebrae(
+    layer,
+    null,
+    'ss',
+    0,
+    nextPoint
+  );
+
+  expect(
+    result.vertebraeLayer.find(annotation => annotation.label === 'S1-1')
+      ?.corners[0]
+  ).toEqual(nextPoint);
+  expect(
+    result.vertebraeLayer.find(annotation => annotation.label === 'S1-2')
+      ?.corners[0]
+  ).toEqual({ x: 220, y: 250 });
+});

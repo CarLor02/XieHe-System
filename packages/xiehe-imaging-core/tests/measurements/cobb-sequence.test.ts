@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MeasurementData } from '../../src/contracts';
+import type { MeasurementData } from '../../src/shared/domain/contracts';
 import {
   getMaxCobbSequenceNumber,
   getNextCobbType,

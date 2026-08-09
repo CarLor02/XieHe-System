@@ -6,7 +6,7 @@ import {
   createCircleGeometry,
   getCircleRadius,
   moveCircleCenter,
-} from '../../src/geometry/circle';
+} from '../../src/shared/domain/geometry/circle';
 
 describe('CircleGeometry', () => {
   it('uses center and radius handle as the stable two-point circle contract', () => {

@@ -3,14 +3,14 @@ import {
   type KeypointAnnotation,
   vertebraeLayerToKeypoints,
 } from '../../keypoints';
-import { isKeypointSupportedExamType } from '../../anatomy';
+import { isKeypointSupportedExamType } from '../../shared/domain/anatomy';
 import type {
   CfhAnnotation,
   MeasurementData,
   VertebraAnnotation,
-} from '../../contracts';
+} from '../../shared/domain/contracts';
 
-import { backfillMissingBoundKeypoints } from '../measurement-keypoint-binding';
+import { backfillMissingBoundKeypoints } from '../domain/measurement-keypoint-binding';
 
 export interface PersistedKeypointStateInput {
   examType: string;
