@@ -10,7 +10,7 @@ import type {
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
 
-import { backfillMissingBoundKeypoints } from '../../domain/measurement-keypoint-binding';
+import { backfillMissingBoundKeypoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
 
 export interface PersistedKeypointStateInput {
   examType: string;

@@ -21,14 +21,14 @@ import {
   getMeasurementKeypointBindingRule,
   getMeasurementKeypointBindingRuleForMeasurement,
   writeMeasurementToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   type FemoralHeadMode,
 } from '@xiehe/imaging-core/contracts';
 import {
   createPelvicMeasurementMetadata,
 } from '@xiehe/imaging-core/measurements/lateral';
-import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
+import { applyMeasurementPointToVertebrae } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { deriveMissingFixedMeasurementsFromKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/deriveMissingFixedMeasurementsUseCase';
 
 interface UseMeasurementWorkflowOptions {

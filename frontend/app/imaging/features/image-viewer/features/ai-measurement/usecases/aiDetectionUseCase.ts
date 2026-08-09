@@ -9,7 +9,7 @@ import {
 } from '@/app/imaging/features/image-viewer/shared/types';
 import { Dispatch, SetStateAction } from 'react';
 import { getAiKeypointDetectionResponse } from '@/services/imageServices';
-import { sortCornersGeometrically } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/point-normalization';
+import { sortCornersGeometrically } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('app.imaging.features.image.viewer.features.ai.measurement.usecases.aiDetectionUseCase');

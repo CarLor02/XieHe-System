@@ -27,7 +27,7 @@ import type {
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
 
-import { DERIVED_ID_PREFIX } from '../../domain/vertebrae-derive';
+import { DERIVED_ID_PREFIX } from '@xiehe/imaging-core/measurement-keypoint-sync';
 
 function findDerivedVertebra(
   layer: VertebraAnnotation[],

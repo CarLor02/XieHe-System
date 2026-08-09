@@ -1,5 +1,5 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import { getAnnotationTypeId } from '../../measurements';
+import type { MeasurementData } from '../../contracts';
 
 import { buildMeasurementKeypointDependencyGraph } from './measurement-dependency-graph';
 

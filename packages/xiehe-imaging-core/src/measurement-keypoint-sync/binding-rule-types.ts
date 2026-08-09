@@ -1,5 +1,5 @@
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import type { Point } from '@xiehe/imaging-core/contracts';
+import type { KeypointAnnotation } from '../keypoints';
+import type { Point } from '../contracts';
 
 import type { NormalizedMeasurementPoints } from './point-normalization';
 

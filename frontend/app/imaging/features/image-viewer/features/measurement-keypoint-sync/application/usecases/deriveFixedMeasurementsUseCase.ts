@@ -3,7 +3,7 @@ import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
-import type { MeasurementKeypointBindingRule } from '../../domain/binding-rule-types';
+import type { MeasurementKeypointBindingRule } from '@xiehe/imaging-core/measurement-keypoint-sync';
 
 const DERIVED_MEASUREMENT_TYPE_BY_RULE_ID: Record<string, string> = {
   't1-tilt': 'T1 Tilt',

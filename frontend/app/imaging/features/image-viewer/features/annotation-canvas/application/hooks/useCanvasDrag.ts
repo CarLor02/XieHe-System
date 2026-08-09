@@ -13,7 +13,7 @@ import {
   circleGeometryFromPoints,
   getCircleBounds,
 } from '@xiehe/imaging-core/geometry';
-import { normalizePelvicDraggedMeasurementPoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/pelvic-binding-rule';
+import { normalizePelvicDraggedMeasurementPoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   MeasurementData,
   Point,

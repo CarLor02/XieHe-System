@@ -24,16 +24,14 @@ import {
   buildBoundMeasurementPointsForMeasurement,
   getAutoDeriveMeasurementKeypointBindingRules,
   getMeasurementKeypointBindingRuleForMeasurement,
-} from '../../domain/measurement-keypoint-binding';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   isBoundAvtMeasurement,
   isCobbMeasurement,
   isDerivedCobbMeasurement,
-} from '../../domain/measurement-keypoint-query';
-import {
-  deriveAllMeasurements,
   DERIVED_ID_PREFIX,
-} from '../../domain/vertebrae-derive';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
+import { deriveAllMeasurements } from '../../domain/vertebrae-derive';
 import {
   createBoundCobbMeasurement,
   createTtsMeasurement,

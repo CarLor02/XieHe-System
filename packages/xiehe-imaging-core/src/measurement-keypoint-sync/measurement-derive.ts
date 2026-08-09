@@ -2,15 +2,15 @@ import {
   getApVertebraKeypointGroups,
   getLateralKeypointGroups,
   type KeypointAnnotation,
-} from '@xiehe/imaging-core/keypoints';
+} from '../keypoints';
 import {
   isApProjectionExamType,
   isLateralExamType,
-} from '@xiehe/imaging-core/anatomy';
+} from '../anatomy';
 import {
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,
   getMeasurementDeriveVertebraOrder,
-} from '@xiehe/imaging-core/anatomy';
+} from '../anatomy';
 
 export { MEASUREMENT_DERIVE_VERTEBRA_ORDER, getMeasurementDeriveVertebraOrder };
 

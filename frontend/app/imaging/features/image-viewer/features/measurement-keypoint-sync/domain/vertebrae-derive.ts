@@ -22,6 +22,7 @@ import {
   vertebraeLayerToKeypoints,
 } from '@xiehe/imaging-core/keypoints';
 import { createHemipelvicWidthRatioPoints } from '@xiehe/imaging-core/measurements/ap';
+import { DERIVED_ID_PREFIX } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('app.imaging.features.image.viewer.features.measurement.keypoint.sync.domain.vertebrae.derive');
@@ -480,4 +481,4 @@ export function deriveAllMeasurements(
   }
 }
 
-export const DERIVED_ID_PREFIX = 'vertebrae-derived-';
+export { DERIVED_ID_PREFIX };

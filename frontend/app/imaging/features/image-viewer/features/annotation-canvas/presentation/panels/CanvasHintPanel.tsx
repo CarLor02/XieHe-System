@@ -25,7 +25,7 @@ import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 import {
   getMeasurementKeypointBindingRuleForMeasurement,
   getMeasurementKeypointDrawingHint,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 
 interface CanvasHintPanelProps {

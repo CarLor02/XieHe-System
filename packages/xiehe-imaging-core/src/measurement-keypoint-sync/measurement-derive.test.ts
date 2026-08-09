@@ -1,10 +1,10 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
 import {
   getCompleteMeasurementDeriveEndpointGroups,
   getMeasurementDeriveVertebraOrder,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-derive';
-import { AnnotationSource } from '@xiehe/imaging-core/contracts';
+} from './measurement-derive';
+import { AnnotationSource } from '../contracts';
 
 const completeKeypoints = (vertebra: string) =>
   [1, 2, 3, 4].map(index => ({

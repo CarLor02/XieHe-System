@@ -7,7 +7,7 @@ import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 import {
   getAutoDeriveMeasurementKeypointBindingRules,
   getMeasurementKeypointBindingRule,
-} from '../../domain/measurement-keypoint-binding';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { deriveFixedMeasurements } from './deriveFixedMeasurementsUseCase';
 import { derivePelvicMeasurements } from './derivePelvicMeasurementsUseCase';
 import { orderDerivedMeasurementsByBindingRules } from './orderDerivedMeasurementsByBindingRules';

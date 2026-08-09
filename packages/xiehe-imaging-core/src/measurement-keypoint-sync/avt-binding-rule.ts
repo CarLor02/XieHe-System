@@ -1,4 +1,4 @@
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
+import type { KeypointAnnotation } from '../keypoints';
 import {
   buildAvtPoints,
   getAvtPointKeypointId,
@@ -6,11 +6,11 @@ import {
   getAvtRequiredKeypointIds,
   getAvtTargetPointCount,
   isAvtMetadata,
-} from '@xiehe/imaging-core/measurements/ap';
+} from '../measurements/manual-tools/ap';
 import type {
   MeasurementData,
   Point,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
 
 import type { MeasurementKeypointBindingRule } from './binding-rule-types';
 

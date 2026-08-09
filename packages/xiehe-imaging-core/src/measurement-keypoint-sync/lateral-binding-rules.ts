@@ -1,5 +1,5 @@
-import type { Point } from '@xiehe/imaging-core/contracts';
-import { resolveCobbEndpointPointIds } from '@xiehe/imaging-core/measurements';
+import type { Point } from '../contracts';
+import { resolveCobbEndpointPointIds } from '../measurements';
 
 import type { MeasurementKeypointBindingRule } from './binding-rule-types';
 import { createFixedBindingRule } from './fixed-binding-rule';

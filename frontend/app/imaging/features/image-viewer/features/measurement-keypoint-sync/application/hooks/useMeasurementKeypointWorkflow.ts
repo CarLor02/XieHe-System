@@ -30,7 +30,7 @@ import {
   hasAvtMeasurementForTarget,
   hasCobbMeasurementForEndpoints,
   isCobbMeasurement,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-query';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   type AvtPlacementSession,
   type AvtTarget,
@@ -38,7 +38,7 @@ import {
 import {
   createAvtPlacementSession,
 } from '@xiehe/imaging-core/measurements/ap';
-import { DERIVED_ID_PREFIX } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/vertebrae-derive';
+import { DERIVED_ID_PREFIX } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   areKeypointsEqual,
   hasKeypoint,
@@ -55,12 +55,12 @@ import {
 } from '@xiehe/imaging-core/keypoints';
 import { useKeypointLayerState } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { shiftMeasurementVertebraLabels } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/shiftMeasurementVertebraLabelsUseCase';
-import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
+import { applyMeasurementPointToVertebrae } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   getMeasurementKeypointBindingRule,
   getMeasurementKeypointBindingRuleForMeasurement,
   writeMeasurementToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { syncCobbMeasurementToKeypoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/cobbKeypointSyncUseCase';
 import { runLateralDetectionCache } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
 import {

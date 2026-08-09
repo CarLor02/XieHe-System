@@ -1,4 +1,4 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
 import {
   backfillMissingBoundKeypoints,
@@ -9,18 +9,18 @@ import {
   normalizeBoundMeasurementPoints,
   writeMeasurementToKeypoints,
   writeMeasurementPointsToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
-import { normalizePelvicDraggedMeasurementPoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/pelvic-binding-rule';
-import { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
+} from './measurement-keypoint-binding';
+import { normalizePelvicDraggedMeasurementPoints } from './pelvic-binding-rule';
+import type { KeypointAnnotation } from '../keypoints';
 import {
   createHemipelvicWidthRatioPoints,
   getHemipelvicVerticalLines,
   sortHemipelvicVerticalLines,
-} from '@xiehe/imaging-core/measurements/ap';
+} from '../measurements/manual-tools/ap';
 import {
   AnnotationSource,
-  MeasurementData,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
+import type { MeasurementData } from '../contracts';
 
 function keypoint(id: string, x: number, y: number): KeypointAnnotation {
   return {

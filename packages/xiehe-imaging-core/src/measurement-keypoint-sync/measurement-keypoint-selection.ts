@@ -3,12 +3,9 @@ import {
   parseLateralSacralKeypointId,
   parseLateralVertebraKeypointId,
   type KeypointAnnotation,
-} from '@xiehe/imaging-core/keypoints';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+} from '../keypoints';
+import { getAnnotationTypeId } from '../measurements';
+import type { MeasurementData, Point } from '../contracts';
 import { getMeasurementKeypointBindingRuleForMeasurement } from './measurement-keypoint-binding';
 
 const POINT_MATCH_TOLERANCE = 0.5;

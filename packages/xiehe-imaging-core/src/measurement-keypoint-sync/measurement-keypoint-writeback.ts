@@ -9,13 +9,15 @@
  * 正位：写回 AP 姿态关键点（ApPoseTarget），如 CL/CR（CA）、IL/IR（PO）、SL/SR（CSS）。
  */
 
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '../measurements';
 import {
   AnnotationSource,
+} from '../contracts';
+import type {
   CfhAnnotation,
   Point,
   VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
 
 // ─── 类型定义 ─────────────────────────────────────────────────────────────────
 

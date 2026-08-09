@@ -1,14 +1,14 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '../measurements';
 import {
   type AvtTarget,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
 import {
   isAvtMetadata,
   isSameAvtTarget,
-} from '@xiehe/imaging-core/measurements/ap';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+} from '../measurements/manual-tools/ap';
+import type { MeasurementData } from '../contracts';
 
-import { DERIVED_ID_PREFIX } from './vertebrae-derive';
+import { DERIVED_ID_PREFIX } from './derived-measurement';
 
 function normalizeVertebraLabel(label: string): string {
   return label.trim().toUpperCase();

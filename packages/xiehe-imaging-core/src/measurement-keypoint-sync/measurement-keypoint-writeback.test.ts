@@ -1,11 +1,10 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
-import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
+import { applyMeasurementPointToVertebrae } from './measurement-keypoint-writeback';
 import {
   AnnotationSource,
-  Point,
-  VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
+import type { Point, VertebraAnnotation } from '../contracts';
 
 function pointLayer(label: string, point: Point): VertebraAnnotation {
   return {

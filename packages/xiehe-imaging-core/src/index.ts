@@ -4,4 +4,5 @@ export * from './anatomy';
 export * from './contracts';
 export * from './geometry';
 export * from './keypoints';
+export * from './measurement-keypoint-sync';
 export * from './measurements';

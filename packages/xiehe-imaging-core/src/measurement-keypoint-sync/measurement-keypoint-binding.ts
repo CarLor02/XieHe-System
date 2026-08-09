@@ -1,22 +1,22 @@
 import {
   type KeypointAnnotation,
   upsertKeypoint,
-} from '@xiehe/imaging-core/keypoints';
+} from '../keypoints';
 import {
   isAnteriorExamType,
   isBendingExamType,
   isLateralExamType,
-} from '@xiehe/imaging-core/anatomy';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+} from '../anatomy';
+import { getAnnotationTypeId } from '../measurements';
 import {
   AnnotationSource,
   type MeasurementData,
   type Point,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
 import {
   resolveEffectiveCfh,
   resolvePelvicMeasurement,
-} from '@xiehe/imaging-core/measurements/lateral';
+} from '../measurements/manual-tools/lateral';
 
 import {
   AP_MEASUREMENT_KEYPOINT_BINDING_RULES,

@@ -1,7 +1,7 @@
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
-import type { MeasurementKeypointBindingRule } from '../../domain/binding-rule-types';
+import type { MeasurementKeypointBindingRule } from '@xiehe/imaging-core/measurement-keypoint-sync';
 
 /**
  * 动态规则与固定规则分开计算后，仍按领域 catalog 的声明顺序合并。

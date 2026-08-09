@@ -1,7 +1,7 @@
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import type { Point } from '@xiehe/imaging-core/contracts';
 
-import { getAvailableBoundMeasurementPointMap } from '../../domain/measurement-keypoint-binding';
+import { getAvailableBoundMeasurementPointMap } from '@xiehe/imaging-core/measurement-keypoint-sync';
 
 export function getManualMeasurementInheritedPointMap(
   toolId: string,

@@ -1,4 +1,4 @@
-import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
+import type { KeypointAnnotation } from '../keypoints';
 import {
   BILATERAL_PELVIC_POINT_COUNT,
   createDefaultBilateralPelvicPoints,
@@ -10,20 +10,20 @@ import {
   resolvePelvicMeasurement,
   resolveEffectiveCfh,
   updatePelvicMeasurementPoint,
-} from '@xiehe/imaging-core/measurements/lateral';
+} from '../measurements/manual-tools/lateral';
 import type {
   FemoralHeadMode,
   PelvicMeasurementMetadata,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
 import {
   circleGeometryFromPoints,
   moveCircleCenter,
-} from '@xiehe/imaging-core/geometry';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+} from '../geometry';
+import { getAnnotationTypeId } from '../measurements';
 import type {
   MeasurementData,
   Point,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
 
 import type {
   MeasurementKeypointBindingRule,

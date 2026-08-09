@@ -12,8 +12,8 @@ import {
   planKeypointDeletion,
   planMeasurementDeletion,
   type AnnotationDeletionPlan,
-} from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/deletion';
-import { isCobbMeasurement } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-query';
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
+import { isCobbMeasurement } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import type {
   CfhAnnotation,
   MeasurementData,

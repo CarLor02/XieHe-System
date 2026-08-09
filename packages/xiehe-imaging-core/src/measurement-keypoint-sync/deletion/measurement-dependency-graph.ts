@@ -1,10 +1,10 @@
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { resolveCobbEndpointPointIds } from '@xiehe/imaging-core/measurements';
+import { getAnnotationTypeId } from '../../measurements';
+import { resolveCobbEndpointPointIds } from '../../measurements';
 import {
   isApProjectionExamType,
   isLateralExamType,
-} from '@xiehe/imaging-core/anatomy';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+} from '../../anatomy';
+import type { MeasurementData } from '../../contracts';
 
 import { getMeasurementKeypointBindingRuleForMeasurement } from '../measurement-keypoint-binding';
 import {

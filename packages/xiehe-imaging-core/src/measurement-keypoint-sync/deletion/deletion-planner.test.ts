@@ -1,5 +1,5 @@
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
-import { describe, expect, test } from '@jest/globals';
+import type { MeasurementData } from '../../contracts';
+import { describe, expect, test } from 'vitest';
 
 import {
   getMeasurementRequiredKeypointIds,
