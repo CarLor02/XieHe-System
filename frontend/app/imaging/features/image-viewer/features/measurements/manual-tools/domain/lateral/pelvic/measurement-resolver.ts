@@ -214,11 +214,14 @@ export function shouldShowPelvicPointDisplayLabel(
     return true;
   }
 
-  // 双 FH 圆心已由检测层以 FH-1/FH-2 标识；测量层仍保留圆心交互，
-  // 但不重复绘制文字。半径控制点和骶骨端点标签继续显示。
+  // 双 FH 圆心和骶骨端点已由检测层标识；测量层仍保留这些点的交互，
+  // 但不重复绘制文字。只有不属于关键点层的半径控制点继续显示标签。
   return !(
     resolvedMeasurement.layout === 'bilateral' &&
-    (pointIndex === 0 || pointIndex === 2)
+    (pointIndex === 0 ||
+      pointIndex === 2 ||
+      pointIndex === 4 ||
+      pointIndex === 5)
   );
 }
 

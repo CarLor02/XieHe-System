@@ -257,7 +257,7 @@ it('renders Arrow auxiliary annotations with the name but without distance text'
   expect(texts.some(text => text.includes('mm'))).toBe(false);
 });
 
-it('does not duplicate bilateral FH center labels in the measurement layer', () => {
+it('does not duplicate bilateral pelvic keypoint labels in the measurement layer', () => {
   const measurement: MeasurementData = {
     id: 'pi-bilateral',
     type: 'PI',
@@ -282,8 +282,8 @@ it('does not duplicate bilateral FH center labels in the measurement layer', () 
   expect(texts).not.toContain('FH-2');
   expect(texts).toContain('R1');
   expect(texts).toContain('R2');
-  expect(texts).toContain('S1-1');
-  expect(texts).toContain('S1-2');
+  expect(texts).not.toContain('S1-1');
+  expect(texts).not.toContain('S1-2');
 });
 
 function lineEndToImagePoint(
