@@ -11,8 +11,8 @@ export type {
   Point,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
-export type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint';
-export { vertebraeLayerToKeypoints } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-layer-mapper';
+export type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
+export { vertebraeLayerToKeypoints } from '@xiehe/imaging-core/keypoints';
 export { renderMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas';
 export {
   getAnnotationConfig,

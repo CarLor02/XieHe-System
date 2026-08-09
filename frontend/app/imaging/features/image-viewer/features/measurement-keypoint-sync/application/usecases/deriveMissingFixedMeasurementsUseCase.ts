@@ -1,7 +1,7 @@
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import { filterUniqueAnnotationDuplicates } from '@/app/imaging/features/image-viewer/features/measurements/domain/annotation-uniqueness';
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 
 import {

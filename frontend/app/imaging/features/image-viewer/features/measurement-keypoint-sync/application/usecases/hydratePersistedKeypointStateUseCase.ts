@@ -2,7 +2,7 @@ import {
   keypointsToPersistedLayer,
   type KeypointAnnotation,
   vertebraeLayerToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import { isKeypointSupportedExamType } from '@xiehe/imaging-core/anatomy';
 import type {
   CfhAnnotation,

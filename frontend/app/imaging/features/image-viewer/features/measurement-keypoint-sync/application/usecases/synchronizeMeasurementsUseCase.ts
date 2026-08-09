@@ -9,7 +9,7 @@ import {
 import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import {
   isBendingExamType,
   isLateralExamType,

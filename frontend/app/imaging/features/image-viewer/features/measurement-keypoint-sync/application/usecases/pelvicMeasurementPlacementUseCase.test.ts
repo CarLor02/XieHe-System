@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 
 import {

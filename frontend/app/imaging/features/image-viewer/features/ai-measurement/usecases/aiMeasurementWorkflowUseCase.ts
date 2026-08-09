@@ -22,7 +22,7 @@ import {
   KeypointAnnotation,
   parseApVertebraKeypointId,
   vertebraeLayerToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import { isBendingExamType } from '@xiehe/imaging-core/anatomy';
 import { detectLateralVertebrae } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
 import { createLogger } from '@/lib/logger';

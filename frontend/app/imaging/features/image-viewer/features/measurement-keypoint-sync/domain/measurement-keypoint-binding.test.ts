@@ -11,7 +11,7 @@ import {
   writeMeasurementPointsToKeypoints,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
 import { normalizePelvicDraggedMeasurementPoints } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/pelvic-binding-rule';
-import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import {
   createHemipelvicWidthRatioPoints,
   getHemipelvicVerticalLines,

@@ -2,36 +2,36 @@ import {
   AP_POSE_KEYPOINTS,
   AP_VERTEBRA_GROUPS,
   parseApVertebraKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/ap';
+} from './catalog/ap';
 import {
   LATERAL_ANATOMICAL_KEYPOINTS,
   LATERAL_SACRAL_KEYPOINTS,
   LATERAL_VERTEBRA_GROUPS,
   parseLateralSacralKeypointId,
   parseLateralVertebraKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
+} from './catalog/lateral';
 import {
   isAnteriorExamType,
   isApProjectionExamType,
   isBendingExamType,
   isLateralExamType,
-} from '@xiehe/imaging-core/anatomy';
+} from '../anatomy';
 import {
   type KeypointAnnotation,
   type KeypointSource,
   sortKeypoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint';
+} from './keypoint';
 import {
   isApVertebraGroup,
   isLateralVertebraGroup,
   isSinglePointKeypointLabel,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-label';
+} from './keypoint-label';
 import {
   AnnotationSource,
   type CfhAnnotation,
   type Point,
   type VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
 
 interface CornerRef {
   label: string;

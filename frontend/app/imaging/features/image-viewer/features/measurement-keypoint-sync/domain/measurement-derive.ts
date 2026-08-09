@@ -2,7 +2,7 @@ import {
   getApVertebraKeypointGroups,
   getLateralKeypointGroups,
   type KeypointAnnotation,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import {
   isApProjectionExamType,
   isLateralExamType,

@@ -1,9 +1,9 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
 import {
   AP_VERTEBRA_GROUPS,
   getKeypointGroupsForExamType,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '../..';
 
 it.each(['左侧曲位', '右侧曲位'])(
   'exposes only AP vertebra corner groups for %s',

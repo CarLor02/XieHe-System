@@ -1,7 +1,7 @@
 import type {
   AnnotationSource,
   Point,
-} from '@xiehe/imaging-core/contracts';
+} from '../contracts';
 
 /** 关键点来源与持久化标注来源保持同一枚举。 */
 export type KeypointSource = AnnotationSource;

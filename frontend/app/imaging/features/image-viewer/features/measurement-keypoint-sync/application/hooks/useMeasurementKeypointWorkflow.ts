@@ -51,9 +51,9 @@ import {
   type VertebraLabelOffsetOptions,
   type VertebraCornerOrderMapping,
   upsertKeypoint,
-  useKeypointLayerState,
   vertebraeLayerToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
+import { useKeypointLayerState } from '@/app/imaging/features/image-viewer/features/keypoints';
 import { shiftMeasurementVertebraLabels } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/usecases/shiftMeasurementVertebraLabelsUseCase';
 import { applyMeasurementPointToVertebrae } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-writeback';
 import {

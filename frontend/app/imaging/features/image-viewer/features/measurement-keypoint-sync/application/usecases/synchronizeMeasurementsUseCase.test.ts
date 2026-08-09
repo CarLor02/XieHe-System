@@ -1,6 +1,6 @@
 import { expect, it } from '@jest/globals';
 
-import { getApKeypointGroups } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { getApKeypointGroups } from '@xiehe/imaging-core/keypoints';
 import {
   createAvtMeasurement,
   createNextBoundCobbMeasurement,
@@ -18,7 +18,7 @@ import {
   getCompleteApVertebraGroups,
   keypointsToRenderLayer,
   KeypointAnnotation,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 
 function apCorner(id: string, x: number, y: number): KeypointAnnotation {
   return {

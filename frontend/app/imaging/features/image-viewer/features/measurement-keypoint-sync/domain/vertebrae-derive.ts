@@ -16,11 +16,11 @@ import {
   Point,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
-import { isLateralVertebraLabel } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { isLateralVertebraLabel } from '@xiehe/imaging-core/keypoints';
 import {
   keypointsToDerivedLayer,
   vertebraeLayerToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import { createHemipelvicWidthRatioPoints } from '@xiehe/imaging-core/measurements/ap';
 import { createLogger } from '@/lib/logger';
 

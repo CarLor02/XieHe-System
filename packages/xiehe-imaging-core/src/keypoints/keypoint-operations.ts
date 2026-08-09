@@ -1,14 +1,14 @@
-import { AP_VERTEBRA_GROUPS } from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/ap';
-import { LATERAL_CENTER_VERTEBRA_GROUPS } from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
+import { AP_VERTEBRA_GROUPS } from './catalog/ap';
+import { LATERAL_CENTER_VERTEBRA_GROUPS } from './catalog/lateral';
 import {
   isApProjectionExamType,
   isLateralExamType,
-} from '@xiehe/imaging-core/anatomy';
+} from '../anatomy';
 import {
   type KeypointAnnotation,
   sortKeypoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint';
-import { AnnotationSource } from '@xiehe/imaging-core/contracts';
+} from './keypoint';
+import { AnnotationSource } from '../contracts';
 
 export function upsertKeypoint(
   keypoints: KeypointAnnotation[],

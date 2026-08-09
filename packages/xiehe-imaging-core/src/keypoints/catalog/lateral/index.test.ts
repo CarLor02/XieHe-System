@@ -1,11 +1,11 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
 import {
   LATERAL_CENTER_VERTEBRA_GROUPS,
   getLateralKeypointGroups,
   parseLateralVertebraKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
-import { getKeypointGroupsForExamType } from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '.';
+import { getKeypointGroupsForExamType } from '../..';
 
 it('exposes C3-C6 as lateral four-corner vertebra keypoint groups', () => {
   const groups = getLateralKeypointGroups();

@@ -9,7 +9,7 @@ import {
   isSinglePointKeypointLabel,
   keypointIdToRenderCornerRef,
   renderCornerToKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 
 interface DragMember {
   vertebraLabel: string;

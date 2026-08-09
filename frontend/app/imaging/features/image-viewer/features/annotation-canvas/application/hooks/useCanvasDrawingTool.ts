@@ -11,7 +11,7 @@ import {
 import {
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
 import {
   getNextPelvicPlacementPointIndex,

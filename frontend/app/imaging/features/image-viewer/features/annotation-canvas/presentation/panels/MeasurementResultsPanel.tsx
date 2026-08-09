@@ -13,7 +13,7 @@ import {
   compareAnatomicalKeypointIds,
   getKeypointGroupsForExamType,
   KeypointAnnotation,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
 import {
   getMeasurementDeriveVertebraOrder,

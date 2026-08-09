@@ -1,7 +1,7 @@
 import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateQuadrilateralCenter } from '@/app/imaging/features/image-viewer/shared/geometry';
 import { Point } from '@xiehe/imaging-core/contracts';
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import renderPreview from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/renderPreview';
 import {
   DrawingState,

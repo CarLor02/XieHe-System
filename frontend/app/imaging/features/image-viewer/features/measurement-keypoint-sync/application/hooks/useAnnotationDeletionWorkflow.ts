@@ -5,7 +5,7 @@ import {
   type KeypointAnnotation,
   keypointsToCfhAnnotation,
   keypointsToPersistedLayer,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import { renumberCobbMeasurementsAfterDelete } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/renumberCobbMeasurementsAfterDelete';
 import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import {

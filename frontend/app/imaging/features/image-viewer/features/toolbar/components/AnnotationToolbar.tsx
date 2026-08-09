@@ -15,7 +15,7 @@ import {
   type VertebraLabelOffsetOptions,
   type VertebraCornerOrderMapping,
   type VertebraCornerSequenceNumber,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import {
   isApProjectionExamType,
   isLateralExamType,

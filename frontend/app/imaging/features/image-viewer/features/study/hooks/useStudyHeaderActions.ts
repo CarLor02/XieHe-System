@@ -18,7 +18,7 @@ import {
 import { AnnotationBindings } from '@/app/imaging/features/image-viewer/features/bindings/domain/annotation-binding';
 import { saveMeasurements } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/saveMeasurementsUseCase';
 import { runAiMeasurementWorkflow } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
-import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import type { LateralDetectionCache } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 
 interface UseStudyHeaderActionsOptions {

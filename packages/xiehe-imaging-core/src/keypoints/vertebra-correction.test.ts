@@ -1,11 +1,11 @@
-import { expect, it } from '@jest/globals';
+import { expect, it } from 'vitest';
 
 import {
-  KeypointAnnotation,
   rectifyVertebraCornerOrder,
   shiftVertebraLabels,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
-import { AnnotationSource } from '@xiehe/imaging-core/contracts';
+} from '.';
+import type { KeypointAnnotation } from '.';
+import { AnnotationSource } from '../contracts';
 
 const t1Keypoints: KeypointAnnotation[] = [
   {

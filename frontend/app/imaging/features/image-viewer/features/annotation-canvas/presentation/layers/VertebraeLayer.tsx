@@ -11,7 +11,7 @@ import {
   renderCornerToKeypointId,
   isSacralEndplateKeypointLabel,
   isVertebraCornerKeypointLabel,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 
 interface CornerRef {
   label: string;

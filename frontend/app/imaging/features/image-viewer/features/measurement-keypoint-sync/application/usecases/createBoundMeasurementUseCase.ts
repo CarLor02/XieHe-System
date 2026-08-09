@@ -19,7 +19,7 @@ import { getNextCobbType } from '@xiehe/imaging-core/measurements';
 import {
   keypointsToDerivedLayer,
   type KeypointAnnotation,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
 import type {
   MeasurementData,

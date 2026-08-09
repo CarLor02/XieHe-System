@@ -1,13 +1,13 @@
-import { AnnotationSource } from '@xiehe/imaging-core/contracts';
+import { AnnotationSource } from '../contracts';
 import {
   getMeasurementDeriveVertebraOrder,
   MEASUREMENT_DERIVE_VERTEBRA_ORDER,
-} from '@xiehe/imaging-core/anatomy';
+} from '../anatomy';
 import {
   type KeypointAnnotation,
   sortKeypoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint';
-import { getKeypointGroupsForExamType } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-label';
+} from './keypoint';
+import { getKeypointGroupsForExamType } from './keypoint-label';
 
 export type VertebraCornerSequenceNumber = 1 | 2 | 3 | 4;
 

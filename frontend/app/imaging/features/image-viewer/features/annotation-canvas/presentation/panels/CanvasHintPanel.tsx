@@ -26,7 +26,7 @@ import {
   getMeasurementKeypointBindingRuleForMeasurement,
   getMeasurementKeypointDrawingHint,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/domain/measurement-keypoint-binding';
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 
 interface CanvasHintPanelProps {
   selectedTool: string;

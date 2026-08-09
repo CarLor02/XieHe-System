@@ -4,7 +4,7 @@ import {
   getApKeypointGroups,
   getApVertebraKeypointGroups,
   parseApVertebraKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/ap';
+} from './catalog/ap';
 import {
   LATERAL_ANATOMICAL_KEYPOINTS,
   LATERAL_CENTER_VERTEBRA_GROUPS,
@@ -12,12 +12,12 @@ import {
   getLateralKeypointGroups,
   parseLateralSacralKeypointId,
   parseLateralVertebraKeypointId,
-} from '@/app/imaging/features/image-viewer/features/keypoints/domain/catalog/lateral';
+} from './catalog/lateral';
 import {
   isAnteriorExamType,
   isBendingExamType,
   isLateralExamType,
-} from '@xiehe/imaging-core/anatomy';
+} from '../anatomy';
 
 export interface KeypointGroup {
   id: string;

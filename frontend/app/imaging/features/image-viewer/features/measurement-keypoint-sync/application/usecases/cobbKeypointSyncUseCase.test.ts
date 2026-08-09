@@ -9,7 +9,7 @@ import type {
   MeasurementData,
   Point,
 } from '@xiehe/imaging-core/contracts';
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 
 const points: Point[] = [
   { x: 10, y: 10 },

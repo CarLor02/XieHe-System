@@ -16,7 +16,7 @@ import {
   keypointsToCfhAnnotation,
   keypointsToPersistedLayer,
   vertebraeLayerToKeypoints,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import {
   getMeasurementKeypointBindingRule,
   getMeasurementKeypointBindingRuleForMeasurement,

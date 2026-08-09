@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import { keypointsToPersistedLayer } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-layer-mapper';
-import { getCompleteSelectableVertebraGroups } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint-operations';
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints/domain/keypoint';
+import { keypointsToPersistedLayer } from '@xiehe/imaging-core/keypoints';
+import { getCompleteSelectableVertebraGroups } from '@xiehe/imaging-core/keypoints';
+import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import type {
   CfhAnnotation,
   VertebraAnnotation,

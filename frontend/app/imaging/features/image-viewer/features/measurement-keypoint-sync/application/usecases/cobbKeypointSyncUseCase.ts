@@ -3,8 +3,8 @@ import {
   AnnotationSource,
   type MeasurementData,
 } from '@xiehe/imaging-core/contracts';
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
-import { upsertKeypoint } from '@/app/imaging/features/image-viewer/features/keypoints';
+import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
+import { upsertKeypoint } from '@xiehe/imaging-core/keypoints';
 import { resolveCobbMeasurement } from '@xiehe/imaging-core/measurements';
 
 function normalizeCobbEndpoint(value: string | null | undefined): string {

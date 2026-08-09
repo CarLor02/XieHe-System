@@ -1,4 +1,4 @@
-import type { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import {
   BILATERAL_PELVIC_POINT_COUNT,
   createDefaultBilateralPelvicPoints,

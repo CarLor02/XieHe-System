@@ -24,7 +24,7 @@ import {
   isKeypointSupportedExamType,
   isLateralExamType,
 } from '@xiehe/imaging-core/anatomy';
-import { KeypointAnnotation } from '@/app/imaging/features/image-viewer/features/keypoints';
+import { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import {
   useMeasurementKeypointWorkflow,
   useMeasurementWorkflow,

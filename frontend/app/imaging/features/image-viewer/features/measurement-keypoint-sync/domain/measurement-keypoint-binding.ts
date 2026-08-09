@@ -1,7 +1,7 @@
 import {
   type KeypointAnnotation,
   upsertKeypoint,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import {
   isAnteriorExamType,
   isBendingExamType,

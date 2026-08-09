@@ -3,7 +3,7 @@ import {
   parseLateralSacralKeypointId,
   parseLateralVertebraKeypointId,
   type KeypointAnnotation,
-} from '@/app/imaging/features/image-viewer/features/keypoints';
+} from '@xiehe/imaging-core/keypoints';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import {
   MeasurementData,
