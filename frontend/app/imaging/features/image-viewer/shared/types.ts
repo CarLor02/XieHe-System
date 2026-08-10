@@ -4,6 +4,7 @@
  */
 
 import type { Point } from '@xiehe/imaging-core/contracts';
+import type { AiMeasurementInput } from '@xiehe/imaging-core/ai';
 
 export interface KeypointSequenceSession {
   groupName: string;
@@ -14,14 +15,7 @@ export interface KeypointSequenceSession {
 /*
  * AI 测量数据结构体
  * */
-export interface AiMeasurementData {
-  type: string;
-  points: Point[];
-  angle?: number;
-  upper_vertebra?: string;
-  lower_vertebra?: string;
-  apex_vertebra?: string;
-}
+export type AiMeasurementData = AiMeasurementInput;
 
 /**
  * 影像数据

@@ -1,63 +1,18 @@
 import { createExternalHttpClient } from '@/infrastructure/http';
+import type {
+  AiFrontalKeypointResponse,
+  AiLateralKeypointResponse,
+} from '@xiehe/imaging-core/ai';
 
 const aiServiceClient = createExternalHttpClient();
 
-export interface AiParsedConfidence {
-  source: string;
-  parsedValue: number;
-}
-
-export interface AiPoseKeypoint {
-  x: number;
-  y: number;
-  confidence?: AiParsedConfidence | number | null;
-}
-
-export interface AiVertebraCorner {
-  x: number;
-  y: number;
-  conf?: number;
-}
-
-export interface AiVertebraCorners {
-  top_left: AiVertebraCorner;
-  top_right: AiVertebraCorner;
-  bottom_right: AiVertebraCorner;
-  bottom_left: AiVertebraCorner;
-  top_mid?: { x: number; y: number };
-  bottom_mid?: { x: number; y: number };
-  center?: { x: number; y: number };
-}
-
-export interface AiVertebraDetection {
-  corners: AiVertebraCorners;
-  confidence?: number;
-  class_id?: number;
-}
-
-export interface DetectKeypointsResponse {
+export interface DetectKeypointsResponse extends AiFrontalKeypointResponse {
   imageId: string;
   imageWidth: number;
   imageHeight: number;
-  pose_keypoints: Record<string, AiPoseKeypoint>;
-  vertebrae: Record<string, AiVertebraDetection>;
 }
 
-export interface LateralAiVertebraDetection {
-  label: string;
-  confidence: number;
-  keypoints: Array<{ x: number; y: number }>;
-}
-
-export interface LateralDetectResponse {
-  vertebrae?: LateralAiVertebraDetection[];
-  cfh?: {
-    center: { x: number; y: number };
-    confidence: number;
-  };
-  image_width?: number;
-  image_height?: number;
-}
+export type LateralDetectResponse = AiLateralKeypointResponse;
 
 function getFrontAiAnnotationUrl(): string {
   const url = process.env.NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL || '';

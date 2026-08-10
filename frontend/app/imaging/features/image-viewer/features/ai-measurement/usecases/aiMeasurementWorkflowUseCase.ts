@@ -1,47 +1,31 @@
 import { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { getAiMeasurementsResponse } from '@/services/imageServices';
 import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
-import {
-  getAnnotationConfig,
-  getAnnotationTypeId,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getDescriptionForType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import { filterUniqueAnnotationDuplicates } from '@xiehe/imaging-core/measurements';
+import {
+  filterBendingAiVertebraeLayer,
+  normalizeAiMeasurements,
+} from '@xiehe/imaging-core/ai';
 import {
   CfhAnnotation,
   ImageSize,
   MeasurementData,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
+import { ImageData } from '@/app/imaging/features/image-viewer/shared/types';
 import {
-  ImageData,
-} from '@/app/imaging/features/image-viewer/shared/types';
-import {
-  isApVertebraGroup,
   KeypointAnnotation,
-  parseApVertebraKeypointId,
   vertebraeLayerToKeypoints,
 } from '@xiehe/imaging-core/keypoints';
 import { isBendingExamType } from '@xiehe/imaging-core/anatomy';
 import { detectLateralVertebrae } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
 import { createLogger } from '@/lib/logger';
 
-const logger = createLogger('app.imaging.features.image.viewer.features.ai.measurement.usecases.aiMeasurementWorkflowUseCase');
-
-function isCobbAiMeasurementType(type: string): boolean {
-  return /^cobb(?:-auto)?\d*$/i.test(getAnnotationTypeId(type));
-}
-
-function filterBendingVertebraeLayer(
-  vertebraeLayer: VertebraAnnotation[]
-): VertebraAnnotation[] {
-  return vertebraeLayer.filter(
-    annotation =>
-      isApVertebraGroup(annotation.label) ||
-      parseApVertebraKeypointId(annotation.label) !== null
-  );
-}
+const logger = createLogger(
+  'app.imaging.features.image.viewer.features.ai.measurement.usecases.aiMeasurementWorkflowUseCase'
+);
 
 export async function runLateralDetectionCache({
   imageId,
@@ -118,9 +102,6 @@ export async function runAiMeasurementWorkflow({
     const isBendingView = isBendingExamType(imageData.examType);
 
     if (aiData.measurements && Array.isArray(aiData.measurements)) {
-      const aiImageWidth = aiData.imageWidth || aiData.image_width;
-      const aiImageHeight = aiData.imageHeight || aiData.image_height;
-
       let actualImageSize = imageNaturalSize;
       if (!actualImageSize) {
         const imgElement = document.querySelector(
@@ -135,107 +116,32 @@ export async function runAiMeasurementWorkflow({
         }
       }
 
-      let scaleX = 1;
-      let scaleY = 1;
-
-      if (actualImageSize && aiImageWidth && aiImageHeight) {
-        scaleX = actualImageSize.width / aiImageWidth;
-        scaleY = actualImageSize.height / aiImageHeight;
-      }
       const calculationContext = {
         standardDistance: null,
         standardDistancePoints: [],
         imageNaturalSize: actualImageSize,
       };
 
-      let cobbCount = 0;
-
-      const aiMeasurements = filterUniqueAnnotationDuplicates(
-        aiData.measurements
-          .filter((measurement: any) => {
-            if (isBendingView && !isCobbAiMeasurementType(measurement.type)) {
-              return false;
-            }
-            const incomingTypeId = getAnnotationTypeId(measurement.type);
-            const tool =
-              getAnnotationConfig(measurement.type) ??
-              getAnnotationConfig(incomingTypeId);
-
-            if (!tool || tool.category !== 'measurement') return false;
-            if (tool.id === 'sva') {
-              return (
-                Array.isArray(measurement.points) &&
-                measurement.points.length === 5
-              );
-            }
-
-            return true;
-          })
-          .map((measurement: any) => {
-            const incomingTypeId = getAnnotationTypeId(measurement.type);
-            const tool =
-              getAnnotationConfig(measurement.type) ??
-              getAnnotationConfig(incomingTypeId);
-            const requiredPoints =
-              tool?.pointsNeeded || measurement.points.length;
-
-            let processedPoints = measurement.points;
-            if (
-              requiredPoints > 0 &&
-              measurement.points.length > requiredPoints
-            ) {
-              processedPoints = measurement.points.slice(0, requiredPoints);
-            }
-
-            const scaledPoints = processedPoints.map((point: any) => ({
-              x: point.x * scaleX,
-              y: point.y * scaleY,
-            }));
-
-            let finalType = tool?.id || incomingTypeId;
-            let isCobb = false;
-            if (measurement.type.startsWith('Cobb-')) {
-              cobbCount++;
-              finalType = `cobb${cobbCount}`;
-              isCobb = true;
-            }
-
-            const typeForCalculation = isCobb ? 'cobb' : finalType;
-            const value =
-              typeof measurement.value === 'string' && measurement.value
-                ? measurement.value
-                : calculateMeasurementValue(
-                    typeForCalculation,
-                    scaledPoints,
-                    calculationContext
-                  );
-
-            if (isCobb) {
-              logger.debug(`[DEBUG] ${finalType} 椎体信息:`, {
-                upper_vertebra: measurement.upper_vertebra,
-                lower_vertebra: measurement.lower_vertebra,
-                apex_vertebra: measurement.apex_vertebra,
-                原始数据: measurement,
-              });
-            }
-
-            return {
-              id:
-                Date.now().toString() +
-                Math.random().toString(36).substring(2, 11),
-              type: finalType,
-              value,
-              points: scaledPoints,
-              description: isCobb
-                ? 'Cobb角测量'
-                : getDescriptionForType(finalType),
-              originalType: measurement.type,
-              upperVertebra: measurement.upper_vertebra,
-              lowerVertebra: measurement.lower_vertebra,
-              apexVertebra: measurement.apex_vertebra,
-            };
-          })
-      );
+      const { measurements: aiMeasurements } = normalizeAiMeasurements({
+        response: aiData,
+        examType: imageData.examType,
+        actualImageSize,
+        resolveTool: type => {
+          const tool = getAnnotationConfig(type);
+          if (!tool) return null;
+          return {
+            id: tool.id,
+            category:
+              tool.category === 'measurement' ? 'measurement' : 'support',
+            pointsNeeded: tool.pointsNeeded,
+          };
+        },
+        calculateValue: (type, points) =>
+          calculateMeasurementValue(type, points, calculationContext),
+        describeType: getDescriptionForType,
+        createId: () =>
+          Date.now().toString() + Math.random().toString(36).substring(2, 11),
+      });
 
       setMeasurements(aiMeasurements);
       aiMeasurementIdsRef.current = new Set(
@@ -251,7 +157,7 @@ export async function runAiMeasurementWorkflow({
 
       if (Array.isArray(aiData.vertebrae) && aiData.vertebrae.length > 0) {
         const vertebraeLayer = isBendingView
-          ? filterBendingVertebraeLayer(aiData.vertebrae)
+          ? filterBendingAiVertebraeLayer(aiData.vertebrae)
           : aiData.vertebrae;
         setVertebraeLayer(vertebraeLayer);
         setKeypoints(

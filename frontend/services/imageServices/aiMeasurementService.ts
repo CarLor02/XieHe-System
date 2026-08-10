@@ -1,5 +1,8 @@
 import { apiClient } from '@/infrastructure/http';
-import type { AiMeasurementData } from '@/app/imaging/features/image-viewer/public';
+import type {
+  AiMeasurementInput,
+  AiMeasurementResponse,
+} from '@xiehe/imaging-core/ai';
 import { imageIdToNumericId } from './imageFileService';
 import type {
   DetectKeypointsResponse,
@@ -10,13 +13,13 @@ import type {
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
 
-export interface PredictMeasurementsResponse {
+export interface PredictMeasurementsResponse extends AiMeasurementResponse {
   imageId: string;
   imageWidth: number;
   imageHeight: number;
   image_width?: number;
   image_height?: number;
-  measurements: AiMeasurementData[];
+  measurements: AiMeasurementInput[];
   vertebrae?: VertebraAnnotation[];
   cfh?: CfhAnnotation | null;
   raw_keypoints?: unknown;

@@ -1,6 +1,7 @@
 export const IMAGING_CORE_PACKAGE_NAME = '@xiehe/imaging-core' as const;
 
 export * from './bindings';
+export * from './ai';
 export * from './canvas';
 export * from './keypoints';
 export * from './measurement-keypoint-sync';
