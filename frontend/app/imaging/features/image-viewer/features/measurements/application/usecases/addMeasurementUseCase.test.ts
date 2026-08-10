@@ -97,6 +97,38 @@ it('keeps lateral manual Cobb measurements non-unique and numbered', () => {
   ]);
 });
 
+it('stores selected endpoints on a partially bound lateral Cobb', () => {
+  let measurements: MeasurementData[] = [];
+  const setMeasurements: Dispatch<SetStateAction<MeasurementData[]>> = next => {
+    measurements =
+      typeof next === 'function'
+        ? next(measurements)
+        : (next as MeasurementData[]);
+  };
+
+  addMeasurement(
+    'lateral-cobb',
+    cobbPoints,
+    setMeasurements,
+    [],
+    null,
+    [],
+    imageNaturalSize,
+    {
+      cobbEndpoints: {
+        upperVertebra: 'T2',
+        lowerVertebra: null,
+      },
+    }
+  );
+
+  expect(measurements[0]).toMatchObject({
+    type: 'lateral-cobb1',
+    upperVertebra: 'T2',
+    lowerVertebra: null,
+  });
+});
+
 it('marks a newly added bound measurement as keypoint-synced', () => {
   let measurements: MeasurementData[] = [];
   const setMeasurements: Dispatch<SetStateAction<MeasurementData[]>> = next => {

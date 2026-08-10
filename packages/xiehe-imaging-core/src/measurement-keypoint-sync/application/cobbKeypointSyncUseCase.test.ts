@@ -2,13 +2,11 @@ import { expect, it } from 'vitest';
 
 import {
   canSyncCobbMeasurementToKeypoints,
+  syncAvailableLateralCobbEndpointsToKeypoints,
   syncCobbMeasurementToKeypoints,
 } from './cobbKeypointSyncUseCase';
 import { AnnotationSource } from '../../shared/domain/contracts';
-import type {
-  MeasurementData,
-  Point,
-} from '../../shared/domain/contracts';
+import type { MeasurementData, Point } from '../../shared/domain/contracts';
 import type { KeypointAnnotation } from '../../keypoints';
 
 const points: Point[] = [
@@ -215,4 +213,58 @@ it('does not sync Cobb measurements whose endpoint vertebrae are the same', () =
 
   expect(canSyncCobbMeasurementToKeypoints(measurement)).toBe(false);
   expect(syncCobbMeasurementToKeypoints([], measurement)).toBeNull();
+});
+
+it('preserves source metadata for inherited Cobb endpoint points', () => {
+  const measurement: MeasurementData = {
+    id: 'cobb-inherited',
+    type: 'lateral-cobb1',
+    value: '18.00°',
+    points,
+    upperVertebra: 'T2',
+    lowerVertebra: 'T4',
+  };
+  const existingKeypoints: KeypointAnnotation[] = [
+    {
+      id: 'T2-1',
+      point: points[0],
+      source: AnnotationSource.AI,
+      confidence: 0.8,
+    },
+  ];
+
+  const synced = syncCobbMeasurementToKeypoints(
+    existingKeypoints,
+    measurement,
+    '侧位X光片'
+  );
+
+  expect(synced?.find(keypoint => keypoint.id === 'T2-1')).toMatchObject({
+    source: AnnotationSource.AI,
+    confidence: 0.8,
+  });
+  expect(synced?.find(keypoint => keypoint.id === 'T2-2')).toMatchObject({
+    source: AnnotationSource.MANUAL,
+    confidence: 1,
+  });
+});
+
+it('writes only the known endpoint when a lateral Cobb endpoint is pending', () => {
+  const measurement: MeasurementData = {
+    id: 'cobb-partial',
+    type: 'lateral-cobb1',
+    value: '18.00°',
+    points,
+    upperVertebra: 'T2',
+    lowerVertebra: null,
+  };
+
+  expect(
+    pointByKeypointId(
+      syncAvailableLateralCobbEndpointsToKeypoints([], measurement)
+    )
+  ).toEqual({
+    'T2-1': points[0],
+    'T2-2': points[1],
+  });
 });

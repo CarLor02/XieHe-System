@@ -26,6 +26,10 @@ export function addMeasurement(
     keypointSynced?: boolean;
     /** PI/PT v2 的单/双股骨头模式；旧数据没有该字段时按单 FH 兼容。 */
     pelvicMetadata?: PelvicMeasurementMetadata;
+    cobbEndpoints?: {
+      upperVertebra: string | null;
+      lowerVertebra: string | null;
+    };
   } = {}
 ) {
   setMeasurements(

@@ -17,12 +17,11 @@ import {
 import { isLateralExamType } from '@xiehe/imaging-core/anatomy';
 import {
   getMeasurementDeriveVertebraOrder,
+  hasCobbMeasurementForEndpoints,
+  isValidMeasurementDeriveEndpointOrder,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@xiehe/imaging-core/measurements/lateral';
-import {
-  HoverState,
-  SelectionState,
-} from '@xiehe/imaging-core/canvas';
+import { HoverState, SelectionState } from '@xiehe/imaging-core/canvas';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
 import { resolveAvtDefinition } from '@xiehe/imaging-core/measurements/ap';
 
@@ -206,6 +205,32 @@ export default function MeasurementResultsPanel({
       normalizeEndpointValue(nextUpper) &&
       normalizeEndpointValue(nextUpper) === normalizeEndpointValue(nextLower)
     ) {
+      return;
+    }
+
+    if (
+      nextUpper &&
+      nextLower &&
+      !isValidMeasurementDeriveEndpointOrder(nextUpper, nextLower)
+    ) {
+      setPanelOverlayMessage('上端椎不应该比下端椎更靠下或与下端椎相同!');
+      setEditingCobbEndpoint(null);
+      return;
+    }
+
+    if (
+      nextUpper &&
+      nextLower &&
+      hasCobbMeasurementForEndpoints(
+        measurements.filter(item => item.id !== measurement.id),
+        nextUpper,
+        nextLower
+      )
+    ) {
+      setPanelOverlayMessage(
+        `Cobb${nextUpper}-${nextLower}已经存在, 不可重复派生!`
+      );
+      setEditingCobbEndpoint(null);
       return;
     }
 

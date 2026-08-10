@@ -3,10 +3,7 @@ import { renderVertebraCenterGeometry } from '@/app/imaging/features/image-viewe
 import { Point } from '@xiehe/imaging-core/contracts';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import renderPreview from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/renderPreview';
-import {
-  DrawingState,
-  ReferenceLines,
-} from '@xiehe/imaging-core/canvas';
+import { DrawingState, ReferenceLines } from '@xiehe/imaging-core/canvas';
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/shared/rendererUtils';
 import {
   HEMIPELVIC_WIDTH_RATIO_INITIAL_LINE_LENGTH,
@@ -16,7 +13,10 @@ import {
   createCircleGeometry,
   getCircleRadius,
 } from '@xiehe/imaging-core/geometry';
-import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
+import type {
+  LateralCobbPlacementSession,
+  PelvicPlacementSession,
+} from '@xiehe/imaging-core/measurements/lateral';
 import {
   getManualMeasurementInheritedPointMap,
   resolveNextManualMeasurementPoint,
@@ -45,6 +45,7 @@ interface PreviewLayerProps {
   ) => Point;
   workingPointHoverIndex: number | null;
   pelvicPlacementSession?: PelvicPlacementSession | null;
+  cobbPlacementSession?: LateralCobbPlacementSession | null;
 }
 
 function ReferenceLinePreview({

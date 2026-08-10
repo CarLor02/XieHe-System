@@ -3,10 +3,11 @@ import type {
   PointRef,
 } from '@xiehe/imaging-core/bindings';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
+import type { AvtPlacementSession } from '@xiehe/imaging-core/contracts';
 import type {
-  AvtPlacementSession,
-} from '@xiehe/imaging-core/contracts';
-import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
+  LateralCobbPlacementSession,
+  PelvicPlacementSession,
+} from '@xiehe/imaging-core/measurements/lateral';
 import type {
   CfhAnnotation,
   MeasurementData,
@@ -45,8 +46,13 @@ export interface AnnotationCanvasProps {
   setClickedPoints: (points: Point[]) => void;
   avtPlacementSession?: AvtPlacementSession | null;
   pelvicPlacementSession?: PelvicPlacementSession | null;
+  cobbPlacementSession?: LateralCobbPlacementSession | null;
   onAvtKeypointPlacement?: (point: Point) => void;
   onAvtDiscPlacementComplete?: (anchors: readonly [Point, Point]) => void;
+  onCobbPlacementComplete?: (
+    points: Point[],
+    session: LateralCobbPlacementSession
+  ) => void;
   imageId: string;
   isSettingStandardDistance: boolean;
   setIsSettingStandardDistance: (value: boolean) => void;

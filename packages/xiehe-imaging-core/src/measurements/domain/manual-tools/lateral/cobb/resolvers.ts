@@ -19,6 +19,7 @@ import {
   LATERAL_NAMED_COBB_TYPE_IDS_BY_NAME,
   LATERAL_NAMED_COBB_MEASUREMENT_RULES,
   type LateralNamedCobbMeasurementRule,
+  getGenericLateralCobbEndpointPointIds,
 } from './endpoint-rules';
 
 const LATERAL_GENERIC_COBB_PATTERN = /^(?:lateral-)?cobb\d*$/;
@@ -105,9 +106,13 @@ export const LATERAL_S1_COBB_RESOLVER: CobbResolver = {
   },
   resolveEndpointPointIds(measurement) {
     const upperVertebra = normalizeCobbVertebra(measurement.upperVertebra);
-    return upperVertebra
-      ? [`${upperVertebra}-1`, `${upperVertebra}-2`, 'S1-1', 'S1-2']
-      : null;
+    if (!upperVertebra) return null;
+    const upperIds = getGenericLateralCobbEndpointPointIds(
+      upperVertebra,
+      'upper'
+    );
+    const lowerIds = getGenericLateralCobbEndpointPointIds('S1', 'lower');
+    return [...upperIds, ...lowerIds];
   },
   resolve(measurement) {
     const upperVertebra = normalizeCobbVertebra(measurement.upperVertebra);
@@ -147,14 +152,13 @@ export const LATERAL_GENERIC_COBB_RESOLVER: CobbResolver = {
   resolveEndpointPointIds(measurement) {
     const upperVertebra = normalizeCobbVertebra(measurement.upperVertebra);
     const lowerVertebra = normalizeCobbVertebra(measurement.lowerVertebra);
-    return upperVertebra && lowerVertebra && upperVertebra !== lowerVertebra
-      ? [
-          `${upperVertebra}-1`,
-          `${upperVertebra}-2`,
-          `${lowerVertebra}-3`,
-          `${lowerVertebra}-4`,
-        ]
-      : null;
+    if (!upperVertebra || !lowerVertebra || upperVertebra === lowerVertebra) {
+      return null;
+    }
+    return [
+      ...getGenericLateralCobbEndpointPointIds(upperVertebra, 'upper'),
+      ...getGenericLateralCobbEndpointPointIds(lowerVertebra, 'lower'),
+    ];
   },
   resolve(measurement) {
     const upperVertebra = normalizeCobbVertebra(measurement.upperVertebra);

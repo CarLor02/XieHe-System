@@ -24,6 +24,10 @@ export interface PlanMeasurementAdditionOptions {
   allowReplace?: boolean;
   keypointSynced?: boolean;
   pelvicMetadata?: PelvicMeasurementMetadata;
+  cobbEndpoints?: {
+    upperVertebra: string | null;
+    lowerVertebra: string | null;
+  };
 }
 
 export type PlanMeasurementAdditionResult =
@@ -55,6 +59,7 @@ export function planMeasurementAddition({
     allowReplace = false,
     keypointSynced = false,
     pelvicMetadata,
+    cobbEndpoints,
   } = options;
   const requestedToolId = getAnnotationTypeId(type);
   const isCobb =
@@ -80,6 +85,12 @@ export function planMeasurementAddition({
     description: dependencies.getDescription(configLookupType),
     ...(keypointSynced ? { keypointSynced: true } : {}),
     ...(pelvicMetadata ? { pelvicMetadata } : {}),
+    ...(cobbEndpoints
+      ? {
+          upperVertebra: cobbEndpoints.upperVertebra,
+          lowerVertebra: cobbEndpoints.lowerVertebra,
+        }
+      : {}),
   };
 
   const currentTool = tools.find(tool => tool.id === configLookupType);

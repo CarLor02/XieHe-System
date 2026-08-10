@@ -37,9 +37,7 @@ import {
   Point,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
-import {
-  KeypointSequenceSession,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import { KeypointSequenceSession } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
   AvtPlacementSession,
   AvtTarget,
@@ -50,10 +48,15 @@ import type {
   PelvicToolId,
 } from '@xiehe/imaging-core/contracts';
 import type {
+  LateralCobbPlacementSession,
   PelvicPlacementSession,
 } from '@xiehe/imaging-core/measurements/lateral';
-import { getPelvicToolPointCount } from '@xiehe/imaging-core/measurements/lateral';
 import {
+  assembleLateralCobbPlacementPoints,
+  getPelvicToolPointCount,
+} from '@xiehe/imaging-core/measurements/lateral';
+import {
+  getLateralCobbPlacementInheritedPointMap,
   getPelvicPlacementInheritedPointMap,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 
@@ -191,6 +194,8 @@ export function useImageViewerController({
     useState<AvtPlacementSession | null>(null);
   const [pelvicPlacementSession, setPelvicPlacementSession] =
     useState<PelvicPlacementSession | null>(null);
+  const [cobbPlacementSession, setCobbPlacementSession] =
+    useState<LateralCobbPlacementSession | null>(null);
 
   const {
     studyData,
@@ -435,9 +440,16 @@ export function useImageViewerController({
     activateHandMode();
   }, [activateHandMode, setClickedPoints]);
 
+  const handleCancelCobbPlacement = useCallback(() => {
+    setCobbPlacementSession(null);
+    setClickedPoints([]);
+    activateHandMode();
+  }, [activateHandMode, setClickedPoints]);
+
   const handleActivateHandMode = useCallback(() => {
     setAvtPlacementSession(null);
     setPelvicPlacementSession(null);
+    setCobbPlacementSession(null);
     setClickedPoints([]);
     activateHandMode();
   }, [activateHandMode, setClickedPoints]);
@@ -545,6 +557,12 @@ export function useImageViewerController({
         return;
       }
 
+      if (isEscapeShortcut(event) && cobbPlacementSession) {
+        event.preventDefault();
+        handleCancelCobbPlacement();
+        return;
+      }
+
       if (isDetectionLayerToggleShortcut(event)) {
         if (!hasVertebraeLayer) return;
         event.preventDefault();
@@ -579,7 +597,9 @@ export function useImageViewerController({
     canRedoAnnotationHistory,
     canUndoAnnotationHistory,
     avtPlacementSession,
+    cobbPlacementSession,
     handleCancelAvtPlacement,
+    handleCancelCobbPlacement,
     handleCancelPelvicPlacement,
     handleCloseKeypointSequence,
     handleDebouncedSaveMeasurements,
@@ -658,6 +678,7 @@ export function useImageViewerController({
     (toolId: string) => {
       setAvtPlacementSession(null);
       setPelvicPlacementSession(null);
+      setCobbPlacementSession(null);
       standardDistanceActions.handleSelectTool(toolId);
     },
     [standardDistanceActions]
@@ -666,6 +687,7 @@ export function useImageViewerController({
   const handleSelectPelvicTool = useCallback(
     (toolId: PelvicToolId, mode: FemoralHeadMode) => {
       setAvtPlacementSession(null);
+      setCobbPlacementSession(null);
       setClickedPoints([]);
       const inherited = getPelvicPlacementInheritedPointMap({
         toolId,
@@ -696,11 +718,66 @@ export function useImageViewerController({
     [
       activateHandMode,
       beginHistoryAction,
-      keypointWorkflow.keypoints,
+      keypointWorkflow,
       measurementWorkflow,
       measurements,
       setClickedPoints,
       setSelectedTool,
+    ]
+  );
+
+  const handleStartCobbPlacement = useCallback(
+    (session: LateralCobbPlacementSession) => {
+      setAvtPlacementSession(null);
+      setPelvicPlacementSession(null);
+      setClickedPoints([]);
+      const inherited = getLateralCobbPlacementInheritedPointMap({
+        session,
+        keypoints: keypointWorkflow.keypoints,
+      });
+      const points = assembleLateralCobbPlacementPoints(inherited, []);
+
+      if (points && session.upperVertebra && session.lowerVertebra) {
+        beginHistoryAction('manual-measurement-cobb');
+        keypointWorkflow.handleCreateCobb(
+          session.upperVertebra,
+          session.lowerVertebra
+        );
+        setCobbPlacementSession(null);
+        activateHandMode();
+        return;
+      }
+
+      setCobbPlacementSession(session);
+      setSelectedTool('lateral-cobb');
+    },
+    [
+      activateHandMode,
+      beginHistoryAction,
+      keypointWorkflow,
+      setClickedPoints,
+      setSelectedTool,
+    ]
+  );
+
+  const handleCompleteCobbPlacement = useCallback(
+    (points: Point[], session: LateralCobbPlacementSession) => {
+      beginHistoryAction('manual-measurement-cobb');
+      measurementWorkflow.handleAddMeasurement('lateral-cobb', points, {
+        cobbEndpoints: {
+          upperVertebra: session.upperVertebra,
+          lowerVertebra: session.lowerVertebra,
+        },
+      });
+      setCobbPlacementSession(null);
+      setClickedPoints([]);
+      activateHandMode();
+    },
+    [
+      activateHandMode,
+      beginHistoryAction,
+      measurementWorkflow,
+      setClickedPoints,
     ]
   );
 
@@ -844,9 +921,7 @@ export function useImageViewerController({
   const handleMeasurementUpdateWithHistory = useCallback(
     (measurementId: string, updates: Partial<MeasurementData>) => {
       beginHistoryAction('measurement-update');
-      if (
-        keypointWorkflow.handleCobbEndpointUpdate(measurementId, updates)
-      ) {
+      if (keypointWorkflow.handleCobbEndpointUpdate(measurementId, updates)) {
         return;
       }
       setMeasurements(previous =>
@@ -1025,8 +1100,10 @@ export function useImageViewerController({
       setClickedPoints,
       avtPlacementSession,
       pelvicPlacementSession,
+      cobbPlacementSession,
       onAvtKeypointPlacement: handleAvtKeypointPlacement,
       onAvtDiscPlacementComplete: handleCompleteAvtDiscPlacement,
+      onCobbPlacementComplete: handleCompleteCobbPlacement,
       imageId,
       isSettingStandardDistance,
       setIsSettingStandardDistance,
@@ -1100,6 +1177,7 @@ export function useImageViewerController({
       onSelectPelvicTool: handleSelectPelvicTool,
       onCreateVertebraCenter: keypointWorkflow.handleCreateVertebraCenter,
       onCreateCobb: handleCreateCobbWithHistory,
+      onStartCobbPlacement: handleStartCobbPlacement,
       onRestoreFixedMeasurements: handleRestoreFixedMeasurementsWithHistory,
       onRectifyVertebraCornerOrder: handleRectifyVertebraCornerOrderWithHistory,
       onApplyVertebraLabelOffset: handleApplyVertebraLabelOffsetWithHistory,

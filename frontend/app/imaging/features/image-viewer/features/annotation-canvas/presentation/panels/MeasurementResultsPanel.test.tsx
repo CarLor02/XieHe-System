@@ -493,3 +493,52 @@ it('blocks editing lateral Cobb endpoints when they match a named lateral Cobb m
   expect(screen.getByRole('button', { name: '知道了' })).toBeTruthy();
   expect(onMeasurementUpdate).not.toHaveBeenCalled();
 });
+
+it('blocks completing a Cobb endpoint pair that already exists', () => {
+  const onMeasurementUpdate = jest.fn();
+  renderPanel(
+    [
+      {
+        id: 'lateral-cobb-1',
+        type: 'lateral-cobb1',
+        value: '18.20°',
+        points: [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+        ],
+        upperVertebra: 'T3',
+        lowerVertebra: 'T8',
+      },
+      {
+        id: 'lateral-cobb-2',
+        type: 'lateral-cobb2',
+        value: '10.00°',
+        points: [
+          { x: 3, y: 3 },
+          { x: 4, y: 3 },
+          { x: 3, y: 4 },
+          { x: 4, y: 4 },
+        ],
+        upperVertebra: 'T3',
+        lowerVertebra: null,
+      },
+    ],
+    {
+      examType: '侧位X光片',
+      onMeasurementUpdate,
+    }
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: '下端椎待定' }));
+  fireEvent.click(
+    within(screen.getByRole('listbox', { name: '选择下端椎' })).getByRole(
+      'option',
+      { name: 'T8' }
+    )
+  );
+
+  expect(screen.getByText('CobbT3-T8已经存在, 不可重复派生!')).toBeTruthy();
+  expect(onMeasurementUpdate).not.toHaveBeenCalled();
+});

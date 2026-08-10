@@ -19,6 +19,7 @@ import {
   getMeasurementKeypointBindingRule,
   getMeasurementKeypointBindingRuleForMeasurement,
   writeMeasurementToKeypoints,
+  syncAvailableLateralCobbEndpointsToKeypoints,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { type FemoralHeadMode } from '@xiehe/imaging-core/contracts';
 import { createPelvicMeasurementMetadata } from '@xiehe/imaging-core/measurements/lateral';
@@ -70,7 +71,13 @@ export function useMeasurementWorkflow({
     (
       toolType: string,
       points: Point[],
-      options: { pelvicMode?: FemoralHeadMode } = {}
+      options: {
+        pelvicMode?: FemoralHeadMode;
+        cobbEndpoints?: {
+          upperVertebra: string | null;
+          lowerVertebra: string | null;
+        };
+      } = {}
     ) => {
       const typeId = getAnnotationTypeId(toolType);
       const allowReplace = !canUseKeypoints || isLateralView;
@@ -83,6 +90,12 @@ export function useMeasurementWorkflow({
         value: '',
         points,
         pelvicMetadata,
+        ...(options.cobbEndpoints
+          ? {
+              upperVertebra: options.cobbEndpoints.upperVertebra,
+              lowerVertebra: options.cobbEndpoints.lowerVertebra,
+            }
+          : {}),
       };
       const bindingRule = canUseKeypoints
         ? pelvicMetadata
@@ -102,10 +115,48 @@ export function useMeasurementWorkflow({
         imageNaturalSize ?? { width: 0, height: 0 },
         {
           allowReplace,
-          keypointSynced: bindingRule !== null,
+          keypointSynced:
+            bindingRule !== null ||
+            Boolean(
+              options.cobbEndpoints?.upperVertebra &&
+              options.cobbEndpoints.lowerVertebra
+            ),
           pelvicMetadata,
+          cobbEndpoints: options.cobbEndpoints,
         }
       );
+
+      if (
+        canUseKeypoints &&
+        isLateralView &&
+        typeId === 'lateral-cobb' &&
+        options.cobbEndpoints
+      ) {
+        const nextKeypoints = syncAvailableLateralCobbEndpointsToKeypoints(
+          keypoints,
+          { ...bindingMeasurement, points: normalizedPoints }
+        );
+        setKeypoints(nextKeypoints);
+        setVertebraeLayer(keypointsToPersistedLayer(nextKeypoints));
+        setMeasurements(previous => {
+          const recalculated = recalculateKeypointMeasurements(
+            previous,
+            nextKeypoints
+          );
+          return deriveMissingFixedMeasurementsFromKeypoints({
+            previousMeasurements: recalculated,
+            keypoints: nextKeypoints,
+            examType,
+            calculationContext: {
+              standardDistance,
+              standardDistancePoints,
+              imageNaturalSize: imageNaturalSize ?? { width: 0, height: 0 },
+            },
+            calculator: measurementValueCalculator,
+          });
+        });
+        return;
+      }
 
       if (bindingRule) {
         const nextKeypoints = writeMeasurementToKeypoints(

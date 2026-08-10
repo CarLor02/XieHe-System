@@ -5,6 +5,20 @@ export interface LateralNamedCobbMeasurementRule {
   endpointPointIds: [string, string, string, string];
 }
 
+export type LateralCobbEndpointRole = 'upper' | 'lower';
+
+/** 通用侧位 Cobb 的端板点规则；S1 只有上终板两个关键点。 */
+export function getGenericLateralCobbEndpointPointIds(
+  vertebra: string,
+  role: LateralCobbEndpointRole
+): readonly [string, string] {
+  const normalized = vertebra.trim().toUpperCase();
+  if (role === 'upper' || normalized === 'S1') {
+    return [`${normalized}-1`, `${normalized}-2`];
+  }
+  return [`${normalized}-3`, `${normalized}-4`];
+}
+
 export const LATERAL_NAMED_COBB_MEASUREMENT_RULES: LateralNamedCobbMeasurementRule[] =
   [
     {

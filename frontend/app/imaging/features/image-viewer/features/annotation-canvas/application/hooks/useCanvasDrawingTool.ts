@@ -4,34 +4,28 @@ import {
   resolveNextManualMeasurementPoint,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { hasUniqueAnnotationForTool } from '@xiehe/imaging-core/measurements';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
-import {
-  Tool,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
+import { Tool } from '@/app/imaging/features/image-viewer/shared/types';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
+import type {
+  LateralCobbPlacementSession,
+  PelvicPlacementSession,
+} from '@xiehe/imaging-core/measurements/lateral';
 import {
   getNextPelvicPlacementPointIndex,
   getPelvicPlacementInheritedPointMap,
+  getLateralCobbPlacementInheritedPointMap,
+  getNextLateralCobbPlacementPointIndex,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { getPelvicToolPointCount } from '@xiehe/imaging-core/measurements/lateral';
-import {
-  DrawingState,
-  ReferenceLines,
-} from '@xiehe/imaging-core/canvas';
+import { assembleLateralCobbPlacementPoints } from '@xiehe/imaging-core/measurements/lateral';
+import { DrawingState, ReferenceLines } from '@xiehe/imaging-core/canvas';
 import {
   createHemipelvicWidthRatioPoints,
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
 } from '@xiehe/imaging-core/measurements/ap';
-import {
-  type AvtPlacementSession,
-} from '@xiehe/imaging-core/contracts';
-import {
-  createHorizontalDiscAnchors,
-} from '@xiehe/imaging-core/measurements/ap';
+import { type AvtPlacementSession } from '@xiehe/imaging-core/contracts';
+import { createHorizontalDiscAnchors } from '@xiehe/imaging-core/measurements/ap';
 import {
   circleGeometryToPoints,
   createCircleGeometry,
@@ -53,7 +47,12 @@ interface UseCanvasDrawingToolOptions {
   onMeasurementComplete?: () => void;
   avtPlacementSession?: AvtPlacementSession | null;
   pelvicPlacementSession?: PelvicPlacementSession | null;
+  cobbPlacementSession?: LateralCobbPlacementSession | null;
   onAvtDiscPlacementComplete?: (anchors: readonly [Point, Point]) => void;
+  onCobbPlacementComplete?: (
+    points: Point[],
+    session: LateralCobbPlacementSession
+  ) => void;
   drawingState: DrawingState;
   setDrawingState: React.Dispatch<React.SetStateAction<DrawingState>>;
   setReferenceLines: React.Dispatch<React.SetStateAction<ReferenceLines>>;
@@ -100,7 +99,9 @@ export function useCanvasDrawingTool({
   onMeasurementComplete,
   avtPlacementSession,
   pelvicPlacementSession,
+  cobbPlacementSession,
   onAvtDiscPlacementComplete,
+  onCobbPlacementComplete,
   drawingState,
   setDrawingState,
   setReferenceLines,
@@ -325,6 +326,37 @@ export function useCanvasDrawingTool({
         return true;
       }
 
+      if (
+        cobbPlacementSession &&
+        cobbPlacementSession.toolId === selectedTool
+      ) {
+        const inherited = getLateralCobbPlacementInheritedPointMap({
+          session: cobbPlacementSession,
+          keypoints,
+        });
+        const nextPointIndex = getNextLateralCobbPlacementPointIndex(
+          inherited,
+          clickedPoints.length
+        );
+        if (nextPointIndex === null) {
+          const points = assembleLateralCobbPlacementPoints(inherited, []);
+          if (points) onCobbPlacementComplete?.(points, cobbPlacementSession);
+          setClickedPoints([]);
+          onMeasurementComplete?.();
+          return true;
+        }
+
+        const newPoints = [...clickedPoints, imagePoint];
+        setClickedPoints(newPoints);
+        const points = assembleLateralCobbPlacementPoints(inherited, newPoints);
+        if (points) {
+          onCobbPlacementComplete?.(points, cobbPlacementSession);
+          setClickedPoints([]);
+          onMeasurementComplete?.();
+        }
+        return true;
+      }
+
       const hasFh1 = keypoints.some(keypoint => keypoint.id === 'FH-1');
       const hasFh2 = keypoints.some(keypoint => keypoint.id === 'FH-2');
       if (selectedTool === 'tpa' && hasFh1 !== hasFh2) {
@@ -457,9 +489,7 @@ export function useCanvasDrawingTool({
         selectedTool === 'ts'
       ) {
         if (newPoints.length === 1 && selectedTool !== 'ts') {
-          const referenceKey = selectedTool.includes('ss')
-            ? 'ss'
-            : 'sva';
+          const referenceKey = selectedTool.includes('ss') ? 'ss' : 'sva';
           setReferenceLines(previous => ({
             ...previous,
             [referenceKey]: imagePoint,
@@ -515,12 +545,15 @@ export function useCanvasDrawingTool({
     [
       addMeasurement,
       avtPlacementSession,
+      cobbPlacementSession,
       clickedPoints,
       getCurrentTool,
       imageScale,
       keypoints,
       measurements,
       onAvtDiscPlacementComplete,
+      onCobbPlacementComplete,
+      onMeasurementComplete,
       pelvicPlacementSession,
       screenToImage,
       selectedTool,

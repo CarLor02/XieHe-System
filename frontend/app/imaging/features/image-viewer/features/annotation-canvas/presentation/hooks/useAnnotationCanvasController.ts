@@ -42,6 +42,7 @@ export function getAnnotationCanvasCursorClass({
   keypointSequenceSession,
   avtPlacementSession = null,
   pelvicPlacementSession = null,
+  cobbPlacementSession = null,
   showVertebraeLayer,
   isVertebradDragging,
   selectedTool,
@@ -51,6 +52,7 @@ export function getAnnotationCanvasCursorClass({
   keypointSequenceSession: KeypointSequenceSession | null;
   avtPlacementSession?: AnnotationCanvasProps['avtPlacementSession'];
   pelvicPlacementSession?: AnnotationCanvasProps['pelvicPlacementSession'];
+  cobbPlacementSession?: AnnotationCanvasProps['cobbPlacementSession'];
   showVertebraeLayer: boolean;
   isVertebradDragging: boolean;
   selectedTool: string;
@@ -60,7 +62,8 @@ export function getAnnotationCanvasCursorClass({
   if (
     keypointSequenceSession ||
     avtPlacementSession ||
-    pelvicPlacementSession
+    pelvicPlacementSession ||
+    cobbPlacementSession
   ) {
     return 'cursor-crosshair';
   }
@@ -133,8 +136,10 @@ export function useAnnotationCanvasController({
   setClickedPoints,
   avtPlacementSession = null,
   pelvicPlacementSession = null,
+  cobbPlacementSession = null,
   onAvtKeypointPlacement,
   onAvtDiscPlacementComplete,
+  onCobbPlacementComplete,
   imageId,
   isSettingStandardDistance,
   setIsSettingStandardDistance,
@@ -583,7 +588,9 @@ export function useAnnotationCanvasController({
     onMeasurementComplete: () => setSelectedTool('hand'),
     avtPlacementSession,
     pelvicPlacementSession,
+    cobbPlacementSession,
     onAvtDiscPlacementComplete,
+    onCobbPlacementComplete,
     drawingState,
     setDrawingState,
     setReferenceLines,
@@ -830,6 +837,7 @@ export function useAnnotationCanvasController({
           keypointSequenceSession,
           avtPlacementSession,
           pelvicPlacementSession,
+          cobbPlacementSession,
           showVertebraeLayer,
           isVertebradDragging: vertebradDrag.isDragging,
           selectedTool,
@@ -938,6 +946,7 @@ export function useAnnotationCanvasController({
       constrainAuxLinePoint,
       workingPointHoverIndex,
       pelvicPlacementSession,
+      cobbPlacementSession,
     },
     selectionLayer: {
       selectionState,
@@ -957,6 +966,7 @@ export function useAnnotationCanvasController({
       keypointSequenceSession,
       avtPlacementSession,
       pelvicPlacementSession,
+      cobbPlacementSession,
     },
     overlayLayer: {
       editLabelDialog,

@@ -3,10 +3,7 @@ import { expect, it, jest } from '@jest/globals';
 import { useState } from 'react';
 
 import { useCanvasDrawingTool } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hooks/useCanvasDrawingTool';
-import type {
-  DrawingState,
-  ReferenceLines,
-} from '@xiehe/imaging-core/canvas';
+import type { DrawingState, ReferenceLines } from '@xiehe/imaging-core/canvas';
 import type { Point } from '@xiehe/imaging-core/contracts';
 import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 
@@ -89,6 +86,94 @@ it('creates a twelve-point L/R measurement after four anatomical clicks', () => 
   expect(onMeasurementAdd.mock.calls[0][1]).toHaveLength(12);
   expect(onMeasurementComplete).toHaveBeenCalledTimes(1);
   expect(result.current.clickedPoints).toEqual([]);
+});
+
+it('inherits known lateral Cobb points and only collects missing points', () => {
+  const onMeasurementAdd = jest.fn();
+  const onCobbPlacementComplete = jest.fn();
+  const onMeasurementComplete = jest.fn();
+
+  const { result } = renderHook(() => {
+    const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
+    const [drawingState, setDrawingState] = useState<DrawingState>({
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null,
+    });
+    const [, setReferenceLines] = useState(emptyReferenceLines);
+
+    return {
+      clickedPoints,
+      drawingTool: useCanvasDrawingTool({
+        selectedTool: 'lateral-cobb',
+        tools: [
+          {
+            id: 'lateral-cobb',
+            name: 'Cobb',
+            icon: 'medical-cobb',
+            description: '任意两节段Cobb角测量',
+            pointsNeeded: 4,
+          },
+        ],
+        measurements: [],
+        keypoints: [
+          {
+            id: 'T2-1',
+            point: { x: 10, y: 10 },
+            source: AnnotationSource.AI,
+            confidence: 0.9,
+          },
+          {
+            id: 'T2-2',
+            point: { x: 20, y: 10 },
+            source: AnnotationSource.AI,
+            confidence: 0.9,
+          },
+        ],
+        clickedPoints,
+        setClickedPoints,
+        imageScale: 1,
+        onMeasurementAdd,
+        onMeasurementComplete,
+        cobbPlacementSession: {
+          toolId: 'lateral-cobb',
+          upperVertebra: 'T2',
+          lowerVertebra: 'T4',
+        },
+        onCobbPlacementComplete,
+        drawingState,
+        setDrawingState,
+        setReferenceLines,
+        constrainAuxLinePoint: (_toolId, _anchor, point) => point,
+        screenToImage: (x, y) => ({ x, y }),
+      }),
+    };
+  });
+
+  act(() => {
+    result.current.drawingTool.beginInteraction(30, 40);
+  });
+  expect(onCobbPlacementComplete).not.toHaveBeenCalled();
+
+  act(() => {
+    result.current.drawingTool.beginInteraction(40, 40);
+  });
+
+  expect(onCobbPlacementComplete).toHaveBeenCalledWith(
+    [
+      { x: 10, y: 10 },
+      { x: 20, y: 10 },
+      { x: 30, y: 40 },
+      { x: 40, y: 40 },
+    ],
+    {
+      toolId: 'lateral-cobb',
+      upperVertebra: 'T2',
+      lowerVertebra: 'T4',
+    }
+  );
+  expect(onMeasurementAdd).not.toHaveBeenCalled();
+  expect(onMeasurementComplete).toHaveBeenCalledTimes(1);
 });
 
 it('completes a manual AVT disc line with two horizontal sorted anchors', () => {

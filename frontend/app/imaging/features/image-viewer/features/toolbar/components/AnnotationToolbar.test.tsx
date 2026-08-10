@@ -143,6 +143,7 @@ function createBaseToolbarProps(): AnnotationToolbarProps {
     onSelectPelvicTool: jest.fn(),
     onCreateVertebraCenter: jest.fn(),
     onCreateCobb: jest.fn(),
+    onStartCobbPlacement: jest.fn(),
     onRestoreFixedMeasurements: jest.fn(),
     onActivateHandMode: jest.fn(),
     onToggleImagePanLocked: jest.fn(),
@@ -283,9 +284,7 @@ it('uses compact labels, smaller status badges, and directional auxiliary line i
   expect(
     horizontalButton.querySelector('.lucide-move-horizontal')
   ).not.toBeNull();
-  expect(
-    verticalButton.querySelector('.lucide-move-vertical')
-  ).not.toBeNull();
+  expect(verticalButton.querySelector('.lucide-move-vertical')).not.toBeNull();
   expect(availabilityBadge?.className).toContain('w-3');
   expect(availabilityBadge?.className).toContain('h-3');
   expect(availabilityBadge?.querySelector('i')?.className).toContain(
@@ -748,6 +747,65 @@ it('derives Cobb from selected complete endpoint vertebrae', () => {
   fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
 
   expect(onCreateCobb).toHaveBeenCalledWith('C7', 'T1');
+});
+
+it('derives Cobb when only the required endpoint pairs exist', () => {
+  const onCreateCobb = jest.fn();
+  renderToolbar({
+    keypoints: [
+      ...completeC7Keypoints.slice(0, 2),
+      ...completeT1Keypoints.slice(2),
+    ],
+    onCreateCobb,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: '测量项派生' }));
+  fireEvent.click(screen.getByRole('button', { name: /Cobb/ }));
+  fireEvent.click(screen.getByRole('button', { name: '应用派生' }));
+
+  expect(onCreateCobb).toHaveBeenCalledWith('C7', 'T1');
+});
+
+it('starts lateral Cobb placement with at least one selected endpoint', () => {
+  const onStartCobbPlacement = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    tools: getToolsForExamType('侧位X光片'),
+    onStartCobbPlacement,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: /^Cobb/ }));
+  expect(screen.getByText('选择 Cobb 标注方式')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '已有关键点' }));
+  expect(screen.getByText('选择端椎')).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: '应用' }).hasAttribute('disabled')
+  ).toBe(true);
+
+  fireEvent.change(screen.getByLabelText('上端椎'), {
+    target: { value: 'T3' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '应用' }));
+
+  expect(onStartCobbPlacement).toHaveBeenCalledWith({
+    toolId: 'lateral-cobb',
+    upperVertebra: 'T3',
+    lowerVertebra: null,
+  });
+});
+
+it('keeps the existing four-click lateral Cobb flow for no keypoints', () => {
+  const onSelectTool = jest.fn();
+  renderToolbar({
+    examType: '侧位X光片',
+    tools: getToolsForExamType('侧位X光片'),
+    onSelectTool,
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: /^Cobb/ }));
+  fireEvent.click(screen.getByRole('button', { name: '暂无关键点' }));
+
+  expect(onSelectTool).toHaveBeenCalledWith('lateral-cobb');
 });
 
 it('disables the selected lower endpoint in AP Cobb derive upper options', () => {

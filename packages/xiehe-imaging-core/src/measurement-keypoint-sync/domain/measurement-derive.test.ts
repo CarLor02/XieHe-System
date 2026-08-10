@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 
 import {
-  getCompleteMeasurementDeriveEndpointGroups,
+  getMeasurementDeriveEndpointGroups,
   getMeasurementDeriveVertebraOrder,
 } from './measurement-derive';
 import { AnnotationSource } from '../../shared/domain/contracts';
@@ -22,13 +22,14 @@ it('uses C3-C6 in lateral Cobb derivation endpoint order', () => {
     getMeasurementDeriveVertebraOrder('C7')!
   );
   expect(
-    getCompleteMeasurementDeriveEndpointGroups(
+    getMeasurementDeriveEndpointGroups(
       [
         ...completeKeypoints('C3'),
         ...completeKeypoints('C6'),
         ...completeKeypoints('C7'),
       ],
-      '侧位X光片'
+      '侧位X光片',
+      'upper'
     )
   ).toEqual(['C3', 'C6', 'C7']);
 });
@@ -37,14 +38,30 @@ it.each(['左侧曲位', '右侧曲位'])(
   'uses AP vertebrae as complete Cobb endpoints for %s',
   examType => {
     expect(
-      getCompleteMeasurementDeriveEndpointGroups(
+      getMeasurementDeriveEndpointGroups(
         [
           ...completeKeypoints('C7'),
           ...completeKeypoints('T1'),
           ...completeKeypoints('L5'),
         ],
-        examType
+        examType,
+        'upper'
       )
     ).toEqual(['C7', 'T1', 'L5']);
   }
 );
+
+it('requires only the endpoint points used by the selected Cobb role', () => {
+  const keypoints = [
+    ...completeKeypoints('T2').slice(0, 2),
+    ...completeKeypoints('T4').slice(2),
+    ...completeKeypoints('S1').slice(0, 2),
+  ];
+
+  expect(
+    getMeasurementDeriveEndpointGroups(keypoints, '侧位X光片', 'upper')
+  ).toEqual(['T2', 'S1']);
+  expect(
+    getMeasurementDeriveEndpointGroups(keypoints, '侧位X光片', 'lower')
+  ).toEqual(['T4', 'S1']);
+});

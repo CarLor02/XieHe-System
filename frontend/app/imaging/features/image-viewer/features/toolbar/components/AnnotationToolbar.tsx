@@ -20,9 +20,7 @@ import {
   isApProjectionExamType,
   isLateralExamType,
 } from '@xiehe/imaging-core/anatomy';
-import {
-  MeasurementData,
-} from '@xiehe/imaging-core/contracts';
+import { MeasurementData } from '@xiehe/imaging-core/contracts';
 import {
   KeypointSequenceSession,
   Tool,
@@ -40,7 +38,7 @@ import ToolbarToolPanel, {
   ToolTab,
 } from '@/app/imaging/features/image-viewer/features/toolbar/components/ToolbarToolPanel';
 import {
-  getCompleteMeasurementDeriveEndpointGroups,
+  getMeasurementDeriveEndpointGroups,
   getAutoDeriveMeasurementKeypointBindingRules,
   getMeasurementKeypointBindingRule,
   getMeasurementKeypointBindingRuleForMeasurement,
@@ -51,9 +49,7 @@ import {
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@xiehe/imaging-core/measurements/lateral';
 import { AppMessageDialog } from '@/components/overlay/overlay-components';
-import {
-  type AvtTarget,
-} from '@xiehe/imaging-core/contracts';
+import { type AvtTarget } from '@xiehe/imaging-core/contracts';
 import {
   AVT_DISC_TARGETS,
   AVT_VERTEBRA_TARGETS,
@@ -64,6 +60,8 @@ import type {
   FemoralHeadMode,
   PelvicToolId,
 } from '@xiehe/imaging-core/contracts';
+import type { LateralCobbPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
+import CobbEndpointSelectionPanel from './CobbEndpointSelectionPanel';
 
 type ToolStatus = 'available' | 'exists' | 'missing-keypoints';
 
@@ -145,12 +143,10 @@ interface AnnotationToolbarProps {
   onStartKeypointSequence: (groupName: string, keypointIds: string[]) => void;
   onCancelKeypointSequence: () => void;
   onCreateAvt: (target: AvtTarget) => void;
-  onSelectPelvicTool: (
-    toolId: PelvicToolId,
-    mode: FemoralHeadMode
-  ) => void;
+  onSelectPelvicTool: (toolId: PelvicToolId, mode: FemoralHeadMode) => void;
   onCreateVertebraCenter: (vertebra: string) => void;
   onCreateCobb: (upperVertebra: string, lowerVertebra: string) => void;
+  onStartCobbPlacement: (session: LateralCobbPlacementSession) => void;
   onRestoreFixedMeasurements: () => void;
   onRectifyVertebraCornerOrder: (
     vertebra: string,
@@ -219,6 +215,7 @@ export default function AnnotationToolbar({
   onSelectPelvicTool,
   onCreateVertebraCenter,
   onCreateCobb,
+  onStartCobbPlacement,
   onRestoreFixedMeasurements,
   onRectifyVertebraCornerOrder,
   onApplyVertebraLabelOffset,
@@ -257,6 +254,7 @@ export default function AnnotationToolbar({
   );
   const [cobbUpperVertebra, setCobbUpperVertebra] = useState('');
   const [cobbLowerVertebra, setCobbLowerVertebra] = useState('');
+  const [cobbEntryMode, setCobbEntryMode] = useState<'reuse' | null>(null);
   const [toolbarOverlayMessage, setToolbarOverlayMessage] = useState<
     string | null
   >(null);
@@ -322,24 +320,46 @@ export default function AnnotationToolbar({
     effectiveBasicMode === BasicMode.MeasurementDerive
       ? [measurementTools.find(tool => tool.id === 'cobb') ?? DERIVE_COBB_TOOL]
       : measurementTools;
-  const completeCobbEndpointOptions =
-    getCompleteMeasurementDeriveEndpointGroups(keypoints, examType);
-  const defaultCobbUpper = completeCobbEndpointOptions[0] ?? '';
+  const deriveCobbUpperOptions = getMeasurementDeriveEndpointGroups(
+    keypoints,
+    examType,
+    'upper'
+  );
+  const deriveCobbLowerOptions = getMeasurementDeriveEndpointGroups(
+    keypoints,
+    examType,
+    'lower'
+  );
+  const cobbEndpointCatalogOptions = keypointGroups
+    .filter(group => getMeasurementDeriveVertebraOrder(group.name) !== null)
+    .map(group => group.name)
+    .sort(
+      (left, right) =>
+        getMeasurementDeriveVertebraOrder(left)! -
+        getMeasurementDeriveVertebraOrder(right)!
+    );
+  const defaultCobbUpper = deriveCobbUpperOptions[0] ?? '';
   const defaultCobbLower =
-    completeCobbEndpointOptions.find(group => group !== defaultCobbUpper) ?? '';
-  const selectedCobbUpper = completeCobbEndpointOptions.includes(
-    cobbUpperVertebra
-  )
+    deriveCobbLowerOptions.find(
+      group =>
+        group !== defaultCobbUpper &&
+        isValidMeasurementDeriveEndpointOrder(defaultCobbUpper, group)
+    ) ?? '';
+  const selectedCobbUpper = deriveCobbUpperOptions.includes(cobbUpperVertebra)
     ? cobbUpperVertebra
     : defaultCobbUpper;
   const selectedCobbLower =
-    completeCobbEndpointOptions.includes(cobbLowerVertebra) &&
+    deriveCobbLowerOptions.includes(cobbLowerVertebra) &&
     cobbLowerVertebra !== selectedCobbUpper
       ? cobbLowerVertebra
-      : (completeCobbEndpointOptions.find(
-          group => group !== selectedCobbUpper
+      : (deriveCobbLowerOptions.find(
+          group =>
+            group !== selectedCobbUpper &&
+            isValidMeasurementDeriveEndpointOrder(selectedCobbUpper, group)
         ) ?? defaultCobbLower);
-  const canOpenCobbDerivePanel = completeCobbEndpointOptions.length >= 2;
+  const canOpenCobbDerivePanel = Boolean(
+    selectedCobbUpper && selectedCobbLower
+  );
   const canApplyCobbDerive =
     Boolean(selectedCobbUpper && selectedCobbLower) &&
     selectedCobbUpper !== selectedCobbLower;
@@ -387,6 +407,9 @@ export default function AnnotationToolbar({
     setOffsetDirection('up');
     setOffsetValue('1');
     setAvtTargetType(null);
+    setCobbEntryMode(null);
+    setCobbUpperVertebra('');
+    setCobbLowerVertebra('');
   }, []);
 
   useEffect(() => {
@@ -427,6 +450,7 @@ export default function AnnotationToolbar({
     if (!isOpen) deactivateCurrentDrawingTool();
     setOpenMeasurementTool(isOpen ? null : toolId);
     setAvtTargetType(null);
+    setCobbEntryMode(null);
     setOpenKeypointGroup(null);
   };
 
@@ -448,9 +472,7 @@ export default function AnnotationToolbar({
           })
         : getMeasurementKeypointBindingRule(toolId);
     if (!rule) return false;
-    const existingKeypointIds = new Set(
-      keypoints.map(keypoint => keypoint.id)
-    );
+    const existingKeypointIds = new Set(keypoints.map(keypoint => keypoint.id));
     return (
       getAutoDeriveMeasurementKeypointBindingRules(examType).some(
         candidate => candidate.typeId === rule.typeId
@@ -604,17 +626,30 @@ export default function AnnotationToolbar({
     setCobbLowerVertebra(selectedCobbLower);
   };
 
+  const openLateralCobbPanel = (isOpen: boolean) => {
+    toggleMeasurementToolPanel('lateral-cobb', isOpen);
+    setToolbarOverlayMessage(null);
+    setCobbUpperVertebra('');
+    setCobbLowerVertebra('');
+  };
+
   const handleCobbUpperChange = (value: string) => {
     setCobbUpperVertebra(value);
     setCobbLowerVertebra(current => {
       if (
         current &&
         current !== value &&
-        completeCobbEndpointOptions.includes(current)
+        deriveCobbLowerOptions.includes(current)
       ) {
         return current;
       }
-      return completeCobbEndpointOptions.find(group => group !== value) ?? '';
+      return (
+        deriveCobbLowerOptions.find(
+          group =>
+            group !== value &&
+            isValidMeasurementDeriveEndpointOrder(value, group)
+        ) ?? ''
+      );
     });
   };
 
@@ -657,6 +692,51 @@ export default function AnnotationToolbar({
 
     onCreateCobb(selectedCobbUpper, selectedCobbLower);
     setOpenMeasurementTool(null);
+    setToolbarOverlayMessage(null);
+  };
+
+  const handleApplyLateralCobbPlacement = () => {
+    const upperVertebra = cobbUpperVertebra || null;
+    const lowerVertebra = cobbLowerVertebra || null;
+    if (!upperVertebra && !lowerVertebra) return;
+
+    if (
+      upperVertebra &&
+      lowerVertebra &&
+      !isValidMeasurementDeriveEndpointOrder(upperVertebra, lowerVertebra)
+    ) {
+      setToolbarOverlayMessage('上端椎不应该比下端椎更靠下或与下端椎相同!');
+      return;
+    }
+    if (
+      upperVertebra &&
+      lowerVertebra &&
+      getLateralNamedCobbMeasurementRuleByEndpoints(
+        upperVertebra,
+        lowerVertebra
+      )
+    ) {
+      setToolbarOverlayMessage('请使用专用工具创建此测量项!');
+      return;
+    }
+    if (
+      upperVertebra &&
+      lowerVertebra &&
+      hasCobbMeasurementForEndpoints(measurements, upperVertebra, lowerVertebra)
+    ) {
+      setToolbarOverlayMessage(
+        `Cobb${upperVertebra}-${lowerVertebra}已经存在, 不可重复派生!`
+      );
+      return;
+    }
+
+    onStartCobbPlacement({
+      toolId: 'lateral-cobb',
+      upperVertebra,
+      lowerVertebra,
+    });
+    setOpenMeasurementTool(null);
+    setCobbEntryMode(null);
     setToolbarOverlayMessage(null);
   };
 
@@ -790,11 +870,16 @@ export default function AnnotationToolbar({
                           (tool.id === 'pi' ||
                             tool.id === 'pt' ||
                             tool.id === 'tpa');
+                        const isLateralCobbSelectionTool =
+                          canUseKeypointTools &&
+                          isLateralView &&
+                          tool.id === 'lateral-cobb';
                         const isSelectionTool =
                           (canUseKeypointTools &&
                             isAnteriorView &&
                             tool.id === 'avt') ||
-                          isPelvicSelectionTool;
+                          isPelvicSelectionTool ||
+                          isLateralCobbSelectionTool;
                         const isOpen = openMeasurementTool === tool.id;
                         const isCobbDeriveTool =
                           effectiveBasicMode === BasicMode.MeasurementDerive &&
@@ -821,7 +906,7 @@ export default function AnnotationToolbar({
                         const toolTitle = isCobbDeriveTool
                           ? canOpenCobbDerivePanel
                             ? '选择 Cobb 上下端椎'
-                            : 'Cobb至少需要2个完整椎体'
+                            : 'Cobb缺少可用的上下端板关键点'
                           : !isToolAvailable
                             ? getUnavailableTitle(
                                 tool.name,
@@ -841,13 +926,15 @@ export default function AnnotationToolbar({
                                 openCobbDerivePanel(isOpen);
                                 return;
                               }
+                              if (isLateralCobbSelectionTool) {
+                                openLateralCobbPanel(isOpen);
+                                return;
+                              }
                               if (isSelectionTool) {
                                 toggleMeasurementToolPanel(tool.id, isOpen);
                                 return;
                               }
-                              if (
-                                canRestoreFixedToolFromKeypoints(tool.id)
-                              ) {
+                              if (canRestoreFixedToolFromKeypoints(tool.id)) {
                                 closeToolPopovers();
                                 onCancelKeypointSequence();
                                 onRestoreFixedMeasurements();
@@ -918,86 +1005,75 @@ export default function AnnotationToolbar({
                     </div>
 
                     {openMeasurementTool === 'cobb' &&
-                      effectiveBasicMode === BasicMode.MeasurementDerive && (
-                        <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(22rem,calc(100vh-14rem))] overflow-y-auto">
-                          <div className="text-xs text-gray-300 mb-3">
-                            派生Cobb
-                          </div>
-                          {completeCobbEndpointOptions.length >= 2 ? (
-                            <>
-                              <div className="space-y-3">
-                                <label className="grid grid-cols-[4rem_1fr] items-center gap-2 text-xs text-gray-300">
-                                  <span>上端椎</span>
-                                  <select
-                                    aria-label="上端椎"
-                                    value={selectedCobbUpper}
-                                    onChange={event =>
-                                      handleCobbUpperChange(event.target.value)
-                                    }
-                                    className="h-8 rounded bg-gray-800 border border-gray-600 px-2 text-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
-                                  >
-                                    {completeCobbEndpointOptions.map(group => (
-                                      <option
-                                        key={group}
-                                        value={group}
-                                        disabled={group === selectedCobbLower}
-                                      >
-                                        {group}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                                <label className="grid grid-cols-[4rem_1fr] items-center gap-2 text-xs text-gray-300">
-                                  <span>下端椎</span>
-                                  <select
-                                    aria-label="下端椎"
-                                    value={selectedCobbLower}
-                                    onChange={event =>
-                                      setCobbLowerVertebra(event.target.value)
-                                    }
-                                    className="h-8 rounded bg-gray-800 border border-gray-600 px-2 text-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
-                                  >
-                                    {completeCobbEndpointOptions.map(group => (
-                                      <option
-                                        key={group}
-                                        value={group}
-                                        disabled={group === selectedCobbUpper}
-                                      >
-                                        {group}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                              </div>
-                              <div className="mt-3 flex justify-end gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setOpenMeasurementTool(null)}
-                                  className="h-8 rounded bg-gray-700 px-3 text-xs text-gray-300 hover:bg-gray-600"
-                                >
-                                  取消
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={handleApplyCobbDerive}
-                                  disabled={!canApplyCobbDerive}
-                                  className={`h-8 rounded px-3 text-xs ${
-                                    canApplyCobbDerive
-                                      ? 'bg-blue-600 text-white hover:bg-blue-500'
-                                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                  }`}
-                                >
-                                  应用派生
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <span className="text-xs text-gray-500">
-                              暂无足够完整椎体关键点
-                            </span>
-                          )}
+                      effectiveBasicMode === BasicMode.MeasurementDerive &&
+                      (canOpenCobbDerivePanel ? (
+                        <CobbEndpointSelectionPanel
+                          title="派生Cobb"
+                          upperOptions={deriveCobbUpperOptions}
+                          lowerOptions={deriveCobbLowerOptions}
+                          upperVertebra={selectedCobbUpper}
+                          lowerVertebra={selectedCobbLower}
+                          allowPending={false}
+                          applyLabel="应用派生"
+                          canApply={canApplyCobbDerive}
+                          onUpperChange={handleCobbUpperChange}
+                          onLowerChange={setCobbLowerVertebra}
+                          onCancel={() => setOpenMeasurementTool(null)}
+                          onApply={handleApplyCobbDerive}
+                        />
+                      ) : (
+                        <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 p-3 text-xs text-gray-500 shadow-xl">
+                          暂无满足 Cobb 端板要求的关键点
                         </div>
-                      )}
+                      ))}
+
+                    {openMeasurementTool === 'lateral-cobb' &&
+                      effectiveBasicMode === BasicMode.Move &&
+                      (cobbEntryMode === null ? (
+                        <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 p-3 shadow-xl">
+                          <div className="mb-2 text-xs text-gray-300">
+                            选择 Cobb 标注方式
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleManualToolSelect('lateral-cobb')
+                              }
+                              className="h-9 rounded bg-gray-800 text-xs text-white hover:bg-gray-700"
+                            >
+                              暂无关键点
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCobbEntryMode('reuse')}
+                              className="h-9 rounded bg-gray-800 text-xs text-white hover:bg-gray-700"
+                            >
+                              已有关键点
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <CobbEndpointSelectionPanel
+                          title="选择端椎"
+                          upperOptions={cobbEndpointCatalogOptions}
+                          lowerOptions={cobbEndpointCatalogOptions}
+                          upperVertebra={cobbUpperVertebra}
+                          lowerVertebra={cobbLowerVertebra}
+                          allowPending
+                          applyLabel="应用"
+                          canApply={Boolean(
+                            cobbUpperVertebra || cobbLowerVertebra
+                          )}
+                          onUpperChange={setCobbUpperVertebra}
+                          onLowerChange={setCobbLowerVertebra}
+                          onCancel={() => {
+                            setOpenMeasurementTool(null);
+                            setCobbEntryMode(null);
+                          }}
+                          onApply={handleApplyLateralCobbPlacement}
+                        />
+                      ))}
 
                     {openMeasurementTool === 'vertebra-center' && (
                       <div className="relative z-40 mt-2 rounded-lg border border-gray-600 bg-gray-900 shadow-xl p-3 max-h-[min(22rem,calc(100vh-14rem))] overflow-y-auto">
@@ -1274,8 +1350,7 @@ export default function AnnotationToolbar({
                       isRectifiableKeypointGroup(group);
                     const isGroupAvailable = isRectifyMode
                       ? isRectifiableGroup && isCompleteKeypointGroup
-                      : !isCompleteKeypointGroup &&
-                        !hasFemoralHeadModeConflict;
+                      : !isCompleteKeypointGroup && !hasFemoralHeadModeConflict;
                     const canStartKeypointSequence =
                       !isRectifyMode && canStartSequentialKeypointGroup(group);
                     const isSequenceGroup =
@@ -1326,14 +1401,14 @@ export default function AnnotationToolbar({
                                 ? 'FH-1/FH-2 已存在，不能再标注 CFH'
                                 : 'CFH 已存在，不能再标注 FH-1/FH-2'
                               : isRectifyMode
-                              ? getRectifyKeypointGroupTitle(
-                                  group,
-                                  isCompleteKeypointGroup
-                                )
-                              : getKeypointGroupTitle(
-                                  group,
-                                  isCompleteKeypointGroup
-                                )
+                                ? getRectifyKeypointGroupTitle(
+                                    group,
+                                    isCompleteKeypointGroup
+                                  )
+                                : getKeypointGroupTitle(
+                                    group,
+                                    isCompleteKeypointGroup
+                                  )
                           }
                         >
                           <i className="ri-focus-3-line text-lg mb-1"></i>

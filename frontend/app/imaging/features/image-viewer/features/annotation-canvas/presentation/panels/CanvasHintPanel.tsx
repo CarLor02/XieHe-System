@@ -2,16 +2,14 @@ import {
   KeypointSequenceSession,
   Tool,
 } from '@/app/imaging/features/image-viewer/shared/types';
-import {
-  type AvtPlacementSession,
-} from '@xiehe/imaging-core/contracts';
-import {
-  getAvtTargetLabel,
-} from '@xiehe/imaging-core/measurements/ap';
+import { type AvtPlacementSession } from '@xiehe/imaging-core/contracts';
+import { getAvtTargetLabel } from '@xiehe/imaging-core/measurements/ap';
 import {
   getPelvicToolPointCount,
   getPelvicToolPointLabels,
   type PelvicPlacementSession,
+  type LateralCobbPlacementSession,
+  getLateralCobbPlacementPointLabels,
 } from '@xiehe/imaging-core/measurements/lateral';
 import {
   getManualMeasurementInheritedPoints,
@@ -20,6 +18,8 @@ import {
 import {
   getNextPelvicPlacementPointIndex,
   getPelvicPlacementInheritedPointMap,
+  getLateralCobbPlacementInheritedPointMap,
+  getNextLateralCobbPlacementPointIndex,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
 import {
@@ -39,6 +39,7 @@ interface CanvasHintPanelProps {
   keypointSequenceSession?: KeypointSequenceSession | null;
   avtPlacementSession?: AvtPlacementSession | null;
   pelvicPlacementSession?: PelvicPlacementSession | null;
+  cobbPlacementSession?: LateralCobbPlacementSession | null;
   measurements?: MeasurementData[];
 }
 
@@ -56,6 +57,7 @@ export default function CanvasHintPanel({
   keypointSequenceSession = null,
   avtPlacementSession = null,
   pelvicPlacementSession = null,
+  cobbPlacementSession = null,
   measurements = [],
 }: CanvasHintPanelProps) {
   const currentSequenceKeypoint =
@@ -83,12 +85,12 @@ export default function CanvasHintPanel({
       )
     : null;
   const nextTpaPointIndex = tpaInheritedPointMap
-    ? Array.from(
+    ? (Array.from(
         { length: currentTool?.pointsNeeded ?? 0 },
         (_, pointIndex) => pointIndex
       ).filter(pointIndex => !tpaInheritedPointMap.has(pointIndex))[
         clickedPointsCount
-      ] ?? null
+      ] ?? null)
     : null;
   const nextMeasurementPointIndex = tpaBindingRule
     ? nextTpaPointIndex
@@ -142,17 +144,29 @@ export default function CanvasHintPanel({
         pelvicPlacementSession.mode
       )
     : 0;
-  const pelvicLabels =
-    pelvicPlacementSession
-      ? getPelvicToolPointLabels(
-          pelvicPlacementSession.toolId,
-          pelvicPlacementSession.mode
-        )
-      : [];
+  const pelvicLabels = pelvicPlacementSession
+    ? getPelvicToolPointLabels(
+        pelvicPlacementSession.toolId,
+        pelvicPlacementSession.mode
+      )
+    : [];
+  const cobbInherited = cobbPlacementSession
+    ? getLateralCobbPlacementInheritedPointMap({
+        session: cobbPlacementSession,
+        keypoints,
+      })
+    : new Map();
+  const cobbNextPointIndex = cobbPlacementSession
+    ? getNextLateralCobbPlacementPointIndex(cobbInherited, clickedPointsCount)
+    : null;
+  const cobbLabels = cobbPlacementSession
+    ? getLateralCobbPlacementPointLabels(cobbPlacementSession)
+    : [];
 
   return (
     <div className="absolute bottom-4 left-4 flex flex-col gap-2 max-w-md">
-      {selectedTool.toLowerCase() === 'cobb' && (
+      {(selectedTool.toLowerCase() === 'cobb' ||
+        selectedTool.toLowerCase() === 'lateral-cobb') && (
         <div className="bg-black/75 border border-yellow-400/40 text-white text-xs px-3 py-2 rounded">
           <p className="font-medium text-yellow-300">Cobb 点位顺序提示</p>
           <p className="mt-1">
@@ -162,7 +176,25 @@ export default function CanvasHintPanel({
       )}
 
       <div className="bg-black/70 text-white text-xs px-3 py-2 rounded">
-        {pelvicPlacementSession ? (
+        {cobbPlacementSession ? (
+          <div>
+            <p className="font-medium text-yellow-300">
+              正在标注 Cobb：下一点{' '}
+              {cobbNextPointIndex === null
+                ? '已完成'
+                : cobbLabels[cobbNextPointIndex]}
+            </p>
+            <p className="mt-1">
+              已标注 {clickedPointsCount + cobbInherited.size}/4 个点
+              {cobbInherited.size > 0 && (
+                <span className="ml-2 text-xs text-cyan-400">
+                  (+{cobbInherited.size} 个点已自动继承)
+                </span>
+              )}
+            </p>
+            <p className="mt-1 text-gray-300">按 Esc 取消</p>
+          </div>
+        ) : pelvicPlacementSession ? (
           <div>
             <p className="font-medium text-yellow-300">
               正在标注 {pelvicPlacementSession.toolId.toUpperCase()}（
