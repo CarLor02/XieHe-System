@@ -15,7 +15,6 @@ const EMPTY_REFERENCE_LINES: ReferenceLines = {
   po: null,
   css: null,
   avt: null,
-  ts: null,
   lld: null,
   ss: null,
   sva: null,

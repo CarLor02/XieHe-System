@@ -1,10 +1,11 @@
 import type { Point } from '../../../../../shared/domain/contracts';
+import { constrainPointHorizontally } from '../../../../../shared/domain/geometry';
 
 export function createHorizontalDiscAnchors(
   firstClick: Point,
   secondClick: Point
 ): [Point, Point] {
-  const horizontalSecond = { x: secondClick.x, y: firstClick.y };
+  const horizontalSecond = constrainPointHorizontally(secondClick, firstClick);
   return firstClick.x <= horizontalSecond.x
     ? [{ ...firstClick }, horizontalSecond]
     : [horizontalSecond, { ...firstClick }];

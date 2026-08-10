@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import {
   getManualMeasurementInheritedPointMap,
-  getNextManualMeasurementPointIndex,
+  resolveNextManualMeasurementPoint,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { hasUniqueAnnotationForTool } from '@xiehe/imaging-core/measurements';
 import {
@@ -357,13 +357,6 @@ export function useCanvasDrawingTool({
             keypoints
           );
       const effectiveNeeded = measurementPointsNeeded - inheritedMap.size;
-      const nextMeasurementPointIndex = getNextManualMeasurementPointIndex(
-        currentTool.id,
-        keypoints,
-        measurementPointsNeeded,
-        clickedPoints.length
-      );
-
       if (effectiveNeeded === 0) {
         addMeasurement(
           currentTool.id,
@@ -373,24 +366,14 @@ export function useCanvasDrawingTool({
         return true;
       }
 
-      let finalPoint = imagePoint;
-      if (selectedTool === 'ts' && clickedPoints.length === 1) {
-        finalPoint = { x: imagePoint.x, y: clickedPoints[0].y };
-      }
-      // TTS：每对点（0-1 躯干线，2-3 骶骨线）强制水平（Y 与前一点相同）
-      if (
-        selectedTool === 'tts' &&
-        nextMeasurementPointIndex !== null &&
-        nextMeasurementPointIndex % 2 === 1
-      ) {
-        const previousPoint =
-          inheritedMap.get(nextMeasurementPointIndex - 1) ??
-          clickedPoints[clickedPoints.length - 1];
-        finalPoint = {
-          x: imagePoint.x,
-          y: previousPoint.y,
-        };
-      }
+      const resolvedPoint = resolveNextManualMeasurementPoint({
+        toolId: currentTool.id,
+        pointsNeeded: measurementPointsNeeded,
+        inheritedPoints: inheritedMap,
+        clickedPoints,
+        rawPoint: imagePoint,
+      });
+      const finalPoint = resolvedPoint?.point ?? imagePoint;
 
       const newPoints = [...clickedPoints, finalPoint];
       setClickedPoints(newPoints);
@@ -473,12 +456,10 @@ export function useCanvasDrawingTool({
         selectedTool.includes('sva') ||
         selectedTool === 'ts'
       ) {
-        if (newPoints.length === 1) {
+        if (newPoints.length === 1 && selectedTool !== 'ts') {
           const referenceKey = selectedTool.includes('ss')
             ? 'ss'
-            : selectedTool.includes('sva')
-              ? 'sva'
-              : 'ts';
+            : 'sva';
           setReferenceLines(previous => ({
             ...previous,
             [referenceKey]: imagePoint,
@@ -497,8 +478,6 @@ export function useCanvasDrawingTool({
             setReferenceLines(previous => ({ ...previous, ss: null }));
           } else if (selectedTool.includes('sva')) {
             setReferenceLines(previous => ({ ...previous, sva: null }));
-          } else {
-            setReferenceLines(previous => ({ ...previous, ts: null }));
           }
         }
         return true;

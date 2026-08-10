@@ -12,6 +12,8 @@ export {
   calculateCenterPoint,
   calculateDistance2D,
   calculatePointsCentroid,
+  constrainPointHorizontally,
+  constrainPointVertically,
   getBoundingBox,
   pointToLineDistance,
   toAcuteAngle,

@@ -16,6 +16,19 @@ export function calculateDistance2D(p1: Point, p2: Point): number {
   return Math.hypot(p2.x - p1.x, p2.y - p1.y);
 }
 
+/** 将点吸附到经过 anchor 的水平线上，仅保留原始点的 X 坐标。 */
+export function constrainPointHorizontally(
+  point: Point,
+  anchor: Point
+): Point {
+  return { x: point.x, y: anchor.y };
+}
+
+/** 将点吸附到经过 anchor 的垂直线上，仅保留原始点的 Y 坐标。 */
+export function constrainPointVertically(point: Point, anchor: Point): Point {
+  return { x: anchor.x, y: point.y };
+}
+
 export function pointToLineDistance(
   point: Point,
   lineStart: Point,

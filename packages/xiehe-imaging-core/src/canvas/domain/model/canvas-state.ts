@@ -30,7 +30,6 @@ export interface ReferenceLines {
   po: Point | null;
   css: Point | null;
   avt: Point | null;
-  ts: Point | null;
   lld: Point | null;
   ss: Point | null;
   sva: Point | null;

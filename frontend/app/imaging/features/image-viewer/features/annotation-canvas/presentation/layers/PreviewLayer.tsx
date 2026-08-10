@@ -17,6 +17,10 @@ import {
   getCircleRadius,
 } from '@xiehe/imaging-core/geometry';
 import type { PelvicPlacementSession } from '@xiehe/imaging-core/measurements/lateral';
+import {
+  getManualMeasurementInheritedPointMap,
+  resolveNextManualMeasurementPoint,
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 
 interface PreviewLayerProps {
   selectedTool: string;
@@ -542,6 +546,21 @@ export default function PreviewLayer({
   workingPointHoverIndex,
   pelvicPlacementSession = null,
 }: PreviewLayerProps) {
+  const ttsLivePlacement =
+    selectedTool === 'tts' && currentTool && livePointerImagePoint
+      ? resolveNextManualMeasurementPoint({
+          toolId: currentTool.id,
+          pointsNeeded: currentTool.pointsNeeded,
+          inheritedPoints: getManualMeasurementInheritedPointMap(
+            currentTool.id,
+            currentTool.pointsNeeded,
+            keypoints
+          ),
+          clickedPoints,
+          rawPoint: livePointerImagePoint,
+        })
+      : null;
+
   return (
     <>
       {!isStandardDistanceHidden &&
@@ -724,16 +743,6 @@ export default function PreviewLayer({
           label="VL1"
         />
       )}
-      {selectedTool === 'ts' && referenceLines.ts && (
-        <ReferenceLinePreview
-          point={referenceLines.ts}
-          imageScale={imageScale}
-          imageToScreen={imageToScreen}
-          direction="horizontal"
-          label="HL1"
-          lineLength={150 * imageScale}
-        />
-      )}
       {selectedTool.includes('lld') && referenceLines.lld && (
         <ReferenceLinePreview
           point={referenceLines.lld}
@@ -791,15 +800,11 @@ export default function PreviewLayer({
         );
       })}
 
-      {selectedTool === 'ts' &&
-        clickedPoints.length === 1 &&
-        livePointerImagePoint &&
+      {ttsLivePlacement?.pointIndex === 1 &&
+        clickedPoints[0] &&
         (() => {
           const firstPoint = imageToScreen(clickedPoints[0]);
-          const constrainedSecondPoint = imageToScreen({
-            x: livePointerImagePoint.x,
-            y: clickedPoints[0].y,
-          });
+          const constrainedSecondPoint = imageToScreen(ttsLivePlacement.point);
           return (
             <line
               x1={firstPoint.x}

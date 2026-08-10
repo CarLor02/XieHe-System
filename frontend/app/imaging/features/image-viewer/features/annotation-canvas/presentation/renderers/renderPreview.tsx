@@ -96,20 +96,6 @@ export default function renderPreview({
 
   const screenPoints = previewPoints.map(point => imageToScreen(point));
 
-  if (selectedTool === 'ts' && screenPoints.length >= 2) {
-    return (
-      <line
-        x1={screenPoints[0].x}
-        y1={screenPoints[0].y}
-        x2={screenPoints[1].x}
-        y2={screenPoints[1].y}
-        stroke="#ef4444"
-        strokeWidth="2"
-        strokeDasharray="2,2"
-      />
-    );
-  }
-
   if (currentTool?.pointsNeeded === 4 && screenPoints.length >= 2) {
     return screenPoints.length < 4 ? (
       <line

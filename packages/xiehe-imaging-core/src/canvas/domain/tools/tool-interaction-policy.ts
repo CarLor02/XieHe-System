@@ -10,6 +10,10 @@ import {
   VERTICAL_LINE_TOOLS,
 } from '../constants';
 import type { Point } from '../../../shared/domain/contracts';
+import {
+  constrainPointHorizontally,
+  constrainPointVertically,
+} from '../../../shared/domain/geometry';
 import { getAnnotationTypeId } from '../../../measurements/domain';
 import type { ReferenceLines } from '../model/canvas-state';
 
@@ -125,10 +129,10 @@ export function constrainAuxiliaryLinePoint(
   rawPoint: Point
 ): Point {
   if (toolId === 'aux-horizontal-line') {
-    return { x: rawPoint.x, y: anchor.y };
+    return constrainPointHorizontally(rawPoint, anchor);
   }
   if (toolId === 'aux-vertical-line') {
-    return { x: anchor.x, y: rawPoint.y };
+    return constrainPointVertically(rawPoint, anchor);
   }
   return rawPoint;
 }
@@ -147,7 +151,6 @@ export function retainReferenceLinesForTool(
     po: toolId === 'po' ? referenceLines.po : null,
     css: toolId === 'css' ? referenceLines.css : null,
     avt: toolId.includes('avt') ? referenceLines.avt : null,
-    ts: toolId === 'ts' ? referenceLines.ts : null,
     lld: toolId.includes('lld') ? referenceLines.lld : null,
     ss: toolId.includes('ss') ? referenceLines.ss : null,
     sva: toolId.includes('sva') ? referenceLines.sva : null,

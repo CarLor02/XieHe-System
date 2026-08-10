@@ -18,7 +18,10 @@ import {
   MeasurementData,
   Point,
 } from '@xiehe/imaging-core/contracts';
-import { SelectionState } from '@xiehe/imaging-core/canvas';
+import type {
+  ReferenceLines,
+  SelectionState,
+} from '@xiehe/imaging-core/canvas';
 import {
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
   moveHemipelvicVerticalLine,
@@ -75,24 +78,8 @@ interface UseCanvasDragOptions {
   ) => boolean;
   imageToScreen: (point: Point) => Point;
   screenToImage: (screenX: number, screenY: number) => Point;
-  referenceLines: {
-    t1Tilt: Point | null;
-  };
-  setReferenceLines: React.Dispatch<
-    React.SetStateAction<{
-      t1Tilt: Point | null;
-      ca: Point | null;
-      po: Point | null;
-      css: Point | null;
-      avt: Point | null;
-      ts: Point | null;
-      lld: Point | null;
-      ss: Point | null;
-      sva: Point | null;
-      horizontalLine: Point | null;
-      verticalLine: Point | null;
-    }>
-  >;
+  referenceLines: Pick<ReferenceLines, 't1Tilt'>;
+  setReferenceLines: React.Dispatch<React.SetStateAction<ReferenceLines>>;
   onAnnotationDragStart?: () => void;
 }
 

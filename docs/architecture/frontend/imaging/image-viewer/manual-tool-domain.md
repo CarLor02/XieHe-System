@@ -30,6 +30,17 @@ frontend/.../features/measurements/
 - 公开函数必须说明点序与符号语义；历史格式兼容分支必须用中文注释说明来源。
 - 不得依赖 React、Web catalog、SVG renderer、API、DOM 或画布状态。
 
+### 手动点位放置约束
+
+手动工具“下一点是否吸附到水平线”等平台无关规则由
+`measurement-keypoint-sync` 的点位解析入口统一处理。调用方提交工具 ID、继承槽位、
+已点击点和原始坐标，core 返回真实 measurement point index 与最终坐标。
+
+- Web 和 Expo 不得按工具 ID 自行改写坐标。
+- TTS 仅约束躯干线 `points[1]` 相对 `points[0]` 水平。
+- TTS 的 `points[2]/[3]` 是 SL/SR，TS 的全部六点均为自由解剖点。
+- AVT 椎间盘线和辅助水平/垂直线继续使用各自的 core 专用交互规则。
+
 ### 可变布局 resolver
 
 Cobb、AVT、TTS、PI/PT/TPA 的持久化点序受检查类型、metadata 或历史版本影响，

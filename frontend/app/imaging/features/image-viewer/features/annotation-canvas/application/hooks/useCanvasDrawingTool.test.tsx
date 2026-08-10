@@ -16,7 +16,6 @@ const emptyReferenceLines: ReferenceLines = {
   po: null,
   css: null,
   avt: null,
-  ts: null,
   lld: null,
   ss: null,
   sva: null,
@@ -396,5 +395,120 @@ it('inherits bilateral pelvic geometry and only collects T1 points for TPA', () 
     { x: 65, y: 100 },
     { x: 20, y: 200 },
     { x: 80, y: 200 },
+  ]);
+});
+
+it('keeps the second C7 corner free while placing TS', () => {
+  const { result } = renderHook(() => {
+    const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
+    const [drawingState, setDrawingState] = useState<DrawingState>({
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null,
+    });
+    const [, setReferenceLines] = useState(emptyReferenceLines);
+
+    return {
+      clickedPoints,
+      drawingTool: useCanvasDrawingTool({
+        selectedTool: 'ts',
+        tools: [
+          {
+            id: 'ts',
+            name: 'TS',
+            icon: 'test',
+            description: 'test',
+            pointsNeeded: 6,
+          },
+        ],
+        measurements: [],
+        keypoints: [],
+        clickedPoints,
+        setClickedPoints,
+        imageScale: 1,
+        onMeasurementAdd: jest.fn(),
+        drawingState,
+        setDrawingState,
+        setReferenceLines,
+        constrainAuxLinePoint: (_toolId, _anchor, point) => point,
+        screenToImage: (x, y) => ({ x, y }),
+      }),
+    };
+  });
+
+  act(() => {
+    result.current.drawingTool.beginInteraction(10, 20);
+  });
+  act(() => {
+    result.current.drawingTool.beginInteraction(80, 90);
+  });
+
+  expect(result.current.clickedPoints).toEqual([
+    { x: 10, y: 20 },
+    { x: 80, y: 90 },
+  ]);
+});
+
+it('keeps TTS trunk horizontal without rewriting inherited SL and SR', () => {
+  const onMeasurementAdd = jest.fn();
+  const { result } = renderHook(() => {
+    const [clickedPoints, setClickedPoints] = useState<Point[]>([]);
+    const [drawingState, setDrawingState] = useState<DrawingState>({
+      isDrawing: false,
+      startPoint: null,
+      currentPoint: null,
+    });
+    const [, setReferenceLines] = useState(emptyReferenceLines);
+
+    return useCanvasDrawingTool({
+      selectedTool: 'tts',
+      tools: [
+        {
+          id: 'tts',
+          name: 'TTS',
+          icon: 'test',
+          description: 'test',
+          pointsNeeded: 4,
+        },
+      ],
+      measurements: [],
+      keypoints: [
+        {
+          id: 'SL',
+          point: { x: 30, y: 200 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+        {
+          id: 'SR',
+          point: { x: 90, y: 240 },
+          source: AnnotationSource.MANUAL,
+          confidence: 1,
+        },
+      ],
+      clickedPoints,
+      setClickedPoints,
+      imageScale: 1,
+      onMeasurementAdd,
+      drawingState,
+      setDrawingState,
+      setReferenceLines,
+      constrainAuxLinePoint: (_toolId, _anchor, point) => point,
+      screenToImage: (x, y) => ({ x, y }),
+    });
+  });
+
+  act(() => {
+    result.current.beginInteraction(10, 20);
+  });
+  act(() => {
+    result.current.beginInteraction(80, 90);
+  });
+
+  expect(onMeasurementAdd).toHaveBeenCalledWith('tts', [
+    { x: 10, y: 20 },
+    { x: 80, y: 20 },
+    { x: 30, y: 200 },
+    { x: 90, y: 240 },
   ]);
 });
