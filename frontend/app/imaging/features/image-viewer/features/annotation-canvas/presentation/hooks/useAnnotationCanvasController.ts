@@ -205,7 +205,6 @@ export function useAnnotationCanvasController({
     containerSize,
     handleImageLoad,
     handleWheel,
-    handleDoubleClick,
     getCursorStyle,
     zoomIn,
     zoomOut,
@@ -850,7 +849,6 @@ export function useAnnotationCanvasController({
       style: { touchAction: 'none' },
       ...pointerEvents,
       onWheel: handleWheel,
-      onDoubleClick: handleDoubleClick,
       onContextMenu: handleContextMenu,
     },
     resultsPanel: {

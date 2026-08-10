@@ -201,10 +201,6 @@ export function useCanvasViewport({
     [isHovering, zoomByFactor]
   );
 
-  const handleDoubleClick = useCallback(() => {
-    resetView();
-  }, [resetView]);
-
   const getCursorStyle = useCallback(() => {
     if (isSettingStandardDistance) return 'cursor-crosshair';
     if (selectedTool === 'hand') return 'cursor-grab active:cursor-grabbing';
@@ -293,7 +289,6 @@ export function useCanvasViewport({
     containerSize,
     handleImageLoad,
     handleWheel,
-    handleDoubleClick,
     resetView,
     getCursorStyle,
     zoomIn: () => zoomByFactor(1.2),
