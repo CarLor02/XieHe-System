@@ -10,6 +10,8 @@ import {
 import { getTpaGeometry } from '@xiehe/imaging-core/measurements/lateral';
 import { getPelvicMeasurementGeometry } from '@xiehe/imaging-core/measurements/lateral';
 import { renderPelvicSharedGeometry } from './renderPelvicSharedGeometry';
+import { getVertebraCenterGeometry } from '@xiehe/imaging-core/geometry';
+import { renderVertebraCenterGeometry } from './renderVertebraCenterGeometry';
 
 /**
  * TPA渲染器：点1、点2、点3-4中点形成夹角
@@ -35,18 +37,23 @@ export function renderTPA(
       ? getPelvicMeasurementGeometry(fallbackGeometry.pelvicPoints)
       : null);
   const t1ImagePoints = resolvedPelvic?.t1Points ?? imagePoints.slice(0, 4);
-  const t1PointList: Point[] = [...t1ImagePoints];
-  const t1Center =
+  const t1Corners =
     t1ImagePoints.length === 4
-      ? {
-          x: t1PointList.reduce((sum, point) => sum + point.x, 0) / 4,
-          y: t1PointList.reduce((sum, point) => sum + point.y, 0) / 4,
-        }
+      ? ([
+          t1ImagePoints[0],
+          t1ImagePoints[1],
+          t1ImagePoints[2],
+          t1ImagePoints[3],
+        ] as const)
       : null;
+  const t1Center = t1Corners
+    ? getVertebraCenterGeometry(t1Corners).center
+    : null;
   const pelvicImagePoints =
     resolvedPelvic?.pelvicPoints ?? fallbackGeometry?.pelvicPoints;
-  if (!t1Center || !pelvicGeometry || !pelvicImagePoints) return null;
-  const t1Points = projectSpecialRenderPoints(t1PointList, context);
+  if (!t1Corners || !t1Center || !pelvicGeometry || !pelvicImagePoints) {
+    return null;
+  }
   const pelvicScreenPoints = projectSpecialRenderPoints(
     [...pelvicImagePoints],
     context
@@ -96,46 +103,12 @@ export function renderTPA(
         displayColor,
         context
       )}
-      <line
-        x1={t1Points[0].x}
-        y1={t1Points[0].y}
-        x2={t1Points[1].x}
-        y2={t1Points[1].y}
-        stroke={displayColor}
-        strokeWidth="1"
-        strokeDasharray="5,5"
-        opacity="0.3"
-      />
-      <line
-        x1={t1Points[1].x}
-        y1={t1Points[1].y}
-        x2={t1Points[2].x}
-        y2={t1Points[2].y}
-        stroke={displayColor}
-        strokeWidth="1"
-        strokeDasharray="5,5"
-        opacity="0.3"
-      />
-      <line
-        x1={t1Points[2].x}
-        y1={t1Points[2].y}
-        x2={t1Points[3].x}
-        y2={t1Points[3].y}
-        stroke={displayColor}
-        strokeWidth="1"
-        strokeDasharray="5,5"
-        opacity="0.3"
-      />
-      <line
-        x1={t1Points[3].x}
-        y1={t1Points[3].y}
-        x2={t1Points[0].x}
-        y2={t1Points[0].y}
-        stroke={displayColor}
-        strokeWidth="1"
-        strokeDasharray="5,5"
-        opacity="0.3"
-      />
+      {renderVertebraCenterGeometry({
+        corners: t1Corners,
+        displayColor,
+        projectPoint: point => projectSpecialRenderPoint(point, context),
+        opacity: 0.3,
+      })}
       <line
         x1={center.x}
         y1={center.y}

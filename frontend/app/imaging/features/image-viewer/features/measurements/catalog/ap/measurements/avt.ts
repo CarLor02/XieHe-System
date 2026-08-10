@@ -4,6 +4,7 @@ import {
   isAvtInRange,
 } from '@xiehe/imaging-core/measurements/ap';
 import type { Point } from '@xiehe/imaging-core/contracts';
+import { getVertebraCenterGeometry } from '@xiehe/imaging-core/geometry';
 
 export const AVT_CONFIG: AnnotationConfig = {
   id: 'avt',
@@ -30,11 +31,15 @@ export const AVT_CONFIG: AnnotationConfig = {
 
     const apexPoints = points.slice(0, 4);
     const rightX = Math.max(...apexPoints.map(point => point.x));
-    const centerY =
-      apexPoints.reduce((sum, point) => sum + point.y, 0) / apexPoints.length;
+    const center = getVertebraCenterGeometry([
+      points[0],
+      points[1],
+      points[2],
+      points[3],
+    ]);
 
     // maxXRightLabel 会在渲染层追加固定屏幕间距，此处只返回顶椎右侧中心锚点。
-    return { x: rightX, y: centerY };
+    return { x: rightX, y: center.center.y };
   },
 
   isInHoverRange: isAvtInRange,

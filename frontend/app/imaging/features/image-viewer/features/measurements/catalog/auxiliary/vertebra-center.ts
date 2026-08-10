@@ -1,6 +1,7 @@
 import type { AnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
 import {
   calculateDistance2D,
+  getVertebraCenterGeometry,
   pointToLineDistance,
 } from '@xiehe/imaging-core/geometry';
 import type { Point } from '@xiehe/imaging-core/contracts';
@@ -19,12 +20,13 @@ export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
   // 标签位置：显示在中心点上方
   getLabelPosition: (points: Point[], imageScale: number = 1) => {
     if (points.length < 4) return points[0] || { x: 0, y: 0 };
-
-    // 计算四边形中心点
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-
-    return { x: centerX, y: centerY - 20 / imageScale }; // 中心点上方20像素
+    const center = getVertebraCenterGeometry([
+      points[0],
+      points[1],
+      points[2],
+      points[3],
+    ]).center;
+    return { x: center.x, y: center.y - 20 / imageScale };
   },
 
   // 悬浮范围：检查是否靠近四边形边界或中心点
@@ -34,25 +36,27 @@ export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
     tolerance: number = 10
   ) => {
     if (points.length < 4) return false;
-
-    // 检查是否靠近中心点
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-    const distToCenter = calculateDistance2D(mousePoint, {
-      x: centerX,
-      y: centerY,
-    });
+    const geometry = getVertebraCenterGeometry([
+      points[0],
+      points[1],
+      points[2],
+      points[3],
+    ]);
+    const distToCenter = calculateDistance2D(mousePoint, geometry.center);
     if (distToCenter <= tolerance) return true;
 
-    // 检查是否靠近四边形的边
-    for (let i = 0; i < 4; i++) {
-      const p1 = points[i];
-      const p2 = points[(i + 1) % 4];
-      const dist = pointToLineDistance(mousePoint, p1, p2);
-      if (dist <= tolerance) return true;
-    }
-
-    return false;
+    const lines = [
+      ...geometry.perimeter.map((point, index) => [
+        point,
+        geometry.perimeter[(index + 1) % geometry.perimeter.length],
+      ] as const),
+      geometry.topBottomMidline,
+      geometry.leftRightMidline,
+    ];
+    return lines.some(
+      ([start, end]) =>
+        pointToLineDistance(mousePoint, start, end) <= tolerance
+    );
   },
 
   // 选中范围：与悬浮范围相同
@@ -62,24 +66,10 @@ export const VERTEBRA_CENTER_CONFIG: AnnotationConfig = {
     tolerance: number = 10
   ) => {
     if (points.length < 4) return false;
-
-    // 检查是否靠近中心点
-    const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-    const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-    const distToCenter = calculateDistance2D(mousePoint, {
-      x: centerX,
-      y: centerY,
-    });
-    if (distToCenter <= tolerance) return true;
-
-    // 检查是否靠近四边形的边
-    for (let i = 0; i < 4; i++) {
-      const p1 = points[i];
-      const p2 = points[(i + 1) % 4];
-      const dist = pointToLineDistance(mousePoint, p1, p2);
-      if (dist <= tolerance) return true;
-    }
-
-    return false;
+    return VERTEBRA_CENTER_CONFIG.isInHoverRange!(
+      mousePoint,
+      points,
+      tolerance
+    );
   },
 };

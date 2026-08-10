@@ -16,3 +16,4 @@ export { renderTPA } from '@/app/imaging/features/image-viewer/features/annotati
 export { renderTTS } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/renderTTS';
 export { renderTwoLines } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/renderTwoLines';
 export { renderVerticalLines } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/renderVerticalLines';
+export { renderVertebraCenterGeometry } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/renderVertebraCenterGeometry';

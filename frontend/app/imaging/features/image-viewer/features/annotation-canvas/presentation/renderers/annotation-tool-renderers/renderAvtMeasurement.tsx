@@ -7,28 +7,12 @@ import {
   getAvtGeometry,
   isAvtMetadata,
 } from '@xiehe/imaging-core/measurements/ap';
+import { renderVertebraCenterGeometry } from './renderVertebraCenterGeometry';
 
 interface RenderAvtMeasurementOptions {
   measurement: MeasurementData;
   displayColor: string;
   imageToScreen: (point: Point) => Point;
-}
-
-function renderClosedShape(
-  points: Point[],
-  displayColor: string
-): JSX.Element | null {
-  if (points.length !== 4) return null;
-  return (
-    <polygon
-      points={points.map(point => `${point.x},${point.y}`).join(' ')}
-      fill="none"
-      stroke={displayColor}
-      strokeWidth="1"
-      strokeDasharray="5,5"
-      opacity="0.55"
-    />
-  );
 }
 
 /**
@@ -74,7 +58,17 @@ export function renderAvtMeasurement({
   return (
     <>
       {measurement.avtMetadata.target.type === 'vertebra' ? (
-        renderClosedShape(targetPoints, displayColor)
+        renderVertebraCenterGeometry({
+          corners: [
+            geometry.targetPoints[0],
+            geometry.targetPoints[1],
+            geometry.targetPoints[2],
+            geometry.targetPoints[3],
+          ],
+          displayColor,
+          projectPoint: imageToScreen,
+          opacity: 0.55,
+        })
       ) : (
         <line
           x1={targetPoints[0].x}
@@ -87,7 +81,17 @@ export function renderAvtMeasurement({
       )}
 
       {geometry.referenceLine === 'c7pl' ? (
-        renderClosedShape(referencePoints, displayColor)
+        renderVertebraCenterGeometry({
+          corners: [
+            geometry.referencePoints[0],
+            geometry.referencePoints[1],
+            geometry.referencePoints[2],
+            geometry.referencePoints[3],
+          ],
+          displayColor,
+          projectPoint: imageToScreen,
+          opacity: 0.55,
+        })
       ) : (
         <line
           x1={referencePoints[0].x}
@@ -118,18 +122,22 @@ export function renderAvtMeasurement({
         stroke={displayColor}
         strokeWidth="2"
       />
-      <circle
-        cx={targetCenter.x}
-        cy={targetCenter.y}
-        r="3"
-        fill={displayColor}
-      />
-      <circle
-        cx={referenceCenter.x}
-        cy={referenceCenter.y}
-        r="3"
-        fill={displayColor}
-      />
+      {measurement.avtMetadata.target.type === 'disc' && (
+        <circle
+          cx={targetCenter.x}
+          cy={targetCenter.y}
+          r="3"
+          fill={displayColor}
+        />
+      )}
+      {geometry.referenceLine === 'csvl' && (
+        <circle
+          cx={referenceCenter.x}
+          cy={referenceCenter.y}
+          r="3"
+          fill={displayColor}
+        />
+      )}
     </>
   );
 }

@@ -7,6 +7,8 @@ import {
   projectSpecialRenderPoints,
   RENDER_IMAGE_LENGTHS,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/annotationToolRendererUtils';
+import { getVertebraCenterGeometry } from '@xiehe/imaging-core/geometry';
+import { renderVertebraCenterGeometry } from './renderVertebraCenterGeometry';
 
 /**
  * SVA渲染器：两条垂直线
@@ -26,20 +28,13 @@ export function renderSVA(
   const height = RENDER_IMAGE_LENGTHS.verticalGuideLength;
 
   if (imagePoints.length === 5) {
-    const centerImage = {
-      x:
-        (imagePoints[0].x +
-          imagePoints[1].x +
-          imagePoints[2].x +
-          imagePoints[3].x) /
-        4,
-      y:
-        (imagePoints[0].y +
-          imagePoints[1].y +
-          imagePoints[2].y +
-          imagePoints[3].y) /
-        4,
-    };
+    const vertebraCorners = [
+      imagePoints[0],
+      imagePoints[1],
+      imagePoints[2],
+      imagePoints[3],
+    ] as const;
+    const centerImage = getVertebraCenterGeometry(vertebraCorners).center;
     const center = projectSpecialRenderPoint(centerImage, context);
     const centerGuideEnd = projectSpecialRenderPoint(
       { x: centerImage.x, y: centerImage.y + height / 2 },
@@ -54,46 +49,13 @@ export function renderSVA(
 
     return (
       <>
-        <line
-          x1={projectedPoints[0].x}
-          y1={projectedPoints[0].y}
-          x2={projectedPoints[1].x}
-          y2={projectedPoints[1].y}
-          stroke={displayColor}
-          strokeWidth="1"
-          strokeDasharray="5,5"
-          opacity="0.3"
-        />
-        <line
-          x1={projectedPoints[1].x}
-          y1={projectedPoints[1].y}
-          x2={projectedPoints[2].x}
-          y2={projectedPoints[2].y}
-          stroke={displayColor}
-          strokeWidth="1"
-          strokeDasharray="5,5"
-          opacity="0.3"
-        />
-        <line
-          x1={projectedPoints[2].x}
-          y1={projectedPoints[2].y}
-          x2={projectedPoints[3].x}
-          y2={projectedPoints[3].y}
-          stroke={displayColor}
-          strokeWidth="1"
-          strokeDasharray="5,5"
-          opacity="0.3"
-        />
-        <line
-          x1={projectedPoints[3].x}
-          y1={projectedPoints[3].y}
-          x2={projectedPoints[0].x}
-          y2={projectedPoints[0].y}
-          stroke={displayColor}
-          strokeWidth="1"
-          strokeDasharray="5,5"
-          opacity="0.3"
-        />
+        {renderVertebraCenterGeometry({
+          corners: vertebraCorners,
+          displayColor,
+          projectPoint: point => projectSpecialRenderPoint(point, context),
+          opacity: 0.3,
+          centerStroke: '#ffffff',
+        })}
         <line
           x1={center.x}
           y1={center.y}
@@ -102,15 +64,6 @@ export function renderSVA(
           stroke={displayColor}
           strokeWidth="2"
           strokeDasharray="3,3"
-        />
-        <circle
-          cx={center.x}
-          cy={center.y}
-          r="3"
-          fill={displayColor}
-          stroke="#ffffff"
-          strokeWidth="1"
-          opacity="0.8"
         />
         <line
           x1={point5.x}

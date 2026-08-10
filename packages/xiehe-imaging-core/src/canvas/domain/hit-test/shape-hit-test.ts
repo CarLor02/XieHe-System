@@ -168,7 +168,7 @@ export function isRectangleClicked(
  */
 export function isPolygonClicked(
   clickPoint: Point,
-  points: Point[],
+  points: readonly Point[],
   context: TransformContext,
   tolerance: number = CANVAS_INTERACTION_CONSTANTS.lineHitRadius
 ): boolean {

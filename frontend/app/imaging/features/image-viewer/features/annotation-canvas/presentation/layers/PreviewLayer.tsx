@@ -1,5 +1,5 @@
 import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { calculateQuadrilateralCenter } from '@/app/imaging/features/image-viewer/shared/geometry';
+import { renderVertebraCenterGeometry } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
 import { Point } from '@xiehe/imaging-core/contracts';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import renderPreview from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/renderPreview';
@@ -284,58 +284,43 @@ function renderStructuredPreview({
             opacity="0.8"
           />
         ))}
-        {screenPoints.slice(0, -1).map((point, index) => (
+        {screenPoints.length >= 2 && screenPoints.length < 4 && (
           <line
-            key={`vertebra-line-${index}`}
-            x1={point.x}
-            y1={point.y}
-            x2={screenPoints[index + 1].x}
-            y2={screenPoints[index + 1].y}
-            stroke="#10b981"
-            strokeWidth="2"
-            strokeDasharray="5,5"
-            opacity="0.6"
-          />
-        ))}
-        {screenPoints.length >= 3 && (
-          <line
-            key="vertebra-line-close"
-            x1={screenPoints[screenPoints.length - 1].x}
-            y1={screenPoints[screenPoints.length - 1].y}
-            x2={screenPoints[0].x}
-            y2={screenPoints[0].y}
+            x1={screenPoints[0].x}
+            y1={screenPoints[0].y}
+            x2={screenPoints[1].x}
+            y2={screenPoints[1].y}
             stroke="#10b981"
             strokeWidth="2"
             strokeDasharray="5,5"
             opacity="0.6"
           />
         )}
-        {clickedPoints.length === 4 &&
-          (() => {
-            const center = calculateQuadrilateralCenter(clickedPoints);
-            const centerScreen = imageToScreen(center);
-            return (
-              <g>
-                <circle
-                  cx={centerScreen.x}
-                  cy={centerScreen.y}
-                  r="6"
-                  fill="#10b981"
-                  opacity="0.5"
-                />
-                <text
-                  x={centerScreen.x}
-                  y={centerScreen.y - 12}
-                  fill="#10b981"
-                  fontSize="12"
-                  textAnchor="middle"
-                  opacity="0.7"
-                >
-                  中心
-                </text>
-              </g>
-            );
-          })()}
+        {screenPoints.length === 3 && (
+          <line
+            x1={screenPoints[0].x}
+            y1={screenPoints[0].y}
+            x2={screenPoints[2].x}
+            y2={screenPoints[2].y}
+            stroke="#10b981"
+            strokeWidth="2"
+            strokeDasharray="5,5"
+            opacity="0.6"
+          />
+        )}
+        {screenPoints.length === 4 &&
+          renderVertebraCenterGeometry({
+            corners: [
+              screenPoints[0],
+              screenPoints[1],
+              screenPoints[2],
+              screenPoints[3],
+            ],
+            displayColor: '#10b981',
+            strokeWidth: 2,
+            opacity: 0.6,
+            centerRadius: 6,
+          })}
       </>
     );
   }

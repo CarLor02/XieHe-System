@@ -17,6 +17,7 @@ import {
   type KeypointAnnotation,
 } from '../../../keypoints/domain';
 import { isLateralExamType } from '../../../shared/domain/anatomy';
+import { getVertebraCenterGeometry } from '../../../shared/domain/geometry';
 import type {
   MeasurementData,
   Point,
@@ -103,14 +104,8 @@ export function createTtsMeasurement({
   const lower = findDerivedVertebra(layer, lowerVertebra);
   if (!upper || !lower) return null;
 
-  const upperCenter = {
-    x: upper.corners.reduce((sum, point) => sum + point.x, 0) / 4,
-    y: upper.corners.reduce((sum, point) => sum + point.y, 0) / 4,
-  };
-  const lowerCenter = {
-    x: lower.corners.reduce((sum, point) => sum + point.x, 0) / 4,
-    y: lower.corners.reduce((sum, point) => sum + point.y, 0) / 4,
-  };
+  const upperCenter = getVertebraCenterGeometry(upper.corners).center;
+  const lowerCenter = getVertebraCenterGeometry(lower.corners).center;
   const points = [upperCenter, lowerCenter, sl.point, sr.point];
 
   return {

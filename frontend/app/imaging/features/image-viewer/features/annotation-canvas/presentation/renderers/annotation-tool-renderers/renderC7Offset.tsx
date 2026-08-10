@@ -1,12 +1,14 @@
 import type { JSX } from 'react';
 import type { Point } from '@xiehe/imaging-core/contracts';
 import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/types';
+import { getVertebraCenterGeometry } from '@xiehe/imaging-core/geometry';
 import {
   getSpecialRenderImagePoints,
   projectSpecialRenderPoint,
   projectSpecialRenderPoints,
   RENDER_IMAGE_LENGTHS,
 } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/annotationToolRendererUtils';
+import { renderVertebraCenterGeometry } from './renderVertebraCenterGeometry';
 
 /**
  * TS 渲染器（正面）：
@@ -105,28 +107,21 @@ export function renderC7Offset(
 
   const has4 = imagePoints.length >= 4;
   const has6 = imagePoints.length >= 6;
+  const vertebraCorners = has4
+    ? ([
+        imagePoints[0],
+        imagePoints[1],
+        imagePoints[2],
+        imagePoints[3],
+      ] as const)
+    : null;
+  const centerImage = vertebraCorners
+    ? getVertebraCenterGeometry(vertebraCorners).center
+    : imagePoints[0];
 
-  const centerX = has4
-    ? (imagePoints[0].x +
-        imagePoints[1].x +
-        imagePoints[2].x +
-        imagePoints[3].x) /
-      4
-    : imagePoints[0].x;
-  const centerY = has4
-    ? (imagePoints[0].y +
-        imagePoints[1].y +
-        imagePoints[2].y +
-        imagePoints[3].y) /
-      4
-    : imagePoints[0].y;
-
-  const centerPoint = projectSpecialRenderPoint(
-    { x: centerX, y: centerY },
-    context
-  );
+  const centerPoint = projectSpecialRenderPoint(centerImage, context);
   const centerGuideEnd = projectSpecialRenderPoint(
-    { x: centerX, y: centerY + height },
+    { x: centerImage.x, y: centerImage.y + height },
     context
   );
   const midX = has6 ? (imagePoints[4].x + imagePoints[5].x) / 2 : null;
@@ -142,57 +137,13 @@ export function renderC7Offset(
 
   return (
     <>
-      {has4 && (
-        <>
-          <line
-            x1={projectedPoints[0].x}
-            y1={projectedPoints[0].y}
-            x2={projectedPoints[1].x}
-            y2={projectedPoints[1].y}
-            stroke={displayColor}
-            strokeWidth="1"
-            strokeDasharray="5,5"
-            opacity="0.4"
-          />
-          <line
-            x1={projectedPoints[1].x}
-            y1={projectedPoints[1].y}
-            x2={projectedPoints[2].x}
-            y2={projectedPoints[2].y}
-            stroke={displayColor}
-            strokeWidth="1"
-            strokeDasharray="5,5"
-            opacity="0.4"
-          />
-          <line
-            x1={projectedPoints[2].x}
-            y1={projectedPoints[2].y}
-            x2={projectedPoints[3].x}
-            y2={projectedPoints[3].y}
-            stroke={displayColor}
-            strokeWidth="1"
-            strokeDasharray="5,5"
-            opacity="0.4"
-          />
-          <line
-            x1={projectedPoints[3].x}
-            y1={projectedPoints[3].y}
-            x2={projectedPoints[0].x}
-            y2={projectedPoints[0].y}
-            stroke={displayColor}
-            strokeWidth="1"
-            strokeDasharray="5,5"
-            opacity="0.4"
-          />
-          <circle
-            cx={centerPoint.x}
-            cy={centerPoint.y}
-            r="3"
-            fill={displayColor}
-            opacity="0.8"
-          />
-        </>
-      )}
+      {vertebraCorners &&
+        renderVertebraCenterGeometry({
+          corners: vertebraCorners,
+          displayColor,
+          projectPoint: point => projectSpecialRenderPoint(point, context),
+          opacity: 0.4,
+        })}
       <line
         x1={centerPoint.x}
         y1={centerPoint.y}

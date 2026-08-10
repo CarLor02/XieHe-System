@@ -1,4 +1,5 @@
 import type { MeasurementData, Point } from '../../../../../shared/domain/contracts';
+import { getVertebraCenterGeometry } from '../../../../../shared/domain/geometry';
 import {
   getAvtTargetKey,
   getAvtTargetLabel,
@@ -36,13 +37,6 @@ function midpoint(left: Point, right: Point): Point {
   return {
     x: (left.x + right.x) / 2,
     y: (left.y + right.y) / 2,
-  };
-}
-
-function centroid(points: Point[]): Point {
-  return {
-    x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
-    y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
   };
 }
 
@@ -104,7 +98,12 @@ export function getAvtGeometry(
     if (points.length < 6) return null;
     return {
       targetPoints: points.slice(0, 4),
-      targetCenter: centroid(points.slice(0, 4)),
+      targetCenter: getVertebraCenterGeometry([
+        points[0],
+        points[1],
+        points[2],
+        points[3],
+      ]).center,
       referencePoints: points.slice(4, 6),
       referenceCenter: midpoint(points[4], points[5]),
       referenceLine: 'csvl',
@@ -126,12 +125,22 @@ export function getAvtGeometry(
     targetPoints,
     targetCenter:
       metadata.target.type === 'vertebra'
-        ? centroid(targetPoints)
+        ? getVertebraCenterGeometry([
+            targetPoints[0],
+            targetPoints[1],
+            targetPoints[2],
+            targetPoints[3],
+          ]).center
         : midpoint(targetPoints[0], targetPoints[1]),
     referencePoints,
     referenceCenter:
       metadata.referenceLine === 'c7pl'
-        ? centroid(referencePoints)
+        ? getVertebraCenterGeometry([
+            referencePoints[0],
+            referencePoints[1],
+            referencePoints[2],
+            referencePoints[3],
+          ]).center
         : midpoint(referencePoints[0], referencePoints[1]),
     referenceLine: metadata.referenceLine,
     layout: definition.layout,

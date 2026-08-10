@@ -36,13 +36,14 @@ describe('AP manual tool calculations', () => {
       )[0].value
     ).toBe('50.00');
 
+    // 非规则四边形确保 TS 使用统一的对边中点连线交点规则。
     const vertebraAndSacrum = [
       { x: 0, y: 0 },
-      { x: 10, y: 0 },
-      { x: 0, y: 10 },
-      { x: 10, y: 10 },
-      { x: 10, y: 20 },
-      { x: 20, y: 20 },
+      { x: 8, y: 2 },
+      { x: 2, y: 10 },
+      { x: 14, y: 8 },
+      { x: 16, y: 20 },
+      { x: 16, y: 24 },
     ];
     expect(calculateTsResults(vertebraAndSacrum, context)[0].value).toBe(
       '-100.00'

@@ -4,6 +4,7 @@ import type {
 } from '../../../shared-rules';
 import { calculateActualDistance } from '../../../shared-rules';
 import {
+  getVertebraCenterGeometry,
   isPointNearLine,
   isPointNearPoint,
 } from '../../../../../shared/domain/geometry';
@@ -27,7 +28,12 @@ export function calculateTsResults(
     referenceX = points[1].x;
   } else if (points.length >= 6) {
     // 当前格式：[C7四角点, SL, SR]。
-    c7CenterX = points.slice(0, 4).reduce((sum, point) => sum + point.x, 0) / 4;
+    c7CenterX = getVertebraCenterGeometry([
+      points[0],
+      points[1],
+      points[2],
+      points[3],
+    ]).center.x;
     referenceX = (points[4].x + points[5].x) / 2;
   } else {
     return [];
@@ -62,10 +68,12 @@ export function isTsInRange(
     return true;
   }
 
-  const c7Center = {
-    x: points.slice(0, 4).reduce((sum, point) => sum + point.x, 0) / 4,
-    y: points.slice(0, 4).reduce((sum, point) => sum + point.y, 0) / 4,
-  };
+  const c7Center = getVertebraCenterGeometry([
+    points[0],
+    points[1],
+    points[2],
+    points[3],
+  ]).center;
   const referenceCenter = {
     x: (points[4].x + points[5].x) / 2,
     y: (points[4].y + points[5].y) / 2,

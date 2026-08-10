@@ -12,6 +12,7 @@ import {
   isSacralEndplateKeypointLabel,
   isVertebraCornerKeypointLabel,
 } from '@xiehe/imaging-core/keypoints';
+import { getVertebraCenterGeometry } from '@xiehe/imaging-core/geometry';
 
 interface CornerRef {
   label: string;
@@ -318,8 +319,11 @@ export default function VertebraeLayer({
         // 椎体：4角框 + 4角点小圆
         const [tl, tr, bl, br] = vertebra.corners.map(imageToScreen);
         const polyPts = [tl, tr, br, bl].map(p => `${p.x},${p.y}`).join(' ');
-        const cx = (tl.x + tr.x + bl.x + br.x) / 4;
-        const cy = (tl.y + tr.y + bl.y + br.y) / 4;
+        const center = imageToScreen(
+          getVertebraCenterGeometry(vertebra.corners).center
+        );
+        const cx = center.x;
+        const cy = center.y;
         const isAnyCornerHovered = hoveredCorner?.label === vertebra.label;
         const isAnyCornerActive = activeCorner?.label === vertebra.label;
         const isAnyCornerSelected = [0, 1, 2, 3].some(index =>

@@ -1,6 +1,7 @@
 import type { MeasurementResult } from '../../../shared-rules';
-import { calculateAngleBetweenVectors } from '../../../../../shared/domain/geometry';
 import {
+  calculateAngleBetweenVectors,
+  getVertebraCenterGeometry,
   isPointNearLine,
   isPointNearPoint,
 } from '../../../../../shared/domain/geometry';
@@ -18,10 +19,12 @@ import type { Point } from '../../../../../shared/domain/contracts';
  */
 export function getTpaGeometry(points: Point[]) {
   if (points.length < 7) return null;
-  const t1Center = {
-    x: points.slice(0, 4).reduce((sum, point) => sum + point.x, 0) / 4,
-    y: points.slice(0, 4).reduce((sum, point) => sum + point.y, 0) / 4,
-  };
+  const t1Center = getVertebraCenterGeometry([
+    points[0],
+    points[1],
+    points[2],
+    points[3],
+  ]).center;
   const bilateralPelvicPoints = extractBilateralPelvicPoints('tpa', points);
   if (bilateralPelvicPoints) {
     const pelvicGeometry = getPelvicMeasurementGeometry(bilateralPelvicPoints);

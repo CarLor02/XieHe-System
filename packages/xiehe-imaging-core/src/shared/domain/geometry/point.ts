@@ -92,7 +92,7 @@ export function getBoundingBox(points: readonly Point[]): BoundingBox {
   );
 }
 
-/** 返回点集的算术中心；四点椎体中心也遵循同一规则。 */
+/** 返回通用点集的算术中心；椎体中心应使用 getVertebraCenterGeometry。 */
 export function calculatePointsCentroid(points: readonly Point[]): Point {
   if (points.length === 0) return { x: 0, y: 0 };
 

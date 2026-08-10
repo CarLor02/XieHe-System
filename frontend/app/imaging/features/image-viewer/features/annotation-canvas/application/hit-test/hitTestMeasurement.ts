@@ -8,7 +8,7 @@ import {
 import { isAuxiliaryShape } from '@xiehe/imaging-core/canvas';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { isEditableAuxiliaryAnnotationType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import { calculateQuadrilateralCenter } from '@/app/imaging/features/image-viewer/shared/geometry';
+import { getVertebraCenterGeometry } from '@xiehe/imaging-core/geometry';
 import {
   MeasurementData,
   Point,
@@ -112,14 +112,33 @@ function hitTestMeasurementShape(
   }
 
   if (typeId === 'vertebra-center' && measurement.points.length === 4) {
+    const geometry = getVertebraCenterGeometry([
+      measurement.points[0],
+      measurement.points[1],
+      measurement.points[2],
+      measurement.points[3],
+    ]);
     if (
-      isPolygonClicked(screenPoint, measurement.points, context, lineRadius)
+      isPolygonClicked(screenPoint, geometry.perimeter, context, lineRadius) ||
+      isLineClicked(
+        screenPoint,
+        geometry.topBottomMidline[0],
+        geometry.topBottomMidline[1],
+        context,
+        lineRadius
+      ) ||
+      isLineClicked(
+        screenPoint,
+        geometry.leftRightMidline[0],
+        geometry.leftRightMidline[1],
+        context,
+        lineRadius
+      )
     ) {
       return true;
     }
 
-    const center = calculateQuadrilateralCenter(measurement.points);
-    const centerScreen = imageToScreen(center);
+    const centerScreen = imageToScreen(geometry.center);
 
     return (
       Math.hypot(

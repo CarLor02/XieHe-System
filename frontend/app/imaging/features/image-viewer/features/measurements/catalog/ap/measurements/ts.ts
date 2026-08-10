@@ -4,6 +4,7 @@ import {
   isTsInRange,
 } from '@xiehe/imaging-core/measurements/ap';
 import type { Point } from '@xiehe/imaging-core/contracts';
+import { getVertebraCenterGeometry } from '@xiehe/imaging-core/geometry';
 
 export const TS_CONFIG: AnnotationConfig = {
   id: 'ts',
@@ -30,13 +31,17 @@ export const TS_CONFIG: AnnotationConfig = {
 
     // 6点模式：[tl(0), tr(1), bl(2), br(3), SR(4), SL(5)]
     // 锚点 X = 4个C7角点中最大的 X（C7锥体右边缘）
-    // 锚点 Y = 4个C7角点 Y 的均值（C7锥体垂直中心）
-    // 使用4个角点均值而非仅右侧两点，使锚点对角点顺序不敏感，避免跳动
+    // 锚点 Y = C7 两条对边中点连线交点的 Y
     // fixedLabelPosition:true 保证不被智能避让推走
     const boxPoints = [points[0], points[1], points[2], points[3]];
     const maxX = Math.max(...boxPoints.map(p => p.x));
-    const centerY = boxPoints.reduce((sum, p) => sum + p.y, 0) / 4;
-    return { x: maxX, y: centerY };
+    const center = getVertebraCenterGeometry([
+      points[0],
+      points[1],
+      points[2],
+      points[3],
+    ]).center;
+    return { x: maxX, y: center.y };
   },
 
   isInHoverRange: isTsInRange,

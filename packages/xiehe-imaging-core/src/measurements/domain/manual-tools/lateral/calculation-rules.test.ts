@@ -5,7 +5,7 @@ import { calculatePtResults } from './pt';
 import { calculateSsResults } from './ss';
 import { calculateSvaResults } from './sva';
 import { calculateT1SlopeResults } from './t1-slope';
-import { calculateTpaResults } from './tpa';
+import { calculateTpaResults, getTpaGeometry } from './tpa';
 
 const context = {
   standardDistance: 100,
@@ -35,10 +35,10 @@ describe('lateral manual tool calculations', () => {
   it('preserves SVA sign convention', () => {
     const points = [
       { x: 0, y: 0 },
-      { x: 10, y: 0 },
-      { x: 0, y: 10 },
-      { x: 10, y: 10 },
-      { x: 15, y: 20 },
+      { x: 8, y: 2 },
+      { x: 2, y: 10 },
+      { x: 14, y: 8 },
+      { x: 16, y: 20 },
     ];
     expect(calculateSvaResults(points, context)[0].value).toBe('100.00');
   });
@@ -62,6 +62,15 @@ describe('lateral manual tool calculations', () => {
       { x: 11, y: 0 },
     ];
     expect(calculateTpaResults(tpaPoints)[0].value).toBe('90.00');
+
+    const skewTpaGeometry = getTpaGeometry([
+      { x: 0, y: 0 },
+      { x: 8, y: 2 },
+      { x: 2, y: 10 },
+      { x: 14, y: 8 },
+      ...tpaPoints.slice(4),
+    ]);
+    expect(skewTpaGeometry?.t1Center).toEqual({ x: 6, y: 5 });
 
     const bilateralTpaPoints = [
       ...tpaPoints.slice(0, 4),

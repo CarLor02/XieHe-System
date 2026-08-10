@@ -6,6 +6,7 @@ import {
 } from '../../keypoints/domain';
 import { getAnnotationTypeId } from '../../measurements/domain';
 import type { MeasurementData, Point } from '../../shared/domain/contracts';
+import { getVertebraCenterGeometry } from '../../shared/domain/geometry';
 import { getMeasurementKeypointBindingRuleForMeasurement } from './measurement-keypoint-binding';
 
 const POINT_MATCH_TOLERANCE = 0.5;
@@ -19,13 +20,6 @@ function isNearPoint(left: Point, right: Point): boolean {
 
 function isNearX(left: number, right: number): boolean {
   return Math.abs(left - right) <= POINT_MATCH_TOLERANCE;
-}
-
-function getCentroid(points: Point[]): Point {
-  return {
-    x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
-    y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
-  };
 }
 
 function getVertebraGroup(id: string): string | null {
@@ -101,7 +95,12 @@ function findVertebraGroupAtCenter(
   groups: Map<string, KeypointAnnotation[]>
 ): KeypointAnnotation[] | null {
   for (const groupKeypoints of groups.values()) {
-    const center = getCentroid(groupKeypoints.map(keypoint => keypoint.point));
+    const center = getVertebraCenterGeometry([
+      groupKeypoints[0].point,
+      groupKeypoints[1].point,
+      groupKeypoints[2].point,
+      groupKeypoints[3].point,
+    ]).center;
     if (isNearPoint(point, center)) {
       return groupKeypoints;
     }
@@ -135,9 +134,12 @@ export function resolveMeasurementKeypointIds(
     }
 
     for (const [group, groupKeypoints] of completeGroups) {
-      const center = getCentroid(
-        groupKeypoints.map(keypoint => keypoint.point)
-      );
+      const center = getVertebraCenterGeometry([
+        groupKeypoints[0].point,
+        groupKeypoints[1].point,
+        groupKeypoints[2].point,
+        groupKeypoints[3].point,
+      ]).center;
       if (isNearPoint(measurementPoint, center)) {
         addVertebraGroup(selected, completeGroups, group);
       }

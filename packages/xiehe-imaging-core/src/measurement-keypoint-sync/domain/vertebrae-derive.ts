@@ -30,13 +30,6 @@ function midpoint(a: Point, b: Point): Point {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
-function centroid(...pts: Point[]): Point {
-  return {
-    x: pts.reduce((s, p) => s + p.x, 0) / pts.length,
-    y: pts.reduce((s, p) => s + p.y, 0) / pts.length,
-  };
-}
-
 function makeMeasurement(type: string, points: Point[]): MeasurementData {
   return {
     id: `vertebrae-derived-${type.toLowerCase().replace(/[\s/]+/g, '-')}`,
@@ -54,7 +47,6 @@ interface Endplates {
   // measurement point 1/2 对应关键点 1/2，point 3/4 对应关键点 3/4。
   upper: [Point, Point]; // [Tn-1, Tn-2]
   lower: [Point, Point]; // [Tn-3, Tn-4]
-  center: Point;
 }
 
 function extractEndplateLateral(
@@ -63,7 +55,6 @@ function extractEndplateLateral(
   return {
     upper: [corners[0], corners[1]],
     lower: [corners[2], corners[3]],
-    center: centroid(...corners),
   };
 }
 
@@ -182,7 +173,6 @@ interface FrontalCorners {
   bottomRight: Point;
   topMid: Point;
   bottomMid: Point;
-  center: Point;
 }
 
 const VERTEBRA_ORDER = [
@@ -229,7 +219,6 @@ function buildFrontalCorners(v: VertebraAnnotation): FrontalCorners {
     bottomRight: br,
     topMid: midpoint(tl, tr),
     bottomMid: midpoint(bl, br),
-    center: centroid(tl, tr, bl, br),
   };
 }
 

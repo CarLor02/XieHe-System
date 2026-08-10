@@ -85,6 +85,54 @@ describe('L/R measurement hit testing', () => {
   });
 });
 
+describe('vertebra-center hit testing', () => {
+  const options = {
+    measurements: [
+      {
+        id: 'vertebra-center-t1',
+        type: 'vertebra-center',
+        value: '',
+        points: [
+          { x: 0, y: 0 },
+          { x: 8, y: 2 },
+          { x: 2, y: 10 },
+          { x: 14, y: 8 },
+        ],
+      },
+    ],
+    imageScale: 1,
+    imageToScreen: (point: { x: number; y: number }) => point,
+    context: {
+      imageNaturalSize: null,
+      imagePosition: { x: 0, y: 0 },
+      imageScale: 1,
+      containerSize: null,
+    },
+  };
+
+  it('selects the corrected perimeter instead of the persisted array order', () => {
+    expect(
+      hitTestMeasurement({
+        ...options,
+        screenPoint: { x: 9.5, y: 3.5 },
+        pointRadius: 0.5,
+        lineRadius: 0.5,
+      })
+    ).toEqual({ kind: 'whole', measurementId: 'vertebra-center-t1' });
+  });
+
+  it('selects an edge-midpoint cross line', () => {
+    expect(
+      hitTestMeasurement({
+        ...options,
+        screenPoint: { x: 6, y: 5 },
+        pointRadius: 0.5,
+        lineRadius: 0.5,
+      })
+    ).toEqual({ kind: 'whole', measurementId: 'vertebra-center-t1' });
+  });
+});
+
 describe('manual TTS measurement hit testing', () => {
   const measurement = {
     id: 'manual-tts',

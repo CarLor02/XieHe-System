@@ -1,4 +1,5 @@
 import type { MeasurementData, Point } from '../../../shared/domain/contracts';
+import { getVertebraCenterGeometry } from '../../../shared/domain/geometry';
 
 import { calculateCobbResults } from '../cobb';
 import type { CalculationContext, MeasurementResult } from '../calculation-types';
@@ -170,18 +171,9 @@ function calculateResolvedMeasurement(
         return calculatePtResultsFromGeometry(resolvedMeasurement.geometry);
       }
       if (!resolvedMeasurement.t1Points) return [];
-      const t1Center = {
-        x:
-          resolvedMeasurement.t1Points.reduce(
-            (sum, point) => sum + point.x,
-            0
-          ) / 4,
-        y:
-          resolvedMeasurement.t1Points.reduce(
-            (sum, point) => sum + point.y,
-            0
-          ) / 4,
-      };
+      const t1Center = getVertebraCenterGeometry(
+        resolvedMeasurement.t1Points
+      ).center;
       return calculateTpaResultsFromGeometry(
         t1Center,
         resolvedMeasurement.geometry

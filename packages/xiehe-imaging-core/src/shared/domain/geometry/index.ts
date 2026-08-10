@@ -17,3 +17,8 @@ export {
   toAcuteAngle,
 } from './point';
 export type { BoundingBox } from './point';
+export {
+  getVertebraCenterGeometry,
+  type VertebraCenterGeometry,
+  type VertebraCorners,
+} from './vertebra-center';

@@ -29,6 +29,7 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
 import { getAvtLabelPosition } from '@xiehe/imaging-core/measurements/ap';
 import { renderAvtMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
+import { renderVertebraCenterGeometry } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
 import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@xiehe/imaging-core/canvas';
 import { imageToScreen } from '@xiehe/imaging-core/canvas';
 import { getAdaptiveFontSize } from '@/app/imaging/features/image-viewer/shared/constants';
@@ -372,79 +373,17 @@ function renderAuxiliaryShape(
   }
 
   if (typeId === 'vertebra-center' && screenPoints.length === 4) {
-    const centerScreen = {
-      x:
-        (screenPoints[0].x +
-          screenPoints[1].x +
-          screenPoints[2].x +
-          screenPoints[3].x) /
-        4,
-      y:
-        (screenPoints[0].y +
-          screenPoints[1].y +
-          screenPoints[2].y +
-          screenPoints[3].y) /
-        4,
-    };
-
-    return (
-      <g>
-        <polygon
-          points={screenPoints.map(point => `${point.x},${point.y}`).join(' ')}
-          fill="none"
-          stroke={displayColor}
-          strokeWidth={
-            isMeasurementSelected || isMeasurementHovered ? '3' : '2'
-          }
-          opacity={isMeasurementSelected || isMeasurementHovered ? '1' : '0.6'}
-        />
-        <circle
-          cx={centerScreen.x}
-          cy={centerScreen.y}
-          r="8"
-          fill="none"
-          stroke={displayColor}
-          strokeWidth="2"
-          opacity="0.9"
-        />
-        <circle
-          cx={centerScreen.x}
-          cy={centerScreen.y}
-          r="3"
-          fill={displayColor}
-          opacity="0.9"
-        />
-        <line
-          x1={centerScreen.x - 12}
-          y1={centerScreen.y}
-          x2={centerScreen.x + 12}
-          y2={centerScreen.y}
-          stroke={displayColor}
-          strokeWidth="2"
-          opacity="0.9"
-        />
-        <line
-          x1={centerScreen.x}
-          y1={centerScreen.y - 12}
-          x2={centerScreen.x}
-          y2={centerScreen.y + 12}
-          stroke={displayColor}
-          strokeWidth="2"
-          opacity="0.9"
-        />
-        <text
-          x={centerScreen.x}
-          y={centerScreen.y - 18}
-          fill={displayColor}
-          fontSize="14"
-          fontWeight="bold"
-          textAnchor="middle"
-          opacity="0.9"
-        >
-          中心
-        </text>
-      </g>
-    );
+    return renderVertebraCenterGeometry({
+      corners: [
+        screenPoints[0],
+        screenPoints[1],
+        screenPoints[2],
+        screenPoints[3],
+      ],
+      displayColor,
+      strokeWidth: isMeasurementSelected || isMeasurementHovered ? 3 : 2,
+      opacity: isMeasurementSelected || isMeasurementHovered ? 1 : 0.6,
+    });
   }
 
   if (typeId === 'aux-length' && screenPoints.length === 2) {

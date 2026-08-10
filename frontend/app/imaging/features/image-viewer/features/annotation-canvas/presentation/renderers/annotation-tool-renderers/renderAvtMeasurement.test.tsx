@@ -76,7 +76,10 @@ it('renders both target vertebra and C7 reference outlines for C7PL', () => {
     </svg>
   );
 
-  expect(container.querySelectorAll('polygon')).toHaveLength(2);
-  expect(container.querySelectorAll('line')).toHaveLength(2);
+  expect(container.querySelectorAll('polygon')).toHaveLength(0);
+  expect(container.querySelectorAll('line')).toHaveLength(14);
   expect(container.querySelectorAll('circle')).toHaveLength(2);
+  expect(
+    container.querySelectorAll('[data-vertebra-center-geometry="true"]')
+  ).toHaveLength(2);
 });

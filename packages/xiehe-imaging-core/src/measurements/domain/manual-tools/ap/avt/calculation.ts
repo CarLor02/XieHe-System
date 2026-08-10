@@ -2,6 +2,7 @@ import type { MeasurementData, Point } from '../../../../../shared/domain/contra
 import type { CalculationContext } from '../../../shared-rules';
 import type { MeasurementResult } from '../../../shared-rules';
 import { calculateActualDistance } from '../../../shared-rules';
+import { getVertebraCenterGeometry } from '../../../../../shared/domain/geometry';
 import { getAvtGeometry } from './measurement-geometry';
 
 type AvtMeasurementLike = Pick<
@@ -38,7 +39,12 @@ export function calculateLegacyAvtResults(
   if (points.length < 2) return [];
   const targetX =
     points.length >= 6
-      ? points.slice(0, 4).reduce((sum, point) => sum + point.x, 0) / 4
+      ? getVertebraCenterGeometry([
+          points[0],
+          points[1],
+          points[2],
+          points[3],
+        ]).center.x
       : points[0].x;
   const referenceX =
     points.length >= 6 ? (points[4].x + points[5].x) / 2 : points[1].x;
