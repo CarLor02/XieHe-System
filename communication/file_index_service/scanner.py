@@ -70,6 +70,9 @@ def scan_once(db: Session) -> ScanResult:
             continue
         if file_path.suffix.lower() in settings.skip_extensions:
             continue
+        # 白名单过滤：若配置了允许扩展名，则只扫描这些扩展名的文件
+        if settings.allowed_extensions and file_path.suffix.lower() not in settings.allowed_extensions:
+            continue
 
         abs_path = str(file_path.resolve())
         seen_paths.add(abs_path)

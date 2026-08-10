@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -154,7 +154,7 @@
     <div class="container">
         <div class="header">
             <h1>文件索引服务</h1>
-            <p>DICOM 文件扫描与同步配置</p>
+            <p>图像文件扫描与同步配置</p>
         </div>
         <div class="content">
             <div class="status">
@@ -173,17 +173,17 @@
             <div class="form-group">
                 <label for="watchPath">扫描目录</label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="watchPath" placeholder="/path/to/dicom/files" style="flex: 1;">
+                    <input type="text" id="watchPath" placeholder="D:\PictureSave" style="flex: 1;">
                     <button class="btn btn-secondary" onclick="selectDirectory()" style="flex: 0 0 auto; padding: 12px 20px;">
                         📁 浏览
                     </button>
                 </div>
-                <div class="hint">DICOM 文件存放的目录（绝对路径）</div>
+                <div class="hint">图像文件存放的目录（绝对路径）</div>
                 <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="quick-path" onclick="setPath('~/Documents/dicom_data')">📂 Documents/dicom_data</button>
-                    <button class="quick-path" onclick="setPath('~/Desktop/dicom_files')">📂 Desktop/dicom_files</button>
-                    <button class="quick-path" onclick="setPath('/Volumes/USB/dicom')">💾 USB/dicom</button>
-                    <button class="quick-path" onclick="setPath('~/Documents/code/spine/MeshAlign/XieHe-System/communication/data')">📂 默认测试目录</button>
+                    <button class="quick-path" onclick="setPath('D:\\PictureSave')">📂 D:\PictureSave</button>
+                    <button class="quick-path" onclick="setPath('D:\\PictureSave\\dicom')">📂 D:\PictureSave\dicom</button>
+                    <button class="quick-path" onclick="setPath('E:\\PictureSave')">💾 E:\PictureSave</button>
+                    <button class="quick-path" onclick="setPath('C:\\Users\\Public\\Pictures')">📂 C:\Users\Public\Pictures</button>
                 </div>
             </div>
 
@@ -300,7 +300,7 @@
                 // 尝试智能补全
                 const currentPath = document.getElementById('watchPath').value;
                 if (currentPath && !currentPath.endsWith(dirName)) {
-                    document.getElementById('watchPath').value = currentPath.replace(/\/$/, '') + '/' + dirName;
+                    document.getElementById('watchPath').value = currentPath.replace(/[\\\/]$/, '') + '\\' + dirName;
                 } else if (!currentPath) {
                     document.getElementById('watchPath').placeholder = `请输入完整路径，包含: ${dirName}`;
                 }
