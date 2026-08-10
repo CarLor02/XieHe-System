@@ -12,6 +12,8 @@
     "packages/*"
   ],
   "scripts": {
+    "type-check:api": "npm run type-check --workspace @xiehe/api-client",
+    "test:api": "npm run test --workspace @xiehe/api-client",
     "type-check:core": "npm run type-check --workspace @xiehe/imaging-core",
     "test:core": "npm run test --workspace @xiehe/imaging-core",
     "type-check:web": "npm run type-check --workspace medical-imaging-frontend",
@@ -21,6 +23,7 @@
     "type-check:mobile": "npm run type-check --workspace @xiehe/mobile-expo",
     "export:mobile": "npm run export --workspace @xiehe/mobile-expo",
     "verify:core": "npm run type-check:core && npm run test:core",
+    "verify:api": "npm run type-check:api && npm run test:api",
     "verify:web": "npm run type-check:web && npm run test:web && npm run build:web"
   },
   "devDependencies": {
