@@ -154,13 +154,17 @@ describe('image file list filters', () => {
     jest.doMock('@/infrastructure/http', () => ({ apiClient: { put } }));
     const { saveImageAnnotation } = await import('../imageFileService');
 
-    const result = await saveImageAnnotation(8, 3, {
-      measurements: [{ id: 'm1' }],
-    });
+    const annotation = {
+      schemaVersion: 1 as const,
+      measurements: [{ id: 'm1', type: 'length', value: '10mm', points: [] }],
+      standardDistance: null,
+      standardDistancePoints: null,
+    };
+    const result = await saveImageAnnotation(8, 3, annotation);
 
     expect(put).toHaveBeenCalledWith('/api/v1/image-files/8/annotation', {
       expected_version: 3,
-      annotation: { measurements: [{ id: 'm1' }] },
+      annotation,
     });
     expect(result.annotation_version).toBe(4);
 

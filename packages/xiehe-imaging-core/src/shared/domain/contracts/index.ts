@@ -1,5 +1,4 @@
 export type {
-  AnnotationData,
   CfhAnnotation,
   MeasurementData,
   VertebraAnnotation,

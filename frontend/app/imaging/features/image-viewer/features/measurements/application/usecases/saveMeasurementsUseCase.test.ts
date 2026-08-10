@@ -1,10 +1,7 @@
 import { afterEach, beforeEach, expect, it, jest } from '@jest/globals';
 
 import { AnnotationSource } from '@xiehe/imaging-core/contracts';
-import type {
-  Point,
-  VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
+import type { Point, VertebraAnnotation } from '@xiehe/imaging-core/contracts';
 import type { saveImageAnnotation } from '@/services/imageServices';
 import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 
@@ -163,8 +160,10 @@ it('keeps dynamic measurement metadata in the local maintenance backup', async (
   );
 
   const backup = JSON.parse(localStorage.getItem('annotations_899') ?? '{}');
+  expect(backup.schemaVersion).toBe(1);
   expect(backup.measurements[0]).toMatchObject({
     id: 'ap-keypoint-avt-disc-t12-l1',
+    value: '-40.00mm',
     apexVertebra: null,
     keypointSynced: true,
     avtMetadata: {
@@ -185,4 +184,5 @@ it('keeps dynamic measurement metadata in the local maintenance backup', async (
       femoralHeadMode: 'bilateral',
     },
   });
+  expect(mockedSaveImageAnnotation.mock.calls.at(-1)?.[2]).toEqual(backup);
 });

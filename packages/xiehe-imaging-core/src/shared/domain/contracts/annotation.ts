@@ -1,5 +1,5 @@
 import type { AvtMetadata } from './avt';
-import type { ImageSize, Point } from './geometry';
+import type { Point } from './geometry';
 import type { PelvicMeasurementMetadata } from './pelvic';
 
 export enum AnnotationSource {
@@ -39,16 +39,4 @@ export interface CfhAnnotation {
   center: Point;
   confidence: number;
   source: AnnotationSource;
-}
-
-/** api/v1/image-files/{id} 中 annotation JSON 的跨端契约。 */
-export interface AnnotationData extends ImageSize {
-  measurements: MeasurementData[];
-  standardDistance: number;
-  standardDistancePoints: Point[];
-  /** v2 只保存用户显式创建的手动绑定，读取边界负责迁移历史结构。 */
-  pointBindings?: unknown;
-  savedAt: string;
-  vertebraeLayer?: VertebraAnnotation[];
-  cfhAnnotation?: CfhAnnotation | null;
 }

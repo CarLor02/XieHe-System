@@ -12,6 +12,7 @@ import {
 } from '@/infrastructure/http';
 import type { TeamSummary } from '@/services/teamService';
 import { createLogger } from '@/lib/logger';
+import type { AnnotationDocument } from '@xiehe/imaging-core/annotation-document';
 
 const logger = createLogger('services.imageServices.imageFileService');
 
@@ -449,7 +450,7 @@ export interface AnnotationSaveResult {
 export async function saveImageAnnotation(
   fileId: number,
   expectedVersion: number,
-  annotation: ImageAnnotationJson
+  annotation: AnnotationDocument
 ): Promise<AnnotationSaveResult> {
   return apiClient.put<AnnotationSaveResult>(
     `/api/v1/image-files/${fileId}/annotation`,

@@ -3,7 +3,6 @@
  * 统一管理所有相关的 TypeScript 类型和接口
  */
 
-import type { Point } from '@xiehe/imaging-core/contracts';
 import type { AiMeasurementInput } from '@xiehe/imaging-core/ai';
 
 export interface KeypointSequenceSession {
