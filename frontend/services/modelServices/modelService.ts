@@ -1,5 +1,4 @@
-import { apiClient } from '@/lib/api';
-import { extractData, extractPaginatedData } from '@/lib/api/types';
+import { apiClient, normalizeLegacyPagination } from '@/infrastructure/http';
 import {
   CreateModelRequest,
   DeleteModelResult,
@@ -9,45 +8,48 @@ import {
   ModelStats,
 } from './types';
 
-export async function getModels(params: {
-  page?: number;
-  page_size?: number;
-  view_type?: string;
-  search?: string;
-} = {}): Promise<ModelListResult> {
-  const response = await apiClient.get('/api/v1/models/', { params });
-  return extractPaginatedData<ModelItem>(response);
+export async function getModels(
+  params: {
+    page?: number;
+    page_size?: number;
+    view_type?: string;
+    search?: string;
+  } = {}
+): Promise<ModelListResult> {
+  const data = await apiClient.get<unknown>('/api/v1/models/', { params });
+  return normalizeLegacyPagination<ModelItem>(data);
 }
 
 export async function getModelStats(): Promise<ModelStats> {
-  const response = await apiClient.get('/api/v1/models/stats');
-  return extractData<ModelStats>(response);
+  return apiClient.get<ModelStats>('/api/v1/models/stats');
 }
 
 export async function createModel(
   payload: CreateModelRequest
 ): Promise<ModelItem> {
-  const response = await apiClient.post('/api/v1/models/', payload);
-  return extractData<ModelItem>(response);
+  return apiClient.post<ModelItem, CreateModelRequest>(
+    '/api/v1/models/',
+    payload
+  );
 }
 
 export async function activateModel(modelId: string): Promise<void> {
-  await apiClient.post(`/api/v1/models/${modelId}/activate`);
+  await apiClient.post<void>(`/api/v1/models/${modelId}/activate`);
 }
 
 export async function deleteModel(modelId: string): Promise<DeleteModelResult> {
-  const response = await apiClient.delete(`/api/v1/models/${modelId}`);
-  return extractData<DeleteModelResult>(response);
+  return apiClient.delete<DeleteModelResult>(`/api/v1/models/${modelId}`);
 }
 
 export async function getModelConfiguration(): Promise<ModelConfiguration> {
-  const response = await apiClient.get('/api/v1/models/configuration');
-  return extractData<ModelConfiguration>(response);
+  return apiClient.get<ModelConfiguration>('/api/v1/models/configuration');
 }
 
 export async function updateModelConfiguration(
   payload: ModelConfiguration
 ): Promise<ModelConfiguration> {
-  const response = await apiClient.put('/api/v1/models/configuration', payload);
-  return extractData<ModelConfiguration>(response);
+  return apiClient.put<ModelConfiguration, ModelConfiguration>(
+    '/api/v1/models/configuration',
+    payload
+  );
 }

@@ -5,8 +5,11 @@
  * 基于新的 image_files 表
  */
 
-import {apiClient} from '@/lib/api';
-import {extractData, extractPaginatedData} from '@/lib/api/types';
+import {
+  apiClient,
+  normalizeLegacyPagination,
+  objectStorageClient,
+} from '@/infrastructure/http';
 import type { TeamSummary } from '@/services/teamService';
 import { createLogger } from '@/lib/logger';
 
@@ -162,11 +165,12 @@ export async function getImageFiles(
   if (filters.start_date) params.start_date = filters.start_date;
   if (filters.end_date) params.end_date = filters.end_date;
   if (filters.search) params.search = filters.search;
-  if (filters.uploaded_by !== undefined) params.uploaded_by = filters.uploaded_by;
+  if (filters.uploaded_by !== undefined)
+    params.uploaded_by = filters.uploaded_by;
   if (filters.team_ids?.length) params.team_ids = filters.team_ids.join(',');
 
-  const response = await apiClient.get('/api/v1/image-files', { params });
-  const result = extractPaginatedData<ImageFile>(response);
+  const data = await apiClient.get<unknown>('/api/v1/image-files', { params });
+  const result = normalizeLegacyPagination<ImageFile>(data);
 
   return {
     total: result.total,
@@ -186,10 +190,10 @@ export async function getVisibleImageUploaders(
 
   if (filters.search) params.search = filters.search;
 
-  const response = await apiClient.get('/api/v1/image-files/uploaders', {
+  const data = await apiClient.get<unknown>('/api/v1/image-files/uploaders', {
     params,
   });
-  return extractPaginatedData<ImageUploader>(response);
+  return normalizeLegacyPagination<ImageUploader>(data);
 }
 
 export async function getAssignableImageTeams(
@@ -202,10 +206,13 @@ export async function getAssignableImageTeams(
 
   if (filters.search) params.search = filters.search;
 
-  const response = await apiClient.get('/api/v1/image-files/assignable-teams', {
-    params,
-  });
-  return extractPaginatedData<TeamSummary>(response);
+  const data = await apiClient.get<unknown>(
+    '/api/v1/image-files/assignable-teams',
+    {
+      params,
+    }
+  );
+  return normalizeLegacyPagination<TeamSummary>(data);
 }
 
 export async function getAllImageFiles(
@@ -244,13 +251,13 @@ export async function getPatientImages(
   page = 1,
   pageSize = 20
 ): Promise<ImageFileListResponse> {
-  const response = await apiClient.get(
+  const data = await apiClient.get<unknown>(
     `/api/v1/image-files/patient/${patientId}`,
     {
       params: { page, page_size: pageSize },
     }
   );
-  const result = extractPaginatedData<ImageFile>(response);
+  const result = normalizeLegacyPagination<ImageFile>(data);
 
   return {
     total: result.total,
@@ -264,13 +271,14 @@ export async function getPatientImages(
  * 获取影像文件详情
  */
 export async function getImageFile(fileId: number): Promise<ImageFileDetail> {
-  const response = await apiClient.get(`/api/v1/image-files/${fileId}`);
-  return extractData<ImageFileDetail>(response);
+  return apiClient.get<ImageFileDetail>(`/api/v1/image-files/${fileId}`);
 }
 
 export async function getImageNavigationIds(): Promise<number[]> {
-  const response = await apiClient.get('/api/v1/image-files/navigation');
-  return extractData<{ ids: number[] }>(response).ids;
+  const data = await apiClient.get<{ ids: number[] }>(
+    '/api/v1/image-files/navigation'
+  );
+  return data.ids;
 }
 
 export interface ImageAnnotationBatchItem {
@@ -286,13 +294,11 @@ export async function getImageAnnotations(
   const uniqueIds = Array.from(new Set(ids));
   const items: ImageAnnotationBatchItem[] = [];
   for (let offset = 0; offset < uniqueIds.length; offset += 100) {
-    const response = await apiClient.post(
+    const data = await apiClient.post<{ items: ImageAnnotationBatchItem[] }>(
       '/api/v1/image-files/annotations/batch',
       { ids: uniqueIds.slice(offset, offset + 100) }
     );
-    items.push(
-      ...extractData<{ items: ImageAnnotationBatchItem[] }>(response).items
-    );
+    items.push(...data.items);
   }
   return items;
 }
@@ -305,19 +311,20 @@ export async function downloadImageFile(
   options: { signal?: AbortSignal } = {}
 ): Promise<Blob> {
   const download = await getImageFileDownloadUrl(fileId);
-  const response = await apiClient.get(download.url, {
+  return objectStorageClient.get<Blob>(download.url, {
     responseType: 'blob',
     signal: options.signal,
-    _skipAuthRefresh: true,
-  } as any);
-  return response.data;
+    auth: 'none',
+    responseMode: 'raw',
+  });
 }
 
 export async function getImageFileDownloadUrl(
   fileId: number
 ): Promise<ImageFileDownloadUrl> {
-  const response = await apiClient.get(`/api/v1/image-files/${fileId}/download-url`);
-  return extractData<ImageFileDownloadUrl>(response);
+  return apiClient.get<ImageFileDownloadUrl>(
+    `/api/v1/image-files/${fileId}/download-url`
+  );
 }
 
 export async function getImageFileDownloadUrls(
@@ -331,7 +338,7 @@ export async function getImageFileDownloadUrls(
     return { items: {}, errors: {} };
   }
 
-  const response = await apiClient.post(
+  return apiClient.post<ImageFileDownloadUrlsResponse>(
     '/api/v1/image-files/download-urls',
     {
       ids,
@@ -341,7 +348,6 @@ export async function getImageFileDownloadUrls(
       signal: options.signal,
     }
   );
-  return extractData<ImageFileDownloadUrlsResponse>(response);
 }
 
 /**
@@ -350,8 +356,9 @@ export async function getImageFileDownloadUrls(
 export async function deleteImageFile(
   fileId: number
 ): Promise<{ message: string; file_id: number }> {
-  const response = await apiClient.delete(`/api/v1/image-files/${fileId}`);
-  return extractData<{ message: string; file_id: number }>(response);
+  return apiClient.delete<{ message: string; file_id: number }>(
+    `/api/v1/image-files/${fileId}`
+  );
 }
 
 /**
@@ -363,8 +370,11 @@ export async function updateImageExamType(
   fileId: number,
   description: string
 ): Promise<{ id: number; description: string; warning: string | null }> {
-  const response = await apiClient.patch(`/api/v1/image-files/${fileId}/exam-type`, { description });
-  return extractData<{ id: number; description: string; warning: string | null }>(response);
+  return apiClient.patch<{
+    id: number;
+    description: string;
+    warning: string | null;
+  }>(`/api/v1/image-files/${fileId}/exam-type`, { description });
 }
 
 export interface BatchUpdateImageExamTypeResult {
@@ -379,30 +389,32 @@ export async function batchUpdateImageExamType(
   ids: number[],
   examType: string
 ): Promise<BatchUpdateImageExamTypeResult> {
-  const response = await apiClient.patch('/api/v1/image-files/batch/exam-type', {
-    ids,
-    exam_type: examType,
-  });
-  return extractData<BatchUpdateImageExamTypeResult>(response);
+  return apiClient.patch<BatchUpdateImageExamTypeResult>(
+    '/api/v1/image-files/batch/exam-type',
+    {
+      ids,
+      exam_type: examType,
+    }
+  );
 }
 
 export async function updateImageInfo(
   fileId: number,
   payload: { description: string; team_ids: number[] }
 ): Promise<ImageFile & { warning?: string | null }> {
-  const response = await apiClient.patch(`/api/v1/image-files/${fileId}/info`, payload);
-  return extractData<ImageFile & { warning?: string | null }>(response);
+  return apiClient.patch<ImageFile & { warning?: string | null }>(
+    `/api/v1/image-files/${fileId}/info`,
+    payload
+  );
 }
 
 export async function renameImageFile(
   fileId: number,
   basename: string
 ): Promise<ImageFile> {
-  const response = await apiClient.patch(
-    `/api/v1/image-files/${fileId}/filename`,
-    { basename }
-  );
-  return extractData<ImageFile>(response);
+  return apiClient.patch<ImageFile>(`/api/v1/image-files/${fileId}/filename`, {
+    basename,
+  });
 }
 
 export async function replaceImageFileContent(
@@ -419,11 +431,10 @@ export async function replaceImageFileContent(
     formData.append('team_ids', JSON.stringify(options.team_ids));
   }
 
-  const response = await apiClient.patch(
+  return apiClient.patch<ImageFile, FormData>(
     `/api/v1/image-files/${fileId}/content`,
     formData
   );
-  return extractData<ImageFile>(response);
 }
 
 export interface AnnotationSaveResult {
@@ -440,19 +451,20 @@ export async function saveImageAnnotation(
   expectedVersion: number,
   annotation: ImageAnnotationJson
 ): Promise<AnnotationSaveResult> {
-  const response = await apiClient.put(`/api/v1/image-files/${fileId}/annotation`, {
-    expected_version: expectedVersion,
-    annotation,
-  });
-  return extractData<AnnotationSaveResult>(response);
+  return apiClient.put<AnnotationSaveResult>(
+    `/api/v1/image-files/${fileId}/annotation`,
+    {
+      expected_version: expectedVersion,
+      annotation,
+    }
+  );
 }
 
 /**
  * 获取影像统计信息
  */
 export async function getImageStats(): Promise<ImageFileStats> {
-  const response = await apiClient.get('/api/v1/image-files/stats/summary');
-  return extractData<ImageFileStats>(response);
+  return apiClient.get<ImageFileStats>('/api/v1/image-files/stats/summary');
 }
 
 /**
@@ -468,7 +480,11 @@ export async function getImagePreviewUrl(fileId: number): Promise<string> {
   try {
     const blob = await downloadImageFile(fileId, { signal: controller.signal });
     // 如果服务端返回非图片（如 JSON 错误体），blob type 不是 image/*，直接降级
-    if (!blob.type.startsWith('image/') && blob.type !== 'application/octet-stream' && blob.type !== '') {
+    if (
+      !blob.type.startsWith('image/') &&
+      blob.type !== 'application/octet-stream' &&
+      blob.type !== ''
+    ) {
       throw new Error(`Unexpected content-type: ${blob.type}`);
     }
     return URL.createObjectURL(blob);
@@ -482,13 +498,11 @@ export async function getImagePreviewUrl(fileId: number): Promise<string> {
 }
 
 /**
-* 根据 imageId 获取 numericId
+ * 根据 imageId 获取 numericId
  * TODO
-* */
+ * */
 export function imageIdToNumericId(imageId: string): string {
-  return imageId
-      .replace('IMG', '')
-      .replace(/^0+/, '') || '0';
+  return imageId.replace('IMG', '').replace(/^0+/, '') || '0';
 }
 
 /**

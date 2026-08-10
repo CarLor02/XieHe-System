@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/lib/api';
-import { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/infrastructure/http';
 import {
   getAssignableImageTeams,
   getImageFiles,
@@ -111,9 +111,8 @@ export function useImagingPageController() {
   const [viewMode, setViewMode] = useState<ImagingViewMode>(() =>
     parseViewMode(searchParams.get('view'))
   );
-  const [selectedUploader, setSelectedUploader] = useState<ImageUploader | null>(
-    () => getInitialUploader(searchParams)
-  );
+  const [selectedUploader, setSelectedUploader] =
+    useState<ImageUploader | null>(() => getInitialUploader(searchParams));
   const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>(() =>
     parseTeamIds(searchParams.get('team_ids'))
   );
@@ -234,10 +233,13 @@ export function useImagingPageController() {
     setCurrentPage(1);
   }, []);
 
-  const handleChangeProcessingStatus = useCallback((value: ProcessingStatusFilter) => {
-    setSelectedProcessingStatus(value);
-    setCurrentPage(1);
-  }, []);
+  const handleChangeProcessingStatus = useCallback(
+    (value: ProcessingStatusFilter) => {
+      setSelectedProcessingStatus(value);
+      setCurrentPage(1);
+    },
+    []
+  );
 
   const handleChangeDateFrom = useCallback((value: string) => {
     setDateFrom(value);
@@ -263,7 +265,15 @@ export function useImagingPageController() {
   }, []);
 
   const loadUploaders = useCallback(
-    ({ page, pageSize, search }: { page: number; pageSize: number; search?: string }) =>
+    ({
+      page,
+      pageSize,
+      search,
+    }: {
+      page: number;
+      pageSize: number;
+      search?: string;
+    }) =>
       getVisibleImageUploaders({
         page,
         page_size: pageSize,
@@ -273,7 +283,15 @@ export function useImagingPageController() {
   );
 
   const loadAssignableTeams = useCallback(
-    ({ page, pageSize, search }: { page: number; pageSize: number; search?: string }) =>
+    ({
+      page,
+      pageSize,
+      search,
+    }: {
+      page: number;
+      pageSize: number;
+      search?: string;
+    }) =>
       getAssignableImageTeams({
         page,
         page_size: pageSize,
@@ -316,7 +334,9 @@ export function useImagingPageController() {
   useEffect(() => {
     if (!isAuthenticated || !userId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMyTeams(currentTeams => (currentTeams.length === 0 ? currentTeams : []));
+      setMyTeams(currentTeams =>
+        currentTeams.length === 0 ? currentTeams : []
+      );
       return;
     }
 

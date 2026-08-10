@@ -1,4 +1,4 @@
-import { apiClient, extractData } from '@/lib/api';
+import { apiClient } from '@/infrastructure/http';
 import type { AiMeasurementData } from '@/app/imaging/features/image-viewer/public';
 import { imageIdToNumericId } from './imageFileService';
 import type {
@@ -28,20 +28,16 @@ export async function getAiMeasurementsResponse(
 ): Promise<PredictMeasurementsResponse> {
   void examType;
   const numericId = imageIdToNumericId(imageId);
-  const response = await apiClient.post(
+  return apiClient.post<PredictMeasurementsResponse>(
     `/api/v1/image-files/${numericId}/ai/predict`
   );
-
-  return extractData<PredictMeasurementsResponse>(response);
 }
 
 export async function getAiKeypointDetectionResponse(
   imageId: string
 ): Promise<DetectKeypointsResponse | LateralDetectResponse> {
   const numericId = imageIdToNumericId(imageId);
-  const response = await apiClient.post(
+  return apiClient.post<DetectKeypointsResponse | LateralDetectResponse>(
     `/api/v1/image-files/${numericId}/ai/detect-keypoints`
   );
-
-  return extractData<DetectKeypointsResponse | LateralDetectResponse>(response);
 }

@@ -1,4 +1,6 @@
-import { requestJsonFromUrl } from '@/lib/api/client/externalJsonClient';
+import { createExternalHttpClient } from '@/infrastructure/http';
+
+const aiServiceClient = createExternalHttpClient();
 
 export interface AiParsedConfidence {
   source: string;
@@ -77,13 +79,9 @@ function getLateralAiAnnotationUrl(): string {
   return url;
 }
 
-async function postAiFormData<T>(
-  url: string,
-  formData: FormData
-): Promise<T> {
-  return requestJsonFromUrl<T>(url, {
-    method: 'POST',
-    body: formData,
+async function postAiFormData<T>(url: string, formData: FormData): Promise<T> {
+  return aiServiceClient.post<T, FormData>(url, formData, {
+    responseMode: 'envelope',
   });
 }
 

@@ -1,5 +1,4 @@
-import { apiClient } from '@/lib/api';
-import { extractPaginatedData } from '@/lib/api/types';
+import { apiClient, normalizeLegacyPagination } from '@/infrastructure/http';
 import { Patient, PatientListFilters, PatientListResult } from './types';
 
 function buildPatientListParams(filters: PatientListFilters): URLSearchParams {
@@ -10,8 +9,10 @@ function buildPatientListParams(filters: PatientListFilters): URLSearchParams {
 
   if (filters.search) params.set('search', filters.search);
   if (filters.gender) params.set('gender', filters.gender);
-  if (filters.age_min !== undefined) params.set('age_min', String(filters.age_min));
-  if (filters.age_max !== undefined) params.set('age_max', String(filters.age_max));
+  if (filters.age_min !== undefined)
+    params.set('age_min', String(filters.age_min));
+  if (filters.age_max !== undefined)
+    params.set('age_max', String(filters.age_max));
   if (filters.status) params.set('status', filters.status);
   if (filters.has_images !== undefined) {
     params.set('has_images', String(filters.has_images));
@@ -26,8 +27,10 @@ export async function getPatients(
   filters: PatientListFilters = {}
 ): Promise<PatientListResult> {
   const params = buildPatientListParams(filters);
-  const response = await apiClient.get(`/api/v1/patients/?${params.toString()}`);
-  return extractPaginatedData<Patient>(response);
+  const data = await apiClient.get<unknown>(
+    `/api/v1/patients/?${params.toString()}`
+  );
+  return normalizeLegacyPagination<Patient>(data);
 }
 
 export async function getAllPatients(

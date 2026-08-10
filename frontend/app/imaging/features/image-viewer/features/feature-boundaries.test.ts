@@ -7,6 +7,9 @@ const FEATURES_ROOT = path.resolve(__dirname);
 const SOURCE_FILE_PATTERN = /\.(?:ts|tsx)$/;
 
 function collectSourceFiles(directory: string): string[] {
+  // Canvas domain has moved to @xiehe/imaging-core and is covered by the
+  // package boundary tests. Missing Web directories therefore contain no files.
+  if (!fs.existsSync(directory)) return [];
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) return collectSourceFiles(entryPath);

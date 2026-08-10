@@ -11,7 +11,7 @@
 
 import AppShell from '@/components/layout/AppShell';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
-import { authenticatedJsonFetch } from '@/lib/api';
+import { apiClient } from '@/infrastructure/http';
 import React, { useEffect, useState } from 'react';
 
 // 错误统计数据接口
@@ -32,9 +32,7 @@ interface ErrorStats {
 }
 
 function fetchErrorStats(timeRange: number): Promise<ErrorStats> {
-  return authenticatedJsonFetch<ErrorStats>(
-    `/api/v1/errors/stats?hours=${timeRange}`
-  );
+  return apiClient.get<ErrorStats>(`/api/v1/errors/stats?hours=${timeRange}`);
 }
 
 const ErrorMonitoringPage: React.FC = () => {
@@ -63,9 +61,8 @@ const ErrorMonitoringPage: React.FC = () => {
     }
 
     try {
-      const result = await authenticatedJsonFetch<{ message?: string }>(
-        '/api/v1/errors/clear',
-        { method: 'DELETE' }
+      const result = await apiClient.delete<{ message?: string }>(
+        '/api/v1/errors/clear'
       );
       alert(result.message);
       loadErrorStats(); // 重新加载数据
@@ -128,290 +125,290 @@ const ErrorMonitoringPage: React.FC = () => {
   if (isLoading) {
     return (
       <AppShell mainClassName="p-6 pt-16">
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">加载错误统计数据中...</p>
-            </div>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">加载错误统计数据中...</p>
           </div>
+        </div>
       </AppShell>
     );
   }
 
   return (
     <AppShell mainClassName="p-6 pt-16">
-        {/* 页面标题 */}
-        <div className="mb-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">错误监控</h1>
-              <p className="text-gray-600 mt-1">系统错误统计和监控</p>
+      {/* 页面标题 */}
+      <div className="mb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">错误监控</h1>
+            <p className="text-gray-600 mt-1">系统错误统计和监控</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4">
+            {/* 时间范围选择 */}
+            <select
+              value={timeRange}
+              onChange={e => {
+                setIsLoading(true);
+                setTimeRange(Number(e.target.value));
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={1}>最近1小时</option>
+              <option value={6}>最近6小时</option>
+              <option value={24}>最近24小时</option>
+              <option value={72}>最近3天</option>
+              <option value={168}>最近7天</option>
+            </select>
+
+            <button
+              onClick={loadErrorStats}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              刷新
+            </button>
+
+            <button
+              onClick={clearErrorLogs}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              清空日志
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {errorStats && (
+        <div className="space-y-6">
+          {/* 统计概览 */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-red-100 rounded-md flex items-center justify-center">
+                    <span className="text-red-600 text-lg">⚠️</span>
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      总错误数
+                    </dt>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {errorStats.totalErrors}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              {/* 时间范围选择 */}
-              <select
-                value={timeRange}
-                onChange={e => {
-                  setIsLoading(true);
-                  setTimeRange(Number(e.target.value));
-                }}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={1}>最近1小时</option>
-                <option value={6}>最近6小时</option>
-                <option value={24}>最近24小时</option>
-                <option value={72}>最近3天</option>
-                <option value={168}>最近7天</option>
-              </select>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center">
+                    <span className="text-yellow-600 text-lg">🔥</span>
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      严重错误
+                    </dt>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {(errorStats.errorsBySeverity.critical || 0) +
+                        (errorStats.errorsBySeverity.high || 0)}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
 
-              <button
-                onClick={loadErrorStats}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                刷新
-              </button>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center">
+                    <span className="text-blue-600 text-lg">🌐</span>
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      网络错误
+                    </dt>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {errorStats.errorsByType.network || 0}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
 
-              <button
-                onClick={clearErrorLogs}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
-                清空日志
-              </button>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
+                    <span className="text-green-600 text-lg">📊</span>
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      统计时间
+                    </dt>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {errorStats.timeRange}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 错误分类统计 */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* 按类型分组 */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">
+                  错误类型分布
+                </h3>
+              </div>
+              <div className="p-6">
+                <div className="space-y-3">
+                  {Object.entries(errorStats.errorsByType).map(
+                    ([type, count]) => (
+                      <div
+                        key={type}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center">
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(type)}`}
+                          >
+                            {type}
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          {count}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 按严重程度分组 */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">
+                  错误严重程度分布
+                </h3>
+              </div>
+              <div className="p-6">
+                <div className="space-y-3">
+                  {Object.entries(errorStats.errorsBySeverity).map(
+                    ([severity, count]) => (
+                      <div
+                        key={severity}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center">
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(severity)}`}
+                          >
+                            {severity}
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          {count}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 最近错误列表 */}
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">最近错误</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      错误信息
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      类型
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      严重程度
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      时间
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      用户
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {errorStats.recentErrors.map(error => (
+                    <tr key={error.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div
+                          className="text-sm text-gray-900 max-w-xs truncate"
+                          title={error.message}
+                        >
+                          {error.message}
+                        </div>
+                        <div
+                          className="text-xs text-gray-500 max-w-xs truncate"
+                          title={error.url}
+                        >
+                          {error.url}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(error.type)}`}
+                        >
+                          {error.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(error.severity)}`}
+                        >
+                          {error.severity}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(error.timestamp).toLocaleString('zh-CN')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {error.userId || '匿名'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {errorStats.recentErrors.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">暂无错误记录</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
-
-        {errorStats && (
-          <div className="space-y-6">
-            {/* 统计概览 */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-red-100 rounded-md flex items-center justify-center">
-                      <span className="text-red-600 text-lg">⚠️</span>
-                    </div>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        总错误数
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {errorStats.totalErrors}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center">
-                      <span className="text-yellow-600 text-lg">🔥</span>
-                    </div>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        严重错误
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {(errorStats.errorsBySeverity.critical || 0) +
-                          (errorStats.errorsBySeverity.high || 0)}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center">
-                      <span className="text-blue-600 text-lg">🌐</span>
-                    </div>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        网络错误
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {errorStats.errorsByType.network || 0}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
-                      <span className="text-green-600 text-lg">📊</span>
-                    </div>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        统计时间
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {errorStats.timeRange}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 错误分类统计 */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* 按类型分组 */}
-              <div className="bg-white rounded-lg shadow">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    错误类型分布
-                  </h3>
-                </div>
-                <div className="p-6">
-                  <div className="space-y-3">
-                    {Object.entries(errorStats.errorsByType).map(
-                      ([type, count]) => (
-                        <div
-                          key={type}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center">
-                            <span
-                              className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(type)}`}
-                            >
-                              {type}
-                            </span>
-                          </div>
-                          <span className="text-sm font-medium text-gray-900">
-                            {count}
-                          </span>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 按严重程度分组 */}
-              <div className="bg-white rounded-lg shadow">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    错误严重程度分布
-                  </h3>
-                </div>
-                <div className="p-6">
-                  <div className="space-y-3">
-                    {Object.entries(errorStats.errorsBySeverity).map(
-                      ([severity, count]) => (
-                        <div
-                          key={severity}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center">
-                            <span
-                              className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(severity)}`}
-                            >
-                              {severity}
-                            </span>
-                          </div>
-                          <span className="text-sm font-medium text-gray-900">
-                            {count}
-                          </span>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 最近错误列表 */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">最近错误</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        错误信息
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        类型
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        严重程度
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        时间
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        用户
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {errorStats.recentErrors.map(error => (
-                      <tr key={error.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div
-                            className="text-sm text-gray-900 max-w-xs truncate"
-                            title={error.message}
-                          >
-                            {error.message}
-                          </div>
-                          <div
-                            className="text-xs text-gray-500 max-w-xs truncate"
-                            title={error.url}
-                          >
-                            {error.url}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(error.type)}`}
-                          >
-                            {error.type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(error.severity)}`}
-                          >
-                            {error.severity}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(error.timestamp).toLocaleString('zh-CN')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {error.userId || '匿名'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {errorStats.recentErrors.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">暂无错误记录</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+      )}
     </AppShell>
   );
 };

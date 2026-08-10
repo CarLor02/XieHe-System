@@ -1,10 +1,11 @@
-import { apiClient } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
+import { apiClient } from '@/infrastructure/http';
 import { Patient, PatientCreateRequest } from './types';
 
 export async function createPatient(
   payload: PatientCreateRequest
 ): Promise<Patient> {
-  const response = await apiClient.post('/api/v1/patients/', payload);
-  return extractData<Patient>(response);
+  return apiClient.post<Patient, PatientCreateRequest>(
+    '/api/v1/patients/',
+    payload
+  );
 }

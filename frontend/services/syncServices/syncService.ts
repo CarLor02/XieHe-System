@@ -1,35 +1,24 @@
 import { SyncScanFile, SyncServiceConfig, SyncStatsResponse } from './types';
+import { createExternalHttpClient } from '@/infrastructure/http';
 
-function buildHeaders(
-  config: SyncServiceConfig,
-  headers?: HeadersInit,
-  includeJsonContentType: boolean = true
-): Headers {
-  const merged = new Headers(headers);
-  if (includeJsonContentType && !merged.has('Content-Type')) {
-    merged.set('Content-Type', 'application/json');
-  }
-  if (config.apiKey) {
-    merged.set('X-API-Key', config.apiKey);
-  }
-  return merged;
+function createSyncClient(config: SyncServiceConfig) {
+  return createExternalHttpClient({
+    baseURL: config.serviceUrl,
+    headers: config.apiKey ? { 'X-API-Key': config.apiKey } : undefined,
+  });
 }
 
 async function requestSyncJson<T>(
   config: SyncServiceConfig,
   path: string,
-  init: RequestInit = {}
+  method: 'GET' | 'POST' = 'GET'
 ): Promise<T> {
-  const response = await fetch(`${config.serviceUrl}${path}`, {
-    ...init,
-    headers: buildHeaders(config, init.headers),
+  return createSyncClient(config).request<T>({
+    method,
+    url: path,
+    auth: 'none',
+    responseMode: 'raw',
   });
-
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
-  }
-
-  return response.json() as Promise<T>;
 }
 
 export async function getSyncStats(
@@ -49,34 +38,30 @@ export async function getSyncFiles(
   return result.items || [];
 }
 
-export async function inspectSyncFile(
+export async function inspectSyncFile<T = unknown>(
   config: SyncServiceConfig,
   fileId: number
-): Promise<any> {
-  return requestSyncJson<any>(config, `/api/v1/files/${fileId}/inspect`);
+): Promise<T> {
+  return requestSyncJson<T>(config, `/api/v1/files/${fileId}/inspect`);
 }
 
 export async function downloadSyncPreviewImage(
   config: SyncServiceConfig,
   fileId: number
 ): Promise<Blob> {
-  const response = await fetch(
-    `${config.serviceUrl}/api/v1/files/${fileId}/preview-image`,
+  return createSyncClient(config).get<Blob>(
+    `/api/v1/files/${fileId}/preview-image`,
     {
-      headers: buildHeaders(config, undefined, false),
+      auth: 'none',
+      responseMode: 'raw',
+      responseType: 'blob',
     }
   );
-  if (!response.ok) {
-    throw new Error(`图像转换失败: ${response.status}`);
-  }
-  return response.blob();
 }
 
 export async function markSyncFileSynced(
   config: SyncServiceConfig,
   fileId: number
 ): Promise<void> {
-  await requestSyncJson(config, `/api/v1/files/${fileId}/mark-synced`, {
-    method: 'POST',
-  });
+  await requestSyncJson(config, `/api/v1/files/${fileId}/mark-synced`, 'POST');
 }

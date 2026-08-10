@@ -1,8 +1,8 @@
-import { apiClient } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
+import { apiClient } from '@/infrastructure/http';
 import { DashboardSystemMetrics } from './types';
 
 export async function getDashboardSystemMetrics(): Promise<DashboardSystemMetrics> {
-  const response = await apiClient.get('/api/v1/dashboard/system-metrics');
-  return extractData<DashboardSystemMetrics>(response);
+  return apiClient.get<DashboardSystemMetrics>(
+    '/api/v1/dashboard/system-metrics'
+  );
 }

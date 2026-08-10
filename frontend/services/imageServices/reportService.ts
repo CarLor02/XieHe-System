@@ -1,5 +1,4 @@
-import { apiClient } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
+import { apiClient } from '@/infrastructure/http';
 
 export interface ReportMeasurementItem {
   type: string;
@@ -20,6 +19,8 @@ export interface GenerateReportResponse {
 export async function generateMeasurementReport(
   payload: GenerateReportRequest
 ): Promise<GenerateReportResponse> {
-  const response = await apiClient.post('/api/v1/report-generation/generate', payload);
-  return extractData<GenerateReportResponse>(response);
+  return apiClient.post<GenerateReportResponse, GenerateReportRequest>(
+    '/api/v1/report-generation/generate',
+    payload
+  );
 }

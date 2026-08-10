@@ -1,5 +1,4 @@
-import { apiClient } from '@/lib/api';
-import { extractData, extractPaginatedData } from '@/lib/api/types';
+import { apiClient, normalizeLegacyPagination } from '@/infrastructure/http';
 import {
   NotificationActionResult,
   NotificationMessage,
@@ -12,49 +11,51 @@ export async function getNotificationMessages(
 ): Promise<NotificationMessage[]> {
   const params = new URLSearchParams();
   if (filters.message_type) params.set('message_type', filters.message_type);
-  if (filters.is_read !== undefined) params.set('is_read', String(filters.is_read));
+  if (filters.is_read !== undefined)
+    params.set('is_read', String(filters.is_read));
 
   const query = params.toString();
   const url = query
     ? `/api/v1/notifications/messages?${query}`
     : '/api/v1/notifications/messages';
-  const response = await apiClient.get(url);
-
-  const paginatedResult = extractPaginatedData<NotificationMessage>(response);
+  const data = await apiClient.get<unknown>(url);
+  const paginatedResult = normalizeLegacyPagination<NotificationMessage>(data);
   if (Array.isArray(paginatedResult.items)) {
     return paginatedResult.items;
   }
 
-  const data = extractData<NotificationMessage[] | { items?: NotificationMessage[] }>(
-    response
-  );
+  const legacyData = data as
+    NotificationMessage[] | { items?: NotificationMessage[] };
 
-  if (Array.isArray(data)) {
-    return data;
+  if (Array.isArray(legacyData)) {
+    return legacyData;
   }
 
-  if (Array.isArray(data?.items)) {
-    return data.items;
+  if (Array.isArray(legacyData?.items)) {
+    return legacyData.items;
   }
 
   return [];
 }
 
 export async function getNotificationMessageStats(): Promise<NotificationMessageStats> {
-  const response = await apiClient.get('/api/v1/notifications/messages/stats');
-  return extractData<NotificationMessageStats>(response);
+  return apiClient.get<NotificationMessageStats>(
+    '/api/v1/notifications/messages/stats'
+  );
 }
 
 export async function markNotificationAsRead(
   messageId: number
 ): Promise<NotificationActionResult> {
-  const response = await apiClient.put(`/api/v1/notifications/messages/${messageId}/read`);
-  return extractData<NotificationActionResult>(response);
+  return apiClient.put<NotificationActionResult>(
+    `/api/v1/notifications/messages/${messageId}/read`
+  );
 }
 
 export async function deleteNotificationMessage(
   messageId: number
 ): Promise<NotificationActionResult> {
-  const response = await apiClient.delete(`/api/v1/notifications/messages/${messageId}`);
-  return extractData<NotificationActionResult>(response);
+  return apiClient.delete<NotificationActionResult>(
+    `/api/v1/notifications/messages/${messageId}`
+  );
 }

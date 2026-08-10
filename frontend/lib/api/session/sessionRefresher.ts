@@ -1,5 +1,5 @@
 import { sessionRefreshLockLogging } from '@/lib/logger/sessionLogging';
-import { useSessionStore } from '@/lib/api';
+import { useSessionStore } from './sessionStore';
 
 let refreshPromise: Promise<boolean> | null = null;
 

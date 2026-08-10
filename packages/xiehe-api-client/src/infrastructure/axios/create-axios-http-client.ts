@@ -10,6 +10,7 @@ import type {
   HttpClient,
   HttpRequest,
   HttpRequestOptions,
+  HttpResponse,
 } from '../../application/http-client';
 import type {
   ApiClientLogger,
@@ -41,6 +42,10 @@ export interface CreateAxiosHttpClientOptions {
 interface InternalRequestState {
   retriedAfterRefresh: boolean;
   retriedWithTrailingSlash: boolean;
+}
+
+interface ExecuteOptions {
+  includeMetadata: boolean;
 }
 
 function getOrigin(url: string | undefined): string | null {
@@ -92,8 +97,7 @@ function normalizeError(error: unknown): ApiClientError {
       data,
       isNetworkError: Boolean(axiosError.request && !axiosError.response),
       isTimeoutError:
-        axiosError.code === 'ECONNABORTED' ||
-        axiosError.code === 'ETIMEDOUT',
+        axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT',
       cause: error,
     }
   );
@@ -112,11 +116,11 @@ export function createAxiosHttpClient(
   async function notifyUnauthorized(error: unknown): Promise<void> {
     if (!options.onUnauthorized) return;
     if (!unauthorizedPromise) {
-      unauthorizedPromise = Promise.resolve(options.onUnauthorized(error)).finally(
-        () => {
-          unauthorizedPromise = null;
-        }
-      );
+      unauthorizedPromise = Promise.resolve(
+        options.onUnauthorized(error)
+      ).finally(() => {
+        unauthorizedPromise = null;
+      });
     }
     await unauthorizedPromise;
   }
@@ -133,8 +137,9 @@ export function createAxiosHttpClient(
 
   async function execute<TResponse, TBody>(
     request: HttpRequest<TBody>,
-    state: InternalRequestState
-  ): Promise<TResponse> {
+    state: InternalRequestState,
+    executeOptions: ExecuteOptions
+  ): Promise<TResponse | HttpResponse<TResponse>> {
     const auth = request.auth ?? options.defaultAuth ?? 'required';
     const headers = new AxiosHeaders(request.headers);
     if (
@@ -177,9 +182,24 @@ export function createAxiosHttpClient(
           }
         );
       }
-      return (responseMode === 'envelope'
-        ? unwrapApiEnvelope<TResponse>(response.data)
-        : response.data) as TResponse;
+      const data = (
+        responseMode === 'envelope'
+          ? unwrapApiEnvelope<TResponse>(response.data)
+          : response.data
+      ) as TResponse;
+      if (executeOptions.includeMetadata) {
+        const normalizedHeaders: Record<string, string> = {};
+        for (const [name, value] of Object.entries(response.headers)) {
+          if (value != null)
+            normalizedHeaders[name.toLowerCase()] = String(value);
+        }
+        return {
+          data,
+          status: response.status,
+          headers: normalizedHeaders,
+        };
+      }
+      return data;
     } catch (rawError) {
       const error = normalizeError(rawError);
       if (
@@ -190,7 +210,11 @@ export function createAxiosHttpClient(
         !request.url.includes('?')
       ) {
         state.retriedWithTrailingSlash = true;
-        return execute({ ...request, url: `${request.url}/` }, state);
+        return execute(
+          { ...request, url: `${request.url}/` },
+          state,
+          executeOptions
+        );
       }
 
       if (
@@ -201,7 +225,7 @@ export function createAxiosHttpClient(
       ) {
         state.retriedAfterRefresh = true;
         const refreshed = await refresh();
-        if (refreshed) return execute(request, state);
+        if (refreshed) return execute(request, state, executeOptions);
       }
 
       if (error.status === 401 && auth !== 'none') {
@@ -219,31 +243,67 @@ export function createAxiosHttpClient(
   function request<TResponse, TBody = unknown>(
     config: HttpRequest<TBody>
   ): Promise<TResponse> {
-    return execute<TResponse, TBody>(config, {
-      retriedAfterRefresh: false,
-      retriedWithTrailingSlash: false,
-    });
+    return execute<TResponse, TBody>(
+      config,
+      {
+        retriedAfterRefresh: false,
+        retriedWithTrailingSlash: false,
+      },
+      { includeMetadata: false }
+    ) as Promise<TResponse>;
+  }
+
+  function requestWithMetadata<TResponse, TBody = unknown>(
+    config: HttpRequest<TBody>
+  ): Promise<HttpResponse<TResponse>> {
+    return execute<TResponse, TBody>(
+      config,
+      {
+        retriedAfterRefresh: false,
+        retriedWithTrailingSlash: false,
+      },
+      { includeMetadata: true }
+    ) as Promise<HttpResponse<TResponse>>;
   }
 
   return {
     request,
+    requestWithMetadata,
     get: <TResponse>(url: string, requestOptions?: HttpRequestOptions) =>
       request<TResponse>({ method: 'GET', url, ...requestOptions }),
     post: <TResponse, TBody = unknown>(
       url: string,
       data?: TBody,
       requestOptions?: HttpRequestOptions
-    ) => request<TResponse, TBody>({ method: 'POST', url, data, ...requestOptions }),
+    ) =>
+      request<TResponse, TBody>({
+        method: 'POST',
+        url,
+        data,
+        ...requestOptions,
+      }),
     put: <TResponse, TBody = unknown>(
       url: string,
       data?: TBody,
       requestOptions?: HttpRequestOptions
-    ) => request<TResponse, TBody>({ method: 'PUT', url, data, ...requestOptions }),
+    ) =>
+      request<TResponse, TBody>({
+        method: 'PUT',
+        url,
+        data,
+        ...requestOptions,
+      }),
     patch: <TResponse, TBody = unknown>(
       url: string,
       data?: TBody,
       requestOptions?: HttpRequestOptions
-    ) => request<TResponse, TBody>({ method: 'PATCH', url, data, ...requestOptions }),
+    ) =>
+      request<TResponse, TBody>({
+        method: 'PATCH',
+        url,
+        data,
+        ...requestOptions,
+      }),
     delete: <TResponse>(url: string, requestOptions?: HttpRequestOptions) =>
       request<TResponse>({ method: 'DELETE', url, ...requestOptions }),
   };

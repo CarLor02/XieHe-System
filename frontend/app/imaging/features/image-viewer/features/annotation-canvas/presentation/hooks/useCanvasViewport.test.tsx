@@ -8,7 +8,7 @@ import {
 import { useEffect, useRef } from 'react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { apiClient } from '@/lib/api';
+import { apiClient } from '@/infrastructure/http';
 import { useCanvasViewport } from './useCanvasViewport';
 
 let resizeObserverCallback: ResizeObserverCallback | null = null;
@@ -80,26 +80,16 @@ describe('useCanvasViewport', () => {
     mockedApiGet.mockImplementation(async (url: string) => {
       if (url.endsWith('/download-url')) {
         return {
-          data: {
-            code: 200,
-            data: {
-              url: '/image.png',
-              expires_in: 900,
-              expires_at: '2026-05-11T01:00:00Z',
-            },
-          },
+          url: '/image.png',
+          expires_in: 900,
+          expires_at: '2026-05-11T01:00:00Z',
         };
       }
 
       return {
-        data: {
-          code: 200,
-          data: {
-            id: 1,
-            file_uuid: 'file-1',
-            original_filename: 'image.png',
-          },
-        },
+        id: 1,
+        file_uuid: 'file-1',
+        original_filename: 'image.png',
       };
     });
     Object.defineProperty(globalThis, 'ResizeObserver', {

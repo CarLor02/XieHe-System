@@ -1,25 +1,15 @@
-import axios from 'axios';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { API_BASE_URL } from '../config';
 import { sessionStoreLogging } from '@/lib/logger/sessionLogging';
 import {
-  extractApiMessage,
-  extractData,
-  getStatusCode,
-  isApiEnvelope,
-  isApiSuccessCode,
-} from '../types';
-import {
-  SessionUser,
-  UserSession,
-  createUserSession,
-} from './userSession';
-import { createApiEnvelopeError } from '../client/errors';
-import {
-  clearPersistedAuthState,
-  redirectToLogin,
-} from './sessionEffects';
+  apiClient,
+  configureWebSessionBridge,
+  getApiErrorMessage,
+  getApiErrorStatus,
+  publicApiClient,
+} from '@/infrastructure/http';
+import { SessionUser, UserSession, createUserSession } from './userSession';
+import { clearPersistedAuthState, redirectToLogin } from './sessionEffects';
 
 export interface LoginCredentials {
   username: string;
@@ -90,23 +80,11 @@ export const useSessionStore = create<SessionState>()(
             ...credentials,
             username: credentials.username.trim(),
           };
-          const response = await axios.post(
-            `${API_BASE_URL}/api/v1/auth/login`,
-            normalizedCredentials
-          );
-
-          if (
-            isApiEnvelope(response.data) &&
-            !isApiSuccessCode(response.data.code)
-          ) {
-            throw createApiEnvelopeError(response.data, response);
-          }
-
-          const result = extractData<{
+          const result = await publicApiClient.post<{
             access_token: string;
             refresh_token: string;
             user: SessionUser;
-          }>(response);
+          }>('/api/v1/auth/login', normalizedCredentials);
 
           set({
             isAuthenticated: true,
@@ -130,10 +108,7 @@ export const useSessionStore = create<SessionState>()(
             session: null,
             isLoading: false,
             isLoggingOut: false,
-            error:
-              extractApiMessage(error?.response?.data) ||
-              error.message ||
-              '登录失败，请检查用户名和密码',
+            error: getApiErrorMessage(error, '登录失败，请检查用户名和密码'),
           });
           return false;
         }
@@ -142,29 +117,14 @@ export const useSessionStore = create<SessionState>()(
       register: async userData => {
         try {
           set({ isLoading: true, error: null });
-          const response = await axios.post(
-            `${API_BASE_URL}/api/v1/auth/register`,
-            userData
-          );
-
-          if (
-            isApiEnvelope(response.data) &&
-            !isApiSuccessCode(response.data.code)
-          ) {
-            throw createApiEnvelopeError(response.data, response);
-          }
-
-          extractData(response);
+          await publicApiClient.post('/api/v1/auth/register', userData);
           set({ isLoading: false, error: null });
           return true;
         } catch (error: any) {
           sessionStoreLogging.registerFailed(error);
           set({
             isLoading: false,
-            error:
-              extractApiMessage(error?.response?.data) ||
-              error.message ||
-              '注册失败，请稍后重试',
+            error: getApiErrorMessage(error, '注册失败，请稍后重试'),
           });
           return false;
         }
@@ -188,17 +148,20 @@ export const useSessionStore = create<SessionState>()(
           clearPersistedAuthState();
 
           if (accessToken) {
-            void fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: '{}',
-              keepalive: true,
-            }).catch(error => {
-              sessionStoreLogging.logoutRequestFailed(error);
-            });
+            void publicApiClient
+              .post(
+                '/api/v1/auth/logout',
+                {},
+                {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                  },
+                  timeout: 1500,
+                }
+              )
+              .catch(error => {
+                sessionStoreLogging.logoutRequestFailed(error);
+              });
           }
 
           redirectToLogin(0, 'replace');
@@ -207,10 +170,13 @@ export const useSessionStore = create<SessionState>()(
 
         try {
           if (accessToken) {
-            await axios.post(
-              `${API_BASE_URL}/api/v1/auth/logout`,
+            await publicApiClient.post(
+              '/api/v1/auth/logout',
               {},
-              { headers: { Authorization: `Bearer ${accessToken}` } }
+              {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                timeout: 1500,
+              }
             );
           }
         } catch (error) {
@@ -238,31 +204,19 @@ export const useSessionStore = create<SessionState>()(
           }
 
           sessionStoreLogging.refreshRequested(get().session);
-          const { apiClient } = await import('../authenticatedApiClient');
-          const response = await apiClient.post(
-            '/api/v1/auth/refresh',
-            { refresh_token: refreshToken },
-            { _skipAuthRefresh: true } as any
-          );
-
-          if (
-            isApiEnvelope(response.data) &&
-            !isApiSuccessCode(response.data.code)
-          ) {
-            throw createApiEnvelopeError(response.data, response);
-          }
-
-          const result = extractData<{
+          const result = await publicApiClient.post<{
             tokens?: {
               access_token?: string;
               refresh_token?: string;
             };
-          }>(response);
+          }>('/api/v1/auth/refresh', { refresh_token: refreshToken });
           const nextAccessToken = result.tokens?.access_token;
           const nextRefreshToken = result.tokens?.refresh_token;
 
           if (!nextAccessToken) {
-            throw new Error('Refresh response does not contain data.tokens.access_token');
+            throw new Error(
+              'Refresh response does not contain data.tokens.access_token'
+            );
           }
 
           set(state => ({
@@ -280,7 +234,7 @@ export const useSessionStore = create<SessionState>()(
             error,
             session: get().session,
           });
-          const status = getStatusCode(error);
+          const status = getApiErrorStatus(error);
           if (status === 401 || status === 403) {
             return false;
           }
@@ -326,9 +280,7 @@ export const useSessionStore = create<SessionState>()(
             set({ isAuthenticated: true });
           }
 
-          const { apiClient } = await import('../authenticatedApiClient');
-          const response = await apiClient.get('/api/v1/auth/me');
-          const user = extractData<SessionUser>(response);
+          const user = await apiClient.get<SessionUser>('/api/v1/auth/me');
           set({ user });
           sessionStoreLogging.fetchUserInfoSucceeded(user);
           return 'success';
@@ -337,7 +289,7 @@ export const useSessionStore = create<SessionState>()(
             error,
             session: get().session,
           });
-          const status = getStatusCode(error);
+          const status = getApiErrorStatus(error);
           if (status === 401 || status === 403) {
             return 'unauthorized';
           }
@@ -351,9 +303,10 @@ export const useSessionStore = create<SessionState>()(
             return false;
           }
 
-          const { apiClient } = await import('../authenticatedApiClient');
-          const response = await apiClient.put('/api/v1/auth/me', userData);
-          const user = extractData<SessionUser>(response);
+          const user = await apiClient.put<SessionUser>(
+            '/api/v1/auth/me',
+            userData
+          );
           set({ user });
           return true;
         } catch (error) {
@@ -362,10 +315,13 @@ export const useSessionStore = create<SessionState>()(
         }
       },
 
-      hasPermission: permission => get().user?.permissions?.includes(permission) || false,
+      hasPermission: permission =>
+        get().user?.permissions?.includes(permission) || false,
       hasRole: role => get().user?.role === role,
       hasAnyPermission: permissions =>
-        permissions.some(permission => get().user?.permissions?.includes(permission)),
+        permissions.some(permission =>
+          get().user?.permissions?.includes(permission)
+        ),
       clearError: () => set({ error: null }),
       setError: error => set({ error }),
       setLoading: isLoading => set({ isLoading }),
@@ -398,6 +354,22 @@ export const useSessionStore = create<SessionState>()(
     }
   )
 );
+
+configureWebSessionBridge({
+  getAccessToken: () => useSessionStore.getState().session?.accessToken ?? null,
+  refreshAccessToken: async () => {
+    const refreshed = await useSessionStore.getState().refreshAccessToken();
+    return refreshed
+      ? (useSessionStore.getState().session?.accessToken ?? null)
+      : null;
+  },
+  handleUnauthorized: error => {
+    useSessionStore.getState().forceLogout({
+      source: 'sharedAxiosClient',
+      status: getApiErrorStatus(error),
+    });
+  },
+});
 
 export const useAuth = () => {
   const {

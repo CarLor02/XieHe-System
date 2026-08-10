@@ -63,6 +63,27 @@ describe('createAxiosHttpClient', () => {
     ).resolves.toBe(payload);
   });
 
+  it('exposes response metadata only through the explicit transport method', async () => {
+    const adapter: AxiosAdapter = async config => ({
+      ...response(config, '', 200),
+      headers: { ETag: 'part-1' },
+    });
+    const client = createAxiosHttpClient({ axios: { adapter } });
+
+    await expect(
+      client.requestWithMetadata<string>({
+        method: 'PUT',
+        url: 'https://files.example/upload',
+        auth: 'none',
+        responseMode: 'raw',
+      })
+    ).resolves.toEqual({
+      data: '',
+      status: 200,
+      headers: { etag: 'part-1' },
+    });
+  });
+
   it('rejects business errors returned with HTTP 200', async () => {
     const adapter: AxiosAdapter = async config =>
       response(config, {

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/infrastructure/http';
 import { createLogger } from '@/lib/logger';
 import {
   batchUpdateImageExamType,
@@ -58,11 +58,10 @@ export function useBatchExamTypeUpdate({
     setMessage('');
 
     try {
-      const result: BatchUpdateImageExamTypeResult =
-        await updateExamType(
-          selectedImages.map(image => image.id),
-          examType
-        );
+      const result: BatchUpdateImageExamTypeResult = await updateExamType(
+        selectedImages.map(image => image.id),
+        examType
+      );
       onUpdated(result.updated_ids, result.exam_type);
       await reloadImages();
       setMessage(

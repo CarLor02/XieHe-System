@@ -1,12 +1,10 @@
-import { apiClient } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
+import { apiClient } from '@/infrastructure/http';
 import { UserPermissionDetail } from './types';
 
 export async function getUserPermissionDetail(
   userId: number | string
 ): Promise<UserPermissionDetail> {
-  const response = await apiClient.get(
+  return apiClient.get<UserPermissionDetail>(
     `/api/v1/permissions/users/${userId}/permissions`
   );
-  return extractData<UserPermissionDetail>(response);
 }

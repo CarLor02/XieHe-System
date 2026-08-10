@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { apiClient } from '@/lib/api';
+import { apiClient } from '@/infrastructure/http';
 import {
   getAiKeypointDetectionResponse,
   getAiMeasurementsResponse,
@@ -15,12 +15,10 @@ describe('aiMeasurementService', () => {
 
   it('requests AI measurements through the authenticated backend object proxy', async () => {
     postSpy.mockResolvedValue({
-      data: {
-        imageId: 'IMG42',
-        imageWidth: 100,
-        imageHeight: 200,
-        measurements: [],
-      },
+      imageId: 'IMG42',
+      imageWidth: 100,
+      imageHeight: 200,
+      measurements: [],
     });
 
     await expect(
@@ -37,11 +35,9 @@ describe('aiMeasurementService', () => {
 
   it('requests keypoint detection through the authenticated backend object proxy', async () => {
     postSpy.mockResolvedValue({
-      data: {
-        imageId: 'IMG42',
-        pose_keypoints: {},
-        vertebrae: {},
-      },
+      imageId: 'IMG42',
+      pose_keypoints: {},
+      vertebrae: {},
     });
 
     await expect(getAiKeypointDetectionResponse('IMG00042')).resolves.toEqual({

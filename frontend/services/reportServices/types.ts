@@ -1,4 +1,4 @@
-import { PaginatedResult } from '@/lib/api/types';
+import type { PaginatedResult } from '@xiehe/api-client/contracts';
 
 export interface ReportSummary {
   id: number;

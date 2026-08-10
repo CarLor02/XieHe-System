@@ -1,11 +1,5 @@
-import {
-  extractApiMessage,
-  getStatusCode,
-} from '@/lib/api/types';
-import type {
-  SessionUser,
-  UserSession,
-} from '@/lib/api/session/userSession';
+import { getApiErrorMessage, getApiErrorStatus } from '@/infrastructure/http';
+import type { SessionUser, UserSession } from '@/lib/api/session/userSession';
 import { createLogger } from '../logger';
 
 type FetchUserInfoStatus = 'success' | 'unauthorized' | 'error';
@@ -45,11 +39,8 @@ function buildSessionSnapshot(
 
 function buildErrorSummary(error: unknown): Record<string, unknown> {
   return {
-    status: getStatusCode(error),
-    message:
-      extractApiMessage((error as { response?: { data?: unknown } })?.response?.data) ||
-      (error as { message?: string })?.message ||
-      'Unknown error',
+    status: getApiErrorStatus(error),
+    message: getApiErrorMessage(error, 'Unknown error'),
   };
 }
 
@@ -133,7 +124,9 @@ export const sessionStoreLogging = {
   },
 
   fetchUserInfoRestoredAuthenticatedFlag() {
-    storeLogger.info('fetchUserInfoStatus restoring authenticated flag from session');
+    storeLogger.info(
+      'fetchUserInfoStatus restoring authenticated flag from session'
+    );
   },
 
   fetchUserInfoSucceeded(user: SessionUser) {
@@ -163,7 +156,10 @@ export const sessionStoreLogging = {
     mergedIsAuthenticated: boolean;
   }) {
     storeLogger.debug('rehydrate merge session', {
-      persistedHasSession: Boolean(input.persistedSession?.accessToken && input.persistedSession?.refreshToken),
+      persistedHasSession: Boolean(
+        input.persistedSession?.accessToken &&
+        input.persistedSession?.refreshToken
+      ),
       mergedIsAuthenticated: input.mergedIsAuthenticated,
       session: buildSessionSnapshot(input.mergedSession),
     });
@@ -206,7 +202,9 @@ export const sessionInitializerLogging = {
   },
 
   initializeRefreshAttempt() {
-    initializerLogger.warn('initialize auth encountered unauthorized, attempting refresh');
+    initializerLogger.warn(
+      'initialize auth encountered unauthorized, attempting refresh'
+    );
   },
 
   initializeRefreshResult(refreshed: boolean) {
@@ -249,10 +247,7 @@ export const sessionInitializerLogging = {
     initializerLogger.error('scheduled token refresh failed', error);
   },
 
-  resumeCheck(input: {
-    remainingMs: number;
-    refreshLeadTimeMs: number;
-  }) {
+  resumeCheck(input: { remainingMs: number; refreshLeadTimeMs: number }) {
     initializerLogger.debug('resume visibility/focus check', input);
   },
 
@@ -290,19 +285,27 @@ export const sessionAuthenticatedClientLogging = {
       url: input.url,
       method: input.method,
       isAuthenticated: input.isAuthenticated,
-      hasSession: Boolean(input.session?.accessToken && input.session?.refreshToken),
+      hasSession: Boolean(
+        input.session?.accessToken && input.session?.refreshToken
+      ),
       hasRefreshToken: Boolean(input.session?.refreshToken),
     });
   },
 
   unauthorizedWithoutSession(url?: string) {
-    authenticatedClientLogger.warn('401 received without a usable local session', {
-      url,
-    });
+    authenticatedClientLogger.warn(
+      '401 received without a usable local session',
+      {
+        url,
+      }
+    );
   },
 
   retryingRequest(input: { url?: string; method?: string }) {
-    authenticatedClientLogger.info('refresh succeeded, retrying request', input);
+    authenticatedClientLogger.info(
+      'refresh succeeded, retrying request',
+      input
+    );
   },
 
   refreshRequestFailed(error: unknown) {
@@ -312,12 +315,23 @@ export const sessionAuthenticatedClientLogging = {
     );
   },
 
-  refreshFailedForcingLogout(input: { url?: string; method?: string; status?: number }) {
+  refreshFailedForcingLogout(input: {
+    url?: string;
+    method?: string;
+    status?: number;
+  }) {
     authenticatedClientLogger.warn('refresh failed, forcing logout', input);
   },
 
-  retryStillUnauthorized(input: { url?: string; method?: string; status?: number }) {
-    authenticatedClientLogger.warn('request still unauthorized after refresh', input);
+  retryStillUnauthorized(input: {
+    url?: string;
+    method?: string;
+    status?: number;
+  }) {
+    authenticatedClientLogger.warn(
+      'request still unauthorized after refresh',
+      input
+    );
   },
 };
 
@@ -333,7 +347,10 @@ export const sessionFetchClientLogging = {
   },
 
   refreshFailed(error: unknown) {
-    fetchClientLogger.warn('fetch refresh failed, keeping session intact', error);
+    fetchClientLogger.warn(
+      'fetch refresh failed, keeping session intact',
+      error
+    );
   },
 
   authErrorHandled(error: unknown) {

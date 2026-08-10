@@ -1,5 +1,4 @@
-import { apiClient } from '@/lib/api';
-import { extractPaginatedData } from '@/lib/api/types';
+import { apiClient, normalizeLegacyPagination } from '@/infrastructure/http';
 import { ReportListFilters, ReportListResult, ReportSummary } from './types';
 
 export async function getReports(
@@ -14,6 +13,8 @@ export async function getReports(
   if (filters.priority) params.set('priority', filters.priority);
   if (filters.search) params.set('search', filters.search);
 
-  const response = await apiClient.get(`/api/v1/reports/?${params.toString()}`);
-  return extractPaginatedData<ReportSummary>(response);
+  const data = await apiClient.get<unknown>(
+    `/api/v1/reports/?${params.toString()}`
+  );
+  return normalizeLegacyPagination<ReportSummary>(data);
 }

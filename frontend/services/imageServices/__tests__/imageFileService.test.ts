@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { normalizeLegacyPagination } from '@xiehe/api-client/contracts';
 
 import { formatDate } from '../imageFileService';
 
@@ -15,9 +16,7 @@ afterEach(() => {
 it('formats timezone-less API timestamps as UTC in the configured display timezone', () => {
   process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE = 'Asia/Shanghai';
 
-  expect(formatDate('2026-06-01T05:25:00')).toMatch(
-    /2026.*06.*01.*13.*25/
-  );
+  expect(formatDate('2026-06-01T05:25:00')).toMatch(/2026.*06.*01.*13.*25/);
 });
 
 it('does not apply an extra offset to timestamps that already include a timezone', () => {
@@ -32,22 +31,16 @@ describe('image file list filters', () => {
   it('updates image exam types through the atomic batch endpoint', async () => {
     const patch = jest.fn<(...args: unknown[]) => Promise<unknown>>(
       async () => ({
-        data: {
-          code: 200,
-          message: '影像检查类型批量更新成功',
-          data: {
-            updated_ids: [3],
-            unchanged_ids: [4],
-            updated_count: 1,
-            unchanged_count: 1,
-            exam_type: '侧位X光片',
-          },
-        },
+        updated_ids: [3],
+        unchanged_ids: [4],
+        updated_count: 1,
+        unchanged_count: 1,
+        exam_type: '侧位X光片',
       })
     );
 
     jest.resetModules();
-    jest.doMock('@/lib/api', () => ({ apiClient: { patch } }));
+    jest.doMock('@/infrastructure/http', () => ({ apiClient: { patch } }));
     const { batchUpdateImageExamType } = await import('../imageFileService');
 
     const result = await batchUpdateImageExamType([3, 4], '侧位X光片');
@@ -59,57 +52,47 @@ describe('image file list filters', () => {
     expect(result.updated_ids).toEqual([3]);
     expect(result.unchanged_count).toBe(1);
 
-    jest.dontMock('@/lib/api');
+    jest.dontMock('@/infrastructure/http');
   });
 
   it('renames an image through the filename endpoint', async () => {
     const patch = jest.fn<(...args: unknown[]) => Promise<unknown>>(
       async () => ({
-        data: {
-          code: 200,
-          message: '影像重命名成功',
-          data: {
-            id: 7,
-            original_filename: 'renamed.png',
-          },
-        },
+        id: 7,
+        original_filename: 'renamed.png',
       })
     );
 
     jest.resetModules();
-    jest.doMock('@/lib/api', () => ({ apiClient: { patch } }));
+    jest.doMock('@/infrastructure/http', () => ({ apiClient: { patch } }));
     const { renameImageFile } = await import('../imageFileService');
 
     const result = await renameImageFile(7, 'renamed');
 
-    expect(patch).toHaveBeenCalledWith(
-      '/api/v1/image-files/7/filename',
-      { basename: 'renamed' }
-    );
+    expect(patch).toHaveBeenCalledWith('/api/v1/image-files/7/filename', {
+      basename: 'renamed',
+    });
     expect(result.original_filename).toBe('renamed.png');
 
-    jest.dontMock('@/lib/api');
+    jest.dontMock('@/infrastructure/http');
   });
 
   it('sends uploaded_by when filtering by uploader', async () => {
     const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      data: {
-        code: 200,
-        message: '影像文件列表查询成功',
-        data: {
-          items: [],
-          pagination: {
-            total: 0,
-            page: 1,
-            page_size: 20,
-            total_pages: 0,
-          },
-        },
+      items: [],
+      pagination: {
+        total: 0,
+        page: 1,
+        page_size: 20,
+        total_pages: 0,
       },
     }));
 
     jest.resetModules();
-    jest.doMock('@/lib/api', () => ({ apiClient: { get } }));
+    jest.doMock('@/infrastructure/http', () => ({
+      apiClient: { get },
+      normalizeLegacyPagination,
+    }));
     const { getImageFiles } = await import('../imageFileService');
 
     await getImageFiles({ uploaded_by: 7 });
@@ -122,28 +105,25 @@ describe('image file list filters', () => {
       },
     });
 
-    jest.dontMock('@/lib/api');
+    jest.dontMock('@/infrastructure/http');
   });
 
   it('sends the explicit file type and processing status filters', async () => {
     const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      data: {
-        code: 200,
-        message: '影像文件列表查询成功',
-        data: {
-          items: [],
-          pagination: {
-            total: 0,
-            page: 1,
-            page_size: 20,
-            total_pages: 0,
-          },
-        },
+      items: [],
+      pagination: {
+        total: 0,
+        page: 1,
+        page_size: 20,
+        total_pages: 0,
       },
     }));
 
     jest.resetModules();
-    jest.doMock('@/lib/api', () => ({ apiClient: { get } }));
+    jest.doMock('@/infrastructure/http', () => ({
+      apiClient: { get },
+      normalizeLegacyPagination,
+    }));
     const { getImageFiles } = await import('../imageFileService');
 
     await getImageFiles({ file_type: 'PNG', file_status: 'PROCESSED' });
@@ -157,27 +137,21 @@ describe('image file list filters', () => {
       },
     });
 
-    jest.dontMock('@/lib/api');
+    jest.dontMock('@/infrastructure/http');
   });
 
   it('saves a versioned annotation snapshot', async () => {
     const put = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      data: {
-        code: 200,
-        message: '标注保存成功',
-        data: {
-          annotation_version: 4,
-          annotation_updated_at: '2026-08-02T12:00:00',
-          annotation_updated_by: 9,
-          has_annotation: true,
-          status: 'PROCESSED',
-          changed: true,
-        },
-      },
+      annotation_version: 4,
+      annotation_updated_at: '2026-08-02T12:00:00',
+      annotation_updated_by: 9,
+      has_annotation: true,
+      status: 'PROCESSED',
+      changed: true,
     }));
 
     jest.resetModules();
-    jest.doMock('@/lib/api', () => ({ apiClient: { put } }));
+    jest.doMock('@/infrastructure/http', () => ({ apiClient: { put } }));
     const { saveImageAnnotation } = await import('../imageFileService');
 
     const result = await saveImageAnnotation(8, 3, {
@@ -190,22 +164,20 @@ describe('image file list filters', () => {
     });
     expect(result.annotation_version).toBe(4);
 
-    jest.dontMock('@/lib/api');
+    jest.dontMock('@/infrastructure/http');
   });
 
   it('loads annotations in a dedicated batch request', async () => {
-    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      data: {
-        code: 200,
-        message: '标注批量查询成功',
-        data: {
-          items: [{ id: 3, annotation: { measurements: [] }, annotation_version: 2 }],
-        },
-      },
-    }));
+    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => ({
+        items: [
+          { id: 3, annotation: { measurements: [] }, annotation_version: 2 },
+        ],
+      })
+    );
 
     jest.resetModules();
-    jest.doMock('@/lib/api', () => ({ apiClient: { post } }));
+    jest.doMock('@/infrastructure/http', () => ({ apiClient: { post } }));
     const { getImageAnnotations } = await import('../imageFileService');
 
     const result = await getImageAnnotations([3]);
@@ -215,30 +187,22 @@ describe('image file list filters', () => {
     });
     expect(result[0].annotation_version).toBe(2);
 
-    jest.dontMock('@/lib/api');
+    jest.dontMock('@/infrastructure/http');
   });
 
   it('chunks annotation requests at the API limit', async () => {
     const post = jest.fn<
       (path: string, body: { ids: number[] }) => Promise<unknown>
-    >(
-      async (_path: string, body: { ids: number[] }) => ({
-        data: {
-          code: 200,
-          message: '标注批量查询成功',
-          data: {
-            items: body.ids.map(id => ({
-              id,
-              annotation: null,
-              annotation_version: 0,
-            })),
-          },
-        },
-      })
-    );
+    >(async (_path: string, body: { ids: number[] }) => ({
+      items: body.ids.map(id => ({
+        id,
+        annotation: null,
+        annotation_version: 0,
+      })),
+    }));
 
     jest.resetModules();
-    jest.doMock('@/lib/api', () => ({ apiClient: { post } }));
+    jest.doMock('@/infrastructure/http', () => ({ apiClient: { post } }));
     const { getImageAnnotations } = await import('../imageFileService');
     const ids = Array.from({ length: 101 }, (_, index) => index + 1);
 
@@ -249,27 +213,25 @@ describe('image file list filters', () => {
     expect(post.mock.calls[1][1]).toEqual({ ids: [101] });
     expect(result).toHaveLength(101);
 
-    jest.dontMock('@/lib/api');
+    jest.dontMock('@/infrastructure/http');
   });
 
   it('loads visible uploaders from the image file API', async () => {
     const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      data: {
-        code: 200,
-        data: {
-          items: [{ id: 7, real_name: '王医生', email: 'doctor@example.com' }],
-          pagination: {
-            total: 1,
-            page: 1,
-            page_size: 10,
-            total_pages: 1,
-          },
-        },
+      items: [{ id: 7, real_name: '王医生', email: 'doctor@example.com' }],
+      pagination: {
+        total: 1,
+        page: 1,
+        page_size: 10,
+        total_pages: 1,
       },
     }));
 
     jest.resetModules();
-    jest.doMock('@/lib/api', () => ({ apiClient: { get } }));
+    jest.doMock('@/infrastructure/http', () => ({
+      apiClient: { get },
+      normalizeLegacyPagination,
+    }));
     const { getVisibleImageUploaders } = await import('../imageFileService');
 
     const result = await getVisibleImageUploaders({
@@ -287,27 +249,25 @@ describe('image file list filters', () => {
     });
     expect(result.items[0].real_name).toBe('王医生');
 
-    jest.dontMock('@/lib/api');
+    jest.dontMock('@/infrastructure/http');
   });
 
   it('loads assignable image teams from the image file API', async () => {
     const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      data: {
-        code: 200,
-        data: {
-          items: [{ id: 11, name: '骨科团队', member_count: 3, is_member: true }],
-          pagination: {
-            total: 1,
-            page: 2,
-            page_size: 10,
-            total_pages: 3,
-          },
-        },
+      items: [{ id: 11, name: '骨科团队', member_count: 3, is_member: true }],
+      pagination: {
+        total: 1,
+        page: 2,
+        page_size: 10,
+        total_pages: 3,
       },
     }));
 
     jest.resetModules();
-    jest.doMock('@/lib/api', () => ({ apiClient: { get } }));
+    jest.doMock('@/infrastructure/http', () => ({
+      apiClient: { get },
+      normalizeLegacyPagination,
+    }));
     const { getAssignableImageTeams } = await import('../imageFileService');
 
     const result = await getAssignableImageTeams({
@@ -326,6 +286,6 @@ describe('image file list filters', () => {
     expect(result.items[0].name).toBe('骨科团队');
     expect(result.totalPages).toBe(3);
 
-    jest.dontMock('@/lib/api');
+    jest.dontMock('@/infrastructure/http');
   });
 });

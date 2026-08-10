@@ -1,6 +1,5 @@
-import { apiClient } from '@/lib/api';
+import { apiClient, getApiErrorStatus } from '@/infrastructure/http';
 import { handleApiError } from './errorService';
-import { extractData } from '@/lib/api/types';
 
 export interface TeamSummary {
   id: number;
@@ -8,7 +7,7 @@ export interface TeamSummary {
   description?: string | null;
   hospital?: string | null;
   department?: string | null;
-  creator_name?: string | null;  // 改为creator_name
+  creator_name?: string | null; // 改为creator_name
   member_count: number;
   max_members?: number | null;
   is_member: boolean;
@@ -100,15 +99,16 @@ export interface TeamUpdateRequest {
 
 const client = apiClient;
 
-export async function searchTeams(keyword: string): Promise<TeamSearchResponse> {
+export async function searchTeams(
+  keyword: string
+): Promise<TeamSearchResponse> {
   try {
-    const response = await client.get(
+    return await client.get<TeamSearchResponse>(
       '/api/v1/permissions/teams/search',
       {
         params: { keyword },
       }
     );
-    return extractData<TeamSearchResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_search');
     throw error;
@@ -117,8 +117,7 @@ export async function searchTeams(keyword: string): Promise<TeamSearchResponse> 
 
 export async function getMyTeams(): Promise<TeamListResponse> {
   try {
-    const response = await client.get('/api/v1/permissions/teams/my');
-    return extractData<TeamListResponse>(response);
+    return await client.get<TeamListResponse>('/api/v1/permissions/teams/my');
   } catch (error) {
     handleApiError(error, 'team_my_list');
     throw error;
@@ -130,23 +129,23 @@ export async function applyToJoinTeam(
   message?: string
 ): Promise<TeamJoinRequestSubmitResponse> {
   try {
-    const response = await client.post(
+    return await client.post<TeamJoinRequestSubmitResponse>(
       `/api/v1/permissions/teams/${teamId}/apply`,
       { message: message || '' }
     );
-    return extractData<TeamJoinRequestSubmitResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_apply');
     throw error;
   }
 }
 
-export async function getTeamMembers(teamId: number): Promise<TeamMembersResponse> {
+export async function getTeamMembers(
+  teamId: number
+): Promise<TeamMembersResponse> {
   try {
-    const response = await client.get(
+    return await client.get<TeamMembersResponse>(
       `/api/v1/permissions/teams/${teamId}/members`
     );
-    return extractData<TeamMembersResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_members');
     throw error;
@@ -158,13 +157,12 @@ export async function getTeamJoinRequests(
   status?: 'pending' | 'approved' | 'rejected'
 ): Promise<TeamJoinRequestListResponse> {
   try {
-    const response = await client.get(
+    return await client.get<TeamJoinRequestListResponse>(
       `/api/v1/permissions/teams/${teamId}/join-requests`,
       {
         params: status ? { status } : undefined,
       }
     );
-    return extractData<TeamJoinRequestListResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_join_requests');
     throw error;
@@ -177,11 +175,10 @@ export async function reviewTeamJoinRequest(
   decision: 'approve' | 'reject'
 ): Promise<TeamJoinRequestActionResponse> {
   try {
-    const response = await client.post(
+    return await client.post<TeamJoinRequestActionResponse>(
       `/api/v1/permissions/teams/${teamId}/join-requests/${requestId}/review`,
       { decision }
     );
-    return extractData<TeamJoinRequestActionResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_join_request_review');
     throw error;
@@ -193,10 +190,9 @@ export async function cancelTeamJoinRequest(
   requestId: number
 ): Promise<TeamJoinRequestActionResponse> {
   try {
-    const response = await client.delete(
+    return await client.delete<TeamJoinRequestActionResponse>(
       `/api/v1/permissions/teams/${teamId}/join-requests/${requestId}`
     );
-    return extractData<TeamJoinRequestActionResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_join_request_cancel');
     throw error;
@@ -210,11 +206,10 @@ export async function inviteTeamMember(
   message?: string
 ): Promise<string> {
   try {
-    const response = await client.post(
+    const result = await client.post<{ message: string }>(
       `/api/v1/permissions/teams/${teamId}/invite`,
       { email, role, message }
     );
-    const result = extractData<{ message: string }>(response);
     return result.message;
   } catch (error) {
     handleApiError(error, 'team_invite');
@@ -222,10 +217,14 @@ export async function inviteTeamMember(
   }
 }
 
-export async function createTeam(payload: TeamCreateRequest): Promise<TeamSummary> {
+export async function createTeam(
+  payload: TeamCreateRequest
+): Promise<TeamSummary> {
   try {
-    const response = await client.post('/api/v1/permissions/teams', payload);
-    return extractData<TeamSummary>(response);
+    return await client.post<TeamSummary, TeamCreateRequest>(
+      '/api/v1/permissions/teams',
+      payload
+    );
   } catch (error) {
     handleApiError(error, 'team_create');
     throw error;
@@ -237,11 +236,10 @@ export async function updateTeam(
   payload: TeamUpdateRequest
 ): Promise<TeamSummary> {
   try {
-    const response = await client.patch(
+    return await client.patch<TeamSummary, TeamUpdateRequest>(
       `/api/v1/permissions/teams/${teamId}`,
       payload
     );
-    return extractData<TeamSummary>(response);
   } catch (error) {
     handleApiError(error, 'team_update');
     throw error;
@@ -251,14 +249,13 @@ export async function updateTeam(
 // 获取用户的申请记录
 export async function getMyApplications(): Promise<TeamJoinRequestItem[]> {
   try {
-    const response = await client.get(
+    const result = await client.get<{ items: TeamJoinRequestItem[] }>(
       '/api/v1/permissions/teams/my-applications'
     );
-    const result = extractData<{ items: TeamJoinRequestItem[] }>(response);
     return result.items;
   } catch (error) {
     // 如果接口不存在，返回空数组
-    if ((error as any)?.response?.status === 404) {
+    if (getApiErrorStatus(error) === 404) {
       return [];
     }
     handleApiError(error, 'team_my_applications');
@@ -273,11 +270,10 @@ export async function updateMemberRole(
   newRole: 'ADMIN' | 'MEMBER' // 移除GUEST角色
 ): Promise<{ message: string }> {
   try {
-    const response = await client.patch(
+    return await client.patch<{ message: string }>(
       `/api/v1/permissions/teams/${teamId}/members/${userId}/role`,
       { role: newRole }
     );
-    return extractData<{ message: string }>(response);
   } catch (error) {
     handleApiError(error, 'team_update_member_role');
     throw error;
@@ -290,10 +286,9 @@ export async function removeMember(
   userId: number
 ): Promise<{ message: string }> {
   try {
-    const response = await client.delete(
+    return await client.delete<{ message: string }>(
       `/api/v1/permissions/teams/${teamId}/members/${userId}`
     );
-    return extractData<{ message: string }>(response);
   } catch (error) {
     handleApiError(error, 'team_remove_member');
     throw error;
@@ -331,10 +326,9 @@ export interface TeamInvitationRespondResponse {
 // 获取我的团队邀请
 export async function getMyInvitations(): Promise<TeamInvitationListResponse> {
   try {
-    const response = await client.get(
+    return await client.get<TeamInvitationListResponse>(
       '/api/v1/permissions/invitations/my'
     );
-    return extractData<TeamInvitationListResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_invitations_get');
     throw error;
@@ -347,11 +341,10 @@ export async function respondToInvitation(
   accept: boolean
 ): Promise<TeamInvitationRespondResponse> {
   try {
-    const response = await client.post(
+    return await client.post<TeamInvitationRespondResponse>(
       `/api/v1/permissions/invitations/${invitationId}/respond`,
       { accept }
     );
-    return extractData<TeamInvitationRespondResponse>(response);
   } catch (error) {
     handleApiError(error, 'team_invitation_respond');
     throw error;

@@ -61,13 +61,12 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
 
     if (!persist) {
       sessionInitializerLogging.persistApiUnavailable();
-      setIsHydrated(true);
       return;
     }
 
     if (persist.hasHydrated?.()) {
       sessionInitializerLogging.persistAlreadyHydrated();
-      setIsHydrated(true);
+      queueMicrotask(() => setIsHydrated(true));
       return;
     }
 
@@ -156,7 +155,10 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     const refreshLeadTimeMs = 2 * 60 * 1000;
     const minDelayMs = 30 * 1000;
     const expiresAtMs = accessTokenExpiresAtEpochSeconds * 1000;
-    const delayMs = Math.max(expiresAtMs - Date.now() - refreshLeadTimeMs, minDelayMs);
+    const delayMs = Math.max(
+      expiresAtMs - Date.now() - refreshLeadTimeMs,
+      minDelayMs
+    );
     sessionInitializerLogging.scheduledRefreshPlanned({
       accessTokenExpiresAtEpochSeconds,
       delayMs,

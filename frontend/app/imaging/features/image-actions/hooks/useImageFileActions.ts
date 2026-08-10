@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/infrastructure/http';
 import {
   deleteImageFile,
   downloadImageFile,
@@ -13,7 +13,9 @@ import {
 } from '../domain/imageFilename';
 import { createLogger } from '@/lib/logger';
 
-const logger = createLogger('app.imaging.features.image.actions.hooks.useImageFileActions');
+const logger = createLogger(
+  'app.imaging.features.image.actions.hooks.useImageFileActions'
+);
 
 interface UseImageFileActionsOptions {
   imageFiles: ImageFile[];

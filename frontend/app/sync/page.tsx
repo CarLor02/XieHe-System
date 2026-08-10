@@ -1,10 +1,7 @@
 'use client';
 
 import AppShell from '@/components/layout/AppShell';
-import {
-  createPatient,
-  getPatients,
-} from '@/services/patientServices';
+import { createPatient, getPatients } from '@/services/patientServices';
 import { uploadSingleFile } from '@/services/imageServices';
 import {
   downloadSyncPreviewImage,
@@ -39,7 +36,15 @@ interface Stats {
   unsynced: number;
 }
 
-type ImportStatus = 'idle' | 'inspecting' | 'patient' | 'downloading' | 'uploading' | 'marking' | 'done' | 'error';
+type ImportStatus =
+  | 'idle'
+  | 'inspecting'
+  | 'patient'
+  | 'downloading'
+  | 'uploading'
+  | 'marking'
+  | 'done'
+  | 'error';
 
 interface ImportState {
   status: ImportStatus;
@@ -95,7 +100,9 @@ export default function SyncPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Import progress per file
-  const [importStates, setImportStates] = useState<Record<number, ImportState>>({});
+  const [importStates, setImportStates] = useState<Record<number, ImportState>>(
+    {}
+  );
   const [importing, setImporting] = useState(false);
 
   // Toast
@@ -121,10 +128,13 @@ export default function SyncPage() {
     };
   }, []);
 
-  const syncConfig = useCallback<() => SyncServiceConfig>(() => ({
-    serviceUrl,
-    apiKey,
-  }), [serviceUrl, apiKey]);
+  const syncConfig = useCallback<() => SyncServiceConfig>(
+    () => ({
+      serviceUrl,
+      apiKey,
+    }),
+    [serviceUrl, apiKey]
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -150,7 +160,10 @@ export default function SyncPage() {
 
       const items = await getSyncFiles(syncConfig(), params);
       setFiles(items);
-      items.forEach(f => { monthsSet.add(f.month_folder); patientsSet.add(f.patient_folder); });
+      items.forEach(f => {
+        monthsSet.add(f.month_folder);
+        patientsSet.add(f.patient_folder);
+      });
       setMonths(Array.from(monthsSet).sort());
       setPatients(Array.from(patientsSet).sort());
     } catch (e: unknown) {
@@ -175,7 +188,11 @@ export default function SyncPage() {
 
   // ── Import Logic ─────────────────────────────────────────────────────────────
 
-  const setFileImportState = (id: number, status: ImportStatus, message: string) => {
+  const setFileImportState = (
+    id: number,
+    status: ImportStatus,
+    message: string
+  ) => {
     setImportStates(prev => ({ ...prev, [id]: { status, message } }));
   };
 
@@ -183,7 +200,9 @@ export default function SyncPage() {
     setFileImportState(file.id, 'inspecting', '读取影像元数据…');
 
     // 1. Inspect
-    const inspectData = await inspectSyncFile(syncConfig(), file.id);
+    const inspectData = await inspectSyncFile<{
+      dicom?: Record<string, string | undefined>;
+    }>(syncConfig(), file.id);
     const dicom = inspectData.dicom ?? {};
 
     const patientName = dicom.PatientName || file.patient_folder;
@@ -243,7 +262,8 @@ export default function SyncPage() {
     if (!selectedIds.size) return;
     setImporting(true);
     const ids = Array.from(selectedIds);
-    let ok = 0, fail = 0;
+    let ok = 0,
+      fail = 0;
     for (const id of ids) {
       const file = files.find(f => f.id === id);
       if (!file) continue;
@@ -266,17 +286,22 @@ export default function SyncPage() {
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
-  const selectAll = () => setSelectedIds(new Set(files.filter(f => !f.is_synced && f.is_valid).map(f => f.id)));
+  const selectAll = () =>
+    setSelectedIds(
+      new Set(files.filter(f => !f.is_synced && f.is_valid).map(f => f.id))
+    );
   const clearSel = () => setSelectedIds(new Set());
 
   // ── Status badge ──────────────────────────────────────────────────────────
 
-  const importStateFor = (id: number): ImportState | null => importStates[id] ?? null;
+  const importStateFor = (id: number): ImportState | null =>
+    importStates[id] ?? null;
 
   const statusBadge = (f: ScanFile) => {
     const s = importStateFor(f.id);
@@ -291,266 +316,370 @@ export default function SyncPage() {
         done: 'bg-green-100 text-green-700',
         error: 'bg-red-100 text-red-700',
       };
-      return <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[s.status]}`}>{s.message}</span>;
+      return (
+        <span
+          className={`px-2 py-0.5 rounded text-xs font-medium ${colors[s.status]}`}
+        >
+          {s.message}
+        </span>
+      );
     }
-    if (f.is_synced) return <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">已同步</span>;
-    if (!f.is_valid) return <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">文件丢失</span>;
-    return <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">待导入</span>;
+    if (f.is_synced)
+      return (
+        <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+          已同步
+        </span>
+      );
+    if (!f.is_valid)
+      return (
+        <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+          文件丢失
+        </span>
+      );
+    return (
+      <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+        待导入
+      </span>
+    );
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <AppShell>
+      {/* Page title + Config toggle */}
+      <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-800">同步数据</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            从扫描机同步影像文件到系统
+          </p>
+        </div>
+        <button
+          onClick={() => setShowConfig(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          <i className="ri-settings-3-line"></i> 服务配置
+        </button>
+      </div>
 
-          {/* Page title + Config toggle */}
-          <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-800">同步数据</h1>
-              <p className="text-sm text-gray-500 mt-0.5">从扫描机同步影像文件到系统</p>
-            </div>
-            <button
-              onClick={() => setShowConfig(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+      {/* Config panel */}
+      {showConfig && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
+          <div className="flex-1 min-w-48">
+            <label className="block text-xs text-gray-500 mb-1">
+              文件索引服务地址
+            </label>
+            <input
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={serviceUrl}
+              onChange={e => setServiceUrl(e.target.value)}
+              placeholder={
+                process.env.NEXT_PUBLIC_SYNC_SERVICE_URL ||
+                'http://192.168.x.x:9000'
+              }
+            />
+          </div>
+          <div className="flex-1 min-w-40">
+            <label className="block text-xs text-gray-500 mb-1">
+              API Key（可选）
+            </label>
+            <input
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={apiKey}
+              onChange={e => setApiKey(e.target.value)}
+              placeholder="your-api-key"
+              type="password"
+            />
+          </div>
+          <button
+            onClick={saveConfig}
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            连接并刷新
+          </button>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm mb-4 flex items-center gap-2">
+          <i className="ri-error-warning-line"></i> {error}
+          <button
+            onClick={loadData}
+            className="ml-auto text-red-600 hover:underline text-xs"
+          >
+            重试
+          </button>
+        </div>
+      )}
+
+      {/* Stats */}
+      {stats && (
+        <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: '总文件', value: stats.total, color: 'text-gray-700' },
+            { label: '有效文件', value: stats.valid, color: 'text-blue-600' },
+            { label: '已同步', value: stats.synced, color: 'text-green-600' },
+            { label: '待导入', value: stats.unsynced, color: 'text-amber-600' },
+          ].map(s => (
+            <div
+              key={s.label}
+              className="bg-white rounded-xl border border-gray-200 p-3 text-center"
             >
-              <i className="ri-settings-3-line"></i> 服务配置
+              <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filters + Actions */}
+      <div className="bg-white border border-gray-200 rounded-xl mb-4">
+        <div className="flex flex-wrap gap-2 p-3 border-b border-gray-100 items-center">
+          <div className="relative">
+            <select
+              className="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-1.5 text-sm text-gray-700 bg-white"
+              style={{
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                backgroundImage: 'none',
+              }}
+              value={filterMonth}
+              onChange={e => setFilterMonth(e.target.value)}
+            >
+              <option value="">全部月份</option>
+              {months.map(m => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <i className="ri-arrow-down-s-line pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          </div>
+          <div className="relative">
+            <select
+              className="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-1.5 text-sm text-gray-700 bg-white"
+              style={{
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                backgroundImage: 'none',
+              }}
+              value={filterSynced}
+              onChange={e => setFilterSynced(e.target.value)}
+            >
+              <option value="all">全部状态</option>
+              <option value="false">待导入</option>
+              <option value="true">已同步</option>
+            </select>
+            <i className="ri-arrow-down-s-line pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          </div>
+          <div className="relative">
+            <select
+              className="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-1.5 text-sm text-gray-700 bg-white"
+              style={{
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                backgroundImage: 'none',
+              }}
+              value={filterPatient}
+              onChange={e => setFilterPatient(e.target.value)}
+            >
+              <option value="">全部患者</option>
+              {patients.map(p => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            <i className="ri-arrow-down-s-line pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          </div>
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1"
+          >
+            <i
+              className={`ri-refresh-line ${loading ? 'animate-spin' : ''}`}
+            ></i>{' '}
+            刷新
+          </button>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-2">
+          <span className="text-sm text-gray-500">
+            {selectedIds.size > 0
+              ? `已选 ${selectedIds.size} 个`
+              : `共 ${files.length} 个文件`}
+          </span>
+          <button
+            onClick={selectAll}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            全选待导入
+          </button>
+          <button
+            onClick={clearSel}
+            className="text-xs text-gray-500 hover:underline"
+          >
+            清除选择
+          </button>
+          <div className="ml-auto">
+            <button
+              onClick={importSelected}
+              disabled={selectedIds.size === 0 || importing}
+              className="px-4 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+            >
+              {importing ? (
+                <>
+                  <i className="ri-loader-4-line animate-spin"></i> 导入中…
+                </>
+              ) : (
+                <>
+                  <i className="ri-download-cloud-line"></i> 批量导入
+                </>
+              )}
             </button>
           </div>
+        </div>
+      </div>
 
-          {/* Config panel */}
-          {showConfig && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
-              <div className="flex-1 min-w-48">
-                <label className="block text-xs text-gray-500 mb-1">文件索引服务地址</label>
-                <input
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={serviceUrl}
-                  onChange={e => setServiceUrl(e.target.value)}
-                  placeholder={process.env.NEXT_PUBLIC_SYNC_SERVICE_URL || 'http://192.168.x.x:9000'}
-                />
-              </div>
-              <div className="flex-1 min-w-40">
-                <label className="block text-xs text-gray-500 mb-1">API Key（可选）</label>
-                <input
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={apiKey}
-                  onChange={e => setApiKey(e.target.value)}
-                  placeholder="your-api-key"
-                  type="password"
-                />
-              </div>
-              <button
-                onClick={saveConfig}
-                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                连接并刷新
-              </button>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm mb-4 flex items-center gap-2">
-              <i className="ri-error-warning-line"></i> {error}
-              <button onClick={loadData} className="ml-auto text-red-600 hover:underline text-xs">重试</button>
-            </div>
-          )}
-
-          {/* Stats */}
-          {stats && (
-            <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                { label: '总文件', value: stats.total, color: 'text-gray-700' },
-                { label: '有效文件', value: stats.valid, color: 'text-blue-600' },
-                { label: '已同步', value: stats.synced, color: 'text-green-600' },
-                { label: '待导入', value: stats.unsynced, color: 'text-amber-600' },
-              ].map(s => (
-                <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-3 text-center">
-                  <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Filters + Actions */}
-          <div className="bg-white border border-gray-200 rounded-xl mb-4">
-            <div className="flex flex-wrap gap-2 p-3 border-b border-gray-100 items-center">
-              <div className="relative">
-                <select
-                  className="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-1.5 text-sm text-gray-700 bg-white"
-                  style={{
-                    appearance: 'none',
-                    WebkitAppearance: 'none',
-                    MozAppearance: 'none',
-                    backgroundImage: 'none',
-                  }}
-                  value={filterMonth}
-                  onChange={e => setFilterMonth(e.target.value)}
-                >
-                  <option value="">全部月份</option>
-                  {months.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <i className="ri-arrow-down-s-line pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
-              <div className="relative">
-                <select
-                  className="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-1.5 text-sm text-gray-700 bg-white"
-                  style={{
-                    appearance: 'none',
-                    WebkitAppearance: 'none',
-                    MozAppearance: 'none',
-                    backgroundImage: 'none',
-                  }}
-                  value={filterSynced}
-                  onChange={e => setFilterSynced(e.target.value)}
-                >
-                  <option value="all">全部状态</option>
-                  <option value="false">待导入</option>
-                  <option value="true">已同步</option>
-                </select>
-                <i className="ri-arrow-down-s-line pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
-              <div className="relative">
-                <select
-                  className="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-1.5 text-sm text-gray-700 bg-white"
-                  style={{
-                    appearance: 'none',
-                    WebkitAppearance: 'none',
-                    MozAppearance: 'none',
-                    backgroundImage: 'none',
-                  }}
-                  value={filterPatient}
-                  onChange={e => setFilterPatient(e.target.value)}
-                >
-                  <option value="">全部患者</option>
-                  {patients.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                <i className="ri-arrow-down-s-line pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              </div>
+      {/* File table */}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-20 text-gray-400">
+            <i className="ri-loader-4-line animate-spin text-2xl mr-2"></i>{' '}
+            加载中…
+          </div>
+        ) : files.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <i className="ri-folder-open-line text-4xl mb-2"></i>
+            <p className="text-sm">
+              {error ? '连接失败，请检查配置' : '暂无文件，请先配置并连接服务'}
+            </p>
+            {!error && !stats && (
               <button
                 onClick={loadData}
-                disabled={loading}
-                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1"
+                className="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
               >
-                <i className={`ri-refresh-line ${loading ? 'animate-spin' : ''}`}></i> 刷新
+                连接服务
               </button>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2">
-              <span className="text-sm text-gray-500">
-                {selectedIds.size > 0 ? `已选 ${selectedIds.size} 个` : `共 ${files.length} 个文件`}
-              </span>
-              <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">全选待导入</button>
-              <button onClick={clearSel} className="text-xs text-gray-500 hover:underline">清除选择</button>
-              <div className="ml-auto">
-                <button
-                  onClick={importSelected}
-                  disabled={selectedIds.size === 0 || importing}
-                  className="px-4 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
-                >
-                  {importing
-                    ? <><i className="ri-loader-4-line animate-spin"></i> 导入中…</>
-                    : <><i className="ri-download-cloud-line"></i> 批量导入</>
-                  }
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* File table */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            {loading ? (
-              <div className="flex items-center justify-center py-20 text-gray-400">
-                <i className="ri-loader-4-line animate-spin text-2xl mr-2"></i> 加载中…
-              </div>
-            ) : files.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                <i className="ri-folder-open-line text-4xl mb-2"></i>
-                <p className="text-sm">{error ? '连接失败，请检查配置' : '暂无文件，请先配置并连接服务'}</p>
-                {!error && !stats && (
-                  <button onClick={loadData} className="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-                    连接服务
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className="px-3 py-2 text-left w-8">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.size > 0 && selectedIds.size === files.filter(f => !f.is_synced && f.is_valid).length}
-                          onChange={e => e.target.checked ? selectAll() : clearSel()}
-                          className="rounded"
-                        />
-                      </th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium">文件名</th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium">大小</th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium">文件时间</th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium">同步时间</th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium">状态</th>
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {files.map(f => {
-                      const state = importStateFor(f.id);
-                      const canSelect = !f.is_synced && f.is_valid && state?.status !== 'done';
-                      return (
-                        <tr key={f.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${selectedIds.has(f.id) ? 'bg-blue-50' : ''}`}>
-                          <td className="px-3 py-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(f.id)}
-                              disabled={!canSelect}
-                              onChange={() => toggleSelect(f.id)}
-                              className="rounded"
-                            />
-                          </td>
-                          <td className="px-3 py-2 font-mono text-xs text-gray-700 max-w-xs">
-                            <span title={f.filename} className="block truncate">{f.filename}</span>
-                          </td>
-                          <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{fmtSize(f.file_size)}</td>
-                          <td className="px-3 py-2 text-gray-400 text-xs whitespace-nowrap">
-                            {f.file_mtime ? new Date(f.file_mtime).toLocaleString('zh-CN') : '—'}
-                          </td>
-                          <td className="px-3 py-2 text-gray-400 text-xs whitespace-nowrap">
-                            {f.synced_at ? new Date(f.synced_at).toLocaleString('zh-CN') : '—'}
-                          </td>
-                          <td className="px-3 py-2">{statusBadge(f)}</td>
-                          <td className="px-3 py-2">
-                            {canSelect && (
-                              <button
-                                onClick={async () => {
-                                  setImporting(true);
-                                  try {
-                                    await importFile(f);
-                                    showToast(`✓ ${f.filename} 导入成功`);
-                                    loadData();
-                                  } catch (e: unknown) {
-                                    setFileImportState(f.id, 'error', (e as Error).message);
-                                    showToast(`✗ ${f.filename} 导入失败`);
-                                  } finally {
-                                    setImporting(false);
-                                  }
-                                }}
-                                disabled={importing}
-                                className="px-2.5 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
-                              >
-                                导入
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
             )}
           </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="px-3 py-2 text-left w-8">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedIds.size > 0 &&
+                        selectedIds.size ===
+                          files.filter(f => !f.is_synced && f.is_valid).length
+                      }
+                      onChange={e =>
+                        e.target.checked ? selectAll() : clearSel()
+                      }
+                      className="rounded"
+                    />
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    文件名
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    大小
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    文件时间
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    同步时间
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    状态
+                  </th>
+                  <th className="px-3 py-2 text-left text-gray-500 font-medium">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {files.map(f => {
+                  const state = importStateFor(f.id);
+                  const canSelect =
+                    !f.is_synced && f.is_valid && state?.status !== 'done';
+                  return (
+                    <tr
+                      key={f.id}
+                      className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${selectedIds.has(f.id) ? 'bg-blue-50' : ''}`}
+                    >
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(f.id)}
+                          disabled={!canSelect}
+                          onChange={() => toggleSelect(f.id)}
+                          className="rounded"
+                        />
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-gray-700 max-w-xs">
+                        <span title={f.filename} className="block truncate">
+                          {f.filename}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">
+                        {fmtSize(f.file_size)}
+                      </td>
+                      <td className="px-3 py-2 text-gray-400 text-xs whitespace-nowrap">
+                        {f.file_mtime
+                          ? new Date(f.file_mtime).toLocaleString('zh-CN')
+                          : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-gray-400 text-xs whitespace-nowrap">
+                        {f.synced_at
+                          ? new Date(f.synced_at).toLocaleString('zh-CN')
+                          : '—'}
+                      </td>
+                      <td className="px-3 py-2">{statusBadge(f)}</td>
+                      <td className="px-3 py-2">
+                        {canSelect && (
+                          <button
+                            onClick={async () => {
+                              setImporting(true);
+                              try {
+                                await importFile(f);
+                                showToast(`✓ ${f.filename} 导入成功`);
+                                loadData();
+                              } catch (e: unknown) {
+                                setFileImportState(
+                                  f.id,
+                                  'error',
+                                  (e as Error).message
+                                );
+                                showToast(`✗ ${f.filename} 导入失败`);
+                              } finally {
+                                setImporting(false);
+                              }
+                            }}
+                            disabled={importing}
+                            className="px-2.5 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+                          >
+                            导入
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Toast */}
       {toast && (

@@ -18,10 +18,19 @@ export interface HttpRequest<TBody = unknown> extends HttpRequestOptions {
   data?: TBody;
 }
 
+export interface HttpResponse<T> {
+  data: T;
+  status: number;
+  headers: Record<string, string>;
+}
+
 export interface HttpClient {
   request<TResponse, TBody = unknown>(
     request: HttpRequest<TBody>
   ): Promise<TResponse>;
+  requestWithMetadata<TResponse, TBody = unknown>(
+    request: HttpRequest<TBody>
+  ): Promise<HttpResponse<TResponse>>;
   get<TResponse>(url: string, options?: HttpRequestOptions): Promise<TResponse>;
   post<TResponse, TBody = unknown>(
     url: string,
@@ -38,5 +47,8 @@ export interface HttpClient {
     data?: TBody,
     options?: HttpRequestOptions
   ): Promise<TResponse>;
-  delete<TResponse>(url: string, options?: HttpRequestOptions): Promise<TResponse>;
+  delete<TResponse>(
+    url: string,
+    options?: HttpRequestOptions
+  ): Promise<TResponse>;
 }

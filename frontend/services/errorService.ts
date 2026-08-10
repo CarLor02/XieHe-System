@@ -15,17 +15,39 @@
 
 import { toast } from 'react-hot-toast';
 import {
-  extractErrorMessage,
-  extractErrorCode,
-  extractErrorDetails,
-  formatFieldErrors,
-  isNetworkError,
-  isTimeoutError,
-  getStatusCode,
-} from '@/lib/api/types';
+  createExternalHttpClient,
+  getApiErrorMessage,
+  getApiErrorStatus,
+  isApiClientError,
+  type ApiErrorDetails,
+} from '@/infrastructure/http';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('services.errorService');
+const errorReportClient = createExternalHttpClient();
+
+function extractErrorCode(error: unknown): string | undefined {
+  return isApiClientError(error) ? error.errorCode : undefined;
+}
+
+function extractErrorDetails(error: unknown): ApiErrorDetails | undefined {
+  return isApiClientError(error) ? error.details : undefined;
+}
+
+function formatFieldErrors(details?: ApiErrorDetails): string {
+  if (!details) return '';
+  if (Array.isArray(details)) {
+    return details
+      .map(detail => `${detail.field || '字段'}: ${detail.message || '无效'}`)
+      .join('\n');
+  }
+  return Object.entries(details)
+    .map(
+      ([field, messages]) =>
+        `${field}: ${Array.isArray(messages) ? messages.join(', ') : String(messages)}`
+    )
+    .join('\n');
+}
 
 // 错误类型枚举
 export enum ErrorType {
@@ -191,7 +213,7 @@ class ErrorService {
   // 处理API错误
   public handleApiError(error: any, context?: string): string {
     // 检查是否为网络错误
-    if (isNetworkError(error)) {
+    if (isApiClientError(error) && error.isNetworkError) {
       return this.handleError(error, {
         type: ErrorType.NETWORK,
         severity: ErrorSeverity.HIGH,
@@ -201,7 +223,7 @@ class ErrorService {
     }
 
     // 检查是否为超时错误
-    if (isTimeoutError(error)) {
+    if (isApiClientError(error) && error.isTimeoutError) {
       return this.handleError(error, {
         type: ErrorType.NETWORK,
         severity: ErrorSeverity.HIGH,
@@ -223,24 +245,34 @@ class ErrorService {
 
     // 提取后端返回的错误信息
     const errorCode = extractErrorCode(error);
-    const errorMessage = extractErrorMessage(error);
+    const errorMessage = getApiErrorMessage(error);
     const errorDetails = extractErrorDetails(error);
-    const status = getStatusCode(error) || response.status;
+    const status = getApiErrorStatus(error) || response.status;
 
     // 优先使用业务错误码进行处理
     if (errorCode) {
-      return this.handleErrorByCode(errorCode, errorMessage, errorDetails, context);
+      return this.handleErrorByCode(
+        errorCode,
+        errorMessage,
+        errorDetails,
+        context
+      );
     }
 
     // 降级到 HTTP 状态码处理
-    return this.handleErrorByStatus(status, errorMessage, errorDetails, context);
+    return this.handleErrorByStatus(
+      status,
+      errorMessage,
+      errorDetails,
+      context
+    );
   }
 
   // 根据业务错误码处理错误
   private handleErrorByCode(
     errorCode: string,
     message: string,
-    details?: Record<string, any>,
+    details?: ApiErrorDetails,
     context?: string
   ): string {
     let errorType: ErrorType;
@@ -288,7 +320,7 @@ class ErrorService {
   private handleErrorByStatus(
     status: number,
     message: string,
-    details?: Record<string, any>,
+    details?: ApiErrorDetails,
     context?: string
   ): string {
     let errorType: ErrorType;
@@ -518,13 +550,11 @@ class ErrorService {
       const errorInfo = this.errorQueue.shift()!;
 
       try {
-        await fetch(this.config.reportEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(errorInfo),
-        });
+        await errorReportClient.post<void, ErrorInfo>(
+          this.config.reportEndpoint,
+          errorInfo,
+          { auth: 'none', responseMode: 'raw' }
+        );
       } catch (reportError) {
         logger.error('Failed to report error:', reportError);
         // 重新加入队列，但限制重试次数
@@ -581,13 +611,11 @@ class ErrorService {
   public async sendClientErrorReport(
     payload: ClientErrorReportPayload
   ): Promise<void> {
-    await fetch(this.config.reportEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+    await errorReportClient.post<void, ClientErrorReportPayload>(
+      this.config.reportEndpoint,
+      payload,
+      { auth: 'none', responseMode: 'raw' }
+    );
   }
 }
 

@@ -33,7 +33,10 @@ export default function BirthDatePicker({
 
   // 生成年份选项（1900 - 当前年份）
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 1900 + 1 }, (_, i) => currentYear - i);
+  const years = Array.from(
+    { length: currentYear - 1900 + 1 },
+    (_, i) => currentYear - i
+  );
 
   // 生成月份选项
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -52,23 +55,30 @@ export default function BirthDatePicker({
   // 当外部值变化时，更新内部状态
   useEffect(() => {
     isExternalUpdateRef.current = true;
-    if (value) {
-      const parts = value.split('-');
-      if (parts.length === 3) {
-        setYear(parts[0]);
-        // 去掉月份和日期的前导零，以匹配 <option> 的 value
-        setMonth(String(parseInt(parts[1], 10)));
-        setDay(String(parseInt(parts[2], 10)));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (value) {
+        const parts = value.split('-');
+        if (parts.length === 3) {
+          setYear(parts[0]);
+          // 去掉月份和日期的前导零，以匹配 <option> 的 value
+          setMonth(String(parseInt(parts[1], 10)));
+          setDay(String(parseInt(parts[2], 10)));
+        }
+      } else {
+        setYear('');
+        setMonth('');
+        setDay('');
       }
-    } else {
-      setYear('');
-      setMonth('');
-      setDay('');
-    }
-    // 使用 setTimeout 确保状态更新完成后再重置标记
-    setTimeout(() => {
-      isExternalUpdateRef.current = false;
-    }, 0);
+      // 状态同步完成后再允许内部变化回调外部。
+      queueMicrotask(() => {
+        if (!cancelled) isExternalUpdateRef.current = false;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [value]);
 
   // 当年/月/日变化时，通知外部
@@ -151,4 +161,3 @@ export default function BirthDatePicker({
     </div>
   );
 }
-

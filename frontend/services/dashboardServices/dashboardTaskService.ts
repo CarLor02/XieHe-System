@@ -1,10 +1,10 @@
-import { apiClient } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
+import { apiClient } from '@/infrastructure/http';
 import { DashboardTask } from './types';
 
 export async function getDashboardTasks(): Promise<DashboardTask[]> {
-  const response = await apiClient.get('/api/v1/dashboard/tasks');
-  const payload = extractData<{ tasks?: DashboardTask[] } | DashboardTask[]>(response);
+  const payload = await apiClient.get<
+    { tasks?: DashboardTask[] } | DashboardTask[]
+  >('/api/v1/dashboard/tasks');
   if (Array.isArray(payload)) {
     return payload;
   }

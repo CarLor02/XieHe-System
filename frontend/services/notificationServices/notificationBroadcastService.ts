@@ -1,5 +1,4 @@
-import { apiClient } from '@/lib/api';
-import { extractData } from '@/lib/api/types';
+import { apiClient } from '@/infrastructure/http';
 import {
   NotificationActionResult,
   NotificationBroadcastRequest,
@@ -8,6 +7,8 @@ import {
 export async function broadcastNotification(
   payload: NotificationBroadcastRequest
 ): Promise<NotificationActionResult> {
-  const response = await apiClient.post('/api/v1/notifications/broadcast', payload);
-  return extractData<NotificationActionResult>(response);
+  return apiClient.post<NotificationActionResult, NotificationBroadcastRequest>(
+    '/api/v1/notifications/broadcast',
+    payload
+  );
 }

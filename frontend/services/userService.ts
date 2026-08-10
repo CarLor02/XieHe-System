@@ -3,8 +3,7 @@
  * 提供用户信息相关的 API 调用
  */
 
-import { apiClient } from '@/lib/api';
-import { extractData, isSuccessResponse } from '@/lib/api/types';
+import { apiClient, objectStorageClient } from '@/infrastructure/http';
 
 export interface UserInfo {
   id: number;
@@ -55,57 +54,42 @@ export interface AvatarUploadSession {
   parts: AvatarUploadPartUrl[];
 }
 
-type ApiRequestConfigWithAuthBypass = NonNullable<
-  Parameters<typeof apiClient.put>[2]
-> & {
-  _skipAuthRefresh?: boolean;
-};
-
 /**
  * 获取当前用户信息
  */
 export async function getCurrentUser(): Promise<UserInfo> {
-  const response = await apiClient.get('/api/v1/auth/me');
-
-  // 检查是否是错误响应
-  if (!isSuccessResponse(response)) {
-    throw new Error(response.data?.message || '获取用户信息失败');
-  }
-
-  return extractData<UserInfo>(response);
+  return apiClient.get<UserInfo>('/api/v1/auth/me');
 }
 
 /**
  * 更新当前用户信息
  */
-export async function updateCurrentUser(data: UserUpdateData): Promise<UserInfo> {
-  const response = await apiClient.put('/api/v1/auth/me', data);
-
-  // 检查是否是错误响应
-  if (!isSuccessResponse(response)) {
-    throw new Error(response.data?.message || '更新用户信息失败');
-  }
-
-  return extractData<UserInfo>(response);
+export async function updateCurrentUser(
+  data: UserUpdateData
+): Promise<UserInfo> {
+  return apiClient.put<UserInfo, UserUpdateData>('/api/v1/auth/me', data);
 }
 
 export async function changeCurrentUserPassword(
   data: PasswordChangeData
 ): Promise<void> {
-  const response = await apiClient.post('/api/v1/auth/password/change', data);
-
-  if (!isSuccessResponse(response)) {
-    throw new Error(response.data?.message || '修改密码失败');
-  }
+  await apiClient.post<void, PasswordChangeData>(
+    '/api/v1/auth/password/change',
+    data
+  );
 }
 
-export async function createAvatarUploadSession(file: File): Promise<AvatarUploadSession> {
-  const response = await apiClient.post('/api/v1/auth/me/avatar/upload-session', {
-    filename: file.name,
-    size: file.size,
-    mime_type: file.type || 'application/octet-stream',
-  });
-  return extractData<AvatarUploadSession>(response);
+export async function createAvatarUploadSession(
+  file: File
+): Promise<AvatarUploadSession> {
+  return apiClient.post<AvatarUploadSession>(
+    '/api/v1/auth/me/avatar/upload-session',
+    {
+      filename: file.name,
+      size: file.size,
+      mime_type: file.type || 'application/octet-stream',
+    }
+  );
 }
 
 export async function uploadCurrentUserAvatar(file: File): Promise<UserInfo> {
@@ -114,17 +98,18 @@ export async function uploadCurrentUserAvatar(file: File): Promise<UserInfo> {
   for (const part of session.parts) {
     const start = (part.part_number - 1) * session.part_size;
     const end = Math.min(start + session.part_size, file.size);
-    const uploadConfig: ApiRequestConfigWithAuthBypass = {
+    const uploadResponse = await objectStorageClient.requestWithMetadata<
+      string,
+      Blob
+    >({
+      method: 'PUT',
+      url: part.url,
+      data: file.slice(start, end),
+      auth: 'none',
+      responseMode: 'raw',
       headers: { 'Content-Type': 'application/octet-stream' },
-      transformRequest: [(data: Blob) => data],
-      _skipAuthRefresh: true,
-    };
-    const uploadResponse = await apiClient.put(
-      part.url,
-      file.slice(start, end),
-      uploadConfig
-    );
-    const etag = uploadResponse.headers?.etag || uploadResponse.headers?.ETag;
+    });
+    const etag = uploadResponse.headers.etag;
     if (!etag) {
       throw new Error('对象存储未返回头像分片 ETag');
     }
@@ -134,14 +119,12 @@ export async function uploadCurrentUserAvatar(file: File): Promise<UserInfo> {
     });
   }
 
-  const response = await apiClient.post('/api/v1/auth/me/avatar/complete', {
+  return apiClient.post<UserInfo>('/api/v1/auth/me/avatar/complete', {
     upload_id: session.upload_id,
     parts,
   });
-  return extractData<UserInfo>(response);
 }
 
 export async function deleteCurrentUserAvatar(): Promise<UserInfo> {
-  const response = await apiClient.delete('/api/v1/auth/me/avatar');
-  return extractData<UserInfo>(response);
+  return apiClient.delete<UserInfo>('/api/v1/auth/me/avatar');
 }

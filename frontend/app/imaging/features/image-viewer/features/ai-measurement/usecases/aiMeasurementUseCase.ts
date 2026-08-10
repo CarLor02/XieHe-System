@@ -1,5 +1,4 @@
 // // AI测量函数（原AI检测函数）
-// import {authenticatedBlobFetch} from "@/lib/api";
 // import {ImageData, ImageSize, MeasurementData, Point, Tool} from '@/app/imaging/features/image-viewer/shared/types'
 // import {getAiMeasurementsResponse} from "@/services/imageServices";
 //
@@ -23,7 +22,6 @@
 //
 //         // 先获取图片
 //         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-//         const imageBlob = await authenticatedBlobFetch(
 //             `${apiUrl}/api/v1/image-files/${numericId}/download`
 //         );
 //
@@ -54,7 +52,6 @@
 //
 //         console.log('🤖 使用AI测量接口:', aiDetectUrl);
 //
-//         const aiResponse = await fetch(aiDetectUrl, {
 //             method: 'POST',
 //             body: formData,
 //         });

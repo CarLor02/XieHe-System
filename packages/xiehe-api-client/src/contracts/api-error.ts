@@ -5,10 +5,7 @@ export interface ApiErrorDetail {
   [key: string]: unknown;
 }
 
-export type ApiErrorDetails =
-  | ApiErrorDetail[]
-  | Record<string, unknown>
-  | null;
+export type ApiErrorDetails = ApiErrorDetail[] | Record<string, unknown> | null;
 
 export interface ApiErrorEnvelope {
   code?: number | null;
@@ -54,4 +51,40 @@ export class ApiClientError extends Error {
 
 export function isApiClientError(error: unknown): error is ApiClientError {
   return error instanceof ApiClientError;
+}
+
+export function getApiErrorStatus(error: unknown): number | undefined {
+  if (isApiClientError(error)) return error.status;
+  if (error === null || typeof error !== 'object') return undefined;
+  const candidate = error as {
+    status?: unknown;
+    response?: { status?: unknown };
+  };
+  const status = candidate.response?.status ?? candidate.status;
+  return typeof status === 'number' ? status : undefined;
+}
+
+export function getApiErrorMessage(
+  error: unknown,
+  fallback = '操作失败，请稍后重试'
+): string {
+  if (isApiClientError(error) && error.message.trim()) return error.message;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (error === null || typeof error !== 'object') return fallback;
+  const candidate = error as {
+    message?: unknown;
+    data?: { message?: unknown; detail?: unknown };
+    response?: { data?: { message?: unknown; detail?: unknown } };
+  };
+  const data = candidate.response?.data ?? candidate.data;
+  if (typeof data?.message === 'string' && data.message.trim()) {
+    return data.message;
+  }
+  if (typeof data?.detail === 'string' && data.detail.trim()) {
+    return data.detail;
+  }
+  if (typeof candidate.message === 'string' && candidate.message.trim()) {
+    return candidate.message;
+  }
+  return fallback;
 }
