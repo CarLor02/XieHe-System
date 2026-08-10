@@ -4,7 +4,6 @@
  */
 
 import {
-  AUXILIARY_TOOL_TYPES,
   HORIZONTAL_LINE_TOOLS,
   STANDARD_DISTANCE_DEPENDENT_TYPES,
   VERTICAL_LINE_TOOLS,
@@ -14,7 +13,10 @@ import {
   constrainPointHorizontally,
   constrainPointVertically,
 } from '../../../shared/domain/geometry';
-import { getAnnotationTypeId } from '../../../measurements/domain';
+import {
+  getAnnotationTypeId,
+  isAuxiliaryInteractionTool,
+} from '../../../measurements/domain';
 import type { ReferenceLines } from '../model/canvas-state';
 
 function includesToolId(values: readonly string[], toolId: string): boolean {
@@ -27,7 +29,7 @@ function includesToolId(values: readonly string[], toolId: string): boolean {
  * @returns 是否为辅助工具
  */
 export function isAuxiliaryTool(toolId: string): boolean {
-  return includesToolId(AUXILIARY_TOOL_TYPES, toolId);
+  return isAuxiliaryInteractionTool(toolId);
 }
 
 /**
@@ -36,10 +38,7 @@ export function isAuxiliaryTool(toolId: string): boolean {
  * @returns 是否为辅助图形
  */
 export function isAuxiliaryShape(measurementType: string): boolean {
-  return includesToolId(
-    AUXILIARY_TOOL_TYPES,
-    getAnnotationTypeId(measurementType)
-  );
+  return isAuxiliaryInteractionTool(getAnnotationTypeId(measurementType));
 }
 
 /**

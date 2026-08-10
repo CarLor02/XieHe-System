@@ -8,19 +8,6 @@ export const CANVAS_INTERACTION_CONSTANTS = {
   pointDeleteThreshold: 5,
 } as const;
 
-export const AUXILIARY_TOOL_TYPES = [
-  'circle',
-  'ellipse',
-  'rectangle',
-  'arrow',
-  'polygon',
-  'vertebra-center',
-  'aux-length',
-  'aux-angle',
-  'aux-horizontal-line',
-  'aux-vertical-line',
-] as const;
-
 export const HORIZONTAL_LINE_TOOLS = [
   't1-tilt',
   't1-slope',
@@ -32,8 +19,4 @@ export const HORIZONTAL_LINE_TOOLS = [
 
 export const VERTICAL_LINE_TOOLS = ['avt', 'ts', 'sva'] as const;
 
-export const STANDARD_DISTANCE_DEPENDENT_TYPES = [
-  'avt',
-  'tts',
-  'sva',
-] as const;
+export const STANDARD_DISTANCE_DEPENDENT_TYPES = ['avt', 'tts', 'sva'] as const;

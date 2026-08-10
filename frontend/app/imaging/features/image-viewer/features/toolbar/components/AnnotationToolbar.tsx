@@ -5,8 +5,10 @@ import BindingPanel from '@/app/imaging/features/image-viewer/features/bindings/
 import ReportPanel from '@/app/imaging/features/image-viewer/features/report/components/ReportPanel';
 import { AnnotationBindings } from '@xiehe/imaging-core/bindings';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { isAuxiliaryTool } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
-import { isUniqueAnnotationTool } from '@xiehe/imaging-core/measurements';
+import {
+  isAuxiliaryToolbarTool,
+  isUniqueAnnotationTool,
+} from '@xiehe/imaging-core/measurements';
 import {
   getKeypointGroupsForExamType,
   shiftVertebraLabels,
@@ -283,8 +285,10 @@ export default function AnnotationToolbar({
   const effectiveBasicMode = availableBasicModes.includes(currentBasicMode)
     ? currentBasicMode
     : BasicMode.Move;
-  const measurementTools = tools.filter(tool => !isAuxiliaryTool(tool.id));
-  const auxiliaryTools = tools.filter(tool => isAuxiliaryTool(tool.id));
+  const measurementTools = tools.filter(
+    tool => !isAuxiliaryToolbarTool(tool.id)
+  );
+  const auxiliaryTools = tools.filter(tool => isAuxiliaryToolbarTool(tool.id));
   const keypointGroups = getKeypointGroupsForExamType(examType);
   const keypointIds = new Set(keypoints.map(keypoint => keypoint.id));
   const hasSingleFemoralHead = keypointIds.has('CFH');

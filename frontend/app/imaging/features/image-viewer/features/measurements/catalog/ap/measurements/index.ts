@@ -15,6 +15,10 @@ import { PO_CONFIG } from '@/app/imaging/features/image-viewer/features/measurem
 import { T1_TILT_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/t1-tilt';
 import { TS_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/ts';
 import { TTS_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/tts';
+import {
+  AP_MEASUREMENT_TOOL_IDS,
+  getToolCapability,
+} from '@xiehe/imaging-core/measurements';
 
 export { AVT_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/avt';
 export {
@@ -31,21 +35,6 @@ export { PO_CONFIG } from '@/app/imaging/features/image-viewer/features/measurem
 export { T1_TILT_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/t1-tilt';
 export { TS_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/ts';
 export { TTS_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/tts';
-
-export const AP_SELECTION_MEASUREMENT_TOOL_IDS = ['avt', 'tts'] as const;
-
-const AP_MEASUREMENT_TOOL_IDS = [
-  't1-tilt',
-  'cobb',
-  'ca',
-  'po',
-  'css',
-  'avt',
-  'tts',
-  'lld',
-  'hemipelvic-width-ratio',
-  'ts',
-] as const;
 
 export const AP_MEASUREMENT_CONFIGS = {
   't1-tilt': T1_TILT_CONFIG,
@@ -75,14 +64,15 @@ export const AP_MEASUREMENT_CONFIGS = {
 function toTool(toolId: string): Tool | null {
   const config =
     AP_MEASUREMENT_CONFIGS[toolId as keyof typeof AP_MEASUREMENT_CONFIGS];
-  if (!config) return null;
+  const capability = getToolCapability(toolId);
+  if (!config || !capability) return null;
 
   return {
     id: config.id,
     name: config.name,
     icon: config.icon,
     description: config.description,
-    pointsNeeded: config.pointsNeeded,
+    pointsNeeded: capability.pointsNeeded,
   };
 }
 
@@ -95,11 +85,5 @@ export function getApMeasurementTools(): Tool[] {
 export function isApMeasurementTool(toolId: string): boolean {
   return AP_MEASUREMENT_TOOL_IDS.includes(
     toolId as (typeof AP_MEASUREMENT_TOOL_IDS)[number]
-  );
-}
-
-export function isApSelectionMeasurementTool(toolId: string): boolean {
-  return AP_SELECTION_MEASUREMENT_TOOL_IDS.includes(
-    toolId as (typeof AP_SELECTION_MEASUREMENT_TOOL_IDS)[number]
   );
 }

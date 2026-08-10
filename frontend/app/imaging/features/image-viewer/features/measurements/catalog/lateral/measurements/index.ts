@@ -14,6 +14,10 @@ import { T1_SLOPE_CONFIG } from '@/app/imaging/features/image-viewer/features/me
 import { TK_T2_T5_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/tk-t2-t5';
 import { TK_T5_T12_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/tk-t5-t12';
 import { TPA_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/tpa';
+import {
+  LATERAL_MEASUREMENT_TOOL_IDS,
+  getToolCapability,
+} from '@xiehe/imaging-core/measurements';
 
 export { CL_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cl';
 export { LATERAL_COBB_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cobb';
@@ -29,33 +33,6 @@ export { T1_SLOPE_CONFIG } from '@/app/imaging/features/image-viewer/features/me
 export { TK_T2_T5_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/tk-t2-t5';
 export { TK_T5_T12_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/tk-t5-t12';
 export { TPA_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/tpa';
-
-export const LATERAL_AUTOMATIC_MEASUREMENT_TOOL_IDS = [
-  't1-slope',
-  'tk-t2-t5',
-  'tk-t5-t12',
-  't10-l2',
-  'll-l1-s1',
-  'll-l1-l4',
-  'll-l4-s1',
-  'tpa',
-  'sva',
-  'pi',
-  'pt',
-  'ss',
-] as const;
-
-export const LATERAL_DEPENDENT_MEASUREMENT_TOOL_IDS = ['cl'] as const;
-
-export const LATERAL_MANUAL_MEASUREMENT_TOOL_IDS = ['lateral-cobb'] as const;
-
-export const LATERAL_SELECTION_MEASUREMENT_TOOL_IDS = [] as const;
-
-const LATERAL_MEASUREMENT_TOOL_IDS = [
-  ...LATERAL_AUTOMATIC_MEASUREMENT_TOOL_IDS,
-  ...LATERAL_DEPENDENT_MEASUREMENT_TOOL_IDS,
-  ...LATERAL_MANUAL_MEASUREMENT_TOOL_IDS,
-] as const;
 
 export const LATERAL_MEASUREMENT_CONFIGS = {
   't1-slope': T1_SLOPE_CONFIG,
@@ -81,14 +58,15 @@ function toTool(toolId: string): Tool | null {
     LATERAL_MEASUREMENT_CONFIGS[
       toolId as keyof typeof LATERAL_MEASUREMENT_CONFIGS
     ];
-  if (!config) return null;
+  const capability = getToolCapability(toolId);
+  if (!config || !capability) return null;
 
   return {
     id: config.id,
     name: config.name,
     icon: config.icon,
     description: config.description,
-    pointsNeeded: config.pointsNeeded,
+    pointsNeeded: capability.pointsNeeded,
   };
 }
 
@@ -101,11 +79,5 @@ export function getLateralMeasurementTools(): Tool[] {
 export function isLateralMeasurementTool(toolId: string): boolean {
   return LATERAL_MEASUREMENT_TOOL_IDS.includes(
     toolId as (typeof LATERAL_MEASUREMENT_TOOL_IDS)[number]
-  );
-}
-
-export function isLateralSelectionMeasurementTool(toolId: string): boolean {
-  return LATERAL_SELECTION_MEASUREMENT_TOOL_IDS.includes(
-    toolId as (typeof LATERAL_SELECTION_MEASUREMENT_TOOL_IDS)[number]
   );
 }

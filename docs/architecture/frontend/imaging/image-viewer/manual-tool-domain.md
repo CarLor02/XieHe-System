@@ -7,15 +7,15 @@
 
 ```text
 packages/xiehe-imaging-core/src/measurements/
-├── manual-tools/
-│   ├── ap/                         # 正位工具规则
-│   └── lateral/                    # 侧位工具规则
-├── cobb/                           # 正侧位共用的 Cobb 基础规则
-├── resolver/                       # 可变 measurement 解析注册表
-├── annotation-rules/               # 唯一性、可编辑性和序列化
-├── calibration.ts
-├── line-angle.ts
-└── shared-rules.ts
+├── domain/
+│   ├── manual-tools/
+│   │   ├── ap/                     # 正位工具规则
+│   │   └── lateral/                # 侧位工具规则
+│   ├── cobb/                       # 正侧位共用的 Cobb 基础规则
+│   ├── resolver/                   # 可变 measurement 解析注册表
+│   ├── annotation-rules/           # 唯一性、可编辑性和序列化
+│   └── tool-catalog/               # 跨端工具能力与检查类型清单
+└── application/                    # 应用端口与纯用例
 
 frontend/.../features/measurements/
 ├── catalog/                        # Web 工具注册与视觉元数据
@@ -59,14 +59,15 @@ Cobb、AVT、TTS、PI/PT/TPA 的持久化点序受检查类型、metadata 或历
 
 ## Web Catalog
 
-Web catalog 只负责：
+Core `tool-catalog` 负责工具 ID、检查类型适用性、有序清单、点数、结果分类、工具栏
+分组和 Canvas 交互类别。Web catalog 只负责：
 
-- 工具 ID、中文名、图标、描述、点数、颜色和分类。
+- 中文名、图标、描述、颜色和 renderer 等展示元数据。
 - 标签锚点、屏幕偏移、交互点数和 renderer ID。
 - 将 core 计算/命中函数组合为 Web `AnnotationConfig`。
 
-Catalog 不实现医学公式，也不是跨平台工具目录。Expo 应建立符合移动端交互的展示
-catalog，并复用 core 的 ID、规则和契约。
+Catalog 不实现医学公式，也不自行维护跨平台工具清单。Expo 应建立符合移动端交互
+的展示 catalog，并复用 Core 能力目录、规则和契约。
 
 ## 依赖方向
 

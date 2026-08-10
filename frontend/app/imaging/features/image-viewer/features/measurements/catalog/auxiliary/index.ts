@@ -11,6 +11,11 @@ import { LENGTH_CONFIG } from '@/app/imaging/features/image-viewer/features/meas
 import { POLYGON_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/polygon';
 import { RECTANGLE_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/rectangle';
 import { VERTEBRA_CENTER_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/vertebra-center';
+import {
+  AUXILIARY_TOOL_IDS,
+  getToolCapability,
+  isAuxiliaryToolbarTool,
+} from '@xiehe/imaging-core/measurements';
 
 export { ANGLE_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/angle';
 export { ARROW_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/arrow';
@@ -24,18 +29,6 @@ export { LENGTH_CONFIG } from '@/app/imaging/features/image-viewer/features/meas
 export { POLYGON_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/polygon';
 export { RECTANGLE_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/rectangle';
 export { VERTEBRA_CENTER_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/vertebra-center';
-
-const AUXILIARY_TOOL_IDS = [
-  'circle',
-  'ellipse',
-  'rectangle',
-  'arrow',
-  'polygon',
-  'aux-length',
-  'aux-angle',
-  'aux-horizontal-line',
-  'aux-vertical-line',
-] as const;
 
 export const AUXILIARY_CONFIGS = {
   length: LENGTH_CONFIG,
@@ -54,14 +47,15 @@ export const AUXILIARY_CONFIGS = {
 
 function toTool(toolId: string): Tool | null {
   const config = AUXILIARY_CONFIGS[toolId as keyof typeof AUXILIARY_CONFIGS];
-  if (!config) return null;
+  const capability = getToolCapability(toolId);
+  if (!config || !capability) return null;
 
   return {
     id: config.id,
     name: config.name,
     icon: config.icon,
     description: config.description,
-    pointsNeeded: config.pointsNeeded,
+    pointsNeeded: capability.pointsNeeded,
   };
 }
 
@@ -72,7 +66,5 @@ export function getAuxiliaryTools(): Tool[] {
 }
 
 export function isAuxiliaryTool(toolId: string): boolean {
-  return AUXILIARY_TOOL_IDS.includes(
-    toolId as (typeof AUXILIARY_TOOL_IDS)[number]
-  );
+  return isAuxiliaryToolbarTool(toolId);
 }

@@ -4,22 +4,29 @@
  */
 
 import { Tool } from '@/app/imaging/features/image-viewer/shared/types';
-import { getApMeasurementTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements';
-import { getAuxiliaryTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
-import { getLateralMeasurementTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements';
 import { ANNOTATION_CONFIGS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { isBendingExamType } from '@xiehe/imaging-core/anatomy';
+import {
+  AP_MEASUREMENT_TOOL_IDS,
+  AUXILIARY_TOOL_IDS,
+  GENERIC_MEASUREMENT_TOOL_IDS,
+  LATERAL_MEASUREMENT_TOOL_IDS,
+  getToolCapability,
+  getToolIdsForExamType,
+} from '@xiehe/imaging-core/measurements';
 
-function mapToolIdsToCatalog(toolIds: string[]): Tool[] {
+function mapToolIdsToCatalog(toolIds: readonly string[]): Tool[] {
   return toolIds
-    .map(toolId => ANNOTATION_CONFIGS[toolId])
-    .filter(Boolean)
-    .map(config => ({
+    .flatMap(toolId => {
+      const config = ANNOTATION_CONFIGS[toolId];
+      const capability = getToolCapability(toolId);
+      return config && capability ? [{ config, capability }] : [];
+    })
+    .map(({ config, capability }) => ({
       id: config.id,
       name: config.name,
       icon: config.icon,
       description: config.description,
-      pointsNeeded: config.pointsNeeded,
+      pointsNeeded: capability.pointsNeeded,
     }));
 }
 
@@ -27,42 +34,35 @@ function mapToolIdsToCatalog(toolIds: string[]): Tool[] {
  * 获取正位 X 光片的工具列表
  */
 export function getAnteriorTools(): Tool[] {
-  return [...getApMeasurementTools(), ...getAuxiliaryTools()];
+  return mapToolIdsToCatalog([
+    ...AP_MEASUREMENT_TOOL_IDS,
+    ...AUXILIARY_TOOL_IDS,
+  ]);
 }
 
 /**
  * 获取侧位 X 光片的工具列表
  */
 export function getLateralTools(): Tool[] {
-  return [...getLateralMeasurementTools(), ...getAuxiliaryTools()];
+  return mapToolIdsToCatalog([
+    ...LATERAL_MEASUREMENT_TOOL_IDS,
+    ...AUXILIARY_TOOL_IDS,
+  ]);
 }
 
 /**
  * 获取通用工具列表
  */
 export function getGenericTools(): Tool[] {
-  return [
-    ...mapToolIdsToCatalog([
-      'length',
-      'angle',
-      'vertebra-center',
-    ]),
-    ...getAuxiliaryTools(),
-  ];
+  return mapToolIdsToCatalog([
+    ...GENERIC_MEASUREMENT_TOOL_IDS,
+    ...AUXILIARY_TOOL_IDS,
+  ]);
 }
 
 /**
  * 根据检查类型获取工具列表
  */
 export function getToolsForExamType(examType: string): Tool[] {
-  if (examType === '正位X光片') {
-    return getAnteriorTools();
-  }
-  if (examType === '侧位X光片') {
-    return getLateralTools();
-  }
-  if (isBendingExamType(examType)) {
-    return [...mapToolIdsToCatalog(['cobb']), ...getAuxiliaryTools()];
-  }
-  return getGenericTools();
+  return mapToolIdsToCatalog(getToolIdsForExamType(examType));
 }

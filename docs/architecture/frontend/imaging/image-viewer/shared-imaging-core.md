@@ -17,12 +17,16 @@ packages/xiehe-imaging-core/    # 平台无关影像规则
 
 ```text
 packages/xiehe-imaging-core/src/
+├── ai/
+│   ├── domain/                 # AI 响应契约
+│   └── application/            # 正侧位关键点与测量结果归一化
+├── annotation-document/domain/ # 版本化标注快照、历史解码与坐标缩放
 ├── shared/domain/
 │   ├── contracts/              # 标注、点位、AVT、骨盆等稳定契约
 │   ├── anatomy/                # 检查类型与椎体生理顺序
 │   └── geometry/               # 平台无关几何
 ├── measurements/
-│   ├── domain/                 # 公式、resolver、唯一性和手动工具规则
+│   ├── domain/                 # 公式、resolver、工具能力目录和手动工具规则
 │   └── application/
 │       ├── ports/              # MeasurementValueCalculator 等依赖端口
 │       └── usecases/           # 测量创建计划与 Cobb 删除后重编号
@@ -47,8 +51,11 @@ packages/xiehe-imaging-core/src/
 
 ```ts
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import { decodeAnnotationDocument } from '@xiehe/imaging-core/annotation-document';
+import { normalizeAiDetectionResult } from '@xiehe/imaging-core/ai';
 import { getMeasurementDeriveVertebraOrder } from '@xiehe/imaging-core/anatomy';
 import { calculateMeasurementResults } from '@xiehe/imaging-core/measurements';
+import { getToolIdsForExamType } from '@xiehe/imaging-core/measurements';
 import { getKeypointGroupsForExamType } from '@xiehe/imaging-core/keypoints';
 import { planMeasurementDeletion } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { buildCanvasDerivedState } from '@xiehe/imaging-core/canvas';
@@ -64,8 +71,13 @@ import { buildCanvasDerivedState } from '@xiehe/imaging-core/canvas';
 
 同步应用用例通过 `MeasurementValueCalculator` 端口获取数值，不反向依赖 Web
 catalog。测量新增使用纯 `planMeasurementAddition` 生成计划，Web 只负责 React
-状态提交。画布 selector 只依赖 `id`、`pointsNeeded` 等稳定工具字段，不依赖图标和
-展示文案。
+状态提交。工具能力目录统一声明工具 ID、有序检查类型清单、点数、结果分类、工具栏
+分组和交互类别；Web/Expo 分别组合自己的文案、图标与 renderer。画布 selector 只
+依赖这些稳定字段，不依赖展示文案。
+
+AI HTTP 仍由平台发起，但响应到图像坐标、正位姿态点交换、侧位角点几何排序、弯曲
+位过滤和 Cobb 元数据生成由 Core application 完成。版本化标注文档由 Core 负责
+构建、解码和原图坐标缩放；平台只决定保存到 API、SecureStore 或本地维护缓存。
 
 ## 平台保留职责
 
@@ -74,7 +86,7 @@ catalog。测量新增使用纯 `planMeasurementAddition` 生成计划，Web 只
 - 工具中文名、图标、颜色、renderer ID 和平台展示 catalog。
 - React hooks、历史状态、API、持久化、日志和用户消息。
 - DOM Pointer Events、SVG renderer、Overlay、面板和工具栏。
-- AI HTTP、报告、影像加载与本地缓存。
+- AI HTTP、报告、影像加载与具体存储介质。
 
 平台 catalog 可以组合 Core 公式，但不得重新实现医学计算；Core 不得反向依赖
 catalog、renderer 或平台状态。
