@@ -1,8 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  beginAnnotationHistoryAction,
+  cancelAnnotationHistoryAction,
+  clearAnnotationHistory,
+  createAnnotationHistoryState,
+  observeAnnotationHistoryPresent,
+  redoAnnotationHistory,
+  undoAnnotationHistory,
+  type AnnotationHistoryPolicy,
+  type AnnotationHistoryState,
+} from '@xiehe/imaging-core/editor';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface UseAnnotationHistoryOptions<TSnapshot> {
   snapshot: TSnapshot;
   restoreSnapshot: (snapshot: TSnapshot) => void;
+  cloneSnapshot: (snapshot: TSnapshot) => TSnapshot;
+  snapshotsEqual: (left: TSnapshot, right: TSnapshot) => boolean;
   maxDepth?: number;
 }
 
@@ -12,210 +25,104 @@ interface BeginHistoryActionOptions<TSnapshot> {
   snapshot?: TSnapshot;
 }
 
-interface PendingHistoryAction<TSnapshot> {
-  label: string;
-  snapshot: TSnapshot;
-  persistAcrossUnchangedRenders: boolean;
-}
-
-function cloneSnapshot<TSnapshot>(snapshot: TSnapshot): TSnapshot {
-  if (typeof structuredClone === 'function') {
-    return structuredClone(snapshot);
-  }
-  return JSON.parse(JSON.stringify(snapshot)) as TSnapshot;
-}
-
-function snapshotsEqual<TSnapshot>(
-  left: TSnapshot,
-  right: TSnapshot
-): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
 export function useAnnotationHistory<TSnapshot>({
   snapshot,
   restoreSnapshot,
+  cloneSnapshot,
+  snapshotsEqual,
   maxDepth = 50,
 }: UseAnnotationHistoryOptions<TSnapshot>) {
-  const [undoStack, setUndoStack] = useState<TSnapshot[]>([]);
-  const [redoStack, setRedoStack] = useState<TSnapshot[]>([]);
-  const undoStackRef = useRef<TSnapshot[]>([]);
-  const redoStackRef = useRef<TSnapshot[]>([]);
+  const policy = useMemo<AnnotationHistoryPolicy<TSnapshot>>(
+    () => ({ clone: cloneSnapshot, equals: snapshotsEqual, maxDepth }),
+    [cloneSnapshot, maxDepth, snapshotsEqual]
+  );
   const currentSnapshotRef = useRef(cloneSnapshot(snapshot));
-  const pendingActionRef =
-    useRef<PendingHistoryAction<TSnapshot> | null>(null);
-
-  const setUndoSnapshots = useCallback((snapshots: TSnapshot[]) => {
-    undoStackRef.current = snapshots;
-    setUndoStack(snapshots);
-  }, []);
-
-  const setRedoSnapshots = useCallback((snapshots: TSnapshot[]) => {
-    redoStackRef.current = snapshots;
-    setRedoStack(snapshots);
-  }, []);
-
-  const appendSnapshots = useCallback(
-    (stack: TSnapshot[], snapshots: TSnapshot[]) => {
-      let nextStack = stack;
-      let didAppend = false;
-      snapshots.forEach(snapshotToPush => {
-        const clonedSnapshot = cloneSnapshot(snapshotToPush);
-        const previousSnapshot = nextStack[nextStack.length - 1];
-        if (
-          previousSnapshot &&
-          snapshotsEqual(previousSnapshot, clonedSnapshot)
-        ) {
-          return;
-        }
-
-        nextStack = [...nextStack, clonedSnapshot].slice(
-          Math.max(0, nextStack.length + 1 - maxDepth)
-        );
-        didAppend = true;
-      });
-
-      return { nextStack, didAppend };
-    },
-    [maxDepth]
+  const [historyState, setHistoryState] = useState(() =>
+    createAnnotationHistoryState(snapshot, policy)
   );
+  const historyStateRef = useRef(historyState);
+  const actionIdRef = useRef(0);
 
-  const pushUndoSnapshots = useCallback(
-    (
-      snapshots: TSnapshot[],
-      options: { clearRedo?: boolean } = {}
-    ) => {
-      if (snapshots.length === 0) return;
-
-      const { nextStack, didAppend } = appendSnapshots(
-        undoStackRef.current,
-        snapshots
-      );
-      if (!didAppend) return;
-
-      setUndoSnapshots(nextStack);
-      if (options.clearRedo ?? true) {
-        setRedoSnapshots([]);
-      }
+  const replaceHistoryState = useCallback(
+    (next: AnnotationHistoryState<TSnapshot>) => {
+      historyStateRef.current = next;
+      setHistoryState(next);
     },
-    [appendSnapshots, setRedoSnapshots, setUndoSnapshots]
-  );
-
-  const pushRedoSnapshot = useCallback(
-    (snapshotToPush: TSnapshot) => {
-      const { nextStack, didAppend } = appendSnapshots(redoStackRef.current, [
-        snapshotToPush,
-      ]);
-      if (!didAppend) return;
-
-      setRedoSnapshots(nextStack);
-    },
-    [appendSnapshots, setRedoSnapshots]
+    []
   );
 
   useEffect(() => {
-    const currentSnapshot = cloneSnapshot(snapshot);
+    const currentSnapshot = policy.clone(snapshot);
     currentSnapshotRef.current = currentSnapshot;
-
-    const pendingAction = pendingActionRef.current;
-    if (!pendingAction) return;
-    if (snapshotsEqual(pendingAction.snapshot, currentSnapshot)) {
-      if (!pendingAction.persistAcrossUnchangedRenders) {
-        pendingActionRef.current = null;
-      }
-      return;
-    }
-
-    pendingActionRef.current = null;
-    pushUndoSnapshots([pendingAction.snapshot]);
-  }, [pushUndoSnapshots, snapshot]);
+    replaceHistoryState(
+      observeAnnotationHistoryPresent(
+        historyStateRef.current,
+        currentSnapshot,
+        policy
+      )
+    );
+  }, [policy, replaceHistoryState, snapshot]);
 
   const beginHistoryAction = useCallback(
     (
       label: string,
       options: BeginHistoryActionOptions<TSnapshot> = {}
     ) => {
-      const currentSnapshot = cloneSnapshot(
+      const currentSnapshot = policy.clone(
         options.snapshot ?? currentSnapshotRef.current
       );
-      const previousPendingAction = pendingActionRef.current;
-      const snapshotsToFlush =
-        previousPendingAction &&
-        !snapshotsEqual(previousPendingAction.snapshot, currentSnapshot)
-          ? [previousPendingAction.snapshot]
-          : [];
+      const actionId = (actionIdRef.current += 1);
+      replaceHistoryState(
+        beginAnnotationHistoryAction(
+          historyStateRef.current,
+          label,
+          { ...options, id: actionId, snapshot: currentSnapshot },
+          policy
+        )
+      );
 
-      pendingActionRef.current = null;
-
-      if (options.commitImmediately) {
-        pushUndoSnapshots([...snapshotsToFlush, currentSnapshot]);
-        return;
-      }
-
-      if (snapshotsToFlush.length > 0) {
-        pushUndoSnapshots(snapshotsToFlush);
-      }
-
-      const pendingAction = {
-        label,
-        snapshot: currentSnapshot,
-        persistAcrossUnchangedRenders:
-          options.persistAcrossUnchangedRenders ?? false,
-      };
-      pendingActionRef.current = pendingAction;
-
-      if (!pendingAction.persistAcrossUnchangedRenders) {
+      if (!options.commitImmediately && !options.persistAcrossUnchangedRenders) {
         setTimeout(() => {
-          if (pendingActionRef.current === pendingAction) {
-            pendingActionRef.current = null;
-          }
+          replaceHistoryState(
+            cancelAnnotationHistoryAction(historyStateRef.current, actionId)
+          );
         }, 0);
       }
     },
-    [pushUndoSnapshots]
+    [policy, replaceHistoryState]
   );
 
   const cancelHistoryAction = useCallback(() => {
-    pendingActionRef.current = null;
-  }, []);
+    replaceHistoryState(cancelAnnotationHistoryAction(historyStateRef.current));
+  }, [replaceHistoryState]);
 
   const clearHistory = useCallback(() => {
-    pendingActionRef.current = null;
-    setUndoSnapshots([]);
-    setRedoSnapshots([]);
-  }, [setRedoSnapshots, setUndoSnapshots]);
+    replaceHistoryState(
+      clearAnnotationHistory(
+        historyStateRef.current,
+        currentSnapshotRef.current,
+        policy
+      )
+    );
+  }, [policy, replaceHistoryState]);
 
   const undo = useCallback(() => {
-    const snapshotToRestore =
-      undoStackRef.current[undoStackRef.current.length - 1];
-    if (!snapshotToRestore) return;
-
-    const currentSnapshot = cloneSnapshot(currentSnapshotRef.current);
-    pendingActionRef.current = null;
-    const nextStack = undoStackRef.current.slice(0, -1);
-    setUndoSnapshots(nextStack);
-    pushRedoSnapshot(currentSnapshot);
-
-    const restoredSnapshot = cloneSnapshot(snapshotToRestore);
+    const result = undoAnnotationHistory(historyStateRef.current, policy);
+    const restoredSnapshot = result.snapshotToRestore;
+    if (!restoredSnapshot) return;
+    replaceHistoryState(result.state);
     currentSnapshotRef.current = restoredSnapshot;
     restoreSnapshot(restoredSnapshot);
-  }, [pushRedoSnapshot, restoreSnapshot, setUndoSnapshots]);
+  }, [policy, replaceHistoryState, restoreSnapshot]);
 
   const redo = useCallback(() => {
-    const snapshotToRestore =
-      redoStackRef.current[redoStackRef.current.length - 1];
-    if (!snapshotToRestore) return;
-
-    const currentSnapshot = cloneSnapshot(currentSnapshotRef.current);
-    pendingActionRef.current = null;
-    const nextRedoStack = redoStackRef.current.slice(0, -1);
-    setRedoSnapshots(nextRedoStack);
-    pushUndoSnapshots([currentSnapshot], { clearRedo: false });
-
-    const restoredSnapshot = cloneSnapshot(snapshotToRestore);
+    const result = redoAnnotationHistory(historyStateRef.current, policy);
+    const restoredSnapshot = result.snapshotToRestore;
+    if (!restoredSnapshot) return;
+    replaceHistoryState(result.state);
     currentSnapshotRef.current = restoredSnapshot;
     restoreSnapshot(restoredSnapshot);
-  }, [pushUndoSnapshots, restoreSnapshot, setRedoSnapshots]);
+  }, [policy, replaceHistoryState, restoreSnapshot]);
 
   return {
     beginHistoryAction,
@@ -223,7 +130,7 @@ export function useAnnotationHistory<TSnapshot>({
     clearHistory,
     undo,
     redo,
-    canUndo: undoStack.length > 0,
-    canRedo: redoStack.length > 0,
+    canUndo: historyState.past.length > 0,
+    canRedo: historyState.future.length > 0,
   };
 }

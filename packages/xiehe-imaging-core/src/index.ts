@@ -4,6 +4,7 @@ export * from './annotation-document';
 export * from './bindings';
 export * from './ai';
 export * from './canvas';
+export * from './editor';
 export * from './batch-import';
 export * from './exports';
 export * from './image-files';

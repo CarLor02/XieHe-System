@@ -18,6 +18,7 @@
     "./keypoints": "./src/keypoints/index.ts",
     "./measurement-keypoint-sync": "./src/measurement-keypoint-sync/index.ts",
     "./canvas": "./src/canvas/index.ts",
+    "./editor": "./src/editor/index.ts",
     "./batch-import": "./src/batch-import/index.ts",
     "./exports": "./src/exports/index.ts",
     "./image-files": "./src/image-files/index.ts"

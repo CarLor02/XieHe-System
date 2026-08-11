@@ -15,6 +15,9 @@ export {
   constrainPointHorizontally,
   constrainPointVertically,
   getBoundingBox,
+  getBoundingBoxCenter,
+  isPointInBounds,
+  isPointInRectangle,
   pointToLineDistance,
   toAcuteAngle,
 } from './point';

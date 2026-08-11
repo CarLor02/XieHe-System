@@ -105,6 +105,37 @@ export function getBoundingBox(points: readonly Point[]): BoundingBox {
   );
 }
 
+export function isPointInBounds(
+  point: Point,
+  points: readonly Point[],
+  padding = 0
+): boolean {
+  if (points.length === 0) return false;
+  const bounds = getBoundingBox(points);
+  return (
+    point.x >= bounds.minX - padding &&
+    point.x <= bounds.maxX + padding &&
+    point.y >= bounds.minY - padding &&
+    point.y <= bounds.maxY + padding
+  );
+}
+
+export function getBoundingBoxCenter(points: readonly Point[]): Point {
+  const bounds = getBoundingBox(points);
+  return {
+    x: (bounds.minX + bounds.maxX) / 2,
+    y: (bounds.minY + bounds.maxY) / 2,
+  };
+}
+
+export function isPointInRectangle(
+  point: Point,
+  start: Point,
+  end: Point
+): boolean {
+  return isPointInBounds(point, [start, end]);
+}
+
 /** 返回通用点集的算术中心；椎体中心应使用 getVertebraCenterGeometry。 */
 export function calculatePointsCentroid(points: readonly Point[]): Point {
   if (points.length === 0) return { x: 0, y: 0 };

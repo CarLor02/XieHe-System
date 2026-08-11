@@ -3,6 +3,11 @@ import { useAnnotationEngine } from '@/app/imaging/features/image-viewer/feature
 import { useCanvasInteraction } from '@/app/imaging/features/image-viewer/features/annotation-canvas';
 import { getToolsForExamType as getTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/exam-tool-catalog';
 import {
+  areAnnotationEditorSnapshotsEqual,
+  cloneAnnotationEditorSnapshot,
+  type AnnotationEditorSnapshot,
+} from '@xiehe/imaging-core/editor';
+import {
   useAnnotationPersistence,
   useLocalAnnotationsDataLoader,
   useMeasurementCalculation,
@@ -19,23 +24,19 @@ import {
 import { useReportActions } from '@/app/imaging/features/image-viewer/features/report';
 import {
   createEmptyBindings,
-  type AnnotationBindings,
 } from '@xiehe/imaging-core/bindings';
 import { useAnnotationHistory } from '@/app/imaging/features/image-viewer/application/hooks/useAnnotationHistory';
 import {
   isKeypointSupportedExamType,
   isLateralExamType,
 } from '@xiehe/imaging-core/anatomy';
-import { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import {
   useMeasurementKeypointWorkflow,
   useMeasurementWorkflow,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import {
-  CfhAnnotation,
   MeasurementData,
   Point,
-  VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
 import { KeypointSequenceSession } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
@@ -62,18 +63,6 @@ import {
 
 interface UseImageViewerControllerOptions {
   imageId: string;
-}
-
-interface AnnotationHistorySnapshot {
-  measurements: MeasurementData[];
-  standardDistance: number | null;
-  standardDistanceValue: string;
-  standardDistancePoints: Point[];
-  pointBindings: AnnotationBindings;
-  keypoints: KeypointAnnotation[];
-  vertebraeLayer: VertebraAnnotation[];
-  cfhAnnotation: CfhAnnotation | null;
-  aiMeasurementIds: string[];
 }
 
 type AnnotationHistoryShortcutAction = 'undo' | 'redo';
@@ -347,7 +336,7 @@ export function useImageViewerController({
 
   useImageListFetcher(setImageList);
 
-  const annotationHistorySnapshot = useMemo<AnnotationHistorySnapshot>(
+  const annotationHistorySnapshot = useMemo<AnnotationEditorSnapshot>(
     () => ({
       measurements,
       standardDistance,
@@ -373,7 +362,7 @@ export function useImageViewerController({
   );
 
   const restoreAnnotationHistorySnapshot = useCallback(
-    (snapshot: AnnotationHistorySnapshot) => {
+    (snapshot: AnnotationEditorSnapshot) => {
       setMeasurements(snapshot.measurements);
       setStandardDistance(snapshot.standardDistance);
       setStandardDistanceValue(snapshot.standardDistanceValue);
@@ -406,9 +395,11 @@ export function useImageViewerController({
     redo: redoAnnotationHistory,
     canUndo: canUndoAnnotationHistory,
     canRedo: canRedoAnnotationHistory,
-  } = useAnnotationHistory<AnnotationHistorySnapshot>({
+  } = useAnnotationHistory<AnnotationEditorSnapshot>({
     snapshot: annotationHistorySnapshot,
     restoreSnapshot: restoreAnnotationHistorySnapshot,
+    cloneSnapshot: cloneAnnotationEditorSnapshot,
+    snapshotsEqual: areAnnotationEditorSnapshotsEqual,
   });
 
   useEffect(() => {

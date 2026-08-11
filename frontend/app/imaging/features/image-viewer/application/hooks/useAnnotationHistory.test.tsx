@@ -8,6 +8,10 @@ interface TestSnapshot {
   count: number;
 }
 
+const cloneTestSnapshot = (value: TestSnapshot): TestSnapshot => ({ ...value });
+const testSnapshotsEqual = (left: TestSnapshot, right: TestSnapshot) =>
+  left.count === right.count;
+
 type HistoryValue = ReturnType<typeof useAnnotationHistory<TestSnapshot>> & {
   count: number;
   setCount: (count: number) => void;
@@ -25,6 +29,8 @@ function HistoryHarness({
   const history = useAnnotationHistory<TestSnapshot>({
     snapshot,
     restoreSnapshot: restored => setCount(restored.count),
+    cloneSnapshot: cloneTestSnapshot,
+    snapshotsEqual: testSnapshotsEqual,
     maxDepth: 2,
   });
 
