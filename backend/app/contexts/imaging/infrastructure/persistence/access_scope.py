@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import false, or_
 from sqlalchemy.orm import Query, Session
 
+from app.contexts.imaging.application.ports import ImageFileRecord
 from app.contexts.imaging.domain import ImageAccessActor, ImageAccessScope
-from app.models.image_file import ImageFile, ImageFileTeamVisibility
-from app.models.team import (
-    Team,
-    TeamMembership,
-    TeamMembershipRole,
-    TeamMembershipStatus,
-)
+from app.contexts.teams.application import TeamAccessService
+from app.contexts.teams.infrastructure import SqlAlchemyTeamAccessRepository
+
+from .image_file_models import ImageFile, ImageFileTeamVisibility
 
 
 def apply_image_access_scope(
@@ -48,44 +46,21 @@ class SqlAlchemyImageVisibilityRepository:
 
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._team_access = TeamAccessService(SqlAlchemyTeamAccessRepository(session))
 
     def list_active_admin_team_ids(self, user_id: int) -> set[int]:
-        rows = (
-            self._session.query(TeamMembership.team_id)
-            .join(Team, Team.id == TeamMembership.team_id)
-            .filter(
-                TeamMembership.user_id == user_id,
-                TeamMembership.role == TeamMembershipRole.ADMIN,
-                TeamMembership.status == TeamMembershipStatus.ACTIVE,
-                Team.is_active.is_(True),
-            )
-            .distinct()
-            .all()
-        )
-        return {team_id for (team_id,) in rows}
+        return self._team_access.list_active_admin_team_ids(user_id)
 
     def find_assignable_active_team_ids(
         self,
         actor: ImageAccessActor,
         requested_team_ids: list[int],
     ) -> set[int]:
-        if not requested_team_ids:
-            return set()
-        query = self._session.query(Team.id).filter(
-            Team.id.in_(requested_team_ids),
-            Team.is_active.is_(True),
+        return self._team_access.find_assignable_active_team_ids(
+            actor_id=actor.user_id,
+            unrestricted=actor.unrestricted,
+            requested_team_ids=requested_team_ids,
         )
-        if not actor.unrestricted:
-            if actor.user_id is None:
-                return set()
-            query = query.join(
-                TeamMembership,
-                TeamMembership.team_id == Team.id,
-            ).filter(
-                TeamMembership.user_id == actor.user_id,
-                TeamMembership.status == TeamMembershipStatus.ACTIVE,
-            )
-        return {team_id for (team_id,) in query.distinct().all()}
 
     def get_visible_image(
         self,
@@ -93,7 +68,7 @@ class SqlAlchemyImageVisibilityRepository:
         scope: ImageAccessScope,
         *,
         for_update: bool = False,
-    ) -> ImageFile | None:
+    ) -> ImageFileRecord | None:
         query = self._session.query(ImageFile).filter(
             ImageFile.id == image_file_id,
             ImageFile.is_deleted.is_(False),
@@ -101,7 +76,7 @@ class SqlAlchemyImageVisibilityRepository:
         query = apply_image_access_scope(query, scope)
         if for_update:
             query = query.populate_existing().with_for_update()
-        return query.first()
+        return cast(ImageFileRecord | None, query.first())
 
     def get_visible_images_by_ids(
         self,
@@ -109,7 +84,7 @@ class SqlAlchemyImageVisibilityRepository:
         scope: ImageAccessScope,
         *,
         for_update: bool = False,
-    ) -> dict[int, ImageFile]:
+    ) -> dict[int, ImageFileRecord]:
         query = self._session.query(ImageFile).filter(
             ImageFile.id.in_(image_file_ids),
             ImageFile.is_deleted.is_(False),
@@ -117,7 +92,10 @@ class SqlAlchemyImageVisibilityRepository:
         query = apply_image_access_scope(query, scope).order_by(ImageFile.id.asc())
         if for_update:
             query = query.populate_existing().with_for_update()
-        return {image.id: image for image in query.all()}
+        return cast(
+            dict[int, ImageFileRecord],
+            {image.id: image for image in query.all()},
+        )
 
     def list_visible_uploader_ids(
         self,
@@ -133,10 +111,11 @@ class SqlAlchemyImageVisibilityRepository:
 
     def replace_team_visibility(
         self,
-        image: ImageFile,
+        image: ImageFileRecord,
         team_ids: list[int],
     ) -> None:
-        image.team_visibilities = [
-            ImageFileTeamVisibility(image_file_id=image.id, team_id=team_id)
+        image_model = cast(ImageFile, image)
+        image_model.team_visibilities = [
+            ImageFileTeamVisibility(image_file_id=image_model.id, team_id=team_id)
             for team_id in team_ids
         ]

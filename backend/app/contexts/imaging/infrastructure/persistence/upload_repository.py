@@ -7,35 +7,44 @@ from typing import cast
 from sqlalchemy.orm import Session
 
 from app.contexts.imaging.application.dto import PageResult, UploadRecord
-from app.models.image_file import ImageFile
+from app.contexts.imaging.application.ports import ImageFileRecord
+from app.contexts.imaging.domain import ImageFileDraft
+
+from .image_file_mapper import image_file_from_draft
+from .image_file_models import ImageFile
 
 
 class SqlAlchemyUploadRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def add(self, image: ImageFile) -> None:
+    def create(self, draft: ImageFileDraft) -> ImageFileRecord:
+        image = image_file_from_draft(draft)
         self._session.add(image)
+        self._session.flush()
+        return cast(ImageFileRecord, image)
 
-    def get_active(self, image_file_id: int) -> ImageFile | None:
-        return (
+    def get_active(self, image_file_id: int) -> ImageFileRecord | None:
+        return cast(
+            ImageFileRecord | None,
             self._session.query(ImageFile)
             .filter(
                 ImageFile.id == image_file_id,
                 ImageFile.is_deleted.is_(False),
             )
-            .first()
+            .first(),
         )
 
-    def get_owned(self, image_file_id: int, owner_id: int) -> ImageFile | None:
-        return (
+    def get_owned(self, image_file_id: int, owner_id: int) -> ImageFileRecord | None:
+        return cast(
+            ImageFileRecord | None,
             self._session.query(ImageFile)
             .filter(
                 ImageFile.id == image_file_id,
                 ImageFile.uploaded_by == owner_id,
                 ImageFile.is_deleted.is_(False),
             )
-            .first()
+            .first(),
         )
 
     def list_records(
@@ -79,14 +88,11 @@ class SqlAlchemyUploadRepository:
             total=total,
         )
 
-    def flush(self) -> None:
-        self._session.flush()
-
     def commit(self) -> None:
         self._session.commit()
 
     def rollback(self) -> None:
         self._session.rollback()
 
-    def refresh(self, image: ImageFile) -> None:
+    def refresh(self, image: ImageFileRecord) -> None:
         self._session.refresh(image)

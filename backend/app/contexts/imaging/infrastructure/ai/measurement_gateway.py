@@ -7,9 +7,10 @@ from typing import cast
 import httpx
 
 from app.contexts.imaging.application.errors import AiMeasurementUnavailableError
+from app.contexts.imaging.application.ports import ImageFileRecord
 from app.contexts.imaging.domain import JsonObject
-from app.models.image_file import ImageFile
-from app.services.ai_model_client import (
+
+from .client import (
     AiModelClient,
     AiModelRequestError,
     ai_model_client,
@@ -19,7 +20,7 @@ _client = ai_model_client
 
 
 class AiModelMeasurementGateway:
-    async def predict(self, image: ImageFile) -> JsonObject:
+    async def predict(self, image: ImageFileRecord) -> JsonObject:
         try:
             url = AiModelClient.measurement_url(image)
             payload = AiModelClient.object_payload(image)

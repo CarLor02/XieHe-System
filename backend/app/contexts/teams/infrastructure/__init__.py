@@ -1,5 +1,19 @@
-"""Team persistence adapters."""
+"""Team infrastructure adapters."""
 
-from .sqlalchemy_repository import SqlAlchemyTeamRepository
+from .persistence import (
+    SqlAlchemyTeamAccessRepository,
+    SqlAlchemyTeamInvitationRepository,
+    SqlAlchemyTeamJoinRequestRepository,
+    SqlAlchemyTeamManagementRepository,
+    SqlAlchemyTeamMembershipRepository,
+    SqlAlchemyTeamQueryRepository,
+)
 
-__all__ = ["SqlAlchemyTeamRepository"]
+__all__ = [
+    "SqlAlchemyTeamAccessRepository",
+    "SqlAlchemyTeamInvitationRepository",
+    "SqlAlchemyTeamJoinRequestRepository",
+    "SqlAlchemyTeamManagementRepository",
+    "SqlAlchemyTeamMembershipRepository",
+    "SqlAlchemyTeamQueryRepository",
+]

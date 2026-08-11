@@ -13,10 +13,10 @@ from app.contexts.imaging.application.dto import (
     PageResult,
 )
 from app.contexts.imaging.domain import ImageAccessScope, JsonObject
-from app.models.image_file import ImageFile
 
 from .access_scope import apply_image_access_scope
-from .models import ImageAnnotationItemEvent, ImageAnnotationRevision
+from .annotation_models import ImageAnnotationItemEvent, ImageAnnotationRevision
+from .image_file_models import ImageFile
 
 
 class SqlAlchemyAnnotationHistoryRepository:

@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import Protocol
 
 from app.contexts.imaging.domain import JsonObject
-from app.models.image_file import ImageFile
+
+from .records import ImageFileRecord
 
 
 class AiMeasurementGateway(Protocol):
-    async def predict(self, image: ImageFile) -> JsonObject: ...
+    async def predict(self, image: ImageFileRecord) -> JsonObject: ...

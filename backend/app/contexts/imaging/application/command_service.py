@@ -17,15 +17,16 @@ from app.contexts.imaging.domain import (
     AnnotationSource,
     ImageAccessActor,
     ImageFileNotFoundError,
+    ImageFileStatusEnum,
+    ImageFileTypeEnum,
     build_renamed_filename,
     determine_image_file_type,
     normalize_exam_type,
     validate_replacement_file,
 )
-from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 
 from .annotation_service import AnnotationApplicationService
-from .ports import ImageFileRepository, ObjectStorage
+from .ports import ImageFileRecord, ImageFileRepository, ObjectStorage
 from .visibility_service import ImageVisibilityApplicationService
 
 
@@ -223,7 +224,7 @@ class ImageFileCommandService:
         self,
         image_file_id: int,
         actor: ImageAccessActor,
-    ) -> ImageFile:
+    ) -> ImageFileRecord:
         image = self._visibility.get_visible_image(image_file_id, actor)
         if image is None:
             raise ImageFileNotFoundError
@@ -231,7 +232,7 @@ class ImageFileCommandService:
 
     def _apply_info(
         self,
-        image: ImageFile,
+        image: ImageFileRecord,
         actor: ImageAccessActor,
         update: ImageInfoUpdate,
     ) -> None:

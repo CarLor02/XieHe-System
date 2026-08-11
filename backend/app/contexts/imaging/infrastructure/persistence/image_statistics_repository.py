@@ -13,10 +13,10 @@ from app.contexts.imaging.application.dto import (
     ImageStatistics,
     RecentImage,
 )
-from app.contexts.imaging.domain import ImageAccessScope
-from app.models.image_file import ImageFile, ImageFileStatusEnum
+from app.contexts.imaging.domain import ImageAccessScope, ImageFileStatusEnum
 
 from .access_scope import apply_image_access_scope
+from .image_file_models import ImageFile
 
 
 class SqlAlchemyImageStatisticsRepository:

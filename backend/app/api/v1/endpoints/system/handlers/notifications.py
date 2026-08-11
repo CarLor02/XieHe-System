@@ -14,10 +14,12 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.access.auth import get_current_active_user
+from app.contexts.access_control.infrastructure.persistence.models import User
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import paginated_response, success_response
-from app.models.user import User
 from app.services.email_service import email_service, send_system_notification
 from app.shared.database import get_db
 

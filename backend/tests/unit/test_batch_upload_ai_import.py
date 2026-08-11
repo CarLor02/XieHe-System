@@ -14,7 +14,9 @@ def test_batch_upload_routes_are_registered() -> None:
 
 
 def test_build_annotation_from_ai_response_preserves_viewer_shape() -> None:
-    from app.services.batch_ai_import import build_annotation_from_ai_response
+    from app.contexts.imaging.application.ai_annotation_mapper import (
+        build_annotation_from_ai_response,
+    )
 
     annotation = build_annotation_from_ai_response(
         image_file_id=42,

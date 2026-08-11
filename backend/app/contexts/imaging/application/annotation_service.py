@@ -9,6 +9,7 @@ from typing import Mapping, cast
 from app.contexts.imaging.application.ports import (
     AnnotationRepository,
     ImageAccessScopeResolver,
+    ImageFileRecord,
 )
 from app.contexts.imaging.domain import (
     AnnotationMutationReason,
@@ -16,6 +17,7 @@ from app.contexts.imaging.domain import (
     AnnotationVersionConflictError,
     ImageAccessActor,
     ImageFileNotFoundError,
+    ImageFileStatusEnum,
     JsonObject,
     JsonValue,
     canonicalize_annotation,
@@ -23,12 +25,11 @@ from app.contexts.imaging.domain import (
     has_annotation_content,
     snapshots_equal,
 )
-from app.models.image_file import ImageFile, ImageFileStatusEnum
 
 
 @dataclass(frozen=True)
 class AnnotationSaveResult:
-    image_file: ImageFile
+    image_file: ImageFileRecord
     changed: bool
 
 
@@ -77,7 +78,7 @@ class AnnotationApplicationService:
     def save_locked_image(
         self,
         *,
-        image: ImageFile,
+        image: ImageFileRecord,
         actor_id: int | None,
         annotation: Mapping[str, JsonValue] | None,
         source: AnnotationSource,

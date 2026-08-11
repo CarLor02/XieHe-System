@@ -2,25 +2,29 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from sqlalchemy.orm import Session
 
+from app.contexts.imaging.application.ports import ImageFileRecord
 from app.contexts.imaging.domain import (
     AnnotationItemChange,
     ImageAccessScope,
     JsonObject,
 )
-from app.models.image_file import ImageFile
 
 from .access_scope import apply_image_access_scope
-from .models import ImageAnnotationItemEvent, ImageAnnotationRevision
+from .annotation_models import ImageAnnotationItemEvent, ImageAnnotationRevision
+from .image_file_models import ImageFile
 
 
 class SqlAlchemyAnnotationRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def get_for_update(self, image_file_id: int) -> ImageFile | None:
-        return (
+    def get_for_update(self, image_file_id: int) -> ImageFileRecord | None:
+        return cast(
+            ImageFileRecord | None,
             self._session.query(ImageFile)
             .filter(
                 ImageFile.id == image_file_id,
@@ -28,19 +32,22 @@ class SqlAlchemyAnnotationRepository:
             )
             .populate_existing()
             .with_for_update()
-            .first()
+            .first(),
         )
 
     def get_visible_for_update(
         self,
         image_file_id: int,
         scope: ImageAccessScope,
-    ) -> ImageFile | None:
+    ) -> ImageFileRecord | None:
         query = self._session.query(ImageFile).filter(
             ImageFile.id == image_file_id,
             ImageFile.is_deleted.is_(False),
         )
-        return apply_image_access_scope(query, scope).with_for_update().first()
+        return cast(
+            ImageFileRecord | None,
+            apply_image_access_scope(query, scope).with_for_update().first(),
+        )
 
     def append_revision(
         self,

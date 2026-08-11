@@ -32,6 +32,7 @@ from .storage import (
     StoredObject,
 )
 from .uploads import (
+    AiImageReference,
     AiTaskEvent,
     CompleteUpload,
     CreateImportBatch,
@@ -49,6 +50,7 @@ from .uploads import (
 
 __all__ = [
     "AnnotationBatchItem",
+    "AiImageReference",
     "AiTaskEvent",
     "AnnotationEventItem",
     "AnnotationHistoryItem",

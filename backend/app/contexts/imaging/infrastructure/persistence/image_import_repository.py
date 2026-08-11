@@ -15,16 +15,25 @@ from app.contexts.imaging.application.dto import (
     ImportItem,
     PageResult,
 )
-from app.contexts.patients.infrastructure.persistence.models import Patient
-from app.models.image import AITask, AITaskStatusEnum
-from app.models.image_file import ImageFile
-from app.models.image_import import (
+from app.contexts.imaging.application.ports import (
+    AiTaskRecord,
+    ImageFileRecord,
+    ImageImportBatchRecord,
+    ImageImportItemRecord,
+)
+from app.contexts.imaging.domain import (
+    AITaskStatusEnum,
+    ImageFileDraft,
     ImageImportAiStatus,
-    ImageImportBatch,
     ImageImportBatchStatus,
-    ImageImportItem,
     ImageImportUploadStatus,
 )
+from app.contexts.patients.infrastructure.persistence.models import Patient
+
+from .ai_task_models import AITask
+from .image_file_mapper import image_file_from_draft
+from .image_file_models import ImageFile
+from .image_import_models import ImageImportBatch, ImageImportItem
 
 TERMINAL_AI_STATUSES = {
     ImageImportAiStatus.SUCCEEDED.value,
@@ -48,7 +57,7 @@ class SqlAlchemyImageImportRepository:
         owner_id: int,
         command: CreateImportBatch,
         team_ids: list[int],
-    ) -> tuple[ImageImportBatch, list[ImageImportItem]]:
+    ) -> tuple[ImageImportBatchRecord, list[ImageImportItemRecord]]:
         batch = ImageImportBatch(
             batch_id=uuid.uuid4().hex,
             uploaded_by=owner_id,
@@ -60,7 +69,7 @@ class SqlAlchemyImageImportRepository:
         )
         self._session.add(batch)
         self._session.flush()
-        items = [
+        item_models = [
             ImageImportItem(
                 batch_id=batch.id,
                 client_file_id=file.client_file_id,
@@ -73,68 +82,80 @@ class SqlAlchemyImageImportRepository:
             )
             for file in command.files
         ]
-        self._session.add_all(items)
-        return batch, items
+        self._session.add_all(item_models)
+        return (
+            cast(ImageImportBatchRecord, batch),
+            cast(list[ImageImportItemRecord], item_models),
+        )
 
     def get_owned_batch(
         self,
         batch_id: str,
         owner_id: int,
-    ) -> ImageImportBatch | None:
-        return (
+    ) -> ImageImportBatchRecord | None:
+        return cast(
+            ImageImportBatchRecord | None,
             self._session.query(ImageImportBatch)
             .filter(
                 ImageImportBatch.batch_id == batch_id,
                 ImageImportBatch.uploaded_by == owner_id,
             )
-            .first()
+            .first(),
         )
 
     def get_owned_item(
         self,
-        batch: ImageImportBatch,
+        batch: ImageImportBatchRecord,
         item_id: int,
-    ) -> ImageImportItem | None:
-        return (
+    ) -> ImageImportItemRecord | None:
+        return cast(
+            ImageImportItemRecord | None,
             self._session.query(ImageImportItem)
             .filter(
                 ImageImportItem.id == item_id,
                 ImageImportItem.batch_id == batch.id,
             )
-            .first()
+            .first(),
         )
 
     def list_items_by_ids(
         self,
-        batch: ImageImportBatch,
+        batch: ImageImportBatchRecord,
         item_ids: list[int],
-    ) -> list[ImageImportItem]:
-        return (
+    ) -> list[ImageImportItemRecord]:
+        return cast(
+            list[ImageImportItemRecord],
             self._session.query(ImageImportItem)
             .filter(
                 ImageImportItem.batch_id == batch.id,
                 ImageImportItem.id.in_(item_ids),
             )
             .order_by(ImageImportItem.id)
-            .all()
+            .all(),
         )
 
-    def get_active_image(self, image_file_id: int | None) -> ImageFile | None:
+    def get_active_image(self, image_file_id: int | None) -> ImageFileRecord | None:
         if image_file_id is None:
             return None
-        return (
+        return cast(
+            ImageFileRecord | None,
             self._session.query(ImageFile)
             .filter(
                 ImageFile.id == image_file_id,
                 ImageFile.is_deleted.is_(False),
             )
-            .first()
+            .first(),
         )
 
-    def add_image(self, image: ImageFile) -> None:
+    def create_image(self, draft: ImageFileDraft) -> ImageFileRecord:
+        image = image_file_from_draft(draft)
         self._session.add(image)
+        self._session.flush()
+        return cast(ImageFileRecord, image)
 
-    def ensure_ai_task(self, item: ImageImportItem, requested_by: int) -> AITask:
+    def ensure_ai_task(
+        self, item: ImageImportItemRecord, requested_by: int
+    ) -> AiTaskRecord:
         task = (
             self._session.query(AITask)
             .filter(
@@ -163,7 +184,7 @@ class SqlAlchemyImageImportRepository:
         elif task.status == AITaskStatusEnum.COMPLETED:
             item.ai_status = ImageImportAiStatus.SUCCEEDED.value
             item.error_message = None
-            return task
+            return cast(AiTaskRecord, task)
         elif task.status == AITaskStatusEnum.FAILED:
             task.status = AITaskStatusEnum.PENDING
             task.progress = 0
@@ -173,13 +194,13 @@ class SqlAlchemyImageImportRepository:
         item.ai_status = ImageImportAiStatus.QUEUED.value
         item.error_message = None
         item.updated_at = datetime.now()
-        return task
+        return cast(AiTaskRecord, task)
 
     def ai_task_event(
         self,
-        task: AITask,
-        item: ImageImportItem,
-        batch: ImageImportBatch,
+        task: AiTaskRecord,
+        item: ImageImportItemRecord,
+        batch: ImageImportBatchRecord,
     ) -> AiTaskEvent:
         if item.image_file_id is None:
             raise ValueError("批量导入项尚未关联影像文件")
@@ -193,7 +214,7 @@ class SqlAlchemyImageImportRepository:
             requested_by=int(task.created_by or 0),
         )
 
-    def refresh_batch_status(self, batch: ImageImportBatch) -> None:
+    def refresh_batch_status(self, batch: ImageImportBatchRecord) -> None:
         items = (
             self._session.query(ImageImportItem)
             .filter(ImageImportItem.batch_id == batch.id)
@@ -253,14 +274,17 @@ class SqlAlchemyImageImportRepository:
             .all()
         )
         return PageResult(
-            items=[self.batch_view(batch) for batch in batches],
+            items=[
+                self.batch_view(cast(ImageImportBatchRecord, batch))
+                for batch in batches
+            ],
             total=total,
         )
 
     def list_items(
         self,
         *,
-        batch: ImageImportBatch,
+        batch: ImageImportBatchRecord,
         page: int,
         page_size: int,
     ) -> PageResult[ImportItem]:
@@ -275,16 +299,16 @@ class SqlAlchemyImageImportRepository:
             .all()
         )
         return PageResult(
-            items=[self.item_view(item) for item in items],
+            items=[self.item_view(cast(ImageImportItemRecord, item)) for item in items],
             total=total,
         )
 
-    def batch_view(self, batch: ImageImportBatch) -> ImportBatch:
+    def batch_view(self, batch: ImageImportBatchRecord) -> ImportBatch:
         return ImportBatch(
             batch_id=str(batch.batch_id),
             patient_id=batch.patient_id,
             description=batch.description,
-            team_ids=list(cast(list[int], batch.team_ids or [])),
+            team_ids=list(batch.team_ids or []),
             status=str(batch.status),
             total_items=batch.total_items,
             uploaded_items=batch.uploaded_items,
@@ -295,7 +319,7 @@ class SqlAlchemyImageImportRepository:
             completed_at=batch.completed_at,
         )
 
-    def item_view(self, item: ImageImportItem) -> ImportItem:
+    def item_view(self, item: ImageImportItemRecord) -> ImportItem:
         return ImportItem(
             id=item.id,
             client_file_id=str(item.client_file_id),
@@ -310,14 +334,11 @@ class SqlAlchemyImageImportRepository:
             updated_at=item.updated_at,
         )
 
-    def flush(self) -> None:
-        self._session.flush()
-
     def commit(self) -> None:
         self._session.commit()
 
     def rollback(self) -> None:
         self._session.rollback()
 
-    def refresh_item(self, item: ImageImportItem) -> None:
+    def refresh_item(self, item: ImageImportItemRecord) -> None:
         self._session.refresh(item)

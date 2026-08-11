@@ -4,9 +4,11 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, Query
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.imaging.application import ImageSelectionService
 from app.contexts.imaging.application.errors import ImageAccessDeniedError
-from app.core.access.auth import get_current_active_user
 from app.core.system.response import paginated_response
 
 from ..actor import CurrentUserPayload, image_access_actor

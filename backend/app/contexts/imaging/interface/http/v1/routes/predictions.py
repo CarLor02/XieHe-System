@@ -4,13 +4,15 @@ from typing import cast
 
 from fastapi import APIRouter, Depends
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.imaging.application import ImagePredictionService
 from app.contexts.imaging.application.errors import (
     AiMeasurementUnavailableError,
     ImageNotReadyError,
 )
 from app.contexts.imaging.domain import ImageFileNotFoundError
-from app.core.access.auth import get_current_active_user
 from app.core.system.concurrency import require_ai_object_slot
 
 from ..actor import CurrentUserPayload, image_access_actor

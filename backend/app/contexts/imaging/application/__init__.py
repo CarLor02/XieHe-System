@@ -1,5 +1,6 @@
 """影像应用服务。"""
 
+from .ai_task_processor import AiTaskProcessingOutcome, AiTaskProcessor
 from .annotation_service import AnnotationApplicationService
 from .command_service import ImageFileCommandService
 from .delivery_service import ImageDeliveryService
@@ -11,6 +12,8 @@ from .upload_service import ImageUploadService, UploadConfiguration
 from .visibility_service import ImageVisibilityApplicationService
 
 __all__ = [
+    "AiTaskProcessingOutcome",
+    "AiTaskProcessor",
     "AnnotationApplicationService",
     "ImageDeliveryService",
     "ImageFileCommandService",

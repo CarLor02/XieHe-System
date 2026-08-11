@@ -13,16 +13,23 @@ app/contexts/teams/
 │   ├── models.py       # 查询值对象和 JSON 安全快照
 │   └── rules.py        # 用户 ID、团队名和角色规范化规则
 ├── application/
-│   ├── ports.py        # TeamRepository 端口
-│   ├── team_service.py # 查询缓存和团队应用流程
+│   ├── ports/          # 查询、管理、申请、成员、邀请和访问事实端口
+│   ├── *_service.py    # 按业务流程拆分的应用服务
+│   ├── query_cache.py  # 查询缓存和统一失效协调
 │   └── cache_namespaces.py
 ├── infrastructure/
-│   └── sqlalchemy_repository.py # AsyncSession 持久化适配器
+│   └── persistence/
+│       ├── models.py             # 团队 ORM 模型
+│       ├── *_repository.py       # 按端口拆分的 SQLAlchemy 适配器
+│       ├── base.py               # 共享加载与鉴权辅助
+│       └── mappers.py            # ORM 到领域快照转换
 └── interface/
-    ├── schemas/        # FastAPI/Pydantic 请求响应模型
-    ├── dependencies.py # 请求级依赖装配
-    ├── management.py   # 轻量 HTTP 适配器
-    └── router.py       # Context 路由出口
+    └── http/v1/
+        ├── schemas/      # FastAPI/Pydantic 请求响应模型
+        ├── routes/       # 按团队、申请、成员和邀请拆分的路由
+        ├── dependencies.py
+        ├── errors.py
+        └── router.py
 ```
 
 `backend/app/api/v1/api.py` 直接挂载 Context 路由。旧 `app/services/team_service.py` 和 `app/schemas/team.py` 已移除，不提供转发导入，避免新代码继续依赖历史边界。
@@ -41,4 +48,6 @@ app/contexts/teams/
 
 ## 事务边界
 
-`SqlAlchemyTeamRepository` 使用请求级 `AsyncSession`。每个命令在仓储内部完成校验、写入和提交，应用服务只在仓储成功返回后执行缓存失效。领域错误由 interface 层统一映射为 HTTP 400、403 或 404；未预期异常记录日志并返回 500。
+各命令仓储使用同一个请求级 `AsyncSession`，在对应仓储内部完成校验、写入和提交；应用服务只在仓储成功返回后执行缓存失效。领域错误由 HTTP interface 统一映射为 HTTP 400、403 或 404；未预期异常记录日志并返回 500。
+
+影像上下文通过 `TeamAccessService` 读取可管理团队和可分配团队事实，不再直接依赖团队 ORM。同步访问适配器复用影像请求的 SQLAlchemy `Session`，因此不会引入额外事务或改变现有查询结果。

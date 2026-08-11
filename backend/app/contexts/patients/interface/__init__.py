@@ -1,5 +1,5 @@
-"""Patient HTTP interface."""
+"""Patient interface public entrypoint."""
 
-from .router import router
+from .http.v1 import router
 
 __all__ = ["router"]

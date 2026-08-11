@@ -87,7 +87,7 @@ services:
     pull_policy: never
     container_name: medical_ai_worker
     restart: unless-stopped
-    entrypoint: ['python', '-m', 'app.workers.ai_worker']
+    entrypoint: ['python', '-m', 'app.contexts.imaging.interface.worker']
     healthcheck:
       disable: true
     environment:

@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 
-from app.contexts.teams.application import TeamApplicationService
+from app.contexts.teams.application import (
+    TeamInvitationService,
+    TeamJoinRequestService,
+    TeamManagementService,
+    TeamMembershipService,
+    TeamQueryCache,
+    TeamQueryService,
+)
 from app.contexts.teams.domain import (
     InvitationResponseSnapshot,
     InvitationSnapshot,
@@ -178,46 +186,50 @@ class MemoryCache:
         return self.values[key]
 
 
-def _service(
-    repository: FakeTeamRepository, cache: MemoryCache
-) -> TeamApplicationService:
-    return TeamApplicationService(
-        repository,
-        cache=CacheAsideService(cache),
-        generations=CacheGenerationService(cache),
+def _services(repository: FakeTeamRepository, cache: MemoryCache) -> SimpleNamespace:
+    coordinator = TeamQueryCache(
+        CacheAsideService(cache),
+        CacheGenerationService(cache),
+    )
+    return SimpleNamespace(
+        queries=TeamQueryService(repository, cache=coordinator),
+        management=TeamManagementService(repository, cache=coordinator),
+        join_requests=TeamJoinRequestService(repository, cache=coordinator),
+        memberships=TeamMembershipService(repository, cache=coordinator),
+        invitations=TeamInvitationService(repository, cache=coordinator),
     )
 
 
 @pytest.mark.asyncio
 async def test_team_queries_are_cached_and_isolated_by_viewer() -> None:
     repository = FakeTeamRepository()
-    service = _service(repository, MemoryCache())
+    services = _services(repository, MemoryCache())
 
-    await service.search_teams("脊柱", 1, 20)
-    await service.search_teams("脊柱", 1, 20)
-    await service.search_teams("脊柱", 2, 20)
+    await services.queries.search_teams("脊柱", 1, 20)
+    await services.queries.search_teams("脊柱", 1, 20)
+    await services.queries.search_teams("脊柱", 2, 20)
     assert repository.search_calls == 2
 
-    await service.list_user_teams(1)
-    await service.list_user_teams(1)
-    await service.list_user_teams(2)
+    await services.queries.list_user_teams(1)
+    await services.queries.list_user_teams(1)
+    await services.queries.list_user_teams(2)
     assert repository.list_calls == 2
 
-    await service.get_team_members(1, 1)
-    await service.get_team_members(1, 1)
-    await service.get_team_members(1, 2)
+    await services.queries.get_team_members(1, 1)
+    await services.queries.get_team_members(1, 1)
+    await services.queries.get_team_members(1, 2)
     assert repository.member_calls == 2
 
 
 @pytest.mark.asyncio
 async def test_workflow_queues_bypass_query_cache() -> None:
     repository = FakeTeamRepository()
-    service = _service(repository, MemoryCache())
+    services = _services(repository, MemoryCache())
 
-    await service.list_join_requests(1, 1, None)
-    await service.list_join_requests(1, 1, None)
-    await service.list_invitations(1)
-    await service.list_invitations(1)
+    await services.join_requests.list_join_requests(1, 1, None)
+    await services.join_requests.list_join_requests(1, 1, None)
+    await services.invitations.list_invitations(1)
+    await services.invitations.list_invitations(1)
 
     assert repository.join_request_list_calls == 2
     assert repository.invitation_list_calls == 2
@@ -227,17 +239,17 @@ async def test_workflow_queues_bypass_query_cache() -> None:
 async def test_every_team_write_invalidates_the_shared_query_generation() -> None:
     repository = FakeTeamRepository()
     cache = MemoryCache()
-    service = _service(repository, cache)
+    services = _services(repository, cache)
 
-    await service.create_team(1, {"name": "新团队"})
-    await service.update_team(1, 1, {"name": "新名称"})
-    await service.apply_to_team(1, 2, None)
-    await service.review_join_request(1, 1, 1, "approve")
-    await service.cancel_join_request(1, 1, 2)
-    await service.update_member_role(1, 1, 2, "ADMIN")
-    await service.remove_member(1, 1, 2)
-    await service.invite_member(1, 1, "member@example.com", "MEMBER", None)
-    await service.respond_to_invitation(1, 2, True)
+    await services.management.create_team(1, {"name": "新团队"})
+    await services.management.update_team(1, 1, {"name": "新名称"})
+    await services.join_requests.apply_to_team(1, 2, None)
+    await services.join_requests.review_join_request(1, 1, 1, "approve")
+    await services.join_requests.cancel_join_request(1, 1, 2)
+    await services.memberships.update_member_role(1, 1, 2, "ADMIN")
+    await services.memberships.remove_member(1, 1, 2)
+    await services.invitations.invite_member(1, 1, "member@example.com", "MEMBER", None)
+    await services.invitations.respond_to_invitation(1, 2, True)
 
     assert cache.values["generation:teams:queries"] == 9
 
@@ -248,10 +260,10 @@ async def test_team_query_falls_back_to_repository_when_cache_fails() -> None:
     cache = MemoryCache()
     cache.fail_reads = True
     cache.fail_writes = True
-    service = _service(repository, cache)
+    services = _services(repository, cache)
 
-    first = await service.search_teams(None, 1, 20)
-    second = await service.search_teams(None, 1, 20)
+    first = await services.queries.search_teams(None, 1, 20)
+    second = await services.queries.search_teams(None, 1, 20)
 
     assert first == second
     assert repository.search_calls == 2

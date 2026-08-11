@@ -11,9 +11,14 @@ from app.contexts.imaging.application.dto import (
     ImportItem,
     PageResult,
 )
-from app.models.image import AITask
-from app.models.image_file import ImageFile
-from app.models.image_import import ImageImportBatch, ImageImportItem
+from app.contexts.imaging.domain import ImageFileDraft
+
+from .records import (
+    AiTaskRecord,
+    ImageFileRecord,
+    ImageImportBatchRecord,
+    ImageImportItemRecord,
+)
 
 
 class ImageImportRepository(Protocol):
@@ -25,38 +30,40 @@ class ImageImportRepository(Protocol):
         owner_id: int,
         command: CreateImportBatch,
         team_ids: list[int],
-    ) -> tuple[ImageImportBatch, list[ImageImportItem]]: ...
+    ) -> tuple[ImageImportBatchRecord, list[ImageImportItemRecord]]: ...
 
     def get_owned_batch(
         self, batch_id: str, owner_id: int
-    ) -> ImageImportBatch | None: ...
+    ) -> ImageImportBatchRecord | None: ...
 
     def get_owned_item(
         self,
-        batch: ImageImportBatch,
+        batch: ImageImportBatchRecord,
         item_id: int,
-    ) -> ImageImportItem | None: ...
+    ) -> ImageImportItemRecord | None: ...
 
     def list_items_by_ids(
         self,
-        batch: ImageImportBatch,
+        batch: ImageImportBatchRecord,
         item_ids: list[int],
-    ) -> list[ImageImportItem]: ...
+    ) -> list[ImageImportItemRecord]: ...
 
-    def get_active_image(self, image_file_id: int | None) -> ImageFile | None: ...
+    def get_active_image(self, image_file_id: int | None) -> ImageFileRecord | None: ...
 
-    def add_image(self, image: ImageFile) -> None: ...
+    def create_image(self, draft: ImageFileDraft) -> ImageFileRecord: ...
 
-    def ensure_ai_task(self, item: ImageImportItem, requested_by: int) -> AITask: ...
+    def ensure_ai_task(
+        self, item: ImageImportItemRecord, requested_by: int
+    ) -> AiTaskRecord: ...
 
     def ai_task_event(
         self,
-        task: AITask,
-        item: ImageImportItem,
-        batch: ImageImportBatch,
+        task: AiTaskRecord,
+        item: ImageImportItemRecord,
+        batch: ImageImportBatchRecord,
     ) -> AiTaskEvent: ...
 
-    def refresh_batch_status(self, batch: ImageImportBatch) -> None: ...
+    def refresh_batch_status(self, batch: ImageImportBatchRecord) -> None: ...
 
     def list_batches(
         self,
@@ -70,19 +77,17 @@ class ImageImportRepository(Protocol):
     def list_items(
         self,
         *,
-        batch: ImageImportBatch,
+        batch: ImageImportBatchRecord,
         page: int,
         page_size: int,
     ) -> PageResult[ImportItem]: ...
 
-    def batch_view(self, batch: ImageImportBatch) -> ImportBatch: ...
+    def batch_view(self, batch: ImageImportBatchRecord) -> ImportBatch: ...
 
-    def item_view(self, item: ImageImportItem) -> ImportItem: ...
-
-    def flush(self) -> None: ...
+    def item_view(self, item: ImageImportItemRecord) -> ImportItem: ...
 
     def commit(self) -> None: ...
 
     def rollback(self) -> None: ...
 
-    def refresh_item(self, item: ImageImportItem) -> None: ...
+    def refresh_item(self, item: ImageImportItemRecord) -> None: ...

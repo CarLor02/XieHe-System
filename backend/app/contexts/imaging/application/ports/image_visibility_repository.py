@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Protocol
 
 from app.contexts.imaging.domain import ImageAccessActor, ImageAccessScope
-from app.models.image_file import ImageFile
+
+from .records import ImageFileRecord
 
 
 class ImageVisibilityRepository(Protocol):
@@ -23,7 +24,7 @@ class ImageVisibilityRepository(Protocol):
         scope: ImageAccessScope,
         *,
         for_update: bool = False,
-    ) -> ImageFile | None: ...
+    ) -> ImageFileRecord | None: ...
 
     def get_visible_images_by_ids(
         self,
@@ -31,7 +32,7 @@ class ImageVisibilityRepository(Protocol):
         scope: ImageAccessScope,
         *,
         for_update: bool = False,
-    ) -> dict[int, ImageFile]: ...
+    ) -> dict[int, ImageFileRecord]: ...
 
     def list_visible_uploader_ids(
         self,
@@ -40,6 +41,6 @@ class ImageVisibilityRepository(Protocol):
 
     def replace_team_visibility(
         self,
-        image: ImageFile,
+        image: ImageFileRecord,
         team_ids: list[int],
     ) -> None: ...

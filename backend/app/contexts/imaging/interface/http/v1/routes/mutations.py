@@ -6,6 +6,9 @@ import json
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.imaging.application import ImageFileCommandService
 from app.contexts.imaging.application.dto import (
     ImageContentReplacement,
@@ -22,7 +25,6 @@ from app.contexts.imaging.domain import (
     ImageTeamAssignmentDeniedError,
     normalize_team_ids,
 )
-from app.core.access.auth import get_current_active_user
 from app.core.system.response import success_response
 
 from ..actor import CurrentUserPayload, image_access_actor

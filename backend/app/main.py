@@ -29,6 +29,10 @@ from app.contexts.imaging.infrastructure.ai import (
     start_ai_measurement_client,
     stop_ai_measurement_client,
 )
+from app.contexts.imaging.infrastructure.messaging import (
+    start_ai_task_publisher,
+    stop_ai_task_publisher,
+)
 from app.contexts.object_lifecycle.interface.scheduler import (
     start_object_cleanup_scheduler,
     stop_object_cleanup_scheduler,
@@ -44,10 +48,6 @@ from app.core.system.exceptions import (
 )
 from app.core.system.logger import LogLevel, logger
 from app.core.system.request_context import request_id_var
-from app.services.ai_task_queue import (
-    start_ai_task_publisher,
-    stop_ai_task_publisher,
-)
 from app.services.realtime_service import start_realtime_service, stop_realtime_service
 from app.shared.cache.aiocache import query_cache
 from app.shared.redis import RedisStateUnavailable, state_redis
@@ -269,33 +269,6 @@ async def health_check() -> dict[str, typing.Any]:
     return {"status": "healthy", "message": "XieHe医疗影像诊断系统运行正常"}
 
 
-@app.get("/dashboard/overview", tags=["Dashboard"])
-async def simple_dashboard_overview() -> dict[str, typing.Any]:
-    """
-    简单仪表盘概览端点
-    """
-    from datetime import datetime
-
-    return {
-        "total_patients": 3,
-        "new_patients_today": 1,
-        "new_patients_week": 2,
-        "active_patients": 3,
-        "total_studies": 5,
-        "studies_today": 2,
-        "studies_week": 4,
-        "pending_studies": 1,
-        "total_reports": 4,
-        "pending_reports": 1,
-        "completed_reports": 3,
-        "overdue_reports": 0,
-        "completion_rate": 75.0,
-        "average_processing_time": 2.5,
-        "system_alerts": 0,
-        "generated_at": datetime.now().isoformat(),
-    }
-
-
 @app.get("/info", tags=["Info"])
 async def app_info() -> dict[str, typing.Any]:
     """
@@ -310,36 +283,6 @@ async def app_info() -> dict[str, typing.Any]:
         "environment": settings.ENVIRONMENT,
         "debug": settings.DEBUG,
         "api_version": "v1",
-    }
-
-
-# 临时仪表盘端点
-@app.get("/api/v1/dashboard/overview", tags=["Dashboard"])
-async def dashboard_overview() -> dict[str, typing.Any]:
-    """
-    仪表盘概览端点
-
-    返回系统概览统计信息。
-    """
-    from datetime import datetime
-
-    return {
-        "total_patients": 3,
-        "new_patients_today": 1,
-        "new_patients_week": 2,
-        "active_patients": 3,
-        "total_studies": 5,
-        "studies_today": 2,
-        "studies_week": 4,
-        "pending_studies": 1,
-        "total_reports": 4,
-        "pending_reports": 1,
-        "completed_reports": 3,
-        "overdue_reports": 0,
-        "completion_rate": 75.0,
-        "average_processing_time": 2.5,
-        "system_alerts": 0,
-        "generated_at": datetime.now().isoformat(),
     }
 
 

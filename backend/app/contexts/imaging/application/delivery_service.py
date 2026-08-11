@@ -12,10 +12,9 @@ from app.contexts.imaging.application.errors import (
     ObjectStorageUnavailableError,
 )
 from app.contexts.imaging.domain import ImageAccessActor, ImageFileNotFoundError
-from app.models.image_file import ImageFile
 
 from .image_status import READY_FILE_STATUSES
-from .ports import ImageFileRepository, ObjectStorage
+from .ports import ImageFileRecord, ImageFileRepository, ObjectStorage
 from .visibility_service import ImageVisibilityApplicationService
 
 
@@ -89,7 +88,7 @@ class ImageDeliveryService:
         self,
         image_file_id: int,
         actor: ImageAccessActor,
-    ) -> ImageFile:
+    ) -> ImageFileRecord:
         image = self._visibility.get_visible_image(image_file_id, actor)
         if image is None:
             raise ImageFileNotFoundError
@@ -97,7 +96,7 @@ class ImageDeliveryService:
             raise ImageNotReadyError("影像文件尚未完成上传")
         return image
 
-    def _download_url(self, image: ImageFile, url: str) -> DownloadUrl:
+    def _download_url(self, image: ImageFileRecord, url: str) -> DownloadUrl:
         return DownloadUrl(
             url=url,
             expires_in=self._expires_in,

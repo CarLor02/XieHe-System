@@ -144,3 +144,11 @@ class AiTaskEvent:
     batch_item_id: int
     image_file_id: int
     requested_by: int
+
+
+@dataclass(frozen=True, slots=True)
+class AiImageReference:
+    id: int
+    storage_bucket: str
+    object_key: str
+    description: str | None
