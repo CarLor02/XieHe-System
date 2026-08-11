@@ -1,29 +1,12 @@
-import { apiClient } from '@/infrastructure/http';
-import type {
-  AiMeasurementInput,
-  AiMeasurementResponse,
-} from '@xiehe/imaging-core/ai';
+import { apiSdk } from '@/infrastructure/http';
 import { imageIdToNumericId } from './imageFileService';
 import type {
   DetectKeypointsResponse,
   LateralDetectResponse,
 } from './aiAnnotationService';
-import type {
-  CfhAnnotation,
-  VertebraAnnotation,
-} from '@xiehe/imaging-core/contracts';
+import type { PredictMeasurementsResponse } from '@xiehe/api-contracts';
 
-export interface PredictMeasurementsResponse extends AiMeasurementResponse {
-  imageId: string;
-  imageWidth: number;
-  imageHeight: number;
-  image_width?: number;
-  image_height?: number;
-  measurements: AiMeasurementInput[];
-  vertebrae?: VertebraAnnotation[];
-  cfh?: CfhAnnotation | null;
-  raw_keypoints?: unknown;
-}
+export type { PredictMeasurementsResponse } from '@xiehe/api-contracts';
 
 export async function getAiMeasurementsResponse(
   imageId: string,
@@ -31,16 +14,12 @@ export async function getAiMeasurementsResponse(
 ): Promise<PredictMeasurementsResponse> {
   void examType;
   const numericId = imageIdToNumericId(imageId);
-  return apiClient.post<PredictMeasurementsResponse>(
-    `/api/v1/image-files/${numericId}/ai/predict`
-  );
+  return apiSdk.imaging.predict(numericId);
 }
 
 export async function getAiKeypointDetectionResponse(
   imageId: string
 ): Promise<DetectKeypointsResponse | LateralDetectResponse> {
   const numericId = imageIdToNumericId(imageId);
-  return apiClient.post<DetectKeypointsResponse | LateralDetectResponse>(
-    `/api/v1/image-files/${numericId}/ai/detect-keypoints`
-  );
+  return apiSdk.imaging.detectKeypoints(numericId);
 }

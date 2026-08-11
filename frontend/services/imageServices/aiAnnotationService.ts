@@ -1,18 +1,15 @@
 import { createExternalHttpClient } from '@/infrastructure/http';
 import type {
-  AiFrontalKeypointResponse,
-  AiLateralKeypointResponse,
-} from '@xiehe/imaging-core/ai';
+  DetectKeypointsResponse,
+  LateralDetectResponse,
+} from '@xiehe/api-contracts';
 
 const aiServiceClient = createExternalHttpClient();
 
-export interface DetectKeypointsResponse extends AiFrontalKeypointResponse {
-  imageId: string;
-  imageWidth: number;
-  imageHeight: number;
-}
-
-export type LateralDetectResponse = AiLateralKeypointResponse;
+export type {
+  DetectKeypointsResponse,
+  LateralDetectResponse,
+} from '@xiehe/api-contracts';
 
 function getFrontAiAnnotationUrl(): string {
   const url = process.env.NEXT_PUBLIC_AI_DETECT_KEYPOINTS_URL || '';

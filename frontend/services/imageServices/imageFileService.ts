@@ -1,312 +1,88 @@
-/**
- * 影像文件管理API服务
- *
- * 提供影像文件的查询、下载、删除等功能
- * 基于新的 image_files 表
- */
-
-import {
-  apiClient,
-  normalizeLegacyPagination,
-  objectStorageClient,
-} from '@/infrastructure/http';
-import type { TeamSummary } from '@/services/teamService';
+import { apiClient, apiSdk, objectStorageClient } from '@/infrastructure/http';
 import { createLogger } from '@/lib/logger';
 import type { AnnotationDocument } from '@xiehe/imaging-core/annotation-document';
+import type {
+  AnnotationSaveResult,
+  BatchUpdateImageExamTypeResult,
+  ImageAnnotationBatchItem,
+  ImageFile,
+  ImageFileDetail,
+  ImageFileDownloadUrl,
+  ImageFileDownloadUrlsResponse,
+  ImageFileListQuery,
+  ImageFileListResponse,
+  ImageFileStats,
+  PagedSearchQuery,
+} from '@xiehe/api-contracts';
+
+export type {
+  AnnotationSaveResult,
+  BatchUpdateImageExamTypeResult,
+  ImageAnnotationBatchItem,
+  ImageAnnotationJson,
+  ImageFile,
+  ImageFileDetail,
+  ImageFileDownloadUrl,
+  ImageFileDownloadUrlError,
+  ImageFileDownloadUrlsResponse,
+  ImageFileListResponse,
+  ImageFileStats,
+  ImageFileSummary,
+  ImageUploader,
+} from '@xiehe/api-contracts';
+export type ImageFileFilters = ImageFileListQuery;
+export type ImageUploaderFilters = PagedSearchQuery;
+export type AssignableImageTeamFilters = PagedSearchQuery;
 
 const logger = createLogger('services.imageServices.imageFileService');
 
-export type ImageAnnotationJson = Record<string, unknown>;
-
-export interface ImageFileSummary {
-  id: number;
-  file_uuid: string;
-  original_filename: string;
-  file_type: 'DICOM' | 'JPEG' | 'PNG' | 'TIFF' | 'OTHER';
-  mime_type?: string;
-  file_size: number;
-  storage_bucket: string;
-  object_key: string;
-  storage_etag?: string;
-  thumbnail_path?: string;
-  uploaded_by: number;
-  uploader_name?: string | null;
-  patient_id?: number;
-  patient_name?: string | null;
-  patient_identifier?: string | null;
-  patient_gender?: string | null;
-  patient_age?: number | null;
-  study_id?: number; // TODO 这个字段后端的接口没返回, 以后看一下
-  study_date?: string;
-  description?: string;
-  team_ids?: number[];
-  team_names?: string[];
-  has_annotation: boolean;
-  status:
-    | 'UPLOADING'
-    | 'UPLOADED'
-    | 'PROCESSING'
-    | 'PROCESSED'
-    | 'FAILED'
-    | 'ARCHIVED'
-    | 'DELETED';
-  upload_progress: number;
-  created_at: string;
-  uploaded_at?: string;
-}
-
-export interface ImageFileDetail extends ImageFileSummary {
-  annotation: ImageAnnotationJson | null;
-  annotation_version: number;
-  annotation_created_at?: string | null;
-  annotation_created_by?: number | null;
-  annotation_updated_at?: string | null;
-  annotation_updated_by?: number | null;
-}
-
-/** 兼容既有卡片与操作组件；影像列表实际只返回 summary 字段。 */
-export type ImageFile = ImageFileSummary;
-
-export interface ImageFileListResponse {
-  total: number;
-  page: number;
-  page_size: number;
-  items: ImageFile[];
-}
-
-export interface ImageFileStats {
-  total_files: number;
-  total_size: number;
-  by_type: Record<string, number>;
-  by_status: Record<string, number>;
-}
-
-export interface ImageFileDownloadUrl {
-  url: string;
-  expires_in: number;
-  expires_at?: string;
-  filename?: string;
-  mime_type?: string;
-  etag?: string;
-}
-
-export interface ImageFileDownloadUrlError {
-  code: string;
-  message: string;
-}
-
-export interface ImageFileDownloadUrlsResponse {
-  items: Record<number, ImageFileDownloadUrl>;
-  errors: Record<number, ImageFileDownloadUrlError>;
-}
-
-export interface ImageFileFilters {
-  page?: number;
-  page_size?: number;
-  file_type?: ImageFileSummary['file_type'];
-  description?: string; // 检查类型筛选
-  file_status?: ImageFileSummary['status'];
-  start_date?: string;
-  end_date?: string;
-  search?: string;
-  uploaded_by?: number;
-  team_ids?: number[];
-}
-
-export interface ImageUploader {
-  id: number;
-  username: string;
-  email?: string | null;
-  real_name?: string | null;
-  department?: string | null;
-  position?: string | null;
-  title?: string | null;
-  is_system_admin?: boolean;
-  system_admin_level?: number;
-}
-
-export interface ImageUploaderFilters {
-  page?: number;
-  page_size?: number;
-  search?: string;
-}
-
-export interface AssignableImageTeamFilters {
-  page?: number;
-  page_size?: number;
-  search?: string;
-}
-
-/**
- * 获取影像文件列表
- *
- * 权限控制：
- * - 超级管理员：看所有影像
- * - 团队负责人(ADMIN)：看团队所有成员上传的影像
- * - 普通用户：只看自己上传的影像
- *
- * 支持筛选：
- * - file_status: 影像处理状态
- * - description: 检查类型
- * - search: 搜索关键词
- * - start_date / end_date: 日期范围
- * - TODO 这里返回的数据是靠前端进行的筛选, 这个权限筛选行为需要后端提供
- */
-export async function getImageFiles(
+export function getImageFiles(
   filters: ImageFileFilters = {}
 ): Promise<ImageFileListResponse> {
-  const params: Record<string, string | number> = {
-    page: filters.page || 1,
-    page_size: filters.page_size || 20,
-  };
-
-  if (filters.description) params.description = filters.description;
-  if (filters.file_type) params.file_type = filters.file_type;
-  if (filters.file_status) params.file_status = filters.file_status;
-  if (filters.start_date) params.start_date = filters.start_date;
-  if (filters.end_date) params.end_date = filters.end_date;
-  if (filters.search) params.search = filters.search;
-  if (filters.uploaded_by !== undefined)
-    params.uploaded_by = filters.uploaded_by;
-  if (filters.team_ids?.length) params.team_ids = filters.team_ids.join(',');
-
-  const data = await apiClient.get<unknown>('/api/v1/image-files', { params });
-  const result = normalizeLegacyPagination<ImageFile>(data);
-
-  return {
-    total: result.total,
-    page: result.page,
-    page_size: result.pageSize,
-    items: result.items,
-  };
+  return apiSdk.imaging.list(filters);
 }
 
-export async function getVisibleImageUploaders(
-  filters: ImageUploaderFilters = {}
-) {
-  const params: Record<string, string | number> = {
-    page: filters.page || 1,
-    page_size: filters.page_size || 10,
-  };
-
-  if (filters.search) params.search = filters.search;
-
-  const data = await apiClient.get<unknown>('/api/v1/image-files/uploaders', {
-    params,
-  });
-  return normalizeLegacyPagination<ImageUploader>(data);
+export function getVisibleImageUploaders(filters: ImageUploaderFilters = {}) {
+  return apiSdk.imaging.listUploaders(filters);
 }
 
-export async function getAssignableImageTeams(
+export function getAssignableImageTeams(
   filters: AssignableImageTeamFilters = {}
-) {
-  const params: Record<string, string | number> = {
-    page: filters.page || 1,
-    page_size: filters.page_size || 10,
-  };
-
-  if (filters.search) params.search = filters.search;
-
-  const data = await apiClient.get<unknown>(
-    '/api/v1/image-files/assignable-teams',
-    {
-      params,
-    }
-  );
-  return normalizeLegacyPagination<TeamSummary>(data);
+): ReturnType<typeof apiSdk.imaging.listAssignableTeams> {
+  return apiSdk.imaging.listAssignableTeams(filters);
 }
 
-export async function getAllImageFiles(
+export function getAllImageFiles(
   filters: Omit<ImageFileFilters, 'page' | 'page_size'> = {},
   pageSize = 100
 ): Promise<ImageFile[]> {
-  const firstPage = await getImageFiles({
-    ...filters,
-    page: 1,
-    page_size: pageSize,
-  });
-
-  const allItems = [...firstPage.items];
-  const totalPages = Math.max(
-    Math.ceil(firstPage.total / Math.max(firstPage.page_size, 1)),
-    1
-  );
-
-  for (let page = 2; page <= totalPages; page += 1) {
-    const nextPage = await getImageFiles({
-      ...filters,
-      page,
-      page_size: pageSize,
-    });
-    allItems.push(...nextPage.items);
-  }
-
-  return allItems;
+  return apiSdk.imaging.listAll(filters, pageSize);
 }
 
-/**
- * 获取患者的影像文件列表
- */
-export async function getPatientImages(
+export function getPatientImages(
   patientId: number,
   page = 1,
   pageSize = 20
 ): Promise<ImageFileListResponse> {
-  const data = await apiClient.get<unknown>(
-    `/api/v1/image-files/patient/${patientId}`,
-    {
-      params: { page, page_size: pageSize },
-    }
-  );
-  const result = normalizeLegacyPagination<ImageFile>(data);
-
-  return {
-    total: result.total,
-    page: result.page,
-    page_size: result.pageSize,
-    items: result.items,
-  };
+  return apiSdk.imaging.listPatientImages(patientId, page, pageSize);
 }
 
-/**
- * 获取影像文件详情
- */
-export async function getImageFile(fileId: number): Promise<ImageFileDetail> {
-  return apiClient.get<ImageFileDetail>(`/api/v1/image-files/${fileId}`);
+export function getImageFile(fileId: number): Promise<ImageFileDetail> {
+  return apiSdk.imaging.get(fileId);
 }
 
-export async function getImageNavigationIds(): Promise<number[]> {
-  const data = await apiClient.get<{ ids: number[] }>(
-    '/api/v1/image-files/navigation'
-  );
-  return data.ids;
+export function getImageNavigationIds(): Promise<number[]> {
+  return apiSdk.imaging.getNavigationIds();
 }
 
-export interface ImageAnnotationBatchItem {
-  id: number;
-  annotation: ImageAnnotationJson | null;
-  annotation_version: number;
-}
-
-export async function getImageAnnotations(
+export function getImageAnnotations(
   ids: number[]
 ): Promise<ImageAnnotationBatchItem[]> {
-  if (ids.length === 0) return [];
-  const uniqueIds = Array.from(new Set(ids));
-  const items: ImageAnnotationBatchItem[] = [];
-  for (let offset = 0; offset < uniqueIds.length; offset += 100) {
-    const data = await apiClient.post<{ items: ImageAnnotationBatchItem[] }>(
-      '/api/v1/image-files/annotations/batch',
-      { ids: uniqueIds.slice(offset, offset + 100) }
-    );
-    items.push(...data.items);
-  }
-  return items;
+  return ids.length === 0
+    ? Promise.resolve([])
+    : apiSdk.imaging.getAnnotations(ids);
 }
 
-/**
- * 下载影像文件
- */
 export async function downloadImageFile(
   fileId: number,
   options: { signal?: AbortSignal } = {}
@@ -320,105 +96,51 @@ export async function downloadImageFile(
   });
 }
 
-export async function getImageFileDownloadUrl(
+export function getImageFileDownloadUrl(
   fileId: number
 ): Promise<ImageFileDownloadUrl> {
-  return apiClient.get<ImageFileDownloadUrl>(
-    `/api/v1/image-files/${fileId}/download-url`
-  );
+  return apiSdk.imaging.getDownloadUrl(fileId);
 }
 
-export async function getImageFileDownloadUrls(
+export function getImageFileDownloadUrls(
   ids: number[],
-  options: {
-    signal?: AbortSignal;
-    variant?: 'original';
-  } = {}
+  options: { signal?: AbortSignal; variant?: 'original' } = {}
 ): Promise<ImageFileDownloadUrlsResponse> {
-  if (ids.length === 0) {
-    return { items: {}, errors: {} };
-  }
-
-  return apiClient.post<ImageFileDownloadUrlsResponse>(
-    '/api/v1/image-files/download-urls',
-    {
-      ids,
-      variant: options.variant ?? 'original',
-    },
-    {
-      signal: options.signal,
-    }
-  );
+  return apiSdk.imaging.getDownloadUrls(ids, options);
 }
 
-/**
- * 删除影像文件（软删除）
- */
-export async function deleteImageFile(
+export function deleteImageFile(
   fileId: number
 ): Promise<{ message: string; file_id: number }> {
-  return apiClient.delete<{ message: string; file_id: number }>(
-    `/api/v1/image-files/${fileId}`
-  );
+  return apiSdk.imaging.delete(fileId);
 }
 
-/**
- * 更新影像的检查类型
- * @param fileId 影像 id
- * @param description description 为检查类型字段, 这里存在语义的误导, 实际 description 和 examType 语义等同
- */
-export async function updateImageExamType(
-  fileId: number,
-  description: string
-): Promise<{ id: number; description: string; warning: string | null }> {
-  return apiClient.patch<{
-    id: number;
-    description: string;
-    warning: string | null;
-  }>(`/api/v1/image-files/${fileId}/exam-type`, { description });
+export function updateImageExamType(fileId: number, description: string) {
+  return apiSdk.imaging.updateExamType(fileId, description);
 }
 
-export interface BatchUpdateImageExamTypeResult {
-  updated_ids: number[];
-  unchanged_ids: number[];
-  updated_count: number;
-  unchanged_count: number;
-  exam_type: string;
-}
-
-export async function batchUpdateImageExamType(
+export function batchUpdateImageExamType(
   ids: number[],
   examType: string
 ): Promise<BatchUpdateImageExamTypeResult> {
-  return apiClient.patch<BatchUpdateImageExamTypeResult>(
-    '/api/v1/image-files/batch/exam-type',
-    {
-      ids,
-      exam_type: examType,
-    }
-  );
+  return apiSdk.imaging.batchUpdateExamType(ids, examType);
 }
 
-export async function updateImageInfo(
+export function updateImageInfo(
   fileId: number,
   payload: { description: string; team_ids: number[] }
 ): Promise<ImageFile & { warning?: string | null }> {
-  return apiClient.patch<ImageFile & { warning?: string | null }>(
-    `/api/v1/image-files/${fileId}/info`,
-    payload
-  );
+  return apiSdk.imaging.updateInfo(fileId, payload);
 }
 
-export async function renameImageFile(
+export function renameImageFile(
   fileId: number,
   basename: string
 ): Promise<ImageFile> {
-  return apiClient.patch<ImageFile>(`/api/v1/image-files/${fileId}/filename`, {
-    basename,
-  });
+  return apiSdk.imaging.rename(fileId, basename);
 }
 
-export async function replaceImageFileContent(
+export function replaceImageFileContent(
   fileId: number,
   file: File,
   options: { description?: string | null; team_ids?: number[] } = {}
@@ -431,56 +153,34 @@ export async function replaceImageFileContent(
   if (options.team_ids !== undefined) {
     formData.append('team_ids', JSON.stringify(options.team_ids));
   }
-
+  // Multipart body is a Web adapter concern; the wire response stays shared.
   return apiClient.patch<ImageFile, FormData>(
     `/api/v1/image-files/${fileId}/content`,
     formData
   );
 }
 
-export interface AnnotationSaveResult {
-  annotation_version: number;
-  annotation_updated_at: string | null;
-  annotation_updated_by: number | null;
-  has_annotation: boolean;
-  status: ImageFileSummary['status'];
-  changed: boolean;
-}
-
-export async function saveImageAnnotation(
+export function saveImageAnnotation(
   fileId: number,
   expectedVersion: number,
   annotation: AnnotationDocument
 ): Promise<AnnotationSaveResult> {
-  return apiClient.put<AnnotationSaveResult>(
-    `/api/v1/image-files/${fileId}/annotation`,
-    {
-      expected_version: expectedVersion,
-      annotation,
-    }
+  return apiSdk.imaging.saveAnnotation(
+    fileId,
+    expectedVersion,
+    annotation as unknown as Record<string, unknown>
   );
 }
 
-/**
- * 获取影像统计信息
- */
-export async function getImageStats(): Promise<ImageFileStats> {
-  return apiClient.get<ImageFileStats>('/api/v1/image-files/stats/summary');
+export function getImageStats(): Promise<ImageFileStats> {
+  return apiSdk.imaging.getStats();
 }
 
-/**
- * 获取影像文件的预览URL（带认证）
- * 注意：此函数返回一个Promise，需要await使用
- */
 export async function getImagePreviewUrl(fileId: number): Promise<string> {
-  // 30 秒超时：超时后抛出错误，由 catch 降级为占位图，避免 spinner 永久悬挂
-  const PREVIEW_TIMEOUT_MS = 30_000;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PREVIEW_TIMEOUT_MS);
-
+  const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
     const blob = await downloadImageFile(fileId, { signal: controller.signal });
-    // 如果服务端返回非图片（如 JSON 错误体），blob type 不是 image/*，直接降级
     if (
       !blob.type.startsWith('image/') &&
       blob.type !== 'application/octet-stream' &&
@@ -491,65 +191,41 @@ export async function getImagePreviewUrl(fileId: number): Promise<string> {
     return URL.createObjectURL(blob);
   } catch (error) {
     logger.warn(`[Preview] file ${fileId} 加载失败，使用占位图:`, error);
-    // 返回一个占位图片（灰色背景 + "暂无图片"文字）
-    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7ml6Dlh7rliqDovb08L3RleHQ+PC9zdmc+';
+    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cub3JnLzIwMDAvc3ZnPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjZWVlIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWunuaXoOWbvueJhzwvdGV4dD48L3N2Zz4=';
   } finally {
     clearTimeout(timeout);
   }
 }
 
-/**
- * 根据 imageId 获取 numericId
- * TODO
- * */
 export function imageIdToNumericId(imageId: string): string {
   return imageId.replace('IMG', '').replace(/^0+/, '') || '0';
 }
 
-/**
- * 格式化文件大小
- */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
-  const k = 1024;
+  const unit = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  const index = Math.floor(Math.log(bytes) / Math.log(unit));
+  return `${parseFloat((bytes / Math.pow(unit, index)).toFixed(2))} ${sizes[index]}`;
 }
 
-/**
- * 格式化日期
- */
 const DEFAULT_DISPLAY_TIME_ZONE = 'Asia/Shanghai';
 
-function getDisplayTimeZone(): string {
-  return (
-    process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE?.trim() ||
-    DEFAULT_DISPLAY_TIME_ZONE
-  );
-}
-
-function parseApiDate(dateString: string): Date {
+export function formatDate(dateString: string): string {
   const trimmed = dateString.trim();
   const hasTimeZone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
-  return new Date(hasTimeZone ? trimmed : `${trimmed}Z`);
-}
-
-export function formatDate(dateString: string): string {
-  const date = parseApiDate(dateString);
-  if (Number.isNaN(date.getTime())) {
-    return dateString;
-  }
-
+  const date = new Date(hasTimeZone ? trimmed : `${trimmed}Z`);
+  if (Number.isNaN(date.getTime())) return dateString;
   const options: Intl.DateTimeFormatOptions = {
-    timeZone: getDisplayTimeZone(),
+    timeZone:
+      process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE?.trim() ||
+      DEFAULT_DISPLAY_TIME_ZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   };
-
   try {
     return date.toLocaleDateString('zh-CN', options);
   } catch {

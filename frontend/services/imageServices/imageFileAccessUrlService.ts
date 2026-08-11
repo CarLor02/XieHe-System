@@ -45,7 +45,9 @@ function isCacheUsable(entry: CachedImageFileAccessUrl): boolean {
   return entry.expiresAt - Date.now() > EXPIRY_SKEW_MS;
 }
 
-function buildDownloadFromCache(entry: CachedImageFileAccessUrl): ImageFileDownloadUrl {
+function buildDownloadFromCache(
+  entry: CachedImageFileAccessUrl
+): ImageFileDownloadUrl {
   return {
     url: entry.url,
     expires_in: Math.max(Math.floor((entry.expiresAt - Date.now()) / 1000), 0),

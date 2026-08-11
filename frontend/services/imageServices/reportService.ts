@@ -1,26 +1,17 @@
-import { apiClient } from '@/infrastructure/http';
+import { apiSdk } from '@/infrastructure/http';
+import type {
+  GenerateReportRequest,
+  GenerateReportResponse,
+} from '@xiehe/api-contracts';
 
-export interface ReportMeasurementItem {
-  type: string;
-  value: string;
-  description?: string | null;
-}
-
-export interface GenerateReportRequest {
-  imageId: string;
-  examType: string;
-  measurements: ReportMeasurementItem[];
-}
-
-export interface GenerateReportResponse {
-  report: string;
-}
+export type {
+  GenerateReportRequest,
+  GenerateReportResponse,
+  ReportMeasurementItem,
+} from '@xiehe/api-contracts';
 
 export async function generateMeasurementReport(
   payload: GenerateReportRequest
 ): Promise<GenerateReportResponse> {
-  return apiClient.post<GenerateReportResponse, GenerateReportRequest>(
-    '/api/v1/report-generation/generate',
-    payload
-  );
+  return apiSdk.reports.generate(payload);
 }

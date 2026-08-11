@@ -1,9 +1,21 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { normalizeLegacyPagination } from '@xiehe/api-client/contracts';
+import type { HttpClient } from '@xiehe/api-client';
+import { createXieheApiSdk } from '@xiehe/api-sdk';
 
 import { formatDate } from '../imageFileService';
 
 const originalDisplayTimeZone = process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE;
+
+function mockHttpInfrastructure(client: Record<string, unknown>) {
+  jest.doMock('@/infrastructure/http', () => ({
+    apiClient: client as unknown as HttpClient,
+    apiSdk: createXieheApiSdk({
+      apiClient: client as unknown as HttpClient,
+    }),
+    normalizeLegacyPagination,
+  }));
+}
 
 afterEach(() => {
   if (originalDisplayTimeZone === undefined) {
@@ -40,7 +52,7 @@ describe('image file list filters', () => {
     );
 
     jest.resetModules();
-    jest.doMock('@/infrastructure/http', () => ({ apiClient: { patch } }));
+    mockHttpInfrastructure({ patch });
     const { batchUpdateImageExamType } = await import('../imageFileService');
 
     const result = await batchUpdateImageExamType([3, 4], '侧位X光片');
@@ -64,7 +76,7 @@ describe('image file list filters', () => {
     );
 
     jest.resetModules();
-    jest.doMock('@/infrastructure/http', () => ({ apiClient: { patch } }));
+    mockHttpInfrastructure({ patch });
     const { renameImageFile } = await import('../imageFileService');
 
     const result = await renameImageFile(7, 'renamed');
@@ -89,10 +101,7 @@ describe('image file list filters', () => {
     }));
 
     jest.resetModules();
-    jest.doMock('@/infrastructure/http', () => ({
-      apiClient: { get },
-      normalizeLegacyPagination,
-    }));
+    mockHttpInfrastructure({ get });
     const { getImageFiles } = await import('../imageFileService');
 
     await getImageFiles({ uploaded_by: 7 });
@@ -120,10 +129,7 @@ describe('image file list filters', () => {
     }));
 
     jest.resetModules();
-    jest.doMock('@/infrastructure/http', () => ({
-      apiClient: { get },
-      normalizeLegacyPagination,
-    }));
+    mockHttpInfrastructure({ get });
     const { getImageFiles } = await import('../imageFileService');
 
     await getImageFiles({ file_type: 'PNG', file_status: 'PROCESSED' });
@@ -151,7 +157,7 @@ describe('image file list filters', () => {
     }));
 
     jest.resetModules();
-    jest.doMock('@/infrastructure/http', () => ({ apiClient: { put } }));
+    mockHttpInfrastructure({ put });
     const { saveImageAnnotation } = await import('../imageFileService');
 
     const annotation = {
@@ -181,7 +187,7 @@ describe('image file list filters', () => {
     );
 
     jest.resetModules();
-    jest.doMock('@/infrastructure/http', () => ({ apiClient: { post } }));
+    mockHttpInfrastructure({ post });
     const { getImageAnnotations } = await import('../imageFileService');
 
     const result = await getImageAnnotations([3]);
@@ -206,7 +212,7 @@ describe('image file list filters', () => {
     }));
 
     jest.resetModules();
-    jest.doMock('@/infrastructure/http', () => ({ apiClient: { post } }));
+    mockHttpInfrastructure({ post });
     const { getImageAnnotations } = await import('../imageFileService');
     const ids = Array.from({ length: 101 }, (_, index) => index + 1);
 
@@ -232,10 +238,7 @@ describe('image file list filters', () => {
     }));
 
     jest.resetModules();
-    jest.doMock('@/infrastructure/http', () => ({
-      apiClient: { get },
-      normalizeLegacyPagination,
-    }));
+    mockHttpInfrastructure({ get });
     const { getVisibleImageUploaders } = await import('../imageFileService');
 
     const result = await getVisibleImageUploaders({
@@ -268,10 +271,7 @@ describe('image file list filters', () => {
     }));
 
     jest.resetModules();
-    jest.doMock('@/infrastructure/http', () => ({
-      apiClient: { get },
-      normalizeLegacyPagination,
-    }));
+    mockHttpInfrastructure({ get });
     const { getAssignableImageTeams } = await import('../imageFileService');
 
     const result = await getAssignableImageTeams({

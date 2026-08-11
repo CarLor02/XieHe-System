@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import {
   clearImageFileAccessUrlCache,
   clearCachedImageFileAccessUrl,
@@ -52,39 +59,67 @@ describe('imageFileAccessUrlService', () => {
 
     const file = makeImageFile(1);
 
-    await expect(getImageFileAccessUrl(file, { loader })).resolves.toBe('/medical-image-files/a?sig=1');
-    await expect(getImageFileAccessUrl(file, { loader })).resolves.toBe('/medical-image-files/a?sig=1');
+    await expect(getImageFileAccessUrl(file, { loader })).resolves.toBe(
+      '/medical-image-files/a?sig=1'
+    );
+    await expect(getImageFileAccessUrl(file, { loader })).resolves.toBe(
+      '/medical-image-files/a?sig=1'
+    );
 
     expect(loader).toHaveBeenCalledTimes(1);
   });
 
   it('refreshes when the URL is within the expiry skew', async () => {
     const loader = jest
-      .fn(async () => makeDownloadUrl('/medical-image-files/a?sig=1', '2026-05-10T00:00:30Z'))
-      .mockResolvedValueOnce(makeDownloadUrl('/medical-image-files/a?sig=1', '2026-05-10T00:00:30Z'))
-      .mockResolvedValueOnce(makeDownloadUrl('/medical-image-files/a?sig=2', '2026-05-10T00:15:00Z'));
+      .fn(async () =>
+        makeDownloadUrl('/medical-image-files/a?sig=1', '2026-05-10T00:00:30Z')
+      )
+      .mockResolvedValueOnce(
+        makeDownloadUrl('/medical-image-files/a?sig=1', '2026-05-10T00:00:30Z')
+      )
+      .mockResolvedValueOnce(
+        makeDownloadUrl('/medical-image-files/a?sig=2', '2026-05-10T00:15:00Z')
+      );
 
     const file = makeImageFile(1);
 
-    await expect(getImageFileAccessUrl(file, { loader })).resolves.toBe('/medical-image-files/a?sig=1');
-    await expect(getImageFileAccessUrl(file, { loader })).resolves.toBe('/medical-image-files/a?sig=2');
+    await expect(getImageFileAccessUrl(file, { loader })).resolves.toBe(
+      '/medical-image-files/a?sig=1'
+    );
+    await expect(getImageFileAccessUrl(file, { loader })).resolves.toBe(
+      '/medical-image-files/a?sig=2'
+    );
 
     expect(loader).toHaveBeenCalledTimes(2);
   });
 
   it('separates cached URLs by etag and supports explicit clearing', async () => {
     const loader = jest
-      .fn(async () => makeDownloadUrl('/medical-image-files/a?sig=1', '2026-05-10T00:15:00Z'))
-      .mockResolvedValueOnce(makeDownloadUrl('/medical-image-files/a?sig=1', '2026-05-10T00:15:00Z'))
-      .mockResolvedValueOnce(makeDownloadUrl('/medical-image-files/a?sig=2', '2026-05-10T00:15:00Z'))
-      .mockResolvedValueOnce(makeDownloadUrl('/medical-image-files/a?sig=3', '2026-05-10T00:15:00Z'));
+      .fn(async () =>
+        makeDownloadUrl('/medical-image-files/a?sig=1', '2026-05-10T00:15:00Z')
+      )
+      .mockResolvedValueOnce(
+        makeDownloadUrl('/medical-image-files/a?sig=1', '2026-05-10T00:15:00Z')
+      )
+      .mockResolvedValueOnce(
+        makeDownloadUrl('/medical-image-files/a?sig=2', '2026-05-10T00:15:00Z')
+      )
+      .mockResolvedValueOnce(
+        makeDownloadUrl('/medical-image-files/a?sig=3', '2026-05-10T00:15:00Z')
+      );
 
-    await expect(getImageFileAccessUrl(makeImageFile(1, 'etag-a'), { loader })).resolves.toBe('/medical-image-files/a?sig=1');
-    await expect(getImageFileAccessUrl(makeImageFile(1, 'etag-b'), { loader })).resolves.toBe('/medical-image-files/a?sig=2');
+    await expect(
+      getImageFileAccessUrl(makeImageFile(1, 'etag-a'), { loader })
+    ).resolves.toBe('/medical-image-files/a?sig=1');
+    await expect(
+      getImageFileAccessUrl(makeImageFile(1, 'etag-b'), { loader })
+    ).resolves.toBe('/medical-image-files/a?sig=2');
 
     clearCachedImageFileAccessUrl(1);
 
-    await expect(getImageFileAccessUrl(makeImageFile(1, 'etag-b'), { loader })).resolves.toBe('/medical-image-files/a?sig=3');
+    await expect(
+      getImageFileAccessUrl(makeImageFile(1, 'etag-b'), { loader })
+    ).resolves.toBe('/medical-image-files/a?sig=3');
     expect(loader).toHaveBeenCalledTimes(3);
   });
 });
