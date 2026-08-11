@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createLogger } from '@/lib/logger';
+import { validateRegisterForm } from '@xiehe/auth-core';
 
 const logger = createLogger('app.auth.register.page');
 
@@ -57,52 +58,7 @@ export default function RegisterPage() {
 
   // 表单验证
   const validateForm = () => {
-    const errors: Record<string, string> = {};
-
-    // 用户名验证
-    if (!formData.username.trim()) {
-      errors.username = '请输入用户名';
-    } else if (formData.username.length < 3) {
-      errors.username = '用户名至少3位';
-    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
-      errors.username = '用户名只能包含字母、数字和下划线';
-    }
-
-    // 邮箱验证
-    if (!formData.email.trim()) {
-      errors.email = '请输入邮箱';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = '请输入有效的邮箱地址';
-    }
-
-    // 密码验证
-    if (!formData.password) {
-      errors.password = '请输入密码';
-    } else if (formData.password.length < 6) {
-      errors.password = '密码至少6位';
-    } else if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(formData.password)) {
-      errors.password = '密码必须包含字母和数字';
-    }
-
-    // 确认密码验证
-    if (!formData.confirm_password) {
-      errors.confirm_password = '请确认密码';
-    } else if (formData.password !== formData.confirm_password) {
-      errors.confirm_password = '两次输入的密码不一致';
-    }
-
-    // 姓名验证
-    if (!formData.full_name.trim()) {
-      errors.full_name = '请输入姓名';
-    } else if (formData.full_name.length < 2) {
-      errors.full_name = '姓名至少2位';
-    }
-
-    // 手机号验证（可选）
-    if (formData.phone && !/^1[3-9]\d{9}$/.test(formData.phone)) {
-      errors.phone = '请输入有效的手机号';
-    }
-
+    const errors = validateRegisterForm(formData);
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };

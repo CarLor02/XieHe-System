@@ -4,6 +4,7 @@ import { getDashboardPendingTasks, type DashboardPendingTask } from '@/services/
 import { createLogger } from '@/lib/logger';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { paginateDashboardTasks } from '@xiehe/dashboard-core';
 
 const logger = createLogger('components.dashboard.task-list');
 
@@ -54,18 +55,21 @@ export default function TaskList() {
     };
   }, []);
 
-  // 过滤今日任务
-  const filteredTasks = filterMode === 'today'
-    ? tasks.filter(task => {
-        const taskDate = new Date(task.created_at);
-        const today = new Date();
-        return taskDate.toDateString() === today.toDateString();
-      })
-    : tasks;
-
-  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
-  const startIndex = (currentPage - 1) * tasksPerPage;
-  const displayedTasks = filteredTasks.slice(startIndex, startIndex + tasksPerPage);
+  const taskPage = paginateDashboardTasks({
+    tasks,
+    filter: filterMode,
+    requestedPage: currentPage,
+    pageSize: tasksPerPage,
+    now: new Date(),
+  });
+  const {
+    filteredTasks,
+    displayedTasks,
+    totalPages,
+    currentPage: visiblePage,
+    startIndex,
+    highPriorityCount,
+  } = taskPage;
 
   if (loading) {
     return (
@@ -136,7 +140,7 @@ export default function TaskList() {
             共 {filteredTasks.length} 个任务
           </span>
           <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-            {filteredTasks.filter(task => task.priority === 'high').length} 紧急
+            {highPriorityCount} 紧急
           </span>
         </div>
       </div>
@@ -185,15 +189,15 @@ export default function TaskList() {
       <div className="px-4 py-4 border-t border-gray-200 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-gray-500">
-            显示 {startIndex + 1}-
+            显示 {filteredTasks.length === 0 ? 0 : startIndex + 1}-
             {Math.min(startIndex + tasksPerPage, filteredTasks.length)} 条，共{' '}
             {filteredTasks.length} 条
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(Math.max(1, visiblePage - 1))}
+              disabled={visiblePage === 1}
               className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
               上一页
@@ -205,7 +209,7 @@ export default function TaskList() {
                   key={page}
                   onClick={() => setCurrentPage(page)}
                   className={`px-3 py-1 border rounded text-sm ${
-                    currentPage === page
+                    visiblePage === page
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
@@ -217,9 +221,9 @@ export default function TaskList() {
 
             <button
               onClick={() =>
-                setCurrentPage(Math.min(totalPages, currentPage + 1))
+                setCurrentPage(Math.min(totalPages, visiblePage + 1))
               }
-              disabled={currentPage === totalPages}
+              disabled={visiblePage === totalPages}
               className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
               下一页

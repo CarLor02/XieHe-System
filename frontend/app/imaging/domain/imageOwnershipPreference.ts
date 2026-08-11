@@ -1,41 +1,15 @@
-export type ImageOwnershipPreferenceScope = 'personal' | 'team';
-export type ImageOwnershipPreferenceKind = 'upload';
-
-export interface ImageOwnershipPreference {
-  version: 1;
-  scope: ImageOwnershipPreferenceScope;
-  teamIds: number[];
-  updatedAt: string;
-}
-
-const STORAGE_PREFIX = 'xiehe:image-ownership-preference';
-
-function normalizeUserId(userId: number | null | undefined) {
-  return Number.isInteger(userId) && Number(userId) > 0 ? Number(userId) : null;
-}
-
-function normalizeTeamIds(teamIds: number[]) {
-  return Array.from(
-    new Set(
-      teamIds
-        .map(teamId => Number(teamId))
-        .filter(teamId => Number.isInteger(teamId) && teamId > 0)
-    )
-  ).sort((a, b) => a - b);
-}
+import {
+  createImageOwnershipPreference,
+  decodeImageOwnershipPreference,
+  getImageOwnershipPreferenceKey,
+  type ImageOwnershipPreference,
+  type ImageOwnershipPreferenceKind,
+  type ImageOwnershipPreferenceScope,
+} from '@xiehe/upload-core';
 
 function getStorage() {
   if (typeof window === 'undefined') return null;
   return window.localStorage ?? null;
-}
-
-export function getImageOwnershipPreferenceKey(
-  userId: number | null | undefined,
-  kind: ImageOwnershipPreferenceKind
-) {
-  const normalizedUserId = normalizeUserId(userId);
-  if (!normalizedUserId) return null;
-  return `${STORAGE_PREFIX}:${normalizedUserId}:${kind}`;
 }
 
 export function readImageOwnershipPreference(
@@ -47,28 +21,7 @@ export function readImageOwnershipPreference(
   if (!key || !storage) return null;
 
   try {
-    const rawValue = storage.getItem(key);
-    if (!rawValue) return null;
-
-    const parsed = JSON.parse(rawValue) as Partial<ImageOwnershipPreference>;
-    if (parsed.version !== 1) return null;
-    if (parsed.scope !== 'personal' && parsed.scope !== 'team') return null;
-
-    const teamIds = Array.isArray(parsed.teamIds)
-      ? normalizeTeamIds(parsed.teamIds)
-      : [];
-    const scope =
-      parsed.scope === 'team' && teamIds.length > 0 ? 'team' : 'personal';
-
-    return {
-      version: 1,
-      scope,
-      teamIds: scope === 'team' ? teamIds : [],
-      updatedAt:
-        typeof parsed.updatedAt === 'string'
-          ? parsed.updatedAt
-          : new Date(0).toISOString(),
-    };
+    return decodeImageOwnershipPreference(storage.getItem(key));
   } catch {
     return null;
   }
@@ -84,15 +37,11 @@ export function writeImageOwnershipPreference(
   const storage = getStorage();
   if (!key || !storage) return;
 
-  const normalizedTeamIds = normalizeTeamIds(teamIds);
-  const normalizedScope =
-    scope === 'team' && normalizedTeamIds.length > 0 ? 'team' : 'personal';
-  const preference: ImageOwnershipPreference = {
-    version: 1,
-    scope: normalizedScope,
-    teamIds: normalizedScope === 'team' ? normalizedTeamIds : [],
+  const preference = createImageOwnershipPreference({
+    scope,
+    teamIds,
     updatedAt: new Date().toISOString(),
-  };
+  });
 
   try {
     storage.setItem(key, JSON.stringify(preference));

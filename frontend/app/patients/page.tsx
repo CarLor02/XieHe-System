@@ -4,49 +4,13 @@ import AppShell from '@/components/layout/AppShell';
 import Tooltip from '@/components/ui/Tooltip';
 import { useUser } from '@/lib/api';
 import { getPatients, Patient } from '@/services/patientServices';
-import type { PatientListFilters } from '@/services/patientServices';
 import { createLogger } from '@/lib/logger';
+import { createPatientQuery } from '@xiehe/patient-core';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 const logger = createLogger('patients.page');
-
-interface PatientQueryState {
-  page: number;
-  pageSize: number;
-  searchTerm: string;
-  gender: string;
-  ageRange: string;
-  status: string;
-  hasImages: string;
-  sortBy: string;
-  sortOrder: string;
-}
-
-function createPatientQuery(state: PatientQueryState): PatientListFilters {
-  let ageMin: number | undefined;
-  let ageMax: number | undefined;
-  if (state.ageRange) {
-    const [min, max] = state.ageRange.split('-').map(Number);
-    if (!Number.isNaN(min)) ageMin = min;
-    if (!Number.isNaN(max)) ageMax = max;
-  }
-
-  return {
-    page: state.page,
-    page_size: state.pageSize,
-    search: state.searchTerm.trim() || undefined,
-    gender: state.gender || undefined,
-    age_min: ageMin,
-    age_max: ageMax,
-    status: state.status || undefined,
-    has_images:
-      state.hasImages === '' ? undefined : state.hasImages === 'true',
-    sort_by: state.sortBy,
-    sort_order: state.sortOrder as 'asc' | 'desc',
-  };
-}
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);

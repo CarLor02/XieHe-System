@@ -6,7 +6,7 @@ import TeamMultiSelect, {
   type TeamMultiSelectPage,
 } from '@/components/common/TeamMultiSelect';
 import { AppModal } from '@/components/overlay/overlay-components';
-import type { ImageOwnershipPreferenceScope } from '@/app/imaging/domain/imageOwnershipPreference';
+import type { ImageOwnershipPreferenceScope } from '@xiehe/upload-core';
 
 export interface UploadOptionsFile {
   id: string;

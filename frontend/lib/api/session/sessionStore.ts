@@ -12,7 +12,7 @@ import type {
   RegisterRequest,
   SessionUser,
 } from '@xiehe/api-contracts';
-import { UserSession, createUserSession } from './userSession';
+import { createUserSession, type UserSession } from '@xiehe/auth-core';
 import { clearPersistedAuthState, redirectToLogin } from './sessionEffects';
 
 export type { LoginCredentials } from '@xiehe/api-contracts';

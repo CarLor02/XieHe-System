@@ -7,8 +7,9 @@ import { createPatient } from '@/services/patientServices';
 import {
   extractBirthDateFromIdCard,
   extractGenderFromIdCard,
+  generatePatientIdentifier,
   validateIdCard,
-} from '@/utils/idCardUtils';
+} from '@xiehe/patient-core';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -31,21 +32,9 @@ interface PatientFormData {
   medical_history: string;
 }
 
-// 生成患者ID的函数
-function generatePatientId(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const random = Math.floor(Math.random() * 9999)
-    .toString()
-    .padStart(4, '0');
-  return `P${year}${month}${day}${random}`;
-}
-
-export default function AddPatientPage() {
-  const [formData, setFormData] = useState<PatientFormData>({
-    patient_id: generatePatientId(),
+function createInitialPatientForm(): PatientFormData {
+  return {
+    patient_id: generatePatientIdentifier(new Date(), Math.random()),
     name: '',
     gender: '',
     birth_date: '',
@@ -57,7 +46,13 @@ export default function AddPatientPage() {
     emergency_contact_phone: '',
     insurance_number: '',
     medical_history: '',
-  });
+  };
+}
+
+export default function AddPatientPage() {
+  const [formData, setFormData] = useState<PatientFormData>(
+    createInitialPatientForm
+  );
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

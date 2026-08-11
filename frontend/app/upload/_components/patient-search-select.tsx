@@ -6,6 +6,7 @@ import EntitySearchSelect, {
   type EntitySearchSelectLoadParams,
 } from '@/components/common/EntitySearchSelect';
 import { getPatients, type Patient } from '@/services/patientServices';
+import { getPatientSearchDisplay } from '@xiehe/patient-core';
 
 const PAGE_SIZE = 10;
 
@@ -13,20 +14,6 @@ interface PatientSearchSelectProps {
   value: string;
   onChange: (patientId: string) => void;
   contentClassName?: string;
-}
-
-function formatPhone(patient: Patient) {
-  return patient.phone?.trim() || '未提供';
-}
-
-function formatGender(patient: Patient) {
-  return patient.gender?.trim() || '未知';
-}
-
-function formatAge(patient: Patient) {
-  return patient.age !== null && patient.age !== undefined
-    ? `${patient.age}岁`
-    : '未知';
 }
 
 export default function PatientSearchSelect({
@@ -56,11 +43,7 @@ export default function PatientSearchSelect({
       emptyText="暂无患者"
       loadOptions={loadPatients}
       getOptionValue={patient => String(patient.id)}
-      mapOption={patient => ({
-        primary: patient.name,
-        secondary: `手机号：${formatPhone(patient)}`,
-        meta: [formatGender(patient), formatAge(patient)],
-      })}
+      mapOption={getPatientSearchDisplay}
       contentClassName={contentClassName}
       onChange={(patientId, patient) => {
         setSelectedPatient(patient);

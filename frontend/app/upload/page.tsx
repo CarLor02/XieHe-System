@@ -17,6 +17,7 @@ import UploadOptionsOverlay, {
   CropArea,
 } from './_components/overlay/upload-options-overlay';
 import { createLogger } from '@/lib/logger';
+import { summarizeUploadQueue } from '@xiehe/upload-core';
 
 const logger = createLogger('app.upload.page');
 
@@ -70,9 +71,7 @@ function UploadContent() {
     file => file.id === activeOptionsFileId
   );
 
-  const allCompleted =
-    uploadFiles.length > 0 &&
-    uploadFiles.every(file => file.status === 'completed');
+  const { allCompleted } = summarizeUploadQueue(uploadFiles);
 
   // 认证检查
   useEffect(() => {

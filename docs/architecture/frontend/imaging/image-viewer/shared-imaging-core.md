@@ -2,16 +2,19 @@
 
 ## 目标
 
-仓库使用 npm workspaces 管理三个 JavaScript/TypeScript 工作区：
+仓库使用 npm workspaces 管理 Web、Expo 和多个公共 JavaScript/TypeScript 包：
 
 ```text
 frontend/                       # Next.js Web 应用
 mobile-expo/                    # React Native + Expo 新移动端
 packages/xiehe-imaging-core/    # 平台无关影像规则
+packages/xiehe-*-core/          # 认证、权限、患者、上传等公共业务规则
 ```
 
 旧 `mobile/` KMP 工程保持原状，不参与 npm workspace。Web 与 Expo 不得相互深层
-导入，只能通过 `@xiehe/imaging-core` 的公开入口共享规则。
+导入，只能通过 `packages/` 下公共包的公开入口共享规则；影像规则统一从
+`@xiehe/imaging-core` 进入。
+非影像规则的职责见 `docs/architecture/frontend/shared-business-core.md`。
 
 ## Core 目录职责
 

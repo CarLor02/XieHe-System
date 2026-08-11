@@ -11,6 +11,7 @@
 
 import { useAuth, useUser } from '@/lib/api';
 import { withNavigationCacheBuster } from '@/lib/api/session/sessionEffects';
+import { validateLoginForm } from '@xiehe/auth-core';
 import { Building2, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -58,18 +59,7 @@ export default function LoginPage() {
 
   // 表单验证
   const validateForm = () => {
-    const errors: Record<string, string> = {};
-
-    if (!formData.username.trim()) {
-      errors.username = '请输入用户名或邮箱';
-    }
-
-    if (!formData.password) {
-      errors.password = '请输入密码';
-    } else if (formData.password.length < 6) {
-      errors.password = '密码至少6位';
-    }
-
+    const errors = validateLoginForm(formData);
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };

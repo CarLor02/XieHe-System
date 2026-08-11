@@ -23,6 +23,9 @@
     "clean": "rimraf .next out dist coverage"
   },
   "dependencies": {
+    "@xiehe/access-core": "*",
+    "@xiehe/auth-core": "*",
+    "@xiehe/dashboard-core": "*",
     "@xiehe/imaging-catalog": "*",
     "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^5.2.2",
@@ -37,6 +40,8 @@
     "@tailwindcss/postcss": "^4.1.14",
     "@tanstack/react-query": "^5.90.2",
     "@xiehe/imaging-core": "*",
+    "@xiehe/patient-core": "*",
+    "@xiehe/upload-core": "*",
     "@xiehe/api-client": "*",
     "@xiehe/api-contracts": "*",
     "@xiehe/api-sdk": "*",

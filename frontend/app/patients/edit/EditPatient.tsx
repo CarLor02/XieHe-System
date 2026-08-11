@@ -6,7 +6,7 @@ import {
   extractBirthDateFromIdCard,
   extractGenderFromIdCard,
   validateIdCard,
-} from '@/utils/idCardUtils';
+} from '@xiehe/patient-core';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { getPatientDetail, updatePatient } from '@/services/patientServices';

@@ -18,7 +18,7 @@ import {
   type ImagingViewMode,
   type ProcessingStatusFilter,
 } from '@xiehe/imaging-core/image-files';
-import { canUseUploaderView } from '@/app/imaging/domain/uploaderViewPermission';
+import { canUseUploaderView } from '@xiehe/access-core';
 import { useImagePreviewQueue } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import { useImageFileActions } from '@/app/imaging/features/image-actions/hooks/useImageFileActions';
 import { useImageEditOverlay } from '@/app/imaging/features/image-actions/hooks/useImageEditOverlay';

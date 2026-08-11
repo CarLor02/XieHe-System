@@ -18,7 +18,7 @@ import {
 } from '@/services/teamService';
 import { useUser } from '@/lib/api';
 import TeamInvitations from './TeamInvitations';
-import { canManageTeam } from './domain/team-management-permissions';
+import { canManageTeam } from '@xiehe/access-core';
 import { useTeamPermissionData } from './application/hooks/useTeamPermissionData';
 import { createLogger } from '@/lib/logger';
 

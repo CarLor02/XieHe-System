@@ -1,5 +1,6 @@
 import { getApiErrorMessage, getApiErrorStatus } from '@/infrastructure/http';
-import type { SessionUser, UserSession } from '@/lib/api/session/userSession';
+import type { SessionUser } from '@xiehe/api-contracts';
+import type { UserSession } from '@xiehe/auth-core';
 import { createLogger } from '../logger';
 
 type FetchUserInfoStatus = 'success' | 'unauthorized' | 'error';
