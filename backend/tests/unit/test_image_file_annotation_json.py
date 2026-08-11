@@ -4,11 +4,11 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import JSON
 
+from app.contexts.imaging.infrastructure.persistence import ImageFile
 from app.contexts.imaging.interface.http.v1.schemas import (
     ImageFileResponse,
     SaveAnnotationRequest,
 )
-from app.models.image_file import ImageFile
 
 ANNOTATION_PAYLOAD = {
     "measurements": [],

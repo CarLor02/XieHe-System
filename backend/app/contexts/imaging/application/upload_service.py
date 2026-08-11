@@ -22,14 +22,16 @@ from app.contexts.imaging.application.errors import (
 )
 from app.contexts.imaging.domain import (
     ImageAccessActor,
+    ImageFileDraft,
     ImageFileNotFoundError,
+    ImageFileStatusEnum,
+    ImageFileTypeEnum,
     build_storage_object_key,
     determine_image_file_type,
     validate_upload_file,
 )
-from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 
-from .ports import ObjectStorage, UploadRepository
+from .ports import ImageFileRecord, ObjectStorage, UploadRepository
 from .visibility_service import ImageVisibilityApplicationService
 
 
@@ -66,7 +68,7 @@ class ImageUploadService:
         team_ids = self._visibility.validate_assignable_team_ids(actor, spec.team_ids)
         file_uuid = str(uuid.uuid4())
         object_key = build_storage_object_key(file_uuid, spec.filename)
-        image = ImageFile(
+        draft = ImageFileDraft(
             file_uuid=file_uuid,
             original_filename=spec.filename,
             file_type=ImageFileTypeEnum(determine_image_file_type(spec.filename)),
@@ -97,8 +99,7 @@ class ImageUploadService:
                 part_count=max(1, math.ceil(spec.size / self._configuration.part_size)),
                 expires_in=self._configuration.expires_in,
             )
-            self._repository.add(image)
-            self._repository.flush()
+            image = self._repository.create(draft)
             self._visibility.replace_team_visibility(image, team_ids)
             self._repository.commit()
             self._repository.refresh(image)
@@ -195,13 +196,13 @@ class ImageUploadService:
             patient_id=patient_id,
         )
 
-    def _mark_failed(self, image: ImageFile) -> None:
+    def _mark_failed(self, image: ImageFileRecord) -> None:
         image.status = ImageFileStatusEnum.FAILED
         image.upload_progress = 0
         self._repository.commit()
 
     @staticmethod
-    def _status(image: ImageFile) -> UploadStatus:
+    def _status(image: ImageFileRecord) -> UploadStatus:
         return UploadStatus(
             image_file_id=image.id,
             file_uuid=str(image.file_uuid),

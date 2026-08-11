@@ -7,11 +7,11 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.contexts.access_control.infrastructure.persistence.models import User
+from app.contexts.imaging.infrastructure.persistence import ImageFile
 from app.contexts.object_lifecycle.domain import (
     ObjectCleanupCandidate,
     ObjectOwnerKind,
 )
-from app.models.image_file import ImageFile
 
 
 class SqlAlchemyObjectCleanupRepository:

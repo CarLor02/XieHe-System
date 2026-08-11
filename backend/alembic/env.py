@@ -19,8 +19,8 @@ from app import models  # noqa: F401,E402
 from app.contexts.access_control.infrastructure.persistence import (  # noqa: E402
     models as access_control_models,  # noqa: F401
 )
-from app.contexts.imaging.infrastructure.persistence import (  # noqa: E402
-    models as imaging_models,  # noqa: F401
+from app.contexts.imaging.infrastructure import (  # noqa: E402
+    persistence as imaging_persistence,  # noqa: F401
 )
 from app.contexts.patients.infrastructure.persistence import (  # noqa: E402
     models as patient_models,  # noqa: F401

@@ -18,7 +18,7 @@ from app.contexts.imaging.application import (
 )
 from app.contexts.imaging.infrastructure.ai import AiModelMeasurementGateway
 from app.contexts.imaging.infrastructure.messaging import KafkaAiTaskPublisher
-from app.contexts.imaging.infrastructure.persistence import (
+from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyAnnotationHistoryRepository,
     SqlAlchemyAnnotationRepository,
     SqlAlchemyImageFileRepository,

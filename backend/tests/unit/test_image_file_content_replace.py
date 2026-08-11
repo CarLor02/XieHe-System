@@ -10,8 +10,12 @@ from app.contexts.imaging.application.dto import (
     ImageSummary,
     ObjectWriteResult,
 )
-from app.contexts.imaging.domain import ImageAccessActor
-from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
+from app.contexts.imaging.domain import (
+    ImageAccessActor,
+    ImageFileStatusEnum,
+    ImageFileTypeEnum,
+)
+from app.contexts.imaging.infrastructure.persistence import ImageFile
 
 
 def make_image() -> ImageFile:

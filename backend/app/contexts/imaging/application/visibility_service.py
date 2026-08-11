@@ -10,9 +10,8 @@ from app.contexts.imaging.domain import (
     normalize_team_ids,
     require_all_teams_assignable,
 )
-from app.models.image_file import ImageFile
 
-from .ports import ImageVisibilityRepository
+from .ports import ImageFileRecord, ImageVisibilityRepository
 
 
 class ImageVisibilityApplicationService:
@@ -38,7 +37,7 @@ class ImageVisibilityApplicationService:
         actor: ImageAccessActor,
         *,
         for_update: bool = False,
-    ) -> ImageFile | None:
+    ) -> ImageFileRecord | None:
         return self._repository.get_visible_image(
             image_file_id,
             self.resolve_scope(actor),
@@ -51,7 +50,7 @@ class ImageVisibilityApplicationService:
         actor: ImageAccessActor,
         *,
         for_update: bool = False,
-    ) -> dict[int, ImageFile]:
+    ) -> dict[int, ImageFileRecord]:
         if not image_file_ids:
             return {}
         return self._repository.get_visible_images_by_ids(
@@ -83,7 +82,7 @@ class ImageVisibilityApplicationService:
 
     def replace_team_visibility(
         self,
-        image: ImageFile,
+        image: ImageFileRecord,
         team_ids: list[int],
     ) -> None:
         self._repository.replace_team_visibility(image, team_ids)

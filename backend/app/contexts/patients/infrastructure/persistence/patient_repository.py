@@ -9,6 +9,7 @@ from sqlalchemy import Select, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.contexts.imaging.infrastructure.persistence import ImageFile
 from app.contexts.patients.domain import (
     DuplicatePatientId,
     PatientGender,
@@ -18,7 +19,6 @@ from app.contexts.patients.domain import (
     gender_from_input,
     gender_to_display,
 )
-from app.models.image_file import ImageFile
 
 from .models import GenderEnum, Patient, PatientStatusEnum
 

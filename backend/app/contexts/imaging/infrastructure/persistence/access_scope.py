@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import false, or_
 from sqlalchemy.orm import Query, Session
 
+from app.contexts.imaging.application.ports import ImageFileRecord
 from app.contexts.imaging.domain import ImageAccessActor, ImageAccessScope
 from app.contexts.teams.application import TeamAccessService
 from app.contexts.teams.infrastructure import SqlAlchemyTeamAccessRepository
-from app.models.image_file import ImageFile, ImageFileTeamVisibility
+
+from .image_file_models import ImageFile, ImageFileTeamVisibility
 
 
 def apply_image_access_scope(
@@ -66,7 +68,7 @@ class SqlAlchemyImageVisibilityRepository:
         scope: ImageAccessScope,
         *,
         for_update: bool = False,
-    ) -> ImageFile | None:
+    ) -> ImageFileRecord | None:
         query = self._session.query(ImageFile).filter(
             ImageFile.id == image_file_id,
             ImageFile.is_deleted.is_(False),
@@ -74,7 +76,7 @@ class SqlAlchemyImageVisibilityRepository:
         query = apply_image_access_scope(query, scope)
         if for_update:
             query = query.populate_existing().with_for_update()
-        return query.first()
+        return cast(ImageFileRecord | None, query.first())
 
     def get_visible_images_by_ids(
         self,
@@ -82,7 +84,7 @@ class SqlAlchemyImageVisibilityRepository:
         scope: ImageAccessScope,
         *,
         for_update: bool = False,
-    ) -> dict[int, ImageFile]:
+    ) -> dict[int, ImageFileRecord]:
         query = self._session.query(ImageFile).filter(
             ImageFile.id.in_(image_file_ids),
             ImageFile.is_deleted.is_(False),
@@ -90,7 +92,10 @@ class SqlAlchemyImageVisibilityRepository:
         query = apply_image_access_scope(query, scope).order_by(ImageFile.id.asc())
         if for_update:
             query = query.populate_existing().with_for_update()
-        return {image.id: image for image in query.all()}
+        return cast(
+            dict[int, ImageFileRecord],
+            {image.id: image for image in query.all()},
+        )
 
     def list_visible_uploader_ids(
         self,
@@ -106,10 +111,11 @@ class SqlAlchemyImageVisibilityRepository:
 
     def replace_team_visibility(
         self,
-        image: ImageFile,
+        image: ImageFileRecord,
         team_ids: list[int],
     ) -> None:
-        image.team_visibilities = [
-            ImageFileTeamVisibility(image_file_id=image.id, team_id=team_id)
+        image_model = cast(ImageFile, image)
+        image_model.team_visibilities = [
+            ImageFileTeamVisibility(image_file_id=image_model.id, team_id=team_id)
             for team_id in team_ids
         ]

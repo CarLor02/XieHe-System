@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -14,19 +14,22 @@ from app.contexts.imaging.application.ai_annotation_mapper import (
     build_annotation_from_ai_response,
 )
 from app.contexts.imaging.application.dto import AiImageReference, AiTaskEvent
-from app.contexts.imaging.domain import AnnotationMutationReason, AnnotationSource
-from app.core.system.logger import LogLevel, logger
-from app.models.image import AITask, AITaskStatusEnum
-from app.models.image_file import ImageFile, ImageFileStatusEnum
-from app.models.image_import import (
+from app.contexts.imaging.application.ports import ImageImportBatchRecord
+from app.contexts.imaging.domain import (
+    AITaskStatusEnum,
+    AnnotationMutationReason,
+    AnnotationSource,
+    ImageFileStatusEnum,
     ImageImportAiStatus,
-    ImageImportBatch,
-    ImageImportItem,
 )
+from app.core.system.logger import LogLevel, logger
 from app.shared.database import SessionLocal
 
 from .access_scope import SqlAlchemyImageVisibilityRepository
+from .ai_task_models import AITask
 from .annotation_repository import SqlAlchemyAnnotationRepository
+from .image_file_models import ImageFile
+from .image_import_models import ImageImportBatch, ImageImportItem
 from .image_import_repository import SqlAlchemyImageImportRepository
 
 
@@ -185,7 +188,9 @@ class SqlAlchemyAiTaskExecutionRepository:
             .first()
         )
         if batch is not None:
-            SqlAlchemyImageImportRepository(db).refresh_batch_status(batch)
+            SqlAlchemyImageImportRepository(db).refresh_batch_status(
+                cast(ImageImportBatchRecord, batch)
+            )
 
     @staticmethod
     def _write_annotation(

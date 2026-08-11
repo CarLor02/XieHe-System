@@ -12,8 +12,8 @@ from app.contexts.access_control.interface.http.v1.dependencies import (
 )
 from app.contexts.imaging.application import ImagingQueryService
 from app.contexts.imaging.application.dto import ImageListFilters
+from app.contexts.imaging.domain import ImageFileStatusEnum, ImageFileTypeEnum
 from app.core.system.response import paginated_response, success_response
-from app.models.image_file import ImageFileStatusEnum, ImageFileTypeEnum
 
 from ..actor import CurrentUserPayload, image_access_actor
 from ..dependencies import get_imaging_query_service

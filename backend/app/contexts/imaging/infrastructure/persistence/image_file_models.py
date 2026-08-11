@@ -1,16 +1,8 @@
-"""
-影像文件管理模型
-
-用于记录用户上传的所有影像文件信息,支持通过用户查询而不是扫描文件夹
-
-作者: XieHe Medical System
-创建时间: 2026-01-05
-"""
+"""Imaging context SQLAlchemy models for stored image files."""
 
 from __future__ import annotations
 
 import datetime as datetime_types
-import enum
 import typing
 
 from sqlalchemy import (
@@ -28,33 +20,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import func
 
+from app.contexts.imaging.domain import ImageFileStatusEnum, ImageFileTypeEnum
 from app.shared.database.sqlalchemy import Base
 
 if typing.TYPE_CHECKING:
     from app.contexts.access_control.infrastructure.persistence.models import User
     from app.contexts.teams.infrastructure.persistence.models import Team
-
-
-class ImageFileTypeEnum(str, enum.Enum):
-    """影像文件类型枚举"""
-
-    DICOM = "DICOM"  # DICOM格式
-    JPEG = "JPEG"  # JPEG图像
-    PNG = "PNG"  # PNG图像
-    TIFF = "TIFF"  # TIFF图像
-    OTHER = "OTHER"  # 其他格式
-
-
-class ImageFileStatusEnum(str, enum.Enum):
-    """影像文件状态枚举"""
-
-    UPLOADING = "UPLOADING"  # 上传中
-    UPLOADED = "UPLOADED"  # 已上传
-    PROCESSING = "PROCESSING"  # 处理中
-    PROCESSED = "PROCESSED"  # 已处理
-    FAILED = "FAILED"  # 失败
-    ARCHIVED = "ARCHIVED"  # 已归档
-    DELETED = "DELETED"  # 已删除
 
 
 class ImageFile(Base):

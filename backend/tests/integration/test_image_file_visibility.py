@@ -14,8 +14,14 @@ from app.contexts.dashboard.interface.http.v1.routes import (
 )
 from app.contexts.imaging.application import ImageVisibilityApplicationService
 from app.contexts.imaging.application.dto import ImageListFilters
+from app.contexts.imaging.application.ports import ImageFileRecord
+from app.contexts.imaging.domain import ImageFileStatusEnum, ImageFileTypeEnum
 from app.contexts.imaging.infrastructure.persistence import (
     ImageAnnotationRevision,
+    ImageFile,
+    ImageFileTeamVisibility,
+)
+from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyImageQueryRepository,
     SqlAlchemyImageVisibilityRepository,
     apply_image_access_scope,
@@ -49,12 +55,6 @@ from app.contexts.teams.infrastructure.persistence import (
     TeamMembership,
     TeamMembershipRole,
     TeamMembershipStatus,
-)
-from app.models.image_file import (
-    ImageFile,
-    ImageFileStatusEnum,
-    ImageFileTeamVisibility,
-    ImageFileTypeEnum,
 )
 from app.shared.storage import storage_service_client
 
@@ -214,7 +214,7 @@ def get_visible_image_file(
     session: Session,
     image_id: int,
     user: dict,
-) -> ImageFile | None:
+) -> ImageFileRecord | None:
     return visibility_service(session).get_visible_image(
         image_id,
         image_access_actor(user),

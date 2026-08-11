@@ -33,6 +33,13 @@ from .file_rules import (
     determine_image_file_type,
     validate_replacement_file,
 )
+from .image_file import ImageFileDraft, ImageFileStatusEnum, ImageFileTypeEnum
+from .import_status import (
+    AITaskStatusEnum,
+    ImageImportAiStatus,
+    ImageImportBatchStatus,
+    ImageImportUploadStatus,
+)
 from .json_types import JsonObject, JsonScalar, JsonValue
 from .team_visibility import normalize_team_ids, require_all_teams_assignable
 from .upload_rules import build_storage_object_key, validate_upload_file
@@ -44,10 +51,17 @@ __all__ = [
     "AnnotationMutationReason",
     "AnnotationSource",
     "AnnotationVersionConflictError",
+    "AITaskStatusEnum",
     "ImageAccessActor",
     "ImageAccessScope",
     "ImageAccessTarget",
     "ImageFileNotFoundError",
+    "ImageFileDraft",
+    "ImageFileStatusEnum",
+    "ImageFileTypeEnum",
+    "ImageImportAiStatus",
+    "ImageImportBatchStatus",
+    "ImageImportUploadStatus",
     "ImageTeamAssignmentDeniedError",
     "JsonObject",
     "JsonScalar",

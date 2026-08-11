@@ -1,9 +1,8 @@
-"""Persistent batch image import models."""
+"""Imaging context SQLAlchemy models for batch imports."""
 
 from __future__ import annotations
 
 import datetime as datetime_types
-import enum
 import typing
 from typing import TYPE_CHECKING
 
@@ -21,34 +20,15 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, relationship
 
+from app.contexts.imaging.domain import (
+    ImageImportAiStatus,
+    ImageImportBatchStatus,
+    ImageImportUploadStatus,
+)
 from app.shared.database.sqlalchemy import Base
 
 if TYPE_CHECKING:
-    from .image_file import ImageFile
-
-
-class ImageImportBatchStatus(str, enum.Enum):
-    UPLOADING = "UPLOADING"
-    PROCESSING = "PROCESSING"
-    COMPLETED = "COMPLETED"
-    PARTIAL_FAILED = "PARTIAL_FAILED"
-    FAILED = "FAILED"
-
-
-class ImageImportUploadStatus(str, enum.Enum):
-    PENDING = "PENDING"
-    SESSION_CREATED = "SESSION_CREATED"
-    UPLOADING = "UPLOADING"
-    UPLOADED = "UPLOADED"
-    FAILED = "FAILED"
-
-
-class ImageImportAiStatus(str, enum.Enum):
-    PENDING = "PENDING"
-    QUEUED = "QUEUED"
-    RUNNING = "RUNNING"
-    SUCCEEDED = "SUCCEEDED"
-    FAILED = "FAILED"
+    from .image_file_models import ImageFile
 
 
 class ImageImportBatch(Base):

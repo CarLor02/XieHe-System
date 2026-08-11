@@ -10,8 +10,10 @@ from app.contexts.imaging.domain import (
     AnnotationVersionConflictError,
     ImageAccessActor,
     ImageAccessScope,
+    ImageFileStatusEnum,
+    ImageFileTypeEnum,
 )
-from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
+from app.contexts.imaging.infrastructure.persistence import ImageFile
 
 
 class FakeRepository:

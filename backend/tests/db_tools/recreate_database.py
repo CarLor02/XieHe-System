@@ -40,6 +40,11 @@ def import_all_models():
         Role,
         User,
     )
+    from app.contexts.imaging.infrastructure.persistence import (
+        AITask,
+        ImageAnnotation,
+        ImageFile,
+    )
     from app.contexts.patients.infrastructure.persistence.models import (
         Patient,
         PatientAllergy,
@@ -54,8 +59,6 @@ def import_all_models():
     )
     from app.contexts.system_management.infrastructure.persistence import SystemConfig
     from app.contexts.teams.infrastructure.persistence import Team, TeamMembership
-    from app.models.image import AITask, ImageAnnotation
-    from app.models.image_file import ImageFile
     from app.models.system import Notification, SystemAlert, SystemLog, SystemMonitor
 
     # 验证模型导入

@@ -14,7 +14,7 @@ from app.contexts.imaging.application import (
     ImageVisibilityApplicationService,
     ImagingQueryService,
 )
-from app.contexts.imaging.infrastructure.persistence import (
+from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyAnnotationHistoryRepository,
     SqlAlchemyImageQueryRepository,
     SqlAlchemyImageStatisticsRepository,

@@ -10,7 +10,9 @@ from app.contexts.imaging.application import (
     ImageDeliveryService,
     ImageVisibilityApplicationService,
 )
-from app.contexts.imaging.infrastructure.persistence import (
+from app.contexts.imaging.domain import ImageFileStatusEnum, ImageFileTypeEnum
+from app.contexts.imaging.infrastructure.persistence import ImageFile
+from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyImageFileRepository,
     SqlAlchemyImageVisibilityRepository,
 )
@@ -28,7 +30,6 @@ from app.contexts.patients.infrastructure.persistence.models import (
     Patient,
     PatientStatusEnum,
 )
-from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
 
 pytestmark = pytest.mark.database
 

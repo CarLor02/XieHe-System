@@ -1,13 +1,4 @@
-"""
-影像管理相关模型
-
-简化版本 - 专注于X光影像处理
-包含影像文件、标注、AI任务等模型定义
-
-作者: XieHe Medical System
-创建时间: 2025-10-13
-更新时间: 2026-01-14 - 简化数据模型，去除Study/Series/Instance层级
-"""
+"""Imaging context SQLAlchemy models for AI tasks and frozen annotations."""
 
 from __future__ import annotations
 
@@ -31,11 +22,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, relationship
 
+from app.contexts.imaging.domain import AITaskStatusEnum
 from app.shared.database.sqlalchemy import Base
 
 if TYPE_CHECKING:
-    from .image_file import ImageFile
-    from .image_import import ImageImportItem
+    from .image_file_models import ImageFile
+    from .image_import_models import ImageImportItem
 
 
 # 枚举定义
@@ -92,16 +84,6 @@ class AnnotationTypeEnum(str, enum.Enum):
     FREEHAND = "FREEHAND"
     TEXT = "TEXT"
     MEASUREMENT = "MEASUREMENT"
-
-
-class AITaskStatusEnum(str, enum.Enum):
-    """AI任务状态枚举"""
-
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    CANCELLED = "CANCELLED"
 
 
 # ============ 废弃的枚举和模型已移除 ============

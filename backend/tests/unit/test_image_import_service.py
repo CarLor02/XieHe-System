@@ -1,13 +1,13 @@
 from types import SimpleNamespace
 
-from app.contexts.imaging.infrastructure.persistence import (
-    SqlAlchemyImageImportRepository,
-)
-from app.models.image import AITaskStatusEnum
-from app.models.image_import import (
+from app.contexts.imaging.domain import (
+    AITaskStatusEnum,
     ImageImportAiStatus,
     ImageImportBatchStatus,
     ImageImportUploadStatus,
+)
+from app.contexts.imaging.infrastructure.persistence.repositories import (
+    SqlAlchemyImageImportRepository,
 )
 
 

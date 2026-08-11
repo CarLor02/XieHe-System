@@ -1,4 +1,4 @@
-"""标注历史的 append-only SQLAlchemy 映射。"""
+"""Append-only annotation history SQLAlchemy models."""
 
 from __future__ import annotations
 

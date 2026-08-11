@@ -10,7 +10,7 @@ from app.contexts.imaging.infrastructure.ai import (
     AiModelClient,
     AiTaskHttpModelGateway,
 )
-from app.contexts.imaging.infrastructure.persistence import (
+from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyAiTaskExecutionRepository,
 )
 from app.core.config import settings

@@ -6,7 +6,6 @@ import math
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import cast
 
 from app.contexts.imaging.application.dto import (
     CompleteUpload,
@@ -26,22 +25,27 @@ from app.contexts.imaging.application.errors import (
     PatientNotFoundError,
 )
 from app.contexts.imaging.domain import (
+    AITaskStatusEnum,
     ImageAccessActor,
+    ImageFileDraft,
     ImageFileNotFoundError,
+    ImageFileStatusEnum,
+    ImageFileTypeEnum,
+    ImageImportAiStatus,
+    ImageImportUploadStatus,
     build_storage_object_key,
     determine_image_file_type,
     validate_upload_file,
 )
-from app.models.image import AITaskStatusEnum
-from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
-from app.models.image_import import (
-    ImageImportAiStatus,
-    ImageImportBatch,
-    ImageImportItem,
-    ImageImportUploadStatus,
-)
 
-from .ports import AiTaskPublisher, ImageImportRepository, ObjectStorage
+from .ports import (
+    AiTaskPublisher,
+    ImageFileRecord,
+    ImageImportBatchRecord,
+    ImageImportItemRecord,
+    ImageImportRepository,
+    ObjectStorage,
+)
 from .visibility_service import ImageVisibilityApplicationService
 
 
@@ -131,8 +135,8 @@ class ImageImportService:
 
     async def _create_item_session(
         self,
-        batch: ImageImportBatch,
-        item: ImageImportItem,
+        batch: ImageImportBatchRecord,
+        item: ImageImportItemRecord,
     ) -> ImportUploadSession:
         file_uuid = str(uuid.uuid4())
         filename = str(item.filename)
@@ -151,7 +155,7 @@ class ImageImportService:
             part_count=max(1, math.ceil(item.size / self.configuration.part_size)),
             expires_in=self.configuration.expires_in,
         )
-        image = ImageFile(
+        draft = ImageFileDraft(
             file_uuid=file_uuid,
             original_filename=filename,
             file_type=ImageFileTypeEnum(determine_image_file_type(filename)),
@@ -167,9 +171,8 @@ class ImageImportService:
             status=ImageFileStatusEnum.UPLOADING,
             upload_progress=0,
         )
-        self._repository.add_image(image)
-        self._repository.flush()
-        team_ids = list(cast(list[int], batch.team_ids or []))
+        image = self._repository.create_image(draft)
+        team_ids = list(batch.team_ids or [])
         self._visibility.replace_team_visibility(image, team_ids)
         item.image_file_id = image.id
         item.upload_id = multipart.upload_id
@@ -229,8 +232,8 @@ class ImageImportService:
 
     async def _complete_item_upload(
         self,
-        item: ImageImportItem,
-        image: ImageFile,
+        item: ImageImportItemRecord,
+        image: ImageFileRecord,
         completion: CompleteUpload,
     ) -> None:
         if completion.upload_id != item.upload_id:
@@ -359,7 +362,7 @@ class ImageImportService:
         self,
         batch_id: str,
         actor: ImageAccessActor,
-    ) -> ImageImportBatch:
+    ) -> ImageImportBatchRecord:
         batch = self._repository.get_owned_batch(batch_id, self._owner_id(actor))
         if batch is None:
             raise ImageImportNotFoundError("批量导入任务不存在")
@@ -367,9 +370,9 @@ class ImageImportService:
 
     def _owned_item(
         self,
-        batch: ImageImportBatch,
+        batch: ImageImportBatchRecord,
         item_id: int,
-    ) -> ImageImportItem:
+    ) -> ImageImportItemRecord:
         item = self._repository.get_owned_item(batch, item_id)
         if item is None:
             raise ImageImportNotFoundError("批量导入项不存在")

@@ -12,6 +12,12 @@ from .image_query_repository import ImageQueryRepository
 from .image_statistics_repository import ImageStatisticsRepository
 from .image_visibility_repository import ImageVisibilityRepository
 from .object_storage import ObjectStorage
+from .records import (
+    AiTaskRecord,
+    ImageFileRecord,
+    ImageImportBatchRecord,
+    ImageImportItemRecord,
+)
 from .upload_repository import UploadRepository
 
 __all__ = [
@@ -19,10 +25,14 @@ __all__ = [
     "AiTaskExecutionRepository",
     "AiTaskModelGateway",
     "AiTaskPublisher",
+    "AiTaskRecord",
     "AnnotationHistoryRepository",
     "AnnotationRepository",
     "ImageAccessScopeResolver",
     "ImageFileRepository",
+    "ImageFileRecord",
+    "ImageImportBatchRecord",
+    "ImageImportItemRecord",
     "ImageImportRepository",
     "ImageQueryRepository",
     "ImageStatisticsRepository",

@@ -14,13 +14,14 @@ from app.contexts.imaging.application.dto import (
     ImageUploader,
     PageResult,
 )
-from app.contexts.imaging.domain import ImageAccessActor, ImageAccessScope, JsonObject
+from app.contexts.imaging.application.ports import ImageFileRecord
+from app.contexts.imaging.domain import ImageAccessActor, ImageAccessScope
 from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.contexts.teams.application import TeamAccessService
 from app.contexts.teams.infrastructure import SqlAlchemyTeamAccessRepository
-from app.models.image_file import ImageFile
 
 from .access_scope import apply_image_access_scope
+from .image_file_models import ImageFile
 from .image_query_repository import image_summary
 
 
@@ -39,16 +40,16 @@ class SqlAlchemyImageFileRepository:
         image_file_id: int,
         *,
         for_update: bool = False,
-    ) -> ImageFile | None:
+    ) -> ImageFileRecord | None:
         query = self._session.query(ImageFile).filter(
             ImageFile.id == image_file_id,
             ImageFile.is_deleted.is_(False),
         )
         if for_update:
             query = query.populate_existing().with_for_update()
-        return query.first()
+        return cast(ImageFileRecord | None, query.first())
 
-    def get_detail(self, image: ImageFile) -> ImageDetail:
+    def get_detail(self, image: ImageFileRecord) -> ImageDetail:
         patient = (
             self._session.query(Patient).filter(Patient.id == image.patient_id).first()
             if image.patient_id
@@ -61,7 +62,7 @@ class SqlAlchemyImageFileRepository:
         )
         return ImageDetail(
             summary=image_summary(
-                image,
+                cast(ImageFile, image),
                 uploader_name=uploader_name,
                 patient_name=patient.name if patient else None,
                 patient_identifier=patient.patient_id if patient else None,
@@ -70,7 +71,7 @@ class SqlAlchemyImageFileRepository:
                 _enum_value(patient.gender) if patient and patient.gender else None
             ),
             patient_age=patient.age if patient else None,
-            annotation=cast(JsonObject | None, image.annotation),
+            annotation=image.annotation,
             annotation_version=int(image.annotation_version or 0),
             annotation_created_at=image.annotation_created_at,
             annotation_created_by=image.annotation_created_by,
@@ -169,14 +170,15 @@ class SqlAlchemyImageFileRepository:
         self,
         image_file_ids: list[int],
         scope: ImageAccessScope,
-    ) -> dict[int, ImageFile]:
+    ) -> dict[int, ImageFileRecord]:
         query = self._session.query(ImageFile).filter(
             ImageFile.id.in_(image_file_ids),
             ImageFile.is_deleted.is_(False),
         )
-        return {
-            image.id: image for image in apply_image_access_scope(query, scope).all()
-        }
+        return cast(
+            dict[int, ImageFileRecord],
+            {image.id: image for image in apply_image_access_scope(query, scope).all()},
+        )
 
     def commit(self) -> None:
         self._session.commit()
@@ -184,5 +186,5 @@ class SqlAlchemyImageFileRepository:
     def rollback(self) -> None:
         self._session.rollback()
 
-    def refresh(self, image: ImageFile) -> None:
+    def refresh(self, image: ImageFileRecord) -> None:
         self._session.refresh(image)

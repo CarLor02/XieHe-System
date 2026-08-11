@@ -15,16 +15,16 @@ from app.contexts.imaging.application.dto import (
     ImageSummary,
     PageResult,
 )
-from app.contexts.imaging.domain import ImageAccessScope, JsonObject
-from app.contexts.patients.infrastructure.persistence.models import Patient
-from app.models.image_file import (
-    ImageFile,
+from app.contexts.imaging.domain import (
+    ImageAccessScope,
     ImageFileStatusEnum,
-    ImageFileTeamVisibility,
     ImageFileTypeEnum,
+    JsonObject,
 )
+from app.contexts.patients.infrastructure.persistence.models import Patient
 
 from .access_scope import apply_image_access_scope
+from .image_file_models import ImageFile, ImageFileTeamVisibility
 
 _SUMMARY_COLUMNS = (
     ImageFile.id,

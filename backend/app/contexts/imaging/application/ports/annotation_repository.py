@@ -9,17 +9,18 @@ from app.contexts.imaging.domain import (
     ImageAccessScope,
     JsonObject,
 )
-from app.models.image_file import ImageFile
+
+from .records import ImageFileRecord
 
 
 class AnnotationRepository(Protocol):
-    def get_for_update(self, image_file_id: int) -> ImageFile | None: ...
+    def get_for_update(self, image_file_id: int) -> ImageFileRecord | None: ...
 
     def get_visible_for_update(
         self,
         image_file_id: int,
         scope: ImageAccessScope,
-    ) -> ImageFile | None: ...
+    ) -> ImageFileRecord | None: ...
 
     def append_revision(
         self,
