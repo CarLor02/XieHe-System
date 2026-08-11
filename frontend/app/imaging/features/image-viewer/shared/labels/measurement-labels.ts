@@ -157,15 +157,3 @@ export function getTextLabelBounds(
     maxY: labelPosition.y + textHeight / 2,
   };
 }
-
-/**
- * 格式化测量值文本
- * @param measurement 测量数据
- * @returns 格式化后的文本
- */
-export function formatMeasurementText(measurement: MeasurementData): string {
-  const labelName = usesAuxiliaryMeasurementValueTag(measurement.type)
-    ? getAuxiliaryMeasurementValueTagName(measurement)
-    : getDisplayName(measurement.type);
-  return `${labelName}: ${measurement.value}`;
-}

@@ -1,10 +1,6 @@
 import { RefObject, useCallback, useEffect, useState } from 'react';
-import {
-  Point,
-} from '@xiehe/imaging-core/contracts';
-import {
-  AdjustMode,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import { Point } from '@xiehe/imaging-core/contracts';
+import type { AdjustMode } from '@xiehe/imaging-core/editor';
 import { getImageFileDownloadUrl } from '@/services/imageServices';
 import { createLogger } from '@/lib/logger';
 

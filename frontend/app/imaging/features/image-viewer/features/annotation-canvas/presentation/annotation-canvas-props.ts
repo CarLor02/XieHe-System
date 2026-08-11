@@ -16,9 +16,9 @@ import type {
 } from '@xiehe/imaging-core/contracts';
 import type {
   ImageData,
-  KeypointSequenceSession,
-  Tool,
-} from '@/app/imaging/features/image-viewer/shared/types';
+} from '@xiehe/imaging-core/editor';
+import type { Tool } from '@xiehe/imaging-catalog/annotations';
+import type { KeypointSequenceSession } from '@xiehe/imaging-core/editor';
 
 /**
  * 画布 feature 对 image-viewer controller 暴露的稳定输入契约。

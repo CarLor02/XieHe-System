@@ -156,7 +156,7 @@ function readPositiveDimension(value: unknown): number | undefined {
   return isFiniteNumber(value) && value > 0 ? value : undefined;
 }
 
-/** 从当前内存状态构建无损快照，供服务器保存与本地维护备份共同使用。 */
+/** 从当前内存状态构建无损快照，供服务器持久化使用。 */
 export function createAnnotationDocument(
   input: CreateAnnotationDocumentInput
 ): AnnotationDocument {
@@ -190,7 +190,7 @@ export function createAnnotationDocument(
 }
 
 /**
- * 将服务端或本地维护备份中的未知 JSON 解码为当前版本。
+ * 将服务端返回的未知 JSON 解码为当前版本。
  *
  * 历史 v0 没有 schemaVersion，字段形状与 v1 基本一致，因而采用同一条
  * 归一化路径升级。未来版本不应在这里静默降级，避免旧客户端破坏新协议。

@@ -2,9 +2,7 @@ import { useCallback } from 'react';
 import {
   MeasurementData,
 } from '@xiehe/imaging-core/contracts';
-import {
-  ImageData,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import type { ImageData } from '@xiehe/imaging-core/editor';
 import { generateReport } from '@/app/imaging/features/image-viewer/features/report/usecases/generateReportUseCase';
 
 interface UseReportActionsOptions {

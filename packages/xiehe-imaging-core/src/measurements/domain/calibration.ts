@@ -1,4 +1,18 @@
 import type { CalculationContext } from './calculation-types';
+import type { Point } from '../../shared/domain/contracts';
+
+export interface StandardDistanceDefaults {
+  distance: number;
+  points: readonly Point[];
+}
+
+export const STANDARD_DISTANCE_DEFAULTS: StandardDistanceDefaults = {
+  distance: 100,
+  points: [
+    { x: 0, y: 0 },
+    { x: 200, y: 0 },
+  ],
+};
 
 /**
  * 将图像像素距离换算为毫米。

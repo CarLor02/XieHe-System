@@ -21,6 +21,6 @@ describe('prepareAnnotationSave', () => {
       imageHeight: 200,
     });
     expect(plan.hasSavedAnnotationContent).toBe(false);
-    expect(plan.successMessage).toBe('空标注已保存到本地和影像标注');
+    expect(plan.successMessage).toBe('空标注已保存到服务器');
   });
 });

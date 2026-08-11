@@ -2,11 +2,11 @@
 
 import {
   BASIC_MODE_LABELS,
-  BasicMode,
-} from '@/app/imaging/features/image-viewer/features/toolbar/components/basic-mode';
+} from '@xiehe/imaging-catalog/tools';
+import { BasicMode } from '@xiehe/imaging-core/editor';
 
 interface BasicModePanelProps {
-  modes: BasicMode[];
+  modes: readonly BasicMode[];
   currentMode: BasicMode;
   isImagePanLocked: boolean;
   onSelectMode: (mode: BasicMode) => void;

@@ -6,7 +6,7 @@ import {
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { hasUniqueAnnotationForTool } from '@xiehe/imaging-core/measurements';
 import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
-import { Tool } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Tool } from '@xiehe/imaging-catalog/annotations';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import type {
   LateralCobbPlacementSession,

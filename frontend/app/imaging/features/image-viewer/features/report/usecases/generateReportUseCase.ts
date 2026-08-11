@@ -1,7 +1,7 @@
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
-import { prepareMeasurementReport } from '@xiehe/imaging-core/reports';
+import { runMeasurementReport } from '@xiehe/imaging-core/reports';
 
-import type { ImageData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { ImageData } from '@xiehe/imaging-core/editor';
 import { createLogger } from '@/lib/logger';
 import { generateMeasurementReport } from '@/services/imageServices';
 
@@ -15,18 +15,16 @@ export async function generateReport(
   setReportText: (text: string) => void,
   setSaveMessage: (text: string) => void
 ) {
-  const plan = prepareMeasurementReport({
-    study: { imageId: imageData.id, examType: imageData.examType },
-    measurements,
-  });
-  if (plan.status === 'empty') {
-    setReportText(plan.message);
-    return;
-  }
-
   try {
-    const result = await generateMeasurementReport(plan.request);
-    if (!result.report) throw new Error('报告生成失败');
+    const result = await runMeasurementReport({
+      study: { imageId: imageData.id, examType: imageData.examType },
+      measurements,
+      port: { generate: generateMeasurementReport },
+    });
+    if (result.status === 'empty') {
+      setReportText(result.message);
+      return;
+    }
     setReportText(result.report);
     setSaveMessage('报告生成成功');
     setTimeout(() => setSaveMessage(''), 3000);

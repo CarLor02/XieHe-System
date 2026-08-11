@@ -6,7 +6,13 @@ import {
   MeasurementData,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
-import { KeypointSequenceSession } from '@/app/imaging/features/image-viewer/shared/types';
+import type { KeypointSequenceSession } from '@xiehe/imaging-core/editor';
+import {
+  IDLE_ANNOTATION_INTERACTION,
+  transitionAnnotationInteraction,
+  type AnnotationInteractionOwner,
+  type AnnotationInteractionState,
+} from '@xiehe/imaging-core/editor';
 import {
   imageToScreen as utilImageToScreen,
   screenToImage as utilScreenToImage,
@@ -734,6 +740,41 @@ export function useAnnotationCanvasController({
     setImagePosition,
   });
 
+  const interactionStateRef = useRef<AnnotationInteractionState>(
+    IDLE_ANNOTATION_INTERACTION
+  );
+
+  const beginOwnedInteraction = (
+    owner: AnnotationInteractionOwner,
+    input: CanvasPointerInput
+  ) => {
+    interactionStateRef.current = transitionAnnotationInteraction(
+      interactionStateRef.current,
+      {
+        type: 'begin',
+        pointerId: input.pointerId,
+        owner,
+        point: input.screenPoint,
+      }
+    ).state;
+  };
+
+  const cancelOwnedInteraction = () => {
+    const transition = transitionAnnotationInteraction(
+      interactionStateRef.current,
+      { type: 'cancel' }
+    );
+    interactionStateRef.current = transition.state;
+    transition.effects.forEach(effect => {
+      if (effect.type !== 'route-cancel') return;
+      if (effect.owner === 'vertebra') {
+        vertebradDrag.cancelPendingInteraction();
+      } else if (effect.owner === 'canvas') {
+        pointerInteraction.endPointerInteraction();
+      }
+    });
+  };
+
   const handleCanvasPointerDown = (input: CanvasPointerInput) => {
     if (avtPlacementSession?.step.kind === 'keypoint') {
       selectMeasurementKeypoints(null);
@@ -771,33 +812,69 @@ export function useAnnotationCanvasController({
       );
     if (handledKeypoint) {
       selectMeasurementKeypoints(null);
+      beginOwnedInteraction('vertebra', input);
       return;
     }
 
     setDetectionLayerSelection(null);
     pointerInteraction.beginPointerInteraction(input);
+    beginOwnedInteraction('canvas', input);
   };
 
   const handleCanvasPointerMove = (input: CanvasPointerInput) => {
-    const handledKeypoint =
-      selectedTool === 'hand' &&
-      (showVertebraeLayer || vertebradDrag.isDragging) &&
-      vertebradDrag.updateInteraction(
-        input.clientPoint.x,
-        input.clientPoint.y,
-        input.policy.supportsHover,
-        input.policy.pointHitRadius
-      );
-    if (!handledKeypoint) {
-      pointerInteraction.updatePointerInteraction(input);
+    const transition = transitionAnnotationInteraction(
+      interactionStateRef.current,
+      {
+        type: 'move',
+        pointerId: input.pointerId,
+        point: input.screenPoint,
+        primaryActionPressed: input.primaryActionPressed,
+        dragStartThreshold: input.policy.dragStartThreshold,
+      }
+    );
+    interactionStateRef.current = transition.state;
+    const routedMove = transition.effects.find(
+      effect => effect.type === 'route-move'
+    );
+    if (routedMove?.type === 'route-move') {
+      if (routedMove.owner === 'vertebra') {
+        vertebradDrag.updateInteraction(
+          input.clientPoint.x,
+          input.clientPoint.y,
+          input.policy.supportsHover,
+          input.policy.pointHitRadius
+        );
+      } else if (routedMove.owner === 'canvas') {
+        pointerInteraction.updatePointerInteraction(input);
+      }
+      return;
+    }
+
+    if (transition.effects.some(effect => effect.type === 'hover')) {
+      const handledKeypoint =
+        selectedTool === 'hand' &&
+        showVertebraeLayer &&
+        vertebradDrag.updateInteraction(
+          input.clientPoint.x,
+          input.clientPoint.y,
+          input.policy.supportsHover,
+          input.policy.pointHitRadius
+        );
+      if (!handledKeypoint) pointerInteraction.updatePointerInteraction(input);
     }
   };
 
-  const handleCanvasPointerEnd = () => {
-    if (showVertebraeLayer || vertebradDrag.isDragging) {
-      vertebradDrag.endInteraction();
-    }
-    pointerInteraction.endPointerInteraction();
+  const handleCanvasPointerEnd = (pointerId: number) => {
+    const transition = transitionAnnotationInteraction(
+      interactionStateRef.current,
+      { type: 'end', pointerId }
+    );
+    interactionStateRef.current = transition.state;
+    transition.effects.forEach(effect => {
+      if (effect.type !== 'route-end') return;
+      if (effect.owner === 'vertebra') vertebradDrag.endInteraction();
+      if (effect.owner === 'canvas') pointerInteraction.endPointerInteraction();
+    });
   };
 
   const pointerEvents = useCanvasPointerEvents({
@@ -810,8 +887,7 @@ export function useAnnotationCanvasController({
       draggingStandardPointIndex === null &&
       !drawingState.isDrawing,
     onPinchStart: () => {
-      vertebradDrag.cancelPendingInteraction();
-      pointerInteraction.endPointerInteraction();
+      cancelOwnedInteraction();
       setLivePointerImagePoint(null);
     },
     onPinchViewportChange: viewport => {

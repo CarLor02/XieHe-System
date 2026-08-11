@@ -64,6 +64,7 @@ import { syncCobbMeasurementToKeypoints } from '@xiehe/imaging-core/measurement-
 import { runLateralDetectionCache } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
 import {
   hydratePersistedKeypointState,
+  type HydratedKeypointState,
   type PersistedKeypointStateInput,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { useAnnotationDeletionWorkflow } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync/application/hooks/useAnnotationDeletionWorkflow';
@@ -297,14 +298,20 @@ export function useMeasurementKeypointWorkflow({
     setMeasurements,
   ]);
 
-  const restorePersistedKeypointState = useCallback(
-    (input: PersistedKeypointStateInput) => {
-      const restored = hydratePersistedKeypointState(input);
+  const applyHydratedKeypointState = useCallback(
+    (restored: HydratedKeypointState) => {
       setKeypoints(restored.keypoints);
       setVertebraeLayer(restored.vertebraeLayer);
       setCfhAnnotation(restored.cfhAnnotation);
     },
     [setCfhAnnotation, setKeypoints, setVertebraeLayer]
+  );
+
+  const restorePersistedKeypointState = useCallback(
+    (input: PersistedKeypointStateInput) => {
+      applyHydratedKeypointState(hydratePersistedKeypointState(input));
+    },
+    [applyHydratedKeypointState]
   );
 
   useEffect(() => {
@@ -986,6 +993,7 @@ export function useMeasurementKeypointWorkflow({
     recalculateExistingMeasurements,
     restoreFixedMeasurementsFromKeypoints,
     restorePersistedKeypointState,
+    applyHydratedKeypointState,
     clearKeypointState,
     restoreAiMeasurementIds,
     getAiMeasurementIdsSnapshot,

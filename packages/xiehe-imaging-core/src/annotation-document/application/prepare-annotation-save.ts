@@ -60,9 +60,9 @@ export function prepareAnnotationSave(input: {
     hasSavedAnnotationContent,
     successMessage:
       input.measurements.length > 0
-        ? '标注已保存到本地和服务器'
+        ? '标注已保存到服务器'
         : hasSavedAnnotationContent
-          ? '关键点已保存到本地和影像标注'
-          : '空标注已保存到本地和影像标注',
+          ? '关键点已保存到服务器'
+          : '空标注已保存到服务器',
   };
 }

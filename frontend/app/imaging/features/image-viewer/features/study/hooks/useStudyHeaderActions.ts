@@ -12,9 +12,7 @@ import {
   Point,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
-import {
-  ImageData,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import type { ImageData } from '@xiehe/imaging-core/editor';
 import { AnnotationBindings } from '@xiehe/imaging-core/bindings';
 import { saveMeasurements } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/saveMeasurementsUseCase';
 import { runAiMeasurementWorkflow } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';

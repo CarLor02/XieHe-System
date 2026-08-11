@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAnnotationEngine } from '@/app/imaging/features/image-viewer/features/bindings';
 import { useCanvasInteraction } from '@/app/imaging/features/image-viewer/features/annotation-canvas';
-import { getToolsForExamType as getTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/exam-tool-catalog';
+import { getToolsForExamType as getTools } from '@xiehe/imaging-catalog/tools';
 import {
   areAnnotationEditorSnapshotsEqual,
   cloneAnnotationEditorSnapshot,
+  reduceAnnotationEditor,
   type AnnotationEditorSnapshot,
 } from '@xiehe/imaging-core/editor';
 import {
   useAnnotationPersistence,
-  useLocalAnnotationsDataLoader,
   useMeasurementCalculation,
   useMeasurements,
   useStandardDistanceActions,
@@ -32,7 +32,7 @@ import {
   useMeasurementWorkflow,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
 import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
-import { KeypointSequenceSession } from '@/app/imaging/features/image-viewer/shared/types';
+import type { KeypointSequenceSession } from '@xiehe/imaging-core/editor';
 import type {
   AvtPlacementSession,
   AvtTarget,
@@ -185,6 +185,10 @@ export function useImageViewerController({
     setStudyData,
     studyLoading,
     setStudyLoading,
+    studyLoadError,
+    setStudyLoadError,
+    studyReloadToken,
+    retryStudyLoad,
     imageList,
     setImageList,
     annotationVersion,
@@ -235,11 +239,7 @@ export function useImageViewerController({
   const isKeypointExam = isKeypointSupportedExamType(imageData.examType);
   const canUseKeypoints = true;
 
-  const {
-    calculationContext,
-    calculateMeasurementValue,
-    getDescriptionForType,
-  } = useMeasurementCalculation({
+  const { calculationContext } = useMeasurementCalculation({
     standardDistance,
     standardDistancePoints,
     imageNaturalSize,
@@ -297,36 +297,20 @@ export function useImageViewerController({
     setMeasurements,
   });
 
-  const dbAnnotationLoadedRef = useRef(false);
-
-  useStudyDataLoader(
+  useStudyDataLoader({
     imageId,
+    reloadToken: studyReloadToken,
     setStudyData,
     setStudyLoading,
+    setStudyLoadError,
     setAnnotationVersion,
     setMeasurements,
     setStandardDistance,
     setStandardDistancePoints,
     setPointBindings,
-    dbAnnotationLoadedRef,
-    keypointWorkflow.restorePersistedKeypointState
-  );
-
-  useLocalAnnotationsDataLoader(
-    imageId,
-    imageNaturalSize,
-    imageData.examType,
-    setMeasurements,
-    standardDistance,
-    setStandardDistance,
-    standardDistancePoints,
-    setStandardDistancePoints,
-    setPointBindings,
-    dbAnnotationLoadedRef,
-    calculateMeasurementValue,
-    getDescriptionForType,
-    keypointWorkflow.restorePersistedKeypointState
-  );
+    setReportText,
+    applyHydratedKeypointState: keypointWorkflow.applyHydratedKeypointState,
+  });
 
   useImageListFetcher(setImageList);
 
@@ -357,18 +341,31 @@ export function useImageViewerController({
 
   const restoreAnnotationHistorySnapshot = useCallback(
     (snapshot: AnnotationEditorSnapshot) => {
-      setMeasurements(snapshot.measurements);
-      setStandardDistance(snapshot.standardDistance);
-      setStandardDistanceValue(snapshot.standardDistanceValue);
-      setStandardDistancePoints(snapshot.standardDistancePoints);
-      setPointBindings(snapshot.pointBindings);
-      setHistoryKeypoints(snapshot.keypoints);
-      setHistoryVertebraeLayer(snapshot.vertebraeLayer);
-      setHistoryCfhAnnotation(snapshot.cfhAnnotation);
-      restoreAiMeasurementIds(snapshot.aiMeasurementIds);
-      setClickedPoints([]);
+      const transition = reduceAnnotationEditor(annotationHistorySnapshot, {
+        type: 'replace-state',
+        state: snapshot,
+        reason: 'history-restore',
+      });
+      const restored = transition.state;
+      setMeasurements(restored.measurements);
+      setStandardDistance(restored.standardDistance);
+      setStandardDistanceValue(restored.standardDistanceValue);
+      setStandardDistancePoints(restored.standardDistancePoints);
+      setPointBindings(restored.pointBindings);
+      setHistoryKeypoints(restored.keypoints);
+      setHistoryVertebraeLayer(restored.vertebraeLayer);
+      setHistoryCfhAnnotation(restored.cfhAnnotation);
+      restoreAiMeasurementIds(restored.aiMeasurementIds);
+      if (
+        transition.effects.some(
+          effect => effect.type === 'clear-transient-interaction'
+        )
+      ) {
+        setClickedPoints([]);
+      }
     },
     [
+      annotationHistorySnapshot,
       restoreAiMeasurementIds,
       setClickedPoints,
       setHistoryCfhAnnotation,
@@ -1197,6 +1194,8 @@ export function useImageViewerController({
       onClose: () => setShowStandardDistanceWarning(false),
     },
     studyLoading,
+    studyLoadError,
+    retryStudyLoad,
     imageList,
   };
 }

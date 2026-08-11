@@ -1,57 +1,15 @@
 'use client';
 
 import { ReactNode, useEffect } from 'react';
-import { BasicMode } from '@/app/imaging/features/image-viewer/features/toolbar/components/basic-mode';
+import {
+  getEffectiveToolTab,
+  getToolTabsForBasicMode,
+  type BasicMode,
+  type ToolTab,
+} from '@xiehe/imaging-core/editor';
+import { getToolTabCopy } from '@xiehe/imaging-catalog/tools';
 
-export type ToolTab =
-  | 'measurement'
-  | 'keypoint'
-  | 'vertebra-inner-rectify'
-  | 'vertebra-label-offset';
-
-const TOOL_TABS: { id: ToolTab; label: string; icon: string }[] = [
-  { id: 'measurement', label: '测量工具', icon: 'ri-ruler-line' },
-  { id: 'keypoint', label: '关键点', icon: 'ri-focus-3-line' },
-];
-
-const VERTEBRA_RECTIFY_TABS: { id: ToolTab; label: string; icon: string }[] = [
-  {
-    id: 'vertebra-inner-rectify',
-    label: '椎体内纠正',
-    icon: 'ri-focus-3-line',
-  },
-  {
-    id: 'vertebra-label-offset',
-    label: '椎体序号偏移纠正',
-    icon: 'ri-arrow-up-down-line',
-  },
-];
-
-export function getToolTabsForBasicMode(
-  currentBasicMode: BasicMode
-): { id: ToolTab; label: string; icon: string }[] {
-  if (currentBasicMode === BasicMode.VertebraCornerRectify) {
-    return VERTEBRA_RECTIFY_TABS;
-  }
-  if (currentBasicMode === BasicMode.MeasurementDerive) {
-    return TOOL_TABS.filter(tab => tab.id === 'measurement');
-  }
-  return TOOL_TABS;
-}
-
-export function getEffectiveToolTab(
-  currentBasicMode: BasicMode,
-  activeToolTab: ToolTab
-): ToolTab {
-  const visibleTabs = getToolTabsForBasicMode(currentBasicMode);
-  return visibleTabs.some(tab => tab.id === activeToolTab)
-    ? activeToolTab
-    : visibleTabs[0].id;
-}
-
-export function shouldShowAuxiliaryTools(currentBasicMode: BasicMode): boolean {
-  return currentBasicMode === BasicMode.Move;
-}
+export type { ToolTab } from '@xiehe/imaging-core/editor';
 
 interface ToolbarToolPanelProps {
   currentBasicMode: BasicMode;
@@ -66,7 +24,9 @@ export default function ToolbarToolPanel({
   onToolTabChange,
   children,
 }: ToolbarToolPanelProps) {
-  const visibleTabs = getToolTabsForBasicMode(currentBasicMode);
+  const visibleTabs = getToolTabsForBasicMode(currentBasicMode).map(
+    getToolTabCopy
+  );
   const effectiveToolTab = getEffectiveToolTab(currentBasicMode, activeToolTab);
 
   useEffect(() => {

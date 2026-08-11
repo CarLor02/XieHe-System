@@ -91,7 +91,7 @@ jest.mock('@/app/imaging/features/image-viewer/features/annotation-canvas', () =
   }),
 }));
 
-jest.mock('@/app/imaging/features/image-viewer/features/measurements/catalog/exam-tool-catalog', () => ({
+jest.mock('@xiehe/imaging-catalog/tools', () => ({
   getToolsForExamType: () => [],
 }));
 
@@ -166,6 +166,10 @@ jest.mock('@/app/imaging/features/image-viewer/features/study', () => ({
     setStudyData: jest.fn(),
     studyLoading: false,
     setStudyLoading: jest.fn(),
+    studyLoadError: null,
+    setStudyLoadError: jest.fn(),
+    studyReloadToken: 0,
+    retryStudyLoad: jest.fn(),
     imageList: [],
     setImageList: jest.fn(),
     imageNaturalSize: { width: 100, height: 100 },

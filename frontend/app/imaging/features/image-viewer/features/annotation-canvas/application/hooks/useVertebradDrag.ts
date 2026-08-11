@@ -6,15 +6,16 @@ import {
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
 import {
-  isSinglePointKeypointLabel,
-  keypointIdToRenderCornerRef,
   renderCornerToKeypointId,
 } from '@xiehe/imaging-core/keypoints';
-
-interface DragMember {
-  vertebraLabel: string;
-  cornerIndex: number; // 0=TL,1=TR,2=BL,3=BR
-}
+import {
+  findNearestVertebraCorner,
+  findVertebraFrameMembers,
+  keypointIdsToVertebraDragMembers,
+  shouldStartPointerDrag,
+  updateVertebraLayerCorner,
+  type VertebraDragMember as DragMember,
+} from '@xiehe/imaging-core/canvas';
 
 type DragState =
   | ({
@@ -45,40 +46,6 @@ export type VertebradDragSelection =
 interface ScreenPoint {
   x: number;
   y: number;
-}
-
-function isCompleteVertebraFrame(vertebra: VertebraAnnotation): boolean {
-  if (vertebra.label === 'S1') return false;
-  if (isSinglePointKeypointLabel(vertebra.label)) return false;
-
-  const uniqueCorners = new Set(
-    vertebra.corners.map(point => `${point.x}:${point.y}`)
-  );
-  return uniqueCorners.size === 4;
-}
-
-function isPointInsidePolygon(
-  point: ScreenPoint,
-  polygon: ScreenPoint[]
-): boolean {
-  let inside = false;
-
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
-    const current = polygon[i];
-    const previous = polygon[j];
-    const intersects =
-      current.y > point.y !== previous.y > point.y &&
-      point.x <
-        ((previous.x - current.x) * (point.y - current.y)) /
-          (previous.y - current.y) +
-          current.x;
-
-    if (intersects) {
-      inside = !inside;
-    }
-  }
-
-  return inside;
 }
 
 /**
@@ -127,40 +94,6 @@ export function useVertebradDrag({
   // 避免在 React state updater 内触发 measurements 等父层状态更新。
   const liveLayerRef = useRef<VertebraAnnotation[] | null>(null);
 
-  const updateLayerCorner = useCallback(
-    (
-      layer: VertebraAnnotation[],
-      member: DragMember,
-      imagePoint: Point
-    ): VertebraAnnotation[] =>
-      layer.map(v => {
-        if (v.label !== member.vertebraLabel) return v;
-        const newCorners = [...v.corners] as [Point, Point, Point, Point];
-
-        if (v.label === 'S1') {
-          const indices =
-            member.cornerIndex === 1 || member.cornerIndex === 3
-              ? [1, 3]
-              : [0, 2];
-          indices.forEach(index => {
-            newCorners[index] = imagePoint;
-          });
-          return { ...v, corners: newCorners };
-        }
-
-        if (isSinglePointKeypointLabel(v.label)) {
-          return {
-            ...v,
-            corners: [imagePoint, imagePoint, imagePoint, imagePoint],
-          };
-        }
-
-        newCorners[member.cornerIndex] = imagePoint;
-        return { ...v, corners: newCorners };
-      }),
-    []
-  );
-
   /** 将 clientX/clientY 转换为容器相对坐标 */
   const clientToScreen = useCallback(
     (
@@ -186,40 +119,23 @@ export function useVertebradDrag({
       screenY: number,
       hitRadius: number
     ): DragMember | null => {
-      let best: DragMember | null = null;
-      let bestDist = hitRadius;
-      for (const vertebra of vertebraeLayer) {
-        vertebra.corners.forEach((corner, i) => {
-          const sc = imageToScreen(corner);
-          const dist = Math.hypot(sc.x - screenX, sc.y - screenY);
-          if (dist < bestDist) {
-            bestDist = dist;
-            best = { vertebraLabel: vertebra.label, cornerIndex: i };
-          }
-        });
-      }
-      return best;
+      return findNearestVertebraCorner({
+        layer: vertebraeLayer,
+        screenPoint: { x: screenX, y: screenY },
+        hitRadius,
+        imageToScreen,
+      });
     },
     [vertebraeLayer, imageToScreen]
   );
 
   const findFrameInterior = useCallback(
     (screenX: number, screenY: number): DragMember[] | null => {
-      const hitPoint = { x: screenX, y: screenY };
-
-      for (const vertebra of vertebraeLayer) {
-        if (!isCompleteVertebraFrame(vertebra)) continue;
-
-        const [tl, tr, bl, br] = vertebra.corners.map(imageToScreen);
-        if (!isPointInsidePolygon(hitPoint, [tl, tr, br, bl])) continue;
-
-        return [0, 1, 2, 3].map(cornerIndex => ({
-          vertebraLabel: vertebra.label,
-          cornerIndex,
-        }));
-      }
-
-      return null;
+      return findVertebraFrameMembers({
+        layer: vertebraeLayer,
+        screenPoint: { x: screenX, y: screenY },
+        imageToScreen,
+      });
     },
     [imageToScreen, vertebraeLayer]
   );
@@ -228,36 +144,12 @@ export function useVertebradDrag({
     return renderCornerToKeypointId(hit.vertebraLabel, hit.cornerIndex);
   }, []);
 
-  const shouldStartDrag = useCallback(
-    (
-      startPoint: ScreenPoint,
-      currentPoint: ScreenPoint,
-      dragStartThreshold: number
-    ): boolean =>
-      Math.hypot(currentPoint.x - startPoint.x, currentPoint.y - startPoint.y) >
-      dragStartThreshold,
-    []
-  );
-
   const keypointIdsToDragMembers = useCallback(
-    (keypointIds: string[]): DragMember[] => {
-      const seen = new Set<string>();
-      return keypointIds
-        .map(keypointId =>
-          keypointIdToRenderCornerRef(keypointId, vertebraeLayer)
-        )
-        .filter((ref): ref is CornerRef => ref !== null)
-        .map(ref => ({
-          vertebraLabel: ref.label,
-          cornerIndex: ref.index,
-        }))
-        .filter(member => {
-          const key = `${member.vertebraLabel}:${member.cornerIndex}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-    },
+    (keypointIds: string[]): DragMember[] =>
+      keypointIdsToVertebraDragMembers({
+        keypointIds,
+        layer: vertebraeLayer,
+      }),
     [vertebraeLayer]
   );
 
@@ -397,7 +289,7 @@ export function useVertebradDrag({
         const currentScreenPoint = { x: screenX, y: screenY };
         if (!activeHit.dragStarted) {
           if (
-            !shouldStartDrag(
+            !shouldStartPointerDrag(
               activeHit.startScreenPoint,
               currentScreenPoint,
               activeHit.dragStartThreshold
@@ -416,7 +308,7 @@ export function useVertebradDrag({
         const currentLayer = liveLayerRef.current ?? vertebraeLayer;
         const next =
           activeHit.mode === 'corner'
-            ? updateLayerCorner(currentLayer, activeHit, imagePt)
+            ? updateVertebraLayerCorner(currentLayer, activeHit, imagePt)
             : (() => {
                 const delta = {
                   x: imagePt.x - activeHit.startImagePoint.x,
@@ -428,7 +320,7 @@ export function useVertebradDrag({
                   );
                   const initialPoint = source?.corners[member.cornerIndex];
                   if (!initialPoint) return layer;
-                  return updateLayerCorner(layer, member, {
+                  return updateVertebraLayerCorner(layer, member, {
                     x: initialPoint.x + delta.x,
                     y: initialPoint.y + delta.y,
                   });
@@ -464,8 +356,6 @@ export function useVertebradDrag({
       onAnnotationDragStart,
       onLiveLayerChange,
       screenToImage,
-      shouldStartDrag,
-      updateLayerCorner,
       vertebraeLayer,
     ]
   );

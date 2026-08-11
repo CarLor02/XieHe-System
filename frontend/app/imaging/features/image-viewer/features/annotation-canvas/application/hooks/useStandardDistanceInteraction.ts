@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
+import { calculateDistance2D as calculateDistance } from '@xiehe/imaging-core/geometry';
 import { Point } from '@xiehe/imaging-core/contracts';
 
 interface UseStandardDistanceInteractionOptions {

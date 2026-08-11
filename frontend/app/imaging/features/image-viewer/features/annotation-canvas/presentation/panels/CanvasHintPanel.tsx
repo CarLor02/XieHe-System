@@ -1,7 +1,5 @@
-import {
-  KeypointSequenceSession,
-  Tool,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import type { Tool } from '@xiehe/imaging-catalog/annotations';
+import type { KeypointSequenceSession } from '@xiehe/imaging-core/editor';
 import { type AvtPlacementSession } from '@xiehe/imaging-core/contracts';
 import { getAvtTargetLabel } from '@xiehe/imaging-core/measurements/ap';
 import {

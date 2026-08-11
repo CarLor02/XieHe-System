@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { expect, it } from '@jest/globals';
 
 import CanvasHintPanel from './CanvasHintPanel';
-import type { KeypointSequenceSession } from '@/app/imaging/features/image-viewer/shared/types';
+import type { KeypointSequenceSession } from '@xiehe/imaging-core/editor';
 
 it('shows progress for sequential keypoint placement', () => {
   const keypointSequenceSession: KeypointSequenceSession = {

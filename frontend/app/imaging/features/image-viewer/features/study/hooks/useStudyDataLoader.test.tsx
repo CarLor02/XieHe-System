@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { expect, it, jest } from '@jest/globals';
+import { beforeEach, expect, it, jest } from '@jest/globals';
 import type { ImageFileDetail } from '@/services/imageServices/imageFileService';
 
 const mockGetImageFile = jest.fn<
@@ -14,7 +14,25 @@ const { useStudyDataLoader } = jest.requireActual<
   typeof import('./useStudyDataLoader')
 >('./useStudyDataLoader');
 
-it('keeps the server annotation version after loading image details', async () => {
+const setters = {
+  setStudyData: jest.fn(),
+  setStudyLoading: jest.fn(),
+  setStudyLoadError: jest.fn(),
+  setAnnotationVersion: jest.fn(),
+  setMeasurements: jest.fn(),
+  setStandardDistance: jest.fn(),
+  setStandardDistancePoints: jest.fn(),
+  setPointBindings: jest.fn(),
+  setReportText: jest.fn(),
+  applyHydratedKeypointState: jest.fn(),
+};
+
+beforeEach(() => {
+  mockGetImageFile.mockReset();
+  Object.values(setters).forEach(setter => setter.mockClear());
+});
+
+it('applies the complete server editor state including annotation version', async () => {
   mockGetImageFile.mockResolvedValue({
     id: 8,
     file_uuid: 'image-8',
@@ -34,25 +52,29 @@ it('keeps the server annotation version after loading image details', async () =
     annotation: null,
     annotation_version: 7,
   });
-  const setAnnotationVersion = jest.fn<(version: number) => void>();
 
   renderHook(() =>
-    useStudyDataLoader(
-      'IMG8',
-      jest.fn(),
-      jest.fn(),
-      setAnnotationVersion,
-      jest.fn(),
-      jest.fn(),
-      jest.fn(),
-      jest.fn(),
-      { current: false },
-      jest.fn()
-    )
+    useStudyDataLoader({ imageId: 'IMG8', reloadToken: 0, ...setters })
   );
 
   await waitFor(() => {
-    expect(setAnnotationVersion).toHaveBeenCalledWith(7);
+    expect(setters.setAnnotationVersion).toHaveBeenCalledWith(7);
   });
-  expect(setAnnotationVersion).not.toHaveBeenCalledWith(0);
+  expect(setters.setStandardDistance).toHaveBeenCalledWith(100);
+  expect(setters.setStudyLoadError).toHaveBeenLastCalledWith(null);
+});
+
+it('keeps the editor blocked when the API request fails', async () => {
+  mockGetImageFile.mockRejectedValue(new Error('network unavailable'));
+
+  renderHook(() =>
+    useStudyDataLoader({ imageId: 'IMG8', reloadToken: 0, ...setters })
+  );
+
+  await waitFor(() => {
+    expect(setters.setStudyLoadError).toHaveBeenCalledWith(
+      'network unavailable'
+    );
+  });
+  expect(setters.setStudyData).toHaveBeenLastCalledWith(null);
 });

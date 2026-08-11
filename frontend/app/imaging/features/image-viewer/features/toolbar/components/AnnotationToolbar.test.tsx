@@ -5,12 +5,10 @@ import type { ComponentProps } from 'react';
 import AnnotationToolbar from './AnnotationToolbar';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import { getAuxiliaryTools } from '@xiehe/imaging-catalog/annotations';
-import { getToolsForExamType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/exam-tool-catalog';
+import { getToolsForExamType } from '@xiehe/imaging-catalog/tools';
 import { AnnotationSource } from '@xiehe/imaging-core/contracts';
-import type {
-  KeypointSequenceSession,
-  Tool,
-} from '@/app/imaging/features/image-viewer/shared/types';
+import type { Tool } from '@xiehe/imaging-catalog/annotations';
+import type { KeypointSequenceSession } from '@xiehe/imaging-core/editor';
 
 const tools: Tool[] = [
   {

@@ -29,7 +29,7 @@ interface UseCanvasPointerEventsOptions {
   }) => void;
   onPointerDown: (input: CanvasPointerInput) => void;
   onPointerMove: (input: CanvasPointerInput) => void;
-  onPointerEnd: () => void;
+  onPointerEnd: (pointerId: number) => void;
   onHoverEnter: () => void;
   onHoverLeave: () => void;
 }
@@ -253,7 +253,7 @@ export function useCanvasPointerEvents({
       releasePointer(event);
 
       if (wasPrimary) {
-        onPointerEnd();
+        onPointerEnd(pointerId);
       }
 
       if (activePointersRef.current.size === 0) {

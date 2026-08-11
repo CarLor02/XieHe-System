@@ -9,7 +9,7 @@ import type {
 } from '@xiehe/imaging-core/contracts';
 import type { Dispatch, SetStateAction } from 'react';
 
-import type { ImageData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { ImageData } from '@xiehe/imaging-core/editor';
 import { createLogger } from '@/lib/logger';
 import { getAiKeypointDetectionResponse } from '@/services/imageServices';
 

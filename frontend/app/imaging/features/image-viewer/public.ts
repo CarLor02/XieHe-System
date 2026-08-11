@@ -1,9 +1,7 @@
-export type {
-  AiMeasurementData,
-  ImageData,
-  StudyData,
-  Tool,
-} from '@/app/imaging/features/image-viewer/shared/types';
+export type { AiMeasurementInput as AiMeasurementData } from '@xiehe/imaging-core/ai';
+export type { ImageData } from '@xiehe/imaging-core/editor';
+export type { Tool } from '@xiehe/imaging-catalog/annotations';
+export type { StudyEditorData as StudyData } from '@xiehe/imaging-core/editor';
 export type {
   CfhAnnotation,
   ImageSize,

@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
+import { useCallback, useRef } from 'react';
+import { calculateDistance2D as calculateDistance } from '@xiehe/imaging-core/geometry';
 import {
   MeasurementData,
   Point,
@@ -18,6 +18,12 @@ import {
 import { resolveTtsMeasurement } from '@xiehe/imaging-core/measurements/ap';
 import type { CanvasPointerInput } from '@xiehe/imaging-core/canvas';
 import { getBilateralPelvicGeometryForMeasurement } from '@xiehe/imaging-core/measurements/lateral';
+import {
+  IDLE_ANNOTATION_INTERACTION,
+  transitionAnnotationInteraction,
+  type AnnotationInteractionOwner,
+  type AnnotationInteractionState,
+} from '@xiehe/imaging-core/editor';
 
 function getMeasurementDragCenter(measurement: MeasurementData): Point {
   const resolvedTts = resolveTtsMeasurement(measurement);
@@ -143,6 +149,24 @@ export function useCanvasPointerInteraction({
   onCanvasClick,
   setImagePosition,
 }: UseCanvasPointerInteractionOptions) {
+  const interactionStateRef = useRef<AnnotationInteractionState>(
+    IDLE_ANNOTATION_INTERACTION
+  );
+
+  const beginOwnedInteraction = useCallback(
+    (owner: AnnotationInteractionOwner, input: CanvasPointerInput) => {
+      interactionStateRef.current = transitionAnnotationInteraction(
+        interactionStateRef.current,
+        {
+          type: 'begin',
+          pointerId: input.pointerId,
+          owner,
+          point: input.screenPoint,
+        }
+      ).state;
+    },
+    []
+  );
   const clearSelection = useCallback(() => {
     onDisplayMeasurementSelect(null);
     setSelectionState({
@@ -188,6 +212,7 @@ export function useCanvasPointerInteraction({
       setAdjustMode('zoom');
       setIsDragging(true);
       setDragStart({ x: x - imagePosition.x, y: y - imagePosition.y });
+      return 'viewport' as const;
     },
     [
       clearSelection,
@@ -241,7 +266,7 @@ export function useCanvasPointerInteraction({
               getBilateralPelvicGeometryForMeasurement(
                 selectedMeasurement
               )?.femoralHeadCenter;
-            if (!effectiveCfh) return true;
+            if (!effectiveCfh) return 'measurement' as const;
             onDisplayMeasurementSelect(null);
             setSelectionState({
               measurementId: selectedMeasurement.id,
@@ -281,7 +306,7 @@ export function useCanvasPointerInteraction({
               },
             });
           }
-          return true;
+          return 'measurement' as const;
         }
       }
 
@@ -304,7 +329,7 @@ export function useCanvasPointerInteraction({
             y: imagePoint.y - point.y,
           },
         });
-        return true;
+        return 'measurement' as const;
       }
 
       if (selectionState.measurementId) {
@@ -335,7 +360,7 @@ export function useCanvasPointerInteraction({
                   y: imagePoint.y - selectedPoint.y,
                 },
               }));
-              return true;
+              return 'measurement' as const;
             }
           }
 
@@ -360,7 +385,7 @@ export function useCanvasPointerInteraction({
                     y: imagePoint.y - effectiveCfh.y,
                   },
                 }));
-                return true;
+                return 'measurement' as const;
               }
             }
           }
@@ -379,14 +404,13 @@ export function useCanvasPointerInteraction({
                   y: imagePoint.y - center.y,
                 },
               }));
-              return true;
+              return 'measurement' as const;
             }
           }
         }
       }
 
-      beginViewportInteraction(x, y);
-      return true;
+      return beginViewportInteraction(x, y);
     },
     [
       clickedPoints,
@@ -520,6 +544,7 @@ export function useCanvasPointerInteraction({
 
       if (isManualBindingMode) {
         handleManualBindingPointerDown(x, y, input.policy.pointHitRadius);
+        beginOwnedInteraction('manual-binding', input);
         return;
       }
 
@@ -530,21 +555,25 @@ export function useCanvasPointerInteraction({
           input.policy.pointHitRadius
         )
       ) {
+        beginOwnedInteraction('standard-distance', input);
         return;
       }
 
       setDragStartPos(input.clientPoint);
 
       if (selectedTool === 'hand') {
-        beginHandModeInteraction(x, y, input);
+        beginOwnedInteraction(beginHandModeInteraction(x, y, input), input);
         return;
       }
 
-      beginDrawingToolInteraction(x, y);
+      if (beginDrawingToolInteraction(x, y)) {
+        beginOwnedInteraction('drawing', input);
+      }
     },
     [
       beginDrawingToolInteraction,
       beginHandModeInteraction,
+      beginOwnedInteraction,
       handleManualBindingPointerDown,
       imageNaturalSize,
       isManualBindingMode,
@@ -566,55 +595,79 @@ export function useCanvasPointerInteraction({
         setLivePointerImagePoint(screenToImage(x, y));
       }
 
-      if (
-        standardDistanceInteraction.updateInteraction(
-          x,
-          y,
-          input.primaryActionPressed,
-          input.policy.supportsHover,
-          input.policy.pointHitRadius,
-          input.policy.dragStartThreshold
-        )
-      ) {
+      const transition = transitionAnnotationInteraction(
+        interactionStateRef.current,
+        {
+          type: 'move',
+          pointerId: input.pointerId,
+          point: input.screenPoint,
+          primaryActionPressed: input.primaryActionPressed,
+          dragStartThreshold: input.policy.dragStartThreshold,
+        }
+      );
+      interactionStateRef.current = transition.state;
+      const moveEffect = transition.effects.find(
+        effect => effect.type === 'route-move'
+      );
+
+      if (moveEffect?.type === 'route-move') {
+        if (moveEffect.owner === 'standard-distance') {
+          standardDistanceInteraction.updateInteraction(
+            x,
+            y,
+            input.primaryActionPressed,
+            input.policy.supportsHover,
+            input.policy.pointHitRadius,
+            input.policy.dragStartThreshold
+          );
+        } else if (moveEffect.owner === 'drawing') {
+          drawingTool.updateInteraction(x, y);
+        } else if (moveEffect.owner === 'measurement') {
+          canvasDrag.updateInteraction(
+            x,
+            y,
+            input.primaryActionPressed,
+            input.policy.dragStartThreshold
+          );
+        } else if (moveEffect.owner === 'viewport') {
+          if (
+            adjustMode === 'zoom' &&
+            isDragging &&
+            selectedTool === 'hand' &&
+            !isImagePanLocked
+          ) {
+            setImagePosition({
+              x: x - dragStart.x,
+              y: y - dragStart.y,
+            });
+          } else if (adjustMode === 'brightness') {
+            const deltaX = input.clientPoint.x - dragStartPos.x;
+            const deltaY = input.clientPoint.y - dragStartPos.y;
+            setContrast(previous =>
+              Math.max(-100, Math.min(100, previous + deltaX * 0.5))
+            );
+            setBrightness(previous =>
+              Math.max(-100, Math.min(100, previous - deltaY * 0.5))
+            );
+            setDragStartPos(input.clientPoint);
+          }
+        }
         return;
       }
 
-      drawingTool.updateInteraction(x, y);
-
-      if (
-        canvasDrag.updateInteraction(
-          x,
-          y,
-          input.primaryActionPressed,
-          input.policy.dragStartThreshold
-        )
-      ) {
-        return;
-      }
-
-      if (
-        adjustMode === 'zoom' &&
-        isDragging &&
-        selectedTool === 'hand' &&
-        !isImagePanLocked
-      ) {
-        setImagePosition({
-          x: x - dragStart.x,
-          y: y - dragStart.y,
-        });
-      } else if (adjustMode === 'brightness' && input.primaryActionPressed) {
-        const deltaX = input.clientPoint.x - dragStartPos.x;
-        const deltaY = input.clientPoint.y - dragStartPos.y;
-        setContrast(previous =>
-          Math.max(-100, Math.min(100, previous + deltaX * 0.5))
-        );
-        setBrightness(previous =>
-          Math.max(-100, Math.min(100, previous - deltaY * 0.5))
-        );
-        setDragStartPos(input.clientPoint);
-      }
-
-      if (input.policy.supportsHover) {
+      if (transition.effects.some(effect => effect.type === 'hover')) {
+        if (
+          standardDistanceInteraction.updateInteraction(
+            x,
+            y,
+            false,
+            input.policy.supportsHover,
+            input.policy.pointHitRadius,
+            input.policy.dragStartThreshold
+          )
+        ) {
+          return;
+        }
         handleHandModeHover(x, y, input);
       }
     },
@@ -642,9 +695,24 @@ export function useCanvasPointerInteraction({
   );
 
   const endPointerInteraction = useCallback(() => {
-    standardDistanceInteraction.endInteraction();
-    canvasDrag.endDragSelection();
-    drawingTool.endInteraction();
+    const state = interactionStateRef.current;
+    const transition = transitionAnnotationInteraction(
+      state,
+      state.phase === 'idle'
+        ? { type: 'cancel' }
+        : { type: 'end', pointerId: state.pointerId }
+    );
+    interactionStateRef.current = transition.state;
+    transition.effects.forEach(effect => {
+      if (effect.type !== 'route-end' && effect.type !== 'route-cancel') return;
+      if (effect.owner === 'standard-distance') {
+        standardDistanceInteraction.endInteraction();
+      } else if (effect.owner === 'measurement') {
+        canvasDrag.endDragSelection();
+      } else if (effect.owner === 'drawing') {
+        drawingTool.endInteraction();
+      }
+    });
     setIsDragging(false);
     setAdjustMode('none');
   }, [

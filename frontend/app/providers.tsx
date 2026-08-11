@@ -15,6 +15,7 @@ import { sessionInitializerLogging } from '@/lib/logger/sessionLogging';
 import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import OverlayProvider from '@/components/overlay/OverlayProvider';
+import { runLegacyAnnotationBackupCleanup } from '@/application/maintenance/legacyAnnotationBackupCleanup';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -273,6 +274,10 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
  * 包装应用的根组件，提供全局状态和错误处理
  */
 export default function Providers({ children }: ProvidersProps) {
+  useEffect(() => {
+    runLegacyAnnotationBackupCleanup();
+  }, []);
+
   return (
     <OverlayProvider>
       <AuthInitializer>{children}</AuthInitializer>

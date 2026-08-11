@@ -93,22 +93,6 @@ function renderCropToFile(
   });
 }
 
-function clearLocalAnnotationCache(imageFile: ImageFile) {
-  if (typeof window === 'undefined') return;
-
-  const id = imageFile.id.toString();
-  const keys = [
-    `annotations_${id}`,
-    `annotations_IMG${id}`,
-    `annotations_IMG${id.padStart(3, '0')}`,
-    imageFile.file_uuid ? `annotations_${imageFile.file_uuid}` : null,
-  ].filter((key): key is string => Boolean(key));
-
-  for (const key of new Set(keys)) {
-    localStorage.removeItem(key);
-  }
-}
-
 export function useImageEditOverlay({
   reloadImages,
 }: {
@@ -344,7 +328,6 @@ export function useImageEditOverlay({
         description: current.examType || null,
         team_ids: current.teamIds,
       });
-      clearLocalAnnotationCache(current.imageFile);
       pendingContentReplacementRef.current = null;
       setContentResetConfirmOpen(false);
       closeEditOverlay();

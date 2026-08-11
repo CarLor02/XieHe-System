@@ -4,14 +4,14 @@ import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 import { getAnnotationConfig } from '@xiehe/imaging-catalog/annotations';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getDescriptionForType } from '@xiehe/imaging-catalog/annotations';
-import { prepareAiEditorState } from '@xiehe/imaging-core/ai';
+import { runAiMeasurement } from '@xiehe/imaging-core/ai';
 import {
   CfhAnnotation,
   ImageSize,
   MeasurementData,
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
-import { ImageData } from '@/app/imaging/features/image-viewer/shared/types';
+import type { ImageData } from '@xiehe/imaging-core/editor';
 import { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import { detectLateralVertebrae } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
 import { createLogger } from '@/lib/logger';
@@ -91,49 +91,48 @@ export async function runAiMeasurementWorkflow({
   setSaveMessage('');
 
   try {
-    const aiData = await getAiMeasurementsResponse(imageId, imageData.examType);
-
-    if (aiData.measurements && Array.isArray(aiData.measurements)) {
-      let actualImageSize = imageNaturalSize;
-      if (!actualImageSize) {
-        const imgElement = document.querySelector(
-          '[data-image-canvas] img'
-        ) as HTMLImageElement;
-        if (imgElement && imgElement.naturalWidth > 0) {
-          actualImageSize = {
-            width: imgElement.naturalWidth,
-            height: imgElement.naturalHeight,
-          };
-          setImageNaturalSize(actualImageSize);
-        }
+    let actualImageSize = imageNaturalSize;
+    if (!actualImageSize) {
+      const imgElement = document.querySelector(
+        '[data-image-canvas] img'
+      ) as HTMLImageElement;
+      if (imgElement && imgElement.naturalWidth > 0) {
+        actualImageSize = {
+          width: imgElement.naturalWidth,
+          height: imgElement.naturalHeight,
+        };
+        setImageNaturalSize(actualImageSize);
       }
+    }
 
-      const calculationContext = {
-        standardDistance: null,
-        standardDistancePoints: [],
-        imageNaturalSize: actualImageSize,
-      };
+    const calculationContext = {
+      standardDistance: null,
+      standardDistancePoints: [],
+      imageNaturalSize: actualImageSize,
+    };
+    const result = await runAiMeasurement({
+      imageId,
+      examType: imageData.examType,
+      actualImageSize,
+      port: { measure: getAiMeasurementsResponse },
+      resolveTool: type => {
+        const tool = getAnnotationConfig(type);
+        if (!tool) return null;
+        return {
+          id: tool.id,
+          category: tool.category === 'measurement' ? 'measurement' : 'support',
+          pointsNeeded: tool.pointsNeeded,
+        };
+      },
+      calculateValue: (type, points) =>
+        calculateMeasurementValue(type, points, calculationContext),
+      describeType: getDescriptionForType,
+      createId: () =>
+        Date.now().toString() + Math.random().toString(36).substring(2, 11),
+    });
 
-      const prepared = prepareAiEditorState({
-        response: aiData,
-        examType: imageData.examType,
-        actualImageSize,
-        resolveTool: type => {
-          const tool = getAnnotationConfig(type);
-          if (!tool) return null;
-          return {
-            id: tool.id,
-            category:
-              tool.category === 'measurement' ? 'measurement' : 'support',
-            pointsNeeded: tool.pointsNeeded,
-          };
-        },
-        calculateValue: (type, points) =>
-          calculateMeasurementValue(type, points, calculationContext),
-        describeType: getDescriptionForType,
-        createId: () =>
-          Date.now().toString() + Math.random().toString(36).substring(2, 11),
-      });
+    if (result.status === 'ready') {
+      const prepared = result.state;
       const aiMeasurements = prepared.measurements;
 
       setMeasurements(aiMeasurements);

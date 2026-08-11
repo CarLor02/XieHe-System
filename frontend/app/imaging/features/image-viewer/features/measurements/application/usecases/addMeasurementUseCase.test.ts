@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/addMeasurementUseCase';
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
-import type { Tool } from '@/app/imaging/features/image-viewer/shared/types';
+import type { Tool } from '@xiehe/imaging-catalog/annotations';
 
 const imageNaturalSize = { width: 1000, height: 1000 };
 const cobbPoints: Point[] = [
