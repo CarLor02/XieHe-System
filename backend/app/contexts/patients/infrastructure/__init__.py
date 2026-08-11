@@ -1,6 +1,8 @@
-"""Patient persistence adapters."""
+"""Patient infrastructure adapters."""
 
-from .sqlalchemy_archive_repository import SqlAlchemyPatientArchiveRepository
-from .sqlalchemy_repository import SqlAlchemyPatientRepository
+from .persistence import (
+    SqlAlchemyPatientArchiveRepository,
+    SqlAlchemyPatientRepository,
+)
 
 __all__ = ["SqlAlchemyPatientRepository", "SqlAlchemyPatientArchiveRepository"]

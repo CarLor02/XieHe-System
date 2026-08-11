@@ -1,4 +1,4 @@
-"""Schemas for the patient management HTTP interface."""
+"""Schemas for patient management HTTP v1."""
 
 import typing
 from datetime import date, datetime

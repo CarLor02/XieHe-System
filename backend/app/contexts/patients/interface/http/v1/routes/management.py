@@ -16,8 +16,8 @@ from app.core.system.exceptions import BusinessLogicException, ResourceNotFoundE
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import paginated_response, success_response
 
-from .dependencies import get_patient_service
-from .schemas.management import PatientCreate, PatientResponse, PatientUpdate
+from ..dependencies import get_patient_service
+from ..schemas import PatientCreate, PatientResponse, PatientUpdate
 
 router = APIRouter()
 

@@ -1,4 +1,4 @@
-"""Patient HTTP schemas."""
+"""Patient HTTP v1 schemas."""
 
 from .management import PatientCreate, PatientResponse, PatientUpdate
 

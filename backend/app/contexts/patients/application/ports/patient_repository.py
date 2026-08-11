@@ -1,4 +1,4 @@
-"""Infrastructure ports required by patient application flows."""
+"""Persistence port for patient management use cases."""
 
 from __future__ import annotations
 
@@ -27,11 +27,3 @@ class PatientRepository(Protocol):
     ) -> PatientSnapshot | None: ...
 
     async def soft_delete(self, patient_id: int, *, actor_id: int | None) -> bool: ...
-
-
-class PatientArchiveRepository(Protocol):
-    """Read-only archive port; its HTTP routes remain intentionally unmounted."""
-
-    async def get_summary(self, patient_id: int) -> dict[str, Any] | None: ...
-
-    async def get_full_archive(self, patient_id: int) -> dict[str, Any] | None: ...

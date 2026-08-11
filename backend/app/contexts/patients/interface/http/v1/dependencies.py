@@ -1,4 +1,4 @@
-"""FastAPI dependency adapters for the patient context."""
+"""FastAPI dependency assembly for patient HTTP v1."""
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
