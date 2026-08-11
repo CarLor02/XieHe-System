@@ -13,7 +13,7 @@ import ImageActionMenu from '@/app/imaging/features/image-actions/components/Ima
 import {
   getBatchSelectionLabel,
   type BatchSelectionMode,
-} from '@/app/imaging/features/batch-operations/domain/batch-operation';
+} from '@xiehe/imaging-core/image-files';
 
 interface ImageListRowsProps {
   imageFiles: ImageFile[];
@@ -77,10 +77,7 @@ export default function ImageListRows({
                   </div>
                 </button>
               ) : (
-                <Link
-                  href={viewerHref}
-                  className="self-start"
-                >
+                <Link href={viewerHref} className="self-start">
                   <div className="w-16 h-20 bg-black rounded overflow-hidden flex-shrink-0 cursor-pointer flex items-center justify-center">
                     <ImagePreview
                       imageFile={imageFile}
@@ -108,19 +105,28 @@ export default function ImageListRows({
                       {imageFile.description || '请修改检查类型'}
                     </span>
                   </div>
-                  <ImageStatusBadge status={imageFile.status} variant="inline" />
+                  <ImageStatusBadge
+                    status={imageFile.status}
+                    variant="inline"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 gap-x-8 gap-y-2 text-sm text-gray-600 mb-3 sm:grid-cols-2">
                   <div className="flex justify-between gap-4 min-w-0">
                     <span className="text-gray-500 flex-shrink-0">患者:</span>
-                    <span className="font-medium text-right truncate min-w-0" title={patientName}>
+                    <span
+                      className="font-medium text-right truncate min-w-0"
+                      title={patientName}
+                    >
                       {patientName}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4 min-w-0">
                     <span className="text-gray-500 flex-shrink-0">上传者:</span>
-                    <span className="font-medium text-right truncate min-w-0" title={uploaderName}>
+                    <span
+                      className="font-medium text-right truncate min-w-0"
+                      title={uploaderName}
+                    >
                       {uploaderName}
                     </span>
                   </div>
@@ -129,13 +135,17 @@ export default function ImageListRows({
                     labelClassName="text-gray-500"
                   />
                   <div className="flex justify-between gap-4 min-w-0">
-                    <span className="text-gray-500 flex-shrink-0">上传日期:</span>
+                    <span className="text-gray-500 flex-shrink-0">
+                      上传日期:
+                    </span>
                     <span className="font-medium text-right">
                       {formatDate(imageFile.created_at)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4 min-w-0">
-                    <span className="text-gray-500 flex-shrink-0">文件大小:</span>
+                    <span className="text-gray-500 flex-shrink-0">
+                      文件大小:
+                    </span>
                     <span className="font-medium text-right">
                       {formatFileSize(imageFile.file_size)}
                     </span>

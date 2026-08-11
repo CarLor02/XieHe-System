@@ -10,7 +10,7 @@ import {
   type ImageFile,
 } from '@/services/imageServices/imageFileService';
 import { createLogger } from '@/lib/logger';
-import { EXAM_TYPES } from '@/app/imaging/domain/imagingFilters';
+import { EXAM_TYPES } from '@xiehe/imaging-core/image-files';
 
 const logger = createLogger(
   'app.imaging.features.image.actions.hooks.useImageEditOverlay'

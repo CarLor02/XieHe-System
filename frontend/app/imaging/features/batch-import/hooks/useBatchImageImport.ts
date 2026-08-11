@@ -4,7 +4,7 @@ import type {
   BatchImportOwnershipScope,
   BatchImportTab,
 } from '../domain/types';
-import { EXAM_TYPES } from '@/app/imaging/domain/imagingFilters';
+import { EXAM_TYPES } from '@xiehe/imaging-core/image-files';
 import type {
   TeamMultiSelectLoadParams,
   TeamMultiSelectPage,

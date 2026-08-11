@@ -1,12 +1,14 @@
 import type { ImageFile } from '@/services/imageServices/imageFileService';
-import type { ImagingViewMode } from '@/app/imaging/domain/imagingFilters';
+import type {
+  BatchSelectionMode,
+  ImagingViewMode,
+} from '@xiehe/imaging-core/image-files';
 import type { PreviewLoadState } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import ImageEmptyState from './ImageEmptyState';
 import ImageGrid from './ImageGrid';
 import ImageListRows from './ImageListRows';
 import ImagePagination from './ImagePagination';
 import type { ImageFileAction } from '@/app/imaging/features/image-actions/domain/imageFileAction';
-import type { BatchSelectionMode } from '@/app/imaging/features/batch-operations/domain/batch-operation';
 
 interface ImageListPanelProps {
   imageFiles: ImageFile[];

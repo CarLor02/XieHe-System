@@ -1,4 +1,4 @@
-import type { ExportContentType } from '../domain';
+import type { ExportContentType } from '@xiehe/imaging-core/exports';
 import type { ExportContentOption } from '../hooks/use-export-content-options';
 
 interface BatchExportControlsProps {

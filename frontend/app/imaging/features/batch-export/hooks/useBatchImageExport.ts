@@ -5,7 +5,7 @@ import {
   type ImageFile,
 } from '@/services/imageServices/imageFileService';
 
-import { type ExportContentType } from '../domain';
+import { type ExportContentType } from '@xiehe/imaging-core/exports';
 import { buildBatchExportFiles, downloadExportFiles } from '../usecases';
 import { useExportContentOptions } from './use-export-content-options';
 import { createLogger } from '@/lib/logger';

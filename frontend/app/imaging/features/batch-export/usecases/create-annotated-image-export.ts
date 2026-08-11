@@ -2,7 +2,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { MeasurementData } from '@/app/imaging/features/image-viewer/public';
 import { renderMeasurement } from '@/app/imaging/features/image-viewer/public';
-import type { AnnotatedImageExportFormat } from '../domain';
+import type { AnnotatedImageExportFormat } from '@xiehe/imaging-core/exports';
 import { createLogger } from '@/lib/logger';
 import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 

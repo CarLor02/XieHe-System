@@ -21,7 +21,8 @@
     "./editor": "./src/editor/index.ts",
     "./batch-import": "./src/batch-import/index.ts",
     "./exports": "./src/exports/index.ts",
-    "./image-files": "./src/image-files/index.ts"
+    "./image-files": "./src/image-files/index.ts",
+    "./reports": "./src/reports/index.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",

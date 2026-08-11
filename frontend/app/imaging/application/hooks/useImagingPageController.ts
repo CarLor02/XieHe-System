@@ -14,9 +14,10 @@ import {
   buildImagingListHref,
   buildImageFileFilters,
   getProcessingStatusFilterFromUrl,
+  type BatchOperation,
   type ImagingViewMode,
   type ProcessingStatusFilter,
-} from '@/app/imaging/domain/imagingFilters';
+} from '@xiehe/imaging-core/image-files';
 import { canUseUploaderView } from '@/app/imaging/domain/uploaderViewPermission';
 import { useImagePreviewQueue } from '@/app/imaging/features/image-preview/hooks/useImagePreviewQueue';
 import { useImageFileActions } from '@/app/imaging/features/image-actions/hooks/useImageFileActions';
@@ -24,7 +25,6 @@ import { useImageEditOverlay } from '@/app/imaging/features/image-actions/hooks/
 import { useBatchImageExport } from '@/app/imaging/features/batch-export/hooks';
 import { useBatchImageImport } from '@/app/imaging/features/batch-import/hooks/useBatchImageImport';
 import { useBatchImageSelection } from '@/app/imaging/features/batch-operations/hooks/useBatchImageSelection';
-import type { BatchOperation } from '@/app/imaging/features/batch-operations/domain/batch-operation';
 import { useBatchExamTypeUpdate } from '@/app/imaging/features/batch-exam-type/hooks/useBatchExamTypeUpdate';
 
 const DEFAULT_PAGE_SIZE = 20;

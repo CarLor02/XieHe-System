@@ -10,7 +10,7 @@ import ImagingSearchFilters from './features/search-filters/components/ImagingSe
 import ImagingConfirmDialog from './shared/components/ImagingConfirmDialog';
 import UploadOptionsOverlay from '@/app/upload/_components/overlay/upload-options-overlay';
 import BatchImportOverlay from '@/app/imaging/features/batch-import/components/BatchImportOverlay';
-import { EXAM_TYPES } from './domain/imagingFilters';
+import { EXAM_TYPES } from '@xiehe/imaging-core/image-files';
 import { AppModal } from '@/components/overlay/overlay-components';
 import ImageRenameDialog from './features/image-actions/components/ImageRenameDialog';
 
@@ -30,9 +30,7 @@ function ImagingPageContent() {
 
   if (controller.initialLoading) {
     return (
-      <ImagingLoadingState
-        message={controller.error || '加载影像数据中...'}
-      />
+      <ImagingLoadingState message={controller.error || '加载影像数据中...'} />
     );
   }
 

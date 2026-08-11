@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { ExportContentType } from '../domain';
+import type { ExportContentType } from '@xiehe/imaging-core/exports';
 
 export interface ExportContentOption {
   value: ExportContentType;

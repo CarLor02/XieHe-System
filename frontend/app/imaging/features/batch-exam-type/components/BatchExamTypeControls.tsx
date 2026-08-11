@@ -1,4 +1,4 @@
-import { EXAM_TYPES } from '@/app/imaging/domain/imagingFilters';
+import { EXAM_TYPES } from '@xiehe/imaging-core/image-files';
 
 interface BatchExamTypeControlsProps {
   examType: string;

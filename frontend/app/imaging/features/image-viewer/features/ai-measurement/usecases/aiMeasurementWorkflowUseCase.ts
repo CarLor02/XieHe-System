@@ -4,10 +4,7 @@ import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getDescriptionForType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import {
-  filterBendingAiVertebraeLayer,
-  normalizeAiMeasurements,
-} from '@xiehe/imaging-core/ai';
+import { prepareAiEditorState } from '@xiehe/imaging-core/ai';
 import {
   CfhAnnotation,
   ImageSize,
@@ -15,11 +12,7 @@ import {
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
 import { ImageData } from '@/app/imaging/features/image-viewer/shared/types';
-import {
-  KeypointAnnotation,
-  vertebraeLayerToKeypoints,
-} from '@xiehe/imaging-core/keypoints';
-import { isBendingExamType } from '@xiehe/imaging-core/anatomy';
+import { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import { detectLateralVertebrae } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase';
 import { createLogger } from '@/lib/logger';
 
@@ -99,7 +92,6 @@ export async function runAiMeasurementWorkflow({
 
   try {
     const aiData = await getAiMeasurementsResponse(imageId, imageData.examType);
-    const isBendingView = isBendingExamType(imageData.examType);
 
     if (aiData.measurements && Array.isArray(aiData.measurements)) {
       let actualImageSize = imageNaturalSize;
@@ -122,7 +114,7 @@ export async function runAiMeasurementWorkflow({
         imageNaturalSize: actualImageSize,
       };
 
-      const { measurements: aiMeasurements } = normalizeAiMeasurements({
+      const prepared = prepareAiEditorState({
         response: aiData,
         examType: imageData.examType,
         actualImageSize,
@@ -142,6 +134,7 @@ export async function runAiMeasurementWorkflow({
         createId: () =>
           Date.now().toString() + Math.random().toString(36).substring(2, 11),
       });
+      const aiMeasurements = prepared.measurements;
 
       setMeasurements(aiMeasurements);
       aiMeasurementIdsRef.current = new Set(
@@ -155,25 +148,13 @@ export async function runAiMeasurementWorkflow({
       setSaveMessage(`AI测量完成，已加载 ${aiMeasurements.length} 个标注`);
       setTimeout(() => setSaveMessage(''), 3000);
 
-      if (Array.isArray(aiData.vertebrae) && aiData.vertebrae.length > 0) {
-        const vertebraeLayer = isBendingView
-          ? filterBendingAiVertebraeLayer(aiData.vertebrae)
-          : aiData.vertebrae;
-        setVertebraeLayer(vertebraeLayer);
-        setKeypoints(
-          vertebraeLayerToKeypoints(
-            vertebraeLayer,
-            imageData.examType,
-            isBendingView ? null : (aiData.cfh ?? null)
-          )
-        );
-        setShowVertebraeLayer(vertebraeLayer.length > 0);
-      } else {
-        setVertebraeLayer([]);
-        setKeypoints([]);
-        setShowVertebraeLayer(false);
+      setVertebraeLayer(prepared.vertebraeLayer);
+      setKeypoints(prepared.keypoints);
+      setShowVertebraeLayer(prepared.showVertebraeLayer);
+      setCfhAnnotation(prepared.cfhAnnotation);
+      if (!actualImageSize && prepared.imageSize) {
+        setImageNaturalSize(prepared.imageSize);
       }
-      setCfhAnnotation(isBendingView ? null : (aiData.cfh ?? null));
       setIsAIDetecting(false);
     } else {
       setSaveMessage('AI测量完成，但未返回有效数据');

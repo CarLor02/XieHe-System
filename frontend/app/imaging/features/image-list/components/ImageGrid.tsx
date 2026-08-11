@@ -13,7 +13,7 @@ import type { ImageFileAction } from '@/app/imaging/features/image-actions/domai
 import {
   getBatchSelectionLabel,
   type BatchSelectionMode,
-} from '@/app/imaging/features/batch-operations/domain/batch-operation';
+} from '@xiehe/imaging-core/image-files';
 
 interface ImageGridProps {
   imageFiles: ImageFile[];
@@ -77,7 +77,10 @@ export default function ImageGrid({
                     onPreviewError={onPreviewError}
                   />
                   <div className="absolute top-2 right-2">
-                    <ImageStatusBadge status={imageFile.status} variant="overlay" />
+                    <ImageStatusBadge
+                      status={imageFile.status}
+                      variant="overlay"
+                    />
                   </div>
                 </div>
               </button>
@@ -94,7 +97,10 @@ export default function ImageGrid({
                     onPreviewError={onPreviewError}
                   />
                   <div className="absolute top-2 right-2">
-                    <ImageStatusBadge status={imageFile.status} variant="overlay" />
+                    <ImageStatusBadge
+                      status={imageFile.status}
+                      variant="overlay"
+                    />
                   </div>
                 </div>
               </Link>
@@ -116,13 +122,19 @@ export default function ImageGrid({
               <div className="space-y-2 text-sm text-gray-600 mb-4">
                 <div className="flex justify-between gap-4">
                   <span>患者:</span>
-                  <span className="font-medium text-right truncate" title={patientName}>
+                  <span
+                    className="font-medium text-right truncate"
+                    title={patientName}
+                  >
                     {patientName}
                   </span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span>上传者:</span>
-                  <span className="font-medium text-right truncate" title={uploaderName}>
+                  <span
+                    className="font-medium text-right truncate"
+                    title={uploaderName}
+                  >
                     {uploaderName}
                   </span>
                 </div>

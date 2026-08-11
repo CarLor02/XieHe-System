@@ -1,84 +1,60 @@
 import { useCallback, useMemo, useState } from 'react';
+import {
+  activateBatchSelectionMode,
+  applyBatchExamTypeResult,
+  createBatchImageSelectionState,
+  exitBatchSelectionMode,
+  toggleBatchImageSelection,
+  type BatchSelectionMode,
+} from '@xiehe/imaging-core/image-files';
+
 import type { ImageFile } from '@/services/imageServices/imageFileService';
-import type { BatchSelectionMode } from '../domain/batch-operation';
 
+/** React 只保存公共状态机结果，跨页选择与模式切换规则由 core 维护。 */
 export function useBatchImageSelection(imageFiles: ImageFile[]) {
-  const [activeMode, setActiveMode] = useState<BatchSelectionMode | null>(null);
-  const [selectedImages, setSelectedImages] = useState<Map<number, ImageFile>>(
-    new Map()
+  const [state, setState] = useState(() =>
+    createBatchImageSelectionState<ImageFile>()
   );
-
   const selectedIds = useMemo(
-    () => new Set(selectedImages.keys()),
-    [selectedImages]
+    () => new Set(state.selectedImages.keys()),
+    [state.selectedImages]
   );
-  const selectedImageList = useMemo(
-    () => Array.from(selectedImages.values()),
-    [selectedImages]
+  const selectedImages = useMemo(
+    () => Array.from(state.selectedImages.values()),
+    [state.selectedImages]
   );
 
   const clearSelection = useCallback(() => {
-    setSelectedImages(new Map());
+    setState(current => ({ ...current, selectedImages: new Map() }));
   }, []);
-
-  const activateMode = useCallback(
-    (mode: BatchSelectionMode) => {
-      if (activeMode !== mode) {
-        setSelectedImages(new Map());
-      }
-      setActiveMode(mode);
-    },
-    [activeMode]
-  );
-
+  const activateMode = useCallback((mode: BatchSelectionMode) => {
+    setState(current => activateBatchSelectionMode(current, mode));
+  }, []);
   const exitMode = useCallback(() => {
-    setActiveMode(null);
-    setSelectedImages(new Map());
+    setState(exitBatchSelectionMode<ImageFile>());
   }, []);
-
   const toggleSelection = useCallback(
     (imageId: number) => {
-      const imageFile = imageFiles.find(image => image.id === imageId);
-      setSelectedImages(current => {
-        const next = new Map(current);
-        if (next.has(imageId)) {
-          next.delete(imageId);
-        } else if (imageFile) {
-          next.set(imageId, imageFile);
-        }
-        return next;
-      });
+      setState(current =>
+        toggleBatchImageSelection(current, imageFiles, imageId)
+      );
     },
     [imageFiles]
   );
-
   const applyExamTypeResult = useCallback(
     (updatedIds: number[], examType: string) => {
-      const updatedIdSet = new Set(updatedIds);
-      setSelectedImages(current => {
-        const next = new Map(current);
-        updatedIdSet.forEach(imageId => {
-          const image = next.get(imageId);
-          if (image) {
-            next.set(imageId, {
-              ...image,
-              description: examType,
-              has_annotation: false,
-              status: 'UPLOADED',
-            });
-          }
-        });
-        return next;
-      });
+      setState(current =>
+        applyBatchExamTypeResult(current, updatedIds, examType)
+      );
     },
     []
   );
 
   return {
-    activeMode,
+    activeMode: state.activeMode,
     selectedIds,
-    selectedImages: selectedImageList,
-    selectedCount: selectedImages.size,
+    selectedImages,
+    selectedCount: state.selectedImages.size,
     activateMode,
     exitMode,
     clearSelection,

@@ -5,7 +5,7 @@ import AppDropdown from '@/components/common/AppDropdown';
 import type {
   BatchOperation,
   BatchSelectionMode,
-} from '../domain/batch-operation';
+} from '@xiehe/imaging-core/image-files';
 
 interface BatchOperationMenuProps {
   activeMode: BatchSelectionMode | null;
@@ -18,9 +18,17 @@ const OPERATIONS: Array<{
   label: string;
   iconClassName: string;
 }> = [
-  { value: 'import', label: '批量导入', iconClassName: 'ri-folder-upload-line' },
+  {
+    value: 'import',
+    label: '批量导入',
+    iconClassName: 'ri-folder-upload-line',
+  },
   { value: 'export', label: '批量导出', iconClassName: 'ri-download-line' },
-  { value: 'set-exam-type', label: '批量设置类型', iconClassName: 'ri-edit-2-line' },
+  {
+    value: 'set-exam-type',
+    label: '批量设置类型',
+    iconClassName: 'ri-edit-2-line',
+  },
 ];
 
 export default function BatchOperationMenu({

@@ -9,3 +9,4 @@ export {
   decodeAnnotationDocument,
 } from './domain/annotation-document-codec';
 export { scaleAnnotationDocument } from './domain/scale-annotation-document';
+export * from './application';

@@ -14,14 +14,12 @@ import BatchOperationMenu from '@/app/imaging/features/batch-operations/componen
 import type {
   BatchOperation,
   BatchSelectionMode,
-} from '@/app/imaging/features/batch-operations/domain/batch-operation';
-import type { ExportContentType } from '@/app/imaging/features/batch-export/domain';
+  ImagingViewMode,
+  ProcessingStatusFilter,
+} from '@xiehe/imaging-core/image-files';
+import type { ExportContentType } from '@xiehe/imaging-core/exports';
 import type { ExportContentOption } from '@/app/imaging/features/batch-export/hooks/use-export-content-options';
-import {
-  EXAM_TYPES,
-  type ImagingViewMode,
-  type ProcessingStatusFilter,
-} from '@/app/imaging/domain/imagingFilters';
+import { EXAM_TYPES } from '@xiehe/imaging-core/image-files';
 
 interface ImagingSearchFiltersProps {
   searchTerm: string;
@@ -65,7 +63,9 @@ interface ImagingSearchFiltersProps {
     pageSize: number;
     totalPages: number;
   }>;
-  onLoadTeams: (params: TeamMultiSelectLoadParams) => Promise<TeamMultiSelectPage>;
+  onLoadTeams: (
+    params: TeamMultiSelectLoadParams
+  ) => Promise<TeamMultiSelectPage>;
   onClearFilters: () => void;
   onSelectBatchOperation: (operation: BatchOperation) => void;
   onExitBatchMode: () => void;
@@ -278,7 +278,9 @@ export default function ImagingSearchFilters({
             <select
               value={selectedProcessingStatus}
               onChange={event =>
-                onChangeProcessingStatus(event.target.value as ProcessingStatusFilter)
+                onChangeProcessingStatus(
+                  event.target.value as ProcessingStatusFilter
+                )
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
