@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import pytest
 
-from app.api.v1.endpoints.system.handlers import health
+from app.api.v1.api import api_router
+from app.contexts.system_management.application import HealthCheckApplicationService
 from app.contexts.system_management.application.dto import SystemCounts
 from app.contexts.system_management.application.system_management_service import (
     SystemManagementApplicationService,
 )
-from app.contexts.system_management.infrastructure.probes import psutil_resource_probe
+from app.contexts.system_management.infrastructure.probes import (
+    CpuHealthProbe,
+    HostMetricsProbe,
+    RedisHealthProbe,
+    host_health_probes,
+    psutil_resource_probe,
+)
+from app.shared.cache.aiocache import query_cache
+from app.shared.redis import state_redis
 
 
 class _FakeSystemRepository:
@@ -31,13 +40,16 @@ async def test_cpu_health_check_does_not_block_for_sampling(
         intervals.append(interval)
         return 12.5
 
-    monkeypatch.setattr(health.psutil, "cpu_percent", fake_cpu_percent)
-    monkeypatch.setattr(health.psutil, "cpu_count", lambda: 4)
+    monkeypatch.setattr(host_health_probes.psutil, "cpu_percent", fake_cpu_percent)
+    monkeypatch.setattr(host_health_probes.psutil, "cpu_count", lambda: 4)
     monkeypatch.setattr(
-        health.psutil, "getloadavg", lambda: (0.1, 0.2, 0.3), raising=False
+        host_health_probes.psutil,
+        "getloadavg",
+        lambda: (0.1, 0.2, 0.3),
+        raising=False,
     )
 
-    result = await health.check_cpu_health()
+    result = await CpuHealthProbe().check()
 
     assert result.status == "healthy"
     assert intervals == [None]
@@ -53,10 +65,10 @@ async def test_redis_health_reports_state_and_query_cache_independently(
     async def cache_healthy() -> bool:
         return True
 
-    monkeypatch.setattr(health.state_redis, "ping", state_unavailable)
-    monkeypatch.setattr(health.query_cache, "ping", cache_healthy)
+    monkeypatch.setattr(state_redis, "ping", state_unavailable)
+    monkeypatch.setattr(query_cache, "ping", cache_healthy)
 
-    result = await health.check_redis_health()
+    result = await RedisHealthProbe(state_redis, query_cache).check()
 
     assert result.status == "unhealthy"
     assert result.details["state"] == "unhealthy"
@@ -95,3 +107,39 @@ def test_system_management_probe_does_not_block_for_cpu_sampling(
     service.get_health()
 
     assert intervals == [None, None]
+
+
+def test_public_router_mounts_both_health_contracts() -> None:
+    paths = {route.path for route in api_router.routes}
+
+    assert "/health/" in paths
+    assert "/health/detailed" in paths
+    assert "/health/readiness" in paths
+    assert "/health/liveness" in paths
+    assert "/system/health" in paths
+
+
+@pytest.mark.asyncio
+async def test_readiness_depends_only_on_database_health() -> None:
+    class DatabaseProbe:
+        name = "database"
+
+        async def check(self):
+            from datetime import datetime
+
+            from app.contexts.system_management.application.dto import ComponentHealth
+
+            return ComponentHealth(
+                name=self.name,
+                status="healthy",
+                response_time=0,
+                details={},
+                last_check=datetime.now(),
+            )
+
+        async def test(self):
+            return None
+
+    service = HealthCheckApplicationService([DatabaseProbe()], HostMetricsProbe())
+
+    assert await service.ready() is True

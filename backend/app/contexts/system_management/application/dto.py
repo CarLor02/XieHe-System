@@ -1,6 +1,6 @@
 """系统管理应用层 DTO。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from app.contexts.system_management.domain import HealthStatus
@@ -49,3 +49,28 @@ class SystemHealth:
     status: HealthStatus
     components: dict[str, HealthStatus]
     timestamp: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ComponentHealth:
+    name: str
+    status: HealthStatus
+    response_time: float
+    details: dict[str, object]
+    last_check: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class DetailedHealth:
+    overall_status: HealthStatus
+    timestamp: datetime
+    components: list[ComponentHealth]
+    system_info: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class ComponentTestResult:
+    component: str
+    passed: bool
+    details: dict[str, object] = field(default_factory=dict)
+    error: str | None = None
