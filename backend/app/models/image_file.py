@@ -31,9 +31,8 @@ from sqlalchemy.sql import func
 from app.shared.database.sqlalchemy import Base
 
 if typing.TYPE_CHECKING:
+    from app.contexts.access_control.infrastructure.persistence.models import User
     from app.contexts.teams.infrastructure.persistence.models import Team
-
-    from .user import User
 
 
 class ImageFileTypeEnum(str, enum.Enum):

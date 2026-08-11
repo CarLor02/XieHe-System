@@ -4,9 +4,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.teams.application import TeamInvitationService
 from app.contexts.teams.domain import TeamDomainError
-from app.core.access.auth import get_current_active_user
 from app.core.system.response import success_response
 
 from ..dependencies import get_team_invitation_service

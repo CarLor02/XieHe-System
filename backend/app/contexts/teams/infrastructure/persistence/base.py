@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.contexts.access_control.infrastructure.persistence.models import User
 from app.contexts.teams.domain import (
     InvitationNotFound,
     JoinRequestNotFound,
@@ -11,7 +12,6 @@ from app.contexts.teams.domain import (
     TeamPermissionDenied,
     TeamUserNotFound,
 )
-from app.models.user import User
 
 from .mappers import team_options
 from .models import (

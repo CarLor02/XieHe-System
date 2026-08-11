@@ -15,6 +15,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.imaging.interface.http.v1.actor import (
     CurrentUserPayload,
     image_access_actor,
@@ -27,7 +30,6 @@ from app.contexts.patients.infrastructure.persistence.models import (
     PatientStatusEnum,
 )
 from app.contexts.reports.infrastructure.persistence import DiagnosticReport
-from app.core.access.auth import get_current_active_user
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
 from app.shared.database import get_db

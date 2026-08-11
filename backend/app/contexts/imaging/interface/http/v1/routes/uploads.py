@@ -4,6 +4,9 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, Query
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.imaging.application import ImageUploadService
 from app.contexts.imaging.application.dto import (
     CompleteUpload,
@@ -20,7 +23,6 @@ from app.contexts.imaging.domain import (
     ImageFileNotFoundError,
     ImageTeamAssignmentDeniedError,
 )
-from app.core.access.auth import get_current_active_user
 from app.core.system.response import paginated_response, success_response
 
 from ..actor import CurrentUserPayload, image_access_actor

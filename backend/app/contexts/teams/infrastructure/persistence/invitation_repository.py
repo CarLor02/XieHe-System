@@ -7,6 +7,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.contexts.access_control.infrastructure.persistence.models import User
 from app.contexts.teams.domain import (
     InvitationResponseSnapshot,
     InvitationSnapshot,
@@ -16,7 +17,6 @@ from app.contexts.teams.domain import (
     TeamValidationError,
     require_user_id,
 )
-from app.models.user import User
 
 from .base import AsyncTeamRepositoryBase
 from .mappers import invitation_snapshot

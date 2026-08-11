@@ -1,4 +1,4 @@
-"""Schemas for the permissions API endpoints."""
+"""通用权限兼容接口的 HTTP v1 schema。"""
 
 from datetime import datetime
 from enum import Enum

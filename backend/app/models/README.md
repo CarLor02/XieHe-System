@@ -8,13 +8,12 @@
 models/
 ├── __init__.py          # 模型包初始化文件
 ├── base.py              # 基础模型类和混入类
-├── user.py              # 用户管理相关模型
-├── patient.py           # 患者管理相关模型
 ├── image.py             # 影像管理相关模型
-├── report.py            # 报告管理相关模型
 ├── system.py            # 系统管理相关模型
 └── README.md            # 本文档
 ```
+
+用户、患者、报告等模型已迁入各自业务上下文的 `infrastructure/persistence`。
 
 ## 📊 模型概览
 
@@ -82,21 +81,17 @@ models/
 ```python
 # 仍由旧 models 包拥有的模型
 from app.models import (
-    User,
-    Role,
-    Permission,
-    Department,
     ImageFile,
     AITask,  # 新的影像管理模型
 )
 
 # 已迁入业务上下文的持久化模型
+from app.contexts.access_control.infrastructure.persistence import Role, User
 from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.contexts.reports.infrastructure.persistence import DiagnosticReport
 from app.contexts.system_management.infrastructure.persistence import SystemConfig
 
 # 旧 models 包按模块导入
-from app.models.user import User, Role
 from app.models.image_file import ImageFile  # 新模型
 from app.models.image import AITask
 

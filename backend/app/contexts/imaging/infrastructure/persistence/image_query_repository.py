@@ -7,6 +7,7 @@ from typing import Any, cast
 from sqlalchemy import or_
 from sqlalchemy.orm import Query, Session, load_only, selectinload
 
+from app.contexts.access_control.infrastructure.persistence.models import User
 from app.contexts.imaging.application.dto import (
     AnnotationBatchItem,
     ImageDetail,
@@ -22,7 +23,6 @@ from app.models.image_file import (
     ImageFileTeamVisibility,
     ImageFileTypeEnum,
 )
-from app.models.user import User
 
 from .access_scope import apply_image_access_scope
 

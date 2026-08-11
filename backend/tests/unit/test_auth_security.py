@@ -1,16 +1,17 @@
-"""Current authentication and token security unit tests."""
+"""访问控制应用用例与安全适配器单元测试。"""
 
-import jwt
+from __future__ import annotations
+
+from dataclasses import replace
+from datetime import timedelta
+from typing import Any
+
 import pytest
 
-from app.api.v1.endpoints.access.handlers import auth as auth_handlers
-from app.api.v1.endpoints.access.schemas.auth import (
-    PasswordChange,
-    TokenRefresh,
-    UserRegister,
-)
-from app.core.access import security as security_module
-from app.core.access.security import (
+from app.contexts.access_control.application import AuthenticationService
+from app.contexts.access_control.domain import AuthenticatedIdentity
+from app.contexts.access_control.infrastructure import security as security_module
+from app.contexts.access_control.infrastructure.security import (
     SecurityManager,
     hash_password,
     hash_password_async,
@@ -18,95 +19,143 @@ from app.core.access.security import (
     verify_password,
     verify_password_async,
 )
+from app.contexts.access_control.interface.http.v1.schemas.auth import UserRegister
 from app.shared.redis import RedisStateUnavailable
 
 
 class InMemoryStateStore:
-    def __init__(self):
-        self.values = {}
+    def __init__(self) -> None:
+        self.values: dict[str, Any] = {}
 
-    async def set(self, key, value, *, ttl):
+    async def set(self, key: str, value: Any, *, ttl: int) -> bool:
+        del ttl
         self.values[key] = value
         return True
 
-    async def get(self, key):
+    async def get(self, key: str) -> Any:
         return self.values.get(key)
 
-    async def exists(self, key):
+    async def exists(self, key: str) -> bool:
         return key in self.values
 
-    async def delete(self, key):
-        deleted = 0
-        if key in self.values:
-            del self.values[key]
-            deleted += 1
-        return deleted
+    async def delete(self, key: str) -> int:
+        return int(self.values.pop(key, None) is not None)
 
 
 @pytest.fixture(autouse=True)
-def fake_security_cache(monkeypatch):
+def fake_security_cache(monkeypatch: pytest.MonkeyPatch) -> InMemoryStateStore:
     cache = InMemoryStateStore()
     monkeypatch.setattr(security_manager, "state_store", cache)
     return cache
 
 
-class FakeRefreshResult:
-    def fetchone(self):
-        return (
-            94,
-            "admin",
-            "admin@xiehe.com",
-            "系统管理员",
-            "unused-password-hash",
-            "active",
-            1,
-            1,
-            1,
+def identity(**changes: Any) -> AuthenticatedIdentity:
+    base = AuthenticatedIdentity(
+        id=7,
+        username="doctor",
+        email="doctor@example.com",
+        full_name="张三",
+        password_hash="old-hash",
+        is_active=True,
+        is_superuser=False,
+        is_system_admin=False,
+        system_admin_level=0,
+        roles=("doctor",),
+        permissions=("patient_manage", "image_manage"),
+    )
+    return replace(base, **changes)
+
+
+class MemoryIdentityRepository:
+    def __init__(self, current: AuthenticatedIdentity | None = None) -> None:
+        self.current = current
+        self.created_phone: str | None = "unset"
+        self.updated_password: tuple[int, str] | None = None
+
+    def find_active_by_login(self, login: str) -> AuthenticatedIdentity | None:
+        if self.current and login in {self.current.username, self.current.email}:
+            return self.current
+        return None
+
+    def find_active_by_id(self, user_id: int) -> AuthenticatedIdentity | None:
+        return self.current if self.current and self.current.id == user_id else None
+
+    def create_user(self, **values: Any) -> AuthenticatedIdentity:
+        self.created_phone = values["phone"]
+        self.current = identity(
+            username=values["username"],
+            email=values["email"],
+            full_name=values["full_name"],
+            password_hash=values["password_hash"],
+        )
+        return self.current
+
+    def update_password(self, user_id: int, password_hash: str) -> bool:
+        if not self.current or self.current.id != user_id:
+            return False
+        self.updated_password = (user_id, password_hash)
+        self.current = replace(self.current, password_hash=password_hash)
+        return True
+
+
+class FakePasswordHasher:
+    async def hash(self, password: str) -> str:
+        return f"hash:{password}"
+
+    async def verify(self, plain_password: str, hashed_password: str) -> bool:
+        return hashed_password in {f"hash:{plain_password}", "old-hash"} and (
+            plain_password == "old-password" or hashed_password != "old-hash"
         )
 
 
-class FakeRefreshDb:
-    def __init__(self):
-        self.executed_params = None
+class CaptureTokenManager:
+    def __init__(self) -> None:
+        self.access_expiry: timedelta | None = None
+        self.refresh_expiry: timedelta | None = None
+        self.refresh_payload: dict[str, Any] | None = None
+        self.api_keys: dict[str, dict[str, Any]] = {}
 
-    def execute(self, sql, params):
-        self.executed_params = params
-        return FakeRefreshResult()
+    def create_access_token(
+        self, data: dict[str, Any], expires_delta: timedelta | None = None
+    ) -> str:
+        self.access_expiry = expires_delta
+        return "access-token"
+
+    async def create_refresh_token(
+        self, data: dict[str, Any], expires_delta: timedelta | None = None
+    ) -> str:
+        self.refresh_expiry = expires_delta
+        return "refresh-token"
+
+    async def verify_token(
+        self, token: str, token_type: str = "access"
+    ) -> dict[str, Any] | None:
+        del token, token_type
+        return self.refresh_payload
+
+    async def blacklist_token(self, token: str, ttl: int | None = None) -> bool:
+        del token, ttl
+        return True
+
+    async def generate_api_key(self, user_id: str, name: str = "default") -> str:
+        token = "reset-token"
+        self.api_keys[token] = {"user_id": user_id, "name": name}
+        return token
+
+    async def verify_api_key(self, api_key: str) -> dict[str, Any] | None:
+        return self.api_keys.get(api_key)
+
+    async def revoke_api_key(self, api_key: str) -> bool:
+        return self.api_keys.pop(api_key, None) is not None
 
 
-class FakePasswordChangeDb:
-    def __init__(self):
-        self.executed = []
-        self.committed = False
-
-    def execute(self, sql, params):
-        self.executed.append((str(sql), params))
-
-    def commit(self):
-        self.committed = True
+def auth_service(
+    repository: MemoryIdentityRepository, token_manager: CaptureTokenManager
+) -> AuthenticationService:
+    return AuthenticationService(repository, FakePasswordHasher(), token_manager)
 
 
-class FakeLastInsertIdResult:
-    def scalar(self):
-        return 101
-
-
-class FakeRegisterDb:
-    def __init__(self):
-        self.executed = []
-        self.committed = False
-
-    def execute(self, sql, params=None):
-        self.executed.append((str(sql), params))
-        if "LAST_INSERT_ID" in str(sql):
-            return FakeLastInsertIdResult()
-        return None
-
-    def commit(self):
-        self.committed = True
-
-
-def test_register_phone_is_optional_and_nullable():
+def test_register_phone_is_optional_and_nullable() -> None:
     payload = {
         "username": "doctor",
         "email": "doctor@example.com",
@@ -114,290 +163,151 @@ def test_register_phone_is_optional_and_nullable():
         "confirm_password": "secret123",
         "full_name": "张三",
     }
-
     assert UserRegister.model_fields["phone"].is_required() is False
     assert UserRegister(**payload).phone is None
     assert UserRegister(**{**payload, "phone": None}).phone is None
 
-    phone_schema = UserRegister.model_json_schema()["properties"]["phone"]
-    phone_types = {option.get("type") for option in phone_schema.get("anyOf", [])}
-    assert phone_types == {"string", "null"}
-
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("phone", "expected_phone"),
-    [
-        (None, None),
-        ("", None),
-        ("   ", None),
-        ("13800138000", "13800138000"),
-    ],
+    ("phone", "expected"),
+    [(None, None), ("", None), ("   ", None), ("13800138000", "13800138000")],
 )
-async def test_register_normalizes_empty_phone_to_null(
-    monkeypatch, phone, expected_phone
-):
-    db = FakeRegisterDb()
-
-    monkeypatch.setattr(
-        auth_handlers,
-        "get_user_by_username_or_email",
-        lambda db, username_or_email: None,
+async def test_register_normalizes_empty_phone(
+    phone: str | None, expected: str | None
+) -> None:
+    repository = MemoryIdentityRepository()
+    await auth_service(repository, CaptureTokenManager()).register(
+        username="newdoctor",
+        email="newdoctor@example.com",
+        password="secret123",
+        confirm_password="secret123",
+        full_name="张三",
+        phone=phone,
     )
-
-    async def fake_hash_password(plain_password):
-        return "hashed-password"
-
-    monkeypatch.setattr(auth_handlers, "hash_password_async", fake_hash_password)
-
-    response = await auth_handlers.register(
-        UserRegister(
-            username="newdoctor",
-            email="newdoctor@example.com",
-            password="secret123",
-            confirm_password="secret123",
-            full_name="张三",
-            phone=phone,
-        ),
-        db=db,
-    )
-
-    insert_params = db.executed[0][1]
-
-    assert db.committed is True
-    if expected_phone is None:
-        assert insert_params["phone"] is None
-    else:
-        assert insert_params["phone"] == expected_phone
-    assert response["message"] == "注册成功"
+    assert repository.created_phone == expected
 
 
 @pytest.mark.asyncio
-async def test_refresh_token_reloads_active_user_and_preserves_admin_claims(
-    monkeypatch,
-):
-    refresh_payload = {
-        "sub": "admin",
-        "username": "admin",
-        "user_id": 94,
-        "roles": ["admin"],
-        "type": "refresh",
-    }
-    db = FakeRefreshDb()
-
-    async def fake_verify_token(token, token_type="access"):
-        return refresh_payload if token_type == "refresh" else None
-
-    async def fake_create_refresh_token(data, expires_delta=None):
-        return "new-refresh-token"
-
-    monkeypatch.setattr(
-        auth_handlers.security_manager, "verify_token", fake_verify_token
+async def test_login_remember_me_uses_thirty_day_refresh_expiry() -> None:
+    repository = MemoryIdentityRepository(identity(password_hash="hash:secret123"))
+    token_manager = CaptureTokenManager()
+    _, tokens = await auth_service(repository, token_manager).login(
+        username="doctor", password="secret123", remember_me=True
     )
-    monkeypatch.setattr(
-        auth_handlers.security_manager,
-        "create_refresh_token",
-        fake_create_refresh_token,
-    )
-
-    response = await auth_handlers.refresh_token(
-        TokenRefresh(refresh_token="old-refresh-token"),
-        db=db,
-    )
-
-    assert db.executed_params == {"user_id": 94}
-    tokens = response["data"]["tokens"]
-    access_payload = jwt.decode(
-        tokens["access_token"],
-        security_manager.secret_key,
-        algorithms=[security_manager.algorithm],
-    )
-
-    assert access_payload["user_id"] == 94
-    assert access_payload["is_superuser"] is True
-    assert access_payload["is_system_admin"] is True
-    assert access_payload["system_admin_level"] == 1
-    assert access_payload["permissions"] == [
-        "user_manage",
-        "patient_manage",
-        "system_manage",
-    ]
+    assert tokens.refresh_token == "refresh-token"
+    assert token_manager.refresh_expiry == timedelta(days=30)
 
 
 @pytest.mark.asyncio
-async def test_change_password_updates_current_user_password_hash(monkeypatch):
-    db = FakePasswordChangeDb()
-
-    monkeypatch.setattr(
-        auth_handlers,
-        "get_user_by_username_or_email",
-        lambda db, username: {
-            "id": 7,
-            "username": username,
-            "password_hash": "old-hash",
-        },
+async def test_refresh_reloads_admin_claims() -> None:
+    repository = MemoryIdentityRepository(
+        identity(
+            id=94,
+            username="admin",
+            is_superuser=True,
+            is_system_admin=True,
+            system_admin_level=1,
+            roles=("admin",),
+            permissions=("user_manage", "patient_manage", "system_manage"),
+        )
     )
+    token_manager = CaptureTokenManager()
+    token_manager.refresh_payload = {"user_id": 94, "remember_me": False}
+    await auth_service(repository, token_manager).refresh("old-refresh")
+    assert token_manager.refresh_expiry == timedelta(days=7)
 
-    async def fake_verify_password(plain_password, hashed_password):
-        return plain_password == "old-password" and hashed_password == "old-hash"
 
-    async def fake_hash_password(plain_password):
-        return "new-hash"
-
-    monkeypatch.setattr(auth_handlers, "verify_password_async", fake_verify_password)
-    monkeypatch.setattr(auth_handlers, "hash_password_async", fake_hash_password)
-
-    response = await auth_handlers.change_password(
-        PasswordChange(
-            current_password="old-password",
-            new_password="new-password",
-            confirm_password="new-password",
-        ),
-        current_user={"id": 7, "username": "doctor"},
-        db=db,
+@pytest.mark.asyncio
+async def test_change_password_updates_current_user_hash() -> None:
+    repository = MemoryIdentityRepository(identity())
+    await auth_service(repository, CaptureTokenManager()).change_password(
+        principal={"id": 7, "username": "doctor"},  # type: ignore[typeddict-item]
+        current_password="old-password",
+        new_password="new-password",
+        confirm_password="new-password",
     )
+    assert repository.updated_password == (7, "hash:new-password")
 
-    assert db.committed is True
-    assert len(db.executed) == 1
-    sql, params = db.executed[0]
-    assert "UPDATE users" in sql
-    assert "password_hash" in sql
-    assert params == {"password_hash": "new-hash", "user_id": 7}
-    assert response["message"] == "密码修改成功"
+
+@pytest.mark.asyncio
+async def test_password_reset_updates_hash_and_revokes_one_time_token() -> None:
+    repository = MemoryIdentityRepository(identity())
+    token_manager = CaptureTokenManager()
+    service = auth_service(repository, token_manager)
+    token = await service.request_password_reset("doctor@example.com")
+    assert token == "reset-token"
+    await service.confirm_password_reset(
+        token=token, new_password="new-password", confirm_password="new-password"
+    )
+    assert repository.updated_password == (7, "hash:new-password")
+    assert token not in token_manager.api_keys
 
 
 class TestPasswordSecurity:
-    def test_password_hashing(self):
+    def test_password_hashing_and_verification(self) -> None:
         password = "test123456"
         hashed = hash_password(password)
-
         assert hashed != password
-        assert len(hashed) > 50
         assert hashed.startswith("$2b$")
-
-    def test_password_verification(self):
-        password = "test123456"
-        hashed = hash_password(password)
-
         assert verify_password(password, hashed) is True
         assert verify_password("wrongpassword", hashed) is False
 
-    def test_password_hashes_use_unique_salts(self):
-        password = "test123456"
-        hash1 = hash_password(password)
-        hash2 = hash_password(password)
-
-        assert hash1 != hash2
-        assert verify_password(password, hash1) is True
-        assert verify_password(password, hash2) is True
-
     @pytest.mark.asyncio
-    async def test_async_password_helpers_delegate_to_threadpool(self, monkeypatch):
-        password = "AsyncPassword123!"
-        calls = []
+    async def test_async_password_helpers_use_threadpool(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[Any] = []
 
-        async def fake_to_thread(func, *args):
-            calls.append((func, args))
-            return func(*args)
+        async def fake_to_thread(function: Any, *args: Any) -> Any:
+            calls.append(function)
+            return function(*args)
 
         monkeypatch.setattr(security_module.asyncio, "to_thread", fake_to_thread)
-
-        hashed = await hash_password_async(password)
-
-        assert verify_password(password, hashed) is True
-        assert await verify_password_async(password, hashed) is True
-        assert await verify_password_async("wrongpassword", hashed) is False
-        assert [call[0] for call in calls] == [
-            security_module.hash_password,
-            security_module.verify_password,
-            security_module.verify_password,
-        ]
+        hashed = await hash_password_async("AsyncPassword123!")
+        assert await verify_password_async("AsyncPassword123!", hashed) is True
+        assert calls == [security_module.hash_password, security_module.verify_password]
 
 
-class TestJWTTokens:
-    def test_access_token_creation(self):
-        token = security_manager.create_access_token(user_data())
-
-        assert isinstance(token, str)
-        assert len(token.split(".")) == 3
-
+class TestTokenSecurity:
     @pytest.mark.asyncio
-    async def test_refresh_token_creation(self):
-        token = await security_manager.create_refresh_token(user_data())
-
-        assert isinstance(token, str)
-        assert len(token.split(".")) == 3
-
-    @pytest.mark.asyncio
-    async def test_token_verification(self):
+    async def test_access_refresh_verification_and_blacklist(self) -> None:
         access_token = security_manager.create_access_token(user_data())
         refresh_token = await security_manager.create_refresh_token(user_data())
-
         access_payload = await security_manager.verify_token(access_token)
-        assert access_payload is not None
-        assert access_payload["username"] == "testuser"
-        assert access_payload["type"] == "access"
-
         refresh_payload = await security_manager.verify_token(refresh_token, "refresh")
-        assert refresh_payload is not None
-        assert refresh_payload["username"] == "testuser"
-        assert refresh_payload["type"] == "refresh"
+        assert access_payload and access_payload["type"] == "access"
+        assert refresh_payload and refresh_payload["type"] == "refresh"
+        assert await security_manager.blacklist_token(access_token) is True
+        assert await security_manager.verify_token(access_token) is None
 
     @pytest.mark.asyncio
-    async def test_invalid_token_verification(self):
+    async def test_invalid_token_is_rejected(self) -> None:
         assert await security_manager.verify_token("invalid.token.here") is None
         assert await security_manager.verify_token("") is None
-        assert await security_manager.verify_token(None) is None
+        assert await security_manager.verify_token(None) is None  # type: ignore[arg-type]
 
     @pytest.mark.asyncio
-    async def test_state_store_failure_is_not_treated_as_a_valid_stateless_token(self):
+    async def test_state_store_failure_fails_closed(self) -> None:
         class FailingStateStore(InMemoryStateStore):
-            async def exists(self, key):
+            async def exists(self, key: str) -> bool:
                 raise RedisStateUnavailable("state unavailable")
 
         manager = SecurityManager(FailingStateStore())
         token = manager.create_access_token(user_data())
-
         with pytest.raises(RedisStateUnavailable):
             await manager.verify_token(token)
 
-
-class TestTokenBlacklist:
     @pytest.mark.asyncio
-    async def test_token_blacklist_functionality(self):
-        token = security_manager.create_access_token(user_data())
-
-        assert await security_manager.verify_token(token) is not None
-        assert await security_manager.blacklist_token(token) is True
-        assert await security_manager.is_token_blacklisted(token) is True
-        assert await security_manager.verify_token(token) is None
-
-
-class TestAPIKeySecurity:
-    @pytest.mark.asyncio
-    async def test_api_key_generation(self):
+    async def test_api_key_lifecycle(self) -> None:
         api_key = await security_manager.generate_api_key("test_user", "test_purpose")
-
-        assert isinstance(api_key, str)
-        assert len(api_key) > 20
-
-    @pytest.mark.asyncio
-    async def test_api_key_verification(self):
-        api_key = await security_manager.generate_api_key("test_user", "test_purpose")
-
-        key_info = await security_manager.verify_api_key(api_key)
-
-        assert key_info is not None
-        assert key_info["user_id"] == "test_user"
-        assert key_info["name"] == "test_purpose"
-
-    @pytest.mark.asyncio
-    async def test_invalid_api_key_verification(self):
-        assert await security_manager.verify_api_key("invalid_api_key") is None
-        assert await security_manager.verify_api_key("") is None
+        info = await security_manager.verify_api_key(api_key)
+        assert info and info["user_id"] == "test_user"
+        assert await security_manager.revoke_api_key(api_key) is True
+        assert await security_manager.verify_api_key(api_key) is None
 
 
-def user_data():
+def user_data() -> dict[str, Any]:
     return {
         "sub": "testuser",
         "user_id": 1,

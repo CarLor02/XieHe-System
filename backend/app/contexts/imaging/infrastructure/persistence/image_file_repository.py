@@ -7,6 +7,7 @@ from typing import cast
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.contexts.access_control.infrastructure.persistence.models import User
 from app.contexts.imaging.application.dto import (
     AssignableTeam,
     ImageDetail,
@@ -18,7 +19,6 @@ from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.contexts.teams.application import TeamAccessService
 from app.contexts.teams.infrastructure import SqlAlchemyTeamAccessRepository
 from app.models.image_file import ImageFile
-from app.models.user import User
 
 from .access_scope import apply_image_access_scope
 from .image_query_repository import image_summary

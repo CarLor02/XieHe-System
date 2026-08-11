@@ -5,13 +5,15 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.patients.application import PatientApplicationService
 from app.contexts.patients.domain import (
     DuplicatePatientId,
     PatientListQuery,
     PatientNotFound,
 )
-from app.core.access.auth import get_current_active_user
 from app.core.system.exceptions import BusinessLogicException, ResourceNotFoundException
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import paginated_response, success_response

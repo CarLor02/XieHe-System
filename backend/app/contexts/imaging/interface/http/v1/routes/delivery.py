@@ -5,13 +5,15 @@ from dataclasses import asdict
 from fastapi import APIRouter, Depends, Response
 from fastapi.responses import RedirectResponse
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.imaging.application import ImageDeliveryService
 from app.contexts.imaging.application.errors import (
     ImageNotReadyError,
     ObjectStorageUnavailableError,
 )
 from app.contexts.imaging.domain import ImageFileNotFoundError
-from app.core.access.auth import get_current_active_user
 from app.core.system.concurrency import require_batch_presign_slot
 from app.core.system.response import success_response
 

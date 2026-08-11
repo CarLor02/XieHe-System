@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.contexts.access_control.infrastructure.persistence.models import User
 from app.contexts.teams.application import (
     TeamInvitationService,
     TeamJoinRequestService,
@@ -36,7 +37,6 @@ from app.contexts.teams.infrastructure.persistence import (
     TeamMembershipRole,
     TeamMembershipStatus,
 )
-from app.models.user import User
 from app.shared.cache.service import CacheAsideService, CacheGenerationService
 from tests.db import get_test_database_url
 

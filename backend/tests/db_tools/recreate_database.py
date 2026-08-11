@@ -34,6 +34,12 @@ def import_all_models():
     print("📦 导入所有数据模型...")
 
     # 导入所有模型
+    from app.contexts.access_control.infrastructure.persistence.models import (
+        Department,
+        Permission,
+        Role,
+        User,
+    )
     from app.contexts.patients.infrastructure.persistence.models import (
         Patient,
         PatientAllergy,
@@ -51,7 +57,6 @@ def import_all_models():
     from app.models.image import AITask, ImageAnnotation
     from app.models.image_file import ImageFile
     from app.models.system import Notification, SystemAlert, SystemLog, SystemMonitor
-    from app.models.user import Department, Permission, Role, User
 
     # 验证模型导入
     models = [

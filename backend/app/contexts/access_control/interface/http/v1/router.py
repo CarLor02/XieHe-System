@@ -1,8 +1,8 @@
-"""Access-domain API router."""
+"""访问控制 HTTP v1 路由聚合。"""
 
 from fastapi import APIRouter
 
-from .handlers import auth, permissions
+from .routes import auth, permissions
 
 router = APIRouter()
 router.include_router(auth.router, prefix="/auth", tags=["认证管理"])

@@ -16,6 +16,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app import models  # noqa: F401,E402
+from app.contexts.access_control.infrastructure.persistence import (  # noqa: E402
+    models as access_control_models,  # noqa: F401
+)
 from app.contexts.imaging.infrastructure.persistence import (  # noqa: E402
     models as imaging_models,  # noqa: F401
 )

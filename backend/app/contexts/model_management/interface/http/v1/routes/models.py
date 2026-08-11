@@ -6,6 +6,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.model_management.application import (
     CreateModelCommand,
     ModelManagementApplicationService,
@@ -17,7 +20,6 @@ from app.contexts.model_management.domain import (
     ModelOperationRejected,
     ModelViewType,
 )
-from app.core.access.auth import get_current_active_user
 from app.core.system.response import paginated_response, success_response
 
 from ..dependencies import get_model_management_service

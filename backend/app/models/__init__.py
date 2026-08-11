@@ -26,23 +26,8 @@ from .image_import import (
     ImageImportItem,
     ImageImportUploadStatus,
 )
-from .user import (
-    Department,
-    Permission,
-    Role,
-    RolePermission,
-    User,
-    UserRole,
-)
 
 __all__ = [
-    # 用户管理
-    "Department",
-    "Permission",
-    "Role",
-    "RolePermission",
-    "User",
-    "UserRole",
     # 影像文件
     "ImageFile",
     "ImageFileTeamVisibility",

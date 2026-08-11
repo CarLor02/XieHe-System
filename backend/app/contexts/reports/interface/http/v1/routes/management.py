@@ -6,6 +6,9 @@ from typing import Any, NoReturn, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.reports.application import ReportManagementApplicationService
 from app.contexts.reports.application.dto import (
     CreateReportCommand,
@@ -18,7 +21,6 @@ from app.contexts.reports.domain import (
     ReportNotFound,
     ReportPatientNotFound,
 )
-from app.core.access.auth import get_current_active_user
 from app.core.system.logger import LogLevel, logger
 from app.core.system.response import paginated_response, success_response
 

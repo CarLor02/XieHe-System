@@ -5,10 +5,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.contexts.access_control.interface.http.v1.dependencies import (
+    get_current_active_user,
+)
 from app.contexts.system_management.application import (
     SystemManagementApplicationService,
 )
-from app.core.access.auth import get_current_active_user
 from app.core.system.response import success_response
 
 from ..dependencies import get_system_management_service

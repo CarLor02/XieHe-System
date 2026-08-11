@@ -15,6 +15,7 @@ class SecuritySettings(BaseAppSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 720
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    REMEMBER_ME_REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     PASSWORD_MIN_LENGTH: int = 8
     PASSWORD_HASH_ROUNDS: int = 12

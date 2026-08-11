@@ -10,7 +10,7 @@
 |---------|------|-------------|
 | `backend/app/models/__init__.py` | 模型包初始化文件 | - |
 | `backend/app/models/base.py` | 基础模型类和混入类 | 1 |
-| `backend/app/models/user.py` | 用户管理相关模型 | 6 |
+| `backend/app/contexts/access_control/infrastructure/persistence/models.py` | 用户与访问控制模型 | 6 |
 | `backend/app/models/patient.py` | 患者管理相关模型 | 4 |
 | `backend/app/models/image.py` | 影像管理相关模型 | 5 |
 | `backend/app/models/report.py` | 报告管理相关模型 | 4 |
@@ -237,4 +237,3 @@ python tests/fixtures/patient_data.py
 6. ✅ 完整的测试验证
 
 所有模型都遵循最佳实践，代码结构清晰，易于维护和扩展。
-

@@ -1,4 +1,4 @@
-"""Schemas for the auth API endpoints."""
+"""认证 HTTP v1 schema。"""
 
 import typing
 

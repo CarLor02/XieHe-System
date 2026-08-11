@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.system.handlers import dashboard as dashboard_handlers
+from app.contexts.access_control.infrastructure.persistence.models import User
 from app.contexts.imaging.application import ImageVisibilityApplicationService
 from app.contexts.imaging.application.dto import ImageListFilters
 from app.contexts.imaging.infrastructure.persistence import (
@@ -50,7 +51,6 @@ from app.models.image_file import (
     ImageFileTeamVisibility,
     ImageFileTypeEnum,
 )
-from app.models.user import User
 from app.shared.storage import storage_service_client
 
 pytestmark = pytest.mark.database

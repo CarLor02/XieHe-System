@@ -6,7 +6,6 @@ import datetime as datetime_types
 import enum
 import typing
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -22,10 +21,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, relationship
 
+from app.contexts.access_control.infrastructure.persistence.models import User
 from app.shared.database.sqlalchemy import Base
-
-if TYPE_CHECKING:
-    from app.models.user import User
 
 
 class TeamMembershipRole(str, enum.Enum):

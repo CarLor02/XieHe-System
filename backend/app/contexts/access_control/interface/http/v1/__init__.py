@@ -1,4 +1,4 @@
-"""API endpoints grouped by business domain."""
+"""访问控制 HTTP v1 入口。"""
 
 from .router import router
 
