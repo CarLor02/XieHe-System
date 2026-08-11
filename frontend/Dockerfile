@@ -39,7 +39,16 @@ RUN --mount=type=cache,id=xiehe-frontend-builder-apk,target=/var/cache/apk,shari
 COPY package.json package-lock.json .npmrc ./
 COPY frontend/package.json ./frontend/package.json
 COPY mobile-expo/package.json ./mobile-expo/package.json
+COPY packages/xiehe-access-core/package.json ./packages/xiehe-access-core/package.json
+COPY packages/xiehe-api-client/package.json ./packages/xiehe-api-client/package.json
+COPY packages/xiehe-api-contracts/package.json ./packages/xiehe-api-contracts/package.json
+COPY packages/xiehe-api-sdk/package.json ./packages/xiehe-api-sdk/package.json
+COPY packages/xiehe-auth-core/package.json ./packages/xiehe-auth-core/package.json
+COPY packages/xiehe-dashboard-core/package.json ./packages/xiehe-dashboard-core/package.json
+COPY packages/xiehe-imaging-catalog/package.json ./packages/xiehe-imaging-catalog/package.json
 COPY packages/xiehe-imaging-core/package.json ./packages/xiehe-imaging-core/package.json
+COPY packages/xiehe-patient-core/package.json ./packages/xiehe-patient-core/package.json
+COPY packages/xiehe-upload-core/package.json ./packages/xiehe-upload-core/package.json
 
 # 配置 npm 使用国内镜像，并避免构建阶段访问额外下载/审计服务
 ENV CYPRESS_INSTALL_BINARY=0
@@ -60,18 +69,17 @@ RUN --mount=type=cache,id=xiehe-frontend-npm,target=/root/.npm,sharing=locked \
     if [ "$NPM_FOREGROUND_SCRIPTS" = "true" ]; then \
       npm ci --legacy-peer-deps --no-audit --no-fund \
         --workspace medical-imaging-frontend \
-        --workspace @xiehe/imaging-core \
         --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING" --foreground-scripts; \
     else \
       npm ci --legacy-peer-deps --no-audit --no-fund \
         --workspace medical-imaging-frontend \
-        --workspace @xiehe/imaging-core \
         --loglevel="$NPM_LOGLEVEL" --timing="$NPM_TIMING"; \
     fi
 
 # 复制源代码
 COPY frontend/ ./frontend/
-COPY packages/xiehe-imaging-core/ ./packages/xiehe-imaging-core/
+# Web 会直接编译 workspace 中导出的 TypeScript 源码，因此需要复制完整依赖包。
+COPY packages/ ./packages/
 
 # 设置环境变量
 ENV NEXT_TELEMETRY_DISABLED=1

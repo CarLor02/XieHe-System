@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shlex
 from pathlib import Path
 
@@ -41,3 +42,25 @@ def test_frontend_dockerfile_copy_sources_exist_in_build_context() -> None:
     ]
 
     assert missing_sources == []
+
+
+def test_frontend_dockerfile_copies_all_local_workspace_dependencies() -> None:
+    dockerfile = REPO_ROOT / "frontend" / "Dockerfile"
+    dockerfile_text = dockerfile.read_text(encoding="utf-8")
+    frontend_manifest = json.loads(
+        (REPO_ROOT / "frontend" / "package.json").read_text(encoding="utf-8")
+    )
+    local_dependencies = sorted(
+        name for name in frontend_manifest["dependencies"] if name.startswith("@xiehe/")
+    )
+    copied_sources = {source for _, source in _local_copy_sources(dockerfile)}
+
+    missing_manifests = [
+        f"packages/xiehe-{name.removeprefix('@xiehe/')}/package.json"
+        for name in local_dependencies
+        if f"packages/xiehe-{name.removeprefix('@xiehe/')}/package.json"
+        not in copied_sources
+    ]
+
+    assert missing_manifests == []
+    assert "COPY packages/ ./packages/" in dockerfile_text
