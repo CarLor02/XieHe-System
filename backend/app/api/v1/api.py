@@ -7,6 +7,7 @@ API v1 主路由配置
 from fastapi import APIRouter
 
 from app.contexts.access_control.interface import router as access_control_router
+from app.contexts.dashboard.interface import router as dashboard_router
 from app.contexts.imaging.interface import router as imaging_context_router
 from app.contexts.model_management.interface import router as model_management_router
 from app.contexts.patients.interface import router as patients_router
@@ -18,6 +19,7 @@ from .endpoints.system import router as system_router
 
 api_router = APIRouter()
 api_router.include_router(access_control_router)
+api_router.include_router(dashboard_router)
 api_router.include_router(patients_router)
 api_router.include_router(teams_router)
 api_router.include_router(report_generation_router)

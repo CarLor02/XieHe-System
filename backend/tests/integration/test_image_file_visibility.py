@@ -5,8 +5,13 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.v1.endpoints.system.handlers import dashboard as dashboard_handlers
 from app.contexts.access_control.infrastructure.persistence.models import User
+from app.contexts.dashboard.interface.http.v1.dependencies import (
+    build_dashboard_query_service,
+)
+from app.contexts.dashboard.interface.http.v1.routes import (
+    dashboard as dashboard_handlers,
+)
 from app.contexts.imaging.application import ImageVisibilityApplicationService
 from app.contexts.imaging.application.dto import ImageListFilters
 from app.contexts.imaging.infrastructure.persistence import (
@@ -378,14 +383,14 @@ async def test_regular_member_cannot_list_uploaders(db_session):
 async def test_dashboard_counts_only_explicit_team_images(db_session):
     before = await dashboard_handlers.get_dashboard_stats(
         current_user=current_user(10),
-        db=db_session,
+        service=build_dashboard_query_service(db_session),
     )
     assert before["data"]["total_images"] == 1
 
     assign_image_to_team(db_session, 2)
     after = await dashboard_handlers.get_dashboard_stats(
         current_user=current_user(10),
-        db=db_session,
+        service=build_dashboard_query_service(db_session),
     )
     assert after["data"]["total_images"] == 2
 
@@ -395,7 +400,7 @@ async def test_dashboard_recent_images_respect_visibility(db_session):
     result = await dashboard_handlers.get_recent_activities(
         limit=6,
         current_user=current_user(10),
-        db=db_session,
+        service=build_dashboard_query_service(db_session),
     )
     image_activities = [
         item for item in result["data"]["activities"] if item["type"] == "image"

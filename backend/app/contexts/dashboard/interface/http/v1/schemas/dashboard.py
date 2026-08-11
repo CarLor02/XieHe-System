@@ -1,4 +1,4 @@
-"""Schemas for the dashboard API endpoints."""
+"""Dashboard HTTP v1 schema。"""
 
 from datetime import datetime
 from typing import List

@@ -269,33 +269,6 @@ async def health_check() -> dict[str, typing.Any]:
     return {"status": "healthy", "message": "XieHe医疗影像诊断系统运行正常"}
 
 
-@app.get("/dashboard/overview", tags=["Dashboard"])
-async def simple_dashboard_overview() -> dict[str, typing.Any]:
-    """
-    简单仪表盘概览端点
-    """
-    from datetime import datetime
-
-    return {
-        "total_patients": 3,
-        "new_patients_today": 1,
-        "new_patients_week": 2,
-        "active_patients": 3,
-        "total_studies": 5,
-        "studies_today": 2,
-        "studies_week": 4,
-        "pending_studies": 1,
-        "total_reports": 4,
-        "pending_reports": 1,
-        "completed_reports": 3,
-        "overdue_reports": 0,
-        "completion_rate": 75.0,
-        "average_processing_time": 2.5,
-        "system_alerts": 0,
-        "generated_at": datetime.now().isoformat(),
-    }
-
-
 @app.get("/info", tags=["Info"])
 async def app_info() -> dict[str, typing.Any]:
     """
@@ -310,36 +283,6 @@ async def app_info() -> dict[str, typing.Any]:
         "environment": settings.ENVIRONMENT,
         "debug": settings.DEBUG,
         "api_version": "v1",
-    }
-
-
-# 临时仪表盘端点
-@app.get("/api/v1/dashboard/overview", tags=["Dashboard"])
-async def dashboard_overview() -> dict[str, typing.Any]:
-    """
-    仪表盘概览端点
-
-    返回系统概览统计信息。
-    """
-    from datetime import datetime
-
-    return {
-        "total_patients": 3,
-        "new_patients_today": 1,
-        "new_patients_week": 2,
-        "active_patients": 3,
-        "total_studies": 5,
-        "studies_today": 2,
-        "studies_week": 4,
-        "pending_studies": 1,
-        "total_reports": 4,
-        "pending_reports": 1,
-        "completed_reports": 3,
-        "overdue_reports": 0,
-        "completion_rate": 75.0,
-        "average_processing_time": 2.5,
-        "system_alerts": 0,
-        "generated_at": datetime.now().isoformat(),
     }
 
 
