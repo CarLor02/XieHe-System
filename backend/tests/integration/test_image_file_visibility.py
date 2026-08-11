@@ -38,17 +38,17 @@ from app.contexts.patients.infrastructure.persistence.models import (
     Patient,
     PatientStatusEnum,
 )
+from app.contexts.teams.infrastructure.persistence import (
+    Team,
+    TeamMembership,
+    TeamMembershipRole,
+    TeamMembershipStatus,
+)
 from app.models.image_file import (
     ImageFile,
     ImageFileStatusEnum,
     ImageFileTeamVisibility,
     ImageFileTypeEnum,
-)
-from app.models.team import (
-    Team,
-    TeamMembership,
-    TeamMembershipRole,
-    TeamMembershipStatus,
 )
 from app.models.user import User
 from app.shared.storage import storage_service_client

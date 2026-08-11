@@ -28,7 +28,7 @@ from sqlalchemy.orm import Mapped, relationship
 from app.shared.database.sqlalchemy import Base
 
 if TYPE_CHECKING:
-    from .team import TeamMembership
+    from app.contexts.teams.infrastructure.persistence.models import TeamMembership
 
 
 class Department(Base):

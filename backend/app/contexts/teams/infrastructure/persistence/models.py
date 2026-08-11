@@ -1,8 +1,4 @@
-"""
-团队与团队成员相关模型
-
-定义团队、团队成员、加入申请与邀请等数据库模型。
-"""
+"""SQLAlchemy models owned by the teams context."""
 
 from __future__ import annotations
 
@@ -29,19 +25,15 @@ from sqlalchemy.orm import Mapped, relationship
 from app.shared.database.sqlalchemy import Base
 
 if TYPE_CHECKING:
-    from .user import User
+    from app.models.user import User
 
 
 class TeamMembershipRole(str, enum.Enum):
-    """团队成员角色枚举"""
-
     ADMIN = "ADMIN"
     MEMBER = "MEMBER"
 
 
 class TeamMembershipStatus(str, enum.Enum):
-    """团队成员状态枚举"""
-
     ACTIVE = "ACTIVE"
     INVITED = "INVITED"
     PENDING = "PENDING"
@@ -49,8 +41,6 @@ class TeamMembershipStatus(str, enum.Enum):
 
 
 class TeamJoinRequestStatus(str, enum.Enum):
-    """团队加入申请状态"""
-
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
@@ -58,8 +48,6 @@ class TeamJoinRequestStatus(str, enum.Enum):
 
 
 class TeamInvitationStatus(str, enum.Enum):
-    """团队邀请状态"""
-
     PENDING = "PENDING"
     ACCEPTED = "ACCEPTED"
     EXPIRED = "EXPIRED"
@@ -67,8 +55,6 @@ class TeamInvitationStatus(str, enum.Enum):
 
 
 class Team(Base):
-    """团队表"""
-
     __tablename__ = "teams"
 
     id: Mapped[int] = Column(
@@ -104,7 +90,6 @@ class Team(Base):
         comment="更新时间",
     )
 
-    # 关系
     creator: Mapped[User | None] = relationship(
         "User", backref="created_teams", foreign_keys=[creator_id]
     )
@@ -129,8 +114,6 @@ class Team(Base):
 
 
 class TeamMembership(Base):
-    """团队成员关联表"""
-
     __tablename__ = "team_memberships"
     __table_args__ = (UniqueConstraint("team_id", "user_id", name="uq_team_user"),)
 
@@ -166,14 +149,11 @@ class TeamMembership(Base):
         comment="更新时间",
     )
 
-    # 关系
     team: Mapped[Team] = relationship("Team", back_populates="memberships")
     user: Mapped[User] = relationship("User", back_populates="team_memberships")
 
 
 class TeamJoinRequest(Base):
-    """团队加入申请"""
-
     __tablename__ = "team_join_requests"
     __table_args__ = (UniqueConstraint("team_id", "user_id", name="uq_join_request"),)
 
@@ -203,15 +183,12 @@ class TeamJoinRequest(Base):
         Integer, ForeignKey("users.id"), nullable=True, comment="审核人ID"
     )
 
-    # 关系
     team: Mapped[Team] = relationship("Team", back_populates="join_requests")
     applicant: Mapped[User] = relationship("User", foreign_keys=[user_id])
     reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewer_id])
 
 
 class TeamInvitation(Base):
-    """团队邀请记录"""
-
     __tablename__ = "team_invitations"
 
     id: Mapped[int] = Column(
@@ -258,7 +235,6 @@ class TeamInvitation(Base):
         DateTime, nullable=True, comment="回应时间"
     )
 
-    # 关系
     team: Mapped[Team] = relationship("Team", back_populates="invitations")
     inviter: Mapped[User] = relationship("User", foreign_keys=[inviter_id])
     invitee: Mapped[User | None] = relationship("User", foreign_keys=[invitee_user_id])

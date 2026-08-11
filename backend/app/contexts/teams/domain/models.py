@@ -156,3 +156,26 @@ class InvitationResponseSnapshot:
 
     def to_json_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TeamAccessSnapshot:
+    id: int
+    name: str
+    description: str | None
+    hospital: str | None
+    department: str | None
+    creator_name: str | None
+    member_count: int
+    max_members: int
+    is_member: bool
+    my_role: str | None
+    my_status: str | None
+    is_creator: bool
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class TeamAccessPage:
+    items: tuple[TeamAccessSnapshot, ...]
+    total: int

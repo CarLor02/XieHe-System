@@ -8,13 +8,9 @@ from sqlalchemy import false, or_
 from sqlalchemy.orm import Query, Session
 
 from app.contexts.imaging.domain import ImageAccessActor, ImageAccessScope
+from app.contexts.teams.application import TeamAccessService
+from app.contexts.teams.infrastructure import SqlAlchemyTeamAccessRepository
 from app.models.image_file import ImageFile, ImageFileTeamVisibility
-from app.models.team import (
-    Team,
-    TeamMembership,
-    TeamMembershipRole,
-    TeamMembershipStatus,
-)
 
 
 def apply_image_access_scope(
@@ -48,44 +44,21 @@ class SqlAlchemyImageVisibilityRepository:
 
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._team_access = TeamAccessService(SqlAlchemyTeamAccessRepository(session))
 
     def list_active_admin_team_ids(self, user_id: int) -> set[int]:
-        rows = (
-            self._session.query(TeamMembership.team_id)
-            .join(Team, Team.id == TeamMembership.team_id)
-            .filter(
-                TeamMembership.user_id == user_id,
-                TeamMembership.role == TeamMembershipRole.ADMIN,
-                TeamMembership.status == TeamMembershipStatus.ACTIVE,
-                Team.is_active.is_(True),
-            )
-            .distinct()
-            .all()
-        )
-        return {team_id for (team_id,) in rows}
+        return self._team_access.list_active_admin_team_ids(user_id)
 
     def find_assignable_active_team_ids(
         self,
         actor: ImageAccessActor,
         requested_team_ids: list[int],
     ) -> set[int]:
-        if not requested_team_ids:
-            return set()
-        query = self._session.query(Team.id).filter(
-            Team.id.in_(requested_team_ids),
-            Team.is_active.is_(True),
+        return self._team_access.find_assignable_active_team_ids(
+            actor_id=actor.user_id,
+            unrestricted=actor.unrestricted,
+            requested_team_ids=requested_team_ids,
         )
-        if not actor.unrestricted:
-            if actor.user_id is None:
-                return set()
-            query = query.join(
-                TeamMembership,
-                TeamMembership.team_id == Team.id,
-            ).filter(
-                TeamMembership.user_id == actor.user_id,
-                TeamMembership.status == TeamMembershipStatus.ACTIVE,
-            )
-        return {team_id for (team_id,) in query.distinct().all()}
 
     def get_visible_image(
         self,

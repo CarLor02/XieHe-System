@@ -47,6 +47,7 @@ def import_all_models():
         ReportTemplate,
     )
     from app.contexts.system_management.infrastructure.persistence import SystemConfig
+    from app.contexts.teams.infrastructure.persistence import Team, TeamMembership
     from app.models.image import AITask, ImageAnnotation
     from app.models.image_file import ImageFile
     from app.models.system import Notification, SystemAlert, SystemLog, SystemMonitor
@@ -69,6 +70,8 @@ def import_all_models():
         Role,
         Permission,
         Department,
+        Team,
+        TeamMembership,
         SystemConfig,
         SystemLog,
         SystemMonitor,

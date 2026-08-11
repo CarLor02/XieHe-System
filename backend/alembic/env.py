@@ -28,6 +28,9 @@ from app.contexts.reports.infrastructure.persistence import (  # noqa: E402
 from app.contexts.system_management.infrastructure.persistence import (  # noqa: E402
     models as system_management_models,  # noqa: F401
 )
+from app.contexts.teams.infrastructure.persistence import (  # noqa: E402
+    models as team_models,  # noqa: F401
+)
 from app.core.config import settings  # noqa: E402
 from app.shared.database.sqlalchemy import Base  # noqa: E402
 

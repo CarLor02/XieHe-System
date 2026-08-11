@@ -1,18 +1,17 @@
-"""Team HTTP schema exports."""
+"""Teams HTTP v1 schema exports."""
 
-from .management import (
-    MemberRoleUpdateRequest,
-    TeamCreateRequest,
+from .invitations import (
     TeamInvitationItem,
     TeamInvitationRespondRequest,
     TeamInviteRequest,
+)
+from .join_requests import (
     TeamJoinRequestCreate,
     TeamJoinRequestItem,
     TeamJoinRequestReviewRequest,
-    TeamMember,
-    TeamSummary,
-    TeamUpdateRequest,
 )
+from .members import MemberRoleUpdateRequest, TeamMember
+from .teams import TeamCreateRequest, TeamSummary, TeamUpdateRequest
 
 __all__ = [
     "MemberRoleUpdateRequest",

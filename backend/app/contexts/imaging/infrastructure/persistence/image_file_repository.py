@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -15,12 +15,9 @@ from app.contexts.imaging.application.dto import (
 )
 from app.contexts.imaging.domain import ImageAccessActor, ImageAccessScope, JsonObject
 from app.contexts.patients.infrastructure.persistence.models import Patient
+from app.contexts.teams.application import TeamAccessService
+from app.contexts.teams.infrastructure import SqlAlchemyTeamAccessRepository
 from app.models.image_file import ImageFile
-from app.models.team import (
-    Team,
-    TeamMembership,
-    TeamMembershipStatus,
-)
 from app.models.user import User
 
 from .access_scope import apply_image_access_scope
@@ -35,6 +32,7 @@ def _enum_value(value: object) -> str:
 class SqlAlchemyImageFileRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._team_access = TeamAccessService(SqlAlchemyTeamAccessRepository(session))
 
     def get_active(
         self,
@@ -136,91 +134,35 @@ class SqlAlchemyImageFileRepository:
         page_size: int,
         search: str | None,
     ) -> PageResult[AssignableTeam]:
-        query: Any
-        if actor.unrestricted:
-            query = self._session.query(Team).filter(Team.is_active.is_(True))
-        elif actor.user_id is None:
-            return PageResult(items=[], total=0)
-        else:
-            query = (
-                self._session.query(Team, TeamMembership)
-                .join(TeamMembership, TeamMembership.team_id == Team.id)
-                .filter(
-                    Team.is_active.is_(True),
-                    TeamMembership.user_id == actor.user_id,
-                    TeamMembership.status == TeamMembershipStatus.ACTIVE,
-                )
-            )
-        if search:
-            pattern = f"%{search.strip()}%"
-            query = query.filter(
-                or_(
-                    Team.name.ilike(pattern),
-                    Team.description.ilike(pattern),
-                    Team.hospital.ilike(pattern),
-                    Team.department.ilike(pattern),
-                )
-            )
-        total = query.count()
-        rows = (
-            query.order_by(Team.id.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-            .all()
+        result = self._team_access.list_assignable(
+            actor_id=actor.user_id,
+            unrestricted=actor.unrestricted,
+            page=page,
+            page_size=page_size,
+            search=search,
         )
-        items: list[AssignableTeam] = []
-        for row in rows:
-            if actor.unrestricted:
-                team = row
-                membership = None
-            else:
-                team, membership = row
-            items.append(self._assignable_team(team, actor.user_id, membership))
-        return PageResult(items=items, total=total)
-
-    def _assignable_team(
-        self,
-        team: Team,
-        current_user_id: int | None,
-        membership: TeamMembership | None,
-    ) -> AssignableTeam:
-        active_memberships = [
-            item
-            for item in team.memberships
-            if item.status == TeamMembershipStatus.ACTIVE
-        ]
-        current_membership = membership
-        if current_membership is None and current_user_id is not None:
-            current_membership = next(
-                (
-                    item
-                    for item in active_memberships
-                    if item.user_id == current_user_id
-                ),
-                None,
-            )
-        return AssignableTeam(
-            id=team.id,
-            name=team.name,
-            description=team.description,
-            hospital=team.hospital,
-            department=team.department,
-            creator_name=team.creator.real_name if team.creator else None,
-            member_count=len(active_memberships),
-            max_members=team.max_members,
-            is_member=current_membership is not None,
-            my_role=(
-                _enum_value(current_membership.role) if current_membership else None
-            ),
-            my_status=(
-                _enum_value(current_membership.status) if current_membership else None
-            ),
-            is_creator=(
-                current_user_id is not None and team.creator_id == current_user_id
-            ),
-            join_status=None,
-            join_request_id=None,
-            created_at=team.created_at,
+        return PageResult(
+            items=[
+                AssignableTeam(
+                    id=item.id,
+                    name=item.name,
+                    description=item.description,
+                    hospital=item.hospital,
+                    department=item.department,
+                    creator_name=item.creator_name,
+                    member_count=item.member_count,
+                    max_members=item.max_members,
+                    is_member=item.is_member,
+                    my_role=item.my_role,
+                    my_status=item.my_status,
+                    is_creator=item.is_creator,
+                    join_status=None,
+                    join_request_id=None,
+                    created_at=item.created_at,
+                )
+                for item in result.items
+            ],
+            total=result.total,
         )
 
     def list_visible_by_ids(

@@ -26,16 +26,6 @@ from .image_import import (
     ImageImportItem,
     ImageImportUploadStatus,
 )
-from .team import (
-    Team,
-    TeamInvitation,
-    TeamInvitationStatus,
-    TeamJoinRequest,
-    TeamJoinRequestStatus,
-    TeamMembership,
-    TeamMembershipRole,
-    TeamMembershipStatus,
-)
 from .user import (
     Department,
     Permission,
@@ -53,15 +43,6 @@ __all__ = [
     "RolePermission",
     "User",
     "UserRole",
-    # 团队管理
-    "Team",
-    "TeamInvitation",
-    "TeamInvitationStatus",
-    "TeamJoinRequest",
-    "TeamJoinRequestStatus",
-    "TeamMembership",
-    "TeamMembershipRole",
-    "TeamMembershipStatus",
     # 影像文件
     "ImageFile",
     "ImageFileTeamVisibility",

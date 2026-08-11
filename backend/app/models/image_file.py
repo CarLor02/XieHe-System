@@ -31,7 +31,8 @@ from sqlalchemy.sql import func
 from app.shared.database.sqlalchemy import Base
 
 if typing.TYPE_CHECKING:
-    from .team import Team
+    from app.contexts.teams.infrastructure.persistence.models import Team
+
     from .user import User
 
 

@@ -3,20 +3,32 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from typing import AsyncIterator, Generator, cast
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.contexts.teams.application import TeamApplicationService
+from app.contexts.teams.application import (
+    TeamInvitationService,
+    TeamJoinRequestService,
+    TeamManagementService,
+    TeamQueryCache,
+    TeamQueryService,
+)
 from app.contexts.teams.domain import (
     TeamConflict,
     TeamPermissionDenied,
     TeamValidationError,
 )
-from app.contexts.teams.infrastructure import SqlAlchemyTeamRepository
-from app.models.team import (
+from app.contexts.teams.infrastructure import (
+    SqlAlchemyTeamInvitationRepository,
+    SqlAlchemyTeamJoinRequestRepository,
+    SqlAlchemyTeamManagementRepository,
+    SqlAlchemyTeamQueryRepository,
+)
+from app.contexts.teams.infrastructure.persistence import (
     Team,
     TeamInvitation,
     TeamJoinRequestStatus,
@@ -54,16 +66,29 @@ def _async_database_url() -> str:
 
 
 @asynccontextmanager
-async def _open_service() -> AsyncIterator[TeamApplicationService]:
+async def _open_services() -> AsyncIterator[SimpleNamespace]:
     engine = create_async_engine(_async_database_url(), pool_pre_ping=True)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with factory() as session:
             cache = DisabledCache()
-            yield TeamApplicationService(
-                SqlAlchemyTeamRepository(session),
-                cache=CacheAsideService(cache),
-                generations=CacheGenerationService(cache),
+            coordinator = TeamQueryCache(
+                CacheAsideService(cache),
+                CacheGenerationService(cache),
+            )
+            yield SimpleNamespace(
+                queries=TeamQueryService(
+                    SqlAlchemyTeamQueryRepository(session), cache=coordinator
+                ),
+                management=TeamManagementService(
+                    SqlAlchemyTeamManagementRepository(session), cache=coordinator
+                ),
+                join_requests=TeamJoinRequestService(
+                    SqlAlchemyTeamJoinRequestRepository(session), cache=coordinator
+                ),
+                invitations=TeamInvitationService(
+                    SqlAlchemyTeamInvitationRepository(session), cache=coordinator
+                ),
             )
     finally:
         await engine.dispose()
@@ -171,12 +196,12 @@ def setup_database(
 class TestTeamContext:
     @pytest.mark.asyncio
     async def test_cached_query_repository_paths(self, setup_database):
-        async with _open_service() as service:
-            mine = await service.list_user_teams(setup_database["admin_id"])
-            results = await service.search_teams(
+        async with _open_services() as services:
+            mine = await services.queries.list_user_teams(setup_database["admin_id"])
+            results = await services.queries.search_teams(
                 "测试", setup_database["applicant_id"], 20
             )
-            members = await service.get_team_members(
+            members = await services.queries.get_team_members(
                 setup_database["team_primary_id"], setup_database["leader_id"]
             )
 
@@ -187,16 +212,16 @@ class TestTeamContext:
 
     @pytest.mark.asyncio
     async def test_apply_review_and_cancel_join_requests(self, setup_database):
-        async with _open_service() as service:
-            approved = await service.apply_to_team(
+        async with _open_services() as services:
+            approved = await services.join_requests.apply_to_team(
                 setup_database["team_primary_id"],
                 setup_database["applicant_id"],
                 "希望加入测试团队",
             )
-            requests = await service.list_join_requests(
+            requests = await services.join_requests.list_join_requests(
                 setup_database["team_primary_id"], setup_database["leader_id"], None
             )
-            reviewed = await service.review_join_request(
+            reviewed = await services.join_requests.review_join_request(
                 setup_database["team_primary_id"],
                 approved["id"],
                 setup_database["leader_id"],
@@ -227,19 +252,19 @@ class TestTeamContext:
             )
             membership.status = TeamMembershipStatus.INACTIVE
             db.commit()
-        async with _open_service() as service:
-            pending = await service.apply_to_team(
+        async with _open_services() as services:
+            pending = await services.join_requests.apply_to_team(
                 setup_database["team_primary_id"],
                 setup_database["applicant_id"],
                 None,
             )
-            cancelled = await service.cancel_join_request(
+            cancelled = await services.join_requests.cancel_join_request(
                 setup_database["team_primary_id"],
                 pending["id"],
                 setup_database["applicant_id"],
             )
             with pytest.raises(TeamValidationError):
-                await service.cancel_join_request(
+                await services.join_requests.cancel_join_request(
                     setup_database["team_primary_id"],
                     pending["id"],
                     setup_database["applicant_id"],
@@ -248,8 +273,8 @@ class TestTeamContext:
 
     @pytest.mark.asyncio
     async def test_create_and_update_team_permissions(self, setup_database):
-        async with _open_service() as service:
-            created = await service.create_team(
+        async with _open_services() as services:
+            created = await services.management.create_team(
                 setup_database["leader_id"],
                 {
                     "name": "新建团队",
@@ -259,12 +284,12 @@ class TestTeamContext:
                     "max_members": 12,
                 },
             )
-            updated_by_system_admin = await service.update_team(
+            updated_by_system_admin = await services.management.update_team(
                 setup_database["team_secondary_id"],
                 setup_database["leader_id"],
                 {"name": "系统管理员改名团队", "max_members": 18},
             )
-            updated_by_team_admin = await service.update_team(
+            updated_by_team_admin = await services.management.update_team(
                 setup_database["team_primary_id"],
                 setup_database["admin_id"],
                 {"name": "团队管理员改名团队", "max_members": 25},
@@ -284,21 +309,21 @@ class TestTeamContext:
                 )
             )
             db.commit()
-        async with _open_service() as service:
+        async with _open_services() as services:
             with pytest.raises(TeamPermissionDenied):
-                await service.update_team(
+                await services.management.update_team(
                     setup_database["team_primary_id"],
                     setup_database["applicant_id"],
                     {"name": "普通成员不能改名"},
                 )
             with pytest.raises(TeamConflict):
-                await service.update_team(
+                await services.management.update_team(
                     setup_database["team_primary_id"],
                     setup_database["leader_id"],
                     {"name": "系统管理员改名团队"},
                 )
             with pytest.raises(TeamValidationError):
-                await service.update_team(
+                await services.management.update_team(
                     setup_database["team_primary_id"],
                     setup_database["leader_id"],
                     {"max_members": 1},
@@ -306,16 +331,18 @@ class TestTeamContext:
 
     @pytest.mark.asyncio
     async def test_invitation_round_trip(self, setup_database):
-        async with _open_service() as service:
-            invitation = await service.invite_member(
+        async with _open_services() as services:
+            invitation = await services.invitations.invite_member(
                 setup_database["team_primary_id"],
                 setup_database["leader_id"],
                 "applicant@example.com",
                 "MEMBER",
                 None,
             )
-            invitations = await service.list_invitations(setup_database["applicant_id"])
-            response = await service.respond_to_invitation(
+            invitations = await services.invitations.list_invitations(
+                setup_database["applicant_id"]
+            )
+            response = await services.invitations.respond_to_invitation(
                 invitation["id"], setup_database["applicant_id"], True
             )
 
