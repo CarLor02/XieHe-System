@@ -1,18 +1,12 @@
 import type { HttpClient } from '@xiehe/api-client';
 import { createAxiosHttpClient } from '@xiehe/api-client/axios';
+import { createXieheApiSdk } from '@xiehe/api-sdk';
 
 import {
   createSecureSessionTokenStore,
   type MobileSessionTokenStore,
 } from '../auth';
 import { getExpoApiBaseUrl } from './config';
-
-interface RefreshResponse {
-  tokens?: {
-    access_token?: string;
-    refresh_token?: string;
-  };
-}
 
 export interface ExpoApiInfrastructure {
   apiClient: HttpClient;
@@ -36,6 +30,10 @@ export function createExpoApiInfrastructure(
     defaultAuth: 'none',
     retryTrailingSlash404: true,
   });
+  const publicSdk = createXieheApiSdk({
+    apiClient: publicApiClient,
+    publicApiClient,
+  });
   const apiClient = createAxiosHttpClient({
     baseURL,
     tokenProvider: tokenStore,
@@ -44,10 +42,7 @@ export function createExpoApiInfrastructure(
       const refreshToken = await tokenStore.getRefreshToken();
       if (!refreshToken) return null;
 
-      const response = await publicApiClient.post<RefreshResponse>(
-        '/api/v1/auth/refresh',
-        { refresh_token: refreshToken }
-      );
+      const response = await publicSdk.auth.refresh(refreshToken);
       const accessToken = response.tokens?.access_token;
       if (!accessToken) return null;
 

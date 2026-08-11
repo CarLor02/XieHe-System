@@ -2,29 +2,21 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { sessionStoreLogging } from '@/lib/logger/sessionLogging';
 import {
-  apiClient,
+  apiSdk,
   configureWebSessionBridge,
   getApiErrorMessage,
   getApiErrorStatus,
-  publicApiClient,
 } from '@/infrastructure/http';
-import { SessionUser, UserSession, createUserSession } from './userSession';
+import type {
+  LoginCredentials,
+  RegisterRequest,
+  SessionUser,
+} from '@xiehe/api-contracts';
+import { UserSession, createUserSession } from './userSession';
 import { clearPersistedAuthState, redirectToLogin } from './sessionEffects';
 
-export interface LoginCredentials {
-  username: string;
-  password: string;
-  remember_me?: boolean;
-}
-
-export interface RegisterData {
-  username: string;
-  email: string;
-  password: string;
-  confirm_password: string;
-  full_name: string;
-  phone?: string;
-}
+export type { LoginCredentials } from '@xiehe/api-contracts';
+export type RegisterData = RegisterRequest;
 
 interface LogoutOptions {
   redirectToLogin?: boolean;
@@ -80,11 +72,7 @@ export const useSessionStore = create<SessionState>()(
             ...credentials,
             username: credentials.username.trim(),
           };
-          const result = await publicApiClient.post<{
-            access_token: string;
-            refresh_token: string;
-            user: SessionUser;
-          }>('/api/v1/auth/login', normalizedCredentials);
+          const result = await apiSdk.auth.login(normalizedCredentials);
 
           set({
             isAuthenticated: true,
@@ -117,7 +105,7 @@ export const useSessionStore = create<SessionState>()(
       register: async userData => {
         try {
           set({ isLoading: true, error: null });
-          await publicApiClient.post('/api/v1/auth/register', userData);
+          await apiSdk.auth.register(userData);
           set({ isLoading: false, error: null });
           return true;
         } catch (error: any) {
@@ -148,17 +136,13 @@ export const useSessionStore = create<SessionState>()(
           clearPersistedAuthState();
 
           if (accessToken) {
-            void publicApiClient
-              .post(
-                '/api/v1/auth/logout',
-                {},
-                {
-                  headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                  },
-                  timeout: 1500,
-                }
-              )
+            void apiSdk.auth
+              .logout({
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                },
+                timeout: 1500,
+              })
               .catch(error => {
                 sessionStoreLogging.logoutRequestFailed(error);
               });
@@ -170,14 +154,10 @@ export const useSessionStore = create<SessionState>()(
 
         try {
           if (accessToken) {
-            await publicApiClient.post(
-              '/api/v1/auth/logout',
-              {},
-              {
-                headers: { Authorization: `Bearer ${accessToken}` },
-                timeout: 1500,
-              }
-            );
+            await apiSdk.auth.logout({
+              headers: { Authorization: `Bearer ${accessToken}` },
+              timeout: 1500,
+            });
           }
         } catch (error) {
           sessionStoreLogging.logoutRequestFailed(error);
@@ -204,12 +184,7 @@ export const useSessionStore = create<SessionState>()(
           }
 
           sessionStoreLogging.refreshRequested(get().session);
-          const result = await publicApiClient.post<{
-            tokens?: {
-              access_token?: string;
-              refresh_token?: string;
-            };
-          }>('/api/v1/auth/refresh', { refresh_token: refreshToken });
+          const result = await apiSdk.auth.refresh(refreshToken);
           const nextAccessToken = result.tokens?.access_token;
           const nextRefreshToken = result.tokens?.refresh_token;
 
@@ -280,7 +255,7 @@ export const useSessionStore = create<SessionState>()(
             set({ isAuthenticated: true });
           }
 
-          const user = await apiClient.get<SessionUser>('/api/v1/auth/me');
+          const user = await apiSdk.auth.getSessionUser();
           set({ user });
           sessionStoreLogging.fetchUserInfoSucceeded(user);
           return 'success';
@@ -303,10 +278,7 @@ export const useSessionStore = create<SessionState>()(
             return false;
           }
 
-          const user = await apiClient.put<SessionUser>(
-            '/api/v1/auth/me',
-            userData
-          );
+          const user = await apiSdk.auth.updateSessionUser(userData);
           set({ user });
           return true;
         } catch (error) {

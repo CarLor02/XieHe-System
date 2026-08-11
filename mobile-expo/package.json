@@ -5,6 +5,8 @@
   "dependencies": {
     "@expo/ui": "~57.0.9",
     "@xiehe/api-client": "*",
+    "@xiehe/api-contracts": "*",
+    "@xiehe/api-sdk": "*",
     "@xiehe/imaging-core": "*",
     "expo": "~57.0.11",
     "expo-constants": "~57.0.9",

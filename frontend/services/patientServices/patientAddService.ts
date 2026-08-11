@@ -1,11 +1,8 @@
-import { apiClient } from '@/infrastructure/http';
-import { Patient, PatientCreateRequest } from './types';
+import { apiSdk } from '@/infrastructure/http';
+import type { Patient, PatientCreateRequest } from './types';
 
 export async function createPatient(
   payload: PatientCreateRequest
 ): Promise<Patient> {
-  return apiClient.post<Patient, PatientCreateRequest>(
-    '/api/v1/patients/',
-    payload
-  );
+  return apiSdk.patients.create(payload);
 }
