@@ -1,9 +1,6 @@
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import { SelectionState } from '@xiehe/imaging-core/canvas';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '@xiehe/imaging-catalog/annotations';
 import { resolveTtsMeasurement } from '@xiehe/imaging-core/measurements/ap';
 import {
   circleGeometryFromPoints,

@@ -4,7 +4,7 @@ import type { ComponentProps } from 'react';
 
 import AnnotationToolbar from './AnnotationToolbar';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import { getAuxiliaryTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
+import { getAuxiliaryTools } from '@xiehe/imaging-catalog/annotations';
 import { getToolsForExamType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/exam-tool-catalog';
 import { AnnotationSource } from '@xiehe/imaging-core/contracts';
 import type {

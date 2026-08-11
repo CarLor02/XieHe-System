@@ -8,7 +8,7 @@ import {
 import {
   getAnnotationDisplayName,
   getAnnotationTypeId,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+} from '@xiehe/imaging-catalog/annotations';
 import {
   getColorForType,
   getAuxiliaryMeasurementValueTagName,
@@ -26,7 +26,7 @@ import {
   getApLabelGapX,
   shouldPreserveCanvasValue,
   shouldShowPointLabels,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
+} from '@xiehe/imaging-catalog/annotations';
 import { getAvtLabelPosition } from '@xiehe/imaging-core/measurements/ap';
 import { renderAvtMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
 import { renderVertebraCenterGeometry } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
@@ -34,14 +34,8 @@ import { isAuxiliaryShape as checkIsAuxiliaryShape } from '@xiehe/imaging-core/c
 import { imageToScreen } from '@xiehe/imaging-core/canvas';
 import { getAdaptiveFontSize } from '@/app/imaging/features/image-viewer/shared/constants';
 import { estimateTextWidth } from '@/app/imaging/features/image-viewer/shared/labels';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
-import {
-  HoverState,
-  SelectionState,
-} from '@xiehe/imaging-core/canvas';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
+import { HoverState, SelectionState } from '@xiehe/imaging-core/canvas';
 import { renderAuxiliaryTag } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/support-shape-renderers/auxiliaryTagRenderer';
 import { circleRenderer } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/support-shape-renderers/circleRenderer';
 import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/shared/rendererUtils';

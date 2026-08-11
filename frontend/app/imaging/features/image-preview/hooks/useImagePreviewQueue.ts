@@ -5,8 +5,14 @@ import {
 } from '@/services/imageServices/imageFileAccessUrlService';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 import { createLogger } from '@/lib/logger';
+import {
+  planPreviewRenderFailure,
+  shouldRetryPreviewBatchRequest,
+} from '@xiehe/imaging-core/image-files';
 
-const logger = createLogger('app.imaging.features.image.preview.hooks.useImagePreviewQueue');
+const logger = createLogger(
+  'app.imaging.features.image.preview.hooks.useImagePreviewQueue'
+);
 
 const PREVIEW_REQUEST_TIMEOUT_MS = 60_000;
 const PREVIEW_RETRY_ATTEMPTS = 3;
@@ -56,8 +62,10 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
   const handlePreviewError = useCallback((fileId: number) => {
     clearCachedImageFileAccessUrl(fileId);
 
-    const nextAttempts = (previewErrorCountsRef.current[fileId] ?? 0) + 1;
-    previewErrorCountsRef.current[fileId] = nextAttempts;
+    const decision = planPreviewRenderFailure(
+      previewErrorCountsRef.current[fileId] ?? 0
+    );
+    previewErrorCountsRef.current[fileId] = decision.failureCount;
 
     setImageUrls(previousUrls => {
       const nextUrls = { ...previousUrls };
@@ -65,7 +73,7 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
       return nextUrls;
     });
 
-    if (nextAttempts <= 1) {
+    if (decision.action === 'refresh-access-url') {
       previewForceRefreshIdsRef.current.add(fileId);
       setPreviewStates(previousStates => {
         const nextStates = { ...previousStates };
@@ -211,13 +219,16 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
             return;
           }
 
-          const isLastAttempt = attempt === PREVIEW_RETRY_ATTEMPTS;
+          const shouldRetry = shouldRetryPreviewBatchRequest(
+            attempt,
+            PREVIEW_RETRY_ATTEMPTS
+          );
           logger.warn(
             `Preview URL batch load attempt ${attempt}/${PREVIEW_RETRY_ATTEMPTS} failed:`,
             error
           );
 
-          if (isLastAttempt) {
+          if (!shouldRetry) {
             setPreviewStates(previousStates => {
               const nextStates = { ...previousStates };
               for (const file of pendingFiles) {
@@ -245,11 +256,7 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [
-    abortAllPreviewRequests,
-    imageFiles,
-    previewRetryVersion,
-  ]);
+  }, [abortAllPreviewRequests, imageFiles, previewRetryVersion]);
 
   return {
     imageUrls,

@@ -7,16 +7,13 @@ import {
   isEditableAuxiliaryAnnotationType,
   usesAuxiliaryMeasurementValueTag,
   usesInlineAuxiliaryTag,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
+} from '@xiehe/imaging-catalog/annotations';
 import { TEXT_LABEL_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 import {
   estimateTextHeight,
   estimateTextWidth,
 } from '@/app/imaging/features/image-viewer/shared/labels';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 interface HitTestLabelOptions {
   measurement: MeasurementData;

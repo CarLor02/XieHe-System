@@ -1,4 +1,4 @@
-import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationConfig } from '@xiehe/imaging-catalog/annotations';
 import { renderVertebraCenterGeometry } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
 import { Point } from '@xiehe/imaging-core/contracts';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';

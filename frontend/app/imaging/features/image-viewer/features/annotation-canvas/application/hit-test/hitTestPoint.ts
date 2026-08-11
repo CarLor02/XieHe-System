@@ -1,60 +1,6 @@
-import { CANVAS_INTERACTION_CONSTANTS } from '@xiehe/imaging-core/canvas';
-import { calculateDistance } from '@/app/imaging/features/image-viewer/shared/geometry';
-import { getInteractivePointsCount } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
-
-interface HitTestMeasurementPointOptions {
-  measurement: MeasurementData;
-  screenPoint: Point;
-  imageToScreen: (point: Point) => Point;
-  radius?: number;
-}
-
-export function hitTestMeasurementPoint({
-  measurement,
-  screenPoint,
-  imageToScreen,
-  radius = CANVAS_INTERACTION_CONSTANTS.pointHitRadius,
-}: HitTestMeasurementPointOptions): number | null {
-  // 仅命中前 N 个交互点（interactivePointsCount 控制）
-  const interactiveCount = getInteractivePointsCount(measurement.type);
-  const limit =
-    interactiveCount === undefined
-      ? measurement.points.length
-      : interactiveCount;
-
-  for (let index = 0; index < limit; index += 1) {
-    const pointScreen = imageToScreen(measurement.points[index]);
-    if (calculateDistance(screenPoint, pointScreen) < radius) {
-      return index;
-    }
-  }
-
-  return null;
-}
-
-interface HitTestWorkingPointOptions {
-  points: Point[];
-  screenPoint: Point;
-  imageToScreen: (point: Point) => Point;
-  radius?: number;
-}
-
-export function hitTestWorkingPoint({
-  points,
-  screenPoint,
-  imageToScreen,
-  radius = CANVAS_INTERACTION_CONSTANTS.pointHitRadius,
-}: HitTestWorkingPointOptions): number | null {
-  for (let index = 0; index < points.length; index += 1) {
-    const pointScreen = imageToScreen(points[index]);
-    if (calculateDistance(screenPoint, pointScreen) < radius) {
-      return index;
-    }
-  }
-
-  return null;
-}
+export {
+  hitTestMeasurementPoint,
+  hitTestWorkingPoint,
+  type HitTestMeasurementPointOptions,
+  type HitTestWorkingPointOptions,
+} from '@xiehe/imaging-core/canvas';

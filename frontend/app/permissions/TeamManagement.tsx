@@ -18,7 +18,12 @@ import {
 } from '@/services/teamService';
 import { useUser } from '@/lib/api';
 import TeamInvitations from './TeamInvitations';
-import { canManageTeam } from '@xiehe/access-core';
+import {
+  canEditTeamMember,
+  canManageTeam,
+  canRemoveTeamMember,
+  normalizeTeamForm,
+} from '@xiehe/access-core';
 import { useTeamPermissionData } from './application/hooks/useTeamPermissionData';
 import { createLogger } from '@/lib/logger';
 
@@ -80,15 +85,21 @@ export default function TeamManagement() {
   // 判断是否为系统管理员
   const isSystemAdmin = Boolean(actualUser?.is_system_admin);
 
-  const [activeTab, setActiveTab] = useState<'list' | 'members' | 'invitations'>('list');
+  const [activeTab, setActiveTab] = useState<
+    'list' | 'members' | 'invitations'
+  >('list');
 
   const [searchMemberKeyword, setSearchMemberKeyword] = useState('');
 
-  const [processingRequestId, setProcessingRequestId] = useState<number | null>(null);
+  const [processingRequestId, setProcessingRequestId] = useState<number | null>(
+    null
+  );
 
   // 角色编辑状态
   const [isRoleEditMode, setIsRoleEditMode] = useState(false);
-  const [editedRoles, setEditedRoles] = useState<Record<number, 'ADMIN' | 'MEMBER' | 'GUEST'>>({});
+  const [editedRoles, setEditedRoles] = useState<
+    Record<number, 'ADMIN' | 'MEMBER' | 'GUEST'>
+  >({});
   const [savingRoles, setSavingRoles] = useState(false);
 
   // UI 状态
@@ -109,9 +120,13 @@ export default function TeamManagement() {
   const [searching, setSearching] = useState(false);
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [joinMessage, setJoinMessage] = useState('');
-  const [joinTargetTeam, setJoinTargetTeam] = useState<TeamSummary | null>(null);
+  const [joinTargetTeam, setJoinTargetTeam] = useState<TeamSummary | null>(
+    null
+  );
   const [submittingJoinRequest, setSubmittingJoinRequest] = useState(false);
-  const [cancellingRequestId, setCancellingRequestId] = useState<number | null>(null);
+  const [cancellingRequestId, setCancellingRequestId] = useState<number | null>(
+    null
+  );
 
   // 邀请成员
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -162,7 +177,11 @@ export default function TeamManagement() {
 
     try {
       setProcessingRequestId(request.id);
-      const result = await reviewTeamJoinRequest(selectedTeamId, request.id, decision);
+      const result = await reviewTeamJoinRequest(
+        selectedTeamId,
+        request.id,
+        decision
+      );
       setSuccessMessage(result.message || '申请已处理');
       await refreshJoinRequests();
       if (decision === 'approve') {
@@ -207,21 +226,15 @@ export default function TeamManagement() {
   // 创建/编辑团队
   const handleTeamFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!teamForm.name.trim()) {
+    const normalizedForm = normalizeTeamForm(teamForm, teamFormMode);
+    if (!normalizedForm.valid) {
       setError('团队名称不能为空');
       return;
     }
 
     try {
       setSavingTeamForm(true);
-      const maxMembersNumber = Number(teamForm.maxMembers);
-      const payload = {
-        name: teamForm.name.trim(),
-        description: teamForm.description.trim() || (teamFormMode === 'edit' ? '' : undefined),
-        hospital: teamForm.hospital.trim() || (teamFormMode === 'edit' ? '' : undefined),
-        department: teamForm.department.trim() || (teamFormMode === 'edit' ? '' : undefined),
-        max_members: Number.isNaN(maxMembersNumber) ? undefined : maxMembersNumber,
-      };
+      const payload = normalizedForm.value;
 
       if (teamFormMode === 'edit' && editingTeam) {
         const updatedTeam = await updateTeam(editingTeam.id, payload);
@@ -281,7 +294,11 @@ export default function TeamManagement() {
       setSearchResults(prev =>
         prev.map(item =>
           item.id === targetTeamId
-            ? { ...item, join_status: 'PENDING', join_request_id: response.request_id }
+            ? {
+                ...item,
+                join_status: 'PENDING',
+                join_request_id: response.request_id,
+              }
             : item
         )
       );
@@ -305,7 +322,9 @@ export default function TeamManagement() {
       setSuccessMessage('申请已撤销');
       setSearchResults(prev =>
         prev.map(item =>
-          item.id === teamId ? { ...item, join_status: null, join_request_id: null } : item
+          item.id === teamId
+            ? { ...item, join_status: null, join_request_id: null }
+            : item
         )
       );
       // 刷新"我的团队"列表，移除已撤销的申请
@@ -336,7 +355,10 @@ export default function TeamManagement() {
   };
 
   // 修改某个成员的角色（在编辑模式中）
-  const handleRoleChange = (userId: number, newRole: 'ADMIN' | 'MEMBER' | 'GUEST') => {
+  const handleRoleChange = (
+    userId: number,
+    newRole: 'ADMIN' | 'MEMBER' | 'GUEST'
+  ) => {
     setEditedRoles(prev => ({
       ...prev,
       [userId]: newRole,
@@ -348,7 +370,8 @@ export default function TeamManagement() {
     if (!selectedTeamId) return;
 
     // 找出所有发生变化的角色
-    const changes: Array<{ userId: number; oldRole: string; newRole: string }> = [];
+    const changes: Array<{ userId: number; oldRole: string; newRole: string }> =
+      [];
     members.forEach(member => {
       const newRole = editedRoles[member.user_id];
       if (newRole && newRole !== member.role) {
@@ -371,7 +394,11 @@ export default function TeamManagement() {
 
       // 逐个提交修改
       for (const change of changes) {
-        await updateMemberRole(selectedTeamId, change.userId, change.newRole as 'ADMIN' | 'MEMBER');
+        await updateMemberRole(
+          selectedTeamId,
+          change.userId,
+          change.newRole as 'ADMIN' | 'MEMBER'
+        );
       }
 
       setSuccessMessage(`已成功修改 ${changes.length} 个成员的角色`);
@@ -449,7 +476,10 @@ export default function TeamManagement() {
 
     window.addEventListener('switchToInvitations', handleSwitchToInvitations);
     return () => {
-      window.removeEventListener('switchToInvitations', handleSwitchToInvitations);
+      window.removeEventListener(
+        'switchToInvitations',
+        handleSwitchToInvitations
+      );
     };
   }, []);
 
@@ -498,804 +528,951 @@ export default function TeamManagement() {
           <div className="flex max-h-96 w-full flex-shrink-0 flex-col gap-4 lg:max-h-none lg:w-64 xl:w-80">
             {/* 操作按钮 */}
             <div className="flex flex-col gap-2 lg:flex-row">
-          {isSystemAdmin ? (
-            <>
-              <button
-                onClick={openCreateTeamForm}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                创建团队
-              </button>
-
-              <button
-                onClick={() => setSearchTeamModalOpen(true)}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                搜索团队
-              </button>
-            </>
-          ) : (
-            // 普通用户只显示搜索按钮并占满整行
-            <button
-              onClick={() => setSearchTeamModalOpen(true)}
-              className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              搜索团队
-            </button>
-          )}
-        </div>
-
-        {/* 团队列表 */}
-        <div className="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white">
-          <div className="border-b border-gray-200 px-4 py-3">
-            <h3 className="font-semibold text-gray-900">我的团队</h3>
-            <p className="text-xs text-gray-500">共 {myTeams.length} 个团队</p>
-          </div>
-
-          {loadingTeams ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-500">加载中...</div>
-          ) : myTeams.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-500">暂无团队</div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {myTeams.map(team => {
-                const isPending = team.join_status === 'PENDING' || team.join_status === 'pending';
-                const isSelected = team.id === selectedTeamId;
-                const canEditTeam = canManageTeam(actualUser, team);
-
-                return (
-                  <div
-                    key={team.id}
-                    className={`relative w-full px-3 py-3 text-left transition lg:px-4 ${isPending
-                        ? 'bg-gray-50 opacity-90'
-                        : 'hover:bg-gray-50 cursor-pointer'
-                      } ${isSelected ? 'bg-blue-50' : ''}`}
-                    onClick={() => !isPending && setSelectedTeamId(team.id)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="truncate font-medium text-gray-900">{team.name}</h4>
-                        </div>
-                        <p className="mt-1 line-clamp-1 text-xs text-gray-500">
-                          {team.description || '暂无描述'}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-400">
-                          {team.hospital && <span>{team.hospital}</span>}
-                          {team.department && <span>{team.department}</span>}
-                        </div>
-                      </div>
-                      <div className="flex flex-shrink-0 flex-col items-end gap-2 lg:flex-row lg:items-center">
-                        {!isPending && canEditTeam && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditTeamForm(team);
-                            }}
-                            className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                          >
-                            设置
-                          </button>
-                        )}
-                        {isPending && team.join_request_id ? (
-                          <>
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                              申请中
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancelRequest(team.id, team.join_request_id!);
-                              }}
-                              disabled={cancellingRequestId === team.join_request_id}
-                              className="text-sm text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {cancellingRequestId === team.join_request_id ? '撤销中...' : '撤销'}
-                            </button>
-                          </>
-                        ) : isSelected ? (
-                          <i className="ri-check-line text-lg text-blue-600" />
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      成员 {team.member_count}
-                      {team.max_members ? ` / ${team.max_members}` : ''}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 右侧：团队详情 */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-visible lg:overflow-hidden">
-        {!selectedTeam ? (
-          <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white">
-            <div className="text-center text-gray-500">
-              <i className="ri-team-line mb-2 text-4xl" />
-              <p>请选择一个团队查看详情</p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-full flex-col gap-4 overflow-visible lg:overflow-hidden">
-            {/* 消息提示 */}
-            {visibleError && (
-              <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                <span>{visibleError}</span>
-                <button
-                  onClick={() => {
-                    setError(null);
-                    clearLoadError();
-                  }}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <i className="ri-close-line" />
-                </button>
-              </div>
-            )}
-
-            {successMessage && (
-              <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                <span>{successMessage}</span>
-                <button
-                  onClick={() => setSuccessMessage(null)}
-                  className="text-emerald-500 hover:text-emerald-700"
-                >
-                  <i className="ri-close-line" />
-                </button>
-              </div>
-            )}
-
-            {/* 团队信息卡片 - 固定高度 */}
-            <div className="flex-shrink-0 rounded-lg border border-gray-200 bg-white p-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <h2 className="text-xl font-bold text-gray-900">{selectedTeam.name}</h2>
-                  <p className="mt-1 text-sm text-gray-600">{selectedTeam.description || '暂无描述'}</p>
-                  <div className="mt-3 flex flex-wrap gap-3 text-sm text-gray-500">
-                    {selectedTeam.hospital && (
-                      <span className="flex items-center gap-1">
-                        <i className="ri-building-line" />
-                        {selectedTeam.hospital}
-                      </span>
-                    )}
-                    {selectedTeam.department && (
-                      <span className="flex items-center gap-1">
-                        <i className="ri-stethoscope-line" />
-                        {selectedTeam.department}
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1">
-                      <i className="ri-user-star-line" />
-                      创建者：{selectedTeam.creator_name || '未设置'}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-shrink-0 text-left sm:text-center">
-                  <div className="text-2xl font-bold text-blue-600">{selectedTeam.member_count}</div>
-                  <div className="text-xs text-gray-500">
-                    成员{selectedTeam.max_members ? ` / ${selectedTeam.max_members}` : ''}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 成员列表 - 占据剩余空间 */}
-            <div className={`flex ${isCurrentUserAdmin ? 'flex-1' : 'flex-[2]'} flex-col overflow-hidden rounded-lg border border-gray-200 bg-white`}>
-              <div className="flex flex-shrink-0 flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">团队成员</h3>
-                  <p className="text-xs text-gray-500">共 {members.length} 名成员</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="text"
-                    value={searchMemberKeyword}
-                    onChange={e => setSearchMemberKeyword(e.target.value)}
-                    placeholder="搜索成员"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none sm:w-48"
-                  />
-                  {isCurrentUserAdmin && (
-                    <>
-                      {isRoleEditMode ? (
-                        <>
-                          <button
-                            onClick={handleSaveAllRoles}
-                            disabled={savingRoles}
-                            className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {savingRoles ? '保存中...' : '保存'}
-                          </button>
-                          <button
-                            onClick={handleCancelRoleEdit}
-                            disabled={savingRoles}
-                            className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            取消
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => setInviteModalOpen(true)}
-                            className="flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-                          >
-                            <i className="ri-user-add-line" />
-                            <span>邀请成员</span>
-                          </button>
-                          <button
-                            onClick={handleEnterRoleEditMode}
-                            className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                          >
-                            <i className="ri-shield-user-line" />
-                            <span>身份管理</span>
-                          </button>
-                        </>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex-1 divide-y divide-gray-100 overflow-y-auto">
-                {loadingMembers ? (
-                  <div className="px-4 py-6 text-center text-sm text-gray-500">加载中...</div>
-                ) : filteredMembers.length === 0 ? (
-                  <div className="px-4 py-6 text-center text-sm text-gray-500">暂无成员</div>
-                ) : (
-                  filteredMembers.map(member => {
-                    // 权限判断逻辑：
-                    // 1. 超级系统管理员（level 1）不能被任何人修改
-                    // 2. 团队管理员（ADMIN）不能修改超级系统管理员
-                    // 3. 普通成员（MEMBER）不能修改任何管理员
-                    const canEditThisMember = (() => {
-                      // 如果目标成员是超级系统管理员（level 1），任何人都不能修改
-                      if (member.is_system_admin && member.system_admin_level === 1) {
-                        return false;
-                      }
-
-                      // 如果当前用户是团队管理员
-                      if (isCurrentUserAdmin) {
-                        // 团队管理员不能修改超级系统管理员（已在上面处理）
-                        // 团队管理员可以修改其他所有人（包括二级系统管理员和普通成员）
-                        return true;
-                      }
-
-                      // 如果当前用户是普通成员
-                      // 普通成员不能修改任何管理员（包括团队管理员和系统管理员）
-                      if (member.role === 'ADMIN' || member.is_system_admin) {
-                        return false;
-                      }
-
-                      // 普通成员可以修改其他普通成员
-                      return true;
-                    })();
-
-                    // 判断是否可以删除该成员
-                    const canRemoveThisMember = (() => {
-                      // 不能删除创建者
-                      if (member.is_creator) {
-                        return false;
-                      }
-
-                      // 如果目标成员是超级系统管理员（level 1），任何人都不能删除
-                      if (member.is_system_admin && member.system_admin_level === 1) {
-                        return false;
-                      }
-
-                      // 只有管理员可以删除成员
-                      if (!isCurrentUserAdmin) {
-                        return false;
-                      }
-
-                      return true;
-                    })();
-
-                    return (
-                      <div key={member.user_id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
-                            <i className="ri-user-line text-gray-600" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <span className="truncate text-sm font-medium text-gray-900">
-                                {member.real_name || member.username}
-                              </span>
-                              {member.is_creator && (
-                                <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
-                                  创建者
-                                </span>
-                              )}
-                            </div>
-                            <div className="truncate text-xs text-gray-500">{member.email}</div>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {isRoleEditMode && canEditThisMember ? (
-                            <select
-                              value={editedRoles[member.user_id] || member.role}
-                              onChange={(e) => handleRoleChange(member.user_id, e.target.value as 'ADMIN' | 'MEMBER' | 'GUEST')}
-                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                              disabled={savingRoles}
-                            >
-                              <option value="ADMIN">管理员</option>
-                              <option value="MEMBER">成员</option>
-                              <option value="GUEST">访客</option>
-                            </select>
-                          ) : (
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_MAP[member.status] || 'bg-gray-100 text-gray-500'
-                                }`}
-                            >
-                              {ROLE_LABEL_MAP[editedRoles[member.user_id] || member.role] || member.role}
-                            </span>
-                          )}
-                          {!isRoleEditMode && canRemoveThisMember && (
-                            <button
-                              onClick={() => handleRemoveMember(member)}
-                              className="rounded-lg p-1.5 text-red-600 hover:bg-red-50"
-                              title="删除成员"
-                            >
-                              <i className="ri-delete-bin-line text-base" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* 加入申请列表 - 占据剩余空间 */}
-            {isCurrentUserAdmin && (
-              <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
-                <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4 py-3">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">加入申请</h3>
-                    <p className="text-xs text-gray-500">
-                      待处理 {joinRequests?.filter(r => r.status === 'PENDING').length ?? 0} 条
-                    </p>
-                  </div>
+              {isSystemAdmin ? (
+                <>
                   <button
-                    onClick={() => void refreshJoinRequests()}
-                    className="text-sm text-blue-600 hover:text-blue-700"
+                    onClick={openCreateTeamForm}
+                    className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                   >
-                    <i className="ri-refresh-line mr-1" />
-                    刷新
+                    创建团队
                   </button>
-                </div>
 
-                <div className="flex-1 divide-y divide-gray-100 overflow-y-auto">
-                  {loadingJoinRequests ? (
-                    <div className="px-4 py-6 text-center text-sm text-gray-500">加载中...</div>
-                  ) : joinRequests.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-sm text-gray-500">暂无申请记录</div>
-                  ) : (
-                    joinRequests.map(request => {
-                      const isPending = request.status === 'PENDING';
-                      const isProcessing = processingRequestId === request.id;
-
-                      return (
-                        <div
-                          key={request.id}
-                          className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <span className="truncate text-sm font-medium text-gray-900">
-                                {request.applicant_real_name || request.applicant_username}
-                              </span>
-                              <span className="truncate text-xs text-gray-500">
-                                ({request.applicant_email || '未填写邮箱'})
-                              </span>
-                            </div>
-                            <div className="mt-1 text-xs text-gray-600">
-                              {request.message || <span className="italic">未填写申请理由</span>}
-                            </div>
-                            <div className="mt-1 text-xs text-gray-400">
-                              申请时间：{formatDateTime(request.requested_at)}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-                            {isPending ? (
-                              <>
-                                <button
-                                  onClick={() => handleReviewJoinRequest(request, 'approve')}
-                                  disabled={isProcessing}
-                                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  {isProcessing ? '处理中...' : '通过'}
-                                </button>
-                                <button
-                                  onClick={() => handleReviewJoinRequest(request, 'reject')}
-                                  disabled={isProcessing}
-                                  className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  {isProcessing ? '处理中...' : '驳回'}
-                                </button>
-                              </>
-                            ) : (
-                              <span
-                                className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_MAP[request.status] || 'bg-gray-100 text-gray-500'
-                                  }`}
-                              >
-                                {REQUEST_STATUS_MAP[request.status] || request.status}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 创建/编辑团队模态框 */}
-      {teamFormModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-xl rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {teamFormMode === 'edit' ? '编辑团队' : '创建新团队'}
-              </h3>
-              <button
-                onClick={closeTeamForm}
-                className="text-gray-400 hover:text-gray-600"
-                disabled={savingTeamForm}
-              >
-                <i className="ri-close-line text-xl" />
-              </button>
+                  <button
+                    onClick={() => setSearchTeamModalOpen(true)}
+                    className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    搜索团队
+                  </button>
+                </>
+              ) : (
+                // 普通用户只显示搜索按钮并占满整行
+                <button
+                  onClick={() => setSearchTeamModalOpen(true)}
+                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  搜索团队
+                </button>
+              )}
             </div>
 
-            <form onSubmit={handleTeamFormSubmit} className="space-y-4 px-6 py-5">
-              <div>
-                <label htmlFor="team-form-name" className="mb-2 block text-sm font-medium text-gray-700">团队名称</label>
-                <input
-                  id="team-form-name"
-                  type="text"
-                  value={teamForm.name}
-                  onChange={e => setTeamForm(prev => ({ ...prev, name: e.target.value }))}
-                  required
-                  placeholder="请输入团队名称"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                />
+            {/* 团队列表 */}
+            <div className="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+              <div className="border-b border-gray-200 px-4 py-3">
+                <h3 className="font-semibold text-gray-900">我的团队</h3>
+                <p className="text-xs text-gray-500">
+                  共 {myTeams.length} 个团队
+                </p>
               </div>
 
-              <div>
-                <label htmlFor="team-form-description" className="mb-2 block text-sm font-medium text-gray-700">团队描述</label>
-                <textarea
-                  id="team-form-description"
-                  value={teamForm.description}
-                  onChange={e => setTeamForm(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  placeholder="简单介绍团队职责与目标"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label htmlFor="team-form-hospital" className="mb-2 block text-sm font-medium text-gray-700">所属医院</label>
-                  <input
-                    id="team-form-hospital"
-                    type="text"
-                    value={teamForm.hospital}
-                    onChange={e => setTeamForm(prev => ({ ...prev, hospital: e.target.value }))}
-                    placeholder="例如：协和医院"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                  />
+              {loadingTeams ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-500">
+                  加载中...
                 </div>
-
-                <div>
-                  <label htmlFor="team-form-department" className="mb-2 block text-sm font-medium text-gray-700">所属科室</label>
-                  <input
-                    id="team-form-department"
-                    type="text"
-                    value={teamForm.department}
-                    onChange={e =>
-                      setTeamForm(prev => ({ ...prev, department: e.target.value }))
-                    }
-                    placeholder="例如：放射科"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                  />
+              ) : myTeams.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-500">
+                  暂无团队
                 </div>
-              </div>
-
-              <div>
-                <label htmlFor="team-form-max-members" className="mb-2 block text-sm font-medium text-gray-700">最大成员数</label>
-                <input
-                  id="team-form-max-members"
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={teamForm.maxMembers}
-                  onChange={e => setTeamForm(prev => ({ ...prev, maxMembers: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
-                <button
-                  type="button"
-                  onClick={closeTeamForm}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  disabled={savingTeamForm}
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                  disabled={savingTeamForm}
-                >
-                  {savingTeamForm
-                    ? (teamFormMode === 'edit' ? '保存中...' : '创建中...')
-                    : (teamFormMode === 'edit' ? '保存修改' : '创建团队')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 搜索团队模态框 */}
-      {searchTeamModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          onClick={() => setSearchTeamModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-3xl rounded-lg bg-white shadow-xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">搜索团队</h3>
-            </div>
-
-            <div className="px-6 py-5">
-              <form onSubmit={handleSearch} className="mb-4 flex gap-2">
-                <input
-                  type="text"
-                  value={searchKeyword}
-                  onChange={e => setSearchKeyword(e.target.value)}
-                  placeholder="输入团队名称、医院或科室"
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="rounded-lg bg-blue-600 px-5 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                  disabled={searching}
-                >
-                  {searching ? '搜索中...' : '搜索'}
-                </button>
-              </form>
-
-              <div className="max-h-96 space-y-3 overflow-y-auto">
-                {searchResults.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-gray-500">
-                    {searchKeyword ? '未找到相关团队' : '请输入关键词搜索团队'}
-                  </div>
-                ) : (
-                  searchResults.map(team => {
-                    const isPending = team.join_status === 'PENDING' || team.join_status === 'pending';
-                    const isCancelling = cancellingRequestId === team.join_request_id;
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {myTeams.map(team => {
+                    const isPending =
+                      team.join_status === 'PENDING' ||
+                      team.join_status === 'pending';
+                    const isSelected = team.id === selectedTeamId;
+                    const canEditTeam = canManageTeam(actualUser, team);
 
                     return (
                       <div
                         key={team.id}
-                        className="flex items-center justify-between rounded-lg border border-gray-200 p-4"
+                        className={`relative w-full px-3 py-3 text-left transition lg:px-4 ${
+                          isPending
+                            ? 'bg-gray-50 opacity-90'
+                            : 'hover:bg-gray-50 cursor-pointer'
+                        } ${isSelected ? 'bg-blue-50' : ''}`}
+                        onClick={() => !isPending && setSelectedTeamId(team.id)}
                       >
-                        <div>
-                          <h4 className="font-medium text-gray-900">{team.name}</h4>
-                          <p className="text-sm text-gray-600">{team.description || '暂无描述'}</p>
-                          <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
-                            {team.hospital && <span>{team.hospital}</span>}
-                            {team.department && <span>{team.department}</span>}
-                            <span>成员 {team.member_count}</span>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="truncate font-medium text-gray-900">
+                                {team.name}
+                              </h4>
+                            </div>
+                            <p className="mt-1 line-clamp-1 text-xs text-gray-500">
+                              {team.description || '暂无描述'}
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-400">
+                              {team.hospital && <span>{team.hospital}</span>}
+                              {team.department && (
+                                <span>{team.department}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-shrink-0 flex-col items-end gap-2 lg:flex-row lg:items-center">
+                            {!isPending && canEditTeam && (
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  openEditTeamForm(team);
+                                }}
+                                className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                              >
+                                设置
+                              </button>
+                            )}
+                            {isPending && team.join_request_id ? (
+                              <>
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                  申请中
+                                </span>
+                                <button
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleCancelRequest(
+                                      team.id,
+                                      team.join_request_id!
+                                    );
+                                  }}
+                                  disabled={
+                                    cancellingRequestId === team.join_request_id
+                                  }
+                                  className="text-sm text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {cancellingRequestId === team.join_request_id
+                                    ? '撤销中...'
+                                    : '撤销'}
+                                </button>
+                              </>
+                            ) : isSelected ? (
+                              <i className="ri-check-line text-lg text-blue-600" />
+                            ) : null}
                           </div>
                         </div>
-
-                        {team.is_member ? (
-                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                            已加入
-                          </span>
-                        ) : isPending && team.join_request_id ? (
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
-                              待审批
-                            </span>
-                            <button
-                              onClick={() => handleCancelRequest(team.id, team.join_request_id!)}
-                              disabled={isCancelling}
-                              className="text-sm text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {isCancelling ? '撤销中...' : '撤销'}
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setJoinTargetTeam(team);
-                              setJoinModalOpen(true);
-                            }}
-                            className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700"
-                          >
-                            申请加入
-                          </button>
-                        )}
+                        <div className="mt-2 text-xs text-gray-500">
+                          成员 {team.member_count}
+                          {team.max_members ? ` / ${team.max_members}` : ''}
+                        </div>
                       </div>
                     );
-                  })
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 右侧：团队详情 */}
+          <div className="flex min-w-0 flex-1 flex-col overflow-visible lg:overflow-hidden">
+            {!selectedTeam ? (
+              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white">
+                <div className="text-center text-gray-500">
+                  <i className="ri-team-line mb-2 text-4xl" />
+                  <p>请选择一个团队查看详情</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-full flex-col gap-4 overflow-visible lg:overflow-hidden">
+                {/* 消息提示 */}
+                {visibleError && (
+                  <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <span>{visibleError}</span>
+                    <button
+                      onClick={() => {
+                        setError(null);
+                        clearLoadError();
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <i className="ri-close-line" />
+                    </button>
+                  </div>
+                )}
+
+                {successMessage && (
+                  <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    <span>{successMessage}</span>
+                    <button
+                      onClick={() => setSuccessMessage(null)}
+                      className="text-emerald-500 hover:text-emerald-700"
+                    >
+                      <i className="ri-close-line" />
+                    </button>
+                  </div>
+                )}
+
+                {/* 团队信息卡片 - 固定高度 */}
+                <div className="flex-shrink-0 rounded-lg border border-gray-200 bg-white p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-bold text-gray-900">
+                        {selectedTeam.name}
+                      </h2>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {selectedTeam.description || '暂无描述'}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-3 text-sm text-gray-500">
+                        {selectedTeam.hospital && (
+                          <span className="flex items-center gap-1">
+                            <i className="ri-building-line" />
+                            {selectedTeam.hospital}
+                          </span>
+                        )}
+                        {selectedTeam.department && (
+                          <span className="flex items-center gap-1">
+                            <i className="ri-stethoscope-line" />
+                            {selectedTeam.department}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <i className="ri-user-star-line" />
+                          创建者：{selectedTeam.creator_name || '未设置'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 text-left sm:text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {selectedTeam.member_count}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        成员
+                        {selectedTeam.max_members
+                          ? ` / ${selectedTeam.max_members}`
+                          : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 成员列表 - 占据剩余空间 */}
+                <div
+                  className={`flex ${isCurrentUserAdmin ? 'flex-1' : 'flex-[2]'} flex-col overflow-hidden rounded-lg border border-gray-200 bg-white`}
+                >
+                  <div className="flex flex-shrink-0 flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">团队成员</h3>
+                      <p className="text-xs text-gray-500">
+                        共 {members.length} 名成员
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        value={searchMemberKeyword}
+                        onChange={e => setSearchMemberKeyword(e.target.value)}
+                        placeholder="搜索成员"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none sm:w-48"
+                      />
+                      {isCurrentUserAdmin && (
+                        <>
+                          {isRoleEditMode ? (
+                            <>
+                              <button
+                                onClick={handleSaveAllRoles}
+                                disabled={savingRoles}
+                                className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {savingRoles ? '保存中...' : '保存'}
+                              </button>
+                              <button
+                                onClick={handleCancelRoleEdit}
+                                disabled={savingRoles}
+                                className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                取消
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setInviteModalOpen(true)}
+                                className="flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                              >
+                                <i className="ri-user-add-line" />
+                                <span>邀请成员</span>
+                              </button>
+                              <button
+                                onClick={handleEnterRoleEditMode}
+                                className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                              >
+                                <i className="ri-shield-user-line" />
+                                <span>身份管理</span>
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex-1 divide-y divide-gray-100 overflow-y-auto">
+                    {loadingMembers ? (
+                      <div className="px-4 py-6 text-center text-sm text-gray-500">
+                        加载中...
+                      </div>
+                    ) : filteredMembers.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-sm text-gray-500">
+                        暂无成员
+                      </div>
+                    ) : (
+                      filteredMembers.map(member => {
+                        // 权限判断逻辑：
+                        // 1. 超级系统管理员（level 1）不能被任何人修改
+                        // 2. 团队管理员（ADMIN）不能修改超级系统管理员
+                        // 3. 普通成员（MEMBER）不能修改任何管理员
+                        const memberAccess = {
+                          role: member.role,
+                          isCreator: member.is_creator,
+                          isSystemAdmin: member.is_system_admin,
+                          systemAdminLevel: member.system_admin_level,
+                        };
+                        const canEditThisMember = canEditTeamMember({
+                          actorIsTeamAdmin: isCurrentUserAdmin,
+                          member: memberAccess,
+                        });
+                        const canRemoveThisMember = canRemoveTeamMember({
+                          actorIsTeamAdmin: isCurrentUserAdmin,
+                          member: memberAccess,
+                        });
+
+                        return (
+                          <div
+                            key={member.user_id}
+                            className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
+                                <i className="ri-user-line text-gray-600" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                  <span className="truncate text-sm font-medium text-gray-900">
+                                    {member.real_name || member.username}
+                                  </span>
+                                  {member.is_creator && (
+                                    <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700">
+                                      创建者
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="truncate text-xs text-gray-500">
+                                  {member.email}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {isRoleEditMode && canEditThisMember ? (
+                                <select
+                                  value={
+                                    editedRoles[member.user_id] || member.role
+                                  }
+                                  onChange={e =>
+                                    handleRoleChange(
+                                      member.user_id,
+                                      e.target.value as
+                                        'ADMIN' | 'MEMBER' | 'GUEST'
+                                    )
+                                  }
+                                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                                  disabled={savingRoles}
+                                >
+                                  <option value="ADMIN">管理员</option>
+                                  <option value="MEMBER">成员</option>
+                                  <option value="GUEST">访客</option>
+                                </select>
+                              ) : (
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                    STATUS_BADGE_MAP[member.status] ||
+                                    'bg-gray-100 text-gray-500'
+                                  }`}
+                                >
+                                  {ROLE_LABEL_MAP[
+                                    editedRoles[member.user_id] || member.role
+                                  ] || member.role}
+                                </span>
+                              )}
+                              {!isRoleEditMode && canRemoveThisMember && (
+                                <button
+                                  onClick={() => handleRemoveMember(member)}
+                                  className="rounded-lg p-1.5 text-red-600 hover:bg-red-50"
+                                  title="删除成员"
+                                >
+                                  <i className="ri-delete-bin-line text-base" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* 加入申请列表 - 占据剩余空间 */}
+                {isCurrentUserAdmin && (
+                  <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
+                    <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4 py-3">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">
+                          加入申请
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          待处理{' '}
+                          {joinRequests?.filter(r => r.status === 'PENDING')
+                            .length ?? 0}{' '}
+                          条
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => void refreshJoinRequests()}
+                        className="text-sm text-blue-600 hover:text-blue-700"
+                      >
+                        <i className="ri-refresh-line mr-1" />
+                        刷新
+                      </button>
+                    </div>
+
+                    <div className="flex-1 divide-y divide-gray-100 overflow-y-auto">
+                      {loadingJoinRequests ? (
+                        <div className="px-4 py-6 text-center text-sm text-gray-500">
+                          加载中...
+                        </div>
+                      ) : joinRequests.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-sm text-gray-500">
+                          暂无申请记录
+                        </div>
+                      ) : (
+                        joinRequests.map(request => {
+                          const isPending = request.status === 'PENDING';
+                          const isProcessing =
+                            processingRequestId === request.id;
+
+                          return (
+                            <div
+                              key={request.id}
+                              className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                  <span className="truncate text-sm font-medium text-gray-900">
+                                    {request.applicant_real_name ||
+                                      request.applicant_username}
+                                  </span>
+                                  <span className="truncate text-xs text-gray-500">
+                                    ({request.applicant_email || '未填写邮箱'})
+                                  </span>
+                                </div>
+                                <div className="mt-1 text-xs text-gray-600">
+                                  {request.message || (
+                                    <span className="italic">
+                                      未填写申请理由
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="mt-1 text-xs text-gray-400">
+                                  申请时间：
+                                  {formatDateTime(request.requested_at)}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+                                {isPending ? (
+                                  <>
+                                    <button
+                                      onClick={() =>
+                                        handleReviewJoinRequest(
+                                          request,
+                                          'approve'
+                                        )
+                                      }
+                                      disabled={isProcessing}
+                                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {isProcessing ? '处理中...' : '通过'}
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleReviewJoinRequest(
+                                          request,
+                                          'reject'
+                                        )
+                                      }
+                                      disabled={isProcessing}
+                                      className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {isProcessing ? '处理中...' : '驳回'}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                      STATUS_BADGE_MAP[request.status] ||
+                                      'bg-gray-100 text-gray-500'
+                                    }`}
+                                  >
+                                    {REQUEST_STATUS_MAP[request.status] ||
+                                      request.status}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
+            )}
+          </div>
 
-              {/* 底部关闭按钮 */}
-              <div className="mt-4 flex justify-end border-t border-gray-200 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setSearchTeamModalOpen(false)}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          {/* 创建/编辑团队模态框 */}
+          {teamFormModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+              <div className="w-full max-w-xl rounded-lg bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {teamFormMode === 'edit' ? '编辑团队' : '创建新团队'}
+                  </h3>
+                  <button
+                    onClick={closeTeamForm}
+                    className="text-gray-400 hover:text-gray-600"
+                    disabled={savingTeamForm}
+                  >
+                    <i className="ri-close-line text-xl" />
+                  </button>
+                </div>
+
+                <form
+                  onSubmit={handleTeamFormSubmit}
+                  className="space-y-4 px-6 py-5"
                 >
-                  关闭
-                </button>
+                  <div>
+                    <label
+                      htmlFor="team-form-name"
+                      className="mb-2 block text-sm font-medium text-gray-700"
+                    >
+                      团队名称
+                    </label>
+                    <input
+                      id="team-form-name"
+                      type="text"
+                      value={teamForm.name}
+                      onChange={e =>
+                        setTeamForm(prev => ({ ...prev, name: e.target.value }))
+                      }
+                      required
+                      placeholder="请输入团队名称"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="team-form-description"
+                      className="mb-2 block text-sm font-medium text-gray-700"
+                    >
+                      团队描述
+                    </label>
+                    <textarea
+                      id="team-form-description"
+                      value={teamForm.description}
+                      onChange={e =>
+                        setTeamForm(prev => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      placeholder="简单介绍团队职责与目标"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor="team-form-hospital"
+                        className="mb-2 block text-sm font-medium text-gray-700"
+                      >
+                        所属医院
+                      </label>
+                      <input
+                        id="team-form-hospital"
+                        type="text"
+                        value={teamForm.hospital}
+                        onChange={e =>
+                          setTeamForm(prev => ({
+                            ...prev,
+                            hospital: e.target.value,
+                          }))
+                        }
+                        placeholder="例如：协和医院"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="team-form-department"
+                        className="mb-2 block text-sm font-medium text-gray-700"
+                      >
+                        所属科室
+                      </label>
+                      <input
+                        id="team-form-department"
+                        type="text"
+                        value={teamForm.department}
+                        onChange={e =>
+                          setTeamForm(prev => ({
+                            ...prev,
+                            department: e.target.value,
+                          }))
+                        }
+                        placeholder="例如：放射科"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="team-form-max-members"
+                      className="mb-2 block text-sm font-medium text-gray-700"
+                    >
+                      最大成员数
+                    </label>
+                    <input
+                      id="team-form-max-members"
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={teamForm.maxMembers}
+                      onChange={e =>
+                        setTeamForm(prev => ({
+                          ...prev,
+                          maxMembers: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
+                    <button
+                      type="button"
+                      onClick={closeTeamForm}
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      disabled={savingTeamForm}
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                      disabled={savingTeamForm}
+                    >
+                      {savingTeamForm
+                        ? teamFormMode === 'edit'
+                          ? '保存中...'
+                          : '创建中...'
+                        : teamFormMode === 'edit'
+                          ? '保存修改'
+                          : '创建团队'}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* 申请加入模态框 */}
-      {joinModalOpen && joinTargetTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">申请加入团队</h3>
-              <button
-                onClick={() => !submittingJoinRequest && setJoinModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
+          {/* 搜索团队模态框 */}
+          {searchTeamModalOpen && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+              onClick={() => setSearchTeamModalOpen(false)}
+            >
+              <div
+                className="w-full max-w-3xl rounded-lg bg-white shadow-xl"
+                onClick={e => e.stopPropagation()}
               >
-                <i className="ri-close-line text-xl" />
-              </button>
+                <div className="border-b border-gray-200 px-6 py-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    搜索团队
+                  </h3>
+                </div>
+
+                <div className="px-6 py-5">
+                  <form onSubmit={handleSearch} className="mb-4 flex gap-2">
+                    <input
+                      type="text"
+                      value={searchKeyword}
+                      onChange={e => setSearchKeyword(e.target.value)}
+                      placeholder="输入团队名称、医院或科室"
+                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-blue-600 px-5 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                      disabled={searching}
+                    >
+                      {searching ? '搜索中...' : '搜索'}
+                    </button>
+                  </form>
+
+                  <div className="max-h-96 space-y-3 overflow-y-auto">
+                    {searchResults.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-gray-500">
+                        {searchKeyword
+                          ? '未找到相关团队'
+                          : '请输入关键词搜索团队'}
+                      </div>
+                    ) : (
+                      searchResults.map(team => {
+                        const isPending =
+                          team.join_status === 'PENDING' ||
+                          team.join_status === 'pending';
+                        const isCancelling =
+                          cancellingRequestId === team.join_request_id;
+
+                        return (
+                          <div
+                            key={team.id}
+                            className="flex items-center justify-between rounded-lg border border-gray-200 p-4"
+                          >
+                            <div>
+                              <h4 className="font-medium text-gray-900">
+                                {team.name}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {team.description || '暂无描述'}
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+                                {team.hospital && <span>{team.hospital}</span>}
+                                {team.department && (
+                                  <span>{team.department}</span>
+                                )}
+                                <span>成员 {team.member_count}</span>
+                              </div>
+                            </div>
+
+                            {team.is_member ? (
+                              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                                已加入
+                              </span>
+                            ) : isPending && team.join_request_id ? (
+                              <div className="flex items-center gap-2">
+                                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                                  待审批
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    handleCancelRequest(
+                                      team.id,
+                                      team.join_request_id!
+                                    )
+                                  }
+                                  disabled={isCancelling}
+                                  className="text-sm text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {isCancelling ? '撤销中...' : '撤销'}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setJoinTargetTeam(team);
+                                  setJoinModalOpen(true);
+                                }}
+                                className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700"
+                              >
+                                申请加入
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* 底部关闭按钮 */}
+                  <div className="mt-4 flex justify-end border-t border-gray-200 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setSearchTeamModalOpen(false)}
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      关闭
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
+          )}
 
-            <form onSubmit={handleJoinSubmit} className="space-y-4 px-6 py-5">
-              <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
-                <div className="font-medium text-blue-900">{joinTargetTeam.name}</div>
-                <div className="text-sm text-blue-700">{joinTargetTeam.description}</div>
-              </div>
+          {/* 申请加入模态框 */}
+          {joinModalOpen && joinTargetTeam && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+              <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    申请加入团队
+                  </h3>
+                  <button
+                    onClick={() =>
+                      !submittingJoinRequest && setJoinModalOpen(false)
+                    }
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="ri-close-line text-xl" />
+                  </button>
+                </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  申请理由（可选）
-                </label>
-                <textarea
-                  value={joinMessage}
-                  onChange={e => setJoinMessage(e.target.value)}
-                  rows={4}
-                  placeholder="可选填写您希望加入团队的缘由"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
-                <button
-                  type="button"
-                  onClick={() => !submittingJoinRequest && setJoinModalOpen(false)}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  disabled={submittingJoinRequest}
+                <form
+                  onSubmit={handleJoinSubmit}
+                  className="space-y-4 px-6 py-5"
                 >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                  disabled={submittingJoinRequest}
-                >
-                  {submittingJoinRequest ? '提交中...' : '提交申请'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                  <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+                    <div className="font-medium text-blue-900">
+                      {joinTargetTeam.name}
+                    </div>
+                    <div className="text-sm text-blue-700">
+                      {joinTargetTeam.description}
+                    </div>
+                  </div>
 
-      {/* 邀请成员模态框 */}
-      {inviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">邀请新成员</h3>
-              <button
-                onClick={() => !invitingMember && setInviteModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <i className="ri-close-line text-xl" />
-              </button>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      申请理由（可选）
+                    </label>
+                    <textarea
+                      value={joinMessage}
+                      onChange={e => setJoinMessage(e.target.value)}
+                      rows={4}
+                      placeholder="可选填写您希望加入团队的缘由"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        !submittingJoinRequest && setJoinModalOpen(false)
+                      }
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      disabled={submittingJoinRequest}
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                      disabled={submittingJoinRequest}
+                    >
+                      {submittingJoinRequest ? '提交中...' : '提交申请'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
+          )}
 
-            <form onSubmit={handleInviteSubmit} className="space-y-4 px-6 py-5">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  邮箱地址 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={e => setInviteEmail(e.target.value)}
-                  placeholder="请输入被邀请人的邮箱"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                  required
-                  disabled={invitingMember}
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  如果该邮箱已注册，用户将直接收到邀请；否则需要先注册账号
-                </p>
-              </div>
+          {/* 邀请成员模态框 */}
+          {inviteModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+              <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    邀请新成员
+                  </h3>
+                  <button
+                    onClick={() => !invitingMember && setInviteModalOpen(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="ri-close-line text-xl" />
+                  </button>
+                </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  团队角色
-                </label>
-                <select
-                  value={inviteRole}
-                  onChange={e => setInviteRole(e.target.value as 'ADMIN' | 'MEMBER')}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                  disabled={invitingMember}
+                <form
+                  onSubmit={handleInviteSubmit}
+                  className="space-y-4 px-6 py-5"
                 >
-                  <option value="MEMBER">成员</option>
-                  <option value="ADMIN">管理员</option>
-                </select>
-                <p className="mt-1 text-xs text-gray-500">
-                  管理员可以管理团队成员和审核加入申请
-                </p>
-              </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      邮箱地址 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                      placeholder="请输入被邀请人的邮箱"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                      required
+                      disabled={invitingMember}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      如果该邮箱已注册，用户将直接收到邀请；否则需要先注册账号
+                    </p>
+                  </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  邀请留言（可选）
-                </label>
-                <textarea
-                  value={inviteMessage}
-                  onChange={e => setInviteMessage(e.target.value)}
-                  rows={3}
-                  placeholder="可以添加一些邀请说明"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                  disabled={invitingMember}
-                />
-              </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      团队角色
+                    </label>
+                    <select
+                      value={inviteRole}
+                      onChange={e =>
+                        setInviteRole(e.target.value as 'ADMIN' | 'MEMBER')
+                      }
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                      disabled={invitingMember}
+                    >
+                      <option value="MEMBER">成员</option>
+                      <option value="ADMIN">管理员</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      管理员可以管理团队成员和审核加入申请
+                    </p>
+                  </div>
 
-              <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
-                <button
-                  type="button"
-                  onClick={() => !invitingMember && setInviteModalOpen(false)}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  disabled={invitingMember}
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                  disabled={invitingMember}
-                >
-                  {invitingMember ? '发送中...' : '发送邀请'}
-                </button>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      邀请留言（可选）
+                    </label>
+                    <textarea
+                      value={inviteMessage}
+                      onChange={e => setInviteMessage(e.target.value)}
+                      rows={3}
+                      placeholder="可以添加一些邀请说明"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                      disabled={invitingMember}
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        !invitingMember && setInviteModalOpen(false)
+                      }
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      disabled={invitingMember}
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                      disabled={invitingMember}
+                    >
+                      {invitingMember ? '发送中...' : '发送邀请'}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+          )}
         </div>
       )}
     </div>

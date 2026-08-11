@@ -18,4 +18,4 @@ export {
   getAnnotationConfig,
   getAnnotationDisplayName,
   getAnnotationTypeId,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+} from '@xiehe/imaging-catalog/annotations';

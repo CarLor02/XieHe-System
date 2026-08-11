@@ -7,7 +7,7 @@ import {
   calculateMeasurementDataValue,
   calculateMeasurementValue,
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '@xiehe/imaging-catalog/annotations';
 import { resolveVariableMeasurement } from '@xiehe/imaging-core/measurements';
 import { normalizePelvicDraggedMeasurementPoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';

@@ -8,7 +8,7 @@ import {
   getDisplayName,
   getLabelPositionForType,
   usesAuxiliaryMeasurementValueTag,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
+} from '@xiehe/imaging-catalog/annotations';
 import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import { TEXT_LABEL_CONSTANTS } from '@/app/imaging/features/image-viewer/shared/constants';
 
@@ -25,7 +25,8 @@ export function estimateTextWidth(
   padding: number = TEXT_LABEL_CONSTANTS.PADDING
 ): number {
   // 中文/全角字符通常接近 1em，英文与数字按常规比例估算。
-  const cjkCharPattern = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF\uFF00-\uFFEF]/;
+  const cjkCharPattern =
+    /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF\uFF00-\uFFEF]/;
   let estimatedWidth = 0;
 
   for (const char of text) {
@@ -83,7 +84,8 @@ export function isPointInTextLabel(
   const padding = TEXT_LABEL_CONSTANTS.PADDING;
 
   // 在图像坐标系中，需要将屏幕像素转换为图像坐标
-  const textWidth = estimateTextWidth(textContent, fontSize, padding) / imageScale;
+  const textWidth =
+    estimateTextWidth(textContent, fontSize, padding) / imageScale;
   const textHeight = estimateTextHeight(fontSize, padding) / imageScale;
 
   return (

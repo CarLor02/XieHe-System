@@ -1,0 +1,27 @@
+import type { AnnotationConfig } from '@xiehe/imaging-catalog/annotations/types';
+import {
+  calculateLateralCobbResults,
+  isLateralCobbInRange,
+} from '@xiehe/imaging-core/measurements/lateral';
+import type { Point } from '@xiehe/imaging-core/contracts';
+
+export const LL_L1_S1_CONFIG: AnnotationConfig = {
+  id: 'll-l1-s1',
+  name: 'LL L1-S1',
+  icon: 'ri-guide-line',
+  description: '整体腰椎前凸(L1上终板与S1上终板)',
+  pointsNeeded: 4,
+  category: 'measurement',
+  color: '#ea580c',
+  rightSideLabel: true,
+
+  calculateResults: calculateLateralCobbResults,
+  getLabelPosition: (points: Point[]) => {
+    if (points.length < 4) return points[0] || { x: 0, y: 0 };
+    // 侧面影像：锚点在第1个点旁，渲染层负责实际屏幕偏移（rightSideLabel）。
+    return { x: points[0].x, y: points[0].y };
+  },
+  isInHoverRange: isLateralCobbInRange,
+  isInSelectionRange: isLateralCobbInRange,
+  rendererId: 'two-lines',
+};

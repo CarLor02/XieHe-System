@@ -15,16 +15,13 @@ import {
   useStandardDistanceActions,
 } from '@/app/imaging/features/image-viewer/features/measurements';
 import {
-  canUseKeypointTools,
   useImageListFetcher,
   useImageStudy,
   useStudyDataLoader,
   useStudyHeaderActions,
 } from '@/app/imaging/features/image-viewer/features/study';
 import { useReportActions } from '@/app/imaging/features/image-viewer/features/report';
-import {
-  createEmptyBindings,
-} from '@xiehe/imaging-core/bindings';
+import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 import { useAnnotationHistory } from '@/app/imaging/features/image-viewer/application/hooks/useAnnotationHistory';
 import {
   isKeypointSupportedExamType,
@@ -34,10 +31,7 @@ import {
   useMeasurementKeypointWorkflow,
   useMeasurementWorkflow,
 } from '@/app/imaging/features/image-viewer/features/measurement-keypoint-sync';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import { KeypointSequenceSession } from '@/app/imaging/features/image-viewer/shared/types';
 import type {
   AvtPlacementSession,
@@ -237,9 +231,9 @@ export function useImageViewerController({
     () => getTools(imageData.examType),
     [imageData.examType]
   );
-  const canUseKeypoints = canUseKeypointTools();
   const isLateralView = isLateralExamType(imageData.examType);
   const isKeypointExam = isKeypointSupportedExamType(imageData.examType);
+  const canUseKeypoints = true;
 
   const {
     calculationContext,
@@ -1062,7 +1056,7 @@ export function useImageViewerController({
       imageData,
       saveMessage,
       isSaving: studyHeaderActions.isSaving,
-      canUseKeypointTools: canUseKeypoints,
+      canUseKeypointTools: true,
       isAIDetecting: studyHeaderActions.isAIDetecting,
       isAIMeasuring: studyHeaderActions.isAIMeasuring,
       hasVertebraeLayer,
@@ -1141,7 +1135,7 @@ export function useImageViewerController({
       measurements,
       keypoints: keypointWorkflow.keypoints,
       completeVertebraGroups: keypointWorkflow.completeVertebraGroups,
-      canUseKeypointTools: canUseKeypoints,
+      canUseKeypointTools: true,
       selectedTool,
       isSettingStandardDistance,
       standardDistance,

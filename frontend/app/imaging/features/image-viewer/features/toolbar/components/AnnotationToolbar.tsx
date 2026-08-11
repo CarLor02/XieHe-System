@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import BindingPanel from '@/app/imaging/features/image-viewer/features/bindings/components/BindingPanel';
 import ReportPanel from '@/app/imaging/features/image-viewer/features/report/components/ReportPanel';
 import { AnnotationBindings } from '@xiehe/imaging-core/bindings';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '@xiehe/imaging-catalog/annotations';
 import {
   isAuxiliaryToolbarTool,
   isUniqueAnnotationTool,

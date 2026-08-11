@@ -1,9 +1,6 @@
 import { useState } from 'react';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
+import { getAnnotationTypeId } from '@xiehe/imaging-catalog/annotations';
 import { calculateMeasurementDataValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 
 /**

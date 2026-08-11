@@ -4,7 +4,7 @@
  */
 
 import { Tool } from '@/app/imaging/features/image-viewer/shared/types';
-import { ANNOTATION_CONFIGS } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { ANNOTATION_CONFIGS } from '@xiehe/imaging-catalog/annotations';
 import {
   AP_MEASUREMENT_TOOL_IDS,
   AUXILIARY_TOOL_IDS,

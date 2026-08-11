@@ -4,7 +4,7 @@ import {
   getDisplayName,
   hasCustomAuxiliaryTagText,
   isEditableAuxiliaryAnnotationType,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
+} from '@xiehe/imaging-catalog/annotations';
 import {
   AnnotationSource,
   MeasurementData,

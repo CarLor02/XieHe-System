@@ -6,7 +6,10 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./tools": "./src/tools/index.ts"
+    "./tools": "./src/tools/index.ts",
+    "./annotations": "./src/annotations/index.ts",
+    "./annotations/types": "./src/annotations/shared/annotation-config-types.ts",
+    "./annotations/layout": "./src/annotations/shared/label-layout.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",

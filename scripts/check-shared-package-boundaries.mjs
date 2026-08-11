@@ -5,6 +5,8 @@ const PACKAGE_NAMES = [
   'xiehe-access-core',
   'xiehe-auth-core',
   'xiehe-dashboard-core',
+  'xiehe-imaging-catalog',
+  'xiehe-imaging-core',
   'xiehe-patient-core',
   'xiehe-upload-core',
 ];

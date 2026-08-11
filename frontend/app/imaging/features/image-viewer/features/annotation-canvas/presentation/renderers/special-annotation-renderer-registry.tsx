@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 
-import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import type { AnnotationRendererId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config-types';
+import { getAnnotationConfig } from '@xiehe/imaging-catalog/annotations';
+import type { AnnotationRendererId } from '@xiehe/imaging-catalog/annotations';
 import {
   renderC7Offset,
   renderHemipelvicWidthRatio,

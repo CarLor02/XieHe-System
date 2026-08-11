@@ -3,7 +3,7 @@
  * 数值计算由共享 Core 完成；Web catalog 只负责兼容既有展示兜底文案。
  */
 
-import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationConfig } from '@xiehe/imaging-catalog/annotations';
 import {
   calculateMeasurementResults,
   calculateMeasurementTypeResults,
@@ -15,10 +15,7 @@ import type {
   MeasurementCalculationOutcome,
   MeasurementValueCalculator,
 } from '@xiehe/imaging-core/measurements';
-import type {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 function formatCalculatedOutcome(
   outcome: MeasurementCalculationOutcome
@@ -64,8 +61,7 @@ export function calculateMeasurementDataValue(
   if (calculatedValue !== null) return calculatedValue;
 
   const resolution = resolveVariableMeasurement(measurement, {
-    examType:
-      context.examType ?? inferMeasurementResolverExamType(measurement),
+    examType: context.examType ?? inferMeasurementResolverExamType(measurement),
   });
   if (resolution.status === 'invalid') {
     return measurement.value;

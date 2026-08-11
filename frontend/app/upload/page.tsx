@@ -17,7 +17,16 @@ import UploadOptionsOverlay, {
   CropArea,
 } from './_components/overlay/upload-options-overlay';
 import { createLogger } from '@/lib/logger';
-import { summarizeUploadQueue } from '@xiehe/upload-core';
+import {
+  advanceUploadOptions,
+  enqueueUploadOptions,
+  markPendingUploadsStarted,
+  removeFromUploadOptions,
+  summarizeUploadQueue,
+  validateUploadStart,
+  type UploadOptionsQueueState,
+  type UploadStartValidationCode,
+} from '@xiehe/upload-core';
 
 const logger = createLogger('app.upload.page');
 
@@ -46,10 +55,11 @@ function UploadContent() {
 
   const [selectedPatient, setSelectedPatient] = useState('');
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
-  const [activeOptionsFileId, setActiveOptionsFileId] = useState<string | null>(
-    null
-  );
-  const [optionsQueue, setOptionsQueue] = useState<string[]>([]);
+  const [optionsState, setOptionsState] = useState<UploadOptionsQueueState>({
+    activeFileId: null,
+    queuedFileIds: [],
+  });
+  const activeOptionsFileId = optionsState.activeFileId;
   const [dragActive, setDragActive] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -82,7 +92,15 @@ function UploadContent() {
   }, [mounted, isAuthenticated, router]);
 
   const loadAssignableTeams = useCallback(
-    ({ page, pageSize, search }: { page: number; pageSize: number; search?: string }) =>
+    ({
+      page,
+      pageSize,
+      search,
+    }: {
+      page: number;
+      pageSize: number;
+      search?: string;
+    }) =>
       getAssignableImageTeams({
         page,
         page_size: pageSize,
@@ -137,7 +155,10 @@ function UploadContent() {
         });
         totalPages = Math.max(result.totalPages || 1, 1);
         page += 1;
-      } while (page <= totalPages && assignableTeamIds.size < expectedTeamIds.size);
+      } while (
+        page <= totalPages &&
+        assignableTeamIds.size < expectedTeamIds.size
+      );
     } catch {
       return preference.teamIds;
     }
@@ -183,19 +204,11 @@ function UploadContent() {
     setUploadFiles(prev => [...prev, ...newFiles]);
 
     const newFileIds = newFiles.map(file => file.id);
-    if (activeOptionsFileId) {
-      setOptionsQueue(prev => [...prev, ...newFileIds]);
-    } else {
-      const [firstFileId, ...remainingIds] = newFileIds;
-      setActiveOptionsFileId(firstFileId ?? null);
-      setOptionsQueue(prev => [...prev, ...remainingIds]);
-    }
+    setOptionsState(current => enqueueUploadOptions(current, newFileIds));
   };
 
   const handleFileOptionDone = () => {
-    const [nextFileId, ...remainingFileIds] = optionsQueue;
-    setActiveOptionsFileId(nextFileId ?? null);
-    setOptionsQueue(remainingFileIds);
+    setOptionsState(advanceUploadOptions);
   };
 
   const handleFileOptionConfirm = () => {
@@ -245,7 +258,9 @@ function UploadContent() {
       logger.error('Upload error:', error);
       setUploadFiles(prev =>
         prev.map(f =>
-          f.id === uploadFileItem.id ? { ...f, status: 'error', progress: 0 } : f
+          f.id === uploadFileItem.id
+            ? { ...f, status: 'error', progress: 0 }
+            : f
         )
       );
     }
@@ -263,11 +278,11 @@ function UploadContent() {
     setUploadFiles(prev => {
       const target = prev.find(f => f.id === fileId);
       if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
-      if (target?.sourcePreviewUrl) URL.revokeObjectURL(target.sourcePreviewUrl);
+      if (target?.sourcePreviewUrl)
+        URL.revokeObjectURL(target.sourcePreviewUrl);
       return prev.filter(f => f.id !== fileId);
     });
-    setOptionsQueue(prev => prev.filter(id => id !== fileId));
-    setActiveOptionsFileId(current => (current === fileId ? null : current));
+    setOptionsState(current => removeFromUploadOptions(current, fileId));
   };
 
   const replaceCurrentFile = (
@@ -420,32 +435,21 @@ function UploadContent() {
   };
 
   const handleConfirmUpload = () => {
-    if (!selectedPatient) {
-      alert('请选择患者');
+    const validationMessage: Record<UploadStartValidationCode, string> = {
+      'missing-patient': '请选择患者',
+      'no-pending-files': '没有文件需要上传',
+      'missing-exam-type': '请为所有待上传文件选择影像类型',
+    };
+    const validation = validateUploadStart(selectedPatient, uploadFiles);
+    if (validation) {
+      alert(validationMessage[validation]);
       return;
     }
 
     logger.debug('开始上传文件...');
 
-    // 获取所有待上传的文件
     const filesToUpload = uploadFiles.filter(f => f.status === 'pending');
-
-    if (filesToUpload.length === 0) {
-      alert('没有文件需要上传');
-      return;
-    }
-
-    if (filesToUpload.some(file => !file.examType)) {
-      alert('请为所有待上传文件选择影像类型');
-      return;
-    }
-
-    // 将文件状态设置为上传中
-    setUploadFiles(prev =>
-      prev.map(f =>
-        f.status === 'pending' ? { ...f, status: 'uploading' } : f
-      )
-    );
+    setUploadFiles(markPendingUploadsStarted);
 
     // 上传每个文件
     filesToUpload.forEach(uploadFileItem => {
@@ -483,275 +487,291 @@ function UploadContent() {
 
   return (
     <AppShell>
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleBackToSource}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <i className="ri-arrow-left-line w-5 h-5 flex items-center justify-center"></i>
-                </button>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">影像上传</h1>
-                  <p className="text-gray-600 mt-1">上传患者的医学影像文件</p>
-                </div>
-              </div>
-
-              {allCompleted && uploadFiles.length > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 flex items-center space-x-2">
-                  <i className="ri-check-line w-5 h-5 flex items-center justify-center text-green-600"></i>
-                  <span className="text-green-800 text-sm">
-                    所有文件上传完成
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            {/* 提示信息 */}
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start space-x-3">
-              <i className="ri-information-line w-5 h-5 flex items-center justify-center text-blue-600 mt-0.5 flex-shrink-0"></i>
-              <p className="text-sm text-blue-800">
-                <span className="font-semibold">提示：</span>默认屏幕左侧对应患者左侧以计算角度正负
-              </p>
-            </div>
-
-            {/* 患者和检查信息 */}
-            <div className="grid grid-cols-1 gap-6 mb-6 md:grid-cols-2">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleBackToSource}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <i className="ri-arrow-left-line w-5 h-5 flex items-center justify-center"></i>
+              </button>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  选择患者 <span className="text-red-500">*</span>
-                </label>
-                <PatientSearchSelect
-                  value={selectedPatient}
-                  onChange={setSelectedPatient}
-                />
-              </div>
-
-              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                文件选择后会逐个确认影像类型，可在同一批次中同时上传正位、侧位或其他类别影像。
+                <h1 className="text-2xl font-bold text-gray-900">影像上传</h1>
+                <p className="text-gray-600 mt-1">上传患者的医学影像文件</p>
               </div>
             </div>
 
-            {/* 文件上传区域 */}
-            <div
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-300 hover:border-gray-400'
-                }`}
-            >
-              <div className="max-w-md mx-auto">
-                <i className="ri-cloud-upload-line w-12 h-12 flex items-center justify-center mx-auto mb-4 text-gray-400 text-4xl"></i>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  拖拽文件到此处，或点击选择文件
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  支持 DCM, JPG, PNG, GIF 格式，单个文件最大 100MB
-                </p>
-
-                <input
-                  type="file"
-                  multiple
-                  accept=".dcm,.jpg,.jpeg,.png,.gif"
-                  onChange={handleFileInput}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label
-                  htmlFor="file-upload"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer whitespace-nowrap"
-                >
-                  选择文件
-                </label>
-              </div>
-            </div>
-
-            {/* 上传文件列表 */}
-            {uploadFiles.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  上传文件 ({uploadFiles.length})
-                </h3>
-                <div className="space-y-3">
-                  {uploadFiles.map(file => (
-                    <div
-                      key={file.id}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                    >
-                      {/* 缩略图预览 */}
-                      <div className="w-14 h-16 flex-shrink-0 bg-black rounded overflow-hidden">
-                        <img
-                          src={file.previewUrl}
-                          alt={file.name}
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-
-                      {/* 文件信息 */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {file.name}
-                            </p>
-                          </div>
-                          <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
-                            <span className="text-xs text-gray-500">
-                              {formatFileSize(file.size)}
-                            </span>
-                            {file.status === 'completed' ? (
-                              <i className="ri-check-line w-4 h-4 flex items-center justify-center text-green-500"></i>
-                            ) : file.status === 'error' ? (
-                              <i className="ri-error-warning-line w-4 h-4 flex items-center justify-center text-red-500"></i>
-                            ) : file.status === 'uploading' ? (
-                              <i className="ri-loader-line w-4 h-4 flex items-center justify-center text-blue-500 animate-spin"></i>
-                            ) : (
-                              <i className="ri-time-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
-                            )}
-                            {file.status === 'pending' && (
-                              <button
-                                onClick={() => setActiveOptionsFileId(file.id)}
-                                className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
-                              >
-                                调整
-                              </button>
-                            )}
-                            <button
-                              onClick={() => removeFile(file.id)}
-                              className="text-gray-400 hover:text-red-500"
-                            >
-                              <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
-                            </button>
-                          </div>
-                        </div>
-
-                        {file.status === 'uploading' && (
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div
-                              className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                              style={{ width: `${file.progress}%` }}
-                            ></div>
-                          </div>
-                        )}
-
-                        {file.status === 'completed' && (
-                          <p className="text-xs text-green-600">上传完成</p>
-                        )}
-
-                        {file.status === 'error' && (
-                          <p className="text-xs text-red-600">上传失败</p>
-                        )}
-
-                        {file.status === 'pending' && (
-                          <div className="flex items-center gap-3 mt-1">
-                            <p className="text-xs text-gray-600">待上传</p>
-                            <span className="rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
-                              {file.examType}
-                            </span>
-                            {file.flipped && (
-                              <span className="text-xs text-gray-500">已翻转</span>
-                            )}
-                            {file.cropped && (
-                              <span className="text-xs text-gray-500">已裁剪</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => {
-                      uploadFiles.forEach(file => {
-                        URL.revokeObjectURL(file.previewUrl);
-                        URL.revokeObjectURL(file.sourcePreviewUrl);
-                      });
-                      setUploadFiles([]);
-                      setActiveOptionsFileId(null);
-                      setOptionsQueue([]);
-                    }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 whitespace-nowrap"
-                  >
-                    清空列表
-                  </button>
-                  {allCompleted ? (
-                    <button
-                      onClick={handleBackToSource}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 whitespace-nowrap"
-                    >
-                      返回原页面
-                    </button>
-                  ) : uploadFiles.some(f => f.status === 'uploading') ? (
-                    <button
-                      disabled
-                      className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed whitespace-nowrap"
-                    >
-                      上传中...
-                    </button>
-                  ) : (
-                    <button
-                      disabled={
-                        !selectedPatient ||
-                        uploadFiles.some(f => f.status === 'pending' && !f.examType) ||
-                        uploadFiles.filter(f => f.status === 'pending')
-                          .length === 0
-                      }
-                      onClick={handleConfirmUpload}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                    >
-                      开始上传
-                    </button>
-                  )}
-                </div>
+            {allCompleted && uploadFiles.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 flex items-center space-x-2">
+                <i className="ri-check-line w-5 h-5 flex items-center justify-center text-green-600"></i>
+                <span className="text-green-800 text-sm">所有文件上传完成</span>
               </div>
             )}
           </div>
-
-          {/* 上传说明 */}
-          <div className="mt-6 bg-blue-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-blue-900 mb-2">
-              上传说明
-            </h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• 请确保选择正确的患者和检查类型</li>
-              <li>• 每个文件都可以单独选择影像类型，支持同一患者同批次上传正位和侧位影像</li>
-              <li>• 支持的文件格式：DCM（DICOM）、JPG、PNG、GIF</li>
-              <li>• 单个文件大小不能超过 100MB</li>
-              <li>• 支持拖拽上传</li>
-              <li>• 若影像左右方向或范围有误，可在文件选择后的弹窗中调整后再上传</li>
-              <li>• 上传的文件将自动关联到选中的患者</li>
-              <li>• 上传完成后可直接返回原来的页面</li>
-            </ul>
-          </div>
         </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          {/* 提示信息 */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start space-x-3">
+            <i className="ri-information-line w-5 h-5 flex items-center justify-center text-blue-600 mt-0.5 flex-shrink-0"></i>
+            <p className="text-sm text-blue-800">
+              <span className="font-semibold">提示：</span>
+              默认屏幕左侧对应患者左侧以计算角度正负
+            </p>
+          </div>
+
+          {/* 患者和检查信息 */}
+          <div className="grid grid-cols-1 gap-6 mb-6 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                选择患者 <span className="text-red-500">*</span>
+              </label>
+              <PatientSearchSelect
+                value={selectedPatient}
+                onChange={setSelectedPatient}
+              />
+            </div>
+
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+              文件选择后会逐个确认影像类型，可在同一批次中同时上传正位、侧位或其他类别影像。
+            </div>
+          </div>
+
+          {/* 文件上传区域 */}
+          <div
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              dragActive
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <div className="max-w-md mx-auto">
+              <i className="ri-cloud-upload-line w-12 h-12 flex items-center justify-center mx-auto mb-4 text-gray-400 text-4xl"></i>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                拖拽文件到此处，或点击选择文件
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                支持 DCM, JPG, PNG, GIF 格式，单个文件最大 100MB
+              </p>
+
+              <input
+                type="file"
+                multiple
+                accept=".dcm,.jpg,.jpeg,.png,.gif"
+                onChange={handleFileInput}
+                className="hidden"
+                id="file-upload"
+              />
+              <label
+                htmlFor="file-upload"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer whitespace-nowrap"
+              >
+                选择文件
+              </label>
+            </div>
+          </div>
+
+          {/* 上传文件列表 */}
+          {uploadFiles.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                上传文件 ({uploadFiles.length})
+              </h3>
+              <div className="space-y-3">
+                {uploadFiles.map(file => (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                  >
+                    {/* 缩略图预览 */}
+                    <div className="w-14 h-16 flex-shrink-0 bg-black rounded overflow-hidden">
+                      <img
+                        src={file.previewUrl}
+                        alt={file.name}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+
+                    {/* 文件信息 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {file.name}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                          <span className="text-xs text-gray-500">
+                            {formatFileSize(file.size)}
+                          </span>
+                          {file.status === 'completed' ? (
+                            <i className="ri-check-line w-4 h-4 flex items-center justify-center text-green-500"></i>
+                          ) : file.status === 'error' ? (
+                            <i className="ri-error-warning-line w-4 h-4 flex items-center justify-center text-red-500"></i>
+                          ) : file.status === 'uploading' ? (
+                            <i className="ri-loader-line w-4 h-4 flex items-center justify-center text-blue-500 animate-spin"></i>
+                          ) : (
+                            <i className="ri-time-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
+                          )}
+                          {file.status === 'pending' && (
+                            <button
+                              onClick={() =>
+                                setOptionsState(current => ({
+                                  ...current,
+                                  activeFileId: file.id,
+                                }))
+                              }
+                              className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                            >
+                              调整
+                            </button>
+                          )}
+                          <button
+                            onClick={() => removeFile(file.id)}
+                            className="text-gray-400 hover:text-red-500"
+                          >
+                            <i className="ri-close-line w-4 h-4 flex items-center justify-center"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      {file.status === 'uploading' && (
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div
+                            className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                            style={{ width: `${file.progress}%` }}
+                          ></div>
+                        </div>
+                      )}
+
+                      {file.status === 'completed' && (
+                        <p className="text-xs text-green-600">上传完成</p>
+                      )}
+
+                      {file.status === 'error' && (
+                        <p className="text-xs text-red-600">上传失败</p>
+                      )}
+
+                      {file.status === 'pending' && (
+                        <div className="flex items-center gap-3 mt-1">
+                          <p className="text-xs text-gray-600">待上传</p>
+                          <span className="rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                            {file.examType}
+                          </span>
+                          {file.flipped && (
+                            <span className="text-xs text-gray-500">
+                              已翻转
+                            </span>
+                          )}
+                          {file.cropped && (
+                            <span className="text-xs text-gray-500">
+                              已裁剪
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    uploadFiles.forEach(file => {
+                      URL.revokeObjectURL(file.previewUrl);
+                      URL.revokeObjectURL(file.sourcePreviewUrl);
+                    });
+                    setUploadFiles([]);
+                    setOptionsState({
+                      activeFileId: null,
+                      queuedFileIds: [],
+                    });
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 whitespace-nowrap"
+                >
+                  清空列表
+                </button>
+                {allCompleted ? (
+                  <button
+                    onClick={handleBackToSource}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 whitespace-nowrap"
+                  >
+                    返回原页面
+                  </button>
+                ) : uploadFiles.some(f => f.status === 'uploading') ? (
+                  <button
+                    disabled
+                    className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed whitespace-nowrap"
+                  >
+                    上传中...
+                  </button>
+                ) : (
+                  <button
+                    disabled={
+                      !selectedPatient ||
+                      uploadFiles.some(
+                        f => f.status === 'pending' && !f.examType
+                      ) ||
+                      uploadFiles.filter(f => f.status === 'pending').length ===
+                        0
+                    }
+                    onClick={handleConfirmUpload}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    开始上传
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 上传说明 */}
+        <div className="mt-6 bg-blue-50 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-blue-900 mb-2">上传说明</h3>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• 请确保选择正确的患者和检查类型</li>
+            <li>
+              •
+              每个文件都可以单独选择影像类型，支持同一患者同批次上传正位和侧位影像
+            </li>
+            <li>• 支持的文件格式：DCM（DICOM）、JPG、PNG、GIF</li>
+            <li>• 单个文件大小不能超过 100MB</li>
+            <li>• 支持拖拽上传</li>
+            <li>
+              • 若影像左右方向或范围有误，可在文件选择后的弹窗中调整后再上传
+            </li>
+            <li>• 上传的文件将自动关联到选中的患者</li>
+            <li>• 上传完成后可直接返回原来的页面</li>
+          </ul>
+        </div>
+      </div>
       {activeOptionsFile && (
         <UploadOptionsOverlay
           key={activeOptionsFile.id}
           file={{
             id: activeOptionsFile.id,
             name: activeOptionsFile.name,
-              previewUrl: activeOptionsFile.sourcePreviewUrl,
-              examType: activeOptionsFile.examType,
-              flipped: activeOptionsFile.flipped,
-              cropped: activeOptionsFile.cropped,
-              mimeType: activeOptionsFile.type,
-            }}
-            examTypes={examTypes}
-            teamIds={activeOptionsFile.teamIds}
-            loadTeams={loadAssignableTeams}
-            onTeamIdsChange={teamIds =>
-              updateFileTeamIds(activeOptionsFile.id, teamIds)
-            }
-            onExamTypeChange={updateFileExamType}
+            previewUrl: activeOptionsFile.sourcePreviewUrl,
+            examType: activeOptionsFile.examType,
+            flipped: activeOptionsFile.flipped,
+            cropped: activeOptionsFile.cropped,
+            mimeType: activeOptionsFile.type,
+          }}
+          examTypes={examTypes}
+          teamIds={activeOptionsFile.teamIds}
+          loadTeams={loadAssignableTeams}
+          onTeamIdsChange={teamIds =>
+            updateFileTeamIds(activeOptionsFile.id, teamIds)
+          }
+          onExamTypeChange={updateFileExamType}
           onFlip={handleFlip}
           onCrop={handleCrop}
           onClose={handleFileOptionDone}

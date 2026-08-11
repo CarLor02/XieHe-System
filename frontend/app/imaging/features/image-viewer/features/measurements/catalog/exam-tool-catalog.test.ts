@@ -1,12 +1,12 @@
 import { expect, it } from '@jest/globals';
 
 import { getToolsForExamType } from './exam-tool-catalog';
-import { getAuxiliaryTools } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary';
+import { getAuxiliaryTools } from '@xiehe/imaging-catalog/annotations';
 import {
   getToolCapabilitiesForExamType,
   getToolIdsForExamType,
 } from '@xiehe/imaging-core/measurements';
-import { getAnnotationConfig } from './shared/annotation-config';
+import { getAnnotationConfig } from '@xiehe/imaging-catalog/annotations';
 
 it.each(['左侧曲位', '右侧曲位'])(
   'exposes Cobb and all auxiliary tools for %s',

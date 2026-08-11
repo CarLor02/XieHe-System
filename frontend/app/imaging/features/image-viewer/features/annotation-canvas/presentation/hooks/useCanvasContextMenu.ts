@@ -3,13 +3,15 @@ import { AnnotationBindings } from '@xiehe/imaging-core/bindings';
 import {
   getEditableAuxiliaryAnnotationLabel,
   isEditableAuxiliaryAnnotationType,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
+} from '@xiehe/imaging-catalog/annotations';
 import { MeasurementData } from '@xiehe/imaging-core/contracts';
 import { isAuxiliaryTool } from '@xiehe/imaging-core/canvas';
 import { SelectionState } from '@xiehe/imaging-core/canvas';
 import { createLogger } from '@/lib/logger';
 
-const logger = createLogger('app.imaging.features.image.viewer.features.annotation.canvas.presentation.hooks.useCanvasContextMenu');
+const logger = createLogger(
+  'app.imaging.features.image.viewer.features.annotation.canvas.presentation.hooks.useCanvasContextMenu'
+);
 
 interface UseCanvasContextMenuOptions {
   imageNaturalSize: { width: number; height: number } | null;

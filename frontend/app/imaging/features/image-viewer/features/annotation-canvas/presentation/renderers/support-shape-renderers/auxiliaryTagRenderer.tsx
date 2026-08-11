@@ -2,11 +2,8 @@ import type { JSX } from 'react';
 import {
   getAuxiliaryTagText,
   usesInlineAuxiliaryTag,
-} from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+} from '@xiehe/imaging-catalog/annotations';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 interface RenderAuxiliaryTagProps {
   measurement: MeasurementData;

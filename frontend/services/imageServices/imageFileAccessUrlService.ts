@@ -1,67 +1,56 @@
 import {
+  createImageAccessUrlCache,
+  resolveImageAccessUrl,
+  resolveImageAccessUrls,
+  type ImageAccessIdentity,
+  type ImageAccessUrl,
+} from '@xiehe/imaging-core/image-files';
+
+import {
   getImageFileDownloadUrl,
   getImageFileDownloadUrls,
   type ImageFile,
   type ImageFileDownloadUrl,
+  type ImageFileDownloadUrlError,
   type ImageFileDownloadUrlsResponse,
 } from './imageFileService';
-
-const EXPIRY_SKEW_MS = 60_000;
 
 export type ImageFileAccessUrlLoader = (
   fileId: number
 ) => Promise<ImageFileDownloadUrl>;
 
-interface CachedImageFileAccessUrl {
-  url: string;
-  expiresAt: number;
-  etag?: string;
-}
+const accessUrlCache = createImageAccessUrlCache();
 
-const accessUrlCache = new Map<string, CachedImageFileAccessUrl>();
-
-function getFileVersion(file: ImageFile): string {
-  if (file.storage_etag) return file.storage_etag;
-  if (file.storage_bucket && file.object_key) {
-    return `${file.storage_bucket}:${file.object_key}`;
-  }
-  return file.file_uuid;
-}
-
-function getCacheKey(file: ImageFile): string {
-  return `${file.id}:${getFileVersion(file)}`;
-}
-
-function resolveExpiresAt(download: ImageFileDownloadUrl): number {
-  if (download.expires_at) {
-    const parsed = Date.parse(download.expires_at);
-    if (!Number.isNaN(parsed)) return parsed;
-  }
-
-  return Date.now() + download.expires_in * 1000;
-}
-
-function isCacheUsable(entry: CachedImageFileAccessUrl): boolean {
-  return entry.expiresAt - Date.now() > EXPIRY_SKEW_MS;
-}
-
-function buildDownloadFromCache(
-  entry: CachedImageFileAccessUrl
-): ImageFileDownloadUrl {
+function toAccessIdentity(file: ImageFile): ImageAccessIdentity {
   return {
-    url: entry.url,
-    expires_in: Math.max(Math.floor((entry.expiresAt - Date.now()) / 1000), 0),
-    expires_at: new Date(entry.expiresAt).toISOString(),
-    etag: entry.etag,
+    id: file.id,
+    fileUuid: file.file_uuid,
+    storageEtag: file.storage_etag,
+    storageBucket: file.storage_bucket,
+    objectKey: file.object_key,
   };
 }
 
-function cacheDownload(file: ImageFile, download: ImageFileDownloadUrl): void {
-  accessUrlCache.set(getCacheKey(file), {
+function toCoreAccessUrl(download: ImageFileDownloadUrl): ImageAccessUrl {
+  return {
     url: download.url,
-    expiresAt: resolveExpiresAt(download),
-    etag: download.etag ?? file.storage_etag,
-  });
+    expiresIn: download.expires_in,
+    expiresAt: download.expires_at,
+    etag: download.etag,
+    filename: download.filename,
+    mimeType: download.mime_type,
+  };
+}
+
+function toApiAccessUrl(download: ImageAccessUrl): ImageFileDownloadUrl {
+  return {
+    url: download.url,
+    expires_in: download.expiresIn,
+    expires_at: download.expiresAt ?? undefined,
+    etag: download.etag ?? undefined,
+    filename: download.filename ?? undefined,
+    mime_type: download.mimeType ?? undefined,
+  };
 }
 
 export function clearImageFileAccessUrlCache(): void {
@@ -69,12 +58,7 @@ export function clearImageFileAccessUrlCache(): void {
 }
 
 export function clearCachedImageFileAccessUrl(fileId: number): void {
-  const keyPrefix = `${fileId}:`;
-  for (const key of accessUrlCache.keys()) {
-    if (key.startsWith(keyPrefix)) {
-      accessUrlCache.delete(key);
-    }
-  }
+  accessUrlCache.clearFile(fileId);
 }
 
 export async function getImageFileAccessUrl(
@@ -84,17 +68,13 @@ export async function getImageFileAccessUrl(
     loader?: ImageFileAccessUrlLoader;
   } = {}
 ): Promise<string> {
-  const cacheKey = getCacheKey(file);
-  const cached = accessUrlCache.get(cacheKey);
-
-  if (!options.forceRefresh && cached && isCacheUsable(cached)) {
-    return cached.url;
-  }
-
   const loader = options.loader ?? getImageFileDownloadUrl;
-  const download = await loader(file.id);
-  cacheDownload(file, download);
-  return download.url;
+  return resolveImageAccessUrl({
+    file: toAccessIdentity(file),
+    cache: accessUrlCache,
+    forceRefresh: options.forceRefresh,
+    load: async fileId => toCoreAccessUrl(await loader(fileId)),
+  });
 }
 
 export async function getImageFileAccessUrls(
@@ -104,43 +84,33 @@ export async function getImageFileAccessUrls(
     signal?: AbortSignal;
   } = {}
 ): Promise<ImageFileDownloadUrlsResponse> {
-  const items: ImageFileDownloadUrlsResponse['items'] = {};
-  const errors: ImageFileDownloadUrlsResponse['errors'] = {};
-  const missingFiles: ImageFile[] = [];
+  const result = await resolveImageAccessUrls<ImageFileDownloadUrlError>({
+    files: files.map(toAccessIdentity),
+    cache: accessUrlCache,
+    forceRefreshIds: options.forceRefreshIds,
+    loadMany: async ids => {
+      const response = await getImageFileDownloadUrls(ids, {
+        signal: options.signal,
+      });
+      return {
+        items: Object.fromEntries(
+          Object.entries(response.items).map(([id, access]) => [
+            Number(id),
+            toCoreAccessUrl(access),
+          ])
+        ),
+        errors: response.errors,
+      };
+    },
+  });
 
-  for (const file of files) {
-    const cached = accessUrlCache.get(getCacheKey(file));
-    const forceRefresh = options.forceRefreshIds?.has(file.id) ?? false;
-
-    if (!forceRefresh && cached && isCacheUsable(cached)) {
-      items[file.id] = buildDownloadFromCache(cached);
-    } else {
-      missingFiles.push(file);
-    }
-  }
-
-  if (missingFiles.length === 0) {
-    return { items, errors };
-  }
-
-  const batchResponse = await getImageFileDownloadUrls(
-    missingFiles.map(file => file.id),
-    { signal: options.signal }
-  );
-  const fileById = new Map(missingFiles.map(file => [file.id, file]));
-
-  for (const [idString, download] of Object.entries(batchResponse.items)) {
-    const fileId = Number(idString);
-    const file = fileById.get(fileId);
-    if (file) {
-      cacheDownload(file, download);
-    }
-    items[fileId] = download;
-  }
-
-  for (const [idString, error] of Object.entries(batchResponse.errors)) {
-    errors[Number(idString)] = error;
-  }
-
-  return { items, errors };
+  return {
+    items: Object.fromEntries(
+      Object.entries(result.items).map(([id, access]) => [
+        Number(id),
+        toApiAccessUrl(access),
+      ])
+    ),
+    errors: result.errors,
+  };
 }

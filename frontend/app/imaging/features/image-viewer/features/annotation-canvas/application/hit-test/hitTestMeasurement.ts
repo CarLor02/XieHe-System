@@ -1,39 +1,21 @@
 import {
+  hitTestCanvasMeasurement,
   isCircleClicked,
   isEllipseClicked,
   isLineClicked,
   isPolygonClicked,
   isRectangleClicked,
+  type MeasurementHitResult,
+  type TransformContext,
 } from '@xiehe/imaging-core/canvas';
-import { isAuxiliaryShape } from '@xiehe/imaging-core/canvas';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import { isEditableAuxiliaryAnnotationType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
-import { getVertebraCenterGeometry } from '@xiehe/imaging-core/geometry';
+import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
-import type { TransformContext } from '@xiehe/imaging-core/canvas';
-import { hitTestMeasurementLabel } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestLabel';
-import { hitTestMeasurementPoint } from '@/app/imaging/features/image-viewer/features/annotation-canvas/application/hit-test/hitTestPoint';
-import {
-  getHemipelvicVerticalLines,
-  HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
-} from '@xiehe/imaging-core/measurements/ap';
-import { resolveVariableMeasurement } from '@xiehe/imaging-core/measurements';
-import {
-  getBilateralPelvicGeometryForMeasurement,
-  isBilateralPelvicMeasurement,
-} from '@xiehe/imaging-core/measurements/lateral';
-import { getBilateralPelvicGeometryOwnerId } from '@xiehe/imaging-core/canvas';
+  getInteractivePointsCount,
+  isEditableAuxiliaryAnnotationType,
+} from '@xiehe/imaging-catalog/annotations';
+import { hitTestMeasurementLabel } from './hitTestLabel';
 
-export type HitResult =
-  | { kind: 'point'; measurementId: string; pointIndex: number }
-  | { kind: 'line'; measurementId: string; lineIndex: number }
-  | { kind: 'effective-cfh'; measurementId: string }
-  | { kind: 'whole'; measurementId: string }
-  | { kind: 'label'; measurementId: string }
-  | { kind: 'none' };
+export type HitResult = MeasurementHitResult;
 
 interface HitTestMeasurementOptions {
   measurements: MeasurementData[];
@@ -47,278 +29,25 @@ interface HitTestMeasurementOptions {
   lineRadius?: number;
 }
 
-function hitTestMeasurementShape(
-  measurement: MeasurementData,
-  screenPoint: Point,
-  context: TransformContext,
-  lineRadius: number,
-  imageToScreen: (point: Point) => Point
-) {
-  const typeId = getAnnotationTypeId(measurement.type);
-
-  if (typeId === 'circle' && measurement.points.length === 2) {
-    return isCircleClicked(
-      screenPoint,
-      measurement.points[0],
-      measurement.points[1],
-      context,
-      lineRadius
-    );
-  }
-
-  if (typeId === 'ellipse' && measurement.points.length === 2) {
-    return isEllipseClicked(
-      screenPoint,
-      measurement.points[0],
-      measurement.points[1],
-      context,
-      lineRadius
-    );
-  }
-
-  if (typeId === 'rectangle' && measurement.points.length === 2) {
-    return isRectangleClicked(
-      screenPoint,
-      measurement.points[0],
-      measurement.points[1],
-      context,
-      lineRadius
-    );
-  }
-
-  if (typeId === 'polygon' && measurement.points.length >= 3) {
-    return isPolygonClicked(
-      screenPoint,
-      measurement.points,
-      context,
-      lineRadius
-    );
-  }
-
-  if (
-    (typeId === 'arrow' ||
-      typeId === 'aux-length' ||
-      typeId === 'aux-horizontal-line' ||
-      typeId === 'aux-vertical-line') &&
-    measurement.points.length >= 2
-  ) {
-    return isLineClicked(
-      screenPoint,
-      measurement.points[0],
-      measurement.points[1],
-      context,
-      lineRadius
-    );
-  }
-
-  if (typeId === 'vertebra-center' && measurement.points.length === 4) {
-    const geometry = getVertebraCenterGeometry([
-      measurement.points[0],
-      measurement.points[1],
-      measurement.points[2],
-      measurement.points[3],
-    ]);
-    if (
-      isPolygonClicked(screenPoint, geometry.perimeter, context, lineRadius) ||
-      isLineClicked(
-        screenPoint,
-        geometry.topBottomMidline[0],
-        geometry.topBottomMidline[1],
-        context,
-        lineRadius
-      ) ||
-      isLineClicked(
-        screenPoint,
-        geometry.leftRightMidline[0],
-        geometry.leftRightMidline[1],
-        context,
-        lineRadius
-      )
-    ) {
-      return true;
-    }
-
-    const centerScreen = imageToScreen(geometry.center);
-
-    return (
-      Math.hypot(
-        screenPoint.x - centerScreen.x,
-        screenPoint.y - centerScreen.y
-      ) < 15
-    );
-  }
-
-  if (typeId === 'aux-angle' && measurement.points.length >= 4) {
-    return (
-      isLineClicked(
-        screenPoint,
-        measurement.points[0],
-        measurement.points[1],
-        context,
-        lineRadius
-      ) ||
-      isLineClicked(
-        screenPoint,
-        measurement.points[2],
-        measurement.points[3],
-        context,
-        lineRadius
-      )
-    );
-  }
-
-  return false;
-}
-
-/**
- * 统一 measurement 命中检测。
- * 入口组件只消费明确的命中类型，不再直接了解各工具的几何细节。
- * effective-cfh 专门表示不占用持久化 pointIndex 的双 FH 派生句柄。
- */
+/** Web 仅适配 catalog 元数据和文字命中，命中优先级由 imaging-core 统一编排。 */
 export function hitTestMeasurement({
-  measurements,
-  examType,
-  screenPoint,
   imageScale,
-  imageToScreen,
-  context,
-  isMeasurementHidden,
-  pointRadius,
-  lineRadius = 8,
+  ...options
 }: HitTestMeasurementOptions): HitResult {
-  const pelvicGeometryOwnerId = getBilateralPelvicGeometryOwnerId(
-    measurements,
-    measurement => isMeasurementHidden?.(measurement) ?? false
-  );
-
-  for (const measurement of measurements) {
-    if (isMeasurementHidden?.(measurement)) {
-      continue;
-    }
-
-    const variableResolution = examType
-      ? resolveVariableMeasurement(measurement, { examType })
-      : { status: 'not-applicable' as const };
-    if (variableResolution.status === 'invalid') continue;
-
-    const pointIndex = hitTestMeasurementPoint({
-      measurement,
-      screenPoint,
-      imageToScreen,
-      radius: pointRadius,
-    });
-    if (pointIndex !== null) {
-      return {
-        kind: 'point',
-        measurementId: measurement.id,
-        pointIndex,
-      };
-    }
-
-    // effectiveCFH 是双 FH 两圆心的派生中点，不占用持久化点下标。
-    // 真实测量点优先命中，避免中点与圆心靠近时抢占已有点的拖动行为。
-    if (
-      measurement.id === pelvicGeometryOwnerId &&
-      isBilateralPelvicMeasurement(measurement)
-    ) {
-      const geometry = getBilateralPelvicGeometryForMeasurement(measurement);
-      if (geometry?.femoralHeadCenter) {
-        const center = imageToScreen(geometry.femoralHeadCenter);
-        if (
-          Math.hypot(screenPoint.x - center.x, screenPoint.y - center.y) <
-          (pointRadius ?? 12)
-        ) {
-          return {
-            kind: 'effective-cfh',
-            measurementId: measurement.id,
-          };
-        }
-      }
-    }
-
-    const ttsTrunkPoints =
-      variableResolution.status === 'resolved' &&
-      variableResolution.value.kind === 'tts' &&
-      variableResolution.value.layout === 'manual'
-        ? variableResolution.value.trunkPoints
-        : null;
-    if (
-      ttsTrunkPoints &&
-      isLineClicked(
-        screenPoint,
-        ttsTrunkPoints[0],
-        ttsTrunkPoints[1],
-        context,
-        lineRadius
-      )
-    ) {
-      return { kind: 'whole', measurementId: measurement.id };
-    }
-
-    if (
-      getAnnotationTypeId(measurement.type) === HEMIPELVIC_WIDTH_RATIO_TOOL_ID
-    ) {
-      const hitLine = getHemipelvicVerticalLines(measurement.points).find(
-        line =>
-          isLineClicked(screenPoint, line.top, line.bottom, context, lineRadius)
-      );
-      if (hitLine) {
-        return {
-          kind: 'line',
-          measurementId: measurement.id,
-          lineIndex: hitLine.sourceIndex,
-        };
-      }
-    }
-
-    const isSupportShape = isAuxiliaryShape(measurement.type);
-    const isEditableAuxiliary = isEditableAuxiliaryAnnotationType(
-      measurement.type
-    );
-
-    if (isSupportShape || isEditableAuxiliary) {
-      if (
-        hitTestMeasurementShape(
-          measurement,
-          screenPoint,
-          context,
-          lineRadius,
-          imageToScreen
-        )
-      ) {
-        return { kind: 'whole', measurementId: measurement.id };
-      }
-
-      if (
-        isEditableAuxiliary &&
+  return hitTestCanvasMeasurement({
+    ...options,
+    policy: {
+      getInteractivePointsCount,
+      isEditableAuxiliary: isEditableAuxiliaryAnnotationType,
+      hitTestLabel: measurement =>
         hitTestMeasurementLabel({
           measurement,
-          screenPoint,
+          screenPoint: options.screenPoint,
           imageScale,
-          imageToScreen,
-        })
-      ) {
-        return { kind: 'whole', measurementId: measurement.id };
-      }
-    }
-
-    if (isSupportShape) {
-      continue;
-    }
-
-    if (
-      hitTestMeasurementLabel({
-        measurement,
-        screenPoint,
-        imageScale,
-        imageToScreen,
-      })
-    ) {
-      return { kind: 'label', measurementId: measurement.id };
-    }
-  }
-
-  return { kind: 'none' };
+          imageToScreen: options.imageToScreen,
+        }),
+    },
+  });
 }
 
 export {

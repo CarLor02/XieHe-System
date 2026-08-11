@@ -1,9 +1,9 @@
 import { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { getAiMeasurementsResponse } from '@/services/imageServices';
 import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
-import { getAnnotationConfig } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationConfig } from '@xiehe/imaging-catalog/annotations';
 import { calculateMeasurementValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-import { getDescriptionForType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
+import { getDescriptionForType } from '@xiehe/imaging-catalog/annotations';
 import { prepareAiEditorState } from '@xiehe/imaging-core/ai';
 import {
   CfhAnnotation,

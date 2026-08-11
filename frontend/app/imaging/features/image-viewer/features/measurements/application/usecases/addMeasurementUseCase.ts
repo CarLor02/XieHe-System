@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 
 import type { Tool } from '@/app/imaging/features/image-viewer/shared/types';
-import { getDescriptionForType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
+import { getDescriptionForType } from '@xiehe/imaging-catalog/annotations';
 import { measurementValueCalculator } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import type {
   ImageSize,

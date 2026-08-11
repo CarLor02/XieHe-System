@@ -7,7 +7,7 @@ import {
   VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
 import { Tool } from '@/app/imaging/features/image-viewer/shared/types';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '@xiehe/imaging-catalog/annotations';
 import { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/addMeasurementUseCase';
 import {
   KeypointAnnotation,

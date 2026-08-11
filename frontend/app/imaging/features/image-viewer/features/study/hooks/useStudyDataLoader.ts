@@ -13,7 +13,7 @@ import {
 } from '@xiehe/imaging-core/bindings';
 import { migrateAnnotationBindings } from '@xiehe/imaging-core/bindings';
 import { StudyData } from '@/app/imaging/features/image-viewer/shared/types';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '@xiehe/imaging-catalog/annotations';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger(

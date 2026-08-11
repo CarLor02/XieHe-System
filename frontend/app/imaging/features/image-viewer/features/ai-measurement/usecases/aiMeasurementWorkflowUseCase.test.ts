@@ -1,6 +1,6 @@
 import { expect, it, jest } from '@jest/globals';
 
-import { getColorForType } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
+import { getColorForType } from '@xiehe/imaging-catalog/annotations';
 import {
   AnnotationSource,
   MeasurementData,
@@ -100,11 +100,9 @@ it('numbers AI Cobb measurements and uses the configured Cobb colors', async () 
     'cobb2',
     'cobb3',
   ]);
-  expect(capturedMeasurements.map(measurement => getColorForType(measurement.type))).toEqual([
-    '#3b82f6',
-    '#a855f7',
-    '#ec4899',
-  ]);
+  expect(
+    capturedMeasurements.map(measurement => getColorForType(measurement.type))
+  ).toEqual(['#3b82f6', '#a855f7', '#ec4899']);
   expect(
     capturedMeasurements.map(measurement => [
       measurement.upperVertebra,

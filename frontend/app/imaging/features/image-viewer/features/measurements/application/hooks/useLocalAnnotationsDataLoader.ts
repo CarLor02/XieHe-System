@@ -8,7 +8,7 @@ import {
 import { AnnotationBindings } from '@xiehe/imaging-core/bindings';
 import { migrateAnnotationBindings } from '@xiehe/imaging-core/bindings';
 import { RefObject, useEffect } from 'react';
-import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
+import { getAnnotationTypeId } from '@xiehe/imaging-catalog/annotations';
 import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import { calculateMeasurementDataValue } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { createLogger } from '@/lib/logger';

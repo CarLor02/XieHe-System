@@ -4,6 +4,7 @@
  */
 
 import type { AiMeasurementInput } from '@xiehe/imaging-core/ai';
+export type { Tool } from '@xiehe/imaging-catalog/annotations';
 
 export interface KeypointSequenceSession {
   groupName: string;
@@ -49,17 +50,6 @@ export interface ImageData {
   captureTime: string;
   seriesCount: number;
   status: 'pending' | 'completed' | 'failed';
-}
-
-/**
- * 工具配置
- */
-export interface Tool {
-  id: string;
-  name: string;
-  icon: string;
-  description: string;
-  pointsNeeded: number;
 }
 
 // /**

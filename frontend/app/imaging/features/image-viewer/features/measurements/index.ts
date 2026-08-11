@@ -6,4 +6,4 @@ export { useStandardDistanceActions } from '@/app/imaging/features/image-viewer/
 export { addMeasurement } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/addMeasurementUseCase';
 export { saveMeasurements } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/saveMeasurementsUseCase';
 export * from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
-export * from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-metadata';
+export * from '@xiehe/imaging-catalog/annotations';
