@@ -21,6 +21,11 @@ packages/xiehe-imaging-core/src/
 │   ├── domain/                 # AI 响应契约
 │   └── application/            # 正侧位关键点与测量结果归一化
 ├── annotation-document/domain/ # 版本化标注快照、历史解码与坐标缩放
+├── exports/domain/             # LabelMe、训练标签、检测点及导出文件名规则
+├── batch-import/
+│   ├── domain/                 # 服务端任务状态到跨端状态的映射
+│   └── application/            # 分窗与并发执行等平台无关编排
+├── image-files/domain/         # 影像文件名拆分与重命名校验
 ├── shared/domain/
 │   ├── contracts/              # 标注、点位、AVT、骨盆等稳定契约
 │   ├── anatomy/                # 检查类型与椎体生理顺序
@@ -59,6 +64,9 @@ import { getToolIdsForExamType } from '@xiehe/imaging-core/measurements';
 import { getKeypointGroupsForExamType } from '@xiehe/imaging-core/keypoints';
 import { planMeasurementDeletion } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { buildCanvasDerivedState } from '@xiehe/imaging-core/canvas';
+import { buildLabelMeAnnotationPayload } from '@xiehe/imaging-core/exports';
+import { patchFromServerItem } from '@xiehe/imaging-core/batch-import';
+import { validateImageBasename } from '@xiehe/imaging-core/image-files';
 ```
 
 公开子路径保持稳定；DDD 目录是 Core 内部组织，不要求平台调用方深层导入。
@@ -78,6 +86,11 @@ catalog。测量新增使用纯 `planMeasurementAddition` 生成计划，Web 只
 AI HTTP 仍由平台发起，但响应到图像坐标、正位姿态点交换、侧位角点几何排序、弯曲
 位过滤和 Cobb 元数据生成由 Core application 完成。版本化标注文档由 Core 负责
 构建、解码和原图坐标缩放；平台只决定保存到 API、SecureStore 或本地维护缓存。
+
+批量导出中的 LabelMe 椎体归组、坐标缩放、训练标签 payload、检测层关键点映射和
+文件名规则由 Core 负责。Web 仅创建 `Blob`、PNG、ZIP 并触发下载。批量导入的状态
+映射、分窗和并发上限算法在 Core；`File` 处理、Canvas 翻转和对象存储 PUT 留在
+平台 adapter。
 
 ## 平台保留职责
 

@@ -14,6 +14,10 @@
   "scripts": {
     "type-check:api": "npm run type-check --workspace @xiehe/api-client",
     "test:api": "npm run test --workspace @xiehe/api-client",
+    "type-check:contracts": "npm run type-check --workspace @xiehe/api-contracts",
+    "test:contracts": "npm run test --workspace @xiehe/api-contracts",
+    "type-check:sdk": "npm run type-check --workspace @xiehe/api-sdk",
+    "test:sdk": "npm run test --workspace @xiehe/api-sdk",
     "type-check:core": "npm run type-check --workspace @xiehe/imaging-core",
     "test:core": "npm run test --workspace @xiehe/imaging-core",
     "type-check:web": "npm run type-check --workspace medical-imaging-frontend",
@@ -23,7 +27,7 @@
     "type-check:mobile": "npm run type-check --workspace @xiehe/mobile-expo",
     "export:mobile": "npm run export --workspace @xiehe/mobile-expo",
     "verify:core": "npm run type-check:core && npm run test:core",
-    "verify:api": "npm run type-check:api && npm run test:api",
+    "verify:api": "npm run type-check:api && npm run test:api && npm run type-check:contracts && npm run test:contracts && npm run type-check:sdk && npm run test:sdk",
     "verify:web": "npm run type-check:web && npm run test:web && npm run build:web"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 import type { HttpClient } from '@xiehe/api-client';
 import { createAxiosHttpClient } from '@xiehe/api-client/axios';
-import { createXieheApiSdk } from '@xiehe/api-sdk';
+import { createXieheApiSdk, type XieheApiSdk } from '@xiehe/api-sdk';
 
 import {
   createSecureSessionTokenStore,
@@ -11,6 +11,7 @@ import { getExpoApiBaseUrl } from './config';
 export interface ExpoApiInfrastructure {
   apiClient: HttpClient;
   publicApiClient: HttpClient;
+  apiSdk: XieheApiSdk;
   tokenStore: MobileSessionTokenStore;
 }
 
@@ -57,6 +58,7 @@ export function createExpoApiInfrastructure(
       await options.onUnauthorized?.();
     },
   });
+  const apiSdk = createXieheApiSdk({ apiClient, publicApiClient });
 
-  return { apiClient, publicApiClient, tokenStore };
+  return { apiClient, publicApiClient, apiSdk, tokenStore };
 }
