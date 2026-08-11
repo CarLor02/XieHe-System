@@ -1,8 +1,6 @@
 import { expect, it } from '@jest/globals';
 
-import {
-  buildLabelMeAnnotationPayload,
-} from '@/app/imaging/features/batch-export/domain/labelme-export-domain';
+import { buildLabelMeAnnotationPayload } from '@xiehe/imaging-core/exports';
 import {
   AnnotationSource,
   type VertebraAnnotation,
@@ -88,10 +86,7 @@ it('groups complete single-point vertebra corners into one LabelMe polygon', () 
 it('keeps incomplete single-point vertebra corners as points', () => {
   const payload = buildLabelMeAnnotationPayload({
     imagePath: 'spine.png',
-    vertebraeLayer: [
-      makePoint('T5-1', 10, 20),
-      makePoint('T5-2', 30, 20),
-    ],
+    vertebraeLayer: [makePoint('T5-1', 10, 20), makePoint('T5-2', 30, 20)],
     sourceSize: { width: 100, height: 100 },
     targetSize: { width: 100, height: 100 },
   });

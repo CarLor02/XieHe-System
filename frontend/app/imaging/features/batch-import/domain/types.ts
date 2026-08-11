@@ -1,16 +1,12 @@
-export type BatchImportUploadStatus =
-  | 'pending'
-  | 'preparing'
-  | 'uploading'
-  | 'uploaded'
-  | 'error';
+import type {
+  BatchImportAiStatus,
+  BatchImportUploadStatus,
+} from '@xiehe/imaging-core/batch-import';
 
-export type BatchImportAiStatus =
-  | 'pending'
-  | 'queued'
-  | 'running'
-  | 'succeeded'
-  | 'failed';
+export type {
+  BatchImportAiStatus,
+  BatchImportUploadStatus,
+} from '@xiehe/imaging-core/batch-import';
 
 export type BatchImportOwnershipScope = 'personal' | 'team';
 

@@ -27,7 +27,9 @@ type LocalBatchFile = BatchImportFileItem & { file: File };
 
 interface UseBatchImageImportOptions {
   reloadImages: () => Promise<void>;
-  loadTeams: (params: TeamMultiSelectLoadParams) => Promise<TeamMultiSelectPage>;
+  loadTeams: (
+    params: TeamMultiSelectLoadParams
+  ) => Promise<TeamMultiSelectPage>;
 }
 
 function toImportFile(file: File, index: number): LocalBatchFile {
@@ -84,31 +86,36 @@ export function useBatchImageImport({
     []
   );
 
-  const loadBatches = useCallback(async (page: number) => {
-    setTasksLoading(true);
-    try {
-      const result = await getImageImportBatches({ page, page_size: 10 });
-      setBatches(result.items);
-      setBatchPage(result.page);
-      setBatchTotalPages(Math.max(1, result.totalPages));
-      setSelectedBatchId(current => current ?? result.items[0]?.batch_id ?? null);
-      if (
-        activeBatchIdRef.current &&
-        result.items.some(
-          batch =>
-            batch.batch_id === activeBatchIdRef.current &&
-            isTerminalBatch(batch)
-        )
-      ) {
-        activeBatchIdRef.current = null;
-        void reloadImages();
+  const loadBatches = useCallback(
+    async (page: number) => {
+      setTasksLoading(true);
+      try {
+        const result = await getImageImportBatches({ page, page_size: 10 });
+        setBatches(result.items);
+        setBatchPage(result.page);
+        setBatchTotalPages(Math.max(1, result.totalPages));
+        setSelectedBatchId(
+          current => current ?? result.items[0]?.batch_id ?? null
+        );
+        if (
+          activeBatchIdRef.current &&
+          result.items.some(
+            batch =>
+              batch.batch_id === activeBatchIdRef.current &&
+              isTerminalBatch(batch)
+          )
+        ) {
+          activeBatchIdRef.current = null;
+          void reloadImages();
+        }
+      } catch {
+        setMessage('导入任务加载失败，请稍后重试');
+      } finally {
+        setTasksLoading(false);
       }
-    } catch {
-      setMessage('导入任务加载失败，请稍后重试');
-    } finally {
-      setTasksLoading(false);
-    }
-  }, [reloadImages]);
+    },
+    [reloadImages]
+  );
 
   const loadBatchItems = useCallback(async (batchId: string, page = 1) => {
     try {
@@ -167,7 +174,8 @@ export function useBatchImageImport({
   useEffect(() => {
     if (!overlayOpen) return;
     const hasActiveBatch =
-      Boolean(activeBatchIdRef.current) || batches.some(batch => !isTerminalBatch(batch));
+      Boolean(activeBatchIdRef.current) ||
+      batches.some(batch => !isTerminalBatch(batch));
     if (!hasActiveBatch) return;
     const timer = window.setInterval(() => {
       void loadBatches(batchPage);

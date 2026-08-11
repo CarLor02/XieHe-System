@@ -1,6 +1,10 @@
 import { maybeFlipImageFile } from '../domain/imageTransform';
 import type { BatchImportFileItem } from '../domain/types';
-import { patchFromServerItem } from '../domain/status';
+import {
+  chunkItems,
+  patchFromServerItem,
+  runWithConcurrency,
+} from '@xiehe/imaging-core/batch-import';
 import {
   completeImageImportItem,
   createImageImportBatch,
@@ -22,34 +26,9 @@ interface PipelineInput {
   onMessage: (message: string) => void;
 }
 
-async function runWithConcurrency<T>(
-  items: T[],
-  limit: number,
-  worker: (item: T) => Promise<void>
-) {
-  let cursor = 0;
-  const runners = Array.from(
-    { length: Math.min(limit, items.length) },
-    async () => {
-      while (cursor < items.length) {
-        const item = items[cursor];
-        cursor += 1;
-        await worker(item);
-      }
-    }
-  );
-  await Promise.all(runners);
-}
-
-function chunks<T>(items: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    result.push(items.slice(index, index + size));
-  }
-  return result;
-}
-
-export async function runBatchImportPipeline(input: PipelineInput): Promise<string> {
+export async function runBatchImportPipeline(
+  input: PipelineInput
+): Promise<string> {
   const prepared = new Map<string, File>();
   input.onMessage('正在准备影像...');
   for (const item of input.files) {
@@ -87,7 +66,7 @@ export async function runBatchImportPipeline(input: PipelineInput): Promise<stri
   });
   const fileByClientId = new Map(readyFiles.map(item => [item.id, item]));
 
-  for (const itemWindow of chunks(
+  for (const itemWindow of chunkItems(
     batch.items,
     Math.max(1, input.sessionWindowSize)
   )) {

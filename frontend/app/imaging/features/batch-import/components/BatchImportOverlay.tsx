@@ -38,7 +38,9 @@ interface BatchImportOverlayProps {
   itemPage: number;
   itemTotalPages: number;
   tasksLoading: boolean;
-  loadTeams: (params: TeamMultiSelectLoadParams) => Promise<TeamMultiSelectPage>;
+  loadTeams: (
+    params: TeamMultiSelectLoadParams
+  ) => Promise<TeamMultiSelectPage>;
   onTabChange: (tab: BatchImportTab) => void;
   onFileInput: (event: ChangeEvent<HTMLInputElement>) => void;
   onPatientChange: (patientId: string) => void;
@@ -326,7 +328,9 @@ export default function BatchImportOverlay(props: BatchImportOverlayProps) {
       <div className="max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-y-auto rounded-lg bg-white shadow-2xl">
         <header className="flex items-start justify-between px-4 py-4 sm:px-8 sm:py-6">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900">批量导入影像</h2>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              批量导入影像
+            </h2>
             <p className="mt-1 text-sm text-gray-500">
               上传完成后由后台按队列顺序执行 AI 测量
             </p>

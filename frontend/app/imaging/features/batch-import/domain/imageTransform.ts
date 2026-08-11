@@ -72,7 +72,9 @@ async function flipOnMainThread(file: File): Promise<File> {
             reject(new Error('无法生成翻转后的影像'));
             return;
           }
-          resolve(new File([blob], file.name, { type: file.type || 'image/png' }));
+          resolve(
+            new File([blob], file.name, { type: file.type || 'image/png' })
+          );
         }, file.type || 'image/png');
       };
       image.onerror = () => reject(new Error('无法读取待翻转影像'));

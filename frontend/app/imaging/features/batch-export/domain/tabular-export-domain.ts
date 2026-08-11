@@ -37,7 +37,9 @@ function formatDate(dateValue?: string): string {
   }
 
   const date = new Date(dateValue);
-  return Number.isNaN(date.getTime()) ? dateValue : date.toLocaleDateString('zh-CN');
+  return Number.isNaN(date.getTime())
+    ? dateValue
+    : date.toLocaleDateString('zh-CN');
 }
 
 function normalizeCellValue(value: unknown): string | number {
@@ -99,7 +101,9 @@ function createCsvContent(
 ): string {
   return [
     headers.join(','),
-    ...rows.map(row => headers.map(header => escapeCsvCell(row[header])).join(',')),
+    ...rows.map(row =>
+      headers.map(header => escapeCsvCell(row[header])).join(',')
+    ),
   ].join('\n');
 }
 
@@ -115,9 +119,14 @@ function createExcelHtmlContent(
   rows: Record<string, string | number>[],
   headers: string[]
 ): string {
-  const headerCells = headers.map(header => `<th>${escapeHtmlCell(header)}</th>`).join('');
+  const headerCells = headers
+    .map(header => `<th>${escapeHtmlCell(header)}</th>`)
+    .join('');
   const bodyRows = rows
-    .map(row => `<tr>${headers.map(header => `<td>${escapeHtmlCell(row[header])}</td>`).join('')}</tr>`)
+    .map(
+      row =>
+        `<tr>${headers.map(header => `<td>${escapeHtmlCell(row[header])}</td>`).join('')}</tr>`
+    )
     .join('');
 
   return `<!doctype html><html><head><meta charset="utf-8"></head><body><table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table></body></html>`;
@@ -126,10 +135,15 @@ function createExcelHtmlContent(
 export function createTabularBlob(
   rows: Record<string, string | number>[],
   format: TabularExportFormat,
-  kind: Extract<ExportContentType, 'measurement-parameters' | 'annotation-points'>
+  kind: Extract<
+    ExportContentType,
+    'measurement-parameters' | 'annotation-points'
+  >
 ): Blob {
   const headers =
-    kind === 'measurement-parameters' ? MEASUREMENT_HEADERS : ANNOTATION_POINT_HEADERS;
+    kind === 'measurement-parameters'
+      ? MEASUREMENT_HEADERS
+      : ANNOTATION_POINT_HEADERS;
 
   if (format === 'json') {
     return new Blob([JSON.stringify(rows, null, 2)], {

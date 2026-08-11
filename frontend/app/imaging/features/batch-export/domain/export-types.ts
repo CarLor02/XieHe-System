@@ -4,17 +4,12 @@ import type {
   VertebraAnnotation,
 } from '@/app/imaging/features/image-viewer/public';
 
-export type ExportContentType =
-  | 'original-image'
-  | 'annotated-image'
-  | 'annotation-points'
-  | 'measurement-parameters'
-  | 'training-data'
-  | 'labelme-compatible-data';
-
-export type TabularExportFormat = 'csv' | 'json' | 'excel';
-export type AnnotatedImageExportFormat = 'png' | 'jpeg';
-export type ExportFormat = TabularExportFormat | AnnotatedImageExportFormat | 'original';
+export type {
+  AnnotatedImageExportFormat,
+  ExportContentType,
+  ExportFormat,
+  TabularExportFormat,
+} from '@xiehe/imaging-core/exports';
 
 export interface ExportFile {
   filename: string;

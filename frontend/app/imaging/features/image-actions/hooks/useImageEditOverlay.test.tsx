@@ -11,8 +11,7 @@ import type {
 } from '@/services/imageServices/imageFileService';
 
 const mockDownloadImageFile = jest.fn<typeof downloadImageFile>();
-const mockReplaceImageFileContent =
-  jest.fn<typeof replaceImageFileContent>();
+const mockReplaceImageFileContent = jest.fn<typeof replaceImageFileContent>();
 const mockUpdateImageInfo = jest.fn<typeof updateImageInfo>();
 
 jest.mock('@/services/imageServices/imageFileService', () => ({
@@ -413,8 +412,14 @@ it('keeps pending crop unapplied until content replacement is confirmed', async 
 
 it('clears local annotation cache after replacing image content', async () => {
   localStorage.setItem('annotations_1', '{"measurements":[{"id":"old"}]}');
-  localStorage.setItem('annotations_file-1', '{"vertebraeLayer":[{"label":"T1-1"}]}');
-  localStorage.setItem('annotations_IMG001', '{"vertebraeLayer":[{"label":"T1-2"}]}');
+  localStorage.setItem(
+    'annotations_file-1',
+    '{"vertebraeLayer":[{"label":"T1-1"}]}'
+  );
+  localStorage.setItem(
+    'annotations_IMG001',
+    '{"vertebraeLayer":[{"label":"T1-2"}]}'
+  );
 
   const reloadImages = jest.fn();
   let latest: HookValue | null = null;

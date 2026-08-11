@@ -10,7 +10,7 @@ import type { ImageFileAction } from '../domain/imageFileAction';
 import {
   splitImageFilename,
   validateImageBasename,
-} from '../domain/imageFilename';
+} from '@xiehe/imaging-core/image-files';
 import { createLogger } from '@/lib/logger';
 
 const logger = createLogger(

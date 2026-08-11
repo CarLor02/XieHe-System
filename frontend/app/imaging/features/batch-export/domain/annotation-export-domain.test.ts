@@ -1,7 +1,10 @@
 import { expect, it } from '@jest/globals';
 
 import { buildTrainingLabelBlob } from '@/app/imaging/features/batch-export/domain/annotation-export-domain';
-import { AnnotationSource, VertebraAnnotation } from '@xiehe/imaging-core/contracts';
+import {
+  AnnotationSource,
+  VertebraAnnotation,
+} from '@xiehe/imaging-core/contracts';
 import { ImageFile } from '@/services/imageServices/imageFileService';
 
 const image = {

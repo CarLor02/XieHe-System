@@ -12,7 +12,9 @@ import {
 import { createLogger } from '@/lib/logger';
 import { EXAM_TYPES } from '@/app/imaging/domain/imagingFilters';
 
-const logger = createLogger('app.imaging.features.image.actions.hooks.useImageEditOverlay');
+const logger = createLogger(
+  'app.imaging.features.image.actions.hooks.useImageEditOverlay'
+);
 
 export interface EditImageState {
   imageFile: ImageFile;
@@ -65,7 +67,10 @@ function renderCropToFile(
   return renderImageToFile(sourceFile, sourceUrl, (image, canvas) => {
     const sourceX = Math.round(crop.x * image.naturalWidth);
     const sourceY = Math.round(crop.y * image.naturalHeight);
-    const sourceWidth = Math.max(1, Math.round(crop.width * image.naturalWidth));
+    const sourceWidth = Math.max(
+      1,
+      Math.round(crop.width * image.naturalWidth)
+    );
     const sourceHeight = Math.max(
       1,
       Math.round(crop.height * image.naturalHeight)
@@ -114,15 +119,12 @@ export function useImageEditOverlay({
   const [downloading, setDownloading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [contentResetConfirmOpen, setContentResetConfirmOpen] = useState(false);
-  const pendingContentReplacementRef =
-    useRef<PendingContentReplacement | null>(null);
+  const pendingContentReplacementRef = useRef<PendingContentReplacement | null>(
+    null
+  );
 
   const updateEditState = useCallback(
-    (
-      updater: (
-        previous: EditImageState | null
-      ) => EditImageState | null
-    ) => {
+    (updater: (previous: EditImageState | null) => EditImageState | null) => {
       const next = updater(editStateRef.current);
       editStateRef.current = next;
       setEditState(next);
@@ -257,7 +259,12 @@ export function useImageEditOverlay({
           if (prev.previewUrl !== prev.sourcePreviewUrl) {
             URL.revokeObjectURL(prev.previewUrl);
           }
-          return { ...prev, currentFile: nextFile, previewUrl: nextPreviewUrl, cropped: true };
+          return {
+            ...prev,
+            currentFile: nextFile,
+            previewUrl: nextPreviewUrl,
+            cropped: true,
+          };
         });
       } catch (error) {
         logger.error('Crop image error:', error);
@@ -266,43 +273,52 @@ export function useImageEditOverlay({
     [updateEditState]
   );
 
-  const handleExamTypeChange = useCallback((fileId: string, examType: string) => {
-    updateEditState(prev =>
-      prev && prev.imageFile.id.toString() === fileId
-        ? { ...prev, examType }
-        : prev
-    );
-  }, [updateEditState]);
+  const handleExamTypeChange = useCallback(
+    (fileId: string, examType: string) => {
+      updateEditState(prev =>
+        prev && prev.imageFile.id.toString() === fileId
+          ? { ...prev, examType }
+          : prev
+      );
+    },
+    [updateEditState]
+  );
 
-  const handleTeamIdsChange = useCallback((teamIds: number[]) => {
-    updateEditState(prev => (prev ? { ...prev, teamIds } : prev));
-  }, [updateEditState]);
+  const handleTeamIdsChange = useCallback(
+    (teamIds: number[]) => {
+      updateEditState(prev => (prev ? { ...prev, teamIds } : prev));
+    },
+    [updateEditState]
+  );
 
-  const handleConfirm = useCallback(async (options?: UploadOptionsConfirmOptions) => {
-    const current = editStateRef.current;
-    if (!current || saving) return;
-    const pendingCrop = options?.pendingCrop ?? null;
-    if (pendingCrop || current.cropped || current.flipped) {
-      pendingContentReplacementRef.current = { crop: pendingCrop };
-      setContentResetConfirmOpen(true);
-      return;
-    }
+  const handleConfirm = useCallback(
+    async (options?: UploadOptionsConfirmOptions) => {
+      const current = editStateRef.current;
+      if (!current || saving) return;
+      const pendingCrop = options?.pendingCrop ?? null;
+      if (pendingCrop || current.cropped || current.flipped) {
+        pendingContentReplacementRef.current = { crop: pendingCrop };
+        setContentResetConfirmOpen(true);
+        return;
+      }
 
-    setSaving(true);
-    try {
-      await updateImageInfo(current.imageFile.id, {
-        description: current.examType,
-        team_ids: current.teamIds,
-      });
-      closeEditOverlay();
-      reloadImages();
-    } catch (error) {
-      logger.error('Failed to save image edit:', error);
-      alert('保存失败，请重试');
-    } finally {
-      setSaving(false);
-    }
-  }, [saving, closeEditOverlay, reloadImages]);
+      setSaving(true);
+      try {
+        await updateImageInfo(current.imageFile.id, {
+          description: current.examType,
+          team_ids: current.teamIds,
+        });
+        closeEditOverlay();
+        reloadImages();
+      } catch (error) {
+        logger.error('Failed to save image edit:', error);
+        alert('保存失败，请重试');
+      } finally {
+        setSaving(false);
+      }
+    },
+    [saving, closeEditOverlay, reloadImages]
+  );
 
   const cancelContentReplacement = useCallback(() => {
     pendingContentReplacementRef.current = null;

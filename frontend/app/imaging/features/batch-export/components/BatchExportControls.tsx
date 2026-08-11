@@ -53,7 +53,9 @@ export default function BatchExportControls({
                 </option>
               ))}
             </select>
-            {!exportContentOptions.some(option => option.value === 'annotation-points') && (
+            {!exportContentOptions.some(
+              option => option.value === 'annotation-points'
+            ) && (
               <p className="text-xs text-gray-500 mt-2">
                 非管理员账号不可导出标注点检测数据
               </p>

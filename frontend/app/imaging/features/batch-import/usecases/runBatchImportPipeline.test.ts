@@ -1,15 +1,10 @@
 import { beforeEach, expect, it, jest } from '@jest/globals';
 
-const createBatch =
-  jest.fn<(...args: unknown[]) => Promise<unknown>>();
-const createSessions =
-  jest.fn<(...args: unknown[]) => Promise<unknown>>();
-const uploadPart =
-  jest.fn<(...args: unknown[]) => Promise<unknown>>();
-const completeItem =
-  jest.fn<(...args: unknown[]) => Promise<unknown>>();
-const markFailed =
-  jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const createBatch = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const createSessions = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const uploadPart = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const completeItem = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const markFailed = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
 jest.mock('@/services/imageServices', () => ({
   createImageImportBatch: (...args: unknown[]) => createBatch(...args),

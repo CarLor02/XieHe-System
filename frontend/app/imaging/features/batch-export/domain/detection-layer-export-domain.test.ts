@@ -6,7 +6,7 @@ import {
   type VertebraAnnotation,
 } from '@xiehe/imaging-core/contracts';
 
-import { getDetectionLayerKeypoints } from './detection-layer-export-domain';
+import { getDetectionLayerKeypoints } from '@xiehe/imaging-core/exports';
 
 const point = (x: number, y: number) => ({ x, y });
 
@@ -48,19 +48,17 @@ it('exports grouped AP vertebra corners and pose points as logical keypoints', (
 });
 
 it('exports historical per-corner AP records once without regrouping duplicates', () => {
-  const vertebraeLayer = [1, 2, 3, 4].map(
-    (index): VertebraAnnotation => ({
-      label: `T2-${index}`,
-      corners: [
-        point(index * 10, 20),
-        point(index * 10, 20),
-        point(index * 10, 20),
-        point(index * 10, 20),
-      ],
-      confidence: 0.8,
-      source: AnnotationSource.AI,
-    })
-  );
+  const vertebraeLayer = [1, 2, 3, 4].map((index): VertebraAnnotation => ({
+    label: `T2-${index}`,
+    corners: [
+      point(index * 10, 20),
+      point(index * 10, 20),
+      point(index * 10, 20),
+      point(index * 10, 20),
+    ],
+    confidence: 0.8,
+    source: AnnotationSource.AI,
+  }));
 
   const keypoints = getDetectionLayerKeypoints({
     vertebraeLayer,

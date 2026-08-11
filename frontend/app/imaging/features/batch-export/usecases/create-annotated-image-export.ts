@@ -6,7 +6,9 @@ import type { AnnotatedImageExportFormat } from '../domain';
 import { createLogger } from '@/lib/logger';
 import { createEmptyBindings } from '@xiehe/imaging-core/bindings';
 
-const logger = createLogger('app.imaging.features.batch.export.usecases.create.annotated.image.export');
+const logger = createLogger(
+  'app.imaging.features.batch.export.usecases.create.annotated.image.export'
+);
 
 // ── 内部工具函数 ────────────────────────────────────────────────────────────
 
@@ -14,8 +16,14 @@ function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const image = new Image();
-    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
-    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('影像文件无法作为图片加载')); };
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('影像文件无法作为图片加载'));
+    };
     image.src = url;
   });
 }
@@ -77,7 +85,11 @@ export async function convertImageBlobToPngBlob(
 /**
  * 将 SVG 字符串转换为图片
  */
-function loadSVGAsImage(svgString: string, width: number, height: number): Promise<HTMLImageElement> {
+function loadSVGAsImage(
+  svgString: string,
+  width: number,
+  height: number
+): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -88,7 +100,7 @@ function loadSVGAsImage(svgString: string, width: number, height: number): Promi
       URL.revokeObjectURL(url);
       resolve(image);
     };
-    image.onerror = (error) => {
+    image.onerror = error => {
       URL.revokeObjectURL(url);
       logger.error('SVG 加载失败:', error);
       reject(new Error('SVG 无法作为图片加载'));
@@ -147,11 +159,16 @@ function renderMeasurementsToSVG(
   // 所以 imageScale=1 即可让坐标在 0..VIRTUAL_VIEWPORT_WIDTH 范围内正确分布。
   // 如果传 800/W（错误做法），坐标会被双重压缩，所有点向中心聚集。
   const VIRTUAL_VIEWPORT_WIDTH = 800; // 与典型查看器显示宽度接近
-  const VIRTUAL_VIEWPORT_HEIGHT = Math.round(VIRTUAL_VIEWPORT_WIDTH * (height / width));
+  const VIRTUAL_VIEWPORT_HEIGHT = Math.round(
+    VIRTUAL_VIEWPORT_WIDTH * (height / width)
+  );
   const svgScaleFactor = width / VIRTUAL_VIEWPORT_WIDTH; // e.g. 2000/800 = 2.5
 
   // 虚拟视口的容器尺寸——imageToScreen 用此绕开 DOM 查询，确保坐标正确
-  const virtualContainerSize = { width: VIRTUAL_VIEWPORT_WIDTH, height: VIRTUAL_VIEWPORT_HEIGHT };
+  const virtualContainerSize = {
+    width: VIRTUAL_VIEWPORT_WIDTH,
+    height: VIRTUAL_VIEWPORT_HEIGHT,
+  };
 
   // 渲染所有测量项 - 使用实际的 React 渲染器（在虚拟视口坐标系下）
   const measurementElements = measurements.map((measurement, index) => {
@@ -196,7 +213,10 @@ function renderMeasurementsToSVG(
         refY: '3',
         orient: 'auto',
       },
-      React.createElement('polygon', { points: '0 0, 10 3, 0 6', fill: '#f59e0b' })
+      React.createElement('polygon', {
+        points: '0 0, 10 3, 0 6',
+        fill: '#f59e0b',
+      })
     ),
     React.createElement(
       'marker',
@@ -208,7 +228,10 @@ function renderMeasurementsToSVG(
         refY: '3',
         orient: 'auto',
       },
-      React.createElement('polygon', { points: '0 0, 10 3, 0 6', fill: '#fbbf24' })
+      React.createElement('polygon', {
+        points: '0 0, 10 3, 0 6',
+        fill: '#fbbf24',
+      })
     ),
     React.createElement(
       'marker',
@@ -220,7 +243,10 @@ function renderMeasurementsToSVG(
         refY: '3',
         orient: 'auto',
       },
-      React.createElement('polygon', { points: '0 0, 10 3, 0 6', fill: '#ef4444' })
+      React.createElement('polygon', {
+        points: '0 0, 10 3, 0 6',
+        fill: '#ef4444',
+      })
     )
   );
 
@@ -278,13 +304,15 @@ export async function createAnnotatedImageBlob({
   const scaleY = canvas.height / sourceHeight;
 
   // 如果需要缩放，调整测量点坐标
-  const scaledMeasurements: MeasurementData[] = measurements.map(measurement => ({
-    ...measurement,
-    points: (measurement.points || []).map(point => ({
-      x: point.x * scaleX,
-      y: point.y * scaleY,
-    })),
-  }));
+  const scaledMeasurements: MeasurementData[] = measurements.map(
+    measurement => ({
+      ...measurement,
+      points: (measurement.points || []).map(point => ({
+        x: point.x * scaleX,
+        y: point.y * scaleY,
+      })),
+    })
+  );
 
   // 使用实际的 React SVG 渲染器生成标注 SVG
   // 这确保了导出的图像使用与交互式查看器相同的渲染逻辑和颜色
@@ -296,7 +324,11 @@ export async function createAnnotatedImageBlob({
 
   // 将 SVG 转换为图像并叠加到画布上
   try {
-    const svgImage = await loadSVGAsImage(svgString, canvas.width, canvas.height);
+    const svgImage = await loadSVGAsImage(
+      svgString,
+      canvas.width,
+      canvas.height
+    );
     ctx.drawImage(svgImage, 0, 0);
   } catch (error) {
     logger.error('SVG 渲染失败:', error);

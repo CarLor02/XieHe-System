@@ -1,6 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { splitImageFilename, validateImageBasename } from './imageFilename';
+import {
+  splitImageFilename,
+  validateImageBasename,
+} from '@xiehe/imaging-core/image-files';
 
 describe('image filename rules', () => {
   it('splits the final extension from the editable basename', () => {
@@ -19,8 +22,6 @@ describe('image filename rules', () => {
     expect(validateImageBasename('folder/name', '.png')).toBe(
       '新影像名不能包含路径分隔符'
     );
-    expect(validateImageBasename('a'.repeat(252), '.png')).toBe(
-      '新影像名过长'
-    );
+    expect(validateImageBasename('a'.repeat(252), '.png')).toBe('新影像名过长');
   });
 });

@@ -1,10 +1,8 @@
-import { patchFromServerItem } from './status';
+import { patchFromServerItem } from '@xiehe/imaging-core/batch-import';
 import type { ImageImportItem } from '@/services/imageServices';
 import { expect, it } from '@jest/globals';
 
-function item(
-  overrides: Partial<ImageImportItem> = {}
-): ImageImportItem {
+function item(overrides: Partial<ImageImportItem> = {}): ImageImportItem {
   return {
     id: 1,
     client_file_id: 'file-1',

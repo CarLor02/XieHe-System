@@ -7,10 +7,7 @@ export interface ImageFilenameParts {
 
 export function splitImageFilename(filename: string): ImageFilenameParts {
   const lastDotIndex = filename.lastIndexOf('.');
-  if (lastDotIndex <= 0) {
-    return { basename: filename, extension: '' };
-  }
-
+  if (lastDotIndex <= 0) return { basename: filename, extension: '' };
   return {
     basename: filename.slice(0, lastDotIndex),
     extension: filename.slice(lastDotIndex),
@@ -22,9 +19,7 @@ export function validateImageBasename(
   extension: string
 ): string | null {
   const basename = value.trim();
-  if (!basename) {
-    return '新影像名不能为空';
-  }
+  if (!basename) return '新影像名不能为空';
   if (basename.includes('/') || basename.includes('\\')) {
     return '新影像名不能包含路径分隔符';
   }

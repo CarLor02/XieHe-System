@@ -38,9 +38,9 @@ it('shows the original filename and keeps the extension read-only', () => {
   expect(screen.getByText('重命名影像')).toBeTruthy();
   expect(screen.getByText('original.scan.png')).toBeTruthy();
   expect(screen.getByText('.png')).toBeTruthy();
-  expect(
-    (screen.getByLabelText('新影像名') as HTMLInputElement).value
-  ).toBe('original.scan');
+  expect((screen.getByLabelText('新影像名') as HTMLInputElement).value).toBe(
+    'original.scan'
+  );
 });
 
 it('submits and cancels through the dialog controls', async () => {

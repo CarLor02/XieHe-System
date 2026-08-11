@@ -10,16 +10,18 @@ import { buildBatchExportFiles, downloadExportFiles } from '../usecases';
 import { useExportContentOptions } from './use-export-content-options';
 import { createLogger } from '@/lib/logger';
 
-const logger = createLogger('app.imaging.features.batch.export.hooks.useBatchImageExport');
+const logger = createLogger(
+  'app.imaging.features.batch.export.hooks.useBatchImageExport'
+);
 
 function canExportPrivilegedData(user: ReturnType<typeof useUser>['user']) {
   return Boolean(
     user?.is_superuser ||
-      user?.is_system_admin ||
-      user?.role === 'admin' ||
-      user?.role === 'system_admin' ||
-      user?.role === 'team_admin' ||
-      user?.role === 'ADMIN'
+    user?.is_system_admin ||
+    user?.role === 'admin' ||
+    user?.role === 'system_admin' ||
+    user?.role === 'team_admin' ||
+    user?.role === 'ADMIN'
   );
 }
 
@@ -34,7 +36,9 @@ function isPrivilegedExportContent(exportContent: ExportContentType): boolean {
 export function useBatchImageExport(selectedImages: ImageFile[]) {
   const { user } = useUser();
   const canExportAnnotationPoints = canExportPrivilegedData(user);
-  const exportContentOptions = useExportContentOptions(canExportAnnotationPoints);
+  const exportContentOptions = useExportContentOptions(
+    canExportAnnotationPoints
+  );
 
   const [exportContent, setExportContent] =
     useState<ExportContentType>('original-image');
@@ -84,8 +88,7 @@ export function useBatchImageExport(selectedImages: ImageFile[]) {
       const files = await buildBatchExportFiles({
         images: selectedImages.map(image => ({
           ...image,
-          annotation:
-            annotationsById.get(image.id)?.annotation ?? null,
+          annotation: annotationsById.get(image.id)?.annotation ?? null,
         })),
         exportContent: effectiveExportContent,
         onProgress: setExportProgress,
@@ -98,8 +101,8 @@ export function useBatchImageExport(selectedImages: ImageFile[]) {
       logger.error('导出失败:', error);
       const message =
         error && typeof error === 'object' && 'response' in error
-          ? (error as { response?: { data?: { detail?: string } } }).response?.data
-              ?.detail
+          ? (error as { response?: { data?: { detail?: string } } }).response
+              ?.data?.detail
           : undefined;
       setExportMessage(message || '导出失败，请重试');
     } finally {
