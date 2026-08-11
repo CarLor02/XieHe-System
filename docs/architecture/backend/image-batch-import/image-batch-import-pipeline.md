@@ -134,7 +134,7 @@ Topic 默认为 `medical.image-ai.predict.v1`，消息 key 为 `image_file_id`�
 
 ## AI Worker
 
-`python -m app.workers.ai_worker` 启动独立 Worker。一个进程按照
+`python -m app.contexts.imaging.interface.worker` 启动独立 Worker。一个进程按照
 `AI_WORKER_CONCURRENCY` 创建多个同组 Subscriber，默认并发数为 2。
 
 处理步骤：

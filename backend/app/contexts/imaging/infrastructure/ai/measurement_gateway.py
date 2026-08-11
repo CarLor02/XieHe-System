@@ -9,7 +9,8 @@ import httpx
 from app.contexts.imaging.application.errors import AiMeasurementUnavailableError
 from app.contexts.imaging.domain import JsonObject
 from app.models.image_file import ImageFile
-from app.services.ai_model_client import (
+
+from .client import (
     AiModelClient,
     AiModelRequestError,
     ai_model_client,

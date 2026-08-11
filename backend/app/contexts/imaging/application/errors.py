@@ -36,6 +36,13 @@ class AiTaskQueueUnavailableError(ImagingApplicationError):
     pass
 
 
+class AiTaskModelError(ImagingApplicationError):
+    def __init__(self, detail: str, *, transient: bool) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.transient = transient
+
+
 class ObjectStorageUnavailableError(ImagingApplicationError):
     pass
 

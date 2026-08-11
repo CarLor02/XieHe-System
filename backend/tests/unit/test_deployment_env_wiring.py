@@ -54,7 +54,7 @@ def test_backend_compose_injects_python_settings_env_names() -> None:
         assert f"{name}:" in backend_compose
 
     assert "ai-worker:" in backend_compose
-    assert "app.workers.ai_worker" in backend_compose
+    assert "app.contexts.imaging.interface.worker" in backend_compose
     assert "pull_policy: never" in backend_compose
 
 

@@ -1,4 +1,4 @@
-"""HTTP client shared by synchronous AI endpoints and asynchronous workers."""
+"""HTTP client shared by synchronous imaging endpoints and AI workers."""
 
 from __future__ import annotations
 

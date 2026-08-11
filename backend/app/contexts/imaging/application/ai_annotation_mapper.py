@@ -1,23 +1,10 @@
-"""Batch image import AI processing helpers."""
+"""Translate AI measurement responses into viewer annotation documents."""
 
 from __future__ import annotations
 
 import re
 from datetime import datetime
 from typing import Any
-
-from sqlalchemy.orm import Session
-
-from app.contexts.imaging.application import (
-    AnnotationApplicationService,
-    ImageVisibilityApplicationService,
-)
-from app.contexts.imaging.domain import AnnotationMutationReason, AnnotationSource
-from app.contexts.imaging.infrastructure.persistence import (
-    SqlAlchemyAnnotationRepository,
-    SqlAlchemyImageVisibilityRepository,
-)
-from app.models.image_file import ImageFile
 
 TYPE_ALIASES = {
     "T1 Tilt": "t1-tilt",
@@ -121,32 +108,3 @@ def build_annotation_from_ai_response(
         annotation["cfhAnnotation"] = cfh
 
     return annotation
-
-
-def persist_ai_annotation(
-    db: Session,
-    image: ImageFile,
-    *,
-    ai_response: dict[str, Any],
-    user_id: int | None,
-) -> None:
-    repository = SqlAlchemyAnnotationRepository(db)
-    locked_image = repository.get_for_update(image.id)
-    if locked_image is None:
-        raise ValueError(f"影像文件不存在: {image.id}")
-    annotation = build_annotation_from_ai_response(
-        image_file_id=locked_image.id,
-        patient_id=locked_image.patient_id,
-        exam_type=locked_image.description,
-        ai_response=ai_response,
-    )
-    AnnotationApplicationService(
-        repository,
-        ImageVisibilityApplicationService(SqlAlchemyImageVisibilityRepository(db)),
-    ).save_locked_image(
-        image=locked_image,
-        actor_id=user_id,
-        annotation=annotation,
-        source=AnnotationSource.AI,
-        reason=AnnotationMutationReason.AI_IMPORT,
-    )

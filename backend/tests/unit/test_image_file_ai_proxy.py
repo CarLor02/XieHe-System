@@ -10,6 +10,7 @@ from app.contexts.imaging.application.errors import (
     ImageNotReadyError,
 )
 from app.contexts.imaging.domain import ImageAccessActor, ImageFileNotFoundError
+from app.contexts.imaging.infrastructure.ai import client as ai_model_client
 from app.contexts.imaging.infrastructure.ai import measurement_gateway
 from app.contexts.imaging.infrastructure.ai.measurement_gateway import (
     AiModelMeasurementGateway,
@@ -18,7 +19,6 @@ from app.contexts.imaging.infrastructure.ai.measurement_gateway import (
 )
 from app.contexts.imaging.interface.http.v1.routes.predictions import router
 from app.models.image_file import ImageFile, ImageFileStatusEnum, ImageFileTypeEnum
-from app.services import ai_model_client
 
 
 def make_image(

@@ -29,6 +29,10 @@ from app.contexts.imaging.infrastructure.ai import (
     start_ai_measurement_client,
     stop_ai_measurement_client,
 )
+from app.contexts.imaging.infrastructure.messaging import (
+    start_ai_task_publisher,
+    stop_ai_task_publisher,
+)
 from app.contexts.object_lifecycle.interface.scheduler import (
     start_object_cleanup_scheduler,
     stop_object_cleanup_scheduler,
@@ -44,10 +48,6 @@ from app.core.system.exceptions import (
 )
 from app.core.system.logger import LogLevel, logger
 from app.core.system.request_context import request_id_var
-from app.services.ai_task_queue import (
-    start_ai_task_publisher,
-    stop_ai_task_publisher,
-)
 from app.services.realtime_service import start_realtime_service, stop_realtime_service
 from app.shared.cache.aiocache import query_cache
 from app.shared.redis import RedisStateUnavailable, state_redis

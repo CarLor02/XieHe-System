@@ -4,6 +4,7 @@ from .access_scope import (
     SqlAlchemyImageVisibilityRepository,
     apply_image_access_scope,
 )
+from .ai_task_execution_repository import SqlAlchemyAiTaskExecutionRepository
 from .annotation_history_repository import SqlAlchemyAnnotationHistoryRepository
 from .annotation_repository import SqlAlchemyAnnotationRepository
 from .image_file_repository import SqlAlchemyImageFileRepository
@@ -18,6 +19,7 @@ __all__ = [
     "ImageAnnotationRevision",
     "SqlAlchemyAnnotationHistoryRepository",
     "SqlAlchemyAnnotationRepository",
+    "SqlAlchemyAiTaskExecutionRepository",
     "SqlAlchemyImageFileRepository",
     "SqlAlchemyImageImportRepository",
     "SqlAlchemyImageQueryRepository",

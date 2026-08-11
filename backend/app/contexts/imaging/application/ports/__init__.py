@@ -1,6 +1,7 @@
 """影像应用层端口。"""
 
 from .ai_measurement import AiMeasurementGateway
+from .ai_task_execution import AiTaskExecutionRepository, AiTaskModelGateway
 from .ai_task_publisher import AiTaskPublisher
 from .annotation_history_repository import AnnotationHistoryRepository
 from .annotation_repository import AnnotationRepository
@@ -15,6 +16,8 @@ from .upload_repository import UploadRepository
 
 __all__ = [
     "AiMeasurementGateway",
+    "AiTaskExecutionRepository",
+    "AiTaskModelGateway",
     "AiTaskPublisher",
     "AnnotationHistoryRepository",
     "AnnotationRepository",
