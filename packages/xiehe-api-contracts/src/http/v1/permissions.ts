@@ -38,6 +38,7 @@ export interface PermissionRoleListQuery {
   page_size?: number;
   search?: string;
   status?: string;
+  is_system?: boolean;
 }
 
 export type RoleListResult = PaginatedResult<PermissionRole>;
