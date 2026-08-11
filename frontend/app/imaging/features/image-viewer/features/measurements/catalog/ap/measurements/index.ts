@@ -19,6 +19,7 @@ import {
   AP_MEASUREMENT_TOOL_IDS,
   getToolCapability,
 } from '@xiehe/imaging-core/measurements';
+import { getLocalizedToolCopy } from '@xiehe/imaging-catalog/tools';
 
 export { AVT_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/ap/measurements/avt';
 export {
@@ -65,13 +66,14 @@ function toTool(toolId: string): Tool | null {
   const config =
     AP_MEASUREMENT_CONFIGS[toolId as keyof typeof AP_MEASUREMENT_CONFIGS];
   const capability = getToolCapability(toolId);
-  if (!config || !capability) return null;
+  const copy = getLocalizedToolCopy(toolId);
+  if (!config || !capability || !copy) return null;
 
   return {
     id: config.id,
-    name: config.name,
+    name: copy.name,
     icon: config.icon,
-    description: config.description,
+    description: copy.description,
     pointsNeeded: capability.pointsNeeded,
   };
 }

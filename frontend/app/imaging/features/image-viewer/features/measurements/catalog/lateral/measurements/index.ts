@@ -18,6 +18,7 @@ import {
   LATERAL_MEASUREMENT_TOOL_IDS,
   getToolCapability,
 } from '@xiehe/imaging-core/measurements';
+import { getLocalizedToolCopy } from '@xiehe/imaging-catalog/tools';
 
 export { CL_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cl';
 export { LATERAL_COBB_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/lateral/measurements/cobb';
@@ -59,13 +60,14 @@ function toTool(toolId: string): Tool | null {
       toolId as keyof typeof LATERAL_MEASUREMENT_CONFIGS
     ];
   const capability = getToolCapability(toolId);
-  if (!config || !capability) return null;
+  const copy = getLocalizedToolCopy(toolId);
+  if (!config || !capability || !copy) return null;
 
   return {
     id: config.id,
-    name: config.name,
+    name: copy.name,
     icon: config.icon,
-    description: config.description,
+    description: copy.description,
     pointsNeeded: capability.pointsNeeded,
   };
 }

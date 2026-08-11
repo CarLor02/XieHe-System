@@ -9,18 +9,19 @@ import {
 } from '@/app/imaging/features/image-viewer/features/measurements/application/usecases/calculateMeasurementValue';
 import { getAnnotationTypeId } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
 import { resolveVariableMeasurement } from '@xiehe/imaging-core/measurements';
-import {
-  circleGeometryFromPoints,
-  getCircleBounds,
-} from '@xiehe/imaging-core/geometry';
 import { normalizePelvicDraggedMeasurementPoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
-import {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import type {
   ReferenceLines,
   SelectionState,
+} from '@xiehe/imaging-core/canvas';
+import {
+  canDragWholeMeasurement,
+  constrainDraggedMeasurementPoint,
+  getMeasurementSelectionBox,
+  getMeasurementSelectionBoxInScreen,
+  isPointInSelectionBox,
+  planWholeMeasurementDrag,
 } from '@xiehe/imaging-core/canvas';
 import {
   HEMIPELVIC_WIDTH_RATIO_TOOL_ID,
@@ -31,13 +32,7 @@ import {
   isAvtMetadata,
   updateHorizontalDiscAnchors,
 } from '@xiehe/imaging-core/measurements/ap';
-import {
-  moveManualTtsTrunkLineVertically,
-  resolveTtsMeasurement,
-} from '@xiehe/imaging-core/measurements/ap';
-import {
-  type PelvicToolId,
-} from '@xiehe/imaging-core/contracts';
+import { type PelvicToolId } from '@xiehe/imaging-core/contracts';
 import {
   getBilateralFemoralCenterPointIndices,
   moveBilateralPelvicEffectiveCfh,
@@ -99,7 +94,6 @@ export function useCanvasDrag({
   standardDistance,
   standardDistancePoints,
   imageNaturalSize,
-  imageScale,
   onMeasurementsUpdate,
   disableWholeDrag,
   onMeasurementWriteback,
@@ -110,9 +104,6 @@ export function useCanvasDrag({
   onAnnotationDragStart,
 }: UseCanvasDragOptions) {
   const dragStartRef = useRef<Point | null>(null);
-  const isManualTts = (measurement: MeasurementData) =>
-    resolveTtsMeasurement(measurement)?.layout === 'manual';
-
   /**
    * 一次性提交拖拽结果。关键点工作流接管时，它会以画布已经计算好的
    * measurements 为基线写回关键点并重算依赖项；没有关键点更新时则由
@@ -184,83 +175,22 @@ export function useCanvasDrag({
           ) {
             return false;
           }
-          const typeId = getAnnotationTypeId(measurement.type);
-          let minX: number;
-          let maxX: number;
-          let minY: number;
-          let maxY: number;
-
-          if (selectionState.type === 'whole') {
-            if (typeId === 'circle' && measurement.points.length >= 2) {
-              const circle = circleGeometryFromPoints(measurement.points)!;
-              const bounds = getCircleBounds(
-                {
-                  center: imageToScreen(circle.center),
-                  radiusHandle: imageToScreen(circle.radiusHandle),
-                },
-                15
-              );
-              minX = bounds.minX;
-              maxX = bounds.maxX;
-              minY = bounds.minY;
-              maxY = bounds.maxY;
-            } else if (typeId === 'ellipse' && measurement.points.length >= 2) {
-              const center = measurement.points[0];
-              const edge = measurement.points[1];
-              const radiusX = Math.abs(edge.x - center.x);
-              const radiusY = Math.abs(edge.y - center.y);
-              const screenCenter = imageToScreen(center);
-              const screenRadiusX = radiusX * imageScale;
-              const screenRadiusY = radiusY * imageScale;
-              minX = screenCenter.x - screenRadiusX - 15;
-              maxX = screenCenter.x + screenRadiusX + 15;
-              minY = screenCenter.y - screenRadiusY - 15;
-              maxY = screenCenter.y + screenRadiusY + 15;
-            } else if (
-              (typeId === 'rectangle' || typeId === 'arrow') &&
-              measurement.points.length >= 2
-            ) {
-              const startScreen = imageToScreen(measurement.points[0]);
-              const endScreen = imageToScreen(measurement.points[1]);
-              minX = Math.min(startScreen.x, endScreen.x) - 15;
-              maxX = Math.max(startScreen.x, endScreen.x) + 15;
-              minY = Math.min(startScreen.y, endScreen.y) - 15;
-              maxY = Math.max(startScreen.y, endScreen.y) + 15;
-            } else {
-              const resolvedTts = resolveTtsMeasurement(measurement);
-              const interactionPoints =
-                resolvedTts?.layout === 'manual'
-                  ? resolvedTts.trunkPoints
-                  : measurement.points;
-              const screenPoints = interactionPoints.map(point =>
-                imageToScreen(point)
-              );
-              const xs = screenPoints.map(point => point.x);
-              const ys = screenPoints.map(point => point.y);
-              minX = Math.min(...xs) - 15;
-              maxX = Math.max(...xs) + 15;
-              minY = Math.min(...ys) - 15;
-              maxY = Math.max(...ys) + 15;
-            }
-          } else {
-            const screenPoints = measurement.points.map(point =>
-              imageToScreen(point)
-            );
-            const xs = screenPoints.map(point => point.x);
-            const ys = screenPoints.map(point => point.y);
-            minX = Math.min(...xs) - 15;
-            maxX = Math.max(...xs) + 15;
-            minY = Math.min(...ys) - 15;
-            maxY = Math.max(...ys) + 15;
-          }
-
+          const bounds =
+            selectionState.type === 'whole'
+              ? getMeasurementSelectionBoxInScreen(
+                  measurement,
+                  imageToScreen,
+                  15
+                )
+              : getMeasurementSelectionBox(
+                  {
+                    ...measurement,
+                    points: measurement.points.map(imageToScreen),
+                  },
+                  15
+                );
           const pointerScreenPoint = imageToScreen(imagePoint);
-          if (
-            pointerScreenPoint.x >= minX &&
-            pointerScreenPoint.x <= maxX &&
-            pointerScreenPoint.y >= minY &&
-            pointerScreenPoint.y <= maxY
-          ) {
+          if (isPointInSelectionBox(pointerScreenPoint, bounds)) {
             canDrag = true;
           }
         }
@@ -274,27 +204,10 @@ export function useCanvasDrag({
       const selectedMeasurement = selectionState.measurementId
         ? measurements.find(item => item.id === selectionState.measurementId)
         : null;
-      const selectedTypeId = selectedMeasurement
-        ? getAnnotationTypeId(selectedMeasurement.type)
-        : null;
-      // AVT 不允许整体拖拽，但允许逐点拖拽。
-      if (selectedTypeId === 'avt' && selectionState.type === 'whole') {
-        return false;
-      }
       if (
-        selectedTypeId === 'tts' &&
         selectionState.type === 'whole' &&
         selectedMeasurement &&
-        !isManualTts(selectedMeasurement)
-      ) {
-        return false;
-      }
-      // 关键点联动测量默认禁止整体拖拽；手动 TTS 只移动未绑定的躯干线，可例外。
-      if (
-        disableWholeDrag &&
-        selectionState.type === 'whole' &&
-        selectedMeasurement &&
-        !isManualTts(selectedMeasurement)
+        !canDragWholeMeasurement(selectedMeasurement, Boolean(disableWholeDrag))
       ) {
         return false;
       }
@@ -330,22 +243,9 @@ export function useCanvasDrag({
         return false;
       }
       const activeTypeId = getAnnotationTypeId(measurement.type);
-      // AVT 整体拖拽禁止；TTS 允许整体拖拽（只移动躯干线，见下方）；逐点拖拽正常通过
-      if (activeTypeId === 'avt' && selectionState.type === 'whole') {
-        return false;
-      }
       if (
-        activeTypeId === 'tts' &&
         selectionState.type === 'whole' &&
-        !isManualTts(measurement)
-      ) {
-        return false;
-      }
-      // 关键点联动测量默认禁止整体拖拽；手动 TTS 只移动未绑定的躯干线，可例外。
-      if (
-        disableWholeDrag &&
-        selectionState.type === 'whole' &&
-        !isManualTts(measurement)
+        !canDragWholeMeasurement(measurement, Boolean(disableWholeDrag))
       ) {
         return false;
       }
@@ -410,15 +310,17 @@ export function useCanvasDrag({
         selectionState.type === 'point' &&
         selectionState.pointIndex !== null
       ) {
-        let newPointX = imagePoint.x - selectionState.dragOffset.x;
-        let newPointY = imagePoint.y - selectionState.dragOffset.y;
+        const requestedPoint = {
+          x: imagePoint.x - selectionState.dragOffset.x,
+          y: imagePoint.y - selectionState.dragOffset.y,
+        };
 
         const typeId = getAnnotationTypeId(measurement.type);
         if (typeId === HEMIPELVIC_WIDTH_RATIO_TOOL_ID) {
           const points = updateHemipelvicInteractivePoint(
             measurement.points,
             selectionState.pointIndex,
-            { x: newPointX, y: newPointY }
+            requestedPoint
           );
           const updatedMeasurements = measurements.map(item =>
             item.id === measurement.id
@@ -454,7 +356,7 @@ export function useCanvasDrag({
           const anchors = updateHorizontalDiscAnchors(
             [measurement.points[0], measurement.points[1]],
             selectionState.pointIndex,
-            { x: newPointX, y: newPointY }
+            requestedPoint
           );
           const points = [...anchors, ...measurement.points.slice(2)];
           const nextMeasurement = {
@@ -478,33 +380,14 @@ export function useCanvasDrag({
           return true;
         }
 
-        if (typeId === 'aux-horizontal-line') {
-          const otherIndex = selectionState.pointIndex === 0 ? 1 : 0;
-          newPointY = measurement.points[otherIndex].y;
-        }
-        if (typeId === 'aux-vertical-line') {
-          const otherIndex = selectionState.pointIndex === 0 ? 1 : 0;
-          newPointX = measurement.points[otherIndex].x;
-        }
-        if (typeId === 'tts') {
-          // 仅躯干参考线（点 0-1）保持水平，拖动时锁定 y 坐标。
-          // 骶骨参考线（点 2-3）继承自 CSS / Sacral，需保留其原始倾斜，
-          // 否则会通过点绑定把 CSS 的 y 拉平、CSS 角度被强制为 0°。
-          if (
-            selectionState.pointIndex === 0 ||
-            selectionState.pointIndex === 1
-          ) {
-            const pairIndex = selectionState.pointIndex === 0 ? 1 : 0;
-            if (pairIndex < measurement.points.length) {
-              newPointY = measurement.points[pairIndex].y;
-            }
-          }
-        }
+        const constrainedPoint = constrainDraggedMeasurementPoint({
+          measurement,
+          pointIndex: selectionState.pointIndex,
+          requestedPoint,
+        });
 
         const requestedPoints = measurement.points.map((point, index) =>
-          index === selectionState.pointIndex
-            ? { x: newPointX, y: newPointY }
-            : point
+          index === selectionState.pointIndex ? constrainedPoint : point
         );
         const selectedMeasurementPoints =
           normalizePelvicDraggedMeasurementPoints(
@@ -665,25 +548,12 @@ export function useCanvasDrag({
         return false;
       }
 
-      // 手工 TTS 整体拖拽只移动躯干线（点0-1），且只允许垂直位移。
-      const isManualTtsDrag = isManualTts(measurement);
-      const centerPoints = isManualTtsDrag
-        ? measurement.points.slice(0, 2)
-        : measurement.points;
-      const xs = centerPoints.map(point => point.x);
-      const ys = centerPoints.map(point => point.y);
-      const currentCenterX = (Math.min(...xs) + Math.max(...xs)) / 2;
-      const currentCenterY = (Math.min(...ys) + Math.max(...ys)) / 2;
       const newCenterX = imagePoint.x - selectionState.dragOffset.x;
       const newCenterY = imagePoint.y - selectionState.dragOffset.y;
-      const deltaX = isManualTtsDrag ? 0 : newCenterX - currentCenterX;
-      const deltaY = newCenterY - currentCenterY;
-      const movedPoints = isManualTtsDrag
-        ? moveManualTtsTrunkLineVertically(measurement, deltaY)
-        : measurement.points.map(point => ({
-            x: point.x + deltaX,
-            y: point.y + deltaY,
-          }));
+      const movedPoints = planWholeMeasurementDrag(measurement, {
+        x: newCenterX,
+        y: newCenterY,
+      });
 
       let bindingPropagated = measurements;
       for (

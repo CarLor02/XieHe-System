@@ -16,6 +16,7 @@ import {
   getToolCapability,
   isAuxiliaryToolbarTool,
 } from '@xiehe/imaging-core/measurements';
+import { getLocalizedToolCopy } from '@xiehe/imaging-catalog/tools';
 
 export { ANGLE_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/angle';
 export { ARROW_CONFIG } from '@/app/imaging/features/image-viewer/features/measurements/catalog/auxiliary/arrow';
@@ -48,13 +49,14 @@ export const AUXILIARY_CONFIGS = {
 function toTool(toolId: string): Tool | null {
   const config = AUXILIARY_CONFIGS[toolId as keyof typeof AUXILIARY_CONFIGS];
   const capability = getToolCapability(toolId);
-  if (!config || !capability) return null;
+  const copy = getLocalizedToolCopy(toolId);
+  if (!config || !capability || !copy) return null;
 
   return {
     id: config.id,
-    name: config.name,
+    name: copy.name,
     icon: config.icon,
-    description: config.description,
+    description: copy.description,
     pointsNeeded: capability.pointsNeeded,
   };
 }

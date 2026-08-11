@@ -6,12 +6,37 @@ import {
   getAnnotationTypeId as getDomainAnnotationTypeId,
   normalizeAnnotationLookupKey,
 } from '@xiehe/imaging-core/measurements';
+import {
+  getLocalizedToolCopy,
+  getToolDescription,
+  getToolDisplayName,
+} from '@xiehe/imaging-catalog/tools';
 
-export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
+const WEB_ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   ...AP_MEASUREMENT_CONFIGS,
   ...LATERAL_MEASUREMENT_CONFIGS,
   ...AUXILIARY_CONFIGS,
 };
+
+/** Web 保留 renderer、颜色和命中函数，稳定文案与点数以跨端目录为准。 */
+export const ANNOTATION_CONFIGS: Record<string, AnnotationConfig> =
+  Object.fromEntries(
+    Object.entries(WEB_ANNOTATION_CONFIGS).map(([lookupKey, config]) => {
+      const copy = getLocalizedToolCopy(config.id);
+      return [
+        lookupKey,
+        copy
+          ? {
+              ...config,
+              name: copy.name,
+              description: copy.description,
+              pointsNeeded: copy.capability.pointsNeeded,
+              category: copy.capability.annotationCategory,
+            }
+          : config,
+      ];
+    })
+  );
 
 function getNumberedCobbConfig(
   normalizedId: string
@@ -24,11 +49,12 @@ function getNumberedCobbConfig(
     : ANNOTATION_CONFIGS.cobb;
   if (!cobbConfig) return undefined;
 
+  const copy = getLocalizedToolCopy(normalizedId);
   return {
     ...cobbConfig,
     id: normalizedId,
-    name: `Cobb${match[2]}`,
-    description: `Cobb角${match[2]}测量`,
+    name: copy?.name ?? `Cobb${match[2]}`,
+    description: copy?.description ?? `Cobb角${match[2]}测量`,
   };
 }
 
@@ -40,7 +66,9 @@ export function getAnnotationConfig(
 ): AnnotationConfig | undefined {
   // 内部只接受英文工具 key；中文只作为 UI 展示文案，不作为查找别名。
   const normalizedId = normalizeAnnotationLookupKey(typeId);
-  return ANNOTATION_CONFIGS[normalizedId] ?? getNumberedCobbConfig(normalizedId);
+  return (
+    ANNOTATION_CONFIGS[normalizedId] ?? getNumberedCobbConfig(normalizedId)
+  );
 }
 
 export function getAnnotationTypeId(typeId: string): string {
@@ -53,8 +81,10 @@ export function getAnnotationDisplayName(typeId: string): string {
     return typeId;
   }
 
-  return getAnnotationConfig(typeId)?.name || typeId;
+  return getToolDisplayName(typeId);
 }
+
+export { getToolDescription as getSharedToolDescription };
 
 /**
  * 获取所有测量类标注

@@ -13,19 +13,21 @@ import {
   getToolCapability,
   getToolIdsForExamType,
 } from '@xiehe/imaging-core/measurements';
+import { getLocalizedToolCopy } from '@xiehe/imaging-catalog/tools';
 
 function mapToolIdsToCatalog(toolIds: readonly string[]): Tool[] {
   return toolIds
     .flatMap(toolId => {
       const config = ANNOTATION_CONFIGS[toolId];
       const capability = getToolCapability(toolId);
-      return config && capability ? [{ config, capability }] : [];
+      const copy = getLocalizedToolCopy(toolId);
+      return config && capability && copy ? [{ config, capability, copy }] : [];
     })
-    .map(({ config, capability }) => ({
+    .map(({ config, capability, copy }) => ({
       id: config.id,
-      name: config.name,
+      name: copy.name,
       icon: config.icon,
-      description: config.description,
+      description: copy.description,
       pointsNeeded: capability.pointsNeeded,
     }));
 }

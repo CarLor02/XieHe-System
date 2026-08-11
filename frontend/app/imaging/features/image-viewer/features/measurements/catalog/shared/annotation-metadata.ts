@@ -6,12 +6,10 @@
 import {
   getAnnotationConfig,
   getAnnotationDisplayName,
+  getSharedToolDescription,
   getAnnotationTypeId,
 } from '@/app/imaging/features/image-viewer/features/measurements/catalog/shared/annotation-config';
-import type {
-  MeasurementData,
-  Point,
-} from '@xiehe/imaging-core/contracts';
+import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 
 const EDITABLE_AUXILIARY_CONFIG_IDS = new Set([
   'circle',
@@ -57,8 +55,7 @@ export function getDescriptionForType(type: string): string {
     return 'Cobb角测量';
   }
 
-  const config = getAnnotationConfig(type);
-  return config?.description || type;
+  return getSharedToolDescription(type);
 }
 
 /**

@@ -23,6 +23,7 @@
     "clean": "rimraf .next out dist coverage"
   },
   "dependencies": {
+    "@xiehe/imaging-catalog": "*",
     "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-dialog": "^1.1.15",

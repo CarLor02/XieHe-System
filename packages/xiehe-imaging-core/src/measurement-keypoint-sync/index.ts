@@ -2,6 +2,7 @@
 export * from './application/cobbKeypointSyncUseCase';
 export * from './application/cobbMeasurementPlacementUseCase';
 export * from './application/hydratePersistedKeypointStateUseCase';
+export * from './application/manual-measurement-drawing-plan';
 export * from './application/orderDerivedMeasurementsByBindingRules';
 export * from './application/pelvicMeasurementPlacementUseCase';
 export * from './application/shiftMeasurementVertebraLabelsUseCase';
