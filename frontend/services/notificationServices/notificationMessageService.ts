@@ -1,61 +1,29 @@
-import { apiClient, normalizeLegacyPagination } from '@/infrastructure/http';
-import {
+import { apiSdk } from '@/infrastructure/http';
+import type {
   NotificationActionResult,
   NotificationMessage,
   NotificationMessageFilters,
   NotificationMessageStats,
 } from './types';
 
-export async function getNotificationMessages(
+export function getNotificationMessages(
   filters: NotificationMessageFilters = {}
 ): Promise<NotificationMessage[]> {
-  const params = new URLSearchParams();
-  if (filters.message_type) params.set('message_type', filters.message_type);
-  if (filters.is_read !== undefined)
-    params.set('is_read', String(filters.is_read));
-
-  const query = params.toString();
-  const url = query
-    ? `/api/v1/notifications/messages?${query}`
-    : '/api/v1/notifications/messages';
-  const data = await apiClient.get<unknown>(url);
-  const paginatedResult = normalizeLegacyPagination<NotificationMessage>(data);
-  if (Array.isArray(paginatedResult.items)) {
-    return paginatedResult.items;
-  }
-
-  const legacyData = data as
-    NotificationMessage[] | { items?: NotificationMessage[] };
-
-  if (Array.isArray(legacyData)) {
-    return legacyData;
-  }
-
-  if (Array.isArray(legacyData?.items)) {
-    return legacyData.items;
-  }
-
-  return [];
+  return apiSdk.notifications.listMessages(filters);
 }
 
-export async function getNotificationMessageStats(): Promise<NotificationMessageStats> {
-  return apiClient.get<NotificationMessageStats>(
-    '/api/v1/notifications/messages/stats'
-  );
+export function getNotificationMessageStats(): Promise<NotificationMessageStats> {
+  return apiSdk.notifications.getMessageStats();
 }
 
-export async function markNotificationAsRead(
+export function markNotificationAsRead(
   messageId: number
 ): Promise<NotificationActionResult> {
-  return apiClient.put<NotificationActionResult>(
-    `/api/v1/notifications/messages/${messageId}/read`
-  );
+  return apiSdk.notifications.markRead(messageId);
 }
 
-export async function deleteNotificationMessage(
+export function deleteNotificationMessage(
   messageId: number
 ): Promise<NotificationActionResult> {
-  return apiClient.delete<NotificationActionResult>(
-    `/api/v1/notifications/messages/${messageId}`
-  );
+  return apiSdk.notifications.deleteMessage(messageId);
 }

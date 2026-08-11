@@ -1,15 +1,12 @@
-import { apiClient } from '@/infrastructure/http';
-import { NotificationSettings } from './types';
+import { apiSdk } from '@/infrastructure/http';
+import type { NotificationSettings } from './types';
 
 export async function getNotificationSettings(): Promise<NotificationSettings> {
-  return apiClient.get<NotificationSettings>('/api/v1/notifications/settings');
+  return apiSdk.notifications.getSettings();
 }
 
 export async function updateNotificationSettings(
   payload: NotificationSettings
 ): Promise<NotificationSettings> {
-  return apiClient.put<NotificationSettings, NotificationSettings>(
-    '/api/v1/notifications/settings',
-    payload
-  );
+  return apiSdk.notifications.updateSettings(payload);
 }

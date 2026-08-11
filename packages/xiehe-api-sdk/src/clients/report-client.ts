@@ -13,7 +13,7 @@ export function createReportClient(client: HttpClient) {
     async list(query: ReportListQuery = {}) {
       return normalizeLegacyPagination<ReportSummary>(
         await client.get<unknown>('/api/v1/reports/', {
-          params: compactQuery({ ...query }),
+          params: compactQuery({ page: 1, page_size: 20, ...query }),
         })
       );
     },

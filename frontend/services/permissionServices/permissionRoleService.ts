@@ -1,5 +1,5 @@
-import { apiClient, normalizeLegacyPagination } from '@/infrastructure/http';
-import { PermissionRole, RoleListResult } from './types';
+import { apiSdk } from '@/infrastructure/http';
+import type { RoleListResult } from './types';
 
 export async function getPermissionRoles(
   filters: {
@@ -10,8 +10,5 @@ export async function getPermissionRoles(
     page_size?: number;
   } = {}
 ): Promise<RoleListResult> {
-  const data = await apiClient.get<unknown>('/api/v1/permissions/roles', {
-    params: filters,
-  });
-  return normalizeLegacyPagination<PermissionRole>(data);
+  return apiSdk.permissions.listRoles(filters);
 }

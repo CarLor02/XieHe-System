@@ -22,6 +22,7 @@ import {
   type ApiErrorDetails,
 } from '@/infrastructure/http';
 import { createLogger } from '@/lib/logger';
+import type { ClientErrorReportRequest } from '@xiehe/api-contracts';
 
 const logger = createLogger('services.errorService');
 const errorReportClient = createExternalHttpClient();
@@ -84,16 +85,7 @@ export interface ErrorInfo {
   sessionId?: string;
 }
 
-export interface ClientErrorReportPayload {
-  message: string;
-  stack?: string | null;
-  componentStack?: string | null;
-  timestamp: string;
-  url: string;
-  userAgent: string;
-  errorId?: string | null;
-  context?: Record<string, unknown>;
-}
+export type ClientErrorReportPayload = ClientErrorReportRequest;
 
 // 错误处理配置
 interface ErrorHandlerConfig {

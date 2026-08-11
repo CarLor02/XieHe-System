@@ -1,12 +1,12 @@
-import { apiClient } from '@/infrastructure/http';
-import { DICOMImageInfo, DICOMStudy } from './types';
+import { apiSdk } from '@/infrastructure/http';
+import type { DICOMImageInfo, DICOMStudy } from './types';
 
 export async function getDicomStudy(studyId: string): Promise<DICOMStudy> {
-  return apiClient.get<DICOMStudy>(`/api/v1/images/studies/${studyId}`);
+  return apiSdk.dicom.getStudy(studyId);
 }
 
 export async function getDicomImageInfo(
   imageId: string
 ): Promise<DICOMImageInfo> {
-  return apiClient.get<DICOMImageInfo>(`/api/v1/images/${imageId}/info`);
+  return apiSdk.dicom.getImageInfo(imageId);
 }

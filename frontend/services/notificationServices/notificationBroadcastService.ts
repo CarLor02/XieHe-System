@@ -1,5 +1,5 @@
-import { apiClient } from '@/infrastructure/http';
-import {
+import { apiSdk } from '@/infrastructure/http';
+import type {
   NotificationActionResult,
   NotificationBroadcastRequest,
 } from './types';
@@ -7,8 +7,5 @@ import {
 export async function broadcastNotification(
   payload: NotificationBroadcastRequest
 ): Promise<NotificationActionResult> {
-  return apiClient.post<NotificationActionResult, NotificationBroadcastRequest>(
-    '/api/v1/notifications/broadcast',
-    payload
-  );
+  return apiSdk.notifications.broadcast(payload);
 }

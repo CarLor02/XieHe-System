@@ -1,11 +1,5 @@
-import {
-  getAllImageFiles,
-  type ImageFile,
-} from '@/services/imageServices';
-import {
-  getAllPatients,
-  type Patient,
-} from '@/services/patientServices';
+import { getAllImageFiles, type ImageFile } from '@/services/imageServices';
+import { getAllPatients, type Patient } from '@/services/patientServices';
 import { DashboardPendingTask } from './types';
 
 function resolveTaskPriority(status: string | undefined): 'high' | 'normal' {
@@ -29,25 +23,23 @@ function comparePendingTasks(
   );
 }
 
-export async function getDashboardPendingTasks(): Promise<DashboardPendingTask[]> {
+export async function getDashboardPendingTasks(): Promise<
+  DashboardPendingTask[]
+> {
   const [patients, imageFiles] = await Promise.all([
     getAllPatients(),
     getAllImageFiles({ file_status: 'UPLOADED' }),
   ]);
 
   const patientsById = new Map<number, Patient>(
-    patients.map(
-      (patient:Patient) => [patient.id, patient]
-    )
+    patients.map((patient: Patient) => [patient.id, patient])
   );
 
   return imageFiles
-    .map(
-        (image:ImageFile) => buildDashboardPendingTask(image, patientsById.get(image.patient_id ?? -1))
+    .map((image: ImageFile) =>
+      buildDashboardPendingTask(image, patientsById.get(image.patient_id ?? -1))
     )
-    .filter(
-        (task): task is DashboardPendingTask => task !== null
-    )
+    .filter((task): task is DashboardPendingTask => task !== null)
     .sort(comparePendingTasks);
 }
 

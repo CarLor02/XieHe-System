@@ -1,14 +1,14 @@
-import { apiClient, normalizeLegacyPagination } from '@/infrastructure/http';
-import {
+import { apiSdk } from '@/infrastructure/http';
+import type {
   CreateModelRequest,
   DeleteModelResult,
   ModelConfiguration,
-  ModelItem,
   ModelListResult,
   ModelStats,
+  ModelItem,
 } from './types';
 
-export async function getModels(
+export function getModels(
   params: {
     page?: number;
     page_size?: number;
@@ -16,40 +16,31 @@ export async function getModels(
     search?: string;
   } = {}
 ): Promise<ModelListResult> {
-  const data = await apiClient.get<unknown>('/api/v1/models/', { params });
-  return normalizeLegacyPagination<ModelItem>(data);
+  return apiSdk.models.list(params);
 }
 
-export async function getModelStats(): Promise<ModelStats> {
-  return apiClient.get<ModelStats>('/api/v1/models/stats');
+export function getModelStats(): Promise<ModelStats> {
+  return apiSdk.models.getStats();
 }
 
-export async function createModel(
-  payload: CreateModelRequest
-): Promise<ModelItem> {
-  return apiClient.post<ModelItem, CreateModelRequest>(
-    '/api/v1/models/',
-    payload
-  );
+export function createModel(payload: CreateModelRequest): Promise<ModelItem> {
+  return apiSdk.models.create(payload);
 }
 
 export async function activateModel(modelId: string): Promise<void> {
-  await apiClient.post<void>(`/api/v1/models/${modelId}/activate`);
+  await apiSdk.models.activate(modelId);
 }
 
-export async function deleteModel(modelId: string): Promise<DeleteModelResult> {
-  return apiClient.delete<DeleteModelResult>(`/api/v1/models/${modelId}`);
+export function deleteModel(modelId: string): Promise<DeleteModelResult> {
+  return apiSdk.models.delete(modelId);
 }
 
-export async function getModelConfiguration(): Promise<ModelConfiguration> {
-  return apiClient.get<ModelConfiguration>('/api/v1/models/configuration');
+export function getModelConfiguration(): Promise<ModelConfiguration> {
+  return apiSdk.models.getConfiguration();
 }
 
-export async function updateModelConfiguration(
+export function updateModelConfiguration(
   payload: ModelConfiguration
 ): Promise<ModelConfiguration> {
-  return apiClient.put<ModelConfiguration, ModelConfiguration>(
-    '/api/v1/models/configuration',
-    payload
-  );
+  return apiSdk.models.updateConfiguration(payload);
 }

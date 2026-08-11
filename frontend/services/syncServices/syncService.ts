@@ -1,55 +1,46 @@
-import { SyncScanFile, SyncServiceConfig, SyncStatsResponse } from './types';
 import { createExternalHttpClient } from '@/infrastructure/http';
+import { createSyncClient as createSharedSyncClient } from '@xiehe/api-sdk';
+import type {
+  SyncScanFile,
+  SyncServiceConfig,
+  SyncStatsResponse,
+} from './types';
 
-function createSyncClient(config: SyncServiceConfig) {
-  return createExternalHttpClient({
+function createClients(config: SyncServiceConfig) {
+  const httpClient = createExternalHttpClient({
     baseURL: config.serviceUrl,
     headers: config.apiKey ? { 'X-API-Key': config.apiKey } : undefined,
   });
+  return { httpClient, syncClient: createSharedSyncClient(httpClient) };
 }
 
-async function requestSyncJson<T>(
-  config: SyncServiceConfig,
-  path: string,
-  method: 'GET' | 'POST' = 'GET'
-): Promise<T> {
-  return createSyncClient(config).request<T>({
-    method,
-    url: path,
-    auth: 'none',
-    responseMode: 'raw',
-  });
-}
-
-export async function getSyncStats(
+export function getSyncStats(
   config: SyncServiceConfig
 ): Promise<SyncStatsResponse> {
-  return requestSyncJson<SyncStatsResponse>(config, '/api/v1/stats');
+  return createClients(config).syncClient.getStats();
 }
 
-export async function getSyncFiles(
+export function getSyncFiles(
   config: SyncServiceConfig,
   params: URLSearchParams
 ): Promise<SyncScanFile[]> {
-  const result = await requestSyncJson<{ items?: SyncScanFile[] }>(
-    config,
-    `/api/v1/files?${params.toString()}`
+  return createClients(config).syncClient.listFiles(
+    Object.fromEntries(params.entries())
   );
-  return result.items || [];
 }
 
-export async function inspectSyncFile<T = unknown>(
+export function inspectSyncFile<T = unknown>(
   config: SyncServiceConfig,
   fileId: number
 ): Promise<T> {
-  return requestSyncJson<T>(config, `/api/v1/files/${fileId}/inspect`);
+  return createClients(config).syncClient.inspectFile<T>(fileId);
 }
 
-export async function downloadSyncPreviewImage(
+export function downloadSyncPreviewImage(
   config: SyncServiceConfig,
   fileId: number
 ): Promise<Blob> {
-  return createSyncClient(config).get<Blob>(
+  return createClients(config).httpClient.get<Blob>(
     `/api/v1/files/${fileId}/preview-image`,
     {
       auth: 'none',
@@ -63,5 +54,5 @@ export async function markSyncFileSynced(
   config: SyncServiceConfig,
   fileId: number
 ): Promise<void> {
-  await requestSyncJson(config, `/api/v1/files/${fileId}/mark-synced`, 'POST');
+  await createClients(config).syncClient.markFileSynced(fileId);
 }

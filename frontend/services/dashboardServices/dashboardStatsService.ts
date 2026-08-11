@@ -1,6 +1,6 @@
-import { apiClient } from '@/infrastructure/http';
-import { DashboardStats } from './types';
+import { apiSdk } from '@/infrastructure/http';
+import type { DashboardStats } from './types';
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  return apiClient.get<DashboardStats>('/api/v1/dashboard/stats');
+  return apiSdk.dashboard.getStats();
 }

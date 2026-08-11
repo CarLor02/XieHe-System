@@ -1,20 +1,8 @@
-import { apiClient, normalizeLegacyPagination } from '@/infrastructure/http';
-import { ReportListFilters, ReportListResult, ReportSummary } from './types';
+import { apiSdk } from '@/infrastructure/http';
+import type { ReportListFilters, ReportListResult } from './types';
 
-export async function getReports(
+export function getReports(
   filters: ReportListFilters = {}
 ): Promise<ReportListResult> {
-  const params = new URLSearchParams();
-  params.set('page', String(filters.page || 1));
-  params.set('page_size', String(filters.page_size || 20));
-
-  if (filters.patient_id) params.set('patient_id', String(filters.patient_id));
-  if (filters.status) params.set('status', filters.status);
-  if (filters.priority) params.set('priority', filters.priority);
-  if (filters.search) params.set('search', filters.search);
-
-  const data = await apiClient.get<unknown>(
-    `/api/v1/reports/?${params.toString()}`
-  );
-  return normalizeLegacyPagination<ReportSummary>(data);
+  return apiSdk.reports.list(filters);
 }

@@ -1,6 +1,6 @@
-import { apiClient } from '@/infrastructure/http';
-import { SystemStats } from './types';
+import { apiSdk } from '@/infrastructure/http';
+import type { SystemStats } from './types';
 
 export async function getSystemStats(): Promise<SystemStats> {
-  return apiClient.get<SystemStats>('/api/v1/system/stats');
+  return apiSdk.system.getStats();
 }
