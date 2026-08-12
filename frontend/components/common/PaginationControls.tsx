@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface PaginationControlsProps {
   currentPage: number;
@@ -40,6 +41,19 @@ export default function PaginationControls({
     (_, index) => windowStart + index
   );
   const [pageInput, setPageInput] = useState<string | null>(null);
+  const displayedPageInput = pageInput ?? String(normalizedCurrentPage);
+
+  const stepPageInput = (step: -1 | 1) => {
+    const parsedPage = Number(displayedPageInput);
+    const basePage = Number.isInteger(parsedPage)
+      ? parsedPage
+      : normalizedCurrentPage;
+    setPageInput(
+      String(
+        Math.min(normalizedTotalPages, Math.max(1, basePage + step))
+      )
+    );
+  };
 
   const changePage = (page: number) => {
     setPageInput(null);
@@ -89,27 +103,63 @@ export default function PaginationControls({
         ))}
       </div>
 
-      <label className="flex items-center gap-1 whitespace-nowrap text-sm text-gray-700">
+      <div className="flex items-center gap-1 whitespace-nowrap text-sm text-gray-700">
         <span>第</span>
-        <input
-          type="number"
-          min={1}
-          max={normalizedTotalPages}
-          step={1}
-          inputMode="numeric"
-          aria-label={pageInputLabel}
-          value={pageInput ?? String(normalizedCurrentPage)}
-          onChange={event => setPageInput(event.target.value)}
-          onKeyDown={event => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              confirmPageInput();
+        <div className="flex h-8 overflow-hidden rounded border border-gray-300 bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+          <input
+            type="text"
+            role="spinbutton"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            aria-label={pageInputLabel}
+            aria-valuemin={1}
+            aria-valuemax={normalizedTotalPages}
+            aria-valuenow={
+              Number.isInteger(Number(displayedPageInput))
+                ? Number(displayedPageInput)
+                : undefined
             }
-          }}
-          className="w-14 rounded border border-gray-300 px-2 py-1 text-center text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+            value={displayedPageInput}
+            onChange={event => {
+              if (/^\d*$/.test(event.target.value)) {
+                setPageInput(event.target.value);
+              }
+            }}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                confirmPageInput();
+              } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                stepPageInput(1);
+              } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                stepPageInput(-1);
+              }
+            }}
+            className="w-12 border-0 px-2 text-center text-sm outline-none"
+          />
+          <div className="flex w-6 flex-col border-l border-gray-300">
+            <button
+              type="button"
+              aria-label={`${pageInputLabel}增加一页`}
+              onClick={() => stepPageInput(1)}
+              className="flex min-h-0 flex-1 items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+            >
+              <ChevronUp aria-hidden="true" size={12} strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              aria-label={`${pageInputLabel}减少一页`}
+              onClick={() => stepPageInput(-1)}
+              className="flex min-h-0 flex-1 items-center justify-center border-t border-gray-300 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+            >
+              <ChevronDown aria-hidden="true" size={12} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
         <span>/ {normalizedTotalPages} 页</span>
-      </label>
+      </div>
 
       <button
         type="button"

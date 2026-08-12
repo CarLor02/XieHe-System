@@ -42,3 +42,26 @@ it('changes to a valid input page and falls back to page one for invalid input',
   await user.type(input, '21{Enter}');
   expect(onPageChange).toHaveBeenLastCalledWith(1);
 });
+
+it('uses separated triangle buttons to adjust the page input before confirmation', async () => {
+  const user = userEvent.setup();
+  const onPageChange = jest.fn();
+  render(
+    <PaginationControls
+      currentPage={5}
+      totalPages={20}
+      onPageChange={onPageChange}
+    />
+  );
+  const input = screen.getByRole('spinbutton', { name: '页码' });
+
+  await user.click(screen.getByRole('button', { name: '页码增加一页' }));
+  expect((input as HTMLInputElement).value).toBe('6');
+  expect(onPageChange).not.toHaveBeenCalled();
+
+  await user.click(screen.getByRole('button', { name: '页码减少一页' }));
+  expect((input as HTMLInputElement).value).toBe('5');
+
+  await user.type(input, '{ArrowUp}{Enter}');
+  expect(onPageChange).toHaveBeenLastCalledWith(6);
+});
