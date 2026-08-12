@@ -41,6 +41,25 @@ cd model/ap
 ./start_host.sh
 ```
 
+## 六点左右语义兼容
+
+旧版`pose.pt`的六点左右语义与系统领域语义相反，服务默认设置
+`POSE_LEGACY_LR_SWAP=true`，继续执行`CR/CL、IR/IL、SR/SL`标签交换。
+
+替换为使用新规范训练的权重时，必须在同一次部署中设置：
+
+```bash
+POSE_LEGACY_LR_SWAP=false
+```
+
+新规范为画面左侧`CL/IL/SL`、画面右侧`CR/IR/SR`。部署后访问`GET /health`，应确认：
+
+```json
+{"pose_lr_mode":"normalized"}
+```
+
+如果仍使用旧权重，必须保持`legacy_swap`。不得只替换权重或只修改开关。
+
 ## Batch Export
 
 ```bash

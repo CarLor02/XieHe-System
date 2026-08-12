@@ -97,24 +97,24 @@ def estimate_pose_from_vertebrae(vertebrae_data: dict[str, dict[str, Any]]) -> d
         l5c = vertebrae_data["L5"]["corners"]
         l5_height = l5c["bottom_mid"]["y"] - l5c["top_mid"]["y"]
         s1_y = l5c["bottom_mid"]["y"] + l5_height * 0.5
-        pose_data["SR"] = estimated_point(l5c["bottom_left"]["x"], s1_y)
-        pose_data["SL"] = estimated_point(l5c["bottom_right"]["x"], s1_y)
+        pose_data["SR"] = estimated_point(l5c["bottom_right"]["x"], s1_y)
+        pose_data["SL"] = estimated_point(l5c["bottom_left"]["x"], s1_y)
 
     ref_iliac = vertebrae_data.get("L3") or vertebrae_data.get("L4")
     if ref_iliac:
         corners = ref_iliac["corners"]
         v_width = corners["top_right"]["x"] - corners["top_left"]["x"]
         cx, cy = corners["center"]["x"], corners["center"]["y"]
-        pose_data["IR"] = estimated_point(cx - v_width * 2.5, cy)
-        pose_data["IL"] = estimated_point(cx + v_width * 2.5, cy)
+        pose_data["IR"] = estimated_point(cx + v_width * 2.5, cy)
+        pose_data["IL"] = estimated_point(cx - v_width * 2.5, cy)
 
     ref_shoulder = vertebrae_data.get("T1") or vertebrae_data.get("T2") or vertebrae_data.get("C7")
     if ref_shoulder:
         corners = ref_shoulder["corners"]
         v_width = corners["top_right"]["x"] - corners["top_left"]["x"]
         cx, cy = corners["center"]["x"], corners["center"]["y"]
-        pose_data["CR"] = estimated_point(cx - v_width * 4.5, cy)
-        pose_data["CL"] = estimated_point(cx + v_width * 4.5, cy)
+        pose_data["CR"] = estimated_point(cx + v_width * 4.5, cy)
+        pose_data["CL"] = estimated_point(cx - v_width * 4.5, cy)
 
     return pose_data
 

@@ -10,15 +10,27 @@ from ap.domain.measurement_pipeline import (
     derive_measurements_from_keypoints,
     find_cobb_angles_v2,
 )
+from ap.infrastructure.yolo_inference import estimate_pose_from_vertebrae
 
 
 def make_vertebra(top_left, top_right, bottom_left, bottom_right):
+    top_mid = ((top_left[0] + top_right[0]) / 2, (top_left[1] + top_right[1]) / 2)
+    bottom_mid = (
+        (bottom_left[0] + bottom_right[0]) / 2,
+        (bottom_left[1] + bottom_right[1]) / 2,
+    )
     return {
         "corners": {
             "top_left": {"x": top_left[0], "y": top_left[1]},
             "top_right": {"x": top_right[0], "y": top_right[1]},
             "bottom_left": {"x": bottom_left[0], "y": bottom_left[1]},
             "bottom_right": {"x": bottom_right[0], "y": bottom_right[1]},
+            "top_mid": {"x": top_mid[0], "y": top_mid[1]},
+            "bottom_mid": {"x": bottom_mid[0], "y": bottom_mid[1]},
+            "center": {
+                "x": (top_mid[0] + bottom_mid[0]) / 2,
+                "y": (top_mid[1] + bottom_mid[1]) / 2,
+            },
         },
         "confidence": 0.9,
     }
@@ -66,6 +78,55 @@ class ApMeasurementPipelineTests(unittest.TestCase):
         )
         self.assertEqual(len(result["vertebrae"]), 7)
         self.assertIn("CL", {annotation["label"] for annotation in result["vertebrae"]})
+
+        pose_annotations = {
+            annotation["label"]: annotation["corners"][0]
+            for annotation in result["vertebrae"]
+            if annotation["label"] in {"CR", "CL", "SR", "SL"}
+        }
+        self.assertEqual(pose_annotations["CL"]["x"], 10)
+        self.assertEqual(pose_annotations["CR"]["x"], 110)
+
+    def test_normalized_pose_model_output_is_not_swapped(self):
+        pose = {
+            "CR": {"x": 110, "y": 100, "confidence": 0.9},
+            "CL": {"x": 10, "y": 100, "confidence": 0.9},
+            "IR": {"x": 115, "y": 200, "confidence": 0.9},
+            "IL": {"x": 15, "y": 200, "confidence": 0.9},
+            "SR": {"x": 120, "y": 300, "confidence": 0.9},
+            "SL": {"x": 20, "y": 300, "confidence": 0.9},
+        }
+
+        result = derive_measurements_from_keypoints(
+            pose,
+            {},
+            image_id="IMG2",
+            image_width=160,
+            image_height=360,
+            swap_pose_lr_labels=False,
+        )
+
+        pose_annotations = {
+            annotation["label"]: annotation["corners"][0]
+            for annotation in result["vertebrae"]
+        }
+        self.assertEqual(pose_annotations["CL"]["x"], 10)
+        self.assertEqual(pose_annotations["CR"]["x"], 110)
+        self.assertEqual(pose_annotations["SL"]["x"], 20)
+        self.assertEqual(pose_annotations["SR"]["x"], 120)
+
+    def test_fallback_pose_uses_normalized_domain_convention(self):
+        vertebrae = {
+            "T1": make_vertebra((40, 100), (60, 100), (40, 120), (60, 120)),
+            "L3": make_vertebra((40, 200), (60, 200), (40, 220), (60, 220)),
+            "L5": make_vertebra((40, 260), (60, 260), (40, 300), (60, 300)),
+        }
+
+        pose = estimate_pose_from_vertebrae(vertebrae)
+
+        self.assertLess(pose["CL"]["x"], pose["CR"]["x"])
+        self.assertLess(pose["IL"]["x"], pose["IR"]["x"])
+        self.assertLess(pose["SL"]["x"], pose["SR"]["x"])
 
     def test_ap_excel_row_uses_filename_id_and_metric_display_names(self):
         measurements = [

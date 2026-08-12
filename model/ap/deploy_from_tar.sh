@@ -10,6 +10,7 @@ IMAGE_TAR="spine-analysis-api.tar"
 IMAGE_NAME="spine-analysis-api:latest"
 CONTAINER_NAME="spine-api"
 PORT=8001
+POSE_LEGACY_LR_SWAP="${POSE_LEGACY_LR_SWAP:-true}"
 
 echo "🚀 开始从本地镜像部署脊柱分析 API 服务..."
 echo ""
@@ -45,6 +46,7 @@ echo "🚀 正在启动容器..."
 docker run -d \
     --name $CONTAINER_NAME \
     -p $PORT:8001 \
+    -e "POSE_LEGACY_LR_SWAP=$POSE_LEGACY_LR_SWAP" \
     --restart unless-stopped \
     $IMAGE_NAME
 
