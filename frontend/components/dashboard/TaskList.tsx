@@ -2,6 +2,7 @@
 
 import { getDashboardPendingTasks, type DashboardPendingTask } from '@/services/dashboardServices';
 import { createLogger } from '@/lib/logger';
+import PaginationControls from '@/components/common/PaginationControls';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { paginateDashboardTasks } from '@xiehe/dashboard-core';
@@ -194,40 +195,13 @@ export default function TaskList() {
             {filteredTasks.length} 条
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, visiblePage - 1))}
-              disabled={visiblePage === 1}
-              className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              上一页
-            </button>
-
-            <div className="flex flex-wrap gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`px-3 py-1 border rounded text-sm ${
-                    visiblePage === page
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() =>
-                setCurrentPage(Math.min(totalPages, visiblePage + 1))
-              }
-              disabled={visiblePage === totalPages}
-              className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              下一页
-            </button>
+          <div className="max-w-full overflow-x-auto">
+            <PaginationControls
+              currentPage={visiblePage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              pageInputLabel="待处理任务页码"
+            />
           </div>
         </div>
 

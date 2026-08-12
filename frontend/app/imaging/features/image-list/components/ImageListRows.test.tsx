@@ -197,3 +197,29 @@ it('selects the row image instead of opening the viewer when clicking the thumbn
 
   expect(onToggleExportSelection).toHaveBeenCalledWith(1);
 });
+
+it('only shows the thumbnail focus ring for keyboard-visible focus', () => {
+  render(
+    <ImageListRows
+      imageFiles={[makeImageFile()]}
+      viewerReturnTo="/imaging"
+      imageUrls={{}}
+      previewStates={{}}
+      onPreviewError={jest.fn()}
+      onMoreAction={jest.fn()}
+      onCropEdit={jest.fn()}
+      batchSelectionMode="export"
+      selectedBatchIds={new Set<number>()}
+      onToggleBatchSelection={jest.fn()}
+    />
+  );
+
+  const previewButton = screen.getByRole('button', {
+    name: /选择导出图像 1061问题图像很长很长\.png/,
+  });
+  const classNames = previewButton.className.split(' ');
+
+  expect(classNames).toContain('focus-visible:ring-2');
+  expect(classNames).not.toContain('focus:ring-2');
+  expect(classNames).not.toContain('ring-2');
+});

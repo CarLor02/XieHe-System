@@ -24,22 +24,15 @@ export default function ImagePagination({
         </span>{' '}
         条， 共 <span className="font-medium">{total}</span> 条
       </div>
-      <div className="flex space-x-2">
-        <button
-          onClick={() => onChangePage(page => Math.max(1, page - 1))}
-          disabled={currentPage === 1}
-          className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-        >
-          上一页
-        </button>
-        <button
-          onClick={() => onChangePage(page => page + 1)}
-          disabled={currentPage * pageSize >= total}
-          className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-        >
-          下一页
-        </button>
+      <div className="max-w-full overflow-x-auto">
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={Math.ceil(total / pageSize)}
+          onPageChange={page => onChangePage(() => page)}
+          pageInputLabel="影像页码"
+        />
       </div>
     </div>
   );
 }
+import PaginationControls from '@/components/common/PaginationControls';

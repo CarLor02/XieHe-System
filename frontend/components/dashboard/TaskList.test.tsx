@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, jest } from '@jest/globals';
 
 const mockGetDashboardPendingTasks =
@@ -40,4 +41,34 @@ it('uses a wrapping responsive header so task filters stay readable', async () =
 
   const controls = filterButton.parentElement?.parentElement;
   expect(controls?.className).toContain('flex-wrap');
+});
+
+it('uses a page input and falls back to page one for an invalid page', async () => {
+  const user = userEvent.setup();
+  mockGetDashboardPendingTasks.mockResolvedValue(
+    Array.from({ length: 11 }, (_, index) => ({
+      id: index + 1,
+      patient_id: `P${index + 1}`,
+      patient_name: `患者${index + 1}`,
+      study_type: '正位X光片',
+      priority: 'normal',
+      created_at: '2026-06-11T08:00:00Z',
+    }))
+  );
+
+  render(<TaskList />);
+
+  const pageInput = (await screen.findByRole('spinbutton', {
+    name: '待处理任务页码',
+  })) as HTMLInputElement;
+  expect(pageInput.value).toBe('1');
+  expect(screen.getByText('/ 3 页')).toBeTruthy();
+
+  await user.click(screen.getByRole('button', { name: '下一页' }));
+  expect(pageInput.value).toBe('2');
+
+  await user.clear(pageInput);
+  await user.type(pageInput, '4{Enter}');
+  expect(pageInput.value).toBe('1');
+  expect(screen.getByText('患者1')).toBeTruthy();
 });

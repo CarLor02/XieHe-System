@@ -62,7 +62,7 @@ export default function ImageGrid({
                 type="button"
                 aria-label={`${selectionLabel}图像 ${imageFile.original_filename}`}
                 onClick={() => onToggleBatchSelection?.(imageFile.id)}
-                className={`block w-full rounded-t-lg text-left focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`block w-full rounded-t-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                   isSelectedForBatch ? 'ring-2 ring-blue-500' : ''
                 }`}
               >

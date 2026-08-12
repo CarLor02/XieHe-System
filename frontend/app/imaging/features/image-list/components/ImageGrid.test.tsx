@@ -163,6 +163,23 @@ it('selects the image instead of opening the viewer when clicking the preview in
   expect(onToggleExportSelection).toHaveBeenCalledWith(1);
 });
 
+it('only shows the preview focus ring for keyboard-visible focus', () => {
+  renderImageGrid(makeImageFile(), {
+    batchSelectionMode: 'export',
+    selectedBatchIds: new Set<number>(),
+    onToggleBatchSelection: jest.fn(),
+  });
+
+  const previewButton = screen.getByRole('button', {
+    name: /选择导出图像 xray\.png/,
+  });
+  const classNames = previewButton.className.split(' ');
+
+  expect(classNames).toContain('focus-visible:ring-2');
+  expect(classNames).not.toContain('focus:ring-2');
+  expect(classNames).not.toContain('ring-2');
+});
+
 it('uses setting labels and blocks viewer navigation in batch type mode', () => {
   renderImageGrid(makeImageFile(), {
     batchSelectionMode: 'set-exam-type',
