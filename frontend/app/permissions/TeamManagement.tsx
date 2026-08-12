@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 import {
   TeamJoinRequestItem,
@@ -861,24 +862,32 @@ export default function TeamManagement() {
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                               {isRoleEditMode && canEditThisMember ? (
-                                <select
-                                  value={
-                                    editedRoles[member.user_id] || member.role
-                                  }
-                                  onChange={e =>
-                                    handleRoleChange(
-                                      member.user_id,
-                                      e.target.value as
-                                        'ADMIN' | 'MEMBER' | 'GUEST'
-                                    )
-                                  }
-                                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                                  disabled={savingRoles}
-                                >
-                                  <option value="ADMIN">管理员</option>
-                                  <option value="MEMBER">成员</option>
-                                  <option value="GUEST">访客</option>
-                                </select>
+                                <div className="relative w-24 flex-shrink-0">
+                                  <select
+                                    aria-label={`${member.real_name || member.username}的身份`}
+                                    value={
+                                      editedRoles[member.user_id] || member.role
+                                    }
+                                    onChange={e =>
+                                      handleRoleChange(
+                                        member.user_id,
+                                        e.target.value as
+                                          'ADMIN' | 'MEMBER' | 'GUEST'
+                                      )
+                                    }
+                                    className="w-full appearance-none rounded-lg border border-gray-300 bg-white py-1.5 pl-3 pr-8 text-sm focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
+                                    style={{ backgroundImage: 'none' }}
+                                    disabled={savingRoles}
+                                  >
+                                    <option value="ADMIN">管理员</option>
+                                    <option value="MEMBER">成员</option>
+                                    <option value="GUEST">访客</option>
+                                  </select>
+                                  <ChevronDown
+                                    aria-hidden="true"
+                                    className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+                                  />
+                                </div>
                               ) : (
                                 <span
                                   className={`rounded-full px-2 py-0.5 text-xs font-medium ${

@@ -148,4 +148,51 @@ describe('TeamManagement team settings', () => {
       });
     });
   });
+
+  it('reserves a separate icon area in the member role selector', async () => {
+    const editableTeam = makeTeam({ my_role: 'ADMIN' });
+    getMyTeamsMock.mockResolvedValue({ items: [editableTeam], total: 1 });
+    getTeamMembersMock.mockResolvedValue({
+      team: editableTeam,
+      members: [
+        {
+          user_id: 1,
+          username: 'doctor',
+          real_name: '团队管理员',
+          email: 'doctor@example.com',
+          role: 'ADMIN',
+          status: 'ACTIVE',
+          is_creator: true,
+          is_system_admin: false,
+          system_admin_level: 0,
+        },
+        {
+          user_id: 2,
+          username: 'team-member',
+          real_name: '团队成员',
+          email: 'member@example.com',
+          role: 'MEMBER',
+          status: 'ACTIVE',
+          is_creator: false,
+          is_system_admin: false,
+          system_admin_level: 0,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    const { default: TeamManagement } = await import('./TeamManagement');
+
+    render(<TeamManagement />);
+
+    await user.click(await screen.findByText(editableTeam.name));
+    await user.click(screen.getByRole('button', { name: '身份管理' }));
+
+    const roleSelect = screen.getByRole('combobox', {
+      name: '团队成员的身份',
+    });
+    expect(roleSelect.className).toContain('appearance-none');
+    expect(roleSelect.className).toContain('pr-8');
+    expect(roleSelect.style.backgroundImage).toBe('none');
+    expect(roleSelect.parentElement?.className).toContain('w-24');
+  });
 });
