@@ -26,8 +26,6 @@ services:
       STORAGE_SERVICE_URL: ${STORAGE_SERVICE_URL:-http://storage-service:8090}
       STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
       STORAGE_SERVICE_TIMEOUT: ${STORAGE_SERVICE_TIMEOUT:-30}
-      # Legacy pose.pt needs true; set false together with the normalized replacement weight.
-      POSE_LEGACY_LR_SWAP: ${POSE_LEGACY_LR_SWAP:-true}
     ports:
       - '${AI_AP_PORT_BIND:-0.0.0.0:8001:8001}'
     depends_on:

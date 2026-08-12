@@ -39,10 +39,10 @@ def make_vertebra(top_left, top_right, bottom_left, bottom_right):
 class ApMeasurementPipelineTests(unittest.TestCase):
     def test_ap_pipeline_derives_frontend_equivalent_measurements(self):
         pose = {
-            "CR": {"x": 10, "y": 100, "confidence": 0.9},
-            "CL": {"x": 110, "y": 100, "confidence": 0.9},
-            "SR": {"x": 20, "y": 300, "confidence": 0.9},
-            "SL": {"x": 120, "y": 300, "confidence": 0.9},
+            "CR": {"x": 110, "y": 100, "confidence": 0.9},
+            "CL": {"x": 10, "y": 100, "confidence": 0.9},
+            "SR": {"x": 120, "y": 300, "confidence": 0.9},
+            "SL": {"x": 20, "y": 300, "confidence": 0.9},
         }
         vertebrae = {
             "C7": make_vertebra((40, 50), (90, 68.199), (40, 80), (90, 98.199)),
@@ -83,32 +83,6 @@ class ApMeasurementPipelineTests(unittest.TestCase):
             annotation["label"]: annotation["corners"][0]
             for annotation in result["vertebrae"]
             if annotation["label"] in {"CR", "CL", "SR", "SL"}
-        }
-        self.assertEqual(pose_annotations["CL"]["x"], 10)
-        self.assertEqual(pose_annotations["CR"]["x"], 110)
-
-    def test_normalized_pose_model_output_is_not_swapped(self):
-        pose = {
-            "CR": {"x": 110, "y": 100, "confidence": 0.9},
-            "CL": {"x": 10, "y": 100, "confidence": 0.9},
-            "IR": {"x": 115, "y": 200, "confidence": 0.9},
-            "IL": {"x": 15, "y": 200, "confidence": 0.9},
-            "SR": {"x": 120, "y": 300, "confidence": 0.9},
-            "SL": {"x": 20, "y": 300, "confidence": 0.9},
-        }
-
-        result = derive_measurements_from_keypoints(
-            pose,
-            {},
-            image_id="IMG2",
-            image_width=160,
-            image_height=360,
-            swap_pose_lr_labels=False,
-        )
-
-        pose_annotations = {
-            annotation["label"]: annotation["corners"][0]
-            for annotation in result["vertebrae"]
         }
         self.assertEqual(pose_annotations["CL"]["x"], 10)
         self.assertEqual(pose_annotations["CR"]["x"], 110)

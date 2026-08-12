@@ -21,18 +21,18 @@ const { aiDetect } = jest.requireActual<
   '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiDetectionUseCase'
 );
 
-it('requests detection by image id and maps frontal AI pose labels so patient left stays on screen left', async () => {
+it('requests detection by image id and preserves normalized frontal pose labels', async () => {
   mockedGetAiKeypointDetectionResponse.mockResolvedValue({
     imageId: 'image-1',
     imageWidth: 1000,
     imageHeight: 1000,
     pose_keypoints: {
-      CR: { x: 100, y: 100, confidence: 0.9 },
-      CL: { x: 900, y: 100, confidence: 0.8 },
-      IR: { x: 120, y: 700, confidence: 0.7 },
-      IL: { x: 880, y: 700, confidence: 0.6 },
-      SR: { x: 140, y: 900, confidence: 0.5 },
-      SL: { x: 860, y: 900, confidence: 0.4 },
+      CR: { x: 900, y: 100, confidence: 0.9 },
+      CL: { x: 100, y: 100, confidence: 0.8 },
+      IR: { x: 880, y: 700, confidence: 0.7 },
+      IL: { x: 120, y: 700, confidence: 0.6 },
+      SR: { x: 860, y: 900, confidence: 0.5 },
+      SL: { x: 140, y: 900, confidence: 0.4 },
     },
     vertebrae: {},
   });

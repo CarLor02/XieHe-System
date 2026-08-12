@@ -41,16 +41,6 @@ METRIC_DISPLAY_NAMES: dict[ApMeasurementMetric, str] = {
     ApMeasurementMetric.TS: "TS",
 }
 
-POSE_LABEL_MAP = {
-    "CR": "CL",
-    "CL": "CR",
-    "IR": "IL",
-    "IL": "IR",
-    "SR": "SL",
-    "SL": "SR",
-}
-
-
 def _pt(x: float, y: float) -> Point:
     return {"x": float(x), "y": float(y)}
 
@@ -131,18 +121,11 @@ def find_cobb_angles_v2(vertebrae_data: dict[str, dict[str, Any]]) -> list[Measu
     return cobb_angles
 
 
-def _pose_label(label: str, swap_pose_lr_labels: bool) -> str:
-    return POSE_LABEL_MAP.get(label, label) if swap_pose_lr_labels else label
-
-
-def _normalize_pose(
-    pose_data: dict[str, dict[str, Any]], *, swap_pose_lr_labels: bool
-) -> dict[str, Point]:
-    normalized: dict[str, Point] = {}
-    for label, point in pose_data.items():
-        mapped = _pose_label(label, swap_pose_lr_labels)
-        normalized[mapped] = _pt(point["x"], point["y"])
-    return normalized
+def _normalize_pose(pose_data: dict[str, dict[str, Any]]) -> dict[str, Point]:
+    return {
+        label: _pt(point["x"], point["y"])
+        for label, point in pose_data.items()
+    }
 
 
 def _normalize_metric(metric: ApMeasurementMetric | str) -> ApMeasurementMetric:
@@ -192,9 +175,8 @@ def derive_measurements_from_keypoints(
     image_width: int,
     image_height: int,
     metrics: Iterable[ApMeasurementMetric | str] | None = None,
-    swap_pose_lr_labels: bool = True,
 ) -> dict[str, Any]:
-    pose = _normalize_pose(pose_data, swap_pose_lr_labels=swap_pose_lr_labels)
+    pose = _normalize_pose(pose_data)
     frontal = {
         name: _frontal_corners(vertebra)
         for name, vertebra in vertebrae_data.items()
@@ -254,12 +236,7 @@ def derive_measurements_from_keypoints(
             "source": "ai",
         }
         for raw_label, point_data in pose_data.items()
-        for label, point in [
-            (
-                _pose_label(raw_label, swap_pose_lr_labels),
-                _pt(point_data["x"], point_data["y"]),
-            )
-        ]
+        for label, point in [(raw_label, _pt(point_data["x"], point_data["y"]))]
     )
 
     return {

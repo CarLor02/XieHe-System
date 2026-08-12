@@ -104,10 +104,6 @@ if [ -n "${STORAGE_SERVICE_TIMEOUT:-}" ]; then
     RUN_ARGS+=(-e "STORAGE_SERVICE_TIMEOUT=${STORAGE_SERVICE_TIMEOUT}")
 fi
 
-if [ -n "${POSE_LEGACY_LR_SWAP:-}" ]; then
-    RUN_ARGS+=(-e "POSE_LEGACY_LR_SWAP=${POSE_LEGACY_LR_SWAP}")
-fi
-
 if [ -n "${NO_PROXY:-}" ]; then
     RUN_ARGS+=(-e "NO_PROXY=${NO_PROXY}")
 fi
