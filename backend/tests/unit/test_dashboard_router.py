@@ -10,10 +10,11 @@ def test_dashboard_v1_routes_are_registered_once() -> None:
     for path in (
         "/dashboard/stats",
         "/dashboard/recent-activities",
-        "/dashboard/system-metrics",
-        "/dashboard/tasks",
     ):
         assert path in paths
+
+    assert "/dashboard/system-metrics" not in paths
+    assert "/dashboard/tasks" not in paths
 
 
 def test_temporary_dashboard_routes_are_removed() -> None:

@@ -16,7 +16,7 @@ from app.core.system.logger import LogLevel, logger
 from app.core.system.response import success_response
 
 from ..dependencies import get_dashboard_query_service
-from ..schemas import DashboardOverview, RecentActivity, SystemMetric
+from ..schemas import DashboardOverview, RecentActivity
 
 router = APIRouter()
 Result = TypeVar("Result")
@@ -60,17 +60,6 @@ async def get_recent_activities(
     )
 
 
-@router.get("/system-metrics", response_model=dict[str, Any], summary="获取系统指标")
-async def get_system_metrics(
-    current_user: AccessPrincipal = Depends(get_current_active_user),
-    service: DashboardQueryService = Depends(get_dashboard_query_service),
-) -> dict[str, Any]:
-    del current_user
-    metrics = _execute(service.system_metrics, detail="获取系统指标过程中发生错误")
-    items = [SystemMetric(**item).model_dump() for item in metrics]
-    return success_response(data={"metrics": items}, message="获取系统指标成功")
-
-
 @router.get("/stats", response_model=dict[str, Any], summary="获取仪表板统计数据")
 async def get_dashboard_stats(
     current_user: AccessPrincipal = Depends(get_current_active_user),
@@ -84,13 +73,3 @@ async def get_dashboard_stats(
     return success_response(
         data=response.model_dump(), message="获取仪表板统计数据成功"
     )
-
-
-@router.get("/tasks", response_model=dict[str, Any])
-async def get_dashboard_tasks(
-    current_user: AccessPrincipal = Depends(get_current_active_user),
-    service: DashboardQueryService = Depends(get_dashboard_query_service),
-) -> dict[str, Any]:
-    del current_user
-    tasks = _execute(service.tasks, detail="获取任务列表失败")
-    return success_response(data={"tasks": tasks}, message="获取任务列表成功")

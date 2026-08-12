@@ -15,7 +15,6 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app import models  # noqa: F401,E402
 from app.contexts.access_control.infrastructure.persistence import (  # noqa: E402
     models as access_control_models,  # noqa: F401
 )
@@ -43,6 +42,23 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+# 这些表来自未接入真实链路的旧系统模块。应用已停止映射它们，但生产数据在
+# 完成独立核验前必须保留，因此 autogenerate 不能把“未映射”解释为“应删除”。
+RETIRED_TABLES_RETAINED_IN_DATABASE = frozenset(
+    {"notifications", "system_alerts", "system_logs", "system_monitors"}
+)
+
+
+def include_object(
+    object_: object,
+    name: str | None,
+    type_: str,
+    reflected: bool,
+    compare_to: object | None,
+) -> bool:
+    del object_, reflected, compare_to
+    return not (type_ == "table" and name in RETIRED_TABLES_RETAINED_IN_DATABASE)
+
 
 def get_database_url() -> str:
     return os.getenv("DATABASE_URL") or settings.DATABASE_URL
@@ -56,6 +72,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         compare_server_default=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -75,6 +92,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             compare_type=True,
             compare_server_default=True,
+            include_object=include_object,
         )
         with context.begin_transaction():
             context.run_migrations()

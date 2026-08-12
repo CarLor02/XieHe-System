@@ -1,7 +1,6 @@
 """Dashboard HTTP v1 schema。"""
 
 from datetime import datetime
-from typing import List
 
 from pydantic import BaseModel, Field
 
@@ -22,10 +21,7 @@ class DashboardOverview(BaseModel):
     pending_images: int = Field(..., description="待处理影像")
     processed_images: int = Field(..., description="已处理影像")
 
-    # 系统统计
     completion_rate: float = Field(..., description="完成率")
-    average_processing_time: float = Field(..., description="平均处理时间(小时)")
-    system_alerts: int = Field(..., description="系统警告数")
 
     # 时间戳
     generated_at: datetime = Field(..., description="生成时间")
@@ -40,21 +36,3 @@ class RecentActivity(BaseModel):
     description: str
     timestamp: datetime
     status: str
-
-
-class SystemMetric(BaseModel):
-    """系统指标"""
-
-    name: str
-    value: float
-    unit: str
-    status: str  # normal, warning, critical
-    trend: str  # up, down, stable
-
-
-class DashboardStats(BaseModel):
-    """仪表板统计数据"""
-
-    overview: DashboardOverview
-    recent_activities: List[RecentActivity]
-    system_metrics: List[SystemMetric]

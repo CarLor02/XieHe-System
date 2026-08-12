@@ -23,14 +23,6 @@ jest.mock('@/lib/api', () => ({
   useAuth: () => ({ logout: mockLogout }),
 }));
 
-jest.mock('@/services/notificationServices', () => ({
-  getNotificationMessages: jest.fn(async () => []),
-}));
-
-jest.mock('@/services/teamService', () => ({
-  getMyInvitations: jest.fn(async () => ({ items: [] })),
-}));
-
 jest.mock('@/components/UserSettings', () => ({
   __esModule: true,
   default: () => null,

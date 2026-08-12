@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.contexts.dashboard.application import DashboardQueryService
 from app.contexts.dashboard.infrastructure import (
-    DemoDashboardSupplementProvider,
     ImagingApplicationDashboardReader,
     SqlAlchemyPatientDashboardReader,
     SqlAlchemyReportDashboardReader,
@@ -34,7 +33,6 @@ def build_dashboard_query_service(db: Session) -> DashboardQueryService:
         SqlAlchemyPatientDashboardReader(db),
         ImagingApplicationDashboardReader(imaging_service),
         SqlAlchemyReportDashboardReader(db),
-        DemoDashboardSupplementProvider(),
     )
 
 

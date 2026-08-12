@@ -35,8 +35,6 @@ class DashboardOverview:
     pending_images: int
     processed_images: int
     completion_rate: float
-    average_processing_time: float
-    system_alerts: int
     generated_at: datetime
 
 

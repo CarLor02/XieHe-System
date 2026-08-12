@@ -30,8 +30,6 @@ from ..schemas.auth import (
     AvatarUploadSessionRequest,
     AvatarUploadSessionResponse,
     PasswordChange,
-    PasswordReset,
-    PasswordResetConfirm,
     TokenRefresh,
     UserLogin,
     UserRegister,
@@ -145,35 +143,6 @@ async def logout(
         await service.logout(credentials.credentials)
     logger.emit_event(LogLevel.INFO, message=f"用户登出成功: {principal['username']}")
     return success_response(data=None, message="登出成功")
-
-
-@router.post("/password/reset", response_model=dict[str, Any], summary="请求密码重置")
-async def request_password_reset(
-    request: PasswordReset,
-    service: AuthenticationService = Depends(get_authentication_service),
-) -> dict[str, Any]:
-    token = await service.request_password_reset(str(request.email))
-    message = "如果邮箱存在，重置链接已发送到您的邮箱"
-    if token is None:
-        return {"message": message}
-    return success_response(data={"reset_token": token}, message=message)
-
-
-@router.post(
-    "/password/reset/confirm",
-    response_model=dict[str, Any],
-    summary="确认密码重置",
-)
-async def confirm_password_reset(
-    request: PasswordResetConfirm,
-    service: AuthenticationService = Depends(get_authentication_service),
-) -> dict[str, Any]:
-    await service.confirm_password_reset(
-        token=request.token,
-        new_password=request.new_password,
-        confirm_password=request.confirm_password,
-    )
-    return success_response(data=None, message="密码重置成功")
 
 
 @router.post("/password/change", response_model=dict[str, Any], summary="修改密码")

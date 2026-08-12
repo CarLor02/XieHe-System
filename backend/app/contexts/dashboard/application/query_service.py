@@ -1,9 +1,9 @@
-"""Dashboard 概览、活动与临时补充数据查询用例。"""
+"""Dashboard 概览与活动查询用例。"""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Callable
+from typing import Callable
 
 from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.dashboard.domain import (
@@ -13,7 +13,6 @@ from app.contexts.dashboard.domain import (
 from app.contexts.dashboard.domain.models import completion_rate
 
 from .ports import (
-    DashboardSupplementProvider,
     ImagingDashboardReader,
     PatientDashboardReader,
     ReportDashboardReader,
@@ -26,14 +25,12 @@ class DashboardQueryService:
         patient_reader: PatientDashboardReader,
         imaging_reader: ImagingDashboardReader,
         report_reader: ReportDashboardReader,
-        supplements: DashboardSupplementProvider,
         *,
         now: Callable[[], datetime] = datetime.now,
     ) -> None:
         self._patient_reader = patient_reader
         self._imaging_reader = imaging_reader
         self._report_reader = report_reader
-        self._supplements = supplements
         self._now = now
 
     def overview(self, principal: AccessPrincipal) -> DashboardOverview:
@@ -61,8 +58,6 @@ class DashboardQueryService:
             pending_images=images.pending,
             processed_images=images.processed,
             completion_rate=completion_rate(images),
-            average_processing_time=self._supplements.average_processing_time(),
-            system_alerts=images.pending,
             generated_at=generated_at,
         )
 
@@ -77,9 +72,3 @@ class DashboardQueryService:
         ]
         activities.sort(key=lambda item: item.timestamp, reverse=True)
         return activities[:limit]
-
-    def system_metrics(self) -> list[dict[str, Any]]:
-        return self._supplements.metrics()
-
-    def tasks(self) -> list[dict[str, Any]]:
-        return self._supplements.tasks()

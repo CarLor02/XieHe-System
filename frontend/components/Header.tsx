@@ -5,22 +5,8 @@
 import UserSettings from '@/components/UserSettings';
 import { useAuth, useUser } from '@/lib/api';
 import { createLogger } from '@/lib/logger';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { getNotificationMessages } from '@/services/notificationServices';
-import { getMyInvitations } from '@/services/teamService';
 import AppDropdown from './common/AppDropdown';
-
-interface Message {
-  id: string;
-  title: string;
-  content: string;
-  type: 'info' | 'warning' | 'success' | 'error';
-  time: string;
-  isRead: boolean;
-}
-
-// 移除硬编码消息，将从API获取
 
 const logger = createLogger('components.header');
 
@@ -35,7 +21,6 @@ export default function Header({
   showMenuButton = false,
   onOpenSidebar,
 }: HeaderProps) {
-  const router = useRouter();
   const { user } = useUser();
   const { logout } = useAuth();
   const [showMessages, setShowMessages] = useState(false);
@@ -44,100 +29,12 @@ export default function Header({
   const [settingsType, setSettingsType] = useState<
     'profile' | 'organization' | 'password' | 'system' | null
   >(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [mounted, setMounted] = useState(false);
-  // 熔断器：连续失败次数，超过阈值后暂停轮询避免刷屏
-  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
-  const CIRCUIT_BREAKER_THRESHOLD = 3; // 连续失败3次后暂停
-  const CIRCUIT_BREAKER_INTERVAL = 5 * 60 * 1000; // 暂停后每5分钟重试一次
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
-
-  // 获取消息数据（含熔断：连续失败超过阈值后暂停轮询）
-  useEffect(() => {
-    let failureCount = consecutiveFailures;
-
-    const fetchMessages = async () => {
-      if (!user) return;
-
-      let anySuccess = false;
-      let anyFailure = false;
-
-      try {
-        // 获取系统通知
-        let systemMessages: Message[] = [];
-        try {
-          const notificationData = await getNotificationMessages();
-          systemMessages = notificationData.map(item => ({
-            id: String(item.id || Math.random()),
-            title: item.title || '系统通知',
-            content: item.content || '',
-            type: item.message_type || 'info',
-            time: item.created_at
-              ? new Date(item.created_at).toLocaleString()
-              : '刚刚',
-            isRead: item.is_read || false,
-          }));
-          anySuccess = true;
-        } catch (error) {
-          anyFailure = true;
-          logger.warn('获取系统消息失败', error);
-        }
-
-        // 获取团队邀请
-        let invitationMessages: Message[] = [];
-        try {
-          const invitationsData = await getMyInvitations();
-          invitationMessages = (invitationsData.items || []).map(inv => ({
-            id: `invitation-${inv.id}`,
-            title: '团队邀请',
-            content: `${inv.inviter_name || '某人'}邀请您加入团队"${inv.team_name}"`,
-            type: 'info' as const,
-            time: new Date(inv.created_at).toLocaleString(),
-            isRead: false,
-          }));
-          anySuccess = true;
-        } catch (error) {
-          anyFailure = true;
-          logger.warn('获取团队邀请失败', error);
-        }
-
-        // 合并所有消息
-        setMessages([...invitationMessages, ...systemMessages]);
-      } catch (error) {
-        anyFailure = true;
-        logger.warn('获取消息失败', error);
-        setMessages([]);
-      }
-
-      // 更新熔断计数
-      if (anyFailure && !anySuccess) {
-        failureCount += 1;
-        setConsecutiveFailures(failureCount);
-      } else if (anySuccess) {
-        failureCount = 0;
-        setConsecutiveFailures(0);
-      }
-    };
-
-    if (mounted && user) {
-      // 熔断：连续失败超过阈值时，改用长间隔轮询（5分钟一次）
-      const isCircuitOpen = consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD;
-      const pollInterval = isCircuitOpen ? CIRCUIT_BREAKER_INTERVAL : 30000;
-
-      if (isCircuitOpen) {
-        logger.warn(`后端连接失败 ${consecutiveFailures} 次，降级为 ${pollInterval / 60000} 分钟轮询`);
-      }
-
-      fetchMessages();
-      const interval = setInterval(fetchMessages, pollInterval);
-      return () => clearInterval(interval);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, user, consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD]);
 
   if (!mounted) {
     return (
@@ -190,59 +87,6 @@ export default function Header({
       </header>
     );
   }
-
-  const unreadCount = messages.filter(msg => !msg.isRead).length;
-
-  const markAsRead = (messageId: string) => {
-    setMessages(prev =>
-      prev.map(msg => (msg.id === messageId ? { ...msg, isRead: true } : msg))
-    );
-
-    // 如果是团队邀请消息，跳转到邀请页面
-    if (messageId.startsWith('invitation-')) {
-      setShowMessages(false);
-      router.push('/permissions');
-      // 使用 setTimeout 确保页面加载后再切换标签
-      setTimeout(() => {
-        // 触发切换到邀请标签页的事件
-        window.dispatchEvent(new CustomEvent('switchToInvitations'));
-      }, 100);
-    }
-  };
-
-  const markAllAsRead = () => {
-    setMessages(prev => prev.map(msg => ({ ...msg, isRead: true })));
-  };
-
-  const getMessageIcon = (type: string) => {
-    switch (type) {
-      case 'info':
-        return 'ri-information-line';
-      case 'warning':
-        return 'ri-alert-line';
-      case 'success':
-        return 'ri-check-line';
-      case 'error':
-        return 'ri-close-line';
-      default:
-        return 'ri-notification-line';
-    }
-  };
-
-  const getMessageColor = (type: string) => {
-    switch (type) {
-      case 'info':
-        return 'text-blue-600 bg-blue-50';
-      case 'warning':
-        return 'text-orange-600 bg-orange-50';
-      case 'success':
-        return 'text-green-600 bg-green-50';
-      case 'error':
-        return 'text-red-600 bg-red-50';
-      default:
-        return 'text-gray-600 bg-gray-50';
-    }
-  };
 
   const handleUserSettingsClick = (
     type: 'profile' | 'organization' | 'password' | 'system'
@@ -308,19 +152,12 @@ export default function Header({
               trigger={
                 <button
                   type="button"
-                  aria-label={
-                    unreadCount > 0 ? `${unreadCount} 条未读消息` : '消息通知'
-                  }
+                  aria-label="消息通知"
                   className="relative"
                 >
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors">
                     <i className="ri-notification-line w-4 h-4 flex items-center justify-center text-blue-600"></i>
                   </div>
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center font-medium shadow-sm">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
                 </button>
               }
             >
@@ -328,14 +165,6 @@ export default function Header({
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-gray-900">系统消息</h3>
                       <div className="flex items-center space-x-2">
-                        {unreadCount > 0 && (
-                          <button
-                            onClick={markAllAsRead}
-                            className="text-sm text-blue-600 hover:text-blue-700"
-                          >
-                            全部已读
-                          </button>
-                        )}
                         <button
                           onClick={() => setShowMessages(false)}
                           className="text-gray-400 hover:text-gray-600"
@@ -346,62 +175,10 @@ export default function Header({
                     </div>
                   </div>
 
-                  <div className="max-h-96 overflow-y-auto">
-                    {messages.length > 0 ? (
-                      <div className="divide-y divide-gray-200">
-                        {messages.map(message => (
-                          <div
-                            key={message.id}
-                            onClick={() => markAsRead(message.id)}
-                            className={`p-4 hover:bg-gray-50 cursor-pointer ${
-                              !message.isRead ? 'bg-blue-50/30' : ''
-                            }`}
-                          >
-                            <div className="flex items-start space-x-3">
-                              <div
-                                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getMessageColor(message.type)}`}
-                              >
-                                <i
-                                  className={`${getMessageIcon(message.type)} w-4 h-4 flex items-center justify-center`}
-                                ></i>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <p
-                                    className={`text-sm font-medium ${!message.isRead ? 'text-gray-900' : 'text-gray-700'}`}
-                                  >
-                                    {message.title}
-                                  </p>
-                                  {!message.isRead && (
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                                  )}
-                                </div>
-                                <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                                  {message.content}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                  {message.time}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-6 text-center text-gray-500">
-                        <i className="ri-notification-off-line w-8 h-8 flex items-center justify-center mx-auto mb-2 text-2xl"></i>
-                        <p>暂无新消息</p>
-                      </div>
-                    )}
+                  <div className="p-6 text-center text-gray-500">
+                    <i className="ri-notification-off-line w-8 h-8 flex items-center justify-center mx-auto mb-2 text-2xl"></i>
+                    <p>暂无新消息</p>
                   </div>
-
-                  {messages.length > 0 && (
-                    <div className="p-3 border-t border-gray-200 bg-gray-50">
-                      <button className="w-full text-sm text-blue-600 hover:text-blue-700 text-center">
-                        查看全部消息
-                      </button>
-                    </div>
-                  )}
             </AppDropdown>
 
             <AppDropdown

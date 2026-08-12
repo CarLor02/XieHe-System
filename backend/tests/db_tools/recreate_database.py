@@ -59,7 +59,6 @@ def import_all_models():
     )
     from app.contexts.system_management.infrastructure.persistence import SystemConfig
     from app.contexts.teams.infrastructure.persistence import Team, TeamMembership
-    from app.models.system import Notification, SystemAlert, SystemLog, SystemMonitor
 
     # 验证模型导入
     models = [
@@ -81,10 +80,6 @@ def import_all_models():
         Team,
         TeamMembership,
         SystemConfig,
-        SystemLog,
-        SystemMonitor,
-        SystemAlert,
-        Notification,
     ]
 
     print(f"  导入了 {len(models)} 个模型")

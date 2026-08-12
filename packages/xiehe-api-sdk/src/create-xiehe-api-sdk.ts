@@ -24,8 +24,6 @@ export function createXieheApiSdk(options: XieheApiSdkOptions) {
     upload: createUploadClient(options.apiClient),
     dashboard: operations.dashboard,
     models: operations.models,
-    notifications: operations.notifications,
-    permissions: operations.permissions,
     system: operations.system,
     reports: createReportClient(options.apiClient),
     dicom: createDicomClient(options.apiClient),

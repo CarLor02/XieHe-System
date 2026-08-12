@@ -32,22 +32,6 @@ class TokenRefresh(BaseModel):
     refresh_token: str = Field(..., description="刷新令牌")
 
 
-class PasswordReset(BaseModel):
-    """密码重置请求模型"""
-
-    email: EmailStr = Field(..., description="邮箱地址")
-
-
-class PasswordResetConfirm(BaseModel):
-    """密码重置确认模型"""
-
-    token: str = Field(..., description="重置令牌")
-    new_password: str = Field(..., min_length=6, max_length=128, description="新密码")
-    confirm_password: str = Field(
-        ..., min_length=6, max_length=128, description="确认密码"
-    )
-
-
 class PasswordChange(BaseModel):
     """密码修改模型"""
 

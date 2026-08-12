@@ -48,7 +48,6 @@ from app.core.system.exceptions import (
 )
 from app.core.system.logger import LogLevel, logger
 from app.core.system.request_context import request_id_var
-from app.services.realtime_service import start_realtime_service, stop_realtime_service
 from app.shared.cache.aiocache import query_cache
 from app.shared.redis import RedisStateUnavailable, state_redis
 from app.shared.storage import storage_service_client
@@ -86,16 +85,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             LogLevel.WARNING, message=f"Redis查询缓存不可用，将回退数据库: {e}"
         )
 
-    # 启动实时数据推送服务
+    # 启动内部客户端与对象清理任务。
     try:
         import asyncio
 
         await storage_service_client.start()
         await start_ai_measurement_client()
-        asyncio.create_task(start_realtime_service())
         asyncio.create_task(start_object_cleanup_scheduler())
     except Exception as e:
-        logger.emit_event(LogLevel.ERROR, message=f"❌ 实时数据推送服务启动失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"❌ 内部服务启动失败: {e}")
 
     try:
         await start_ai_task_publisher()
@@ -110,13 +108,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # 关闭时执行
-    # 停止实时数据推送服务
     try:
-        await stop_realtime_service()
         await stop_object_cleanup_scheduler()
-        logger.emit_event(LogLevel.INFO, message="✅ 实时数据推送服务停止成功")
+        logger.emit_event(LogLevel.INFO, message="✅ 对象清理调度器停止成功")
     except Exception as e:
-        logger.emit_event(LogLevel.ERROR, message=f"❌ 实时数据推送服务停止失败: {e}")
+        logger.emit_event(LogLevel.ERROR, message=f"❌ 对象清理调度器停止失败: {e}")
 
     # 清理数据库连接
     try:

@@ -230,20 +230,6 @@ async def test_change_password_updates_current_user_hash() -> None:
     assert repository.updated_password == (7, "hash:new-password")
 
 
-@pytest.mark.asyncio
-async def test_password_reset_updates_hash_and_revokes_one_time_token() -> None:
-    repository = MemoryIdentityRepository(identity())
-    token_manager = CaptureTokenManager()
-    service = auth_service(repository, token_manager)
-    token = await service.request_password_reset("doctor@example.com")
-    assert token == "reset-token"
-    await service.confirm_password_reset(
-        token=token, new_password="new-password", confirm_password="new-password"
-    )
-    assert repository.updated_password == (7, "hash:new-password")
-    assert token not in token_manager.api_keys
-
-
 class TestPasswordSecurity:
     def test_password_hashing_and_verification(self) -> None:
         password = "test123456"

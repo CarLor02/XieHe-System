@@ -88,35 +88,6 @@ class AuthenticationService:
     async def logout(self, token: str) -> None:
         await self._token_manager.blacklist_token(token)
 
-    async def request_password_reset(self, email: str) -> str | None:
-        identity = self._repository.find_active_by_login(email)
-        if not identity:
-            return None
-        return await self._token_manager.generate_api_key(
-            str(identity.id), "password_reset"
-        )
-
-    async def confirm_password_reset(
-        self, *, token: str, new_password: str, confirm_password: str
-    ) -> None:
-        if new_password != confirm_password:
-            raise BusinessLogicException("密码和确认密码不匹配")
-        token_info = await self._token_manager.verify_api_key(token)
-        if not token_info or token_info.get("name") != "password_reset":
-            raise AuthenticationException("重置令牌无效或已过期")
-        raw_user_id = token_info.get("user_id")
-        if raw_user_id is None:
-            raise AuthenticationException("重置令牌无效")
-        try:
-            user_id = int(raw_user_id)
-        except (TypeError, ValueError):
-            raise AuthenticationException("重置令牌无效") from None
-
-        password_hash = await self._password_hasher.hash(new_password)
-        if not self._repository.update_password(user_id, password_hash):
-            raise AuthenticationException("重置令牌对应用户不存在或已禁用")
-        await self._token_manager.revoke_api_key(token)
-
     async def change_password(
         self,
         *,

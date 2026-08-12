@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.dashboard.application import DashboardQueryService
@@ -69,17 +68,6 @@ class ReportReader:
         return self.activities[:limit]
 
 
-class Supplements:
-    def average_processing_time(self) -> float:
-        return 2.5
-
-    def metrics(self) -> list[dict[str, Any]]:
-        return [{"name": "CPU使用率", "value": 45.2}]
-
-    def tasks(self) -> list[dict[str, Any]]:
-        return [{"task_id": "TASK_001"}]
-
-
 def service(
     *,
     images: ImageCounts,
@@ -91,7 +79,6 @@ def service(
         PatientReader(patients),
         ImagingReader(images, image_activities),
         ReportReader(reports),
-        Supplements(),
         now=lambda: datetime(2026, 8, 11, 9, 30),
     )
 
@@ -116,8 +103,6 @@ def test_overview_combines_counts_and_calculates_completion_rate() -> None:
     assert result.active_patients == 6
     assert result.total_images == 10
     assert result.completion_rate == 50.0
-    assert result.average_processing_time == 2.5
-    assert result.system_alerts == 3
     assert result.generated_at == datetime(2026, 8, 11, 9, 30)
 
 
@@ -137,11 +122,3 @@ def test_recent_activities_merge_sort_and_limit_sources() -> None:
     )
     result = query.recent_activities(principal(), limit=6)
     assert [item.id for item in result] == [3, 1, 5, 2, 4, 6]
-
-
-def test_supplement_data_is_delegated_to_compatibility_provider() -> None:
-    query = service(
-        images=ImageCounts(total=0, today=0, week=0, pending=0, processed=0)
-    )
-    assert query.system_metrics() == [{"name": "CPU使用率", "value": 45.2}]
-    assert query.tasks() == [{"task_id": "TASK_001"}]

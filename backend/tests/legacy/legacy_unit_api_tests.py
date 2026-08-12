@@ -23,7 +23,6 @@ from app.models.user import User
 from app.contexts.patients.infrastructure.persistence.models import Patient
 from app.contexts.reports.infrastructure.persistence import DiagnosticReport as Report
 from app.services.ai_diagnosis_service import ai_diagnosis_service
-from app.services.email_service import email_service
 
 # 测试数据库配置
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -302,40 +301,6 @@ class TestAIDiagnosisService:
             assert len(results) == 2
             assert results[0]["diagnosis"] == "正常"
             mock_batch.assert_called_once_with(image_ids)
-
-
-class TestEmailService:
-    """邮件服务测试类"""
-    
-    @pytest.mark.asyncio
-    async def test_send_email(self):
-        """测试发送邮件"""
-        with patch.object(email_service, 'send_email') as mock_send:
-            mock_send.return_value = True
-            
-            result = await email_service.send_email(
-                to="test@example.com",
-                subject="测试邮件",
-                body="这是一封测试邮件"
-            )
-            
-            assert result == True
-            mock_send.assert_called_once()
-    
-    @pytest.mark.asyncio
-    async def test_send_template_email(self):
-        """测试发送模板邮件"""
-        with patch.object(email_service, 'send_template_email') as mock_send_template:
-            mock_send_template.return_value = True
-            
-            result = await email_service.send_template_email(
-                to="test@example.com",
-                template="welcome",
-                context={"username": "testuser"}
-            )
-            
-            assert result == True
-            mock_send_template.assert_called_once()
 
 
 class TestBusinessLogic:

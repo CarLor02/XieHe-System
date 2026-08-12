@@ -64,8 +64,6 @@ frontend/
 │   ├── dashboardServices/      # 仪表板数据
 │   ├── dicomServices/          # DICOM 文件处理
 │   ├── modelServices/          # AI 模型中心
-│   ├── notificationServices/   # 系统通知
-│   ├── permissionServices/     # 权限查询
 │   ├── syncServices/           # 数据同步
 │   ├── systemServices/         # 系统配置
 │   ├── userService.ts          # 用户管理

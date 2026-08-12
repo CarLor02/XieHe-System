@@ -29,23 +29,25 @@ backend/
 │   ├── main.py                  # FastAPI 应用入口 & 生命周期
 │   ├── api/v1/
 │   │   └── endpoints/
-│   │       ├── access/          # 认证、用户、团队权限
-│   │       ├── imaging/         # 影像上传、文件管理、AI 诊断、标注
-│   │       ├── patients/        # 患者管理
-│   │       ├── reports/         # 报告管理
-│   │       └── system/          # 系统通知、监控
+│   │       └── system/          # 前端错误上报兼容入口
+│   ├── contexts/                # 按业务上下文组织的 DDD 模块
+│   │   ├── access_control/      # 认证与用户访问控制
+│   │   ├── imaging/             # 影像上传、文件管理、AI 诊断、标注
+│   │   ├── patients/            # 患者管理
+│   │   ├── reports/             # 报告管理
+│   │   ├── system_management/   # 真实系统健康状态与指标
+│   │   └── teams/               # 团队与邀请管理
 │   ├── core/
 │   │   ├── config/              # 分域配置（ai_settings, storage_settings …）
-│   │   ├── database/            # SQLAlchemy session 管理
 │   │   └── system/              # logger、异常、并发控制
-│   ├── models/                  # SQLAlchemy ORM 模型
 │   ├── services/
-│   │   ├── storage-service/     # Go 对象存储网关（独立微服务）
-│   │   └── realtime_service.py  # WebSocket 实时推送
+│   │   ├── logging-service/     # Go 日志服务
+│   │   └── storage-service/     # Go 对象存储网关（独立微服务）
 │   ├── shared/
+│   │   ├── database/            # SQLAlchemy session 管理
 │   │   └── storage/             # storage-service 客户端、模型与异常
 │   └── contracts/               # 与其他服务的接口契约（logging service 等）
-├── alembic/versions/            # 数据库迁移脚本（0001 → 0004）
+├── alembic/versions/            # 数据库迁移脚本
 └── tests/
     ├── unit/
     └── integration/
