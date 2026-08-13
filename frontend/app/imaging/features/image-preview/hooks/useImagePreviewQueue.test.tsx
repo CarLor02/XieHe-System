@@ -1,11 +1,14 @@
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { useEffect } from 'react';
 
 import { apiClient } from '@/infrastructure/http';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 import { clearImageFileAccessUrlCache } from '@/services/imageServices/imageFileAccessUrlService';
-import { useImagePreviewQueue } from './useImagePreviewQueue';
+import {
+  parsePreviewDownloadConcurrency,
+  useImagePreviewQueue,
+} from './useImagePreviewQueue';
 
 const mockedApiPost = jest.spyOn(apiClient, 'post');
 
@@ -91,4 +94,80 @@ describe('useImagePreviewQueue', () => {
 
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
+
+  it('starts previews in order and fills a slot without waiting for the batch', async () => {
+    mockedApiPost.mockResolvedValue({
+      items: Object.fromEntries(
+        Array.from({ length: 6 }, (_, index) => {
+          const id = index + 1;
+          return [
+            id,
+            {
+              url: `/medical-image-files/objects/xray-${id}.png?sig=1`,
+              expires_in: 900,
+              etag: `etag-${id}`,
+            },
+          ];
+        })
+      ),
+      errors: {},
+    });
+    const observedValues: ReturnType<typeof useImagePreviewQueue>[] = [];
+
+    render(
+      <PreviewQueueHarness
+        files={Array.from({ length: 6 }, (_, index) =>
+          makeImageFile(index + 1)
+        )}
+        onValue={value => observedValues.push(value)}
+      />
+    );
+
+    await waitFor(() => {
+      expect(Object.keys(observedValues.at(-1)?.imageUrls ?? {})).toEqual([
+        '1',
+        '2',
+        '3',
+        '4',
+      ]);
+    });
+
+    act(() => observedValues.at(-1)?.handlePreviewLoad(2));
+
+    await waitFor(() => {
+      expect(Object.keys(observedValues.at(-1)?.imageUrls ?? {})).toEqual([
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+      ]);
+    });
+
+    act(() => observedValues.at(-1)?.handlePreviewLoad(1));
+
+    await waitFor(() => {
+      expect(Object.keys(observedValues.at(-1)?.imageUrls ?? {})).toEqual([
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+      ]);
+    });
+  });
+});
+
+describe('parsePreviewDownloadConcurrency', () => {
+  it('accepts positive integers', () => {
+    expect(parsePreviewDownloadConcurrency('6')).toBe(6);
+  });
+
+  it.each([undefined, '', '0', '-1', '2.5', 'invalid'])(
+    'falls back to four for %s',
+    value => {
+      expect(parsePreviewDownloadConcurrency(value)).toBe(4);
+    }
+  );
 });

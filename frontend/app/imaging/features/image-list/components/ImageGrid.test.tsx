@@ -50,6 +50,7 @@ function renderImageGrid(
     viewerReturnTo: '/imaging?page=3&uploaded_by=7',
     imageUrls: {},
     previewStates: {},
+    onPreviewLoad: jest.fn(),
     onPreviewError: jest.fn(),
     onMoreAction: jest.fn(),
     onCropEdit: jest.fn(),

@@ -8,6 +8,7 @@ interface ImagePreviewProps {
   imgClassName: string;
   loadingIconClassName: string;
   fallbackIconClassName: string;
+  onPreviewLoad: (fileId: number) => void;
   onPreviewError: (fileId: number) => void;
 }
 
@@ -26,6 +27,7 @@ export default function ImagePreview({
   imgClassName,
   loadingIconClassName,
   fallbackIconClassName,
+  onPreviewLoad,
   onPreviewError,
 }: ImagePreviewProps) {
   const previewUrl = imageUrls[imageFile.id];
@@ -38,8 +40,9 @@ export default function ImagePreview({
         src={previewUrl}
         alt={imageFile.original_filename}
         className={imgClassName}
-        loading="lazy"
+        loading="eager"
         decoding="async"
+        onLoad={() => onPreviewLoad(imageFile.id)}
         onError={() => onPreviewError(imageFile.id)}
       />
     );

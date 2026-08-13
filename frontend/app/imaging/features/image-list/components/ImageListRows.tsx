@@ -20,6 +20,7 @@ interface ImageListRowsProps {
   viewerReturnTo: string;
   imageUrls: Record<number, string>;
   previewStates: Record<number, PreviewLoadState>;
+  onPreviewLoad: (fileId: number) => void;
   onPreviewError: (fileId: number) => void;
   onMoreAction: (fileId: number, action: ImageFileAction) => void;
   onCropEdit: (imageFile: ImageFile) => void;
@@ -33,6 +34,7 @@ export default function ImageListRows({
   viewerReturnTo,
   imageUrls,
   previewStates,
+  onPreviewLoad,
   onPreviewError,
   onMoreAction,
   onCropEdit,
@@ -72,6 +74,7 @@ export default function ImageListRows({
                       imgClassName="w-full h-full object-contain"
                       loadingIconClassName="ri-loader-4-line text-2xl animate-spin"
                       fallbackIconClassName="ri-image-line text-2xl"
+                      onPreviewLoad={onPreviewLoad}
                       onPreviewError={onPreviewError}
                     />
                   </div>
@@ -86,6 +89,7 @@ export default function ImageListRows({
                       imgClassName="w-full h-full object-contain"
                       loadingIconClassName="ri-loader-4-line text-2xl animate-spin"
                       fallbackIconClassName="ri-image-line text-2xl"
+                      onPreviewLoad={onPreviewLoad}
                       onPreviewError={onPreviewError}
                     />
                   </div>

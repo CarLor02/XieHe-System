@@ -106,6 +106,7 @@ function ImagingPageContent() {
         hasActiveFilters={controller.hasActiveFilters}
         imageUrls={preview.imageUrls}
         previewStates={preview.previewStates}
+        onPreviewLoad={preview.handlePreviewLoad}
         onPreviewError={preview.handlePreviewError}
         onMoreAction={actions.handleMoreAction}
         onCropEdit={editOverlay.openEditOverlay}

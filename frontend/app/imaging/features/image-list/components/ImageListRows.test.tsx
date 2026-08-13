@@ -44,6 +44,7 @@ it('keeps all image row actions in one line on phone-sized screens', () => {
       viewerReturnTo="/imaging?page=2&search=abc"
       imageUrls={{}}
       previewStates={{}}
+      onPreviewLoad={jest.fn()}
       onPreviewError={jest.fn()}
       onMoreAction={jest.fn()}
       onCropEdit={jest.fn()}
@@ -79,6 +80,7 @@ it('renders ownership teams in rows with truncated hover text', async () => {
       viewerReturnTo="/imaging?page=2&search=abc"
       imageUrls={{}}
       previewStates={{}}
+      onPreviewLoad={jest.fn()}
       onPreviewError={jest.fn()}
       onMoreAction={jest.fn()}
       onCropEdit={jest.fn()}
@@ -102,6 +104,7 @@ it('passes the current imaging URL to the row viewer return target', () => {
       viewerReturnTo="/imaging?page=2&search=abc"
       imageUrls={{}}
       previewStates={{}}
+      onPreviewLoad={jest.fn()}
       onPreviewError={jest.fn()}
       onMoreAction={jest.fn()}
       onCropEdit={jest.fn()}
@@ -122,6 +125,7 @@ it('keeps the row thumbnail linked to the viewer outside batch export mode', () 
       viewerReturnTo="/imaging?page=2&search=abc"
       imageUrls={{}}
       previewStates={{}}
+      onPreviewLoad={jest.fn()}
       onPreviewError={jest.fn()}
       onMoreAction={jest.fn()}
       onCropEdit={jest.fn()}
@@ -144,6 +148,7 @@ it('replaces row actions with an export checkbox in batch export mode', async ()
     viewerReturnTo: '/imaging?page=2&search=abc',
     imageUrls: {},
     previewStates: {},
+    onPreviewLoad: jest.fn(),
     onPreviewError: jest.fn(),
     onMoreAction: jest.fn(),
     onCropEdit: jest.fn(),
@@ -173,6 +178,7 @@ it('selects the row image instead of opening the viewer when clicking the thumbn
       viewerReturnTo="/imaging?page=2&search=abc"
       imageUrls={{}}
       previewStates={{}}
+      onPreviewLoad={jest.fn()}
       onPreviewError={jest.fn()}
       onMoreAction={jest.fn()}
       onCropEdit={jest.fn()}
@@ -205,6 +211,7 @@ it('only shows the thumbnail focus ring for keyboard-visible focus', () => {
       viewerReturnTo="/imaging"
       imageUrls={{}}
       previewStates={{}}
+      onPreviewLoad={jest.fn()}
       onPreviewError={jest.fn()}
       onMoreAction={jest.fn()}
       onCropEdit={jest.fn()}

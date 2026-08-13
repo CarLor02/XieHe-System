@@ -20,6 +20,7 @@ interface ImageListPanelProps {
   hasActiveFilters: boolean;
   imageUrls: Record<number, string>;
   previewStates: Record<number, PreviewLoadState>;
+  onPreviewLoad: (fileId: number) => void;
   onPreviewError: (fileId: number) => void;
   onMoreAction: (fileId: number, action: ImageFileAction) => void;
   onCropEdit: (imageFile: ImageFile) => void;
@@ -40,6 +41,7 @@ export default function ImageListPanel({
   hasActiveFilters,
   imageUrls,
   previewStates,
+  onPreviewLoad,
   onPreviewError,
   onMoreAction,
   onCropEdit,
@@ -58,6 +60,7 @@ export default function ImageListPanel({
             viewerReturnTo={viewerReturnTo}
             imageUrls={imageUrls}
             previewStates={previewStates}
+            onPreviewLoad={onPreviewLoad}
             onPreviewError={onPreviewError}
             onMoreAction={onMoreAction}
             onCropEdit={onCropEdit}
@@ -71,6 +74,7 @@ export default function ImageListPanel({
             viewerReturnTo={viewerReturnTo}
             imageUrls={imageUrls}
             previewStates={previewStates}
+            onPreviewLoad={onPreviewLoad}
             onPreviewError={onPreviewError}
             onMoreAction={onMoreAction}
             onCropEdit={onCropEdit}

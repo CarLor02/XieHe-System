@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, jest } from '@jest/globals';
 
 import ImagePreview from './ImagePreview';
@@ -23,7 +23,8 @@ function makeImageFile(): ImageFile {
   };
 }
 
-it('renders direct image URLs as lazy loaded images', () => {
+it('renders queued image URLs eagerly and reports completion', () => {
+  const onPreviewLoad = jest.fn();
   render(
     <ImagePreview
       imageFile={makeImageFile()}
@@ -32,6 +33,7 @@ it('renders direct image URLs as lazy loaded images', () => {
       imgClassName="preview"
       loadingIconClassName="loading"
       fallbackIconClassName="fallback"
+      onPreviewLoad={onPreviewLoad}
       onPreviewError={jest.fn()}
     />
   );
@@ -39,5 +41,8 @@ it('renders direct image URLs as lazy loaded images', () => {
   const image = screen.getByRole('img', { name: 'xray.png' });
 
   expect(image.getAttribute('src')).toBe('/medical-image-files/objects/xray.png?sig=1');
-  expect(image.getAttribute('loading')).toBe('lazy');
+  expect(image.getAttribute('loading')).toBe('eager');
+
+  fireEvent.load(image);
+  expect(onPreviewLoad).toHaveBeenCalledWith(1);
 });
