@@ -16,6 +16,7 @@ from app.contexts.imaging.domain import (
     ImageDerivativeVariant,
     ImageFileStatusEnum,
     ImageFileTypeEnum,
+    build_card_thumbnail_object_key,
 )
 from app.contexts.imaging.infrastructure.persistence import (
     ImageFile,
@@ -87,6 +88,10 @@ def test_concurrent_new_derivatives_use_atomic_upsert_without_gap_locks(
 def test_atomic_upsert_preserves_ready_object_until_source_version_changes(
     test_session_factory: sessionmaker,
 ) -> None:
+    current_thumbnail_key = build_card_thumbnail_object_key(
+        "thumbnail-concurrency-1201",
+        "etag-1201",
+    )
     with test_session_factory() as setup:
         image = _image(1201)
         setup.add_all([_owner(), image])
@@ -97,7 +102,7 @@ def test_atomic_upsert_preserves_ready_object_until_source_version_changes(
                 variant=ImageDerivativeVariant.CARD_THUMBNAIL.value,
                 source_storage_etag="etag-1201",
                 storage_bucket="medical-image-files",
-                object_key="old-thumbnail.webp",
+                object_key=current_thumbnail_key,
                 storage_etag="old-thumbnail-etag",
                 mime_type="image/webp",
                 width=320,
@@ -114,6 +119,7 @@ def test_atomic_upsert_preserves_ready_object_until_source_version_changes(
         assert image is not None
         repository = SqlAlchemyThumbnailSchedulingRepository(session)
 
+        assert repository.has_ready_for_current_source(cast(ImageFileRecord, image))
         assert repository.upsert_pending(cast(ImageFileRecord, image)) is None
         repository.commit()
 
@@ -122,7 +128,50 @@ def test_atomic_upsert_preserves_ready_object_until_source_version_changes(
         assert derivative is not None
         assert derivative.source_storage_etag == "etag-1201-v2"
         assert derivative.status == ImageDerivativeStatus.PENDING.value
-        assert derivative.object_key == "old-thumbnail.webp"
+        assert derivative.object_key == current_thumbnail_key
+        repository.commit()
+
+
+def test_atomic_upsert_requeues_ready_thumbnail_from_old_renderer(
+    test_session_factory: sessionmaker,
+) -> None:
+    legacy_key = (
+        "thumbnail-concurrency-1202/derivatives/card-thumbnail/legacy-etag.webp"
+    )
+    with test_session_factory() as setup:
+        image = _image(1202)
+        setup.add_all([_owner(), image])
+        setup.flush()
+        setup.add(
+            ImageFileDerivative(
+                image_file_id=image.id,
+                variant=ImageDerivativeVariant.CARD_THUMBNAIL.value,
+                source_storage_etag="etag-1202",
+                storage_bucket="medical-image-files",
+                object_key=legacy_key,
+                storage_etag="legacy-thumbnail-etag",
+                mime_type="image/webp",
+                width=320,
+                height=480,
+                file_size=100,
+                status=ImageDerivativeStatus.READY.value,
+                retry_count=3,
+            )
+        )
+        setup.commit()
+
+    with test_session_factory() as session:
+        image = session.get(ImageFile, 1202)
+        assert image is not None
+        repository = SqlAlchemyThumbnailSchedulingRepository(session)
+
+        assert not repository.has_ready_for_current_source(cast(ImageFileRecord, image))
+        derivative = repository.upsert_pending(cast(ImageFileRecord, image))
+
+        assert derivative is not None
+        assert derivative.status == ImageDerivativeStatus.PENDING.value
+        assert derivative.retry_count == 0
+        assert derivative.object_key == legacy_key
         repository.commit()
 
 

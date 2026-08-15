@@ -23,6 +23,7 @@ from app.contexts.imaging.domain import (
     ImageDerivativeStatus,
     ImageDerivativeVariant,
     ImageFileStatusEnum,
+    is_current_card_thumbnail_object_key,
     normalize_storage_etag,
 )
 from app.shared.database import SessionLocal
@@ -86,7 +87,13 @@ class SqlAlchemyThumbnailSchedulingRepository:
         return bool(
             derivative
             and derivative.object_key
+            and source_etag is not None
             and normalize_storage_etag(derivative.source_storage_etag) == source_etag
+            and is_current_card_thumbnail_object_key(
+                file_uuid=str(image.file_uuid),
+                source_etag=source_etag,
+                object_key=derivative.object_key,
+            )
         )
 
     def upsert_pending(
@@ -123,16 +130,21 @@ class SqlAlchemyThumbnailSchedulingRepository:
             same_source = (
                 normalize_storage_etag(derivative.source_storage_etag) == source_etag
             )
+            current_render = same_source and is_current_card_thumbnail_object_key(
+                file_uuid=str(image.file_uuid),
+                source_etag=source_etag,
+                object_key=derivative.object_key,
+            )
             if (
-                same_source
+                current_render
                 and derivative.status == ImageDerivativeStatus.READY.value
                 and derivative.object_key
             ):
                 return None
 
-            if not same_source:
+            if not same_source or not current_render:
                 # Keep the previous object reference until the worker deletes it. This avoids
-                # losing the only cleanup pointer when content replacement advances the ETag.
+                # losing the only cleanup pointer when source or renderer versions advance.
                 derivative.source_storage_etag = source_etag
                 derivative.retry_count = 0
             derivative.status = ImageDerivativeStatus.PENDING.value

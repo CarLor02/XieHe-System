@@ -25,6 +25,9 @@ from app.contexts.imaging.domain import (
 from app.contexts.imaging.infrastructure.thumbnail import (
     PillowThumbnailGenerationGateway,
 )
+from app.contexts.imaging.infrastructure.thumbnail.display_mapping import (
+    map_to_thumbnail_display_image,
+)
 from app.shared.storage import StorageObjectStat
 
 
@@ -84,7 +87,7 @@ class FakeGenerator:
         return ThumbnailGenerationResult(
             source_storage_etag="source-v1",
             storage_bucket="images",
-            object_key="file-12/derivatives/card-thumbnail/v1.webp",
+            object_key=build_card_thumbnail_object_key("file-12", "source-v1"),
             storage_etag="thumb-v1",
             mime_type="image/webp",
             width=640,
@@ -178,6 +181,66 @@ async def test_pillow_generator_keeps_aspect_ratio_without_cropping() -> None:
         assert thumbnail.size == (640, 427)
 
 
+@pytest.mark.asyncio
+async def test_generator_preserves_uint16_png_grayscale_range() -> None:
+    original = io.BytesIO()
+    source = Image.new("I;16", (96, 32))
+    source.putdata(([0] * 32 + [32768] * 32 + [65535] * 32) * 32)
+    source.save(original, format="PNG")
+    client = FakeStorageClient(original.getvalue())
+    gateway = PillowThumbnailGenerationGateway(cast(Any, client))
+
+    await gateway.generate(_source())
+
+    assert client.uploaded is not None
+    with Image.open(io.BytesIO(client.uploaded)) as thumbnail:
+        grayscale = thumbnail.convert("L")
+        assert grayscale.getpixel((16, 16)) < 10
+        assert 100 < grayscale.getpixel((48, 16)) < 155
+        assert grayscale.getpixel((80, 16)) > 245
+
+
+@pytest.mark.parametrize("mode", ["I;16", "I;16L", "I;16B"])
+def test_display_mapping_supports_uint16_grayscale_modes(mode: str) -> None:
+    source = Image.new(mode, (3, 1))
+    source.putdata([0, 32768, 65535])
+
+    mapped = map_to_thumbnail_display_image(
+        source,
+        source_format="TIFF",
+        source_mode=mode,
+    )
+
+    assert mapped.mode == "L"
+    assert list(mapped.getdata()) == [0, 127, 255]
+
+
+def test_display_mapping_keeps_uint8_grayscale_values() -> None:
+    source = Image.new("L", (3, 1))
+    source.putdata([0, 127, 255])
+
+    mapped = map_to_thumbnail_display_image(
+        source,
+        source_format="PNG",
+        source_mode="L",
+    )
+
+    assert mapped.mode == "L"
+    assert list(mapped.getdata()) == [0, 127, 255]
+
+
+@pytest.mark.parametrize("mode", ["I", "F"])
+def test_display_mapping_rejects_unknown_high_depth_ranges(mode: str) -> None:
+    source = Image.new(mode, (1, 1))
+
+    with pytest.raises(ValueError, match="无法确定显示范围"):
+        map_to_thumbnail_display_image(
+            source,
+            source_format="TIFF",
+            source_mode=mode,
+        )
+
+
 def test_card_thumbnail_key_is_stable_and_versioned() -> None:
     first = build_card_thumbnail_object_key("uuid", '"etag-v1"')
     second = build_card_thumbnail_object_key("uuid", "etag-v1")
@@ -185,7 +248,7 @@ def test_card_thumbnail_key_is_stable_and_versioned() -> None:
 
     assert first == second
     assert first != changed
-    assert first.startswith("uuid/derivatives/card-thumbnail/")
+    assert first.startswith("uuid/derivatives/card-thumbnail/v2/")
 
 
 @pytest.mark.asyncio
@@ -218,6 +281,21 @@ async def test_generator_treats_corrupt_images_as_permanent_failures() -> None:
         await gateway.generate(_source())
 
     assert error.value.transient is False
+
+
+@pytest.mark.asyncio
+async def test_generator_rejects_unknown_integer_range_as_permanent_failure() -> None:
+    original = io.BytesIO()
+    Image.new("I", (10, 10), color=1000).save(original, format="TIFF")
+    gateway = PillowThumbnailGenerationGateway(
+        cast(Any, FakeStorageClient(original.getvalue()))
+    )
+
+    with pytest.raises(ThumbnailGenerationError) as error:
+        await gateway.generate(replace(_source(), file_type=ImageFileTypeEnum.TIFF))
+
+    assert error.value.transient is False
+    assert "无法确定显示范围" in error.value.detail
 
 
 @pytest.mark.asyncio

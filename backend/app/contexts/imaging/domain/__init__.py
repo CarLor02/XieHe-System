@@ -34,9 +34,11 @@ from .file_rules import (
     validate_replacement_file,
 )
 from .image_derivative import (
+    CARD_THUMBNAIL_RENDER_VERSION,
     ImageDerivativeStatus,
     ImageDerivativeVariant,
     build_card_thumbnail_object_key,
+    is_current_card_thumbnail_object_key,
     normalize_storage_etag,
     supports_card_thumbnail,
 )
@@ -59,6 +61,7 @@ __all__ = [
     "AnnotationSource",
     "AnnotationVersionConflictError",
     "AITaskStatusEnum",
+    "CARD_THUMBNAIL_RENDER_VERSION",
     "ImageAccessActor",
     "ImageAccessScope",
     "ImageAccessTarget",
@@ -88,6 +91,7 @@ __all__ = [
     "determine_image_file_type",
     "extract_annotation_items",
     "has_annotation_content",
+    "is_current_card_thumbnail_object_key",
     "normalize_audit_item_id",
     "normalize_exam_type",
     "normalize_storage_etag",

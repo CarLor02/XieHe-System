@@ -25,6 +25,8 @@ from app.shared.storage import (
     storage_service_client,
 )
 
+from .display_mapping import map_to_thumbnail_display_image
+
 _THUMBNAIL_SIZE = (640, 960)
 _WEBP_QUALITY = 80
 
@@ -117,10 +119,15 @@ def _render_webp_thumbnail(source: BinaryIO) -> tuple[bytes, int, int]:
         # TIFF may contain many frames; the card always represents its first image.
         if (opened.format or "").upper() == "TIFF":
             opened.seek(0)
+        source_format = (opened.format or "").upper()
+        source_mode = opened.mode
         image = ImageOps.exif_transpose(opened)
         image.load()
-        if image.mode not in {"RGB", "RGBA"}:
-            image = image.convert("RGB")
+        image = map_to_thumbnail_display_image(
+            image,
+            source_format=source_format,
+            source_mode=source_mode,
+        )
         image.thumbnail(_THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
         output = io.BytesIO()
         image.save(output, format="WEBP", quality=_WEBP_QUALITY, method=6)
