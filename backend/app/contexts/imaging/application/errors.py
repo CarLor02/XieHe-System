@@ -47,6 +47,15 @@ class ObjectStorageUnavailableError(ImagingApplicationError):
     pass
 
 
+class ThumbnailGenerationError(ImagingApplicationError):
+    """Worker failure classified for bounded retry handling."""
+
+    def __init__(self, detail: str, *, transient: bool) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.transient = transient
+
+
 class AiMeasurementUnavailableError(ImagingApplicationError):
     def __init__(self, detail: str, status_code: int = 502) -> None:
         super().__init__(detail)

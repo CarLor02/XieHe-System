@@ -14,10 +14,14 @@ from app.contexts.imaging.application import (
     ImageVisibilityApplicationService,
     ImagingQueryService,
     ImportConfiguration,
+    ThumbnailSchedulingService,
     UploadConfiguration,
 )
 from app.contexts.imaging.infrastructure.ai import AiModelMeasurementGateway
-from app.contexts.imaging.infrastructure.messaging import KafkaAiTaskPublisher
+from app.contexts.imaging.infrastructure.messaging import (
+    KafkaAiTaskPublisher,
+    KafkaThumbnailTaskPublisher,
+)
 from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyAnnotationHistoryRepository,
     SqlAlchemyAnnotationRepository,
@@ -26,6 +30,7 @@ from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyImageQueryRepository,
     SqlAlchemyImageStatisticsRepository,
     SqlAlchemyImageVisibilityRepository,
+    SqlAlchemyThumbnailSchedulingRepository,
     SqlAlchemyUploadRepository,
 )
 from app.contexts.imaging.infrastructure.storage import StorageServiceObjectStorage
@@ -37,6 +42,13 @@ def build_image_visibility_service(
     db: Session,
 ) -> ImageVisibilityApplicationService:
     return ImageVisibilityApplicationService(SqlAlchemyImageVisibilityRepository(db))
+
+
+def build_thumbnail_scheduling_service(db: Session) -> ThumbnailSchedulingService:
+    return ThumbnailSchedulingService(
+        SqlAlchemyThumbnailSchedulingRepository(db),
+        KafkaThumbnailTaskPublisher(),
+    )
 
 
 def get_annotation_service(
@@ -96,6 +108,7 @@ def get_image_file_command_service(
         visibility,
         annotation,
         StorageServiceObjectStorage(),
+        build_thumbnail_scheduling_service(db),
     )
 
 
@@ -115,6 +128,7 @@ def get_image_upload_service(
         SqlAlchemyUploadRepository(db),
         build_image_visibility_service(db),
         StorageServiceObjectStorage(),
+        build_thumbnail_scheduling_service(db),
         UploadConfiguration(
             bucket=settings.IMAGE_FILE_BUCKET,
             part_size=settings.STORAGE_MULTIPART_PART_SIZE,
@@ -131,6 +145,7 @@ def get_image_import_service(
         build_image_visibility_service(db),
         StorageServiceObjectStorage(),
         KafkaAiTaskPublisher(),
+        build_thumbnail_scheduling_service(db),
         ImportConfiguration(
             max_files=settings.BATCH_IMPORT_MAX_FILES,
             session_window_size=10,

@@ -7,7 +7,11 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.contexts.access_control.infrastructure.persistence.models import User
-from app.contexts.imaging.infrastructure.persistence import ImageFile
+from app.contexts.imaging.domain import ImageDerivativeStatus
+from app.contexts.imaging.infrastructure.persistence import (
+    ImageFile,
+    ImageFileDerivative,
+)
 from app.contexts.object_lifecycle.domain import (
     ObjectCleanupCandidate,
     ObjectOwnerKind,
@@ -26,6 +30,23 @@ class SqlAlchemyObjectCleanupRepository:
     def mark_purged(self, candidate: ObjectCleanupCandidate) -> None:
         if candidate.owner_kind is ObjectOwnerKind.IMAGE_FILE:
             # Image rows remain as soft-deleted audit records; no purge marker exists yet.
+            return
+
+        if candidate.owner_kind is ObjectOwnerKind.IMAGE_FILE_DERIVATIVE:
+            derivative = self._session.get(ImageFileDerivative, candidate.owner_id)
+            if (
+                derivative is None
+                or derivative.storage_bucket != candidate.bucket
+                or derivative.object_key != candidate.object_key
+            ):
+                return
+            derivative.storage_bucket = None
+            derivative.object_key = None
+            derivative.storage_etag = None
+            derivative.status = ImageDerivativeStatus.FAILED.value
+            derivative.last_error = "所属影像已删除，派生对象已清理"
+            derivative.next_retry_at = None
+            derivative.lease_expires_at = None
             return
 
         user = self._session.get(User, candidate.owner_id)
@@ -58,7 +79,7 @@ class SqlAlchemyObjectCleanupRepository:
             )
             .all()
         )
-        return [
+        original_candidates = [
             ObjectCleanupCandidate(
                 owner_kind=ObjectOwnerKind.IMAGE_FILE,
                 owner_id=int(image.id),
@@ -67,6 +88,27 @@ class SqlAlchemyObjectCleanupRepository:
             )
             for image in images
         ]
+        if not images:
+            return original_candidates
+        derivatives = (
+            self._session.query(ImageFileDerivative)
+            .filter(
+                ImageFileDerivative.image_file_id.in_([image.id for image in images]),
+                ImageFileDerivative.storage_bucket.isnot(None),
+                ImageFileDerivative.object_key.isnot(None),
+            )
+            .all()
+        )
+        original_candidates.extend(
+            ObjectCleanupCandidate(
+                owner_kind=ObjectOwnerKind.IMAGE_FILE_DERIVATIVE,
+                owner_id=int(derivative.id),
+                bucket=str(derivative.storage_bucket),
+                object_key=str(derivative.object_key),
+            )
+            for derivative in derivatives
+        )
+        return original_candidates
 
     def _expired_avatars(self, cutoff: datetime) -> list[ObjectCleanupCandidate]:
         users = (

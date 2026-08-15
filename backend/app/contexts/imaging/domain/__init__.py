@@ -33,6 +33,13 @@ from .file_rules import (
     determine_image_file_type,
     validate_replacement_file,
 )
+from .image_derivative import (
+    ImageDerivativeStatus,
+    ImageDerivativeVariant,
+    build_card_thumbnail_object_key,
+    normalize_storage_etag,
+    supports_card_thumbnail,
+)
 from .image_file import ImageFileDraft, ImageFileStatusEnum, ImageFileTypeEnum
 from .import_status import (
     AITaskStatusEnum,
@@ -57,6 +64,8 @@ __all__ = [
     "ImageAccessTarget",
     "ImageFileNotFoundError",
     "ImageFileDraft",
+    "ImageDerivativeStatus",
+    "ImageDerivativeVariant",
     "ImageFileStatusEnum",
     "ImageFileTypeEnum",
     "ImageImportAiStatus",
@@ -68,6 +77,7 @@ __all__ = [
     "JsonValue",
     "SUPPORTED_EXAM_TYPES",
     "build_image_access_scope",
+    "build_card_thumbnail_object_key",
     "build_renamed_filename",
     "build_storage_object_key",
     "canonicalize_annotation",
@@ -80,9 +90,11 @@ __all__ = [
     "has_annotation_content",
     "normalize_audit_item_id",
     "normalize_exam_type",
+    "normalize_storage_etag",
     "normalize_team_ids",
     "require_all_teams_assignable",
     "snapshots_equal",
+    "supports_card_thumbnail",
     "validate_replacement_file",
     "validate_upload_file",
 ]

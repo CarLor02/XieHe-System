@@ -31,7 +31,9 @@ from app.contexts.imaging.infrastructure.ai import (
 )
 from app.contexts.imaging.infrastructure.messaging import (
     start_ai_task_publisher,
+    start_thumbnail_task_publisher,
     stop_ai_task_publisher,
+    stop_thumbnail_task_publisher,
 )
 from app.contexts.object_lifecycle.interface.scheduler import (
     start_object_cleanup_scheduler,
@@ -97,10 +99,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     try:
         await start_ai_task_publisher()
-        logger.emit_event(LogLevel.INFO, message="✅ AI任务 Publisher 启动成功")
+        await start_thumbnail_task_publisher()
+        logger.emit_event(LogLevel.INFO, message="✅ 影像任务 Publisher 启动成功")
     except Exception as e:
         # Upload completion remains durable in MySQL and can be re-enqueued.
-        logger.emit_event(LogLevel.ERROR, message=f"❌ AI任务 Publisher 启动失败: {e}")
+        logger.emit_event(
+            LogLevel.ERROR, message=f"❌ 影像任务 Publisher 启动失败: {e}"
+        )
 
     # 这里可以添加其他启动时的初始化工作
     # 例如：缓存预热、AI模型加载等
@@ -117,6 +122,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 清理数据库连接
     try:
         await stop_ai_task_publisher()
+        await stop_thumbnail_task_publisher()
         await stop_ai_measurement_client()
         await storage_service_client.stop()
         logger.emit_event(LogLevel.INFO, message="✅ 内部HTTP客户端已关闭")

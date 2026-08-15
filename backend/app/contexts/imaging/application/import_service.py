@@ -46,6 +46,7 @@ from .ports import (
     ImageImportRepository,
     ObjectStorage,
 )
+from .thumbnail_scheduling_service import ThumbnailSchedulingService
 from .visibility_service import ImageVisibilityApplicationService
 
 
@@ -65,12 +66,14 @@ class ImageImportService:
         visibility: ImageVisibilityApplicationService,
         storage: ObjectStorage,
         publisher: AiTaskPublisher,
+        thumbnails: ThumbnailSchedulingService,
         configuration: ImportConfiguration,
     ) -> None:
         self._repository = repository
         self._visibility = visibility
         self._storage = storage
         self._publisher = publisher
+        self._thumbnails = thumbnails
         self.configuration = configuration
 
     def create_batch(
@@ -212,11 +215,13 @@ class ImageImportService:
             )
             self._repository.refresh_batch_status(batch)
             event = self._repository.ai_task_event(task, item, batch)
+            thumbnail_event = self._thumbnails.prepare(image)
             self._repository.commit()
         except Exception:
             self._repository.rollback()
             raise
 
+        await self._thumbnails.publish_after_commit(thumbnail_event)
         message = "影像上传完成，AI任务已提交"
         try:
             await self._publisher.publish(event)

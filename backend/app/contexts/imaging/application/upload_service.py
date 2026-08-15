@@ -32,6 +32,7 @@ from app.contexts.imaging.domain import (
 )
 
 from .ports import ImageFileRecord, ObjectStorage, UploadRepository
+from .thumbnail_scheduling_service import ThumbnailSchedulingService
 from .visibility_service import ImageVisibilityApplicationService
 
 
@@ -48,11 +49,13 @@ class ImageUploadService:
         repository: UploadRepository,
         visibility: ImageVisibilityApplicationService,
         storage: ObjectStorage,
+        thumbnails: ThumbnailSchedulingService,
         configuration: UploadConfiguration,
     ) -> None:
         self._repository = repository
         self._visibility = visibility
         self._storage = storage
+        self._thumbnails = thumbnails
         self._configuration = configuration
 
     async def create_session(
@@ -159,6 +162,7 @@ class ImageUploadService:
             image.status = ImageFileStatusEnum.UPLOADED
             image.upload_progress = 100
             image.uploaded_at = datetime.now()
+            thumbnail_event = self._thumbnails.prepare(image)
             self._repository.commit()
             self._repository.refresh(image)
         except InvalidImageOperationError:
@@ -166,6 +170,7 @@ class ImageUploadService:
         except Exception:
             self._repository.rollback()
             raise
+        await self._thumbnails.publish_after_commit(thumbnail_event)
         return self._status(image)
 
     def get_status(

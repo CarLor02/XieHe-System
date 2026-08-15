@@ -14,10 +14,15 @@ from .image_visibility_repository import ImageVisibilityRepository
 from .object_storage import ObjectStorage
 from .records import (
     AiTaskRecord,
+    ImageFileDerivativeRecord,
     ImageFileRecord,
     ImageImportBatchRecord,
     ImageImportItemRecord,
 )
+from .thumbnail_generation import ThumbnailGenerationGateway
+from .thumbnail_scheduling_repository import ThumbnailSchedulingRepository
+from .thumbnail_task_publisher import ThumbnailTaskPublisher
+from .thumbnail_task_repository import ThumbnailTaskRepository
 from .upload_repository import UploadRepository
 
 __all__ = [
@@ -31,6 +36,7 @@ __all__ = [
     "ImageAccessScopeResolver",
     "ImageFileRepository",
     "ImageFileRecord",
+    "ImageFileDerivativeRecord",
     "ImageImportBatchRecord",
     "ImageImportItemRecord",
     "ImageImportRepository",
@@ -38,5 +44,9 @@ __all__ = [
     "ImageStatisticsRepository",
     "ImageVisibilityRepository",
     "ObjectStorage",
+    "ThumbnailGenerationGateway",
+    "ThumbnailSchedulingRepository",
+    "ThumbnailTaskPublisher",
+    "ThumbnailTaskRepository",
     "UploadRepository",
 ]

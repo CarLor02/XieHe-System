@@ -11,6 +11,7 @@ class ObjectOwnerKind(StrEnum):
     """Business owner whose stored object is awaiting physical deletion."""
 
     IMAGE_FILE = "image_file"
+    IMAGE_FILE_DERIVATIVE = "image_file_derivative"
     USER_AVATAR = "user_avatar"
 
 

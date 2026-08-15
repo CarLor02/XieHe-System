@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from app.contexts.access_control.infrastructure.persistence.models import User
 from app.contexts.imaging.application import ImageFileCommandService
 from app.contexts.imaging.application.dto import (
     ImageContentReplacement,
@@ -16,9 +17,12 @@ from app.contexts.imaging.domain import (
     ImageFileTypeEnum,
 )
 from app.contexts.imaging.infrastructure.persistence import ImageFile
+from app.contexts.teams.infrastructure.persistence.models import Team
 
 
 def make_image() -> ImageFile:
+    # Register relationship targets before directly constructing an ORM image in isolation.
+    _ = (User, Team)
     return ImageFile(
         id=301,
         file_uuid="file-301",
@@ -149,6 +153,20 @@ class FakeStorage:
         return ObjectWriteResult(etag="new-etag")
 
 
+class FakeThumbnailSchedulingService:
+    def __init__(self) -> None:
+        self.prepared: list[ImageFile] = []
+        self.published: list[object] = []
+
+    def prepare(self, image: ImageFile) -> object:
+        self.prepared.append(image)
+        return object()
+
+    async def publish_after_commit(self, event: object) -> bool:
+        self.published.append(event)
+        return True
+
+
 @pytest.mark.asyncio
 async def test_replace_image_content_keeps_id_and_clears_annotations() -> None:
     uploaded_bytes = b"edited-image"
@@ -156,11 +174,13 @@ async def test_replace_image_content_keeps_id_and_clears_annotations() -> None:
     repository = FakeRepository(image)
     annotation = FakeAnnotationService()
     storage = FakeStorage()
+    thumbnails = FakeThumbnailSchedulingService()
     service = ImageFileCommandService(
         repository,
         FakeVisibility(image),
         annotation,
         storage,
+        thumbnails,  # type: ignore[arg-type]
     )
 
     result = await service.replace_content(
@@ -180,7 +200,8 @@ async def test_replace_image_content_keeps_id_and_clears_annotations() -> None:
     assert detail.summary.object_key == "file-301/original.png"
     assert detail.summary.file_size == len(uploaded_bytes)
     assert detail.summary.storage_etag == "new-etag"
-    assert detail.summary.thumbnail_path is None
+    # Legacy filesystem metadata is retained but no longer drives card previews.
+    assert detail.summary.thumbnail_path == "file-301/thumb.png"
     assert detail.summary.description == "侧位X光片"
     assert detail.annotation == {
         "schemaVersion": 1,
@@ -200,7 +221,9 @@ async def test_replace_image_content_keeps_id_and_clears_annotations() -> None:
     ]
     assert image.id == 301
     assert image.file_hash is None
-    assert image.thumbnail_path is None
+    assert image.thumbnail_path == "file-301/thumb.png"
     assert annotation.calls[0]["reason"].value == "CONTENT_REPLACEMENT"
     assert annotation.calls[0]["force_revision"] is True
     assert repository.committed
+    assert thumbnails.prepared == [image]
+    assert len(thumbnails.published) == 1

@@ -31,6 +31,11 @@ from .storage import (
     PresignedPart,
     StoredObject,
 )
+from .thumbnails import (
+    ThumbnailGenerationResult,
+    ThumbnailGenerationSource,
+    ThumbnailTaskEvent,
+)
 from .uploads import (
     AiImageReference,
     AiTaskEvent,
@@ -84,6 +89,9 @@ __all__ = [
     "PresignedPart",
     "RecentImage",
     "StoredObject",
+    "ThumbnailGenerationResult",
+    "ThumbnailGenerationSource",
+    "ThumbnailTaskEvent",
     "UploadFileSpec",
     "UploadRecord",
     "UploadSession",

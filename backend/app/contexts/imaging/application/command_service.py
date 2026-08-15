@@ -27,6 +27,7 @@ from app.contexts.imaging.domain import (
 
 from .annotation_service import AnnotationApplicationService
 from .ports import ImageFileRecord, ImageFileRepository, ObjectStorage
+from .thumbnail_scheduling_service import ThumbnailSchedulingService
 from .visibility_service import ImageVisibilityApplicationService
 
 
@@ -37,11 +38,13 @@ class ImageFileCommandService:
         visibility: ImageVisibilityApplicationService,
         annotation_service: AnnotationApplicationService,
         storage: ObjectStorage,
+        thumbnails: ThumbnailSchedulingService,
     ) -> None:
         self._repository = repository
         self._visibility = visibility
         self._annotation_service = annotation_service
         self._storage = storage
+        self._thumbnails = thumbnails
 
     def delete(self, image_file_id: int, actor: ImageAccessActor) -> int:
         image = self._repository.get_active(image_file_id)
@@ -194,7 +197,6 @@ class ImageFileCommandService:
             image.file_size = len(replacement.content)
             image.file_hash = None
             image.storage_etag = upload.etag
-            image.thumbnail_path = None
             self._apply_info(
                 image,
                 actor,
@@ -213,11 +215,13 @@ class ImageFileCommandService:
                 reason=AnnotationMutationReason.CONTENT_REPLACEMENT,
                 force_revision=True,
             )
+            thumbnail_event = self._thumbnails.prepare(image)
             self._repository.commit()
             self._repository.refresh(image)
         except Exception:
             self._repository.rollback()
             raise
+        await self._thumbnails.publish_after_commit(thumbnail_event)
         return ImageMutationResult(self._repository.get_detail(image))
 
     def _visible_image(

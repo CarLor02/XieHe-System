@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, BinaryIO, Dict, Iterable, Optional
 from urllib.parse import quote
 
 import httpx
@@ -196,6 +196,34 @@ class StorageServiceClient:
             content=data,
             headers={"Content-Type": content_type},
         )
+
+    async def download_object_to(
+        self,
+        *,
+        bucket: str,
+        object_key: str,
+        destination: BinaryIO,
+    ) -> None:
+        """Stream an internal object into a file-like sink without buffering it all."""
+
+        await self.start()
+        assert self._client is not None
+        safe_bucket = quote(bucket, safe="")
+        safe_object_key = quote(object_key, safe="/")
+        path = f"/objects/{safe_bucket}/{safe_object_key}"
+        async with self._client.stream(
+            "GET",
+            f"{self.base_url}{path}",
+            headers=self.headers,
+        ) as response:
+            if response.status_code >= 400:
+                await response.aread()
+                raise StorageServiceError(
+                    f"storage service GET {path} failed: "
+                    f"{response.status_code} {response.text}"
+                )
+            async for chunk in response.aiter_bytes():
+                destination.write(chunk)
 
 
 storage_service_client = StorageServiceClient()

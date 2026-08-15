@@ -46,6 +46,27 @@ class ImageFileRecord(Protocol):
     deleted_by: int | None
 
 
+class ImageFileDerivativeRecord(Protocol):
+    id: int
+    image_file_id: int
+    variant: str
+    source_storage_etag: str | None
+    storage_bucket: str | None
+    object_key: str | None
+    storage_etag: str | None
+    mime_type: str | None
+    width: int | None
+    height: int | None
+    file_size: int | None
+    status: str
+    retry_count: int
+    last_error: str | None
+    next_retry_at: datetime | None
+    lease_expires_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class ImageImportBatchRecord(Protocol):
     id: int
     batch_id: str

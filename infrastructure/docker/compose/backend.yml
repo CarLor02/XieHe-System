@@ -53,6 +53,7 @@ services:
       BATCH_IMPORT_MAX_FILES: ${BATCH_IMPORT_MAX_FILES:-200}
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
       AI_TASK_KAFKA_TOPIC: ${AI_TASK_KAFKA_TOPIC:-medical.image-ai.predict.v1}
+      THUMBNAIL_TASK_KAFKA_TOPIC: ${THUMBNAIL_TASK_KAFKA_TOPIC:-medical.image-thumbnail.generate.v1}
       BATCH_PRESIGN_CONCURRENCY_LIMIT: ${BATCH_PRESIGN_CONCURRENCY_LIMIT:-100}
       IMAGE_FILE_BUCKET: ${IMAGE_FILE_BUCKET:-medical-image-files}
       USER_AVATAR_BUCKET: ${USER_AVATAR_BUCKET:-medical-user-avatars}
@@ -115,6 +116,48 @@ services:
       no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,redis,redis-cache,minio,kafka,storage-service,logging-service,backend,medical_mysql,medical_redis,medical_redis_cache,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend
     depends_on:
       backend:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    networks:
+      - medical_network
+
+  thumbnail-worker:
+    image: xiehe-medical-backend:local
+    pull_policy: never
+    container_name: medical_thumbnail_worker
+    restart: unless-stopped
+    entrypoint: ['python', '-m', 'app.contexts.imaging.interface.thumbnail_worker']
+    healthcheck:
+      disable: true
+    environment:
+      PYTHONPATH: ${PYTHONPATH}
+      ENVIRONMENT: ${ENVIRONMENT}
+      DATABASE_URL: ${DATABASE_URL}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      LOGGING_SERVICE_URL: ${LOGGING_SERVICE_URL:-http://logging-service:8091}
+      LOGGING_SERVICE_TOKEN: ${LOGGING_SERVICE_TOKEN:-dev-logging-service-token}
+      STORAGE_SERVICE_URL: ${STORAGE_SERVICE_URL:-http://storage-service:8090}
+      STORAGE_SERVICE_TOKEN: ${STORAGE_SERVICE_TOKEN:-dev-storage-service-token}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      THUMBNAIL_TASK_KAFKA_TOPIC: ${THUMBNAIL_TASK_KAFKA_TOPIC:-medical.image-thumbnail.generate.v1}
+      THUMBNAIL_TASK_KAFKA_GROUP_ID: ${THUMBNAIL_TASK_KAFKA_GROUP_ID:-medical-image-thumbnail-worker-v1}
+      THUMBNAIL_WORKER_CONCURRENCY: ${THUMBNAIL_WORKER_CONCURRENCY:-2}
+      THUMBNAIL_MAX_RETRIES: ${THUMBNAIL_MAX_RETRIES:-5}
+      THUMBNAIL_REQUEUE_INTERVAL_SECONDS: ${THUMBNAIL_REQUEUE_INTERVAL_SECONDS:-60}
+      THUMBNAIL_PROCESSING_LEASE_SECONDS: ${THUMBNAIL_PROCESSING_LEASE_SECONDS:-300}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1},mysql,minio,kafka,storage-service,logging-service,backend,medical_mysql,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend
+      no_proxy: ${no_proxy:-localhost,127.0.0.1,::1},mysql,minio,kafka,storage-service,logging-service,backend,medical_mysql,medical_minio,medical_kafka,medical_storage_service,medical_logging_service,medical_backend
+    depends_on:
+      backend:
+        condition: service_healthy
+      storage-service:
         condition: service_healthy
       kafka:
         condition: service_healthy

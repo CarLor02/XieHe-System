@@ -13,9 +13,11 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import func
@@ -61,7 +63,7 @@ class ImageFile(Base):
     )
     file_hash: Mapped[typing.Any] = Column(String(64), comment="文件MD5哈希值")
 
-    # 缩略图信息
+    # 历史文件系统缩略图路径。新对象存储链路只写 image_file_derivatives。
     thumbnail_path: Mapped[typing.Any] = Column(String(500), comment="缩略图路径")
 
     # 关联信息
@@ -187,3 +189,49 @@ class ImageFileTeamVisibility(Base):
         "ImageFile", back_populates="team_visibilities"
     )
     team: Mapped[Team] = relationship("Team")
+
+
+class ImageFileDerivative(Base):
+    """原影像的版本化派生对象；首个变体用于影像中心卡片缩略图。"""
+
+    __tablename__ = "image_file_derivatives"
+
+    id: Mapped[int] = Column(BigInteger, primary_key=True, autoincrement=True)
+    image_file_id: Mapped[int] = Column(
+        Integer,
+        ForeignKey("image_files.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    variant: Mapped[str] = Column(String(32), nullable=False)
+    source_storage_etag: Mapped[str | None] = Column(String(128))
+    storage_bucket: Mapped[str | None] = Column(String(128))
+    object_key: Mapped[str | None] = Column(String(500))
+    storage_etag: Mapped[str | None] = Column(String(128))
+    mime_type: Mapped[str | None] = Column(String(100))
+    width: Mapped[int | None] = Column(Integer)
+    height: Mapped[int | None] = Column(Integer)
+    file_size: Mapped[int | None] = Column(BigInteger)
+    status: Mapped[str] = Column(String(16), nullable=False)
+    retry_count: Mapped[int] = Column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = Column(Text)
+    next_retry_at: Mapped[datetime_types.datetime | None] = Column(DateTime)
+    lease_expires_at: Mapped[datetime_types.datetime | None] = Column(DateTime)
+    created_at: Mapped[datetime_types.datetime] = Column(
+        DateTime, nullable=False, default=func.now()
+    )
+    updated_at: Mapped[datetime_types.datetime] = Column(
+        DateTime, nullable=False, default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "image_file_id",
+            "variant",
+            name="uq_image_file_derivative_variant",
+        ),
+        Index(
+            "idx_image_file_derivatives_retry",
+            "status",
+            "next_retry_at",
+        ),
+    )
