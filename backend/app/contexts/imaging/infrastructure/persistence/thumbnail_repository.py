@@ -101,6 +101,28 @@ class SqlAlchemyThumbnailSchedulingRepository:
         self._session.rollback()
 
 
+class SqlAlchemyThumbnailQueryRepository:
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def list_card_thumbnails(
+        self, image_file_ids: list[int]
+    ) -> dict[int, ImageFileDerivativeRecord]:
+        derivatives = (
+            self._session.query(ImageFileDerivative)
+            .filter(
+                ImageFileDerivative.image_file_id.in_(image_file_ids),
+                ImageFileDerivative.variant
+                == ImageDerivativeVariant.CARD_THUMBNAIL.value,
+            )
+            .all()
+        )
+        return {
+            derivative.image_file_id: cast(ImageFileDerivativeRecord, derivative)
+            for derivative in derivatives
+        }
+
+
 class SqlAlchemyThumbnailTaskRepository:
     """Short-lived sessions isolate Worker claims from image API transactions."""
 

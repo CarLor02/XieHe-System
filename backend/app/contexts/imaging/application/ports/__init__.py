@@ -20,6 +20,7 @@ from .records import (
     ImageImportItemRecord,
 )
 from .thumbnail_generation import ThumbnailGenerationGateway
+from .thumbnail_query_repository import ThumbnailQueryRepository
 from .thumbnail_scheduling_repository import ThumbnailSchedulingRepository
 from .thumbnail_task_publisher import ThumbnailTaskPublisher
 from .thumbnail_task_repository import ThumbnailTaskRepository
@@ -45,6 +46,7 @@ __all__ = [
     "ImageVisibilityRepository",
     "ObjectStorage",
     "ThumbnailGenerationGateway",
+    "ThumbnailQueryRepository",
     "ThumbnailSchedulingRepository",
     "ThumbnailTaskPublisher",
     "ThumbnailTaskRepository",

@@ -10,6 +10,7 @@ import {
   getImageFileDownloadUrl,
   getImageFileDownloadUrls,
   type ImageFile,
+  type ImageAccessVariant,
   type ImageFileDownloadUrl,
   type ImageFileDownloadUrlError,
   type ImageFileDownloadUrlsResponse,
@@ -21,13 +22,17 @@ export type ImageFileAccessUrlLoader = (
 
 const accessUrlCache = createImageAccessUrlCache();
 
-function toAccessIdentity(file: ImageFile): ImageAccessIdentity {
+function toAccessIdentity(
+  file: ImageFile,
+  variant: ImageAccessVariant
+): ImageAccessIdentity {
   return {
     id: file.id,
     fileUuid: file.file_uuid,
     storageEtag: file.storage_etag,
     storageBucket: file.storage_bucket,
     objectKey: file.object_key,
+    variant,
   };
 }
 
@@ -39,6 +44,9 @@ function toCoreAccessUrl(download: ImageFileDownloadUrl): ImageAccessUrl {
     etag: download.etag,
     filename: download.filename,
     mimeType: download.mime_type,
+    width: download.width,
+    height: download.height,
+    fileSize: download.file_size,
   };
 }
 
@@ -50,6 +58,9 @@ function toApiAccessUrl(download: ImageAccessUrl): ImageFileDownloadUrl {
     etag: download.etag ?? undefined,
     filename: download.filename ?? undefined,
     mime_type: download.mimeType ?? undefined,
+    width: download.width ?? undefined,
+    height: download.height ?? undefined,
+    file_size: download.fileSize ?? undefined,
   };
 }
 
@@ -70,7 +81,7 @@ export async function getImageFileAccessUrl(
 ): Promise<string> {
   const loader = options.loader ?? getImageFileDownloadUrl;
   return resolveImageAccessUrl({
-    file: toAccessIdentity(file),
+    file: toAccessIdentity(file, 'original'),
     cache: accessUrlCache,
     forceRefresh: options.forceRefresh,
     load: async fileId => toCoreAccessUrl(await loader(fileId)),
@@ -82,15 +93,18 @@ export async function getImageFileAccessUrls(
   options: {
     forceRefreshIds?: Set<number>;
     signal?: AbortSignal;
+    variant?: ImageAccessVariant;
   } = {}
 ): Promise<ImageFileDownloadUrlsResponse> {
+  const variant = options.variant ?? 'original';
   const result = await resolveImageAccessUrls<ImageFileDownloadUrlError>({
-    files: files.map(toAccessIdentity),
+    files: files.map(file => toAccessIdentity(file, variant)),
     cache: accessUrlCache,
     forceRefreshIds: options.forceRefreshIds,
     loadMany: async ids => {
       const response = await getImageFileDownloadUrls(ids, {
         signal: options.signal,
+        variant,
       });
       return {
         items: Object.fromEntries(

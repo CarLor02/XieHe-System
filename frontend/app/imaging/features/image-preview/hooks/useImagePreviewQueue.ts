@@ -6,6 +6,7 @@ import {
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 import { createLogger } from '@/lib/logger';
 import {
+  getThumbnailPendingRetryDelay,
   planPreviewRenderFailure,
   shouldRetryPreviewBatchRequest,
 } from '@xiehe/imaging-core/image-files';
@@ -249,14 +250,31 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
     }, PREVIEW_REQUEST_TIMEOUT_MS);
 
     const loadPreviews = async () => {
-      for (let attempt = 1; attempt <= PREVIEW_RETRY_ATTEMPTS; attempt += 1) {
+      let filesToRequest = pendingFiles;
+      let networkAttempt = 1;
+      let completedPendingRetries = 0;
+
+      const markFallback = (files: ImageFile[]) => {
+        const nextStates = { ...previewStatesRef.current };
+        for (const file of files) {
+          nextStates[file.id] = 'fallback';
+          activeDownloadIdsRef.current.delete(file.id);
+          completedDownloadIdsRef.current.add(file.id);
+        }
+        previewStatesRef.current = nextStates;
+        setPreviewStates(nextStates);
+        schedulePreviewDownloads();
+      };
+
+      while (filesToRequest.length > 0) {
         if (previewQueueVersionRef.current !== queueVersion) return;
 
         try {
           const forceRefreshIds = new Set(previewForceRefreshIdsRef.current);
-          const result = await getImageFileAccessUrls(pendingFiles, {
+          const result = await getImageFileAccessUrls(filesToRequest, {
             forceRefreshIds,
             signal: controller.signal,
+            variant: 'thumbnail',
           });
 
           if (previewQueueVersionRef.current !== queueVersion) return;
@@ -291,17 +309,37 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
             // presigned URL is valid but the object is missing in MinIO.
             previewForceRefreshIdsRef.current.delete(fileId);
           }
-          for (const idString of Object.keys(result.errors)) {
+          const fileById = new Map(
+            filesToRequest.map(file => [file.id, file] as const)
+          );
+          const pendingRetryFiles: ImageFile[] = [];
+          for (const [idString, error] of Object.entries(result.errors)) {
             const fileId = Number(idString);
-            nextStates[fileId] = 'fallback';
-            if (activeDownloadIdsRef.current.delete(fileId)) {
-              completedDownloadIdsRef.current.add(fileId);
+            if (error.code === 'thumbnail_not_ready') {
+              const file = fileById.get(fileId);
+              if (file) pendingRetryFiles.push(file);
+              continue;
             }
+            nextStates[fileId] = 'fallback';
+            activeDownloadIdsRef.current.delete(fileId);
+            completedDownloadIdsRef.current.add(fileId);
           }
           previewStatesRef.current = nextStates;
           setPreviewStates(nextStates);
           schedulePreviewDownloads();
-          return;
+          networkAttempt = 1;
+
+          if (pendingRetryFiles.length === 0) return;
+          const retryDelay = getThumbnailPendingRetryDelay(
+            completedPendingRetries
+          );
+          if (retryDelay === null) {
+            markFallback(pendingRetryFiles);
+            return;
+          }
+          completedPendingRetries += 1;
+          filesToRequest = pendingRetryFiles;
+          await delay(retryDelay);
         } catch (error) {
           if (
             controller.signal.aborted ||
@@ -312,28 +350,20 @@ export function useImagePreviewQueue(imageFiles: ImageFile[]) {
           }
 
           const shouldRetry = shouldRetryPreviewBatchRequest(
-            attempt,
+            networkAttempt,
             PREVIEW_RETRY_ATTEMPTS
           );
           logger.warn(
-            `Preview URL batch load attempt ${attempt}/${PREVIEW_RETRY_ATTEMPTS} failed:`,
+            `Preview URL batch load attempt ${networkAttempt}/${PREVIEW_RETRY_ATTEMPTS} failed:`,
             error
           );
 
           if (!shouldRetry) {
-            const nextStates = { ...previewStatesRef.current };
-            for (const file of pendingFiles) {
-              nextStates[file.id] = 'fallback';
-              if (activeDownloadIdsRef.current.delete(file.id)) {
-                completedDownloadIdsRef.current.add(file.id);
-              }
-            }
-            previewStatesRef.current = nextStates;
-            setPreviewStates(nextStates);
-            schedulePreviewDownloads();
+            markFallback(filesToRequest);
             return;
           }
 
+          networkAttempt += 1;
           await delay(PREVIEW_RETRY_DELAY_MS);
         }
       }

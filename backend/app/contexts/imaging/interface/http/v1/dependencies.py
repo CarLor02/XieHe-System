@@ -30,6 +30,7 @@ from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyImageQueryRepository,
     SqlAlchemyImageStatisticsRepository,
     SqlAlchemyImageVisibilityRepository,
+    SqlAlchemyThumbnailQueryRepository,
     SqlAlchemyThumbnailSchedulingRepository,
     SqlAlchemyUploadRepository,
 )
@@ -90,6 +91,7 @@ def get_image_delivery_service(
     return ImageDeliveryService(
         SqlAlchemyImageFileRepository(db),
         build_image_visibility_service(db),
+        SqlAlchemyThumbnailQueryRepository(db),
         StorageServiceObjectStorage(),
         expires_in=settings.STORAGE_PRESIGN_EXPIRES_SECONDS,
     )

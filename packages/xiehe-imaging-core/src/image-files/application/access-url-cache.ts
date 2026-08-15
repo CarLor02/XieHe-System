@@ -4,6 +4,7 @@ export interface ImageAccessIdentity {
   storageEtag?: string | null;
   storageBucket?: string | null;
   objectKey?: string | null;
+  variant?: 'original' | 'thumbnail';
 }
 
 export interface ImageAccessUrl {
@@ -13,6 +14,9 @@ export interface ImageAccessUrl {
   etag?: string | null;
   filename?: string | null;
   mimeType?: string | null;
+  width?: number | null;
+  height?: number | null;
+  fileSize?: number | null;
 }
 
 interface CachedImageAccessUrl {
@@ -21,6 +25,9 @@ interface CachedImageAccessUrl {
   etag?: string;
   filename?: string;
   mimeType?: string;
+  width?: number;
+  height?: number;
+  fileSize?: number;
 }
 
 export interface ImageAccessUrlCache {
@@ -39,7 +46,7 @@ function getFileVersion(file: ImageAccessIdentity): string {
 }
 
 function getCacheKey(file: ImageAccessIdentity): string {
-  return `${file.id}:${getFileVersion(file)}`;
+  return `${file.id}:${file.variant ?? 'original'}:${getFileVersion(file)}`;
 }
 
 export function createImageAccessUrlCache(
@@ -63,6 +70,9 @@ export function createImageAccessUrlCache(
         etag: entry.etag,
         filename: entry.filename,
         mimeType: entry.mimeType,
+        width: entry.width,
+        height: entry.height,
+        fileSize: entry.fileSize,
       };
     },
     set(file, access) {
@@ -77,6 +87,9 @@ export function createImageAccessUrlCache(
         etag: access.etag ?? file.storageEtag ?? undefined,
         filename: access.filename ?? undefined,
         mimeType: access.mimeType ?? undefined,
+        width: access.width ?? undefined,
+        height: access.height ?? undefined,
+        fileSize: access.fileSize ?? undefined,
       });
     },
     clear() {

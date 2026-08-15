@@ -5,6 +5,7 @@ import type {
   AnnotationSaveResult,
   BatchUpdateImageExamTypeResult,
   ImageAnnotationBatchItem,
+  ImageAccessVariant,
   ImageFile,
   ImageFileDetail,
   ImageFileDownloadUrl,
@@ -16,6 +17,7 @@ import type {
 } from '@xiehe/api-contracts';
 
 export type {
+  ImageAccessVariant,
   AnnotationSaveResult,
   BatchUpdateImageExamTypeResult,
   ImageAnnotationBatchItem,
@@ -104,7 +106,7 @@ export function getImageFileDownloadUrl(
 
 export function getImageFileDownloadUrls(
   ids: number[],
-  options: { signal?: AbortSignal; variant?: 'original' } = {}
+  options: { signal?: AbortSignal; variant?: ImageAccessVariant } = {}
 ): Promise<ImageFileDownloadUrlsResponse> {
   return apiSdk.imaging.getDownloadUrls(ids, options);
 }

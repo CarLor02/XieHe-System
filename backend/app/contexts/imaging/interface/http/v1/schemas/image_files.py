@@ -118,7 +118,7 @@ class BatchDownloadUrlsRequest(BaseModel):
         max_length=100,
         description="影像文件ID列表",
     )
-    variant: Literal["original"] = Field(
+    variant: Literal["original", "thumbnail"] = Field(
         default="original",
         description="访问对象类型",
     )

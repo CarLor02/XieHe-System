@@ -10,11 +10,20 @@ from app.contexts.imaging.application import (
     ImageDeliveryService,
     ImageVisibilityApplicationService,
 )
-from app.contexts.imaging.domain import ImageFileStatusEnum, ImageFileTypeEnum
-from app.contexts.imaging.infrastructure.persistence import ImageFile
+from app.contexts.imaging.domain import (
+    ImageDerivativeStatus,
+    ImageDerivativeVariant,
+    ImageFileStatusEnum,
+    ImageFileTypeEnum,
+)
+from app.contexts.imaging.infrastructure.persistence import (
+    ImageFile,
+    ImageFileDerivative,
+)
 from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyImageFileRepository,
     SqlAlchemyImageVisibilityRepository,
+    SqlAlchemyThumbnailQueryRepository,
 )
 from app.contexts.imaging.interface.http.v1.dependencies import (
     build_imaging_query_service,
@@ -60,6 +69,7 @@ def delivery_service(db_session: Session, storage: FakeStorage) -> ImageDelivery
     return ImageDeliveryService(
         SqlAlchemyImageFileRepository(db_session),
         visibility,
+        SqlAlchemyThumbnailQueryRepository(db_session),
         storage,
         expires_in=900,
     )
@@ -102,6 +112,33 @@ def image_file_download_url_data(db_session: Session) -> None:
             make_image(102, "ready-b.png", 21, ImageFileStatusEnum.PROCESSED),
             make_image(103, "uploading.png", 21, ImageFileStatusEnum.UPLOADING),
             make_image(104, "other.png", 22, ImageFileStatusEnum.UPLOADED),
+        ]
+    )
+    db_session.flush()
+    db_session.add_all(
+        [
+            ImageFileDerivative(
+                image_file_id=101,
+                variant=ImageDerivativeVariant.CARD_THUMBNAIL.value,
+                source_storage_etag="etag-101",
+                storage_bucket="medical-image-files",
+                object_key="file-101/derivatives/card-thumbnail/thumb.webp",
+                storage_etag="thumb-etag-101",
+                mime_type="image/webp",
+                width=480,
+                height=720,
+                file_size=1024,
+                status=ImageDerivativeStatus.READY.value,
+                retry_count=0,
+            ),
+            ImageFileDerivative(
+                image_file_id=102,
+                variant=ImageDerivativeVariant.CARD_THUMBNAIL.value,
+                source_storage_etag="etag-102",
+                storage_bucket="medical-image-files",
+                status=ImageDerivativeStatus.PENDING.value,
+                retry_count=0,
+            ),
         ]
     )
     db_session.commit()
@@ -183,6 +220,37 @@ async def test_single_download_url_sets_private_cache_headers(
     assert data["etag"] == "etag-101"
     assert response.headers["Cache-Control"] == "private, max-age=840"
     assert response.headers["Vary"] == "Authorization"
+
+
+@pytest.mark.asyncio
+async def test_thumbnail_variant_is_isolated_per_id_without_original_fallback(
+    db_session: Session,
+    image_file_download_url_data: None,
+) -> None:
+    storage = FakeStorage()
+
+    result = await get_image_file_download_urls(
+        BatchDownloadUrlsRequest(ids=[101, 102, 103], variant="thumbnail"),
+        response=Response(),
+        current_user={"id": 21},
+        service=delivery_service(db_session, storage),
+        _slot=None,
+    )
+
+    data = response_data(result)
+    assert data["items"][101]["mime_type"] == "image/webp"
+    assert data["items"][101]["width"] == 480
+    assert data["items"][101]["height"] == 720
+    assert data["items"][101]["file_size"] == 1024
+    assert data["errors"][102]["code"] == "thumbnail_not_ready"
+    assert data["errors"][103]["code"] == "thumbnail_not_ready"
+    assert storage.presigned_calls == [
+        (
+            "medical-image-files",
+            "file-101/derivatives/card-thumbnail/thumb.webp",
+            900,
+        )
+    ]
 
 
 @pytest.mark.asyncio

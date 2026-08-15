@@ -85,6 +85,10 @@ describe('useImagePreviewQueue', () => {
     await waitFor(() => {
       expect(mockedApiPost).toHaveBeenCalledTimes(1);
     });
+    expect(mockedApiPost.mock.calls[0]?.[1]).toEqual({
+      ids: [1],
+      variant: 'thumbnail',
+    });
     await waitFor(() => {
       const latestValue = observedValues.at(-1);
       expect(latestValue?.imageUrls[1]).toBe(
@@ -155,6 +159,53 @@ describe('useImagePreviewQueue', () => {
         '5',
         '6',
       ]);
+    });
+  });
+
+  it('retries a pending thumbnail without requesting the original image', async () => {
+    mockedApiPost
+      .mockResolvedValueOnce({
+        items: {},
+        errors: {
+          1: {
+            code: 'thumbnail_not_ready',
+            message: 'pending',
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        items: {
+          1: {
+            url: '/medical-image-files/thumb.webp?sig=2',
+            expires_in: 900,
+            etag: 'thumb-etag-1',
+          },
+        },
+        errors: {},
+      });
+    const observedValues: ReturnType<typeof useImagePreviewQueue>[] = [];
+
+    render(
+      <PreviewQueueHarness
+        files={[makeImageFile(1)]}
+        onValue={value => observedValues.push(value)}
+      />
+    );
+
+    await waitFor(
+      () => {
+        expect(mockedApiPost).toHaveBeenCalledTimes(2);
+      },
+      { timeout: 2_500 }
+    );
+    expect(mockedApiPost.mock.calls.map(call => call[1])).toEqual([
+      { ids: [1], variant: 'thumbnail' },
+      { ids: [1], variant: 'thumbnail' },
+    ]);
+    await waitFor(() => {
+      expect(observedValues.at(-1)?.imageUrls[1]).toBe(
+        '/medical-image-files/thumb.webp?sig=2'
+      );
     });
   });
 });

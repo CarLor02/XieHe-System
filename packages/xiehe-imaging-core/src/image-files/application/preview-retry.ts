@@ -24,3 +24,14 @@ export function shouldRetryPreviewBatchRequest(
 ): boolean {
   return completedAttempt < Math.max(1, maxAttempts);
 }
+
+export const THUMBNAIL_PENDING_RETRY_DELAYS_MS = [
+  1_000, 2_000, 4_000, 8_000, 16_000,
+] as const;
+
+/** 返回下一次 pending 轮询延迟；耗尽后由界面稳定降级为占位图。 */
+export function getThumbnailPendingRetryDelay(
+  completedRetries: number
+): number | null {
+  return THUMBNAIL_PENDING_RETRY_DELAYS_MS[completedRetries] ?? null;
+}

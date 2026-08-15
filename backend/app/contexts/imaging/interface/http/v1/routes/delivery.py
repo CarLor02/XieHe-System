@@ -63,6 +63,7 @@ async def get_image_file_download_urls(
     result = await service.get_download_urls(
         request.ids,
         image_access_actor(current_user),
+        variant=request.variant,
     )
     expires_in = next(
         (item.expires_in for item in result.items.values()),

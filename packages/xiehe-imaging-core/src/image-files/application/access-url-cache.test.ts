@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   createImageAccessUrlCache,
+  getThumbnailPendingRetryDelay,
   planPreviewRenderFailure,
   resolveImageAccessUrls,
   shouldRetryPreviewBatchRequest,
@@ -46,6 +47,21 @@ describe('image access URL cache', () => {
     });
     expect(result.errors).toEqual({ 9: 'missing' });
   });
+
+  it('isolates original and thumbnail URLs while clearing both by file id', () => {
+    const cache = createImageAccessUrlCache({ now: () => 1_000_000 });
+    const original = { ...file, variant: 'original' as const };
+    const thumbnail = { ...file, variant: 'thumbnail' as const };
+    cache.set(original, { url: 'original-url', expiresIn: 120 });
+    cache.set(thumbnail, { url: 'thumbnail-url', expiresIn: 120 });
+
+    expect(cache.get(original)?.url).toBe('original-url');
+    expect(cache.get(thumbnail)?.url).toBe('thumbnail-url');
+
+    cache.clearFile(file.id);
+    expect(cache.get(original)).toBeNull();
+    expect(cache.get(thumbnail)).toBeNull();
+  });
 });
 
 describe('preview retry policy', () => {
@@ -54,5 +70,8 @@ describe('preview retry policy', () => {
     expect(planPreviewRenderFailure(1).action).toBe('fallback');
     expect(shouldRetryPreviewBatchRequest(2, 3)).toBe(true);
     expect(shouldRetryPreviewBatchRequest(3, 3)).toBe(false);
+    expect(getThumbnailPendingRetryDelay(0)).toBe(1_000);
+    expect(getThumbnailPendingRetryDelay(4)).toBe(16_000);
+    expect(getThumbnailPendingRetryDelay(5)).toBeNull();
   });
 });

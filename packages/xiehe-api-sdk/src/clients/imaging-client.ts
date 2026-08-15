@@ -120,7 +120,9 @@ export function createImagingClient(client: HttpClient) {
       ),
     getDownloadUrls: (
       ids: number[],
-      options: HttpRequestOptions & { variant?: 'original' } = {}
+      options: HttpRequestOptions & {
+        variant?: 'original' | 'thumbnail';
+      } = {}
     ) => {
       if (ids.length === 0) {
         return Promise.resolve<ImageFileDownloadUrlsResponse>({

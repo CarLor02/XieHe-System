@@ -12,6 +12,7 @@ from .image_import_repository import SqlAlchemyImageImportRepository
 from .image_query_repository import SqlAlchemyImageQueryRepository, image_summary
 from .image_statistics_repository import SqlAlchemyImageStatisticsRepository
 from .thumbnail_repository import (
+    SqlAlchemyThumbnailQueryRepository,
     SqlAlchemyThumbnailSchedulingRepository,
     SqlAlchemyThumbnailTaskRepository,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "SqlAlchemyImageVisibilityRepository",
     "SqlAlchemyUploadRepository",
     "SqlAlchemyThumbnailSchedulingRepository",
+    "SqlAlchemyThumbnailQueryRepository",
     "SqlAlchemyThumbnailTaskRepository",
     "apply_image_access_scope",
     "image_summary",

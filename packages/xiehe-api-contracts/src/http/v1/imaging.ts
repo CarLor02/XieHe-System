@@ -20,6 +20,7 @@ export type ImageFileStatus =
   | 'FAILED'
   | 'ARCHIVED'
   | 'DELETED';
+export type ImageAccessVariant = 'original' | 'thumbnail';
 
 export interface ImageFileSummary {
   id: number;
@@ -83,6 +84,9 @@ export interface ImageFileDownloadUrl {
   filename?: string;
   mime_type?: string;
   etag?: string;
+  width?: number;
+  height?: number;
+  file_size?: number;
 }
 
 export interface ImageFileDownloadUrlError {

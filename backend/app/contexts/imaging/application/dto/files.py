@@ -48,6 +48,9 @@ class DownloadUrl:
     filename: str
     mime_type: str | None
     etag: str | None
+    width: int | None = None
+    height: int | None = None
+    file_size: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
