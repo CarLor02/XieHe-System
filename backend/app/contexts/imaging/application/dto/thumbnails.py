@@ -39,3 +39,12 @@ class ThumbnailGenerationResult:
     width: int
     height: int
     file_size: int
+
+
+@dataclass(frozen=True, slots=True)
+class ThumbnailBackfillResult:
+    scanned: int
+    queued: int
+    skipped: int
+    unsupported: int
+    failed: int

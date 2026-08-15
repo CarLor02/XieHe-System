@@ -8,6 +8,7 @@ from .import_service import ImageImportService, ImportConfiguration
 from .prediction_service import ImagePredictionService
 from .query_service import ImagingQueryService
 from .selection_service import ImageSelectionService
+from .thumbnail_backfill_service import ThumbnailBackfillService
 from .thumbnail_scheduling_service import ThumbnailSchedulingService
 from .thumbnail_task_processor import (
     ThumbnailTaskProcessingOutcome,
@@ -30,6 +31,7 @@ __all__ = [
     "ImagingQueryService",
     "ImportConfiguration",
     "ThumbnailSchedulingService",
+    "ThumbnailBackfillService",
     "ThumbnailTaskProcessingOutcome",
     "ThumbnailTaskProcessor",
     "UploadConfiguration",

@@ -21,6 +21,7 @@ from app.contexts.imaging.application.ports import (
 from app.contexts.imaging.domain import (
     ImageDerivativeStatus,
     ImageDerivativeVariant,
+    ImageFileStatusEnum,
     normalize_storage_etag,
 )
 from app.shared.database import SessionLocal
@@ -43,6 +44,45 @@ class SqlAlchemyThumbnailSchedulingRepository:
 
     def __init__(self, session: Session) -> None:
         self._session = session
+
+    def list_backfill_images(
+        self,
+        *,
+        after_id: int,
+        limit: int,
+    ) -> list[ImageFileRecord]:
+        images = (
+            self._session.query(ImageFile)
+            .filter(
+                ImageFile.id > after_id,
+                ImageFile.is_deleted.is_(False),
+                ImageFile.status.in_(
+                    [ImageFileStatusEnum.UPLOADED, ImageFileStatusEnum.PROCESSED]
+                ),
+            )
+            .order_by(ImageFile.id.asc())
+            .limit(max(1, limit))
+            .all()
+        )
+        return cast(list[ImageFileRecord], images)
+
+    def has_ready_for_current_source(self, image: ImageFileRecord) -> bool:
+        source_etag = normalize_storage_etag(image.storage_etag)
+        derivative = (
+            self._session.query(ImageFileDerivative)
+            .filter(
+                ImageFileDerivative.image_file_id == image.id,
+                ImageFileDerivative.variant
+                == ImageDerivativeVariant.CARD_THUMBNAIL.value,
+                ImageFileDerivative.status == ImageDerivativeStatus.READY.value,
+            )
+            .first()
+        )
+        return bool(
+            derivative
+            and derivative.object_key
+            and normalize_storage_etag(derivative.source_storage_etag) == source_etag
+        )
 
     def upsert_pending(
         self, image: ImageFileRecord

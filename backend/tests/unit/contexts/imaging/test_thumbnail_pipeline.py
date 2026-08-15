@@ -9,6 +9,7 @@ import pytest
 from PIL import Image
 
 from app.contexts.imaging.application import (
+    ThumbnailBackfillService,
     ThumbnailTaskProcessor,
 )
 from app.contexts.imaging.application.dto import (
@@ -185,3 +186,156 @@ def test_card_thumbnail_key_is_stable_and_versioned() -> None:
     assert first == second
     assert first != changed
     assert first.startswith("uuid/derivatives/card-thumbnail/")
+
+
+@pytest.mark.asyncio
+async def test_generator_applies_exif_orientation_before_scaling() -> None:
+    original = io.BytesIO()
+    exif = Image.Exif()
+    exif[274] = 6
+    Image.new("RGB", (800, 1200), color="white").save(
+        original,
+        format="JPEG",
+        exif=exif,
+    )
+    client = FakeStorageClient(original.getvalue())
+    gateway = PillowThumbnailGenerationGateway(cast(Any, client))
+
+    result = await gateway.generate(
+        replace(_source(), file_type=ImageFileTypeEnum.JPEG)
+    )
+
+    assert (result.width, result.height) == (640, 427)
+
+
+@pytest.mark.asyncio
+async def test_generator_treats_corrupt_images_as_permanent_failures() -> None:
+    gateway = PillowThumbnailGenerationGateway(
+        cast(Any, FakeStorageClient(b"not-an-image"))
+    )
+
+    with pytest.raises(ThumbnailGenerationError) as error:
+        await gateway.generate(_source())
+
+    assert error.value.transient is False
+
+
+@pytest.mark.asyncio
+async def test_generator_uses_first_tiff_frame_and_preserves_vertical_ratio() -> None:
+    original = io.BytesIO()
+    first = Image.new("L", (600, 1200), color=80)
+    second = Image.new("L", (600, 1200), color=180)
+    first.save(
+        original,
+        format="TIFF",
+        save_all=True,
+        append_images=[second],
+    )
+    client = FakeStorageClient(original.getvalue())
+    gateway = PillowThumbnailGenerationGateway(cast(Any, client))
+
+    result = await gateway.generate(
+        replace(_source(), file_type=ImageFileTypeEnum.TIFF)
+    )
+
+    assert (result.width, result.height) == (480, 960)
+
+
+class FakeBackfillRepository:
+    def __init__(self, images: list[Any], ready_ids: set[int]) -> None:
+        self.images = images
+        self.ready_ids = ready_ids
+        self.commits = 0
+
+    def list_backfill_images(self, *, after_id: int, limit: int) -> list[Any]:
+        return [image for image in self.images if image.id > after_id][:limit]
+
+    def has_ready_for_current_source(self, image: Any) -> bool:
+        return image.id in self.ready_ids
+
+    def commit(self) -> None:
+        self.commits += 1
+
+    def rollback(self) -> None:
+        return None
+
+
+class FakeBackfillScheduling:
+    def __init__(self, *, publish_result: bool) -> None:
+        self.publish_result = publish_result
+        self.prepared: list[int] = []
+
+    def prepare(self, image: Any) -> ThumbnailTaskEvent:
+        self.prepared.append(image.id)
+        return ThumbnailTaskEvent(
+            event_type="image.thumbnail.generate.requested",
+            version=1,
+            derivative_id=image.id,
+            image_file_id=image.id,
+            source_storage_etag=image.storage_etag,
+        )
+
+    async def publish_after_commit(self, _event: ThumbnailTaskEvent) -> bool:
+        return self.publish_result
+
+
+@pytest.mark.asyncio
+async def test_backfill_dry_run_is_paginated_and_does_not_write() -> None:
+    images = [
+        cast(Any, _backfill_image(1, ImageFileTypeEnum.PNG)),
+        cast(Any, _backfill_image(2, ImageFileTypeEnum.DICOM)),
+        cast(Any, _backfill_image(3, ImageFileTypeEnum.JPEG)),
+    ]
+    repository = FakeBackfillRepository(images, ready_ids={3})
+    scheduling = FakeBackfillScheduling(publish_result=True)
+    service = ThumbnailBackfillService(
+        cast(Any, repository),
+        cast(Any, scheduling),
+    )
+
+    result = await service.run(
+        batch_size=2,
+        from_id=1,
+        limit=None,
+        dry_run=True,
+    )
+
+    assert (result.scanned, result.queued, result.skipped) == (3, 1, 1)
+    assert result.unsupported == 1
+    assert repository.commits == 0
+    assert scheduling.prepared == []
+
+
+@pytest.mark.asyncio
+async def test_backfill_keeps_pending_rows_when_publish_fails() -> None:
+    images = [cast(Any, _backfill_image(4, ImageFileTypeEnum.TIFF))]
+    repository = FakeBackfillRepository(images, ready_ids=set())
+    scheduling = FakeBackfillScheduling(publish_result=False)
+    service = ThumbnailBackfillService(
+        cast(Any, repository),
+        cast(Any, scheduling),
+    )
+
+    result = await service.run(
+        batch_size=100,
+        from_id=4,
+        limit=1,
+        dry_run=False,
+    )
+
+    assert result.failed == 1
+    assert result.queued == 0
+    assert repository.commits == 1
+    assert scheduling.prepared == [4]
+
+
+def _backfill_image(image_id: int, file_type: ImageFileTypeEnum) -> Any:
+    return type(
+        "BackfillImage",
+        (),
+        {
+            "id": image_id,
+            "file_type": file_type,
+            "storage_etag": f"etag-{image_id}",
+        },
+    )()

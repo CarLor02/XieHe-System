@@ -32,6 +32,7 @@ from .storage import (
     StoredObject,
 )
 from .thumbnails import (
+    ThumbnailBackfillResult,
     ThumbnailGenerationResult,
     ThumbnailGenerationSource,
     ThumbnailTaskEvent,
@@ -90,6 +91,7 @@ __all__ = [
     "RecentImage",
     "StoredObject",
     "ThumbnailGenerationResult",
+    "ThumbnailBackfillResult",
     "ThumbnailGenerationSource",
     "ThumbnailTaskEvent",
     "UploadFileSpec",
