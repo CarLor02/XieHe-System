@@ -20,6 +20,7 @@ from app.contexts.imaging.application.dto import (
     ObjectWriteResult,
     StoredObject,
 )
+from app.contexts.imaging.application.errors import RetryablePersistenceError
 from app.contexts.imaging.domain import (
     ImageAccessActor,
     ImageFileStatusEnum,
@@ -49,20 +50,30 @@ def _image() -> SimpleNamespace:
 
 
 class FakeStorage:
+    def __init__(self) -> None:
+        self.complete_calls = 0
+        self.stat_calls = 0
+
     async def complete_multipart_upload(self, **_kwargs: Any) -> ObjectWriteResult:
+        self.complete_calls += 1
         return ObjectWriteResult(etag="source-v1")
 
     async def stat_object(self, **_kwargs: Any) -> StoredObject:
+        self.stat_calls += 1
         return StoredObject(size=7, etag="source-v1", metadata={})
 
 
 class FakeThumbnails:
-    def __init__(self, calls: list[str]) -> None:
+    def __init__(self, calls: list[str], *, prepare_failures: int = 0) -> None:
         self.calls = calls
         self.event = object()
+        self.prepare_failures = prepare_failures
 
     def prepare(self, _image: Any) -> object:
         self.calls.append("prepare-thumbnail")
+        if self.prepare_failures:
+            self.prepare_failures -= 1
+            raise RetryablePersistenceError("deadlock")
         return self.event
 
     async def publish_after_commit(self, event: object) -> bool:
@@ -111,8 +122,50 @@ async def test_single_upload_commits_pending_before_publishing_thumbnail() -> No
         ImageAccessActor(user_id=3),
     )
 
-    assert calls == ["prepare-thumbnail", "commit", "publish-thumbnail"]
+    assert calls == [
+        "rollback",
+        "prepare-thumbnail",
+        "commit",
+        "publish-thumbnail",
+    ]
     assert image.storage_etag == "source-v1"
+
+
+@pytest.mark.asyncio
+async def test_single_upload_retries_database_without_recompleting_storage() -> None:
+    calls: list[str] = []
+    image = _image()
+    storage = FakeStorage()
+    thumbnails = FakeThumbnails(calls, prepare_failures=1)
+    service = ImageUploadService(
+        cast(Any, FakeUploadRepository(image, calls)),
+        cast(Any, object()),
+        cast(Any, storage),
+        cast(Any, thumbnails),
+        UploadConfiguration(bucket="images", part_size=5, expires_in=60),
+    )
+
+    result = await service.complete_session(
+        image.id,
+        CompleteUpload(
+            upload_id="upload-1",
+            parts=[MultipartPart(part_number=1, etag="part")],
+            file_hash=None,
+        ),
+        ImageAccessActor(user_id=3),
+    )
+
+    assert result.status == ImageFileStatusEnum.UPLOADED.value
+    assert storage.complete_calls == 1
+    assert storage.stat_calls == 1
+    assert calls == [
+        "rollback",
+        "prepare-thumbnail",
+        "rollback",
+        "prepare-thumbnail",
+        "commit",
+        "publish-thumbnail",
+    ]
 
 
 class FakeAiPublisher:
@@ -229,6 +282,62 @@ async def test_batch_import_publishes_thumbnail_after_content_commit() -> None:
     )
 
     assert calls == [
+        "rollback",
+        "prepare-thumbnail",
+        "commit",
+        "publish-thumbnail",
+        "publish-ai",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_batch_import_retries_database_without_recompleting_storage() -> None:
+    calls: list[str] = []
+    image = _image()
+    batch = SimpleNamespace(id=1, batch_id="batch-1", uploaded_by=3)
+    item = SimpleNamespace(
+        id=5,
+        image_file_id=12,
+        upload_id="upload-1",
+        upload_status=ImageImportUploadStatus.SESSION_CREATED.value,
+        ai_status=ImageImportAiStatus.PENDING.value,
+        error_message=None,
+        created_at=datetime(2026, 8, 15),
+        updated_at=datetime(2026, 8, 15),
+    )
+    storage = FakeStorage()
+    service = ImageImportService(
+        cast(Any, FakeImportRepository(image, batch, item, calls)),
+        cast(Any, object()),
+        cast(Any, storage),
+        cast(Any, FakeAiPublisher(calls)),
+        cast(Any, FakeThumbnails(calls, prepare_failures=1)),
+        ImportConfiguration(
+            max_files=200,
+            session_window_size=10,
+            bucket="images",
+            part_size=5,
+            expires_in=60,
+        ),
+    )
+
+    await service.complete_item(
+        "batch-1",
+        5,
+        CompleteUpload(
+            upload_id="upload-1",
+            parts=[MultipartPart(part_number=1, etag="part")],
+            file_hash=None,
+        ),
+        ImageAccessActor(user_id=3),
+    )
+
+    assert storage.complete_calls == 1
+    assert storage.stat_calls == 1
+    assert calls == [
+        "rollback",
+        "prepare-thumbnail",
+        "rollback",
         "prepare-thumbnail",
         "commit",
         "publish-thumbnail",

@@ -10,6 +10,7 @@ from datetime import datetime
 from app.contexts.imaging.application.dto import (
     CompleteUpload,
     PageResult,
+    ThumbnailTaskEvent,
     UploadFileSpec,
     UploadRecord,
     UploadSession,
@@ -28,9 +29,11 @@ from app.contexts.imaging.domain import (
     ImageFileTypeEnum,
     build_storage_object_key,
     determine_image_file_type,
+    normalize_storage_etag,
     validate_upload_file,
 )
 
+from .persistence_retry import run_with_persistence_retry
 from .ports import ImageFileRecord, ObjectStorage, UploadRepository
 from .thumbnail_scheduling_service import ThumbnailSchedulingService
 from .visibility_service import ImageVisibilityApplicationService
@@ -137,41 +140,88 @@ class ImageUploadService:
             ImageFileStatusEnum.FAILED,
         }:
             raise InvalidImageOperationError("当前影像状态不允许完成上传")
+        bucket = str(image.storage_bucket)
+        object_key = str(image.object_key)
+        expected_size = image.file_size
+        expected_hash = completion.file_hash or image.file_hash
+        # 外部 multipart 完成不能随数据库死锁一起重试；先结束只读事务，
+        # 后续只对可回滚的数据库写回阶段执行有限重试。
+        self._repository.rollback()
         try:
             completed = await self._storage.complete_multipart_upload(
-                bucket=str(image.storage_bucket),
-                object_key=str(image.object_key),
+                bucket=bucket,
+                object_key=object_key,
                 upload_id=completion.upload_id,
                 parts=completion.parts,
             )
             stored = await self._storage.stat_object(
-                bucket=str(image.storage_bucket),
-                object_key=str(image.object_key),
+                bucket=bucket,
+                object_key=object_key,
             )
-            if stored.size != image.file_size:
-                self._mark_failed(image)
+            if stored.size != expected_size:
+                self._mark_failed(image_file_id, owner_id)
                 raise InvalidImageOperationError("对象大小校验失败")
-            expected_hash = completion.file_hash or image.file_hash
             stored_hash = stored.metadata.get("file-hash") or stored.metadata.get(
                 "File-Hash"
             )
             if expected_hash and stored_hash and expected_hash != stored_hash:
-                self._mark_failed(image)
+                self._mark_failed(image_file_id, owner_id)
                 raise InvalidImageOperationError("对象哈希校验失败")
-            image.storage_etag = completed.etag or stored.etag
-            image.status = ImageFileStatusEnum.UPLOADED
-            image.upload_progress = 100
-            image.uploaded_at = datetime.now()
-            thumbnail_event = self._thumbnails.prepare(image)
-            self._repository.commit()
-            self._repository.refresh(image)
+            source_etag = completed.etag or stored.etag
+            uploaded_at = datetime.now()
+            persisted_image, thumbnail_event = await run_with_persistence_retry(
+                lambda: self._persist_completed_upload(
+                    image_file_id=image_file_id,
+                    owner_id=owner_id,
+                    source_etag=source_etag,
+                    uploaded_at=uploaded_at,
+                ),
+                rollback=self._repository.rollback,
+                operation_name="complete-image-upload",
+            )
         except InvalidImageOperationError:
+            self._repository.rollback()
             raise
         except Exception:
             self._repository.rollback()
             raise
         await self._thumbnails.publish_after_commit(thumbnail_event)
-        return self._status(image)
+        return self._status(persisted_image)
+
+    def _persist_completed_upload(
+        self,
+        *,
+        image_file_id: int,
+        owner_id: int,
+        source_etag: str | None,
+        uploaded_at: datetime,
+    ) -> tuple[ImageFileRecord, ThumbnailTaskEvent | None]:
+        image = self._repository.get_active(image_file_id)
+        if image is None:
+            raise ImageFileNotFoundError
+        if image.uploaded_by != owner_id:
+            raise ImageAccessDeniedError("无权完成此文件上传")
+        if image.status == ImageFileStatusEnum.UPLOADED:
+            if normalize_storage_etag(image.storage_etag) != normalize_storage_etag(
+                source_etag
+            ):
+                raise InvalidImageOperationError(
+                    "影像内容版本已发生变化", status_code=409
+                )
+        elif image.status not in {
+            ImageFileStatusEnum.UPLOADING,
+            ImageFileStatusEnum.FAILED,
+        }:
+            raise InvalidImageOperationError("当前影像状态不允许完成上传")
+
+        image.storage_etag = source_etag
+        image.status = ImageFileStatusEnum.UPLOADED
+        image.upload_progress = 100
+        image.uploaded_at = uploaded_at
+        thumbnail_event = self._thumbnails.prepare(image)
+        self._repository.commit()
+        self._repository.refresh(image)
+        return image, thumbnail_event
 
     def get_status(
         self,
@@ -201,7 +251,12 @@ class ImageUploadService:
             patient_id=patient_id,
         )
 
-    def _mark_failed(self, image: ImageFileRecord) -> None:
+    def _mark_failed(self, image_file_id: int, owner_id: int) -> None:
+        image = self._repository.get_active(image_file_id)
+        if image is None:
+            raise ImageFileNotFoundError
+        if image.uploaded_by != owner_id:
+            raise ImageAccessDeniedError("无权完成此文件上传")
         image.status = ImageFileStatusEnum.FAILED
         image.upload_progress = 0
         self._repository.commit()

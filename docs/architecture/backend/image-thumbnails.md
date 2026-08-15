@@ -35,6 +35,17 @@ sequenceDiagram
 重复消息和内容替换竞态下的幂等性。旧 READY 对象的引用在新版本完成前一直保留；Worker
 先幂等删除旧对象再切换 READY 引用，失败时可按同一确定性新 key 重试，不丢失清理指针。
 
+### 并发写入约束
+
+派生记录登记必须使用 `(image_file_id, variant)` 唯一键上的原子 upsert。禁止改回
+“对可能不存在的派生记录执行 `SELECT FOR UPDATE`，随后再 `INSERT`”的写法：MySQL InnoDB
+在 `REPEATABLE READ` 下会为缺失记录获取 gap lock，并发完成不同影像上传时也可能在唯一
+索引末端形成死锁。
+
+基础设施只把 MySQL `1205` 和 `1213` 翻译为可重试持久化错误。应用层最多重试三次完整
+数据库阶段，并使用指数退避。multipart 完成、批量导入对象确认和内容替换等外部存储操作
+必须在重试阶段之外执行一次，避免数据库锁竞争导致外部副作用被重复提交。
+
 ## 图像约束
 
 - 支持 PNG、JPEG、TIFF，TIFF 只取首帧；DICOM 和 OTHER 不调度。

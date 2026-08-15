@@ -34,6 +34,7 @@ from .ai_task_models import AITask
 from .image_file_mapper import image_file_from_draft
 from .image_file_models import ImageFile
 from .image_import_models import ImageImportBatch, ImageImportItem
+from .mysql_lock_errors import commit_with_lock_translation
 
 TERMINAL_AI_STATUSES = {
     ImageImportAiStatus.SUCCEEDED.value,
@@ -335,7 +336,7 @@ class SqlAlchemyImageImportRepository:
         )
 
     def commit(self) -> None:
-        self._session.commit()
+        commit_with_lock_translation(self._session)
 
     def rollback(self) -> None:
         self._session.rollback()

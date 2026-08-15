@@ -6,7 +6,8 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import cast
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.orm import Session
 
 from app.contexts.imaging.application.dto import (
@@ -27,6 +28,10 @@ from app.contexts.imaging.domain import (
 from app.shared.database import SessionLocal
 
 from .image_file_models import ImageFile, ImageFileDerivative
+from .mysql_lock_errors import (
+    commit_with_lock_translation,
+    translate_mysql_lock_errors,
+)
 
 
 def _task_event(derivative: ImageFileDerivative) -> ThumbnailTaskEvent:
@@ -88,18 +93,8 @@ class SqlAlchemyThumbnailSchedulingRepository:
         self, image: ImageFileRecord
     ) -> ImageFileDerivativeRecord | None:
         source_etag = normalize_storage_etag(image.storage_etag)
-        derivative = (
-            self._session.query(ImageFileDerivative)
-            .filter(
-                ImageFileDerivative.image_file_id == image.id,
-                ImageFileDerivative.variant
-                == ImageDerivativeVariant.CARD_THUMBNAIL.value,
-            )
-            .with_for_update()
-            .first()
-        )
-        if derivative is None:
-            derivative = ImageFileDerivative(
+        with translate_mysql_lock_errors():
+            insert_statement = mysql_insert(ImageFileDerivative).values(
                 image_file_id=image.id,
                 variant=ImageDerivativeVariant.CARD_THUMBNAIL.value,
                 source_storage_etag=source_etag,
@@ -107,35 +102,49 @@ class SqlAlchemyThumbnailSchedulingRepository:
                 status=ImageDerivativeStatus.PENDING.value,
                 retry_count=0,
             )
-            self._session.add(derivative)
+            # 缺失记录上先 SELECT FOR UPDATE 会在 InnoDB REPEATABLE READ 下
+            # 获取 gap lock，并发上传随后插入不同影像时也可能彼此死锁。
+            # 原子 upsert 直接由唯一键串行化同一派生对象，避免预锁空区间。
+            insert_statement = insert_statement.on_duplicate_key_update(
+                id=func.last_insert_id(ImageFileDerivative.id)
+            )
+            result = self._session.execute(insert_statement)
+            derivative_id = int(result.lastrowid or 0)
+            query = self._session.query(ImageFileDerivative).populate_existing()
+            if derivative_id:
+                derivative = query.filter(ImageFileDerivative.id == derivative_id).one()
+            else:
+                derivative = query.filter(
+                    ImageFileDerivative.image_file_id == image.id,
+                    ImageFileDerivative.variant
+                    == ImageDerivativeVariant.CARD_THUMBNAIL.value,
+                ).one()
+
+            same_source = (
+                normalize_storage_etag(derivative.source_storage_etag) == source_etag
+            )
+            if (
+                same_source
+                and derivative.status == ImageDerivativeStatus.READY.value
+                and derivative.object_key
+            ):
+                return None
+
+            if not same_source:
+                # Keep the previous object reference until the worker deletes it. This avoids
+                # losing the only cleanup pointer when content replacement advances the ETag.
+                derivative.source_storage_etag = source_etag
+                derivative.retry_count = 0
+            derivative.status = ImageDerivativeStatus.PENDING.value
+            derivative.last_error = None
+            derivative.next_retry_at = None
+            derivative.lease_expires_at = None
+            derivative.updated_at = datetime.now()
             self._session.flush()
-            return cast(ImageFileDerivativeRecord, derivative)
-
-        same_source = (
-            normalize_storage_etag(derivative.source_storage_etag) == source_etag
-        )
-        if (
-            same_source
-            and derivative.status == ImageDerivativeStatus.READY.value
-            and derivative.object_key
-        ):
-            return None
-
-        if not same_source:
-            # Keep the previous object reference until the worker deletes it. This avoids
-            # losing the only cleanup pointer when content replacement advances the ETag.
-            derivative.source_storage_etag = source_etag
-            derivative.retry_count = 0
-        derivative.status = ImageDerivativeStatus.PENDING.value
-        derivative.last_error = None
-        derivative.next_retry_at = None
-        derivative.lease_expires_at = None
-        derivative.updated_at = datetime.now()
-        self._session.flush()
         return cast(ImageFileDerivativeRecord, derivative)
 
     def commit(self) -> None:
-        self._session.commit()
+        commit_with_lock_translation(self._session)
 
     def rollback(self) -> None:
         self._session.rollback()

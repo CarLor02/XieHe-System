@@ -47,6 +47,10 @@ class ObjectStorageUnavailableError(ImagingApplicationError):
     pass
 
 
+class RetryablePersistenceError(ImagingApplicationError):
+    """基础设施确认事务可安全整体重试时使用的内部错误。"""
+
+
 class ThumbnailGenerationError(ImagingApplicationError):
     """Worker failure classified for bounded retry handling."""
 

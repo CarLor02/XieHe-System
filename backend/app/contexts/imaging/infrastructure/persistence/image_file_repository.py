@@ -23,6 +23,7 @@ from app.contexts.teams.infrastructure import SqlAlchemyTeamAccessRepository
 from .access_scope import apply_image_access_scope
 from .image_file_models import ImageFile
 from .image_query_repository import image_summary
+from .mysql_lock_errors import commit_with_lock_translation
 
 
 def _enum_value(value: object) -> str:
@@ -181,7 +182,7 @@ class SqlAlchemyImageFileRepository:
         )
 
     def commit(self) -> None:
-        self._session.commit()
+        commit_with_lock_translation(self._session)
 
     def rollback(self) -> None:
         self._session.rollback()

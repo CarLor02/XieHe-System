@@ -12,6 +12,7 @@ from app.contexts.imaging.domain import ImageFileDraft
 
 from .image_file_mapper import image_file_from_draft
 from .image_file_models import ImageFile
+from .mysql_lock_errors import commit_with_lock_translation
 
 
 class SqlAlchemyUploadRepository:
@@ -89,7 +90,7 @@ class SqlAlchemyUploadRepository:
         )
 
     def commit(self) -> None:
-        self._session.commit()
+        commit_with_lock_translation(self._session)
 
     def rollback(self) -> None:
         self._session.rollback()

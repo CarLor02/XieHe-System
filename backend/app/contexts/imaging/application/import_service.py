@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.contexts.imaging.application.dto import (
+    AiTaskEvent,
     CompleteUpload,
     CreateImportBatch,
     ImportBatch,
@@ -16,6 +17,7 @@ from app.contexts.imaging.application.dto import (
     ImportItemResult,
     ImportUploadSession,
     PageResult,
+    ThumbnailTaskEvent,
 )
 from app.contexts.imaging.application.errors import (
     AiTaskQueueUnavailableError,
@@ -38,9 +40,9 @@ from app.contexts.imaging.domain import (
     validate_upload_file,
 )
 
+from .persistence_retry import run_with_persistence_retry
 from .ports import (
     AiTaskPublisher,
-    ImageFileRecord,
     ImageImportBatchRecord,
     ImageImportItemRecord,
     ImageImportRepository,
@@ -206,17 +208,39 @@ class ImageImportService:
         image = self._repository.get_active_image(item.image_file_id)
         if image is None:
             raise ImageFileNotFoundError
+        already_uploaded = item.upload_status == ImageImportUploadStatus.UPLOADED.value
+        source_etag = image.storage_etag
+        upload_id = item.upload_id
+        bucket = str(image.storage_bucket)
+        object_key = str(image.object_key)
+        expected_size = image.file_size
+        expected_hash = completion.file_hash or image.file_hash
+        # 批量项会并发完成；对象存储只执行一次，数据库状态、AI任务和缩略图
+        # PENDING 作为一个可回滚阶段统一重试。
+        self._repository.rollback()
         try:
-            if item.upload_status != ImageImportUploadStatus.UPLOADED.value:
-                await self._complete_item_upload(item, image, completion)
-            task = self._repository.ensure_ai_task(
-                item,
-                requested_by=self._owner_id(actor),
+            if not already_uploaded:
+                source_etag = await self._complete_item_storage(
+                    expected_upload_id=upload_id,
+                    completion=completion,
+                    bucket=bucket,
+                    object_key=object_key,
+                    expected_size=expected_size,
+                    expected_hash=expected_hash,
+                )
+            uploaded_at = datetime.now()
+            batch, item, event, thumbnail_event = await run_with_persistence_retry(
+                lambda: self._persist_completed_item(
+                    batch_id=batch_id,
+                    item_id=item_id,
+                    completion=completion,
+                    actor=actor,
+                    source_etag=source_etag,
+                    uploaded_at=uploaded_at,
+                ),
+                rollback=self._repository.rollback,
+                operation_name="complete-image-import-item",
             )
-            self._repository.refresh_batch_status(batch)
-            event = self._repository.ai_task_event(task, item, batch)
-            thumbnail_event = self._thumbnails.prepare(image)
-            self._repository.commit()
         except Exception:
             self._repository.rollback()
             raise
@@ -235,37 +259,75 @@ class ImageImportService:
         self._repository.refresh_item(item)
         return ImportItemResult(self._repository.item_view(item), message)
 
-    async def _complete_item_upload(
+    async def _complete_item_storage(
         self,
-        item: ImageImportItemRecord,
-        image: ImageFileRecord,
+        *,
+        expected_upload_id: str | None,
         completion: CompleteUpload,
-    ) -> None:
-        if completion.upload_id != item.upload_id:
+        bucket: str,
+        object_key: str,
+        expected_size: int,
+        expected_hash: str | None,
+    ) -> str | None:
+        if completion.upload_id != expected_upload_id:
             raise InvalidImageOperationError("上传会话已失效", status_code=409)
         completed = await self._storage.complete_multipart_upload(
-            bucket=str(image.storage_bucket),
-            object_key=str(image.object_key),
+            bucket=bucket,
+            object_key=object_key,
             upload_id=completion.upload_id,
             parts=completion.parts,
         )
         stored = await self._storage.stat_object(
-            bucket=str(image.storage_bucket),
-            object_key=str(image.object_key),
+            bucket=bucket,
+            object_key=object_key,
         )
-        if stored.size != image.file_size:
+        if stored.size != expected_size:
             raise InvalidImageOperationError("对象大小校验失败")
-        expected_hash = completion.file_hash or image.file_hash
         stored_hash = stored.metadata.get("file-hash") or stored.metadata.get(
             "File-Hash"
         )
         if expected_hash and stored_hash and expected_hash != stored_hash:
             raise InvalidImageOperationError("对象哈希校验失败")
-        image.storage_etag = completed.etag or stored.etag
-        image.status = ImageFileStatusEnum.UPLOADED
-        image.upload_progress = 100
-        image.uploaded_at = datetime.now()
-        item.upload_status = ImageImportUploadStatus.UPLOADED.value
+        return completed.etag or stored.etag
+
+    def _persist_completed_item(
+        self,
+        *,
+        batch_id: str,
+        item_id: int,
+        completion: CompleteUpload,
+        actor: ImageAccessActor,
+        source_etag: str | None,
+        uploaded_at: datetime,
+    ) -> tuple[
+        ImageImportBatchRecord,
+        ImageImportItemRecord,
+        AiTaskEvent,
+        ThumbnailTaskEvent | None,
+    ]:
+        batch = self._owned_batch(batch_id, actor)
+        item = self._owned_item(batch, item_id)
+        image = self._repository.get_active_image(item.image_file_id)
+        if image is None:
+            raise ImageFileNotFoundError
+        if item.upload_status != ImageImportUploadStatus.UPLOADED.value:
+            if completion.upload_id != item.upload_id:
+                raise InvalidImageOperationError("上传会话已失效", status_code=409)
+            image.storage_etag = source_etag
+            image.status = ImageFileStatusEnum.UPLOADED
+            image.upload_progress = 100
+            image.uploaded_at = uploaded_at
+            item.upload_status = ImageImportUploadStatus.UPLOADED.value
+
+        task = self._repository.ensure_ai_task(
+            item,
+            requested_by=self._owner_id(actor),
+        )
+        self._repository.refresh_batch_status(batch)
+        event = self._repository.ai_task_event(task, item, batch)
+        thumbnail_event = self._thumbnails.prepare(image)
+        self._repository.commit()
+        return batch, item, event, thumbnail_event
 
     def mark_upload_failed(
         self,

@@ -7,6 +7,7 @@ from app.contexts.imaging.application.dto import (
     ImageContentReplacement,
     ImageInfoUpdate,
     ImageMutationResult,
+    ThumbnailTaskEvent,
 )
 from app.contexts.imaging.application.errors import (
     ImageAccessDeniedError,
@@ -26,6 +27,7 @@ from app.contexts.imaging.domain import (
 )
 
 from .annotation_service import AnnotationApplicationService
+from .persistence_retry import run_with_persistence_retry
 from .ports import ImageFileRecord, ImageFileRepository, ObjectStorage
 from .thumbnail_scheduling_service import ThumbnailSchedulingService
 from .visibility_service import ImageVisibilityApplicationService
@@ -180,49 +182,80 @@ class ImageFileCommandService:
             raise InvalidImageOperationError(str(exc)) from exc
         if not replacement.content:
             raise InvalidImageOperationError("替换文件不能为空")
+        bucket = str(image.storage_bucket)
+        object_key = str(image.object_key)
+        # 对象覆盖不可回滚且不能因数据库锁竞争重复执行，先结束权限检查产生的
+        # 只读事务，再将数据库更新隔离为可重试阶段。
+        self._repository.rollback()
         try:
             upload = await self._storage.put_object(
-                bucket=str(image.storage_bucket),
-                object_key=str(image.object_key),
+                bucket=bucket,
+                object_key=object_key,
                 data=replacement.content,
                 content_type=content_type,
             )
-            locked_image = self._repository.get_active(image_file_id, for_update=True)
-            if locked_image is None:
-                raise ImageFileNotFoundError
-            image = locked_image
-            image.original_filename = filename
-            image.file_type = ImageFileTypeEnum(determine_image_file_type(filename))
-            image.mime_type = content_type
-            image.file_size = len(replacement.content)
-            image.file_hash = None
-            image.storage_etag = upload.etag
-            self._apply_info(
-                image,
-                actor,
-                ImageInfoUpdate(
-                    description=replacement.description,
-                    team_ids=replacement.team_ids,
+            uploaded_at = datetime.now()
+            image, thumbnail_event = await run_with_persistence_retry(
+                lambda: self._persist_replacement(
+                    image_file_id=image_file_id,
+                    actor=actor,
+                    replacement=replacement,
+                    filename=filename,
+                    content_type=content_type,
+                    source_etag=upload.etag,
+                    uploaded_at=uploaded_at,
                 ),
+                rollback=self._repository.rollback,
+                operation_name="replace-image-content",
             )
-            image.upload_progress = 100
-            image.uploaded_at = datetime.now()
-            self._annotation_service.save_locked_image(
-                image=image,
-                actor_id=actor.user_id,
-                annotation={},
-                source=AnnotationSource.SYSTEM,
-                reason=AnnotationMutationReason.CONTENT_REPLACEMENT,
-                force_revision=True,
-            )
-            thumbnail_event = self._thumbnails.prepare(image)
-            self._repository.commit()
-            self._repository.refresh(image)
         except Exception:
             self._repository.rollback()
             raise
         await self._thumbnails.publish_after_commit(thumbnail_event)
         return ImageMutationResult(self._repository.get_detail(image))
+
+    def _persist_replacement(
+        self,
+        *,
+        image_file_id: int,
+        actor: ImageAccessActor,
+        replacement: ImageContentReplacement,
+        filename: str,
+        content_type: str,
+        source_etag: str | None,
+        uploaded_at: datetime,
+    ) -> tuple[ImageFileRecord, ThumbnailTaskEvent | None]:
+        image = self._repository.get_active(image_file_id, for_update=True)
+        if image is None:
+            raise ImageFileNotFoundError
+        image.original_filename = filename
+        image.file_type = ImageFileTypeEnum(determine_image_file_type(filename))
+        image.mime_type = content_type
+        image.file_size = len(replacement.content)
+        image.file_hash = None
+        image.storage_etag = source_etag
+        self._apply_info(
+            image,
+            actor,
+            ImageInfoUpdate(
+                description=replacement.description,
+                team_ids=replacement.team_ids,
+            ),
+        )
+        image.upload_progress = 100
+        image.uploaded_at = uploaded_at
+        self._annotation_service.save_locked_image(
+            image=image,
+            actor_id=actor.user_id,
+            annotation={},
+            source=AnnotationSource.SYSTEM,
+            reason=AnnotationMutationReason.CONTENT_REPLACEMENT,
+            force_revision=True,
+        )
+        thumbnail_event = self._thumbnails.prepare(image)
+        self._repository.commit()
+        self._repository.refresh(image)
+        return image, thumbnail_event
 
     def _visible_image(
         self,
