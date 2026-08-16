@@ -71,7 +71,8 @@ class StorageServiceClient:
         if response.status_code >= 400:
             raise StorageServiceError(
                 f"storage service {method} {path} failed: "
-                f"{response.status_code} {response.text}"
+                f"{response.status_code} {response.text}",
+                status_code=response.status_code,
             )
 
         if not response.content:

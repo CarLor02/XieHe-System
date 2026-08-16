@@ -82,11 +82,11 @@ export function runBatchImportPipeline(input: PipelineInput): Promise<string> {
         uploadObjectPart(url, source.slice(start, end)),
       completeItem: request =>
         completeImageImportItem(request.batchId, request.itemId, {
-          upload_id: request.uploadId,
+          session_id: request.sessionId,
           parts: request.parts,
         }),
-      markUploadFailed: async (batchId, itemId, error) => {
-        await markImageImportUploadFailed(batchId, itemId, error);
+      markUploadFailed: async (batchId, itemId, sessionId, error) => {
+        await markImageImportUploadFailed(batchId, itemId, sessionId, error);
       },
       getErrorMessage: (error, fallback) =>
         error instanceof Error ? error.message : FAILURE_MESSAGES[fallback],

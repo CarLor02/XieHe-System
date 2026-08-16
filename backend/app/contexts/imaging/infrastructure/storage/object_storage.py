@@ -9,7 +9,10 @@ from app.contexts.imaging.application.dto import (
     PresignedPart,
     StoredObject,
 )
-from app.contexts.imaging.application.errors import ObjectStorageUnavailableError
+from app.contexts.imaging.application.errors import (
+    ObjectStorageObjectNotFoundError,
+    ObjectStorageUnavailableError,
+)
 from app.shared.storage import (
     StorageServiceClient,
     StorageServiceError,
@@ -82,6 +85,22 @@ class StorageServiceObjectStorage:
         value = payload.get("etag")
         return ObjectWriteResult(etag=str(value) if value is not None else None)
 
+    async def abort_multipart_upload(
+        self,
+        *,
+        bucket: str,
+        object_key: str,
+        upload_id: str,
+    ) -> None:
+        try:
+            await self._client.abort_multipart_upload(
+                bucket=bucket,
+                object_key=object_key,
+                upload_id=upload_id,
+            )
+        except StorageServiceError as exc:
+            raise ObjectStorageUnavailableError(str(exc)) from exc
+
     async def presign_get(
         self,
         *,
@@ -105,6 +124,8 @@ class StorageServiceObjectStorage:
                 object_key=object_key,
             )
         except StorageServiceError as exc:
+            if exc.status_code == 404:
+                raise ObjectStorageObjectNotFoundError(str(exc)) from exc
             raise ObjectStorageUnavailableError(str(exc)) from exc
         return StoredObject(
             size=result.size,

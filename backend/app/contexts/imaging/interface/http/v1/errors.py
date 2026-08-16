@@ -11,6 +11,7 @@ from app.contexts.imaging.application.errors import (
     ImageAccessDeniedError,
     ImageImportNotFoundError,
     ImageNotReadyError,
+    ImageUploadSessionNotFoundError,
     InvalidImageOperationError,
     ObjectStorageUnavailableError,
     PatientNotFoundError,
@@ -30,7 +31,14 @@ def raise_http_error(error: Exception) -> NoReturn:
         )
     if isinstance(error, (ImageAccessDeniedError, ImageTeamAssignmentDeniedError)):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error))
-    if isinstance(error, (ImageImportNotFoundError, PatientNotFoundError)):
+    if isinstance(
+        error,
+        (
+            ImageImportNotFoundError,
+            ImageUploadSessionNotFoundError,
+            PatientNotFoundError,
+        ),
+    ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
     if isinstance(error, ImageNotReadyError):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error))

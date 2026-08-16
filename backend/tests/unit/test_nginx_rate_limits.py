@@ -35,7 +35,7 @@ def test_frontend_nginx_limits_high_risk_backend_paths() -> None:
     assert "/api/v1/ai-diagnosis/" not in config
     assert "location ^~ /api/v1/report-export/" in config
     assert "limit_req zone=api_heavy burst=4 nodelay;" in config
-    assert "location ~ ^/api/v1/upload/sessions/[0-9]+/complete$" in config
+    assert "location ~ ^/api/v1/upload/sessions/[0-9a-f]+/complete$" in config
     assert "limit_req zone=api_upload burst=10 nodelay;" in config
     assert "location /api/" in config
     assert "limit_req zone=api_general burst=40 nodelay;" in config

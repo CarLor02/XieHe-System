@@ -14,7 +14,15 @@ from .thumbnail_task_processor import (
     ThumbnailTaskProcessingOutcome,
     ThumbnailTaskProcessor,
 )
-from .upload_service import ImageUploadService, UploadConfiguration
+from .upload_reconciliation_service import (
+    UploadReconciliationResult,
+    UploadReconciliationService,
+)
+from .upload_service import ImageUploadService
+from .upload_session_service import (
+    ImageUploadSessionService,
+    UploadSessionConfiguration,
+)
 from .visibility_service import ImageVisibilityApplicationService
 
 __all__ = [
@@ -28,11 +36,14 @@ __all__ = [
     "ImageSelectionService",
     "ImageVisibilityApplicationService",
     "ImageUploadService",
+    "ImageUploadSessionService",
     "ImagingQueryService",
     "ImportConfiguration",
     "ThumbnailSchedulingService",
     "ThumbnailBackfillService",
     "ThumbnailTaskProcessingOutcome",
     "ThumbnailTaskProcessor",
-    "UploadConfiguration",
+    "UploadSessionConfiguration",
+    "UploadReconciliationResult",
+    "UploadReconciliationService",
 ]

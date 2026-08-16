@@ -19,7 +19,6 @@ class CompleteUploadPart(BaseModel):
 
 
 class CompleteUploadSessionRequest(BaseModel):
-    upload_id: str
     parts: list[CompleteUploadPart] = Field(min_length=1)
     file_hash: str | None = Field(None, max_length=64)
 
@@ -44,10 +43,11 @@ class CreateImageImportSessionsRequest(BaseModel):
 
 
 class CompleteImageImportItemRequest(BaseModel):
-    upload_id: str = Field(min_length=1)
+    session_id: str = Field(min_length=1, max_length=64)
     parts: list[CompleteUploadPart] = Field(min_length=1)
     file_hash: str | None = Field(None, max_length=64)
 
 
 class MarkImageImportUploadFailedRequest(BaseModel):
+    session_id: str | None = Field(None, min_length=1, max_length=64)
     error: str = Field(min_length=1, max_length=2000)

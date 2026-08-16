@@ -52,6 +52,11 @@ from .import_status import (
 from .json_types import JsonObject, JsonScalar, JsonValue
 from .team_visibility import normalize_team_ids, require_all_teams_assignable
 from .upload_rules import build_storage_object_key, validate_upload_file
+from .upload_session import (
+    ACTIVE_UPLOAD_SESSION_STATUSES,
+    ImageUploadSessionStatus,
+    ImageUploadSourceType,
+)
 
 __all__ = [
     "AnnotationItem",
@@ -75,6 +80,8 @@ __all__ = [
     "ImageImportBatchStatus",
     "ImageImportUploadStatus",
     "ImageTeamAssignmentDeniedError",
+    "ImageUploadSessionStatus",
+    "ImageUploadSourceType",
     "JsonObject",
     "JsonScalar",
     "JsonValue",
@@ -101,4 +108,5 @@ __all__ = [
     "supports_card_thumbnail",
     "validate_replacement_file",
     "validate_upload_file",
+    "ACTIVE_UPLOAD_SESSION_STATUSES",
 ]

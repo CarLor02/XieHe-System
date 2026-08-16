@@ -60,4 +60,27 @@ describe('Xiehe API SDK', () => {
       params: { page: 1, page_size: 20, search: '张三' },
     });
   });
+
+  it('uses durable session IDs for single and batch upload completion', async () => {
+    const { client, request } = createClient();
+    const sdk = createXieheApiSdk({ apiClient: client });
+    const parts = [{ part_number: 1, etag: 'etag-1' }];
+
+    await sdk.upload.completeSession('session-1', { parts });
+    await sdk.upload.completeImportItem('batch-1', 7, {
+      session_id: 'session-2',
+      parts,
+    });
+
+    expect(request).toHaveBeenNthCalledWith(1, {
+      method: 'POST',
+      url: '/api/v1/upload/sessions/session-1/complete',
+      data: { parts },
+    });
+    expect(request).toHaveBeenNthCalledWith(2, {
+      method: 'POST',
+      url: '/api/v1/upload/batches/batch-1/items/7/complete',
+      data: { session_id: 'session-2', parts },
+    });
+  });
 });

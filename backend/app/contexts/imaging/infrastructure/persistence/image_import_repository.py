@@ -17,13 +17,11 @@ from app.contexts.imaging.application.dto import (
 )
 from app.contexts.imaging.application.ports import (
     AiTaskRecord,
-    ImageFileRecord,
     ImageImportBatchRecord,
     ImageImportItemRecord,
 )
 from app.contexts.imaging.domain import (
     AITaskStatusEnum,
-    ImageFileDraft,
     ImageImportAiStatus,
     ImageImportBatchStatus,
     ImageImportUploadStatus,
@@ -31,8 +29,6 @@ from app.contexts.imaging.domain import (
 from app.contexts.patients.infrastructure.persistence.models import Patient
 
 from .ai_task_models import AITask
-from .image_file_mapper import image_file_from_draft
-from .image_file_models import ImageFile
 from .image_import_models import ImageImportBatch, ImageImportItem
 from .mysql_lock_errors import commit_with_lock_translation
 
@@ -119,6 +115,22 @@ class SqlAlchemyImageImportRepository:
             .first(),
         )
 
+    def get_item_by_id(self, item_id: int) -> ImageImportItemRecord | None:
+        return cast(
+            ImageImportItemRecord | None,
+            self._session.query(ImageImportItem)
+            .filter(ImageImportItem.id == item_id)
+            .first(),
+        )
+
+    def get_batch_by_id(self, batch_id: int) -> ImageImportBatchRecord | None:
+        return cast(
+            ImageImportBatchRecord | None,
+            self._session.query(ImageImportBatch)
+            .filter(ImageImportBatch.id == batch_id)
+            .first(),
+        )
+
     def list_items_by_ids(
         self,
         batch: ImageImportBatchRecord,
@@ -131,28 +143,10 @@ class SqlAlchemyImageImportRepository:
                 ImageImportItem.batch_id == batch.id,
                 ImageImportItem.id.in_(item_ids),
             )
+            .with_for_update()
             .order_by(ImageImportItem.id)
             .all(),
         )
-
-    def get_active_image(self, image_file_id: int | None) -> ImageFileRecord | None:
-        if image_file_id is None:
-            return None
-        return cast(
-            ImageFileRecord | None,
-            self._session.query(ImageFile)
-            .filter(
-                ImageFile.id == image_file_id,
-                ImageFile.is_deleted.is_(False),
-            )
-            .first(),
-        )
-
-    def create_image(self, draft: ImageFileDraft) -> ImageFileRecord:
-        image = image_file_from_draft(draft)
-        self._session.add(image)
-        self._session.flush()
-        return cast(ImageFileRecord, image)
 
     def ensure_ai_task(
         self, item: ImageImportItemRecord, requested_by: int

@@ -69,13 +69,12 @@ POST /api/v1/upload/batches/{batch_id}/sessions
     {
       "item_id": 101,
       "client_file_id": "browser-file-1",
-      "image_file_id": 180,
+      "session_id": "8fd736...",
       "file_uuid": "...",
       "storage_bucket": "medical-image-files",
       "object_key": ".../ap.png",
-      "upload_id": "...",
-      "part_size": 10485760,
-      "expires_in": 3600,
+      "part_size": 8388608,
+      "expires_in": 900,
       "parts": [
         {
           "part_number": 1,
@@ -97,7 +96,7 @@ POST /api/v1/upload/batches/{batch_id}/items/{item_id}/complete
 
 ```json
 {
-  "upload_id": "...",
+  "session_id": "8fd736...",
   "parts": [
     {
       "part_number": 1,
@@ -108,7 +107,9 @@ POST /api/v1/upload/batches/{batch_id}/items/{item_id}/complete
 }
 ```
 
-该接口只完成一个文件，成功后立即持久化 AI 任务并发布 Kafka。Kafka 暂不可用
+浏览器不持有 multipart `upload_id`。该接口校验 session 属于当前 item，只完成一个
+文件；成功后才创建正式 `image_files`、写回 item，并立即持久化 AI 任务和发布 Kafka。
+Kafka 暂不可用
 不会回滚已经完成的对象上传；响应 item 会保留 `PENDING` 状态和错误，供重新
 入队。
 
@@ -120,11 +121,14 @@ POST /api/v1/upload/batches/{batch_id}/items/{item_id}/upload-failed
 
 ```json
 {
+  "session_id": "8fd736...",
   "error": "上传分片超时"
 }
 ```
 
-该操作将 upload 和 AI 状态置为失败，并参与批次汇总。它不阻止同批其他文件。
+`session_id` 在会话创建失败时可为空。该操作将会话和 item 的 upload/AI 状态置为
+失败，并参与批次汇总；它不阻止同批其他文件。若会话已经进入 `COMPLETING`，接口
+返回 409 并保留可恢复状态，避免覆盖“对象已完成、数据库尚未写回”的完成竞态。
 
 ## 重新入队
 
@@ -200,5 +204,6 @@ GET /api/v1/upload/batches/{batch_id}/items?page=1&page_size=20
 | `502` | 对象存储服务不可用 |
 | `503` | Kafka 暂不可用，持久化任务仍保留 |
 
-旧 `/batch/sessions`、`/batch/complete` 和 `/batch/status` 不再提供。单张上传
-`/sessions`、`/sessions/{image_file_id}/complete` 保持不变。
+旧 `/batch/sessions`、`/batch/complete` 和 `/batch/status` 不再提供。单张上传使用
+`POST /sessions`、`POST /sessions/{session_id}/complete` 和
+`GET /sessions/{session_id}`；创建会话时不再提前返回 `image_file_id`。

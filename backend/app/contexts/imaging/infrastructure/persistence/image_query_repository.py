@@ -134,6 +134,10 @@ class SqlAlchemyImageQueryRepository:
             query = query.filter(
                 ImageFile.status == ImageFileStatusEnum(filters.file_status)
             )
+        else:
+            # New uploads are not registered in image_files until verified. Keep
+            # this predicate for historical placeholders created by the legacy flow.
+            query = query.filter(ImageFile.status != ImageFileStatusEnum.UPLOADING)
         if filters.description:
             query = query.filter(ImageFile.description == filters.description)
         if filters.start_date:
@@ -219,7 +223,8 @@ class SqlAlchemyImageQueryRepository:
 
     def list_navigation_ids(self, scope: ImageAccessScope) -> list[int]:
         query: Query[Any] = self._session.query(ImageFile.id).filter(
-            ImageFile.is_deleted.is_(False)
+            ImageFile.is_deleted.is_(False),
+            ImageFile.status != ImageFileStatusEnum.UPLOADING,
         )
         query = apply_image_access_scope(query, scope)
         return [

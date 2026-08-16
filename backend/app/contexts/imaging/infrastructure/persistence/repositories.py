@@ -17,6 +17,7 @@ from .thumbnail_repository import (
     SqlAlchemyThumbnailTaskRepository,
 )
 from .upload_repository import SqlAlchemyUploadRepository
+from .upload_session_repository import SqlAlchemyUploadSessionRepository
 
 __all__ = [
     "SqlAlchemyAiTaskExecutionRepository",
@@ -28,6 +29,7 @@ __all__ = [
     "SqlAlchemyImageStatisticsRepository",
     "SqlAlchemyImageVisibilityRepository",
     "SqlAlchemyUploadRepository",
+    "SqlAlchemyUploadSessionRepository",
     "SqlAlchemyThumbnailSchedulingRepository",
     "SqlAlchemyThumbnailQueryRepository",
     "SqlAlchemyThumbnailTaskRepository",

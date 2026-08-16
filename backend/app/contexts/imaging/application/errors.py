@@ -47,6 +47,14 @@ class ObjectStorageUnavailableError(ImagingApplicationError):
     pass
 
 
+class ObjectStorageObjectNotFoundError(ImagingApplicationError):
+    """The storage service is reachable, but the requested object is absent."""
+
+
+class ImageUploadSessionNotFoundError(ImagingApplicationError):
+    pass
+
+
 class RetryablePersistenceError(ImagingApplicationError):
     """基础设施确认事务可安全整体重试时使用的内部错误。"""
 

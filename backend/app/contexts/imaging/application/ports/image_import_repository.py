@@ -11,11 +11,9 @@ from app.contexts.imaging.application.dto import (
     ImportItem,
     PageResult,
 )
-from app.contexts.imaging.domain import ImageFileDraft
 
 from .records import (
     AiTaskRecord,
-    ImageFileRecord,
     ImageImportBatchRecord,
     ImageImportItemRecord,
 )
@@ -42,15 +40,15 @@ class ImageImportRepository(Protocol):
         item_id: int,
     ) -> ImageImportItemRecord | None: ...
 
+    def get_item_by_id(self, item_id: int) -> ImageImportItemRecord | None: ...
+
+    def get_batch_by_id(self, batch_id: int) -> ImageImportBatchRecord | None: ...
+
     def list_items_by_ids(
         self,
         batch: ImageImportBatchRecord,
         item_ids: list[int],
     ) -> list[ImageImportItemRecord]: ...
-
-    def get_active_image(self, image_file_id: int | None) -> ImageFileRecord | None: ...
-
-    def create_image(self, draft: ImageFileDraft) -> ImageFileRecord: ...
 
     def ensure_ai_task(
         self, item: ImageImportItemRecord, requested_by: int

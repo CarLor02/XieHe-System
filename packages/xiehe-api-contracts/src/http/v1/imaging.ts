@@ -159,11 +159,10 @@ export interface UploadPartUrl {
 }
 
 export interface UploadSession {
-  image_file_id: number;
+  session_id: string;
   file_uuid: string;
   storage_bucket: string;
   object_key: string;
-  upload_id: string;
   part_size: number;
   expires_in: number;
   parts: UploadPartUrl[];
@@ -176,6 +175,7 @@ export interface CreateImageUploadSessionRequest {
   patient_id?: number | null;
   description?: string | null;
   team_ids?: number[];
+  file_hash?: string | null;
 }
 
 export interface BatchCreateUploadFile {
@@ -245,7 +245,6 @@ export interface CompletedUploadPart {
 }
 
 export interface CompleteUploadRequest {
-  upload_id: string;
   parts: CompletedUploadPart[];
   file_hash?: string | null;
 }
@@ -261,12 +260,18 @@ export interface UploadSingleResponse {
 }
 
 export interface UploadStatusRecord {
-  image_file_id?: number;
-  file_uuid?: string;
-  status?: string;
-  upload_progress?: number;
+  session_id: string;
+  image_file_id: number | null;
+  file_uuid: string;
+  status: string;
+  upload_progress: number;
   progress?: number;
-  message?: string;
+  expires_at: string | null;
+  error: string | null;
+}
+
+export interface CompleteImageImportItemRequest extends CompleteUploadRequest {
+  session_id: string;
 }
 
 export interface UploadRecord {

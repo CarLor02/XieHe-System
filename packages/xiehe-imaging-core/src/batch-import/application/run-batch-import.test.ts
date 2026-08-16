@@ -6,6 +6,11 @@ describe('runBatchImportPipeline', () => {
   it('prepares, uploads, completes and emits stable events', async () => {
     const events: string[] = [];
     const patches: unknown[] = [];
+    const completeItem = vi.fn(async () => ({
+      image_file_id: 21,
+      upload_status: 'UPLOADED' as const,
+      ai_status: 'QUEUED' as const,
+    }));
     const batchId = await runBatchImportPipeline({
       files: [{ id: 'one', source: new Uint8Array([1, 2, 3]) }],
       patientId: 1,
@@ -37,18 +42,13 @@ describe('runBatchImportPipeline', () => {
           {
             item_id: 11,
             client_file_id: 'one',
-            image_file_id: 21,
-            upload_id: 'upload-1',
+            session_id: 'session-1',
             part_size: 3,
             parts: [{ part_number: 1, url: 'signed' }],
           },
         ],
         uploadPart: vi.fn(async () => 'etag'),
-        completeItem: async () => ({
-          image_file_id: 21,
-          upload_status: 'UPLOADED',
-          ai_status: 'QUEUED',
-        }),
+        completeItem,
         markUploadFailed: vi.fn(async () => undefined),
         getErrorMessage: (_error, fallback) => fallback,
       },
@@ -70,5 +70,11 @@ describe('runBatchImportPipeline', () => {
         error: null,
       },
     ]);
+    expect(completeItem).toHaveBeenCalledWith({
+      batchId: 'batch-1',
+      itemId: 11,
+      sessionId: 'session-1',
+      parts: [{ part_number: 1, etag: 'etag' }],
+    });
   });
 });

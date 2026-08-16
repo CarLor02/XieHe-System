@@ -42,7 +42,8 @@ Browser preprocess
 每张影像对应一条记录：
 
 - 浏览器侧 `client_file_id` 和文件元数据。
-- `image_file_id`、当前 multipart `upload_id`。
+- `image_file_id` 只在对象确认并创建正式影像后写入。
+- 历史 `upload_id` 字段保留供对账使用，新链路不再写入。
 - 独立的 `upload_status` 与 `ai_status`。
 - 最近一次失败原因。
 
@@ -71,6 +72,13 @@ PENDING -> QUEUED -> RUNNING -> SUCCEEDED
 
 旧数据库可能存在 `study_id`，迁移会保留该字段但允许为空；新任务始终使用
 `image_file_id`。
+
+### `image_upload_sessions`
+
+单文件与批量导入共用持久化上传会话。批量 item 在会话完成前不关联正式影像；会话
+持久化 multipart upload ID、对象 key、预期大小、归属信息、完成 lease 和最终
+`image_file_id`。详细状态机与竞态恢复见
+[`image-upload-sessions.md`](../image-upload-sessions.md)。
 
 ## MQ 分层
 
@@ -116,13 +124,13 @@ Topic 默认为 `medical.image-ai.predict.v1`，消息 key 为 `image_file_id`�
 
 ## 发布与幂等
 
-单文件完成接口按以下顺序执行：
+单 item 完成接口按以下顺序执行：
 
-1. 完成 multipart upload 并校验对象大小和可选哈希。
-2. 更新 `image_files` 和 `image_import_items`。
-3. 创建或复用该 item 的 `AITask`。
-4. 提交数据库事务。
-5. 发布 Kafka 消息。
+1. 领取会话完成 lease，先 stat；对象不存在时才完成 multipart。
+2. 校验对象大小和可选哈希。
+3. 单事务创建正式 `image_files`、更新 `image_import_items` 并登记缩略图任务。
+4. 创建或复用该 item 的 `AITask`。
+5. 提交数据库事务后发布 Kafka 消息。
 
 当前没有 transactional outbox，因此数据库提交与 Kafka 发布不是原子事务。
 发布失败时：
@@ -131,6 +139,8 @@ Topic 默认为 `medical.image-ai.predict.v1`，消息 key 为 `image_file_id`�
 - item 回到 `ai_status=PENDING` 并记录可重试错误。
 - 用户可以调用重新入队接口。
 - 重复完成或重复入队会复用同一任务，不创建重复任务。
+- MinIO 已完成但数据库写回失败时，重试或对账先 stat 到对象并补建数据库，不会重复
+  完成 multipart。
 
 ## AI Worker
 

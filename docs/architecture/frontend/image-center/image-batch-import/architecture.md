@@ -23,7 +23,7 @@ frontend/app/imaging/features/batch-import/
 - `domain/imageTransform.ts` 负责可选左右翻转。优先使用
   Web Worker + OffscreenCanvas，失败后单文件回退到主线程。
 - `runBatchImportPipeline.ts` 编排预处理、批次创建、会话窗口、分片上传、
-  单文件 complete 和失败状态写回。
+  基于 `session_id` 的单文件 complete 和失败状态写回。
 - `useBatchImageImport.ts` 管理 React 状态、任务分页、轮询、重试和影像列表刷新。
 - `BatchImportOverlay.tsx` 只渲染新建导入与任务查询界面。
 
@@ -39,6 +39,8 @@ API 适配位于 `frontend/services/imageServices/uploadService.ts`。feature �
 - 本地 `File` 只存在于新建导入流程，不能写入全局状态或持久化缓存。
 - 页面关闭后不能恢复未完成的浏览器分片上传，但已完成上传并进入 AI 队列的任务
   可以从任务 Tab 恢复。
+- 创建会话响应不包含 `image_file_id`；只有 complete 成功后的 item 才能把正式影像 ID
+  写入本地状态。前端不得把 `file_uuid/object_key` 当作影像已注册的依据。
 
 ## 虚拟化
 

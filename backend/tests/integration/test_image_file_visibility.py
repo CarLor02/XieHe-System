@@ -501,6 +501,49 @@ def test_personal_image_list_returns_empty_team_names(db_session):
     assert items[0].team_names == []
 
 
+def test_image_list_and_navigation_hide_legacy_uploading_placeholders(db_session):
+    uploading = make_image(6, "pending.png", 10)
+    uploading.status = ImageFileStatusEnum.UPLOADING
+    uploading.upload_progress = 0
+    db_session.add(uploading)
+    db_session.commit()
+    repository = SqlAlchemyImageQueryRepository(db_session)
+    scope = ImageVisibilityApplicationService(
+        SqlAlchemyImageVisibilityRepository(db_session)
+    ).resolve_scope(image_access_actor(current_user(10)))
+
+    result = repository.list_images(
+        scope=scope,
+        page=1,
+        page_size=20,
+        filters=ImageListFilters(uploaded_by=10),
+    )
+
+    assert [item.id for item in result.items] == [1]
+    assert 6 not in repository.list_navigation_ids(scope)
+
+
+def test_explicit_uploading_filter_keeps_legacy_diagnostics_available(db_session):
+    uploading = make_image(6, "pending.png", 10)
+    uploading.status = ImageFileStatusEnum.UPLOADING
+    uploading.upload_progress = 0
+    db_session.add(uploading)
+    db_session.commit()
+    repository = SqlAlchemyImageQueryRepository(db_session)
+    scope = ImageVisibilityApplicationService(
+        SqlAlchemyImageVisibilityRepository(db_session)
+    ).resolve_scope(image_access_actor(current_user(10)))
+
+    result = repository.list_images(
+        scope=scope,
+        page=1,
+        page_size=20,
+        filters=ImageListFilters(file_status=ImageFileStatusEnum.UPLOADING.value),
+    )
+
+    assert [item.id for item in result.items] == [6]
+
+
 @pytest.mark.asyncio
 async def test_team_admin_can_delete_visible_team_member_image(db_session):
     assign_image_to_team(db_session, 2)

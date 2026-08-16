@@ -11,11 +11,12 @@ from app.contexts.imaging.application import (
     ImagePredictionService,
     ImageSelectionService,
     ImageUploadService,
+    ImageUploadSessionService,
     ImageVisibilityApplicationService,
     ImagingQueryService,
     ImportConfiguration,
     ThumbnailSchedulingService,
-    UploadConfiguration,
+    UploadSessionConfiguration,
 )
 from app.contexts.imaging.infrastructure.ai import AiModelMeasurementGateway
 from app.contexts.imaging.infrastructure.messaging import (
@@ -33,6 +34,7 @@ from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyThumbnailQueryRepository,
     SqlAlchemyThumbnailSchedulingRepository,
     SqlAlchemyUploadRepository,
+    SqlAlchemyUploadSessionRepository,
 )
 from app.contexts.imaging.infrastructure.storage import StorageServiceObjectStorage
 from app.core.config import settings
@@ -49,6 +51,21 @@ def build_thumbnail_scheduling_service(db: Session) -> ThumbnailSchedulingServic
     return ThumbnailSchedulingService(
         SqlAlchemyThumbnailSchedulingRepository(db),
         KafkaThumbnailTaskPublisher(),
+    )
+
+
+def build_image_upload_session_service(db: Session) -> ImageUploadSessionService:
+    return ImageUploadSessionService(
+        SqlAlchemyUploadSessionRepository(db),
+        build_image_visibility_service(db),
+        StorageServiceObjectStorage(),
+        build_thumbnail_scheduling_service(db),
+        UploadSessionConfiguration(
+            bucket=settings.IMAGE_FILE_BUCKET,
+            part_size=settings.STORAGE_MULTIPART_PART_SIZE,
+            expires_in=settings.STORAGE_PRESIGN_EXPIRES_SECONDS,
+            completion_lease_seconds=settings.IMAGE_UPLOAD_COMPLETION_LEASE_SECONDS,
+        ),
     )
 
 
@@ -128,14 +145,7 @@ def get_image_upload_service(
 ) -> ImageUploadService:
     return ImageUploadService(
         SqlAlchemyUploadRepository(db),
-        build_image_visibility_service(db),
-        StorageServiceObjectStorage(),
-        build_thumbnail_scheduling_service(db),
-        UploadConfiguration(
-            bucket=settings.IMAGE_FILE_BUCKET,
-            part_size=settings.STORAGE_MULTIPART_PART_SIZE,
-            expires_in=settings.STORAGE_PRESIGN_EXPIRES_SECONDS,
-        ),
+        build_image_upload_session_service(db),
     )
 
 
@@ -145,14 +155,10 @@ def get_image_import_service(
     return ImageImportService(
         SqlAlchemyImageImportRepository(db),
         build_image_visibility_service(db),
-        StorageServiceObjectStorage(),
         KafkaAiTaskPublisher(),
-        build_thumbnail_scheduling_service(db),
+        build_image_upload_session_service(db),
         ImportConfiguration(
             max_files=settings.BATCH_IMPORT_MAX_FILES,
             session_window_size=10,
-            bucket=settings.IMAGE_FILE_BUCKET,
-            part_size=settings.STORAGE_MULTIPART_PART_SIZE,
-            expires_in=settings.STORAGE_PRESIGN_EXPIRES_SECONDS,
         ),
     )

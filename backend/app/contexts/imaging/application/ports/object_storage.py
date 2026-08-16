@@ -35,6 +35,14 @@ class ObjectStorage(Protocol):
         parts: list[MultipartPart],
     ) -> ObjectWriteResult: ...
 
+    async def abort_multipart_upload(
+        self,
+        *,
+        bucket: str,
+        object_key: str,
+        upload_id: str,
+    ) -> None: ...
+
     async def presign_get(
         self,
         *,

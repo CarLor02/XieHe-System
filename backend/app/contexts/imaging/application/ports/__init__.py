@@ -18,6 +18,7 @@ from .records import (
     ImageFileRecord,
     ImageImportBatchRecord,
     ImageImportItemRecord,
+    ImageUploadSessionRecord,
 )
 from .thumbnail_generation import ThumbnailGenerationGateway
 from .thumbnail_query_repository import ThumbnailQueryRepository
@@ -25,6 +26,7 @@ from .thumbnail_scheduling_repository import ThumbnailSchedulingRepository
 from .thumbnail_task_publisher import ThumbnailTaskPublisher
 from .thumbnail_task_repository import ThumbnailTaskRepository
 from .upload_repository import UploadRepository
+from .upload_session_repository import UploadSessionRepository
 
 __all__ = [
     "AiMeasurementGateway",
@@ -40,6 +42,7 @@ __all__ = [
     "ImageFileDerivativeRecord",
     "ImageImportBatchRecord",
     "ImageImportItemRecord",
+    "ImageUploadSessionRecord",
     "ImageImportRepository",
     "ImageQueryRepository",
     "ImageStatisticsRepository",
@@ -51,4 +54,5 @@ __all__ = [
     "ThumbnailTaskPublisher",
     "ThumbnailTaskRepository",
     "UploadRepository",
+    "UploadSessionRepository",
 ]

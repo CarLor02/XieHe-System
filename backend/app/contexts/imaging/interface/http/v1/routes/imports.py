@@ -18,6 +18,7 @@ from app.contexts.imaging.application.errors import (
     AiTaskQueueUnavailableError,
     AuthenticationRequiredError,
     ImageImportNotFoundError,
+    ImageUploadSessionNotFoundError,
     InvalidImageOperationError,
     ObjectStorageUnavailableError,
     PatientNotFoundError,
@@ -45,6 +46,7 @@ _IMPORT_ERRORS = (
     AuthenticationRequiredError,
     ImageFileNotFoundError,
     ImageImportNotFoundError,
+    ImageUploadSessionNotFoundError,
     ImageTeamAssignmentDeniedError,
     InvalidImageOperationError,
     ObjectStorageUnavailableError,
@@ -138,8 +140,8 @@ async def complete_image_import_item(
         result = await service.complete_item(
             batch_id,
             item_id,
+            request.session_id,
             CompleteUpload(
-                upload_id=request.upload_id,
                 parts=[
                     MultipartPart(part_number=part.part_number, etag=part.etag)
                     for part in request.parts
@@ -157,7 +159,7 @@ async def complete_image_import_item(
     "/batches/{batch_id}/items/{item_id}/upload-failed",
     summary="记录单个批量导入项上传失败",
 )
-def mark_image_import_upload_failed(
+async def mark_image_import_upload_failed(
     batch_id: str,
     item_id: int,
     request: MarkImageImportUploadFailedRequest,
@@ -165,9 +167,10 @@ def mark_image_import_upload_failed(
     service: ImageImportService = Depends(get_image_import_service),
 ) -> dict[str, object]:
     try:
-        result = service.mark_upload_failed(
+        result = await service.mark_upload_failed(
             batch_id,
             item_id,
+            request.session_id,
             request.error,
             image_access_actor(current_user),
         )

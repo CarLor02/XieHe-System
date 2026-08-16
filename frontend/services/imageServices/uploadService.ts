@@ -2,6 +2,7 @@ import { apiSdk, objectStorageClient } from '@/infrastructure/http';
 import type {
   BatchCreateUploadFile,
   CompleteUploadRequest,
+  CompleteImageImportItemRequest,
   CompletedUploadPart,
   CreatedImageImportBatch,
   ImageImportConfig,
@@ -41,15 +42,16 @@ export function createImageUploadSession(payload: {
   patient_id?: number | null;
   description?: string | null;
   team_ids?: number[];
+  file_hash?: string | null;
 }): Promise<UploadSession> {
   return apiSdk.upload.createSession(payload);
 }
 
 export function completeImageUploadSession(
-  imageFileId: number,
+  sessionId: string,
   payload: CompleteUploadRequest
 ): Promise<UploadStatusRecord> {
-  return apiSdk.upload.completeSession(imageFileId, payload);
+  return apiSdk.upload.completeSession(sessionId, payload);
 }
 
 export async function uploadObjectPart(
@@ -92,7 +94,7 @@ export async function createImageImportSessions(
 export function completeImageImportItem(
   batchId: string,
   itemId: number,
-  payload: CompleteUploadRequest
+  payload: CompleteImageImportItemRequest
 ): Promise<ImageImportItem> {
   return apiSdk.upload.completeImportItem(batchId, itemId, payload);
 }
@@ -100,9 +102,15 @@ export function completeImageImportItem(
 export function markImageImportUploadFailed(
   batchId: string,
   itemId: number,
+  sessionId: string | undefined,
   error: string
 ): Promise<ImageImportItem> {
-  return apiSdk.upload.markImportUploadFailed(batchId, itemId, error);
+  return apiSdk.upload.markImportUploadFailed(
+    batchId,
+    itemId,
+    sessionId,
+    error
+  );
 }
 
 export function enqueueImageImportItem(
@@ -148,13 +156,15 @@ export async function uploadSingleFile(
       etag: await uploadObjectPart(part.url, file.slice(start, end)),
     });
   }
-  const status = await completeImageUploadSession(session.image_file_id, {
-    upload_id: session.upload_id,
+  const status = await completeImageUploadSession(session.session_id, {
     parts,
   });
+  if (status.image_file_id == null) {
+    throw new Error('上传完成响应缺少影像ID');
+  }
   return {
-    image_file_id: session.image_file_id,
-    file_id: String(session.image_file_id),
+    image_file_id: status.image_file_id,
+    file_id: String(status.image_file_id),
     file_uuid: session.file_uuid,
     filename: file.name,
     size: file.size,
@@ -172,9 +182,9 @@ export async function completeChunkUpload(): Promise<UploadSingleResponse> {
 }
 
 export async function getUploadStatus(
-  imageFileId: string | number
+  sessionId: string
 ): Promise<UploadStatusRecord> {
-  const data = await apiSdk.upload.getStatus(imageFileId);
+  const data = await apiSdk.upload.getStatus(sessionId);
   return { ...data, progress: data.upload_progress };
 }
 

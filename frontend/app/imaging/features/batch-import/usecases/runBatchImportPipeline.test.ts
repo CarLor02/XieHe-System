@@ -42,8 +42,7 @@ it('completes each uploaded file immediately through the item endpoint', async (
       {
         item_id: 11,
         client_file_id: 'file-1',
-        image_file_id: 31,
-        upload_id: 'upload-1',
+        session_id: 'session-1',
         part_size: 1024,
         parts: [{ part_number: 1, url: 'http://object/part-1' }],
       },
@@ -91,7 +90,7 @@ it('completes each uploaded file immediately through the item endpoint', async (
     expect.any(Blob)
   );
   expect(completeItem).toHaveBeenCalledWith('batch-1', 11, {
-    upload_id: 'upload-1',
+    session_id: 'session-1',
     parts: [{ part_number: 1, etag: 'etag-1' }],
   });
   expect(patches).toContainEqual([

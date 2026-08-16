@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.contexts.imaging.domain import ImageFileTypeEnum
+
 from .storage import MultipartPart, PresignedPart
 
 
@@ -20,12 +22,30 @@ class UploadFileSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class ImageUploadSessionDraft:
+    session_id: str
+    source_type: str
+    batch_item_id: int | None
+    file_uuid: str
+    original_filename: str
+    file_type: ImageFileTypeEnum
+    mime_type: str
+    expected_size: int
+    expected_hash: str | None
+    storage_bucket: str
+    object_key: str
+    uploaded_by: int
+    patient_id: int | None
+    description: str | None
+    team_ids: list[int]
+
+
+@dataclass(frozen=True, slots=True)
 class UploadSession:
-    image_file_id: int
+    session_id: str
     file_uuid: str
     storage_bucket: str
     object_key: str
-    upload_id: str
     part_size: int
     expires_in: int
     parts: list[PresignedPart]
@@ -33,10 +53,13 @@ class UploadSession:
 
 @dataclass(frozen=True, slots=True)
 class UploadStatus:
-    image_file_id: int
+    session_id: str
     file_uuid: str
     status: str
     upload_progress: int
+    image_file_id: int | None
+    expires_at: datetime | None
+    error: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,11 +135,10 @@ class ImportBatchCreated:
 class ImportUploadSession:
     item_id: int
     client_file_id: str
-    image_file_id: int
+    session_id: str
     file_uuid: str
     storage_bucket: str
     object_key: str
-    upload_id: str
     part_size: int
     expires_in: int
     parts: list[PresignedPart]
@@ -130,7 +152,6 @@ class ImportItemResult:
 
 @dataclass(frozen=True, slots=True)
 class CompleteUpload:
-    upload_id: str
     parts: list[MultipartPart]
     file_hash: str | None
 

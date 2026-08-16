@@ -16,8 +16,10 @@ from app.contexts.imaging.application.dto import (
 from app.contexts.imaging.application.errors import (
     AuthenticationRequiredError,
     ImageAccessDeniedError,
+    ImageUploadSessionNotFoundError,
     InvalidImageOperationError,
     ObjectStorageUnavailableError,
+    PatientNotFoundError,
 )
 from app.contexts.imaging.domain import (
     ImageFileNotFoundError,
@@ -35,10 +37,12 @@ router = APIRouter()
 _UPLOAD_ERRORS = (
     AuthenticationRequiredError,
     ImageAccessDeniedError,
+    ImageUploadSessionNotFoundError,
     ImageFileNotFoundError,
     ImageTeamAssignmentDeniedError,
     InvalidImageOperationError,
     ObjectStorageUnavailableError,
+    PatientNotFoundError,
 )
 
 
@@ -66,18 +70,17 @@ async def create_upload_session(
     return success_response(data=asdict(result), message="上传会话创建成功")
 
 
-@router.post("/sessions/{image_file_id}/complete", summary="完成影像上传")
+@router.post("/sessions/{session_id}/complete", summary="完成影像上传")
 async def complete_upload_session(
-    image_file_id: int,
+    session_id: str,
     request: CompleteUploadSessionRequest,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
     service: ImageUploadService = Depends(get_image_upload_service),
 ) -> dict[str, object]:
     try:
         result = await service.complete_session(
-            image_file_id,
+            session_id,
             CompleteUpload(
-                upload_id=request.upload_id,
                 parts=[
                     MultipartPart(part_number=part.part_number, etag=part.etag)
                     for part in request.parts
@@ -91,15 +94,15 @@ async def complete_upload_session(
     return success_response(data=asdict(result), message="文件上传完成")
 
 
-@router.get("/status/{image_file_id}", summary="获取上传状态")
+@router.get("/sessions/{session_id}", summary="获取上传状态")
 def get_upload_status(
-    image_file_id: int,
+    session_id: str,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
     service: ImageUploadService = Depends(get_image_upload_service),
 ) -> dict[str, object]:
     try:
         result = service.get_status(
-            image_file_id,
+            session_id,
             image_access_actor(current_user),
         )
     except _UPLOAD_ERRORS as exc:

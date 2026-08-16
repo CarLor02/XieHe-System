@@ -16,6 +16,7 @@ class StorageSettings(BaseAppSettings):
     STORAGE_SERVICE_TIMEOUT: float = 30.0
     STORAGE_PRESIGN_EXPIRES_SECONDS: int = 900
     STORAGE_MULTIPART_PART_SIZE: int = 8 * 1024 * 1024
+    IMAGE_UPLOAD_COMPLETION_LEASE_SECONDS: int = 60
     IMAGE_FILE_BUCKET: str = "medical-image-files"
     USER_AVATAR_BUCKET: str = "medical-user-avatars"
 

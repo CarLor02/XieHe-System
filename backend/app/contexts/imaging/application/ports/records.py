@@ -102,6 +102,35 @@ class ImageImportItemRecord(Protocol):
     image_file: ImageFileRecord | None
 
 
+class ImageUploadSessionRecord(Protocol):
+    id: int
+    session_id: str
+    source_type: str
+    batch_item_id: int | None
+    image_file_id: int | None
+    status: str
+    file_uuid: str
+    original_filename: str
+    file_type: ImageFileTypeEnum
+    mime_type: str
+    expected_size: int
+    expected_hash: str | None
+    storage_bucket: str
+    object_key: str
+    upload_id: str | None
+    storage_etag: str | None
+    uploaded_by: int
+    patient_id: int | None
+    description: str | None
+    team_ids: list[int] | None
+    expires_at: datetime | None
+    completion_lease_expires_at: datetime | None
+    last_error: str | None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None
+
+
 class AiTaskRecord(Protocol):
     id: int
     task_id: str

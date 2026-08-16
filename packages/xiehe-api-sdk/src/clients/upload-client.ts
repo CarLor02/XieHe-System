@@ -2,6 +2,7 @@ import type { HttpClient } from '@xiehe/api-client';
 import { normalizeLegacyPagination } from '@xiehe/api-client/contracts';
 import type {
   CompleteUploadRequest,
+  CompleteImageImportItemRequest,
   CreateImageUploadSessionRequest,
   CreatedImageImportBatch,
   ImageImportBatch,
@@ -23,9 +24,9 @@ export function createUploadClient(client: HttpClient) {
         '/api/v1/upload/sessions',
         request
       ),
-    completeSession: (imageFileId: number, request: CompleteUploadRequest) =>
+    completeSession: (sessionId: string, request: CompleteUploadRequest) =>
       client.post<UploadStatusRecord, CompleteUploadRequest>(
-        `/api/v1/upload/sessions/${imageFileId}/complete`,
+        `/api/v1/upload/sessions/${sessionId}/complete`,
         request
       ),
     getImportConfig: () =>
@@ -48,16 +49,21 @@ export function createUploadClient(client: HttpClient) {
     completeImportItem: (
       batchId: string,
       itemId: number,
-      request: CompleteUploadRequest
+      request: CompleteImageImportItemRequest
     ) =>
       client.post<ImageImportItem>(
         `/api/v1/upload/batches/${batchId}/items/${itemId}/complete`,
         request
       ),
-    markImportUploadFailed: (batchId: string, itemId: number, error: string) =>
+    markImportUploadFailed: (
+      batchId: string,
+      itemId: number,
+      sessionId: string | undefined,
+      error: string
+    ) =>
       client.post<ImageImportItem>(
         `/api/v1/upload/batches/${batchId}/items/${itemId}/upload-failed`,
-        { error }
+        { session_id: sessionId, error }
       ),
     enqueueImportItem: (batchId: string, itemId: number) =>
       client.post<ImageImportItem>(
@@ -81,8 +87,8 @@ export function createUploadClient(client: HttpClient) {
         )
       );
     },
-    getStatus: (imageFileId: string | number) =>
-      client.get<UploadStatusRecord>(`/api/v1/upload/status/${imageFileId}`),
+    getStatus: (sessionId: string) =>
+      client.get<UploadStatusRecord>(`/api/v1/upload/sessions/${sessionId}`),
     async listRecords(query: { page?: number; page_size?: number } = {}) {
       return normalizeLegacyPagination<UploadRecord>(
         await client.get<unknown>('/api/v1/upload/records', { params: query })

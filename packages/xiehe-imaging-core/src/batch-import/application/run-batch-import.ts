@@ -37,8 +37,7 @@ export interface BatchImportCreatedItem extends BatchImportServerItem {
 export interface BatchImportUploadSession {
   item_id: number;
   client_file_id: string;
-  image_file_id: number;
-  upload_id: string;
+  session_id: string;
   part_size: number;
   parts: Array<{ part_number: number; url: string }>;
 }
@@ -72,12 +71,13 @@ export interface BatchImportPipelinePorts<TSource> {
   completeItem(input: {
     batchId: string;
     itemId: number;
-    uploadId: string;
+    sessionId: string;
     parts: Array<{ part_number: number; etag: string }>;
   }): Promise<BatchImportServerItem>;
   markUploadFailed(
     batchId: string,
     itemId: number,
+    sessionId: string | undefined,
     error: string
   ): Promise<void>;
   getErrorMessage(error: unknown, fallback: BatchImportFailureCode): string;
@@ -177,7 +177,12 @@ export async function runBatchImportPipeline<TSource>(
       await Promise.all(
         itemWindow.map(async item => {
           try {
-            await input.ports.markUploadFailed(batch.batchId, item.id, message);
+            await input.ports.markUploadFailed(
+              batch.batchId,
+              item.id,
+              undefined,
+              message
+            );
           } catch {
             // 本地错误状态不依赖后端失败状态写回成功。
           }
@@ -202,7 +207,6 @@ export async function runBatchImportPipeline<TSource>(
         input.onFilePatch(localItem.id, {
           uploadStatus: 'uploading',
           aiStatus: 'pending',
-          imageFileId: session.image_file_id,
           error: null,
         });
         try {
@@ -221,7 +225,7 @@ export async function runBatchImportPipeline<TSource>(
           const serverItem = await input.ports.completeItem({
             batchId: batch.batchId,
             itemId: session.item_id,
-            uploadId: session.upload_id,
+            sessionId: session.session_id,
             parts,
           });
           input.onFilePatch(localItem.id, patchFromServerItem(serverItem));
@@ -234,6 +238,7 @@ export async function runBatchImportPipeline<TSource>(
             await input.ports.markUploadFailed(
               batch.batchId,
               session.item_id,
+              session.session_id,
               message
             );
           } catch {

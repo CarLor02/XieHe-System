@@ -1,4 +1,13 @@
+import pytest
+from pydantic import ValidationError
+
 from app.contexts.imaging.interface.http.v1.routes.imports import router
+from app.contexts.imaging.interface.http.v1.routes.uploads import (
+    router as upload_router,
+)
+from app.contexts.imaging.interface.http.v1.schemas import (
+    CompleteImageImportItemRequest,
+)
 
 
 def test_batch_upload_routes_are_registered() -> None:
@@ -11,6 +20,28 @@ def test_batch_upload_routes_are_registered() -> None:
     assert "/batches/{batch_id}/items/{item_id}/enqueue" in paths
     assert "/batches/{batch_id}/items" in paths
     assert "/batch/complete" not in paths
+
+
+def test_upload_routes_use_public_session_id() -> None:
+    paths = {route.path for route in upload_router.routes}
+
+    assert "/sessions/{session_id}/complete" in paths
+    assert "/sessions/{session_id}" in paths
+    assert "/sessions/{image_file_id}/complete" not in paths
+
+
+def test_batch_completion_requires_session_id_not_upload_id() -> None:
+    with pytest.raises(ValidationError):
+        CompleteImageImportItemRequest.model_validate(
+            {"parts": [{"part_number": 1, "etag": "etag"}]}
+        )
+
+    request = CompleteImageImportItemRequest(
+        session_id="session-1",
+        parts=[{"part_number": 1, "etag": "etag"}],
+    )
+    assert request.session_id == "session-1"
+    assert not hasattr(request, "upload_id")
 
 
 def test_build_annotation_from_ai_response_preserves_viewer_shape() -> None:

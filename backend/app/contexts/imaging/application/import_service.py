@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import math
-import uuid
 from dataclasses import dataclass
-from datetime import datetime
 
 from app.contexts.imaging.application.dto import (
-    AiTaskEvent,
     CompleteUpload,
     CreateImportBatch,
     ImportBatch,
@@ -17,7 +13,7 @@ from app.contexts.imaging.application.dto import (
     ImportItemResult,
     ImportUploadSession,
     PageResult,
-    ThumbnailTaskEvent,
+    UploadFileSpec,
 )
 from app.contexts.imaging.application.errors import (
     AiTaskQueueUnavailableError,
@@ -29,26 +25,20 @@ from app.contexts.imaging.application.errors import (
 from app.contexts.imaging.domain import (
     AITaskStatusEnum,
     ImageAccessActor,
-    ImageFileDraft,
-    ImageFileNotFoundError,
     ImageFileStatusEnum,
-    ImageFileTypeEnum,
     ImageImportAiStatus,
     ImageImportUploadStatus,
-    build_storage_object_key,
-    determine_image_file_type,
+    ImageUploadSourceType,
     validate_upload_file,
 )
 
-from .persistence_retry import run_with_persistence_retry
 from .ports import (
     AiTaskPublisher,
     ImageImportBatchRecord,
     ImageImportItemRecord,
     ImageImportRepository,
-    ObjectStorage,
 )
-from .thumbnail_scheduling_service import ThumbnailSchedulingService
+from .upload_session_service import ImageUploadSessionService
 from .visibility_service import ImageVisibilityApplicationService
 
 
@@ -56,9 +46,6 @@ from .visibility_service import ImageVisibilityApplicationService
 class ImportConfiguration:
     max_files: int
     session_window_size: int
-    bucket: str
-    part_size: int
-    expires_in: int
 
 
 class ImageImportService:
@@ -66,16 +53,14 @@ class ImageImportService:
         self,
         repository: ImageImportRepository,
         visibility: ImageVisibilityApplicationService,
-        storage: ObjectStorage,
         publisher: AiTaskPublisher,
-        thumbnails: ThumbnailSchedulingService,
+        sessions: ImageUploadSessionService,
         configuration: ImportConfiguration,
     ) -> None:
         self._repository = repository
         self._visibility = visibility
-        self._storage = storage
         self._publisher = publisher
-        self._thumbnails = thumbnails
+        self._sessions = sessions
         self.configuration = configuration
 
     def create_batch(
@@ -126,11 +111,39 @@ class ImageImportService:
             raise ImageImportNotFoundError("部分批量导入项不存在")
         sessions: list[ImportUploadSession] = []
         try:
-            await self._storage.ensure_bucket(self.configuration.bucket)
             for item in items:
                 if item.upload_status == ImageImportUploadStatus.UPLOADED.value:
                     continue
-                sessions.append(await self._create_item_session(batch, item))
+                upload = await self._sessions.create(
+                    UploadFileSpec(
+                        filename=str(item.filename),
+                        size=item.size,
+                        mime_type=str(item.mime_type),
+                        patient_id=batch.patient_id,
+                        description=batch.description,
+                        team_ids=list(batch.team_ids or []),
+                        file_hash=item.file_hash,
+                    ),
+                    actor,
+                    source_type=ImageUploadSourceType.BATCH_IMPORT,
+                    batch_item_id=item.id,
+                    validated_team_ids=list(batch.team_ids or []),
+                )
+                item.upload_status = ImageImportUploadStatus.SESSION_CREATED.value
+                item.error_message = None
+                sessions.append(
+                    ImportUploadSession(
+                        item_id=item.id,
+                        client_file_id=str(item.client_file_id),
+                        session_id=upload.session_id,
+                        file_uuid=upload.file_uuid,
+                        storage_bucket=upload.storage_bucket,
+                        object_key=upload.object_key,
+                        part_size=upload.part_size,
+                        expires_in=upload.expires_in,
+                        parts=upload.parts,
+                    )
+                )
             self._repository.refresh_batch_status(batch)
             self._repository.commit()
         except Exception:
@@ -138,114 +151,33 @@ class ImageImportService:
             raise
         return sessions
 
-    async def _create_item_session(
-        self,
-        batch: ImageImportBatchRecord,
-        item: ImageImportItemRecord,
-    ) -> ImportUploadSession:
-        file_uuid = str(uuid.uuid4())
-        filename = str(item.filename)
-        mime_type = str(item.mime_type)
-        object_key = build_storage_object_key(file_uuid, filename)
-        multipart = await self._storage.create_multipart_upload(
-            bucket=self.configuration.bucket,
-            object_key=object_key,
-            content_type=mime_type,
-            metadata={
-                "image-file-id": "pending",
-                "file-uuid": file_uuid,
-                "original-filename": filename,
-                "file-hash": str(item.file_hash or ""),
-            },
-            part_count=max(1, math.ceil(item.size / self.configuration.part_size)),
-            expires_in=self.configuration.expires_in,
-        )
-        draft = ImageFileDraft(
-            file_uuid=file_uuid,
-            original_filename=filename,
-            file_type=ImageFileTypeEnum(determine_image_file_type(filename)),
-            mime_type=mime_type,
-            storage_bucket=self.configuration.bucket,
-            object_key=object_key,
-            file_size=item.size,
-            file_hash=item.file_hash,
-            uploaded_by=batch.uploaded_by,
-            patient_id=batch.patient_id,
-            study_date=datetime.now(),
-            description=batch.description,
-            status=ImageFileStatusEnum.UPLOADING,
-            upload_progress=0,
-        )
-        image = self._repository.create_image(draft)
-        team_ids = list(batch.team_ids or [])
-        self._visibility.replace_team_visibility(image, team_ids)
-        item.image_file_id = image.id
-        item.upload_id = multipart.upload_id
-        item.upload_status = ImageImportUploadStatus.SESSION_CREATED.value
-        item.error_message = None
-        return ImportUploadSession(
-            item_id=item.id,
-            client_file_id=str(item.client_file_id),
-            image_file_id=image.id,
-            file_uuid=file_uuid,
-            storage_bucket=self.configuration.bucket,
-            object_key=object_key,
-            upload_id=multipart.upload_id,
-            part_size=self.configuration.part_size,
-            expires_in=self.configuration.expires_in,
-            parts=multipart.parts,
-        )
-
     async def complete_item(
         self,
         batch_id: str,
         item_id: int,
+        session_id: str,
         completion: CompleteUpload,
         actor: ImageAccessActor,
     ) -> ImportItemResult:
         batch = self._owned_batch(batch_id, actor)
         item = self._owned_item(batch, item_id)
-        image = self._repository.get_active_image(item.image_file_id)
-        if image is None:
-            raise ImageFileNotFoundError
-        already_uploaded = item.upload_status == ImageImportUploadStatus.UPLOADED.value
-        source_etag = image.storage_etag
-        upload_id = item.upload_id
-        bucket = str(image.storage_bucket)
-        object_key = str(image.object_key)
-        expected_size = image.file_size
-        expected_hash = completion.file_hash or image.file_hash
-        # 批量项会并发完成；对象存储只执行一次，数据库状态、AI任务和缩略图
-        # PENDING 作为一个可回滚阶段统一重试。
         self._repository.rollback()
         try:
-            if not already_uploaded:
-                source_etag = await self._complete_item_storage(
-                    expected_upload_id=upload_id,
-                    completion=completion,
-                    bucket=bucket,
-                    object_key=object_key,
-                    expected_size=expected_size,
-                    expected_hash=expected_hash,
-                )
-            uploaded_at = datetime.now()
-            batch, item, event, thumbnail_event = await run_with_persistence_retry(
-                lambda: self._persist_completed_item(
-                    batch_id=batch_id,
-                    item_id=item_id,
-                    completion=completion,
-                    actor=actor,
-                    source_etag=source_etag,
-                    uploaded_at=uploaded_at,
-                ),
-                rollback=self._repository.rollback,
-                operation_name="complete-image-import-item",
+            await self._sessions.complete(
+                session_id,
+                completion,
+                actor,
+                expected_batch_item_id=item.id,
             )
+            batch = self._owned_batch(batch_id, actor)
+            item = self._owned_item(batch, item_id)
+            task = self._repository.ensure_ai_task(item, self._owner_id(actor))
+            self._repository.refresh_batch_status(batch)
+            event = self._repository.ai_task_event(task, item, batch)
+            self._repository.commit()
         except Exception:
             self._repository.rollback()
             raise
-
-        await self._thumbnails.publish_after_commit(thumbnail_event)
         message = "影像上传完成，AI任务已提交"
         try:
             await self._publisher.publish(event)
@@ -259,80 +191,11 @@ class ImageImportService:
         self._repository.refresh_item(item)
         return ImportItemResult(self._repository.item_view(item), message)
 
-    async def _complete_item_storage(
-        self,
-        *,
-        expected_upload_id: str | None,
-        completion: CompleteUpload,
-        bucket: str,
-        object_key: str,
-        expected_size: int,
-        expected_hash: str | None,
-    ) -> str | None:
-        if completion.upload_id != expected_upload_id:
-            raise InvalidImageOperationError("上传会话已失效", status_code=409)
-        completed = await self._storage.complete_multipart_upload(
-            bucket=bucket,
-            object_key=object_key,
-            upload_id=completion.upload_id,
-            parts=completion.parts,
-        )
-        stored = await self._storage.stat_object(
-            bucket=bucket,
-            object_key=object_key,
-        )
-        if stored.size != expected_size:
-            raise InvalidImageOperationError("对象大小校验失败")
-        stored_hash = stored.metadata.get("file-hash") or stored.metadata.get(
-            "File-Hash"
-        )
-        if expected_hash and stored_hash and expected_hash != stored_hash:
-            raise InvalidImageOperationError("对象哈希校验失败")
-        return completed.etag or stored.etag
-
-    def _persist_completed_item(
-        self,
-        *,
-        batch_id: str,
-        item_id: int,
-        completion: CompleteUpload,
-        actor: ImageAccessActor,
-        source_etag: str | None,
-        uploaded_at: datetime,
-    ) -> tuple[
-        ImageImportBatchRecord,
-        ImageImportItemRecord,
-        AiTaskEvent,
-        ThumbnailTaskEvent | None,
-    ]:
-        batch = self._owned_batch(batch_id, actor)
-        item = self._owned_item(batch, item_id)
-        image = self._repository.get_active_image(item.image_file_id)
-        if image is None:
-            raise ImageFileNotFoundError
-        if item.upload_status != ImageImportUploadStatus.UPLOADED.value:
-            if completion.upload_id != item.upload_id:
-                raise InvalidImageOperationError("上传会话已失效", status_code=409)
-            image.storage_etag = source_etag
-            image.status = ImageFileStatusEnum.UPLOADED
-            image.upload_progress = 100
-            image.uploaded_at = uploaded_at
-            item.upload_status = ImageImportUploadStatus.UPLOADED.value
-
-        task = self._repository.ensure_ai_task(
-            item,
-            requested_by=self._owner_id(actor),
-        )
-        self._repository.refresh_batch_status(batch)
-        event = self._repository.ai_task_event(task, item, batch)
-        thumbnail_event = self._thumbnails.prepare(image)
-        self._repository.commit()
-        return batch, item, event, thumbnail_event
-
-    def mark_upload_failed(
+    async def mark_upload_failed(
         self,
         batch_id: str,
         item_id: int,
+        session_id: str | None,
         error: str,
         actor: ImageAccessActor,
     ) -> ImportItemResult:
@@ -343,6 +206,15 @@ class ImageImportService:
                 self._repository.item_view(item),
                 "影像已经上传完成，忽略迟到的失败回报",
             )
+        if session_id is not None:
+            await self._sessions.fail(
+                session_id,
+                error,
+                actor,
+                expected_batch_item_id=item.id,
+            )
+        batch = self._owned_batch(batch_id, actor)
+        item = self._owned_item(batch, item_id)
         item.upload_status = ImageImportUploadStatus.FAILED.value
         item.ai_status = ImageImportAiStatus.FAILED.value
         item.error_message = error
