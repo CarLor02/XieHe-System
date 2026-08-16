@@ -17,11 +17,13 @@ import UploadOptionsOverlay, {
   CropArea,
 } from './_components/overlay/upload-options-overlay';
 import { createLogger } from '@/lib/logger';
+import { IMAGE_UPLOAD_FILE_CONCURRENCY } from '@/infrastructure/upload/config';
 import {
   advanceUploadOptions,
   enqueueUploadOptions,
   markPendingUploadsStarted,
   removeFromUploadOptions,
+  runWithConcurrency,
   summarizeUploadQueue,
   validateUploadStart,
   type UploadOptionsQueueState,
@@ -240,12 +242,24 @@ function UploadContent() {
   };
 
   const uploadFile = async (uploadFileItem: UploadFile) => {
+    let lastProgress = -1;
     try {
       await uploadSingleFile({
         file: uploadFileItem.file,
         patient_id: selectedPatient || null,
         description: uploadFileItem.examType || null,
         team_ids: uploadFileItem.teamIds,
+        onProgress: progress => {
+          if (progress.percentage <= lastProgress) return;
+          lastProgress = progress.percentage;
+          setUploadFiles(prev =>
+            prev.map(file =>
+              file.id === uploadFileItem.id
+                ? { ...file, progress: progress.percentage }
+                : file
+            )
+          );
+        },
       });
       setUploadFiles(prev =>
         prev.map(f =>
@@ -451,10 +465,11 @@ function UploadContent() {
     const filesToUpload = uploadFiles.filter(f => f.status === 'pending');
     setUploadFiles(markPendingUploadsStarted);
 
-    // 上传每个文件
-    filesToUpload.forEach(uploadFileItem => {
-      uploadFile(uploadFileItem);
-    });
+    void runWithConcurrency(
+      filesToUpload,
+      IMAGE_UPLOAD_FILE_CONCURRENCY,
+      uploadFile
+    );
   };
 
   const handleBackToSource = () => {
@@ -642,11 +657,16 @@ function UploadContent() {
                       </div>
 
                       {file.status === 'uploading' && (
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                          <div
-                            className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                            style={{ width: `${file.progress}%` }}
-                          ></div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 flex-1 rounded-full bg-gray-200">
+                            <div
+                              className="h-1.5 rounded-full bg-blue-600 transition-all duration-300"
+                              style={{ width: `${file.progress}%` }}
+                            ></div>
+                          </div>
+                          <span className="w-9 text-right text-xs tabular-nums text-gray-500">
+                            {file.progress}%
+                          </span>
                         </div>
                       )}
 

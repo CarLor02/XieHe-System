@@ -1,12 +1,17 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { beforeEach, expect, it, jest } from '@jest/globals';
 import type { ReactNode } from 'react';
 
 const mockPush = jest.fn();
 const mockUploadSingleFile = jest.fn();
-const mockGetAssignableImageTeams = jest.fn<
-  (filters?: unknown) => Promise<unknown>
->();
+const mockGetAssignableImageTeams =
+  jest.fn<(filters?: unknown) => Promise<unknown>>();
 const mockUseUser = jest.fn();
 let mockLatestOverlayProps: {
   teamIds: number[];
@@ -67,11 +72,30 @@ jest.mock('./_components/overlay/upload-options-overlay', () => ({
   },
 }));
 
-function uploadTestFile() {
-  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-  const file = new File(['xray'], 'xray.png', { type: 'image/png' });
+function uploadTestFiles(count = 1) {
+  const input = document.querySelector(
+    'input[type="file"]'
+  ) as HTMLInputElement;
+  const files = Array.from(
+    { length: count },
+    (_, index) =>
+      new File(['xray'], `xray-${index + 1}.png`, { type: 'image/png' })
+  );
 
-  fireEvent.change(input, { target: { files: [file] } });
+  fireEvent.change(input, { target: { files } });
+}
+
+function uploadTestFile() {
+  uploadTestFiles();
+}
+
+async function confirmUploadOptions(count: number) {
+  for (let index = 0; index < count; index += 1) {
+    const button = await screen.findByRole('button', {
+      name: '模拟确认信息',
+    });
+    fireEvent.click(button);
+  }
 }
 
 beforeEach(() => {
@@ -115,7 +139,9 @@ it('applies the current user upload ownership preference to new files', async ()
   const { default: UploadPage } = await import('./page');
 
   render(<UploadPage />);
-  await waitFor(() => expect(document.querySelector('input[type="file"]')).toBeTruthy());
+  await waitFor(() =>
+    expect(document.querySelector('input[type="file"]')).toBeTruthy()
+  );
 
   uploadTestFile();
 
@@ -145,7 +171,9 @@ it('drops remembered upload teams that are no longer assignable', async () => {
   const { default: UploadPage } = await import('./page');
 
   render(<UploadPage />);
-  await waitFor(() => expect(document.querySelector('input[type="file"]')).toBeTruthy());
+  await waitFor(() =>
+    expect(document.querySelector('input[type="file"]')).toBeTruthy()
+  );
 
   uploadTestFile();
 
@@ -167,7 +195,9 @@ it('stores the current user upload ownership preference after overlay confirm', 
   const { default: UploadPage } = await import('./page');
 
   render(<UploadPage />);
-  await waitFor(() => expect(document.querySelector('input[type="file"]')).toBeTruthy());
+  await waitFor(() =>
+    expect(document.querySelector('input[type="file"]')).toBeTruthy()
+  );
 
   uploadTestFile();
 
@@ -186,7 +216,8 @@ it('stores the current user upload ownership preference after overlay confirm', 
   await waitFor(() => {
     expect(
       JSON.parse(
-        localStorage.getItem('xiehe:image-ownership-preference:7:upload') || '{}'
+        localStorage.getItem('xiehe:image-ownership-preference:7:upload') ||
+          '{}'
       )
     ).toMatchObject({
       version: 1,
@@ -194,4 +225,80 @@ it('stores the current user upload ownership preference after overlay confirm', 
       teamIds: [11],
     });
   });
+});
+
+it('shows intermediate byte progress before the upload completes', async () => {
+  let finishUpload: (() => void) | undefined;
+  mockUploadSingleFile.mockImplementation((rawRequest: unknown) => {
+    const request = rawRequest as {
+      onProgress?: (progress: {
+        phase: string;
+        loadedBytes: number;
+        totalBytes: number;
+        percentage: number;
+      }) => void;
+    };
+    request.onProgress?.({
+      phase: 'uploading',
+      loadedBytes: 37,
+      totalBytes: 100,
+      percentage: 37,
+    });
+    return new Promise(resolve => {
+      finishUpload = () => resolve({ image_file_id: 1 });
+    });
+  });
+  const { default: UploadPage } = await import('./page');
+
+  render(<UploadPage />);
+  await waitFor(() =>
+    expect(document.querySelector('input[type="file"]')).toBeTruthy()
+  );
+  fireEvent.click(screen.getByRole('button', { name: '选择测试患者' }));
+  uploadTestFile();
+  await confirmUploadOptions(1);
+  fireEvent.click(screen.getByRole('button', { name: '开始上传' }));
+
+  await screen.findByText('37%');
+  await act(async () => finishUpload?.());
+  await screen.findByText('上传完成');
+});
+
+it('uploads at most two files concurrently and continues after one finishes', async () => {
+  let active = 0;
+  let peak = 0;
+  const finishUploads: Array<() => void> = [];
+  mockUploadSingleFile.mockImplementation(
+    () =>
+      new Promise(resolve => {
+        active += 1;
+        peak = Math.max(peak, active);
+        finishUploads.push(() => {
+          active -= 1;
+          resolve({ image_file_id: 1 });
+        });
+      })
+  );
+  const { default: UploadPage } = await import('./page');
+
+  render(<UploadPage />);
+  await waitFor(() =>
+    expect(document.querySelector('input[type="file"]')).toBeTruthy()
+  );
+  fireEvent.click(screen.getByRole('button', { name: '选择测试患者' }));
+  uploadTestFiles(3);
+  await confirmUploadOptions(3);
+  fireEvent.click(screen.getByRole('button', { name: '开始上传' }));
+
+  await waitFor(() => expect(mockUploadSingleFile).toHaveBeenCalledTimes(2));
+  expect(peak).toBe(2);
+
+  await act(async () => finishUploads[0]?.());
+  await waitFor(() => expect(mockUploadSingleFile).toHaveBeenCalledTimes(3));
+  expect(peak).toBe(2);
+
+  await act(async () => {
+    finishUploads.slice(1).forEach(finish => finish());
+  });
+  await waitFor(() => expect(screen.getAllByText('上传完成')).toHaveLength(3));
 });

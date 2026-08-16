@@ -1,4 +1,6 @@
-import { chunkItems, runWithConcurrency } from './concurrency';
+import { runMultipartUpload, runWithConcurrency } from '@xiehe/upload-core';
+
+import { chunkItems } from './concurrency';
 import {
   patchFromServerItem,
   type BatchImportServerItem,
@@ -67,6 +69,8 @@ export interface BatchImportPipelinePorts<TSource> {
     source: TSource;
     start: number;
     end: number;
+    signal: AbortSignal;
+    onProgress: (loadedBytes: number) => void;
   }): Promise<string>;
   completeItem(input: {
     batchId: string;
@@ -91,6 +95,7 @@ export interface RunBatchImportPipelineInput<TSource> {
   flip: boolean;
   sessionWindowSize: number;
   uploadConcurrency?: number;
+  partUploadConcurrency?: number;
   ports: BatchImportPipelinePorts<TSource>;
   onFilePatch: (fileId: string, patch: BatchImportServerPatch) => void;
   onEvent: (event: BatchImportPipelineEvent) => void;
@@ -210,23 +215,38 @@ export async function runBatchImportPipeline<TSource>(
           error: null,
         });
         try {
-          const parts = [];
-          for (const part of session.parts) {
-            const start = (part.part_number - 1) * session.part_size;
-            const end = Math.min(start + session.part_size, file.size);
-            const etag = await input.ports.uploadPart({
-              url: part.url,
-              source: file.source,
-              start,
-              end,
-            });
-            parts.push({ part_number: part.part_number, etag });
-          }
+          const completedParts = await runMultipartUpload({
+            parts: session.parts.map(part => {
+              const start = (part.part_number - 1) * session.part_size;
+              const end = Math.min(start + session.part_size, file.size);
+              return {
+                partNumber: part.part_number,
+                size: end - start,
+                url: part.url,
+                start,
+                end,
+              };
+            }),
+            totalBytes: file.size,
+            concurrency: input.partUploadConcurrency ?? 3,
+            uploadPart: (part, context) =>
+              input.ports.uploadPart({
+                url: part.url,
+                source: file.source,
+                start: part.start,
+                end: part.end,
+                signal: context.signal,
+                onProgress: context.onProgress,
+              }),
+          });
           const serverItem = await input.ports.completeItem({
             batchId: batch.batchId,
             itemId: session.item_id,
             sessionId: session.session_id,
-            parts,
+            parts: completedParts.map(part => ({
+              part_number: part.partNumber,
+              etag: part.etag,
+            })),
           });
           input.onFilePatch(localItem.id, patchFromServerItem(serverItem));
         } catch (error) {

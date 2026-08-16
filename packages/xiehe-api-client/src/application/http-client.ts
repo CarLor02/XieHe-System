@@ -2,6 +2,11 @@ export type AuthMode = 'required' | 'optional' | 'none';
 export type ResponseMode = 'envelope' | 'raw';
 export type BinaryResponseType = 'blob' | 'arraybuffer';
 
+export interface HttpUploadProgress {
+  loaded: number;
+  total?: number;
+}
+
 export interface HttpRequestOptions {
   params?: Record<string, unknown>;
   headers?: Record<string, string>;
@@ -10,6 +15,7 @@ export interface HttpRequestOptions {
   auth?: AuthMode;
   responseMode?: ResponseMode;
   responseType?: 'json' | BinaryResponseType;
+  onUploadProgress?: (progress: HttpUploadProgress) => void;
 }
 
 export interface HttpRequest<TBody = unknown> extends HttpRequestOptions {

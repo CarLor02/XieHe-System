@@ -1,5 +1,6 @@
 import type {
   AxiosAdapter,
+  AxiosProgressEvent,
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from 'axios';
@@ -82,6 +83,26 @@ describe('createAxiosHttpClient', () => {
       status: 200,
       headers: { etag: 'part-1' },
     });
+  });
+
+  it('maps axios upload progress into the platform-neutral callback', async () => {
+    const onUploadProgress = vi.fn();
+    const adapter: AxiosAdapter = async config => {
+      config.onUploadProgress?.({
+        loaded: 3,
+        total: 5,
+      } as AxiosProgressEvent);
+      return response(config, '');
+    };
+    const client = createAxiosHttpClient({ axios: { adapter } });
+
+    await client.put('https://files.example/upload', 'chunk', {
+      auth: 'none',
+      responseMode: 'raw',
+      onUploadProgress,
+    });
+
+    expect(onUploadProgress).toHaveBeenCalledWith({ loaded: 3, total: 5 });
   });
 
   it('rejects business errors returned with HTTP 200', async () => {

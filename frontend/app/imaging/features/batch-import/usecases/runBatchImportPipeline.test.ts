@@ -87,7 +87,11 @@ it('completes each uploaded file immediately through the item endpoint', async (
   expect(batchId).toBe('batch-1');
   expect(uploadPart).toHaveBeenCalledWith(
     'http://object/part-1',
-    expect.any(Blob)
+    expect.any(Blob),
+    expect.objectContaining({
+      signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
+    })
   );
   expect(completeItem).toHaveBeenCalledWith('batch-1', 11, {
     session_id: 'session-1',

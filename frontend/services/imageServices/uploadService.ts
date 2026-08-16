@@ -1,4 +1,6 @@
 import { apiSdk, objectStorageClient } from '@/infrastructure/http';
+import { IMAGE_UPLOAD_PART_CONCURRENCY } from '@/infrastructure/upload/config';
+import type { HttpUploadProgress } from '@xiehe/api-client';
 import type {
   BatchCreateUploadFile,
   CompleteUploadRequest,
@@ -12,6 +14,7 @@ import type {
   UploadSingleResponse,
   UploadStatusRecord,
 } from '@xiehe/api-contracts';
+import { runMultipartUpload } from '@xiehe/upload-core';
 
 export type {
   BatchCreateUploadFile,
@@ -33,6 +36,19 @@ export interface UploadSingleRequest {
   patient_id?: string | null;
   description?: string | null;
   team_ids?: number[];
+  onProgress?: (progress: UploadSingleProgress) => void;
+}
+
+export interface UploadSingleProgress {
+  phase: 'uploading' | 'confirming' | 'completed';
+  loadedBytes: number;
+  totalBytes: number;
+  percentage: number;
+}
+
+export interface UploadObjectPartOptions {
+  signal?: AbortSignal;
+  onProgress?: (progress: HttpUploadProgress) => void;
 }
 
 export function createImageUploadSession(payload: {
@@ -56,7 +72,8 @@ export function completeImageUploadSession(
 
 export async function uploadObjectPart(
   url: string,
-  blob: Blob
+  blob: Blob,
+  options: UploadObjectPartOptions = {}
 ): Promise<string> {
   const response = await objectStorageClient.requestWithMetadata<string, Blob>({
     method: 'PUT',
@@ -64,6 +81,8 @@ export async function uploadObjectPart(
     data: blob,
     auth: 'none',
     responseMode: 'raw',
+    signal: options.signal,
+    onUploadProgress: options.onProgress,
     headers: { 'Content-Type': 'application/octet-stream' },
   });
   const etag = response.headers.etag;
@@ -147,21 +166,62 @@ export async function uploadSingleFile(
     description: payload.description || null,
     team_ids: payload.team_ids || [],
   });
-  const parts: CompletedUploadPart[] = [];
-  for (const part of session.parts) {
-    const start = (part.part_number - 1) * session.part_size;
-    const end = Math.min(start + session.part_size, file.size);
-    parts.push({
-      part_number: part.part_number,
-      etag: await uploadObjectPart(part.url, file.slice(start, end)),
-    });
-  }
+  const completedParts = await runMultipartUpload({
+    parts: session.parts.map(part => {
+      const start = (part.part_number - 1) * session.part_size;
+      const end = Math.min(start + session.part_size, file.size);
+      return {
+        partNumber: part.part_number,
+        size: end - start,
+        url: part.url,
+        start,
+        end,
+      };
+    }),
+    totalBytes: file.size,
+    concurrency: IMAGE_UPLOAD_PART_CONCURRENCY,
+    onProgress: progress => {
+      payload.onProgress?.({
+        phase: 'uploading',
+        loadedBytes: progress.loadedBytes,
+        totalBytes: progress.totalBytes,
+        percentage:
+          progress.totalBytes === 0
+            ? 99
+            : Math.min(
+                99,
+                Math.floor((progress.loadedBytes / progress.totalBytes) * 99)
+              ),
+      });
+    },
+    uploadPart: (part, context) =>
+      uploadObjectPart(part.url, file.slice(part.start, part.end), {
+        signal: context.signal,
+        onProgress: progress => context.onProgress(progress.loaded),
+      }),
+  });
+  const parts: CompletedUploadPart[] = completedParts.map(part => ({
+    part_number: part.partNumber,
+    etag: part.etag,
+  }));
+  payload.onProgress?.({
+    phase: 'confirming',
+    loadedBytes: file.size,
+    totalBytes: file.size,
+    percentage: 99,
+  });
   const status = await completeImageUploadSession(session.session_id, {
     parts,
   });
   if (status.image_file_id == null) {
     throw new Error('上传完成响应缺少影像ID');
   }
+  payload.onProgress?.({
+    phase: 'completed',
+    loadedBytes: file.size,
+    totalBytes: file.size,
+    percentage: 100,
+  });
   return {
     image_file_id: status.image_file_id,
     file_id: String(status.image_file_id),

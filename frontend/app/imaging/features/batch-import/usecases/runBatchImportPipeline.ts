@@ -13,6 +13,10 @@ import {
 } from '@/services/imageServices';
 import { maybeFlipImageFile } from '../domain/imageTransform';
 import type { BatchImportFileItem } from '../domain/types';
+import {
+  IMAGE_UPLOAD_FILE_CONCURRENCY,
+  IMAGE_UPLOAD_PART_CONCURRENCY,
+} from '@/infrastructure/upload/config';
 
 interface PipelineInput {
   files: Array<BatchImportFileItem & { file: File }>;
@@ -47,6 +51,8 @@ export function runBatchImportPipeline(input: PipelineInput): Promise<string> {
     teamIds: input.teamIds,
     flip: input.flip,
     sessionWindowSize: input.sessionWindowSize,
+    uploadConcurrency: IMAGE_UPLOAD_FILE_CONCURRENCY,
+    partUploadConcurrency: IMAGE_UPLOAD_PART_CONCURRENCY,
     onFilePatch: input.onFilePatch,
     onEvent: event => input.onMessage(EVENT_MESSAGES[event]),
     ports: {
@@ -78,8 +84,11 @@ export function runBatchImportPipeline(input: PipelineInput): Promise<string> {
       },
       createSessions: async (batchId, itemIds) =>
         (await createImageImportSessions(batchId, itemIds)).items,
-      uploadPart: ({ url, source, start, end }) =>
-        uploadObjectPart(url, source.slice(start, end)),
+      uploadPart: ({ url, source, start, end, signal, onProgress }) =>
+        uploadObjectPart(url, source.slice(start, end), {
+          signal,
+          onProgress: progress => onProgress(progress.loaded),
+        }),
       completeItem: request =>
         completeImageImportItem(request.batchId, request.itemId, {
           session_id: request.sessionId,

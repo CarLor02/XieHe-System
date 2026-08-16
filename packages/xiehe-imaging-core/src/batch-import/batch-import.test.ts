@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { chunkItems, patchFromServerItem, runWithConcurrency } from './index';
+import { runWithConcurrency } from '@xiehe/upload-core';
+
+import { chunkItems, patchFromServerItem } from './index';
 
 describe('batch import application rules', () => {
   it('maps backend processing state without platform types', () => {

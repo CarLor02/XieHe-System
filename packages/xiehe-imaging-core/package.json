@@ -24,6 +24,9 @@
     "./image-files": "./src/image-files/index.ts",
     "./reports": "./src/reports/index.ts"
   },
+  "dependencies": {
+    "@xiehe/upload-core": "*"
+  },
   "scripts": {
     "type-check": "tsc --noEmit",
     "test": "vitest run",

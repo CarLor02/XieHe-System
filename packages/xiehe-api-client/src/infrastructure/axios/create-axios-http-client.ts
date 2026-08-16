@@ -165,6 +165,13 @@ export function createAxiosHttpClient(
         timeout: request.timeout,
         signal: request.signal,
         responseType: request.responseType,
+        onUploadProgress: request.onUploadProgress
+          ? event =>
+              request.onUploadProgress?.({
+                loaded: event.loaded,
+                total: event.total,
+              })
+          : undefined,
       });
       const responseMode =
         request.responseMode ?? options.defaultResponseMode ?? 'envelope';
