@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import BinaryIO
+
 from app.contexts.imaging.application.dto import (
     MultipartPart,
     MultipartUpload,
@@ -132,6 +134,24 @@ class StorageServiceObjectStorage:
             etag=result.etag,
             metadata=result.metadata,
         )
+
+    async def download_object_to(
+        self,
+        *,
+        bucket: str,
+        object_key: str,
+        destination: BinaryIO,
+    ) -> None:
+        try:
+            await self._client.download_object_to(
+                bucket=bucket,
+                object_key=object_key,
+                destination=destination,
+            )
+        except StorageServiceError as exc:
+            if exc.status_code == 404:
+                raise ObjectStorageObjectNotFoundError(str(exc)) from exc
+            raise ObjectStorageUnavailableError(str(exc)) from exc
 
     async def put_object(
         self,

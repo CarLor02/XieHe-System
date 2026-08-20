@@ -7,6 +7,7 @@ from .access_scope import (
 from .ai_task_execution_repository import SqlAlchemyAiTaskExecutionRepository
 from .annotation_history_repository import SqlAlchemyAnnotationHistoryRepository
 from .annotation_repository import SqlAlchemyAnnotationRepository
+from .dataset_export_repository import SqlAlchemyDatasetExportRepository
 from .image_file_repository import SqlAlchemyImageFileRepository
 from .image_import_repository import SqlAlchemyImageImportRepository
 from .image_query_repository import SqlAlchemyImageQueryRepository, image_summary
@@ -23,6 +24,7 @@ __all__ = [
     "SqlAlchemyAiTaskExecutionRepository",
     "SqlAlchemyAnnotationHistoryRepository",
     "SqlAlchemyAnnotationRepository",
+    "SqlAlchemyDatasetExportRepository",
     "SqlAlchemyImageFileRepository",
     "SqlAlchemyImageImportRepository",
     "SqlAlchemyImageQueryRepository",

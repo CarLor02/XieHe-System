@@ -1,0 +1,36 @@
+{
+  "input": {
+    "imagePath": "spine.png",
+    "targetSize": { "width": 200, "height": 400 },
+    "annotation": {
+      "imageWidth": 100,
+      "imageHeight": 200,
+      "vertebraeLayer": [
+        { "label": "T5-1", "corners": [{ "x": 10, "y": 20 }, { "x": 10, "y": 20 }, { "x": 10, "y": 20 }, { "x": 10, "y": 20 }], "confidence": 1, "source": "ai" },
+        { "label": "T5-2", "corners": [{ "x": 30, "y": 20 }, { "x": 30, "y": 20 }, { "x": 30, "y": 20 }, { "x": 30, "y": 20 }], "confidence": 1, "source": "ai" },
+        { "label": "T5-3", "corners": [{ "x": 10, "y": 60 }, { "x": 10, "y": 60 }, { "x": 10, "y": 60 }, { "x": 10, "y": 60 }], "confidence": 1, "source": "ai" },
+        { "label": "T5-4", "corners": [{ "x": 30, "y": 60 }, { "x": 30, "y": 60 }, { "x": 30, "y": 60 }, { "x": 30, "y": 60 }], "confidence": 1, "source": "ai" },
+        { "label": "T1", "corners": [{ "x": 40, "y": 30 }, { "x": 60, "y": 30 }, { "x": 40, "y": 50 }, { "x": 60, "y": 50 }], "confidence": 1, "source": "manual" },
+        { "label": "T2-1", "corners": [{ "x": 45, "y": 70 }, { "x": 45, "y": 70 }, { "x": 45, "y": 70 }, { "x": 45, "y": 70 }], "confidence": 1, "source": "ai" },
+        { "label": "S1-1", "corners": [{ "x": 35, "y": 170 }, { "x": 35, "y": 170 }, { "x": 35, "y": 170 }, { "x": 35, "y": 170 }], "confidence": 1, "source": "ai" },
+        { "label": "S1-2", "corners": [{ "x": 65, "y": 170 }, { "x": 65, "y": 170 }, { "x": 65, "y": 170 }, { "x": 65, "y": 170 }], "confidence": 1, "source": "ai" }
+      ],
+      "cfhAnnotation": { "center": { "x": 50, "y": 180 }, "confidence": 1, "source": "ai" }
+    }
+  },
+  "expected": {
+    "version": "2025.7.4.0",
+    "flags": {},
+    "shapes": [
+      { "label": "T5", "points": [[20, 40], [60, 40], [60, 120], [20, 120]], "group_id": null, "description": "", "shape_type": "polygon", "flags": {}, "mask": null },
+      { "label": "T1", "points": [[80, 60], [120, 60], [120, 100], [80, 100]], "group_id": null, "description": "", "shape_type": "polygon", "flags": {}, "mask": null },
+      { "label": "T2-1", "points": [[90, 140]], "group_id": null, "description": "", "shape_type": "point", "flags": {}, "mask": null },
+      { "label": "S1", "points": [[70, 340], [130, 340]], "group_id": null, "description": "", "shape_type": "line", "flags": {}, "mask": null },
+      { "label": "CFH", "points": [[100, 360]], "group_id": null, "description": "", "shape_type": "point", "flags": {}, "mask": null }
+    ],
+    "imagePath": "spine.png",
+    "imageData": null,
+    "imageHeight": 400,
+    "imageWidth": 200
+  }
+}

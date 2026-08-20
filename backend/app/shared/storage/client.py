@@ -61,12 +61,17 @@ class StorageServiceClient:
     async def _request(self, method: str, path: str, **kwargs: Any) -> Dict[str, Any]:
         await self.start()
         assert self._client is not None
-        response = await self._client.request(
-            method,
-            f"{self.base_url}{path}",
-            headers={**self.headers, **kwargs.pop("headers", {})},
-            **kwargs,
-        )
+        try:
+            response = await self._client.request(
+                method,
+                f"{self.base_url}{path}",
+                headers={**self.headers, **kwargs.pop("headers", {})},
+                **kwargs,
+            )
+        except httpx.HTTPError as exc:
+            raise StorageServiceError(
+                f"storage service {method} {path} unavailable: {exc}"
+            ) from exc
 
         if response.status_code >= 400:
             raise StorageServiceError(
@@ -212,19 +217,27 @@ class StorageServiceClient:
         safe_bucket = quote(bucket, safe="")
         safe_object_key = quote(object_key, safe="/")
         path = f"/objects/{safe_bucket}/{safe_object_key}"
-        async with self._client.stream(
-            "GET",
-            f"{self.base_url}{path}",
-            headers=self.headers,
-        ) as response:
-            if response.status_code >= 400:
-                await response.aread()
-                raise StorageServiceError(
-                    f"storage service GET {path} failed: "
-                    f"{response.status_code} {response.text}"
-                )
-            async for chunk in response.aiter_bytes():
-                destination.write(chunk)
+        try:
+            async with self._client.stream(
+                "GET",
+                f"{self.base_url}{path}",
+                headers=self.headers,
+            ) as response:
+                if response.status_code >= 400:
+                    await response.aread()
+                    raise StorageServiceError(
+                        f"storage service GET {path} failed: "
+                        f"{response.status_code} {response.text}",
+                        status_code=response.status_code,
+                    )
+                async for chunk in response.aiter_bytes():
+                    destination.write(chunk)
+        except StorageServiceError:
+            raise
+        except httpx.HTTPError as exc:
+            raise StorageServiceError(
+                f"storage service GET {path} unavailable: {exc}"
+            ) from exc
 
 
 storage_service_client = StorageServiceClient()

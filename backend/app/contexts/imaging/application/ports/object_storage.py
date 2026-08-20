@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import BinaryIO, Protocol
 
 from app.contexts.imaging.application.dto import (
     MultipartPart,
@@ -52,6 +52,14 @@ class ObjectStorage(Protocol):
     ) -> str: ...
 
     async def stat_object(self, *, bucket: str, object_key: str) -> StoredObject: ...
+
+    async def download_object_to(
+        self,
+        *,
+        bucket: str,
+        object_key: str,
+        destination: BinaryIO,
+    ) -> None: ...
 
     async def put_object(
         self,

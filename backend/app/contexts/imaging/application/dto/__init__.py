@@ -1,6 +1,12 @@
 """影像应用层 DTO。"""
 
 from .common import PageResult
+from .dataset_exports import (
+    DatasetExportCandidate,
+    DatasetExportItemResult,
+    DatasetExportRunResult,
+    DatasetExportSummary,
+)
 from .files import (
     AssignableTeam,
     BatchDownloadUrls,
@@ -56,6 +62,10 @@ from .uploads import (
 )
 
 __all__ = [
+    "DatasetExportCandidate",
+    "DatasetExportItemResult",
+    "DatasetExportRunResult",
+    "DatasetExportSummary",
     "AnnotationBatchItem",
     "AiImageReference",
     "AiTaskEvent",

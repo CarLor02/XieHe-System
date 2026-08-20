@@ -5,6 +5,7 @@ from .ai_task_execution import AiTaskExecutionRepository, AiTaskModelGateway
 from .ai_task_publisher import AiTaskPublisher
 from .annotation_history_repository import AnnotationHistoryRepository
 from .annotation_repository import AnnotationRepository
+from .dataset_export_repository import DatasetExportRepository
 from .image_access_scope_resolver import ImageAccessScopeResolver
 from .image_file_repository import ImageFileRepository
 from .image_import_repository import ImageImportRepository
@@ -36,6 +37,7 @@ __all__ = [
     "AiTaskRecord",
     "AnnotationHistoryRepository",
     "AnnotationRepository",
+    "DatasetExportRepository",
     "ImageAccessScopeResolver",
     "ImageFileRepository",
     "ImageFileRecord",

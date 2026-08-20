@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   AnnotationSource,
   type VertebraAnnotation,
@@ -19,6 +20,44 @@ function point(label: string, x: number, y: number): VertebraAnnotation {
 }
 
 describe('LabelMe export', () => {
+  it('matches the cross-language golden document', () => {
+    const fixture = JSON.parse(
+      readFileSync(
+        new URL('./fixtures/labelme-golden.json', import.meta.url),
+        'utf8'
+      )
+    ) as {
+      input: {
+        imagePath: string;
+        targetSize: { width: number; height: number };
+        annotation: {
+          imageWidth: number;
+          imageHeight: number;
+          vertebraeLayer: VertebraAnnotation[];
+          cfhAnnotation: {
+            center: { x: number; y: number };
+            confidence: number;
+            source: AnnotationSource;
+          };
+        };
+      };
+      expected: unknown;
+    };
+    const { annotation } = fixture.input;
+    expect(
+      buildLabelMeAnnotationPayload({
+        imagePath: fixture.input.imagePath,
+        vertebraeLayer: annotation.vertebraeLayer,
+        cfhAnnotation: annotation.cfhAnnotation,
+        sourceSize: {
+          width: annotation.imageWidth,
+          height: annotation.imageHeight,
+        },
+        targetSize: fixture.input.targetSize,
+      })
+    ).toEqual(fixture.expected);
+  });
+
   it('groups legacy corner records into one vertebra', () => {
     const result = normalizeVertebraeLayerForLabelMe([
       point('T5-1', 10, 20),
