@@ -44,6 +44,7 @@ docker cp all-image-names.xlsx "$BACKEND_ID":/data/all-image-names.xlsx
   --input /data/all-image-names.xlsx \
   --output /data/labelme-export \
   --exam-type 侧位X光片 \
+  --team-name "脊柱研究团队" \
   --overwrite
 ```
 
@@ -52,6 +53,10 @@ docker cp all-image-names.xlsx "$BACKEND_ID":/data/all-image-names.xlsx
 ```bash
 docker cp "$BACKEND_ID":/data/labelme-export ./labelme-export
 ```
+
+`--team-name` 是可选参数。提供后，脚本按启用团队的名称精确匹配，并且只导出 `image_file_team_visibility` 中明确归属于该团队的影像；不通过上传者的团队成员身份推断影像归属。不提供该参数时，保持原有的跨团队文件名匹配行为。
+
+团队名称在当前模型中具有唯一约束。若名称不存在、团队已停用，或历史异常数据导致名称无法唯一解析，脚本会在读取影像前退出并返回退出码 `2`，避免导出错误团队的数据。
 
 脚本按文件名精确匹配，过滤已删除、`UPLOADING`、`DELETED` 和非侧位记录。同名候选从最新 ID 开始检查，选择首个 PatientID 完整、对象存在且大小一致的记录。
 

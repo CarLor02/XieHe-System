@@ -13,6 +13,8 @@ from app.contexts.imaging.application.dto import (
     DatasetExportSummary,
 )
 from app.contexts.imaging.application.errors import (
+    DatasetExportTeamAmbiguousError,
+    DatasetExportTeamNotFoundError,
     ObjectStorageObjectNotFoundError,
     ObjectStorageUnavailableError,
 )
@@ -46,14 +48,17 @@ class DatasetExportService:
         output_directory: Path,
         exam_type: str,
         overwrite: bool,
+        team_name: str | None = None,
         query_batch_size: int = 200,
         on_progress: Callable[[int, int, DatasetExportItemResult], None] | None = None,
     ) -> DatasetExportRunResult:
         workbook = DatasetExportWorkbook.load(input_workbook)
         requested_rows = workbook.requested_rows()
+        team_id = self._resolve_team_id(team_name)
         candidates_by_name = self._load_candidates(
             [filename for _row, filename in requested_rows],
             exam_type=exam_type,
+            team_id=team_id,
             query_batch_size=query_batch_size,
         )
         output_directory.mkdir(parents=True, exist_ok=True)
@@ -95,6 +100,7 @@ class DatasetExportService:
         filenames: list[str],
         *,
         exam_type: str,
+        team_id: int | None,
         query_batch_size: int,
     ) -> dict[str, list[DatasetExportCandidate]]:
         unique_names = list(dict.fromkeys(filenames))
@@ -104,11 +110,30 @@ class DatasetExportService:
             for candidate in self._repository.find_candidates(
                 filenames=batch,
                 exam_type=exam_type,
+                team_id=team_id,
             ):
                 grouped[candidate.original_filename].append(candidate)
         for candidates in grouped.values():
             candidates.sort(key=lambda item: item.image_file_id, reverse=True)
         return dict(grouped)
+
+    def _resolve_team_id(self, team_name: str | None) -> int | None:
+        if team_name is None:
+            return None
+        normalized_name = team_name.strip()
+        if not normalized_name:
+            raise DatasetExportTeamNotFoundError("团队名称不能为空")
+        team_ids = self._repository.find_active_team_ids_by_exact_name(normalized_name)
+        if not team_ids:
+            raise DatasetExportTeamNotFoundError(
+                f"未找到名称精确匹配的启用团队: {normalized_name}"
+            )
+        if len(team_ids) > 1:
+            joined_ids = ", ".join(str(team_id) for team_id in team_ids)
+            raise DatasetExportTeamAmbiguousError(
+                f"团队名称匹配到多个启用团队: {normalized_name} (ID: {joined_ids})"
+            )
+        return team_ids[0]
 
     async def _export_row(
         self,

@@ -51,6 +51,18 @@ class ObjectStorageObjectNotFoundError(ImagingApplicationError):
     """The storage service is reachable, but the requested object is absent."""
 
 
+class DatasetExportTeamResolutionError(ImagingApplicationError):
+    """离线数据集导出无法将团队名称唯一解析为启用团队。"""
+
+
+class DatasetExportTeamNotFoundError(DatasetExportTeamResolutionError):
+    pass
+
+
+class DatasetExportTeamAmbiguousError(DatasetExportTeamResolutionError):
+    pass
+
+
 class ImageUploadSessionNotFoundError(ImagingApplicationError):
     pass
 

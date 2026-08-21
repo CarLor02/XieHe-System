@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import sys
 from pathlib import Path
 
 from app.contexts.imaging.application.dto import DatasetExportItemResult
+from app.contexts.imaging.application.errors import DatasetExportTeamResolutionError
 from app.contexts.imaging.application.exports import DatasetExportService
 from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyDatasetExportRepository,
@@ -23,6 +25,13 @@ def positive_int(value: str) -> int:
     return parsed
 
 
+def non_empty_text(value: str) -> str:
+    parsed = value.strip()
+    if not parsed:
+        raise argparse.ArgumentTypeError("不能为空")
+    return parsed
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="按 Excel 文件名导出侧位 PNG、LabelMe JSON 和测量结果",
@@ -30,6 +39,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True, type=Path, help="输入 XLSX 文件")
     parser.add_argument("--output", required=True, type=Path, help="输出目录")
     parser.add_argument("--exam-type", default="侧位X光片", help="检查类型精确值")
+    parser.add_argument(
+        "--team-name",
+        type=non_empty_text,
+        help="只导出明确归属于该启用团队的影像（团队名称精确匹配）",
+    )
     parser.add_argument(
         "--overwrite",
         action="store_true",
@@ -68,6 +82,7 @@ async def run(args: argparse.Namespace) -> int:
             output_directory=output_path,
             exam_type=str(args.exam_type),
             overwrite=bool(args.overwrite),
+            team_name=str(args.team_name) if args.team_name is not None else None,
             query_batch_size=int(args.query_batch_size),
             on_progress=_progress,
         )
@@ -89,7 +104,12 @@ async def run(args: argparse.Namespace) -> int:
 
 
 def main() -> None:
-    raise SystemExit(asyncio.run(run(parse_args())))
+    try:
+        exit_code = asyncio.run(run(parse_args()))
+    except DatasetExportTeamResolutionError as exc:
+        print(f"团队筛选失败: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    raise SystemExit(exit_code)
 
 
 if __name__ == "__main__":

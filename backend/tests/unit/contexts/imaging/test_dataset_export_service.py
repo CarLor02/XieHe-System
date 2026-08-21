@@ -12,7 +12,11 @@ from openpyxl.worksheet.worksheet import Worksheet
 from PIL import Image
 
 from app.contexts.imaging.application.dto import DatasetExportCandidate, StoredObject
-from app.contexts.imaging.application.errors import ObjectStorageObjectNotFoundError
+from app.contexts.imaging.application.errors import (
+    DatasetExportTeamAmbiguousError,
+    DatasetExportTeamNotFoundError,
+    ObjectStorageObjectNotFoundError,
+)
 from app.contexts.imaging.application.exports import DatasetExportService
 from app.contexts.imaging.domain import JsonObject
 from app.contexts.imaging.domain.exports import MEASUREMENT_COLUMN_ALIASES
@@ -46,16 +50,30 @@ def _candidate(
 
 
 class FakeDatasetExportRepository:
-    def __init__(self, candidates: list[DatasetExportCandidate]) -> None:
+    def __init__(
+        self,
+        candidates: list[DatasetExportCandidate],
+        *,
+        team_ids_by_name: dict[str, list[int]] | None = None,
+    ) -> None:
         self.candidates = candidates
+        self.team_ids_by_name = team_ids_by_name or {}
+        self.resolved_team_names: list[str] = []
+        self.requested_team_ids: list[int | None] = []
+
+    def find_active_team_ids_by_exact_name(self, team_name: str) -> list[int]:
+        self.resolved_team_names.append(team_name)
+        return self.team_ids_by_name.get(team_name, [])
 
     def find_candidates(
         self,
         *,
         filenames: list[str],
         exam_type: str,
+        team_id: int | None,
     ) -> list[DatasetExportCandidate]:
         assert exam_type == "侧位X光片"
+        self.requested_team_ids.append(team_id)
         return [item for item in self.candidates if item.original_filename in filenames]
 
 
@@ -169,8 +187,12 @@ async def test_dataset_export_continues_failures_and_preserves_workbook(
             annotation={"measurements": []},
         ),
     ]
+    repository = FakeDatasetExportRepository(
+        candidates,
+        team_ids_by_name={"脊柱研究团队": [7]},
+    )
     service = DatasetExportService(
-        cast(Any, FakeDatasetExportRepository(candidates)),
+        cast(Any, repository),
         cast(
             Any,
             FakeObjectStorage({"valid.png": png_payload, "empty.jpg": jpeg_payload}),
@@ -182,7 +204,11 @@ async def test_dataset_export_continues_failures_and_preserves_workbook(
         output_directory=output_path,
         exam_type="侧位X光片",
         overwrite=False,
+        team_name=" 脊柱研究团队 ",
     )
+
+    assert repository.resolved_team_names == ["脊柱研究团队"]
+    assert repository.requested_team_ids == [7]
 
     assert result.summary.requested == 3
     assert result.summary.succeeded == 2
@@ -281,3 +307,40 @@ async def test_dataset_export_classifies_object_removed_after_stat(
     assert result.summary.failed == 1
     assert result.items[0].status == "object_missing"
     assert not (tmp_path / "output/P001/same.png").exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("team_ids", "expected_error"),
+    [
+        ([], DatasetExportTeamNotFoundError),
+        ([1, 2], DatasetExportTeamAmbiguousError),
+    ],
+)
+async def test_dataset_export_rejects_unresolved_team_name(
+    tmp_path: Path,
+    team_ids: list[int],
+    expected_error: type[Exception],
+) -> None:
+    input_path = tmp_path / "input.xlsx"
+    _create_input_workbook(input_path)
+    repository = FakeDatasetExportRepository(
+        [],
+        team_ids_by_name={"重名团队": team_ids},
+    )
+    service = DatasetExportService(
+        cast(Any, repository),
+        cast(Any, FakeObjectStorage({})),
+    )
+
+    with pytest.raises(expected_error):
+        await service.run(
+            input_workbook=input_path,
+            output_directory=tmp_path / "output",
+            exam_type="侧位X光片",
+            overwrite=False,
+            team_name="重名团队",
+        )
+
+    assert repository.resolved_team_names == ["重名团队"]
+    assert repository.requested_team_ids == []

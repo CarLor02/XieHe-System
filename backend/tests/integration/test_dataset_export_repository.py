@@ -7,7 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.contexts.access_control.infrastructure.persistence.models import User
 from app.contexts.imaging.domain import ImageFileStatusEnum, ImageFileTypeEnum
-from app.contexts.imaging.infrastructure.persistence import ImageFile
+from app.contexts.imaging.infrastructure.persistence import (
+    ImageFile,
+    ImageFileTeamVisibility,
+)
 from app.contexts.imaging.infrastructure.persistence.repositories import (
     SqlAlchemyDatasetExportRepository,
 )
@@ -16,6 +19,7 @@ from app.contexts.patients.infrastructure.persistence.models import (
     Patient,
     PatientStatusEnum,
 )
+from app.contexts.teams.infrastructure.persistence.models import Team
 
 pytestmark = pytest.mark.database
 
@@ -80,14 +84,37 @@ def test_dataset_export_repository_applies_exact_active_lateral_filters(
             _image(4, "Target.PNG", is_deleted=True),
             _image(5, "Target.PNG", status=ImageFileStatusEnum.UPLOADING),
             _image(6, "Target.PNG", status=ImageFileStatusEnum.DELETED),
+            _image(7, "Target.PNG"),
         ]
     )
+    db_session.add(
+        Team(
+            id=1,
+            name="Spine Export Team",
+            creator_id=1,
+            is_active=True,
+        )
+    )
+    db_session.add(ImageFileTeamVisibility(image_file_id=1, team_id=1))
     db_session.commit()
 
-    candidates = SqlAlchemyDatasetExportRepository(db_session).find_candidates(
+    repository = SqlAlchemyDatasetExportRepository(db_session)
+    candidates = repository.find_candidates(
         filenames=["Target.PNG"],
         exam_type="侧位X光片",
+        team_id=None,
     )
 
-    assert [candidate.image_file_id for candidate in candidates] == [1]
+    assert [candidate.image_file_id for candidate in candidates] == [7, 1]
     assert candidates[0].patient_identifier == "P-DATASET-1"
+
+    team_ids = repository.find_active_team_ids_by_exact_name("Spine Export Team")
+    assert team_ids == [1]
+    assert repository.find_active_team_ids_by_exact_name("spine export team") == []
+
+    team_candidates = repository.find_candidates(
+        filenames=["Target.PNG"],
+        exam_type="侧位X光片",
+        team_id=team_ids[0],
+    )
+    assert [candidate.image_file_id for candidate in team_candidates] == [1]
