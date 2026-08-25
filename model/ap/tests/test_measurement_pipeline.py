@@ -1,6 +1,9 @@
 import unittest
 import sys
 from pathlib import Path
+from unittest.mock import patch
+
+import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -11,6 +14,7 @@ from ap.domain.measurement_pipeline import (
     find_cobb_angles_v2,
 )
 from ap.infrastructure.yolo_inference import estimate_pose_from_vertebrae
+from ap.application.measurement_service import measure_image
 
 
 def make_vertebra(top_left, top_right, bottom_left, bottom_right):
@@ -101,6 +105,31 @@ class ApMeasurementPipelineTests(unittest.TestCase):
         self.assertLess(pose["CL"]["x"], pose["CR"]["x"])
         self.assertLess(pose["IL"]["x"], pose["IR"]["x"])
         self.assertLess(pose["SL"]["x"], pose["SR"]["x"])
+
+    def test_measure_image_does_not_silently_estimate_pose_after_pose_rejection(self):
+        vertebrae = {
+            "T1": make_vertebra((40, 100), (60, 100), (40, 120), (60, 120)),
+            "L3": make_vertebra((40, 200), (60, 200), (40, 220), (60, 220)),
+            "L5": make_vertebra((40, 260), (60, 260), (40, 300), (60, 300)),
+        }
+
+        with patch("ap.application.measurement_service.infer_pose", return_value={}):
+            with patch(
+                "ap.application.measurement_service.infer_pose_corner",
+                return_value=vertebrae,
+            ):
+                result = measure_image(
+                    np.zeros((360, 160, 3), dtype=np.uint8),
+                    image_id="IMG1",
+                )
+
+        self.assertEqual(result["raw_keypoints"]["pose_keypoints"], {})
+        self.assertFalse({"CR", "CL", "IR", "IL", "SR", "SL"} & {
+            item["label"] for item in result["vertebrae"]
+        })
+        self.assertFalse({"ca", "pelvic", "sacral", "ts"} & {
+            item["type"] for item in result["measurements"]
+        })
 
     def test_ap_excel_row_uses_filename_id_and_metric_display_names(self):
         measurements = [

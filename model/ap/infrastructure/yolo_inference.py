@@ -5,7 +5,15 @@ from typing import Any
 import numpy as np
 from ultralytics import YOLO
 
-from ap.config import CONF_THRESHOLD, POSE_CORNER_MODEL_PATH, POSE_MODEL_PATH
+from ap.config import (
+    CONF_THRESHOLD,
+    MODEL_CANDIDATE_CONF_THRESHOLD,
+    POSE_CORNER_IMGSZ,
+    POSE_CORNER_MODEL_PATH,
+    POSE_CORNER_STANDARD_CLASS_COUNT,
+    POSE_IMGSZ,
+    POSE_MODEL_PATH,
+)
 
 
 pose_model = None
@@ -36,7 +44,12 @@ def infer_pose(img: np.ndarray) -> dict[str, dict[str, float]]:
         return {}
 
     orig_h, orig_w = img.shape[:2]
-    result = pose_model.predict(img, verbose=False)[0]
+    result = pose_model.predict(
+        img,
+        imgsz=POSE_IMGSZ,
+        conf=MODEL_CANDIDATE_CONF_THRESHOLD,
+        verbose=False,
+    )[0]
     keypoint_names = ["CR", "CL", "IR", "IL", "SR", "SL"]
     pose_data: dict[str, dict[str, float]] = {}
 
@@ -119,50 +132,45 @@ def estimate_pose_from_vertebrae(vertebrae_data: dict[str, dict[str, Any]]) -> d
     return pose_data
 
 
-def _box_iou(b1, b2):
-    ix1, iy1 = max(b1[0], b2[0]), max(b1[1], b2[1])
-    ix2, iy2 = min(b1[2], b2[2]), min(b1[3], b2[3])
-    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
-    a1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
-    a2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
-    return inter / (a1 + a2 - inter + 1e-6)
-
-
-def _reassign_by_ypos(keypoints, boxes, conf_thr, iou_thr=0.3):
-    candidates = []
-    for index in range(len(keypoints)):
-        if float(boxes.conf[index]) < conf_thr:
+def _select_native_class_indices(
+    class_ids: np.ndarray,
+    confidences: np.ndarray,
+    confidence_threshold: float,
+    standard_class_count: int = POSE_CORNER_STANDARD_CLASS_COUNT,
+) -> list[tuple[int, int]]:
+    """Return the highest-confidence prediction index for each supported model class."""
+    selected: dict[int, tuple[float, int]] = {}
+    for index, (raw_class_id, raw_confidence) in enumerate(zip(class_ids, confidences)):
+        class_id = int(raw_class_id)
+        confidence = float(raw_confidence)
+        if not 0 <= class_id < standard_class_count or confidence < confidence_threshold:
             continue
-        keypoint = keypoints[index]
-        y_center = float(keypoint[:, 1].mean())
-        box = boxes.xyxy[index].cpu().numpy()
-        candidates.append((float(boxes.conf[index]), index, y_center, box))
-
-    candidates.sort(key=lambda item: -item[0])
-    kept = []
-    for candidate in candidates:
-        if not any(_box_iou(candidate[3], kept_candidate[3]) > iou_thr for kept_candidate in kept):
-            kept.append(candidate)
-
-    kept.sort(key=lambda item: item[2])
-    return [(rank, candidate[1]) for rank, candidate in enumerate(kept)]
+        current = selected.get(class_id)
+        if current is None or confidence > current[0]:
+            selected[class_id] = (confidence, index)
+    return [(class_id, selected[class_id][1]) for class_id in sorted(selected)]
 
 
-def rank_to_vertebra_name(rank: int) -> str:
-    if rank == 0:
+def class_id_to_vertebra_name(class_id: int) -> str:
+    if class_id == 0:
         return "C7"
-    if 1 <= rank <= 12:
-        return f"T{rank}"
-    if 13 <= rank <= 17:
-        return f"L{rank - 12}"
-    return f"V{rank}"
+    if 1 <= class_id <= 12:
+        return f"T{class_id}"
+    if 13 <= class_id < POSE_CORNER_STANDARD_CLASS_COUNT:
+        return f"L{class_id - 12}"
+    raise ValueError(f"Unsupported standard vertebra class: {class_id}")
 
 
 def infer_pose_corner(img: np.ndarray) -> dict[str, dict[str, Any]]:
     if pose_corner_model is None:
         return {}
 
-    result = pose_corner_model.predict(img, verbose=False)[0]
+    result = pose_corner_model.predict(
+        img,
+        imgsz=POSE_CORNER_IMGSZ,
+        conf=MODEL_CANDIDATE_CONF_THRESHOLD,
+        verbose=False,
+    )[0]
     corner_keys = ["top_left", "top_right", "bottom_right", "bottom_left"]
     vertebrae: dict[str, dict[str, Any]] = {}
 
@@ -171,12 +179,14 @@ def infer_pose_corner(img: np.ndarray) -> dict[str, dict[str, Any]]:
 
     keypoints = result.keypoints.data.cpu().numpy()
     boxes = result.boxes
-    assignments = _reassign_by_ypos(keypoints, boxes, CONF_THRESHOLD)
+    class_ids = boxes.cls.cpu().numpy()
+    box_confidences = boxes.conf.cpu().numpy()
+    assignments = _select_native_class_indices(class_ids, box_confidences, CONF_THRESHOLD)
 
-    for new_rank, index in assignments:
+    for class_id, index in assignments:
         kpts = keypoints[index]
-        confidence = float(boxes.conf[index])
-        vertebra_name = rank_to_vertebra_name(new_rank)
+        confidence = float(box_confidences[index])
+        vertebra_name = class_id_to_vertebra_name(class_id)
 
         corners = {}
         for keypoint_index, (x, y, visibility) in enumerate(kpts):
@@ -198,7 +208,7 @@ def infer_pose_corner(img: np.ndarray) -> dict[str, dict[str, Any]]:
         vertebrae[vertebra_name] = {
             "corners": corners,
             "confidence": confidence,
-            "class_id": new_rank,
+            "class_id": class_id,
         }
 
     return vertebrae
