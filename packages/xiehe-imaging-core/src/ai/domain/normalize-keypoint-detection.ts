@@ -12,19 +12,6 @@ import type {
   NormalizedAiKeypointDetection,
 } from './contracts';
 
-/**
- * 正位姿态点模型的左右语义与产品领域标签相反。交换只发生在 AI
- * 边界，进入领域层后 `_L` 始终表示屏幕左侧。
- */
-const FRONTAL_POSE_LABEL_ALIASES: Readonly<Record<string, string>> = {
-  CR: 'CL',
-  CL: 'CR',
-  IR: 'IL',
-  IL: 'IR',
-  SR: 'SL',
-  SL: 'SR',
-};
-
 function confidenceValue(
   value: number | { parsedValue?: number } | null | undefined
 ): number {
@@ -124,13 +111,13 @@ function normalizeFrontal(
   let vertebraCount = 0;
   let pointCount = 0;
 
-  for (const [rawLabel, keypoint] of Object.entries(
+  for (const [label, keypoint] of Object.entries(
     response.pose_keypoints ?? {}
   )) {
     if (!Number.isFinite(keypoint.x) || !Number.isFinite(keypoint.y)) continue;
     const point: Point = { x: keypoint.x, y: keypoint.y };
     vertebrae.push({
-      label: FRONTAL_POSE_LABEL_ALIASES[rawLabel] ?? rawLabel,
+      label,
       corners: [point, point, point, point],
       confidence: confidenceValue(keypoint.confidence),
       source: AnnotationSource.AI,

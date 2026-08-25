@@ -77,7 +77,7 @@ describe('normalizeAiKeypointDetection', () => {
     expect(result.pointCount).toBe(3);
   });
 
-  it('swaps the historical AP pose labels at the AI boundary', () => {
+  it('preserves normalized AP pose labels at the AI boundary', () => {
     const result = normalizeAiKeypointDetection(
       {
         pose_keypoints: {
@@ -88,7 +88,7 @@ describe('normalizeAiKeypointDetection', () => {
       '正位X光片'
     );
 
-    expect(result.vertebrae.map(item => item.label)).toEqual(['CL', 'SR']);
+    expect(result.vertebrae.map(item => item.label)).toEqual(['CR', 'SL']);
     expect(result.vertebrae[0].confidence).toBe(0.75);
   });
 });
