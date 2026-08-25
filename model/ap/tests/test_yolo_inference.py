@@ -10,7 +10,7 @@ import numpy as np
 MODEL_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(MODEL_ROOT))
 
-from ap.config import MODEL_CANDIDATE_CONF_THRESHOLD, POSE_CORNER_IMGSZ
+from ap.config import MODEL_CANDIDATE_CONF_THRESHOLD, POSE_CORNER_IMGSZ, POSE_IMGSZ
 from ap.infrastructure import yolo_inference
 
 
@@ -54,6 +54,24 @@ def corners(y, x=10):
 
 
 class ApYoloInferenceTests(unittest.TestCase):
+    def test_pose_uses_explicit_800_input_size(self):
+        model = FakeModel(SimpleNamespace(keypoints=None))
+        image = np.zeros((500, 600, 3), dtype=np.uint8)
+
+        with patch.object(yolo_inference, "pose_model", model):
+            pose = yolo_inference.infer_pose(image)
+
+        self.assertEqual(pose, {})
+        self.assertEqual(POSE_IMGSZ, 800)
+        self.assertEqual(
+            model.calls[0][1],
+            {
+                "imgsz": 800,
+                "conf": MODEL_CANDIDATE_CONF_THRESHOLD,
+                "verbose": False,
+            },
+        )
+
     def test_native_class_selection_keeps_best_supported_class_without_y_reindexing(self):
         result = SimpleNamespace(
             keypoints=FakeKeypoints(
