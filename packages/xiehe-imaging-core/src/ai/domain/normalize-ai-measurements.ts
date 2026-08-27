@@ -80,6 +80,8 @@ export function normalizeAiMeasurements(
       return {
         id: options.createId(measurement, index),
         type: finalType,
+        // AI Cobb 的 angle 历史上与已核对的 value 存在符号相反情况；
+        // value 才是前端显示契约，不能用 angle 覆盖或重新解释其正负。
         value:
           typeof measurement.value === 'string' && measurement.value
             ? measurement.value

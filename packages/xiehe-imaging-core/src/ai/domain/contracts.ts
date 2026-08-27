@@ -61,6 +61,11 @@ export interface AiMeasurementInput {
   type: string;
   points: AiPoint[];
   value?: string | null;
+  /**
+   * 历史 AI 协议字段。正位 Cobb 的 angle 符号可能与已核对的 value 相反，
+   * 编辑器展示和持久化必须继续以 value 为准。
+   */
+  angle?: number | null;
   upper_vertebra?: string | null;
   lower_vertebra?: string | null;
   apex_vertebra?: string | null;

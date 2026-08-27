@@ -1065,6 +1065,45 @@ it('replaces first-pass AI Cobb measurements with numbered initial keypoint-deri
   expect(cobb?.lowerVertebra).toBe('L5');
 });
 
+it('keeps a keypoint-bound AI Cobb during the first keypoint recalculation', () => {
+  const keypoints = t1L5GlobalCobbKeypoints();
+  const rebuilt = recalculateExistingMeasurementsFromKeypoints({
+    previousMeasurements: [
+      {
+        id: 'ai-cobb-1',
+        type: 'cobb1',
+        value: '-33.42°',
+        points: [
+          keypoints[0].point,
+          keypoints[1].point,
+          keypoints[6].point,
+          keypoints[7].point,
+        ],
+        upperVertebra: 'T1',
+        lowerVertebra: 'L5',
+        keypointSynced: true,
+      },
+    ],
+    keypoints,
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    calculator,
+    aiMeasurementIds: new Set(['ai-cobb-1']),
+  });
+
+  expect(rebuilt).toEqual([
+    expect.objectContaining({
+      id: 'ai-cobb-1',
+      type: 'cobb1',
+      upperVertebra: 'T1',
+      lowerVertebra: 'L5',
+      keypointSynced: true,
+    }),
+  ]);
+});
+
 it('does not add globally unique measurements after keypoint changes', () => {
   const synced = recalculateExistingMeasurementsFromKeypoints({
     previousMeasurements: [],
