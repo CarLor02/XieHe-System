@@ -61,6 +61,33 @@ describe('Xiehe API SDK', () => {
     });
   });
 
+  it('uses the strict model collection route without a trailing slash', async () => {
+    const { client, request } = createClient();
+    const sdk = createXieheApiSdk({ apiClient: client });
+    const model = {
+      name: 'AP model',
+      description: 'AP spine analysis',
+      view_type: 'front' as const,
+      endpoint_url: 'http://model-ap:8001',
+      version: '1.0.0',
+      tags: ['ap'],
+    };
+
+    await sdk.models.list({ page_size: 100 });
+    await sdk.models.create(model);
+
+    expect(request).toHaveBeenNthCalledWith(1, {
+      method: 'GET',
+      url: '/api/v1/models',
+      params: { page_size: 100 },
+    });
+    expect(request).toHaveBeenNthCalledWith(2, {
+      method: 'POST',
+      url: '/api/v1/models',
+      data: model,
+    });
+  });
+
   it('uses durable session IDs for single and batch upload completion', async () => {
     const { client, request } = createClient();
     const sdk = createXieheApiSdk({ apiClient: client });

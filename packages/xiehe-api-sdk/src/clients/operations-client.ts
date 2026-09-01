@@ -33,14 +33,14 @@ export function createOperationsClient(client: HttpClient) {
     models: {
       async list(query: ModelListQuery = {}) {
         return normalizeLegacyPagination<ModelItem>(
-          await client.get<unknown>('/api/v1/models/', {
+          await client.get<unknown>('/api/v1/models', {
             params: compactQuery({ ...query }),
           })
         );
       },
       getStats: () => client.get<ModelStats>('/api/v1/models/stats'),
       create: (request: CreateModelRequest) =>
-        client.post<ModelItem, CreateModelRequest>('/api/v1/models/', request),
+        client.post<ModelItem, CreateModelRequest>('/api/v1/models', request),
       activate: (modelId: string) =>
         client.post<void>(`/api/v1/models/${modelId}/activate`),
       delete: (modelId: string) =>
