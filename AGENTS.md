@@ -1,14 +1,3 @@
-# 移动端(KMP)开发规则
-
-- Backend APIs may be incomplete or unstable; verify endpoints with tools like `curl` before implementation, and defer features that depend on broken APIs.
-- Every code change must be recorded (clear commit message and/or changelog note).
-- After every major change, create a Git commit immediately.
-- For this repository, after each completed round of modifications, create exactly one Git commit before starting the next requested change.
-- When adding a new icon token or drawable, update every platform/resource mapping at the same time. At minimum, check `IconPainterContract.kt`, Android actual mappings such as `IconPainter.android.kt`, and any other exhaustive `when` mappings for icons.
-- If a required icon is missing, add it as an SVG under `composeApp/src/commonMain/composeResources/drawable/` and wire it into the shared icon token/mapping flow instead of reusing an unrelated icon.
-- 使用颜色时，应该使用 `theme/ThemePalettes.kt` 颜色体系里的语义颜色，不要在界面代码中硬编码颜色值。
-- Run "mobile/gradlew :composeApp:compileKotlinMetadata", "mobile/gradlew :composeApp:testAndroidHostTest", "mobile/gradlew :androidApp:assembleDebug", and "mobile/gradlew :composeApp:compileKotlinIosSimulatorArm64" after code change to check errors
-
 # Web前端开发规则
 
 - Web 前端代码位于 `frontend/`。新增或重构页面/模块时遵循 DDD 分层，优先按业务上下文与 feature 组织目录，避免把业务流程、状态编排、API 适配和 UI 渲染混在单个 `page.tsx` 或根组件里。
