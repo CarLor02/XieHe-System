@@ -1,6 +1,13 @@
 # syntax=docker/dockerfile:1.7
 # Spine Analysis API - Docker Image
-FROM python:3.9-slim
+FROM python:3.12-slim-bookworm
+
+COPY --from=ghcr.io/astral-sh/uv:0.12.10 /uv /usr/local/bin/uv
+
+ENV UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
@@ -18,12 +25,10 @@ RUN --mount=type=cache,id=xiehe-model-apt-cache,target=/var/cache/apt,sharing=lo
     libxrender1 \
     libgomp1
 
-# Copy requirements first for better caching
-COPY ap/requirements.txt ./requirements.txt
-
-# Install Python dependencies
-RUN --mount=type=cache,id=xiehe-model-pip,target=/root/.cache/pip,sharing=locked \
-    pip install -r requirements.txt
+# Both services install the same locked runtime before copying service code.
+COPY pyproject.toml uv.lock .python-version ./
+RUN --mount=type=cache,id=xiehe-model-uv,target=/root/.cache/uv,sharing=locked \
+    uv sync --locked --no-dev --no-install-project
 
 # Copy application code
 COPY shared/ ./shared/
@@ -43,8 +48,8 @@ ENV YOLO_CONFIG_DIR=/tmp \
 EXPOSE 8001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8001/health')"
+HEALTHCHECK --interval=5s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3).close()"
 
 # Run the application
 CMD ["uvicorn", "ap.interfaces.http.app:app", "--host", "0.0.0.0", "--port", "8001"]
