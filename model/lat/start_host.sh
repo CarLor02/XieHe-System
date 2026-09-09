@@ -186,22 +186,13 @@ else
     exit 1
 fi
 
-# 检查 Python 虚拟环境
-echo -e "${YELLOW}检查 Python 环境...${NC}"
-PYTHON_BIN="${PYTHON_BIN:-/opt/miniconda3/envs/xiehe/bin/python}"
-UVICORN_BIN="${UVICORN_BIN:-/opt/miniconda3/envs/xiehe/bin/uvicorn}"
-
-if [ ! -f "$PYTHON_BIN" ]; then
-    echo -e "${RED}错误: 未找到 Python: $PYTHON_BIN${NC}"
-    echo -e "${YELLOW}请设置 PYTHON_BIN 环境变量或确保安装了 xiehe conda 环境${NC}"
+# AP/LAT 使用同一个锁定环境，避免启动到历史 Conda 或系统 Python。
+if ! command -v uv >/dev/null 2>&1; then
+    echo "请先安装 uv 0.12.10"
     exit 1
 fi
-
-if [ ! -f "$UVICORN_BIN" ]; then
-    echo -e "${RED}错误: 未找到 uvicorn: $UVICORN_BIN${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓ Python 环境: $PYTHON_BIN${NC}"
+UV_PROJECT_ENVIRONMENT="$MODEL_ROOT/.venv" uv sync --project "$MODEL_ROOT" --locked --no-dev
+UVICORN_BIN="$MODEL_ROOT/.venv/bin/uvicorn"
 
 # 创建日志目录
 mkdir -p "$LOG_DIR"

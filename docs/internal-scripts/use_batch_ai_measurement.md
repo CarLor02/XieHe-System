@@ -4,9 +4,7 @@
 
 ## 前置条件
 
-1. 在对应模型目录准备 Python venv 并安装依赖。
-   - 正位：`model/ap/.venv`
-   - 侧位：`model/lat/.venv`
+1. 安装 uv 0.12.10，在仓库根目录执行 `uv sync --project model --locked --no-dev`，AP/LAT 共用 Python 3.12 和 `model/.venv`。
 2. 模型权重已放在默认位置。
    - 正位：`model/ap/weights/pose.pt`、`model/ap/weights/pose_corner.pt`
    - 侧位：`model/lat/weights/corner_model.pt`、`model/lat/weights/cfh_model.pt`
@@ -33,7 +31,7 @@
 
 ```bash
 cd /path/to/XieHe-System
-model/ap/.venv/bin/python model/ap/scripts/export_ai_measurements.py \
+uv run --project model --locked --no-dev python model/ap/scripts/export_ai_measurements.py \
   --input-dir /data/ai-batch/ap \
   --output /data/ai-batch/ap_measurements.xlsx \
   --raw-output-dir /data/ai-batch/ap_raw
@@ -55,7 +53,7 @@ cobb1, cobb2, cobb3, t1-tilt, ca, pelvic, sacral, ts
 
 ```bash
 cd /path/to/XieHe-System
-model/lat/.venv/bin/python model/lat/scripts/export_ai_measurements.py \
+uv run --project model --locked --no-dev python model/lat/scripts/export_ai_measurements.py \
   --input-dir /data/ai-batch/lat \
   --output /data/ai-batch/lat_measurements.xlsx \
   --raw-output-dir /data/ai-batch/lat_raw
@@ -84,7 +82,7 @@ t1-slope, cl, tk-t2-t5, tk-t5-t12, t10-l2, ll-l1-s1, ll-l1-l4, ll-l4-s1, sva, tp
 示例：
 
 ```bash
-model/lat/.venv/bin/python model/lat/scripts/export_ai_measurements.py \
+uv run --project model --locked --no-dev python model/lat/scripts/export_ai_measurements.py \
   --input-dir /data/ai-batch/lat \
   --output /data/ai-batch/lat_measurements_flipped.xlsx \
   --lr_flip

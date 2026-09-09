@@ -8,11 +8,10 @@
 - 模型权重必须存在：
   - 正位：`model/ap/weights/pose.pt`、`model/ap/weights/pose_corner.pt`
   - 侧位：`model/lat/weights/corner_model.pt`、`model/lat/weights/cfh_model.pt`
-- 已安装对应模型目录依赖：
+- 安装 uv 0.12.10，使用共享 Python 3.12 环境；以下命令均从仓库根目录执行：
 
 ```bash
-python -m pip install -r model/ap/requirements.txt
-python -m pip install -r model/lat/requirements.txt
+uv sync --project model --locked --no-dev
 ```
 
 脚本会直接加载本地模型，不需要启动后端服务，也不需要把图片上传到系统对象存储。
@@ -36,7 +35,7 @@ python -m pip install -r model/lat/requirements.txt
 ## 正位批量测量
 
 ```bash
-python model/ap/scripts/export_ai_measurements.py \
+uv run --project model --locked --no-dev python model/ap/scripts/export_ai_measurements.py \
   --input-dir /tmp/xiehe-ai-batch/ap \
   --metrics cobb1,cobb2,cobb3,t1-tilt,ca,ts \
   --output /tmp/xiehe-ai-batch/ap-results.xlsx \
@@ -59,7 +58,7 @@ ts
 ## 侧位批量测量
 
 ```bash
-python model/lat/scripts/export_ai_measurements.py \
+uv run --project model --locked --no-dev python model/lat/scripts/export_ai_measurements.py \
   --input-dir /tmp/xiehe-ai-batch/lat \
   --metrics t1-slope,tk-t5-t12,t10-l2,ll-l1-s1,pi,pt,ss \
   --output /tmp/xiehe-ai-batch/lat-results.xlsx \

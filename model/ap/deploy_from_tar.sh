@@ -5,6 +5,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../scripts/deployment.sh"
+
 # 配置
 IMAGE_TAR="spine-analysis-api.tar"
 IMAGE_NAME="spine-analysis-api:latest"
@@ -30,50 +33,24 @@ fi
 
 # 加载 Docker 镜像
 echo "📦 正在加载 Docker 镜像..."
-docker load -i $IMAGE_TAR
+docker load -i "$IMAGE_TAR"
 
 # 停止并删除已存在的容器
-if docker ps -a | grep -q $CONTAINER_NAME; then
+if docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
     echo "🛑 正在停止现有容器..."
-    docker stop $CONTAINER_NAME || true
+    docker stop "$CONTAINER_NAME"
     echo "🗑️  正在删除现有容器..."
-    docker rm $CONTAINER_NAME || true
+    docker rm "$CONTAINER_NAME"
 fi
 
 # 运行容器
 echo "🚀 正在启动容器..."
 docker run -d \
-    --name $CONTAINER_NAME \
-    -p $PORT:8001 \
+    --name "$CONTAINER_NAME" \
+    -p "$PORT:8001" \
     --restart unless-stopped \
-    $IMAGE_NAME
+    "$IMAGE_NAME"
 
-# 等待服务启动
-echo "⏳ 等待服务启动..."
-sleep 5
-
-# 检查容器状态
-if docker ps | grep -q $CONTAINER_NAME; then
-    echo ""
-    echo "✅ 部署成功！"
-    echo ""
-    echo "📊 容器状态："
-    docker ps | grep $CONTAINER_NAME
-    echo ""
-    echo "🌐 服务运行地址："
-    echo "   - 本地访问: http://localhost:$PORT"
-    echo "   - 健康检查: http://localhost:$PORT/health"
-    echo "   - API 文档: http://localhost:$PORT/docs"
-    echo ""
-    echo "📝 常用命令："
-    echo "   - 查看日志: docker logs -f $CONTAINER_NAME"
-    echo "   - 停止服务: docker stop $CONTAINER_NAME"
-    echo "   - 启动服务: docker start $CONTAINER_NAME"
-    echo "   - 删除容器: docker rm -f $CONTAINER_NAME"
-    echo ""
-else
-    echo ""
-    echo "❌ 部署失败！"
-    echo "查看日志: docker logs $CONTAINER_NAME"
-    exit 1
-fi
+echo "等待模型服务健康检查..."
+wait_for_model_container "$CONTAINER_NAME"
+echo "部署成功: http://localhost:$PORT"

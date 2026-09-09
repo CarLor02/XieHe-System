@@ -35,11 +35,11 @@ POST /api/measurement
 
 ## Local Run
 
-从仓库根目录运行：
+使用模型共享 Python 3.12 / uv 0.12.10 环境，详见 [共享环境说明](../README.md)。从仓库根目录运行：
 
 ```bash
 cd model
-PYTHONPATH="$PWD" uvicorn lat.interfaces.http.app:app --host 0.0.0.0 --port 8002
+uv run --locked --no-dev uvicorn lat.interfaces.http.app:app --host 0.0.0.0 --port 8002
 ```
 
 宿主机部署可继续使用：
@@ -53,9 +53,9 @@ cd model/lat
 
 ```bash
 cd model
-python lat/scripts/export_ai_measurements.py \
+uv run --locked --no-dev python lat/scripts/export_ai_measurements.py \
   --input-dir /path/to/images \
   --output /path/to/lat_measurements.xlsx
 ```
 
-可选参数见 `docs/use_batch_ai_measurement.md`。
+可选参数见 [批量导出说明](../../docs/internal-scripts/use_batch_ai_measurement.md)。

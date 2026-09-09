@@ -1,5 +1,9 @@
 # AI 模型服务宿主机部署指南
 
+## Python 环境
+
+AP/LAT 共用 `model/.venv`，要求 uv 0.12.10 和 Python 3.12。首次使用从仓库根目录执行 `uv sync --project model --locked --no-dev`，不再依赖 Conda 或单独安装服务依赖，详见 [共享环境说明](README.md)。
+
 ## 问题描述
 
 当 AI 模型服务（ap/lat）运行在**宿主机**而不是 Docker 容器内时，需要特殊的配置才能访问 Docker 内的 storage-service。
@@ -89,7 +93,7 @@ curl http://localhost:8090/health
 **正确的启动命令**（修复 403 错误）：
 
 ```bash
-cd ~/Documents/XieHe-System/model/ap
+cd ~/Documents/XieHe-System/model
 
 # 从 dotenv 读取 token
 TOKEN=$(grep "^STORAGE_SERVICE_TOKEN=" ~/Documents/XieHe-System/dotenv/.env.storage | cut -d= -f2)
@@ -98,7 +102,7 @@ TOKEN=$(grep "^STORAGE_SERVICE_TOKEN=" ~/Documents/XieHe-System/dotenv/.env.stor
 STORAGE_SERVICE_URL=http://localhost:8090 \
 STORAGE_SERVICE_TOKEN=$TOKEN \
 STORAGE_SERVICE_TIMEOUT=30 \
-PYTHONPATH=.. /opt/miniconda3/envs/xiehe/bin/uvicorn ap.interfaces.http.app:app --host 0.0.0.0 --port 8001
+uv run --locked --no-dev uvicorn ap.interfaces.http.app:app --host 0.0.0.0 --port 8001
 ```
 
 **错误的启动命令**（会导致 403）：
@@ -107,7 +111,7 @@ PYTHONPATH=.. /opt/miniconda3/envs/xiehe/bin/uvicorn ap.interfaces.http.app:app 
 # ❌ 错误：3030 是前端端口，不是 storage-service
 STORAGE_SERVICE_URL=http://localhost:3030/internal/model-storage \
 STORAGE_SERVICE_TOKEN=$TOKEN \
-PYTHONPATH=.. /opt/miniconda3/envs/xiehe/bin/uvicorn ap.interfaces.http.app:app --host 0.0.0.0 --port 8001
+uv run --locked --no-dev uvicorn ap.interfaces.http.app:app --host 0.0.0.0 --port 8001
 ```
 
 ### 步骤 5：测试 AI 服务
