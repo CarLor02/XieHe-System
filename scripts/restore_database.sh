@@ -2,6 +2,8 @@
 
 # XieHe医疗影像诊断系统 - 数据库恢复脚本
 # 支持从备份恢复MySQL数据库和Redis数据
+# 仅适用于旧版 backups/mysql 与 backups/redis；不支持 restic 快照。
+# 新备份的导出与恢复步骤见 docs/architecture/deployment/docker-data-persistence.md。
 
 set -e
 

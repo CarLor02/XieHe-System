@@ -43,7 +43,6 @@ fi
 
 # 创建必要的目录
 echo "📁 创建必要的目录..."
-mkdir -p backups/{mysql,redis,volumes}
 mkdir -p infrastructure/mysql infrastructure/redis infrastructure/docker
 
 # 构建镜像
@@ -151,7 +150,8 @@ echo "   查看日志: ./scripts/compose.sh logs -f [service_name]"
 echo "   停止服务: ./scripts/compose.sh down"
 echo "   重启服务: ./scripts/compose.sh restart [service_name]"
 echo "   进入容器: docker exec -it [container_name] bash"
-echo "   备份数据: ./scripts/backup_database.sh"
+echo "   安装备份: sudo ./scripts/install_backup_timer.sh"
+echo "   手动备份: sudo systemctl start xiehe-backup.service"
 
 # 创建启动日志
 cat > "startup_log_$(date +%Y%m%d_%H%M%S).txt" << EOF
@@ -185,6 +185,6 @@ echo "   - MinIO对象存储在Docker volume: xiehe-system_minio_data"
 echo "   - 即使容器重启，数据也不会丢失"
 echo ""
 echo "💾 数据备份建议:"
-echo "   - 定期运行: ./scripts/backup_database.sh"
-echo "   - 备份文件位置: ./backups/"
-echo "   - 恢复命令: ./scripts/restore_database.sh <timestamp>"
+echo "   - 手动验证后启用: sudo systemctl enable --now xiehe-backup.timer"
+echo "   - 本机备份仓库: /srv/xiehe-backups/repository"
+echo "   - 操作与恢复说明: docs/architecture/deployment/docker-data-persistence.md"

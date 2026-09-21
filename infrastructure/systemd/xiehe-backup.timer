@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily XieHe backup at 00:30 Asia/Shanghai
+
+[Timer]
+OnCalendar=*-*-* 00:30:00 Asia/Shanghai
+AccuracySec=1s
+RandomizedDelaySec=0
+# Never catch up a missed cold backup during daytime startup.
+Persistent=false
+Unit=xiehe-backup.service
+
+[Install]
+WantedBy=timers.target

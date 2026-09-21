@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Command substitute only: this file never calls a real Docker daemon.
+set -euo pipefail
+printf '%s ' "$@" >>"$MOCK_ROOT/commands.log"
+printf '\n' >>"$MOCK_ROOT/commands.log"
+state="$MOCK_ROOT/containers.json"
+
+change_running() {
+  jq --arg key "$1" --argjson running "$2" 'map(if (.Id == $key or .Config.Labels["com.docker.compose.service"] == $key) then .State.Running = $running else . end)' "$state" >"$state.tmp"
+  mv "$state.tmp" "$state"
+}
+
+case "$1" in
+  compose)
+    shift
+    while [[ "$1" == --env-file || "$1" == -f ]]; do shift 2; done
+    case "$1" in
+      config) echo 'name: integration-fixture' ;;
+      ps) jq -r '.[].Id' "$state" ;;
+      stop)
+        shift 3
+        if [[ "$MOCK_MODE" == timeout ]]; then sleep 60; fi
+        for service in "$@"; do change_running "$service" false; done
+        ;;
+      *) exit 90 ;;
+    esac
+    ;;
+  context) echo unix:///var/run/docker.sock ;;
+  info) echo mock-server ;;
+  ps) if [[ -f "$MOCK_ROOT/tool" ]]; then cat "$MOCK_ROOT/tool"; fi ;;
+  pull) echo mock-pulled ;;
+  image)
+    printf '[{"Id":"mock-image","RepoTags":["fixture:1"],"RepoDigests":["fixture@sha256:123"]}]\n'
+    ;;
+  volume)
+    jq -n --arg name "$3" '[{Name: $name, Driver: "local", Mountpoint: ("/var/lib/docker/volumes/" + $name + "/_data")}]'
+    ;;
+  inspect)
+    shift
+    if [[ "$1" == xiehe-backup-tool-* ]]; then
+      [[ -f "$MOCK_ROOT/tool" && "$(<"$MOCK_ROOT/tool")" == "$1" ]] || exit 1
+      printf '[{"Config":{"Labels":{"io.xiehe.backup":"true"}}}]\n'
+    else
+      jq --args '[.[] | select(.Id as $id | $ARGS.positional | index($id))]' "$@" <"$state"
+    fi
+    ;;
+  start)
+    [[ ! -f "$MOCK_ROOT/tool" ]] || { echo 'tool must stop before recovery' >&2; exit 91; }
+    change_running "$2" true
+    ;;
+  stop)
+    shift 3
+    for id in "$@"; do change_running "$id" false; done
+    ;;
+  rm) rm -f "$MOCK_ROOT/tool" ;;
+  exec) printf '%s\n' 'CREATE DATABASE fixture; USE fixture; CREATE TABLE example (id int);' ;;
+  run)
+    shift
+    name='' entrypoint=''
+    while (($#)); do
+      case "$1" in
+        --name) name="$2"; shift 2 ;;
+        --cidfile) printf '%s\n' mock-tool-id >"$2"; shift 2 ;;
+        --entrypoint) entrypoint="$2"; shift 2; break ;;
+        --rm) shift ;;
+        --pull|--network|--label|--mount|--env) shift 2 ;;
+        *) exit 92 ;;
+      esac
+    done
+    shift # image
+    printf '%s\n' "$name" >"$MOCK_ROOT/tool"
+    if [[ "$entrypoint" == sh ]]; then
+      printf '256 /source/mysql\n256 /source/redis\n256 /source/minio\n256 /source/kafka\n'
+    else
+      case "$1" in
+        cat|init|snapshots) echo '{}' ;;
+        backup)
+          jq -e 'all(.[]; .State.Running | not)' "$state" >/dev/null
+          touch "$MOCK_ROOT/backup-entered"
+          case "$MOCK_MODE" in
+            interrupt) sleep 60 ;;
+            partial) rm -f "$MOCK_ROOT/tool"; exit 3 ;;
+          esac
+          printf '{"message_type":"summary","snapshot_id":"01234567","total_duration":1,"total_bytes_processed":100,"data_added":10}\n'
+          ;;
+        forget)
+          jq -e 'all(.[] | select(.Config.Labels["com.docker.compose.service"] != "thumbnail-worker"); .State.Running)' "$state" >/dev/null
+          touch "$MOCK_ROOT/pruned"
+          ;;
+        *) exit 93 ;;
+      esac
+    fi
+    rm -f "$MOCK_ROOT/tool"
+    ;;
+  *) exit 94 ;;
+esac
