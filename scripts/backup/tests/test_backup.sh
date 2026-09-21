@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TEMP="$(mktemp -d)"
 trap 'rm -rf "$TEMP"' EXIT
-export PATH="$ROOT/scripts/tests/fixtures:$PATH"
+export PATH="$ROOT/scripts/backup/tests/fixtures:$PATH"
 
 prepare() {
   export MOCK_MODE="$1" MOCK_ROOT="$TEMP/$1" XIEHE_BACKUP_CONFIG="$TEMP/$1/backup.env"
@@ -32,13 +32,13 @@ assert_restored() {
 
 prepare init
 before="$(sha256sum "$MOCK_ROOT/password" "$MOCK_ROOT/backup/repository/config")"
-"$ROOT/scripts/backup_database.sh" init >"$MOCK_ROOT/output.log" 2>&1
+"$ROOT/scripts/backup/backup_database.sh" init >"$MOCK_ROOT/output.log" 2>&1
 [[ "$before" == "$(sha256sum "$MOCK_ROOT/password" "$MOCK_ROOT/backup/repository/config")" ]]
 if grep -Eq '(^| )stop |(^| )start |(^| )backup |(^| )forget ' "$MOCK_ROOT/commands.log"; then exit 1; fi
 echo 'PASS: init preserves an existing password/repository without stopping services'
 
 prepare success
-"$ROOT/scripts/backup_database.sh" run >"$MOCK_ROOT/output.log" 2>&1 || { cat "$MOCK_ROOT/output.log"; exit 1; }
+"$ROOT/scripts/backup/backup_database.sh" run >"$MOCK_ROOT/output.log" 2>&1 || { cat "$MOCK_ROOT/output.log"; exit 1; }
 assert_restored
 [[ -f "$MOCK_ROOT/pruned" ]]
 jq -e '.snapshot_id == "01234567" and .downtime_seconds >= 0' "$MOCK_ROOT/backup/last-success.json" >/dev/null
@@ -49,7 +49,7 @@ for mode in partial timeout; do
   prepare "$mode"
   printf '{"snapshot_id":"previous-success"}\n' >"$MOCK_ROOT/backup/last-success.json"
   result=0
-  "$ROOT/scripts/backup_database.sh" run >"$MOCK_ROOT/output.log" 2>&1 || result=$?
+  "$ROOT/scripts/backup/backup_database.sh" run >"$MOCK_ROOT/output.log" 2>&1 || result=$?
   [[ "$result" != 0 ]] || { cat "$MOCK_ROOT/output.log"; exit 1; }
   assert_restored
   [[ ! -e "$MOCK_ROOT/pruned" ]]
@@ -59,7 +59,7 @@ for mode in partial timeout; do
 done
 
 prepare interrupt
-"$ROOT/scripts/backup_database.sh" run >"$MOCK_ROOT/output.log" 2>&1 &
+"$ROOT/scripts/backup/backup_database.sh" run >"$MOCK_ROOT/output.log" 2>&1 &
 pid=$!
 for ((i=0; i<60; i++)); do
   [[ -f "$MOCK_ROOT/backup-entered" ]] && break

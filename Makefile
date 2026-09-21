@@ -103,16 +103,16 @@ type-check:
 # 🗄️ 数据管理
 backup:
 	@echo "💾 备份数据库..."
-	@if [ -f scripts/backup_database.sh ]; then \
-		bash scripts/backup_database.sh; \
+	@if [ -f scripts/backup/backup_database.sh ]; then \
+		bash scripts/backup/backup_database.sh; \
 	else \
 		echo "❌ 找不到备份脚本"; \
 	fi
 
 restore:
 	@echo "🔄 恢复数据库..."
-	@if [ -f scripts/restore_database.sh ]; then \
-		bash scripts/restore_database.sh; \
+	@if [ -f scripts/backup/restore_database.sh ]; then \
+		bash scripts/backup/restore_database.sh; \
 	else \
 		echo "❌ 找不到恢复脚本"; \
 	fi

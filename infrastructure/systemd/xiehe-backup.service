@@ -9,8 +9,8 @@ User=root
 UMask=0077
 Environment=TZ=Asia/Shanghai
 Environment=XIEHE_BACKUP_CONFIG=/etc/xiehe-backup/backup.env
-ExecStart="@PROJECT_DIR@/scripts/backup_database.sh" run
-ExecStopPost="@PROJECT_DIR@/scripts/backup_database.sh" recover-services --no-reset
+ExecStart="@PROJECT_DIR@/scripts/backup/backup_database.sh" run
+ExecStopPost="@PROJECT_DIR@/scripts/backup/backup_database.sh" recover-services --no-reset
 # Capture and recovery are bounded separately in the script; retention runs online.
 TimeoutStartSec=36min
 TimeoutStopSec=10min

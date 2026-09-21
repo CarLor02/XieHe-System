@@ -29,7 +29,7 @@ logging-service 不在本轮退役。备份 Kafka 时会暂停并恢复它，但
 context，不要在备份期间并行部署、迁移数据库、删除卷或手工写入存储。
 
 ```bash
-sudo ./scripts/install_backup_timer.sh
+sudo ./scripts/backup/install_backup_timer.sh
 ```
 
 安装器将：
@@ -38,6 +38,9 @@ sudo ./scripts/install_backup_timer.sh
 - 拉取固定版本 `restic/restic:0.19.1`，初始化 `/srv/xiehe-backups/repository`。
 - 安装 `xiehe-backup.service` 和 `xiehe-backup.timer`，但不启用 timer、不启动备份。
 - 重复安装时保留既有配置、密码、仓库和 timer 启用状态。
+
+如果此前安装过旧路径的脚本，更新代码后需重新运行上述安装命令，以更新 systemd
+unit 中的脚本路径；无需重新初始化密码或删除备份仓库。
 
 密码应另存到可信的密码管理工具中。不能只把密码放在需要该密码才能解密的仓库内。
 密码丢失无法恢复数据；安装器发现既有仓库缺失密码时会拒绝生成替代密码。
@@ -71,7 +74,7 @@ sudo systemctl start xiehe-backup.service
 sudo systemctl status xiehe-backup.service --no-pager
 sudo journalctl -u xiehe-backup.service -n 100 --no-pager
 sudo cat /srv/xiehe-backups/last-success.json
-sudo ./scripts/backup_database.sh snapshots
+sudo ./scripts/backup/backup_database.sh snapshots
 ```
 
 `systemctl start` 会等待本次执行结束。另开终端用
@@ -131,7 +134,7 @@ sudo systemctl disable --now xiehe-backup.timer
 若服务恢复失败，先检查 Docker 和服务日志，解决原因后在项目根目录执行：
 
 ```bash
-sudo ./scripts/backup_database.sh recover-services
+sudo ./scripts/backup/backup_database.sh recover-services
 sudo ./scripts/compose.sh ps
 ```
 
@@ -141,7 +144,7 @@ sudo ./scripts/compose.sh ps
 
 ## 快照导出与恢复说明
 
-旧的 `scripts/restore_database.sh` **只处理旧版 SQL/RDB 文件，不支持新的 restic
+旧的 `scripts/backup/restore_database.sh` **只处理旧版 SQL/RDB 文件，不支持新的 restic
 快照**。本轮不提供自动覆盖生产卷的恢复命令，也不执行真实恢复演练。
 
 先将选定快照导出到独立目录，不接触生产卷。以下命令在 root shell 中执行；先停止

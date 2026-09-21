@@ -15,7 +15,7 @@ case "$COMMAND" in
   *) echo "Usage: $0 {init|run|snapshots|recover-services}"; exit 2 ;;
 esac
 
-[[ -f "$CONFIG_FILE" ]] || die "Install first: sudo ./scripts/install_backup_timer.sh"
+[[ -f "$CONFIG_FILE" ]] || die "Install first: sudo ./scripts/backup/install_backup_timer.sh"
 [[ "$(stat -c %u "$CONFIG_FILE")" == "$EUID" ]] || die "Config must belong to the executing user"
 [[ $((8#$(stat -c %a "$CONFIG_FILE") & 077)) == 0 ]] || die "Config must not be group/world accessible"
 # Administrator-owned shell configuration; do not source Compose dotenv files.

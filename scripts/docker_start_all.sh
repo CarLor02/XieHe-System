@@ -150,7 +150,7 @@ echo "   查看日志: ./scripts/compose.sh logs -f [service_name]"
 echo "   停止服务: ./scripts/compose.sh down"
 echo "   重启服务: ./scripts/compose.sh restart [service_name]"
 echo "   进入容器: docker exec -it [container_name] bash"
-echo "   安装备份: sudo ./scripts/install_backup_timer.sh"
+echo "   安装备份: sudo ./scripts/backup/install_backup_timer.sh"
 echo "   手动备份: sudo systemctl start xiehe-backup.service"
 
 # 创建启动日志

@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 
-PROJECT_ROOT="$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")"
+PROJECT_ROOT="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../..")"
 CONFIG_DIR=/etc/xiehe-backup
 CONFIG_FILE="$CONFIG_DIR/backup.env"
 
@@ -45,7 +45,7 @@ if [[ ! -e "$RESTIC_PASSWORD_FILE" ]]; then
   openssl rand -base64 32 >"$RESTIC_PASSWORD_FILE"
   chmod 0600 "$RESTIC_PASSWORD_FILE"
 fi
-XIEHE_BACKUP_CONFIG="$CONFIG_FILE" "$PROJECT_ROOT/scripts/backup_database.sh" init
+XIEHE_BACKUP_CONFIG="$CONFIG_FILE" "$PROJECT_ROOT/scripts/backup/backup_database.sh" init
 
 # Escape both quoted systemd values and sed replacements, including '%' specifiers.
 unit_path="${PROJECT_ROOT//\\/\\\\}"
