@@ -1,0 +1,30 @@
+services:
+  # 并行验证实例：独立凭据和卷，业务服务仍连接 MinIO。
+  rustfs:
+    image: rustfs/rustfs:1.0.0
+    container_name: medical_rustfs
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?Set RUSTFS_ACCESS_KEY in dotenv/.env.rustfs}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?Set RUSTFS_SECRET_KEY in dotenv/.env.rustfs}
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ENABLE: 'true'
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_OBS_LOGGER_LEVEL: info
+      RUSTFS_OBS_LOG_DIRECTORY: /logs
+    ports:
+      - '${RUSTFS_API_PORT_BIND:-127.0.0.1:9100:9000}'
+      - '${RUSTFS_CONSOLE_PORT_BIND:-127.0.0.1:9101:9001}'
+    volumes:
+      # 新建命名卷继承镜像中 /data、/logs 的 10001:10001 权限。
+      - rustfs_data:/data
+      - rustfs_logs:/logs
+    networks:
+      - medical_network
+    healthcheck:
+      test: ['CMD', 'curl', '--noproxy', '*', '-fsS', 'http://127.0.0.1:9000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
