@@ -42,7 +42,12 @@ dependencies = [
 ]
 
 [dependency-groups]
+storage-migration = [
+    "boto3>=1.40,<2",
+    "boto3-stubs[s3]>=1.40,<2",
+]
 dev = [
+    { include-group = "storage-migration" },
     "mypy==1.10.1",
     "pre-commit>=4.2,<5",
     "pytest>=8.3,<9",
