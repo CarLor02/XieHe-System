@@ -70,6 +70,9 @@ ssh -N -L 9100:127.0.0.1:9100 -L 9101:127.0.0.1:9101 user@server
 本阶段不修改 `MINIO_*`、`STORAGE_SERVICE_URL`、Nginx 上游和数据库 ETag，
 也不运行缩略图回填。保留源对象用于后续比较，等待样本结果再决定正式迁移方式。
 
+正式迁移工具及 `plan / apply / rollback` 的维护窗口顺序见
+[MinIO 到 RustFS 迁移](../migration/0008-minio-to-rustfs.md)。
+
 ## 参考
 
 - [RustFS 1.0.0 发布](https://github.com/rustfs/rustfs/releases/tag/1.0.0)
