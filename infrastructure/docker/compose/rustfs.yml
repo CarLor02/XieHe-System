@@ -28,3 +28,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 40s
+
+volumes:
+  rustfs_data:
+    driver: local
+  rustfs_logs:
+    driver: local

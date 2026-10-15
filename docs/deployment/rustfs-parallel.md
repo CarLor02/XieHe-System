@@ -1,8 +1,11 @@
 # RustFS 1.0.0 并行验证
 
-Compose 列表包含独立的 `rustfs` 服务，镜像固定为 `rustfs/rustfs:1.0.0`。
+Compose 可按需启用独立的 `rustfs` 服务，镜像固定为 `rustfs/rustfs:1.0.0`。
 本阶段仅用于手动复制样本、比较对象内容和 ETag；应用、Nginx 和 AI 取图链路仍连接
 现有 MinIO，不修改数据库，也不自动复制对象或创建 bucket。
+
+普通 `./scripts/compose.sh up -d --build` 不加载 RustFS，也不要求
+`dotenv/.env.rustfs`。暂不迁移时无需准备 RustFS 配置。
 
 ## 配置与启动
 
@@ -17,7 +20,7 @@ fi
 
 编辑 `dotenv/.env.rustfs`，将 `RUSTFS_SECRET_KEY` 占位符替换为独立随机密钥，
 例如使用 `openssl rand -hex 32` 生成。该文件已由 `.gitignore` 排除。
-Compose 封装现在会加载此文件，更新仓库后需要先准备好再执行 Compose 命令。
+仅显式使用 `--with-rustfs`（或 `XIEHE_COMPOSE_RUSTFS=1`）时加载此文件。
 `deploy_pc.sh` 在生成配置时也会补建此文件，并保留已有文件；已有生产部署只需按本文
 单独启动 RustFS，无需运行整套部署脚本。
 
@@ -29,15 +32,16 @@ RUSTFS_CONSOLE_PORT_BIND=127.0.0.1:9101:9001
 ```
 
 ```bash
-./scripts/compose.sh config --quiet
-./scripts/compose.sh pull rustfs
-./scripts/compose.sh up -d --no-deps rustfs
-./scripts/compose.sh ps rustfs
+./scripts/compose.sh --with-rustfs config --quiet
+./scripts/compose.sh --with-rustfs pull rustfs
+./scripts/compose.sh --with-rustfs up -d --no-deps rustfs
+./scripts/compose.sh --with-rustfs ps rustfs
 curl --noproxy '*' --fail http://127.0.0.1:9100/health
 ```
 
-只启动 `rustfs` 不会重建现有业务服务。普通 `./scripts/compose.sh up -d` 则会将
-RustFS 和其他默认服务一起启动。
+只启动 `rustfs` 不会重建现有业务服务。`--with-rustfs up -d` 会将 RustFS 和其他
+默认服务一起启动；`--security` 与 `--with-rustfs` 可以按任意顺序组合。
+普通启动不会主动停止或删除已经运行的 RustFS 实例，也不会清理它的数据卷。
 
 | 用途 | 地址或名称 |
 | --- | --- |

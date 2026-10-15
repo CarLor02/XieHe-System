@@ -15,10 +15,6 @@ volumes:
     driver: local
   minio_data:
     driver: local
-  rustfs_data:
-    driver: local
-  rustfs_logs:
-    driver: local
   models_data:
     driver: local
   kafka_data:
