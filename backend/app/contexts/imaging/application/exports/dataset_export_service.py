@@ -1,4 +1,4 @@
-"""Filename-driven export of persisted lateral annotations and measurements."""
+"""Export persisted annotations selected by filename or explicit team ownership."""
 
 from __future__ import annotations
 
@@ -78,6 +78,52 @@ class DatasetExportService:
             if on_progress is not None:
                 on_progress(index, len(requested_rows), result)
 
+        return self._finish(workbook, results, output_directory)
+
+    async def run_team(
+        self,
+        *,
+        team_name: str,
+        output_directory: Path,
+        overwrite: bool,
+        query_batch_size: int = 200,
+        on_progress: Callable[[int, int, DatasetExportItemResult], None] | None = None,
+    ) -> DatasetExportRunResult:
+        team_id = self._resolve_team_id(team_name)
+        assert team_id is not None
+        if query_batch_size <= 0:
+            raise ValueError("query_batch_size 必须是正整数")
+        workbook = DatasetExportWorkbook.create()
+        output_directory.mkdir(parents=True, exist_ok=True)
+        results: list[DatasetExportItemResult] = []
+        used_paths: set[Path] = set()
+        after_id = 0
+        while candidates := self._repository.list_team_candidates(
+            team_id=team_id, after_id=after_id, limit=query_batch_size
+        ):
+            for candidate in candidates:
+                row_number = workbook.append_filename(candidate.original_filename)
+                result = await self._export_row(
+                    row_number=row_number,
+                    filename=candidate.original_filename,
+                    candidates=[candidate],
+                    workbook=workbook,
+                    output_directory=output_directory,
+                    overwrite=overwrite,
+                    used_paths=used_paths,
+                )
+                results.append(result)
+                if on_progress is not None:
+                    on_progress(len(results), 0, result)
+            after_id = candidates[-1].image_file_id
+        return self._finish(workbook, results, output_directory)
+
+    def _finish(
+        self,
+        workbook: DatasetExportWorkbook,
+        results: list[DatasetExportItemResult],
+        output_directory: Path,
+    ) -> DatasetExportRunResult:
         workbook.write_manifest(results)
         summary = self._summarize(results)
         workbook.save_atomic(output_directory / "measurements.xlsx")
@@ -144,6 +190,7 @@ class DatasetExportService:
         workbook: DatasetExportWorkbook,
         output_directory: Path,
         overwrite: bool,
+        used_paths: set[Path] | None = None,
     ) -> DatasetExportItemResult:
         selected, selection_status, selection_detail = await self._select_candidate(
             candidates
@@ -152,11 +199,15 @@ class DatasetExportService:
             return DatasetExportItemResult(
                 row_number=row_number,
                 requested_filename=filename,
-                image_file_id=None,
-                patient_identifier=None,
+                image_file_id=candidates[0].image_file_id
+                if len(candidates) == 1
+                else None,
+                patient_identifier=(
+                    candidates[0].patient_identifier if len(candidates) == 1 else None
+                ),
                 candidate_count=len(candidates),
                 candidate_ids=tuple(item.image_file_id for item in candidates),
-                exam_type=None,
+                exam_type=candidates[0].description if len(candidates) == 1 else None,
                 output_path=None,
                 keypoint_count=0,
                 measurement_coverage=0,
@@ -179,6 +230,11 @@ class DatasetExportService:
         missing_annotation = not isinstance(raw_layer, list) or not raw_layer
 
         try:
+            # overwrite 仅允许覆盖上次导出的文件，不能吞掉本批次的另一条影像。
+            if used_paths is not None:
+                if paths.relative_png in used_paths:
+                    raise FileExistsError("本批次输出路径重名，未覆盖先前影像")
+                used_paths.add(paths.relative_png)
             await self._image_output.write(
                 candidate=selected,
                 annotation=annotation,

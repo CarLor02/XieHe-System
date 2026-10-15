@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, BinaryIO, cast
 
@@ -64,6 +65,15 @@ class FakeDatasetExportRepository:
     def find_active_team_ids_by_exact_name(self, team_name: str) -> list[int]:
         self.resolved_team_names.append(team_name)
         return self.team_ids_by_name.get(team_name, [])
+
+    def list_team_candidates(
+        self, *, team_id: int, after_id: int, limit: int
+    ) -> list[DatasetExportCandidate]:
+        self.requested_team_ids.append(team_id)
+        return sorted(
+            (item for item in self.candidates if item.image_file_id > after_id),
+            key=lambda item: item.image_file_id,
+        )[:limit]
 
     def find_candidates(
         self,
@@ -344,3 +354,120 @@ async def test_dataset_export_rejects_unresolved_team_name(
 
     assert repository.resolved_team_names == ["重名团队"]
     assert repository.requested_team_ids == []
+
+
+@pytest.mark.asyncio
+async def test_team_export_pages_all_views_and_preserves_names(tmp_path: Path) -> None:
+    payload = _image_bytes("PNG", size=(16, 32))
+    first = _candidate(
+        1,
+        "same.jpg",
+        patient_identifier="P001",
+        object_key="one",
+        file_size=len(payload),
+        annotation=None,
+    )
+    second = replace(
+        first,
+        image_file_id=2,
+        patient_identifier="P002",
+        description="正位X光片",
+        object_key="two",
+        annotation={
+            "vertebraeLayer": [
+                {
+                    "label": "T1",
+                    "corners": [
+                        {"x": 1, "y": 1},
+                        {"x": 5, "y": 1},
+                        {"x": 1, "y": 5},
+                        {"x": 5, "y": 5},
+                    ],
+                }
+            ]
+        },
+    )
+    repository = FakeDatasetExportRepository(
+        [second, first],
+        team_ids_by_name={"团队": [7]},
+    )
+    service = DatasetExportService(
+        cast(Any, repository),
+        cast(Any, FakeObjectStorage({"one": payload, "two": payload})),
+    )
+    result = await service.run_team(
+        team_name="团队",
+        output_directory=tmp_path,
+        overwrite=False,
+        query_batch_size=1,
+    )
+    assert result.summary.succeeded == 2
+    assert result.summary.empty_annotations == 1
+    assert result.summary.duplicate_overwrites == 0
+    assert [item.image_file_id for item in result.items] == [1, 2]
+    assert repository.requested_team_ids == [7, 7, 7]
+    assert (tmp_path / "P001/same.png").read_bytes() == payload
+    assert json.loads((tmp_path / "P001/same.json").read_text())["shapes"] == []
+    shapes = json.loads((tmp_path / "P002/same.json").read_text())["shapes"]
+    assert shapes[0]["shape_type"] == "polygon"
+    manifest = load_workbook(tmp_path / "measurements.xlsx")["export_manifest"]
+    assert manifest.cell(3, 7).value == "正位X光片"
+
+
+@pytest.mark.asyncio
+async def test_team_export_does_not_overwrite_colliding_records(tmp_path: Path) -> None:
+    payload = _image_bytes("PNG", size=(16, 32))
+    first = _candidate(
+        1,
+        "same.jpg",
+        patient_identifier="P001",
+        object_key="one",
+        file_size=len(payload),
+        annotation=None,
+    )
+    other_payload = _image_bytes("PNG", size=(32, 64))
+    # 不同扩展名转换为 PNG 后也会碰撞。
+    second = replace(
+        first,
+        image_file_id=2,
+        original_filename="same.png",
+        object_key="two",
+        file_size=len(other_payload),
+    )
+    service = DatasetExportService(
+        cast(
+            Any,
+            FakeDatasetExportRepository(
+                [first, second],
+                team_ids_by_name={"团队": [7]},
+            ),
+        ),
+        cast(Any, FakeObjectStorage({"one": payload, "two": other_payload})),
+    )
+    result = await service.run_team(
+        team_name="团队",
+        output_directory=tmp_path,
+        overwrite=True,
+        query_batch_size=1,
+    )
+    assert result.summary.succeeded == 1
+    assert result.has_failures
+    assert result.items[1].status == "export_failed"
+    assert "重名" in result.items[1].detail
+    assert (tmp_path / "P001/same.png").read_bytes() == payload
+
+
+@pytest.mark.asyncio
+async def test_team_export_empty_team_writes_manifest(tmp_path: Path) -> None:
+    service = DatasetExportService(
+        cast(Any, FakeDatasetExportRepository([], team_ids_by_name={"团队": [7]})),
+        cast(Any, FakeObjectStorage({})),
+    )
+    result = await service.run_team(
+        team_name="团队",
+        output_directory=tmp_path,
+        overwrite=False,
+    )
+    assert result.summary.requested == 0
+    assert not result.has_failures
+    assert load_workbook(tmp_path / "measurements.xlsx")["export_manifest"].max_row == 1

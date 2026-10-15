@@ -48,6 +48,18 @@ class DatasetExportWorkbook:
             raise ValueError(f"Sheet1 缺少测量列: {', '.join(missing_columns)}")
 
     @classmethod
+    def create(cls) -> DatasetExportWorkbook:
+        workbook = Workbook()
+        worksheet = workbook.create_sheet("Sheet1")
+        del workbook["Sheet"]
+        worksheet.append(["影像名称", *MEASUREMENT_COLUMN_ALIASES])
+        return cls(workbook, worksheet)
+
+    def append_filename(self, filename: str) -> int:
+        self._worksheet.append([filename])
+        return self._worksheet.max_row
+
+    @classmethod
     def load(cls, input_path: Path) -> DatasetExportWorkbook:
         workbook = load_workbook(input_path)
         if "Sheet1" not in workbook.sheetnames:

@@ -118,3 +118,14 @@ def test_dataset_export_repository_applies_exact_active_lateral_filters(
         team_id=team_ids[0],
     )
     assert [candidate.image_file_id for candidate in team_candidates] == [1]
+
+    for image_id in (3, 4, 5, 6):
+        db_session.add(ImageFileTeamVisibility(image_file_id=image_id, team_id=1))
+    db_session.commit()
+    page = repository.list_team_candidates(team_id=1, after_id=0, limit=1)
+    assert [item.image_file_id for item in page] == [1]
+    page = repository.list_team_candidates(team_id=1, after_id=1, limit=10)
+    assert [item.image_file_id for item in page] == [3]
+    assert page[0].description == "正位X光片"
+    assert repository.list_team_candidates(team_id=1, after_id=3, limit=10) == []
+    assert repository.list_team_candidates(team_id=999, after_id=0, limit=10) == []

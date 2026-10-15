@@ -8,6 +8,10 @@ from app.contexts.imaging.application.dto import DatasetExportCandidate
 
 
 class DatasetExportRepository(Protocol):
+    def list_team_candidates(
+        self, *, team_id: int, after_id: int, limit: int
+    ) -> list[DatasetExportCandidate]: ...
+
     def find_active_team_ids_by_exact_name(self, team_name: str) -> list[int]: ...
 
     def find_candidates(

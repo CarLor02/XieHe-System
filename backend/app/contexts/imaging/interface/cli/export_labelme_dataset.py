@@ -1,4 +1,4 @@
-"""Export persisted lateral annotations selected by an XLSX filename list."""
+"""Export persisted annotations selected by an XLSX list or an entire team."""
 
 from __future__ import annotations
 
@@ -32,13 +32,17 @@ def non_empty_text(value: str) -> str:
     return parsed
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="按 Excel 文件名导出侧位 PNG、LabelMe JSON 和测量结果",
+        description="按 Excel 文件名或整个团队导出 PNG、LabelMe JSON 和测量结果",
     )
-    parser.add_argument("--input", required=True, type=Path, help="输入 XLSX 文件")
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--input", type=Path, help="输入 XLSX 文件")
+    selection.add_argument(
+        "--all-team-images", action="store_true", help="导出团队全部影像，不限检查类型"
+    )
     parser.add_argument("--output", required=True, type=Path, help="输出目录")
-    parser.add_argument("--exam-type", default="侧位X光片", help="检查类型精确值")
+    parser.add_argument("--exam-type", help="Excel 模式检查类型精确值，默认侧位X光片")
     parser.add_argument(
         "--team-name",
         type=non_empty_text,
@@ -50,7 +54,15 @@ def parse_args() -> argparse.Namespace:
         help="覆盖输出目录中已有的同名 PNG 和 JSON",
     )
     parser.add_argument("--query-batch-size", type=positive_int, default=200)
-    return parser.parse_args()
+    args = parser.parse_args(argv)
+    if args.all_team_images:
+        if args.team_name is None:
+            parser.error("--all-team-images 必须提供 --team-name")
+        if args.exam_type is not None:
+            parser.error("--all-team-images 不接受 --exam-type，团队模式导出全部类型")
+    elif args.exam_type is None:
+        args.exam_type = "侧位X光片"
+    return args
 
 
 def _progress(current: int, total: int, result: DatasetExportItemResult) -> None:
@@ -60,15 +72,15 @@ def _progress(current: int, total: int, result: DatasetExportItemResult) -> None
         or current == total
     ):
         print(
-            f"[{current}/{total}] {result.requested_filename}: {result.status}"
+            f"[{current}/{total or '?'}] {result.requested_filename}: {result.status}"
             + (f" - {result.detail}" if result.detail else "")
         )
 
 
 async def run(args: argparse.Namespace) -> int:
-    input_path = args.input.expanduser().resolve()
     output_path = args.output.expanduser().resolve()
-    if not input_path.is_file():
+    input_path = args.input.expanduser().resolve() if args.input is not None else None
+    if input_path is not None and not input_path.is_file():
         raise FileNotFoundError(f"输入工作簿不存在: {input_path}")
 
     database = SessionLocal()
@@ -77,15 +89,25 @@ async def run(args: argparse.Namespace) -> int:
             SqlAlchemyDatasetExportRepository(database),
             StorageServiceObjectStorage(),
         )
-        result = await service.run(
-            input_workbook=input_path,
-            output_directory=output_path,
-            exam_type=str(args.exam_type),
-            overwrite=bool(args.overwrite),
-            team_name=str(args.team_name) if args.team_name is not None else None,
-            query_batch_size=int(args.query_batch_size),
-            on_progress=_progress,
-        )
+        if args.all_team_images:
+            result = await service.run_team(
+                team_name=str(args.team_name),
+                output_directory=output_path,
+                overwrite=bool(args.overwrite),
+                query_batch_size=int(args.query_batch_size),
+                on_progress=_progress,
+            )
+        else:
+            assert input_path is not None
+            result = await service.run(
+                input_workbook=input_path,
+                output_directory=output_path,
+                exam_type=str(args.exam_type),
+                overwrite=bool(args.overwrite),
+                team_name=str(args.team_name) if args.team_name is not None else None,
+                query_batch_size=int(args.query_batch_size),
+                on_progress=_progress,
+            )
     finally:
         database.close()
         await storage_service_client.stop()

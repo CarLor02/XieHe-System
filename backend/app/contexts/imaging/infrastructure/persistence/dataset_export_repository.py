@@ -1,4 +1,4 @@
-"""SQLAlchemy read adapter for filename-driven dataset exports."""
+"""SQLAlchemy read adapter for filename and team dataset exports."""
 
 from __future__ import annotations
 
@@ -37,7 +37,24 @@ class SqlAlchemyDatasetExportRepository:
     ) -> list[DatasetExportCandidate]:
         if not filenames:
             return []
-        requested = set(filenames)
+        return self._read_candidates(
+            filenames=filenames, exam_type=exam_type, team_id=team_id
+        )
+
+    def list_team_candidates(
+        self, *, team_id: int, after_id: int, limit: int
+    ) -> list[DatasetExportCandidate]:
+        return self._read_candidates(team_id=team_id, after_id=after_id, limit=limit)
+
+    def _read_candidates(
+        self,
+        *,
+        team_id: int | None,
+        filenames: list[str] | None = None,
+        exam_type: str | None = None,
+        after_id: int = 0,
+        limit: int | None = None,
+    ) -> list[DatasetExportCandidate]:
         query = self._session.query(
             ImageFile.id,
             ImageFile.original_filename,
@@ -54,19 +71,27 @@ class SqlAlchemyDatasetExportRepository:
                 ImageFileTeamVisibility,
                 ImageFileTeamVisibility.image_file_id == ImageFile.id,
             ).filter(ImageFileTeamVisibility.team_id == team_id)
-        rows = (
-            query.filter(
-                ImageFile.original_filename.in_(filenames),
-                ImageFile.description == exam_type,
-                ImageFile.is_deleted.is_(False),
-                Patient.is_deleted.is_(False),
-                ImageFile.status.notin_(
-                    [ImageFileStatusEnum.UPLOADING, ImageFileStatusEnum.DELETED]
-                ),
-            )
-            .order_by(ImageFile.id.desc())
-            .all()
+        if filenames is not None:
+            query = query.filter(ImageFile.original_filename.in_(filenames))
+        if exam_type is not None:
+            query = query.filter(ImageFile.description == exam_type)
+        query = query.filter(
+            ImageFile.is_deleted.is_(False),
+            Patient.is_deleted.is_(False),
+            ImageFile.status.notin_(
+                [ImageFileStatusEnum.UPLOADING, ImageFileStatusEnum.DELETED]
+            ),
         )
+        if limit is not None:
+            query = (
+                query.filter(ImageFile.id > after_id)
+                .order_by(ImageFile.id)
+                .limit(limit)
+            )
+        else:
+            query = query.order_by(ImageFile.id.desc())
+        rows = query.all()
+        requested = set(filenames) if filenames is not None else None
         # MySQL deployments commonly use a case-insensitive collation. Enforce the
         # CLI contract after the indexed IN query so only byte-for-byte names match.
         return [
@@ -92,5 +117,5 @@ class SqlAlchemyDatasetExportRepository:
                 annotation,
                 patient_identifier,
             ) in rows
-            if str(original_filename) in requested
+            if requested is None or str(original_filename) in requested
         ]
