@@ -73,24 +73,24 @@ Expo Router 的 `src/app` 只容纳路由，普通组件和 hooks 放在外部�
   `patients/selection.ts` 可以保留；不能深层导入其他模块的组件、状态或领域内部文件。
 - 患者选择、影像查看、测量计算有业务归属，不因为被两个页面使用就搬到 `shared/`。
 
-## 当前应承认的边界和下一步
+## 已落实的职责边界与后续约束
 
-当前代码已经具备轻量路由、共享协议/规则和独立平台实现，尚不是完整的依赖倒置结构：
+API 整理后，两端使用同一份生成 DTO 与 Stellarmesh SDK。生成入口、存储例外及会话
+规则见 [共享 API 说明](../frontend/shared-api-client.md)。移动端同时完成以下收敛：
 
-1. `PatientsScreen` 等页面仍同时管理查询、分页和渲染；`ProfileScreen` 还直接编排退出。
-   后续按页面工作流提取同级 `application/` hook，组件主要接收显示数据与操作回调。
-2. `features/auth/usecases/session.ts` 接收具体 `ExpoApiInfrastructure`，
-   `imaging/usecases/uploadImage.ts` 接收整个 SDK 和 HTTP client。
-   优先收窄这两个有实际副作用的用例端口，保留现有会话归属和上传确认契约测试。
-3. `application/services.ts` 的 `MobileServices` 适合当前首版，但不应继续无限扩展。
-   `createLiveServices` 也兼任依赖装配；后续把装配放回应用启动层，按业务流程提供服务，
-   HTTP 基础设施只负责建立传输能力。
-4. 系统链接目前在影像操作 hook 中调用，文件选择也在上传 hook 中调用。引入上述端口时
-   一并收拢到平台适配；`domain/presentation.ts` 中的日期和状态文案应归到展示映射，
-   不把它们视为业务领域规则。
+- `features/auth/application/ports.ts` 定义认证网关和令牌存储，登录/退出用例只依赖这些
+  端口，不再接收 `ExpoApiInfrastructure`。退出先结束本机会话，再通知服务端。
+- 上传用例只接收 `ImageUploadGateway` 和需要的字节传输方法，不再接收整个 SDK；
+  文件读取、分片边界校验、ETag 和服务端完成确认仍由原有流程保护。
+- 患者查询、筛选、分页状态在 `patients/application/usePatientList.ts`；个人统计与退出
+  状态在 `profile/application/useProfile.ts`。组件保留导航、弹层和呈现。
+- 服务装配移入 `application/createMobileServices.ts`，HTTP 基础设施只创建传输、会话
+  和 SDK。`MobileServices` 本轮没有增加业务入口；新增能力应按模块提供所需端口，
+  不继续扩大全局容器或把整份 SDK 下发给复杂用例。
 
-本轮只为 UI 调整提取了工作台加载、影像操作、批量缩略图加载和展示组件，没有进行
-大规模目录迁移。后续先落实这些职责边界，再随着标注工作流增长决定是否拆平级模块。
+其他列表/文件选择和系统链接仍随实际工作流继续收敛。React hook 可负责加载状态、
+生命周期和错误显示；平台文件、链接与安全存储实现放在基础设施中。共享测量、标注和
+权限规则继续属于已有 core 包。本轮不批量更换目录名称，也不预建空的分层目录。
 
 ## UI 与真实能力
 

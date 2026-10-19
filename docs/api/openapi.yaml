@@ -1,3 +1,4 @@
+# 历史快照，已停用。当前契约请使用 ../../apiContract/openapi.json，不要据此生成客户端。
 openapi: 3.0.3
 info:
   title: 医疗影像诊断系统 API
