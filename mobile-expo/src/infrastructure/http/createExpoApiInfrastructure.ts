@@ -25,7 +25,8 @@ export function createExpoApiInfrastructure(
   options: CreateExpoApiInfrastructureOptions = {}
 ): ExpoApiInfrastructure {
   const baseURL = options.apiBaseUrl ?? getExpoApiBaseUrl();
-  const tokenStore = options.tokenStore ?? createSecureSessionTokenStore();
+  const tokenStore =
+    options.tokenStore ?? createSecureSessionTokenStore(baseURL);
   const publicApiClient = createAxiosHttpClient({
     baseURL,
     defaultAuth: 'none',

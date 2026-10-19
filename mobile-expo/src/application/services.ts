@@ -1,0 +1,27 @@
+import type { XieheApiSdk } from '@xiehe/api-sdk';
+import type { MobileUploadFile } from '../features/imaging/domain/upload';
+
+export interface ImagePreview {
+  uri: string | null;
+  isThumbnail: boolean;
+}
+
+// Keep the mobile port limited to supported flows; DTOs and endpoints remain in the shared SDK.
+export interface MobileServices {
+  patients: Pick<XieheApiSdk['patients'], 'list' | 'get' | 'create' | 'update'>;
+  imaging: Pick<
+    XieheApiSdk['imaging'],
+    'list' | 'get' | 'listPatientImages' | 'listAssignableTeams' | 'predict'
+  >;
+  dashboard: Pick<XieheApiSdk['dashboard'], 'getStats' | 'getRecentActivities'>;
+  teams: Pick<XieheApiSdk['teams'], 'listMine'>;
+  reports: Pick<XieheApiSdk['reports'], 'list' | 'generate'>;
+  preview: (imageId: number) => Promise<ImagePreview>;
+  upload: (
+    file: MobileUploadFile,
+    patientId: number | null,
+    examType: string,
+    teamIds: number[],
+    onProgress: (progress: number) => void
+  ) => Promise<number>;
+}
