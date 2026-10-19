@@ -4,9 +4,9 @@ export function imageStatusLabel(status: ImageFileStatus) {
   return (
     {
       UPLOADING: '上传中',
-      UPLOADED: '待处理',
+      UPLOADED: '已上传',
       PROCESSING: '处理中',
-      PROCESSED: '已处理',
+      PROCESSED: '已完成',
       FAILED: '处理失败',
       ARCHIVED: '已归档',
       DELETED: '已删除',

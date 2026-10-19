@@ -22,7 +22,7 @@ export function TeamsScreen() {
   const resource = useResource(load);
   return (
     <Screen>
-      <Header title="我的团队" subtitle="查看当前账号所属的团队" back />
+      <Header title="组织管理" subtitle="查看当前账号所属的团队" back />
       <Content>
         {resource.loading && !resource.data && <LoadingState />}
         {!!resource.error && (

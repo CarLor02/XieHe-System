@@ -44,19 +44,28 @@ export function Header({
   back,
   right,
   children,
+  roundedBottom = false,
 }: PropsWithChildren<{
   title: string;
   subtitle?: string;
   back?: boolean;
   right?: ReactNode;
+  roundedBottom?: boolean;
 }>) {
   const insets = useSafeAreaInsets();
   return (
     <LinearGradient
-      colors={[colors.primary, '#8B45EB', '#6D28D9']}
+      colors={['#7C3AED', '#A855F7', '#7C3AED']}
       start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.header, { paddingTop: Math.max(insets.top, 16) + 12 }]}
+      end={{ x: 1, y: 0 }}
+      style={[
+        styles.header,
+        { paddingTop: Math.max(insets.top, 16) + 12 },
+        roundedBottom && {
+          borderBottomLeftRadius: 32,
+          borderBottomRightRadius: 32,
+        },
+      ]}
     >
       <View style={layout.between}>
         <View style={[layout.row, layout.flex]}>
@@ -81,7 +90,7 @@ export function Header({
         </View>
         {right}
       </View>
-      {!!children && <View style={{ marginTop: 18 }}>{children}</View>}
+      {!!children && <View style={{ marginTop: 16 }}>{children}</View>}
     </LinearGradient>
   );
 }
@@ -280,9 +289,20 @@ export function SearchField({
 export function Tag({
   text,
   tone = 'primary',
+  dot = false,
 }: {
   text: string;
-  tone?: 'primary' | 'success' | 'warning' | 'muted' | 'danger';
+  tone?:
+    | 'primary'
+    | 'success'
+    | 'warning'
+    | 'muted'
+    | 'danger'
+    | 'pink'
+    | 'sky'
+    | 'teal'
+    | 'indigo';
+  dot?: boolean;
 }) {
   const palette = {
     primary: [colors.primaryLight, colors.primary],
@@ -290,10 +310,24 @@ export function Tag({
     warning: [colors.warningLight, colors.warning],
     muted: [colors.background, colors.muted],
     danger: [colors.dangerLight, colors.danger],
+    pink: ['#FDF2F8', '#DB2777'],
+    sky: ['#F0F9FF', '#0284C7'],
+    teal: ['#F0FDFA', '#0D9488'],
+    indigo: ['#EEF2FF', '#4F46E5'],
   }[tone];
   return (
     <View style={[styles.tag, { backgroundColor: palette[0] }]}>
-      <Text style={{ fontSize: 11, fontWeight: '500', color: palette[1] }}>
+      {dot && (
+        <View
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: 3,
+            backgroundColor: palette[1],
+          }}
+        />
+      )}
+      <Text style={{ fontSize: 10, fontWeight: '600', color: palette[1] }}>
         {text}
       </Text>
     </View>
@@ -416,10 +450,14 @@ export function EmptyState({
   title,
   description,
   icon = 'file-tray-outline',
+  actionText,
+  onAction,
 }: {
   title: string;
   description?: string;
   icon?: IconName;
+  actionText?: string;
+  onAction?: () => void;
 }) {
   return (
     <View style={styles.state}>
@@ -431,6 +469,15 @@ export function EmptyState({
         <Text style={[layout.muted, { textAlign: 'center' }]}>
           {description}
         </Text>
+      )}
+      {!!actionText && onAction && (
+        <Button
+          title={actionText}
+          onPress={onAction}
+          variant="secondary"
+          compact
+          icon="refresh-outline"
+        />
       )}
     </View>
   );
@@ -555,8 +602,8 @@ export function Pagination({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingBottom: 24 },
-  headerTitle: { color: '#FFF', fontSize: 22, fontWeight: '700' },
+  header: { paddingHorizontal: 16, paddingBottom: 24 },
+  headerTitle: { color: '#FFF', fontSize: 20, fontWeight: '700' },
   headerSubtitle: {
     color: '#E9DDFF',
     fontSize: 12,
@@ -565,11 +612,11 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    boxShadow: '0 3px 12px rgba(30,41,59,0.035)',
+    boxShadow: '0 4px 16px rgba(148,163,184,0.10)',
   },
   button: {
     borderRadius: 14,
@@ -580,11 +627,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconButton: {
-    height: 44,
-    width: 44,
+    height: 40,
+    width: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 20,
   },
   input: {
     borderRadius: 13,
@@ -598,13 +645,14 @@ const styles = StyleSheet.create({
   },
   errorText: { fontSize: 13, lineHeight: 21, color: colors.danger },
   search: {
-    minHeight: 46,
+    minHeight: 44,
     backgroundColor: '#FFFFFFF2',
-    borderRadius: 15,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 13,
+    paddingHorizontal: 14,
     gap: 9,
+    boxShadow: '0 4px 12px rgba(76,29,149,0.12)',
   },
   searchInput: {
     flex: 1,
@@ -615,9 +663,12 @@ const styles = StyleSheet.create({
   },
   tag: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   notice: {
     flexDirection: 'row',

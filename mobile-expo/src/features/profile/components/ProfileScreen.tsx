@@ -1,27 +1,35 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { router } from 'expo-router';
 import { getApiErrorMessage } from '@xiehe/api-client';
-import { Pressable, Text, View } from 'react-native';
+import {
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useApp, useWorkspace } from '../../../application/AppProvider';
+import { useResource } from '../../../shared/hooks/useResource';
 import {
   Button,
   Card,
   ChoiceSheet,
   Content,
+  ErrorState,
   Header,
   Icon,
-  Notice,
+  IconButton,
   Screen,
   Tag,
   type IconName,
 } from '../../../shared/ui';
+import { GradientIcon } from '../../../shared/ui/GradientIcon';
 import { colors, layout } from '../../../shared/theme';
 
 const menu: {
   title: string;
-  subtitle: string;
   icon: IconName;
-  color: string;
+  colors: [string, string];
   route:
     | '/profile/info'
     | '/profile/teams'
@@ -30,40 +38,57 @@ const menu: {
 }[] = [
   {
     title: '个人信息',
-    subtitle: '查看与维护个人资料',
     icon: 'person-outline',
-    color: '#9B6BEF',
+    colors: ['#A78BFA', '#8B5CF6'],
     route: '/profile/info',
   },
   {
-    title: '我的团队',
-    subtitle: '查看所属团队与组织',
-    icon: 'people-outline',
-    color: '#5B9DE8',
+    title: '组织管理',
+    icon: 'business-outline',
+    colors: ['#C084FC', '#A855F7'],
     route: '/profile/teams',
   },
   {
     title: '修改密码',
-    subtitle: '更新账号登录密码',
     icon: 'lock-closed-outline',
-    color: '#E9AA56',
+    colors: ['#FBBF24', '#F59E0B'],
     route: '/profile/password',
   },
   {
-    title: '连接与版本',
-    subtitle: '服务器地址与应用信息',
+    title: '系统设置',
     icon: 'settings-outline',
-    color: '#36B9A2',
+    colors: ['#34D399', '#10B981'],
     route: '/profile/settings',
   },
 ];
 
 export function ProfileScreen() {
-  const { user } = useWorkspace();
+  const { user, services } = useWorkspace();
   const app = useApp();
+  const stats = useResource(
+    useCallback(() => services.dashboard.getStats(), [services])
+  );
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const summary = stats.data;
+  const figures = [
+    {
+      label: '管理患者',
+      value: summary?.total_patients.toLocaleString(),
+      route: '/patients',
+    },
+    {
+      label: '已处理影像',
+      value: summary?.processed_images.toLocaleString(),
+      route: '/images',
+    },
+    {
+      label: '完成率',
+      value: summary ? `${summary.completion_rate}%` : undefined,
+      route: '/images',
+    },
+  ] as const;
   const logout = async () => {
     setBusy(true);
     setError('');
@@ -77,101 +102,118 @@ export function ProfileScreen() {
   };
   return (
     <Screen>
-      <Header title="个人中心" subtitle="专注每一次诊疗" />
-      <Content>
-        <Card>
-          <View style={layout.row}>
-            <View
-              style={{
-                width: 66,
-                height: 66,
-                borderRadius: 22,
-                backgroundColor: colors.primaryLight,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon name="person" size={31} />
-            </View>
-            <View style={[layout.flex, { gap: 8 }]}>
-              <Text style={[layout.title, { fontSize: 23 }]}>
+      <Header
+        title="个人中心"
+        roundedBottom
+        right={
+          <IconButton
+            name="notifications-outline"
+            label="消息通知"
+            light
+            onPress={() => router.push('/messages')}
+          />
+        }
+      />
+      <Content
+        refreshControl={
+          <RefreshControl
+            refreshing={stats.loading && !!summary}
+            onRefresh={() => void stats.reload()}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        <Card style={{ padding: 20 }}>
+          <View style={[layout.row, { gap: 16 }]}>
+            <GradientIcon
+              name="person-outline"
+              colors={['#A78BFA', '#A855F7']}
+              size={64}
+              iconSize={30}
+              radius={16}
+            />
+            <View style={[layout.flex, { gap: 8, minWidth: 0 }]}>
+              <Text style={styles.name} numberOfLines={1}>
                 {user.real_name || user.full_name || user.username}
               </Text>
-              <View style={[layout.row, { gap: 8 }]}>
+              <View style={[layout.row, { gap: 8, flexWrap: 'wrap' }]}>
                 <Tag
                   text={
                     user.is_system_admin || user.is_superuser
                       ? '系统管理员'
-                      : user.title || '医生'
+                      : user.title || '成员'
                   }
                 />
                 <Tag text="已登录" tone="success" />
               </View>
-              <Text style={layout.muted}>
-                {[user.department, user.position].filter(Boolean).join(' · ') ||
-                  user.username}
-              </Text>
             </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="账号信息"
+              onPress={() => router.push('/profile/info')}
+              style={styles.accountButton}
+            >
+              <Icon name="id-card-outline" color={colors.muted} size={18} />
+            </Pressable>
+          </View>
+          <View style={styles.figures}>
+            {figures.map((item, index) => (
+              <Pressable
+                key={item.label}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.label} ${item.value ?? '加载中'}`}
+                onPress={() => router.push(item.route)}
+                style={[styles.figure, index === 1 && styles.middleFigure]}
+              >
+                <Text style={styles.value}>{item.value ?? '—'}</Text>
+                <Text style={styles.figureLabel}>{item.label}</Text>
+              </Pressable>
+            ))}
           </View>
         </Card>
-        <Card style={{ paddingVertical: 2 }}>
+        {!!stats.error && (
+          <ErrorState
+            message={stats.error}
+            onRetry={() => void stats.reload()}
+          />
+        )}
+        <Card style={{ padding: 0, overflow: 'hidden' }}>
           {menu.map((item, index) => (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={item.title}
               key={item.route}
               onPress={() => router.push(item.route)}
-              style={[
-                layout.row,
-                {
-                  paddingVertical: 18,
-                  borderBottomWidth: index === menu.length - 1 ? 0 : 1,
-                  borderBottomColor: colors.border,
-                },
-              ]}
+              style={[styles.menuRow, index > 0 && styles.menuDivider]}
             >
-              <View
-                style={{
-                  height: 42,
-                  width: 42,
-                  backgroundColor: item.color,
-                  borderRadius: 14,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon name={item.icon} color="#FFF" size={21} />
-              </View>
-              <View style={[layout.flex, { gap: 3 }]}>
-                <Text style={layout.body}>{item.title}</Text>
-                <Text style={[layout.muted, { fontSize: 11 }]}>
-                  {item.subtitle}
-                </Text>
-              </View>
-              <Icon name="chevron-forward" color={colors.faint} size={17} />
+              <GradientIcon name={item.icon} colors={item.colors} />
+              <Text style={styles.menuTitle}>{item.title}</Text>
+              <Icon name="chevron-forward" color="#CBD5E1" size={18} />
             </Pressable>
           ))}
         </Card>
-        <Notice>
-          手机与 Web 端共享账号及业务数据。首版的手动标注与审核流程请在 Web
-          端完成。
-        </Notice>
-        <Button
-          title="退出登录"
-          icon="log-out-outline"
-          variant="danger"
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="退出登录"
           onPress={() => setConfirm(true)}
-        />
+          style={({ pressed }) => [
+            styles.logout,
+            { opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Icon name="log-out-outline" color="#EF4444" size={18} />
+          <Text style={styles.logoutText}>退出登录</Text>
+        </Pressable>
       </Content>
       <ChoiceSheet
         open={confirm}
-        title="退出当前账号？"
+        title="确定退出登录？"
         onClose={() => {
           if (!busy) setConfirm(false);
         }}
       >
         <Text style={[layout.body, { marginBottom: 15 }]}>
-          退出后将清除本机保存的登录状态。
+          退出后需要重新登录才能继续查看患者与影像数据。
         </Text>
         {!!error && (
           <Text
@@ -182,7 +224,7 @@ export function ProfileScreen() {
           </Text>
         )}
         <Button
-          title="确认退出"
+          title="退出登录"
           variant="danger"
           loading={busy}
           onPress={() => void logout()}
@@ -197,3 +239,52 @@ export function ProfileScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  name: { fontSize: 18, fontWeight: '700', color: colors.text },
+  accountButton: {
+    height: 36,
+    width: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    borderRadius: 12,
+  },
+  figures: {
+    flexDirection: 'row',
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  figure: { flex: 1, alignItems: 'center', gap: 5 },
+  middleFigure: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.border,
+  },
+  value: { fontSize: 21, fontWeight: '700', color: colors.text },
+  figureLabel: { fontSize: 12, color: colors.muted },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  menuDivider: { borderTopWidth: 1, borderTopColor: '#F8FAFC' },
+  menuTitle: { flex: 1, fontSize: 14, fontWeight: '500', color: '#334155' },
+  logout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: '0 4px 16px rgba(148,163,184,0.10)',
+  },
+  logoutText: { fontSize: 14, fontWeight: '600', color: '#EF4444' },
+});

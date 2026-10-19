@@ -1,11 +1,10 @@
 import { useCallback, useState } from 'react';
-import { RefreshControl, Text, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { useWorkspace } from '../../../application/AppProvider';
 import { useResource } from '../../../shared/hooks/useResource';
 import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
 import {
-  Button,
   Choice,
   ChoiceSheet,
   Content,
@@ -18,7 +17,8 @@ import {
   Screen,
   SearchField,
 } from '../../../shared/ui';
-import { colors, layout } from '../../../shared/theme';
+import { colors } from '../../../shared/theme';
+import { FilterChip } from '../../../shared/ui/FilterChip';
 import { PatientCard } from './PatientCard';
 
 export function PatientsScreen() {
@@ -63,7 +63,7 @@ export function PatientsScreen() {
             setSearch(value);
             setPage(1);
           }}
-          placeholder="搜索姓名、患者编号或手机号"
+          placeholder="搜索患者姓名、ID或手机号"
         />
       </Header>
       <Content
@@ -75,15 +75,13 @@ export function PatientsScreen() {
           />
         }
       >
-        <View style={layout.between}>
-          <Button
-            compact
-            title={gender || '全部性别'}
-            variant="secondary"
+        <View>
+          <FilterChip
+            title={`性别: ${gender || '全部'}`}
+            active={!!gender}
             icon="filter-outline"
             onPress={() => setFilterOpen(true)}
           />
-          <Text style={layout.muted}>下拉刷新</Text>
         </View>
         {!!resource.error && (
           <ErrorState
@@ -92,14 +90,22 @@ export function PatientsScreen() {
           />
         )}
         {resource.loading && !resource.data && <LoadingState />}
-        {resource.data?.items.map(patient => (
-          <PatientCard key={patient.id} patient={patient} />
-        ))}
+        <View style={{ gap: 8 }}>
+          {resource.data?.items.map(patient => (
+            <PatientCard key={patient.id} patient={patient} />
+          ))}
+        </View>
         {resource.data?.total === 0 && (
           <EmptyState
-            title="未找到患者"
-            description="试试其他关键词，或建立新的患者档案"
+            title="未找到匹配的患者"
+            description="试试调整搜索关键词或筛选条件"
             icon="people-outline"
+            actionText="清除筛选"
+            onAction={() => {
+              setSearch('');
+              setGender('');
+              setPage(1);
+            }}
           />
         )}
         {resource.data && (

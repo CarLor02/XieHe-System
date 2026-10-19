@@ -11,7 +11,14 @@ export interface MobileServices {
   patients: Pick<XieheApiSdk['patients'], 'list' | 'get' | 'create' | 'update'>;
   imaging: Pick<
     XieheApiSdk['imaging'],
-    'list' | 'get' | 'listPatientImages' | 'listAssignableTeams' | 'predict'
+    | 'list'
+    | 'get'
+    | 'listPatientImages'
+    | 'listAssignableTeams'
+    | 'predict'
+    | 'getDownloadUrl'
+    | 'getDownloadUrls'
+    | 'delete'
   >;
   dashboard: Pick<XieheApiSdk['dashboard'], 'getStats' | 'getRecentActivities'>;
   teams: Pick<XieheApiSdk['teams'], 'listMine'>;

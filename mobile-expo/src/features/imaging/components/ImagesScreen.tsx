@@ -22,6 +22,9 @@ import {
 } from '../../../shared/ui';
 import { colors, layout } from '../../../shared/theme';
 import { imageStatusLabel } from '../domain/presentation';
+import { FilterChip } from '../../../shared/ui/FilterChip';
+import { useImageThumbnails } from '../application/useImageThumbnails';
+import { useImageActions } from '../application/useImageActions';
 import { ImageCard } from './ImageCard';
 
 export function ImagesScreen({
@@ -52,6 +55,11 @@ export function ImagesScreen({
     [services, page, query, type, status, patientId]
   );
   const resource = useResource(load);
+  const thumbnails = useImageThumbnails(resource.data?.items);
+  const actions = useImageActions(() => {
+    if (resource.data?.items.length === 1 && page > 1) setPage(page - 1);
+    else void resource.reload();
+  });
   return (
     <Screen>
       <Header
@@ -89,7 +97,7 @@ export function ImagesScreen({
               setSearch(value);
               setPage(1);
             }}
-            placeholder="搜索患者姓名、编号或文件名"
+            placeholder="搜索患者姓名、检查类型或文件名"
           />
         )}
       </Header>
@@ -104,18 +112,16 @@ export function ImagesScreen({
       >
         {!patientId && (
           <View style={layout.row}>
-            <Button
-              compact
+            <FilterChip
               title={type || '全部类型'}
               icon="options-outline"
-              variant="secondary"
+              active={!!type}
               onPress={() => setSheet('type')}
             />
-            <Button
-              compact
+            <FilterChip
               title={status ? imageStatusLabel(status) : '全部状态'}
               icon="checkmark-circle-outline"
-              variant="secondary"
+              active={!!status}
               onPress={() => setSheet('status')}
             />
           </View>
@@ -130,14 +136,35 @@ export function ImagesScreen({
           />
         )}
         {resource.loading && !resource.data && <LoadingState />}
-        {resource.data?.items.map(image => (
-          <ImageCard key={image.id} image={image} />
-        ))}
+        {!!actions.error && !actions.target && (
+          <Text accessibilityRole="alert" style={{ color: colors.danger }}>
+            {actions.error}
+          </Text>
+        )}
+        <View style={{ gap: 12 }}>
+          {resource.data?.items.map(image => (
+            <ImageCard
+              key={image.id}
+              image={image}
+              thumbnailUri={thumbnails[image.id]?.url}
+              busy={actions.busyId === image.id}
+              onOpenOriginal={() => void actions.openOriginal(image)}
+              onDelete={() => actions.selectDelete(image)}
+            />
+          ))}
+        </View>
         {resource.data?.total === 0 && (
           <EmptyState
-            title="没有匹配的影像"
-            description="调整搜索条件，或上传新的检查影像"
+            title="未找到匹配的影像"
+            description="试试调整搜索关键词或筛选条件"
             icon="images-outline"
+            actionText={patientId ? undefined : '清除筛选'}
+            onAction={() => {
+              setSearch('');
+              setType('');
+              setStatus(undefined);
+              setPage(1);
+            }}
           />
         )}
         {resource.data && (
@@ -149,6 +176,33 @@ export function ImagesScreen({
           />
         )}
       </Content>
+      <ChoiceSheet
+        open={!!actions.target}
+        title="删除这份影像？"
+        onClose={actions.closeDelete}
+      >
+        <Text style={layout.body}>
+          确认删除《{actions.target?.original_filename}
+          》？删除后将不再显示在影像中心。
+        </Text>
+        {!!actions.error && (
+          <Text accessibilityRole="alert" style={{ color: colors.danger }}>
+            {actions.error}
+          </Text>
+        )}
+        <Button
+          title="确认删除"
+          variant="danger"
+          loading={actions.deleting}
+          onPress={() => void actions.confirmDelete()}
+        />
+        <Button
+          title="取消"
+          variant="ghost"
+          disabled={actions.deleting}
+          onPress={actions.closeDelete}
+        />
+      </ChoiceSheet>
       <ChoiceSheet
         title={sheet === 'type' ? '检查类型' : '处理状态'}
         open={!!sheet}
