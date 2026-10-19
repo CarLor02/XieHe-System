@@ -32,6 +32,7 @@ from app.core.system.response import (
 
 from ..dependencies import get_report_management_service
 from ..schemas import ReportCreate, ReportResponse
+from ..schemas.management import ReportSummary
 from ..schemas.management_requests import (
     RequestDeleteReport,
     RequestGetReport,
@@ -119,7 +120,7 @@ async def create_report(
 @router.post(
     "/list",
     summary="获取报告列表",
-    response_model=ApiResponse[PaginatedData[ReportResponse]],
+    response_model=ApiResponse[PaginatedData[ReportSummary]],
     operation_id="get_reports",
 )
 async def get_reports(

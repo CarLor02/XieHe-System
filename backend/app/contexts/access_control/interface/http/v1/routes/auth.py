@@ -39,7 +39,6 @@ from ..schemas.auth import (
     UserResponse,
     UserUpdate,
 )
-from ..schemas.auth_requests import RequestGetCurrentUserInfo
 
 router = APIRouter()
 
@@ -189,14 +188,14 @@ async def change_password(
     return success_response(data=None, message="密码修改成功")
 
 
-@router.post(
-    "/me/get",
+@router.get(
+    "/me",
     summary="获取当前用户信息",
-    response_model=ApiResponse[UserResponse],
+    response_model=None,
+    responses={200: {"model": ApiResponse[UserResponse]}},
     operation_id="get_current_user_info",
 )
 async def get_current_user_info(
-    request: RequestGetCurrentUserInfo,
     principal: AccessPrincipal = Depends(get_current_active_user),
     service: ProfileService = Depends(get_profile_service),
 ) -> dict[str, object]:
@@ -206,10 +205,11 @@ async def get_current_user_info(
     )
 
 
-@router.post(
-    "/me/update",
+@router.put(
+    "/me",
     summary="更新当前用户信息",
-    response_model=ApiResponse[UserResponse],
+    response_model=None,
+    responses={200: {"model": ApiResponse[UserResponse]}},
     operation_id="update_current_user_info",
 )
 async def update_current_user_info(

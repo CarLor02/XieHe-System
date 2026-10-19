@@ -14,6 +14,10 @@ from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
 from app.contexts.patients.interface.http.v1.dependencies import get_patient_service
+from app.contexts.reports.application.dto import ReportListItem, ReportPage
+from app.contexts.reports.interface.http.v1.dependencies import (
+    get_report_management_service,
+)
 from app.core.system.exceptions import validation_exception_handler
 from app.main import app as production_app
 
@@ -133,6 +137,7 @@ def test_storage_methods_and_operational_probes_remain_available() -> None:
         "/api/v1/image-files/download-urls": "post",
         "/api/v1/image-files/{file_id}/content": "patch",
         "/api/v1/image-files/{file_id}": "delete",
+        "/api/v1/auth/me": "get",
         "/api/v1/auth/me/avatar": "delete",
         "/api/v1/auth/me/avatar/upload-session": "post",
         "/api/v1/auth/me/avatar/complete": "post",
@@ -146,3 +151,37 @@ def test_storage_methods_and_operational_probes_remain_available() -> None:
             "content"
         ]
     )
+
+
+@pytest.mark.api
+async def test_report_list_preserves_summary_fields_without_requiring_details(
+    api: tuple[FastAPI, PatientService],
+) -> None:
+    app, _ = api
+    summary = ReportListItem(
+        id=1,
+        report_number="R-1",
+        patient_id=7,
+        patient_name="测试患者",
+        study_id=None,
+        report_title="测试报告",
+        status="draft",
+        priority="normal",
+        primary_diagnosis="",
+        reporting_physician="报告医生",
+        report_date="2026-10-19",
+        created_at="2026-10-19T00:00:00",
+        updated_at="2026-10-19T00:00:00",
+    )
+    service = SimpleNamespace(
+        list=lambda query: ReportPage(
+            items=(summary,), total=1, page=query.page, page_size=query.page_size
+        )
+    )
+    app.dependency_overrides[get_report_management_service] = lambda: service
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post("/api/v1/reports/list", json={})
+    assert response.status_code == 200
+    assert response.json()["data"]["items"] == [summary.to_dict()]

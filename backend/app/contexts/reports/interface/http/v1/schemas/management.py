@@ -1,7 +1,7 @@
 """Schemas for the management API endpoints."""
 
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -68,11 +68,19 @@ class ReportResponse(BaseModel):
         from_attributes = True
 
 
-class ReportListResponse(BaseModel):
-    """报告列表响应模型"""
+class ReportSummary(BaseModel):
+    """列表只返回摘要，并包含独立的报告医生/日期；不能用详情模型过滤。"""
 
-    reports: List[ReportResponse]
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
+    id: int
+    report_number: str
+    patient_id: int
+    patient_name: str
+    study_id: int | None
+    report_title: str
+    status: str
+    priority: str
+    primary_diagnosis: str
+    reporting_physician: str
+    report_date: str
+    created_at: str
+    updated_at: str
