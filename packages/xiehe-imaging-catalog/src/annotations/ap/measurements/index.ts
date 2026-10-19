@@ -14,7 +14,7 @@ import {
   AP_MEASUREMENT_TOOL_IDS,
   getToolCapability,
 } from '@xiehe/imaging-core/measurements';
-import { getLocalizedToolCopy } from '../../../tools';
+import { getLocalizedToolCopy } from '../../../tools/tool-copy';
 
 export { AVT_CONFIG } from './avt';
 export { COBB_CONFIG, COBB1_CONFIG, COBB2_CONFIG, COBB3_CONFIG } from './cobb';

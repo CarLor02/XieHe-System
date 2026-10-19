@@ -10,7 +10,7 @@ import {
   getLocalizedToolCopy,
   getToolDescription,
   getToolDisplayName,
-} from '../../tools';
+} from '../../tools/tool-copy';
 
 const SHARED_ANNOTATION_CONFIGS: Record<string, AnnotationConfig> = {
   ...AP_MEASUREMENT_CONFIGS,

@@ -18,7 +18,7 @@ import {
   LATERAL_MEASUREMENT_TOOL_IDS,
   getToolCapability,
 } from '@xiehe/imaging-core/measurements';
-import { getLocalizedToolCopy } from '../../../tools';
+import { getLocalizedToolCopy } from '../../../tools/tool-copy';
 
 export { CL_CONFIG } from './cl';
 export { LATERAL_COBB_CONFIG } from './cobb';

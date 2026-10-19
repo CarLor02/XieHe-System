@@ -16,7 +16,7 @@ import {
   getToolCapability,
   isAuxiliaryToolbarTool,
 } from '@xiehe/imaging-core/measurements';
-import { getLocalizedToolCopy } from '../../tools';
+import { getLocalizedToolCopy } from '../../tools/tool-copy';
 
 export { ANGLE_CONFIG } from './angle';
 export { ARROW_CONFIG } from './arrow';
