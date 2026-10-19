@@ -31,6 +31,7 @@ const teamPage: Awaited<ReturnType<LoadTeamsHandler>> = {
       name: '骨科团队',
       member_count: 3,
       is_member: true,
+      is_creator: false,
       my_role: 'ADMIN',
       my_status: 'ACTIVE',
     },

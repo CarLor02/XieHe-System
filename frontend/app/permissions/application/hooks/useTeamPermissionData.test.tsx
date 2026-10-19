@@ -27,8 +27,7 @@ jest.mock('@/services/teamService', () => ({
   __esModule: true,
   getMyTeams: () => getMyTeamsMock(),
   getTeamMembers: (teamId: number) => getTeamMembersMock(teamId),
-  getTeamJoinRequests: (teamId: number) =>
-    getTeamJoinRequestsMock(teamId),
+  getTeamJoinRequests: (teamId: number) => getTeamJoinRequestsMock(teamId),
 }));
 
 beforeAll(async () => {
@@ -42,13 +41,11 @@ function makeTeam(id: number): TeamSummary {
     member_count: 1,
     max_members: 10,
     is_member: true,
+    is_creator: false,
   };
 }
 
-function makeMember(
-  userId: number,
-  role: TeamMember['role']
-): TeamMember {
+function makeMember(userId: number, role: TeamMember['role']): TeamMember {
   return {
     user_id: userId,
     username: `user-${userId}`,

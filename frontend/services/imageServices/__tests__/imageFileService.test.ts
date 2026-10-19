@@ -1,6 +1,6 @@
+import type { HttpApi } from '@stellarmesh/sdk';
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { normalizeLegacyPagination } from '@xiehe/api-client/contracts';
-import type { HttpClient } from '@xiehe/api-client';
 import { createXieheApiSdk } from '@xiehe/api-sdk';
 
 import { formatDate } from '../imageFileService';
@@ -9,9 +9,15 @@ const originalDisplayTimeZone = process.env.NEXT_PUBLIC_DISPLAY_TIME_ZONE;
 
 function mockHttpInfrastructure(client: Record<string, unknown>) {
   jest.doMock('@/infrastructure/http', () => ({
-    apiClient: client as unknown as HttpClient,
+    apiClient: client,
     apiSdk: createXieheApiSdk({
-      apiClient: client as unknown as HttpClient,
+      http: {
+        post: (url: string) => (body: unknown) =>
+          (client.post as (url: string, body: unknown) => Promise<unknown>)(
+            url,
+            body
+          ),
+      } as unknown as HttpApi,
     }),
     normalizeLegacyPagination,
   }));
@@ -41,7 +47,7 @@ it('does not apply an extra offset to timestamps that already include a timezone
 
 describe('image file list filters', () => {
   it('updates image exam types through the atomic batch endpoint', async () => {
-    const patch = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(
       async () => ({
         updated_ids: [3],
         unchanged_ids: [4],
@@ -52,12 +58,12 @@ describe('image file list filters', () => {
     );
 
     jest.resetModules();
-    mockHttpInfrastructure({ patch });
+    mockHttpInfrastructure({ post });
     const { batchUpdateImageExamType } = await import('../imageFileService');
 
     const result = await batchUpdateImageExamType([3, 4], '侧位X光片');
 
-    expect(patch).toHaveBeenCalledWith('/api/v1/image-files/batch/exam-type', {
+    expect(post).toHaveBeenCalledWith('/api/v1/image-files/batch/exam-type', {
       ids: [3, 4],
       exam_type: '侧位X光片',
     });
@@ -68,7 +74,7 @@ describe('image file list filters', () => {
   });
 
   it('renames an image through the filename endpoint', async () => {
-    const patch = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(
       async () => ({
         id: 7,
         original_filename: 'renamed.png',
@@ -76,12 +82,13 @@ describe('image file list filters', () => {
     );
 
     jest.resetModules();
-    mockHttpInfrastructure({ patch });
+    mockHttpInfrastructure({ post });
     const { renameImageFile } = await import('../imageFileService');
 
     const result = await renameImageFile(7, 'renamed');
 
-    expect(patch).toHaveBeenCalledWith('/api/v1/image-files/7/filename', {
+    expect(post).toHaveBeenCalledWith('/api/v1/image-files/rename', {
+      file_id: 7,
       basename: 'renamed',
     });
     expect(result.original_filename).toBe('renamed.png');
@@ -90,74 +97,76 @@ describe('image file list filters', () => {
   });
 
   it('sends uploaded_by when filtering by uploader', async () => {
-    const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      items: [],
-      pagination: {
-        total: 0,
-        page: 1,
-        page_size: 20,
-        total_pages: 0,
-      },
-    }));
+    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => ({
+        items: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          page_size: 20,
+          total_pages: 0,
+        },
+      })
+    );
 
     jest.resetModules();
-    mockHttpInfrastructure({ get });
+    mockHttpInfrastructure({ post });
     const { getImageFiles } = await import('../imageFileService');
 
     await getImageFiles({ uploaded_by: 7 });
 
-    expect(get).toHaveBeenCalledWith('/api/v1/image-files', {
-      params: {
-        page: 1,
-        page_size: 20,
-        uploaded_by: 7,
-      },
+    expect(post).toHaveBeenCalledWith('/api/v1/image-files/list', {
+      page: 1,
+      page_size: 20,
+      uploaded_by: 7,
     });
 
     jest.dontMock('@/infrastructure/http');
   });
 
   it('sends the explicit file type and processing status filters', async () => {
-    const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      items: [],
-      pagination: {
-        total: 0,
-        page: 1,
-        page_size: 20,
-        total_pages: 0,
-      },
-    }));
+    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => ({
+        items: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          page_size: 20,
+          total_pages: 0,
+        },
+      })
+    );
 
     jest.resetModules();
-    mockHttpInfrastructure({ get });
+    mockHttpInfrastructure({ post });
     const { getImageFiles } = await import('../imageFileService');
 
     await getImageFiles({ file_type: 'PNG', file_status: 'PROCESSED' });
 
-    expect(get).toHaveBeenCalledWith('/api/v1/image-files', {
-      params: {
-        page: 1,
-        page_size: 20,
-        file_type: 'PNG',
-        file_status: 'PROCESSED',
-      },
+    expect(post).toHaveBeenCalledWith('/api/v1/image-files/list', {
+      page: 1,
+      page_size: 20,
+      file_type: 'PNG',
+      file_status: 'PROCESSED',
     });
 
     jest.dontMock('@/infrastructure/http');
   });
 
   it('saves a versioned annotation snapshot', async () => {
-    const put = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      annotation_version: 4,
-      annotation_updated_at: '2026-08-02T12:00:00',
-      annotation_updated_by: 9,
-      has_annotation: true,
-      status: 'PROCESSED',
-      changed: true,
-    }));
+    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => ({
+        annotation_version: 4,
+        annotation_updated_at: '2026-08-02T12:00:00',
+        annotation_updated_by: 9,
+        has_annotation: true,
+        status: 'PROCESSED',
+        changed: true,
+      })
+    );
 
     jest.resetModules();
-    mockHttpInfrastructure({ put });
+    mockHttpInfrastructure({ post });
     const { saveImageAnnotation } = await import('../imageFileService');
 
     const annotation = {
@@ -168,7 +177,8 @@ describe('image file list filters', () => {
     };
     const result = await saveImageAnnotation(8, 3, annotation);
 
-    expect(put).toHaveBeenCalledWith('/api/v1/image-files/8/annotation', {
+    expect(post).toHaveBeenCalledWith('/api/v1/image-files/annotation/save', {
+      file_id: 8,
       expected_version: 3,
       annotation,
     });
@@ -227,18 +237,20 @@ describe('image file list filters', () => {
   });
 
   it('loads visible uploaders from the image file API', async () => {
-    const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      items: [{ id: 7, real_name: '王医生', email: 'doctor@example.com' }],
-      pagination: {
-        total: 1,
-        page: 1,
-        page_size: 10,
-        total_pages: 1,
-      },
-    }));
+    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => ({
+        items: [{ id: 7, real_name: '王医生', email: 'doctor@example.com' }],
+        pagination: {
+          total: 1,
+          page: 1,
+          page_size: 10,
+          total_pages: 1,
+        },
+      })
+    );
 
     jest.resetModules();
-    mockHttpInfrastructure({ get });
+    mockHttpInfrastructure({ post });
     const { getVisibleImageUploaders } = await import('../imageFileService');
 
     const result = await getVisibleImageUploaders({
@@ -247,12 +259,10 @@ describe('image file list filters', () => {
       search: '王医生',
     });
 
-    expect(get).toHaveBeenCalledWith('/api/v1/image-files/uploaders', {
-      params: {
-        page: 1,
-        page_size: 10,
-        search: '王医生',
-      },
+    expect(post).toHaveBeenCalledWith('/api/v1/image-files/uploaders', {
+      page: 1,
+      page_size: 10,
+      search: '王医生',
     });
     expect(result.items[0].real_name).toBe('王医生');
 
@@ -260,18 +270,20 @@ describe('image file list filters', () => {
   });
 
   it('loads assignable image teams from the image file API', async () => {
-    const get = jest.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
-      items: [{ id: 11, name: '骨科团队', member_count: 3, is_member: true }],
-      pagination: {
-        total: 1,
-        page: 2,
-        page_size: 10,
-        total_pages: 3,
-      },
-    }));
+    const post = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => ({
+        items: [{ id: 11, name: '骨科团队', member_count: 3, is_member: true }],
+        pagination: {
+          total: 1,
+          page: 2,
+          page_size: 10,
+          total_pages: 3,
+        },
+      })
+    );
 
     jest.resetModules();
-    mockHttpInfrastructure({ get });
+    mockHttpInfrastructure({ post });
     const { getAssignableImageTeams } = await import('../imageFileService');
 
     const result = await getAssignableImageTeams({
@@ -280,12 +292,10 @@ describe('image file list filters', () => {
       search: '骨科',
     });
 
-    expect(get).toHaveBeenCalledWith('/api/v1/image-files/assignable-teams', {
-      params: {
-        page: 2,
-        page_size: 10,
-        search: '骨科',
-      },
+    expect(post).toHaveBeenCalledWith('/api/v1/image-files/assignable-teams', {
+      page: 2,
+      page_size: 10,
+      search: '骨科',
     });
     expect(result.items[0].name).toBe('骨科团队');
     expect(result.totalPages).toBe(3);

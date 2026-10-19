@@ -12,7 +12,7 @@ export function getModels(
   params: {
     page?: number;
     page_size?: number;
-    view_type?: string;
+    view_type?: import('@xiehe/api-contracts/generated').ModelViewType;
     search?: string;
   } = {}
 ): Promise<ModelListResult> {

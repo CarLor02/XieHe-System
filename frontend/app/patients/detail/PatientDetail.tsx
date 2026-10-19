@@ -274,13 +274,7 @@ export default function PatientDetail({ patientId }: { patientId: string }) {
                   <label className="block text-sm font-medium text-gray-500 mb-2">
                     既往病史
                   </label>
-                  {patient.medical_history ? (
-                    <p className="text-gray-900 text-sm whitespace-pre-wrap">
-                      {patient.medical_history}
-                    </p>
-                  ) : (
-                    <p className="text-gray-500 text-sm">暂无病史记录</p>
-                  )}
+                  <p className="text-gray-500 text-sm">暂无病史记录</p>
                 </div>
               </div>
             </div>

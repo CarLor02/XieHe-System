@@ -8,11 +8,11 @@ import {
 import { useEffect, useRef } from 'react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { apiClient } from '@/infrastructure/http';
+import { apiSdk } from '@/infrastructure/http';
 import { useCanvasViewport } from './useCanvasViewport';
 
 let resizeObserverCallback: ResizeObserverCallback | null = null;
-const mockedApiGet = jest.spyOn(apiClient, 'get');
+const mockedApiGet = jest.spyOn(apiSdk.imaging, 'getDownloadUrl');
 
 class ResizeObserverMock {
   observe = jest.fn();
@@ -77,20 +77,10 @@ describe('useCanvasViewport', () => {
   beforeEach(() => {
     resizeObserverCallback = null;
     mockedApiGet.mockReset();
-    mockedApiGet.mockImplementation(async (url: string) => {
-      if (url.endsWith('/download-url')) {
-        return {
-          url: '/image.png',
-          expires_in: 900,
-          expires_at: '2026-05-11T01:00:00Z',
-        };
-      }
-
-      return {
-        id: 1,
-        file_uuid: 'file-1',
-        original_filename: 'image.png',
-      };
+    mockedApiGet.mockResolvedValue({
+      url: '/image.png',
+      expires_in: 900,
+      expires_at: '2026-05-11T01:00:00Z',
     });
     Object.defineProperty(globalThis, 'ResizeObserver', {
       configurable: true,

@@ -178,12 +178,8 @@ export default function TeamManagement() {
 
     try {
       setProcessingRequestId(request.id);
-      const result = await reviewTeamJoinRequest(
-        selectedTeamId,
-        request.id,
-        decision
-      );
-      setSuccessMessage(result.message || '申请已处理');
+      await reviewTeamJoinRequest(selectedTeamId, request.id, decision);
+      setSuccessMessage(decision === 'approve' ? '申请已通过' : '申请已拒绝');
       await refreshJoinRequests();
       if (decision === 'approve') {
         await refreshMembers();
@@ -288,7 +284,7 @@ export default function TeamManagement() {
     try {
       setSubmittingJoinRequest(true);
       const response = await applyToJoinTeam(targetTeamId, joinMessage.trim());
-      setSuccessMessage(response.message || '申请已提交');
+      setSuccessMessage('申请已提交');
       setJoinModalOpen(false);
       setJoinTargetTeam(null);
       setJoinMessage('');
@@ -426,8 +422,8 @@ export default function TeamManagement() {
     }
 
     try {
-      const result = await removeMember(selectedTeamId, member.user_id);
-      setSuccessMessage(result.message || '成员已删除');
+      await removeMember(selectedTeamId, member.user_id);
+      setSuccessMessage('成员已删除');
       // 刷新成员列表
       await refreshMembers();
     } catch (err: any) {

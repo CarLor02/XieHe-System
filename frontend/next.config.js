@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@xiehe/imaging-core'],
+  transpilePackages: ['@xiehe/imaging-core', '@stellarmesh/sdk'],
 
   // 使用静态导出模式 - 不需要Node.js运行时，更安全
   output: 'export',
-  
+
   // 静态导出时禁用图片优化（或使用unoptimized）
   images: {
     unoptimized: true,
@@ -16,7 +16,7 @@ const nextConfig = {
 
   // 禁用遥测
   productionBrowserSourceMaps: false,
-  
+
   // 优化配置
   compress: true,
 };

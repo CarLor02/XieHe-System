@@ -1,11 +1,10 @@
-import { apiSdk, getApiErrorStatus } from '@/infrastructure/http';
+import { apiSdk } from '@/infrastructure/http';
 import { handleApiError } from './errorService';
 import type {
   TeamCreateRequest,
   TeamInvitationListResponse,
   TeamInvitationRespondResponse,
   TeamJoinRequestActionResponse,
-  TeamJoinRequestItem,
   TeamJoinRequestListResponse,
   TeamJoinRequestSubmitResponse,
   TeamListResponse,
@@ -98,10 +97,10 @@ export async function inviteTeamMember(
   role: string,
   message?: string
 ): Promise<string> {
-  const result = await withTeamError('team_invite', () =>
+  await withTeamError('team_invite', () =>
     apiSdk.teams.invite(teamId, email, role, message)
   );
-  return result.message;
+  return '邀请已发送';
 }
 
 export function createTeam(request: TeamCreateRequest): Promise<TeamSummary> {
@@ -117,30 +116,17 @@ export function updateTeam(
   );
 }
 
-export async function getMyApplications(): Promise<TeamJoinRequestItem[]> {
-  try {
-    return await apiSdk.teams.listMyApplications();
-  } catch (error) {
-    if (getApiErrorStatus(error) === 404) return [];
-    handleApiError(error, 'team_my_applications');
-    throw error;
-  }
-}
-
 export function updateMemberRole(
   teamId: number,
   userId: number,
   newRole: TeamRole
-): Promise<{ message: string }> {
+): Promise<null> {
   return withTeamError('team_update_member_role', () =>
     apiSdk.teams.updateMemberRole(teamId, userId, newRole)
   );
 }
 
-export function removeMember(
-  teamId: number,
-  userId: number
-): Promise<{ message: string }> {
+export function removeMember(teamId: number, userId: number): Promise<null> {
   return withTeamError('team_remove_member', () =>
     apiSdk.teams.removeMember(teamId, userId)
   );

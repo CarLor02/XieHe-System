@@ -138,7 +138,9 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}): UseErrorH
         url: window.location.href,
         userAgent: navigator.userAgent,
         errorId: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        context
+        context,
+        type: 'unknown',
+        severity: 'medium'
       }
       
       await sendClientErrorReport(errorReport)

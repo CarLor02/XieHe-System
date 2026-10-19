@@ -79,7 +79,9 @@ class ErrorBoundary extends Component<Props, State> {
         timestamp: new Date().toISOString(),
         url: window.location.href,
         userAgent: navigator.userAgent,
-        errorId: this.state.errorId
+        errorId: this.state.errorId ?? `error_${Date.now()}`,
+        type: 'client',
+        severity: 'high'
       }
       
       await sendClientErrorReport(errorReport)

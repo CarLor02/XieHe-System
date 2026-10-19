@@ -23,6 +23,7 @@ interface LogoutOptions {
 }
 
 interface SessionState {
+  sessionEpoch: number;
   isAuthenticated: boolean;
   user: SessionUser | null;
   session: UserSession | null;
@@ -54,6 +55,7 @@ export function hasUsableSession(
 export const useSessionStore = create<SessionState>()(
   persist(
     (set, get) => ({
+      sessionEpoch: 0,
       isAuthenticated: false,
       user: null,
       session: null,
@@ -62,6 +64,8 @@ export const useSessionStore = create<SessionState>()(
       error: null,
 
       login: async credentials => {
+        const epoch = get().sessionEpoch + 1;
+        set({ sessionEpoch: epoch });
         try {
           set({ isLoading: true, isLoggingOut: false, error: null });
           sessionStoreLogging.loginRequested({
@@ -73,6 +77,7 @@ export const useSessionStore = create<SessionState>()(
             username: credentials.username.trim(),
           };
           const result = await apiSdk.auth.login(normalizedCredentials);
+          if (get().sessionEpoch !== epoch) return false;
 
           set({
             isAuthenticated: true,
@@ -89,6 +94,7 @@ export const useSessionStore = create<SessionState>()(
           sessionStoreLogging.loginSucceeded(result.user);
           return true;
         } catch (error: any) {
+          if (get().sessionEpoch !== epoch) return false;
           sessionStoreLogging.loginFailed(error);
           set({
             isAuthenticated: false,
@@ -120,7 +126,10 @@ export const useSessionStore = create<SessionState>()(
 
       logout: async (options = {}) => {
         // 立即标记登出中，让任何同步权限检查的页面可以提前停止渲染受限页
-        set({ isLoggingOut: true });
+        set(state => ({
+          isLoggingOut: true,
+          sessionEpoch: state.sessionEpoch + 1,
+        }));
         const accessToken = get().session?.accessToken;
         sessionStoreLogging.logoutRequested(get().session);
 
@@ -177,6 +186,7 @@ export const useSessionStore = create<SessionState>()(
       },
 
       refreshAccessToken: async () => {
+        const epoch = get().sessionEpoch;
         try {
           const refreshToken = get().session?.refreshToken;
           if (!refreshToken) {
@@ -185,6 +195,8 @@ export const useSessionStore = create<SessionState>()(
 
           sessionStoreLogging.refreshRequested(get().session);
           const result = await apiSdk.auth.refresh(refreshToken);
+          // 检查与 set 之间没有异步边界，旧刷新不能覆盖后来登录的会话。
+          if (get().sessionEpoch !== epoch) return false;
           const nextAccessToken = result.tokens?.access_token;
           const nextRefreshToken = result.tokens?.refresh_token;
 
@@ -218,6 +230,7 @@ export const useSessionStore = create<SessionState>()(
       },
 
       forceLogout: context => {
+        set(state => ({ sessionEpoch: state.sessionEpoch + 1 }));
         sessionStoreLogging.forceLogout({
           context,
           session: get().session,
@@ -328,6 +341,7 @@ export const useSessionStore = create<SessionState>()(
 );
 
 configureWebSessionBridge({
+  getSessionEpoch: () => useSessionStore.getState().sessionEpoch,
   getAccessToken: () => useSessionStore.getState().session?.accessToken ?? null,
   refreshAccessToken: async () => {
     const refreshed = await useSessionStore.getState().refreshAccessToken();
@@ -337,7 +351,7 @@ configureWebSessionBridge({
   },
   handleUnauthorized: error => {
     useSessionStore.getState().forceLogout({
-      source: 'sharedAxiosClient',
+      source: 'stellarmeshSdk',
       status: getApiErrorStatus(error),
     });
   },

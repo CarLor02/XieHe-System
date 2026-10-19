@@ -17,6 +17,7 @@ function makeTeam(id: number, name: string): TeamSummary {
     name,
     member_count: 1,
     is_member: true,
+      is_creator: false,
   };
 }
 

@@ -19,6 +19,7 @@ import {
   getApiErrorMessage,
   getApiErrorStatus,
   isApiClientError,
+  normalizeApiError,
   type ApiErrorDetails,
 } from '@/infrastructure/http';
 import { createLogger } from '@/lib/logger';
@@ -203,7 +204,8 @@ class ErrorService {
   }
 
   // 处理API错误
-  public handleApiError(error: any, context?: string): string {
+  public handleApiError(cause: unknown, context?: string): string {
+    const error = normalizeApiError(cause);
     // 检查是否为网络错误
     if (isApiClientError(error) && error.isNetworkError) {
       return this.handleError(error, {
@@ -224,9 +226,7 @@ class ErrorService {
       });
     }
 
-    const response = error.response;
-
-    if (!response) {
+    if (error.status === undefined) {
       // 其他未知错误
       return this.handleError(error, {
         type: ErrorType.UNKNOWN,
@@ -239,7 +239,7 @@ class ErrorService {
     const errorCode = extractErrorCode(error);
     const errorMessage = getApiErrorMessage(error);
     const errorDetails = extractErrorDetails(error);
-    const status = getApiErrorStatus(error) || response.status;
+    const status = getApiErrorStatus(error) ?? 500;
 
     // 优先使用业务错误码进行处理
     if (errorCode) {
@@ -542,9 +542,21 @@ class ErrorService {
       const errorInfo = this.errorQueue.shift()!;
 
       try {
-        await errorReportClient.post<void, ErrorInfo>(
+        await errorReportClient.post<void, ClientErrorReportPayload>(
           this.config.reportEndpoint,
-          errorInfo,
+          {
+            errorId: errorInfo.id,
+            message: errorInfo.message,
+            stack: errorInfo.stack,
+            timestamp: errorInfo.timestamp,
+            url: errorInfo.url,
+            userAgent: errorInfo.userAgent,
+            type: errorInfo.type,
+            severity: errorInfo.severity,
+            userId: errorInfo.userId,
+            sessionId: errorInfo.sessionId,
+            context: errorInfo.details,
+          },
           { auth: 'none', responseMode: 'raw' }
         );
       } catch (reportError) {

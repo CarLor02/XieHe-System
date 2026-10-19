@@ -1,20 +1,22 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { apiClient } from '@/infrastructure/http';
+import { apiSdk } from '@/infrastructure/http';
 import {
   getAiKeypointDetectionResponse,
   getAiMeasurementsResponse,
 } from '../aiMeasurementService';
 
 describe('aiMeasurementService', () => {
-  const postSpy = jest.spyOn(apiClient, 'post');
+  const predictSpy = jest.spyOn(apiSdk.imaging, 'predict');
+  const detectSpy = jest.spyOn(apiSdk.imaging, 'detectKeypoints');
 
   beforeEach(() => {
-    postSpy.mockReset();
+    predictSpy.mockReset();
+    detectSpy.mockReset();
   });
 
   it('requests AI measurements through the authenticated backend object proxy', async () => {
-    postSpy.mockResolvedValue({
+    predictSpy.mockResolvedValue({
       imageId: 'IMG42',
       imageWidth: 100,
       imageHeight: 200,
@@ -30,24 +32,26 @@ describe('aiMeasurementService', () => {
       measurements: [],
     });
 
-    expect(postSpy).toHaveBeenCalledWith('/api/v1/image-files/42/ai/predict');
+    expect(predictSpy).toHaveBeenCalledWith('42');
   });
 
-  it('requests keypoint detection through the authenticated backend object proxy', async () => {
-    postSpy.mockResolvedValue({
+  it('passes numeric IDs to the legacy keypoint detection gateway', async () => {
+    detectSpy.mockResolvedValue({
       imageId: 'IMG42',
+      imageWidth: 100,
+      imageHeight: 200,
       pose_keypoints: {},
       vertebrae: {},
     });
 
     await expect(getAiKeypointDetectionResponse('IMG00042')).resolves.toEqual({
       imageId: 'IMG42',
+      imageWidth: 100,
+      imageHeight: 200,
       pose_keypoints: {},
       vertebrae: {},
     });
 
-    expect(postSpy).toHaveBeenCalledWith(
-      '/api/v1/image-files/42/ai/detect-keypoints'
-    );
+    expect(detectSpy).toHaveBeenCalledWith('42');
   });
 });

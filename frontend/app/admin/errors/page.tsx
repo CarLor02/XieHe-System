@@ -11,28 +11,12 @@
 
 import AppShell from '@/components/layout/AppShell';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
-import { apiClient } from '@/infrastructure/http';
+import * as errorApi from '@/services/systemServices/errorApi';
+import type { ErrorStats } from '@xiehe/api-contracts/generated';
 import React, { useEffect, useState } from 'react';
 
-// 错误统计数据接口
-interface ErrorStats {
-  totalErrors: number;
-  errorsByType: Record<string, number>;
-  errorsBySeverity: Record<string, number>;
-  recentErrors: Array<{
-    id: string;
-    message: string;
-    type: string;
-    severity: string;
-    timestamp: string;
-    url: string;
-    userId?: string;
-  }>;
-  timeRange: string;
-}
-
 function fetchErrorStats(timeRange: number): Promise<ErrorStats> {
-  return apiClient.get<ErrorStats>(`/api/v1/errors/stats?hours=${timeRange}`);
+  return errorApi.requestGetErrorStats({ hours: timeRange });
 }
 
 const ErrorMonitoringPage: React.FC = () => {
@@ -61,10 +45,8 @@ const ErrorMonitoringPage: React.FC = () => {
     }
 
     try {
-      const result = await apiClient.delete<{ message?: string }>(
-        '/api/v1/errors/clear'
-      );
-      alert(result.message);
+      const result = await errorApi.requestClearErrorLogs();
+      alert(`已清空 ${result.clearedCount} 条错误记录`);
       loadErrorStats(); // 重新加载数据
     } catch (error) {
       handleApiError(error, 'clear_error_logs');
@@ -91,7 +73,7 @@ const ErrorMonitoringPage: React.FC = () => {
   }, [handleApiError, timeRange]);
 
   // 获取严重程度颜色
-  const getSeverityColor = (severity: string) => {
+  const getSeverityColor = (severity: string | null) => {
     switch (severity) {
       case 'critical':
         return 'text-red-600 bg-red-100';
@@ -107,7 +89,7 @@ const ErrorMonitoringPage: React.FC = () => {
   };
 
   // 获取错误类型颜色
-  const getTypeColor = (type: string) => {
+  const getTypeColor = (type: string | null) => {
     switch (type) {
       case 'network':
         return 'text-blue-600 bg-blue-100';

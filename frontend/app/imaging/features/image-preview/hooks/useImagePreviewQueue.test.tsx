@@ -2,7 +2,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { useEffect } from 'react';
 
-import { apiClient } from '@/infrastructure/http';
+import { apiSdk } from '@/infrastructure/http';
 import type { ImageFile } from '@/services/imageServices/imageFileService';
 import { clearImageFileAccessUrlCache } from '@/services/imageServices/imageFileAccessUrlService';
 import {
@@ -10,7 +10,7 @@ import {
   useImagePreviewQueue,
 } from './useImagePreviewQueue';
 
-const mockedApiPost = jest.spyOn(apiClient, 'post');
+const mockedApiPost = jest.spyOn(apiSdk.imaging, 'getDownloadUrls');
 
 function makeImageFile(id: number): ImageFile {
   return {
@@ -85,8 +85,8 @@ describe('useImagePreviewQueue', () => {
     await waitFor(() => {
       expect(mockedApiPost).toHaveBeenCalledTimes(1);
     });
-    expect(mockedApiPost.mock.calls[0]?.[1]).toEqual({
-      ids: [1],
+    expect(mockedApiPost.mock.calls[0]?.[0]).toEqual([1]);
+    expect(mockedApiPost.mock.calls[0]?.[1]).toMatchObject({
       variant: 'thumbnail',
     });
     await waitFor(() => {
@@ -198,10 +198,10 @@ describe('useImagePreviewQueue', () => {
       },
       { timeout: 2_500 }
     );
-    expect(mockedApiPost.mock.calls.map(call => call[1])).toEqual([
-      { ids: [1], variant: 'thumbnail' },
-      { ids: [1], variant: 'thumbnail' },
-    ]);
+    expect(mockedApiPost.mock.calls.map(call => call[0])).toEqual([[1], [1]]);
+    expect(
+      mockedApiPost.mock.calls.every(call => call[1]?.variant === 'thumbnail')
+    ).toBe(true);
     await waitFor(() => {
       expect(observedValues.at(-1)?.imageUrls[1]).toBe(
         '/medical-image-files/thumb.webp?sig=2'

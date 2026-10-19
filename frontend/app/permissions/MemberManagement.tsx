@@ -112,8 +112,8 @@ export default function MemberManagement() {
     try {
       setProcessingRequestId(request.id);
       setError(null);
-      const result = await reviewTeamJoinRequest(selectedTeamId, request.id, decision);
-      setSuccessMessage(result.message || '加入申请已处理');
+      await reviewTeamJoinRequest(selectedTeamId, request.id, decision);
+      setSuccessMessage(decision === 'approve' ? '加入申请已通过' : '加入申请已拒绝');
       await refreshJoinRequests();
       if (decision === 'approve') {
         await refreshMembers();
