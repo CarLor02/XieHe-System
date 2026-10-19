@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./http/v1": "./src/http/v1/index.ts",
-    "./http/v1/*": "./src/http/v1/*.ts"
+    "./http/v1/*": "./src/http/v1/*.ts",
+    "./generated": "./src/generated.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",

@@ -1,54 +1,46 @@
+import type { UserResponse } from '@xiehe/api-contracts/generated';
+import type { HttpApi } from '@stellarmesh/sdk';
+import { createAuthApi } from '../api/authApi';
 import type { HttpClient, HttpRequestOptions } from '@xiehe/api-client';
 import type {
   AvatarUploadSession,
   AvatarUploadSessionRequest,
   CompleteAvatarUploadRequest,
   LoginCredentials,
-  LoginResponse,
   PasswordChangeRequest,
-  RefreshTokenResponse,
   RegisterRequest,
-  SessionUser,
   UserInfo,
   UserUpdateRequest,
 } from '@xiehe/api-contracts';
 
-export function createAuthClient(
-  apiClient: HttpClient,
-  publicApiClient: HttpClient
-) {
+export function createAuthClient(http: HttpApi, apiClient: HttpClient) {
+  const authApi = createAuthApi(http);
   return {
     login: (credentials: LoginCredentials) =>
-      publicApiClient.post<LoginResponse, LoginCredentials>(
-        '/api/v1/auth/login',
-        credentials
-      ),
-    register: (request: RegisterRequest) =>
-      publicApiClient.post<void, RegisterRequest>(
-        '/api/v1/auth/register',
-        request
-      ),
-    refresh: (refreshToken: string) =>
-      publicApiClient.post<RefreshTokenResponse>(
-        '/api/v1/auth/refresh',
-        { refresh_token: refreshToken }
-      ),
+      authApi.requestLogin({ remember_me: false, ...credentials }),
+    register: (request: RegisterRequest) => authApi.requestRegister(request),
+    refresh: (refresh_token: string) =>
+      authApi.requestRefreshToken({ refresh_token }),
     logout: (options?: HttpRequestOptions) =>
-      publicApiClient.post<void>('/api/v1/auth/logout', {}, options),
-    getSessionUser: () => apiClient.get<SessionUser>('/api/v1/auth/me'),
-    updateSessionUser: (request: Partial<SessionUser>) =>
-      apiClient.put<SessionUser, Partial<SessionUser>>(
+      authApi.requestLogout(undefined, {
+        headers: options?.headers,
+        timeout: options?.timeout,
+        signal: options?.signal,
+      }),
+    getSessionUser: () => apiClient.get<UserResponse>('/api/v1/auth/me'),
+    updateSessionUser: (request: UserUpdateRequest) =>
+      apiClient.put<UserResponse, UserUpdateRequest>(
         '/api/v1/auth/me',
         request
       ),
-    getCurrentUser: () => apiClient.get<UserInfo>('/api/v1/auth/me'),
+    getCurrentUser: () => apiClient.get<UserResponse>('/api/v1/auth/me'),
     updateCurrentUser: (request: UserUpdateRequest) =>
-      apiClient.put<UserInfo, UserUpdateRequest>('/api/v1/auth/me', request),
-    changePassword: (request: PasswordChangeRequest) =>
-      apiClient.post<void, PasswordChangeRequest>(
-        '/api/v1/auth/password/change',
+      apiClient.put<UserResponse, UserUpdateRequest>(
+        '/api/v1/auth/me',
         request
       ),
+    changePassword: (request: PasswordChangeRequest) =>
+      authApi.requestChangePassword(request),
     createAvatarUploadSession: (request: AvatarUploadSessionRequest) =>
       apiClient.post<AvatarUploadSession, AvatarUploadSessionRequest>(
         '/api/v1/auth/me/avatar/upload-session',

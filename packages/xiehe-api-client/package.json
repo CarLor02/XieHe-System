@@ -7,14 +7,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./contracts": "./src/contracts/index.ts",
-    "./axios": "./src/infrastructure/axios/index.ts"
+    "./stellarmesh": "./src/infrastructure/stellarmesh.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "axios": "^1.12.2"
+    "@stellarmesh/sdk": "0.3.1"
   },
   "devDependencies": {
     "@types/node": "^24.7.0",

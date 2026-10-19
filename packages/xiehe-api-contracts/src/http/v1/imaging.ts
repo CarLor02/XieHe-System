@@ -1,3 +1,7 @@
+import type {
+  ImageFileResponse,
+  AnnotationSaveResponse,
+} from '../../generated';
 import type { PaginatedResult } from '@xiehe/api-client/contracts';
 import type {
   AiFrontalKeypointResponse,
@@ -22,44 +26,23 @@ export type ImageFileStatus =
   | 'DELETED';
 export type ImageAccessVariant = 'original' | 'thumbnail';
 
-export interface ImageFileSummary {
-  id: number;
-  file_uuid: string;
-  original_filename: string;
-  file_type: ImageFileType;
-  mime_type?: string;
-  file_size: number;
-  storage_bucket: string;
-  object_key: string;
-  storage_etag?: string;
-  thumbnail_path?: string;
-  uploaded_by: number;
-  uploader_name?: string | null;
-  patient_id?: number;
-  patient_name?: string | null;
-  patient_identifier?: string | null;
-  patient_gender?: string | null;
-  patient_age?: number | null;
-  study_id?: number;
-  study_date?: string;
-  description?: string;
-  team_ids?: number[];
-  team_names?: string[];
-  has_annotation: boolean;
-  status: ImageFileStatus;
-  upload_progress: number;
-  created_at: string;
-  uploaded_at?: string;
-}
-
-export interface ImageFileDetail extends ImageFileSummary {
-  annotation: ImageAnnotationJson | null;
-  annotation_version: number;
-  annotation_created_at?: string | null;
-  annotation_created_by?: number | null;
-  annotation_updated_at?: string | null;
-  annotation_updated_by?: number | null;
-}
+type SummaryFields =
+  | 'id'
+  | 'file_uuid'
+  | 'original_filename'
+  | 'file_type'
+  | 'file_size'
+  | 'storage_bucket'
+  | 'object_key'
+  | 'uploaded_by'
+  | 'has_annotation'
+  | 'status'
+  | 'upload_progress'
+  | 'created_at';
+export type ImageFileSummary = Pick<ImageFileResponse, SummaryFields> &
+  Partial<Omit<ImageFileResponse, SummaryFields>>;
+export type ImageFileDetail = ImageFileSummary &
+  Pick<ImageFileResponse, 'annotation' | 'annotation_version'>;
 
 export type ImageFile = ImageFileSummary;
 
@@ -144,14 +127,7 @@ export interface BatchUpdateImageExamTypeResult {
   exam_type: string;
 }
 
-export interface AnnotationSaveResult {
-  annotation_version: number;
-  annotation_updated_at: string | null;
-  annotation_updated_by: number | null;
-  has_annotation: boolean;
-  status: ImageFileStatus;
-  changed: boolean;
-}
+export type AnnotationSaveResult = AnnotationSaveResponse;
 
 export interface UploadPartUrl {
   part_number: number;
@@ -199,11 +175,7 @@ export interface ImageImportItem {
   mime_type: string;
   image_file_id?: number | null;
   upload_status:
-    | 'PENDING'
-    | 'SESSION_CREATED'
-    | 'UPLOADING'
-    | 'UPLOADED'
-    | 'FAILED';
+    'PENDING' | 'SESSION_CREATED' | 'UPLOADING' | 'UPLOADED' | 'FAILED';
   ai_status: 'PENDING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
   error?: string | null;
   created_at: string;
@@ -216,11 +188,7 @@ export interface ImageImportBatch {
   description?: string | null;
   team_ids: number[];
   status:
-    | 'UPLOADING'
-    | 'PROCESSING'
-    | 'COMPLETED'
-    | 'PARTIAL_FAILED'
-    | 'FAILED';
+    'UPLOADING' | 'PROCESSING' | 'COMPLETED' | 'PARTIAL_FAILED' | 'FAILED';
   total_items: number;
   uploaded_items: number;
   succeeded_items: number;

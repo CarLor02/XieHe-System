@@ -1,102 +1,45 @@
-import type { HttpClient } from '@xiehe/api-client';
+import type { HttpApi } from '@stellarmesh/sdk';
 import type {
   TeamCreateRequest,
-  TeamInvitationListResponse,
-  TeamInvitationRespondResponse,
-  TeamJoinRequestActionResponse,
-  TeamJoinRequestItem,
-  TeamJoinRequestListResponse,
-  TeamJoinRequestSubmitResponse,
-  TeamListResponse,
-  TeamMembersResponse,
-  TeamRole,
-  TeamSearchResponse,
-  TeamSummary,
   TeamUpdateRequest,
+  TeamRole,
 } from '@xiehe/api-contracts';
+import { createTeamApi } from '../api/teamApi';
 
-export function createTeamClient(client: HttpClient) {
+export function createTeamClient(http: HttpApi) {
+  const teamApi = createTeamApi(http);
   return {
     search: (keyword: string) =>
-      client.get<TeamSearchResponse>('/api/v1/permissions/teams/search', {
-        params: { keyword },
-      }),
-    listMine: () =>
-      client.get<TeamListResponse>('/api/v1/permissions/teams/my'),
-    apply: (teamId: number, message = '') =>
-      client.post<TeamJoinRequestSubmitResponse>(
-        `/api/v1/permissions/teams/${teamId}/apply`,
-        { message }
-      ),
-    getMembers: (teamId: number) =>
-      client.get<TeamMembersResponse>(
-        `/api/v1/permissions/teams/${teamId}/members`
-      ),
+      teamApi.requestSearchTeams({ keyword, limit: 20 }),
+    listMine: () => teamApi.requestListMyTeams({}),
+    apply: (team_id: number, message = '') =>
+      teamApi.requestApplyToTeam({ team_id, message }),
+    getMembers: (team_id: number) =>
+      teamApi.requestListTeamMembers({ team_id }),
     getJoinRequests: (
-      teamId: number,
+      team_id: number,
       status?: 'pending' | 'approved' | 'rejected'
-    ) =>
-      client.get<TeamJoinRequestListResponse>(
-        `/api/v1/permissions/teams/${teamId}/join-requests`,
-        { params: status ? { status } : undefined }
-      ),
+    ) => teamApi.requestListTeamJoinRequests({ team_id, status }),
     reviewJoinRequest: (
-      teamId: number,
-      requestId: number,
+      team_id: number,
+      request_id: number,
       decision: 'approve' | 'reject'
     ) =>
-      client.post<TeamJoinRequestActionResponse>(
-        `/api/v1/permissions/teams/${teamId}/join-requests/${requestId}/review`,
-        { decision }
-      ),
-    cancelJoinRequest: (teamId: number, requestId: number) =>
-      client.delete<TeamJoinRequestActionResponse>(
-        `/api/v1/permissions/teams/${teamId}/join-requests/${requestId}`
-      ),
-    invite: (
-      teamId: number,
-      email: string,
-      role: string,
-      message?: string
-    ) =>
-      client.post<{ message: string }>(
-        `/api/v1/permissions/teams/${teamId}/invite`,
-        { email, role, message }
-      ),
+      teamApi.requestReviewTeamJoinRequest({ team_id, request_id, decision }),
+    cancelJoinRequest: (team_id: number, request_id: number) =>
+      teamApi.requestCancelTeamJoinRequest({ team_id, request_id }),
+    invite: (team_id: number, email: string, role: string, message?: string) =>
+      teamApi.requestInviteTeamMember({ team_id, email, role, message }),
     create: (request: TeamCreateRequest) =>
-      client.post<TeamSummary, TeamCreateRequest>(
-        '/api/v1/permissions/teams',
-        request
-      ),
-    update: (teamId: number, request: TeamUpdateRequest) =>
-      client.patch<TeamSummary, TeamUpdateRequest>(
-        `/api/v1/permissions/teams/${teamId}`,
-        request
-      ),
-    async listMyApplications() {
-      return (
-        await client.get<{ items: TeamJoinRequestItem[] }>(
-          '/api/v1/permissions/teams/my-applications'
-        )
-      ).items;
-    },
-    updateMemberRole: (teamId: number, userId: number, role: TeamRole) =>
-      client.patch<{ message: string }>(
-        `/api/v1/permissions/teams/${teamId}/members/${userId}/role`,
-        { role }
-      ),
-    removeMember: (teamId: number, userId: number) =>
-      client.delete<{ message: string }>(
-        `/api/v1/permissions/teams/${teamId}/members/${userId}`
-      ),
-    listInvitations: () =>
-      client.get<TeamInvitationListResponse>(
-        '/api/v1/permissions/invitations/my'
-      ),
-    respondToInvitation: (invitationId: number, accept: boolean) =>
-      client.post<TeamInvitationRespondResponse>(
-        `/api/v1/permissions/invitations/${invitationId}/respond`,
-        { accept }
-      ),
+      teamApi.requestCreateTeam({ max_members: 50, ...request }),
+    update: (team_id: number, changes: TeamUpdateRequest) =>
+      teamApi.requestUpdateTeam({ ...changes, team_id }),
+    updateMemberRole: (team_id: number, user_id: number, role: TeamRole) =>
+      teamApi.requestUpdateTeamMemberRole({ team_id, user_id, role }),
+    removeMember: (team_id: number, user_id: number) =>
+      teamApi.requestRemoveTeamMember({ team_id, user_id }),
+    listInvitations: () => teamApi.requestGetMyInvitations({}),
+    respondToInvitation: (invitation_id: number, accept: boolean) =>
+      teamApi.requestRespondToInvitation({ invitation_id, accept }),
   };
 }

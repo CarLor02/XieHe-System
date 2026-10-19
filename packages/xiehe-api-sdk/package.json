@@ -6,7 +6,8 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./clients/*": "./src/clients/*.ts"
+    "./clients/*": "./src/clients/*.ts",
+    "./api/*": "./src/api/*.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
@@ -14,7 +15,8 @@
   },
   "dependencies": {
     "@xiehe/api-client": "*",
-    "@xiehe/api-contracts": "*"
+    "@xiehe/api-contracts": "*",
+    "@stellarmesh/sdk": "0.3.1"
   },
   "devDependencies": {
     "@types/node": "^24.7.0",

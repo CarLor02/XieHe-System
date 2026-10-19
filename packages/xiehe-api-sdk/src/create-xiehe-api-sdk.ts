@@ -1,4 +1,5 @@
-import type { HttpClient } from '@xiehe/api-client';
+import type { HttpApi } from '@stellarmesh/sdk';
+import { createHttpClientAdapter } from '@xiehe/api-client/stellarmesh';
 import { createAuthClient } from './clients/auth-client';
 import { createDicomClient } from './clients/dicom-client';
 import { createImagingClient } from './clients/imaging-client';
@@ -9,24 +10,23 @@ import { createTeamClient } from './clients/team-client';
 import { createUploadClient } from './clients/upload-client';
 
 export interface XieheApiSdkOptions {
-  apiClient: HttpClient;
-  publicApiClient?: HttpClient;
+  http: HttpApi;
 }
 
 export function createXieheApiSdk(options: XieheApiSdkOptions) {
-  const publicClient = options.publicApiClient ?? options.apiClient;
-  const operations = createOperationsClient(options.apiClient);
+  const apiClient = createHttpClientAdapter(options.http);
+  const operations = createOperationsClient(options.http);
   return {
-    auth: createAuthClient(options.apiClient, publicClient),
-    patients: createPatientClient(options.apiClient),
-    teams: createTeamClient(options.apiClient),
-    imaging: createImagingClient(options.apiClient),
-    upload: createUploadClient(options.apiClient),
+    auth: createAuthClient(options.http, apiClient),
+    patients: createPatientClient(options.http),
+    teams: createTeamClient(options.http),
+    imaging: createImagingClient(options.http, apiClient),
+    upload: createUploadClient(apiClient),
     dashboard: operations.dashboard,
     models: operations.models,
     system: operations.system,
-    reports: createReportClient(options.apiClient),
-    dicom: createDicomClient(options.apiClient),
+    reports: createReportClient(options.http),
+    dicom: createDicomClient(apiClient),
   };
 }
 

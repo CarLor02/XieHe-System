@@ -1,137 +1,207 @@
-import type { HttpClient, HttpRequest } from '@xiehe/api-client';
-import { describe, expect, it, vi } from 'vitest';
-import { createXieheApiSdk } from '../src';
-import type { DashboardActivity } from '@xiehe/api-contracts';
+import { createServer, type Server } from 'node:http';
+import { readFileSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createStellarmeshHttp } from '@xiehe/api-client/stellarmesh';
+import type { HttpApi } from '@stellarmesh/sdk';
+import { createXieheApiSdk, type XieheApiSdk } from '../src';
+import { createAuthApi } from '../src/api/authApi';
+import { createDashboardApi } from '../src/api/dashboardApi';
+import { createErrorApi } from '../src/api/errorApi';
+import { createImagingApi } from '../src/api/imagingApi';
+import { createModelApi } from '../src/api/modelApi';
+import { createPatientApi } from '../src/api/patientApi';
+import { createReportApi } from '../src/api/reportApi';
+import { createSystemApi } from '../src/api/systemApi';
+import { createTeamApi } from '../src/api/teamApi';
 
-function createClient() {
-  const requestSpy = vi.fn(async (input: HttpRequest) => {
-    if (input.url === '/api/v1/auth/login') {
-      return { access_token: 'a', refresh_token: 'r', user: {} };
-    }
-    if (input.url === '/api/v1/patients/') {
-      return { items: [], total: 0, page: 1, page_size: 20 };
-    }
-    return {};
-  });
-  const request = requestSpy as unknown as HttpClient['request'];
-  const client: HttpClient = {
-    request,
-    requestWithMetadata: vi.fn(),
-    get: (url, options) => request({ method: 'GET', url, ...options }),
-    post: (url, data, options) =>
-      request({ method: 'POST', url, data, ...options }),
-    put: (url, data, options) =>
-      request({ method: 'PUT', url, data, ...options }),
-    patch: (url, data, options) =>
-      request({ method: 'PATCH', url, data, ...options }),
-    delete: (url, options) => request({ method: 'DELETE', url, ...options }),
-  };
-  return { client, request: requestSpy };
-}
-
-describe('Xiehe API SDK', () => {
-  it.each(['activities', 'items', 'array'])(
-    'preserves dashboard wire timestamps and numeric IDs from %s responses',
-    async shape => {
-      const activity = {
-        id: 42,
-        type: 'study',
-        title: '上传影像',
-        description: '契约测试记录',
-        timestamp: '2026-10-19T08:30:00Z',
-        status: 'completed',
-      } satisfies DashboardActivity;
-      const { client } = createClient();
-      vi.spyOn(client, 'get').mockResolvedValue(
-        shape === 'array' ? [activity] : { [shape]: [activity] }
-      );
-      const sdk = createXieheApiSdk({ apiClient: client });
-      const activities = await sdk.dashboard.getRecentActivities();
-      expect(activities).toEqual([activity]);
-      expect(client.get).toHaveBeenCalledWith(
-        '/api/v1/dashboard/recent-activities'
-      );
-    }
-  );
-  it('uses the public client for login', async () => {
-    const authenticated = createClient();
-    const publicClient = createClient();
-    const sdk = createXieheApiSdk({
-      apiClient: authenticated.client,
-      publicApiClient: publicClient.client,
+let server: Server;
+let sdk: XieheApiSdk;
+let requests: {
+  method?: string;
+  path?: string;
+  authorization?: string;
+  body: unknown;
+}[];
+beforeEach(async () => {
+  requests = [];
+  server = createServer(async (request, response) => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    const raw = Buffer.concat(chunks).toString();
+    requests.push({
+      method: request.method,
+      path: request.url,
+      authorization: request.headers.authorization,
+      body: raw ? JSON.parse(raw) : undefined,
     });
+    let data: unknown = {};
+    if (request.url === '/api/v1/auth/login')
+      data = { access_token: 'a', refresh_token: 'r', user: {} };
+    if (
+      request.url === '/api/v1/patients/list' ||
+      request.url === '/api/v1/image-files/list'
+    )
+      data = {
+        items: [{ id: 7 }],
+        pagination: { total: 6, page: 2, page_size: 5, total_pages: 2 },
+      };
+    if (request.url === '/api/v1/patients/delete') data = null;
+    if (request.url === '/api/v1/dashboard/recent-activities')
+      data = {
+        activities: [{ id: 42, timestamp: '2026-10-19T08:30:00Z' }],
+        total: 1,
+      };
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ code: 200, message: 'ok', data }));
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string')
+    throw new Error('No test server');
+  const baseURL = `http://127.0.0.1:${address.port}`;
+  const http = createStellarmeshHttp({
+    baseURL,
+    tokenProvider: { getAccessToken: () => 'api-token' },
+    getSessionEpoch: () => 1,
+  });
+  sdk = createXieheApiSdk({ http });
+});
+afterEach(async () => {
+  await new Promise<void>(resolve => server.close(() => resolve()));
+});
 
-    await sdk.auth.login({ username: 'doctor', password: 'secret' });
-
-    expect(authenticated.request).not.toHaveBeenCalled();
-    expect(publicClient.request).toHaveBeenCalledWith({
+describe('shared API declarations over the published SDK', () => {
+  it('uses a public login declaration with the backend default made explicit', async () => {
+    await sdk.auth.login({ username: 'doctor', password: 'test-password' });
+    expect(requests[0]).toEqual({
       method: 'POST',
-      url: '/api/v1/auth/login',
-      data: { username: 'doctor', password: 'secret' },
+      path: '/api/v1/auth/login',
+      authorization: undefined,
+      body: {
+        username: 'doctor',
+        password: 'test-password',
+        remember_me: false,
+      },
     });
   });
-
-  it('normalizes paginated patient responses', async () => {
-    const { client, request } = createClient();
-    const sdk = createXieheApiSdk({ apiClient: client });
-
-    const result = await sdk.patients.list({ search: '张三' });
-
-    expect(result.items).toEqual([]);
-    expect(request).toHaveBeenCalledWith({
-      method: 'GET',
-      url: '/api/v1/patients/',
-      params: { page: 1, page_size: 20, search: '张三' },
+  it('puts filters in JSON and maps canonical pagination for UI state', async () => {
+    expect(
+      await sdk.patients.list({
+        page: 2,
+        page_size: 5,
+        search: '测试',
+        has_images: false,
+      })
+    ).toEqual({
+      items: [{ id: 7 }],
+      total: 6,
+      page: 2,
+      pageSize: 5,
+      totalPages: 2,
     });
-  });
-
-  it('uses the strict model collection route without a trailing slash', async () => {
-    const { client, request } = createClient();
-    const sdk = createXieheApiSdk({ apiClient: client });
-    const model = {
-      name: 'AP model',
-      description: 'AP spine analysis',
-      view_type: 'front' as const,
-      endpoint_url: 'http://model-ap:8001',
-      version: '1.0.0',
-      tags: ['ap'],
-    };
-
-    await sdk.models.list({ page_size: 100 });
-    await sdk.models.create(model);
-
-    expect(request).toHaveBeenNthCalledWith(1, {
-      method: 'GET',
-      url: '/api/v1/models',
-      params: { page_size: 100 },
-    });
-    expect(request).toHaveBeenNthCalledWith(2, {
+    expect(requests[0]).toMatchObject({
       method: 'POST',
-      url: '/api/v1/models',
-      data: model,
+      path: '/api/v1/patients/list',
+      authorization: 'Bearer api-token',
+      body: {
+        page: 2,
+        page_size: 5,
+        search: '测试',
+        has_images: false,
+        sort_by: 'created_at',
+        sort_order: 'desc',
+      },
     });
   });
-
-  it('uses durable session IDs for single and batch upload completion', async () => {
-    const { client, request } = createClient();
-    const sdk = createXieheApiSdk({ apiClient: client });
+  it('keeps omitted update fields distinct from explicit null and returns null on delete', async () => {
+    await sdk.patients.update(7, { phone: null });
+    expect(requests[0].body).toEqual({ patient_id: 7, phone: null });
+    expect(await sdk.patients.delete(7)).toBeNull();
+    expect(requests[1]).toMatchObject({
+      method: 'POST',
+      path: '/api/v1/patients/delete',
+      body: { patient_id: 7 },
+    });
+  });
+  it('uses array filters and fixed metadata operation paths', async () => {
+    await sdk.imaging.list({ team_ids: [3, 8], file_status: 'PROCESSED' });
+    await sdk.imaging.rename(7, 'renamed');
+    expect(requests[0]).toMatchObject({
+      path: '/api/v1/image-files/list',
+      body: {
+        page: 1,
+        page_size: 20,
+        team_ids: [3, 8],
+        file_status: 'PROCESSED',
+      },
+    });
+    expect(requests[1]).toMatchObject({
+      method: 'POST',
+      path: '/api/v1/image-files/rename',
+      body: { file_id: 7, basename: 'renamed' },
+    });
+  });
+  it('preserves activity timestamps and numeric IDs', async () => {
+    expect(await sdk.dashboard.getRecentActivities()).toEqual([
+      { id: 42, timestamp: '2026-10-19T08:30:00Z' },
+    ]);
+  });
+  it('keeps upload session methods, paths and bodies unchanged', async () => {
     const parts = [{ part_number: 1, etag: 'etag-1' }];
-
     await sdk.upload.completeSession('session-1', { parts });
     await sdk.upload.completeImportItem('batch-1', 7, {
       session_id: 'session-2',
       parts,
     });
-
-    expect(request).toHaveBeenNthCalledWith(1, {
-      method: 'POST',
-      url: '/api/v1/upload/sessions/session-1/complete',
-      data: { parts },
-    });
-    expect(request).toHaveBeenNthCalledWith(2, {
-      method: 'POST',
-      url: '/api/v1/upload/batches/batch-1/items/7/complete',
-      data: { session_id: 'session-2', parts },
-    });
+    await sdk.upload.getStatus('session-1');
+    expect(
+      requests.map(({ method, path, body }) => ({ method, path, body }))
+    ).toEqual([
+      {
+        method: 'POST',
+        path: '/api/v1/upload/sessions/session-1/complete',
+        body: { parts },
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/upload/batches/batch-1/items/7/complete',
+        body: { session_id: 'session-2', parts },
+      },
+      {
+        method: 'GET',
+        path: '/api/v1/upload/sessions/session-1',
+        body: undefined,
+      },
+    ]);
+  });
+  it('declares only POST operations present in the exported backend contract', () => {
+    const contract = JSON.parse(
+      readFileSync(
+        new URL('../../../apiContract/openapi.json', import.meta.url),
+        'utf8'
+      )
+    ) as { paths: Record<string, { post?: unknown }> };
+    const declared: string[] = [];
+    const http = {
+      post: (url: string) => {
+        declared.push(url);
+        return () => Promise.resolve();
+      },
+    } as unknown as HttpApi;
+    for (const create of [
+      createAuthApi,
+      createDashboardApi,
+      createErrorApi,
+      createImagingApi,
+      createModelApi,
+      createPatientApi,
+      createReportApi,
+      createSystemApi,
+      createTeamApi,
+    ])
+      create(http);
+    expect(declared.length).toBeGreaterThan(60);
+    for (const path of declared)
+      expect(contract.paths[path]?.post, path).toBeDefined();
   });
 });

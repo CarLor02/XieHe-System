@@ -1,60 +1,46 @@
-import type { HttpClient } from '@xiehe/api-client';
-import { normalizeLegacyPagination } from '@xiehe/api-client/contracts';
+import type { HttpApi } from '@stellarmesh/sdk';
+import { toPaginatedResult } from '@xiehe/api-client/contracts';
 import type {
   CreateModelRequest,
-  DashboardActivity,
-  DashboardOverview,
-  DashboardStats,
-  DeleteModelResult,
-  ModelConfiguration,
-  ModelItem,
-  ModelListQuery,
-  ModelStats,
-  SystemStats,
-} from '@xiehe/api-contracts';
-import { compactQuery } from '../shared/query';
+  ModelConfigurationUpdate,
+  RequestGetModels,
+} from '@xiehe/api-contracts/generated';
+import { createDashboardApi } from '../api/dashboardApi';
+import { createModelApi } from '../api/modelApi';
+import { createSystemApi } from '../api/systemApi';
 
-export function createOperationsClient(client: HttpClient) {
+export function createOperationsClient(http: HttpApi) {
+  const dashboardApi = createDashboardApi(http);
+  const modelApi = createModelApi(http);
+  const systemApi = createSystemApi(http);
   return {
     dashboard: {
-      getStats: () => client.get<DashboardStats>('/api/v1/dashboard/stats'),
-      getOverview: () =>
-        client.get<DashboardOverview>('/api/v1/dashboard/overview'),
-      async getRecentActivities() {
-        const data = await client.get<
-          | { items?: DashboardActivity[]; activities?: DashboardActivity[] }
-          | DashboardActivity[]
-        >('/api/v1/dashboard/recent-activities');
-        return Array.isArray(data)
-          ? data
-          : data.items || data.activities || [];
-      },
+      getStats: () => dashboardApi.requestGetDashboardStats({}),
+      getOverview: () => dashboardApi.requestGetDashboardOverview({}),
+      getRecentActivities: async () =>
+        (await dashboardApi.requestGetRecentActivities({ limit: 10 }))
+          .activities,
     },
     models: {
-      async list(query: ModelListQuery = {}) {
-        return normalizeLegacyPagination<ModelItem>(
-          await client.get<unknown>('/api/v1/models', {
-            params: compactQuery({ ...query }),
-          })
-        );
-      },
-      getStats: () => client.get<ModelStats>('/api/v1/models/stats'),
-      create: (request: CreateModelRequest) =>
-        client.post<ModelItem, CreateModelRequest>('/api/v1/models', request),
-      activate: (modelId: string) =>
-        client.post<void>(`/api/v1/models/${modelId}/activate`),
-      delete: (modelId: string) =>
-        client.delete<DeleteModelResult>(`/api/v1/models/${modelId}`),
-      getConfiguration: () =>
-        client.get<ModelConfiguration>('/api/v1/models/configuration'),
-      updateConfiguration: (request: ModelConfiguration) =>
-        client.put<ModelConfiguration, ModelConfiguration>(
-          '/api/v1/models/configuration',
-          request
+      list: async (query: Partial<RequestGetModels> = {}) =>
+        toPaginatedResult(
+          await modelApi.requestGetModels({ page: 1, page_size: 10, ...query })
         ),
+      get: (model_id: string) => modelApi.requestGetModel({ model_id }),
+      getStats: () => modelApi.requestGetModelStats({}),
+      create: (request: CreateModelRequest) =>
+        modelApi.requestCreateModel(request),
+      update: (request: Parameters<typeof modelApi.requestUpdateModel>[0]) =>
+        modelApi.requestUpdateModel(request),
+      refreshStatus: (model_id: string) =>
+        modelApi.requestRefreshModelStatus({ model_id }),
+      activate: (model_id: string) =>
+        modelApi.requestActivateModel({ model_id }),
+      delete: (model_id: string) => modelApi.requestDeleteModel({ model_id }),
+      getConfiguration: () => modelApi.requestGetConfiguration({}),
+      updateConfiguration: (request: ModelConfigurationUpdate) =>
+        modelApi.requestUpdateConfiguration(request),
     },
-    system: {
-      getStats: () => client.get<SystemStats>('/api/v1/system/stats'),
-    },
+    system: { getStats: () => systemApi.requestGetSystemStats({}) },
   };
 }

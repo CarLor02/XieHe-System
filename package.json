@@ -42,11 +42,16 @@
     "verify:core": "npm run type-check:core && npm run test:core && npm run type-check:catalog && npm run test:catalog",
     "verify:shared": "npm run type-check:auth-core && npm run test:auth-core && npm run type-check:access-core && npm run test:access-core && npm run type-check:patient-core && npm run test:patient-core && npm run type-check:upload-core && npm run test:upload-core && npm run type-check:dashboard-core && npm run test:dashboard-core && npm run test:shared-boundaries",
     "verify:api": "npm run type-check:api && npm run test:api && npm run type-check:contracts && npm run test:contracts && npm run type-check:sdk && npm run test:sdk",
-    "verify:web": "npm run type-check:web && npm run test:web && npm run build:web"
+    "verify:web": "npm run type-check:web && npm run test:web && npm run build:web",
+    "api:export": "uv run --directory backend --frozen python -m scripts.export_openapi",
+    "api:generate": "openapi-typescript apiContract/openapi.json --output packages/xiehe-api-contracts/src/generated.ts --export-type --root-types --root-types-no-schema-prefix --root-types-keep-casing --default-non-nullable",
+    "api:update": "npm run api:export && npm run api:generate",
+    "api:check": "npm run api:export -- --check && npm run api:generate -- --check"
   },
   "devDependencies": {
     "@testing-library/dom": "10.4.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "openapi-typescript": "7.13.0"
   }
 }

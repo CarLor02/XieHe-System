@@ -1,26 +1,19 @@
-import type { HttpClient } from '@xiehe/api-client';
-import { normalizeLegacyPagination } from '@xiehe/api-client/contracts';
+import type { HttpApi } from '@stellarmesh/sdk';
+import { toPaginatedResult } from '@xiehe/api-client/contracts';
 import type {
   GenerateReportRequest,
-  GenerateReportResponse,
-  ReportListQuery,
-  ReportSummary,
-} from '@xiehe/api-contracts';
-import { compactQuery } from '../shared/query';
+  RequestGetReports,
+} from '@xiehe/api-contracts/generated';
+import { createReportApi } from '../api/reportApi';
 
-export function createReportClient(client: HttpClient) {
+export function createReportClient(http: HttpApi) {
+  const reportApi = createReportApi(http);
   return {
-    async list(query: ReportListQuery = {}) {
-      return normalizeLegacyPagination<ReportSummary>(
-        await client.get<unknown>('/api/v1/reports/', {
-          params: compactQuery({ page: 1, page_size: 20, ...query }),
-        })
-      );
-    },
-    generate: (request: GenerateReportRequest) =>
-      client.post<GenerateReportResponse, GenerateReportRequest>(
-        '/api/v1/report-generation/generate',
-        request
+    list: async (query: Partial<RequestGetReports> = {}) =>
+      toPaginatedResult(
+        await reportApi.requestGetReports({ page: 1, page_size: 20, ...query })
       ),
+    generate: (request: GenerateReportRequest) =>
+      reportApi.requestGenerateReport(request),
   };
 }

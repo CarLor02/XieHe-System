@@ -88,3 +88,4 @@ export function getApiErrorMessage(
   }
   return fallback;
 }
+import { isHttpClientError } from '@stellarmesh/sdk';

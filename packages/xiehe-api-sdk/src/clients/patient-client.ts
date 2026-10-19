@@ -1,47 +1,48 @@
-import type { HttpClient } from '@xiehe/api-client';
-import { normalizeLegacyPagination } from '@xiehe/api-client/contracts';
+import type { HttpApi } from '@stellarmesh/sdk';
+import { toPaginatedResult } from '@xiehe/api-client/contracts';
 import type {
-  DeletePatientResult,
-  Patient,
-  PatientCreateRequest,
-  PatientListQuery,
-  PatientUpdateRequest,
-} from '@xiehe/api-contracts';
-import { compactQuery } from '../shared/query';
+  PatientCreate,
+  RequestUpdatePatient,
+  RequestGetPatients,
+} from '@xiehe/api-contracts/generated';
+import { createPatientApi } from '../api/patientApi';
 
-export function createPatientClient(client: HttpClient) {
-  async function list(query: PatientListQuery = {}) {
-    const data = await client.get<unknown>('/api/v1/patients/', {
-      params: compactQuery({ page: 1, page_size: 20, ...query }),
-    });
-    return normalizeLegacyPagination<Patient>(data);
+export function createPatientClient(http: HttpApi) {
+  const patientApi = createPatientApi(http);
+  async function list(query: Partial<RequestGetPatients> = {}) {
+    return toPaginatedResult(
+      await patientApi.requestGetPatients({
+        page: 1,
+        page_size: 20,
+        sort_by: 'created_at',
+        sort_order: 'desc',
+        ...query,
+      })
+    );
   }
-
   return {
     list,
     async listAll(
-      query: Omit<PatientListQuery, 'page' | 'page_size'> = {},
+      query: Omit<Partial<RequestGetPatients>, 'page' | 'page_size'> = {},
       pageSize = 100
     ) {
       const first = await list({ ...query, page: 1, page_size: pageSize });
       const items = [...first.items];
-      for (let page = 2; page <= Math.max(first.totalPages, 1); page += 1) {
+      for (let page = 2; page <= first.totalPages; page += 1) {
         items.push(
           ...(await list({ ...query, page, page_size: pageSize })).items
         );
       }
       return items;
     },
-    get: (patientId: number) =>
-      client.get<Patient>(`/api/v1/patients/${patientId}`),
-    create: (request: PatientCreateRequest) =>
-      client.post<Patient, PatientCreateRequest>('/api/v1/patients/', request),
-    update: (patientId: number, request: PatientUpdateRequest) =>
-      client.put<Patient, PatientUpdateRequest>(
-        `/api/v1/patients/${patientId}`,
-        request
-      ),
-    delete: (patientId: number) =>
-      client.delete<DeletePatientResult>(`/api/v1/patients/${patientId}`),
+    get: (patient_id: number) => patientApi.requestGetPatient({ patient_id }),
+    create: (request: PatientCreate) =>
+      patientApi.requestCreatePatient(request),
+    update: (
+      patient_id: number,
+      changes: Omit<RequestUpdatePatient, 'patient_id'>
+    ) => patientApi.requestUpdatePatient({ ...changes, patient_id }),
+    delete: (patient_id: number) =>
+      patientApi.requestDeletePatient({ patient_id }),
   };
 }
