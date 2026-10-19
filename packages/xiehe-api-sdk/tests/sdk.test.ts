@@ -1,6 +1,7 @@
 import type { HttpClient, HttpRequest } from '@xiehe/api-client';
 import { describe, expect, it, vi } from 'vitest';
 import { createXieheApiSdk } from '../src';
+import type { DashboardActivity } from '@xiehe/api-contracts';
 
 function createClient() {
   const requestSpy = vi.fn(async (input: HttpRequest) => {
@@ -29,6 +30,29 @@ function createClient() {
 }
 
 describe('Xiehe API SDK', () => {
+  it.each(['activities', 'items', 'array'])(
+    'preserves dashboard wire timestamps and numeric IDs from %s responses',
+    async shape => {
+      const activity = {
+        id: 42,
+        type: 'study',
+        title: '上传影像',
+        description: '契约测试记录',
+        timestamp: '2026-10-19T08:30:00Z',
+        status: 'completed',
+      } satisfies DashboardActivity;
+      const { client } = createClient();
+      vi.spyOn(client, 'get').mockResolvedValue(
+        shape === 'array' ? [activity] : { [shape]: [activity] }
+      );
+      const sdk = createXieheApiSdk({ apiClient: client });
+      const activities = await sdk.dashboard.getRecentActivities();
+      expect(activities).toEqual([activity]);
+      expect(client.get).toHaveBeenCalledWith(
+        '/api/v1/dashboard/recent-activities'
+      );
+    }
+  );
   it('uses the public client for login', async () => {
     const authenticated = createClient();
     const publicClient = createClient();

@@ -18,9 +18,10 @@ export interface DashboardOverview {
 }
 
 export interface DashboardActivity {
-  id: string;
+  id: number;
   title: string;
   description?: string;
-  created_at: string;
+  timestamp: string;
+  status: string;
   type?: string;
 }
