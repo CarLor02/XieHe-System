@@ -1,20 +1,20 @@
 import type { HttpClient } from '@xiehe/api-client';
-import type { XieheApiSdk } from '@xiehe/api-sdk';
+import type { ImageUploadGateway } from '../application/uploadPorts';
 import { runMultipartUpload } from '@xiehe/upload-core';
 import { validateUploadFile, type MobileUploadFile } from '../domain/upload';
 
 export async function uploadImage(input: {
-  sdk: XieheApiSdk;
-  storage: HttpClient;
+  uploads: ImageUploadGateway;
+  storage: Pick<HttpClient, 'requestWithMetadata'>;
   file: MobileUploadFile;
   patientId: number | null;
   examType: string;
   teamIds: number[];
   onProgress: (progress: number) => void;
 }): Promise<number> {
-  const { sdk, storage, file, onProgress } = input;
+  const { uploads, storage, file, onProgress } = input;
   validateUploadFile(file);
-  const session = await sdk.upload.createSession({
+  const session = await uploads.createSession({
     filename: file.name,
     size: file.size,
     mime_type: file.mimeType,
@@ -66,7 +66,7 @@ export async function uploadImage(input: {
     },
   });
   // Uploaded bytes are not a successful image until the API confirms the session.
-  let result = await sdk.upload.completeSession(session.session_id, {
+  let result = await uploads.completeSession(session.session_id, {
     parts: parts.map(part => ({
       part_number: part.partNumber,
       etag: part.etag,
@@ -78,7 +78,7 @@ export async function uploadImage(input: {
     attempt += 1
   ) {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    result = await sdk.upload.getStatus(session.session_id);
+    result = await uploads.getStatus(session.session_id);
   }
   if (result.error) throw new Error(result.error);
   if (!result.image_file_id)

@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import { createAxiosHttpClient } from '@xiehe/api-client/axios';
+import {
+  createStellarmeshHttp,
+  createHttpClientAdapter,
+} from '@xiehe/api-client/stellarmesh';
 import { createXieheApiSdk } from '@xiehe/api-sdk';
 import type { ExpoApiInfrastructure } from '../../../infrastructure/http/createExpoApiInfrastructure';
 import type { MobileSessionTokens } from '../../../infrastructure/auth/sessionTokens';
@@ -90,7 +93,9 @@ beforeEach(async () => {
     throw new Error('Test server failed to bind');
   baseUrl = `http://127.0.0.1:${address.port}`;
   let tokens: MobileSessionTokens | null = null;
+  let epoch = 0;
   const tokenStore = {
+    getSessionEpoch: () => epoch,
     getAccessToken: async () => tokens?.accessToken ?? null,
     getRefreshToken: async () => tokens?.refreshToken ?? null,
     async save(value: MobileSessionTokens) {
@@ -98,21 +103,17 @@ beforeEach(async () => {
     },
     async clear() {
       tokens = null;
+      epoch += 1;
     },
   };
-  const apiClient = createAxiosHttpClient({
+  const http = createStellarmeshHttp({
     baseURL: baseUrl,
     tokenProvider: tokenStore,
-  });
-  const publicApiClient = createAxiosHttpClient({
-    baseURL: baseUrl,
-    defaultAuth: 'none',
+    getSessionEpoch: tokenStore.getSessionEpoch,
   });
   api = {
-    apiClient,
-    publicApiClient,
     tokenStore,
-    apiSdk: createXieheApiSdk({ apiClient, publicApiClient }),
+    apiSdk: createXieheApiSdk({ http }),
   };
 });
 afterEach(async () => {
@@ -121,9 +122,15 @@ afterEach(async () => {
 
 describe('mobile flows over the shared HTTP/SDK assembly', () => {
   it('logs in with the real wire contract, authorizes logout, and clears local tokens even after a server failure', async () => {
-    expect((await signIn(api, ' test-user ', 'test-password')).username).toBe(
-      'test-user'
-    );
+    expect(
+      (
+        await signIn(
+          { auth: api.apiSdk.auth, tokens: api.tokenStore },
+          ' test-user ',
+          'test-password'
+        )
+      ).username
+    ).toBe('test-user');
     expect(JSON.parse(requests[0].body.toString())).toEqual({
       username: 'test-user',
       password: 'test-password',
@@ -131,7 +138,9 @@ describe('mobile flows over the shared HTTP/SDK assembly', () => {
     });
     expect(await api.tokenStore.getAccessToken()).toBe('test-access');
     denyLogout = true;
-    await expect(signOut(api)).resolves.toBeUndefined();
+    await expect(
+      signOut({ auth: api.apiSdk.auth, tokens: api.tokenStore })
+    ).resolves.toBeUndefined();
     expect(
       requests.find(request => request.path.endsWith('/logout'))?.authorization
     ).toBe('Bearer test-access');
@@ -141,11 +150,8 @@ describe('mobile flows over the shared HTTP/SDK assembly', () => {
   function input(onProgress: (value: number) => void) {
     const bytes = new TextEncoder().encode('abcdefgh');
     return {
-      sdk: api.apiSdk,
-      storage: createAxiosHttpClient({
-        defaultAuth: 'none',
-        defaultResponseMode: 'raw',
-      }),
+      uploads: api.apiSdk.upload,
+      storage: createHttpClientAdapter(createStellarmeshHttp({ raw: true })),
       file: {
         name: 'contract-test.png',
         uri: 'fixture://test',

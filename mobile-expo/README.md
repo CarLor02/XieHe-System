@@ -23,7 +23,9 @@ npm run start --workspace @xiehe/mobile-expo
 4. 用 Web 端已有的账号密码登录。编辑 `src/` 后会通过 Fast Refresh 更新手机页面。
    Expo Go 首次显示开发菜单介绍时，关闭或继续即可进入登录页。
 
-业务请求直接访问统一 HTTPS API，无需在本机启动 Python 后端或转发 8000 端口。
+业务请求直接访问统一 HTTPS API。当前分支已迁移普通业务 POST 路由，服务器必须部署
+配套后端后才能完整调试；旧服务不具备这些新路由。若本机后端运行在 8000 端口，可通过
+`adb reverse tcp:8000 tcp:8000`，把登录页服务器地址设为 `http://127.0.0.1:8000`。
 Expo 的 8081 端口只负责本地 bundle 和调试连接。二维码中的 IP 随电脑网络变化，
 不要把手机自身的 `localhost` 当成电脑地址。
 
@@ -119,7 +121,7 @@ HTTP DTO 和 endpoint 继续归属于共享 contracts / SDK；患者查询展示
 解码及分片上传协调复用已有公共包。页面不得自行创建 Axios 实例或引入 HTML 原型代码。
 
 后续采用共享核心包与单层业务模块的 DDD 组织，保持 `features/` 只有一层，按实际职责
-提取应用编排和平台端口。当前尚有页面编排、认证/上传用例的基础设施耦合需要逐步收拢，
+提取应用编排和平台端口。认证、上传已使用窄端口，患者和个人中心的查询状态已提取，
 详见[移动端架构评估与建议](../docs/architecture/mobile/expo-architecture.md)。
 
 ## 检查与验证边界
@@ -153,3 +155,8 @@ Android/iOS/Web 导出、移动端 21 项测试、SDK 7 项测试、协议 2 项
 
 Web 预览可以运行 `npm run web --workspace @xiehe/mobile-expo`；生产 API 的 CORS
 是否允许本地浏览器应独立验证，不通过放宽生产 CORS 来替代安卓/ iOS 真机联调。
+
+
+API 契约统一整理后的生成命令、POST 迁移表和存储保留范围见
+[apiContract/README.md](../apiContract/README.md)。运行 `npm run api:update` 会从本地
+FastAPI 离线导出，不访问生产 OpenAPI、不启用生产文档，也不启动数据库/存储 lifespan。

@@ -1,6 +1,7 @@
-import type { HttpClient } from '@xiehe/api-client';
-import { createAxiosHttpClient } from '@xiehe/api-client/axios';
+import { getApiErrorStatus } from '@xiehe/api-client';
+import { createStellarmeshHttp } from '@xiehe/api-client/stellarmesh';
 import { createXieheApiSdk, type XieheApiSdk } from '@xiehe/api-sdk';
+import { createAuthApi } from '@xiehe/api-sdk/api/authApi';
 
 import {
   createSecureSessionTokenStore,
@@ -9,8 +10,6 @@ import {
 import { getExpoApiBaseUrl } from './config';
 
 export interface ExpoApiInfrastructure {
-  apiClient: HttpClient;
-  publicApiClient: HttpClient;
   apiSdk: XieheApiSdk;
   tokenStore: MobileSessionTokenStore;
 }
@@ -27,39 +26,39 @@ export function createExpoApiInfrastructure(
   const baseURL = options.apiBaseUrl ?? getExpoApiBaseUrl();
   const tokenStore =
     options.tokenStore ?? createSecureSessionTokenStore(baseURL);
-  const publicApiClient = createAxiosHttpClient({
-    baseURL,
-    defaultAuth: 'none',
-    retryTrailingSlash404: true,
-  });
-  const publicSdk = createXieheApiSdk({
-    apiClient: publicApiClient,
-    publicApiClient,
-  });
-  const apiClient = createAxiosHttpClient({
+  const publicHttp = createStellarmeshHttp({ baseURL });
+  const authApi = createAuthApi(publicHttp);
+  const http = createStellarmeshHttp({
     baseURL,
     tokenProvider: tokenStore,
-    retryTrailingSlash404: true,
+    getSessionEpoch: () => tokenStore.getSessionEpoch(),
     refreshSession: async () => {
       const refreshToken = await tokenStore.getRefreshToken();
       if (!refreshToken) return null;
 
-      const response = await publicSdk.auth.refresh(refreshToken);
-      const accessToken = response.tokens?.access_token;
-      if (!accessToken) return null;
-
-      await tokenStore.save({
-        accessToken,
-        refreshToken: response.tokens?.refresh_token ?? refreshToken,
-      });
-      return { accessToken };
+      try {
+        const response = await authApi.requestRefreshToken({
+          refresh_token: refreshToken,
+        });
+        const accessToken = response.tokens?.access_token;
+        if (!accessToken) throw new Error('刷新响应缺少访问令牌');
+        await tokenStore.save({
+          accessToken,
+          refreshToken: response.tokens.refresh_token,
+        });
+        return { accessToken };
+      } catch (error) {
+        // 仅明确失效才退出；网络、服务或保存失败保留当前会话，允许重试。
+        if ([401, 403].includes(getApiErrorStatus(error) ?? 0)) return null;
+        throw error;
+      }
     },
     onUnauthorized: async () => {
       await tokenStore.clear();
       await options.onUnauthorized?.();
     },
   });
-  const apiSdk = createXieheApiSdk({ apiClient, publicApiClient });
+  const apiSdk = createXieheApiSdk({ http });
 
-  return { apiClient, publicApiClient, apiSdk, tokenStore };
+  return { apiSdk, tokenStore };
 }

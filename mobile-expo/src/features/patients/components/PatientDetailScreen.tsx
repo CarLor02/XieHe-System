@@ -88,14 +88,6 @@ export function PatientDetailScreen() {
                 value={patient.emergency_contact_phone}
               />
             </Card>
-            {patient.medical_history && (
-              <Card>
-                <SectionTitle title="既往病史" />
-                <Text style={[layout.body, { marginTop: 12 }]}>
-                  {patient.medical_history}
-                </Text>
-              </Card>
-            )}
             <SectionTitle
               title={`影像记录${images.data ? ` · ${images.data.total}` : ''}`}
               action="查看全部"

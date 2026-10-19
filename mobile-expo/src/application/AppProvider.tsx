@@ -17,7 +17,7 @@ import {
   type ExpoApiInfrastructure,
 } from '../infrastructure/http/createExpoApiInfrastructure';
 import { getExpoApiBaseUrl } from '../infrastructure/http/config';
-import { createLiveServices } from '../infrastructure/http/createLiveServices';
+import { createMobileServices } from './createMobileServices';
 import type { MobileServices } from './services';
 
 interface MobileSession {
@@ -80,7 +80,7 @@ export function AppProvider({ children }: PropsWithChildren) {
               user,
               api,
               serverUrl: server,
-              services: createLiveServices(api),
+              services: createMobileServices(api),
             });
         }
       } catch (cause) {
@@ -103,14 +103,18 @@ export function AppProvider({ children }: PropsWithChildren) {
     setStartupError('');
     try {
       const api = createApi(url, id);
-      const user = await signIn(api, username, password);
+      const user = await signIn(
+        { auth: api.apiSdk.auth, tokens: api.tokenStore },
+        username,
+        password
+      );
       if (id === generation.current) {
         setDefaultServerUrl(url);
         setSession({
           user,
           api,
           serverUrl: url,
-          services: createLiveServices(api),
+          services: createMobileServices(api),
         });
       }
     } finally {
@@ -119,7 +123,10 @@ export function AppProvider({ children }: PropsWithChildren) {
   };
   const logout = async () => {
     if (session?.api) {
-      await signOut(session.api);
+      await signOut({
+        auth: session.api.apiSdk.auth,
+        tokens: session.api.tokenStore,
+      });
     }
     generation.current += 1;
     setSession(null);

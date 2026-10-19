@@ -1,14 +1,16 @@
-import { createAxiosHttpClient } from '@xiehe/api-client/axios';
-import type { MobileServices } from '../../application/services';
-import { uploadImage } from '../../features/imaging/usecases/uploadImage';
-import type { ExpoApiInfrastructure } from './createExpoApiInfrastructure';
+import {
+  createStellarmeshHttp,
+  createHttpClientAdapter,
+} from '@xiehe/api-client/stellarmesh';
+import type { MobileServices } from './services';
+import { uploadImage } from '../features/imaging/usecases/uploadImage';
+import type { ExpoApiInfrastructure } from '../infrastructure/http/createExpoApiInfrastructure';
 
-export function createLiveServices(api: ExpoApiInfrastructure): MobileServices {
+export function createMobileServices(
+  api: ExpoApiInfrastructure
+): MobileServices {
   const sdk = api.apiSdk;
-  const storage = createAxiosHttpClient({
-    defaultAuth: 'none',
-    defaultResponseMode: 'raw',
-  });
+  const storage = createHttpClientAdapter(createStellarmeshHttp({ raw: true }));
   return {
     patients: sdk.patients,
     imaging: sdk.imaging,
@@ -31,7 +33,7 @@ export function createLiveServices(api: ExpoApiInfrastructure): MobileServices {
     },
     upload: (file, patientId, examType, teamIds, onProgress) =>
       uploadImage({
-        sdk,
+        uploads: sdk.upload,
         storage,
         file,
         patientId,

@@ -3,6 +3,7 @@ export interface MobileSessionTokens {
   refreshToken: string;
 }
 export interface MobileSessionTokenStore {
+  getSessionEpoch(): number;
   getAccessToken(): Promise<string | null>;
   getRefreshToken(): Promise<string | null>;
   save(tokens: MobileSessionTokens): Promise<void>;
@@ -30,6 +31,7 @@ export function createBoundSessionTokenStore(
   storage: SessionStorage
 ): MobileSessionTokenStore {
   let active = true;
+  let epoch = 0;
   let observedAccessToken: string | undefined;
   const read = async () => {
     if (!active) return null;
@@ -44,6 +46,7 @@ export function createBoundSessionTokenStore(
     return session;
   };
   return {
+    getSessionEpoch: () => epoch,
     getAccessToken: () =>
       serial(async () => (await read())?.accessToken ?? null),
     getRefreshToken: () =>
@@ -58,6 +61,7 @@ export function createBoundSessionTokenStore(
       }),
     clear() {
       active = false;
+      epoch += 1;
       return serial(async () => {
         const current = parseStoredSession(await storage.read());
         if (

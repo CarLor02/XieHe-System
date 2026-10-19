@@ -1,9 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { useWorkspace } from '../../../application/AppProvider';
-import { useResource } from '../../../shared/hooks/useResource';
-import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
+import { usePatientList } from '../application/usePatientList';
 import {
   Choice,
   ChoiceSheet,
@@ -23,22 +22,17 @@ import { PatientCard } from './PatientCard';
 
 export function PatientsScreen() {
   const { services } = useWorkspace();
-  const [search, setSearch] = useState('');
-  const [gender, setGender] = useState('');
-  const [page, setPage] = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);
-  const query = useDebouncedValue(search);
-  const load = useCallback(
-    () =>
-      services.patients.list({
-        page,
-        page_size: 20,
-        search: query.trim() || undefined,
-        gender: gender || undefined,
-      }),
-    [services, page, query, gender]
-  );
-  const resource = useResource(load);
+  const {
+    search,
+    gender,
+    page,
+    setPage,
+    resource,
+    changeSearch,
+    changeGender,
+    clearFilters,
+  } = usePatientList(services.patients);
   return (
     <Screen>
       <Header
@@ -59,10 +53,7 @@ export function PatientsScreen() {
       >
         <SearchField
           value={search}
-          onChangeText={value => {
-            setSearch(value);
-            setPage(1);
-          }}
+          onChangeText={changeSearch}
           placeholder="搜索患者姓名、ID或手机号"
         />
       </Header>
@@ -101,11 +92,7 @@ export function PatientsScreen() {
             description="试试调整搜索关键词或筛选条件"
             icon="people-outline"
             actionText="清除筛选"
-            onAction={() => {
-              setSearch('');
-              setGender('');
-              setPage(1);
-            }}
+            onAction={clearFilters}
           />
         )}
         {resource.data && (
@@ -128,8 +115,7 @@ export function PatientsScreen() {
             title={item || '全部性别'}
             selected={gender === item}
             onPress={() => {
-              setGender(item);
-              setPage(1);
+              changeGender(item);
               setFilterOpen(false);
             }}
           />

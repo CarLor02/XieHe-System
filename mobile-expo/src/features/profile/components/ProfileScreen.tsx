@@ -1,6 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { router } from 'expo-router';
-import { getApiErrorMessage } from '@xiehe/api-client';
 import {
   Pressable,
   RefreshControl,
@@ -9,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useApp, useWorkspace } from '../../../application/AppProvider';
-import { useResource } from '../../../shared/hooks/useResource';
+import { useProfile } from '../application/useProfile';
 import {
   Button,
   Card,
@@ -65,12 +64,11 @@ const menu: {
 export function ProfileScreen() {
   const { user, services } = useWorkspace();
   const app = useApp();
-  const stats = useResource(
-    useCallback(() => services.dashboard.getStats(), [services])
-  );
   const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const { stats, busy, error, logout } = useProfile(
+    services.dashboard,
+    app.logout
+  );
   const summary = stats.data;
   const figures = [
     {
@@ -89,17 +87,6 @@ export function ProfileScreen() {
       route: '/images',
     },
   ] as const;
-  const logout = async () => {
-    setBusy(true);
-    setError('');
-    try {
-      await app.logout();
-    } catch (cause) {
-      setError(getApiErrorMessage(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <Screen>
       <Header
