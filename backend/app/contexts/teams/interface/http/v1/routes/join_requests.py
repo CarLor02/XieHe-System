@@ -1,39 +1,49 @@
 """Team join-request routes."""
 
-from typing import Any
+from fastapi import APIRouter, Depends, HTTPException
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-
+from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
 from app.contexts.teams.application import TeamJoinRequestService
 from app.contexts.teams.domain import JoinRequestStatus, TeamDomainError
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..dependencies import get_team_join_request_service
 from ..errors import actor_id, domain_http_error, log_failure
 from ..schemas import (
-    TeamJoinRequestCreate,
     TeamJoinRequestItem,
-    TeamJoinRequestReviewRequest,
+)
+from ..schemas.join_requests_requests import (
+    RequestApplyToTeam,
+    RequestCancelTeamJoinRequest,
+    RequestListTeamJoinRequests,
+    RequestReviewTeamJoinRequest,
+)
+from ..schemas.results import (
+    ApplyToTeamResult,
+    TeamJoinRequestActionResult,
+    TeamJoinRequestsResult,
 )
 
 router = APIRouter()
 
 
 @router.post(
-    "/teams/{team_id}/apply", response_model=dict[str, Any], summary="申请加入团队"
+    "/teams/apply",
+    summary="申请加入团队",
+    response_model=ApiResponse[ApplyToTeamResult],
+    operation_id="apply_to_team",
 )
 async def apply_to_team(
-    team_id: int,
-    request: TeamJoinRequestCreate,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestApplyToTeam,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamJoinRequestService = Depends(get_team_join_request_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         item = await service.apply_to_team(
-            team_id, actor_id(current_user), request.message
+            request.team_id, actor_id(current_user), request.message
         )
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc
@@ -50,26 +60,26 @@ async def apply_to_team(
     )
 
 
-@router.get(
-    "/teams/{team_id}/join-requests",
-    response_model=dict[str, Any],
+@router.post(
+    "/teams/join-requests/list",
     summary="获取团队加入申请列表",
+    response_model=ApiResponse[TeamJoinRequestsResult],
+    operation_id="list_team_join_requests",
 )
 async def list_team_join_requests(
-    team_id: int,
-    status: str | None = Query(None),
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestListTeamJoinRequests,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamJoinRequestService = Depends(get_team_join_request_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     status_value = None
-    if status:
+    if request.status:
         try:
-            status_value = JoinRequestStatus(status.upper())
+            status_value = JoinRequestStatus(request.status.upper())
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     try:
         items = await service.list_join_requests(
-            team_id, actor_id(current_user), status_value
+            request.team_id, actor_id(current_user), status_value
         )
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc
@@ -93,20 +103,22 @@ async def list_team_join_requests(
 
 
 @router.post(
-    "/teams/{team_id}/join-requests/{request_id}/review",
-    response_model=dict[str, Any],
+    "/teams/join-requests/review",
     summary="审核团队加入申请",
+    response_model=ApiResponse[TeamJoinRequestActionResult],
+    operation_id="review_team_join_request",
 )
 async def review_team_join_request(
-    team_id: int,
-    request_id: int,
-    request: TeamJoinRequestReviewRequest,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestReviewTeamJoinRequest,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamJoinRequestService = Depends(get_team_join_request_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         item = await service.review_join_request(
-            team_id, request_id, actor_id(current_user), request.decision
+            request.team_id,
+            request.request_id,
+            actor_id(current_user),
+            request.decision,
         )
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc
@@ -122,20 +134,20 @@ async def review_team_join_request(
     )
 
 
-@router.delete(
-    "/teams/{team_id}/join-requests/{request_id}",
-    response_model=dict[str, Any],
+@router.post(
+    "/teams/join-requests/cancel",
     summary="撤销团队加入申请",
+    response_model=ApiResponse[TeamJoinRequestActionResult],
+    operation_id="cancel_team_join_request",
 )
 async def cancel_team_join_request(
-    team_id: int,
-    request_id: int,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestCancelTeamJoinRequest,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamJoinRequestService = Depends(get_team_join_request_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         item = await service.cancel_join_request(
-            team_id, request_id, actor_id(current_user)
+            request.team_id, request.request_id, actor_id(current_user)
         )
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc

@@ -15,12 +15,13 @@ from app.contexts.imaging.application.errors import (
 )
 from app.contexts.imaging.domain import ImageFileNotFoundError
 from app.core.system.concurrency import require_batch_presign_slot
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..actor import CurrentUserPayload, image_access_actor
 from ..dependencies import get_image_delivery_service
 from ..errors import raise_http_error
 from ..schemas import BatchDownloadUrlsRequest
+from ..schemas.storage_results import BatchDownloadUrlsResult, DownloadUrlResult
 
 router = APIRouter()
 
@@ -30,7 +31,13 @@ def _set_presign_cache_headers(response: Response, expires_in: int) -> None:
     response.headers["Vary"] = "Authorization"
 
 
-@router.get("/{file_id}/download-url", summary="获取影像文件临时访问地址")
+@router.get(
+    "/{file_id}/download-url",
+    summary="获取影像文件临时访问地址",
+    response_model=None,
+    responses={200: {"model": ApiResponse[DownloadUrlResult]}},
+    operation_id="get_image_file_download_url",
+)
 async def get_image_file_download_url(
     file_id: int,
     response: Response,
@@ -52,7 +59,13 @@ async def get_image_file_download_url(
     return success_response(data=asdict(result), message="获取影像访问地址成功")
 
 
-@router.post("/download-urls", summary="批量获取影像文件临时访问地址")
+@router.post(
+    "/download-urls",
+    summary="批量获取影像文件临时访问地址",
+    response_model=None,
+    responses={200: {"model": ApiResponse[BatchDownloadUrlsResult]}},
+    operation_id="get_image_file_download_urls",
+)
 async def get_image_file_download_urls(
     request: BatchDownloadUrlsRequest,
     response: Response,

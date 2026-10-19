@@ -25,12 +25,22 @@ from app.contexts.imaging.domain import (
     ImageFileNotFoundError,
     ImageTeamAssignmentDeniedError,
 )
-from app.core.system.response import paginated_response, success_response
+from app.core.system.response import (
+    ApiResponse,
+    PaginatedData,
+    paginated_response,
+    success_response,
+)
 
 from ..actor import CurrentUserPayload, image_access_actor
 from ..dependencies import get_image_upload_service
 from ..errors import raise_http_error
 from ..schemas import CompleteUploadSessionRequest, CreateUploadSessionRequest
+from ..schemas.storage_results import (
+    UploadRecordResult,
+    UploadSessionResult,
+    UploadStatusResult,
+)
 
 router = APIRouter()
 
@@ -46,7 +56,13 @@ _UPLOAD_ERRORS = (
 )
 
 
-@router.post("/sessions", summary="创建影像上传会话")
+@router.post(
+    "/sessions",
+    summary="创建影像上传会话",
+    response_model=None,
+    responses={200: {"model": ApiResponse[UploadSessionResult]}},
+    operation_id="create_upload_session",
+)
 async def create_upload_session(
     request: CreateUploadSessionRequest,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
@@ -70,7 +86,13 @@ async def create_upload_session(
     return success_response(data=asdict(result), message="上传会话创建成功")
 
 
-@router.post("/sessions/{session_id}/complete", summary="完成影像上传")
+@router.post(
+    "/sessions/{session_id}/complete",
+    summary="完成影像上传",
+    response_model=None,
+    responses={200: {"model": ApiResponse[UploadStatusResult]}},
+    operation_id="complete_upload_session",
+)
 async def complete_upload_session(
     session_id: str,
     request: CompleteUploadSessionRequest,
@@ -94,7 +116,13 @@ async def complete_upload_session(
     return success_response(data=asdict(result), message="文件上传完成")
 
 
-@router.get("/sessions/{session_id}", summary="获取上传状态")
+@router.get(
+    "/sessions/{session_id}",
+    summary="获取上传状态",
+    response_model=None,
+    responses={200: {"model": ApiResponse[UploadStatusResult]}},
+    operation_id="get_upload_status",
+)
 def get_upload_status(
     session_id: str,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
@@ -110,7 +138,13 @@ def get_upload_status(
     return success_response(data=asdict(result), message="获取上传状态成功")
 
 
-@router.get("/records", summary="获取文件上传记录")
+@router.get(
+    "/records",
+    summary="获取文件上传记录",
+    response_model=None,
+    responses={200: {"model": ApiResponse[PaginatedData[UploadRecordResult]]}},
+    operation_id="get_upload_records",
+)
 def get_upload_records(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),

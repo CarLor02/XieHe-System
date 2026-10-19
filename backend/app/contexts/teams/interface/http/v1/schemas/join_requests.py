@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.contexts.teams.domain import JoinRequestStatus
+
 
 class TeamJoinRequestCreate(BaseModel):
     message: str | None = None
@@ -18,7 +20,7 @@ class TeamJoinRequestItem(BaseModel):
     applicant_real_name: str | None = None
     applicant_email: str | None = None
     message: str
-    status: str
+    status: JoinRequestStatus
     requested_at: datetime
     reviewed_at: datetime | None = None
     reviewer_id: int | None = None

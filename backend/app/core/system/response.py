@@ -34,7 +34,8 @@ class ApiResponse(BaseModel, Generic[T]):
 
     code: int = Field(200, description="业务状态码")
     message: str = Field("操作成功", description="响应消息")
-    data: Optional[T] = Field(None, description="响应数据")
+    # 成功响应总是带 data；无业务数据的端点显式声明 ApiResponse[None]。
+    data: T = Field(..., description="响应数据")
     timestamp: str = Field(
         default_factory=lambda: datetime.now().isoformat(), description="响应时间戳"
     )

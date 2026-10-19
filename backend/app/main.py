@@ -40,6 +40,11 @@ from app.contexts.object_lifecycle.interface.scheduler import (
     stop_object_cleanup_scheduler,
 )
 from app.core.config import settings
+from app.core.system.api_metadata import (
+    ApiRootResult,
+    ApplicationInfoResult,
+    HealthProbeResult,
+)
 from app.core.system.exceptions import (
     CustomHTTPException,
     ValidationException,
@@ -159,6 +164,8 @@ app = FastAPI(
     if settings.ENVIRONMENT != "production"
     else None,
     lifespan=lifespan,
+    # 顶层 DTO 保留原名；避免 Input/Output 后缀中的连字符生成无效 TS 标识符。
+    separate_input_output_schemas=False,
     redirect_slashes=False,  # 禁用自动重定向斜杠，避免认证头丢失
 )
 
@@ -246,8 +253,8 @@ async def add_process_time_header(
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
-@app.get("/", tags=["Root"])
-async def root() -> dict[str, typing.Any]:
+@app.get("/", tags=["Root"], response_model=ApiRootResult)
+async def root() -> dict[str, object]:
     """
     根路径端点
 
@@ -261,8 +268,8 @@ async def root() -> dict[str, typing.Any]:
     }
 
 
-@app.get("/health", tags=["Health"])
-async def health_check() -> dict[str, typing.Any]:
+@app.get("/health", tags=["Health"], response_model=HealthProbeResult)
+async def health_check() -> dict[str, object]:
     """
     健康检查端点
 
@@ -271,8 +278,8 @@ async def health_check() -> dict[str, typing.Any]:
     return {"status": "healthy", "message": "XieHe医疗影像诊断系统运行正常"}
 
 
-@app.get("/info", tags=["Info"])
-async def app_info() -> dict[str, typing.Any]:
+@app.get("/info", tags=["Info"], response_model=ApplicationInfoResult)
+async def app_info() -> dict[str, object]:
     """
     应用信息端点
 

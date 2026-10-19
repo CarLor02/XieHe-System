@@ -18,11 +18,18 @@ from app.core.system.concurrency import require_ai_object_slot
 from ..actor import CurrentUserPayload, image_access_actor
 from ..dependencies import get_image_prediction_service
 from ..errors import raise_http_error
+from ..schemas.results import ExternalPredictionResult
 
 router = APIRouter()
 
 
-@router.post("/{file_id}/ai/predict", summary="使用对象存储影像执行AI测量")
+@router.post(
+    "/{file_id}/ai/predict",
+    summary="使用对象存储影像执行AI测量",
+    response_model=None,
+    responses={200: {"model": ExternalPredictionResult}},
+    operation_id="run_image_file_ai_predict",
+)
 async def run_image_file_ai_predict(
     file_id: int,
     current_user: CurrentUserPayload = Depends(get_current_active_user),

@@ -7,39 +7,47 @@
 创建时间: 2025-09-25
 """
 
-import typing
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 from app.shared.database import get_db
 
 from ..schemas.errors import (
+    ClearedErrorsResult,
     ErrorReport,
+    ErrorReportResponse,
+    ErrorStats,
+    RequestErrorStats,
+    StoredError,
 )
 
 router = APIRouter()
 
 
 # 内存中的错误存储（生产环境应使用数据库）
-error_storage: List[Dict[str, Any]] = []
+error_storage: list[StoredError] = []
 MAX_STORED_ERRORS = 1000
 
 
-@router.post("/report", response_model=Dict[str, Any])
+@router.post(
+    "/report",
+    response_model=ApiResponse[ErrorReportResponse],
+    operation_id="report_error",
+)
 async def report_error(
     error_report: ErrorReport,
     background_tasks: BackgroundTasks,
     request: Request,
     db: Session = Depends(get_db),
-) -> dict[str, typing.Any]:
+) -> dict[str, object]:
     """
     接收前端错误报告
 
@@ -57,7 +65,7 @@ async def report_error(
         client_ip = request.client.host if request.client else "unknown"
 
         # 构建完整的错误记录
-        error_record = {
+        error_record: StoredError = {
             "id": error_report.errorId,
             "message": error_report.message,
             "stack": error_report.stack,
@@ -104,11 +112,13 @@ async def report_error(
         )
 
 
-@router.get("/stats", response_model=Dict[str, Any])
+@router.post(
+    "/stats", response_model=ApiResponse[ErrorStats], operation_id="get_error_stats"
+)
 async def get_error_stats(
-    hours: int = 24,
-    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
-) -> dict[str, typing.Any]:
+    request: RequestErrorStats,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
+) -> dict[str, object]:
     """
     获取错误统计信息
 
@@ -127,7 +137,7 @@ async def get_error_stats(
             )
 
         # 计算时间范围
-        cutoff_time = datetime.now() - timedelta(hours=hours)
+        cutoff_time = datetime.now() - timedelta(hours=request.hours)
         cutoff_timestamp = cutoff_time.isoformat()
 
         # 过滤指定时间范围内的错误
@@ -140,13 +150,13 @@ async def get_error_stats(
         # 统计错误类型
         errors_by_type: dict[str, int] = {}
         for error in recent_errors:
-            error_type = error.get("type", "unknown")
+            error_type = error.get("type") or "unknown"
             errors_by_type[error_type] = errors_by_type.get(error_type, 0) + 1
 
         # 统计错误严重程度
         errors_by_severity: dict[str, int] = {}
         for error in recent_errors:
-            severity = error.get("severity", "medium")
+            severity = error.get("severity") or "medium"
             errors_by_severity[severity] = errors_by_severity.get(severity, 0) + 1
 
         # 获取最近的错误（最多20条）
@@ -174,7 +184,7 @@ async def get_error_stats(
                 "errorsByType": errors_by_type,
                 "errorsBySeverity": errors_by_severity,
                 "recentErrors": cleaned_recent_errors,
-                "timeRange": f"最近 {hours} 小时",
+                "timeRange": f"最近 {request.hours} 小时",
             },
             message="获取错误统计成功",
         )
@@ -188,10 +198,14 @@ async def get_error_stats(
         )
 
 
-@router.delete("/clear", response_model=Dict[str, Any])
+@router.post(
+    "/clear",
+    response_model=ApiResponse[ClearedErrorsResult],
+    operation_id="clear_error_logs",
+)
 async def clear_error_logs(
-    current_user: dict[str, typing.Any] = Depends(get_current_active_user),
-) -> dict[str, typing.Any]:
+    current_user: AccessPrincipal = Depends(get_current_active_user),
+) -> dict[str, object]:
     """
     清空错误日志
 
@@ -232,7 +246,7 @@ async def clear_error_logs(
         )
 
 
-async def process_error_report(error_record: Dict[str, Any]) -> None:
+async def process_error_report(error_record: StoredError) -> None:
     """
     后台处理错误报告
 
@@ -261,7 +275,7 @@ async def process_error_report(error_record: Dict[str, Any]) -> None:
         logger.emit_event(LogLevel.ERROR, message=f"后台处理错误报告失败: {e}")
 
 
-async def handle_critical_error(error_record: Dict[str, Any]) -> None:
+async def handle_critical_error(error_record: StoredError) -> None:
     """处理严重错误"""
     logger.emit_event(
         LogLevel.ERROR,
@@ -274,7 +288,7 @@ async def handle_critical_error(error_record: Dict[str, Any]) -> None:
     # 例如：发送邮件、短信、Slack通知等
 
 
-async def handle_network_error(error_record: Dict[str, Any]) -> None:
+async def handle_network_error(error_record: StoredError) -> None:
     """处理网络错误"""
     logger.emit_event(
         LogLevel.WARNING, message=f"网络错误检测 - {error_record.get('message')}"
@@ -283,7 +297,7 @@ async def handle_network_error(error_record: Dict[str, Any]) -> None:
     # 这里可以添加网络监控逻辑
 
 
-async def handle_auth_error(error_record: Dict[str, Any]) -> None:
+async def handle_auth_error(error_record: StoredError) -> None:
     """处理认证错误"""
     logger.emit_event(
         LogLevel.WARNING, message=f"认证错误检测 - 用户: {error_record.get('userId')}"
@@ -292,7 +306,7 @@ async def handle_auth_error(error_record: Dict[str, Any]) -> None:
     # 这里可以添加安全监控逻辑
 
 
-async def detect_error_patterns(error_record: Dict[str, Any]) -> None:
+async def detect_error_patterns(error_record: StoredError) -> None:
     """检测错误模式"""
     # 这里可以添加错误模式检测逻辑
     # 例如：同一用户短时间内多次错误、特定页面错误率过高等

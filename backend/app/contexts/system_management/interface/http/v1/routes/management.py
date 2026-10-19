@@ -1,37 +1,42 @@
 """系统配置、统计和健康检查 HTTP 适配器。"""
 
 from dataclasses import asdict
-from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
 from app.contexts.system_management.application import (
     SystemManagementApplicationService,
 )
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..dependencies import get_system_management_service
 from ..schemas import SystemConfigResponse, SystemHealthResponse, SystemStatsResponse
+from ..schemas.management_requests import RequestGetSystemConfigs, RequestGetSystemStats
 
 router = APIRouter()
 
 
-@router.get("/configs", response_model=dict[str, Any], summary="获取系统配置")
+@router.post(
+    "/configs",
+    summary="获取系统配置",
+    response_model=ApiResponse[list[SystemConfigResponse]],
+    operation_id="get_system_configs",
+)
 async def get_system_configs(
-    config_type: str | None = Query(None, description="配置类型筛选"),
-    is_system: bool | None = Query(None, description="是否系统配置"),
-    _: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestGetSystemConfigs,
+    _: AccessPrincipal = Depends(get_current_active_user),
     service: SystemManagementApplicationService = Depends(
         get_system_management_service
     ),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         configs = service.list_configs(
-            config_type=config_type,
-            is_system=is_system,
+            config_type=request.config_type,
+            is_system=request.is_system,
         )
         return success_response(
             data=[
@@ -47,13 +52,19 @@ async def get_system_configs(
         ) from exc
 
 
-@router.get("/stats", response_model=dict[str, Any], summary="获取系统统计")
+@router.post(
+    "/stats",
+    summary="获取系统统计",
+    response_model=ApiResponse[SystemStatsResponse],
+    operation_id="get_system_stats",
+)
 async def get_system_stats(
-    _: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestGetSystemStats,
+    _: AccessPrincipal = Depends(get_current_active_user),
     service: SystemManagementApplicationService = Depends(
         get_system_management_service
     ),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         stats = service.get_stats()
         return success_response(
@@ -67,12 +78,17 @@ async def get_system_stats(
         ) from exc
 
 
-@router.get("/health", response_model=dict[str, Any], summary="系统健康检查")
+@router.get(
+    "/health",
+    summary="系统健康检查",
+    response_model=ApiResponse[SystemHealthResponse],
+    operation_id="system_health",
+)
 async def system_health(
     service: SystemManagementApplicationService = Depends(
         get_system_management_service
     ),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         health = service.get_health()
         return success_response(

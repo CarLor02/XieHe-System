@@ -25,7 +25,7 @@ from app.contexts.imaging.domain import (
     ImageTeamAssignmentDeniedError,
     normalize_team_ids,
 )
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..actor import CurrentUserPayload, image_access_actor
 from ..dependencies import get_image_file_command_service
@@ -33,9 +33,16 @@ from ..errors import raise_http_error
 from ..schemas import (
     BatchUpdateExamTypeRequest,
     ImageFileResponse,
-    RenameImageFileRequest,
-    UpdateExamTypeRequest,
-    UpdateImageInfoRequest,
+)
+from ..schemas.mutations_requests import (
+    RequestRenameImageFile,
+    RequestUpdateExamType,
+    RequestUpdateImageInfo,
+)
+from ..schemas.results import (
+    BatchExamTypeResult,
+    ImageDeletionResult,
+    ImageMutationResult,
 )
 
 router = APIRouter()
@@ -57,7 +64,12 @@ def _mutation_payload(result_image: ImageDetail) -> dict[str, object]:
     return ImageFileResponse.from_detail(result_image).model_dump()
 
 
-@router.patch("/batch/exam-type", summary="批量修改影像检查类型")
+@router.post(
+    "/batch/exam-type",
+    summary="批量修改影像检查类型",
+    response_model=ApiResponse[BatchExamTypeResult],
+    operation_id="batch_update_exam_type",
+)
 def batch_update_exam_type(
     request: BatchUpdateExamTypeRequest,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
@@ -83,7 +95,13 @@ def batch_update_exam_type(
     )
 
 
-@router.delete("/{file_id}", summary="删除影像文件")
+@router.delete(
+    "/{file_id}",
+    summary="删除影像文件",
+    response_model=None,
+    responses={200: {"model": ApiResponse[ImageDeletionResult]}},
+    operation_id="delete_image_file",
+)
 def delete_image_file(
     file_id: int,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
@@ -96,7 +114,13 @@ def delete_image_file(
     return success_response(data={"file_id": deleted_id}, message="影像文件已删除")
 
 
-@router.patch("/{file_id}/content", summary="替换影像文件内容")
+@router.patch(
+    "/{file_id}/content",
+    summary="替换影像文件内容",
+    response_model=None,
+    responses={200: {"model": ApiResponse[ImageFileResponse]}},
+    operation_id="replace_image_file_content",
+)
 async def replace_image_file_content(
     file_id: int,
     file: UploadFile = File(...),
@@ -131,16 +155,20 @@ async def replace_image_file_content(
     )
 
 
-@router.patch("/{file_id}/info", summary="修改影像信息")
+@router.post(
+    "/info/update",
+    summary="修改影像信息",
+    response_model=ApiResponse[ImageMutationResult],
+    operation_id="update_image_info",
+)
 def update_image_info(
-    file_id: int,
-    request: UpdateImageInfoRequest,
+    request: RequestUpdateImageInfo,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
     service: ImageFileCommandService = Depends(get_image_file_command_service),
 ) -> dict[str, object]:
     try:
         result = service.update_info(
-            file_id,
+            request.file_id,
             image_access_actor(current_user),
             ImageInfoUpdate(
                 description=request.description,
@@ -155,16 +183,20 @@ def update_image_info(
     return success_response(data=payload, message="影像信息更新成功")
 
 
-@router.patch("/{file_id}/filename", summary="重命名影像文件")
+@router.post(
+    "/rename",
+    summary="重命名影像文件",
+    response_model=ApiResponse[ImageFileResponse],
+    operation_id="rename_image_file",
+)
 def rename_image_file(
-    file_id: int,
-    request: RenameImageFileRequest,
+    request: RequestRenameImageFile,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
     service: ImageFileCommandService = Depends(get_image_file_command_service),
 ) -> dict[str, object]:
     try:
         result = service.rename(
-            file_id,
+            request.file_id,
             image_access_actor(current_user),
             request.basename,
         )
@@ -175,16 +207,20 @@ def rename_image_file(
     )
 
 
-@router.patch("/{file_id}/exam-type", summary="修改影像检查类型")
+@router.post(
+    "/exam-type/update",
+    summary="修改影像检查类型",
+    response_model=ApiResponse[ImageFileResponse],
+    operation_id="update_exam_type",
+)
 def update_exam_type(
-    file_id: int,
-    request: UpdateExamTypeRequest,
+    request: RequestUpdateExamType,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
     service: ImageFileCommandService = Depends(get_image_file_command_service),
 ) -> dict[str, object]:
     try:
         result = service.update_exam_type(
-            file_id,
+            request.file_id,
             image_access_actor(current_user),
             request.description,
         )

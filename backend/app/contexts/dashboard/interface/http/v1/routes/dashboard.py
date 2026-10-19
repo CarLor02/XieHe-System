@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Any, Callable, TypeVar
+from typing import Callable, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
@@ -13,10 +13,16 @@ from app.contexts.access_control.interface.http.v1.dependencies import (
 )
 from app.contexts.dashboard.application import DashboardQueryService
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..dependencies import get_dashboard_query_service
 from ..schemas import DashboardOverview, RecentActivity
+from ..schemas.dashboard import RecentActivitiesResult
+from ..schemas.dashboard_requests import (
+    RequestGetDashboardOverview,
+    RequestGetDashboardStats,
+    RequestGetRecentActivities,
+)
 
 router = APIRouter()
 Result = TypeVar("Result")
@@ -32,11 +38,17 @@ def _execute(operation: Callable[[], Result], *, detail: str) -> Result:
         raise HTTPException(status_code=500, detail=detail) from exc
 
 
-@router.get("/overview", response_model=dict[str, Any], summary="获取仪表板概览")
+@router.post(
+    "/overview",
+    summary="获取仪表板概览",
+    response_model=ApiResponse[DashboardOverview],
+    operation_id="get_dashboard_overview",
+)
 async def get_dashboard_overview(
+    request: RequestGetDashboardOverview,
     current_user: AccessPrincipal = Depends(get_current_active_user),
     service: DashboardQueryService = Depends(get_dashboard_query_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     overview = _execute(
         lambda: service.overview(current_user), detail="获取仪表板概览过程中发生错误"
     )
@@ -44,14 +56,19 @@ async def get_dashboard_overview(
     return success_response(data=response.model_dump(), message="获取仪表板概览成功")
 
 
-@router.get("/recent-activities", response_model=dict[str, Any], summary="获取最近活动")
+@router.post(
+    "/recent-activities",
+    summary="获取最近活动",
+    response_model=ApiResponse[RecentActivitiesResult],
+    operation_id="get_recent_activities",
+)
 async def get_recent_activities(
-    limit: int = Query(10, ge=1, le=50, description="返回数量限制"),
+    request: RequestGetRecentActivities,
     current_user: AccessPrincipal = Depends(get_current_active_user),
     service: DashboardQueryService = Depends(get_dashboard_query_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     activities = _execute(
-        lambda: service.recent_activities(current_user, limit=limit),
+        lambda: service.recent_activities(current_user, limit=request.limit),
         detail="获取最近活动过程中发生错误",
     )
     items = [RecentActivity(**asdict(item)).model_dump() for item in activities]
@@ -60,11 +77,17 @@ async def get_recent_activities(
     )
 
 
-@router.get("/stats", response_model=dict[str, Any], summary="获取仪表板统计数据")
+@router.post(
+    "/stats",
+    summary="获取仪表板统计数据",
+    response_model=ApiResponse[DashboardOverview],
+    operation_id="get_dashboard_stats",
+)
 async def get_dashboard_stats(
+    request: RequestGetDashboardStats,
     current_user: AccessPrincipal = Depends(get_current_active_user),
     service: DashboardQueryService = Depends(get_dashboard_query_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     overview = _execute(
         lambda: service.overview(current_user),
         detail="获取仪表板统计数据过程中发生错误",

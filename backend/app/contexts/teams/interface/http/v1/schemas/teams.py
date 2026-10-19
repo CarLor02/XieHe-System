@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.contexts.teams.domain import MembershipStatus, TeamRole
+
 
 class TeamSummary(BaseModel):
     id: int
@@ -15,8 +17,8 @@ class TeamSummary(BaseModel):
     member_count: int = 0
     max_members: int | None = None
     is_member: bool = False
-    my_role: str | None = None
-    my_status: str | None = None
+    my_role: TeamRole | None = None
+    my_status: MembershipStatus | None = None
     is_creator: bool = False
     join_status: str | None = None
     join_request_id: int | None = None

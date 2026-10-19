@@ -21,22 +21,23 @@ def test_team_summary_preserves_current_user_membership_fields() -> None:
     assert payload["is_creator"] is False
 
 
-def test_team_routes_preserve_public_paths() -> None:
+def test_team_routes_use_post_operations() -> None:
     paths = {route.path for route in router.routes}
+    assert all(route.methods == {"POST"} for route in router.routes)
 
     assert paths == {
-        "/permissions/teams",
-        "/permissions/teams/{team_id}",
+        "/permissions/teams/create",
+        "/permissions/teams/update",
         "/permissions/teams/search",
         "/permissions/teams/my",
-        "/permissions/teams/{team_id}/apply",
-        "/permissions/teams/{team_id}/join-requests",
-        "/permissions/teams/{team_id}/join-requests/{request_id}/review",
-        "/permissions/teams/{team_id}/join-requests/{request_id}",
-        "/permissions/teams/{team_id}/members",
-        "/permissions/teams/{team_id}/members/{user_id}/role",
-        "/permissions/teams/{team_id}/members/{user_id}",
-        "/permissions/teams/{team_id}/invite",
+        "/permissions/teams/apply",
+        "/permissions/teams/join-requests/list",
+        "/permissions/teams/join-requests/review",
+        "/permissions/teams/join-requests/cancel",
+        "/permissions/teams/members/list",
+        "/permissions/teams/members/update-role",
+        "/permissions/teams/members/remove",
+        "/permissions/teams/invite",
         "/permissions/invitations/my",
-        "/permissions/invitations/{invitation_id}/respond",
+        "/permissions/invitations/respond",
     }

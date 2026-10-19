@@ -36,3 +36,8 @@ class RecentActivity(BaseModel):
     description: str
     timestamp: datetime
     status: str
+
+
+class RecentActivitiesResult(BaseModel):
+    activities: list[RecentActivity]
+    total: int

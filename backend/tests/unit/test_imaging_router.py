@@ -13,5 +13,5 @@ def test_legacy_measurement_routes_are_not_registered() -> None:
     paths = {route.path for route in api_router.routes}
 
     assert not any(path.startswith("/measurements") for path in paths)
-    assert "/image-files/{file_id}/annotation" in paths
-    assert "/image-files/{file_id}/annotation-history" in paths
+    assert "/image-files/annotation/save" in paths
+    assert "/image-files/annotation-history/list" in paths

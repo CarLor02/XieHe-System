@@ -34,6 +34,9 @@ from app.contexts.imaging.interface.http.v1.routes.delivery import (
 )
 from app.contexts.imaging.interface.http.v1.routes.queries import get_image_stats
 from app.contexts.imaging.interface.http.v1.schemas import BatchDownloadUrlsRequest
+from app.contexts.imaging.interface.http.v1.schemas.queries_requests import (
+    RequestGetImageStats,
+)
 from app.contexts.patients.infrastructure.persistence.models import (
     GenderEnum,
     Patient,
@@ -261,6 +264,7 @@ async def test_image_stats_aggregates_visible_files(
     result = get_image_stats(
         current_user={"id": 21},
         service=build_imaging_query_service(db_session),
+        request=RequestGetImageStats(),
     )
 
     data = response_data(result)

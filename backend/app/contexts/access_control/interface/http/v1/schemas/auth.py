@@ -1,7 +1,5 @@
 """认证 HTTP v1 schema。"""
 
-import typing
-
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -104,7 +102,7 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     """用户信息响应模型"""
 
-    id: int | str = Field(..., description="用户ID")  # 支持int或str类型
+    id: int = Field(..., description="用户ID")
     username: str = Field(..., description="用户名")
     email: str = Field(..., description="邮箱")
     full_name: str = Field(..., description="姓名")
@@ -117,8 +115,8 @@ class UserResponse(BaseModel):
     title: str | None = Field(None, description="职称")
     is_active: bool = Field(..., description="是否激活")
     role: str = Field(default="doctor", description="用户角色")
-    roles: list[typing.Any] = Field(default=[], description="角色列表")
-    permissions: list[typing.Any] = Field(default=[], description="权限列表")
+    roles: list[str] = Field(default=[], description="角色列表")
+    permissions: list[str] = Field(default=[], description="权限列表")
     is_superuser: bool = Field(default=False, description="是否超级管理员")
     is_system_admin: bool = Field(default=False, description="是否系统管理员")
     system_admin_level: int = Field(
@@ -129,3 +127,29 @@ class UserResponse(BaseModel):
     avatar_object_key: str | None = Field(None, description="头像对象Key")
     created_at: str | None = Field(None, description="创建时间")
     updated_at: str | None = Field(None, description="更新时间")
+
+
+class LoginResult(TokenResponse):
+    user: UserResponse
+
+
+class RegisterResult(BaseModel):
+    user: UserResponse
+
+
+class RefreshTokenResult(BaseModel):
+    tokens: TokenResponse
+
+
+class DirectoryUser(BaseModel):
+    id: int
+    username: str
+    email: str
+    full_name: str
+    is_active: bool
+    created_at: str
+    updated_at: str
+
+
+class UserDirectoryResult(BaseModel):
+    users: list[DirectoryUser]

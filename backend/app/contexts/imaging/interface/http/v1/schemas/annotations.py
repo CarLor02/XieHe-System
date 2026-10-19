@@ -31,3 +31,13 @@ class AnnotationSaveResponse(BaseModel):
     has_annotation: bool
     status: str
     changed: bool
+
+
+class AnnotationBatchItemResult(BaseModel):
+    id: int
+    annotation: dict[str, JsonValue] | None
+    annotation_version: int
+
+
+class AnnotationBatchResult(BaseModel):
+    items: list[AnnotationBatchItemResult]

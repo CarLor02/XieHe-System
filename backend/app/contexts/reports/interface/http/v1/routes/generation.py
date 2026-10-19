@@ -2,32 +2,37 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
 from app.contexts.reports.application import ReportGenerationApplicationService
 from app.contexts.reports.domain import ReportMeasurement, UnsupportedExamType
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..dependencies import get_report_generation_service
 from ..schemas import GenerateReportRequest
+from ..schemas.generation import GeneratedReportResult
 
 router = APIRouter()
 
 
-@router.post("/generate", response_model=dict, summary="生成分析报告")
+@router.post(
+    "/generate",
+    summary="生成分析报告",
+    response_model=ApiResponse[GeneratedReportResult],
+    operation_id="generate_report",
+)
 async def generate_report(
     request: GenerateReportRequest,
-    _: dict[str, Any] = Depends(get_current_active_user),
+    _: AccessPrincipal = Depends(get_current_active_user),
     service: ReportGenerationApplicationService = Depends(
         get_report_generation_service
     ),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Generate an AP or lateral report from supplied measurements."""
 
     try:

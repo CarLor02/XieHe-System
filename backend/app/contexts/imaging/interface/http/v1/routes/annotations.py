@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
@@ -20,20 +20,39 @@ from app.contexts.imaging.domain import (
     ImageFileNotFoundError,
     has_annotation_content,
 )
-from app.core.system.response import paginated_response, success_response
+from app.core.system.response import (
+    ApiResponse,
+    PaginatedData,
+    paginated_response,
+    success_response,
+)
 
 from ..actor import CurrentUserPayload, image_access_actor
 from ..dependencies import get_annotation_service, get_imaging_query_service
 from ..schemas import (
     AnnotationBatchRequest,
     AnnotationSaveResponse,
-    SaveAnnotationRequest,
+)
+from ..schemas.annotations import AnnotationBatchResult
+from ..schemas.annotations_requests import (
+    RequestGetAnnotationHistoryVersion,
+    RequestListAnnotationHistory,
+    RequestSaveAnnotation,
+)
+from ..schemas.query_results import (
+    AnnotationHistoryItemResult,
+    AnnotationHistoryVersionResult,
 )
 
 router = APIRouter()
 
 
-@router.post("/annotations/batch", summary="批量获取影像标注")
+@router.post(
+    "/annotations/batch",
+    summary="批量获取影像标注",
+    response_model=ApiResponse[AnnotationBatchResult],
+    operation_id="get_annotation_batch",
+)
 def get_annotation_batch(
     request: AnnotationBatchRequest,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
@@ -54,23 +73,24 @@ def get_annotation_batch(
     )
 
 
-@router.get("/{file_id}/annotation-history", summary="查询影像标注历史")
+@router.post(
+    "/annotation-history/list",
+    summary="查询影像标注历史",
+    response_model=ApiResponse[PaginatedData[AnnotationHistoryItemResult]],
+    operation_id="list_annotation_history",
+)
 def list_annotation_history(
-    file_id: int,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    item_kind: str | None = Query(None),
-    item_id: str | None = Query(None),
+    request: RequestListAnnotationHistory,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
     service: ImagingQueryService = Depends(get_imaging_query_service),
 ) -> dict[str, object]:
     result = service.list_history(
-        image_file_id=file_id,
+        image_file_id=request.file_id,
         actor=image_access_actor(current_user),
-        page=page,
-        page_size=page_size,
-        item_kind=item_kind,
-        item_id=item_id,
+        page=request.page,
+        page_size=request.page_size,
+        item_kind=request.item_kind,
+        item_id=request.item_id,
     )
     if result is None:
         raise HTTPException(
@@ -79,25 +99,26 @@ def list_annotation_history(
     return paginated_response(
         items=[asdict(item) for item in result.items],
         total=result.total,
-        page=page,
-        page_size=page_size,
+        page=request.page,
+        page_size=request.page_size,
         message="标注历史查询成功",
     )
 
 
-@router.get(
-    "/{file_id}/annotation-history/{version}",
+@router.post(
+    "/annotation-history/get",
     summary="查询指定版本的标注快照",
+    response_model=ApiResponse[AnnotationHistoryVersionResult],
+    operation_id="get_annotation_history_version",
 )
 def get_annotation_history_version(
-    file_id: int,
-    version: int,
+    request: RequestGetAnnotationHistoryVersion,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
     service: ImagingQueryService = Depends(get_imaging_query_service),
 ) -> dict[str, object]:
     result = service.get_history_version(
-        image_file_id=file_id,
-        version=version,
+        image_file_id=request.file_id,
+        version=request.version,
         actor=image_access_actor(current_user),
     )
     if result is None:
@@ -107,10 +128,14 @@ def get_annotation_history_version(
     return success_response(data=asdict(result), message="标注版本查询成功")
 
 
-@router.put("/{file_id}/annotation", summary="版本化保存影像标注")
+@router.post(
+    "/annotation/save",
+    summary="版本化保存影像标注",
+    response_model=ApiResponse[AnnotationSaveResponse],
+    operation_id="save_annotation",
+)
 def save_annotation(
-    file_id: int,
-    request: SaveAnnotationRequest,
+    request: RequestSaveAnnotation,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
     service: AnnotationApplicationService = Depends(get_annotation_service),
 ) -> dict[str, object]:
@@ -121,7 +146,7 @@ def save_annotation(
     )
     try:
         result = service.save_visible_image(
-            image_file_id=file_id,
+            image_file_id=request.file_id,
             actor=image_access_actor(current_user),
             expected_version=request.expected_version,
             annotation=request.annotation,

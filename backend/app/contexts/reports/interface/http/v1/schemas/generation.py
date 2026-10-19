@@ -15,3 +15,8 @@ class GenerateReportRequest(BaseModel):
     imageId: str
     examType: str
     measurements: list[MeasurementItem]
+
+
+class GeneratedReportResult(BaseModel):
+    report: str
+    generatedAt: str

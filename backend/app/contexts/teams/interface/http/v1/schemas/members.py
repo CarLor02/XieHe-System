@@ -5,13 +5,15 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.contexts.teams.domain import TeamRole
+
 
 class TeamMember(BaseModel):
     user_id: int
     username: str
     real_name: str | None = None
     email: str | None = None
-    role: str
+    role: TeamRole
     status: str
     department: str | None = None
     is_creator: bool = False

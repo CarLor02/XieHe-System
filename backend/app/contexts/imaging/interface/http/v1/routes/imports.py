@@ -27,7 +27,12 @@ from app.contexts.imaging.domain import (
     ImageFileNotFoundError,
     ImageTeamAssignmentDeniedError,
 )
-from app.core.system.response import paginated_response, success_response
+from app.core.system.response import (
+    ApiResponse,
+    PaginatedData,
+    paginated_response,
+    success_response,
+)
 
 from ..actor import CurrentUserPayload, image_access_actor
 from ..dependencies import get_image_import_service
@@ -37,6 +42,12 @@ from ..schemas import (
     CreateImageImportBatchRequest,
     CreateImageImportSessionsRequest,
     MarkImageImportUploadFailedRequest,
+)
+from ..schemas.storage_results import ImportBatchResult, ImportItemResult
+from ..schemas.upload_results import (
+    ImageImportConfigResult,
+    ImageImportCreatedResult,
+    ImageImportSessionsResult,
 )
 
 router = APIRouter()
@@ -54,7 +65,13 @@ _IMPORT_ERRORS = (
 )
 
 
-@router.get("/batches/config", summary="获取批量导入配置")
+@router.get(
+    "/batches/config",
+    summary="获取批量导入配置",
+    response_model=None,
+    responses={200: {"model": ApiResponse[ImageImportConfigResult]}},
+    operation_id="get_image_import_config",
+)
 def get_image_import_config(
     _current_user: CurrentUserPayload = Depends(get_current_active_user),
     service: ImageImportService = Depends(get_image_import_service),
@@ -68,7 +85,13 @@ def get_image_import_config(
     )
 
 
-@router.post("/batches", summary="创建批量导入任务")
+@router.post(
+    "/batches",
+    summary="创建批量导入任务",
+    response_model=None,
+    responses={200: {"model": ApiResponse[ImageImportCreatedResult]}},
+    operation_id="create_image_import_batch",
+)
 def create_image_import_batch(
     request: CreateImageImportBatchRequest,
     current_user: CurrentUserPayload = Depends(get_current_active_user),
@@ -104,7 +127,13 @@ def create_image_import_batch(
     )
 
 
-@router.post("/batches/{batch_id}/sessions", summary="为批量导入项创建上传会话")
+@router.post(
+    "/batches/{batch_id}/sessions",
+    summary="为批量导入项创建上传会话",
+    response_model=None,
+    responses={200: {"model": ApiResponse[ImageImportSessionsResult]}},
+    operation_id="create_image_import_sessions",
+)
 async def create_image_import_sessions(
     batch_id: str,
     request: CreateImageImportSessionsRequest,
@@ -128,6 +157,9 @@ async def create_image_import_sessions(
 @router.post(
     "/batches/{batch_id}/items/{item_id}/complete",
     summary="完成单个批量导入项并加入AI队列",
+    response_model=None,
+    responses={200: {"model": ApiResponse[ImportItemResult]}},
+    operation_id="complete_image_import_item",
 )
 async def complete_image_import_item(
     batch_id: str,
@@ -158,6 +190,9 @@ async def complete_image_import_item(
 @router.post(
     "/batches/{batch_id}/items/{item_id}/upload-failed",
     summary="记录单个批量导入项上传失败",
+    response_model=None,
+    responses={200: {"model": ApiResponse[ImportItemResult]}},
+    operation_id="mark_image_import_upload_failed",
 )
 async def mark_image_import_upload_failed(
     batch_id: str,
@@ -182,6 +217,9 @@ async def mark_image_import_upload_failed(
 @router.post(
     "/batches/{batch_id}/items/{item_id}/enqueue",
     summary="重新提交批量导入AI任务",
+    response_model=None,
+    responses={200: {"model": ApiResponse[ImportItemResult]}},
+    operation_id="enqueue_image_import_item",
 )
 async def enqueue_image_import_item(
     batch_id: str,
@@ -200,7 +238,13 @@ async def enqueue_image_import_item(
     return success_response(data=asdict(result.item), message=result.message)
 
 
-@router.get("/batches", summary="查询批量导入任务")
+@router.get(
+    "/batches",
+    summary="查询批量导入任务",
+    response_model=None,
+    responses={200: {"model": ApiResponse[PaginatedData[ImportBatchResult]]}},
+    operation_id="list_image_import_batches",
+)
 def list_image_import_batches(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
@@ -226,7 +270,13 @@ def list_image_import_batches(
     )
 
 
-@router.get("/batches/{batch_id}/items", summary="查询批量导入项")
+@router.get(
+    "/batches/{batch_id}/items",
+    summary="查询批量导入项",
+    response_model=None,
+    responses={200: {"model": ApiResponse[PaginatedData[ImportItemResult]]}},
+    operation_id="list_image_import_items",
+)
 def list_image_import_items(
     batch_id: str,
     page: int = Query(1, ge=1),

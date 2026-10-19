@@ -1,33 +1,41 @@
 """Team member routes."""
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
 from app.contexts.teams.application import TeamMembershipService, TeamQueryService
 from app.contexts.teams.domain import TeamDomainError
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..dependencies import get_team_membership_service, get_team_query_service
 from ..errors import actor_id, domain_http_error, log_failure
-from ..schemas import MemberRoleUpdateRequest, TeamMember, TeamSummary
+from ..schemas import TeamMember, TeamSummary
+from ..schemas.members_requests import (
+    RequestListTeamMembers,
+    RequestRemoveTeamMember,
+    RequestUpdateTeamMemberRole,
+)
+from ..schemas.results import TeamMembersResult
 
 router = APIRouter()
 
 
-@router.get(
-    "/teams/{team_id}/members", response_model=dict[str, Any], summary="查看团队成员"
+@router.post(
+    "/teams/members/list",
+    summary="查看团队成员",
+    response_model=ApiResponse[TeamMembersResult],
+    operation_id="list_team_members",
 )
 async def list_team_members(
-    team_id: int,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestListTeamMembers,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamQueryService = Depends(get_team_query_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
-        data = await service.get_team_members(team_id, actor_id(current_user))
+        data = await service.get_team_members(request.team_id, actor_id(current_user))
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc
     except Exception as exc:
@@ -47,21 +55,20 @@ async def list_team_members(
     )
 
 
-@router.patch(
-    "/teams/{team_id}/members/{user_id}/role",
-    response_model=dict[str, Any],
+@router.post(
+    "/teams/members/update-role",
     summary="修改团队成员角色",
+    response_model=ApiResponse[None],
+    operation_id="update_team_member_role",
 )
 async def update_team_member_role(
-    team_id: int,
-    user_id: int,
-    request: MemberRoleUpdateRequest,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestUpdateTeamMemberRole,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamMembershipService = Depends(get_team_membership_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         await service.update_member_role(
-            team_id, actor_id(current_user), user_id, request.role
+            request.team_id, actor_id(current_user), request.user_id, request.role
         )
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc
@@ -71,19 +78,21 @@ async def update_team_member_role(
     return success_response(data=None, message="角色已更新")
 
 
-@router.delete(
-    "/teams/{team_id}/members/{user_id}",
-    response_model=dict[str, Any],
+@router.post(
+    "/teams/members/remove",
     summary="删除团队成员",
+    response_model=ApiResponse[None],
+    operation_id="remove_team_member",
 )
 async def remove_team_member(
-    team_id: int,
-    user_id: int,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestRemoveTeamMember,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamMembershipService = Depends(get_team_membership_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
-        await service.remove_member(team_id, actor_id(current_user), user_id)
+        await service.remove_member(
+            request.team_id, actor_id(current_user), request.user_id
+        )
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc
     except Exception as exc:

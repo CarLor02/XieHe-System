@@ -9,13 +9,14 @@ from typing import Literal
 from pydantic import BaseModel, Field, JsonValue, field_validator
 
 from app.contexts.imaging.application.dto import ImageDetail, ImageSummary
+from app.contexts.imaging.domain import ImageFileStatusEnum, ImageFileTypeEnum
 
 
 class ImageFileResponse(BaseModel):
     id: int
     file_uuid: str
     original_filename: str
-    file_type: str
+    file_type: ImageFileTypeEnum
     mime_type: str | None
     file_size: int
     storage_bucket: str
@@ -33,21 +34,21 @@ class ImageFileResponse(BaseModel):
     team_names: list[str] = Field(default_factory=list)
     study_date: datetime | None
     description: str | None
-    annotation: dict[str, JsonValue] | None = None
+    annotation: dict[str, JsonValue] | None
     annotation_version: int = 0
     has_annotation: bool = False
     annotation_created_at: datetime | None = None
     annotation_created_by: int | None = None
     annotation_updated_at: datetime | None = None
     annotation_updated_by: int | None = None
-    status: str
+    status: ImageFileStatusEnum
     upload_progress: int
     created_at: datetime
     uploaded_at: datetime | None
 
     @classmethod
     def from_summary(cls, summary: ImageSummary) -> ImageFileResponse:
-        return cls(**asdict(summary))
+        return cls(**asdict(summary), annotation=None)
 
     @classmethod
     def from_detail(cls, detail: ImageDetail) -> ImageFileResponse:

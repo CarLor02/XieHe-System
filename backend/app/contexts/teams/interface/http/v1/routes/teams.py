@@ -1,31 +1,40 @@
 """Team lifecycle and discovery routes."""
 
-from typing import Any
+from fastapi import APIRouter, Depends, HTTPException
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-
+from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
 from app.contexts.teams.application import TeamManagementService, TeamQueryService
 from app.contexts.teams.domain import TeamDomainError
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..dependencies import get_team_management_service, get_team_query_service
 from ..errors import actor_id, domain_http_error, log_failure
-from ..schemas import TeamCreateRequest, TeamSummary, TeamUpdateRequest
+from ..schemas import TeamCreateRequest, TeamSummary
+from ..schemas.results import MyTeamsResult, TeamSearchResult
+from ..schemas.teams_requests import (
+    RequestListMyTeams,
+    RequestSearchTeams,
+    RequestUpdateTeam,
+)
 
 router = APIRouter()
 
 
 @router.post(
-    "/teams", response_model=dict[str, Any], status_code=201, summary="创建团队"
+    "/teams/create",
+    status_code=201,
+    summary="创建团队",
+    response_model=ApiResponse[TeamSummary],
+    operation_id="create_team",
 )
 async def create_team(
     request: TeamCreateRequest,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamManagementService = Depends(get_team_management_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         data = await service.create_team(actor_id(current_user), request.model_dump())
     except TeamDomainError as exc:
@@ -39,18 +48,22 @@ async def create_team(
     )
 
 
-@router.patch("/teams/{team_id}", response_model=dict[str, Any], summary="更新团队信息")
+@router.post(
+    "/teams/update",
+    summary="更新团队信息",
+    response_model=ApiResponse[TeamSummary],
+    operation_id="update_team",
+)
 async def update_team(
-    team_id: int,
-    request: TeamUpdateRequest,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestUpdateTeam,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamManagementService = Depends(get_team_management_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         data = await service.update_team(
-            team_id,
+            request.team_id,
             actor_id(current_user),
-            request.model_dump(exclude_unset=True),
+            request.model_dump(exclude_unset=True, exclude={"team_id"}),
         )
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc
@@ -63,15 +76,21 @@ async def update_team(
     )
 
 
-@router.get("/teams/search", response_model=dict[str, Any], summary="搜索团队")
+@router.post(
+    "/teams/search",
+    summary="搜索团队",
+    response_model=ApiResponse[TeamSearchResult],
+    operation_id="search_teams",
+)
 async def search_teams(
-    keyword: str | None = Query(None),
-    limit: int = Query(20, ge=1, le=50),
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestSearchTeams,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamQueryService = Depends(get_team_query_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
-        results = await service.search_teams(keyword, actor_id(current_user), limit)
+        results = await service.search_teams(
+            request.keyword, actor_id(current_user), request.limit
+        )
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc
     except Exception as exc:
@@ -89,11 +108,17 @@ async def search_teams(
     )
 
 
-@router.get("/teams/my", response_model=dict[str, Any], summary="获取我的团队")
+@router.post(
+    "/teams/my",
+    summary="获取我的团队",
+    response_model=ApiResponse[MyTeamsResult],
+    operation_id="list_my_teams",
+)
 async def list_my_teams(
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestListMyTeams,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamQueryService = Depends(get_team_query_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         items = await service.list_user_teams(actor_id(current_user))
     except TeamDomainError as exc:

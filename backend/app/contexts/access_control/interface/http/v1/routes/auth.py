@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials
@@ -14,8 +13,9 @@ from app.contexts.access_control.application import (
     ProfileService,
     UserProfile,
 )
+from app.contexts.access_control.domain import AuthenticatedIdentity
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 from app.shared.storage import StorageServiceError
 
 from ..dependencies import (
@@ -29,18 +29,22 @@ from ..schemas.auth import (
     AvatarUploadPart,
     AvatarUploadSessionRequest,
     AvatarUploadSessionResponse,
+    LoginResult,
     PasswordChange,
+    RefreshTokenResult,
+    RegisterResult,
     TokenRefresh,
     UserLogin,
     UserRegister,
     UserResponse,
     UserUpdate,
 )
+from ..schemas.auth_requests import RequestGetCurrentUserInfo
 
 router = APIRouter()
 
 
-def _identity_response(identity: Any) -> dict[str, Any]:
+def _identity_response(identity: AuthenticatedIdentity) -> dict[str, object]:
     return UserResponse(
         id=identity.id,
         username=identity.username,
@@ -56,7 +60,7 @@ def _identity_response(identity: Any) -> dict[str, Any]:
 
 def _profile_response(
     profile: UserProfile, principal: AccessPrincipal
-) -> dict[str, Any]:
+) -> dict[str, object]:
     return UserResponse(
         id=profile.id,
         username=profile.username,
@@ -86,11 +90,16 @@ def _profile_response(
     ).model_dump()
 
 
-@router.post("/login", response_model=dict[str, Any], summary="用户登录")
+@router.post(
+    "/login",
+    summary="用户登录",
+    response_model=ApiResponse[LoginResult],
+    operation_id="login",
+)
 async def login(
     request: UserLogin,
     service: AuthenticationService = Depends(get_authentication_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     identity, tokens = await service.login(
         username=request.username,
         password=request.password,
@@ -103,11 +112,16 @@ async def login(
     )
 
 
-@router.post("/register", response_model=dict[str, Any], summary="用户注册")
+@router.post(
+    "/register",
+    summary="用户注册",
+    response_model=ApiResponse[RegisterResult],
+    operation_id="register",
+)
 async def register(
     request: UserRegister,
     service: AuthenticationService = Depends(get_authentication_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     identity = await service.register(
         username=request.username,
         email=str(request.email),
@@ -122,22 +136,32 @@ async def register(
     )
 
 
-@router.post("/refresh", response_model=dict[str, Any], summary="刷新令牌")
+@router.post(
+    "/refresh",
+    summary="刷新令牌",
+    response_model=ApiResponse[RefreshTokenResult],
+    operation_id="refresh_token",
+)
 async def refresh_token(
     request: TokenRefresh,
     service: AuthenticationService = Depends(get_authentication_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     tokens = await service.refresh(request.refresh_token)
     return success_response(data={"tokens": asdict(tokens)}, message="令牌刷新成功")
 
 
-@router.post("/logout", response_model=dict[str, Any], summary="用户登出")
+@router.post(
+    "/logout",
+    summary="用户登出",
+    response_model=ApiResponse[None],
+    operation_id="logout",
+)
 async def logout(
     request: Request,
     principal: AccessPrincipal = Depends(get_current_active_user),
     credentials: HTTPAuthorizationCredentials = Depends(security),
     service: AuthenticationService = Depends(get_authentication_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     del request
     if credentials:
         await service.logout(credentials.credentials)
@@ -145,12 +169,17 @@ async def logout(
     return success_response(data=None, message="登出成功")
 
 
-@router.post("/password/change", response_model=dict[str, Any], summary="修改密码")
+@router.post(
+    "/password/change",
+    summary="修改密码",
+    response_model=ApiResponse[None],
+    operation_id="change_password",
+)
 async def change_password(
     request: PasswordChange,
     principal: AccessPrincipal = Depends(get_current_active_user),
     service: AuthenticationService = Depends(get_authentication_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     await service.change_password(
         principal=principal,
         current_password=request.current_password,
@@ -160,23 +189,34 @@ async def change_password(
     return success_response(data=None, message="密码修改成功")
 
 
-@router.get("/me", response_model=dict[str, Any], summary="获取当前用户信息")
+@router.post(
+    "/me/get",
+    summary="获取当前用户信息",
+    response_model=ApiResponse[UserResponse],
+    operation_id="get_current_user_info",
+)
 async def get_current_user_info(
+    request: RequestGetCurrentUserInfo,
     principal: AccessPrincipal = Depends(get_current_active_user),
     service: ProfileService = Depends(get_profile_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     profile = await service.get_profile(principal)
     return success_response(
         data=_profile_response(profile, principal), message="获取用户信息成功"
     )
 
 
-@router.put("/me", response_model=dict[str, Any], summary="更新当前用户信息")
+@router.post(
+    "/me/update",
+    summary="更新当前用户信息",
+    response_model=ApiResponse[UserResponse],
+    operation_id="update_current_user_info",
+)
 async def update_current_user_info(
     request: UserUpdate,
     principal: AccessPrincipal = Depends(get_current_active_user),
     service: ProfileService = Depends(get_profile_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     profile = await service.update_profile(
         principal, request.model_dump(exclude_unset=True)
     )
@@ -187,14 +227,16 @@ async def update_current_user_info(
 
 @router.post(
     "/me/avatar/upload-session",
-    response_model=dict[str, Any],
     summary="创建头像上传会话",
+    response_model=None,
+    responses={200: {"model": ApiResponse[AvatarUploadSessionResponse]}},
+    operation_id="create_avatar_upload_session",
 )
 async def create_avatar_upload_session(
     request: AvatarUploadSessionRequest,
     principal: AccessPrincipal = Depends(get_current_active_user),
     service: ProfileService = Depends(get_profile_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         session = await service.create_avatar_upload_session(
             principal=principal,
@@ -217,13 +259,17 @@ async def create_avatar_upload_session(
 
 
 @router.post(
-    "/me/avatar/complete", response_model=dict[str, Any], summary="完成头像上传"
+    "/me/avatar/complete",
+    summary="完成头像上传",
+    response_model=None,
+    responses={200: {"model": ApiResponse[UserResponse]}},
+    operation_id="complete_avatar_upload",
 )
 async def complete_avatar_upload(
     request: AvatarUploadCompleteRequest,
     principal: AccessPrincipal = Depends(get_current_active_user),
     service: ProfileService = Depends(get_profile_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         profile = await service.complete_avatar_upload(
             principal=principal,
@@ -238,11 +284,17 @@ async def complete_avatar_upload(
     )
 
 
-@router.delete("/me/avatar", response_model=dict[str, Any], summary="删除当前用户头像")
+@router.delete(
+    "/me/avatar",
+    summary="删除当前用户头像",
+    response_model=None,
+    responses={200: {"model": ApiResponse[UserResponse]}},
+    operation_id="delete_current_user_avatar",
+)
 async def delete_current_user_avatar(
     principal: AccessPrincipal = Depends(get_current_active_user),
     service: ProfileService = Depends(get_profile_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     profile, deleted = await service.delete_avatar(principal)
     return success_response(
         data=_profile_response(profile, principal),

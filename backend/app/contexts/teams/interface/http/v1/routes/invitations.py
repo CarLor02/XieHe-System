@@ -1,41 +1,48 @@
 """Team invitation routes."""
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
 from app.contexts.teams.application import TeamInvitationService
 from app.contexts.teams.domain import TeamDomainError
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..dependencies import get_team_invitation_service
 from ..errors import actor_id, domain_http_error, log_failure
 from ..schemas import (
     TeamInvitationItem,
-    TeamInvitationRespondRequest,
-    TeamInviteRequest,
+)
+from ..schemas.invitations_requests import (
+    RequestGetMyInvitations,
+    RequestInviteTeamMember,
+    RequestRespondToInvitation,
+)
+from ..schemas.results import (
+    InvitationRespondResult,
+    InviteTeamMemberResult,
+    MyInvitationsResult,
 )
 
 router = APIRouter()
 
 
 @router.post(
-    "/teams/{team_id}/invite",
-    response_model=dict[str, Any],
+    "/teams/invite",
     summary="邀请成员加入团队",
+    response_model=ApiResponse[InviteTeamMemberResult],
+    operation_id="invite_team_member",
 )
 async def invite_team_member(
-    team_id: int,
-    request: TeamInviteRequest,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestInviteTeamMember,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamInvitationService = Depends(get_team_invitation_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         item = await service.invite_member(
-            team_id,
+            request.team_id,
             actor_id(current_user),
             str(request.email),
             request.role,
@@ -57,13 +64,17 @@ async def invite_team_member(
     )
 
 
-@router.get(
-    "/invitations/my", response_model=dict[str, Any], summary="获取我的团队邀请"
+@router.post(
+    "/invitations/my",
+    summary="获取我的团队邀请",
+    response_model=ApiResponse[MyInvitationsResult],
+    operation_id="get_my_invitations",
 )
 async def get_my_invitations(
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestGetMyInvitations,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamInvitationService = Depends(get_team_invitation_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         items = await service.list_invitations(actor_id(current_user))
     except TeamDomainError as exc:
@@ -84,19 +95,19 @@ async def get_my_invitations(
 
 
 @router.post(
-    "/invitations/{invitation_id}/respond",
-    response_model=dict[str, Any],
+    "/invitations/respond",
     summary="响应团队邀请",
+    response_model=ApiResponse[InvitationRespondResult],
+    operation_id="respond_to_invitation",
 )
 async def respond_to_invitation(
-    invitation_id: int,
-    request: TeamInvitationRespondRequest,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestRespondToInvitation,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: TeamInvitationService = Depends(get_team_invitation_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         data = await service.respond_to_invitation(
-            invitation_id, actor_id(current_user), request.accept
+            request.invitation_id, actor_id(current_user), request.accept
         )
     except TeamDomainError as exc:
         raise domain_http_error(exc) from exc

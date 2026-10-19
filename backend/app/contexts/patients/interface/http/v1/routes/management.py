@@ -1,10 +1,8 @@
 """Thin FastAPI adapter for patient management use cases."""
 
-import typing
-from typing import Any
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-
+from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
@@ -16,26 +14,41 @@ from app.contexts.patients.domain import (
 )
 from app.core.system.exceptions import BusinessLogicException, ResourceNotFoundException
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import paginated_response, success_response
+from app.core.system.response import (
+    ApiResponse,
+    PaginatedData,
+    paginated_response,
+    success_response,
+)
 
 from ..dependencies import get_patient_service
-from ..schemas import PatientCreate, PatientResponse, PatientUpdate
+from ..schemas import PatientCreate, PatientResponse
+from ..schemas.management_requests import (
+    RequestDeletePatient,
+    RequestGetPatient,
+    RequestGetPatients,
+    RequestUpdatePatient,
+)
 
 router = APIRouter()
 
 
-def _actor_id(current_user: dict[str, Any]) -> int | None:
+def _actor_id(current_user: AccessPrincipal) -> int | None:
     value = current_user.get("user_id") or current_user.get("id")
     return int(value) if value is not None else None
 
 
-@router.post("/", response_model=dict[str, Any], summary="创建患者")
-@router.post("", response_model=dict[str, Any], summary="创建患者")
+@router.post(
+    "/create",
+    summary="创建患者",
+    response_model=ApiResponse[PatientResponse],
+    operation_id="create_patient",
+)
 async def create_patient(
     patient_data: PatientCreate,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-) -> dict[str, typing.Any]:
+) -> dict[str, object]:
     try:
         patient = await service.create_patient(
             patient_data.model_dump(),
@@ -56,33 +69,28 @@ async def create_patient(
     )
 
 
-@router.get("/", response_model=dict[str, Any], summary="获取患者列表")
-@router.get("", response_model=dict[str, Any], summary="获取患者列表")
+@router.post(
+    "/list",
+    summary="获取患者列表",
+    response_model=ApiResponse[PaginatedData[PatientResponse]],
+    operation_id="get_patients",
+)
 async def get_patients(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    search: str | None = Query(None),
-    gender: str | None = Query(None),
-    age_min: int | None = Query(None, ge=0, le=150),
-    age_max: int | None = Query(None, ge=0, le=150),
-    status_filter: str | None = Query(None, alias="status"),
-    has_images: bool | None = Query(None),
-    sort_by: str = Query("created_at"),
-    sort_order: str = Query("desc"),
-    _current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestGetPatients,
+    _current_user: AccessPrincipal = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-) -> typing.Any:
+) -> dict[str, object]:
     query = PatientListQuery(
-        page=page,
-        page_size=page_size,
-        search=search,
-        gender=gender,
-        age_min=age_min,
-        age_max=age_max,
-        status=status_filter,
-        has_images=has_images,
-        sort_by=sort_by,
-        sort_order=sort_order,
+        page=request.page,
+        page_size=request.page_size,
+        search=request.search,
+        gender=request.gender,
+        age_min=request.age_min,
+        age_max=request.age_max,
+        status=request.status_filter,
+        has_images=request.has_images,
+        sort_by=request.sort_by,
+        sort_order=request.sort_order,
     )
     try:
         patients, total = await service.list_patients(query)
@@ -97,20 +105,25 @@ async def get_patients(
             for item in patients
         ],
         total=total,
-        page=page,
-        page_size=page_size,
+        page=request.page,
+        page_size=request.page_size,
         message="患者列表查询成功",
     )
 
 
-@router.get("/{patient_id}", response_model=dict[str, Any], summary="获取患者详情")
+@router.post(
+    "/get",
+    summary="获取患者详情",
+    response_model=ApiResponse[PatientResponse],
+    operation_id="get_patient",
+)
 async def get_patient(
-    patient_id: int,
-    _current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestGetPatient,
+    _current_user: AccessPrincipal = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-) -> dict[str, typing.Any]:
+) -> dict[str, object]:
     try:
-        patient = await service.get_patient(patient_id)
+        patient = await service.get_patient(request.patient_id)
     except PatientNotFound as exc:
         raise ResourceNotFoundException(str(exc)) from exc
     except Exception as exc:
@@ -124,17 +137,21 @@ async def get_patient(
     )
 
 
-@router.put("/{patient_id}", response_model=dict[str, Any], summary="更新患者信息")
+@router.post(
+    "/update",
+    summary="更新患者信息",
+    response_model=ApiResponse[PatientResponse],
+    operation_id="update_patient",
+)
 async def update_patient(
-    patient_id: int,
-    patient_data: PatientUpdate,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    patient_data: RequestUpdatePatient,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-) -> dict[str, typing.Any]:
+) -> dict[str, object]:
     try:
         patient = await service.update_patient(
-            patient_id,
-            patient_data.model_dump(exclude_unset=True),
+            patient_data.patient_id,
+            patient_data.model_dump(exclude_unset=True, exclude={"patient_id"}),
             actor_id=_actor_id(current_user),
         )
     except PatientNotFound as exc:
@@ -150,14 +167,21 @@ async def update_patient(
     )
 
 
-@router.delete("/{patient_id}", response_model=dict[str, Any], summary="删除患者")
+@router.post(
+    "/delete",
+    summary="删除患者",
+    response_model=ApiResponse[None],
+    operation_id="delete_patient",
+)
 async def delete_patient(
-    patient_id: int,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestDeletePatient,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: PatientApplicationService = Depends(get_patient_service),
-) -> dict[str, typing.Any]:
+) -> dict[str, object]:
     try:
-        await service.delete_patient(patient_id, actor_id=_actor_id(current_user))
+        await service.delete_patient(
+            request.patient_id, actor_id=_actor_id(current_user)
+        )
     except PatientNotFound as exc:
         raise ResourceNotFoundException(str(exc)) from exc
     except Exception as exc:

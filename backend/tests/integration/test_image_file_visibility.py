@@ -12,6 +12,10 @@ from app.contexts.dashboard.interface.http.v1.dependencies import (
 from app.contexts.dashboard.interface.http.v1.routes import (
     dashboard as dashboard_handlers,
 )
+from app.contexts.dashboard.interface.http.v1.schemas.dashboard_requests import (
+    RequestGetDashboardStats,
+    RequestGetRecentActivities,
+)
 from app.contexts.imaging.application import ImageVisibilityApplicationService
 from app.contexts.imaging.application.dto import ImageListFilters
 from app.contexts.imaging.application.ports import ImageFileRecord
@@ -44,6 +48,13 @@ from app.contexts.imaging.interface.http.v1.routes.selectors import (
 from app.contexts.imaging.interface.http.v1.schemas import (
     BatchUpdateExamTypeRequest,
     RenameImageFileRequest,
+)
+from app.contexts.imaging.interface.http.v1.schemas.mutations_requests import (
+    RequestRenameImageFile,
+)
+from app.contexts.imaging.interface.http.v1.schemas.selectors_requests import (
+    RequestListAssignableImageTeams,
+    RequestListVisibleImageUploaders,
 )
 from app.contexts.patients.infrastructure.persistence.models import (
     GenderEnum,
@@ -350,11 +361,9 @@ async def test_team_admin_lists_visible_team_uploaders(db_session):
     assign_image_to_team(db_session, 2)
 
     result = list_visible_image_uploaders(
-        page=1,
-        page_size=10,
-        search=None,
         current_user=current_user(10),
         service=get_image_selection_service(db_session),
+        request=RequestListVisibleImageUploaders(page=1, page_size=10, search=None),
     )
 
     data = response_data(result)
@@ -369,11 +378,9 @@ async def test_team_admin_lists_visible_team_uploaders(db_session):
 async def test_regular_member_cannot_list_uploaders(db_session):
     with pytest.raises(HTTPException) as exc_info:
         list_visible_image_uploaders(
-            page=1,
-            page_size=10,
-            search=None,
             current_user=current_user(11),
             service=get_image_selection_service(db_session),
+            request=RequestListVisibleImageUploaders(page=1, page_size=10, search=None),
         )
 
     assert exc_info.value.status_code == 403
@@ -384,24 +391,29 @@ async def test_dashboard_counts_only_explicit_team_images(db_session):
     before = await dashboard_handlers.get_dashboard_stats(
         current_user=current_user(10),
         service=build_dashboard_query_service(db_session),
+        request=RequestGetDashboardStats(),
     )
+    assert isinstance(before["data"], dict)
     assert before["data"]["total_images"] == 1
 
     assign_image_to_team(db_session, 2)
     after = await dashboard_handlers.get_dashboard_stats(
         current_user=current_user(10),
         service=build_dashboard_query_service(db_session),
+        request=RequestGetDashboardStats(),
     )
+    assert isinstance(after["data"], dict)
     assert after["data"]["total_images"] == 2
 
 
 @pytest.mark.asyncio
 async def test_dashboard_recent_images_respect_visibility(db_session):
     result = await dashboard_handlers.get_recent_activities(
-        limit=6,
         current_user=current_user(10),
         service=build_dashboard_query_service(db_session),
+        request=RequestGetRecentActivities(limit=6),
     )
+    assert isinstance(result["data"], dict)
     image_activities = [
         item for item in result["data"]["activities"] if item["type"] == "image"
     ]
@@ -414,11 +426,9 @@ async def test_assignable_teams_are_paginated_and_scoped_to_user_memberships(
     db_session,
 ):
     result = list_assignable_image_teams(
-        page=1,
-        page_size=1,
-        search=None,
         current_user=current_user(10),
         service=get_image_selection_service(db_session),
+        request=RequestListAssignableImageTeams(page=1, page_size=1, search=None),
     )
 
     data = response_data(result)
@@ -432,11 +442,9 @@ async def test_assignable_teams_are_paginated_and_scoped_to_user_memberships(
 @pytest.mark.asyncio
 async def test_system_admin_can_page_all_active_assignable_teams(db_session):
     result = list_assignable_image_teams(
-        page=1,
-        page_size=10,
-        search="团队",
         current_user=current_user(99, system_admin=True),
         service=get_image_selection_service(db_session),
+        request=RequestListAssignableImageTeams(page=1, page_size=10, search="团队"),
     )
 
     data = response_data(result)
@@ -657,10 +665,12 @@ async def test_owner_can_rename_image_without_changing_storage_or_annotations(
     db_session.commit()
 
     result = rename_image_file(
-        1,
-        request=RenameImageFileRequest(basename="  renamed-image  "),
         current_user=current_user(10),
         service=get_image_file_command_service(db_session),
+        request=RequestRenameImageFile(
+            **RenameImageFileRequest(basename="  renamed-image  ").model_dump(),
+            file_id=1,
+        ),
     )
 
     renamed_image = db_session.get(ImageFile, 1)
@@ -675,10 +685,11 @@ async def test_team_admin_can_rename_visible_team_member_image(db_session):
     assign_image_to_team(db_session, 2)
 
     result = rename_image_file(
-        2,
-        request=RenameImageFileRequest(basename="team-image"),
         current_user=current_user(10),
         service=get_image_file_command_service(db_session),
+        request=RequestRenameImageFile(
+            **RenameImageFileRequest(basename="team-image").model_dump(), file_id=2
+        ),
     )
 
     assert response_data(result)["original_filename"] == "team-image.png"
@@ -689,10 +700,11 @@ async def test_team_admin_can_rename_visible_team_member_image(db_session):
 async def test_regular_member_cannot_rename_other_uploader_image(db_session):
     with pytest.raises(HTTPException) as exc_info:
         rename_image_file(
-            1,
-            request=RenameImageFileRequest(basename="forbidden"),
             current_user=current_user(11),
             service=get_image_file_command_service(db_session),
+            request=RequestRenameImageFile(
+                **RenameImageFileRequest(basename="forbidden").model_dump(), file_id=1
+            ),
         )
 
     assert exc_info.value.status_code == 404
@@ -702,10 +714,11 @@ async def test_regular_member_cannot_rename_other_uploader_image(db_session):
 @pytest.mark.asyncio
 async def test_system_admin_can_rename_any_image(db_session):
     result = rename_image_file(
-        4,
-        request=RenameImageFileRequest(basename="system-renamed"),
         current_user=current_user(99, system_admin=True),
         service=get_image_file_command_service(db_session),
+        request=RequestRenameImageFile(
+            **RenameImageFileRequest(basename="system-renamed").model_dump(), file_id=4
+        ),
     )
 
     assert response_data(result)["original_filename"] == "system-renamed.png"

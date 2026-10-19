@@ -1,12 +1,11 @@
 """Schemas for patient management HTTP v1."""
 
-import typing
 from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
 
-def _blank_string_to_none(value: typing.Any) -> typing.Any:
+def _blank_string_to_none(value: object) -> object:
     if isinstance(value, str):
         value = value.strip()
         return value or None
@@ -44,7 +43,7 @@ class PatientBase(BaseModel):
 
     @field_validator(*OPTIONAL_PATIENT_FIELDS, mode="before")
     @classmethod
-    def normalize_blank_optional_values(cls, value: typing.Any) -> typing.Any:
+    def normalize_blank_optional_values(cls, value: object) -> object:
         return _blank_string_to_none(value)
 
 
@@ -70,7 +69,7 @@ class PatientUpdate(BaseModel):
 
     @field_validator(*OPTIONAL_PATIENT_FIELDS, mode="before")
     @classmethod
-    def normalize_blank_optional_values(cls, value: typing.Any) -> typing.Any:
+    def normalize_blank_optional_values(cls, value: object) -> object:
         return _blank_string_to_none(value)
 
 

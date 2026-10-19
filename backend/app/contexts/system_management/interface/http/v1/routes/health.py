@@ -2,7 +2,6 @@
 
 import time
 from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -13,7 +12,7 @@ from app.contexts.system_management.application import (
 )
 from app.contexts.system_management.application.dto import ComponentHealth
 from app.core.config import settings
-from app.core.system.response import success_response
+from app.core.system.response import ApiResponse, success_response
 
 from ..dependencies import get_health_check_service
 from ..schemas import (
@@ -21,6 +20,7 @@ from ..schemas import (
     DetailedHealthResponse,
     HealthStatusResponse,
 )
+from ..schemas.health import ComponentTestResult, HealthMetricsResult, ProbeStatusResult
 
 router = APIRouter()
 
@@ -35,8 +35,12 @@ def _component_response(component: ComponentHealth) -> ComponentHealthResponse:
     )
 
 
-@router.get("/", response_model=dict[str, Any])
-async def basic_health_check() -> dict[str, Any]:
+@router.get(
+    "/",
+    response_model=ApiResponse[HealthStatusResponse],
+    operation_id="basic_health_check",
+)
+async def basic_health_check() -> dict[str, object]:
     import app
 
     payload = HealthStatusResponse(
@@ -49,10 +53,14 @@ async def basic_health_check() -> dict[str, Any]:
     return success_response(data=payload.model_dump(), message="系统健康")
 
 
-@router.get("/detailed", response_model=dict[str, Any])
+@router.get(
+    "/detailed",
+    response_model=ApiResponse[DetailedHealthResponse],
+    operation_id="detailed_health_check",
+)
 async def detailed_health_check(
     service: HealthCheckApplicationService = Depends(get_health_check_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     result = await service.detailed()
     payload = DetailedHealthResponse(
         overall_status=result.overall_status,
@@ -63,11 +71,15 @@ async def detailed_health_check(
     return success_response(data=payload.model_dump(), message="系统详细健康检查完成")
 
 
-@router.get("/component/{component_name}")
+@router.get(
+    "/component/{component_name}",
+    response_model=ApiResponse[ComponentHealthResponse],
+    operation_id="check_component_health",
+)
 async def check_component_health(
     component_name: str,
     service: HealthCheckApplicationService = Depends(get_health_check_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         component = await service.check_component(component_name)
     except UnknownHealthComponentError as exc:
@@ -78,10 +90,14 @@ async def check_component_health(
     )
 
 
-@router.get("/readiness")
+@router.get(
+    "/readiness",
+    response_model=ApiResponse[ProbeStatusResult],
+    operation_id="readiness_check",
+)
 async def readiness_check(
     service: HealthCheckApplicationService = Depends(get_health_check_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     if not await service.ready():
         raise HTTPException(
             status_code=503,
@@ -93,18 +109,26 @@ async def readiness_check(
     )
 
 
-@router.get("/liveness")
-async def liveness_check() -> dict[str, Any]:
+@router.get(
+    "/liveness",
+    response_model=ApiResponse[ProbeStatusResult],
+    operation_id="liveness_check",
+)
+async def liveness_check() -> dict[str, object]:
     return success_response(
         data={"status": "alive", "timestamp": datetime.now().isoformat()},
         message="Application is alive",
     )
 
 
-@router.get("/metrics")
+@router.get(
+    "/metrics",
+    response_model=ApiResponse[HealthMetricsResult],
+    operation_id="health_metrics",
+)
 async def health_metrics(
     service: HealthCheckApplicationService = Depends(get_health_check_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         return success_response(data=service.metrics(), message="系统指标获取成功")
     except Exception as exc:
@@ -113,11 +137,15 @@ async def health_metrics(
         ) from exc
 
 
-@router.post("/test/{component_name}")
+@router.post(
+    "/test/{component_name}",
+    response_model=ApiResponse[ComponentTestResult],
+    operation_id="test_component",
+)
 async def test_component(
     component_name: str,
     service: HealthCheckApplicationService = Depends(get_health_check_service),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         result = await service.test_component(component_name)
     except (UnknownHealthComponentError, UnsupportedComponentTestError) as exc:

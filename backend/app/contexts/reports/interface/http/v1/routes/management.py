@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, NoReturn, cast
+from typing import NoReturn, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.access_control.interface.http.v1.dependencies import (
     get_current_active_user,
 )
@@ -22,20 +23,31 @@ from app.contexts.reports.domain import (
     ReportPatientNotFound,
 )
 from app.core.system.logger import LogLevel, logger
-from app.core.system.response import paginated_response, success_response
+from app.core.system.response import (
+    ApiResponse,
+    PaginatedData,
+    paginated_response,
+    success_response,
+)
 
 from ..dependencies import get_report_management_service
-from ..schemas import ReportCreate, ReportResponse, ReportUpdate
+from ..schemas import ReportCreate, ReportResponse
+from ..schemas.management_requests import (
+    RequestDeleteReport,
+    RequestGetReport,
+    RequestGetReports,
+    RequestUpdateReport,
+)
 
 router = APIRouter()
 
 
-def _actor_id(current_user: dict[str, Any]) -> int | None:
+def _actor_id(current_user: AccessPrincipal) -> int | None:
     value = current_user.get("id")
     return int(value) if value is not None else None
 
 
-def _actor_name(current_user: dict[str, Any]) -> str:
+def _actor_name(current_user: AccessPrincipal) -> str:
     return str(
         current_user.get("real_name") or current_user.get("username") or "未指定医生"
     )
@@ -53,14 +65,19 @@ def _raise_domain_error(exc: Exception) -> NoReturn:
     raise exc
 
 
-@router.post("/", response_model=dict[str, Any], summary="创建报告")
+@router.post(
+    "/create",
+    summary="创建报告",
+    response_model=ApiResponse[ReportResponse],
+    operation_id="create_report",
+)
 async def create_report(
     request: ReportCreate,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: ReportManagementApplicationService = Depends(
         get_report_management_service
     ),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         report = service.create(
             CreateReportCommand(
@@ -99,28 +116,28 @@ async def create_report(
         ) from exc
 
 
-@router.get("/", summary="获取报告列表")
+@router.post(
+    "/list",
+    summary="获取报告列表",
+    response_model=ApiResponse[PaginatedData[ReportResponse]],
+    operation_id="get_reports",
+)
 async def get_reports(
-    page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    patient_id: int | None = Query(None, description="患者ID筛选"),
-    report_status: str | None = Query(None, alias="status", description="状态筛选"),
-    priority: str | None = Query(None, description="优先级筛选"),
-    search: str | None = Query(None, description="搜索关键词"),
-    _: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestGetReports,
+    _: AccessPrincipal = Depends(get_current_active_user),
     service: ReportManagementApplicationService = Depends(
         get_report_management_service
     ),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         result = service.list(
             ReportListQuery(
-                page=page,
-                page_size=page_size,
-                patient_id=patient_id,
-                status=report_status,
-                priority=priority,
-                search=search,
+                page=request.page,
+                page_size=request.page_size,
+                patient_id=request.patient_id,
+                status=request.report_status,
+                priority=request.priority,
+                search=request.search,
             )
         )
         return paginated_response(
@@ -135,22 +152,27 @@ async def get_reports(
         return paginated_response(
             items=[],
             total=0,
-            page=page,
-            page_size=page_size,
+            page=request.page,
+            page_size=request.page_size,
             message="获取报告列表失败",
         )
 
 
-@router.get("/{report_id}", response_model=dict[str, Any], summary="获取报告详情")
+@router.post(
+    "/get",
+    summary="获取报告详情",
+    response_model=ApiResponse[ReportResponse],
+    operation_id="get_report",
+)
 async def get_report(
-    report_id: int,
-    _: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestGetReport,
+    _: AccessPrincipal = Depends(get_current_active_user),
     service: ReportManagementApplicationService = Depends(
         get_report_management_service
     ),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
-        report = service.get(report_id)
+        report = service.get(request.report_id)
         return success_response(
             data=ReportResponse(**report.to_dict()).model_dump(),
             message="报告详情查询成功",
@@ -165,19 +187,26 @@ async def get_report(
         ) from exc
 
 
-@router.put("/{report_id}", response_model=dict[str, Any], summary="更新报告")
+@router.post(
+    "/update",
+    summary="更新报告",
+    response_model=ApiResponse[ReportResponse],
+    operation_id="update_report",
+)
 async def update_report(
-    report_id: int,
-    request: ReportUpdate,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestUpdateReport,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: ReportManagementApplicationService = Depends(
         get_report_management_service
     ),
-) -> dict[str, Any]:
-    changes = cast(dict[str, str | None], request.model_dump(exclude_unset=True))
+) -> dict[str, object]:
+    changes = cast(
+        dict[str, str | None],
+        request.model_dump(exclude_unset=True, exclude={"report_id"}),
+    )
     try:
         report = service.update(
-            report_id,
+            request.report_id,
             UpdateReportCommand(changes=changes),
             actor_id=_actor_id(current_user),
         )
@@ -199,17 +228,22 @@ async def update_report(
         ) from exc
 
 
-@router.delete("/{report_id}", summary="删除报告")
+@router.post(
+    "/delete",
+    summary="删除报告",
+    response_model=ApiResponse[None],
+    operation_id="delete_report",
+)
 async def delete_report(
-    report_id: int,
-    current_user: dict[str, Any] = Depends(get_current_active_user),
+    request: RequestDeleteReport,
+    current_user: AccessPrincipal = Depends(get_current_active_user),
     service: ReportManagementApplicationService = Depends(
         get_report_management_service
     ),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     try:
         report_number = service.delete(
-            report_id,
+            request.report_id,
             actor_id=_actor_id(current_user),
         )
         logger.emit_event(LogLevel.INFO, message=f"报告删除成功: {report_number}")

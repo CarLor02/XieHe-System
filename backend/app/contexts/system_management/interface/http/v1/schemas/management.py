@@ -1,6 +1,5 @@
 """Schemas for the management API endpoints."""
 
-import typing
 from datetime import datetime
 from typing import Optional
 
@@ -29,5 +28,5 @@ class SystemStatsResponse(BaseModel):
 
 class SystemHealthResponse(BaseModel):
     status: str
-    components: dict[str, typing.Any]
+    components: dict[str, str]
     timestamp: datetime
