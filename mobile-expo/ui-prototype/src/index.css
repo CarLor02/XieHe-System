@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #cbd5e1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 375px;
+  min-height: 100vh;
+  background-color: #f8fafc;
+  flex-shrink: 0;
+}
+
+#root {
+  width: 375px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: #f8fafc;
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.2);
+}
+
+/* 隐藏 number input 默认箭头 */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
