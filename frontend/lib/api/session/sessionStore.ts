@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { sessionStoreLogging } from '@/lib/logger/sessionLogging';
+import {
+  sessionRefreshLockLogging,
+  sessionStoreLogging,
+} from '@/lib/logger/sessionLogging';
 import {
   apiSdk,
   configureWebSessionBridge,
@@ -51,6 +54,8 @@ export function hasUsableSession(
 ): boolean {
   return Boolean(session?.accessToken && session?.refreshToken);
 }
+
+let activeRefresh: { epoch: number; promise: Promise<boolean> } | null = null;
 
 export const useSessionStore = create<SessionState>()(
   persist(
@@ -185,48 +190,65 @@ export const useSessionStore = create<SessionState>()(
         }
       },
 
-      refreshAccessToken: async () => {
+      refreshAccessToken: () => {
         const epoch = get().sessionEpoch;
-        try {
-          const refreshToken = get().session?.refreshToken;
-          if (!refreshToken) {
-            throw new Error('No refresh token available');
-          }
-
-          sessionStoreLogging.refreshRequested(get().session);
-          const result = await apiSdk.auth.refresh(refreshToken);
-          // 检查与 set 之间没有异步边界，旧刷新不能覆盖后来登录的会话。
-          if (get().sessionEpoch !== epoch) return false;
-          const nextAccessToken = result.tokens?.access_token;
-          const nextRefreshToken = result.tokens?.refresh_token;
-
-          if (!nextAccessToken) {
-            throw new Error(
-              'Refresh response does not contain data.tokens.access_token'
-            );
-          }
-
-          set(state => ({
-            session: createUserSession({
-              accessToken: nextAccessToken,
-              refreshToken:
-                nextRefreshToken || state.session?.refreshToken || refreshToken,
-            }),
-          }));
-
-          sessionStoreLogging.refreshSucceeded(get().session);
-          return true;
-        } catch (error) {
-          sessionStoreLogging.refreshFailed({
-            error,
-            session: get().session,
-          });
-          const status = getApiErrorStatus(error);
-          if (status === 401 || status === 403) {
-            return false;
-          }
-          throw error;
+        // 定时、恢复窗口和 SDK 的 401 恢复必须共用锁；新登录不能等待旧会话。
+        if (activeRefresh?.epoch === epoch) {
+          sessionRefreshLockLogging.joined();
+          return activeRefresh.promise;
         }
+        sessionRefreshLockLogging.started();
+        const promise = (async () => {
+          try {
+            const refreshToken = get().session?.refreshToken;
+            if (!refreshToken) {
+              return false;
+            }
+
+            sessionStoreLogging.refreshRequested(get().session);
+            const result = await apiSdk.auth.refresh(refreshToken);
+            // 检查与 set 之间没有异步边界，旧刷新不能覆盖后来登录的会话。
+            if (get().sessionEpoch !== epoch) return false;
+            const nextAccessToken = result.tokens?.access_token;
+            const nextRefreshToken = result.tokens?.refresh_token;
+
+            if (!nextAccessToken) {
+              throw new Error(
+                'Refresh response does not contain data.tokens.access_token'
+              );
+            }
+
+            set(state => ({
+              session: createUserSession({
+                accessToken: nextAccessToken,
+                refreshToken:
+                  nextRefreshToken ||
+                  state.session?.refreshToken ||
+                  refreshToken,
+              }),
+            }));
+
+            sessionStoreLogging.refreshSucceeded(get().session);
+            return true;
+          } catch (error) {
+            if (get().sessionEpoch !== epoch) return false;
+            sessionStoreLogging.refreshFailed({
+              error,
+              session: get().session,
+            });
+            const status = getApiErrorStatus(error);
+            if (status === 401 || status === 403) {
+              return false;
+            }
+            throw error;
+          }
+        })().finally(() => {
+          // 旧请求完成时，不得释放新会话的锁。
+          if (activeRefresh?.promise === promise) activeRefresh = null;
+          sessionRefreshLockLogging.settled();
+        });
+        activeRefresh = { epoch, promise };
+        return promise;
       },
 
       forceLogout: context => {
@@ -253,6 +275,7 @@ export const useSessionStore = create<SessionState>()(
       },
 
       fetchUserInfoStatus: async () => {
+        const epoch = get().sessionEpoch;
         try {
           const session = get().session;
           if (!hasUsableSession(session)) {
@@ -269,16 +292,18 @@ export const useSessionStore = create<SessionState>()(
           }
 
           const user = await apiSdk.auth.getSessionUser();
+          if (get().sessionEpoch !== epoch) return 'error';
           set({ user });
           sessionStoreLogging.fetchUserInfoSucceeded(user);
           return 'success';
         } catch (error) {
+          if (get().sessionEpoch !== epoch) return 'error';
           sessionStoreLogging.fetchUserInfoFailed({
             error,
             session: get().session,
           });
           const status = getApiErrorStatus(error);
-          if (status === 401 || status === 403) {
+          if (status === 401) {
             return 'unauthorized';
           }
           return 'error';

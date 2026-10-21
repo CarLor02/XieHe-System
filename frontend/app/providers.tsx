@@ -47,6 +47,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     session,
     user,
     isLoggingOut,
+    sessionEpoch,
     fetchUserInfoStatus,
     forceLogout,
   } = useSessionStore();
@@ -93,6 +94,9 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    let active = true;
+    const isCurrentSession = () =>
+      active && useSessionStore.getState().sessionEpoch === sessionEpoch;
     // 后台校验认证状态，不阻塞首屏渲染。
     const initializeAuth = async () => {
       try {
@@ -106,14 +110,17 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
         if (hasStoredSession && accessToken) {
           // 尝试获取用户信息来验证 token 是否有效
           let status = await fetchUserInfoStatus();
+          if (!isCurrentSession()) return;
           sessionInitializerLogging.initializeStatus(status);
 
           if (status === 'unauthorized' && refreshToken) {
             sessionInitializerLogging.initializeRefreshAttempt();
             const refreshed = await refreshAccessTokenWithLock();
+            if (!isCurrentSession()) return;
             sessionInitializerLogging.initializeRefreshResult(refreshed);
             if (refreshed) {
               status = await fetchUserInfoStatus();
+              if (!isCurrentSession()) return;
               sessionInitializerLogging.initializePostRefreshStatus(status);
             }
           }
@@ -134,6 +141,9 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     };
 
     void initializeAuth();
+    return () => {
+      active = false;
+    };
   }, [
     isHydrated,
     accessToken,
@@ -141,6 +151,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     refreshToken,
     fetchUserInfoStatus,
     forceLogout,
+    sessionEpoch,
   ]);
 
   useEffect(() => {
@@ -166,11 +177,16 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
       refreshLeadTimeMs,
     });
 
+    let active = true;
     const timer = window.setTimeout(async () => {
       try {
         sessionInitializerLogging.scheduledRefreshTriggered();
         const refreshed = await refreshAccessTokenWithLock();
-        if (!refreshed) {
+        if (
+          !refreshed &&
+          active &&
+          useSessionStore.getState().sessionEpoch === sessionEpoch
+        ) {
           forceLogout({
             source: 'providers.scheduledRefresh',
             reason: 'refresh-returned-false',
@@ -181,13 +197,17 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
       }
     }, delayMs);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [
     isHydrated,
     hasStoredSession,
     refreshToken,
     accessTokenExpiresAtEpochSeconds,
     forceLogout,
+    sessionEpoch,
   ]);
 
   useEffect(() => {
@@ -201,6 +221,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     }
 
     const refreshLeadTimeMs = 2 * 60 * 1000;
+    let active = true;
 
     const maybeRefreshOnResume = async () => {
       const expiresAtMs = accessTokenExpiresAtEpochSeconds * 1000;
@@ -216,7 +237,11 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
       try {
         sessionInitializerLogging.resumeRefreshTriggered();
         const refreshed = await refreshAccessTokenWithLock();
-        if (!refreshed) {
+        if (
+          !refreshed &&
+          active &&
+          useSessionStore.getState().sessionEpoch === sessionEpoch
+        ) {
           forceLogout({
             source: 'providers.resumeRefresh',
             reason: 'refresh-returned-false',
@@ -242,6 +267,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     window.addEventListener('focus', handleFocus);
 
     return () => {
+      active = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
@@ -251,6 +277,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     refreshToken,
     accessTokenExpiresAtEpochSeconds,
     forceLogout,
+    sessionEpoch,
   ]);
 
   // 退出登录时浏览器会立即跳转到登录页，这里不再渲染初始化占位页。

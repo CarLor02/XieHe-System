@@ -97,6 +97,67 @@ describe('Stellarmesh project adapter', () => {
     });
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
+  it('reuses a completed refresh for a delayed 401 from the same request round', async () => {
+    let token = 'old';
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const refreshSession = vi.fn(async () => {
+      token = 'new';
+      return { accessToken: token };
+    });
+    const onUnauthorized = vi.fn();
+    handler = async (request, response) => {
+      const old = request.headers.authorization === 'Bearer old';
+      if (old && request.url === '/delayed') await gate;
+      json(response, { ok: true }, old ? 401 : 200);
+    };
+    const http = createStellarmeshHttp({
+      baseURL,
+      tokenProvider: { getAccessToken: () => token },
+      getSessionEpoch: () => 1,
+      refreshSession,
+      onUnauthorized,
+    });
+    const immediate = http.post<void, unknown>('/immediate')();
+    const delayed = http.post<void, unknown>('/delayed')();
+    try {
+      await immediate;
+    } finally {
+      release();
+    }
+    await delayed;
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+  it('replays at most once and notifies once when refreshed credentials are still rejected', async () => {
+    const refreshSession = vi.fn(async () => ({ accessToken: 'new' }));
+    const onUnauthorized = vi.fn();
+    let requests = 0;
+    handler = (_request, response) => {
+      requests += 1;
+      json(response, null, 401);
+    };
+    const http = createStellarmeshHttp({
+      baseURL,
+      tokenProvider: { getAccessToken: () => 'token' },
+      getSessionEpoch: () => 1,
+      refreshSession,
+      onUnauthorized,
+    });
+    const outcomes = await Promise.allSettled([
+      http.post<void, unknown>('/a')(),
+      http.post<void, unknown>('/b')(),
+    ]);
+    expect(outcomes).toEqual([
+      { status: 'rejected', reason: expect.objectContaining({ status: 401 }) },
+      { status: 'rejected', reason: expect.objectContaining({ status: 401 }) },
+    ]);
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(requests).toBe(4);
+  });
   it('drops a late response when the login session changes', async () => {
     let epoch = 1;
     let received!: () => void;
