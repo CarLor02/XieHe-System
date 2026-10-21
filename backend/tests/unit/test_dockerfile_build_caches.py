@@ -18,13 +18,13 @@ DOWNLOAD_STEPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         "apt-get install",
         ("target=/var/cache/apt", "target=/var/lib/apt"),
     ),
-    ("model/ap/Dockerfile", "pip install", ("target=/root/.cache/pip",)),
+    ("model/ap/Dockerfile", "uv sync", ("target=/root/.cache/uv",)),
     (
         "model/lat/Dockerfile",
         "apt-get install",
         ("target=/var/cache/apt", "target=/var/lib/apt"),
     ),
-    ("model/lat/Dockerfile", "pip install", ("target=/root/.cache/pip",)),
+    ("model/lat/Dockerfile", "uv sync", ("target=/root/.cache/uv",)),
     (
         "backend/app/services/logging-service/Dockerfile",
         "go mod download",

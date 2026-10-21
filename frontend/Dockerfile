@@ -7,7 +7,9 @@
 # ============================================
 # 阶段1: 构建阶段
 # ============================================
-FROM node:22-alpine AS builder
+# 固定官方多架构清单，避免宿主机同名标签被其他项目的构建产物覆盖。
+# 升级 Node 基础镜像时同时更新 digest，并验证 node/npm 与完整构建。
+FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS builder
 
 # 设置工作目录
 WORKDIR /app
