@@ -141,9 +141,12 @@ export function createImagingClient(http: HttpApi, client: HttpClient) {
         annotation,
       }),
     getStats: () => imagingApi.requestGetImageStats({}),
+    // 存储代理沿用模型原始 JSON；只跳过成功信封转换，仍保留认证恢复和 HTTP 错误。
     predict: (fileId: string | number) =>
       client.post<PredictMeasurementsResponse>(
-        `/api/v1/image-files/${fileId}/ai/predict`
+        `/api/v1/image-files/${fileId}/ai/predict`,
+        undefined,
+        { responseMode: 'raw' }
       ),
     detectKeypoints: (fileId: string | number) =>
       client.post<DetectKeypointsResponse | LateralDetectResponse>(
