@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
 import { useWorkspace } from '../../../application/AppProvider';
 import { useResource } from '../../../shared/hooks/useResource';
 import {
   Card,
+  Button,
   Content,
   EmptyState,
   ErrorState,
@@ -89,6 +90,16 @@ export function ImageDetailScreen() {
         )}
         {image && (
           <>
+            <Button
+              title="绘图与标注"
+              icon="create-outline"
+              onPress={() =>
+                router.push({
+                  pathname: '/images/annotate',
+                  params: { id: image.id },
+                })
+              }
+            />
             <Card>
               <SectionTitle title="基本信息" />
               <InfoRow
@@ -124,7 +135,7 @@ export function ImageDetailScreen() {
               ) : (
                 <EmptyState
                   title="暂无已保存的测量"
-                  description="首版支持查看测量，手动标注请在 Web 端完成"
+                  description="点击「绘图与标注」，选择工具开始测量"
                   icon="analytics-outline"
                 />
               )}

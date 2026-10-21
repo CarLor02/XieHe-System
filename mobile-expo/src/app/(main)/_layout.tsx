@@ -5,6 +5,10 @@ export default function WorkspaceLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="images/upload" options={{ gestureEnabled: false }} />
+      <Stack.Screen
+        name="images/annotate"
+        options={{ gestureEnabled: false }}
+      />
     </Stack>
   );
 }

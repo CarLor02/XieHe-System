@@ -5,6 +5,7 @@ import {
 import type { MobileServices } from './services';
 import { uploadImage } from '../features/imaging/usecases/uploadImage';
 import type { ExpoApiInfrastructure } from '../infrastructure/http/createExpoApiInfrastructure';
+import { createImageEditorGateway } from '../infrastructure/http/createImageEditorGateway';
 
 export function createMobileServices(
   api: ExpoApiInfrastructure
@@ -12,6 +13,7 @@ export function createMobileServices(
   const sdk = api.apiSdk;
   const storage = createHttpClientAdapter(createStellarmeshHttp({ raw: true }));
   return {
+    imageEditor: createImageEditorGateway(sdk.imaging),
     patients: sdk.patients,
     imaging: sdk.imaging,
     dashboard: sdk.dashboard,

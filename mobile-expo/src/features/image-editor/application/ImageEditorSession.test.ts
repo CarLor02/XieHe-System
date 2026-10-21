@@ -1,0 +1,513 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { ImageFileResponse } from '@xiehe/api-contracts/generated';
+import { ApiClientError } from '@xiehe/api-client';
+import {
+  createAnnotationDocument,
+  decodeAnnotationDocument,
+  type AnnotationDocument,
+} from '@xiehe/imaging-core/annotation-document';
+import {
+  createEmptyBindings,
+  createManualPointRef,
+} from '@xiehe/imaging-core/bindings';
+import {
+  AnnotationSource,
+  type MeasurementData,
+  type Point,
+} from '@xiehe/imaging-core/contracts';
+import { ImageEditorSession } from './ImageEditorSession';
+import type { ImageEditorGateway } from './ports';
+
+function image(
+  annotation: AnnotationDocument | null,
+  overrides: Partial<ImageFileResponse> = {}
+): ImageFileResponse {
+  return {
+    id: 42,
+    annotation: annotation as unknown as ImageFileResponse['annotation'],
+    annotation_version: 7,
+    created_at: '2026-10-21T00:00:00Z',
+    description: '正位X光片',
+    file_type: 'PNG',
+    file_uuid: 'test-image',
+    file_size: 100,
+    has_annotation: !!annotation,
+    mime_type: 'image/png',
+    object_key: 'test.png',
+    original_filename: 'test.png',
+    patient_id: null,
+    status: 'PROCESSED',
+    storage_bucket: 'test',
+    storage_etag: null,
+    study_date: null,
+    thumbnail_path: null,
+    upload_progress: 100,
+    uploaded_at: null,
+    uploaded_by: 1,
+    ...overrides,
+  };
+}
+const points = [
+  { x: 100, y: 100 },
+  { x: 300, y: 120 },
+  { x: 120, y: 300 },
+  { x: 320, y: 320 },
+  { x: 100, y: 600 },
+  { x: 300, y: 620 },
+  { x: 150, y: 800 },
+  { x: 350, y: 820 },
+  { x: 200, y: 1000 },
+  { x: 400, y: 1020 },
+];
+function document(measurements: MeasurementData[] = []) {
+  return createAnnotationDocument({
+    measurements,
+    imageWidth: 1000,
+    imageHeight: 2000,
+    standardDistance: 100,
+    standardDistancePoints: [
+      { x: 100, y: 1800 },
+      { x: 300, y: 1800 },
+    ],
+    pointBindings: createEmptyBindings(),
+    reportText: '已有报告',
+    savedAt: '2026-10-20T00:00:00Z',
+  });
+}
+async function setup(source = image(document()), thumbnail = false) {
+  const gateway = {
+    getImage: vi.fn<ImageEditorGateway['getImage']>().mockResolvedValue(source),
+    getPreview: vi
+      .fn<ImageEditorGateway['getPreview']>()
+      .mockResolvedValue({ uri: 'test://image', isThumbnail: thumbnail }),
+    save: vi
+      .fn<ImageEditorGateway['save']>()
+      .mockResolvedValue({ annotation_version: 8 }),
+  };
+  const session = new ImageEditorSession(42, gateway);
+  await session.load();
+  session.imageLoaded({
+    width: thumbnail ? 200 : 1000,
+    height: thumbnail ? 400 : 2000,
+  });
+  return { session, gateway };
+}
+function draw(session: ImageEditorSession, type: string, supplied: Point[]) {
+  session.chooseTool(type);
+  supplied.forEach(point => session.placePoint(point, 1));
+}
+
+describe('mobile image editing workflow', () => {
+  it('propagates existing manual point bindings and preserves unrelated stored values', async () => {
+    const first: MeasurementData = {
+      id: 'a',
+      type: 'aux-length',
+      value: '100mm',
+      points: points.slice(0, 2),
+    };
+    const second: MeasurementData = {
+      id: 'b',
+      type: 'aux-length',
+      value: '100mm',
+      points: points.slice(0, 2),
+    };
+    const unrelated: MeasurementData = {
+      id: 'legacy',
+      type: 'cobb1',
+      value: 'AI历史值',
+      points: points.slice(0, 4),
+    };
+    const source = document([first, second, unrelated]);
+    source.pointBindings = {
+      schemaVersion: 2,
+      syncGroups: [
+        {
+          id: 'manual',
+          name: '共享点',
+          source: 'manual',
+          color: '#FF0000',
+          members: [
+            createManualPointRef(first, 0)!,
+            createManualPointRef(second, 0)!,
+          ],
+        },
+      ],
+    };
+    const { session, gateway } = await setup(image(source));
+    session.beginDrag({ kind: 'point', measurementId: 'a', pointIndex: 0 });
+    session.moveDrag({ x: 130, y: 160 });
+    session.endDrag();
+    expect(session.snapshot?.measurements[1].points[0]).toEqual({
+      x: 130,
+      y: 160,
+    });
+    expect(session.snapshot?.measurements[2].value).toBe('AI历史值');
+    expect(await session.save()).toBe(true);
+    expect(gateway.save.mock.calls[0][0].annotation.pointBindings).toEqual(
+      source.pointBindings
+    );
+  });
+
+  it('writes explicitly selected lateral Cobb endpoints back to the correct keypoints', async () => {
+    const { session } = await setup(
+      image(document(), { description: '侧位X光片' })
+    );
+    session.chooseTool('lateral-cobb', {
+      cobbEndpoints: { upperVertebra: 'T2', lowerVertebra: 'T5' },
+    });
+    points.slice(0, 4).forEach(point => session.placePoint(point, 1));
+    const measurement = session.snapshot!.measurements[0];
+    expect(measurement).toMatchObject({
+      upperVertebra: 'T2',
+      lowerVertebra: 'T5',
+    });
+    session.beginDrag({
+      kind: 'point',
+      measurementId: measurement.id,
+      pointIndex: 2,
+    });
+    session.moveDrag({ x: 150, y: 350 });
+    session.endDrag();
+    expect(
+      session.snapshot?.keypoints.find(k => k.id === 'T5-3')?.point
+    ).toEqual({ x: 150, y: 350 });
+  });
+
+  it('reads server annotation and saves original coordinates over a smaller thumbnail', async () => {
+    const source = document([
+      {
+        id: 'existing',
+        type: 'Cobb1',
+        value: '10°',
+        points: points.slice(0, 4),
+      },
+    ]);
+    source.vertebraeLayer = [
+      {
+        label: 'C7',
+        corners: points.slice(0, 4) as [Point, Point, Point, Point],
+        confidence: 0.9,
+        source: AnnotationSource.AI,
+      },
+    ];
+    const { session, gateway } = await setup(
+      image(source, { file_type: 'TIFF' }),
+      true
+    );
+    expect(session.getState().imageSize).toEqual({ width: 1000, height: 2000 });
+    const before = session.snapshot!;
+    draw(session, 'aux-length', [
+      { x: 400, y: 1200 },
+      { x: 500, y: 1200 },
+    ]);
+    expect(session.getState().dirty).toBe(true);
+    expect(await session.save()).toBe(true);
+    const input = gateway.save.mock.calls[0][0];
+    expect(input.expectedVersion).toBe(7);
+    expect(input.annotation.imageWidth).toBe(1000);
+    expect(input.annotation.imageHeight).toBe(2000);
+    expect(
+      input.annotation.measurements.find(m => m.id === 'existing')?.points
+    ).toEqual(before.measurements[0].points);
+    expect(input.annotation.measurements.at(-1)?.points).toEqual([
+      { x: 400, y: 1200 },
+      { x: 500, y: 1200 },
+    ]);
+    expect(input.annotation.vertebraeLayer).toEqual(before.vertebraeLayer);
+    expect(input.annotation.reportText).toBe('已有报告');
+    expect(session.getState()).toMatchObject({
+      annotationVersion: 8,
+      dirty: false,
+      saving: false,
+    });
+    const reopened = await setup(
+      image(input.annotation, { annotation_version: 8 })
+    );
+    expect(reopened.session.snapshot?.measurements).toEqual(
+      input.annotation.measurements
+    );
+  });
+
+  it('records an entire point drag as one undoable change and cancels interrupted drags', async () => {
+    const { session } = await setup(
+      image(
+        document([
+          {
+            id: 'line',
+            type: 'aux-length',
+            value: '100mm',
+            points: points.slice(0, 2),
+          },
+        ])
+      )
+    );
+    const before = structuredClone(session.snapshot);
+    session.beginDrag({ kind: 'point', measurementId: 'line', pointIndex: 0 });
+    for (let x = 101; x < 120; x++) session.moveDrag({ x, y: 150 });
+    session.endDrag();
+    expect(session.getState().history?.past).toHaveLength(1);
+    expect(session.snapshot?.measurements[0].points[0]).toEqual({
+      x: 119,
+      y: 150,
+    });
+    session.undo();
+    expect(session.snapshot).toEqual(before);
+    expect(session.getState().dirty).toBe(false);
+    session.redo();
+    expect(session.snapshot?.measurements[0].points[0]).toEqual({
+      x: 119,
+      y: 150,
+    });
+    const moved = structuredClone(session.snapshot);
+    session.beginDrag({ kind: 'point', measurementId: 'line', pointIndex: 0 });
+    session.moveDrag({ x: 500, y: 500 });
+    session.cancelDrag();
+    expect(session.snapshot).toEqual(moved);
+    expect(session.getState().history?.past).toHaveLength(1);
+  });
+
+  it('synchronizes an edited medical point with its keypoint and reopens with the same geometry', async () => {
+    const { session, gateway } = await setup(
+      image(
+        document([
+          {
+            id: 't1',
+            type: 't1-tilt',
+            value: '5°',
+            points: points.slice(0, 2),
+            keypointSynced: true,
+          },
+        ])
+      )
+    );
+    session.beginDrag({ kind: 'point', measurementId: 't1', pointIndex: 0 });
+    session.moveDrag({ x: 120, y: 150 });
+    session.endDrag();
+    expect(
+      session.snapshot?.keypoints.find(k => k.id === 'T1-1')?.point
+    ).toEqual({ x: 120, y: 150 });
+    expect(session.snapshot?.measurements[0].value).not.toBe('5°');
+    expect(await session.save()).toBe(true);
+    const saved = gateway.save.mock.calls[0][0].annotation;
+    const reopened = await setup(image(saved));
+    expect(reopened.session.snapshot?.measurements[0].points).toEqual(
+      session.snapshot?.measurements[0].points
+    );
+    expect(
+      reopened.session.snapshot?.keypoints.find(k => k.id === 'T1-1')?.point
+    ).toEqual({ x: 120, y: 150 });
+  });
+
+  it('keeps drafts separate from saved facts and rejects incomplete drawing saves', async () => {
+    const { session, gateway } = await setup();
+    const before = structuredClone(session.snapshot);
+    session.chooseTool('cobb');
+    session.placePoint(points[0], 1);
+    expect(await session.save()).toBe(false);
+    expect(gateway.save).not.toHaveBeenCalled();
+    session.cancelDrawing();
+    expect(session.snapshot).toEqual(before);
+    expect(session.getState().dirty).toBe(false);
+    expect(session.getState().history?.past).toHaveLength(0);
+  });
+
+  it.each([
+    ['T2', 8, 'c7pl'],
+    ['T12', 6, 'csvl'],
+  ] as const)(
+    'uses the shared AVT placement sequence for %s',
+    async (vertebra, clicks, reference) => {
+      const { session } = await setup();
+      session.chooseTool('avt', { avtTarget: { type: 'vertebra', vertebra } });
+      for (let index = 0; index < clicks; index++)
+        session.placePoint(points[index], 1);
+      expect(session.getState().drawing).toBeNull();
+      expect(session.snapshot?.measurements[0]).toMatchObject({
+        type: 'avt',
+        avtMetadata: {
+          schemaVersion: 2,
+          target: { type: 'vertebra', vertebra },
+          referenceLine: reference,
+        },
+      });
+      expect(session.getState().history?.past).toHaveLength(1);
+      session.chooseTool('avt', { avtTarget: { type: 'vertebra', vertebra } });
+      expect(session.getState().drawing).toBeNull();
+      expect(session.snapshot?.measurements).toHaveLength(1);
+      session.undo();
+      expect(session.snapshot?.keypoints).toHaveLength(0);
+    }
+  );
+
+  it('closes a polygon and constrains auxiliary lines using shared rules', async () => {
+    const { session } = await setup();
+    draw(session, 'polygon', [...points.slice(0, 3), points[0]]);
+    expect(session.snapshot?.measurements[0].points).toHaveLength(3);
+    draw(session, 'aux-horizontal-line', [
+      { x: 50, y: 60 },
+      { x: 300, y: 220 },
+    ]);
+    expect(session.snapshot?.measurements[1].points[1]).toEqual({
+      x: 300,
+      y: 60,
+    });
+    const id = session.snapshot!.measurements[1].id;
+    session.beginDrag({ kind: 'point', measurementId: id, pointIndex: 1 });
+    session.moveDrag({ x: 500, y: 300 });
+    session.endDrag();
+    expect(session.snapshot?.measurements[1].points[1]).toEqual({
+      x: 500,
+      y: 60,
+    });
+  });
+
+  it('keeps a unique measurement unique and selects the existing instance', async () => {
+    const { session } = await setup(
+      image(
+        document([
+          { id: 'ca', type: 'ca', value: '2°', points: points.slice(0, 2) },
+        ])
+      )
+    );
+    session.chooseTool('ca');
+    expect(session.getState().drawing).toBeNull();
+    expect(session.getState().selection).toMatchObject({ measurementId: 'ca' });
+    expect(session.snapshot?.measurements).toHaveLength(1);
+  });
+
+  it('recalculates calibrated distances without changing the drawing geometry', async () => {
+    const { session } = await setup();
+    draw(session, 'aux-length', [
+      { x: 400, y: 1200 },
+      { x: 500, y: 1200 },
+    ]);
+    expect(session.snapshot?.measurements[0].value).toBe('50.00mm');
+    session.setStandardDistance('200');
+    expect(session.snapshot?.measurements[0].value).toBe('100.00mm');
+    const originalPoints = structuredClone(
+      session.snapshot?.measurements[0].points
+    );
+    draw(session, 'calibration', [
+      { x: 100, y: 1600 },
+      { x: 500, y: 1600 },
+    ]);
+    expect(session.snapshot?.measurements[0].value).toBe('50.00mm');
+    expect(session.snapshot?.measurements[0].points).toEqual(originalPoints);
+    session.undo();
+    expect(session.snapshot?.measurements[0].value).toBe('100.00mm');
+  });
+
+  it('supports bilateral pelvis and keeps PI/PT geometry together when a radius changes', async () => {
+    const { session } = await setup(
+      image(document(), { description: '侧位X光片' })
+    );
+    session.chooseTool('pi', { pelvicMode: 'bilateral' });
+    points.slice(0, 6).forEach(p => session.placePoint(p, 1));
+    expect(
+      session.snapshot?.measurements[0].pelvicMetadata?.femoralHeadMode
+    ).toBe('bilateral');
+    session.chooseTool('pt', { pelvicMode: 'bilateral' });
+    expect(session.getState().drawing).toBeNull();
+    expect(session.snapshot?.measurements).toHaveLength(2);
+    const id = session.snapshot!.measurements[0].id;
+    session.beginDrag({ kind: 'point', measurementId: id, pointIndex: 1 });
+    session.moveDrag({ x: 350, y: 150 });
+    session.endDrag();
+    expect(session.snapshot?.measurements[0].points).toEqual(
+      session.snapshot?.measurements[1].points
+    );
+    session.select({ kind: 'whole', measurementId: id });
+    session.deleteSelected();
+    expect(session.snapshot?.measurements).toHaveLength(0);
+    session.undo();
+    expect(session.snapshot?.measurements).toHaveLength(2);
+  });
+
+  it('retains a failed or conflicting save and never retries with a newer version automatically', async () => {
+    const { session, gateway } = await setup();
+    draw(session, 'aux-length', points.slice(0, 2));
+    gateway.save.mockRejectedValueOnce(
+      new ApiClientError('service unavailable', { status: 503 })
+    );
+    expect(await session.save()).toBe(false);
+    expect(session.getState()).toMatchObject({
+      annotationVersion: 7,
+      dirty: true,
+      saving: false,
+      conflict: false,
+    });
+    gateway.save.mockRejectedValueOnce(
+      new ApiClientError('conflict', { status: 409 })
+    );
+    expect(await session.save()).toBe(false);
+    expect(session.getState()).toMatchObject({
+      annotationVersion: 7,
+      dirty: true,
+      saving: false,
+      conflict: true,
+    });
+    expect(await session.save()).toBe(false);
+    expect(gateway.save).toHaveBeenCalledTimes(2);
+    expect(session.snapshot?.measurements).toHaveLength(1);
+  });
+
+  it('blocks concurrent edits and duplicate saves while a server save is pending', async () => {
+    const { session, gateway } = await setup();
+    draw(session, 'aux-length', points.slice(0, 2));
+    let finish!: (result: { annotation_version: number }) => void;
+    gateway.save.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const saving = session.save();
+    expect(await session.save()).toBe(false);
+    session.clear();
+    expect(session.snapshot?.measurements).toHaveLength(1);
+    finish({ annotation_version: 9 });
+    await saving;
+    expect(gateway.save).toHaveBeenCalledTimes(1);
+    expect(session.getState()).toMatchObject({
+      annotationVersion: 9,
+      dirty: false,
+    });
+  });
+
+  it('refuses unknown document versions and thumbnails without original dimensions', async () => {
+    const invalid = image(null);
+    invalid.annotation = { schemaVersion: 999, measurements: [] };
+    const first = await setup(invalid);
+    expect(first.session.getState().status).toBe('error');
+    const legacy = document();
+    delete legacy.imageWidth;
+    delete legacy.imageHeight;
+    const second = await setup(image(legacy, { file_type: 'DICOM' }), true);
+    expect(second.session.editable).toBe(false);
+    expect(await second.session.save()).toBe(false);
+    expect(second.gateway.save).not.toHaveBeenCalled();
+    expect(
+      decodeAnnotationDocument(second.session.getState().image?.annotation)
+        ?.imageWidth
+    ).toBeUndefined();
+  });
+
+  it('ignores a completed load after the screen session has been cancelled', async () => {
+    let resolve!: (value: ImageFileResponse) => void;
+    const gateway: ImageEditorGateway = {
+      getImage: () =>
+        new Promise(r => {
+          resolve = r;
+        }),
+      getPreview: async () => ({ uri: 'test://image', isThumbnail: false }),
+      save: vi.fn(),
+    };
+    const session = new ImageEditorSession(42, gateway);
+    const pending = session.load();
+    session.cancelPending();
+    resolve(image(document()));
+    await pending;
+    expect(session.getState().status).toBe('loading');
+    expect(session.snapshot).toBeNull();
+  });
+});

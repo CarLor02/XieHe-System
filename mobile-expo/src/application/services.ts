@@ -1,5 +1,6 @@
 import type { XieheApiSdk } from '@xiehe/api-sdk';
 import type { MobileUploadFile } from '../features/imaging/domain/upload';
+import type { ImageEditorGateway } from '../features/image-editor';
 
 export interface ImagePreview {
   uri: string | null;
@@ -8,6 +9,7 @@ export interface ImagePreview {
 
 // Keep the mobile port limited to supported flows; DTOs and endpoints remain in the shared SDK.
 export interface MobileServices {
+  imageEditor: ImageEditorGateway;
   patients: Pick<XieheApiSdk['patients'], 'list' | 'get' | 'create' | 'update'>;
   imaging: Pick<
     XieheApiSdk['imaging'],
