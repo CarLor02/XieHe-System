@@ -19,10 +19,13 @@ export interface MobileServices {
     | 'get'
     | 'listPatientImages'
     | 'listAssignableTeams'
-    | 'predict'
     | 'getDownloadUrl'
     | 'getDownloadUrls'
     | 'delete'
+    | 'updateInfo'
+    | 'rename'
+    | 'listAnnotationHistory'
+    | 'getAnnotationHistory'
   >;
   dashboard: Pick<XieheApiSdk['dashboard'], 'getStats' | 'getRecentActivities'>;
   teams: TeamsGateway;

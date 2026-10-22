@@ -1,3 +1,4 @@
+import { isSupportedImage } from '../domain/supportedImage';
 import { useEffect, useState } from 'react';
 import type {
   ImageFile,
@@ -17,7 +18,9 @@ export function useImageThumbnails(images?: ImageFile[]) {
     // Only request derivatives for the visible page; never fetch full medical images for list thumbnails.
     void services.imaging
       .getDownloadUrls(
-        images.map(image => image.id),
+        images
+          .filter(image => isSupportedImage(image.file_type))
+          .map(image => image.id),
         { variant: 'thumbnail' }
       )
       .then(response => {

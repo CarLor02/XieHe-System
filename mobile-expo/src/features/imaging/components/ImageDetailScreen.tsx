@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
 import { useWorkspace } from '../../../application/AppProvider';
@@ -24,12 +24,17 @@ import {
   imageStatusLabel,
 } from '../domain/presentation';
 import { savedMeasurements, savedReport } from '../domain/measurements';
+import { ImageMetadataSheet } from './ImageMetadataSheet';
+import { AnnotationHistorySheet } from './AnnotationHistorySheet';
 import { ImageViewport } from './ImageViewport';
 import { isSupportedImage } from '../domain/supportedImage';
 
 export function ImageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const imageId = Number(id);
+  const [action, setAction] = useState<'rename' | 'info' | 'history' | null>(
+    null
+  );
   const { services } = useWorkspace();
   const load = useCallback(
     () => services.imaging.get(imageId),
@@ -83,9 +88,7 @@ export function ImageDetailScreen() {
           />
         )}
         {preview.data?.isThumbnail && (
-          <Notice>
-            当前显示服务端生成的 TIFF 预览图，标注使用原图坐标。
-          </Notice>
+          <Notice>当前显示服务端生成的 TIFF 预览图，标注使用原图坐标。</Notice>
         )}
         {image && (
           <>
@@ -99,6 +102,23 @@ export function ImageDetailScreen() {
                   params: { id: image.id },
                 })
               }
+            />
+            <Button
+              title="编辑影像信息"
+              variant="secondary"
+              icon="options-outline"
+              onPress={() => setAction('info')}
+            />
+            <Button
+              title="重命名文件"
+              variant="secondary"
+              onPress={() => setAction('rename')}
+            />
+            <Button
+              title="标注保存历史"
+              variant="secondary"
+              icon="time-outline"
+              onPress={() => setAction('history')}
             />
             <Card>
               <SectionTitle title="基本信息" />
@@ -148,10 +168,37 @@ export function ImageDetailScreen() {
                 </Text>
               </Card>
             )}
-            <Button title="AI 测量与报告" icon="sparkles-outline" disabled={!isSupportedImage(image.file_type)} onPress={() => router.push({ pathname: '/images/annotate', params: { id: image.id, panel: 'analysis' } })} />
+            <Button
+              title="AI 测量与报告"
+              icon="sparkles-outline"
+              disabled={!isSupportedImage(image.file_type)}
+              onPress={() =>
+                router.push({
+                  pathname: '/images/annotate',
+                  params: { id: image.id, panel: 'analysis' },
+                })
+              }
+            />
           </>
         )}
       </Content>
+      {image && (action === 'rename' || action === 'info') && (
+        <ImageMetadataSheet
+          image={image}
+          mode={action}
+          onClose={() => setAction(null)}
+          onSaved={() => {
+            setAction(null);
+            void resource.reload();
+          }}
+        />
+      )}
+      {image && action === 'history' && (
+        <AnnotationHistorySheet
+          imageId={image.id}
+          onClose={() => setAction(null)}
+        />
+      )}
     </Screen>
   );
 }
