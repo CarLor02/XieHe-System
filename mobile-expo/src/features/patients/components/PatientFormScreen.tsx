@@ -32,6 +32,10 @@ function PatientForm({ patient }: { patient?: Patient }) {
     phone: patient?.phone ?? '',
     email: patient?.email ?? '',
     address: patient?.address ?? '',
+    id_card: patient?.id_card ?? '',
+    insurance_number: patient?.insurance_number ?? '',
+    emergency_contact_name: patient?.emergency_contact_name ?? '',
+    emergency_contact_phone: patient?.emergency_contact_phone ?? '',
   }));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -119,6 +123,23 @@ function PatientForm({ patient }: { patient?: Patient }) {
           multiline
           editable={!busy}
         />
+        {(
+          [
+            ['id_card', '身份证号', 18],
+            ['insurance_number', '医保号', 50],
+            ['emergency_contact_name', '紧急联系人', 100],
+            ['emergency_contact_phone', '紧急联系电话', 20],
+          ] as const
+        ).map(([key, label, maxLength]) => (
+          <Field
+            key={key}
+            label={label}
+            value={form[key] ?? ''}
+            onChangeText={value => change(key, value)}
+            maxLength={maxLength}
+            editable={!busy}
+          />
+        ))}
       </Card>
       {!!error && (
         <Text

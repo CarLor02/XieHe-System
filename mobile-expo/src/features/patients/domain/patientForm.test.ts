@@ -20,6 +20,10 @@ describe('mobile patient request', () => {
       phone: null,
       email: null,
       address: null,
+      id_card: null,
+      insurance_number: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
     });
   });
   it.each(['2001-02-29', '2026-02-30', '2027-01-01', '2000-2-1'])(

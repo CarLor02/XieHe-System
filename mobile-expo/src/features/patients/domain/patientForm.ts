@@ -8,6 +8,10 @@ export interface PatientFormValue {
   phone: string;
   email: string;
   address: string;
+  id_card?: string;
+  insurance_number?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
 }
 export function toPatientRequest(
   form: PatientFormValue,
@@ -42,5 +46,9 @@ export function toPatientRequest(
     phone: form.phone.trim() || null,
     email: form.email.trim() || null,
     address: form.address.trim() || null,
+    id_card: form.id_card?.trim() || null,
+    insurance_number: form.insurance_number?.trim() || null,
+    emergency_contact_name: form.emergency_contact_name?.trim() || null,
+    emergency_contact_phone: form.emergency_contact_phone?.trim() || null,
   };
 }

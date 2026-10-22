@@ -1,4 +1,5 @@
 import type { TeamsGateway } from '../features/teams';
+import type { ReportsGateway } from '../features/reports';
 import type { XieheApiSdk } from '@xiehe/api-sdk';
 import type { MobileUploadFile } from '../features/imaging/domain/upload';
 import type { ImageEditorGateway } from '../features/image-editor';
@@ -11,7 +12,7 @@ export interface ImagePreview {
 // Keep the mobile port limited to supported flows; DTOs and endpoints remain in the shared SDK.
 export interface MobileServices {
   imageEditor: ImageEditorGateway;
-  patients: Pick<XieheApiSdk['patients'], 'list' | 'get' | 'create' | 'update'>;
+  patients: Pick<XieheApiSdk['patients'], 'list' | 'get' | 'create' | 'update' | 'delete'>;
   imaging: Pick<
     XieheApiSdk['imaging'],
     | 'list'
@@ -25,7 +26,7 @@ export interface MobileServices {
   >;
   dashboard: Pick<XieheApiSdk['dashboard'], 'getStats' | 'getRecentActivities'>;
   teams: TeamsGateway;
-  reports: Pick<XieheApiSdk['reports'], 'list' | 'generate'>;
+  reports: ReportsGateway;
   preview: (imageId: number) => Promise<ImagePreview>;
   upload: (
     file: MobileUploadFile,

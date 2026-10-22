@@ -1,128 +1,144 @@
-import { useCallback, useState } from 'react';
-import type { ReportSummary } from '@xiehe/api-contracts';
-import { Pressable, Text, View } from 'react-native';
+import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Pressable, RefreshControl, Text, View } from 'react-native';
 import { useWorkspace } from '../../../application/AppProvider';
-import { useResource } from '../../../shared/hooks/useResource';
-import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
 import {
   Card,
+  Choice,
   ChoiceSheet,
   Content,
   EmptyState,
   ErrorState,
   Header,
   Icon,
-  InfoRow,
+  IconButton,
   LoadingState,
   Pagination,
   Screen,
   SearchField,
   Tag,
 } from '../../../shared/ui';
-import { colors, layout } from '../../../shared/theme';
+import { FilterChip } from '../../../shared/ui/FilterChip';
+import { layout } from '../../../shared/theme';
+import {
+  reportStatuses,
+  reportStatusLabel,
+  useReports,
+} from '../application/useReports';
 
 export function ReportsScreen() {
   const { services } = useWorkspace();
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<ReportSummary | null>(null);
-  const query = useDebouncedValue(search);
-  const load = useCallback(
-    () =>
-      services.reports.list({
-        page,
-        page_size: 20,
-        search: query.trim() || undefined,
-      }),
-    [services, page, query]
+  const { patientId, patientName } = useLocalSearchParams<{
+    patientId?: string;
+    patientName?: string;
+  }>();
+  const reports = useReports(
+    services.reports,
+    patientId ? Number(patientId) : undefined
   );
-  const resource = useResource(load);
+  const [filterOpen, setFilterOpen] = useState(false);
   return (
     <Screen>
       <Header
         title="诊断报告"
-        subtitle={
-          resource.data
-            ? `共 ${resource.data.total} 份报告`
-            : '查询后端报告记录'
-        }
+        subtitle={patientName || `共 ${reports.data?.total ?? 0} 份报告`}
         back
+        right={
+          <IconButton
+            name="add"
+            label="新建报告"
+            light
+            onPress={() =>
+              router.push({
+                pathname: '/reports/new',
+                params: { patientId, patientName },
+              })
+            }
+          />
+        }
       >
         <SearchField
-          value={search}
-          onChangeText={value => {
-            setSearch(value);
-            setPage(1);
-          }}
+          value={reports.search}
+          onChangeText={reports.searchFor}
           placeholder="搜索报告或患者"
         />
       </Header>
-      <Content>
-        {resource.loading && !resource.data && <LoadingState />}
-        {!!resource.error && (
+      <Content
+        refreshControl={
+          <RefreshControl
+            refreshing={reports.loading && !!reports.data}
+            onRefresh={() => void reports.reload()}
+          />
+        }
+      >
+        <FilterChip
+          title={reportStatusLabel(reports.status)}
+          icon="options-outline"
+          active={!!reports.status}
+          onPress={() => setFilterOpen(true)}
+        />
+        {reports.loading && !reports.data && <LoadingState />}
+        {!!reports.error && (
           <ErrorState
-            message={resource.error}
-            onRetry={() => void resource.reload()}
+            message={reports.error}
+            onRetry={() => void reports.reload()}
           />
         )}
-        {resource.data?.items.map(report => (
+        {reports.data?.items.map(report => (
           <Pressable
+            key={report.id}
             accessibilityRole="button"
             accessibilityLabel={`查看报告 ${report.report_title}`}
-            key={report.id}
-            onPress={() => setSelected(report)}
+            onPress={() =>
+              router.push({
+                pathname: '/reports/detail',
+                params: { id: report.id },
+              })
+            }
           >
             <Card>
               <View style={layout.row}>
                 <Icon name="document-text-outline" />
                 <View style={layout.flex}>
                   <Text style={layout.heading}>{report.report_title}</Text>
-                  <Text style={[layout.muted, { marginTop: 7 }]}>
+                  <Text style={layout.muted}>
                     {report.patient_name || `患者 ${report.patient_id}`} ·{' '}
                     {report.report_number}
                   </Text>
                 </View>
-                <Icon name="chevron-forward" color={colors.faint} size={17} />
+                <Icon name="chevron-forward" />
               </View>
               <View style={layout.divider} />
-              <Tag text={report.status} tone="muted" />
+              <Tag text={reportStatusLabel(report.status)} />
             </Card>
           </Pressable>
         ))}
-        {resource.data?.total === 0 && (
-          <EmptyState
-            title="暂无报告记录"
-            description="报告会在后端生成并保存后显示在这里"
-            icon="document-text-outline"
-          />
-        )}
-        {resource.data && (
+        {reports.data?.total === 0 && <EmptyState title="暂无报告记录" />}
+        {reports.data && (
           <Pagination
-            page={page}
-            total={resource.data.total}
-            loading={resource.loading}
-            onChange={setPage}
+            page={reports.page}
+            total={reports.data.total}
+            loading={reports.loading}
+            onChange={reports.setPage}
           />
         )}
       </Content>
       <ChoiceSheet
-        open={!!selected}
-        title="报告摘要"
-        onClose={() => setSelected(null)}
+        open={filterOpen}
+        title="报告状态"
+        onClose={() => setFilterOpen(false)}
       >
-        {selected && (
-          <>
-            <InfoRow label="标题" value={selected.report_title} />
-            <InfoRow label="报告编号" value={selected.report_number} />
-            <InfoRow label="患者" value={selected.patient_name} />
-            <InfoRow label="状态" value={selected.status} />
-            <InfoRow label="报告医师" value={selected.reporting_physician} />
-            <InfoRow label="主要诊断" value={selected.primary_diagnosis} />
-            <Text style={layout.muted}>
-              完整报告编辑与审核请在 Web 端完成。
-            </Text>
-          </>
-        )}
+        {reportStatuses.map(([key, label]) => (
+          <Choice
+            key={key}
+            title={label}
+            selected={reports.status === key}
+            onPress={() => {
+              reports.filter(key);
+              setFilterOpen(false);
+            }}
+          />
+        ))}
       </ChoiceSheet>
     </Screen>
   );

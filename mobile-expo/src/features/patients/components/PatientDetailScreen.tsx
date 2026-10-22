@@ -1,11 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
 import { useWorkspace } from '../../../application/AppProvider';
+import { useMutation } from '../../../shared/hooks/useMutation';
 import { useResource } from '../../../shared/hooks/useResource';
 import {
   Button,
   Card,
+  ChoiceSheet,
   Content,
   EmptyState,
   ErrorState,
@@ -24,6 +26,8 @@ export function PatientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { services } = useWorkspace();
   const patientId = Number(id);
+  const [deleting, setDeleting] = useState(false);
+  const mutation = useMutation();
   const load = useCallback(
     () => services.patients.get(patientId),
     [services, patientId]
@@ -78,6 +82,8 @@ export function PatientDetailScreen() {
               <InfoRow label="出生日期" value={patient.birth_date} />
               <InfoRow label="手机号" value={patient.phone} />
               <InfoRow label="邮箱" value={patient.email} />
+              <InfoRow label="身份证号" value={patient.id_card} />
+              <InfoRow label="医保号" value={patient.insurance_number} />
               <InfoRow label="联系地址" value={patient.address} />
               <InfoRow
                 label="紧急联系人"
@@ -88,6 +94,17 @@ export function PatientDetailScreen() {
                 value={patient.emergency_contact_phone}
               />
             </Card>
+            <Button
+              title="患者诊断报告"
+              icon="document-text-outline"
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: '/reports',
+                  params: { patientId: patient.id, patientName: patient.name },
+                })
+              }
+            />
             <SectionTitle
               title={`影像记录${images.data ? ` · ${images.data.total}` : ''}`}
               action="查看全部"
@@ -125,9 +142,37 @@ export function PatientDetailScreen() {
                 })
               }
             />
+            <Button
+              title="删除患者档案"
+              variant="danger"
+              onPress={() => setDeleting(true)}
+            />
           </>
         )}
       </Content>
+      <ChoiceSheet
+        open={deleting}
+        title="删除患者档案？"
+        onClose={() => {
+          if (!mutation.busy) setDeleting(false);
+        }}
+      >
+        <Text style={layout.body}>
+          确认删除 {patient?.name} 的档案？服务器会检查关联记录与删除权限。
+        </Text>
+        {!!mutation.error && <ErrorState message={mutation.error} />}
+        <Button
+          title="确认删除患者"
+          variant="danger"
+          loading={mutation.busy}
+          onPress={() =>
+            void mutation.run(
+              () => services.patients.delete(patientId),
+              () => router.back()
+            )
+          }
+        />
+      </ChoiceSheet>
     </Screen>
   );
 }
